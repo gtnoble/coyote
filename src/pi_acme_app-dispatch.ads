@@ -9,12 +9,10 @@
 --  For revision history, see the project version-control log.
 
 with Acme.Window;
-with GNATCOLL.JSON;
+with LLM.Events;
 with Nine_P.Client;
 
 package Pi_Acme_App.Dispatch is
-
-   type Command_Sender is access procedure (Line : String);
 
    --  Build the one-line status string placed in the first body line.
    function Format_Status
@@ -36,18 +34,15 @@ package Pi_Acme_App.Dispatch is
       Sub     : String;
       Content : String);
 
-   --  Dispatch one pi JSON event to the appropriate window mutation.
+   --  Dispatch one native agent event to the appropriate window mutation.
    --  Section tracks the current streaming content kind and is updated
-   --  in place.  Send_Command optionally forwards legacy RPC commands that
-   --  still arise from some event handlers.  PID is this process's PID as a
-   --  decimal string.
+   --  in place.  PID is this process's PID as a decimal string.
    procedure Dispatch_Pi_Event
-     (Event        :        GNATCOLL.JSON.JSON_Value;
-      Win          : in out Acme.Window.Win;
-      FS           : not null access Nine_P.Client.Fs;
-      State        : in out App_State;
-      Section      : in out Section_Kind;
-      Send_Command :        Command_Sender := null;
-      PID          :        String);
+     (Event   : LLM.Events.Agent_Event'Class;
+      Win     : in out Acme.Window.Win;
+      FS      : not null access Nine_P.Client.Fs;
+      State   : in out App_State;
+      Section : in out Section_Kind;
+      PID     : String);
 
 end Pi_Acme_App.Dispatch;

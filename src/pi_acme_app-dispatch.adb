@@ -3,15 +3,33 @@
 --  Project: pi_acme
 --  For revision history, see the project version-control log.
 
-with Ada.Directories;
 with Ada.Exceptions;
 with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
 with Ada.Text_IO;
-with GNATCOLL.JSON;          use GNATCOLL.JSON;
+with GNATCOLL.JSON;
+with LLM.Types;
 with Nine_P.Client;          use Nine_P.Client;
 with Pi_Acme_App.Utils;      use Pi_Acme_App.Utils;
 
 package body Pi_Acme_App.Dispatch is
+
+   use type GNATCOLL.JSON.JSON_Value_Type;
+   use type LLM.Events.Message_Update_Kind;
+   use type LLM.Types.Stop_Reason;
+
+   function Stop_Reason_Image
+     (Reason : LLM.Types.Stop_Reason) return String
+   is
+   begin
+      case Reason is
+         when LLM.Types.Stop       => return "stop";
+         when LLM.Types.Length     => return "length";
+         when LLM.Types.Tool_Use   => return "toolUse";
+         when LLM.Types.Aborted    => return "aborted";
+         when LLM.Types.Error_Stop => return "error";
+         when others               => return "unknown";
+      end case;
+   end Stop_Reason_Image;
 
    --  Build the one-line status string.
    function Format_Status
@@ -116,19 +134,17 @@ package body Pi_Acme_App.Dispatch is
    end Open_Sub_Window;
 
    procedure Dispatch_Pi_Event
-     (Event        :        JSON_Value;
-      Win          : in out Acme.Window.Win;
-      FS           : not null access Nine_P.Client.Fs;
-      State        : in out App_State;
-      Section      : in out Section_Kind;
-      Send_Command :        Command_Sender := null;
-      PID          :        String)
+     (Event   : LLM.Events.Agent_Event'Class;
+      Win     : in out Acme.Window.Win;
+      FS      : not null access Nine_P.Client.Fs;
+      State   : in out App_State;
+      Section : in out Section_Kind;
+      PID     : String)
    is
-      Kind : constant String := Get_String (Event, "type");
    begin
 
       --  ── agent_start ───────────────────────────────────────────────────
-      if Kind = "agent_start" then
+      if Event in LLM.Events.Agent_Start_Event then
          State.Set_Streaming (True);
          State.Set_Text_Emitted (False);
          State.Set_Has_Text_Delta (False);
@@ -140,7 +156,7 @@ package body Pi_Acme_App.Dispatch is
            (Win, FS, Format_Status (State, "running"));
 
       --  ── agent_end ─────────────────────────────────────────────────────
-      elsif Kind = "agent_end" then
+      elsif Event in LLM.Events.Agent_End_Event then
          State.Set_Streaming (False);
          Section := No_Section;
          if State.Was_Aborted then
@@ -182,28 +198,25 @@ package body Pi_Acme_App.Dispatch is
          begin
             if Stop = "stop" or else Stop = "length" then
                State.Set_Pending_Stats (True);
-               if Send_Command /= null then
-                  Send_Command.all ("{""type"":""get_session_stats""}");
-               end if;
             end if;
          end;
          Acme.Window.Replace_Line1
            (Win, FS, Format_Status (State, "ready"));
-      elsif Kind = "message_update" then
+
+      elsif Event in LLM.Events.Message_Update_Event then
          declare
-            Sub      : constant JSON_Value :=
-              Get_Object (Event, "assistantMessageEvent");
-            Sub_Kind : constant String     := Get_String (Sub, "type");
+            Ev : constant LLM.Events.Message_Update_Event :=
+              LLM.Events.Message_Update_Event (Event);
          begin
-            if Sub_Kind = "thinking_delta" then
+            if Ev.Kind = LLM.Events.Thinking_Delta then
                if Section /= Thinking_Section then
                   Acme.Window.Append
                     (Win, FS, ASCII.LF & UC_BOX_V & " ");
                   Section := Thinking_Section;
                end if;
                declare
-                  Text_Delta : constant String := Get_String (Sub, "delta");
-                  Start : Natural         := Text_Delta'First;
+                  Text_Delta : constant String := To_String (Ev.Delta_Text);
+                  Start      : Natural         := Text_Delta'First;
                begin
                   --  Indent continuation lines; write chunks to keep
                   --  multi-byte UTF-8 sequences intact across 9P writes.
@@ -225,12 +238,12 @@ package body Pi_Acme_App.Dispatch is
                   end if;
                end;
 
-            elsif Sub_Kind = "thinking_end" then
+            elsif Ev.Kind = LLM.Events.Thinking_End then
                Acme.Window.Append
                  (Win, FS, "" & ASCII.LF & ASCII.LF);
                Section := No_Section;
 
-            elsif Sub_Kind = "text_delta" then
+            elsif Ev.Kind = LLM.Events.Text_Delta then
                if Section /= Text_Section then
                   if Section /= No_Section then
                      Acme.Window.Append (Win, FS, "" & ASCII.LF);
@@ -240,27 +253,33 @@ package body Pi_Acme_App.Dispatch is
                State.Set_Text_Emitted (True);
                State.Set_Has_Text_Delta (True);
                Acme.Window.Append
-                 (Win, FS, Get_String (Sub, "delta"));
+                 (Win, FS, To_String (Ev.Delta_Text));
 
-            elsif Sub_Kind = "text_end" then
+            elsif Ev.Kind = LLM.Events.Text_End then
                Section := No_Section;
             end if;
          end;
 
       --  ── tool_execution_start ──────────────────────────────────────────
-      elsif Kind = "tool_execution_start" then
+      elsif Event in LLM.Events.Tool_Execution_Start_Event then
          State.Set_Text_Emitted (True);
          State.Set_Has_Tool_In_Turn (True);
          declare
-            Tool    : constant String     := Get_String (Event, "toolName");
-            Args    : constant JSON_Value := Get_Object (Event, "args");
-            Tool_Id : constant String     :=
-              Get_String (Event, "toolCallId");
-            Tok     : constant String     :=
+            Ev          : constant LLM.Events.Tool_Execution_Start_Event :=
+              LLM.Events.Tool_Execution_Start_Event (Event);
+            Tool        : constant String := To_String (Ev.Tool_Name);
+            Tool_Id     : constant String := To_String (Ev.Tool_Call_Id);
+            Tok         : constant String :=
               (if Tool_Id'Length > 0
                then Hash_Tool_Id (Tool_Id)
                else "");
-            Sess    : constant String     := State.Session_Id;
+            Sess        : constant String := State.Session_Id;
+            Args_Parsed : constant GNATCOLL.JSON.Read_Result :=
+              GNATCOLL.JSON.Read (To_String (Ev.Args_Json));
+            Args        : constant GNATCOLL.JSON.JSON_Value :=
+              (if Args_Parsed.Success
+               then Args_Parsed.Value
+               else GNATCOLL.JSON.Create_Object);
          begin
             if Section /= No_Section then
                Acme.Window.Append (Win, FS, "" & ASCII.LF & ASCII.LF);
@@ -310,11 +329,11 @@ package body Pi_Acme_App.Dispatch is
                         & Diff_Body (Diff_Pos .. Diff_Body'Last));
                   end if;
                end;
-            elsif Args.Kind = JSON_Object_Type then
+            elsif Args.Kind = GNATCOLL.JSON.JSON_Object_Type then
                declare
                   procedure Show_Field
-                    (Name  : UTF8_String;
-                     Value : JSON_Value)
+                    (Name  : GNATCOLL.JSON.UTF8_String;
+                     Value : GNATCOLL.JSON.JSON_Value)
                   is
                   begin
                      if Name not in "oldText" | "newText" then
@@ -344,10 +363,11 @@ package body Pi_Acme_App.Dispatch is
          end;
 
       --  ── tool_execution_end ────────────────────────────────────────────
-      elsif Kind = "tool_execution_end" then
+      elsif Event in LLM.Events.Tool_Execution_End_Event then
          declare
-            Tool_Id : constant String :=
-              Get_String (Event, "toolCallId");
+            Ev      : constant LLM.Events.Tool_Execution_End_Event :=
+              LLM.Events.Tool_Execution_End_Event (Event);
+            Tool_Id : constant String := To_String (Ev.Tool_Call_Id);
             Tok     : constant String :=
               (if Tool_Id'Length > 0
                then Hash_Tool_Id (Tool_Id)
@@ -356,10 +376,9 @@ package body Pi_Acme_App.Dispatch is
             if Tok'Length > 0 then
                --  Replace the pending-close placeholder written by
                --  tool_execution_start in-place via acme regexp addr.
-               if Get_Boolean (Event, "isError") then
+               if Ev.Is_Error then
                   declare
-                     Result  : constant String  :=
-                       Get_String (Event, "result");
+                     Result  : constant String  := To_String (Ev.Result_Text);
                      Preview : constant Natural :=
                        (if Result'Length > 80
                         then Result'First + 79
@@ -379,10 +398,9 @@ package body Pi_Acme_App.Dispatch is
                end if;
             else
                --  No token: fall back to appending the close marker.
-               if Get_Boolean (Event, "isError") then
+               if Ev.Is_Error then
                   declare
-                     Result  : constant String  :=
-                       Get_String (Event, "result");
+                     Result  : constant String  := To_String (Ev.Result_Text);
                      Preview : constant Natural :=
                        (if Result'Length > 80
                         then Result'First + 79
@@ -405,49 +423,30 @@ package body Pi_Acme_App.Dispatch is
          end;
 
       --  ── message_end (token counts and turn cost) ─────────────────────
-      elsif Kind = "message_end" then
+      elsif Event in LLM.Events.Message_End_Event then
          declare
-            Msg   : constant JSON_Value := Get_Object (Event, "message");
-            Usage : constant JSON_Value := Get_Object (Msg, "usage");
+            Ev           : constant LLM.Events.Message_End_Event :=
+              LLM.Events.Message_End_Event (Event);
+            Input_Count  : constant Natural :=
+              Ev.Tok_Usage.Input
+              + Ev.Tok_Usage.Cache_Read
+              + Ev.Tok_Usage.Cache_Write;
+            Output_Count : constant Natural := Ev.Tok_Usage.Output;
          begin
-            if Get_String (Msg, "role") = "assistant" then
-               --  Track the stop reason so agent_end can detect whether
-               --  this was the agent's final text turn ("stop", "length")
-               --  or an intermediate tool-calling turn ("toolUse").
-               declare
-                  Stop : constant String := Get_String (Msg, "stopReason");
-                  Err  : constant String := Get_String (Msg, "errorMessage");
-               begin
-                  State.Set_Last_Stop_Reason (Stop);
-                  if Stop = "error" then
-                     State.Set_Last_Error_Message (Err);
-                  else
-                     State.Set_Last_Error_Message ("");
-                  end if;
-               end;
-               if Usage.Kind = JSON_Object_Type then
-                  declare
-                     Input_Count  : constant Natural :=
-                       Get_Integer (Usage, "input")
-                       + Get_Integer (Usage, "cacheRead")
-                       + Get_Integer (Usage, "cacheWrite");
-                     Output_Count : constant Natural :=
-                       Get_Integer (Usage, "output");
-                     Cost_Val     : constant JSON_Value :=
-                       Get_Object (Usage, "cost");
-                     Turn_Cost    : constant Natural :=
-                       (if Cost_Val.Kind = JSON_Object_Type
-                        then Get_Cost_Dmil (Cost_Val, "total")
-                        else 0);
-                  begin
-                     if Input_Count > 0 or else Output_Count > 0 then
-                        State.Set_Turn_Tokens (Input_Count, Output_Count);
-                     end if;
-                     if Turn_Cost > 0 then
-                        State.Set_Turn_Cost (Turn_Cost);
-                     end if;
-                  end;
-               end if;
+            --  Track the stop reason so agent_end can detect whether
+            --  this was the agent's final text turn ("stop", "length")
+            --  or an intermediate tool-calling turn ("toolUse").
+            State.Set_Last_Stop_Reason (Stop_Reason_Image (Ev.Stop));
+            if Ev.Stop = LLM.Types.Error_Stop then
+               State.Set_Last_Error_Message (To_String (Ev.Err_Msg));
+            else
+               State.Set_Last_Error_Message ("");
+            end if;
+            if Input_Count > 0 or else Output_Count > 0 then
+               State.Set_Turn_Tokens (Input_Count, Output_Count);
+            end if;
+            if Ev.Cost_Dmil > 0 then
+               State.Set_Turn_Cost (Ev.Cost_Dmil);
             end if;
          end;
 
@@ -462,17 +461,15 @@ package body Pi_Acme_App.Dispatch is
       --  attempt), suppressing the spurious "No response" message for
       --  those attempts.  The very first failure is shown once, followed
       --  immediately by this retry notice.
-      elsif Kind = "auto_retry_start" then
+      elsif Event in LLM.Events.Auto_Retry_Start_Event then
          State.Set_Is_Retrying (True);
          declare
-            Attempt     : constant Natural :=
-              Get_Integer (Event, "attempt");
-            Max_Att     : constant Natural :=
-              Get_Integer (Event, "maxAttempts");
-            Delay_Ms    : constant Natural :=
-              Get_Integer (Event, "delayMs");
-            Err_Msg     : constant String  :=
-              Get_String  (Event, "errorMessage");
+            Ev          : constant LLM.Events.Auto_Retry_Start_Event :=
+              LLM.Events.Auto_Retry_Start_Event (Event);
+            Attempt     : constant Natural := Ev.Attempt;
+            Max_Att     : constant Natural := Ev.Max_Attempts;
+            Delay_Ms    : constant Natural := Ev.Delay_Ms;
+            Err_Msg     : constant String  := To_String (Ev.Error_Msg);
             Delay_S_Str : constant String  :=
               (if Delay_Ms >= 1000
                then Natural_Image (Delay_Ms / 1000) & "s"
@@ -495,34 +492,41 @@ package body Pi_Acme_App.Dispatch is
       --  Emitted when the retry sequence concludes (success or exhausted).
       --  On success pi immediately continues streaming so no extra note is
       --  needed.  On failure show the final error prominently.
-      elsif Kind = "auto_retry_end" then
+      elsif Event in LLM.Events.Auto_Retry_End_Event then
          State.Set_Is_Retrying (False);
-         if not Get_Boolean (Event, "success") then
-            declare
-               Final_Err : constant String := Get_String (Event, "finalError");
-               Attempts  : constant Natural := Get_Integer (Event, "attempt");
-            begin
-               Acme.Window.Append
-                 (Win, FS,
-                  ASCII.LF
-                  & UC_CROSS & " Retry failed after "
-                  & Natural_Image (Attempts)
-                  & (if Attempts = 1 then " attempt" else " attempts")
-                  & (if Final_Err'Length > 0
-                     then ": " & Final_Err
-                     else "")
-                  & ASCII.LF);
-            end;
-         end if;
+         declare
+            Ev : constant LLM.Events.Auto_Retry_End_Event :=
+              LLM.Events.Auto_Retry_End_Event (Event);
+         begin
+            if not Ev.Success then
+               declare
+                  Final_Err : constant String := To_String (Ev.Final_Error);
+                  Attempts  : constant Natural := Ev.Attempt;
+               begin
+                  Acme.Window.Append
+                    (Win, FS,
+                     ASCII.LF
+                     & UC_CROSS & " Retry failed after "
+                     & Natural_Image (Attempts)
+                     & (if Attempts = 1 then " attempt" else " attempts")
+                     & (if Final_Err'Length > 0
+                        then ": " & Final_Err
+                        else "")
+                     & ASCII.LF);
+               end;
+            end if;
+         end;
 
       --  ── auto_compaction_start ────────────────────────────────────────
       --  Emitted when pi begins auto-compacting the context (either because
       --  the context overflowed or because the configured threshold was
       --  crossed).  Show a compact notice and update the tag.
-      elsif Kind = "auto_compaction_start" then
+      elsif Event in LLM.Events.Auto_Compaction_Start_Event then
          State.Set_Compacting (True);
          declare
-            Reason : constant String := Get_String (Event, "reason");
+            Ev     : constant LLM.Events.Auto_Compaction_Start_Event :=
+              LLM.Events.Auto_Compaction_Start_Event (Event);
+            Reason : constant String := To_String (Ev.Reason);
             Label  : constant String :=
               (if Reason = "overflow"
                then "Overflow: compacting context" & UC_ELLIP
@@ -539,13 +543,14 @@ package body Pi_Acme_App.Dispatch is
       --  Emitted when auto-compaction finishes (success, aborted, or
       --  error).  The three cases are distinguished by the "errorMessage",
       --  "aborted", and "willRetry" fields.
-      elsif Kind = "auto_compaction_end" then
+      elsif Event in LLM.Events.Auto_Compaction_End_Event then
          State.Set_Compacting (False);
          declare
-            Err_Msg    : constant String  :=
-              Get_String  (Event, "errorMessage");
-            Is_Aborted : constant Boolean := Get_Boolean (Event, "aborted");
-            Will_Retry : constant Boolean := Get_Boolean (Event, "willRetry");
+            Ev         : constant LLM.Events.Auto_Compaction_End_Event :=
+              LLM.Events.Auto_Compaction_End_Event (Event);
+            Err_Msg    : constant String  := To_String (Ev.Err_Msg);
+            Is_Aborted : constant Boolean := Ev.Aborted;
+            Will_Retry : constant Boolean := Ev.Will_Retry;
          begin
             if Err_Msg'Length > 0 then
                Acme.Window.Append
@@ -575,19 +580,14 @@ package body Pi_Acme_App.Dispatch is
                (if State.Is_Streaming then "running" else "ready")));
 
       --  ── model_select ─────────────────────────────────────────────────
-      --  Emitted by pi when the active model changes (e.g. on startup
-      --  before the get_state response arrives, or when cycleModel fires).
-      --  Update our cached model/context-window so the tag and status line
-      --  stay accurate.  Mirrors the handling in the Python reference.
-      elsif Kind = "model_select" then
+      --  Emitted by pi when the active model changes.
+      elsif Event in LLM.Events.Model_Select_Event then
          declare
-            Model_Val  : constant JSON_Value := Get_Object (Event, "model");
-            Provider   : constant String     :=
-              Get_String  (Model_Val, "provider");
-            Model_Id   : constant String     :=
-              Get_String  (Model_Val, "id");
-            Ctx_Window : constant Natural    :=
-              Get_Integer (Model_Val, "contextWindow");
+            Ev         : constant LLM.Events.Model_Select_Event :=
+              LLM.Events.Model_Select_Event (Event);
+            Provider   : constant String  := To_String (Ev.Provider);
+            Model_Id   : constant String  := To_String (Ev.Model_Id);
+            Ctx_Window : constant Natural := Ev.Context_Window;
          begin
             if Provider'Length > 0 and then Model_Id'Length > 0 then
                State.Set_Model (Provider & "/" & Model_Id);
@@ -602,316 +602,50 @@ package body Pi_Acme_App.Dispatch is
               (State,
                (if State.Is_Streaming then "running" else "ready")));
 
-      --  ── extension_error ───────────────────────────────────────────────
-      --  Emitted by rpc-mode when an extension event handler throws.
-      elsif Kind = "extension_error" then
+      --  ── session info ──────────────────────────────────────────────────
+      elsif Event in LLM.Events.Session_Info_Event then
          declare
-            Ext_Path : constant String := Get_String (Event, "extensionPath");
-            Evt_Name : constant String := Get_String (Event, "event");
-            Err_Msg  : constant String := Get_String (Event, "error");
+            Ev           : constant LLM.Events.Session_Info_Event :=
+              LLM.Events.Session_Info_Event (Event);
+            Session_Id_V : constant String := To_String (Ev.Session_Id);
+            Think_Level  : constant String := To_String (Ev.Thinking_Level);
          begin
-            Acme.Window.Append
-              (Win, FS,
-               ASCII.LF & "[!] Extension error"
-               & (if Ext_Path'Length > 0 then " in " & Ext_Path else "")
-               & (if Evt_Name'Length > 0 then " (" & Evt_Name & ")" else "")
-               & ": " & Err_Msg & ASCII.LF);
+            if Session_Id_V'Length > 0 then
+               State.Set_Session_Id (Session_Id_V);
+            end if;
+            if Think_Level'Length > 0 then
+               State.Set_Thinking (Think_Level);
+            end if;
          end;
+         Acme.Window.Replace_Line1
+           (Win, FS, Format_Status (State, "ready"));
 
-      --  ── extension_ui_request ──────────────────────────────────────────
-      --  Emitted by rpc-mode for extension UI calls.
-      --
-      --  Fire-and-forget methods (notify, setStatus, setWidget, setTitle,
-      --  set_editor_text): only "notify" produces user-visible output; the
-      --  rest are no-ops in an acme context.
-      --
-      --  Blocking methods (select, confirm, input, editor): pi awaits a
-      --  matching extension_ui_response on stdin.  Without one, any
-      --  extension that opens a dialog hangs indefinitely.  We immediately
-      --  respond with cancelled:true so control returns to the extension.
-      elsif Kind = "extension_ui_request" then
+      --  ── session stats ─────────────────────────────────────────────────
+      elsif Event in LLM.Events.Session_Stats_Event then
          declare
-            Method : constant String := Get_String (Event, "method");
-            Id     : constant String := Get_String (Event, "id");
+            Ev : constant LLM.Events.Session_Stats_Event :=
+              LLM.Events.Session_Stats_Event (Event);
          begin
-            if Method = "notify" then
-               declare
-                  Msg : constant String := Get_String (Event, "message");
-               begin
-                  if Msg'Length > 0 then
-                     Acme.Window.Append
-                       (Win, FS,
-                        ASCII.LF & UC_BULLET & " " & Msg & ASCII.LF);
-                  end if;
-               end;
-            elsif Method in "select" | "confirm" | "input" | "editor" then
-               --  Blocking dialog: respond cancelled so the extension does
-               --  not hang.  Interactive dialogs are not implemented in the
-               --  acme frontend.
-               if Id'Length > 0 then
-                  if Send_Command /= null then
-                     Send_Command.all
-                       ("{""type"":""extension_ui_response"","
-                        & """id"":""" & Id & ""","
-                        & """cancelled"":true}");
-                  end if;
-               end if;
-            end if;
-            --  setStatus, setWidget, setTitle, set_editor_text:
-            --  silently ignored — not applicable to an acme window.
+            State.Set_Session_Stats
+              (Cost_Dmil   => Ev.Cost_Dmil,
+               Input       => Ev.Input,
+               Output      => Ev.Output,
+               Cache_Read  => Ev.Cache_Read,
+               Cache_Write => Ev.Cache_Write,
+               Total       => Ev.Total);
          end;
-
-      --  ── response (RPC reply) ──────────────────────────────────────────
-      elsif Kind = "response" then
-         if not Get_Boolean (Event, "success") then
-            --  Clear compacting flag if a compact command failed so the
-            --  button becomes usable again.
-            if Get_String (Event, "command") = "compact" then
-               State.Set_Compacting (False);
-            end if;
-            Acme.Window.Append
-              (Win, FS,
-               ASCII.LF & UC_WARN & " pi error: "
-               & Get_String (Event, "error") & ASCII.LF);
-            Acme.Window.Replace_Line1
-              (Win, FS, Format_Status (State, "error"));
-         else
-            declare
-               Command   : constant String     :=
-                 Get_String (Event, "command");
-               Data      : constant JSON_Value :=
-                 Get_Object (Event, "data");
-            begin
-               if Command = "get_state" then
-                  declare
-                     Session_Id_V : constant String :=
-                       Get_String (Data, "sessionId");
-                     Think_Level  : constant String :=
-                       Get_String (Data, "thinkingLevel");
-                     Model_Val    : constant JSON_Value :=
-                       Get_Object (Data, "model");
-                  begin
-                     if Session_Id_V'Length > 0 then
-                        State.Set_Session_Id (Session_Id_V);
-                     end if;
-                     if Think_Level'Length > 0 then
-                        State.Set_Thinking (Think_Level);
-                     end if;
-                     declare
-                        Provider   : constant String  :=
-                          Get_String (Model_Val, "provider");
-                        Model_Id   : constant String  :=
-                          Get_String (Model_Val, "id");
-                        Ctx_Window : constant Natural :=
-                          Get_Integer (Model_Val, "contextWindow");
-                     begin
-                        if Provider'Length > 0
-                          and then Model_Id'Length > 0
-                          and then State.Current_Model'Length = 0
-                        then
-                           State.Set_Model (Provider & "/" & Model_Id);
-                        end if;
-                        if Ctx_Window > 0 then
-                           State.Set_Context_Window (Ctx_Window);
-                        end if;
-                     end;
-                  end;
-                  Acme.Window.Replace_Line1
-                    (Win, FS, Format_Status (State, "ready"));
-
-               elsif Command = "abort" then
-                  State.Set_Aborted (True);
-
-               elsif Command = "new_session" then
-                  State.Set_Turn_Tokens (0, 0);
-                  State.Set_Turn_Cost (0);
-                  State.Set_Session_Stats (0, 0, 0, 0, 0, 0);
-                  State.Reset_Turn_Count;
-                  State.Set_Is_Retrying (False);
-                  if Send_Command /= null then
-                     Send_Command.all ("{""type"":""get_state""}");
-                  end if;
-
-               elsif Command = "get_session_stats" then
-                  --  Store cumulative session stats before building the
-                  --  turn footer so that Session_Cost_Dmil is populated
-                  --  in time for Append_Live_Turn_Footer.
-                  declare
-                     Tokens_Val : constant JSON_Value :=
-                       Get_Object (Data, "tokens");
-                  begin
-                     State.Set_Session_Stats
-                       (Cost_Dmil   => Get_Cost_Dmil (Data, "cost"),
-                        Input       =>
-                          (if Tokens_Val.Kind = JSON_Object_Type
-                           then Get_Integer (Tokens_Val, "input")
-                           else 0),
-                        Output      =>
-                          (if Tokens_Val.Kind = JSON_Object_Type
-                           then Get_Integer (Tokens_Val, "output")
-                           else 0),
-                        Cache_Read  =>
-                          (if Tokens_Val.Kind = JSON_Object_Type
-                           then Get_Integer (Tokens_Val, "cacheRead")
-                           else 0),
-                        Cache_Write =>
-                          (if Tokens_Val.Kind = JSON_Object_Type
-                           then Get_Integer (Tokens_Val, "cacheWrite")
-                           else 0),
-                        Total       =>
-                          (if Tokens_Val.Kind = JSON_Object_Type
-                           then Get_Integer (Tokens_Val, "total")
-                           else 0));
-                  end;
-                  if State.Pending_Stats then
-                     State.Set_Pending_Stats (False);
-                     --  Append turn footer: summary and fork token on the
-                     --  same line, followed by the separator rule.
-                     Append_Live_Turn_Footer
-                       (Win   => Win,
-                        FS    => FS,
-                        State => State,
-                        PID   => PID);
-                  end if;
-                  Acme.Window.Replace_Line1
-                    (Win, FS, Format_Status (State, "ready"));
-
-               elsif Command = "set_model" then
-                  --  The response data IS the accepted model object.
-                  --  Update state now that pi has confirmed the switch.
-                  declare
-                     Provider   : constant String  :=
-                       Get_String  (Data, "provider");
-                     Model_Id   : constant String  :=
-                       Get_String  (Data, "id");
-                     Ctx_Window : constant Natural :=
-                       Get_Integer (Data, "contextWindow");
-                  begin
-                     if Provider'Length > 0 and then Model_Id'Length > 0 then
-                        State.Set_Model (Provider & "/" & Model_Id);
-                     end if;
-                     if Ctx_Window > 0 then
-                        State.Set_Context_Window (Ctx_Window);
-                     end if;
-                  end;
-                  Acme.Window.Replace_Line1
-                    (Win, FS,
-                     Format_Status
-                       (State,
-                        (if State.Is_Streaming then "running" else "ready")));
-
-               elsif Command = "set_thinking_level" then
-                  --  The new thinking level was already stored in App_State
-                  --  by Plumb_Thinking_Task before the command was sent.
-                  --  Refresh the tag so the change is visible immediately.
-                  Acme.Window.Replace_Line1
-                    (Win, FS,
-                     Format_Status
-                       (State,
-                        (if State.Is_Streaming then "running" else "ready")));
-
-               elsif Command = "compact" then
-                  --  Manual compaction completed.  Show a summary line with
-                  --  the token count before compaction, then return to ready.
-                  State.Set_Compacting (False);
-                  declare
-                     Tokens_Before : constant Natural :=
-                       Get_Integer (Data, "tokensBefore");
-                  begin
-                     Acme.Window.Append
-                       (Win, FS,
-                        ASCII.LF & UC_CHECK & " Context compacted"
-                        & (if Tokens_Before > 0
-                           then " (was "
-                                & Format_Kilo (Tokens_Before)
-                                & " tokens)"
-                           else "")
-                        & "." & ASCII.LF);
-                  end;
-                  Acme.Window.Replace_Line1
-                    (Win, FS, Format_Status (State, "ready"));
-
-               elsif Command = "get_available_models" then
-                  --  Open the +models sub-window populated with only the
-                  --  models for which pi has configured API credentials.
-                  --  Consume the pending flag regardless of whether the
-                  --  response actually contains any models, so a failed
-                  --  or empty reply does not leave the flag set forever.
-                  if State.Models_Pending then
-                     State.Set_Models_Pending (False);
-                     declare
-                        Models_Val : constant JSON_Value :=
-                          (if Data.Has_Field ("models")
-                           then Data.Get ("models")
-                           else JSON_Null);
-                        Parent     : constant String :=
-                          Ada.Directories.Current_Directory & "/+pi";
-                        Pid_Prefix : constant String := PID & "/";
-                        Content    : Unbounded_String;
-                     begin
-                        if Models_Val.Kind = JSON_Array_Type then
-                           declare
-                              Arr : constant JSON_Array :=
-                                Models_Val.Get;
-                           begin
-                              for I in 1 .. Length (Arr) loop
-                                 declare
-                                    M        : constant JSON_Value :=
-                                      Get (Arr, I);
-                                    Provider : constant String :=
-                                      Get_String (M, "provider");
-                                    Model_Id : constant String :=
-                                      Get_String (M, "id");
-                                 begin
-                                    if Provider'Length > 0
-                                      and then Model_Id'Length > 0
-                                    then
-                                       Append
-                                         (Content,
-                                          "model+" & Pid_Prefix
-                                          & Provider & "/" & Model_Id
-                                          & ASCII.LF);
-                                    end if;
-                                 end;
-                              end loop;
-                           end;
-                        end if;
-                        Open_Sub_Window
-                          (FS, Parent, "+models",
-                           (if Length (Content) > 0
-                            then To_String (Content)
-                            else "(no models available)" & ASCII.LF));
-                     end;
-                  end if;
-               end if;
-            end;
+         if State.Pending_Stats then
+            State.Set_Pending_Stats (False);
+            --  Append turn footer: summary and fork token on the
+            --  same line, followed by the separator rule.
+            Append_Live_Turn_Footer
+              (Win   => Win,
+               FS    => FS,
+               State => State,
+               PID   => PID);
          end if;
-
-      --  ── unknown event type ────────────────────────────────────────────
-      --  Any event type not handled above is shown as a diagnostic line so
-      --  that new pi error events or future protocol additions surface in
-      --  the window rather than being silently swallowed.
-      --  Well-known metadata events emitted by pi-agent-core that carry no
-      --  user-visible information (turn_start, turn_end, message_start,
-      --  tool_execution_update) are listed explicitly so they remain quiet.
-      elsif Kind'Length > 0
-        and then Kind not in
-          "turn_start" | "turn_end" | "message_start"
-          | "tool_execution_update"
-      then
-         declare
-            Err : constant String := Get_String (Event, "error");
-            Msg : constant String := Get_String (Event, "errorMessage");
-            Detail : constant String :=
-              (if Err'Length > 0 then ": " & Err
-               elsif Msg'Length > 0 then ": " & Msg
-               else "");
-         begin
-            Acme.Window.Append
-              (Win, FS,
-               ASCII.LF & "[pi:" & Kind & "]"
-               & Detail & ASCII.LF);
-         end;
+         Acme.Window.Replace_Line1
+           (Win, FS, Format_Status (State, "ready"));
       end if;
    end Dispatch_Pi_Event;
 

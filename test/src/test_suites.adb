@@ -6,6 +6,7 @@ with Acme_Event_Parser_Tests;
 with Acme_Raw_Events_Tests;
 with Acme_Window_Tests;
 with Acme_Integration_Tests;
+with Dispatch_Tests;
 with Pi_RPC_Tests;
 with Pi_Interface_Tests;
 with Session_Lister_Tests;
@@ -28,7 +29,6 @@ with LLM_GitHub_Copilot_Tests;
 with LLM_Model_Registry_Tests;
 with LLM_Session_Store_Tests;
 with LLM_Agent_Tests;
-with LLM_Pi_Adapter_Tests;
 
 package body Test_Suites is
 
@@ -46,6 +46,8 @@ package body Test_Suites is
      new AUnit.Test_Caller (Acme_Window_Tests.Test);
    package Acme_Int_Caller is
      new AUnit.Test_Caller (Acme_Integration_Tests.Test);
+   package Dispatch_Caller is
+     new AUnit.Test_Caller (Dispatch_Tests.Test);
    package Pi_RPC_Caller is
      new AUnit.Test_Caller (Pi_RPC_Tests.Test);
    package Pi_Iface_Caller is
@@ -90,8 +92,6 @@ package body Test_Suites is
      new AUnit.Test_Caller (LLM_Session_Store_Tests.Test);
    package LLM_Agent_Caller is
      new AUnit.Test_Caller (LLM_Agent_Tests.Test);
-   package LLM_Pi_Adapter_Caller is
-     new AUnit.Test_Caller (LLM_Pi_Adapter_Tests.Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
@@ -297,6 +297,44 @@ package body Test_Suites is
         ("[integration] Live footer: cost segments appear when non-zero",
          Acme_Integration_Tests.Test_Append_Live_Turn_Footer_With_Cost
            'Access));
+
+      --  Dispatch integration tests (skipped if acme not running)
+      Result.Add_Test (Dispatch_Caller.Create
+        ("[integration] Dispatch agent_start sets streaming",
+         Dispatch_Tests.Test_Dispatch_Agent_Start'Access));
+      Result.Add_Test (Dispatch_Caller.Create
+        ("[integration] Dispatch agent_end clears streaming",
+         Dispatch_Tests.Test_Dispatch_Agent_End_Normal'Access));
+      Result.Add_Test (Dispatch_Caller.Create
+        ("[integration] Dispatch text_delta appends text",
+         Dispatch_Tests.Test_Dispatch_Text_Delta'Access));
+      Result.Add_Test (Dispatch_Caller.Create
+        ("[integration] Dispatch thinking_delta prefixes with border",
+         Dispatch_Tests.Test_Dispatch_Thinking_Delta'Access));
+      Result.Add_Test (Dispatch_Caller.Create
+        ("[integration] Dispatch tool_execution_start renders header",
+         Dispatch_Tests.Test_Dispatch_Tool_Start'Access));
+      Result.Add_Test (Dispatch_Caller.Create
+        ("[integration] Dispatch tool_execution_end success closes block",
+         Dispatch_Tests.Test_Dispatch_Tool_End_Success'Access));
+      Result.Add_Test (Dispatch_Caller.Create
+        ("[integration] Dispatch tool_execution_end error closes block",
+         Dispatch_Tests.Test_Dispatch_Tool_End_Error'Access));
+      Result.Add_Test (Dispatch_Caller.Create
+        ("[integration] Dispatch message_end updates token counts",
+         Dispatch_Tests.Test_Dispatch_Message_End_Tokens'Access));
+      Result.Add_Test (Dispatch_Caller.Create
+        ("[integration] Dispatch session_stats appends live footer",
+         Dispatch_Tests.Test_Dispatch_Session_Stats_Footer'Access));
+      Result.Add_Test (Dispatch_Caller.Create
+        ("[integration] Dispatch model_select updates model state",
+         Dispatch_Tests.Test_Dispatch_Model_Select'Access));
+      Result.Add_Test (Dispatch_Caller.Create
+        ("[integration] Dispatch session_info updates session state",
+         Dispatch_Tests.Test_Dispatch_Session_Info'Access));
+      Result.Add_Test (Dispatch_Caller.Create
+        ("[integration] Dispatch auto_retry_start writes retry notice",
+         Dispatch_Tests.Test_Dispatch_Auto_Retry_Start'Access));
 
       --  Pi_RPC tests
       Result.Add_Test (Pi_RPC_Caller.Create
@@ -1114,20 +1152,6 @@ package body Test_Suites is
       Result.Add_Test (LLM_Agent_Caller.Create
         ("LLM.Agent resumes persisted session history",
          LLM_Agent_Tests.Test_Session_Resume'Access));
-
-      --  LLM.Agent.Pi_Adapter tests
-      Result.Add_Test (LLM_Pi_Adapter_Caller.Create
-        ("LLM.Agent.Pi_Adapter maps Agent_Start_Event to pi JSON",
-         LLM_Pi_Adapter_Tests.Test_Agent_Start_Json'Access));
-      Result.Add_Test (LLM_Pi_Adapter_Caller.Create
-        ("LLM.Agent.Pi_Adapter maps text deltas to pi JSON",
-         LLM_Pi_Adapter_Tests.Test_Text_Delta_Json'Access));
-      Result.Add_Test (LLM_Pi_Adapter_Caller.Create
-        ("LLM.Agent.Pi_Adapter maps message_end cost to pi JSON",
-         LLM_Pi_Adapter_Tests.Test_Message_End_Json_Cost'Access));
-      Result.Add_Test (LLM_Pi_Adapter_Caller.Create
-        ("LLM.Agent.Pi_Adapter maps tool execution starts to pi JSON",
-         LLM_Pi_Adapter_Tests.Test_Tool_Execution_Start_Json'Access));
 
       return Result;
    end Suite;

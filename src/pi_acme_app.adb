@@ -14,7 +14,6 @@ with GNATCOLL.JSON;          use GNATCOLL.JSON;
 with GNATCOLL.OS.FS;
 with GNATCOLL.OS.Process;
 with LLM.Agent;
-with LLM.Agent.Pi_Adapter;
 with LLM.Events;
 with LLM.Model_Registry;
 with LLM.Providers;
@@ -536,25 +535,15 @@ package body Pi_Acme_App is
          end Track_Event;
 
          procedure Dispatch_Event (E : LLM.Events.Agent_Event'Class) is
-            Json_Str : constant String := LLM.Agent.Pi_Adapter.To_Pi_Json (E);
          begin
             Track_Event (E);
-            if Json_Str'Length > 0 then
-               declare
-                  Parse_Result : constant GNATCOLL.JSON.Read_Result :=
-                    GNATCOLL.JSON.Read (Json_Str);
-               begin
-                  if Parse_Result.Success then
-                     Dispatch_Pi_Event
-                       (Event   => Parse_Result.Value,
-                        Win     => Win,
-                        FS      => My_FS'Access,
-                        State   => State,
-                        Section => Section,
-                        PID     => My_PID);
-                  end if;
-               end;
-            end if;
+            Dispatch_Pi_Event
+              (Event   => E,
+               Win     => Win,
+               FS      => My_FS'Access,
+               State   => State,
+               Section => Section,
+               PID     => My_PID);
          end Dispatch_Event;
 
          procedure Emit_Model_Select is
