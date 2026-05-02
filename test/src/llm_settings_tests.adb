@@ -1,0 +1,234 @@
+with AUnit.Assertions;
+with Ada.Directories;
+with Ada.Environment_Variables;
+with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
+with Ada.Text_IO;
+with LLM.Settings;
+
+package body LLM_Settings_Tests is
+
+   use AUnit.Assertions;
+
+   procedure Restore_Env (Name : String; Was_Set : Boolean; Value : String) is
+   begin
+      if Was_Set then
+         Ada.Environment_Variables.Set (Name, Value);
+      else
+         Ada.Environment_Variables.Clear (Name);
+      end if;
+   end Restore_Env;
+
+   procedure Ensure_Test_Home (Home : String) is
+   begin
+      Ada.Directories.Create_Path (Home & "/.pi/agent");
+   end Ensure_Test_Home;
+
+   procedure Write_File (Path : String; Content : String) is
+      File : Ada.Text_IO.File_Type;
+   begin
+      Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, Path);
+      Ada.Text_IO.Put (File, Content);
+      Ada.Text_IO.Close (File);
+   end Write_File;
+
+   procedure Delete_If_Exists (Path : String) is
+   begin
+      if Ada.Directories.Exists (Path) then
+         Ada.Directories.Delete_File (Path);
+      end if;
+   end Delete_If_Exists;
+
+   procedure Cleanup_Test_Home (Home : String) is
+      Agent_Dir : constant String := Home & "/.pi/agent";
+      Pi_Dir    : constant String := Home & "/.pi";
+   begin
+      Delete_If_Exists (Agent_Dir & "/settings.json");
+      Delete_If_Exists (Agent_Dir & "/models.json");
+
+      if Ada.Directories.Exists (Agent_Dir) then
+         Ada.Directories.Delete_Directory (Agent_Dir);
+      end if;
+
+      if Ada.Directories.Exists (Pi_Dir) then
+         Ada.Directories.Delete_Directory (Pi_Dir);
+      end if;
+
+      if Ada.Directories.Exists (Home) then
+         Ada.Directories.Delete_Directory (Home);
+      end if;
+   exception
+      when others =>
+         null;
+   end Cleanup_Test_Home;
+
+   procedure Test_Load_Settings (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home         : constant String  := "/tmp/pi_acme_llm_settings_test_1";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String  :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Loaded       : LLM.Settings.Settings;
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+
+      Write_File
+        (Home & "/.pi/agent/settings.json",
+         "{""defaultProvider"":""openrouter""," &
+         """defaultModel"":""anthropic/claude-sonnet-4""," &
+         """defaultThinkingLevel"":""medium""}");
+
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Loaded := LLM.Settings.Load_Settings;
+
+      Assert
+        (To_String (Loaded.Default_Provider) = "openrouter",
+         "defaultProvider should be loaded from settings.json");
+      Assert
+        (To_String (Loaded.Default_Model) = "anthropic/claude-sonnet-4",
+         "defaultModel should be loaded from settings.json");
+      Assert
+        (To_String (Loaded.Default_Thinking) = "medium",
+         "defaultThinkingLevel should be loaded from settings.json");
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Load_Settings;
+
+   procedure Test_Resolve_Api_Key_Literal (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home         : constant String  := "/tmp/pi_acme_llm_settings_test_2";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String  :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Key_Was_Set  : constant Boolean :=
+        Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
+      Old_Key      : constant String  :=
+        Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+
+      Write_File
+        (Home & "/.pi/agent/models.json",
+         "{""providers"":{""openrouter"":{""apiKey"":""literal-key""}}}");
+
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Set ("OPENROUTER_API_KEY", "env-key");
+
+      Assert
+        (LLM.Settings.Resolve_Api_Key ("openrouter") = "literal-key",
+         "models.json literal apiKey should override environment");
+
+      Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Resolve_Api_Key_Literal;
+
+   procedure Test_Resolve_Api_Key_Interpolated_Env (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home         : constant String  := "/tmp/pi_acme_llm_settings_test_3";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String  :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Env_Was_Set  : constant Boolean :=
+        Ada.Environment_Variables.Exists ("PI_ACME_TEST_OPENROUTER_KEY");
+      Old_Env      : constant String  :=
+        Ada.Environment_Variables.Value ("PI_ACME_TEST_OPENROUTER_KEY", "");
+      Key_Was_Set  : constant Boolean :=
+        Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
+      Old_Key      : constant String  :=
+        Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+
+      Write_File
+        (Home & "/.pi/agent/models.json",
+         "{""providers"":{""openrouter"":{""apiKey"":""" &
+         "${PI_ACME_TEST_OPENROUTER_KEY}" & """}}}");
+
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Set
+        ("PI_ACME_TEST_OPENROUTER_KEY", "interpolated-key");
+      Ada.Environment_Variables.Set ("OPENROUTER_API_KEY", "fallback-key");
+
+      Assert
+        (LLM.Settings.Resolve_Api_Key ("openrouter") = "interpolated-key",
+         "${ENV_VAR} apiKey should read from the named environment");
+
+      Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
+      Restore_Env ("PI_ACME_TEST_OPENROUTER_KEY", Env_Was_Set, Old_Env);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
+         Restore_Env ("PI_ACME_TEST_OPENROUTER_KEY", Env_Was_Set, Old_Env);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Resolve_Api_Key_Interpolated_Env;
+
+   procedure Test_Resolve_Api_Key_Default_Env (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home         : constant String  := "/tmp/pi_acme_llm_settings_test_4";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String  :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Key_Was_Set  : constant Boolean :=
+        Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
+      Old_Key      : constant String  :=
+        Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
+      Git_Was_Set  : constant Boolean :=
+        Ada.Environment_Variables.Exists ("GITHUB_TOKEN");
+      Old_Git      : constant String  :=
+        Ada.Environment_Variables.Value ("GITHUB_TOKEN", "");
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Set ("OPENROUTER_API_KEY", "default-env-key");
+      Ada.Environment_Variables.Set ("GITHUB_TOKEN", "ignored-token");
+
+      Assert
+        (LLM.Settings.Resolve_Api_Key ("openrouter") = "default-env-key",
+         "standard environment fallback should resolve openrouter");
+      Assert
+        (LLM.Settings.Resolve_Api_Key ("github-copilot") = "",
+         "github-copilot should not resolve via generic env fallback");
+
+      Restore_Env ("GITHUB_TOKEN", Git_Was_Set, Old_Git);
+      Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("GITHUB_TOKEN", Git_Was_Set, Old_Git);
+         Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Resolve_Api_Key_Default_Env;
+
+end LLM_Settings_Tests;

@@ -1,0 +1,21 @@
+[
+  {
+    "id": "stale-model",
+    "name": "Stale Model",
+    "supported_endpoints": ["/chat/completions"],
+    "capabilities": {
+      "type": "chat",
+      "limits": {
+        "max_context_window_tokens": 64000,
+        "max_output_tokens": 2048
+      },
+      "supports": {
+        "tool_calls": false,
+        "vision": false,
+        "reasoning_effort": [],
+        "max_thinking_budget": 0,
+        "min_thinking_budget": 0
+      }
+    }
+  }
+]

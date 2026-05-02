@@ -1,5 +1,8 @@
 --  Pi_RPC — manage a `pi --mode rpc` subprocess.
 --
+--  Deprecated: retained temporarily for compatibility and tests while
+--  Pi_Acme_App uses the native LLM.Agent session path.
+--
 --  Spawns pi with stdin/stdout/stderr connected to pipes.  Callers write
 --  JSON lines to stdin via Send and read events line-by-line from stdout
 --  via Read_Line.  Stderr is available via Read_Stderr_Line.

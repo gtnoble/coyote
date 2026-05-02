@@ -1,0 +1,463 @@
+with AUnit.Assertions;
+with Ada.Calendar;
+with Ada.Containers;
+with Ada.Directories;
+with Ada.Environment_Variables;
+with Ada.Strings.Fixed;
+with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
+with Ada.Text_IO;
+with GNATCOLL.JSON;
+with GNATCOLL.OS.Process;   use GNATCOLL.OS.Process;
+with LLM.Providers.GitHub_Copilot.Catalogue;
+
+package body LLM_Catalogue_Tests is
+
+   use AUnit.Assertions;
+   use type Ada.Containers.Count_Type;
+   use type GNATCOLL.JSON.JSON_Value_Type;
+   use LLM.Providers.GitHub_Copilot.Catalogue;
+
+   function C_Kill
+     (Process_Id : Integer;
+      Signal     : Integer) return Integer
+     with Import, Convention => C, External_Name => "kill";
+
+   function Current_Unix_S return Long_Long_Integer is
+      use Ada.Calendar;
+
+      Epoch : constant Time :=
+        Time_Of (Year => 1970, Month => 1, Day => 1, Seconds => 0.0);
+   begin
+      return Long_Long_Integer (Clock - Epoch);
+   end Current_Unix_S;
+
+   function Long_Long_Image (Value : Long_Long_Integer) return String is
+      Image : constant String := Long_Long_Integer'Image (Value);
+   begin
+      return Image (Image'First + 1 .. Image'Last);
+   end Long_Long_Image;
+
+   function Natural_Image (Value : Natural) return String is
+      Image : constant String := Natural'Image (Value);
+   begin
+      return Image (Image'First + 1 .. Image'Last);
+   end Natural_Image;
+
+   procedure Restore_Env (Name : String; Was_Set : Boolean; Value : String) is
+   begin
+      if Was_Set then
+         Ada.Environment_Variables.Set (Name, Value);
+      else
+         Ada.Environment_Variables.Clear (Name);
+      end if;
+   end Restore_Env;
+
+   procedure Ensure_Test_Home (Home : String) is
+   begin
+      Ada.Directories.Create_Path (Home & "/.pi/agent");
+   end Ensure_Test_Home;
+
+   function Read_File (Path : String) return String is
+      File    : Ada.Text_IO.File_Type;
+      Content : Unbounded_String;
+   begin
+      if not Ada.Directories.Exists (Path) then
+         return "";
+      end if;
+
+      Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Path);
+
+      while not Ada.Text_IO.End_Of_File (File) loop
+         declare
+            Line : constant String := Ada.Text_IO.Get_Line (File);
+         begin
+            Append (Content, Line);
+            Append (Content, ASCII.LF);
+         end;
+      end loop;
+
+      Ada.Text_IO.Close (File);
+      return To_String (Content);
+   exception
+      when others =>
+         if Ada.Text_IO.Is_Open (File) then
+            Ada.Text_IO.Close (File);
+         end if;
+
+         raise;
+   end Read_File;
+
+   procedure Write_File (Path : String; Content : String) is
+      File : Ada.Text_IO.File_Type;
+   begin
+      Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, Path);
+      Ada.Text_IO.Put (File, Content);
+      Ada.Text_IO.Close (File);
+   exception
+      when others =>
+         if Ada.Text_IO.Is_Open (File) then
+            Ada.Text_IO.Close (File);
+         end if;
+
+         raise;
+   end Write_File;
+
+   procedure Delete_If_Exists (Path : String) is
+   begin
+      if Ada.Directories.Exists (Path) then
+         Ada.Directories.Delete_File (Path);
+      end if;
+   exception
+      when others =>
+         null;
+   end Delete_If_Exists;
+
+   procedure Cleanup_Test_Home (Home : String) is
+      Agent_Dir : constant String := Home & "/.pi/agent";
+      Pi_Dir    : constant String := Home & "/.pi";
+   begin
+      Delete_If_Exists (Agent_Dir & "/github_copilot_models_cache.json");
+      Delete_If_Exists (Agent_Dir & "/github_copilot_models_cache.json.tmp");
+
+      if Ada.Directories.Exists (Agent_Dir) then
+         Ada.Directories.Delete_Directory (Agent_Dir);
+      end if;
+
+      if Ada.Directories.Exists (Pi_Dir) then
+         Ada.Directories.Delete_Directory (Pi_Dir);
+      end if;
+
+      if Ada.Directories.Exists (Home) then
+         Ada.Directories.Delete_Directory (Home);
+      end if;
+   exception
+      when others =>
+         null;
+   end Cleanup_Test_Home;
+
+   function Fixture_Path return String is
+   begin
+      return Ada.Directories.Current_Directory
+        & "/fixtures/copilot_models_catalogue.json";
+   end Fixture_Path;
+
+   function Stale_Fixture_Path return String is
+   begin
+      return Ada.Directories.Current_Directory
+        & "/fixtures/copilot_models_catalogue_stale_array.json";
+   end Stale_Fixture_Path;
+
+   function Fixture_Data_Array return String is
+      Parsed : constant GNATCOLL.JSON.Read_Result :=
+        GNATCOLL.JSON.Read (Read_File (Fixture_Path));
+   begin
+      if not Parsed.Success then
+         raise Constraint_Error with
+           "Failed to parse Copilot catalogue fixture";
+      end if;
+
+      if Parsed.Value.Kind /= GNATCOLL.JSON.JSON_Object_Type
+        or else not Parsed.Value.Has_Field ("data")
+      then
+         raise Constraint_Error with "Fixture is missing the data field";
+      end if;
+
+      return GNATCOLL.JSON.Write (Parsed.Value.Get ("data"));
+   end Fixture_Data_Array;
+
+   function Stale_Data_Array return String is
+   begin
+      return Read_File (Stale_Fixture_Path);
+   end Stale_Data_Array;
+
+   procedure Write_Cache
+     (Home       : String;
+      Base_Url   : String;
+      Fetched_At : Long_Long_Integer;
+      Data_Array : String)
+   is
+   begin
+      Write_File
+        (Home & "/.pi/agent/github_copilot_models_cache.json",
+         "{""fetched_at"":" & Long_Long_Image (Fetched_At)
+         & ",""base_url"":""" & Base_Url & """,""data"":"
+         & Data_Array & "}");
+   end Write_Cache;
+
+   function Find_Model
+     (Models   : Catalogue_Vectors.Vector;
+      Model_Id : String) return Natural
+   is
+   begin
+      if Models.Is_Empty then
+         return 0;
+      end if;
+
+      for I in Models.First_Index .. Models.Last_Index loop
+         if To_String (Models.Element (I).Model_Id) = Model_Id then
+            return I;
+         end if;
+      end loop;
+
+      return 0;
+   end Find_Model;
+
+   function Spawn_Server (Script : String) return Process_Handle is
+      Args : Argument_List;
+   begin
+      Args.Append ("python3");
+      Args.Append ("-u");
+      Args.Append ("-c");
+      Args.Append (Script);
+      return Start (Args => Args);
+   end Spawn_Server;
+
+   procedure Stop_Server (Handle : in out Process_Handle) is
+      Dummy : Integer;
+      pragma Unreferenced (Dummy);
+   begin
+      if Handle = Invalid_Handle then
+         return;
+      end if;
+
+      if State (Handle) = RUNNING then
+         Dummy := C_Kill (Integer (Handle), 15);
+      end if;
+
+      declare
+         Exit_Code : constant Integer := Wait (Handle);
+         pragma Unreferenced (Exit_Code);
+      begin
+         null;
+      end;
+
+      Handle := Invalid_Handle;
+   exception
+      when others =>
+         Handle := Invalid_Handle;
+   end Stop_Server;
+
+   function Live_Server_Script
+     (Port         : Positive;
+      Fixture_File : String) return String
+   is
+   begin
+      return
+        "import http.server, pathlib" & ASCII.LF
+        & "fixture = pathlib.Path('" & Fixture_File & "')" & ASCII.LF
+        & "class S(http.server.HTTPServer):" & ASCII.LF
+        & "    allow_reuse_address = True" & ASCII.LF
+        & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
+        & "    def do_GET(self):" & ASCII.LF
+        & "        try:" & ASCII.LF
+        & "            assert self.path == '/models'" & ASCII.LF
+        & "            assert self.headers['Authorization'] == "
+        & "'Bearer live-token'" & ASCII.LF
+        & "            assert self.headers['User-Agent'] == "
+        & "'GitHubCopilotChat/0.35.0'" & ASCII.LF
+        & "            assert self.headers['Editor-Version'] == "
+        & "'vscode/1.107.0'" & ASCII.LF
+        & "            assert self.headers['Editor-Plugin-Version'] == "
+        & "'copilot-chat/0.35.0'" & ASCII.LF
+        & "            assert self.headers['Copilot-Integration-Id'] == "
+        & "'vscode-chat'" & ASCII.LF
+        & "            assert self.headers['Openai-Intent'] == "
+        & "'conversation-edits'" & ASCII.LF
+        & "            body = fixture.read_bytes()" & ASCII.LF
+        & "            self.send_response(200)" & ASCII.LF
+        & "            self.send_header('Content-Type', 'application/json')"
+        & ASCII.LF
+        & "            self.send_header('Content-Length', str(len(body)))"
+        & ASCII.LF
+        & "            self.end_headers()" & ASCII.LF
+        & "            self.wfile.write(body)" & ASCII.LF
+        & "            self.wfile.flush()" & ASCII.LF
+        & "        except Exception as exc:" & ASCII.LF
+        & "            self.send_response(500)" & ASCII.LF
+        & "            self.send_header('Content-Type', 'text/plain')"
+        & ASCII.LF
+        & "            self.end_headers()" & ASCII.LF
+        & "            self.wfile.write(str(exc).encode())" & ASCII.LF
+        & "    def log_message(self, *a): pass" & ASCII.LF
+        & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
+        & ASCII.LF
+        & "s.timeout = 5" & ASCII.LF
+        & "s.handle_request()" & ASCII.LF
+        & "s.server_close()" & ASCII.LF;
+   end Live_Server_Script;
+
+   procedure Test_Load_From_Fresh_Cache (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home         : constant String := "/tmp/pi_acme_llm_catalogue_test_1";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Models       : Catalogue_Vectors.Vector;
+      Claude_Index : Natural := 0;
+      Gpt_Index    : Natural := 0;
+      O3_Index     : Natural := 0;
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+      Write_Cache
+        (Home       => Home,
+         Base_Url   => "https://api.individual.githubcopilot.com",
+         Fetched_At => Current_Unix_S,
+         Data_Array => Fixture_Data_Array);
+
+      Ada.Environment_Variables.Set ("HOME", Home);
+
+      Load_Catalogue
+        (Base_Url => "https://api.individual.githubcopilot.com",
+         Token    => "unused-token",
+         Models   => Models);
+
+      Claude_Index := Find_Model (Models, "claude-sonnet-4.6");
+      Gpt_Index := Find_Model (Models, "gpt-4o");
+      O3_Index := Find_Model (Models, "o3-mini");
+
+      Assert (Models.Length = 3, "Only chat models should be included");
+      Assert (Claude_Index > 0, "Claude model should be parsed from cache");
+      Assert (Gpt_Index > 0, "GPT model should be parsed from cache");
+      Assert (O3_Index > 0, "o3-mini model should be parsed from cache");
+      Assert
+        (Find_Model (Models, "text-embedding-3-small") = 0,
+         "Non-chat catalogue entries should be excluded");
+      Assert
+        (Models.Element (Claude_Index).Context_Window = 200_000,
+         "Context window should be parsed from capabilities.limits");
+      Assert
+        (Models.Element (Claude_Index).Supports_Tools,
+         "Tool support should be parsed from capabilities.supports");
+      Assert
+        (Models.Element (Claude_Index).Reasoning,
+         "Non-empty reasoning_effort should enable reasoning support");
+      Assert
+        (Models.Element (Claude_Index).Max_Thinking_Budget = 16_384,
+         "Max thinking budget should be parsed correctly");
+      Assert
+        (Models.Element (Claude_Index).Supports_Anthropic,
+         "/v1/messages should enable the Anthropic wire format");
+      Assert
+        (Models.Element (Claude_Index).Supports_OpenAI,
+         "/chat/completions should enable the OpenAI wire format");
+      Assert
+        (not Models.Element (Gpt_Index).Reasoning,
+         "Empty reasoning_effort arrays should disable reasoning support");
+      Assert
+        (not Models.Element (Gpt_Index).Supports_Anthropic,
+         "Models without /v1/messages should not use Anthropic format");
+      Assert
+        (not Models.Element (O3_Index).Supports_Tools,
+         "tool_calls=false should disable tool support");
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Load_From_Fresh_Cache;
+
+   procedure Test_Stale_Cache_Triggers_Live_Fetch (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Port         : constant Positive := 18_770;
+      Home         : constant String := "/tmp/pi_acme_llm_catalogue_test_2";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Handle       : Process_Handle := Invalid_Handle;
+      Models       : Catalogue_Vectors.Vector;
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+      Write_Cache
+        (Home       => Home,
+         Base_Url   => "http://127.0.0.1:18770",
+         Fetched_At => Current_Unix_S - 172_800,
+         Data_Array => Stale_Data_Array);
+
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Handle := Spawn_Server (Live_Server_Script (Port, Fixture_Path));
+      delay 0.05;
+
+      Load_Catalogue
+        (Base_Url => "http://127.0.0.1:18770",
+         Token    => "live-token",
+         Models   => Models);
+
+      Stop_Server (Handle);
+
+      Assert
+        (Models.Length = 3,
+         "A stale cache should trigger a live fetch of the fresh catalogue");
+      Assert
+        (Find_Model (Models, "stale-model") = 0,
+         "Live fetch results should replace stale cache contents");
+      Assert
+        (Ada.Directories.Exists
+           (Home & "/.pi/agent/github_copilot_models_cache.json"),
+         "Live fetch should rewrite the catalogue cache file");
+      Assert
+        (Ada.Strings.Fixed.Index
+           (Read_File (Home & "/.pi/agent/github_copilot_models_cache.json"),
+            "http://127.0.0.1:18770") > 0,
+         "Rewritten cache should be keyed to the requested base URL");
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Stop_Server (Handle);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Stale_Cache_Triggers_Live_Fetch;
+
+   procedure Test_Stale_Cache_Fallback (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home         : constant String := "/tmp/pi_acme_llm_catalogue_test_3";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Models       : Catalogue_Vectors.Vector;
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+      Write_Cache
+        (Home       => Home,
+         Base_Url   => "http://127.0.0.1:9",
+         Fetched_At => Current_Unix_S - 172_800,
+         Data_Array => Fixture_Data_Array);
+
+      Ada.Environment_Variables.Set ("HOME", Home);
+
+      Load_Catalogue
+        (Base_Url => "http://127.0.0.1:9",
+         Token    => "unused-token",
+         Models   => Models);
+
+      Assert
+        (Models.Length = 3,
+         "A stale matching cache should be used when live fetch fails");
+      Assert
+        (Find_Model (Models, "claude-sonnet-4.6") > 0,
+         "Stale fallback should still parse the cached model entries");
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Stale_Cache_Fallback;
+
+end LLM_Catalogue_Tests;

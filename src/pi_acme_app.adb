@@ -3,30 +3,37 @@
 --  Project: pi_acme
 --  For revision history, see the project version-control log.
 
+with Ada.Characters.Handling;
 with Ada.Command_Line;
 with Ada.Directories;
-with Ada.Environment_Variables;
 with Ada.Exceptions;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
-with GNAT.OS_Lib;
 with GNATCOLL.JSON;          use GNATCOLL.JSON;
 with GNATCOLL.OS.FS;
 with GNATCOLL.OS.Process;
+with LLM.Agent;
+with LLM.Agent.Pi_Adapter;
+with LLM.Events;
+with LLM.Model_Registry;
+with LLM.Providers;
+with LLM.Settings;
+with LLM.Types;
 with Nine_P;                 use Nine_P;
 with Nine_P.Client;          use Nine_P.Client;
 with Nine_P.Proto;
 with Acme.Event_Parser;
 with Acme.Raw_Events;
 with Acme.Window;
-with Pi_RPC;
 with Pi_Acme_App.History;    use Pi_Acme_App.History;
 with Pi_Acme_App.Dispatch;   use Pi_Acme_App.Dispatch;
 with Pi_Acme_App.Utils;      use Pi_Acme_App.Utils;
 with Session_Lister;         use Session_Lister;
 
 package body Pi_Acme_App is
+
+   use type LLM.Events.Message_Update_Kind;
 
    --  POSIX getpid() — used to build window-specific selector tokens.
    function Getpid return Integer;
@@ -267,60 +274,141 @@ package body Pi_Acme_App is
 
    end App_State;
 
+   --  ── Agent command queue ───────────────────────────────────────────────
+
+   type Agent_Command_Kind is
+     (Prompt_Command,
+      New_Session_Command,
+      Switch_Session_Command,
+      Set_Model_Command,
+      Set_Thinking_Command,
+      Shutdown_Command);
+
+   MAX_PENDING_COMMANDS : constant Positive := 64;
+
+   subtype Command_Slot is Positive range 1 .. MAX_PENDING_COMMANDS;
+
+   type Command_Kind_Array is array (Command_Slot) of Agent_Command_Kind;
+   type Command_Text_Array is array (Command_Slot) of Unbounded_String;
+   type Command_Flag_Array is array (Command_Slot) of Boolean;
+
+   protected type Agent_Command_Queue is
+      entry Enqueue
+        (Kind     : Agent_Command_Kind;
+         Text     : String := "";
+         Is_Steer : Boolean := False);
+      entry Dequeue
+        (Kind     : out Agent_Command_Kind;
+         Text     : out Unbounded_String;
+         Is_Steer : out Boolean);
+      procedure Signal_Shutdown;
+   private
+      Kinds      : Command_Kind_Array := (others => Shutdown_Command);
+      Texts      : Command_Text_Array;
+      Steer_Flag : Command_Flag_Array := (others => False);
+      Head       : Command_Slot := Command_Slot'First;
+      Tail       : Command_Slot := Command_Slot'First;
+      Count      : Natural := 0;
+      Done       : Boolean := False;
+   end Agent_Command_Queue;
+
+   protected body Agent_Command_Queue is
+
+      entry Enqueue
+        (Kind     : Agent_Command_Kind;
+         Text     : String := "";
+         Is_Steer : Boolean := False)
+        when Count < MAX_PENDING_COMMANDS and then not Done
+      is
+      begin
+         Kinds (Tail) := Kind;
+         Texts (Tail) := To_Unbounded_String (Text);
+         Steer_Flag (Tail) := Is_Steer;
+         if Tail = Command_Slot'Last then
+            Tail := Command_Slot'First;
+         else
+            Tail := Tail + 1;
+         end if;
+         Count := Count + 1;
+      end Enqueue;
+
+      entry Dequeue
+        (Kind     : out Agent_Command_Kind;
+         Text     : out Unbounded_String;
+         Is_Steer : out Boolean)
+        when Count > 0 or else Done
+      is
+      begin
+         if Count = 0 then
+            Kind := Shutdown_Command;
+            Text := Null_Unbounded_String;
+            Is_Steer := False;
+            return;
+         end if;
+
+         Kind := Kinds (Head);
+         Text := Texts (Head);
+         Is_Steer := Steer_Flag (Head);
+         Texts (Head) := Null_Unbounded_String;
+         Steer_Flag (Head) := False;
+
+         if Head = Command_Slot'Last then
+            Head := Command_Slot'First;
+         else
+            Head := Head + 1;
+         end if;
+         Count := Count - 1;
+      end Dequeue;
+
+      procedure Signal_Shutdown is
+      begin
+         Done := True;
+      end Signal_Shutdown;
+
+   end Agent_Command_Queue;
+
+   function Thinking_Level_Of
+     (Name : String) return LLM.Providers.Thinking_Level
+   is
+      Value : constant String := Ada.Characters.Handling.To_Lower (Name);
+   begin
+      if Value = "minimal" then
+         return LLM.Providers.Minimal;
+      elsif Value = "low" then
+         return LLM.Providers.Low;
+      elsif Value = "medium" then
+         return LLM.Providers.Medium;
+      elsif Value = "high" then
+         return LLM.Providers.High;
+      elsif Value = "xhigh" or else Value = "x_high" then
+         return LLM.Providers.X_High;
+      else
+         return LLM.Providers.Off;
+      end if;
+   end Thinking_Level_Of;
+
+   procedure Split_Model_Spec
+     (Spec     :     String;
+      Provider : out Unbounded_String;
+      Model_Id : out Unbounded_String)
+   is
+      Slash : constant Natural := Ada.Strings.Fixed.Index (Spec, "/");
+   begin
+      if Slash = 0
+        or else Slash = Spec'First
+        or else Slash = Spec'Last
+      then
+         raise Constraint_Error with
+           "Model spec must be provider/model-id: " & Spec;
+      end if;
+
+      Provider := To_Unbounded_String (Spec (Spec'First .. Slash - 1));
+      Model_Id := To_Unbounded_String (Spec (Slash + 1 .. Spec'Last));
+   end Split_Model_Spec;
+
    --  ── Run ───────────────────────────────────────────────────────────────
 
    procedure Run (Opts : Options) is
-
-      --  Inject PI_ACME_BIN before spawning pi so the subagent extension
-      --  can locate the pi_acme binary.  Locate_Exec_On_Path resolves a
-      --  bare name via PATH; if that fails, fall back to Command_Name as
-      --  invoked (which already contains a path when launched as
-      --  ./bin/pi_acme or /usr/local/bin/pi_acme).
-      function Inject_Pi_Acme_Bin return Boolean is
-         use type GNAT.OS_Lib.String_Access;
-         Ptr : GNAT.OS_Lib.String_Access :=
-           GNAT.OS_Lib.Locate_Exec_On_Path (Ada.Command_Line.Command_Name);
-      begin
-         if Ptr /= null then
-            Ada.Environment_Variables.Set ("PI_ACME_BIN", Ptr.all);
-            GNAT.OS_Lib.Free (Ptr);
-         else
-            Ada.Environment_Variables.Set
-              ("PI_ACME_BIN", Ada.Command_Line.Command_Name);
-         end if;
-         return True;
-      end Inject_Pi_Acme_Bin;
-
-      Env_Injected : constant Boolean := Inject_Pi_Acme_Bin;
-      pragma Unreferenced (Env_Injected);
-
-      --  Derive the bundled extension path: lib/pi_acme/subagent_window.ts
-      --  sits one level above the binary directory.  Silently omitted if the
-      --  file is absent (e.g. a development build before the post-build copy
-      --  has run).
-      function Subagent_Extension_Path return String is
-         Bin_Path : constant String :=
-           Ada.Environment_Variables.Value ("PI_ACME_BIN", "");
-      begin
-         if Bin_Path'Length = 0 then
-            return "";
-         end if;
-         declare
-            Bin_Dir    : constant String :=
-              Ada.Directories.Containing_Directory (Bin_Path);
-            Prefix_Dir : constant String :=
-              Ada.Directories.Containing_Directory (Bin_Dir);
-            Ext_Path   : constant String :=
-              Prefix_Dir & "/lib/pi_acme/subagent_window.ts";
-         begin
-            return (if Ada.Directories.Exists (Ext_Path)
-                    then Ext_Path
-                    else "");
-         end;
-      end Subagent_Extension_Path;
-
-      Cwd       : constant String := Ada.Strings.Fixed.Trim
-        (Ada.Command_Line.Command_Name, Ada.Strings.Both);  --  placeholder
       Tag_Extra : constant String :=
         (if Opts.One_Shot
          then " | Stop Steer"
@@ -360,423 +448,379 @@ package body Pi_Acme_App is
       end List_Sessions_Text;
 
       --  Shared objects — all tasks close over these:
-      Win_FS : aliased Nine_P.Client.Fs  := Ns_Mount ("acme");
+      Win_FS : aliased Nine_P.Client.Fs := Ns_Mount ("acme");
       Win    : Acme.Window.Win := Acme.Window.New_Win (Win_FS'Access);
-      Proc   : Pi_RPC.Process  := Pi_RPC.Start
-        (Session_Id    => To_String (Opts.Session_Id),
-         Model         => To_String (Opts.Model),
-         System_Prompt => To_String (Opts.Agent),
-         No_Tools      => Opts.No_Tools,
-         No_Session    => Opts.No_Session,
-         Extension     => Subagent_Extension_Path);
-      State  : App_State;
+      State         : App_State;
+      Agent_Session : LLM.Agent.Session;
+      Commands      : Agent_Command_Queue;
+
+      function Status_Label return String is
+      begin
+         if State.Is_Compacting then
+            return "compacting";
+         elsif State.Is_Retrying then
+            return "retrying";
+         elsif State.Is_Streaming then
+            return "running";
+         else
+            return "ready";
+         end if;
+      end Status_Label;
+
+      procedure Initiate_Shutdown is
+      begin
+         LLM.Agent.Request_Abort (Agent_Session);
+         Commands.Signal_Shutdown;
+         State.Signal_Shutdown;
+      exception
+         when others =>
+            Commands.Signal_Shutdown;
+            State.Signal_Shutdown;
+      end Initiate_Shutdown;
 
       --  ── Inner task declarations ────────────────────────────────────────
 
-      task Pi_Stdout_Task;
-      task Pi_Stderr_Task;
+      task Agent_Task;
       task Acme_Event_Task;
       task Plumb_Model_Task;
       task Plumb_Session_Task;
       task Plumb_Thinking_Task;
 
-      --  ── Pi_Stdout_Task ────────────────────────────────────────────────
+      --  ── Agent_Task ────────────────────────────────────────────────────
 
-      task body Pi_Stdout_Task is
-         My_FS        : aliased Nine_P.Client.Fs := Ns_Mount ("acme");
-         Section      : Section_Kind             := No_Section;
-         First_Boot   : Boolean                  := True;
-         --  When non-empty, the top of Restart_Loop renders this session's
-         --  history and shows a loading banner before bootstrapping pi.
-         --  Seeded from the command-line --session option so that forked
-         --  (and manually resumed) sessions display their conversation
-         --  immediately; replenished by the reload path on each subsequent
-         --  session switch.
-         Pending_UUID : Unbounded_String         := Opts.Session_Id;
-         --  True when Pending_UUID was set by the reload path rather than
-         --  the initial startup.  Controls whether Signal_Restart_Done is
-         --  called after the render to unblock Pi_Stderr_Task; the call is
-         --  correct only when Pi_Stderr_Task is actually blocked on
-         --  Wait_Restart_Complete, which only happens after its first
-         --  stderr EOF (i.e. not during the very first boot).
-         Is_Reload    : Boolean                  := False;
+      task body Agent_Task is
+         My_FS            : aliased Nine_P.Client.Fs := Ns_Mount ("acme");
+         Section          : Section_Kind             := No_Section;
+         Current_Thinking : Unbounded_String := Null_Unbounded_String;
+         Current_Text     : Unbounded_String := Null_Unbounded_String;
+         Final_Text       : Unbounded_String := Null_Unbounded_String;
+         Final_Error      : Unbounded_String := Null_Unbounded_String;
+         Was_Aborted      : Boolean          := False;
 
-         --  ── One-shot tracking (Opts.One_Shot only) ────────────────────
-         --  Prompt_Sent        — True once the --prompt message is sent.
-         --  Was_Streaming      — previous loop iteration's Is_Streaming
-         --                       value; used to detect the agent_end edge.
-         --  Saw_Abort          — latches Was_Aborted from State *before*
-         --                       Dispatch_Pi_Event clears it at agent_end.
-         --  Awaiting_Last_Text — True between sending get_last_assistant_text
-         --                       and receiving its response.
-         --  One_Shot_Done      — True once the result is stored; causes an
-         --                       early exit from Read_Loop.
-         Prompt_Sent        : Boolean := False;
-         Was_Streaming      : Boolean := False;
-         Saw_Abort          : Boolean := False;
-         Awaiting_Last_Text : Boolean := False;
-         One_Shot_Done      : Boolean := False;
-      begin
-         Restart_Loop : loop
+         procedure Reset_One_Shot_Tracking is
+         begin
+            Current_Text := Null_Unbounded_String;
+            Final_Text := Null_Unbounded_String;
+            Final_Error := Null_Unbounded_String;
+            Was_Aborted := False;
+         end Reset_One_Shot_Tracking;
 
-            --  ① Render phase — fires whenever a session UUID is pending.
-            --  Handles both the initial --session startup and every live
-            --  reload through a single code path.
-            if Length (Pending_UUID) > 0 then
+         procedure Track_Event (E : LLM.Events.Agent_Event'Class) is
+         begin
+            if E in LLM.Events.Message_Update_Event then
                declare
-                  UUID_Str : constant String := To_String (Pending_UUID);
-                  Short_Id : constant String :=
-                    (if UUID_Str'Length >= 8
-                     then UUID_Str (UUID_Str'First
-                                    .. UUID_Str'First + 7)
-                     else UUID_Str);
+                  Event : constant LLM.Events.Message_Update_Event :=
+                    LLM.Events.Message_Update_Event (E);
                begin
-                  Acme.Window.Append
-                    (Win, My_FS'Access,
-                     ASCII.LF
-                     & "[Loading session " & Short_Id & UC_ELLIP & "]"
-                     & ASCII.LF);
-                  Render_Session_History
-                    (UUID  => UUID_Str,
-                     Win   => Win,
-                     FS    => My_FS'Access,
-                     State => State);
-               end;
-               Pending_UUID := Null_Unbounded_String;
-               --  For reloads: unblock Pi_Stderr_Task now that the new pi
-               --  process is running and the history render is complete.
-               --  Not called on first boot — Pi_Stderr_Task does not wait
-               --  on Wait_Restart_Complete until after its first stderr EOF.
-               if Is_Reload then
-                  Is_Reload := False;
-                  State.Signal_Restart_Done;
-               end if;
-            end if;
-
-            --  ② Bootstrap phase: send get_state and get_session_stats;
-            --  send set_model on first boot only (on a reload the model
-            --  comes from the session).
-            Pi_RPC.Send (Proc, "{""type"":""get_state""}");
-            Pi_RPC.Send (Proc, "{""type"":""get_session_stats""}");
-            if First_Boot then
-               First_Boot := False;
-               --  One-shot: disable auto-compaction so that an overflow
-               --  does not cause pi to compact the context and silently
-               --  re-send the prompt, which would trigger another agent
-               --  turn and repeat indefinitely.  In one-shot mode the
-               --  task is bounded; if the context is too large for the
-               --  model the run should fail rather than loop.
-               if Opts.One_Shot then
-                  Pi_RPC.Send
-                    (Proc,
-                     "{""type"":""set_auto_compaction"","
-                     & """enabled"":false}");
-               end if;
-               --  Send set_model only in interactive mode.  In one-shot
-               --  mode --no-session is always active so pi starts with the
-               --  correct model from the --model CLI flag; sending set_model
-               --  would needlessly write to ~/.pi/agent/settings.json,
-               --  overwriting the user's preferred default model whenever a
-               --  subagent uses a different model.
-               if To_String (Opts.Model) /= "" and then not Opts.One_Shot then
-                  declare
-                     Provider_End : Natural := 0;
-                     Model_Spec   : constant String := To_String (Opts.Model);
-                  begin
-                     for I in Model_Spec'Range loop
-                        if Model_Spec (I) = '/' then
-                           Provider_End := I - 1;
-                           exit;
-                        end if;
-                     end loop;
-                     if Provider_End > 0 then
-                        Pi_RPC.Send
-                          (Proc,
-                           "{""type"":""set_model"",""provider"":"""
-                           & Model_Spec (Model_Spec'First .. Provider_End)
-                           & """,""modelId"":"""
-                           & Model_Spec (Provider_End + 2 .. Model_Spec'Last)
-                           & """}");
-                     end if;
-                  end;
-               end if;
-
-               --  One-shot: send the initial prompt supplied via --prompt.
-               if Opts.One_Shot
-                 and then Length (Opts.Initial_Prompt) > 0
-               then
-                  declare
-                     Prompt : constant String     :=
-                       To_String (Opts.Initial_Prompt);
-                     Msg    : constant JSON_Value := Create_Object;
-                  begin
-                     Acme.Window.Append
-                       (Win, My_FS'Access,
-                        ASCII.LF & UC_TRI_R & " " & Prompt & ASCII.LF);
-                     Msg.Set_Field ("type",    Create ("prompt"));
-                     Msg.Set_Field ("message", Create (Prompt));
-                     Pi_RPC.Send (Proc, Write (Msg));
-                     Prompt_Sent := True;
-                  end;
-               end if;
-            end if;
-
-            --  ③ Read phase: dispatch pi JSON events until EOF.
-            Read_Loop : loop
-               exit Read_Loop when One_Shot_Done;
-               declare
-                  Line : constant String := Pi_RPC.Read_Line (Proc);
-               begin
-                  exit Read_Loop when Line'Length = 0;
-                  declare
-                     Parse_Result : constant Read_Result := Read (Line);
-                  begin
-                     if Parse_Result.Success then
-                        declare
-                           Event : constant JSON_Value := Parse_Result.Value;
-                           Kind  : constant String     :=
-                             Get_String (Event, "type");
-                        begin
-                           --  One-shot: intercept the get_last_assistant_text
-                           --  response before it reaches Dispatch_Pi_Event.
-                           if Opts.One_Shot
-                             and then Awaiting_Last_Text
-                             and then Kind = "response"
-                             and then Get_String (Event, "command")
-                                      = "get_last_assistant_text"
-                           then
-                              Awaiting_Last_Text := False;
-                              declare
-                                 Data   : constant JSON_Value :=
-                                   Get_Object (Event, "data");
-                                 Output : constant String :=
-                                   Get_String (Data, "text");
-                                 Result : constant JSON_Value :=
-                                   Create_Object;
-                              begin
-                                 if Output'Length > 0 then
-                                    --  Non-empty text: this is the final
-                                    --  turn.  Store the result and exit.
-                                    Result.Set_Field
-                                      ("session_id",
-                                       Create (State.Session_Id));
-                                    Result.Set_Field
-                                      ("output", Create (Output));
-                                    State.Set_One_Shot_Result
-                                      (Write (Result));
-                                    State.Signal_Shutdown;
-                                    One_Shot_Done := True;
-                                 end if;
-                                 --  Empty output means the turn contained
-                                 --  only tool calls or whitespace deltas
-                                 --  (e.g. GPT-4.1 emits a blank line
-                                 --  before tool_use blocks).  Do not exit:
-                                 --  keep reading.  The next text-producing
-                                 --  agent_end will trigger another fetch
-                                 --  and eventually get real content.
-                              end;
-
-                           --  One-shot: a failed prompt response means pi
-                           --  rejected the turn before emitting agent_start,
-                           --  so agent_end will never arrive (e.g. missing
-                           --  API key).  Let Dispatch_Pi_Event display the
-                           --  ⚠ message as usual, then terminate.
-                           elsif Opts.One_Shot
-                             and then Prompt_Sent
-                             and then Kind = "response"
-                             and then Get_String (Event, "command") = "prompt"
-                             and then not Get_Boolean (Event, "success")
-                           then
-                              Dispatch_Pi_Event
-                                (Event,
-                                 Win, My_FS'Access, State, Section, Proc,
-                                 My_PID);
-                              declare
-                                 Err_Json : constant JSON_Value :=
-                                   Create_Object;
-                              begin
-                                 Err_Json.Set_Field
-                                   ("error",
-                                    Create ("prompt failed: "
-                                            & Get_String (Event, "error")));
-                                 State.Set_One_Shot_Result (Write (Err_Json));
-                              end;
-                              State.Signal_Shutdown;
-                              One_Shot_Done := True;
-
-                           else
-                              --  One-shot: latch Was_Aborted before
-                              --  Dispatch_Pi_Event clears it at agent_end.
-                              if Opts.One_Shot
-                                and then Kind = "agent_end"
-                              then
-                                 Saw_Abort := State.Was_Aborted;
-                              end if;
-
-                              Dispatch_Pi_Event
-                                (Event,
-                                 Win, My_FS'Access, State, Section, Proc,
-                                 My_PID);
-
-                              --  One-shot: check for the agent_end edge
-                              --  (Was_Streaming=True → Is_Streaming=False).
-                              if Opts.One_Shot and then Prompt_Sent then
-                                 if Was_Streaming
-                                   and then not State.Is_Streaming
-                                 then
-                                    if Saw_Abort then
-                                       State.Set_One_Shot_Result
-                                         ("{""error"":""aborted""}");
-                                       State.Signal_Shutdown;
-                                       One_Shot_Done := True;
-                                    elsif not State.Is_Retrying
-                                      and then
-                                        State.Last_Stop_Reason
-                                        not in "stop" | "length"
-                                      and then not State.Text_Emitted
-                                    then
-                                       --  Truly empty turn: nothing was
-                                       --  shown (no text, no tool calls)
-                                       --  and the last LLM call did not
-                                       --  end normally.  The agent
-                                       --  produced nothing useful.
-                                       State.Set_One_Shot_Result
-                                         ("{""error"":"
-                                          & """No response from pi""}");
-                                       State.Signal_Shutdown;
-                                       One_Shot_Done := True;
-                                    --  Final turn: the last LLM call ended
-                                    --  with "stop" or "length", meaning the
-                                    --  agent produced a text response.
-                                    --  Fetch via get_last_assistant_text.
-                                    --  Handles turns that mixed tool calls
-                                    --  with a final text response.
-                                    elsif not State.Is_Retrying
-                                      and then
-                                        (State.Last_Stop_Reason = "stop"
-                                         or else
-                                           State.Last_Stop_Reason = "length")
-                                    then
-                                       Pi_RPC.Send
-                                         (Proc,
-                                          "{""type"":"
-                                          & """get_last_assistant_text""}");
-                                       Awaiting_Last_Text := True;
-                                    end if;
-                                    Saw_Abort := False;
-                                 end if;
-                                 Was_Streaming := State.Is_Streaming;
-                              end if;
-                           end if;
-                        end;
-                     else
-                        --  Non-JSON line on pi stdout — show it verbatim so
-                        --  plain-text warnings or startup diagnostics are
-                        --  visible rather than silently dropped.
-                        Acme.Window.Append
-                          (Win, My_FS'Access,
-                           ASCII.LF & "[pi] " & Line & ASCII.LF);
-                     end if;
-                  end;
-               end;
-            end loop Read_Loop;
-
-            --  ④ EOF phase: handle reload or exit.
-            --  On reload: start the new pi process immediately (it stays
-            --  silent until get_state is sent in the next iteration's
-            --  bootstrap phase) and queue the render for the next iteration.
-            declare
-               UUID          : Unbounded_String;
-               Was_Requested : Boolean;
-            begin
-               State.Consume_Reload (UUID, Was_Requested);
-               if Was_Requested then
-                  Pi_RPC.Restart (Proc, To_String (UUID));
-                  State.Set_Is_Retrying (False);
-                  Section      := No_Section;
-                  Pending_UUID := UUID;
-                  Is_Reload    := True;
-                  --  Restart_Loop continues; render fires next iteration.
-               else
-                  --  Terminate pi (idempotent when it already exited).
-                  --  Closing its pipes lets Pi_Stderr_Task reach EOF on
-                  --  stderr and proceed to Wait_Restart_Complete.
-                  Pi_RPC.Terminate_Process (Proc);
-                  State.Signal_Restart_Aborted;
-                  --  Tell the user pi has gone away (visible in the window
-                  --  before Run deletes it).
-                  Acme.Window.Append
-                    (Win, My_FS'Access,
-                     ASCII.LF & UC_WARN & " pi exited unexpectedly."
-                     & ASCII.LF);
-                  --  One-shot: record an error result so the spawning
-                  --  extension receives a meaningful response.
-                  --  Set_One_Shot_Result is a no-op when a result was already
-                  --  stored by the normal agent_end path.
-                  if Opts.One_Shot then
-                     State.Set_One_Shot_Result
-                       ("{""error"":""pi exited without producing output""}");
+                  if Event.Kind = LLM.Events.Text_Delta then
+                     Append (Current_Text, To_String (Event.Delta_Text));
                   end if;
-                  --  Wake Run unconditionally — the window is dead regardless
-                  --  of mode.  Matches the exception-handler path above.
-                  State.Signal_Shutdown;
-                  exit Restart_Loop;
-               end if;
-            end;
+               end;
+            elsif E in LLM.Events.Message_End_Event then
+               declare
+                  Event : constant LLM.Events.Message_End_Event :=
+                    LLM.Events.Message_End_Event (E);
+               begin
+                  if Event.Stop in LLM.Types.Stop | LLM.Types.Length then
+                     Final_Text := Current_Text;
+                  end if;
+                  if Length (Event.Err_Msg) > 0 then
+                     Final_Error := Event.Err_Msg;
+                  end if;
+                  Current_Text := Null_Unbounded_String;
+               end;
+            elsif E in LLM.Events.Agent_End_Event then
+               Was_Aborted :=
+                 LLM.Events.Agent_End_Event (E).Was_Aborted;
+            end if;
+         end Track_Event;
 
-         end loop Restart_Loop;
+         procedure Dispatch_Event (E : LLM.Events.Agent_Event'Class) is
+            Json_Str : constant String := LLM.Agent.Pi_Adapter.To_Pi_Json (E);
+         begin
+            Track_Event (E);
+            if Json_Str'Length > 0 then
+               declare
+                  Parse_Result : constant GNATCOLL.JSON.Read_Result :=
+                    GNATCOLL.JSON.Read (Json_Str);
+               begin
+                  if Parse_Result.Success then
+                     Dispatch_Pi_Event
+                       (Event   => Parse_Result.Value,
+                        Win     => Win,
+                        FS      => My_FS'Access,
+                        State   => State,
+                        Section => Section,
+                        PID     => My_PID);
+                  end if;
+               end;
+            end if;
+         end Dispatch_Event;
+
+         procedure Emit_Model_Select is
+            Model_Spec : constant String :=
+              LLM.Agent.Current_Model_Spec (Agent_Session);
+            Provider   : Unbounded_String;
+            Model_Id   : Unbounded_String;
+         begin
+            if Model_Spec'Length = 0 then
+               return;
+            end if;
+
+            Split_Model_Spec (Model_Spec, Provider, Model_Id);
+            declare
+               Event : constant LLM.Events.Model_Select_Event :=
+                 (LLM.Events.Agent_Event with
+                  Provider       => Provider,
+                  Model_Id       => Model_Id,
+                  Context_Window => LLM.Agent.Context_Window (Agent_Session));
+            begin
+               Dispatch_Event (Event);
+            end;
+         end Emit_Model_Select;
+
+         procedure Emit_Session_Info is
+            Event : constant LLM.Events.Session_Info_Event :=
+              (LLM.Events.Agent_Event with
+               Session_Id     =>
+                 To_Unbounded_String (LLM.Agent.Session_Id (Agent_Session)),
+               Thinking_Level => Current_Thinking);
+         begin
+            Dispatch_Event (Event);
+         end Emit_Session_Info;
+
+         procedure Emit_Bootstrap is
+         begin
+            Emit_Model_Select;
+            Emit_Session_Info;
+         end Emit_Bootstrap;
+
+         procedure Append_Task_Warning (Message : String) is
+         begin
+            Acme.Window.Append
+              (Win,
+               My_FS'Access,
+               ASCII.LF & "[!] " & Message & ASCII.LF);
+         end Append_Task_Warning;
+
+         procedure Render_Loaded_Session (UUID : String) is
+            Short_Id : constant String :=
+              (if UUID'Length >= 8
+               then UUID (UUID'First .. UUID'First + 7)
+               else UUID);
+         begin
+            Acme.Window.Append
+              (Win,
+               My_FS'Access,
+               ASCII.LF
+               & "[Loading session " & Short_Id & UC_ELLIP & "]"
+               & ASCII.LF);
+            Render_Session_History
+              (UUID  => UUID,
+               Win   => Win,
+               FS    => My_FS'Access,
+               State => State);
+         end Render_Loaded_Session;
+
+         procedure Reset_Session_State is
+         begin
+            State.Set_Streaming (False);
+            State.Set_Compacting (False);
+            State.Set_Aborted (False);
+            State.Set_Is_Retrying (False);
+            State.Set_Text_Emitted (False);
+            State.Set_Has_Text_Delta (False);
+            State.Set_Has_Tool_In_Turn (False);
+            State.Set_Last_Stop_Reason ("");
+            State.Set_Last_Error_Message ("");
+            State.Set_Pending_Stats (False);
+            State.Set_Models_Pending (False);
+            State.Set_Turn_Tokens (0, 0);
+            State.Set_Turn_Cost (0);
+            State.Set_Session_Stats (0, 0, 0, 0, 0, 0);
+            State.Reset_Turn_Count;
+         end Reset_Session_State;
+
+         procedure Store_One_Shot_Result is
+            Result : constant JSON_Value := Create_Object;
+         begin
+            if Was_Aborted then
+               State.Set_One_Shot_Result ("{""error"":""aborted""}");
+            elsif Length (Final_Text) > 0 then
+               Result.Set_Field
+                 ("session_id", Create (LLM.Agent.Session_Id (Agent_Session)));
+               Result.Set_Field ("output", Create (To_String (Final_Text)));
+               State.Set_One_Shot_Result (Write (Result));
+            elsif Length (Final_Error) > 0 then
+               Result.Set_Field ("error", Create (To_String (Final_Error)));
+               State.Set_One_Shot_Result (Write (Result));
+            else
+               State.Set_One_Shot_Result
+                 ("{""error"":""No response from pi""}");
+            end if;
+         end Store_One_Shot_Result;
+
+         procedure Run_Queued_Prompt
+           (Prompt   : String;
+            Is_Steer : Boolean) is
+            pragma Unreferenced (Is_Steer);
+         begin
+            Reset_One_Shot_Tracking;
+            LLM.Agent.Run_Prompt
+              (S        => Agent_Session,
+               Prompt   => Prompt,
+               On_Event => Dispatch_Event'Access);
+            if Opts.One_Shot then
+               Store_One_Shot_Result;
+               Initiate_Shutdown;
+            end if;
+         exception
+            when Ex : others =>
+               Append_Task_Warning
+                 ("prompt failed: "
+                  & Ada.Exceptions.Exception_Message (Ex));
+               if Opts.One_Shot then
+                  State.Set_One_Shot_Result
+                    ("{""error"":""prompt failed: "
+                     & Ada.Exceptions.Exception_Message (Ex)
+                     & """}");
+                  Initiate_Shutdown;
+               end if;
+         end Run_Queued_Prompt;
+
+      begin
+         declare
+            Settings_Value : constant LLM.Settings.Settings :=
+              LLM.Settings.Load_Settings;
+         begin
+            Current_Thinking := Settings_Value.Default_Thinking;
+         end;
+
+         if Length (Opts.Agent) > 0 then
+            State.Set_Agent (To_String (Opts.Agent));
+         end if;
+
+         LLM.Agent.Create
+           (S             => Agent_Session,
+            Model_Spec    => To_String (Opts.Model),
+            System_Prompt => To_String (Opts.Agent),
+            No_Tools      => Opts.No_Tools,
+            Session_Id    => To_String (Opts.Session_Id));
+
+         if Length (Opts.Session_Id) > 0 then
+            Render_Loaded_Session (To_String (Opts.Session_Id));
+         end if;
+
+         Emit_Bootstrap;
+
+         if Opts.One_Shot then
+            if Length (Opts.Initial_Prompt) = 0 then
+               State.Set_One_Shot_Result
+                 ("{""error"":""one-shot requires --prompt""}");
+               Initiate_Shutdown;
+            else
+               declare
+                  Prompt : constant String := To_String (Opts.Initial_Prompt);
+               begin
+                  Acme.Window.Append
+                    (Win,
+                     My_FS'Access,
+                     ASCII.LF & UC_TRI_R & " " & Prompt & ASCII.LF);
+                  Run_Queued_Prompt (Prompt, False);
+               end;
+            end if;
+         else
+            Command_Loop : loop
+               declare
+                  Kind     : Agent_Command_Kind;
+                  Text     : Unbounded_String;
+                  Is_Steer : Boolean;
+               begin
+                  Commands.Dequeue (Kind, Text, Is_Steer);
+                  exit Command_Loop when Kind = Shutdown_Command;
+
+                  case Kind is
+                  when Prompt_Command =>
+                     Run_Queued_Prompt (To_String (Text), Is_Steer);
+
+                  when New_Session_Command =>
+                     begin
+                        LLM.Agent.New_Session (Agent_Session);
+                        Reset_Session_State;
+                        Emit_Bootstrap;
+                     exception
+                        when Ex : others =>
+                           Append_Task_Warning
+                             ("new session failed: "
+                              & Ada.Exceptions.Exception_Message (Ex));
+                     end;
+
+                  when Switch_Session_Command =>
+                     begin
+                        LLM.Agent.Switch_Session
+                          (S    => Agent_Session,
+                           UUID => To_String (Text));
+                        Reset_Session_State;
+                        Render_Loaded_Session (To_String (Text));
+                        Emit_Bootstrap;
+                     exception
+                        when Ex : others =>
+                           Append_Task_Warning
+                             ("session switch failed: "
+                              & Ada.Exceptions.Exception_Message (Ex));
+                     end;
+
+                  when Set_Model_Command =>
+                     begin
+                        LLM.Agent.Set_Model
+                          (S    => Agent_Session,
+                           Spec => To_String (Text));
+                        Emit_Model_Select;
+                     exception
+                        when Ex : others =>
+                           Append_Task_Warning
+                             ("model change failed: "
+                              & Ada.Exceptions.Exception_Message (Ex));
+                     end;
+
+                  when Set_Thinking_Command =>
+                     begin
+                        Current_Thinking := Text;
+                        LLM.Agent.Set_Thinking
+                          (S     => Agent_Session,
+                           Level => Thinking_Level_Of (To_String (Text)));
+                        Acme.Window.Replace_Line1
+                          (Win,
+                           My_FS'Access,
+                           Format_Status (State, Status_Label));
+                     exception
+                        when Ex : others =>
+                           Append_Task_Warning
+                             ("thinking change failed: "
+                              & Ada.Exceptions.Exception_Message (Ex));
+                     end;
+
+                  when Shutdown_Command =>
+                     exit Command_Loop;
+                  end case;
+               end;
+            end loop Command_Loop;
+         end if;
       exception
          when Ex : others =>
-            Ada.Text_IO.Put_Line
-              (Ada.Text_IO.Standard_Error,
-               "Pi_Stdout_Task terminated: "
-               & Ada.Exceptions.Exception_Information (Ex));
             Acme.Window.Append
-              (Win, My_FS'Access,
-               ASCII.LF & UC_WARN & " Lost connection to pi." & ASCII.LF);
-            --  One-shot: record a failure result so Run always has a JSON
-            --  line to print; Set_One_Shot_Result is a no-op if a result
-            --  was already stored.
+              (Win,
+               My_FS'Access,
+               ASCII.LF & "[!] Agent task: "
+               & Ada.Exceptions.Exception_Message (Ex) & ASCII.LF);
             if Opts.One_Shot then
                State.Set_One_Shot_Result
-                 ("{""error"":""pi connection lost""}");
+                 ("{""error"":""agent task failed: "
+                  & Ada.Exceptions.Exception_Message (Ex)
+                  & """}");
             end if;
-            State.Signal_Restart_Aborted;
-            State.Signal_Shutdown;
-      end Pi_Stdout_Task;
-
-      --  ── Pi_Stderr_Task ────────────────────────────────────────────────
-
-      task body Pi_Stderr_Task is
-         My_FS : aliased Nine_P.Client.Fs := Ns_Mount ("acme");
-      begin
-         Restart_Loop : loop
-            Read_Loop : loop
-               declare
-                  Line : constant String := Pi_RPC.Read_Stderr_Line (Proc);
-               begin
-                  exit Read_Loop when Line'Length = 0;
-                  Acme.Window.Append
-                    (Win, My_FS'Access,
-                     ASCII.LF & "[err] " & Line & ASCII.LF);
-               end;
-            end loop Read_Loop;
-            --  EOF: wait for Pi_Stdout_Task to decide restart vs. shutdown.
-            declare
-               Was_Restarted : Boolean;
-            begin
-               State.Wait_Restart_Complete (Was_Restarted);
-               exit Restart_Loop when not Was_Restarted;
-               --  Pi was restarted: resume reading stderr of the new process.
-            end;
-         end loop Restart_Loop;
-      exception
-         when Ex : others =>
-            Ada.Text_IO.Put_Line
-              (Ada.Text_IO.Standard_Error,
-               "Pi_Stderr_Task terminated: "
-               & Ada.Exceptions.Exception_Information (Ex));
-      end Pi_Stderr_Task;
+            Initiate_Shutdown;
+      end Agent_Task;
 
       --  ── Acme_Event_Task ───────────────────────────────────────────────
       --
@@ -790,9 +834,6 @@ package body Pi_Acme_App is
                  Acme.Window.Event_Path (Win),
                  O_READ);
          Parser       : Acme.Raw_Events.Event_Parser;
-         --  Set to True when the ATC triggering alternative fires so the
-         --  task can skip Signal_Shutdown (it was already called by the
-         --  task that triggered the shutdown).
          Got_Shutdown : Boolean := False;
 
          --  Launch  llm-chat-open Token  and wait for it.
@@ -810,10 +851,11 @@ package body Pi_Acme_App is
             Open_Pipe (Stderr_R, Stderr_W);
             Args.Append ("llm-chat-open");
             Args.Append (Token);
-            Handle := Start (Args   => Args,
-                             Stdin  => Null_In,
-                             Stdout => Stderr_W,
-                             Stderr => Stderr_W);
+            Handle := Start
+              (Args   => Args,
+               Stdin  => Null_In,
+               Stdout => Stderr_W,
+               Stderr => Stderr_W);
             Close (Null_In);
             Close (Stderr_W);
             Exit_Code := Wait (Handle);
@@ -830,7 +872,8 @@ package body Pi_Acme_App is
                   end loop;
                   if Length (Err_Msg) > 0 then
                      Acme.Window.Append
-                       (Win, My_FS'Access,
+                       (Win,
+                        My_FS'Access,
                         ASCII.LF & UC_WARN & " llm-chat-open: "
                         & To_String (Err_Msg) & ASCII.LF);
                   end if;
@@ -840,7 +883,8 @@ package body Pi_Acme_App is
          exception
             when Ex : others =>
                Acme.Window.Append
-                 (Win, My_FS'Access,
+                 (Win,
+                  My_FS'Access,
                   ASCII.LF & UC_WARN & " llm-chat-open error: "
                   & Ada.Exceptions.Exception_Message (Ex) & ASCII.LF);
          end Run_Llm_Chat_Open;
@@ -859,11 +903,6 @@ package body Pi_Acme_App is
               (if Anchor > 200 then Anchor - 200 else 0);
             Ctx_End   : constant Natural := Anchor + 200;
          begin
-            --  Read_Chars and Scan_Tool_Token are inside a block so that
-            --  any P9_Error raised during their elaboration is caught by
-            --  the outer "when others" handler below.  (Exceptions raised
-            --  during a subprogram body's own declarative-part elaboration
-            --  bypass that body's handlers per Ada RM 11.4.)
             declare
                Context : constant String :=
                  Acme.Window.Read_Chars
@@ -897,31 +936,35 @@ package body Pi_Acme_App is
          begin
             if New_UUID'Length = 0 then
                Acme.Window.Append
-                 (Win, My_FS'Access,
+                 (Win,
+                  My_FS'Access,
                   ASCII.LF & UC_WARN & " Fork failed (turn "
-                  & Natural_Image (After_Turn) & " not found in session)."
-                  & ASCII.LF);
+                  & Natural_Image (After_Turn)
+                  & " not found in session)." & ASCII.LF);
                return;
             end if;
             Null_FD := Open (Null_File, Read_Mode);
             Args.Append (Ada.Command_Line.Command_Name);
             Args.Append ("--session");
             Args.Append (New_UUID);
-            Handle := Start (Args   => Args,
-                             Stdin  => Null_FD,
-                             Stdout => Null_FD,
-                             Stderr => Null_FD,
-                             Cwd    => Cwd);
+            Handle := Start
+              (Args   => Args,
+               Stdin  => Null_FD,
+               Stdout => Null_FD,
+               Stderr => Null_FD,
+               Cwd    => Cwd);
             Close (Null_FD);
             Acme.Window.Append
-              (Win, My_FS'Access,
+              (Win,
+               My_FS'Access,
                ASCII.LF & "[Forked -> "
                & New_UUID (New_UUID'First .. New_UUID'First + 7)
                & "...]" & ASCII.LF);
          exception
             when Ex : others =>
                Acme.Window.Append
-                 (Win, My_FS'Access,
+                 (Win,
+                  My_FS'Access,
                   ASCII.LF & UC_WARN & " Fork_And_Open: "
                   & Ada.Exceptions.Exception_Message (Ex) & ASCII.LF);
          end Fork_And_Open;
@@ -940,11 +983,6 @@ package body Pi_Acme_App is
               (if Anchor > 200 then Anchor - 200 else 0);
             Ctx_End   : constant Natural := Anchor + 200;
          begin
-            --  Read_Chars and Scan_Fork_Token are inside a block so that
-            --  any P9_Error raised during their elaboration is caught by
-            --  the outer "when others" handler below.  (Exceptions raised
-            --  during a subprogram body's own declarative-part elaboration
-            --  bypass that body's handlers per Ada RM 11.4.)
             declare
                Context : constant String :=
                  Acme.Window.Read_Chars
@@ -955,7 +993,6 @@ package body Pi_Acme_App is
                if Token'Length = 0 then
                   return False;
                end if;
-               --  Parse "fork+PID/UUID/N" — split on the first and last '/'.
                declare
                   After_Plus  : constant Natural := Token'First + 5;
                   First_Slash : Natural          := 0;
@@ -981,7 +1018,6 @@ package body Pi_Acme_App is
                        Token (Last_Slash + 1 .. Token'Last);
                      Turn_N    : Positive;
                   begin
-                     --  Only handle tokens addressed to this process.
                      if Token_PID /= My_PID then
                         return False;
                      end if;
@@ -999,11 +1035,31 @@ package body Pi_Acme_App is
                return False;
          end Try_Fork_URI;
 
+         procedure Open_Models_Window is
+            Parent  : constant String :=
+              Ada.Directories.Current_Directory & "/+pi";
+            Models  : constant LLM.Model_Registry.Model_Info_Vectors.Vector :=
+              LLM.Model_Registry.Available_Models;
+            Content : Unbounded_String;
+         begin
+            for Model of Models loop
+               Append
+                 (Content,
+                  "model+" & My_PID & "/"
+                  & To_String (Model.Provider) & "/"
+                  & To_String (Model.Model_Id) & ASCII.LF);
+            end loop;
+            Open_Sub_Window
+              (My_FS'Access,
+               Parent,
+               "+models",
+               (if Length (Content) > 0
+                then To_String (Content)
+                else "(no models available)" & ASCII.LF));
+         end Open_Models_Window;
+
       begin
          Event_Loop : loop
-            --  Wrap each blocking read in an ATC select so that
-            --  Signal_Shutdown (from any task) immediately unblocks this
-            --  task rather than leaving it stuck in a 9P read forever.
             select
                State.Wait_Shutdown;
                Got_Shutdown := True;
@@ -1014,15 +1070,15 @@ package body Pi_Acme_App is
                begin
                   exit Event_Loop when Data'Length = 0;
                   Acme.Raw_Events.Feed (Parser, Data);
-                  loop
+                  Raw_Event_Loop : loop
                      declare
                         Ev : Acme.Event_Parser.Event;
                      begin
-                        exit when not
+                        exit Raw_Event_Loop when not
                           Acme.Raw_Events.Next_Event (Parser, Ev);
                         declare
                            C2   : constant Character := Ev.C2;
-                           Text : constant String    :=
+                           Text : constant String :=
                              Ada.Strings.Fixed.Trim
                                (To_String (Ev.Text), Ada.Strings.Both);
                         begin
@@ -1038,7 +1094,8 @@ package body Pi_Acme_App is
                                          or else State.Is_Retrying
                                        then
                                           Acme.Window.Append
-                                            (Win, My_FS'Access,
+                                            (Win,
+                                             My_FS'Access,
                                              ASCII.LF & UC_WARN
                                              & " Agent is running"
                                              & (if State.Is_Retrying
@@ -1049,26 +1106,22 @@ package body Pi_Acme_App is
                                              & ASCII.LF);
                                        else
                                           Acme.Window.Append
-                                            (Win, My_FS'Access,
+                                            (Win,
+                                             My_FS'Access,
                                              ASCII.LF & UC_TRI_R
                                              & " " & Sel & ASCII.LF);
-                                          declare
-                                             Msg : constant JSON_Value :=
-                                               Create_Object;
-                                          begin
-                                             Msg.Set_Field
-                                               ("type", Create ("prompt"));
-                                             Msg.Set_Field
-                                               ("message", Create (Sel));
-                                             Pi_RPC.Send
-                                               (Proc, Write (Msg));
-                                          end;
+                                          Commands.Enqueue
+                                            (Prompt_Command, Sel);
                                        end if;
                                     end if;
                                  end;
                               elsif Text = "Stop" then
-                                 Pi_RPC.Send
-                                   (Proc, "{""type"":""abort""}");
+                                 if State.Is_Streaming
+                                   or else State.Is_Retrying
+                                 then
+                                    State.Set_Aborted (True);
+                                 end if;
+                                 LLM.Agent.Request_Abort (Agent_Session);
                               elsif Text = "Steer" then
                                  declare
                                     Sel : constant String :=
@@ -1077,69 +1130,72 @@ package body Pi_Acme_App is
                                  begin
                                     if Sel'Length > 0 then
                                        Acme.Window.Append
-                                         (Win, My_FS'Access,
+                                         (Win,
+                                          My_FS'Access,
                                           ASCII.LF & UC_HOOK_L
                                           & " Steer: " & Sel & ASCII.LF);
-                                       declare
-                                          Msg : constant JSON_Value :=
-                                            Create_Object;
-                                       begin
-                                          Msg.Set_Field
-                                            ("type", Create ("prompt"));
-                                          Msg.Set_Field
-                                            ("message", Create (Sel));
-                                          Msg.Set_Field
-                                            ("streamingBehavior",
-                                             Create ("steer"));
-                                          Pi_RPC.Send
-                                            (Proc, Write (Msg));
-                                       end;
+                                       if State.Is_Streaming
+                                         or else State.Is_Retrying
+                                       then
+                                          State.Set_Aborted (True);
+                                          LLM.Agent.Request_Abort
+                                            (Agent_Session);
+                                       end if;
+                                       Commands.Enqueue
+                                         (Prompt_Command, Sel, True);
                                     end if;
                                  end;
                               elsif Text = "New" then
-                                 Pi_RPC.Send
-                                   (Proc, "{""type"":""new_session""}");
                                  Acme.Window.Append
-                                   (Win, My_FS'Access,
+                                   (Win,
+                                    My_FS'Access,
                                     ASCII.LF
                                     & UC_HORIZ & UC_HORIZ & " New session "
                                     & UC_HORIZ & UC_HORIZ & ASCII.LF);
+                                 if State.Is_Streaming
+                                   or else State.Is_Retrying
+                                 then
+                                    State.Set_Aborted (True);
+                                    LLM.Agent.Request_Abort (Agent_Session);
+                                 end if;
+                                 Commands.Enqueue (New_Session_Command);
                               elsif Text = "Compact" then
-                                 --  Guard: do not compact while the agent is
-                                 --  streaming or a compaction is
-                                 --  already running.
                                  if not State.Is_Streaming
                                    and then not State.Is_Compacting
                                  then
                                     State.Set_Compacting (True);
                                     Acme.Window.Append
-                                      (Win, My_FS'Access,
+                                      (Win,
+                                       My_FS'Access,
                                        ASCII.LF & UC_GEAR
                                        & " Compacting context"
                                        & UC_ELLIP & ASCII.LF);
                                     Acme.Window.Replace_Line1
-                                      (Win, My_FS'Access,
+                                      (Win,
+                                       My_FS'Access,
                                        Format_Status (State, "compacting"));
-                                    Pi_RPC.Send
-                                      (Proc, "{""type"":""compact""}");
+                                    Acme.Window.Append
+                                      (Win,
+                                       My_FS'Access,
+                                       ASCII.LF
+                                       & "[Compact not yet implemented]"
+                                       & ASCII.LF);
+                                    State.Set_Compacting (False);
+                                    Acme.Window.Replace_Line1
+                                      (Win,
+                                       My_FS'Access,
+                                       Format_Status (State, Status_Label));
                                  end if;
                               elsif Text = "Clear" then
                                  Acme.Window.Replace_Match
                                    (Win, My_FS'Access, "1,$", "");
                                  Acme.Window.Append
-                                   (Win, My_FS'Access,
+                                   (Win,
+                                    My_FS'Access,
                                     Format_Status (State, "ready")
                                     & ASCII.LF);
                               elsif Text = "Models" then
-                                 --  Request the list of models from the
-                                 --  running pi process.  Only models for
-                                 --  which an API key is configured are
-                                 --  returned.  The response handler in
-                                 --  Dispatch_Pi_Event opens the sub-window.
-                                 State.Set_Models_Pending (True);
-                                 Pi_RPC.Send
-                                   (Proc,
-                                    "{""type"":""get_available_models""}");
+                                 Open_Models_Window;
                               elsif Text = "Sessions" then
                                  declare
                                     Parent  : constant String :=
@@ -1149,7 +1205,9 @@ package body Pi_Acme_App is
                                       List_Sessions_Text;
                                  begin
                                     Open_Sub_Window
-                                      (My_FS'Access, Parent, "+sessions",
+                                      (My_FS'Access,
+                                       Parent,
+                                       "+sessions",
                                        (if Content'Length > 0
                                         then Content
                                         else "(no sessions found)"
@@ -1161,16 +1219,17 @@ package body Pi_Acme_App is
                                       Ada.Directories.Current_Directory
                                       & "/+pi";
                                     Content : constant String :=
-                                      "thinking+" & My_PID
-                                      & "/low"    & ASCII.LF
-                                      & "thinking+" & My_PID
-                                      & "/medium" & ASCII.LF
-                                      & "thinking+" & My_PID
-                                      & "/high"   & ASCII.LF;
+                                      "thinking+" & My_PID & "/low" & ASCII.LF
+                                      & "thinking+" & My_PID & "/medium"
+                                      & ASCII.LF
+                                      & "thinking+" & My_PID & "/high"
+                                      & ASCII.LF;
                                  begin
                                     Open_Sub_Window
-                                      (My_FS'Access, Parent,
-                                       "+thinking", Content);
+                                      (My_FS'Access,
+                                       Parent,
+                                       "+thinking",
+                                       Content);
                                  end;
                               elsif Text = "Stats" then
                                  declare
@@ -1227,7 +1286,6 @@ package body Pi_Acme_App is
                                           & ASCII.LF);
                                     end if;
                                     Append (Buf, "" & ASCII.LF);
-                                    --  Session-level cumulative breakdown.
                                     if Sess_Tot > 0 then
                                        Append
                                          (Buf,
@@ -1275,8 +1333,6 @@ package body Pi_Acme_App is
                                           & " -- complete a turn first.)"
                                           & ASCII.LF);
                                     end if;
-                                    --  Per-turn data from the most
-                                    --  recent turn.
                                     if Turn_In > 0 or else Turn_Out > 0 then
                                        Append
                                          (Buf,
@@ -1288,9 +1344,7 @@ package body Pi_Acme_App is
                                              & Natural_Image (Turn_Out)
                                              & ASCII.LF);
                                        end if;
-                                       if Turn_In > 0
-                                         and then Ctx_Win > 0
-                                       then
+                                       if Turn_In > 0 and then Ctx_Win > 0 then
                                           Append
                                             (Buf,
                                              "  Context: "
@@ -1304,57 +1358,56 @@ package body Pi_Acme_App is
                                        end if;
                                     end if;
                                     Open_Sub_Window
-                                      (My_FS'Access, Parent, "+stats",
+                                      (My_FS'Access,
+                                       Parent,
+                                       "+stats",
                                        To_String (Buf));
                                  end;
                               else
                                  Acme.Window.Send_Event
-                                   (Win, My_FS'Access,
-                                    Ev.C1, Ev.C2, Ev.Q0, Ev.Q1);
+                                   (Win,
+                                    My_FS'Access,
+                                    Ev.C1,
+                                    Ev.C2,
+                                    Ev.Q0,
+                                    Ev.Q1);
                               end if;
                            elsif C2 in 'L' | 'l' then
-                              --  Try to find a llm-chat+.../tool/... URI near
-                              --  the click before falling back to the plumber.
-                              --  acme's expand() stops at punctuation, so many
-                              --  click positions on the URI send no event at
-                              --  all or send a truncated token; we work around
-                              --  this by reading a small context window and
-                              --  scanning for the pattern ourselves.
                               if not Try_Fork_URI (Ev)
                                 and then not Try_Open_Tool_URI (Ev)
                               then
                                  Acme.Window.Send_Event
-                                   (Win, My_FS'Access,
-                                    Ev.C1, Ev.C2, Ev.Q0, Ev.Q1);
+                                   (Win,
+                                    My_FS'Access,
+                                    Ev.C1,
+                                    Ev.C2,
+                                    Ev.Q0,
+                                    Ev.Q1);
                               end if;
                            end if;
                         end;
                      end;
-                  end loop;
+                  end loop Raw_Event_Loop;
                end;
             end select;
             exit Event_Loop when Got_Shutdown;
          end loop Event_Loop;
-         --  Normal exit: window closed or EOF.  Signal the main task.
-         State.Signal_Shutdown;
+         Initiate_Shutdown;
       exception
          when Ex : Nine_P.Proto.P9_Error =>
-            --  "deleted window" is the normal error returned by the acme
-            --  9P server when the user closes the window; treat it as a
-            --  clean exit rather than a fault.
             if Ada.Exceptions.Exception_Message (Ex) /= "deleted window" then
                Ada.Text_IO.Put_Line
                  (Ada.Text_IO.Standard_Error,
                   "Acme_Event_Task terminated: "
                   & Ada.Exceptions.Exception_Information (Ex));
             end if;
-            State.Signal_Shutdown;
+            Initiate_Shutdown;
          when Ex : others =>
             Ada.Text_IO.Put_Line
               (Ada.Text_IO.Standard_Error,
                "Acme_Event_Task terminated: "
                & Ada.Exceptions.Exception_Information (Ex));
-            State.Signal_Shutdown;
+            Initiate_Shutdown;
       end Acme_Event_Task;
 
       --  ── Plumb_Model_Task ──────────────────────────────────────────────
@@ -1377,8 +1430,6 @@ package body Pi_Acme_App is
                   Data : constant String := Extract_Plumb_Data (Raw);
                begin
                   exit Plumb_Loop when Raw'Length = 0;
-                  --  Token format: model+PID/PROVIDER/MODELID
-                  --  Only handle messages destined for this process.
                   if Data'Length > 0 then
                      declare
                         First_Slash : Natural := 0;
@@ -1393,40 +1444,16 @@ package body Pi_Acme_App is
                           and then Data (Data'First .. First_Slash - 1)
                                    = "model+" & My_PID
                         then
-                           --  Rest is PROVIDER/MODELID — split on next '/'.
                            declare
-                              Rest         : constant String :=
+                              Rest : constant String :=
                                 Data (First_Slash + 1 .. Data'Last);
-                              Second_Slash : Natural := 0;
                            begin
-                              for I in Rest'Range loop
-                                 if Rest (I) = '/' then
-                                    Second_Slash := I;
-                                    exit;
-                                 end if;
-                              end loop;
-                              if Second_Slash > 0 then
-                                 declare
-                                    Provider : constant String :=
-                                      Rest (Rest'First
-                                            .. Second_Slash - 1);
-                                    Model_Id : constant String :=
-                                      Rest (Second_Slash + 1
-                                            .. Rest'Last);
-                                 begin
-                                    Pi_RPC.Send
-                                      (Proc,
-                                       "{""type"":""set_model"","
-                                       & """provider"":"""
-                                       & Provider & ""","
-                                       & """modelId"":"""
-                                       & Model_Id & """}");
-                                    Acme.Window.Append
-                                      (Win, My_FS'Access,
-                                       ASCII.LF & "[Model -> " & Rest
-                                       & "]" & ASCII.LF);
-                                 end;
-                              end if;
+                              Commands.Enqueue (Set_Model_Command, Rest);
+                              Acme.Window.Append
+                                (Win,
+                                 My_FS'Access,
+                                 ASCII.LF & "[Model -> " & Rest
+                                 & "]" & ASCII.LF);
                            end;
                         end if;
                      end;
@@ -1453,7 +1480,7 @@ package body Pi_Acme_App is
 
       task body Plumb_Session_Task is
          Pl_FS        : aliased Nine_P.Client.Fs   := Ns_Mount ("plumb");
-         Pid_Prefix   : constant String             :=
+         Pid_Prefix   : constant String :=
            "llm-chat+" & My_PID & "/";
          Port         : aliased Nine_P.Client.File :=
            Open (Pl_FS'Access, "/pi-session", O_READ);
@@ -1476,11 +1503,11 @@ package body Pi_Acme_App is
                           Parse_Session_Token (Data, Pid_Prefix);
                      begin
                         if UUID'Length > 0 then
-                           --  Signal reload and terminate pi;
-                           --  Pi_Stdout_Task will call Pi_RPC.Restart
-                           --  once it gets EOF.
-                           State.Request_Reload (UUID);
-                           Pi_RPC.Terminate_Process (Proc);
+                           if State.Is_Streaming or else State.Is_Retrying then
+                              State.Set_Aborted (True);
+                              LLM.Agent.Request_Abort (Agent_Session);
+                           end if;
+                           Commands.Enqueue (Switch_Session_Command, UUID);
                         end if;
                      end;
                   end if;
@@ -1517,8 +1544,6 @@ package body Pi_Acme_App is
                begin
                   exit Plumb_Loop when Raw'Length = 0;
                   if Level'Length > 0 then
-                     --  Token format: "thinking+PID/level"
-                     --  Find the last '/' to split PID from level.
                      declare
                         Slash : Natural := 0;
                      begin
@@ -1551,14 +1576,17 @@ package body Pi_Acme_App is
                                     else Level);
                               begin
                                  State.Set_Thinking (Parsed);
-                                 Pi_RPC.Send
-                                   (Proc,
-                                    "{""type"":""set_thinking_level"","
-                                    & """level"":""" & Parsed & """}");
+                                 Commands.Enqueue
+                                   (Set_Thinking_Command, Parsed);
                                  Acme.Window.Append
-                                   (Win, My_FS'Access,
+                                   (Win,
+                                    My_FS'Access,
                                     ASCII.LF & "[Thinking -> "
                                     & Parsed & "]" & ASCII.LF);
+                                 Acme.Window.Replace_Line1
+                                   (Win,
+                                    My_FS'Access,
+                                    Format_Status (State, Status_Label));
                               end;
                            end if;
                         end;
@@ -1576,14 +1604,13 @@ package body Pi_Acme_App is
                & Ada.Exceptions.Exception_Information (Ex));
       end Plumb_Thinking_Task;
 
-      pragma Unreferenced (Cwd);
-
    begin
       --  ── Initial window setup ──────────────────────────────────────────
       Acme.Window.Ctl (Win, Win_FS'Access, "cleartag");
       Acme.Window.Append_Tag (Win, Win_FS'Access, Tag_Extra);
       Acme.Window.Set_Name
-        (Win, Win_FS'Access,
+        (Win,
+         Win_FS'Access,
          Ada.Directories.Current_Directory & "/+pi"
          & (if Length (Opts.Name) > 0
             then ":" & To_String (Opts.Name)
@@ -1604,18 +1631,19 @@ package body Pi_Acme_App is
             Json : constant String := State.One_Shot_Result;
          begin
             Ada.Text_IO.Put_Line
-              (if Json'Length > 0
-               then Json
-               else "{""error"":""subagent closed before producing output""}");
+              ((if Json'Length > 0
+                then Json
+                else
+                  "{""error"":""subagent closed before producing"
+                  & " output""}"));
          end;
       end if;
 
-      --  Close the acme window on every exit path.  Silently ignore errors:
-      --  the window is already gone when the user closed it manually.
       begin
          Acme.Window.Ctl (Win, Win_FS'Access, "delete");
       exception
-         when others => null;  --  window may already be gone
+         when others =>
+            null;
       end;
    end Run;
 

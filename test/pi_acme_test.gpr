@@ -15,6 +15,10 @@ project Pi_Acme_Test is
       for Switches ("Ada") use ("-Es"); --  Symbolic traceback
    end Binder;
 
+   package Linker is
+      for Switches ("Ada") use ("-lcurl");
+   end Linker;
+
    package Install is
       for Artifacts (".") use ("share");
    end Install;

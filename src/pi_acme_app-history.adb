@@ -9,7 +9,6 @@ with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with GNATCOLL.JSON;          use GNATCOLL.JSON;
-with Acme.Window;
 with Nine_P.Client;          use Nine_P.Client;
 with Pi_Acme_App.Utils;      use Pi_Acme_App.Utils;
 with Session_Lister;         use Session_Lister;
@@ -138,6 +137,25 @@ package body Pi_Acme_App.History is
          return S;
       end First_Line;
 
+      --  Return the direct message object for either supported session
+      --  format, or JSON_Null for non-message lines.
+      function Message_Object (Value : JSON_Value) return JSON_Value is
+         Role : constant String := Get_String (Value, "role");
+      begin
+         if Role = "user"
+           or else Role = "assistant"
+           or else Role = "toolResult"
+         then
+            return Value;
+         end if;
+
+         if Get_String (Value, "type") = "message" then
+            return Get_Object (Value, "message");
+         end if;
+
+         return JSON_Null;
+      end Message_Object;
+
    begin
       if Path'Length = 0 then
          Acme.Window.Append
@@ -158,67 +176,56 @@ package body Pi_Acme_App.History is
             begin
                if Parse.Success then
                   declare
-                     Ev   : constant JSON_Value := Parse.Value;
-                     Kind : constant String     :=
-                       Get_String (Ev, "type");
+                     Ev  : constant JSON_Value := Parse.Value;
+                     Msg : constant JSON_Value := Message_Object (Ev);
+                     Role : constant String :=
+                       (if Msg.Kind = JSON_Object_Type
+                        then Get_String (Msg, "role")
+                        else "");
                   begin
-                     if Kind = "message" then
+                     if Msg.Kind = JSON_Object_Type
+                       and then Role = "toolResult"
+                     then
                         declare
-                           Msg  : constant JSON_Value :=
-                             Get_Object (Ev, "message");
-                           Role : constant String     :=
-                             Get_String (Msg, "role");
+                           Tid    : constant String  :=
+                             Get_String (Msg, "toolCallId");
+                           Is_Err : constant Boolean :=
+                             Get_Boolean (Msg, "isError");
+                           Parts  : Unbounded_String;
                         begin
-                           if Role = "toolResult" then
+                           if Msg.Has_Field ("content")
+                             and then
+                               Msg.Get ("content").Kind = JSON_Array_Type
+                           then
                               declare
-                                 Tid    : constant String  :=
-                                   Get_String (Msg, "toolCallId");
-                                 Is_Err : constant Boolean :=
-                                   Get_Boolean (Msg, "isError");
-                                 Parts  : Unbounded_String;
+                                 Content : constant JSON_Array :=
+                                   Msg.Get ("content");
                               begin
-                                 if Msg.Has_Field ("content")
-                                   and then
-                                     Msg.Get ("content").Kind
-                                     = JSON_Array_Type
-                                 then
+                                 for I in 1 .. Length (Content) loop
                                     declare
-                                       Content : constant JSON_Array :=
-                                         Msg.Get ("content");
+                                       Block : constant JSON_Value :=
+                                         Get (Content, I);
                                     begin
-                                       for I in 1 .. Length (Content) loop
-                                          declare
-                                             Block : constant JSON_Value :=
-                                               Get (Content, I);
-                                          begin
-                                             if Block.Kind
-                                                = JSON_Object_Type
-                                               and then
-                                                 Get_String
-                                                   (Block, "type")
-                                                 = "text"
-                                             then
-                                                if Length (Parts) > 0 then
-                                                   Append
-                                                     (Parts, ASCII.LF);
-                                                end if;
-                                                Append
-                                                  (Parts,
-                                                   Get_String
-                                                     (Block, "text"));
-                                             end if;
-                                          end;
-                                       end loop;
+                                       if Block.Kind = JSON_Object_Type
+                                         and then
+                                           Get_String (Block, "type") = "text"
+                                       then
+                                          if Length (Parts) > 0 then
+                                             Append (Parts, ASCII.LF);
+                                          end if;
+                                          Append
+                                            (Parts,
+                                             Get_String (Block, "text"));
+                                       end if;
                                     end;
-                                 end if;
-                                 if Tid'Length > 0 then
-                                    Tool_Results.Append
-                                      ((Id     =>
-                                            To_Unbounded_String (Tid),
-                                        Text   => Parts,
-                                        Is_Err => Is_Err));
-                                 end if;
+                                 end loop;
                               end;
+                           end if;
+                           if Tid'Length > 0 then
+                              Tool_Results.Append
+                                ((Id     => To_Unbounded_String (Tid),
+                                  Text   => Parts,
+                                  Is_Err => Is_Err));
                            end if;
                         end;
                      end if;
@@ -252,9 +259,13 @@ package body Pi_Acme_App.History is
             begin
                if Parse.Success then
                   declare
-                     Ev   : constant JSON_Value := Parse.Value;
-                     Kind : constant String     :=
-                       Get_String (Ev, "type");
+                     Ev : constant JSON_Value := Parse.Value;
+                     Kind : constant String := Get_String (Ev, "type");
+                     Msg : constant JSON_Value := Message_Object (Ev);
+                     Role : constant String :=
+                       (if Msg.Kind = JSON_Object_Type
+                        then Get_String (Msg, "role")
+                        else "");
                   begin
 
                      --  ── model_change ──────────────────────────────────
@@ -326,15 +337,9 @@ package body Pi_Acme_App.History is
                         end;
 
                      --  ── message ───────────────────────────────────────
-                     elsif Kind = "message" then
-                        declare
-                           Msg  : constant JSON_Value :=
-                             Get_Object (Ev, "message");
-                           Role : constant String     :=
-                             Get_String (Msg, "role");
-                        begin
-                           --  User turn
-                           if Role = "user" then
+                     elsif Msg.Kind = JSON_Object_Type then
+                        --  User turn
+                        if Role = "user" then
                               --  If the previous turn was complete, emit
                               --  its footer before this user message.
                               if In_Turn and then Saw_Asst_Text then
@@ -406,13 +411,24 @@ package body Pi_Acme_App.History is
                                  end;
                               end if;
 
-                           --  Assistant turn
-                           elsif Role = "assistant" then
-                              --  Capture token usage for context restore.
+                        --  Assistant turn
+                        elsif Role = "assistant" then
                               declare
-                                 Usage : constant JSON_Value :=
+                                 Provider : constant String :=
+                                   Get_String (Msg, "provider");
+                                 Model_Id : constant String :=
+                                   Get_String (Msg, "model");
+                                 Usage    : constant JSON_Value :=
                                    Get_Object (Msg, "usage");
                               begin
+                                 if Provider'Length > 0
+                                   and then Model_Id'Length > 0
+                                 then
+                                    Cur_Model :=
+                                      To_Unbounded_String
+                                        (Provider & "/" & Model_Id);
+                                 end if;
+                              --  Capture token usage for context restore.
                                  if Usage.Kind /= JSON_Null_Type then
                                     declare
                                        Input_Count  : constant
@@ -704,9 +720,8 @@ package body Pi_Acme_App.History is
                                     end if;
                                  end;
                               end if;
-                           end if;
-                           --  toolResult role: skip (consumed in pass 1).
-                        end;
+                        end if;
+                        --  toolResult role: skip (consumed in pass 1).
                      end if;
                   end;
                end if;

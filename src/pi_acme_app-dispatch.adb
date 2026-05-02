@@ -116,13 +116,13 @@ package body Pi_Acme_App.Dispatch is
    end Open_Sub_Window;
 
    procedure Dispatch_Pi_Event
-     (Event   :        JSON_Value;
-      Win     : in out Acme.Window.Win;
-      FS      : not null access Nine_P.Client.Fs;
-      State   : in out App_State;
-      Section : in out Section_Kind;
-      Proc    : in out Pi_RPC.Process;
-      PID     :        String)
+     (Event        :        JSON_Value;
+      Win          : in out Acme.Window.Win;
+      FS           : not null access Nine_P.Client.Fs;
+      State        : in out App_State;
+      Section      : in out Section_Kind;
+      Send_Command :        Command_Sender := null;
+      PID          :        String)
    is
       Kind : constant String := Get_String (Event, "type");
    begin
@@ -182,7 +182,9 @@ package body Pi_Acme_App.Dispatch is
          begin
             if Stop = "stop" or else Stop = "length" then
                State.Set_Pending_Stats (True);
-               Pi_RPC.Send (Proc, "{""type"":""get_session_stats""}");
+               if Send_Command /= null then
+                  Send_Command.all ("{""type"":""get_session_stats""}");
+               end if;
             end if;
          end;
          Acme.Window.Replace_Line1
@@ -647,11 +649,12 @@ package body Pi_Acme_App.Dispatch is
                --  not hang.  Interactive dialogs are not implemented in the
                --  acme frontend.
                if Id'Length > 0 then
-                  Pi_RPC.Send
-                    (Proc,
-                     "{""type"":""extension_ui_response"","
-                     & """id"":""" & Id & ""","
-                     & """cancelled"":true}");
+                  if Send_Command /= null then
+                     Send_Command.all
+                       ("{""type"":""extension_ui_response"","
+                        & """id"":""" & Id & ""","
+                        & """cancelled"":true}");
+                  end if;
                end if;
             end if;
             --  setStatus, setWidget, setTitle, set_editor_text:
@@ -725,7 +728,9 @@ package body Pi_Acme_App.Dispatch is
                   State.Set_Session_Stats (0, 0, 0, 0, 0, 0);
                   State.Reset_Turn_Count;
                   State.Set_Is_Retrying (False);
-                  Pi_RPC.Send (Proc, "{""type"":""get_state""}");
+                  if Send_Command /= null then
+                     Send_Command.all ("{""type"":""get_state""}");
+                  end if;
 
                elsif Command = "get_session_stats" then
                   --  Store cumulative session stats before building the

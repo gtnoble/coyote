@@ -1,0 +1,80 @@
+{
+  "data": [
+    {
+      "id": "claude-sonnet-4.6",
+      "name": "Claude Sonnet 4.6",
+      "supported_endpoints": ["/v1/messages", "/chat/completions"],
+      "capabilities": {
+        "type": "chat",
+        "limits": {
+          "max_context_window_tokens": 200000,
+          "max_output_tokens": 16000
+        },
+        "supports": {
+          "tool_calls": true,
+          "vision": true,
+          "reasoning_effort": ["low", "medium", "high"],
+          "max_thinking_budget": 16384,
+          "min_thinking_budget": 1024
+        }
+      }
+    },
+    {
+      "id": "gpt-4o",
+      "name": "GPT-4o",
+      "supported_endpoints": ["/chat/completions"],
+      "capabilities": {
+        "type": "chat",
+        "limits": {
+          "max_context_window_tokens": 128000,
+          "max_output_tokens": 4096
+        },
+        "supports": {
+          "tool_calls": true,
+          "vision": true,
+          "reasoning_effort": [],
+          "max_thinking_budget": 0,
+          "min_thinking_budget": 0
+        }
+      }
+    },
+    {
+      "id": "o3-mini",
+      "name": "o3-mini",
+      "supported_endpoints": ["/chat/completions"],
+      "capabilities": {
+        "type": "chat",
+        "limits": {
+          "max_context_window_tokens": 200000,
+          "max_output_tokens": 100000
+        },
+        "supports": {
+          "tool_calls": false,
+          "vision": false,
+          "reasoning_effort": ["low", "medium"],
+          "max_thinking_budget": 8192,
+          "min_thinking_budget": 512
+        }
+      }
+    },
+    {
+      "id": "text-embedding-3-small",
+      "name": "Text Embedding 3 Small",
+      "supported_endpoints": ["/embeddings"],
+      "capabilities": {
+        "type": "embeddings",
+        "limits": {
+          "max_context_window_tokens": 8192,
+          "max_output_tokens": 0
+        },
+        "supports": {
+          "tool_calls": false,
+          "vision": false,
+          "reasoning_effort": [],
+          "max_thinking_budget": 0,
+          "min_thinking_budget": 0
+        }
+      }
+    }
+  ]
+}

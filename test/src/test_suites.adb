@@ -13,6 +13,22 @@ with Pi_Acme_App_Tests;
 with Session_History_Tests;
 with Tool_URI_Tests;
 with Subagent_Integration_Tests;
+with LLM_HTTP_Tests;
+with LLM_Settings_Tests;
+with LLM_Types_Tests;
+with LLM_SSE_Tests;
+with LLM_Tools_Tests;
+with LLM_OpenAI_Completions_Tests;
+with LLM_Auth_Tests;
+with LLM_Catalogue_Tests;
+with LLM_OpenRouter_Tests;
+with LLM_OpenRouter_Catalogue_Tests;
+with LLM_Anthropic_Messages_Tests;
+with LLM_GitHub_Copilot_Tests;
+with LLM_Model_Registry_Tests;
+with LLM_Session_Store_Tests;
+with LLM_Agent_Tests;
+with LLM_Pi_Adapter_Tests;
 
 package body Test_Suites is
 
@@ -44,6 +60,38 @@ package body Test_Suites is
      new AUnit.Test_Caller (Tool_URI_Tests.Test);
    package Subagent_Int_Caller is
      new AUnit.Test_Caller (Subagent_Integration_Tests.Test);
+   package LLM_HTTP_Caller is
+     new AUnit.Test_Caller (LLM_HTTP_Tests.Test);
+   package LLM_Settings_Caller is
+     new AUnit.Test_Caller (LLM_Settings_Tests.Test);
+   package LLM_Types_Caller is
+     new AUnit.Test_Caller (LLM_Types_Tests.Test);
+   package LLM_SSE_Caller is
+     new AUnit.Test_Caller (LLM_SSE_Tests.Test);
+   package LLM_Tools_Caller is
+     new AUnit.Test_Caller (LLM_Tools_Tests.Test);
+   package LLM_OpenAI_Completions_Caller is
+     new AUnit.Test_Caller (LLM_OpenAI_Completions_Tests.Test);
+   package LLM_Auth_Caller is
+     new AUnit.Test_Caller (LLM_Auth_Tests.Test);
+   package LLM_Catalogue_Caller is
+     new AUnit.Test_Caller (LLM_Catalogue_Tests.Test);
+   package LLM_OpenRouter_Caller is
+     new AUnit.Test_Caller (LLM_OpenRouter_Tests.Test);
+   package LLM_OpenRouter_Catalogue_Caller is
+     new AUnit.Test_Caller (LLM_OpenRouter_Catalogue_Tests.Test);
+   package LLM_Anthropic_Messages_Caller is
+     new AUnit.Test_Caller (LLM_Anthropic_Messages_Tests.Test);
+   package LLM_GitHub_Copilot_Caller is
+     new AUnit.Test_Caller (LLM_GitHub_Copilot_Tests.Test);
+   package LLM_Model_Registry_Caller is
+     new AUnit.Test_Caller (LLM_Model_Registry_Tests.Test);
+   package LLM_Session_Store_Caller is
+     new AUnit.Test_Caller (LLM_Session_Store_Tests.Test);
+   package LLM_Agent_Caller is
+     new AUnit.Test_Caller (LLM_Agent_Tests.Test);
+   package LLM_Pi_Adapter_Caller is
+     new AUnit.Test_Caller (LLM_Pi_Adapter_Tests.Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
@@ -776,6 +824,310 @@ package body Test_Suites is
         ("[subagent] Two --one-shot runs use distinct sessions",
          Subagent_Integration_Tests
            .Test_One_Shot_Fresh_Session_Each_Run'Access));
+
+      --  LLM.HTTP tests
+      Result.Add_Test (LLM_HTTP_Caller.Create
+        ("LLM.HTTP POST returns status and callback chunk",
+         LLM_HTTP_Tests.Test_Post_Status_And_Chunk'Access));
+      Result.Add_Test (LLM_HTTP_Caller.Create
+        ("LLM.HTTP GET returns status and callback chunk",
+         LLM_HTTP_Tests.Test_Get_Status_And_Chunk'Access));
+
+      --  LLM.Settings tests
+      Result.Add_Test (LLM_Settings_Caller.Create
+        ("LLM.Settings loads defaults from settings.json",
+         LLM_Settings_Tests.Test_Load_Settings'Access));
+      Result.Add_Test (LLM_Settings_Caller.Create
+        ("LLM.Settings Resolve_Api_Key prefers models.json literal value",
+         LLM_Settings_Tests.Test_Resolve_Api_Key_Literal'Access));
+      Result.Add_Test (LLM_Settings_Caller.Create
+        ("LLM.Settings Resolve_Api_Key supports ${ENV_VAR} interpolation",
+         LLM_Settings_Tests.Test_Resolve_Api_Key_Interpolated_Env'Access));
+      Result.Add_Test (LLM_Settings_Caller.Create
+        ("LLM.Settings Resolve_Api_Key falls back to standard env map",
+         LLM_Settings_Tests.Test_Resolve_Api_Key_Default_Env'Access));
+
+      --  LLM.Types tests
+      Result.Add_Test (LLM_Types_Caller.Create
+        ("LLM.Types text block stores text content",
+         LLM_Types_Tests.Test_Text_Block'Access));
+      Result.Add_Test (LLM_Types_Caller.Create
+        ("LLM.Types thinking block stores thinking content",
+         LLM_Types_Tests.Test_Thinking_Block'Access));
+      Result.Add_Test (LLM_Types_Caller.Create
+        ("LLM.Types tool-call block stores id/name/arguments",
+         LLM_Types_Tests.Test_Tool_Call_Block'Access));
+      Result.Add_Test (LLM_Types_Caller.Create
+        ("LLM.Types tool-result block stores result and error flag",
+         LLM_Types_Tests.Test_Tool_Result_Block'Access));
+      Result.Add_Test (LLM_Types_Caller.Create
+        ("LLM.Types usage values add field-by-field",
+         LLM_Types_Tests.Test_Usage_Addition'Access));
+      Result.Add_Test (LLM_Types_Caller.Create
+        ("LLM.Types message vectors append and preserve values",
+         LLM_Types_Tests.Test_Message_Vectors'Access));
+
+      --  LLM.Session_Store tests
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store New_UUID returns RFC 4122 v4 text",
+         LLM_Session_Store_Tests.Test_New_UUID_Format'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store New_UUID returns unique values",
+         LLM_Session_Store_Tests.Test_New_UUID_Unique'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store Create_Session writes a parseable header",
+         LLM_Session_Store_Tests.Test_Create_Session_Header'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store user messages round-trip through disk",
+         LLM_Session_Store_Tests.Test_User_Round_Trip'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store assistant tool calls round-trip through disk",
+         LLM_Session_Store_Tests.Test_Assistant_Tool_Call'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store assistant thinking+text round-trips",
+         LLM_Session_Store_Tests
+           .Test_Assistant_Thinking_Text_Round_Trip'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store tool results round-trip through disk",
+         LLM_Session_Store_Tests.Test_Tool_Result_Round_Trip'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store native sessions can be forked",
+         LLM_Session_Store_Tests.Test_Fork_Session_Native_Source'Access));
+
+      --  LLM.SSE tests
+      Result.Add_Test (LLM_SSE_Caller.Create
+        ("LLM.SSE parses a complete named event",
+         LLM_SSE_Tests.Test_Full_Event'Access));
+      Result.Add_Test (LLM_SSE_Caller.Create
+        ("LLM.SSE parses an event split across Feed calls",
+         LLM_SSE_Tests.Test_Multi_Chunk_Event'Access));
+      Result.Add_Test (LLM_SSE_Caller.Create
+        ("LLM.SSE returns the [DONE] sentinel unchanged",
+         LLM_SSE_Tests.Test_Done_Event'Access));
+      Result.Add_Test (LLM_SSE_Caller.Create
+        ("LLM.SSE skips ping events transparently",
+         LLM_SSE_Tests.Test_Ping_Skipped'Access));
+      Result.Add_Test (LLM_SSE_Caller.Create
+        ("LLM.SSE accepts CRLF-terminated records",
+         LLM_SSE_Tests.Test_CRLF_Ping_Skipped'Access));
+      Result.Add_Test (LLM_SSE_Caller.Create
+        ("LLM.SSE parses a canned Anthropic SSE fixture",
+         LLM_SSE_Tests.Test_Anthropic_Fixture'Access));
+      Result.Add_Test (LLM_SSE_Caller.Create
+        ("LLM.SSE parses a canned OpenAI SSE fixture",
+         LLM_SSE_Tests.Test_OpenAI_Fixture'Access));
+      Result.Add_Test (LLM_SSE_Caller.Create
+        ("LLM.SSE Reset clears partial buffered data",
+         LLM_SSE_Tests.Test_Reset'Access));
+
+      --  LLM.Tools tests
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Bash executes a successful command",
+         LLM_Tools_Tests.Test_Bash_Success'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Bash reports a non-zero exit status",
+         LLM_Tools_Tests.Test_Bash_Failure'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.File_Ops read returns file contents",
+         LLM_Tools_Tests.Test_Read'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.File_Ops write creates files and directories",
+         LLM_Tools_Tests.Test_Write'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.File_Ops edit replaces a unique match",
+         LLM_Tools_Tests.Test_Edit_Unique'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.File_Ops edit rejects non-unique matches",
+         LLM_Tools_Tests.Test_Edit_Non_Unique'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.File_Ops edit rejects missing matches",
+         LLM_Tools_Tests.Test_Edit_Missing'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.File_Ops find walks fixture directories",
+         LLM_Tools_Tests.Test_Find'Access));
+
+      --  LLM.Providers.OpenAI_Completions tests
+      Result.Add_Test (LLM_OpenAI_Completions_Caller.Create
+        ("LLM.OpenAI_Completions streams text SSE responses",
+         LLM_OpenAI_Completions_Tests.Test_Stream_Text_Response'Access));
+      Result.Add_Test (LLM_OpenAI_Completions_Caller.Create
+        ("LLM.OpenAI_Completions streams and assembles tool calls",
+         LLM_OpenAI_Completions_Tests
+           .Test_Stream_Tool_Call_Response'Access));
+      Result.Add_Test (LLM_OpenAI_Completions_Caller.Create
+        ("LLM.OpenAI_Completions assembles multiple indexed tool calls",
+         LLM_OpenAI_Completions_Tests
+           .Test_Stream_Multi_Tool_Response'Access));
+      Result.Add_Test (LLM_OpenAI_Completions_Caller.Create
+        ("LLM.OpenAI_Completions emits thinking deltas from reasoning",
+         LLM_OpenAI_Completions_Tests
+           .Test_Stream_Thinking_Response'Access));
+      Result.Add_Test (LLM_OpenAI_Completions_Caller.Create
+        ("LLM.OpenAI_Completions parses non-streaming JSON responses",
+         LLM_OpenAI_Completions_Tests
+           .Test_Non_Streaming_Response'Access));
+
+      --  LLM.Auth tests
+      Result.Add_Test (LLM_Auth_Caller.Create
+        ("LLM.Auth loads GitHub Copilot credentials from auth.json",
+         LLM_Auth_Tests.Test_Load_Credentials'Access));
+      Result.Add_Test (LLM_Auth_Caller.Create
+        ("LLM.Auth saves credentials atomically and preserves other providers",
+         LLM_Auth_Tests.Test_Save_Credentials'Access));
+      Result.Add_Test (LLM_Auth_Caller.Create
+        ("LLM.Auth.GitHub_Copilot detects expired and valid tokens",
+         LLM_Auth_Tests.Test_Token_Expired'Access));
+      Result.Add_Test (LLM_Auth_Caller.Create
+        ("LLM.Auth.GitHub_Copilot parses proxy-ep into the API base URL",
+         LLM_Auth_Tests.Test_Get_Base_Url'Access));
+      Result.Add_Test (LLM_Auth_Caller.Create
+        ("LLM.Auth.GitHub_Copilot falls back to the default base URL",
+         LLM_Auth_Tests.Test_Get_Base_Url_Fallback'Access));
+      Result.Add_Test (LLM_Auth_Caller.Create
+        ("LLM.Auth.GitHub_Copilot refreshes and persists the API token",
+         LLM_Auth_Tests.Test_Refresh_Token'Access));
+
+      --  LLM.Providers.GitHub_Copilot.Catalogue tests
+      Result.Add_Test (LLM_Catalogue_Caller.Create
+        ("LLM.Catalogue loads and parses a fresh cached Copilot model list",
+         LLM_Catalogue_Tests.Test_Load_From_Fresh_Cache'Access));
+      Result.Add_Test (LLM_Catalogue_Caller.Create
+        ("LLM.Catalogue uses live fetch when the Copilot cache is stale",
+         LLM_Catalogue_Tests.Test_Stale_Cache_Triggers_Live_Fetch'Access));
+      Result.Add_Test (LLM_Catalogue_Caller.Create
+        ("LLM.Catalogue falls back to a stale cache on fetch failure",
+         LLM_Catalogue_Tests.Test_Stale_Cache_Fallback'Access));
+
+      --  LLM.Providers.OpenRouter tests
+      Result.Add_Test (LLM_OpenRouter_Caller.Create
+        ("LLM.OpenRouter sends the OpenRouter auth and metadata headers",
+         LLM_OpenRouter_Tests.Test_Send_Adds_OpenRouter_Headers'Access));
+      Result.Add_Test (LLM_OpenRouter_Caller.Create
+        ("LLM.OpenRouter adds reasoning.effort for reasoning models",
+         LLM_OpenRouter_Tests.Test_Send_Includes_Reasoning_Effort'Access));
+
+      --  LLM.Providers.OpenRouter.Catalogue tests
+      Result.Add_Test (LLM_OpenRouter_Catalogue_Caller.Create
+        ("LLM.OpenRouter.Catalogue loads and parses a fresh cached model list",
+         LLM_OpenRouter_Catalogue_Tests.Test_Load_From_Fresh_Cache'Access));
+      Result.Add_Test (LLM_OpenRouter_Catalogue_Caller.Create
+        ("LLM.OpenRouter.Catalogue uses live fetch when the cache is stale",
+         LLM_OpenRouter_Catalogue_Tests
+           .Test_Stale_Cache_Triggers_Live_Fetch'Access));
+      Result.Add_Test (LLM_OpenRouter_Catalogue_Caller.Create
+        ("LLM.OpenRouter.Catalogue falls back to stale cache on fetch failure",
+         LLM_OpenRouter_Catalogue_Tests.Test_Stale_Cache_Fallback'Access));
+
+      --  LLM.Providers.Anthropic_Messages tests
+      Result.Add_Test (LLM_Anthropic_Messages_Caller.Create
+        ("LLM.Anthropic_Messages streams thinking and text SSE responses",
+         LLM_Anthropic_Messages_Tests
+           .Test_Stream_Thinking_And_Text_Response'Access));
+      Result.Add_Test (LLM_Anthropic_Messages_Caller.Create
+        ("LLM.Anthropic_Messages sends required Anthropic headers",
+         LLM_Anthropic_Messages_Tests.Test_Request_Headers'Access));
+      Result.Add_Test (LLM_Anthropic_Messages_Caller.Create
+        ("LLM.Anthropic_Messages injects the correct thinking budget",
+         LLM_Anthropic_Messages_Tests
+           .Test_Thinking_Budget_Injection'Access));
+      Result.Add_Test (LLM_Anthropic_Messages_Caller.Create
+        ("LLM.Anthropic_Messages streams tool_use blocks",
+         LLM_Anthropic_Messages_Tests
+           .Test_Stream_Tool_Use_Response'Access));
+      Result.Add_Test (LLM_Anthropic_Messages_Caller.Create
+        ("LLM.Anthropic_Messages maps alternate stop reasons",
+         LLM_Anthropic_Messages_Tests
+           .Test_Stop_Reason_Mappings'Access));
+
+      --  LLM.Providers.GitHub_Copilot tests
+      Result.Add_Test (LLM_GitHub_Copilot_Caller.Create
+        ("LLM.GitHub_Copilot adds the static Copilot headers",
+         LLM_GitHub_Copilot_Tests.Test_Send_Adds_Static_Headers'Access));
+      Result.Add_Test (LLM_GitHub_Copilot_Caller.Create
+        ("LLM.GitHub_Copilot sets X-Initiator=user for user prompts",
+         LLM_GitHub_Copilot_Tests.Test_Send_Sets_X_Initiator_User'Access));
+      Result.Add_Test (LLM_GitHub_Copilot_Caller.Create
+        ("LLM.GitHub_Copilot sets X-Initiator=agent for agent prompts",
+         LLM_GitHub_Copilot_Tests.Test_Send_Sets_X_Initiator_Agent'Access));
+      Result.Add_Test (LLM_GitHub_Copilot_Caller.Create
+        ("LLM.GitHub_Copilot selects Anthropic Messages for Claude models",
+         LLM_GitHub_Copilot_Tests.Test_Send_Selects_Anthropic_Path'Access));
+      Result.Add_Test (LLM_GitHub_Copilot_Caller.Create
+        ("LLM.GitHub_Copilot selects OpenAI completions for GPT models",
+         LLM_GitHub_Copilot_Tests.Test_Send_Selects_OpenAI_Path'Access));
+
+      --  LLM.Model_Registry tests
+      Result.Add_Test (LLM_Model_Registry_Caller.Create
+        ("LLM.Model_Registry marks Claude Copilot models as Anthropic",
+         LLM_Model_Registry_Tests
+           .Test_GitHub_Copilot_Anthropic_Wire_Format'Access));
+      Result.Add_Test (LLM_Model_Registry_Caller.Create
+        ("LLM.Model_Registry marks GPT Copilot models as OpenAI",
+         LLM_Model_Registry_Tests
+           .Test_GitHub_Copilot_OpenAI_Wire_Format'Access));
+      Result.Add_Test (LLM_Model_Registry_Caller.Create
+        ("LLM.Model_Registry raises Not_Found for unknown Copilot ids",
+         LLM_Model_Registry_Tests.Test_GitHub_Copilot_Not_Found'Access));
+      Result.Add_Test (LLM_Model_Registry_Caller.Create
+        ("LLM.Model_Registry preserves OpenRouter model pricing",
+         LLM_Model_Registry_Tests.Test_OpenRouter_Cost_Loaded'Access));
+      Result.Add_Test (LLM_Model_Registry_Caller.Create
+        ("LLM.Model_Registry defaults unknown OpenRouter ids",
+         LLM_Model_Registry_Tests.Test_OpenRouter_Default_Fallback'Access));
+      Result.Add_Test (LLM_Model_Registry_Caller.Create
+        ("LLM.Model_Registry raises Not_Found for unknown providers",
+         LLM_Model_Registry_Tests.Test_Unknown_Provider_Not_Found'Access));
+      Result.Add_Test (LLM_Model_Registry_Caller.Create
+        ("LLM.Model_Registry filters Available_Models by credentials",
+         LLM_Model_Registry_Tests.Test_Available_Models_Filtering'Access));
+      Result.Add_Test (LLM_Model_Registry_Caller.Create
+        ("LLM.Model_Registry adds Anthropic models only with credentials",
+         LLM_Model_Registry_Tests.Test_Anthropic_Available_Models'Access));
+
+      --  LLM.Agent tests
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent runs a single-turn prompt and persists it",
+         LLM_Agent_Tests.Test_Single_Turn_Prompt'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent executes a tool call and loops for the final reply",
+         LLM_Agent_Tests.Test_Tool_Call_Loop'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent executes two tool calls in one turn",
+         LLM_Agent_Tests.Test_Two_Tool_Call_Loop'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent preserves tool execution failures",
+         LLM_Agent_Tests.Test_Tool_Execution_Failure'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent Switch_Session pre-loads existing history",
+         LLM_Agent_Tests.Test_Switch_Session_Loads_History'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent honours cross-task abort requests",
+         LLM_Agent_Tests.Test_Abort_Request'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent keeps aborted multi-tool history structurally valid",
+         LLM_Agent_Tests.Test_Abort_Batched_Tools_Keep_History_Valid'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent writes assistant turns only after the turn"
+         & " completes",
+         LLM_Agent_Tests.
+           Test_Session_File_Written_Only_After_Turn_End'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent resumes persisted session history",
+         LLM_Agent_Tests.Test_Session_Resume'Access));
+
+      --  LLM.Agent.Pi_Adapter tests
+      Result.Add_Test (LLM_Pi_Adapter_Caller.Create
+        ("LLM.Agent.Pi_Adapter maps Agent_Start_Event to pi JSON",
+         LLM_Pi_Adapter_Tests.Test_Agent_Start_Json'Access));
+      Result.Add_Test (LLM_Pi_Adapter_Caller.Create
+        ("LLM.Agent.Pi_Adapter maps text deltas to pi JSON",
+         LLM_Pi_Adapter_Tests.Test_Text_Delta_Json'Access));
+      Result.Add_Test (LLM_Pi_Adapter_Caller.Create
+        ("LLM.Agent.Pi_Adapter maps message_end cost to pi JSON",
+         LLM_Pi_Adapter_Tests.Test_Message_End_Json_Cost'Access));
+      Result.Add_Test (LLM_Pi_Adapter_Caller.Create
+        ("LLM.Agent.Pi_Adapter maps tool execution starts to pi JSON",
+         LLM_Pi_Adapter_Tests.Test_Tool_Execution_Start_Json'Access));
 
       return Result;
    end Suite;

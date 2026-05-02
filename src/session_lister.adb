@@ -12,6 +12,7 @@ with Ada.Environment_Variables;
 with Ada.Exceptions;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Streams.Stream_IO;
+with Ada.Strings.Fixed;
 with Ada.Text_IO;
 with GNAT.SHA256;
 with GNATCOLL.JSON;          use GNATCOLL.JSON;
@@ -79,6 +80,20 @@ package body Session_Lister is
       return "";
    end Get_String;
 
+   --  Safely read an integer field; return 0 if absent or wrong type.
+   function Get_Integer
+     (Val   : JSON_Value;
+      Field : UTF8_String) return Long_Integer
+   is
+   begin
+      if Val.Has_Field (Field)
+        and then Val.Get (Field).Kind = JSON_Int_Type
+      then
+         return Val.Get (Field).Get;
+      end if;
+      return 0;
+   end Get_Integer;
+
    --  Safely read an object field; return JSON_Null if absent or wrong type.
    function Get_Object
      (Val   : JSON_Value;
@@ -93,14 +108,52 @@ package body Session_Lister is
       return JSON_Null;
    end Get_Object;
 
-   --  Extract the text of the first user message content block.
-   function First_User_Text (Message_Event : JSON_Value) return String is
-      Msg : JSON_Value;
+   --  Format a Unix-millisecond timestamp into "YYYY-MM-DD HH:MM".
+   function Format_Unix_Milliseconds (Ms : Long_Integer) return String is
+      use Ada.Calendar;
+      use Ada.Calendar.Formatting;
+
+      Epoch     : constant Time :=
+        Ada.Calendar.Time_Of
+          (Year => 1970, Month => 1, Day => 1, Seconds => 0.0);
+      Seconds   : constant Long_Integer := Ms / 1000;
+      Remainder : constant Long_Integer := Ms mod 1000;
+      Raw       : constant String :=
+        Image
+          (Epoch + Duration (Seconds) + Duration (Remainder) / 1000.0,
+           Include_Time_Fraction => False);
    begin
-      if not Message_Event.Has_Field ("message") then
-         return "";
+      if Raw'Length >= 16 then
+         return Raw (Raw'First .. Raw'First + 15);
       end if;
-      Msg := Message_Event.Get ("message");
+      return Raw;
+   exception
+      when others =>
+         return Ada.Strings.Fixed.Trim
+           (Long_Integer'Image (Ms), Ada.Strings.Both);
+   end Format_Unix_Milliseconds;
+
+   --  Return the direct message object for either supported session format.
+   function Message_Object (Val : JSON_Value) return JSON_Value is
+      Role : constant String := Get_String (Val, "role");
+   begin
+      if Role = "user"
+        or else Role = "assistant"
+        or else Role = "toolResult"
+      then
+         return Val;
+      end if;
+
+      if Get_String (Val, "type") = "message" then
+         return Get_Object (Val, "message");
+      end if;
+
+      return JSON_Null;
+   end Message_Object;
+
+   --  Extract the text of the first direct user-message content block.
+   function First_User_Text (Msg : JSON_Value) return String is
+   begin
       if Get_String (Msg, "role") /= "user" then
          return "";
       end if;
@@ -205,20 +258,37 @@ package body Session_Lister is
                begin
                   if Parse_Result.Success then
                      declare
-                        Obj  : constant JSON_Value := Parse_Result.Value;
-                        Kind : constant String     :=
+                        Obj : constant JSON_Value := Parse_Result.Value;
+                        Kind : constant String :=
                           Get_String (Obj, "type");
+                        Role : constant String :=
+                          Get_String (Obj, "role");
+                        Message : constant JSON_Value :=
+                          Message_Object (Obj);
                      begin
-                        if Line_N = 1 and then Kind = "session" then
-                           Result.UUID :=
-                             To_Unbounded_String
-                               (Get_String (Obj, "id"));
-                           Result.Date :=
-                             To_Unbounded_String
-                               (Format_Timestamp
-                                  (Get_String (Obj, "timestamp")));
+                        if Line_N = 1 then
+                           if Kind = "session" then
+                              Result.UUID :=
+                                To_Unbounded_String (Get_String (Obj, "id"));
+                              Result.Date :=
+                                To_Unbounded_String
+                                  (Format_Timestamp
+                                     (Get_String (Obj, "timestamp")));
+                           elsif Obj.Kind = JSON_Object_Type
+                             and then Get_String (Obj, "id")'Length > 0
+                             and then Obj.Has_Field ("createdAt")
+                           then
+                              Result.UUID :=
+                                To_Unbounded_String (Get_String (Obj, "id"));
+                              Result.Date :=
+                                To_Unbounded_String
+                                  (Format_Unix_Milliseconds
+                                     (Get_Integer (Obj, "createdAt")));
+                           end if;
 
-                        elsif Kind = "session_info" then
+                        elsif Kind = "session_info"
+                          or else Role = "session_info"
+                        then
                            declare
                               Session_Name : constant String :=
                                 Get_String (Obj, "name");
@@ -229,12 +299,12 @@ package body Session_Lister is
                               end if;
                            end;
 
-                        elsif Kind = "message"
+                        elsif Message.Kind = JSON_Object_Type
                           and then Length (Result.Snippet) = 0
                         then
                            declare
                               Snippet : constant String :=
-                                First_User_Text (Obj);
+                                First_User_Text (Message);
                            begin
                               if Snippet'Length > 0 then
                                  Result.Snippet :=
@@ -247,11 +317,11 @@ package body Session_Lister is
                end;
             end if;
          end;
-         --  Once we have the session UUID and the first-message snippet,
-         --  all metadata we need has been found.  Stop reading to avoid
-         --  processing the remainder of a potentially very large file.
+         --  Session-info can appear after messages, so only stop once all
+         --  three list-visible fields have been collected.
          exit when Length (Result.UUID) > 0
-           and then Length (Result.Snippet) > 0;
+           and then Length (Result.Snippet) > 0
+           and then Length (Result.Name) > 0;
       end loop;
       Ada.Text_IO.Close (File);
       return Result;
@@ -396,6 +466,7 @@ package body Session_Lister is
       After_Turn  : Positive;
       Target_Cwd  : String) return String
    is
+      type Session_Format is (Legacy_Format, Native_Format);
 
       --  ── Fork_UUID helper ──────────────────────────────────────────────
       --
@@ -411,25 +482,20 @@ package body Session_Lister is
            & Positive'Image (After_Turn) & "/"
            & Duration'Image (Seconds (Clock));
          Hash : constant String := GNAT.SHA256.Digest (Seed);
-         --  Hash is 64 lowercase hex characters; use the first 32.
          H    : constant String := Hash (Hash'First .. Hash'First + 31);
       begin
-         return H (H'First      .. H'First +  7)   --   8 hex chars
+         return H (H'First      .. H'First +  7)
                 & "-"
-                & H (H'First +  8 .. H'First + 11)  --   4 hex chars
-                & "-4"                               --   version nibble
-                & H (H'First + 13 .. H'First + 15)  --   3 hex chars
+                & H (H'First +  8 .. H'First + 11)
+                & "-4"
+                & H (H'First + 13 .. H'First + 15)
                 & "-"
-                & H (H'First + 16 .. H'First + 19)  --   4 hex chars
+                & H (H'First + 16 .. H'First + 19)
                 & "-"
-                & H (H'First + 20 .. H'First + 31); --  12 hex chars
+                & H (H'First + 20 .. H'First + 31);
       end Fork_UUID;
 
       --  ── ISO-8601 timestamp helper ─────────────────────────────────────
-      --
-      --  Ada.Calendar.Formatting.Image returns "YYYY-MM-DD HH:MM:SS.SS"
-      --  in one call — no arithmetic, no rounding, no padding helpers.
-      --  We replace the space separator with 'T' to produce ISO-8601.
 
       function Now_Timestamp return String is
          use Ada.Calendar.Formatting;
@@ -444,6 +510,28 @@ package body Session_Lister is
          end loop;
          return Raw;
       end Now_Timestamp;
+
+      function Now_Unix_Milliseconds return Long_Integer is
+         use Ada.Calendar;
+
+         Epoch : constant Time :=
+           Time_Of (Year => 1970, Month => 1, Day => 1, Seconds => 0.0);
+      begin
+         return Long_Integer ((Clock - Epoch) * 1000.0);
+      end Now_Unix_Milliseconds;
+
+      function Detect_Format
+        (Line : String) return Session_Format
+      is
+         Parse_Result : constant Read_Result := Read (Line);
+      begin
+         if Parse_Result.Success
+           and then Get_String (Parse_Result.Value, "type") = "session"
+         then
+            return Legacy_Format;
+         end if;
+         return Native_Format;
+      end Detect_Format;
 
       Source_Path  : constant String := Find_Session_File (Source_UUID);
       New_UUID     : constant String := Fork_UUID;
@@ -481,39 +569,38 @@ package body Session_Lister is
             return "";
       end;
 
+      if Source_Lines.Is_Empty then
+         return "";
+      end if;
+
       --  ── Pass 2: find cut point and collect original session name ──────
-      --
-      --  A turn completes when we have seen at least one user message and
-      --  then at least one assistant message (the final text response).
-      --  The next user message marks the start of a new turn.  We stop
-      --  after After_Turn complete turns.
 
       declare
-         Turns_Complete : Natural := 0;
-         --  True once we have seen the assistant response in the current turn.
-         Saw_Assistant  : Boolean := False;
-         --  True while we are inside a turn (after a user message).
-         In_Turn        : Boolean := False;
-         --  Index (0-based into Source_Lines) of the last line to include.
-         Cut_Index      : Integer := -1;
-         Line_N         : Natural := 0;
+         Source_Format   : constant Session_Format :=
+           Detect_Format (To_String (Source_Lines (Source_Lines.First_Index)));
+         Turns_Complete  : Natural := 0;
+         Saw_Assistant   : Boolean := False;
+         In_Turn         : Boolean := False;
+         Cut_Index       : Integer := -1;
       begin
          for I in Source_Lines.First_Index .. Source_Lines.Last_Index loop
             declare
-               Line  : constant String := To_String (Source_Lines (I));
+               Line  : constant String      := To_String (Source_Lines (I));
                Parse : constant Read_Result := Read (Line);
             begin
-               Line_N := Line_N + 1;
-
-               --  Skip blank lines and non-JSON lines silently.
                if Parse.Success then
                   declare
-                     Obj  : constant JSON_Value := Parse.Value;
-                     Kind : constant String     := Get_String (Obj, "type");
+                     Obj : constant JSON_Value := Parse.Value;
+                     Kind : constant String :=
+                       Get_String (Obj, "type");
+                     Role : constant String :=
+                       Get_String (Obj, "role");
+                     Msg : constant JSON_Value :=
+                       Message_Object (Obj);
                   begin
-
-                     --  Extract original session name for the fork header.
-                     if Kind = "session_info" then
+                     if Kind = "session_info"
+                       or else Role = "session_info"
+                     then
                         declare
                            N : constant String := Get_String (Obj, "name");
                         begin
@@ -522,20 +609,15 @@ package body Session_Lister is
                            end if;
                         end;
 
-                     elsif Kind = "message" then
+                     elsif Msg.Kind = JSON_Object_Type then
                         declare
-                           Msg  : constant JSON_Value :=
-                             Get_Object (Obj, "message");
-                           Role : constant String     :=
+                           Msg_Role : constant String :=
                              Get_String (Msg, "role");
                         begin
-                           if Role = "user" then
-                              --  Starting a new turn; if the previous turn
-                              --  was complete we may already be at the cut.
+                           if Msg_Role = "user" then
                               if In_Turn and then Saw_Assistant then
                                  Turns_Complete := Turns_Complete + 1;
                                  if Turns_Complete = After_Turn then
-                                    --  Cut point is just before this user msg.
                                     Cut_Index := I - 1;
                                     exit;
                                  end if;
@@ -543,24 +625,20 @@ package body Session_Lister is
                               In_Turn       := True;
                               Saw_Assistant := False;
 
-                           elsif Role = "assistant" then
-                              --  Mark that the current turn has a response.
-                              --  Only count text-bearing assistant messages
-                              --  (toolCall-only messages do not close a turn).
+                           elsif Msg_Role = "assistant" then
                               if In_Turn
                                 and then Msg.Has_Field ("content")
                                 and then Msg.Get ("content").Kind
                                          = JSON_Array_Type
                               then
                                  declare
-                                    Content : constant JSON_Array :=
+                                    Content  : constant JSON_Array :=
                                       Msg.Get ("content");
                                     Has_Text : Boolean := False;
                                  begin
                                     for J in 1 .. Length (Content) loop
-                                       if Get_String
-                                            (Get (Content, J), "type")
-                                          = "text"
+                                       if Get_String (Get (Content, J), "type")
+                                         = "text"
                                        then
                                           Has_Text := True;
                                           exit;
@@ -579,8 +657,6 @@ package body Session_Lister is
             end;
          end loop;
 
-         --  End of file: if the last turn is complete and we haven't cut yet,
-         --  use the entire file.
          if Cut_Index = -1 then
             if In_Turn and then Saw_Assistant then
                Turns_Complete := Turns_Complete + 1;
@@ -591,7 +667,6 @@ package body Session_Lister is
          end if;
 
          if Cut_Index < 0 then
-            --  Fewer complete turns than requested.
             return "";
          end if;
 
@@ -612,15 +687,9 @@ package body Session_Lister is
                       & "...")
               & " @" & Positive'Image (After_Turn)
                          (2 .. Positive'Image (After_Turn)'Last);
-            --  Ada.Streams.Stream_IO is used instead of Ada.Text_IO so
-            --  that raw UTF-8 bytes are written verbatim.
-            --  Ada.Text_IO.Put_Line with -gnatW8 re-encodes each byte
-            --  > 16#7F# as a UTF-8 sequence, which double-encodes
-            --  content that is already UTF-8 (as pi session files are).
             Out_Str    : Ada.Streams.Stream_IO.File_Type;
             Out_S      : Ada.Streams.Stream_IO.Stream_Access;
 
-            --  Write Line followed by a line-feed as raw bytes.
             procedure Write_Raw_Line (Line : String) is
             begin
                String'Write (Out_S, Line & ASCII.LF);
@@ -632,39 +701,57 @@ package body Session_Lister is
               (Out_Str, Ada.Streams.Stream_IO.Out_File, New_Path);
             Out_S := Ada.Streams.Stream_IO.Stream (Out_Str);
 
-            --  Header line: new UUID and current timestamp.
-            Write_Raw_Line
-              ("{""type"":""session"",""id"":"""
-               & New_UUID & """,""timestamp"":"""
-               & Now_Timestamp & """}");
-
-            --  Session-info line with fork name.
-            Write_Raw_Line
-              ("{""type"":""session_info"",""name"":"""
-               & Fork_Name & """}");
-
-            --  Copy source lines, skipping the source header (line 0)
-            --  and any source session_info line (already handled above).
-            for I in Source_Lines.First_Index .. Cut_Index loop
+            if Source_Format = Native_Format then
                declare
-                  Line  : constant String :=
-                    To_String (Source_Lines (I));
-                  Parse : constant Read_Result := Read (Line);
+                  Header : constant JSON_Value := Create_Object;
+                  Info   : constant JSON_Value := Create_Object;
                begin
-                  if Parse.Success then
-                     declare
-                        Kind : constant String :=
-                          Get_String (Parse.Value, "type");
-                     begin
-                        if Kind /= "session"
-                          and then Kind /= "session_info"
-                        then
-                           Write_Raw_Line (Line);
-                        end if;
-                     end;
-                  end if;
+                  Header.Set_Field ("version", Integer (1));
+                  Header.Set_Field ("id", New_UUID);
+                  Header.Set_Field ("createdAt", Now_Unix_Milliseconds);
+                  Header.Set_Field ("workDir", Target_Cwd);
+                  Write_Raw_Line (Write (Header));
+
+                  Info.Set_Field ("role", "session_info");
+                  Info.Set_Field ("name", Fork_Name);
+                  Info.Set_Field ("timestamp", Now_Unix_Milliseconds);
+                  Write_Raw_Line (Write (Info));
                end;
-            end loop;
+            else
+               Write_Raw_Line
+                 ("{""type"":""session"",""id"":"""
+                  & New_UUID & """,""timestamp"":"""
+                  & Now_Timestamp & """}");
+               Write_Raw_Line
+                 ("{""type"":""session_info"",""name"":"""
+                  & Fork_Name & """}");
+            end if;
+
+            if Cut_Index >= Integer (Source_Lines.First_Index + 1) then
+               for I in Source_Lines.First_Index + 1
+                 .. Natural (Cut_Index)
+               loop
+                  declare
+                     Line : constant String := To_String (Source_Lines (I));
+                     Parse : constant Read_Result := Read (Line);
+                  begin
+                     if Parse.Success then
+                        declare
+                           Kind : constant String :=
+                             Get_String (Parse.Value, "type");
+                           Role : constant String :=
+                             Get_String (Parse.Value, "role");
+                        begin
+                           if Kind /= "session_info"
+                             and then Role /= "session_info"
+                           then
+                              Write_Raw_Line (Line);
+                           end if;
+                        end;
+                     end if;
+                  end;
+               end loop;
+            end if;
 
             Ada.Streams.Stream_IO.Close (Out_Str);
             return New_UUID;
