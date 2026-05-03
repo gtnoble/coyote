@@ -14,6 +14,7 @@ with LLM.Agent.Testing;
 with LLM.Events;
 with LLM.Session_Store;
 with LLM.Types;
+with Test_HTTP_Server;
 
 package body LLM_Agent_Tests is
 
@@ -281,535 +282,47 @@ package body LLM_Agent_Tests is
         );
    end Write_Minimal_OpenRouter_Cache;
 
-   function Simple_Text_Server_Script
-     (Port                   : Positive;
-      Expected_Authorization : String;
-      Expected_Model         : String;
-      Expected_Prompt        : String;
-      Reply_Text             : String;
-      Prompt_Tokens          : Natural := 8;
-      Completion_Tokens      : Natural := 3) return String
+   --  Build a two-event SSE payload that streams Text then closes with stop.
+   --  The payload matches the OpenAI chat-completions streaming format:
+   --    data: <delta-content event>\n\n
+   --    data: <finish event with usage>\n\n
+   --    data: [DONE]\n\n
+   function Text_SSE_Payload
+     (Text              : String;
+      Prompt_Tokens     : Natural := 8;
+      Completion_Tokens : Natural := 3) return String
    is
    begin
       return
-        "import http.server, json, time" & ASCII.LF
-        & "class S(http.server.HTTPServer):" & ASCII.LF
-        & "    allow_reuse_address = True" & ASCII.LF
-        & "def make_payload(text):" & ASCII.LF
-        & "    events = [" & ASCII.LF
-        & "        {'choices': [{'delta': {'content': text},"
-        & " 'finish_reason': None}]}," & ASCII.LF
-        & "        {'choices': [{'delta': {}, 'finish_reason': 'stop'}],"
-        & " 'usage': {'prompt_tokens': "
+        "data: {""choices"":[{""delta"":{""content"":"
+        & GNATCOLL.JSON.Write (GNATCOLL.JSON.Create (Text))
+        & "},""finish_reason"":null}]}"
+        & ASCII.LF & ASCII.LF
+        & "data: {""choices"":[{""delta"":{},""finish_reason"":""stop""}],"
+        & """usage"":{""prompt_tokens"":"
         & Natural_Image (Prompt_Tokens)
-        & ", 'completion_tokens': "
+        & ",""completion_tokens"":"
         & Natural_Image (Completion_Tokens)
-        & "}}]"
-        & ASCII.LF
-        & "    payload = ''.join(" & ASCII.LF
-        & "        'data: ' + json.dumps(event) + '\n\n'"
-        & ASCII.LF
-        & "        for event in events).encode()" & ASCII.LF
-        & "    return payload + b'data: [DONE]\n\n'" & ASCII.LF
-        & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
-        & "    handled = False" & ASCII.LF
-        & "    def do_POST(self):" & ASCII.LF
-        & "        try:" & ASCII.LF
-        & "            assert self.path == '/api/v1/chat/completions'"
-        & ASCII.LF
-        & "            assert self.headers['Authorization'] == '"
-        & Expected_Authorization & "'" & ASCII.LF
-        & "            n = int(self.headers.get('Content-Length', '0'))"
-        & ASCII.LF
-        & "            body = json.loads(self.rfile.read(n))"
-        & ASCII.LF
-        & "            msgs = [m for m in body['messages']"
-        & " if m.get('role') != 'system']" & ASCII.LF
-        & "            assert body['model'] == '" & Expected_Model & "'"
-        & ASCII.LF
-        & "            assert len(msgs) == 1" & ASCII.LF
-        & "            assert msgs[0]['role'] == 'user'"
-        & ASCII.LF
-        & "            assert msgs[0]['content'] == '"
-        & Expected_Prompt & "'" & ASCII.LF
-        & "            assert 'tools' not in body" & ASCII.LF
-        & "            payload = make_payload('" & Reply_Text & "')"
-        & ASCII.LF
-        & "            self.send_response(200)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/event-stream')"
-        & ASCII.LF
-        & "            self.send_header('Content-Length', str(len(payload)))"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(payload)" & ASCII.LF
-        & "            self.wfile.flush()" & ASCII.LF
-        & "            H.handled = True" & ASCII.LF
-        & "        except Exception as exc:" & ASCII.LF
-        & "            self.send_response(500)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/plain')"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(str(exc).encode())"
-        & ASCII.LF
-        & "    def log_message(self, *a): pass" & ASCII.LF
-        & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
-        & ASCII.LF
-        & "s.timeout = 0.25" & ASCII.LF
-        & "deadline = time.time() + 10.0" & ASCII.LF
-        & "while not H.handled and time.time() < deadline:"
-        & ASCII.LF
-        & "    s.handle_request()" & ASCII.LF
-        & "s.server_close()" & ASCII.LF;
-   end Simple_Text_Server_Script;
+        & "}}"
+        & ASCII.LF & ASCII.LF
+        & "data: [DONE]"
+        & ASCII.LF & ASCII.LF;
+   end Text_SSE_Payload;
 
-   function Multi_Turn_Server_Script (Port : Positive) return String is
+   --  Append a Content-Type: text/event-stream header to a response.
+   procedure Add_SSE_Header (Res : in out Test_HTTP_Server.Response) is
    begin
-      return
-        "import http.server, json" & ASCII.LF
-        & "class S(http.server.HTTPServer):" & ASCII.LF
-        & "    allow_reuse_address = True" & ASCII.LF
-        & "def make_payload(text):" & ASCII.LF
-        & "    events = [" & ASCII.LF
-        & "        {'choices': [{'delta': {'content': text},"
-        & " 'finish_reason': None}]}," & ASCII.LF
-        & "        {'choices': [{'delta': {}, 'finish_reason': 'stop'}],"
-        & " 'usage': {'prompt_tokens': 8, 'completion_tokens': 3}}]"
-        & ASCII.LF
-        & "    payload = ''.join(" & ASCII.LF
-        & "        'data: ' + json.dumps(event) + '\n\n'"
-        & ASCII.LF
-        & "        for event in events).encode()" & ASCII.LF
-        & "    return payload + b'data: [DONE]\n\n'" & ASCII.LF
-        & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
-        & "    count = 0" & ASCII.LF
-        & "    def do_POST(self):" & ASCII.LF
-        & "        try:" & ASCII.LF
-        & "            H.count += 1" & ASCII.LF
-        & "            assert self.path == '/api/v1/chat/completions'"
-        & ASCII.LF
-        & "            assert self.headers['Authorization'] == '"
-        & "Bearer test-key'" & ASCII.LF
-        & "            n = int(self.headers.get('Content-Length', '0'))"
-        & ASCII.LF
-        & "            body = json.loads(self.rfile.read(n))"
-        & ASCII.LF
-        & "            msgs = [m for m in body['messages']"
-        & " if m.get('role') != 'system']" & ASCII.LF
-        & "            assert body['model'] == 'openai/gpt-4o-mini'"
-        & ASCII.LF
-        & "            assert 'tools' not in body" & ASCII.LF
-        & "            if H.count == 1:" & ASCII.LF
-        & "                assert len(msgs) == 1" & ASCII.LF
-        & "                assert msgs[0]['role'] == 'user'"
-        & ASCII.LF
-        & "                assert msgs[0]['content'] == '"
-        & "first question'" & ASCII.LF
-        & "                payload = make_payload('turn one reply')"
-        & ASCII.LF
-        & "            else:" & ASCII.LF
-        & "                assert H.count == 2" & ASCII.LF
-        & "                assert len(msgs) == 3" & ASCII.LF
-        & "                assert msgs[0]['role'] == 'user'"
-        & ASCII.LF
-        & "                assert msgs[0]['content'] == '"
-        & "first question'" & ASCII.LF
-        & "                assert msgs[1]['role'] == 'assistant'"
-        & ASCII.LF
-        & "                assert msgs[1]['content'] == '"
-        & "turn one reply'" & ASCII.LF
-        & "                assert msgs[2]['role'] == 'user'"
-        & ASCII.LF
-        & "                assert msgs[2]['content'] == '"
-        & "second question'" & ASCII.LF
-        & "                payload = make_payload('turn two reply')"
-        & ASCII.LF
-        & "            self.send_response(200)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/event-stream')"
-        & ASCII.LF
-        & "            self.send_header('Content-Length', str(len(payload)))"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(payload)" & ASCII.LF
-        & "            self.wfile.flush()" & ASCII.LF
-        & "        except Exception as exc:" & ASCII.LF
-        & "            self.send_response(500)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/plain')"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(str(exc).encode())"
-        & ASCII.LF
-        & "    def log_message(self, *a): pass" & ASCII.LF
-        & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
-        & ASCII.LF
-        & "s.timeout = 5" & ASCII.LF
-        & "s.handle_request()" & ASCII.LF
-        & "s.handle_request()" & ASCII.LF
-        & "s.server_close()" & ASCII.LF;
-   end Multi_Turn_Server_Script;
+      Res.Headers.Append
+        ((Name  => To_Unbounded_String ("Content-Type"),
+          Value => To_Unbounded_String ("text/event-stream")));
+   end Add_SSE_Header;
 
-   function Unknown_Tool_Server_Script (Port : Positive) return String is
-   begin
-      return
-        "import http.server, json" & ASCII.LF
-        & "class S(http.server.HTTPServer):" & ASCII.LF
-        & "    allow_reuse_address = True" & ASCII.LF
-        & "def tool_payload():" & ASCII.LF
-        & "    events = [" & ASCII.LF
-        & "        {'choices': [{'delta': {'tool_calls': [{'index': 0,"
-        & " 'id': 'call_1', 'type': 'function', 'function': {'name':"
-        & " 'nonexistent_tool_xyz', 'arguments': '{}'}}]},"
-        & " 'finish_reason': None}]}," & ASCII.LF
-        & "        {'choices': [{'delta': {}, 'finish_reason': 'tool_calls'}],"
-        & " 'usage': {'prompt_tokens': 11, 'completion_tokens': 5}}]"
-        & ASCII.LF
-        & "    payload = ''.join(" & ASCII.LF
-        & "        'data: ' + json.dumps(event) + '\n\n'"
-        & ASCII.LF
-        & "        for event in events).encode()" & ASCII.LF
-        & "    return payload + b'data: [DONE]\n\n'" & ASCII.LF
-        & "def text_payload(text):" & ASCII.LF
-        & "    events = [" & ASCII.LF
-        & "        {'choices': [{'delta': {'content': text},"
-        & " 'finish_reason': None}]}," & ASCII.LF
-        & "        {'choices': [{'delta': {}, 'finish_reason': 'stop'}],"
-        & " 'usage': {'prompt_tokens': 15, 'completion_tokens': 3}}]"
-        & ASCII.LF
-        & "    payload = ''.join(" & ASCII.LF
-        & "        'data: ' + json.dumps(event) + '\n\n'"
-        & ASCII.LF
-        & "        for event in events).encode()" & ASCII.LF
-        & "    return payload + b'data: [DONE]\n\n'" & ASCII.LF
-        & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
-        & "    count = 0" & ASCII.LF
-        & "    def do_POST(self):" & ASCII.LF
-        & "        try:" & ASCII.LF
-        & "            H.count += 1" & ASCII.LF
-        & "            assert self.path == '/api/v1/chat/completions'"
-        & ASCII.LF
-        & "            assert self.headers['Authorization'] == '"
-        & "Bearer test-key'" & ASCII.LF
-        & "            n = int(self.headers.get('Content-Length', '0'))"
-        & ASCII.LF
-        & "            body = json.loads(self.rfile.read(n))"
-        & ASCII.LF
-        & "            msgs = [m for m in body['messages']"
-        & " if m.get('role') != 'system']" & ASCII.LF
-        & "            assert body['model'] == 'openai/gpt-4o-mini'"
-        & ASCII.LF
-        & "            if H.count == 1:" & ASCII.LF
-        & "                assert len(msgs) == 1" & ASCII.LF
-        & "                assert msgs[0]['role'] == 'user'"
-        & ASCII.LF
-        & "                assert msgs[0]['content'] == '"
-        & "Call the unknown tool'" & ASCII.LF
-        & "                assert len(body['tools']) > 0" & ASCII.LF
-        & "                payload = tool_payload()" & ASCII.LF
-        & "            else:" & ASCII.LF
-        & "                assert H.count == 2" & ASCII.LF
-        & "                assert len(msgs) == 3" & ASCII.LF
-        & "                assert msgs[1]['role'] == 'assistant'"
-        & ASCII.LF
-        & "                assert msgs[1]['content'] is None"
-        & ASCII.LF
-        & "                assert msgs[1]['tool_calls'][0]['id']"
-        & " == 'call_1'" & ASCII.LF
-        & "                assert msgs[1]['tool_calls'][0]"
-        & "['function']['name'] == 'nonexistent_tool_xyz'" & ASCII.LF
-        & "                assert msgs[2]['role'] == 'tool'"
-        & ASCII.LF
-        & "                assert msgs[2]['tool_call_id']"
-        & " == 'call_1'" & ASCII.LF
-        & "                assert 'unknown tool: nonexistent_tool_xyz'"
-        & " in msgs[2]['content']" & ASCII.LF
-        & "                payload = text_payload('done')" & ASCII.LF
-        & "            self.send_response(200)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/event-stream')"
-        & ASCII.LF
-        & "            self.send_header('Content-Length', str(len(payload)))"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(payload)" & ASCII.LF
-        & "            self.wfile.flush()" & ASCII.LF
-        & "        except Exception as exc:" & ASCII.LF
-        & "            self.send_response(500)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/plain')"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(str(exc).encode())"
-        & ASCII.LF
-        & "    def log_message(self, *a): pass" & ASCII.LF
-        & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
-        & ASCII.LF
-        & "s.timeout = 5" & ASCII.LF
-        & "s.handle_request()" & ASCII.LF
-        & "s.handle_request()" & ASCII.LF
-        & "s.server_close()" & ASCII.LF;
-   end Unknown_Tool_Server_Script;
 
-   function Retry_Then_Success_Server_Script
-     (Port           : Positive;
-      Expected_Prompt : String;
-      Reply_Text      : String) return String
-   is
-   begin
-      return
-        "import http.server, json" & ASCII.LF
-        & "class S(http.server.HTTPServer):" & ASCII.LF
-        & "    allow_reuse_address = True" & ASCII.LF
-        & "def text_payload(text):" & ASCII.LF
-        & "    events = [" & ASCII.LF
-        & "        {'choices': [{'delta': {'content': text},"
-        & " 'finish_reason': None}]}," & ASCII.LF
-        & "        {'choices': [{'delta': {}, 'finish_reason': 'stop'}],"
-        & " 'usage': {'prompt_tokens': 8, 'completion_tokens': 3}}]"
-        & ASCII.LF
-        & "    payload = ''.join(" & ASCII.LF
-        & "        'data: ' + json.dumps(event) + '\n\n'"
-        & ASCII.LF
-        & "        for event in events).encode()" & ASCII.LF
-        & "    return payload + b'data: [DONE]\n\n'" & ASCII.LF
-        & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
-        & "    count = 0" & ASCII.LF
-        & "    def do_POST(self):" & ASCII.LF
-        & "        try:" & ASCII.LF
-        & "            H.count += 1" & ASCII.LF
-        & "            n = int(self.headers.get('Content-Length', '0'))"
-        & ASCII.LF
-        & "            body = json.loads(self.rfile.read(n))" & ASCII.LF
-        & "            msgs = [m for m in body['messages']"
-        & " if m.get('role') != 'system']" & ASCII.LF
-        & "            assert self.path == '/api/v1/chat/completions'"
-        & ASCII.LF
-        & "            assert self.headers['Authorization'] =="
-        & " 'Bearer test-key'" & ASCII.LF
-        & "            assert body['model'] == 'openai/gpt-4o-mini'"
-        & ASCII.LF
-        & "            assert len(msgs) == 1" & ASCII.LF
-        & "            assert msgs[0]['role'] == 'user'"
-        & ASCII.LF
-        & "            assert msgs[0]['content'] == '"
-        & Expected_Prompt & "'" & ASCII.LF
-        & "            assert 'tools' not in body" & ASCII.LF
-        & "            if H.count == 1:" & ASCII.LF
-        & "                payload = b'{""error"":""server error""}'"
-        & ASCII.LF
-        & "                self.send_response(500)" & ASCII.LF
-        & "                self.send_header('Content-Type',"
-        & " 'application/json')" & ASCII.LF
-        & "                self.send_header('Content-Length',"
-        & " str(len(payload)))" & ASCII.LF
-        & "                self.end_headers()" & ASCII.LF
-        & "                self.wfile.write(payload)" & ASCII.LF
-        & "                self.wfile.flush()" & ASCII.LF
-        & "            else:" & ASCII.LF
-        & "                assert H.count == 2" & ASCII.LF
-        & "                payload = text_payload('" & Reply_Text & "')"
-        & ASCII.LF
-        & "                self.send_response(200)" & ASCII.LF
-        & "                self.send_header('Content-Type',"
-        & " 'text/event-stream')" & ASCII.LF
-        & "                self.send_header('Content-Length',"
-        & " str(len(payload)))" & ASCII.LF
-        & "                self.end_headers()" & ASCII.LF
-        & "                self.wfile.write(payload)" & ASCII.LF
-        & "                self.wfile.flush()" & ASCII.LF
-        & "        except Exception as exc:" & ASCII.LF
-        & "            self.send_response(500)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/plain')"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(str(exc).encode())" & ASCII.LF
-        & "    def log_message(self, *a): pass" & ASCII.LF
-        & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
-        & ASCII.LF
-        & "s.timeout = 10" & ASCII.LF
-        & "s.handle_request()" & ASCII.LF
-        & "s.handle_request()" & ASCII.LF
-        & "s.server_close()" & ASCII.LF;
-   end Retry_Then_Success_Server_Script;
 
-   function Single_Error_Server_Script
-     (Port       : Positive;
-      Error_Text : String) return String
-   is
-      Encoded_Error : constant String :=
-        GNATCOLL.JSON.Write (GNATCOLL.JSON.Create (Error_Text));
-   begin
-      return
-        "import http.server" & ASCII.LF
-        & "class S(http.server.HTTPServer):" & ASCII.LF
-        & "    allow_reuse_address = True" & ASCII.LF
-        & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
-        & "    def do_POST(self):" & ASCII.LF
-        & "        n = int(self.headers.get('Content-Length', '0'))"
-        & ASCII.LF
-        & "        self.rfile.read(n)" & ASCII.LF
-        & "        payload = " & Encoded_Error & ".encode()"
-        & ASCII.LF
-        & "        self.send_response(400)" & ASCII.LF
-        & "        self.send_header('Content-Type', 'text/plain')"
-        & ASCII.LF
-        & "        self.send_header('Content-Length', str(len(payload)))"
-        & ASCII.LF
-        & "        self.end_headers()" & ASCII.LF
-        & "        self.wfile.write(payload)" & ASCII.LF
-        & "        self.wfile.flush()" & ASCII.LF
-        & "    def log_message(self, *a): pass" & ASCII.LF
-        & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
-        & ASCII.LF
-        & "s.timeout = 5" & ASCII.LF
-        & "s.handle_request()" & ASCII.LF
-        & "s.server_close()" & ASCII.LF;
-   end Single_Error_Server_Script;
 
-   function Overflow_Then_Compact_Then_Success_Server_Script
-     (Port          : Positive;
-      Overflow_Text : String;
-      Summary_Text  : String;
-      Reply_Text    : String) return String
-   is
-      Encoded_Overflow : constant String :=
-        GNATCOLL.JSON.Write (GNATCOLL.JSON.Create (Overflow_Text));
-      Encoded_Summary  : constant String :=
-        GNATCOLL.JSON.Write (GNATCOLL.JSON.Create (Summary_Text));
-      Encoded_Reply    : constant String :=
-        GNATCOLL.JSON.Write (GNATCOLL.JSON.Create (Reply_Text));
-   begin
-      return
-        "import http.server, json" & ASCII.LF
-        & "class S(http.server.HTTPServer):" & ASCII.LF
-        & "    allow_reuse_address = True" & ASCII.LF
-        & "def text_payload(text):" & ASCII.LF
-        & "    events = [" & ASCII.LF
-        & "        {'choices': [{'delta': {'content': text},"
-        & " 'finish_reason': None}]}," & ASCII.LF
-        & "        {'choices': [{'delta': {}, 'finish_reason': 'stop'}],"
-        & " 'usage': {'prompt_tokens': 8, 'completion_tokens': 3}}]"
-        & ASCII.LF
-        & "    payload = ''.join(" & ASCII.LF
-        & "        'data: ' + json.dumps(event) + '\n\n'"
-        & ASCII.LF
-        & "        for event in events).encode()" & ASCII.LF
-        & "    return payload + b'data: [DONE]\n\n'" & ASCII.LF
-        & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
-        & "    count = 0" & ASCII.LF
-        & "    def do_POST(self):" & ASCII.LF
-        & "        H.count += 1" & ASCII.LF
-        & "        n = int(self.headers.get('Content-Length', '0'))"
-        & ASCII.LF
-        & "        body = json.loads(self.rfile.read(n))" & ASCII.LF
-        & "        assert body['model'] == 'openai/gpt-4o-mini'"
-        & ASCII.LF
-        & "        assert len(body['messages']) >= 1" & ASCII.LF
-        & "        assert 'tools' not in body" & ASCII.LF
-        & "        if H.count == 1:" & ASCII.LF
-        & "            payload = " & Encoded_Overflow & ".encode()"
-        & ASCII.LF
-        & "            self.send_response(400)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/plain')"
-        & ASCII.LF
-        & "            self.send_header('Content-Length', str(len(payload)))"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(payload)" & ASCII.LF
-        & "            self.wfile.flush()" & ASCII.LF
-        & "        elif H.count == 2:" & ASCII.LF
-        & "            payload = text_payload(" & Encoded_Summary & ")"
-        & ASCII.LF
-        & "            self.send_response(200)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/event-stream')"
-        & ASCII.LF
-        & "            self.send_header('Content-Length', str(len(payload)))"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(payload)" & ASCII.LF
-        & "            self.wfile.flush()" & ASCII.LF
-        & "        else:" & ASCII.LF
-        & "            assert H.count == 3" & ASCII.LF
-        & "            payload = text_payload(" & Encoded_Reply & ")"
-        & ASCII.LF
-        & "            self.send_response(200)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/event-stream')"
-        & ASCII.LF
-        & "            self.send_header('Content-Length', str(len(payload)))"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(payload)" & ASCII.LF
-        & "            self.wfile.flush()" & ASCII.LF
-        & "    def log_message(self, *a): pass" & ASCII.LF
-        & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
-        & ASCII.LF
-        & "s.timeout = 10" & ASCII.LF
-        & "s.handle_request()" & ASCII.LF
-        & "s.handle_request()" & ASCII.LF
-        & "s.handle_request()" & ASCII.LF
-        & "s.server_close()" & ASCII.LF;
-   end Overflow_Then_Compact_Then_Success_Server_Script;
 
-   function Overflow_Then_Compact_Then_Overflow_Server_Script
-     (Port          : Positive;
-      Overflow_Text : String;
-      Summary_Text  : String) return String
-   is
-      Encoded_Overflow : constant String :=
-        GNATCOLL.JSON.Write (GNATCOLL.JSON.Create (Overflow_Text));
-      Encoded_Summary  : constant String :=
-        GNATCOLL.JSON.Write (GNATCOLL.JSON.Create (Summary_Text));
-   begin
-      return
-        "import http.server, json" & ASCII.LF
-        & "class S(http.server.HTTPServer):" & ASCII.LF
-        & "    allow_reuse_address = True" & ASCII.LF
-        & "def text_payload(text):" & ASCII.LF
-        & "    events = [" & ASCII.LF
-        & "        {'choices': [{'delta': {'content': text},"
-        & " 'finish_reason': None}]}," & ASCII.LF
-        & "        {'choices': [{'delta': {}, 'finish_reason': 'stop'}],"
-        & " 'usage': {'prompt_tokens': 8, 'completion_tokens': 3}}]"
-        & ASCII.LF
-        & "    payload = ''.join(" & ASCII.LF
-        & "        'data: ' + json.dumps(event) + '\n\n'"
-        & ASCII.LF
-        & "        for event in events).encode()" & ASCII.LF
-        & "    return payload + b'data: [DONE]\n\n'" & ASCII.LF
-        & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
-        & "    count = 0" & ASCII.LF
-        & "    def do_POST(self):" & ASCII.LF
-        & "        H.count += 1" & ASCII.LF
-        & "        n = int(self.headers.get('Content-Length', '0'))"
-        & ASCII.LF
-        & "        body = json.loads(self.rfile.read(n))" & ASCII.LF
-        & "        assert body['model'] == 'openai/gpt-4o-mini'"
-        & ASCII.LF
-        & "        assert len(body['messages']) >= 1" & ASCII.LF
-        & "        assert 'tools' not in body" & ASCII.LF
-        & "        if H.count == 2:" & ASCII.LF
-        & "            payload = text_payload(" & Encoded_Summary & ")"
-        & ASCII.LF
-        & "            self.send_response(200)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/event-stream')"
-        & ASCII.LF
-        & "        else:" & ASCII.LF
-        & "            assert H.count in (1, 3)" & ASCII.LF
-        & "            payload = " & Encoded_Overflow & ".encode()"
-        & ASCII.LF
-        & "            self.send_response(400)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/plain')"
-        & ASCII.LF
-        & "        self.send_header('Content-Length', str(len(payload)))"
-        & ASCII.LF
-        & "        self.end_headers()" & ASCII.LF
-        & "        self.wfile.write(payload)" & ASCII.LF
-        & "        self.wfile.flush()" & ASCII.LF
-        & "    def log_message(self, *a): pass" & ASCII.LF
-        & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
-        & ASCII.LF
-        & "s.timeout = 10" & ASCII.LF
-        & "s.handle_request()" & ASCII.LF
-        & "s.handle_request()" & ASCII.LF
-        & "s.handle_request()" & ASCII.LF
-        & "s.server_close()" & ASCII.LF;
-   end Overflow_Then_Compact_Then_Overflow_Server_Script;
+
+
 
    function Spawn_Server (Script : String) return Process_Handle is
       Args : Argument_List;
@@ -901,128 +414,7 @@ package body LLM_Agent_Tests is
       LLM.Agent.Switch_Session (S, Session_UUID);
    end Seed_Compaction_History;
 
-   function Compaction_Server_Script
-     (Port       : Positive;
-      Reply_Text : String) return String
-   is
-      Encoded_Reply : constant String :=
-        GNATCOLL.JSON.Write (GNATCOLL.JSON.Create (Reply_Text));
-   begin
-      return
-        "import http.server, json, time" & ASCII.LF
-        & "class S(http.server.HTTPServer):" & ASCII.LF
-        & "    allow_reuse_address = True" & ASCII.LF
-        & "def make_payload(text):" & ASCII.LF
-        & "    events = [" & ASCII.LF
-        & "        {'choices': [{'delta': {'content': text},"
-        & " 'finish_reason': None}]}," & ASCII.LF
-        & "        {'choices': [{'delta': {}, 'finish_reason': 'stop'}],"
-        & " 'usage': {'prompt_tokens': 8, 'completion_tokens': 3}}]"
-        & ASCII.LF
-        & "    payload = ''.join(" & ASCII.LF
-        & "        'data: ' + json.dumps(event) + '\n\n'"
-        & ASCII.LF
-        & "        for event in events).encode()" & ASCII.LF
-        & "    return payload + b'data: [DONE]\n\n'" & ASCII.LF
-        & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
-        & "    handled = False" & ASCII.LF
-        & "    def do_POST(self):" & ASCII.LF
-        & "        try:" & ASCII.LF
-        & "            assert self.path == '/api/v1/chat/completions'"
-        & ASCII.LF
-        & "            n = int(self.headers.get('Content-Length', '0'))"
-        & ASCII.LF
-        & "            body = json.loads(self.rfile.read(n))" & ASCII.LF
-        & "            assert body['model'] == 'openai/gpt-4o-mini'"
-        & ASCII.LF
-        & "            assert len(body['messages']) >= 1" & ASCII.LF
-        & "            assert 'tools' not in body" & ASCII.LF
-        & "            payload = make_payload(" & Encoded_Reply & ")"
-        & ASCII.LF
-        & "            self.send_response(200)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/event-stream')"
-        & ASCII.LF
-        & "            self.send_header('Content-Length', str(len(payload)))"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(payload)" & ASCII.LF
-        & "            self.wfile.flush()" & ASCII.LF
-        & "            H.handled = True" & ASCII.LF
-        & "        except Exception as exc:" & ASCII.LF
-        & "            self.send_response(500)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/plain')"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(str(exc).encode())" & ASCII.LF
-        & "    def log_message(self, *a): pass" & ASCII.LF
-        & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
-        & ASCII.LF
-        & "s.timeout = 0.25" & ASCII.LF
-        & "deadline = time.time() + 10.0" & ASCII.LF
-        & "while not H.handled and time.time() < deadline:"
-        & ASCII.LF
-        & "    s.handle_request()" & ASCII.LF
-        & "s.server_close()" & ASCII.LF;
-   end Compaction_Server_Script;
 
-   function Single_Turn_Server_Script (Port : Positive) return String is
-   begin
-      return
-        "import http.server, json" & ASCII.LF
-        & "class S(http.server.HTTPServer):" & ASCII.LF
-        & "    allow_reuse_address = True" & ASCII.LF
-        & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
-        & "    def do_POST(self):" & ASCII.LF
-        & "        try:" & ASCII.LF
-        & "            assert self.path == '/api/v1/chat/completions'"
-        & ASCII.LF
-        & "            assert self.headers['Authorization'] == "
-        & "'Bearer test-key'" & ASCII.LF
-        & "            n = int(self.headers.get('Content-Length', '0'))"
-        & ASCII.LF
-        & "            body = json.loads(self.rfile.read(n))" & ASCII.LF
-        & "            msgs = [m for m in body['messages']"
-        & " if m.get('role') != 'system']" & ASCII.LF
-        & "            assert body['model'] == 'openai/gpt-4o-mini'"
-        & ASCII.LF
-        & "            assert len(msgs) == 1" & ASCII.LF
-        & "            assert msgs[0]['role'] == 'user'"
-        & ASCII.LF
-        & "            assert msgs[0]['content'] == 'Say hello'"
-        & ASCII.LF
-        & "            assert 'tools' not in body" & ASCII.LF
-        & "            events = [" & ASCII.LF
-        & "                {'choices': [{'delta': {'content': 'Hello'},"
-        & " 'finish_reason': None}]}," & ASCII.LF
-        & "                {'choices': [{'delta': {}, 'finish_reason': "
-        & "'stop'}], 'usage': {'prompt_tokens': 10,"
-        & " 'completion_tokens': 5}}]" & ASCII.LF
-        & "            payload = ''.join(" & ASCII.LF
-        & "                'data: ' + json.dumps(event) + '\n\n'"
-        & ASCII.LF
-        & "                for event in events).encode()" & ASCII.LF
-        & "            payload += b'data: [DONE]\n\n'" & ASCII.LF
-        & "            self.send_response(200)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/event-stream')"
-        & ASCII.LF
-        & "            self.send_header('Content-Length', str(len(payload)))"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(payload)" & ASCII.LF
-        & "            self.wfile.flush()" & ASCII.LF
-        & "        except Exception as exc:" & ASCII.LF
-        & "            self.send_response(500)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/plain')"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(str(exc).encode())" & ASCII.LF
-        & "    def log_message(self, *a): pass" & ASCII.LF
-        & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
-        & ASCII.LF
-        & "s.timeout = 5" & ASCII.LF
-        & "s.handle_request()" & ASCII.LF
-        & "s.server_close()" & ASCII.LF;
-   end Single_Turn_Server_Script;
 
    function Tool_Call_Server_Script (Port : Positive) return String is
    begin
@@ -1648,22 +1040,22 @@ package body LLM_Agent_Tests is
    procedure Test_Single_Turn_Prompt (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/coyote_llm_agent_test_1";
-      Port         : constant Positive := 18_781;
-      Handle       : Process_Handle := Invalid_Handle;
-      Agent_Session : LLM.Agent.Session;
-      Messages     : LLM.Types.Message_Vectors.Vector;
-      Home_Was_Set : constant Boolean :=
+      Home           : constant String := "/tmp/coyote_llm_agent_test_1";
+      Port           : constant Positive := 18_781;
+      Agent_Session  : LLM.Agent.Session;
+      Messages       : LLM.Types.Message_Vectors.Vector;
+      Server_Stopped : Boolean := False;
+      Home_Was_Set   : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home       : constant String :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set  : constant Boolean :=
+      Key_Was_Set    : constant Boolean :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key      : constant String :=
+      Old_Key        : constant String :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set  : constant Boolean :=
+      Url_Was_Set    : constant Boolean :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url      : constant String :=
+      Old_Url        : constant String :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure Ignore_Event (E : LLM.Events.Agent_Event'Class) is
@@ -1671,6 +1063,19 @@ package body LLM_Agent_Tests is
       begin
          null;
       end Ignore_Event;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Res.Status := 200;
+         Add_SSE_Header (Res);
+         Append (Res.Body_Data, Text_SSE_Payload ("Hello", 10, 5));
+      end Handle_Request;
+
+      Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
    begin
       Prepare_Test_Home (Home);
       Write_OpenRouter_Cache (Home);
@@ -1685,15 +1090,15 @@ package body LLM_Agent_Tests is
          Model_Spec => "openrouter/openai/gpt-4o-mini",
          No_Tools   => True);
 
-      Handle := Spawn_Server (Single_Turn_Server_Script (Port));
-      Wait_For_Server;
+      Srv.Bind (Port);
 
       LLM.Agent.Run_Prompt
         (S        => Agent_Session,
          Prompt   => "Say hello",
          On_Event => Ignore_Event'Access);
 
-      Stop_Server (Handle);
+      Srv.Stop;
+      Server_Stopped := True;
 
       Messages := LLM.Session_Store.Load_Messages
         (LLM.Agent.Session_Id (Agent_Session));
@@ -1720,7 +1125,13 @@ package body LLM_Agent_Tests is
       Cleanup_Test_Home (Home);
    exception
       when others =>
-         Stop_Server (Handle);
+         if not Server_Stopped then
+            begin
+               Srv.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
          Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -2696,26 +2107,27 @@ package body LLM_Agent_Tests is
    procedure Test_Session_Resume (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home            : constant String := "/tmp/coyote_llm_agent_test_4";
-      First_Port      : constant Positive := 18_784;
-      Second_Port     : constant Positive := 18_785;
-      First_Handle    : Process_Handle := Invalid_Handle;
-      Second_Handle   : Process_Handle := Invalid_Handle;
-      First_Session   : LLM.Agent.Session;
-      Resume_Session  : LLM.Agent.Session;
-      Session_UUID    : Unbounded_String;
-      Messages        : LLM.Types.Message_Vectors.Vector;
-      Home_Was_Set    : constant Boolean :=
+      Home                 : constant String :=
+        "/tmp/coyote_llm_agent_test_4";
+      First_Port           : constant Positive := 18_784;
+      Second_Port          : constant Positive := 18_785;
+      Second_Handle        : Process_Handle := Invalid_Handle;
+      First_Session        : LLM.Agent.Session;
+      Resume_Session       : LLM.Agent.Session;
+      Session_UUID         : Unbounded_String;
+      Messages             : LLM.Types.Message_Vectors.Vector;
+      First_Server_Stopped : Boolean := False;
+      Home_Was_Set         : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home        : constant String :=
+      Old_Home             : constant String :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set     : constant Boolean :=
+      Key_Was_Set          : constant Boolean :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key         : constant String :=
+      Old_Key              : constant String :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set     : constant Boolean :=
+      Url_Was_Set          : constant Boolean :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url         : constant String :=
+      Old_Url              : constant String :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure Ignore_Event (E : LLM.Events.Agent_Event'Class) is
@@ -2723,6 +2135,20 @@ package body LLM_Agent_Tests is
       begin
          null;
       end Ignore_Event;
+
+      procedure Handle_First_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Res.Status := 200;
+         Add_SSE_Header (Res);
+         Append (Res.Body_Data, Text_SSE_Payload ("Hello", 10, 5));
+      end Handle_First_Request;
+
+      Srv_First : Test_HTTP_Server.Server
+        (Handle_First_Request'Unrestricted_Access);
    begin
       Prepare_Test_Home (Home);
       Write_OpenRouter_Cache (Home);
@@ -2737,13 +2163,13 @@ package body LLM_Agent_Tests is
          Model_Spec => "openrouter/openai/gpt-4o-mini",
          No_Tools   => True);
 
-      First_Handle := Spawn_Server (Single_Turn_Server_Script (First_Port));
-      Wait_For_Server;
+      Srv_First.Bind (First_Port);
       LLM.Agent.Run_Prompt
         (S        => First_Session,
          Prompt   => "Say hello",
          On_Event => Ignore_Event'Access);
-      Stop_Server (First_Handle);
+      Srv_First.Stop;
+      First_Server_Stopped := True;
 
       Session_UUID :=
         To_Unbounded_String (LLM.Agent.Session_Id (First_Session));
@@ -2790,7 +2216,13 @@ package body LLM_Agent_Tests is
       Cleanup_Test_Home (Home);
    exception
       when others =>
-         Stop_Server (First_Handle);
+         if not First_Server_Stopped then
+            begin
+               Srv_First.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
          Stop_Server (Second_Handle);
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
          Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
@@ -2806,11 +2238,11 @@ package body LLM_Agent_Tests is
 
       Home           : constant String := "/tmp/coyote_llm_agent_test_10";
       Port           : constant Positive := 18_794;
-      Handle         : Process_Handle := Invalid_Handle;
       Agent_Session  : LLM.Agent.Session;
       Saw_Model      : Boolean := False;
       Selected_Prov  : Unbounded_String := Null_Unbounded_String;
       Selected_Model : Unbounded_String := Null_Unbounded_String;
+      Server_Stopped : Boolean := False;
       Home_Was_Set   : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
       Old_Home       : constant String :=
@@ -2837,6 +2269,19 @@ package body LLM_Agent_Tests is
             end;
          end if;
       end On_Event;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Res.Status := 200;
+         Add_SSE_Header (Res);
+         Append (Res.Body_Data, Text_SSE_Payload ("default reply", 8, 3));
+      end Handle_Request;
+
+      Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
    begin
       Prepare_Test_Home (Home);
       Write_Settings_File
@@ -2864,21 +2309,15 @@ package body LLM_Agent_Tests is
            = "openrouter/test/default-model",
          "Create should use the settings.json default model");
 
-      Handle := Spawn_Server
-        (Simple_Text_Server_Script
-           (Port                   => Port,
-            Expected_Authorization => "Bearer settings-key",
-            Expected_Model         => "test/default-model",
-            Expected_Prompt        => "Use the default model",
-            Reply_Text             => "default reply"));
-      Wait_For_Server;
+      Srv.Bind (Port);
 
       LLM.Agent.Run_Prompt
         (S        => Agent_Session,
          Prompt   => "Use the default model",
          On_Event => On_Event'Access);
 
-      Stop_Server (Handle);
+      Srv.Stop;
+      Server_Stopped := True;
 
       Assert (Saw_Model, "Model_Select_Event should be emitted");
       Assert
@@ -2894,7 +2333,13 @@ package body LLM_Agent_Tests is
       Cleanup_Test_Home (Home);
    exception
       when others =>
-         Stop_Server (Handle);
+         if not Server_Stopped then
+            begin
+               Srv.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
          Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -2907,21 +2352,22 @@ package body LLM_Agent_Tests is
    is
       pragma Unreferenced (T);
 
-      Home          : constant String := "/tmp/coyote_llm_agent_test_11";
-      Port          : constant Positive := 18_795;
-      Handle        : Process_Handle := Invalid_Handle;
-      Agent_Session : LLM.Agent.Session;
-      Home_Was_Set  : constant Boolean :=
+      Home           : constant String := "/tmp/coyote_llm_agent_test_11";
+      Port           : constant Positive := 18_795;
+      Agent_Session  : LLM.Agent.Session;
+      Server_Stopped : Boolean := False;
+      Request_Count  : Natural := 0;
+      Home_Was_Set   : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home      : constant String :=
+      Old_Home       : constant String :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set   : constant Boolean :=
+      Key_Was_Set    : constant Boolean :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key       : constant String :=
+      Old_Key        : constant String :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set   : constant Boolean :=
+      Url_Was_Set    : constant Boolean :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url       : constant String :=
+      Old_Url        : constant String :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure Ignore_Event (E : LLM.Events.Agent_Event'Class) is
@@ -2929,6 +2375,26 @@ package body LLM_Agent_Tests is
       begin
          null;
       end Ignore_Event;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Request_Count := Request_Count + 1;
+         Res.Status := 200;
+         Add_SSE_Header (Res);
+         if Request_Count = 1 then
+            Append (Res.Body_Data,
+                    Text_SSE_Payload ("turn one reply", 8, 3));
+         else
+            Append (Res.Body_Data,
+                    Text_SSE_Payload ("turn two reply", 8, 3));
+         end if;
+      end Handle_Request;
+
+      Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
    begin
       Prepare_Test_Home (Home);
       Write_OpenRouter_Cache (Home);
@@ -2943,8 +2409,7 @@ package body LLM_Agent_Tests is
          Model_Spec => "openrouter/openai/gpt-4o-mini",
          No_Tools   => True);
 
-      Handle := Spawn_Server (Multi_Turn_Server_Script (Port));
-      Wait_For_Server;
+      Srv.Bind (Port);
 
       LLM.Agent.Run_Prompt
         (S        => Agent_Session,
@@ -2956,7 +2421,8 @@ package body LLM_Agent_Tests is
          Prompt   => "second question",
          On_Event => Ignore_Event'Access);
 
-      Stop_Server (Handle);
+      Srv.Stop;
+      Server_Stopped := True;
 
       Assert
         (LLM.Agent.Testing.History_Length (Agent_Session) >= 4,
@@ -2978,7 +2444,13 @@ package body LLM_Agent_Tests is
       Cleanup_Test_Home (Home);
    exception
       when others =>
-         Stop_Server (Handle);
+         if not Server_Stopped then
+            begin
+               Srv.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
          Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -2991,26 +2463,27 @@ package body LLM_Agent_Tests is
    is
       pragma Unreferenced (T);
 
-      Home             : constant String := "/tmp/coyote_llm_agent_test_12";
-      First_Port       : constant Positive := 18_796;
-      Second_Port      : constant Positive := 18_797;
-      First_Handle     : Process_Handle := Invalid_Handle;
-      Second_Handle    : Process_Handle := Invalid_Handle;
-      Agent_Session    : LLM.Agent.Session;
-      Original_Id      : Unbounded_String := Null_Unbounded_String;
-      Original_Path    : Unbounded_String := Null_Unbounded_String;
-      Fresh_Path       : Unbounded_String := Null_Unbounded_String;
-      Home_Was_Set     : constant Boolean :=
+      Home                  : constant String :=
+        "/tmp/coyote_llm_agent_test_12";
+      First_Port            : constant Positive := 18_796;
+      Second_Port           : constant Positive := 18_797;
+      Agent_Session         : LLM.Agent.Session;
+      Original_Id           : Unbounded_String := Null_Unbounded_String;
+      Original_Path         : Unbounded_String := Null_Unbounded_String;
+      Fresh_Path            : Unbounded_String := Null_Unbounded_String;
+      First_Server_Stopped  : Boolean := False;
+      Second_Server_Stopped : Boolean := False;
+      Home_Was_Set          : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home         : constant String :=
+      Old_Home              : constant String :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set      : constant Boolean :=
+      Key_Was_Set           : constant Boolean :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key          : constant String :=
+      Old_Key               : constant String :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set      : constant Boolean :=
+      Url_Was_Set           : constant Boolean :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url          : constant String :=
+      Old_Url               : constant String :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure Ignore_Event (E : LLM.Events.Agent_Event'Class) is
@@ -3018,6 +2491,34 @@ package body LLM_Agent_Tests is
       begin
          null;
       end Ignore_Event;
+
+      procedure Handle_First_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Res.Status := 200;
+         Add_SSE_Header (Res);
+         Append (Res.Body_Data, Text_SSE_Payload ("old reply", 8, 3));
+      end Handle_First_Request;
+
+      Srv_First : Test_HTTP_Server.Server
+        (Handle_First_Request'Unrestricted_Access);
+
+      procedure Handle_Second_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Res.Status := 200;
+         Add_SSE_Header (Res);
+         Append (Res.Body_Data, Text_SSE_Payload ("fresh reply", 8, 3));
+      end Handle_Second_Request;
+
+      Srv_Second : Test_HTTP_Server.Server
+        (Handle_Second_Request'Unrestricted_Access);
    begin
       Prepare_Test_Home (Home);
       Write_OpenRouter_Cache (Home);
@@ -3032,21 +2533,15 @@ package body LLM_Agent_Tests is
          Model_Spec => "openrouter/openai/gpt-4o-mini",
          No_Tools   => True);
 
-      First_Handle := Spawn_Server
-        (Simple_Text_Server_Script
-           (Port                   => First_Port,
-            Expected_Authorization => "Bearer test-key",
-            Expected_Model         => "openai/gpt-4o-mini",
-            Expected_Prompt        => "old prompt",
-            Reply_Text             => "old reply"));
-      Wait_For_Server;
+      Srv_First.Bind (First_Port);
 
       LLM.Agent.Run_Prompt
         (S        => Agent_Session,
          Prompt   => "old prompt",
          On_Event => Ignore_Event'Access);
 
-      Stop_Server (First_Handle);
+      Srv_First.Stop;
+      First_Server_Stopped := True;
 
       Original_Id :=
         To_Unbounded_String (LLM.Agent.Session_Id (Agent_Session));
@@ -3076,21 +2571,16 @@ package body LLM_Agent_Tests is
       Ada.Environment_Variables.Set
         ("COYOTE_OPENROUTER_BASE_URL",
          "http://127.0.0.1:" & Natural_Image (Second_Port) & "/api/v1");
-      Second_Handle := Spawn_Server
-        (Simple_Text_Server_Script
-           (Port                   => Second_Port,
-            Expected_Authorization => "Bearer test-key",
-            Expected_Model         => "openai/gpt-4o-mini",
-            Expected_Prompt        => "fresh prompt",
-            Reply_Text             => "fresh reply"));
-      Wait_For_Server;
+
+      Srv_Second.Bind (Second_Port);
 
       LLM.Agent.Run_Prompt
         (S        => Agent_Session,
          Prompt   => "fresh prompt",
          On_Event => Ignore_Event'Access);
 
-      Stop_Server (Second_Handle);
+      Srv_Second.Stop;
+      Second_Server_Stopped := True;
 
       Assert
         (LLM.Agent.Testing.History_Length (Agent_Session) = 2,
@@ -3107,8 +2597,20 @@ package body LLM_Agent_Tests is
       Cleanup_Test_Home (Home);
    exception
       when others =>
-         Stop_Server (First_Handle);
-         Stop_Server (Second_Handle);
+         if not First_Server_Stopped then
+            begin
+               Srv_First.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
+         if not Second_Server_Stopped then
+            begin
+               Srv_Second.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
          Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -3121,34 +2623,48 @@ package body LLM_Agent_Tests is
    is
       pragma Unreferenced (T);
 
-      Home              : constant String := "/tmp/coyote_llm_agent_test_13";
-      Port              : constant Positive := 18_798;
-      Handle            : Process_Handle := Invalid_Handle;
-      Agent_Session     : LLM.Agent.Session;
-      Events            : Recorded_Event_Vectors.Vector;
-      Model_Select_Pos  : Natural;
-      Agent_Start_Pos   : Natural;
+      Home               : constant String :=
+        "/tmp/coyote_llm_agent_test_13";
+      Port               : constant Positive := 18_798;
+      Agent_Session      : LLM.Agent.Session;
+      Events             : Recorded_Event_Vectors.Vector;
+      Model_Select_Pos   : Natural;
+      Agent_Start_Pos    : Natural;
       Message_Update_Pos : Natural;
-      Message_End_Pos   : Natural;
-      Agent_End_Pos     : Natural;
-      Session_Stats_Pos : Natural;
-      Home_Was_Set      : constant Boolean :=
+      Message_End_Pos    : Natural;
+      Agent_End_Pos      : Natural;
+      Session_Stats_Pos  : Natural;
+      Server_Stopped     : Boolean := False;
+      Home_Was_Set       : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home          : constant String :=
+      Old_Home           : constant String :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set       : constant Boolean :=
+      Key_Was_Set        : constant Boolean :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key           : constant String :=
+      Old_Key            : constant String :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set       : constant Boolean :=
+      Url_Was_Set        : constant Boolean :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url           : constant String :=
+      Old_Url            : constant String :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure On_Event (E : LLM.Events.Agent_Event'Class) is
       begin
          Events.Append (To_Recorded_Event_Kind (E));
       end On_Event;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Res.Status := 200;
+         Add_SSE_Header (Res);
+         Append (Res.Body_Data, Text_SSE_Payload ("event reply", 8, 3));
+      end Handle_Request;
+
+      Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
    begin
       Prepare_Test_Home (Home);
       Write_OpenRouter_Cache (Home);
@@ -3163,21 +2679,15 @@ package body LLM_Agent_Tests is
          Model_Spec => "openrouter/openai/gpt-4o-mini",
          No_Tools   => True);
 
-      Handle := Spawn_Server
-        (Simple_Text_Server_Script
-           (Port                   => Port,
-            Expected_Authorization => "Bearer test-key",
-            Expected_Model         => "openai/gpt-4o-mini",
-            Expected_Prompt        => "Show the event sequence",
-            Reply_Text             => "event reply"));
-      Wait_For_Server;
+      Srv.Bind (Port);
 
       LLM.Agent.Run_Prompt
         (S        => Agent_Session,
          Prompt   => "Show the event sequence",
          On_Event => On_Event'Access);
 
-      Stop_Server (Handle);
+      Srv.Stop;
+      Server_Stopped := True;
 
       Model_Select_Pos := First_Event_Index (Events, Model_Select_Kind);
       Assert
@@ -3230,7 +2740,13 @@ package body LLM_Agent_Tests is
       Cleanup_Test_Home (Home);
    exception
       when others =>
-         Stop_Server (Handle);
+         if not Server_Stopped then
+            begin
+               Srv.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
          Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -3245,7 +2761,6 @@ package body LLM_Agent_Tests is
 
       Home              : constant String := "/tmp/coyote_llm_agent_test_14";
       Port              : constant Positive := 18_799;
-      Handle            : Process_Handle := Invalid_Handle;
       Agent_Session     : LLM.Agent.Session;
       Saw_Tool_Start    : Boolean := False;
       Saw_Tool_End      : Boolean := False;
@@ -3254,6 +2769,8 @@ package body LLM_Agent_Tests is
       End_Was_Aborted   : Boolean := True;
       Tool_Name         : Unbounded_String := Null_Unbounded_String;
       Session_Text      : Unbounded_String := Null_Unbounded_String;
+      Server_Stopped    : Boolean := False;
+      Request_Count     : Natural := 0;
       Home_Was_Set      : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
       Old_Home          : constant String :=
@@ -3290,6 +2807,38 @@ package body LLM_Agent_Tests is
             End_Was_Aborted := LLM.Events.Agent_End_Event (E).Was_Aborted;
          end if;
       end On_Event;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+         Tool_SSE : constant String :=
+           "data: {""choices"":[{""delta"":{""tool_calls"":[{""index"":0,"
+           & """id"":""call_1"",""type"":""function"","
+           & """function"":{""name"":""nonexistent_tool_xyz"","
+           & """arguments"":""{}""}}"
+           & "]},"
+           & """finish_reason"":null}]}"
+           & ASCII.LF & ASCII.LF
+           & "data: {""choices"":[{""delta"":{},"
+           & """finish_reason"":""tool_calls""}],"
+           & """usage"":{""prompt_tokens"":11,""completion_tokens"":5}}"
+           & ASCII.LF & ASCII.LF
+           & "data: [DONE]"
+           & ASCII.LF & ASCII.LF;
+      begin
+         Request_Count := Request_Count + 1;
+         Res.Status := 200;
+         Add_SSE_Header (Res);
+         if Request_Count = 1 then
+            Append (Res.Body_Data, Tool_SSE);
+         else
+            Append (Res.Body_Data, Text_SSE_Payload ("done", 15, 3));
+         end if;
+      end Handle_Request;
+
+      Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
    begin
       Prepare_Test_Home (Home);
       Write_OpenRouter_Cache (Home);
@@ -3304,15 +2853,15 @@ package body LLM_Agent_Tests is
          Model_Spec => "openrouter/openai/gpt-4o-mini",
          No_Tools   => False);
 
-      Handle := Spawn_Server (Unknown_Tool_Server_Script (Port));
-      Wait_For_Server;
+      Srv.Bind (Port);
 
       LLM.Agent.Run_Prompt
         (S        => Agent_Session,
          Prompt   => "Call the unknown tool",
          On_Event => On_Event'Access);
 
-      Stop_Server (Handle);
+      Srv.Stop;
+      Server_Stopped := True;
 
       Session_Text := To_Unbounded_String
         (Read_File
@@ -3349,7 +2898,13 @@ package body LLM_Agent_Tests is
       Cleanup_Test_Home (Home);
    exception
       when others =>
-         Stop_Server (Handle);
+         if not Server_Stopped then
+            begin
+               Srv.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
          Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -3364,12 +2919,13 @@ package body LLM_Agent_Tests is
 
       Home            : constant String := "/tmp/coyote_llm_agent_test_15";
       Port            : constant Positive := 18_800;
-      Handle          : Process_Handle := Invalid_Handle;
       Agent_Session   : LLM.Agent.Session;
       Saw_Retry       : Boolean := False;
       Saw_Text_Delta  : Boolean := False;
       End_Was_Aborted : Boolean := True;
       Text_Result     : Unbounded_String := Null_Unbounded_String;
+      Server_Stopped  : Boolean := False;
+      Request_Count   : Natural := 0;
       Home_Was_Set    : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
       Old_Home        : constant String :=
@@ -3401,6 +2957,29 @@ package body LLM_Agent_Tests is
             End_Was_Aborted := LLM.Events.Agent_End_Event (E).Was_Aborted;
          end if;
       end On_Event;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Request_Count := Request_Count + 1;
+         if Request_Count = 1 then
+            Res.Status := 500;
+            Res.Headers.Append
+              ((Name  => To_Unbounded_String ("Content-Type"),
+                Value => To_Unbounded_String ("application/json")));
+            Append (Res.Body_Data, "{""error"":""server error""}");
+         else
+            Res.Status := 200;
+            Add_SSE_Header (Res);
+            Append (Res.Body_Data,
+                    Text_SSE_Payload ("retried reply", 8, 3));
+         end if;
+      end Handle_Request;
+
+      Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
    begin
       Prepare_Test_Home (Home);
       Write_OpenRouter_Cache (Home);
@@ -3415,12 +2994,7 @@ package body LLM_Agent_Tests is
          Model_Spec => "openrouter/openai/gpt-4o-mini",
          No_Tools   => True);
 
-      Handle := Spawn_Server
-        (Retry_Then_Success_Server_Script
-           (Port            => Port,
-            Expected_Prompt => "Retry this prompt",
-            Reply_Text      => "retried reply"));
-      Wait_For_Server;
+      Srv.Bind (Port);
 
       --  The current implementation uses a fixed two-second first retry.
       LLM.Agent.Run_Prompt
@@ -3428,7 +3002,8 @@ package body LLM_Agent_Tests is
          Prompt   => "Retry this prompt",
          On_Event => On_Event'Access);
 
-      Stop_Server (Handle);
+      Srv.Stop;
+      Server_Stopped := True;
 
       Assert (Saw_Retry, "HTTP 500 should trigger Auto_Retry_Start_Event");
       Assert
@@ -3444,7 +3019,13 @@ package body LLM_Agent_Tests is
       Cleanup_Test_Home (Home);
    exception
       when others =>
-         Stop_Server (Handle);
+         if not Server_Stopped then
+            begin
+               Srv.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
          Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -3494,11 +3075,12 @@ package body LLM_Agent_Tests is
          Error_Text      : String;
          Expect_Overflow : Boolean)
       is
-         Handle               : Process_Handle := Invalid_Handle;
          Agent_Session        : LLM.Agent.Session;
          Saw_Compaction_Start : Boolean := False;
          Text_Result          : Unbounded_String := Null_Unbounded_String;
          Raised               : Boolean := False;
+         Server_Stopped       : Boolean := False;
+         Request_Count        : Natural := 0;
 
          procedure On_Event (E : LLM.Events.Agent_Event'Class) is
          begin
@@ -3515,6 +3097,38 @@ package body LLM_Agent_Tests is
                end;
             end if;
          end On_Event;
+
+         procedure Handle_Request
+           (Req :     Test_HTTP_Server.Request;
+            Res : out Test_HTTP_Server.Response)
+         is
+            pragma Unreferenced (Req);
+         begin
+            Request_Count := Request_Count + 1;
+            if Expect_Overflow then
+               case Request_Count is
+                  when 1 =>
+                     Res.Status := 400;
+                     Append (Res.Body_Data, Error_Text);
+                  when 2 =>
+                     Res.Status := 200;
+                     Add_SSE_Header (Res);
+                     Append (Res.Body_Data,
+                             Text_SSE_Payload (Summary_Text, 8, 3));
+                  when others =>
+                     Res.Status := 200;
+                     Add_SSE_Header (Res);
+                     Append (Res.Body_Data,
+                             Text_SSE_Payload (Reply_Text, 8, 3));
+               end case;
+            else
+               Res.Status := 400;
+               Append (Res.Body_Data, Error_Text);
+            end if;
+         end Handle_Request;
+
+         Srv : Test_HTTP_Server.Server
+           (Handle_Request'Unrestricted_Access);
       begin
          Ada.Environment_Variables.Set
            ("COYOTE_OPENROUTER_BASE_URL",
@@ -3526,18 +3140,7 @@ package body LLM_Agent_Tests is
             No_Tools   => True);
          Seed_Compaction_History (Agent_Session);
 
-         if Expect_Overflow then
-            Handle := Spawn_Server
-              (Overflow_Then_Compact_Then_Success_Server_Script
-                 (Port          => Port,
-                  Overflow_Text => Error_Text,
-                  Summary_Text  => Summary_Text,
-                  Reply_Text    => Reply_Text));
-         else
-            Handle := Spawn_Server
-              (Single_Error_Server_Script (Port, Error_Text));
-         end if;
-         Wait_For_Server;
+         Srv.Bind (Port);
 
          begin
             LLM.Agent.Run_Prompt
@@ -3549,7 +3152,8 @@ package body LLM_Agent_Tests is
                Raised := True;
          end;
 
-         Stop_Server (Handle);
+         Srv.Stop;
+         Server_Stopped := True;
 
          if Expect_Overflow then
             Assert (not Raised, "Overflow case should recover and return");
@@ -3567,7 +3171,13 @@ package body LLM_Agent_Tests is
          end if;
       exception
          when others =>
-            Stop_Server (Handle);
+            if not Server_Stopped then
+               begin
+                  Srv.Stop;
+               exception
+                  when Tasking_Error => null;
+               end;
+            end if;
             raise;
       end Run_Case;
    begin
@@ -3618,7 +3228,6 @@ package body LLM_Agent_Tests is
       Home                  : constant String :=
         "/tmp/coyote_llm_agent_test_25";
       Port                  : constant Positive := 18_821;
-      Handle                : Process_Handle := Invalid_Handle;
       Agent_Session         : LLM.Agent.Session;
       Saw_Compaction_Start  : Boolean := False;
       Compaction_Reason     : Unbounded_String := Null_Unbounded_String;
@@ -3628,6 +3237,8 @@ package body LLM_Agent_Tests is
       Summary_Text          : constant String :=
         "## Goal" & ASCII.LF & "overflow retry";
       Reply_Text            : constant String := "overflow recovered";
+      Server_Stopped        : Boolean := False;
+      Request_Count         : Natural := 0;
       Home_Was_Set          : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
       Old_Home              : constant String :=
@@ -3662,6 +3273,32 @@ package body LLM_Agent_Tests is
             End_Was_Aborted := LLM.Events.Agent_End_Event (E).Was_Aborted;
          end if;
       end On_Event;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Request_Count := Request_Count + 1;
+         case Request_Count is
+            when 1 =>
+               Res.Status := 400;
+               Append (Res.Body_Data, "prompt is too long");
+            when 2 =>
+               Res.Status := 200;
+               Add_SSE_Header (Res);
+               Append (Res.Body_Data,
+                       Text_SSE_Payload (Summary_Text, 8, 3));
+            when others =>
+               Res.Status := 200;
+               Add_SSE_Header (Res);
+               Append (Res.Body_Data,
+                       Text_SSE_Payload (Reply_Text, 8, 3));
+         end case;
+      end Handle_Request;
+
+      Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
    begin
       Prepare_Test_Home (Home);
       Write_OpenRouter_Cache (Home);
@@ -3677,20 +3314,15 @@ package body LLM_Agent_Tests is
          No_Tools   => True);
       Seed_Compaction_History (Agent_Session);
 
-      Handle := Spawn_Server
-        (Overflow_Then_Compact_Then_Success_Server_Script
-           (Port          => Port,
-            Overflow_Text => "prompt is too long",
-            Summary_Text  => Summary_Text,
-            Reply_Text    => Reply_Text));
-      Wait_For_Server;
+      Srv.Bind (Port);
 
       LLM.Agent.Run_Prompt
         (S        => Agent_Session,
          Prompt   => "Recover from overflow",
          On_Event => On_Event'Access);
 
-      Stop_Server (Handle);
+      Srv.Stop;
+      Server_Stopped := True;
 
       Assert
         (Saw_Compaction_Start,
@@ -3718,7 +3350,13 @@ package body LLM_Agent_Tests is
       Cleanup_Test_Home (Home);
    exception
       when others =>
-         Stop_Server (Handle);
+         if not Server_Stopped then
+            begin
+               Srv.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
          Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -3734,13 +3372,14 @@ package body LLM_Agent_Tests is
       Home                 : constant String :=
         "/tmp/coyote_llm_agent_test_26";
       Port                 : constant Positive := 18_822;
-      Handle               : Process_Handle := Invalid_Handle;
       Agent_Session        : LLM.Agent.Session;
       Saw_Aborted_End      : Boolean := False;
       Aborted_Error_Text   : Unbounded_String := Null_Unbounded_String;
       Saw_Agent_End        : Boolean := False;
       Summary_Text         : constant String :=
         "## Goal" & ASCII.LF & "overflow retry failure";
+      Server_Stopped       : Boolean := False;
+      Request_Count        : Natural := 0;
       Home_Was_Set         : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
       Old_Home             : constant String :=
@@ -3770,6 +3409,26 @@ package body LLM_Agent_Tests is
             Saw_Agent_End := True;
          end if;
       end On_Event;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Request_Count := Request_Count + 1;
+         if Request_Count = 2 then
+            Res.Status := 200;
+            Add_SSE_Header (Res);
+            Append (Res.Body_Data,
+                    Text_SSE_Payload (Summary_Text, 8, 3));
+         else
+            Res.Status := 400;
+            Append (Res.Body_Data, "prompt is too long");
+         end if;
+      end Handle_Request;
+
+      Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
    begin
       Prepare_Test_Home (Home);
       Write_OpenRouter_Cache (Home);
@@ -3785,19 +3444,15 @@ package body LLM_Agent_Tests is
          No_Tools   => True);
       Seed_Compaction_History (Agent_Session);
 
-      Handle := Spawn_Server
-        (Overflow_Then_Compact_Then_Overflow_Server_Script
-           (Port          => Port,
-            Overflow_Text => "prompt is too long",
-            Summary_Text  => Summary_Text));
-      Wait_For_Server;
+      Srv.Bind (Port);
 
       LLM.Agent.Run_Prompt
         (S        => Agent_Session,
          Prompt   => "Overflow twice",
          On_Event => On_Event'Access);
 
-      Stop_Server (Handle);
+      Srv.Stop;
+      Server_Stopped := True;
 
       Assert
         (Saw_Aborted_End,
@@ -3817,7 +3472,13 @@ package body LLM_Agent_Tests is
       Cleanup_Test_Home (Home);
    exception
       when others =>
-         Stop_Server (Handle);
+         if not Server_Stopped then
+            begin
+               Srv.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
          Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -3833,13 +3494,14 @@ package body LLM_Agent_Tests is
       Home              : constant String :=
         "/tmp/coyote_llm_agent_test_27";
       Port              : constant Positive := 18_823;
-      Handle            : Process_Handle := Invalid_Handle;
       Agent_Session     : LLM.Agent.Session;
       Event_Count       : Natural := 0;
       Will_Retry_Pos    : Natural := No_Event_Index;
       Final_Text_Pos    : Natural := No_Event_Index;
       Summary_Text      : constant String :=
         "## Goal" & ASCII.LF & "overflow retry event";
+      Server_Stopped    : Boolean := False;
+      Request_Count     : Natural := 0;
       Home_Was_Set      : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
       Old_Home          : constant String :=
@@ -3862,7 +3524,8 @@ package body LLM_Agent_Tests is
                Event : constant LLM.Events.Auto_Compaction_End_Event :=
                  LLM.Events.Auto_Compaction_End_Event (E);
             begin
-               if Event.Will_Retry and then Will_Retry_Pos = No_Event_Index then
+               if Event.Will_Retry and then Will_Retry_Pos = No_Event_Index
+               then
                   Will_Retry_Pos := Event_Count;
                end if;
             end;
@@ -3879,6 +3542,32 @@ package body LLM_Agent_Tests is
             end;
          end if;
       end On_Event;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Request_Count := Request_Count + 1;
+         case Request_Count is
+            when 1 =>
+               Res.Status := 400;
+               Append (Res.Body_Data, "prompt is too long");
+            when 2 =>
+               Res.Status := 200;
+               Add_SSE_Header (Res);
+               Append (Res.Body_Data,
+                       Text_SSE_Payload (Summary_Text, 8, 3));
+            when others =>
+               Res.Status := 200;
+               Add_SSE_Header (Res);
+               Append (Res.Body_Data,
+                       Text_SSE_Payload ("retry reply", 8, 3));
+         end case;
+      end Handle_Request;
+
+      Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
    begin
       Prepare_Test_Home (Home);
       Write_OpenRouter_Cache (Home);
@@ -3894,30 +3583,27 @@ package body LLM_Agent_Tests is
          No_Tools   => True);
       Seed_Compaction_History (Agent_Session);
 
-      Handle := Spawn_Server
-        (Overflow_Then_Compact_Then_Success_Server_Script
-           (Port          => Port,
-            Overflow_Text => "prompt is too long",
-            Summary_Text  => Summary_Text,
-            Reply_Text    => "retry reply"));
-      Wait_For_Server;
+      Srv.Bind (Port);
 
       LLM.Agent.Run_Prompt
         (S        => Agent_Session,
          Prompt   => "Emit retry event",
          On_Event => On_Event'Access);
 
-      Stop_Server (Handle);
+      Srv.Stop;
+      Server_Stopped := True;
 
       Assert
         (Will_Retry_Pos /= No_Event_Index,
-         "Overflow recovery should emit an Auto_Compaction_End will-retry event");
+         "Overflow recovery should emit an Auto_Compaction_End"
+         & " will-retry event");
       Assert
         (Final_Text_Pos /= No_Event_Index,
          "Successful retry should eventually emit streamed text");
       Assert
         (Will_Retry_Pos < Final_Text_Pos,
-         "Will_Retry event should be emitted before the retried text arrives");
+         "Will_Retry event should be emitted before the retried text"
+         & " arrives");
 
       Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
       Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
@@ -3925,7 +3611,13 @@ package body LLM_Agent_Tests is
       Cleanup_Test_Home (Home);
    exception
       when others =>
-         Stop_Server (Handle);
+         if not Server_Stopped then
+            begin
+               Srv.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
          Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -3938,26 +3630,26 @@ package body LLM_Agent_Tests is
    is
       pragma Unreferenced (T);
 
-      Home          : constant String := "/tmp/coyote_llm_agent_test_16";
-      Port          : constant Positive := 18_801;
-      Handle        : Process_Handle := Invalid_Handle;
-      Agent_Session : LLM.Agent.Session;
-      Summary_Text  : constant String :=
+      Home           : constant String := "/tmp/coyote_llm_agent_test_16";
+      Port           : constant Positive := 18_801;
+      Agent_Session  : LLM.Agent.Session;
+      Summary_Text   : constant String :=
         "## Goal" & ASCII.LF
         & "Verify compact creates a summary." & ASCII.LF & ASCII.LF
         & "## Constraints & Preferences" & ASCII.LF
         & "- (none)";
-      Home_Was_Set  : constant Boolean :=
+      Server_Stopped : Boolean := False;
+      Home_Was_Set   : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home      : constant String :=
+      Old_Home       : constant String :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set   : constant Boolean :=
+      Key_Was_Set    : constant Boolean :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key       : constant String :=
+      Old_Key        : constant String :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set   : constant Boolean :=
+      Url_Was_Set    : constant Boolean :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url       : constant String :=
+      Old_Url        : constant String :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure Ignore_Event (E : LLM.Events.Agent_Event'Class) is
@@ -3965,6 +3657,19 @@ package body LLM_Agent_Tests is
       begin
          null;
       end Ignore_Event;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Res.Status := 200;
+         Add_SSE_Header (Res);
+         Append (Res.Body_Data, Text_SSE_Payload (Summary_Text, 8, 3));
+      end Handle_Request;
+
+      Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
    begin
       Prepare_Test_Home (Home);
       Write_OpenRouter_Cache (Home);
@@ -3980,15 +3685,14 @@ package body LLM_Agent_Tests is
          No_Tools   => True);
       Seed_Compaction_History (Agent_Session);
 
-      Handle := Spawn_Server
-        (Compaction_Server_Script (Port, Summary_Text));
-      Wait_For_Server;
+      Srv.Bind (Port);
 
       LLM.Agent.Compact
         (S        => Agent_Session,
          On_Event => Ignore_Event'Access);
 
-      Stop_Server (Handle);
+      Srv.Stop;
+      Server_Stopped := True;
 
       Assert
         (LLM.Agent.Testing.History_Length (Agent_Session) = 3,
@@ -4009,7 +3713,13 @@ package body LLM_Agent_Tests is
       Cleanup_Test_Home (Home);
    exception
       when others =>
-         Stop_Server (Handle);
+         if not Server_Stopped then
+            begin
+               Srv.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
          Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -4022,23 +3732,23 @@ package body LLM_Agent_Tests is
    is
       pragma Unreferenced (T);
 
-      Home          : constant String := "/tmp/coyote_llm_agent_test_17";
-      Port          : constant Positive := 18_802;
-      Handle        : Process_Handle := Invalid_Handle;
-      Agent_Session : LLM.Agent.Session;
-      Events        : Recorded_Event_Vectors.Vector;
-      End_Aborted   : Boolean := True;
-      Home_Was_Set  : constant Boolean :=
+      Home           : constant String := "/tmp/coyote_llm_agent_test_17";
+      Port           : constant Positive := 18_802;
+      Agent_Session  : LLM.Agent.Session;
+      Events         : Recorded_Event_Vectors.Vector;
+      End_Aborted    : Boolean := True;
+      Server_Stopped : Boolean := False;
+      Home_Was_Set   : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home      : constant String :=
+      Old_Home       : constant String :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set   : constant Boolean :=
+      Key_Was_Set    : constant Boolean :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key       : constant String :=
+      Old_Key        : constant String :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set   : constant Boolean :=
+      Url_Was_Set    : constant Boolean :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url       : constant String :=
+      Old_Url        : constant String :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure On_Event (E : LLM.Events.Agent_Event'Class) is
@@ -4048,6 +3758,21 @@ package body LLM_Agent_Tests is
             End_Aborted := LLM.Events.Auto_Compaction_End_Event (E).Aborted;
          end if;
       end On_Event;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Res.Status := 200;
+         Add_SSE_Header (Res);
+         Append (Res.Body_Data,
+                 Text_SSE_Payload
+                   ("## Goal" & ASCII.LF & "event test", 8, 3));
+      end Handle_Request;
+
+      Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
    begin
       Prepare_Test_Home (Home);
       Write_OpenRouter_Cache (Home);
@@ -4063,15 +3788,14 @@ package body LLM_Agent_Tests is
          No_Tools   => True);
       Seed_Compaction_History (Agent_Session);
 
-      Handle := Spawn_Server
-        (Compaction_Server_Script (Port, "## Goal" & ASCII.LF & "event test"));
-      Wait_For_Server;
+      Srv.Bind (Port);
 
       LLM.Agent.Compact
         (S        => Agent_Session,
          On_Event => On_Event'Access);
 
-      Stop_Server (Handle);
+      Srv.Stop;
+      Server_Stopped := True;
 
       declare
          Start_Pos : constant Natural :=
@@ -4097,7 +3821,13 @@ package body LLM_Agent_Tests is
       Cleanup_Test_Home (Home);
    exception
       when others =>
-         Stop_Server (Handle);
+         if not Server_Stopped then
+            begin
+               Srv.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
          Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -4184,22 +3914,22 @@ package body LLM_Agent_Tests is
    is
       pragma Unreferenced (T);
 
-      Home          : constant String := "/tmp/coyote_llm_agent_test_19";
-      Port          : constant Positive := 18_803;
-      Handle        : Process_Handle := Invalid_Handle;
-      Agent_Session : LLM.Agent.Session;
-      Messages      : LLM.Types.Message_Vectors.Vector;
-      Home_Was_Set  : constant Boolean :=
+      Home           : constant String := "/tmp/coyote_llm_agent_test_19";
+      Port           : constant Positive := 18_803;
+      Agent_Session  : LLM.Agent.Session;
+      Messages       : LLM.Types.Message_Vectors.Vector;
+      Server_Stopped : Boolean := False;
+      Home_Was_Set   : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home      : constant String :=
+      Old_Home       : constant String :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set   : constant Boolean :=
+      Key_Was_Set    : constant Boolean :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key       : constant String :=
+      Old_Key        : constant String :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set   : constant Boolean :=
+      Url_Was_Set    : constant Boolean :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url       : constant String :=
+      Old_Url        : constant String :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure Ignore_Event (E : LLM.Events.Agent_Event'Class) is
@@ -4207,6 +3937,21 @@ package body LLM_Agent_Tests is
       begin
          null;
       end Ignore_Event;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Res.Status := 200;
+         Add_SSE_Header (Res);
+         Append (Res.Body_Data,
+                 Text_SSE_Payload
+                   ("## Goal" & ASCII.LF & "persist", 8, 3));
+      end Handle_Request;
+
+      Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
    begin
       Prepare_Test_Home (Home);
       Write_OpenRouter_Cache (Home);
@@ -4222,15 +3967,14 @@ package body LLM_Agent_Tests is
          No_Tools   => True);
       Seed_Compaction_History (Agent_Session);
 
-      Handle := Spawn_Server
-        (Compaction_Server_Script (Port, "## Goal" & ASCII.LF & "persist"));
-      Wait_For_Server;
+      Srv.Bind (Port);
 
       LLM.Agent.Compact
         (S        => Agent_Session,
          On_Event => Ignore_Event'Access);
 
-      Stop_Server (Handle);
+      Srv.Stop;
+      Server_Stopped := True;
 
       Messages := LLM.Session_Store.Load_Messages
         (LLM.Agent.Session_Id (Agent_Session));
@@ -4247,7 +3991,13 @@ package body LLM_Agent_Tests is
       Cleanup_Test_Home (Home);
    exception
       when others =>
-         Stop_Server (Handle);
+         if not Server_Stopped then
+            begin
+               Srv.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
          Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -4524,22 +4274,22 @@ package body LLM_Agent_Tests is
    is
       pragma Unreferenced (T);
 
-      Home          : constant String := "/tmp/coyote_llm_agent_test_20";
-      Port          : constant Positive := 18_804;
-      Handle        : Process_Handle := Invalid_Handle;
-      Agent_Session : LLM.Agent.Session;
-      Session_UUID  : Unbounded_String := Null_Unbounded_String;
-      Home_Was_Set  : constant Boolean :=
+      Home           : constant String := "/tmp/coyote_llm_agent_test_20";
+      Port           : constant Positive := 18_804;
+      Agent_Session  : LLM.Agent.Session;
+      Session_UUID   : Unbounded_String := Null_Unbounded_String;
+      Server_Stopped : Boolean := False;
+      Home_Was_Set   : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home      : constant String :=
+      Old_Home       : constant String :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Key_Was_Set   : constant Boolean :=
+      Key_Was_Set    : constant Boolean :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
-      Old_Key       : constant String :=
+      Old_Key        : constant String :=
         Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
-      Url_Was_Set   : constant Boolean :=
+      Url_Was_Set    : constant Boolean :=
         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
-      Old_Url       : constant String :=
+      Old_Url        : constant String :=
         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
 
       procedure Ignore_Event (E : LLM.Events.Agent_Event'Class) is
@@ -4547,6 +4297,21 @@ package body LLM_Agent_Tests is
       begin
          null;
       end Ignore_Event;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Res.Status := 200;
+         Add_SSE_Header (Res);
+         Append (Res.Body_Data,
+                 Text_SSE_Payload
+                   ("## Goal" & ASCII.LF & "resume", 8, 3));
+      end Handle_Request;
+
+      Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
    begin
       Prepare_Test_Home (Home);
       Write_OpenRouter_Cache (Home);
@@ -4564,15 +4329,14 @@ package body LLM_Agent_Tests is
       Session_UUID :=
         To_Unbounded_String (LLM.Agent.Session_Id (Agent_Session));
 
-      Handle := Spawn_Server
-        (Compaction_Server_Script (Port, "## Goal" & ASCII.LF & "resume"));
-      Wait_For_Server;
+      Srv.Bind (Port);
 
       LLM.Agent.Compact
         (S        => Agent_Session,
          On_Event => Ignore_Event'Access);
 
-      Stop_Server (Handle);
+      Srv.Stop;
+      Server_Stopped := True;
 
       LLM.Agent.Switch_Session (Agent_Session, To_String (Session_UUID));
       Assert
@@ -4589,7 +4353,13 @@ package body LLM_Agent_Tests is
       Cleanup_Test_Home (Home);
    exception
       when others =>
-         Stop_Server (Handle);
+         if not Server_Stopped then
+            begin
+               Srv.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
          Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
