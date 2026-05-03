@@ -6,23 +6,18 @@ with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with GNATCOLL.JSON;
-with GNATCOLL.OS.Process; use GNATCOLL.OS.Process;
 with LLM.Events;
 with LLM.HTTP;
 with LLM.Providers;
 with LLM.Providers.OpenRouter;
 with LLM.Types;
+with Test_HTTP_Server;
 
 package body LLM_OpenRouter_Tests is
 
    use AUnit.Assertions;
    use type GNATCOLL.JSON.JSON_Value_Type;
    use type LLM.Events.Message_Update_Kind;
-
-   function C_Kill
-      (Process_Id : Integer;
-     Signal     : Integer) return Integer
-      with Import, Convention => C, External_Name => "kill";
 
    Last_Text : Unbounded_String;
 
@@ -161,7 +156,7 @@ package body LLM_OpenRouter_Tests is
 
    procedure Wait_For_File
       (Path         : String;
-     Max_Attempts : Positive := 100)
+       Max_Attempts : Positive := 100)
    is
    begin
       for Attempt in 1 .. Max_Attempts loop
@@ -226,8 +221,8 @@ package body LLM_OpenRouter_Tests is
 
    function Get_String_Field
       (Value   : GNATCOLL.JSON.JSON_Value;
-     Field   : String;
-     Default : String := "") return String
+       Field   : String;
+       Default : String := "") return String
    is
    begin
       if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
@@ -242,8 +237,8 @@ package body LLM_OpenRouter_Tests is
 
    function Get_Natural_Field
       (Value   : GNATCOLL.JSON.JSON_Value;
-     Field   : String;
-     Default : Natural := 0) return Natural
+       Field   : String;
+       Default : Natural := 0) return Natural
    is
       Raw : Long_Integer;
    begin
@@ -263,56 +258,22 @@ package body LLM_OpenRouter_Tests is
 
    procedure Write_Cache
       (Home       : String;
-     Fetched_At : Long_Long_Integer;
-     Data_Array : String)
+       Fetched_At : Long_Long_Integer;
+       Data_Array : String)
    is
    begin
       Write_File
          (Home & "/.coyote/openrouter_models_cache.json",
-       "{""fetched_at"":" & Long_Long_Image (Fetched_At)
-       & ",""data"":" & Data_Array & "}");
+          "{""fetched_at"":" & Long_Long_Image (Fetched_At)
+          & ",""data"":" & Data_Array & "}");
    end Write_Cache;
-
-   function Spawn_Server (Script : String) return Process_Handle is
-      Args : Argument_List;
-   begin
-      Args.Append ("python3");
-      Args.Append ("-u");
-      Args.Append ("-c");
-      Args.Append (Script);
-      return Start (Args => Args);
-   end Spawn_Server;
-
-   procedure Stop_Server (Handle : in out Process_Handle) is
-      Dummy : Integer;
-      pragma Unreferenced (Dummy);
-   begin
-      if Handle = Invalid_Handle then
-         return;
-      end if;
-
-      if State (Handle) = RUNNING then
-         Dummy := C_Kill (Integer (Handle), 15);
-      end if;
-
-      declare
-         Exit_Code : constant Integer := Wait (Handle);
-         pragma Unreferenced (Exit_Code);
-      begin
-         null;
-      end;
-
-      Handle := Invalid_Handle;
-   exception
-      when others =>
-         Handle := Invalid_Handle;
-   end Stop_Server;
 
    procedure Send_With_Retry
       (P             : in out LLM.Providers.OpenRouter.Provider;
-     Model_Id      :        String;
-     Messages      :        LLM.Types.Message_Vectors.Vector;
-     Thinking      :        LLM.Providers.Thinking_Level := LLM.Providers.Off)
+       Model_Id      :        String;
+       Messages      :        LLM.Types.Message_Vectors.Vector;
+       Thinking      :        LLM.Providers.Thinking_Level :=
+                                 LLM.Providers.Off)
    is
    begin
       Retry_Loop :
@@ -320,12 +281,12 @@ package body LLM_OpenRouter_Tests is
          begin
             P.Send
                (Model_Id      => Model_Id,
-           System_Prompt => "",
-           Messages      => Messages,
-           Tools_Json    => "[]",
-           Thinking      => Thinking,
-           Max_Tokens    => 128,
-           Handler       => On_Event'Access);
+                System_Prompt => "",
+                Messages      => Messages,
+                Tools_Json    => "[]",
+                Thinking      => Thinking,
+                Max_Tokens    => 128,
+                Handler       => On_Event'Access);
             exit Retry_Loop;
          exception
             when LLM.HTTP.Curl_Error =>
@@ -344,297 +305,66 @@ package body LLM_OpenRouter_Tests is
    begin
       Content.Append
          ((Kind => LLM.Types.Text_Block,
-            Text => To_Unbounded_String ("Say hello")));
+           Text => To_Unbounded_String ("Say hello")));
       Messages.Append
          ((Role      => LLM.Types.User,
-            Content   => Content,
-            Tok_Usage => (others => 0),
-            Stop      => LLM.Types.Unknown_Stop,
-            Timestamp => Null_Unbounded_String));
+           Content   => Content,
+           Tok_Usage => (others => 0),
+           Stop      => LLM.Types.Unknown_Stop,
+           Timestamp => Null_Unbounded_String));
       return Messages;
    end Build_Messages;
 
-   function Header_Server_Script (Port : Positive) return String is
-   begin
-      return
-         "import http.server, json" & ASCII.LF
-         & "class S(http.server.HTTPServer):" & ASCII.LF
-         & "    allow_reuse_address = True" & ASCII.LF
-         & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
-         & "    def do_POST(self):" & ASCII.LF
-         & "        try:" & ASCII.LF
-         & "            assert self.path == '/api/v1/chat/completions'"
-         & ASCII.LF
-         & "            assert self.headers['Authorization'] == "
-         & "'Bearer env-test-key'" & ASCII.LF
-         & "            assert self.headers['HTTP-Referer'] == "
-         & "'https://github.com/gtnoble/coyote'" & ASCII.LF
-         & "            assert self.headers['X-Title'] == 'coyote'"
-         & ASCII.LF
-         & "            n = int(self.headers.get('Content-Length', '0'))"
-         & ASCII.LF
-         & "            body = json.loads(self.rfile.read(n))" & ASCII.LF
-         & "            assert body['model'] == 'openai/gpt-4o-mini'"
-         & ASCII.LF
-         & "            assert 'reasoning' not in body" & ASCII.LF
-         & "            events = [" & ASCII.LF
-         & "                {'choices': [{'delta': {'content': 'Hello'},"
-         & " 'finish_reason': None}]}," & ASCII.LF
-         & "                {'choices': [{'delta': {}, 'finish_reason': "
-         & "'stop'}], 'usage': {'prompt_tokens': 1,"
-         & " 'completion_tokens': 1}}]" & ASCII.LF
-         & "            payload = ''.join(" & ASCII.LF
-         & "                'data: ' + json.dumps(event) + '\n\n'"
-         & ASCII.LF
-         & "                for event in events).encode()" & ASCII.LF
-         & "            payload += b'data: [DONE]\n\n'" & ASCII.LF
-         & "            self.send_response(200)" & ASCII.LF
-         & "            self.send_header('Content-Type', 'text/event-stream')"
-         & ASCII.LF
-         & "            self.send_header('Content-Length', str(len(payload)))"
-         & ASCII.LF
-         & "            self.end_headers()" & ASCII.LF
-         & "            self.wfile.write(payload)" & ASCII.LF
-         & "            self.wfile.flush()" & ASCII.LF
-         & "        except Exception as exc:" & ASCII.LF
-         & "            self.send_response(500)" & ASCII.LF
-         & "            self.send_header('Content-Type', 'text/plain')"
-         & ASCII.LF
-         & "            self.end_headers()" & ASCII.LF
-         & "            self.wfile.write(str(exc).encode())" & ASCII.LF
-         & "    def log_message(self, *a): pass" & ASCII.LF
-         & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
-         & ASCII.LF
-         & "s.timeout = 5" & ASCII.LF
-         & "s.handle_request()" & ASCII.LF
-         & "s.server_close()" & ASCII.LF;
-   end Header_Server_Script;
+   --  SSE payload used by header and reasoning tests: streams "Hello".
+   Hello_SSE_Payload : constant String :=
+      "data: {""choices"":[{""delta"":{""content"":""Hello""},"
+      & """finish_reason"":null}]}"
+      & ASCII.LF & ASCII.LF
+      & "data: {""choices"":[{""delta"":{},""finish_reason"":""stop""}],"
+      & """usage"":{""prompt_tokens"":1,""completion_tokens"":1}}"
+      & ASCII.LF & ASCII.LF
+      & "data: [DONE]" & ASCII.LF & ASCII.LF;
 
-   function Reasoning_Server_Script (Port : Positive) return String is
-   begin
-      return
-         "import http.server, json" & ASCII.LF
-         & "class S(http.server.HTTPServer):" & ASCII.LF
-         & "    allow_reuse_address = True" & ASCII.LF
-         & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
-         & "    def do_POST(self):" & ASCII.LF
-         & "        try:" & ASCII.LF
-         & "            assert self.path == '/api/v1/chat/completions'"
-         & ASCII.LF
-         & "            assert self.headers['Authorization'] == "
-         & "'Bearer reasoning-key'" & ASCII.LF
-         & "            n = int(self.headers.get('Content-Length', '0'))"
-         & ASCII.LF
-         & "            body = json.loads(self.rfile.read(n))" & ASCII.LF
-         & "            assert body['model'] == "
-         & "'anthropic/claude-sonnet-4-20250514'" & ASCII.LF
-         & "            assert body['reasoning']['effort'] == 'medium'"
-         & ASCII.LF
-         & "            events = [" & ASCII.LF
-         & "                {'choices': [{'delta': {'content': 'Hello'},"
-         & " 'finish_reason': None}]}," & ASCII.LF
-         & "                {'choices': [{'delta': {}, 'finish_reason': "
-         & "'stop'}], 'usage': {'prompt_tokens': 1,"
-         & " 'completion_tokens': 1}}]" & ASCII.LF
-         & "            payload = ''.join(" & ASCII.LF
-         & "                'data: ' + json.dumps(event) + '\n\n'"
-         & ASCII.LF
-         & "                for event in events).encode()" & ASCII.LF
-         & "            payload += b'data: [DONE]\n\n'" & ASCII.LF
-         & "            self.send_response(200)" & ASCII.LF
-         & "            self.send_header('Content-Type', 'text/event-stream')"
-         & ASCII.LF
-         & "            self.send_header('Content-Length', str(len(payload)))"
-         & ASCII.LF
-         & "            self.end_headers()" & ASCII.LF
-         & "            self.wfile.write(payload)" & ASCII.LF
-         & "            self.wfile.flush()" & ASCII.LF
-         & "        except Exception as exc:" & ASCII.LF
-         & "            self.send_response(500)" & ASCII.LF
-         & "            self.send_header('Content-Type', 'text/plain')"
-         & ASCII.LF
-         & "            self.end_headers()" & ASCII.LF
-         & "            self.wfile.write(str(exc).encode())" & ASCII.LF
-         & "    def log_message(self, *a): pass" & ASCII.LF
-         & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
-         & ASCII.LF
-         & "s.timeout = 5" & ASCII.LF
-         & "s.handle_request()" & ASCII.LF
-         & "s.server_close()" & ASCII.LF;
-   end Reasoning_Server_Script;
+   --  SSE payload used by the settings fallback test: streams "Settings".
+   Settings_SSE_Payload : constant String :=
+      "data: {""choices"":[{""delta"":{""content"":""Settings""},"
+      & """finish_reason"":null}]}"
+      & ASCII.LF & ASCII.LF
+      & "data: {""choices"":[{""delta"":{},""finish_reason"":""stop""}],"
+      & """usage"":{""prompt_tokens"":1,""completion_tokens"":1}}"
+      & ASCII.LF & ASCII.LF
+      & "data: [DONE]" & ASCII.LF & ASCII.LF;
 
-   function Live_Fetch_Then_Send_Server_Script
-      (Port         : Positive;
-     Capture_Path : String) return String
-   is
-   begin
-      return
-         "import http.server, json, pathlib" & ASCII.LF
-         & "capture = pathlib.Path('" & Capture_Path & "')" & ASCII.LF
-         & "state = {'models_calls': 0, 'chat_calls': 0," & ASCII.LF
-         & "         'chat_authorization': '', 'reasoning_effort': '',"
-         & ASCII.LF
-         & "         'model': ''}" & ASCII.LF
-         & "def save():" & ASCII.LF
-         & "    capture.write_text(json.dumps(state))" & ASCII.LF
-         & "save()" & ASCII.LF
-         & "models_body = json.dumps({'data': [{" & ASCII.LF
-         & "    'id': 'test/model', 'name': 'Test Model'," & ASCII.LF
-         & "    'context_length': 4096," & ASCII.LF
-         & "    'architecture': {'input_modalities': ['text'],"
-         & " 'output_modalities': ['text']}," & ASCII.LF
-         & "    'pricing': {'prompt': '0.000001',"
-         & " 'completion': '0.000002'}," & ASCII.LF
-         & "    'top_provider': {'context_length': 4096,"
-         & " 'max_completion_tokens': 256}," & ASCII.LF
-         & "    'supported_parameters': ['reasoning']}]}).encode()"
-         & ASCII.LF
-         & "events = [" & ASCII.LF
-         & "    {'choices': [{'delta': {'content': 'Live'},"
-         & " 'finish_reason': None}]}," & ASCII.LF
-         & "    {'choices': [{'delta': {}, 'finish_reason': 'stop'}],"
-         & " 'usage': {'prompt_tokens': 1, 'completion_tokens': 1}}]"
-         & ASCII.LF
-         & "payload = ''.join(" & ASCII.LF
-         & "    'data: ' + json.dumps(event) + '\n\n'" & ASCII.LF
-         & "    for event in events).encode()" & ASCII.LF
-         & "payload += b'data: [DONE]\n\n'" & ASCII.LF
-         & "class S(http.server.HTTPServer):" & ASCII.LF
-         & "    allow_reuse_address = True" & ASCII.LF
-         & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
-         & "    def do_GET(self):" & ASCII.LF
-         & "        try:" & ASCII.LF
-         & "            if self.path != '/api/v1/models':" & ASCII.LF
-         & "                self.send_response(404)" & ASCII.LF
-         & "                self.end_headers()" & ASCII.LF
-         & "                return" & ASCII.LF
-         & "            state['models_calls'] += 1" & ASCII.LF
-         & "            save()" & ASCII.LF
-         & "            self.send_response(200)" & ASCII.LF
-         & "            self.send_header('Content-Type', 'application/json')"
-         & ASCII.LF
-         & "            self.send_header('Content-Length', "
-         & "str(len(models_body)))" & ASCII.LF
-         & "            self.end_headers()" & ASCII.LF
-         & "            self.wfile.write(models_body)" & ASCII.LF
-         & "            self.wfile.flush()" & ASCII.LF
-         & "        except Exception as exc:" & ASCII.LF
-         & "            self.send_response(500)" & ASCII.LF
-         & "            self.send_header('Content-Type', 'text/plain')"
-         & ASCII.LF
-         & "            self.end_headers()" & ASCII.LF
-         & "            self.wfile.write(str(exc).encode())" & ASCII.LF
-         & "    def do_POST(self):" & ASCII.LF
-         & "        try:" & ASCII.LF
-         & "            if self.path != '/api/v1/chat/completions':"
-         & ASCII.LF
-         & "                self.send_response(404)" & ASCII.LF
-         & "                self.end_headers()" & ASCII.LF
-         & "                return" & ASCII.LF
-         & "            n = int(self.headers.get('Content-Length', '0'))"
-         & ASCII.LF
-         & "            body = json.loads(self.rfile.read(n))" & ASCII.LF
-         & "            state['chat_calls'] += 1" & ASCII.LF
-         & "            state['chat_authorization'] = "
-         & "self.headers.get('Authorization', '')" & ASCII.LF
-         & "            state['reasoning_effort'] = body.get('reasoning', {})"
-         & " .get('effort', '')" & ASCII.LF
-         & "            state['model'] = body.get('model', '')" & ASCII.LF
-         & "            save()" & ASCII.LF
-         & "            self.send_response(200)" & ASCII.LF
-         & "            self.send_header('Content-Type', 'text/event-stream')"
-         & ASCII.LF
-         & "            self.send_header('Content-Length', str(len(payload)))"
-         & ASCII.LF
-         & "            self.end_headers()" & ASCII.LF
-         & "            self.wfile.write(payload)" & ASCII.LF
-         & "            self.wfile.flush()" & ASCII.LF
-         & "        except Exception as exc:" & ASCII.LF
-         & "            self.send_response(500)" & ASCII.LF
-         & "            self.send_header('Content-Type', 'text/plain')"
-         & ASCII.LF
-         & "            self.end_headers()" & ASCII.LF
-         & "            self.wfile.write(str(exc).encode())" & ASCII.LF
-         & "    def log_message(self, *a): pass" & ASCII.LF
-         & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
-         & ASCII.LF
-         & "save()" & ASCII.LF
-         & "s.timeout = 1" & ASCII.LF
-         & "for _ in range(10):" & ASCII.LF
-         & "    if state['models_calls'] and state['chat_calls']:"
-         & ASCII.LF
-         & "        break" & ASCII.LF
-         & "    s.handle_request()" & ASCII.LF
-         & "save()" & ASCII.LF
-         & "s.server_close()" & ASCII.LF;
-   end Live_Fetch_Then_Send_Server_Script;
+   --  SSE payload used by the live-fetch-then-send test: streams "Live".
+   Live_SSE_Payload : constant String :=
+      "data: {""choices"":[{""delta"":{""content"":""Live""},"
+      & """finish_reason"":null}]}"
+      & ASCII.LF & ASCII.LF
+      & "data: {""choices"":[{""delta"":{},""finish_reason"":""stop""}],"
+      & """usage"":{""prompt_tokens"":1,""completion_tokens"":1}}"
+      & ASCII.LF & ASCII.LF
+      & "data: [DONE]" & ASCII.LF & ASCII.LF;
 
-   function Capture_Authorization_Server_Script
-      (Port         : Positive;
-     Capture_Path : String) return String
-   is
-   begin
-      return
-         "import http.server, json, pathlib" & ASCII.LF
-         & "capture = pathlib.Path('" & Capture_Path & "')" & ASCII.LF
-         & "state = {'authorization': '', 'model': ''}" & ASCII.LF
-         & "def save():" & ASCII.LF
-         & "    capture.write_text(json.dumps(state))" & ASCII.LF
-         & "events = [" & ASCII.LF
-         & "    {'choices': [{'delta': {'content': 'Settings'},"
-         & " 'finish_reason': None}]}," & ASCII.LF
-         & "    {'choices': [{'delta': {}, 'finish_reason': 'stop'}],"
-         & " 'usage': {'prompt_tokens': 1, 'completion_tokens': 1}}]"
-         & ASCII.LF
-         & "payload = ''.join(" & ASCII.LF
-         & "    'data: ' + json.dumps(event) + '\n\n'" & ASCII.LF
-         & "    for event in events).encode()" & ASCII.LF
-         & "payload += b'data: [DONE]\n\n'" & ASCII.LF
-         & "class S(http.server.HTTPServer):" & ASCII.LF
-         & "    allow_reuse_address = True" & ASCII.LF
-         & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
-         & "    def do_POST(self):" & ASCII.LF
-         & "        try:" & ASCII.LF
-         & "            if self.path != '/api/v1/chat/completions':"
-         & ASCII.LF
-         & "                self.send_response(404)" & ASCII.LF
-         & "                self.end_headers()" & ASCII.LF
-         & "                return" & ASCII.LF
-         & "            n = int(self.headers.get('Content-Length', '0'))"
-         & ASCII.LF
-         & "            body = json.loads(self.rfile.read(n))" & ASCII.LF
-         & "            state['authorization'] = "
-         & "self.headers.get('Authorization', '')" & ASCII.LF
-         & "            state['model'] = body.get('model', '')" & ASCII.LF
-         & "            save()" & ASCII.LF
-         & "            self.send_response(200)" & ASCII.LF
-         & "            self.send_header('Content-Type', 'text/event-stream')"
-         & ASCII.LF
-         & "            self.send_header('Content-Length', str(len(payload)))"
-         & ASCII.LF
-         & "            self.end_headers()" & ASCII.LF
-         & "            self.wfile.write(payload)" & ASCII.LF
-         & "            self.wfile.flush()" & ASCII.LF
-         & "        except Exception as exc:" & ASCII.LF
-         & "            self.send_response(500)" & ASCII.LF
-         & "            self.send_header('Content-Type', 'text/plain')"
-         & ASCII.LF
-         & "            self.end_headers()" & ASCII.LF
-         & "            self.wfile.write(str(exc).encode())" & ASCII.LF
-         & "    def log_message(self, *a): pass" & ASCII.LF
-         & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
-         & ASCII.LF
-         & "s.timeout = 5" & ASCII.LF
-         & "s.handle_request()" & ASCII.LF
-         & "save()" & ASCII.LF
-         & "s.server_close()" & ASCII.LF;
-   end Capture_Authorization_Server_Script;
+   --  Models catalogue JSON body served by the live-fetch-then-send handler.
+   Live_Models_Body : constant String :=
+      "{""data"":[{""id"":""test/model"","
+      & """name"":""Test Model"","
+      & """context_length"":4096,"
+      & """architecture"":{"
+      & """input_modalities"":[""text""],"
+      & """output_modalities"":[""text""]},"
+      & """pricing"":{"
+      & """prompt"":""0.000001"","
+      & """completion"":""0.000002""},"
+      & """top_provider"":{"
+      & """context_length"":4096,"
+      & """max_completion_tokens"":256},"
+      & """supported_parameters"":[""reasoning""]}]}";
 
    procedure Test_Send_Adds_OpenRouter_Headers (T : in out Test) is
       pragma Unreferenced (T);
 
       Port        : constant Positive := 18_771;
-      Handle      : Process_Handle := Invalid_Handle;
       Messages    : constant LLM.Types.Message_Vectors.Vector :=
          Build_Messages;
       Provider    : LLM.Providers.OpenRouter.Provider :=
@@ -643,27 +373,74 @@ package body LLM_OpenRouter_Tests is
          Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
       Old_Key     : constant String :=
          Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         Parsed  : constant GNATCOLL.JSON.Read_Result :=
+            GNATCOLL.JSON.Read (To_String (Req.Body_Data));
+         Body_JS : GNATCOLL.JSON.JSON_Value;
+      begin
+         Assert
+            (To_String (Req.Path) = "/api/v1/chat/completions",
+             "Expected path /api/v1/chat/completions");
+         Assert
+            (Test_HTTP_Server.Get_Header
+                (Req.Headers, "Authorization") = "Bearer env-test-key",
+             "Expected Authorization: Bearer env-test-key");
+         Assert
+            (Test_HTTP_Server.Get_Header
+                (Req.Headers, "HTTP-Referer")
+             = "https://github.com/gtnoble/coyote",
+             "Expected HTTP-Referer header");
+         Assert
+            (Test_HTTP_Server.Get_Header
+                (Req.Headers, "X-Title") = "coyote",
+             "Expected X-Title: coyote");
+         Assert (Parsed.Success, "Failed to parse request body as JSON");
+         Body_JS := Parsed.Value;
+         Assert
+            (Body_JS.Has_Field ("model")
+             and then Body_JS.Get ("model").Kind
+                = GNATCOLL.JSON.JSON_String_Type
+             and then String'(Body_JS.Get ("model").Get)
+                = "openai/gpt-4o-mini",
+             "Expected model openai/gpt-4o-mini");
+         Assert
+            (not Body_JS.Has_Field ("reasoning"),
+             "Expected no reasoning field for Off thinking level");
+         Res.Status := 200;
+         Append (Res.Body_Data, Hello_SSE_Payload);
+      end Handle_Request;
+
+      Server_Stopped : Boolean := False;
+      Srv            : Test_HTTP_Server.Server
+        (Handler => Handle_Request'Unrestricted_Access);
    begin
       Reset_Collector;
       Ada.Environment_Variables.Set ("OPENROUTER_API_KEY", "env-test-key");
       LLM.Providers.OpenRouter.Set_Base_Url
          (Provider, "http://127.0.0.1:18771/api/v1");
 
-      Handle := Spawn_Server (Header_Server_Script (Port));
+      Srv.Bind (Port);
 
       Send_With_Retry
          (P        => Provider,
-       Model_Id => "openai/gpt-4o-mini",
-       Messages => Messages);
+          Model_Id => "openai/gpt-4o-mini",
+          Messages => Messages);
 
-      Stop_Server (Handle);
+      Srv.Stop;
+      Server_Stopped := True;
 
       Assert (To_String (Last_Text) = "Hello", "Expected streamed Hello text");
 
       Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
    exception
       when others =>
-         Stop_Server (Handle);
+         if not Server_Stopped then
+            Srv.Stop;
+         end if;
          Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
          raise;
    end Test_Send_Adds_OpenRouter_Headers;
@@ -673,7 +450,6 @@ package body LLM_OpenRouter_Tests is
 
       Home         : constant String := "/tmp/coyote_openrouter_test_home";
       Port         : constant Positive := 18_772;
-      Handle       : Process_Handle := Invalid_Handle;
       Messages     : constant LLM.Types.Message_Vectors.Vector :=
          Build_Messages;
       Provider     : LLM.Providers.OpenRouter.Provider :=
@@ -686,29 +462,70 @@ package body LLM_OpenRouter_Tests is
          Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
       Old_Key      : constant String :=
          Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         Parsed  : constant GNATCOLL.JSON.Read_Result :=
+            GNATCOLL.JSON.Read (To_String (Req.Body_Data));
+         Body_JS : GNATCOLL.JSON.JSON_Value;
+      begin
+         Assert
+            (To_String (Req.Path) = "/api/v1/chat/completions",
+             "Expected path /api/v1/chat/completions");
+         Assert
+            (Test_HTTP_Server.Get_Header
+                (Req.Headers, "Authorization") = "Bearer reasoning-key",
+             "Expected Authorization: Bearer reasoning-key");
+         Assert (Parsed.Success, "Failed to parse request body as JSON");
+         Body_JS := Parsed.Value;
+         Assert
+            (Body_JS.Has_Field ("model")
+             and then Body_JS.Get ("model").Kind
+                = GNATCOLL.JSON.JSON_String_Type
+             and then String'(Body_JS.Get ("model").Get)
+                = "anthropic/claude-sonnet-4-20250514",
+             "Expected model anthropic/claude-sonnet-4-20250514");
+         Assert
+            (Body_JS.Has_Field ("reasoning")
+             and then Body_JS.Get ("reasoning").Kind
+                = GNATCOLL.JSON.JSON_Object_Type
+             and then Body_JS.Get ("reasoning").Has_Field ("effort")
+             and then String'(Body_JS.Get ("reasoning").Get ("effort").Get)
+                = "medium",
+             "Expected reasoning.effort = medium");
+         Res.Status := 200;
+         Append (Res.Body_Data, Hello_SSE_Payload);
+      end Handle_Request;
+
+      Server_Stopped : Boolean := False;
+      Srv            : Test_HTTP_Server.Server
+        (Handler => Handle_Request'Unrestricted_Access);
    begin
       Reset_Collector;
       Cleanup_Test_Home (Home);
       Ensure_Test_Home (Home);
       Write_Cache
          (Home       => Home,
-       Fetched_At => Current_Unix_S,
-       Data_Array => Fixture_Data_Array);
+          Fetched_At => Current_Unix_S,
+          Data_Array => Fixture_Data_Array);
 
       Ada.Environment_Variables.Set ("HOME", Home);
       Ada.Environment_Variables.Set ("OPENROUTER_API_KEY", "reasoning-key");
       LLM.Providers.OpenRouter.Set_Base_Url
          (Provider, "http://127.0.0.1:18772/api/v1");
 
-      Handle := Spawn_Server (Reasoning_Server_Script (Port));
+      Srv.Bind (Port);
 
       Send_With_Retry
          (P        => Provider,
-       Model_Id => "anthropic/claude-sonnet-4-20250514",
-       Messages => Messages,
-       Thinking => LLM.Providers.Medium);
+          Model_Id => "anthropic/claude-sonnet-4-20250514",
+          Messages => Messages,
+          Thinking => LLM.Providers.Medium);
 
-      Stop_Server (Handle);
+      Srv.Stop;
+      Server_Stopped := True;
 
       Assert (To_String (Last_Text) = "Hello", "Expected streamed Hello text");
 
@@ -717,7 +534,9 @@ package body LLM_OpenRouter_Tests is
       Cleanup_Test_Home (Home);
    exception
       when others =>
-         Stop_Server (Handle);
+         if not Server_Stopped then
+            Srv.Stop;
+         end if;
          Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
          Cleanup_Test_Home (Home);
@@ -734,7 +553,6 @@ package body LLM_OpenRouter_Tests is
       Port         : constant Positive := 18_774;
       Capture_Path : constant String :=
          "/tmp/coyote_openrouter_capture_1.json";
-      Handle       : Process_Handle := Invalid_Handle;
       Messages     : constant LLM.Types.Message_Vectors.Vector :=
          Build_Messages;
       Home_Was_Set : constant Boolean :=
@@ -750,8 +568,191 @@ package body LLM_OpenRouter_Tests is
       Old_Base     : constant String :=
          Ada.Environment_Variables.Value
             ("COYOTE_OPENROUTER_BASE_URL", "");
-      Capture      : GNATCOLL.JSON.JSON_Value;
-      Cache_Text   : Unbounded_String;
+      Capture    : GNATCOLL.JSON.JSON_Value;
+      Cache_Text : Unbounded_String;
+
+      --  Protected object to track which endpoints have been served.
+      --  Also accumulates captured fields for the chat POST request.
+      protected type Endpoint_State is
+         procedure Set_Models_Served;
+         procedure Set_Chat_Served
+            (Auth    : String;
+             Effort  : String;
+             Model   : String);
+         function Models_Calls return Natural;
+         function Chat_Calls   return Natural;
+         function Chat_Authorization return String;
+         function Reasoning_Effort    return String;
+         function Chat_Model          return String;
+      private
+         Models_Count : Natural := 0;
+         Chat_Count   : Natural := 0;
+         Auth_Val     : Unbounded_String;
+         Effort_Val   : Unbounded_String;
+         Model_Val    : Unbounded_String;
+      end Endpoint_State;
+
+      protected body Endpoint_State is
+         procedure Set_Models_Served is
+         begin
+            Models_Count := Models_Count + 1;
+         end Set_Models_Served;
+
+         procedure Set_Chat_Served
+            (Auth    : String;
+             Effort  : String;
+             Model   : String)
+         is
+         begin
+            Chat_Count   := Chat_Count + 1;
+            Auth_Val     := To_Unbounded_String (Auth);
+            Effort_Val   := To_Unbounded_String (Effort);
+            Model_Val    := To_Unbounded_String (Model);
+         end Set_Chat_Served;
+
+         function Models_Calls return Natural is
+         begin
+            return Models_Count;
+         end Models_Calls;
+
+         function Chat_Calls return Natural is
+         begin
+            return Chat_Count;
+         end Chat_Calls;
+
+         function Chat_Authorization return String is
+         begin
+            return To_String (Auth_Val);
+         end Chat_Authorization;
+
+         function Reasoning_Effort return String is
+         begin
+            return To_String (Effort_Val);
+         end Reasoning_Effort;
+
+         function Chat_Model return String is
+         begin
+            return To_String (Model_Val);
+         end Chat_Model;
+      end Endpoint_State;
+
+      State : Endpoint_State;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         Method : constant String := To_String (Req.Method);
+         Path   : constant String := To_String (Req.Path);
+      begin
+         if Method = "GET" and then Path = "/api/v1/models" then
+            State.Set_Models_Served;
+            Res.Status := 200;
+            declare
+               Header : Test_HTTP_Server.Header_Pair;
+            begin
+               Header.Name  := To_Unbounded_String ("Content-Type");
+               Header.Value := To_Unbounded_String ("application/json");
+               Res.Headers.Append (Header);
+            end;
+            Append (Res.Body_Data, Live_Models_Body);
+
+         elsif Method = "POST"
+               and then Path = "/api/v1/chat/completions"
+         then
+            declare
+               Parsed : constant GNATCOLL.JSON.Read_Result :=
+                  GNATCOLL.JSON.Read (To_String (Req.Body_Data));
+               Auth   : constant String :=
+                  Test_HTTP_Server.Get_Header
+                     (Req.Headers, "Authorization");
+               Effort : Unbounded_String;
+               Model  : Unbounded_String;
+            begin
+               if Parsed.Success then
+                  declare
+                     Body_JS : constant GNATCOLL.JSON.JSON_Value :=
+                        Parsed.Value;
+                  begin
+                     if Body_JS.Has_Field ("model")
+                        and then Body_JS.Get ("model").Kind
+                           = GNATCOLL.JSON.JSON_String_Type
+                     then
+                        Model :=
+                           To_Unbounded_String
+                              (String'(Body_JS.Get ("model").Get));
+                     end if;
+
+                     if Body_JS.Has_Field ("reasoning")
+                        and then Body_JS.Get ("reasoning").Kind
+                           = GNATCOLL.JSON.JSON_Object_Type
+                        and then Body_JS.Get ("reasoning").Has_Field ("effort")
+                     then
+                        Effort :=
+                           To_Unbounded_String
+                              (String'(Body_JS.Get ("reasoning")
+                               .Get ("effort").Get));
+                     end if;
+                  end;
+               end if;
+
+               State.Set_Chat_Served
+                  (Auth   => Auth,
+                   Effort => To_String (Effort),
+                   Model  => To_String (Model));
+            end;
+
+            Res.Status := 200;
+            declare
+               Header : Test_HTTP_Server.Header_Pair;
+            begin
+               Header.Name  := To_Unbounded_String ("Content-Type");
+               Header.Value := To_Unbounded_String ("text/event-stream");
+               Res.Headers.Append (Header);
+            end;
+            Append (Res.Body_Data, Live_SSE_Payload);
+
+         else
+            Res.Status := 404;
+         end if;
+
+         --  Write the capture file after every request.
+         declare
+            Capture_JS : constant GNATCOLL.JSON.JSON_Value :=
+               GNATCOLL.JSON.Create_Object;
+            File       : Ada.Text_IO.File_Type;
+         begin
+            Capture_JS.Set_Field
+               ("models_calls",
+                Integer (State.Models_Calls));
+            Capture_JS.Set_Field
+               ("chat_calls",
+                Integer (State.Chat_Calls));
+            Capture_JS.Set_Field
+               ("chat_authorization",
+                State.Chat_Authorization);
+            Capture_JS.Set_Field
+               ("reasoning_effort",
+                State.Reasoning_Effort);
+            Capture_JS.Set_Field
+               ("model",
+                State.Chat_Model);
+            Ada.Text_IO.Create
+               (File, Ada.Text_IO.Out_File, Capture_Path);
+            Ada.Text_IO.Put
+               (File, GNATCOLL.JSON.Write (Capture_JS));
+            Ada.Text_IO.Close (File);
+         exception
+            when others =>
+               if Ada.Text_IO.Is_Open (File) then
+                  Ada.Text_IO.Close (File);
+               end if;
+         end;
+      end Handle_Request;
+
+      Server_Stopped : Boolean := False;
+      Srv            : Test_HTTP_Server.Server
+        (Handler => Handle_Request'Unrestricted_Access);
    begin
       Reset_Collector;
       Cleanup_Test_Home (Home);
@@ -759,8 +760,8 @@ package body LLM_OpenRouter_Tests is
       Delete_If_Exists (Capture_Path);
       Write_Cache
          (Home       => Home,
-       Fetched_At => Current_Unix_S - 172_800,
-       Data_Array => Stale_Data_Array);
+          Fetched_At => Current_Unix_S - 172_800,
+          Data_Array => Stale_Data_Array);
 
       Ada.Environment_Variables.Set ("HOME", Home);
       Ada.Environment_Variables.Set
@@ -768,11 +769,7 @@ package body LLM_OpenRouter_Tests is
       Ada.Environment_Variables.Set
          ("COYOTE_OPENROUTER_BASE_URL", "http://127.0.0.1:18774/api/v1");
 
-      Handle := Spawn_Server
-         (Live_Fetch_Then_Send_Server_Script
-             (Port => Port, Capture_Path => Capture_Path));
-      Wait_For_File (Capture_Path);
-      delay 0.20;
+      Srv.Bind (Port);
 
       declare
          Provider : LLM.Providers.OpenRouter.Provider :=
@@ -783,12 +780,15 @@ package body LLM_OpenRouter_Tests is
 
          Send_With_Retry
             (P        => Provider,
-          Model_Id => "test/model",
-          Messages => Messages,
-          Thinking => LLM.Providers.Medium);
+             Model_Id => "test/model",
+             Messages => Messages,
+             Thinking => LLM.Providers.Medium);
       end;
 
-      Stop_Server (Handle);
+      Srv.Stop;
+      Server_Stopped := True;
+
+      Wait_For_File (Capture_Path);
       Capture := Load_Capture (Capture_Path);
       Cache_Text :=
          To_Unbounded_String
@@ -812,10 +812,12 @@ package body LLM_OpenRouter_Tests is
          (Get_String_Field (Capture, "model") = "test/model",
           "The live model id should be sent after the stale-cache refresh");
       Assert
-         (Ada.Strings.Fixed.Index (To_String (Cache_Text), "test/model") > 0,
+         (Ada.Strings.Fixed.Index
+             (To_String (Cache_Text), "test/model") > 0,
           "The live catalogue should overwrite the stale cache contents");
       Assert
-         (Ada.Strings.Fixed.Index (To_String (Cache_Text), "stale/model") = 0,
+         (Ada.Strings.Fixed.Index
+             (To_String (Cache_Text), "stale/model") = 0,
           "The stale cache entry should be replaced after the live fetch");
 
       Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Base_Was_Set, Old_Base);
@@ -825,7 +827,9 @@ package body LLM_OpenRouter_Tests is
       Delete_If_Exists (Capture_Path);
    exception
       when others =>
-         Stop_Server (Handle);
+         if not Server_Stopped then
+            Srv.Stop;
+         end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Base_Was_Set, Old_Base);
          Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -844,7 +848,6 @@ package body LLM_OpenRouter_Tests is
       Port         : constant Positive := 18_775;
       Capture_Path : constant String :=
          "/tmp/coyote_openrouter_capture_2.json";
-      Handle       : Process_Handle := Invalid_Handle;
       Messages     : constant LLM.Types.Message_Vectors.Vector :=
          Build_Messages;
       Provider     : LLM.Providers.OpenRouter.Provider :=
@@ -858,6 +861,70 @@ package body LLM_OpenRouter_Tests is
       Old_Key      : constant String :=
          Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
       Capture      : GNATCOLL.JSON.JSON_Value;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         Parsed : constant GNATCOLL.JSON.Read_Result :=
+            GNATCOLL.JSON.Read (To_String (Req.Body_Data));
+         Auth   : constant String :=
+            Test_HTTP_Server.Get_Header (Req.Headers, "Authorization");
+         Model  : Unbounded_String;
+         File   : Ada.Text_IO.File_Type;
+      begin
+         if To_String (Req.Path) /= "/api/v1/chat/completions" then
+            Res.Status := 404;
+            return;
+         end if;
+
+         if Parsed.Success then
+            declare
+               Body_JS : constant GNATCOLL.JSON.JSON_Value := Parsed.Value;
+            begin
+               if Body_JS.Has_Field ("model")
+                  and then Body_JS.Get ("model").Kind
+                     = GNATCOLL.JSON.JSON_String_Type
+               then
+                  Model :=
+                     To_Unbounded_String
+                        (String'(Body_JS.Get ("model").Get));
+               end if;
+            end;
+         end if;
+
+         declare
+            Capture_JS : constant GNATCOLL.JSON.JSON_Value :=
+               GNATCOLL.JSON.Create_Object;
+         begin
+            Capture_JS.Set_Field ("authorization", Auth);
+            Capture_JS.Set_Field ("model", To_String (Model));
+            Ada.Text_IO.Create
+               (File, Ada.Text_IO.Out_File, Capture_Path);
+            Ada.Text_IO.Put
+               (File, GNATCOLL.JSON.Write (Capture_JS));
+            Ada.Text_IO.Close (File);
+         exception
+            when others =>
+               if Ada.Text_IO.Is_Open (File) then
+                  Ada.Text_IO.Close (File);
+               end if;
+         end;
+
+         Res.Status := 200;
+         declare
+            Header : Test_HTTP_Server.Header_Pair;
+         begin
+            Header.Name  := To_Unbounded_String ("Content-Type");
+            Header.Value := To_Unbounded_String ("text/event-stream");
+            Res.Headers.Append (Header);
+         end;
+         Append (Res.Body_Data, Settings_SSE_Payload);
+      end Handle_Request;
+
+      Server_Stopped : Boolean := False;
+      Srv            : Test_HTTP_Server.Server
+        (Handler => Handle_Request'Unrestricted_Access);
    begin
       Reset_Collector;
       Cleanup_Test_Home (Home);
@@ -873,17 +940,16 @@ package body LLM_OpenRouter_Tests is
       LLM.Providers.OpenRouter.Set_Base_Url
          (Provider, "http://127.0.0.1:18775/api/v1");
 
-      Handle := Spawn_Server
-         (Capture_Authorization_Server_Script
-             (Port => Port, Capture_Path => Capture_Path));
-      delay 0.05;
+      Srv.Bind (Port);
 
       Send_With_Retry
          (P        => Provider,
-       Model_Id => "openai/gpt-4o-mini",
-       Messages => Messages);
+          Model_Id => "openai/gpt-4o-mini",
+          Messages => Messages);
 
-      Stop_Server (Handle);
+      Srv.Stop;
+      Server_Stopped := True;
+
       Capture := Load_Capture (Capture_Path);
 
       Assert
@@ -903,7 +969,9 @@ package body LLM_OpenRouter_Tests is
       Delete_If_Exists (Capture_Path);
    exception
       when others =>
-         Stop_Server (Handle);
+         if not Server_Stopped then
+            Srv.Stop;
+         end if;
          Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
          Cleanup_Test_Home (Home);
