@@ -5,7 +5,6 @@ with Ada.Streams;
 with Ada.Streams.Stream_IO;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
-with GNATCOLL.OS.Process; use GNATCOLL.OS.Process;
 with LLM.Tools;
 with LLM.Tools.Bash;
 with LLM.Tools.File_Ops;
@@ -53,7 +52,6 @@ package body LLM_Tools_Tests is
 
    procedure Cleanup_Test_Root is
    begin
-      Delete_If_Exists (Test_Root & "/mock_coyote.py");
       Delete_If_Exists (Test_Root & "/write/nested/out.txt");
       Delete_If_Exists (Test_Root & "/write/nested");
       Delete_If_Exists (Test_Root & "/write");
@@ -122,19 +120,6 @@ package body LLM_Tools_Tests is
          end if;
          raise;
    end Read_Text;
-
-   procedure Make_Executable (Path : String) is
-      Args      : Argument_List;
-      Handle    : Process_Handle;
-      Exit_Code : Integer;
-   begin
-      Args.Append ("chmod");
-      Args.Append ("755");
-      Args.Append (Path);
-      Handle    := Start (Args => Args);
-      Exit_Code := Wait (Handle);
-      Assert (Exit_Code = 0, "chmod should succeed for " & Path);
-   end Make_Executable;
 
    procedure Test_Bash_Success (T : in out Test) is
       pragma Unreferenced (T);
@@ -359,62 +344,16 @@ package body LLM_Tools_Tests is
    procedure Test_Spawn_Subagent_Success (T : in out Test) is
       pragma Unreferenced (T);
 
-      Script_Path    : constant String := Test_Root & "/mock_coyote.py";
-      Env_Name       : constant String := "COYOTE_BIN";
-      Was_Set        : constant Boolean :=
+      Mock_Coyote_Bin : constant String := "bin/mock_coyote";
+      Env_Name        : constant String := "COYOTE_BIN";
+      Was_Set         : constant Boolean :=
         Ada.Environment_Variables.Exists (Env_Name);
-      Saved_Value    : constant String :=
+      Saved_Value     : constant String :=
         Ada.Environment_Variables.Value (Env_Name, "");
-      Result         : Unbounded_String;
-      Is_Error       : Boolean;
-      Script_Content : constant String :=
-        "#!/usr/bin/env python3" & ASCII.LF
-        & "import json" & ASCII.LF
-        & "import sys" & ASCII.LF
-        & "prompt = ''" & ASCII.LF
-        & "model = ''" & ASCII.LF
-        & "agent = ''" & ASCII.LF
-        & "name = ''" & ASCII.LF
-        & "have_one_shot = False" & ASCII.LF
-        & "have_no_session = False" & ASCII.LF
-        & "args = sys.argv[1:]" & ASCII.LF
-        & "i = 0" & ASCII.LF
-        & "while i < len(args):" & ASCII.LF
-        & "    arg = args[i]" & ASCII.LF
-        & "    if arg == '--prompt' and i + 1 < len(args):" & ASCII.LF
-        & "        prompt = args[i + 1]" & ASCII.LF
-        & "        i += 2" & ASCII.LF
-        & "    elif arg == '--model' and i + 1 < len(args):" & ASCII.LF
-        & "        model = args[i + 1]" & ASCII.LF
-        & "        i += 2" & ASCII.LF
-        & "    elif arg == '--agent' and i + 1 < len(args):" & ASCII.LF
-        & "        agent = args[i + 1]" & ASCII.LF
-        & "        i += 2" & ASCII.LF
-        & "    elif arg == '--name' and i + 1 < len(args):" & ASCII.LF
-        & "        name = args[i + 1]" & ASCII.LF
-        & "        i += 2" & ASCII.LF
-        & "    elif arg == '--one-shot':" & ASCII.LF
-        & "        have_one_shot = True" & ASCII.LF
-        & "        i += 1" & ASCII.LF
-        & "    elif arg == '--no-session':" & ASCII.LF
-        & "        have_no_session = True" & ASCII.LF
-        & "        i += 1" & ASCII.LF
-        & "    else:" & ASCII.LF
-        & "        i += 1" & ASCII.LF
-        & "if not have_one_shot or not have_no_session:" & ASCII.LF
-        & "    print(json.dumps({'error': 'missing required flags'}))"
-        & ASCII.LF
-        & "    sys.exit(1)" & ASCII.LF
-        & "print('noise before json')" & ASCII.LF
-        & "print(json.dumps({'session_id': '123', 'output': "
-        & "'|'.join([prompt, model, agent, name])}))"
-        & ASCII.LF;
+      Result          : Unbounded_String;
+      Is_Error        : Boolean;
    begin
-      Cleanup_Test_Root;
-      Ensure_Test_Root;
-      Write_Text (Script_Path, Script_Content);
-      Make_Executable (Script_Path);
-      Ada.Environment_Variables.Set (Env_Name, Script_Path);
+      Ada.Environment_Variables.Set (Env_Name, Mock_Coyote_Bin);
 
       LLM.Tools.Execute
         (Name      => "spawn_subagent",
