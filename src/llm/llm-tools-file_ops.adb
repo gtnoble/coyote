@@ -358,6 +358,136 @@ package body LLM.Tools.File_Ops is
          raise;
    end Find_Matches;
 
+   --  Build a JSON property object with "type" and "description" fields.
+   function Make_String_Prop
+     (Description : String) return GNATCOLL.JSON.JSON_Value
+   is
+      Prop : constant GNATCOLL.JSON.JSON_Value :=
+        GNATCOLL.JSON.Create_Object;
+   begin
+      Prop.Set_Field ("type", "string");
+      Prop.Set_Field ("description", Description);
+      return Prop;
+   end Make_String_Prop;
+
+   function Make_Integer_Prop
+     (Description : String) return GNATCOLL.JSON.JSON_Value
+   is
+      Prop : constant GNATCOLL.JSON.JSON_Value :=
+        GNATCOLL.JSON.Create_Object;
+   begin
+      Prop.Set_Field ("type", "integer");
+      Prop.Set_Field ("description", Description);
+      return Prop;
+   end Make_Integer_Prop;
+
+   --  Wrap a properties object and required array into a schema object.
+   function Make_Object_Schema
+     (Props    : GNATCOLL.JSON.JSON_Value;
+      Required : GNATCOLL.JSON.JSON_Array) return GNATCOLL.JSON.JSON_Value
+   is
+      Schema : constant GNATCOLL.JSON.JSON_Value :=
+        GNATCOLL.JSON.Create_Object;
+   begin
+      Schema.Set_Field ("type", "object");
+      Schema.Set_Field ("properties", Props);
+      Schema.Set_Field ("required", GNATCOLL.JSON.Create (Required));
+      return Schema;
+   end Make_Object_Schema;
+
+   function Read_Descriptor return Tool_Descriptor is
+      Props    : constant GNATCOLL.JSON.JSON_Value :=
+        GNATCOLL.JSON.Create_Object;
+      Required : GNATCOLL.JSON.JSON_Array := GNATCOLL.JSON.Empty_Array;
+   begin
+      Props.Set_Field
+        ("path",   Make_String_Prop ("Path to the file to read"));
+      Props.Set_Field
+        ("offset",
+         Make_Integer_Prop ("Optional 1-based starting line number"));
+      Props.Set_Field
+        ("limit",
+         Make_Integer_Prop ("Optional maximum number of lines to return"));
+      GNATCOLL.JSON.Append (Required, GNATCOLL.JSON.Create ("path"));
+      return
+        (Name        => To_Unbounded_String ("read"),
+         Description => To_Unbounded_String
+           ("Read a file, optionally restricted to a line range."),
+         Schema_Json => Make_Object_Schema (Props, Required));
+   end Read_Descriptor;
+
+   function Write_Descriptor return Tool_Descriptor is
+      Props    : constant GNATCOLL.JSON.JSON_Value :=
+        GNATCOLL.JSON.Create_Object;
+      Required : GNATCOLL.JSON.JSON_Array := GNATCOLL.JSON.Empty_Array;
+   begin
+      Props.Set_Field
+        ("path",    Make_String_Prop ("Path to the file to write"));
+      Props.Set_Field
+        ("content", Make_String_Prop ("Complete file content to write"));
+      GNATCOLL.JSON.Append (Required, GNATCOLL.JSON.Create ("path"));
+      GNATCOLL.JSON.Append (Required, GNATCOLL.JSON.Create ("content"));
+      return
+        (Name        => To_Unbounded_String ("write"),
+         Description => To_Unbounded_String
+           ("Write a file, creating parent directories when needed."),
+         Schema_Json => Make_Object_Schema (Props, Required));
+   end Write_Descriptor;
+
+   function Edit_Descriptor return Tool_Descriptor is
+      Props    : constant GNATCOLL.JSON.JSON_Value :=
+        GNATCOLL.JSON.Create_Object;
+      Required : GNATCOLL.JSON.JSON_Array := GNATCOLL.JSON.Empty_Array;
+   begin
+      Props.Set_Field
+        ("path",    Make_String_Prop ("Path to the file to edit"));
+      Props.Set_Field
+        ("oldText", Make_String_Prop ("Exact text to replace"));
+      Props.Set_Field ("newText", Make_String_Prop ("Replacement text"));
+      GNATCOLL.JSON.Append (Required, GNATCOLL.JSON.Create ("path"));
+      GNATCOLL.JSON.Append (Required, GNATCOLL.JSON.Create ("oldText"));
+      GNATCOLL.JSON.Append (Required, GNATCOLL.JSON.Create ("newText"));
+      return
+        (Name        => To_Unbounded_String ("edit"),
+         Description => To_Unbounded_String
+           ("Replace exactly one matching text fragment in a file."),
+         Schema_Json => Make_Object_Schema (Props, Required));
+   end Edit_Descriptor;
+
+   function Find_Descriptor return Tool_Descriptor is
+      Props    : constant GNATCOLL.JSON.JSON_Value :=
+        GNATCOLL.JSON.Create_Object;
+      Required : GNATCOLL.JSON.JSON_Array := GNATCOLL.JSON.Empty_Array;
+   begin
+      Props.Set_Field
+        ("path",    Make_String_Prop ("Directory or file path to search"));
+      Props.Set_Field
+        ("pattern", Make_String_Prop ("Optional file-name glob pattern"));
+      GNATCOLL.JSON.Append (Required, GNATCOLL.JSON.Create ("path"));
+      return
+        (Name        => To_Unbounded_String ("find"),
+         Description => To_Unbounded_String
+           ("Recursively list files whose names match an optional pattern."),
+         Schema_Json => Make_Object_Schema (Props, Required));
+   end Find_Descriptor;
+
+   function Glob_Descriptor return Tool_Descriptor is
+      Props    : constant GNATCOLL.JSON.JSON_Value :=
+        GNATCOLL.JSON.Create_Object;
+      Required : GNATCOLL.JSON.JSON_Array := GNATCOLL.JSON.Empty_Array;
+   begin
+      Props.Set_Field
+        ("path",    Make_String_Prop ("Directory or file path to search"));
+      Props.Set_Field
+        ("pattern", Make_String_Prop ("Optional file-name glob pattern"));
+      GNATCOLL.JSON.Append (Required, GNATCOLL.JSON.Create ("path"));
+      return
+        (Name        => To_Unbounded_String ("glob"),
+         Description => To_Unbounded_String
+           ("Alias for find: recursively list files matching a pattern."),
+         Schema_Json => Make_Object_Schema (Props, Required));
+   end Glob_Descriptor;
+
    procedure Execute_Read
      (Args_Json :     String;
       Result    : out Ada.Strings.Unbounded.Unbounded_String;

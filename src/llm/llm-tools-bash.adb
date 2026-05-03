@@ -19,6 +19,40 @@ package body LLM.Tools.Bash is
 
    Max_Output_Bytes : constant Natural := 200 * 1024;
 
+   function Descriptor return Tool_Descriptor is
+      Schema   : constant GNATCOLL.JSON.JSON_Value :=
+        GNATCOLL.JSON.Create_Object;
+      Props    : constant GNATCOLL.JSON.JSON_Value :=
+        GNATCOLL.JSON.Create_Object;
+      Command  : constant GNATCOLL.JSON.JSON_Value :=
+        GNATCOLL.JSON.Create_Object;
+      Desc_P   : constant GNATCOLL.JSON.JSON_Value :=
+        GNATCOLL.JSON.Create_Object;
+      Required : GNATCOLL.JSON.JSON_Array := GNATCOLL.JSON.Empty_Array;
+   begin
+      Command.Set_Field ("type", "string");
+      Command.Set_Field ("description", "The shell command to execute");
+
+      Desc_P.Set_Field ("type", "string");
+      Desc_P.Set_Field
+        ("description", "Optional description of what the command does");
+
+      Props.Set_Field ("command", Command);
+      Props.Set_Field ("description", Desc_P);
+
+      GNATCOLL.JSON.Append (Required, GNATCOLL.JSON.Create ("command"));
+
+      Schema.Set_Field ("type", "object");
+      Schema.Set_Field ("properties", Props);
+      Schema.Set_Field ("required", GNATCOLL.JSON.Create (Required));
+
+      return
+        (Name        => To_Unbounded_String ("bash"),
+         Description => To_Unbounded_String
+           ("Execute a shell command and return its combined output."),
+         Schema_Json => Schema);
+   end Descriptor;
+
    --  POSIX getpid() used to generate stable temporary-output paths.
    function Getpid return Integer;
    pragma Import (C, Getpid, "getpid");

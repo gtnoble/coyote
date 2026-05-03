@@ -10,27 +10,8 @@ with Ada.Strings.Unbounded;
 
 package LLM.Tools.Spawn_Subagent is
 
-   --  Descriptor for the built-in spawn_subagent tool.
-   Descriptor : constant Tool_Descriptor :=
-     (Name        => Ada.Strings.Unbounded.To_Unbounded_String
-        ("spawn_subagent"),
-      Description => Ada.Strings.Unbounded.To_Unbounded_String
-        ("Spawn a subagent in a new coyote window and return its response."
-         & " The window closes automatically when the turn completes."
-         & " Subagents are ephemeral and do not persist sessions."),
-      Schema_Json => Ada.Strings.Unbounded.To_Unbounded_String
-        ("{""type"":""object"",""properties"":{"
-         & """prompt"":{""type"":""string"",""description"":"
-         & """Task or question for the subagent.""},"
-         & """model"":{""type"":""string"",""description"":"
-         & """Model to use in provider/model-id form. Defaults to the"
-         & " current model.""},"
-         & """agent"":{""type"":""string"",""description"":"
-         & """System-prompt text or path to an .agent.md file for the"
-         & " subagent.""},"
-         & """name"":{""type"":""string"",""description"":"
-         & """Short label for the subagent window tagline.""}},"
-         & """required"":[""prompt""]}"));
+   --  Return the descriptor for the built-in spawn_subagent tool.
+   function Descriptor return Tool_Descriptor;
 
    --  Execute the spawn_subagent tool with Args_Json.
    --

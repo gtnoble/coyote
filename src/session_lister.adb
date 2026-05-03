@@ -718,13 +718,19 @@ package body Session_Lister is
                   Write_Raw_Line (Write (Info));
                end;
             else
-               Write_Raw_Line
-                 ("{""type"":""session"",""id"":"""
-                  & New_UUID & """,""timestamp"":"""
-                  & Now_Timestamp & """}");
-               Write_Raw_Line
-                 ("{""type"":""session_info"",""name"":"""
-                  & Fork_Name & """}");
+               declare
+                  Session_Obj : constant JSON_Value := Create_Object;
+                  Info_Obj    : constant JSON_Value := Create_Object;
+               begin
+                  Session_Obj.Set_Field ("type", "session");
+                  Session_Obj.Set_Field ("id", New_UUID);
+                  Session_Obj.Set_Field ("timestamp", Now_Timestamp);
+                  Write_Raw_Line (Write (Session_Obj));
+
+                  Info_Obj.Set_Field ("type", "session_info");
+                  Info_Obj.Set_Field ("name", Fork_Name);
+                  Write_Raw_Line (Write (Info_Obj));
+               end;
             end if;
 
             if Cut_Index >= Integer (Source_Lines.First_Index + 1) then

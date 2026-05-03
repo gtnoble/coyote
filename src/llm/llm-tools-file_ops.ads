@@ -10,74 +10,20 @@ with Ada.Strings.Unbounded;
 
 package LLM.Tools.File_Ops is
 
-   --  Descriptor for the built-in read tool.
-   Read_Descriptor : constant Tool_Descriptor :=
-     (Name        => Ada.Strings.Unbounded.To_Unbounded_String ("read"),
-      Description => Ada.Strings.Unbounded.To_Unbounded_String
-        ("Read a file, optionally restricted to a line range."),
-      Schema_Json => Ada.Strings.Unbounded.To_Unbounded_String
-        ("{""type"":""object"",""properties"":{"
-         & """path"":{""type"":""string"",""description"":"
-         & """Path to the file to read""},"
-         & """offset"":{""type"":""integer"",""description"":"
-         & """Optional 1-based starting line number""},"
-         & """limit"":{""type"":""integer"",""description"":"
-         & """Optional maximum number of lines to return""}},"
-         & """required"":[""path""]}"));
+   --  Return the descriptor for the built-in read tool.
+   function Read_Descriptor return Tool_Descriptor;
 
-   --  Descriptor for the built-in write tool.
-   Write_Descriptor : constant Tool_Descriptor :=
-     (Name        => Ada.Strings.Unbounded.To_Unbounded_String ("write"),
-      Description => Ada.Strings.Unbounded.To_Unbounded_String
-        ("Write a file, creating parent directories when needed."),
-      Schema_Json => Ada.Strings.Unbounded.To_Unbounded_String
-        ("{""type"":""object"",""properties"":{"
-         & """path"":{""type"":""string"",""description"":"
-         & """Path to the file to write""},"
-         & """content"":{""type"":""string"",""description"":"
-         & """Complete file content to write""}},"
-         & """required"":[""path"",""content""]}"));
+   --  Return the descriptor for the built-in write tool.
+   function Write_Descriptor return Tool_Descriptor;
 
-   --  Descriptor for the built-in edit tool.
-   Edit_Descriptor : constant Tool_Descriptor :=
-     (Name        => Ada.Strings.Unbounded.To_Unbounded_String ("edit"),
-      Description => Ada.Strings.Unbounded.To_Unbounded_String
-        ("Replace exactly one matching text fragment in a file."),
-      Schema_Json => Ada.Strings.Unbounded.To_Unbounded_String
-        ("{""type"":""object"",""properties"":{"
-         & """path"":{""type"":""string"",""description"":"
-         & """Path to the file to edit""},"
-         & """oldText"":{""type"":""string"",""description"":"
-         & """Exact text to replace""},"
-         & """newText"":{""type"":""string"",""description"":"
-         & """Replacement text""}},"
-         & """required"":[""path"",""oldText"",""newText""]}"));
+   --  Return the descriptor for the built-in edit tool.
+   function Edit_Descriptor return Tool_Descriptor;
 
-   --  Descriptor for the built-in find tool.
-   Find_Descriptor : constant Tool_Descriptor :=
-     (Name        => Ada.Strings.Unbounded.To_Unbounded_String ("find"),
-      Description => Ada.Strings.Unbounded.To_Unbounded_String
-        ("Recursively list files whose names match an optional pattern."),
-      Schema_Json => Ada.Strings.Unbounded.To_Unbounded_String
-        ("{""type"":""object"",""properties"":{"
-         & """path"":{""type"":""string"",""description"":"
-         & """Directory or file path to search""},"
-         & """pattern"":{""type"":""string"",""description"":"
-         & """Optional file-name glob pattern""}},"
-         & """required"":[""path""]}"));
+   --  Return the descriptor for the built-in find tool.
+   function Find_Descriptor return Tool_Descriptor;
 
-   --  Descriptor for the built-in glob tool.
-   Glob_Descriptor : constant Tool_Descriptor :=
-     (Name        => Ada.Strings.Unbounded.To_Unbounded_String ("glob"),
-      Description => Ada.Strings.Unbounded.To_Unbounded_String
-        ("Alias for find: recursively list files matching a pattern."),
-      Schema_Json => Ada.Strings.Unbounded.To_Unbounded_String
-        ("{""type"":""object"",""properties"":{"
-         & """path"":{""type"":""string"",""description"":"
-         & """Directory or file path to search""},"
-         & """pattern"":{""type"":""string"",""description"":"
-         & """Optional file-name glob pattern""}},"
-         & """required"":[""path""]}"));
+   --  Return the descriptor for the built-in glob tool.
+   function Glob_Descriptor return Tool_Descriptor;
 
    --  Read a file.
    --

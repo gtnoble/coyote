@@ -10,18 +10,8 @@ with Ada.Strings.Unbounded;
 
 package LLM.Tools.Bash is
 
-   --  Descriptor for the built-in bash tool.
-   Descriptor : constant Tool_Descriptor :=
-     (Name        => Ada.Strings.Unbounded.To_Unbounded_String ("bash"),
-      Description => Ada.Strings.Unbounded.To_Unbounded_String
-        ("Execute a shell command and return its combined output."),
-      Schema_Json => Ada.Strings.Unbounded.To_Unbounded_String
-        ("{""type"":""object"",""properties"":{"
-         & """command"":{""type"":""string"",""description"":"
-         & """The shell command to execute""},"
-         & """description"":{""type"":""string"",""description"":"
-         & """Optional description of what the command does""}},"
-         & """required"":[""command""]}"));
+   --  Return the descriptor for the built-in bash tool.
+   function Descriptor return Tool_Descriptor;
 
    --  Execute the bash tool with Args_Json.
    --

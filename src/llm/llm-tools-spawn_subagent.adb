@@ -18,6 +18,53 @@ package body LLM.Tools.Spawn_Subagent is
 
    use type GNATCOLL.JSON.JSON_Value_Type;
 
+   function Descriptor return Tool_Descriptor is
+      Schema   : constant GNATCOLL.JSON.JSON_Value :=
+        GNATCOLL.JSON.Create_Object;
+      Props    : constant GNATCOLL.JSON.JSON_Value :=
+        GNATCOLL.JSON.Create_Object;
+      Required : GNATCOLL.JSON.JSON_Array := GNATCOLL.JSON.Empty_Array;
+
+      function Str_Prop (Desc : String) return GNATCOLL.JSON.JSON_Value is
+         Prop : constant GNATCOLL.JSON.JSON_Value :=
+           GNATCOLL.JSON.Create_Object;
+      begin
+         Prop.Set_Field ("type", "string");
+         Prop.Set_Field ("description", Desc);
+         return Prop;
+      end Str_Prop;
+
+   begin
+      Props.Set_Field
+        ("prompt", Str_Prop ("Task or question for the subagent."));
+      Props.Set_Field
+        ("model",
+         Str_Prop ("Model to use in provider/model-id form."
+                   & " Defaults to the current model."));
+      Props.Set_Field
+        ("agent",
+         Str_Prop ("System-prompt text or path to an .agent.md file"
+                   & " for the subagent."));
+      Props.Set_Field
+        ("name",
+         Str_Prop ("Short label for the subagent window tagline."));
+
+      GNATCOLL.JSON.Append (Required, GNATCOLL.JSON.Create ("prompt"));
+
+      Schema.Set_Field ("type", "object");
+      Schema.Set_Field ("properties", Props);
+      Schema.Set_Field ("required", GNATCOLL.JSON.Create (Required));
+
+      return
+        (Name        => To_Unbounded_String ("spawn_subagent"),
+         Description => To_Unbounded_String
+           ("Spawn a subagent in a new coyote window and return its"
+            & " response. The window closes automatically when the turn"
+            & " completes. Subagents are ephemeral and do not persist"
+            & " sessions."),
+         Schema_Json => Schema);
+   end Descriptor;
+
    function Find_Coyote return String is
       Env_Bin : constant String :=
         Ada.Environment_Variables.Value ("COYOTE_BIN", "");

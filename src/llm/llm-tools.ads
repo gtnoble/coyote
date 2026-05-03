@@ -8,6 +8,7 @@
 
 with Ada.Containers.Vectors;
 with Ada.Strings.Unbounded;
+with GNATCOLL.JSON;
 
 package LLM.Tools is
 
@@ -29,8 +30,8 @@ package LLM.Tools is
    type Tool_Descriptor is record
       Name        : Ada.Strings.Unbounded.Unbounded_String;
       Description : Ada.Strings.Unbounded.Unbounded_String;
-      --  Full JSON Schema object string for the tool's parameters.
-      Schema_Json : Ada.Strings.Unbounded.Unbounded_String;
+      --  JSON Schema object for the tool's parameters.
+      Schema_Json : GNATCOLL.JSON.JSON_Value;
    end record;
 
    package Tool_Descriptor_Vectors is new Ada.Containers.Vectors

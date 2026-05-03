@@ -601,7 +601,8 @@ package body Coyote_App is
             Result : constant JSON_Value := Create_Object;
          begin
             if Was_Aborted then
-               State.Set_One_Shot_Result ("{""error"":""aborted""}");
+               Result.Set_Field ("error", Create ("aborted"));
+               State.Set_One_Shot_Result (Write (Result));
             elsif Length (Final_Text) > 0 then
                Result.Set_Field
                  ("session_id", Create (LLM.Agent.Session_Id (Agent_Session)));
@@ -611,8 +612,8 @@ package body Coyote_App is
                Result.Set_Field ("error", Create (To_String (Final_Error)));
                State.Set_One_Shot_Result (Write (Result));
             else
-               State.Set_One_Shot_Result
-                 ("{""error"":""No response from agent""}");
+               Result.Set_Field ("error", Create ("No response from agent"));
+               State.Set_One_Shot_Result (Write (Result));
             end if;
          end Store_One_Shot_Result;
 
@@ -636,10 +637,15 @@ package body Coyote_App is
                  ("prompt failed: "
                   & Ada.Exceptions.Exception_Message (Ex));
                if Opts.One_Shot then
-                  State.Set_One_Shot_Result
-                    ("{""error"":""prompt failed: "
-                     & Ada.Exceptions.Exception_Message (Ex)
-                     & """}");
+                  declare
+                     Err : constant JSON_Value := Create_Object;
+                  begin
+                     Err.Set_Field
+                       ("error",
+                        "prompt failed: "
+                        & Ada.Exceptions.Exception_Message (Ex));
+                     State.Set_One_Shot_Result (Write (Err));
+                  end;
                   Initiate_Shutdown;
                end if;
          end Run_Queued_Prompt;
@@ -671,8 +677,12 @@ package body Coyote_App is
 
          if Opts.One_Shot then
             if Length (Opts.Initial_Prompt) = 0 then
-               State.Set_One_Shot_Result
-                 ("{""error"":""one-shot requires --prompt""}");
+               declare
+                  Err : constant JSON_Value := Create_Object;
+               begin
+                  Err.Set_Field ("error", "one-shot requires --prompt");
+                  State.Set_One_Shot_Result (Write (Err));
+               end;
                Initiate_Shutdown;
             else
                declare
@@ -784,10 +794,15 @@ package body Coyote_App is
                ASCII.LF & "[!] Agent task: "
                & Ada.Exceptions.Exception_Message (Ex) & ASCII.LF);
             if Opts.One_Shot then
-               State.Set_One_Shot_Result
-                 ("{""error"":""agent task failed: "
-                  & Ada.Exceptions.Exception_Message (Ex)
-                  & """}");
+               declare
+                  Err : constant JSON_Value := Create_Object;
+               begin
+                  Err.Set_Field
+                    ("error",
+                     "agent task failed: "
+                     & Ada.Exceptions.Exception_Message (Ex));
+                  State.Set_One_Shot_Result (Write (Err));
+               end;
             end if;
             Initiate_Shutdown;
       end Agent_Task;
@@ -1579,12 +1594,18 @@ package body Coyote_App is
          declare
             Json : constant String := State.One_Shot_Result;
          begin
-            Ada.Text_IO.Put_Line
-              ((if Json'Length > 0
-                then Json
-                else
-                  "{""error"":""subagent closed before producing"
-                  & " output""}"));
+            if Json'Length > 0 then
+               Ada.Text_IO.Put_Line (Json);
+            else
+               declare
+                  Err : constant JSON_Value := Create_Object;
+               begin
+                  Err.Set_Field
+                    ("error",
+                     "subagent closed before producing output");
+                  Ada.Text_IO.Put_Line (Write (Err));
+               end;
+            end if;
          end;
       end if;
 

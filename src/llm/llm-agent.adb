@@ -25,7 +25,6 @@ with LLM.Tools;
 package body LLM.Agent is
 
    use type Ada.Containers.Count_Type;
-   use type GNATCOLL.JSON.JSON_Value_Type;
    use type LLM.Events.Message_Update_Kind;
    use type LLM.Types.Content_Block_Kind;
    use type LLM.Types.Role;
@@ -404,56 +403,38 @@ package body LLM.Agent is
       end if;
 
       for Descriptor of LLM.Tools.Built_In_Tools loop
-         declare
-            Parsed : constant GNATCOLL.JSON.Read_Result :=
-              GNATCOLL.JSON.Read (To_String (Descriptor.Schema_Json));
-         begin
-            if not Parsed.Success then
-               raise Constraint_Error with
-                 "Invalid tool schema JSON for "
-                 & To_String (Descriptor.Name)
-                 & ": "
-                 & GNATCOLL.JSON.Format_Parsing_Error (Parsed.Error);
-            end if;
-
-            if Parsed.Value.Kind /= GNATCOLL.JSON.JSON_Object_Type then
-               raise Constraint_Error with
-                 "Invalid tool schema JSON for "
-                 & To_String (Descriptor.Name)
-                 & ": expected object";
-            end if;
-
-            if Lowercase (To_String (Info.Wire_Format)) =
-              "anthropic-messages"
-            then
-               declare
-                  Tool_Object : constant GNATCOLL.JSON.JSON_Value :=
-                    GNATCOLL.JSON.Create_Object;
-               begin
-                  Tool_Object.Set_Field ("name", To_String (Descriptor.Name));
-                  Tool_Object.Set_Field
-                    ("description", To_String (Descriptor.Description));
-                  Tool_Object.Set_Field ("input_schema", Parsed.Value);
-                  GNATCOLL.JSON.Append (Tools, Tool_Object);
-               end;
-            else
-               declare
-                  Tool_Object : constant GNATCOLL.JSON.JSON_Value :=
-                    GNATCOLL.JSON.Create_Object;
-                  Function_Object : constant GNATCOLL.JSON.JSON_Value :=
-                    GNATCOLL.JSON.Create_Object;
-               begin
-                  Function_Object.Set_Field
-                    ("name", To_String (Descriptor.Name));
-                  Function_Object.Set_Field
-                    ("description", To_String (Descriptor.Description));
-                  Function_Object.Set_Field ("parameters", Parsed.Value);
-                  Tool_Object.Set_Field ("type", "function");
-                  Tool_Object.Set_Field ("function", Function_Object);
-                  GNATCOLL.JSON.Append (Tools, Tool_Object);
-               end;
-            end if;
-         end;
+         if Lowercase (To_String (Info.Wire_Format)) =
+           "anthropic-messages"
+         then
+            declare
+               Tool_Object : constant GNATCOLL.JSON.JSON_Value :=
+                 GNATCOLL.JSON.Create_Object;
+            begin
+               Tool_Object.Set_Field ("name", To_String (Descriptor.Name));
+               Tool_Object.Set_Field
+                 ("description", To_String (Descriptor.Description));
+               Tool_Object.Set_Field
+                 ("input_schema", Descriptor.Schema_Json);
+               GNATCOLL.JSON.Append (Tools, Tool_Object);
+            end;
+         else
+            declare
+               Tool_Object     : constant GNATCOLL.JSON.JSON_Value :=
+                 GNATCOLL.JSON.Create_Object;
+               Function_Object : constant GNATCOLL.JSON.JSON_Value :=
+                 GNATCOLL.JSON.Create_Object;
+            begin
+               Function_Object.Set_Field
+                 ("name", To_String (Descriptor.Name));
+               Function_Object.Set_Field
+                 ("description", To_String (Descriptor.Description));
+               Function_Object.Set_Field
+                 ("parameters", Descriptor.Schema_Json);
+               Tool_Object.Set_Field ("type", "function");
+               Tool_Object.Set_Field ("function", Function_Object);
+               GNATCOLL.JSON.Append (Tools, Tool_Object);
+            end;
+         end if;
       end loop;
 
       declare
