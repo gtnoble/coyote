@@ -1,4 +1,5 @@
 with AUnit.Assertions;
+with Ada.Characters.Handling;
 with Ada.Containers;
 with Ada.Containers.Indefinite_Vectors;
 with Ada.Directories;
@@ -9,12 +10,12 @@ with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Tags;
 with Ada.Text_IO;
 with GNATCOLL.JSON;
-with GNATCOLL.OS.Process;   use GNATCOLL.OS.Process;
 with LLM.Events;
 with LLM.HTTP;
 with LLM.Providers;
 with LLM.Providers.Anthropic_Messages;
 with LLM.Types;
+with Test_HTTP_Server;
 
 package body LLM_Anthropic_Messages_Tests is
 
@@ -25,14 +26,9 @@ package body LLM_Anthropic_Messages_Tests is
    use type LLM.Providers.Thinking_Level;
    use type LLM.Types.Stop_Reason;
 
-   function C_Kill
-      (Process_Id : Integer;
-     Signal     : Integer) return Integer
-      with Import, Convention => C, External_Name => "kill";
-
    package String_Vectors is new Ada.Containers.Indefinite_Vectors
       (Index_Type   => Positive,
-     Element_Type => String);
+       Element_Type => String);
 
    type Event_Collector is record
       Sequence  : String_Vectors.Vector;
@@ -47,6 +43,106 @@ package body LLM_Anthropic_Messages_Tests is
    begin
       return Image (Image'First + 1 .. Image'Last);
    end Natural_Image;
+
+   --  SSE response payload served by the Anthropic capture handler.
+   --  Contains thinking + text blocks, end_turn stop reason.
+   Anthropic_SSE_Payload : constant String :=
+      "event: message_start" & ASCII.LF
+      & "data: {""type"":""message_start"","
+      & """message"":{""id"":""msg_1"","
+      & """type"":""message"",""role"":""assistant"","
+      & """content"":[],""usage"":"
+      & "{""input_tokens"":11,""output_tokens"":0}}}"
+      & ASCII.LF & ASCII.LF
+      & "event: content_block_start" & ASCII.LF
+      & "data: {""type"":""content_block_start"","
+      & """index"":0,""content_block"":{""type"":""thinking""}}"
+      & ASCII.LF & ASCII.LF
+      & "event: content_block_delta" & ASCII.LF
+      & "data: {""type"":""content_block_delta"","
+      & """index"":0,""delta"":{""type"":""thinking_delta"","
+      & """thinking"":""ponder""}}"
+      & ASCII.LF & ASCII.LF
+      & "event: content_block_stop" & ASCII.LF
+      & "data: {""type"":""content_block_stop"",""index"":0}"
+      & ASCII.LF & ASCII.LF
+      & "event: content_block_start" & ASCII.LF
+      & "data: {""type"":""content_block_start"","
+      & """index"":1,""content_block"":{""type"":""text""}}"
+      & ASCII.LF & ASCII.LF
+      & "event: content_block_delta" & ASCII.LF
+      & "data: {""type"":""content_block_delta"","
+      & """index"":1,""delta"":{""type"":""text_delta"","
+      & """text"":""Hello""}}"
+      & ASCII.LF & ASCII.LF
+      & "event: content_block_stop" & ASCII.LF
+      & "data: {""type"":""content_block_stop"",""index"":1}"
+      & ASCII.LF & ASCII.LF
+      & "event: message_delta" & ASCII.LF
+      & "data: {""type"":""message_delta"","
+      & """delta"":{""stop_reason"":""end_turn""},"
+      & """usage"":{""output_tokens"":7}}"
+      & ASCII.LF & ASCII.LF
+      & "event: message_stop" & ASCII.LF
+      & "data: {""type"":""message_stop""}"
+      & ASCII.LF & ASCII.LF;
+
+   --  SSE response payload for the tool-use test.
+   --  partial_json fields contain embedded JSON-escaped double quotes.
+   Tool_Use_SSE_Payload : constant String :=
+      "event: message_start" & ASCII.LF
+      & "data: {""type"":""message_start"","
+      & """message"":{""id"":""msg_tool"","
+      & """type"":""message"",""role"":""assistant"","
+      & """content"":[],""usage"":"
+      & "{""input_tokens"":9,""output_tokens"":0}}}"
+      & ASCII.LF & ASCII.LF
+      & "event: content_block_start" & ASCII.LF
+      & "data: {""type"":""content_block_start"","
+      & """index"":0,""content_block"":"
+      & "{""type"":""tool_use"",""id"":""tool_1"","
+      & """name"":""read""}}"
+      & ASCII.LF & ASCII.LF
+      & "event: content_block_delta" & ASCII.LF
+      & "data: {""type"":""content_block_delta"","
+      & """index"":0,""delta"":{""type"":""input_json_delta"","
+      & """partial_json"":""{\""path\"":\""tool""}}"
+      & ASCII.LF & ASCII.LF
+      & "event: content_block_delta" & ASCII.LF
+      & "data: {""type"":""content_block_delta"","
+      & """index"":0,""delta"":{""type"":""input_json_delta"","
+      & """partial_json"":""-input.adb\""}""}}"
+      & ASCII.LF & ASCII.LF
+      & "event: content_block_stop" & ASCII.LF
+      & "data: {""type"":""content_block_stop"",""index"":0}"
+      & ASCII.LF & ASCII.LF
+      & "event: message_delta" & ASCII.LF
+      & "data: {""type"":""message_delta"","
+      & """delta"":{""stop_reason"":""tool_use""},"
+      & """usage"":{""output_tokens"":5}}"
+      & ASCII.LF & ASCII.LF
+      & "event: message_stop" & ASCII.LF
+      & "data: {""type"":""message_stop""}"
+      & ASCII.LF & ASCII.LF;
+
+   --  Truncated SSE payload for the early-close test (no message_stop).
+   Early_Close_SSE_Payload : constant String :=
+      "event: message_start" & ASCII.LF
+      & "data: {""type"":""message_start"","
+      & """message"":{""id"":""msg_early"","
+      & """type"":""message"",""role"":""assistant"","
+      & """content"":[],""usage"":"
+      & "{""input_tokens"":4,""output_tokens"":0}}}"
+      & ASCII.LF & ASCII.LF
+      & "event: content_block_start" & ASCII.LF
+      & "data: {""type"":""content_block_start"","
+      & """index"":0,""content_block"":{""type"":""text""}}"
+      & ASCII.LF & ASCII.LF
+      & "event: content_block_delta" & ASCII.LF
+      & "data: {""type"":""content_block_delta"","
+      & """index"":0,""delta"":{""type"":""text_delta"","
+      & """text"":""partial""}}"
+      & ASCII.LF & ASCII.LF;
 
    procedure Reset_Collector is
    begin
@@ -121,53 +217,54 @@ package body LLM_Anthropic_Messages_Tests is
       Collect_Event (E);
    end On_Event;
 
-   function Spawn_Server (Script : String) return Process_Handle is
-      Args : Argument_List;
-   begin
-      Args.Append ("python3");
-      Args.Append ("-u");
-      Args.Append ("-c");
-      Args.Append (Script);
-      return Start (Args => Args);
-   end Spawn_Server;
+   --  Build a JSON capture record from Req and write it to Path.
+   --  Stores path, headers (lowercased names), and parsed body, mirroring
+   --  the Python server scripts that saved these fields for inspection.
+   procedure Write_Capture
+      (Req  :     Test_HTTP_Server.Request;
+       Path : String)
+   is
+      use GNATCOLL.JSON;
+      use Ada.Characters.Handling;
 
-   procedure Wait_For_Server is
+      Root    : constant JSON_Value := Create_Object;
+      Hdrs_JS : constant JSON_Value := Create_Object;
+      Body_Res : constant Read_Result :=
+         Read (To_String (Req.Body_Data));
+      File     : Ada.Text_IO.File_Type;
    begin
-      delay 0.20;
-   end Wait_For_Server;
+      Root.Set_Field ("path", To_String (Req.Path));
 
-   procedure Stop_Server (Handle : in out Process_Handle) is
-      Dummy : Integer;
-      pragma Unreferenced (Dummy);
-   begin
-      if Handle = Invalid_Handle then
-         return;
+      for H of Req.Headers loop
+         Hdrs_JS.Set_Field
+            (To_Lower (To_String (H.Name)),
+             To_String (H.Value));
+      end loop;
+
+      Root.Set_Field ("headers", Hdrs_JS);
+
+      if Body_Res.Success then
+         Root.Set_Field ("body", Body_Res.Value);
       end if;
 
-      if State (Handle) = RUNNING then
-         Dummy := C_Kill (Integer (Handle), 15);
-      end if;
-
-      declare
-         Exit_Code : constant Integer := Wait (Handle);
-         pragma Unreferenced (Exit_Code);
-      begin
-         null;
-      end;
-
-      Handle := Invalid_Handle;
+      Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, Path);
+      Ada.Text_IO.Put (File, Write (Root));
+      Ada.Text_IO.Close (File);
    exception
       when others =>
-         Handle := Invalid_Handle;
-   end Stop_Server;
+         if Ada.Text_IO.Is_Open (File) then
+            Ada.Text_IO.Close (File);
+         end if;
+         raise;
+   end Write_Capture;
 
    procedure Send_With_Retry
       (P             : in out LLM.Providers.Anthropic_Messages.Provider;
-     Model_Id      :        String;
-     System_Prompt :        String;
-     Messages      :        LLM.Types.Message_Vectors.Vector;
-     Thinking      :        LLM.Providers.Thinking_Level;
-     Handler       :        LLM.Providers.Event_Handler)
+       Model_Id      :        String;
+       System_Prompt :        String;
+       Messages      :        LLM.Types.Message_Vectors.Vector;
+       Thinking      :        LLM.Providers.Thinking_Level;
+       Handler       :        LLM.Providers.Event_Handler)
    is
    begin
       Retry_Loop :
@@ -175,12 +272,12 @@ package body LLM_Anthropic_Messages_Tests is
          begin
             P.Send
                (Model_Id      => Model_Id,
-           System_Prompt => System_Prompt,
-           Messages      => Messages,
-           Tools_Json    => "[]",
-           Thinking      => Thinking,
-           Max_Tokens    => 128,
-           Handler       => Handler);
+                System_Prompt => System_Prompt,
+                Messages      => Messages,
+                Tools_Json    => "[]",
+                Thinking      => Thinking,
+                Max_Tokens    => 128,
+                Handler       => Handler);
             exit Retry_Loop;
          exception
             when LLM.HTTP.Curl_Error =>
@@ -246,7 +343,7 @@ package body LLM_Anthropic_Messages_Tests is
 
    function Get_Object_Field
       (Value : GNATCOLL.JSON.JSON_Value;
-     Field : String) return GNATCOLL.JSON.JSON_Value
+       Field : String) return GNATCOLL.JSON.JSON_Value
    is
    begin
       if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
@@ -261,8 +358,8 @@ package body LLM_Anthropic_Messages_Tests is
 
    function Get_String_Field
       (Value   : GNATCOLL.JSON.JSON_Value;
-     Field   : String;
-     Default : String := "") return String
+       Field   : String;
+       Default : String := "") return String
    is
    begin
       if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
@@ -277,8 +374,8 @@ package body LLM_Anthropic_Messages_Tests is
 
    function Get_Natural_Field
       (Value   : GNATCOLL.JSON.JSON_Value;
-     Field   : String;
-     Default : Natural := 0) return Natural
+       Field   : String;
+       Default : Natural := 0) return Natural
    is
       Raw : Long_Integer;
    begin
@@ -301,13 +398,13 @@ package body LLM_Anthropic_Messages_Tests is
    begin
       Content.Append
          ((Kind => LLM.Types.Text_Block,
-            Text => To_Unbounded_String ("Explain hello")));
+           Text => To_Unbounded_String ("Explain hello")));
       Messages.Append
          ((Role      => LLM.Types.User,
-            Content   => Content,
-            Tok_Usage => (others => 0),
-            Stop      => LLM.Types.Unknown_Stop,
-            Timestamp => Null_Unbounded_String));
+           Content   => Content,
+           Tok_Usage => (others => 0),
+           Stop      => LLM.Types.Unknown_Stop,
+           Timestamp => Null_Unbounded_String));
       return Messages;
    end Build_Messages;
 
@@ -319,211 +416,175 @@ package body LLM_Anthropic_Messages_Tests is
    begin
       Content.Append
          ((Kind => LLM.Types.Text_Block,
-            Text => To_Unbounded_String ("Checkpoint summary text")));
+           Text => To_Unbounded_String ("Checkpoint summary text")));
       Messages.Append
          ((Role      => LLM.Types.Compaction_Summary,
-            Content   => Content,
-            Tok_Usage => (others => 0),
-            Stop      => LLM.Types.Unknown_Stop,
-            Timestamp => Null_Unbounded_String));
+           Content   => Content,
+           Tok_Usage => (others => 0),
+           Stop      => LLM.Types.Unknown_Stop,
+           Timestamp => Null_Unbounded_String));
       return Messages;
    end Build_Compaction_Summary_Messages;
-
-   function Anthropic_Server_Script
-      (Port         : Positive;
-     Capture_Path : String) return String
-   is
-   begin
-      return
-         "import http.server, json, pathlib" & ASCII.LF
-         & "capture = pathlib.Path('" & Capture_Path & "')" & ASCII.LF
-         & "events = [" & ASCII.LF
-         & "    ('message_start', {'type': 'message_start', 'message': {"
-         & "'id': 'msg_1', 'type': 'message', 'role': 'assistant',"
-         & " 'content': [], 'usage': {'input_tokens': 11,"
-         & " 'output_tokens': 0}}}),"
-         & ASCII.LF
-         & "    ('content_block_start', {'type': 'content_block_start',"
-         & " 'index': 0, 'content_block': {'type': 'thinking'}})," & ASCII.LF
-         & "    ('content_block_delta', {'type': 'content_block_delta',"
-         & " 'index': 0, 'delta': {'type': 'thinking_delta',"
-         & " 'thinking': 'ponder'}})," & ASCII.LF
-         & "    ('content_block_stop', {'type': 'content_block_stop',"
-         & " 'index': 0})," & ASCII.LF
-         & "    ('content_block_start', {'type': 'content_block_start',"
-         & " 'index': 1, 'content_block': {'type': 'text'}})," & ASCII.LF
-         & "    ('content_block_delta', {'type': 'content_block_delta',"
-         & " 'index': 1, 'delta': {'type': 'text_delta', 'text': 'Hello'}}),"
-         & ASCII.LF
-         & "    ('content_block_stop', {'type': 'content_block_stop',"
-         & " 'index': 1})," & ASCII.LF
-         & "    ('message_delta', {'type': 'message_delta', 'delta': {"
-         & "'stop_reason': 'end_turn'}, 'usage': {'output_tokens': 7}}),"
-         & ASCII.LF
-         & "    ('message_stop', {'type': 'message_stop'})]" & ASCII.LF
-         & "payload = ''.join(" & ASCII.LF
-         & "    'event: ' + name + '\n' + 'data: ' + json.dumps(data)"
-         & " + '\n\n' for name, data in events).encode()" & ASCII.LF
-         & "class S(http.server.HTTPServer):" & ASCII.LF
-         & "    allow_reuse_address = True" & ASCII.LF
-         & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
-         & "    def do_POST(self):" & ASCII.LF
-         & "        try:" & ASCII.LF
-         & "            n = int(self.headers.get('Content-Length', '0'))"
-         & ASCII.LF
-         & "            body = json.loads(self.rfile.read(n))" & ASCII.LF
-         & "            capture.write_text(json.dumps({'path': self.path,"
-         & " 'headers': {k.lower(): v for k, v in self.headers.items()},"
-         & " 'body': body}))" & ASCII.LF
-         & "            self.send_response(200)" & ASCII.LF
-         & "            self.send_header('Content-Type', 'text/event-stream')"
-         & ASCII.LF
-         & "            self.send_header('Content-Length', str(len(payload)))"
-         & ASCII.LF
-         & "            self.end_headers()" & ASCII.LF
-         & "            self.wfile.write(payload)" & ASCII.LF
-         & "            self.wfile.flush()" & ASCII.LF
-         & "        except Exception as exc:" & ASCII.LF
-         & "            self.send_response(500)" & ASCII.LF
-         & "            self.send_header('Content-Type', 'text/plain')"
-         & ASCII.LF
-         & "            self.end_headers()" & ASCII.LF
-         & "            self.wfile.write(str(exc).encode())" & ASCII.LF
-         & "    def log_message(self, *a): pass" & ASCII.LF
-         & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
-         & ASCII.LF
-         & "s.timeout = 5" & ASCII.LF
-         & "s.handle_request()" & ASCII.LF
-         & "s.server_close()" & ASCII.LF;
-   end Anthropic_Server_Script;
 
    procedure Test_Stream_Thinking_And_Text_Response (T : in out Test) is
       pragma Unreferenced (T);
 
-      Port        : constant Positive := 18_773;
-      Capture     : constant String := "/tmp/coyote_anthropic_capture_1.json";
-      Handle      : Process_Handle := Invalid_Handle;
-      Provider    : LLM.Providers.Anthropic_Messages.Provider :=
+      Port     : constant Positive := 18_773;
+      Capture  : constant String :=
+         "/tmp/coyote_anthropic_capture_1.json";
+      Provider : LLM.Providers.Anthropic_Messages.Provider :=
          LLM.Providers.Anthropic_Messages.Create
             (Base_Url => "http://127.0.0.1:18773",
              Api_Key  => "test-key");
-      Messages    : constant LLM.Types.Message_Vectors.Vector :=
+      Messages : constant LLM.Types.Message_Vectors.Vector :=
          Build_Messages;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+      begin
+         Write_Capture (Req, Capture);
+         Res.Status := 200;
+         Append (Res.Body_Data, Anthropic_SSE_Payload);
+      end Handle_Request;
+
+      Server_Stopped : Boolean := False;
+      Srv            : Test_HTTP_Server.Server
+        (Handler => Handle_Request'Unrestricted_Access);
    begin
       Reset_Collector;
       Delete_If_Exists (Capture);
-      Handle := Spawn_Server (Anthropic_Server_Script (Port, Capture));
-      Wait_For_Server;
+      Srv.Bind (Port);
 
       Send_With_Retry
          (P             => Provider,
-       Model_Id      => "claude-sonnet-4.6",
-       System_Prompt => "Be helpful.",
-       Messages      => Messages,
-       Thinking      => LLM.Providers.Medium,
-       Handler       => On_Event'Access);
+          Model_Id      => "claude-sonnet-4.6",
+          System_Prompt => "Be helpful.",
+          Messages      => Messages,
+          Thinking      => LLM.Providers.Medium,
+          Handler       => On_Event'Access);
 
-      Stop_Server (Handle);
+      Srv.Stop;
+      Server_Stopped := True;
 
       Assert
          (Current_Collector.Sequence.Length = 10,
-       "Expected exact Anthropic event sequence: " & Sequence_Image);
+          "Expected exact Anthropic event sequence: " & Sequence_Image);
       Assert
          (Current_Collector.Sequence.Element (1) = "agent_start",
-       "Agent_Start_Event should fire first");
+          "Agent_Start_Event should fire first");
       Assert
          (Current_Collector.Sequence.Element (2) = "message_start",
-       "Message_Start_Event should follow agent_start");
+          "Message_Start_Event should follow agent_start");
       Assert
          (Current_Collector.Sequence.Element (3) = "thinking_start",
-       "Thinking_Start should be emitted");
+          "Thinking_Start should be emitted");
       Assert
          (Current_Collector.Sequence.Element (4) = "thinking_delta:ponder",
-       "Thinking delta should contain the streamed text");
+          "Thinking delta should contain the streamed text");
       Assert
          (Current_Collector.Sequence.Element (5) = "thinking_end",
-       "Thinking_End should be emitted");
+          "Thinking_End should be emitted");
       Assert
          (Current_Collector.Sequence.Element (6) = "text_start",
-       "Text_Start should be emitted");
+          "Text_Start should be emitted");
       Assert
          (Current_Collector.Sequence.Element (7) = "text_delta:Hello",
-       "Text delta should contain Hello");
+          "Text delta should contain Hello");
       Assert
          (Current_Collector.Sequence.Element (8) = "text_end",
-       "Text_End should be emitted");
+          "Text_End should be emitted");
       Assert
          (Current_Collector.Sequence.Element (9) = "message_end",
-       "Message_End_Event should precede agent_end");
+          "Message_End_Event should precede agent_end");
       Assert
          (Current_Collector.Sequence.Element (10) = "agent_end",
-       "Agent_End_Event should fire last");
+          "Agent_End_Event should fire last");
       Assert
          (Current_Collector.Sequence.Find_Index ("message_end") > 0,
-       "Message_End_Event should be emitted: " & Sequence_Image);
+          "Message_End_Event should be emitted: " & Sequence_Image);
       Assert
          (Current_Collector.Last_Stop = LLM.Types.Stop,
-       "end_turn should map to Stop");
+          "end_turn should map to Stop");
       Assert
          (Current_Collector.Usage.Input = 11,
-       "Input token usage should be parsed from message_start");
+          "Input token usage should be parsed from message_start");
       Assert
          (Current_Collector.Usage.Output = 7,
-       "Output token usage should be parsed from message_delta");
+          "Output token usage should be parsed from message_delta");
    exception
       when others =>
-         Stop_Server (Handle);
+         if not Server_Stopped then
+            Srv.Stop;
+         end if;
          raise;
    end Test_Stream_Thinking_And_Text_Response;
 
    procedure Test_Request_Headers (T : in out Test) is
       pragma Unreferenced (T);
 
-      Port        : constant Positive := 18_774;
-      Capture     : constant String := "/tmp/coyote_anthropic_capture_2.json";
-      Handle      : Process_Handle := Invalid_Handle;
-      Provider    : LLM.Providers.Anthropic_Messages.Provider :=
+      Port     : constant Positive := 18_774;
+      Capture  : constant String :=
+         "/tmp/coyote_anthropic_capture_2.json";
+      Provider : LLM.Providers.Anthropic_Messages.Provider :=
          LLM.Providers.Anthropic_Messages.Create
             (Base_Url => "http://127.0.0.1:18774",
              Api_Key  => "test-key");
-      Messages    : constant LLM.Types.Message_Vectors.Vector :=
+      Messages : constant LLM.Types.Message_Vectors.Vector :=
          Build_Messages;
-      Request     : GNATCOLL.JSON.JSON_Value;
-      Headers     : GNATCOLL.JSON.JSON_Value;
+      Request  : GNATCOLL.JSON.JSON_Value;
+      Headers  : GNATCOLL.JSON.JSON_Value;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+      begin
+         Write_Capture (Req, Capture);
+         Res.Status := 200;
+         Append (Res.Body_Data, Anthropic_SSE_Payload);
+      end Handle_Request;
+
+      Server_Stopped : Boolean := False;
+      Srv            : Test_HTTP_Server.Server
+        (Handler => Handle_Request'Unrestricted_Access);
    begin
       Delete_If_Exists (Capture);
-      Handle := Spawn_Server (Anthropic_Server_Script (Port, Capture));
-      Wait_For_Server;
+      Srv.Bind (Port);
 
       Send_With_Retry
          (P             => Provider,
-       Model_Id      => "claude-sonnet-4.6",
-       System_Prompt => "Be helpful.",
-       Messages      => Messages,
-       Thinking      => LLM.Providers.Medium,
-       Handler       => null);
+          Model_Id      => "claude-sonnet-4.6",
+          System_Prompt => "Be helpful.",
+          Messages      => Messages,
+          Thinking      => LLM.Providers.Medium,
+          Handler       => null);
 
-      Stop_Server (Handle);
+      Srv.Stop;
+      Server_Stopped := True;
 
       Request := Load_Capture (Capture);
       Headers := Get_Object_Field (Request, "headers");
 
       Assert
          (Get_String_Field (Request, "path") = "/v1/messages",
-       "Anthropic requests should target /v1/messages");
+          "Anthropic requests should target /v1/messages");
       Assert
          (Get_String_Field (Headers, "anthropic-version") = "2023-06-01",
-       "anthropic-version header should be present");
+          "anthropic-version header should be present");
       Assert
          (Get_String_Field (Headers, "anthropic-beta")
-         = "interleaved-thinking-2025-05-14",
-       "anthropic-beta header should be present");
+          = "interleaved-thinking-2025-05-14",
+          "anthropic-beta header should be present");
       Assert
          (Get_String_Field (Headers, "content-type") = "application/json",
-       "Content-Type should be application/json");
+          "Content-Type should be application/json");
    exception
       when others =>
-         Stop_Server (Handle);
+         if not Server_Stopped then
+            Srv.Stop;
+         end if;
          raise;
    end Test_Request_Headers;
 
@@ -537,41 +598,54 @@ package body LLM_Anthropic_Messages_Tests is
 
       Cases : constant array (Positive range 1 .. 6) of Budget_Case :=
          ((Level => LLM.Providers.Off,     Expected => 0),
-       (Level => LLM.Providers.Minimal, Expected => 1_024),
-       (Level => LLM.Providers.Low,     Expected => 2_048),
-       (Level => LLM.Providers.Medium,  Expected => 8_192),
-       (Level => LLM.Providers.High,    Expected => 16_384),
-       (Level => LLM.Providers.X_High,  Expected => 32_768));
+          (Level => LLM.Providers.Minimal, Expected => 1_024),
+          (Level => LLM.Providers.Low,     Expected => 2_048),
+          (Level => LLM.Providers.Medium,  Expected => 8_192),
+          (Level => LLM.Providers.High,    Expected => 16_384),
+          (Level => LLM.Providers.X_High,  Expected => 32_768));
       Messages : constant LLM.Types.Message_Vectors.Vector := Build_Messages;
    begin
       for Index in Cases'Range loop
          declare
-            Port      : constant Positive := 18_780 + Index;
-            Port_Text : constant String := Natural_Image (Port);
-            Capture   : constant String :=
-               "/tmp/coyote_anthropic_budget_" & Natural_Image (Index)
-               & ".json";
-            Handle    : Process_Handle := Invalid_Handle;
-            Provider  : LLM.Providers.Anthropic_Messages.Provider :=
+            Port    : constant Positive := 18_780 + Index;
+            Capture : constant String :=
+               "/tmp/coyote_anthropic_budget_"
+               & Natural_Image (Index) & ".json";
+            Provider : LLM.Providers.Anthropic_Messages.Provider :=
                LLM.Providers.Anthropic_Messages.Create
-                  (Base_Url => "http://127.0.0.1:" & Port_Text,
-             Api_Key  => "test-key");
-            Request   : GNATCOLL.JSON.JSON_Value;
-            Payload    : GNATCOLL.JSON.JSON_Value;
+                  (Base_Url => "http://127.0.0.1:"
+                   & Natural_Image (Port),
+                   Api_Key  => "test-key");
+            Request  : GNATCOLL.JSON.JSON_Value;
+            Payload  : GNATCOLL.JSON.JSON_Value;
+
+            procedure Handle_Request
+              (Req :     Test_HTTP_Server.Request;
+               Res : out Test_HTTP_Server.Response)
+            is
+            begin
+               Write_Capture (Req, Capture);
+               Res.Status := 200;
+               Append (Res.Body_Data, Anthropic_SSE_Payload);
+            end Handle_Request;
+
+            Server_Stopped : Boolean := False;
+            Srv            : Test_HTTP_Server.Server
+              (Handler => Handle_Request'Unrestricted_Access);
          begin
             Delete_If_Exists (Capture);
-            Handle := Spawn_Server (Anthropic_Server_Script (Port, Capture));
-            Wait_For_Server;
+            Srv.Bind (Port);
 
             Send_With_Retry
                (P             => Provider,
-           Model_Id      => "claude-sonnet-4.6",
-           System_Prompt => "Be helpful.",
-           Messages      => Messages,
-           Thinking      => Cases (Index).Level,
-           Handler       => null);
+                Model_Id      => "claude-sonnet-4.6",
+                System_Prompt => "Be helpful.",
+                Messages      => Messages,
+                Thinking      => Cases (Index).Level,
+                Handler       => null);
 
-            Stop_Server (Handle);
+            Srv.Stop;
+            Server_Stopped := True;
 
             Request := Load_Capture (Capture);
             Payload := Get_Object_Field (Request, "body");
@@ -579,7 +653,7 @@ package body LLM_Anthropic_Messages_Tests is
             if Cases (Index).Level = LLM.Providers.Off then
                Assert
                   (not Payload.Has_Field ("thinking"),
-             "Thinking field should be omitted when level is Off");
+                   "Thinking field should be omitted when level is Off");
             else
                declare
                   Thinking : constant GNATCOLL.JSON.JSON_Value :=
@@ -587,17 +661,19 @@ package body LLM_Anthropic_Messages_Tests is
                begin
                   Assert
                      (Get_String_Field (Thinking, "type") = "enabled",
-               "Thinking payload should enable Anthropic thinking");
+                      "Thinking payload should enable Anthropic thinking");
                   Assert
                      (Get_Natural_Field (Thinking, "budget_tokens")
-                 = Cases (Index).Expected,
-               "Thinking budget mismatch for case "
-               & Natural_Image (Index));
+                      = Cases (Index).Expected,
+                      "Thinking budget mismatch for case "
+                      & Natural_Image (Index));
                end;
             end if;
          exception
             when others =>
-               Stop_Server (Handle);
+               if not Server_Stopped then
+                  Srv.Stop;
+               end if;
                raise;
          end;
       end loop;
@@ -608,22 +684,34 @@ package body LLM_Anthropic_Messages_Tests is
    is
       pragma Unreferenced (T);
 
-      Port      : constant Positive := 18_789;
-      Capture   : constant String :=
+      Port     : constant Positive := 18_789;
+      Capture  : constant String :=
          "/tmp/coyote_anthropic_capture_compaction_summary.json";
-      Handle    : Process_Handle := Invalid_Handle;
-      Provider  : LLM.Providers.Anthropic_Messages.Provider :=
+      Provider : LLM.Providers.Anthropic_Messages.Provider :=
          LLM.Providers.Anthropic_Messages.Create
             (Base_Url => "http://127.0.0.1:18789",
              Api_Key  => "test-key");
-      Messages  : constant LLM.Types.Message_Vectors.Vector :=
+      Messages : constant LLM.Types.Message_Vectors.Vector :=
          Build_Compaction_Summary_Messages;
-      Request   : GNATCOLL.JSON.JSON_Value;
-      Payload   : GNATCOLL.JSON.JSON_Value;
+      Request  : GNATCOLL.JSON.JSON_Value;
+      Payload  : GNATCOLL.JSON.JSON_Value;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+      begin
+         Write_Capture (Req, Capture);
+         Res.Status := 200;
+         Append (Res.Body_Data, Anthropic_SSE_Payload);
+      end Handle_Request;
+
+      Server_Stopped : Boolean := False;
+      Srv            : Test_HTTP_Server.Server
+        (Handler => Handle_Request'Unrestricted_Access);
    begin
       Delete_If_Exists (Capture);
-      Handle := Spawn_Server (Anthropic_Server_Script (Port, Capture));
-      Wait_For_Server;
+      Srv.Bind (Port);
 
       Send_With_Retry
          (P             => Provider,
@@ -633,7 +721,8 @@ package body LLM_Anthropic_Messages_Tests is
           Thinking      => LLM.Providers.Off,
           Handler       => null);
 
-      Stop_Server (Handle);
+      Srv.Stop;
+      Server_Stopped := True;
 
       Request := Load_Capture (Capture);
       Payload := Get_Object_Field (Request, "body");
@@ -668,189 +757,16 @@ package body LLM_Anthropic_Messages_Tests is
       end;
    exception
       when others =>
-         Stop_Server (Handle);
+         if not Server_Stopped then
+            Srv.Stop;
+         end if;
          raise;
    end Test_Compaction_Summary_Encodes_As_User_Anthropic;
-
-   function Tool_Use_Server_Script (Port : Positive) return String is
-   begin
-      return
-         "import http.server, json" & ASCII.LF
-         & "events = [" & ASCII.LF
-         & "    ('message_start', {'type': 'message_start', 'message': {"
-         & "'id': 'msg_tool', 'type': 'message', 'role': 'assistant',"
-         & " 'content': [], 'usage': {'input_tokens': 9,"
-         & " 'output_tokens': 0}}})," & ASCII.LF
-         & "    ('content_block_start', {'type': 'content_block_start',"
-         & " 'index': 0, 'content_block': {'type': 'tool_use',"
-         & " 'id': 'tool_1', 'name': 'read'}})," & ASCII.LF
-         & "    ('content_block_delta', {'type': 'content_block_delta',"
-         & " 'index': 0, 'delta': {'type': 'input_json_delta',"
-         & " 'partial_json': '{""path"":""tool'}})," & ASCII.LF
-         & "    ('content_block_delta', {'type': 'content_block_delta',"
-         & " 'index': 0, 'delta': {'type': 'input_json_delta',"
-         & " 'partial_json': '-input.adb""}'}})," & ASCII.LF
-         & "    ('content_block_stop', {'type': 'content_block_stop',"
-         & " 'index': 0})," & ASCII.LF
-         & "    ('message_delta', {'type': 'message_delta', 'delta': {"
-         & "'stop_reason': 'tool_use'}, 'usage': {'output_tokens': 5}}),"
-         & ASCII.LF
-         & "    ('message_stop', {'type': 'message_stop'})]" & ASCII.LF
-         & "payload = ''.join(" & ASCII.LF
-         & "    'event: ' + name + '\n' + 'data: ' + json.dumps(data)"
-         & " + '\n\n' for name, data in events).encode()" & ASCII.LF
-         & "class S(http.server.HTTPServer):" & ASCII.LF
-         & "    allow_reuse_address = True" & ASCII.LF
-         & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
-         & "    def do_POST(self):" & ASCII.LF
-         & "        try:" & ASCII.LF
-         & "            n = int(self.headers.get('Content-Length', '0'))"
-         & ASCII.LF
-         & "            body = json.loads(self.rfile.read(n))" & ASCII.LF
-         & "            assert self.path == '/v1/messages'" & ASCII.LF
-         & "            assert len(body['tools']) == 1" & ASCII.LF
-         & "            self.send_response(200)" & ASCII.LF
-         & "            self.send_header('Content-Type', 'text/event-stream')"
-         & ASCII.LF
-         & "            self.send_header('Content-Length', str(len(payload)))"
-         & ASCII.LF
-         & "            self.end_headers()" & ASCII.LF
-         & "            self.wfile.write(payload)" & ASCII.LF
-         & "            self.wfile.flush()" & ASCII.LF
-         & "        except Exception as exc:" & ASCII.LF
-         & "            self.send_response(500)" & ASCII.LF
-         & "            self.send_header('Content-Type', 'text/plain')"
-         & ASCII.LF
-         & "            self.end_headers()" & ASCII.LF
-         & "            self.wfile.write(str(exc).encode())" & ASCII.LF
-         & "    def log_message(self, *a): pass" & ASCII.LF
-         & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
-         & ASCII.LF
-         & "s.timeout = 5" & ASCII.LF
-         & "s.handle_request()" & ASCII.LF
-         & "s.server_close()" & ASCII.LF;
-   end Tool_Use_Server_Script;
-
-   function Stop_Reason_Server_Script
-      (Port        : Positive;
-       Stop_Reason : String) return String
-   is
-   begin
-      return
-         "import http.server, json" & ASCII.LF
-         & "events = [" & ASCII.LF
-         & "    ('message_start', {'type': 'message_start', 'message': {"
-         & "'id': 'msg_stop', 'type': 'message', 'role': 'assistant',"
-         & " 'content': [], 'usage': {'input_tokens': 7,"
-         & " 'output_tokens': 0}}})," & ASCII.LF
-         & "    ('content_block_start', {'type': 'content_block_start',"
-         & " 'index': 0, 'content_block': {'type': 'text'}})," & ASCII.LF
-         & "    ('content_block_delta', {'type': 'content_block_delta',"
-         & " 'index': 0, 'delta': {'type': 'text_delta', 'text': 'Hi'}}),"
-         & ASCII.LF
-         & "    ('content_block_stop', {'type': 'content_block_stop',"
-         & " 'index': 0})," & ASCII.LF
-         & "    ('message_delta', {'type': 'message_delta', 'delta': {"
-         & "'stop_reason': '" & Stop_Reason & "'},"
-         & " 'usage': {'output_tokens': 2}})," & ASCII.LF
-         & "    ('message_stop', {'type': 'message_stop'})]" & ASCII.LF
-         & "payload = ''.join(" & ASCII.LF
-         & "    'event: ' + name + '\n' + 'data: ' + json.dumps(data)"
-         & " + '\n\n' for name, data in events).encode()" & ASCII.LF
-         & "class S(http.server.HTTPServer):" & ASCII.LF
-         & "    allow_reuse_address = True" & ASCII.LF
-         & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
-         & "    def do_POST(self):" & ASCII.LF
-         & "        try:" & ASCII.LF
-         & "            self.send_response(200)" & ASCII.LF
-         & "            self.send_header('Content-Type', 'text/event-stream')"
-         & ASCII.LF
-         & "            self.send_header('Content-Length', str(len(payload)))"
-         & ASCII.LF
-         & "            self.end_headers()" & ASCII.LF
-         & "            self.wfile.write(payload)" & ASCII.LF
-         & "            self.wfile.flush()" & ASCII.LF
-         & "        except Exception as exc:" & ASCII.LF
-         & "            self.send_response(500)" & ASCII.LF
-         & "            self.send_header('Content-Type', 'text/plain')"
-         & ASCII.LF
-         & "            self.end_headers()" & ASCII.LF
-         & "            self.wfile.write(str(exc).encode())" & ASCII.LF
-         & "    def log_message(self, *a): pass" & ASCII.LF
-         & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
-         & ASCII.LF
-         & "s.timeout = 5" & ASCII.LF
-         & "s.handle_request()" & ASCII.LF
-         & "s.server_close()" & ASCII.LF;
-   end Stop_Reason_Server_Script;
-
-   function HTTP_Error_Server_Script (Port : Positive) return String is
-   begin
-      return
-         "import http.server" & ASCII.LF
-         & "payload = b'{""error"":""internal""}'" & ASCII.LF
-         & "class S(http.server.HTTPServer):" & ASCII.LF
-         & "    allow_reuse_address = True" & ASCII.LF
-         & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
-         & "    def do_POST(self):" & ASCII.LF
-         & "        self.send_response(500)" & ASCII.LF
-         & "        self.send_header('Content-Type', 'application/json')"
-         & ASCII.LF
-         & "        self.send_header('Content-Length', str(len(payload)))"
-         & ASCII.LF
-         & "        self.end_headers()" & ASCII.LF
-         & "        self.wfile.write(payload)" & ASCII.LF
-         & "        self.wfile.flush()" & ASCII.LF
-         & "    def log_message(self, *a): pass" & ASCII.LF
-         & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
-         & ASCII.LF
-         & "s.timeout = 5" & ASCII.LF
-         & "s.handle_request()" & ASCII.LF
-         & "s.server_close()" & ASCII.LF;
-   end HTTP_Error_Server_Script;
-
-   function Early_Close_Server_Script (Port : Positive) return String is
-   begin
-      return
-         "import http.server, json" & ASCII.LF
-         & "events = [" & ASCII.LF
-         & "    ('message_start', {'type': 'message_start', 'message': {"
-         & "'id': 'msg_early', 'type': 'message', 'role': 'assistant',"
-         & " 'content': [], 'usage': {'input_tokens': 4,"
-         & " 'output_tokens': 0}}})," & ASCII.LF
-         & "    ('content_block_start', {'type': 'content_block_start',"
-         & " 'index': 0, 'content_block': {'type': 'text'}})," & ASCII.LF
-         & "    ('content_block_delta', {'type': 'content_block_delta',"
-         & " 'index': 0, 'delta': {'type': 'text_delta',"
-         & " 'text': 'partial'}})]" & ASCII.LF
-         & "payload = ''.join(" & ASCII.LF
-         & "    'event: ' + name + '\n' + 'data: ' + json.dumps(data)"
-         & " + '\n\n' for name, data in events).encode()" & ASCII.LF
-         & "class S(http.server.HTTPServer):" & ASCII.LF
-         & "    allow_reuse_address = True" & ASCII.LF
-         & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
-         & "    def do_POST(self):" & ASCII.LF
-         & "        self.send_response(200)" & ASCII.LF
-         & "        self.send_header('Content-Type', 'text/event-stream')"
-         & ASCII.LF
-         & "        self.send_header('Content-Length', str(len(payload)))"
-         & ASCII.LF
-         & "        self.end_headers()" & ASCII.LF
-         & "        self.wfile.write(payload)" & ASCII.LF
-         & "        self.wfile.flush()" & ASCII.LF
-         & "    def log_message(self, *a): pass" & ASCII.LF
-         & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
-         & ASCII.LF
-         & "s.timeout = 5" & ASCII.LF
-         & "s.handle_request()" & ASCII.LF
-         & "s.server_close()" & ASCII.LF;
-   end Early_Close_Server_Script;
 
    procedure Test_Stream_Tool_Use_Response (T : in out Test) is
       pragma Unreferenced (T);
 
       Port      : constant Positive := 18_790;
-      Handle    : Process_Handle := Invalid_Handle;
       Provider  : LLM.Providers.Anthropic_Messages.Provider :=
          LLM.Providers.Anthropic_Messages.Create
             (Base_Url => "http://127.0.0.1:18790",
@@ -893,9 +809,22 @@ package body LLM_Anthropic_Messages_Tests is
             Last_Stop := LLM.Events.Message_End_Event (E).Stop;
          end if;
       end On_Event;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Res.Status := 200;
+         Append (Res.Body_Data, Tool_Use_SSE_Payload);
+      end Handle_Request;
+
+      Server_Stopped : Boolean := False;
+      Srv            : Test_HTTP_Server.Server
+        (Handler => Handle_Request'Unrestricted_Access);
    begin
-      Handle := Spawn_Server (Tool_Use_Server_Script (Port));
-      Wait_For_Server;
+      Srv.Bind (Port);
 
       Retry_Loop :
       for Attempt in 1 .. 20 loop
@@ -919,7 +848,8 @@ package body LLM_Anthropic_Messages_Tests is
          end;
       end loop Retry_Loop;
 
-      Stop_Server (Handle);
+      Srv.Stop;
+      Server_Stopped := True;
 
       Assert
          (Sequence.Find_Index ("tool_call_start:tool_1:read") > 0,
@@ -940,7 +870,9 @@ package body LLM_Anthropic_Messages_Tests is
           "Anthropic tool_use should map to Tool_Use");
    exception
       when others =>
-         Stop_Server (Handle);
+         if not Server_Stopped then
+            Srv.Stop;
+         end if;
          raise;
    end Test_Stream_Tool_Use_Response;
 
@@ -948,9 +880,9 @@ package body LLM_Anthropic_Messages_Tests is
       pragma Unreferenced (T);
 
       type Stop_Case is record
-         Port         : Positive;
-         Stop_Reason  : String (1 .. 10);
-         Expected     : LLM.Types.Stop_Reason;
+         Port        : Positive;
+         Stop_Reason : String (1 .. 10);
+         Expected    : LLM.Types.Stop_Reason;
       end record;
 
       Cases : constant array (Positive range 1 .. 2) of Stop_Case :=
@@ -964,13 +896,47 @@ package body LLM_Anthropic_Messages_Tests is
    begin
       for Case_Item of Cases loop
          declare
-            Handle    : Process_Handle := Invalid_Handle;
-            Provider  : LLM.Providers.Anthropic_Messages.Provider :=
+            Provider : LLM.Providers.Anthropic_Messages.Provider :=
                LLM.Providers.Anthropic_Messages.Create
                   (Base_Url => "http://127.0.0.1:"
                    & Natural_Image (Case_Item.Port),
                    Api_Key  => "test-key");
             Last_Stop : LLM.Types.Stop_Reason := LLM.Types.Unknown_Stop;
+            Reason    : constant String :=
+               Ada.Strings.Fixed.Trim
+                  (Case_Item.Stop_Reason, Ada.Strings.Both);
+            --  Build an SSE payload with the parameterised stop reason
+            --  embedded in the message_delta event.
+            Stop_Payload : constant String :=
+               "event: message_start" & ASCII.LF
+               & "data: {""type"":""message_start"","
+               & """message"":{""id"":""msg_stop"","
+               & """type"":""message"",""role"":""assistant"","
+               & """content"":[],""usage"":"
+               & "{""input_tokens"":7,""output_tokens"":0}}}"
+               & ASCII.LF & ASCII.LF
+               & "event: content_block_start" & ASCII.LF
+               & "data: {""type"":""content_block_start"","
+               & """index"":0,""content_block"":{""type"":""text""}}"
+               & ASCII.LF & ASCII.LF
+               & "event: content_block_delta" & ASCII.LF
+               & "data: {""type"":""content_block_delta"","
+               & """index"":0,""delta"":"
+               & "{""type"":""text_delta"",""text"":""Hi""}}"
+               & ASCII.LF & ASCII.LF
+               & "event: content_block_stop" & ASCII.LF
+               & "data: {""type"":""content_block_stop"","
+               & """index"":0}"
+               & ASCII.LF & ASCII.LF
+               & "event: message_delta" & ASCII.LF
+               & "data: {""type"":""message_delta"","
+               & """delta"":{""stop_reason"":"""
+               & Reason
+               & """},""usage"":{""output_tokens"":2}}"
+               & ASCII.LF & ASCII.LF
+               & "event: message_stop" & ASCII.LF
+               & "data: {""type"":""message_stop""}"
+               & ASCII.LF & ASCII.LF;
 
             procedure On_Event (E : LLM.Events.Agent_Event'Class) is
             begin
@@ -978,13 +944,22 @@ package body LLM_Anthropic_Messages_Tests is
                   Last_Stop := LLM.Events.Message_End_Event (E).Stop;
                end if;
             end On_Event;
+
+            procedure Handle_Request
+              (Req :     Test_HTTP_Server.Request;
+               Res : out Test_HTTP_Server.Response)
+            is
+               pragma Unreferenced (Req);
+            begin
+               Res.Status := 200;
+               Append (Res.Body_Data, Stop_Payload);
+            end Handle_Request;
+
+            Server_Stopped : Boolean := False;
+            Srv            : Test_HTTP_Server.Server
+              (Handler => Handle_Request'Unrestricted_Access);
          begin
-            Handle := Spawn_Server
-               (Stop_Reason_Server_Script
-                  (Port        => Case_Item.Port,
-                   Stop_Reason => Ada.Strings.Fixed.Trim
-                     (Case_Item.Stop_Reason, Ada.Strings.Both)));
-            Wait_For_Server;
+            Srv.Bind (Case_Item.Port);
 
             Send_With_Retry
                (P             => Provider,
@@ -994,17 +969,17 @@ package body LLM_Anthropic_Messages_Tests is
                 Thinking      => LLM.Providers.Off,
                 Handler       => On_Event'Unrestricted_Access);
 
-            Stop_Server (Handle);
+            Srv.Stop;
+            Server_Stopped := True;
 
             Assert
                (Last_Stop = Case_Item.Expected,
-                "Stop reason "
-                & Ada.Strings.Fixed.Trim
-                    (Case_Item.Stop_Reason, Ada.Strings.Both)
-                & " should map correctly");
+                "Stop reason " & Reason & " should map correctly");
          exception
             when others =>
-               Stop_Server (Handle);
+               if not Server_Stopped then
+                  Srv.Stop;
+               end if;
                raise;
          end;
       end loop;
@@ -1013,24 +988,36 @@ package body LLM_Anthropic_Messages_Tests is
    procedure Test_Anthropic_Uses_X_Api_Key_Header (T : in out Test) is
       pragma Unreferenced (T);
 
-      Port      : constant Positive := 18_793;
-      Capture   : constant String :=
+      Port     : constant Positive := 18_793;
+      Capture  : constant String :=
          "/tmp/coyote_anthropic_capture_x_api_key.json";
-      Handle    : Process_Handle := Invalid_Handle;
-      --  The provider currently keys off any Base_Url containing the
-      --  anthropic.com substring, so a loopback path component exercises the
-      --  x-api-key branch without depending on external DNS.
-      Provider  : LLM.Providers.Anthropic_Messages.Provider :=
+      --  The provider keys off any Base_Url containing the anthropic.com
+      --  substring, so a loopback path component exercises the x-api-key
+      --  branch without depending on external DNS.
+      Provider : LLM.Providers.Anthropic_Messages.Provider :=
          LLM.Providers.Anthropic_Messages.Create
             (Base_Url => "http://127.0.0.1:18793/anthropic.com",
              Api_Key  => "test-key");
-      Messages  : constant LLM.Types.Message_Vectors.Vector := Build_Messages;
-      Request   : GNATCOLL.JSON.JSON_Value;
-      Headers   : GNATCOLL.JSON.JSON_Value;
+      Messages : constant LLM.Types.Message_Vectors.Vector := Build_Messages;
+      Request  : GNATCOLL.JSON.JSON_Value;
+      Headers  : GNATCOLL.JSON.JSON_Value;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+      begin
+         Write_Capture (Req, Capture);
+         Res.Status := 200;
+         Append (Res.Body_Data, Anthropic_SSE_Payload);
+      end Handle_Request;
+
+      Server_Stopped : Boolean := False;
+      Srv            : Test_HTTP_Server.Server
+        (Handler => Handle_Request'Unrestricted_Access);
    begin
       Delete_If_Exists (Capture);
-      Handle := Spawn_Server (Anthropic_Server_Script (Port, Capture));
-      Wait_For_Server;
+      Srv.Bind (Port);
 
       Send_With_Retry
          (P             => Provider,
@@ -1040,7 +1027,8 @@ package body LLM_Anthropic_Messages_Tests is
           Thinking      => LLM.Providers.Off,
           Handler       => null);
 
-      Stop_Server (Handle);
+      Srv.Stop;
+      Server_Stopped := True;
 
       Request := Load_Capture (Capture);
       Headers := Get_Object_Field (Request, "headers");
@@ -1053,7 +1041,9 @@ package body LLM_Anthropic_Messages_Tests is
           "Anthropic direct-style URLs should omit Authorization: Bearer");
    exception
       when others =>
-         Stop_Server (Handle);
+         if not Server_Stopped then
+            Srv.Stop;
+         end if;
          raise;
    end Test_Anthropic_Uses_X_Api_Key_Header;
 
@@ -1061,7 +1051,6 @@ package body LLM_Anthropic_Messages_Tests is
       pragma Unreferenced (T);
 
       Port          : constant Positive := 18_794;
-      Handle        : Process_Handle := Invalid_Handle;
       Provider      : LLM.Providers.Anthropic_Messages.Provider :=
          LLM.Providers.Anthropic_Messages.Create
             (Base_Url => "http://127.0.0.1:18794",
@@ -1070,10 +1059,23 @@ package body LLM_Anthropic_Messages_Tests is
          Build_Messages;
       Raised        : Boolean := False;
       Error_Message : Unbounded_String;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Res.Status := 500;
+         Append (Res.Body_Data, "{""error"":""internal""}");
+      end Handle_Request;
+
+      Server_Stopped : Boolean := False;
+      Srv            : Test_HTTP_Server.Server
+        (Handler => Handle_Request'Unrestricted_Access);
    begin
       Reset_Collector;
-      Handle := Spawn_Server (HTTP_Error_Server_Script (Port));
-      Wait_For_Server;
+      Srv.Bind (Port);
 
       begin
          Send_With_Retry
@@ -1090,11 +1092,13 @@ package body LLM_Anthropic_Messages_Tests is
                (Ada.Exceptions.Exception_Message (Error));
       end;
 
-      Stop_Server (Handle);
+      Srv.Stop;
+      Server_Stopped := True;
 
       Assert (Raised, "Anthropic HTTP 500 should propagate as an exception");
       Assert
-         (Ada.Strings.Fixed.Index (To_String (Error_Message), "HTTP 500") > 0,
+         (Ada.Strings.Fixed.Index
+             (To_String (Error_Message), "HTTP 500") > 0,
           "Anthropic HTTP errors should include the status code");
       Assert
          (Current_Collector.Sequence.Length = 2,
@@ -1108,24 +1112,38 @@ package body LLM_Anthropic_Messages_Tests is
           "Anthropic HTTP errors should still emit Agent_End_Event");
    exception
       when others =>
-         Stop_Server (Handle);
+         if not Server_Stopped then
+            Srv.Stop;
+         end if;
          raise;
    end Test_Anthropic_HTTP_Error_Propagates;
 
    procedure Test_Anthropic_Stream_Terminates_Early (T : in out Test) is
       pragma Unreferenced (T);
 
-      Port      : constant Positive := 18_795;
-      Handle    : Process_Handle := Invalid_Handle;
-      Provider  : LLM.Providers.Anthropic_Messages.Provider :=
+      Port     : constant Positive := 18_795;
+      Provider : LLM.Providers.Anthropic_Messages.Provider :=
          LLM.Providers.Anthropic_Messages.Create
             (Base_Url => "http://127.0.0.1:18795",
              Api_Key  => "test-key");
-      Messages  : constant LLM.Types.Message_Vectors.Vector := Build_Messages;
+      Messages : constant LLM.Types.Message_Vectors.Vector := Build_Messages;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Res.Status := 200;
+         Append (Res.Body_Data, Early_Close_SSE_Payload);
+      end Handle_Request;
+
+      Server_Stopped : Boolean := False;
+      Srv            : Test_HTTP_Server.Server
+        (Handler => Handle_Request'Unrestricted_Access);
    begin
       Reset_Collector;
-      Handle := Spawn_Server (Early_Close_Server_Script (Port));
-      Wait_For_Server;
+      Srv.Bind (Port);
 
       Send_With_Retry
          (P             => Provider,
@@ -1135,7 +1153,8 @@ package body LLM_Anthropic_Messages_Tests is
           Thinking      => LLM.Providers.Off,
           Handler       => On_Event'Access);
 
-      Stop_Server (Handle);
+      Srv.Stop;
+      Server_Stopped := True;
 
       Assert
          (Current_Collector.Sequence.Find_Index ("text_delta:partial") > 0,
@@ -1155,7 +1174,9 @@ package body LLM_Anthropic_Messages_Tests is
           & Sequence_Image);
    exception
       when others =>
-         Stop_Server (Handle);
+         if not Server_Stopped then
+            Srv.Stop;
+         end if;
          raise;
    end Test_Anthropic_Stream_Terminates_Early;
 
