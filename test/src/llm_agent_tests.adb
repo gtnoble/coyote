@@ -8,7 +8,7 @@ with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with GNATCOLL.JSON;
-with GNATCOLL.OS.Process; use GNATCOLL.OS.Process;
+with Test_HTTP_Server;
 with LLM.Agent;
 with LLM.Agent.Testing;
 with LLM.Events;
@@ -103,11 +103,6 @@ package body LLM_Agent_Tests is
 
       return No_Event_Index;
    end First_Event_Index;
-
-   function C_Kill
-     (Process_Id : Integer;
-      Signal     : Integer) return Integer
-     with Import, Convention => C, External_Name => "kill";
 
    function Current_Unix_S return Long_Long_Integer is
       use Ada.Calendar;
@@ -317,52 +312,86 @@ package body LLM_Agent_Tests is
           Value => To_Unbounded_String ("text/event-stream")));
    end Add_SSE_Header;
 
+   type Tool_Call_Definition is record
+      Tool_Call_Id   : Unbounded_String;
+      Tool_Name      : Unbounded_String;
+      Arguments_Json : Unbounded_String;
+   end record;
 
+   type Tool_Call_Definition_Array is
+     array (Positive range <>) of Tool_Call_Definition;
 
-
-
-
-
-
-   function Spawn_Server (Script : String) return Process_Handle is
-      Args : Argument_List;
+   function Tool_Call_Def
+     (Tool_Call_Id   : String;
+      Tool_Name      : String;
+      Arguments_Json : String) return Tool_Call_Definition
+   is
    begin
-      Args.Append ("python3");
-      Args.Append ("-u");
-      Args.Append ("-c");
-      Args.Append (Script);
-      return Start (Args => Args);
-   end Spawn_Server;
+      return
+        (Tool_Call_Id   => To_Unbounded_String (Tool_Call_Id),
+         Tool_Name      => To_Unbounded_String (Tool_Name),
+         Arguments_Json => To_Unbounded_String (Arguments_Json));
+   end Tool_Call_Def;
 
-   procedure Wait_For_Server is
+   function Tool_Call_SSE_Payload
+     (Calls             : Tool_Call_Definition_Array;
+      Prompt_Tokens     : Natural := 12;
+      Completion_Tokens : Natural := 6) return String
+   is
+      use GNATCOLL.JSON;
+
+      Start_Event  : constant JSON_Value := Create_Object;
+      Start_Choice : constant JSON_Value := Create_Object;
+      Start_Delta  : constant JSON_Value := Create_Object;
+      Start_Calls  : JSON_Array          := Empty_Array;
+      End_Event    : constant JSON_Value := Create_Object;
+      End_Choice   : constant JSON_Value := Create_Object;
+      End_Delta    : constant JSON_Value := Create_Object;
+      End_Usage    : constant JSON_Value := Create_Object;
+      Choices      : JSON_Array          := Empty_Array;
    begin
-      delay 2.0;
-   end Wait_For_Server;
+      for I in Calls'Range loop
+         declare
+            Tool_Call      : constant JSON_Value := Create_Object;
+            Function_Value : constant JSON_Value := Create_Object;
+         begin
+            Tool_Call.Set_Field ("index", Integer (I - Calls'First));
+            Tool_Call.Set_Field
+              ("id", To_String (Calls (I).Tool_Call_Id));
+            Tool_Call.Set_Field ("type", "function");
+            Function_Value.Set_Field
+              ("name", To_String (Calls (I).Tool_Name));
+            Function_Value.Set_Field
+              ("arguments", To_String (Calls (I).Arguments_Json));
+            Tool_Call.Set_Field ("function", Function_Value);
+            Append (Start_Calls, Tool_Call);
+         end;
+      end loop;
 
-   procedure Stop_Server (Handle : in out Process_Handle) is
-      Dummy : Integer;
-      pragma Unreferenced (Dummy);
-   begin
-      if Handle = Invalid_Handle then
-         return;
-      end if;
+      Start_Delta.Set_Field ("tool_calls", Start_Calls);
+      Start_Choice.Set_Field ("delta", Start_Delta);
+      Start_Choice.Set_Field ("finish_reason", JSON_Null);
+      Append (Choices, Start_Choice);
+      Start_Event.Set_Field ("choices", Choices);
 
-      if State (Handle) = RUNNING then
-         Dummy := C_Kill (Integer (Handle), 15);
-      end if;
+      Choices := Empty_Array;
+      End_Choice.Set_Field ("delta", End_Delta);
+      End_Choice.Set_Field ("finish_reason", "tool_calls");
+      Append (Choices, End_Choice);
+      End_Event.Set_Field ("choices", Choices);
+      End_Usage.Set_Field ("prompt_tokens", Integer (Prompt_Tokens));
+      End_Usage.Set_Field
+        ("completion_tokens", Integer (Completion_Tokens));
+      End_Event.Set_Field ("usage", End_Usage);
 
-      declare
-         Exit_Code : constant Integer := Wait (Handle);
-         pragma Unreferenced (Exit_Code);
-      begin
-         null;
-      end;
-
-      Handle := Invalid_Handle;
-   exception
-      when others =>
-         Handle := Invalid_Handle;
-   end Stop_Server;
+      return
+        "data: " & Write (Start_Event)
+        & ASCII.LF & ASCII.LF
+        & "data: " & Write (End_Event)
+        & ASCII.LF & ASCII.LF
+        & "data: [DONE]"
+        & ASCII.LF & ASCII.LF;
+   end Tool_Call_SSE_Payload;
 
    function Assistant_Text (Msg : LLM.Types.Message) return String is
       Result : Unbounded_String;
@@ -416,626 +445,6 @@ package body LLM_Agent_Tests is
 
 
 
-   function Tool_Call_Server_Script (Port : Positive) return String is
-   begin
-      return
-        "import http.server, json" & ASCII.LF
-        & "class S(http.server.HTTPServer):" & ASCII.LF
-        & "    allow_reuse_address = True" & ASCII.LF
-        & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
-        & "    count = 0" & ASCII.LF
-        & "    def do_POST(self):" & ASCII.LF
-        & "        try:" & ASCII.LF
-        & "            H.count += 1" & ASCII.LF
-        & "            assert self.path == '/api/v1/chat/completions'"
-        & ASCII.LF
-        & "            assert self.headers['Authorization'] == "
-        & "'Bearer test-key'" & ASCII.LF
-        & "            n = int(self.headers.get('Content-Length', '0'))"
-        & ASCII.LF
-        & "            body = json.loads(self.rfile.read(n))" & ASCII.LF
-        & "            msgs = [m for m in body['messages']"
-        & " if m.get('role') != 'system']" & ASCII.LF
-        & "            assert body['model'] == 'openai/gpt-4o-mini'"
-        & ASCII.LF
-        & "            if H.count == 1:" & ASCII.LF
-        & "                assert len(msgs) == 1" & ASCII.LF
-        & "                assert msgs[0]['content'] == "
-        & "'Use a tool'" & ASCII.LF
-        & "                assert len(body['tools']) > 0" & ASCII.LF
-        & "                events = [" & ASCII.LF
-        & "                    {'choices': [{'delta': {'tool_calls': ["
-        & "{'index': 0, 'id': 'call_1', 'type': 'function',"
-        & " 'function': {'name': 'bash', 'arguments': "
-        & "'{""command"":""echo tool-ok""}'}}]},"
-        & " 'finish_reason': None}]}," & ASCII.LF
-        & "                    {'choices': [{'delta': {}, 'finish_reason':"
-        & " 'tool_calls'}], 'usage': {'prompt_tokens': 12,"
-        & " 'completion_tokens': 6}}]" & ASCII.LF
-        & "            else:" & ASCII.LF
-        & "                assert len(msgs) == 3" & ASCII.LF
-        & "                assert msgs[1]['tool_calls'][0]['id']"
-        & " == 'call_1'" & ASCII.LF
-        & "                assert msgs[2]['role'] == 'tool'"
-        & ASCII.LF
-        & "                assert 'tool-ok' in msgs[2]['content']"
-        & ASCII.LF
-        & "                events = [" & ASCII.LF
-        & "                    {'choices': [{'delta': {'content': 'Done'},"
-        & " 'finish_reason': None}]}," & ASCII.LF
-        & "                    {'choices': [{'delta': {}, 'finish_reason':"
-        & " 'stop'}], 'usage': {'prompt_tokens': 20,"
-        & " 'completion_tokens': 4}}]" & ASCII.LF
-        & "            payload = ''.join(" & ASCII.LF
-        & "                'data: ' + json.dumps(event) + '\n\n'"
-        & ASCII.LF
-        & "                for event in events).encode()" & ASCII.LF
-        & "            payload += b'data: [DONE]\n\n'" & ASCII.LF
-        & "            self.send_response(200)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/event-stream')"
-        & ASCII.LF
-        & "            self.send_header('Content-Length', str(len(payload)))"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(payload)" & ASCII.LF
-        & "            self.wfile.flush()" & ASCII.LF
-        & "        except Exception as exc:" & ASCII.LF
-        & "            self.send_response(500)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/plain')"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(str(exc).encode())" & ASCII.LF
-        & "    def log_message(self, *a): pass" & ASCII.LF
-        & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
-        & ASCII.LF
-        & "s.timeout = 5" & ASCII.LF
-        & "s.handle_request()" & ASCII.LF
-        & "s.handle_request()" & ASCII.LF
-        & "s.server_close()" & ASCII.LF;
-   end Tool_Call_Server_Script;
-
-   function Two_Tool_Call_Server_Script (Port : Positive) return String is
-   begin
-      return
-        "import http.server, json" & ASCII.LF
-        & "class S(http.server.HTTPServer):" & ASCII.LF
-        & "    allow_reuse_address = True" & ASCII.LF
-        & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
-        & "    def do_POST(self):" & ASCII.LF
-        & "        try:" & ASCII.LF
-        & "            assert self.path == '/api/v1/chat/completions'"
-        & ASCII.LF
-        & "            assert self.headers['Authorization'] == "
-        & "'Bearer test-key'" & ASCII.LF
-        & "            n = int(self.headers.get('Content-Length', '0'))"
-        & ASCII.LF
-        & "            body = json.loads(self.rfile.read(n))" & ASCII.LF
-        & "            msgs = [m for m in body['messages']"
-        & " if m.get('role') != 'system']" & ASCII.LF
-        & "            assert body['model'] == 'openai/gpt-4o-mini'"
-        & ASCII.LF
-        & "            assert len(msgs) == 1" & ASCII.LF
-        & "            assert msgs[0]['role'] == 'user'"
-        & ASCII.LF
-        & "            assert msgs[0]['content'] == "
-        & "'Use two tools'" & ASCII.LF
-        & "            assert len(body['tools']) > 0" & ASCII.LF
-        & "            events = [" & ASCII.LF
-        & "                {'choices': [{'delta': {'tool_calls': ["
-        & "{'index': 0, 'id': 'call_1', 'type': 'function',"
-        & " 'function': {'name': 'bash', 'arguments': "
-        & "'{""command"":""printf first-ok""}'}},"
-        & " {'index': 1, 'id': 'call_2', 'type': 'function',"
-        & " 'function': {'name': 'bash', 'arguments': "
-        & "'{""command"":""printf second-ok""}'}}]},"
-        & " 'finish_reason': None}]}," & ASCII.LF
-        & "                {'choices': [{'delta': {}, 'finish_reason':"
-        & " 'tool_calls'}], 'usage': {'prompt_tokens': 14,"
-        & " 'completion_tokens': 7}}]" & ASCII.LF
-        & "            payload = ''.join(" & ASCII.LF
-        & "                'data: ' + json.dumps(event) + '\n\n'"
-        & ASCII.LF
-        & "                for event in events).encode()" & ASCII.LF
-        & "            payload += b'data: [DONE]\n\n'" & ASCII.LF
-        & "            self.send_response(200)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/event-stream')"
-        & ASCII.LF
-        & "            self.send_header('Content-Length', str(len(payload)))"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(payload)" & ASCII.LF
-        & "            self.wfile.flush()" & ASCII.LF
-        & "        except Exception as exc:" & ASCII.LF
-        & "            self.send_response(500)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/plain')"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(str(exc).encode())" & ASCII.LF
-        & "    def log_message(self, *a): pass" & ASCII.LF
-        & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
-        & ASCII.LF
-        & "s.timeout = 5" & ASCII.LF
-        & "s.handle_request()" & ASCII.LF
-        & "s.server_close()" & ASCII.LF;
-   end Two_Tool_Call_Server_Script;
-
-   function Two_Tool_Loop_Server_Script (Port : Positive) return String is
-   begin
-      return
-        "import http.server, json" & ASCII.LF
-        & "class S(http.server.HTTPServer):" & ASCII.LF
-        & "    allow_reuse_address = True" & ASCII.LF
-        & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
-        & "    count = 0" & ASCII.LF
-        & "    def do_POST(self):" & ASCII.LF
-        & "        try:" & ASCII.LF
-        & "            H.count += 1" & ASCII.LF
-        & "            assert self.path == '/api/v1/chat/completions'"
-        & ASCII.LF
-        & "            assert self.headers['Authorization'] == "
-        & "'Bearer test-key'" & ASCII.LF
-        & "            n = int(self.headers.get('Content-Length', '0'))"
-        & ASCII.LF
-        & "            body = json.loads(self.rfile.read(n))" & ASCII.LF
-        & "            msgs = [m for m in body['messages']"
-        & " if m.get('role') != 'system']" & ASCII.LF
-        & "            assert body['model'] == 'openai/gpt-4o-mini'"
-        & ASCII.LF
-        & "            if H.count == 1:" & ASCII.LF
-        & "                assert len(msgs) == 1" & ASCII.LF
-        & "                assert msgs[0]['content'] == "
-        & "'Use two tools'" & ASCII.LF
-        & "                events = [" & ASCII.LF
-        & "                    {'choices': [{'delta': {'tool_calls': ["
-        & "{'index': 0, 'id': 'call_1', 'type': 'function',"
-        & " 'function': {'name': 'bash', 'arguments': "
-        & "'{""command"":""printf first-ok""}'}},"
-        & " {'index': 1, 'id': 'call_2', 'type': 'function',"
-        & " 'function': {'name': 'bash', 'arguments': "
-        & "'{""command"":""printf second-ok""}'}}]},"
-        & " 'finish_reason': None}]}," & ASCII.LF
-        & "                    {'choices': [{'delta': {}, 'finish_reason':"
-        & " 'tool_calls'}], 'usage': {'prompt_tokens': 14,"
-        & " 'completion_tokens': 7}}]" & ASCII.LF
-        & "            else:" & ASCII.LF
-        & "                assert len(msgs) == 4" & ASCII.LF
-        & "                assert msgs[1]['role'] == 'assistant'"
-        & ASCII.LF
-        & "                assert len(msgs[1]['tool_calls']) == 2"
-        & ASCII.LF
-        & "                assert msgs[2]['role'] == 'tool'"
-        & ASCII.LF
-        & "                assert msgs[2]['tool_call_id'] =="
-        & " 'call_1'" & ASCII.LF
-        & "                assert 'first-ok' in msgs[2]['content']"
-        & ASCII.LF
-        & "                assert msgs[3]['role'] == 'tool'"
-        & ASCII.LF
-        & "                assert msgs[3]['tool_call_id'] =="
-        & " 'call_2'" & ASCII.LF
-        & "                assert 'second-ok' in "
-        & "msgs[3]['content']" & ASCII.LF
-        & "                events = [" & ASCII.LF
-        & "                    {'choices': [{'delta': {'content': "
-        & "'All done'}, 'finish_reason': None}]}," & ASCII.LF
-        & "                    {'choices': [{'delta': {}, 'finish_reason':"
-        & " 'stop'}], 'usage': {'prompt_tokens': 24,"
-        & " 'completion_tokens': 5}}]" & ASCII.LF
-        & "            payload = ''.join(" & ASCII.LF
-        & "                'data: ' + json.dumps(event) + '\n\n'"
-        & ASCII.LF
-        & "                for event in events).encode()" & ASCII.LF
-        & "            payload += b'data: [DONE]\n\n'" & ASCII.LF
-        & "            self.send_response(200)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/event-stream')"
-        & ASCII.LF
-        & "            self.send_header('Content-Length', str(len(payload)))"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(payload)" & ASCII.LF
-        & "            self.wfile.flush()" & ASCII.LF
-        & "        except Exception as exc:" & ASCII.LF
-        & "            self.send_response(500)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/plain')"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(str(exc).encode())" & ASCII.LF
-        & "    def log_message(self, *a): pass" & ASCII.LF
-        & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
-        & ASCII.LF
-        & "s.timeout = 5" & ASCII.LF
-        & "s.handle_request()" & ASCII.LF
-        & "s.handle_request()" & ASCII.LF
-        & "s.server_close()" & ASCII.LF;
-   end Two_Tool_Loop_Server_Script;
-
-   function Tool_Failure_Server_Script (Port : Positive) return String is
-   begin
-      return
-        "import http.server, json" & ASCII.LF
-        & "class S(http.server.HTTPServer):" & ASCII.LF
-        & "    allow_reuse_address = True" & ASCII.LF
-        & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
-        & "    count = 0" & ASCII.LF
-        & "    def do_POST(self):" & ASCII.LF
-        & "        try:" & ASCII.LF
-        & "            H.count += 1" & ASCII.LF
-        & "            assert self.path == '/api/v1/chat/completions'"
-        & ASCII.LF
-        & "            n = int(self.headers.get('Content-Length', '0'))"
-        & ASCII.LF
-        & "            body = json.loads(self.rfile.read(n))" & ASCII.LF
-        & "            msgs = [m for m in body['messages']"
-        & " if m.get('role') != 'system']" & ASCII.LF
-        & "            assert body['model'] == 'openai/gpt-4o-mini'"
-        & ASCII.LF
-        & "            if H.count == 1:" & ASCII.LF
-        & "                assert len(msgs) == 1" & ASCII.LF
-        & "                assert msgs[0]['content'] == "
-        & "'Use failing tool'" & ASCII.LF
-        & "                events = [" & ASCII.LF
-        & "                    {'choices': [{'delta': {'tool_calls': ["
-        & "{'index': 0, 'id': 'call_1', 'type': 'function',"
-        & " 'function': {'name': 'read', 'arguments': "
-        & "'{""path"":""/tmp/coyote_missing_tool_input_"
-        & Natural_Image (Port)
-        & ".txt""}'}}]},"
-        & " 'finish_reason': None}]}," & ASCII.LF
-        & "                    {'choices': [{'delta': {}, 'finish_reason':"
-        & " 'tool_calls'}], 'usage': {'prompt_tokens': 12,"
-        & " 'completion_tokens': 6}}]" & ASCII.LF
-        & "            else:" & ASCII.LF
-        & "                assert len(msgs) == 3" & ASCII.LF
-        & "                assert msgs[2]['role'] == 'tool'"
-        & ASCII.LF
-        & "                assert msgs[2]['tool_call_id'] =="
-        & " 'call_1'" & ASCII.LF
-        & "                assert 'file not found' in"
-        & " msgs[2]['content']" & ASCII.LF
-        & "                events = [" & ASCII.LF
-        & "                    {'choices': [{'delta': {'content': "
-        & "'Handled failure'}, 'finish_reason': None}]}," & ASCII.LF
-        & "                    {'choices': [{'delta': {}, 'finish_reason':"
-        & " 'stop'}], 'usage': {'prompt_tokens': 18,"
-        & " 'completion_tokens': 4}}]" & ASCII.LF
-        & "            payload = ''.join(" & ASCII.LF
-        & "                'data: ' + json.dumps(event) + '\n\n'"
-        & ASCII.LF
-        & "                for event in events).encode()" & ASCII.LF
-        & "            payload += b'data: [DONE]\n\n'" & ASCII.LF
-        & "            self.send_response(200)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/event-stream')"
-        & ASCII.LF
-        & "            self.send_header('Content-Length', str(len(payload)))"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(payload)" & ASCII.LF
-        & "            self.wfile.flush()" & ASCII.LF
-        & "        except Exception as exc:" & ASCII.LF
-        & "            self.send_response(500)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/plain')"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(str(exc).encode())" & ASCII.LF
-        & "    def log_message(self, *a): pass" & ASCII.LF
-        & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
-        & ASCII.LF
-        & "s.timeout = 5" & ASCII.LF
-        & "s.handle_request()" & ASCII.LF
-        & "s.handle_request()" & ASCII.LF
-        & "s.server_close()" & ASCII.LF;
-   end Tool_Failure_Server_Script;
-
-   function Capture_Request_Server_Script
-     (Port         : Positive;
-      Capture_Path : String;
-      Reply_Text   : String) return String
-   is
-   begin
-      return
-        "import http.server, json" & ASCII.LF
-        & "class S(http.server.HTTPServer):" & ASCII.LF
-        & "    allow_reuse_address = True" & ASCII.LF
-        & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
-        & "    def do_POST(self):" & ASCII.LF
-        & "        try:" & ASCII.LF
-        & "            assert self.path == '/api/v1/chat/completions'"
-        & ASCII.LF
-        & "            n = int(self.headers.get('Content-Length', '0'))"
-        & ASCII.LF
-        & "            body = self.rfile.read(n)" & ASCII.LF
-        & "            with open('" & Capture_Path
-        & "', 'wb') as out:" & ASCII.LF
-        & "                out.write(body)" & ASCII.LF
-        & "            events = [" & ASCII.LF
-        & "                {'choices': [{'delta': {'content': '" & Reply_Text
-        & "'}, 'finish_reason': None}]}," & ASCII.LF
-        & "                {'choices': [{'delta': {}, 'finish_reason':"
-        & " 'stop'}], 'usage': {'prompt_tokens': 16,"
-        & " 'completion_tokens': 3}}]" & ASCII.LF
-        & "            payload = ''.join(" & ASCII.LF
-        & "                'data: ' + json.dumps(event) + '\n\n'"
-        & ASCII.LF
-        & "                for event in events).encode()" & ASCII.LF
-        & "            payload += b'data: [DONE]\n\n'" & ASCII.LF
-        & "            self.send_response(200)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/event-stream')"
-        & ASCII.LF
-        & "            self.send_header('Content-Length', str(len(payload)))"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(payload)" & ASCII.LF
-        & "            self.wfile.flush()" & ASCII.LF
-        & "        except Exception as exc:" & ASCII.LF
-        & "            self.send_response(500)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/plain')"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(str(exc).encode())" & ASCII.LF
-        & "    def log_message(self, *a): pass" & ASCII.LF
-        & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
-        & ASCII.LF
-        & "s.timeout = 5" & ASCII.LF
-        & "s.handle_request()" & ASCII.LF
-        & "s.server_close()" & ASCII.LF;
-   end Capture_Request_Server_Script;
-
-   function Prompt_Then_Compaction_Server_Script
-     (Port              : Positive;
-      Reply_Text        : String;
-      Summary_Text      : String;
-      Prompt_Tokens     : Natural;
-      Completion_Tokens : Natural) return String
-   is
-      Encoded_Summary : constant String :=
-        GNATCOLL.JSON.Write (GNATCOLL.JSON.Create (Summary_Text));
-   begin
-      return
-        "import http.server, json, time" & ASCII.LF
-        & "class S(http.server.HTTPServer):" & ASCII.LF
-        & "    allow_reuse_address = True" & ASCII.LF
-        & "def make_payload(text, prompt_tokens, completion_tokens):"
-        & ASCII.LF
-        & "    events = [" & ASCII.LF
-        & "        {'choices': [{'delta': {'content': text},"
-        & " 'finish_reason': None}]}," & ASCII.LF
-        & "        {'choices': [{'delta': {}, 'finish_reason': 'stop'}],"
-        & " 'usage': {'prompt_tokens': prompt_tokens,"
-        & " 'completion_tokens': completion_tokens}}]"
-        & ASCII.LF
-        & "    payload = ''.join(" & ASCII.LF
-        & "        'data: ' + json.dumps(event) + '\n\n'"
-        & ASCII.LF
-        & "        for event in events).encode()" & ASCII.LF
-        & "    return payload + b'data: [DONE]\n\n'" & ASCII.LF
-        & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
-        & "    count = 0" & ASCII.LF
-        & "    def do_POST(self):" & ASCII.LF
-        & "        try:" & ASCII.LF
-        & "            H.count += 1" & ASCII.LF
-        & "            assert self.path == '/api/v1/chat/completions'"
-        & ASCII.LF
-        & "            n = int(self.headers.get('Content-Length', '0'))"
-        & ASCII.LF
-        & "            json.loads(self.rfile.read(n))" & ASCII.LF
-        & "            if H.count == 1:" & ASCII.LF
-        & "                payload = make_payload('" & Reply_Text & "', "
-        & Natural_Image (Prompt_Tokens) & ", "
-        & Natural_Image (Completion_Tokens) & ")" & ASCII.LF
-        & "            else:" & ASCII.LF
-        & "                assert H.count == 2" & ASCII.LF
-        & "                payload = make_payload(" & Encoded_Summary
-        & ", 8, 3)" & ASCII.LF
-        & "            self.send_response(200)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/event-stream')"
-        & ASCII.LF
-        & "            self.send_header('Content-Length', str(len(payload)))"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(payload)" & ASCII.LF
-        & "            self.wfile.flush()" & ASCII.LF
-        & "        except Exception as exc:" & ASCII.LF
-        & "            self.send_response(500)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/plain')"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(str(exc).encode())" & ASCII.LF
-        & "    def log_message(self, *a): pass" & ASCII.LF
-        & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
-        & ASCII.LF
-        & "s.timeout = 0.25" & ASCII.LF
-        & "deadline = time.time() + 10.0" & ASCII.LF
-        & "while H.count < 2 and time.time() < deadline:" & ASCII.LF
-        & "    s.handle_request()" & ASCII.LF
-        & "s.server_close()" & ASCII.LF;
-   end Prompt_Then_Compaction_Server_Script;
-
-   function Delayed_Tool_Call_Server_Script (Port : Positive) return String is
-   begin
-      return
-        "import http.server, json, time" & ASCII.LF
-        & "class S(http.server.HTTPServer):" & ASCII.LF
-        & "    allow_reuse_address = True" & ASCII.LF
-        & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
-        & "    count = 0" & ASCII.LF
-        & "    def do_POST(self):" & ASCII.LF
-        & "        try:" & ASCII.LF
-        & "            H.count += 1" & ASCII.LF
-        & "            assert self.path == '/api/v1/chat/completions'"
-        & ASCII.LF
-        & "            n = int(self.headers.get('Content-Length', '0'))"
-        & ASCII.LF
-        & "            body = json.loads(self.rfile.read(n))" & ASCII.LF
-        & "            msgs = [m for m in body['messages']"
-        & " if m.get('role') != 'system']" & ASCII.LF
-        & "            assert body['model'] == 'openai/gpt-4o-mini'"
-        & ASCII.LF
-        & "            if H.count == 1:" & ASCII.LF
-        & "                assert len(msgs) == 1" & ASCII.LF
-        & "                assert msgs[0]['content'] == "
-        & "'Use delayed tool'" & ASCII.LF
-        & "                assert len(body['tools']) > 0" & ASCII.LF
-        & "                events = [" & ASCII.LF
-        & "                    {'choices': [{'delta': {'tool_calls': ["
-        & "{'index': 0, 'id': 'call_1', 'type': 'function',"
-        & " 'function': {'name': 'bash', 'arguments': "
-        & "'{""command"":""printf slow-ok""}'}}]},"
-        & " 'finish_reason': None}]}," & ASCII.LF
-        & "                    {'choices': [{'delta': {}, 'finish_reason':"
-        & " 'tool_calls'}], 'usage': {'prompt_tokens': 12,"
-        & " 'completion_tokens': 6}}]" & ASCII.LF
-        & "            else:" & ASCII.LF
-        & "                assert len(msgs) == 3" & ASCII.LF
-        & "                assert msgs[1]['role'] == 'assistant'"
-        & ASCII.LF
-        & "                assert msgs[1]['tool_calls'][0]['id']"
-        & " == 'call_1'" & ASCII.LF
-        & "                assert msgs[2]['role'] == 'tool'"
-        & ASCII.LF
-        & "                assert 'slow-ok' in msgs[2]['content']"
-        & ASCII.LF
-        & "                time.sleep(1.0)" & ASCII.LF
-        & "                events = [" & ASCII.LF
-        & "                    {'choices': [{'delta': {'content': 'Done'},"
-        & " 'finish_reason': None}]}," & ASCII.LF
-        & "                    {'choices': [{'delta': {}, 'finish_reason':"
-        & " 'stop'}], 'usage': {'prompt_tokens': 20,"
-        & " 'completion_tokens': 4}}]" & ASCII.LF
-        & "            payload = ''.join(" & ASCII.LF
-        & "                'data: ' + json.dumps(event) + '\n\n'"
-        & ASCII.LF
-        & "                for event in events).encode()" & ASCII.LF
-        & "            payload += b'data: [DONE]\n\n'" & ASCII.LF
-        & "            self.send_response(200)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/event-stream')"
-        & ASCII.LF
-        & "            self.send_header('Content-Length', str(len(payload)))"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(payload)" & ASCII.LF
-        & "            self.wfile.flush()" & ASCII.LF
-        & "        except Exception as exc:" & ASCII.LF
-        & "            self.send_response(500)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/plain')"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(str(exc).encode())" & ASCII.LF
-        & "    def log_message(self, *a): pass" & ASCII.LF
-        & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
-        & ASCII.LF
-        & "s.timeout = 5" & ASCII.LF
-        & "s.handle_request()" & ASCII.LF
-        & "s.handle_request()" & ASCII.LF
-        & "s.server_close()" & ASCII.LF;
-   end Delayed_Tool_Call_Server_Script;
-
-   function Delayed_Server_Script (Port : Positive) return String is
-   begin
-      return
-        "import http.server, json, time" & ASCII.LF
-        & "class S(http.server.HTTPServer):" & ASCII.LF
-        & "    allow_reuse_address = True" & ASCII.LF
-        & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
-        & "    def do_POST(self):" & ASCII.LF
-        & "        try:" & ASCII.LF
-        & "            time.sleep(1.0)" & ASCII.LF
-        & "            events = [" & ASCII.LF
-        & "                {'choices': [{'delta': {'content': 'Too late'},"
-        & " 'finish_reason': None}]}," & ASCII.LF
-        & "                {'choices': [{'delta': {}, 'finish_reason': "
-        & "'stop'}], 'usage': {'prompt_tokens': 1,"
-        & " 'completion_tokens': 1}}]" & ASCII.LF
-        & "            payload = ''.join(" & ASCII.LF
-        & "                'data: ' + json.dumps(event) + '\n\n'"
-        & ASCII.LF
-        & "                for event in events).encode()" & ASCII.LF
-        & "            payload += b'data: [DONE]\n\n'" & ASCII.LF
-        & "            self.send_response(200)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/event-stream')"
-        & ASCII.LF
-        & "            self.send_header('Content-Length', str(len(payload)))"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(payload)" & ASCII.LF
-        & "            self.wfile.flush()" & ASCII.LF
-        & "        except Exception as exc:" & ASCII.LF
-        & "            self.send_response(500)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/plain')"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(str(exc).encode())" & ASCII.LF
-        & "    def log_message(self, *a): pass" & ASCII.LF
-        & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
-        & ASCII.LF
-        & "s.timeout = 5" & ASCII.LF
-        & "s.handle_request()" & ASCII.LF
-        & "s.server_close()" & ASCII.LF;
-   end Delayed_Server_Script;
-
-   function Resume_Server_Script
-     (Port            : Positive;
-      Expect_First    : String;
-      Expect_Response : String;
-      Reply_Text      : String) return String
-   is
-   begin
-      return
-        "import http.server, json" & ASCII.LF
-        & "class S(http.server.HTTPServer):" & ASCII.LF
-        & "    allow_reuse_address = True" & ASCII.LF
-        & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
-        & "    def do_POST(self):" & ASCII.LF
-        & "        try:" & ASCII.LF
-        & "            n = int(self.headers.get('Content-Length', '0'))"
-        & ASCII.LF
-        & "            body = json.loads(self.rfile.read(n))" & ASCII.LF
-        & "            msgs = [m for m in body['messages']"
-        & " if m.get('role') != 'system']" & ASCII.LF
-        & "            assert len(msgs) == 3" & ASCII.LF
-        & "            assert msgs[0]['role'] == 'user'"
-        & ASCII.LF
-        & "            assert msgs[0]['content'] == '"
-        & Expect_First & "'" & ASCII.LF
-        & "            assert msgs[1]['role'] == 'assistant'"
-        & ASCII.LF
-        & "            assert msgs[1]['content'] == '"
-        & Expect_Response & "'" & ASCII.LF
-        & "            assert msgs[2]['role'] == 'user'"
-        & ASCII.LF
-        & "            assert msgs[2]['content'] == "
-        & "'Second prompt'" & ASCII.LF
-        & "            events = [" & ASCII.LF
-        & "                {'choices': [{'delta': {'content': '"
-        & Reply_Text & "'}, 'finish_reason': None}]}," & ASCII.LF
-        & "                {'choices': [{'delta': {}, 'finish_reason':"
-        & " 'stop'}], 'usage': {'prompt_tokens': 9,"
-        & " 'completion_tokens': 3}}]" & ASCII.LF
-        & "            payload = ''.join(" & ASCII.LF
-        & "                'data: ' + json.dumps(event) + '\n\n'"
-        & ASCII.LF
-        & "                for event in events).encode()" & ASCII.LF
-        & "            payload += b'data: [DONE]\n\n'" & ASCII.LF
-        & "            self.send_response(200)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/event-stream')"
-        & ASCII.LF
-        & "            self.send_header('Content-Length', str(len(payload)))"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(payload)" & ASCII.LF
-        & "            self.wfile.flush()" & ASCII.LF
-        & "        except Exception as exc:" & ASCII.LF
-        & "            self.send_response(500)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/plain')"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(str(exc).encode())" & ASCII.LF
-        & "    def log_message(self, *a): pass" & ASCII.LF
-        & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
-        & ASCII.LF
-        & "s.timeout = 5" & ASCII.LF
-        & "s.handle_request()" & ASCII.LF
-        & "s.server_close()" & ASCII.LF;
-   end Resume_Server_Script;
 
    procedure Test_Single_Turn_Prompt (T : in out Test) is
       pragma Unreferenced (T);
@@ -1144,9 +553,9 @@ package body LLM_Agent_Tests is
 
       Home          : constant String := "/tmp/coyote_llm_agent_test_2";
       Port          : constant Positive := 18_782;
-      Handle        : Process_Handle := Invalid_Handle;
       Agent_Session : LLM.Agent.Session;
       Messages      : LLM.Types.Message_Vectors.Vector;
+      Server_Stopped : Boolean := False;
       Home_Was_Set  : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
       Old_Home      : constant String :=
@@ -1165,6 +574,73 @@ package body LLM_Agent_Tests is
       begin
          null;
       end Ignore_Event;
+
+      Request_Count : aliased Natural := 0;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         use GNATCOLL.JSON;
+         Parsed : constant Read_Result :=
+           Read (To_String (Req.Body_Data));
+         Req_Body : constant JSON_Value := Parsed.Value;
+         All_Msgs : constant JSON_Array := Req_Body.Get ("messages").Get;
+
+         function Is_System (M : JSON_Value) return Boolean is
+         begin
+            return String'(M.Get ("role").Get) = "system";
+         end Is_System;
+
+         Msgs : JSON_Array;
+      begin
+         for I in 1 .. Length (All_Msgs) loop
+            if not Is_System (Get (All_Msgs, I)) then
+               Append (Msgs, Get (All_Msgs, I));
+            end if;
+         end loop;
+
+         Request_Count := Request_Count + 1;
+         Res.Status := 200;
+         Add_SSE_Header (Res);
+
+         if Request_Count = 1 then
+            Assert (Length (Msgs) = 1, "Tool call req 1: expected 1 msg");
+            Assert
+              (String'(Get (Msgs, 1).Get ("content").Get) = "Use a tool",
+               "Tool call req 1: wrong prompt");
+            declare
+               Tool_Call_SSE : constant String :=
+                 Tool_Call_SSE_Payload
+                   ((1 => Tool_Call_Def
+                      (Tool_Call_Id   => "call_1",
+                       Tool_Name      => "bash",
+                       Arguments_Json =>
+                         "{""command"":""echo tool-ok""}")),
+                    Prompt_Tokens     => 12,
+                    Completion_Tokens => 6);
+            begin
+               Append (Res.Body_Data, Tool_Call_SSE);
+            end;
+         else
+            Assert (Length (Msgs) = 3, "Tool call req 2: expected 3 msgs");
+            Assert
+              (String'(Get
+                 (Get (Msgs, 2).Get ("tool_calls").Get, 1).Get ("id").Get)
+               = "call_1",
+               "Tool call req 2: wrong tool call id");
+            Assert
+              (String'(Get (Msgs, 3).Get ("role").Get) = "tool",
+               "Tool call req 2: expected tool result");
+            Assert
+              (Ada.Strings.Fixed.Index
+                 (Get (Msgs, 3).Get ("content").Get, "tool-ok") > 0,
+               "Tool call req 2: tool output not present");
+            Append (Res.Body_Data, Text_SSE_Payload ("Done", 20, 4));
+         end if;
+      end Handle_Request;
+
+      Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
    begin
       Prepare_Test_Home (Home);
       Write_OpenRouter_Cache (Home);
@@ -1179,15 +655,15 @@ package body LLM_Agent_Tests is
          Model_Spec => "openrouter/openai/gpt-4o-mini",
          No_Tools   => False);
 
-      Handle := Spawn_Server (Tool_Call_Server_Script (Port));
-      Wait_For_Server;
+      Srv.Bind (Port);
 
       LLM.Agent.Run_Prompt
         (S        => Agent_Session,
          Prompt   => "Use a tool",
          On_Event => Ignore_Event'Access);
 
-      Stop_Server (Handle);
+      Srv.Stop;
+      Server_Stopped := True;
 
       Messages := LLM.Session_Store.Load_Messages
         (LLM.Agent.Session_Id (Agent_Session));
@@ -1218,7 +694,13 @@ package body LLM_Agent_Tests is
       Cleanup_Test_Home (Home);
    exception
       when others =>
-         Stop_Server (Handle);
+         if not Server_Stopped then
+            begin
+               Srv.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
          Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -1231,9 +713,9 @@ package body LLM_Agent_Tests is
 
       Home          : constant String := "/tmp/coyote_llm_agent_test_7";
       Port          : constant Positive := 18_789;
-      Handle        : Process_Handle := Invalid_Handle;
       Agent_Session : LLM.Agent.Session;
       Messages      : LLM.Types.Message_Vectors.Vector;
+      Server_Stopped : Boolean := False;
       Home_Was_Set  : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
       Old_Home      : constant String :=
@@ -1252,6 +734,90 @@ package body LLM_Agent_Tests is
       begin
          null;
       end Ignore_Event;
+
+      Two_Tool_SSE : constant String :=
+        Tool_Call_SSE_Payload
+          ((1 => Tool_Call_Def
+             (Tool_Call_Id   => "call_1",
+              Tool_Name      => "bash",
+              Arguments_Json =>
+                "{""command"":""printf first-ok""}"),
+            2 => Tool_Call_Def
+             (Tool_Call_Id   => "call_2",
+              Tool_Name      => "bash",
+              Arguments_Json =>
+                "{""command"":""printf second-ok""}")),
+           Prompt_Tokens     => 14,
+           Completion_Tokens => 7);
+
+      Request_Count : aliased Natural := 0;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         use GNATCOLL.JSON;
+         Parsed   : constant Read_Result :=
+           Read (To_String (Req.Body_Data));
+         Req_Body : constant JSON_Value := Parsed.Value;
+         All_Msgs : constant JSON_Array := Req_Body.Get ("messages").Get;
+
+         function Is_System (M : JSON_Value) return Boolean is
+         begin
+            return String'(M.Get ("role").Get) = "system";
+         end Is_System;
+
+         Msgs : JSON_Array;
+      begin
+         for I in 1 .. Length (All_Msgs) loop
+            if not Is_System (Get (All_Msgs, I)) then
+               Append (Msgs, Get (All_Msgs, I));
+            end if;
+         end loop;
+
+         Request_Count := Request_Count + 1;
+         Res.Status := 200;
+         Add_SSE_Header (Res);
+
+         if Request_Count = 1 then
+            Assert (Length (Msgs) = 1, "Two-tool req 1: expected 1 msg");
+            Assert
+              (String'(Get (Msgs, 1).Get ("content").Get) = "Use two tools",
+               "Two-tool req 1: wrong prompt");
+            Append (Res.Body_Data, Two_Tool_SSE);
+         else
+            Assert (Length (Msgs) = 4, "Two-tool req 2: expected 4 msgs");
+            Assert
+              (String'(Get (Msgs, 2).Get ("role").Get) = "assistant",
+               "Two-tool req 2: second msg should be assistant");
+            Assert
+              (GNATCOLL.JSON.Length (Get (Msgs, 2).Get ("tool_calls").Get) = 2,
+               "Two-tool req 2: expected 2 tool calls");
+            Assert
+              (String'(Get (Msgs, 3).Get ("role").Get) = "tool",
+               "Two-tool req 2: third msg should be tool");
+            Assert
+              (String'(Get (Msgs, 3).Get ("tool_call_id").Get) = "call_1",
+               "Two-tool req 2: first tool result id wrong");
+            Assert
+              (Ada.Strings.Fixed.Index
+                 (Get (Msgs, 3).Get ("content").Get, "first-ok") > 0,
+               "Two-tool req 2: first-ok not in tool result");
+            Assert
+              (String'(Get (Msgs, 4).Get ("role").Get) = "tool",
+               "Two-tool req 2: fourth msg should be tool");
+            Assert
+              (String'(Get (Msgs, 4).Get ("tool_call_id").Get) = "call_2",
+               "Two-tool req 2: second tool result id wrong");
+            Assert
+              (Ada.Strings.Fixed.Index
+                 (Get (Msgs, 4).Get ("content").Get, "second-ok") > 0,
+               "Two-tool req 2: second-ok not in tool result");
+            Append (Res.Body_Data, Text_SSE_Payload ("All done", 24, 5));
+         end if;
+      end Handle_Request;
+
+      Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
    begin
       Prepare_Test_Home (Home);
       Write_OpenRouter_Cache (Home);
@@ -1266,15 +832,15 @@ package body LLM_Agent_Tests is
          Model_Spec => "openrouter/openai/gpt-4o-mini",
          No_Tools   => False);
 
-      Handle := Spawn_Server (Two_Tool_Loop_Server_Script (Port));
-      Wait_For_Server;
+      Srv.Bind (Port);
 
       LLM.Agent.Run_Prompt
         (S        => Agent_Session,
          Prompt   => "Use two tools",
          On_Event => Ignore_Event'Access);
 
-      Stop_Server (Handle);
+      Srv.Stop;
+      Server_Stopped := True;
 
       Messages := LLM.Session_Store.Load_Messages
         (LLM.Agent.Session_Id (Agent_Session));
@@ -1325,7 +891,13 @@ package body LLM_Agent_Tests is
       Cleanup_Test_Home (Home);
    exception
       when others =>
-         Stop_Server (Handle);
+         if not Server_Stopped then
+            begin
+               Srv.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
          Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -1338,12 +910,12 @@ package body LLM_Agent_Tests is
 
       Home               : constant String := "/tmp/coyote_llm_agent_test_8";
       Port               : constant Positive := 18_793;
-      Handle             : Process_Handle := Invalid_Handle;
       Agent_Session      : LLM.Agent.Session;
       Messages           : LLM.Types.Message_Vectors.Vector;
       Saw_Tool_End       : Boolean := False;
       Tool_End_Is_Error  : Boolean := False;
       Tool_End_Result    : Unbounded_String := Null_Unbounded_String;
+      Server_Stopped     : Boolean := False;
       Home_Was_Set       : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
       Old_Home           : constant String :=
@@ -1370,6 +942,80 @@ package body LLM_Agent_Tests is
             end;
          end if;
       end On_Event;
+
+      Missing_Path : constant String :=
+        "/tmp/coyote_missing_tool_input_"
+        & Natural_Image (Port) & ".txt";
+
+      Request_Count : aliased Natural := 0;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         use GNATCOLL.JSON;
+         Parsed   : constant Read_Result :=
+           Read (To_String (Req.Body_Data));
+         Req_Body : constant JSON_Value := Parsed.Value;
+         All_Msgs : constant JSON_Array := Req_Body.Get ("messages").Get;
+
+         function Is_System (M : JSON_Value) return Boolean is
+         begin
+            return String'(M.Get ("role").Get) = "system";
+         end Is_System;
+
+         Msgs : JSON_Array;
+      begin
+         for I in 1 .. Length (All_Msgs) loop
+            if not Is_System (Get (All_Msgs, I)) then
+               Append (Msgs, Get (All_Msgs, I));
+            end if;
+         end loop;
+
+         Request_Count := Request_Count + 1;
+         Res.Status := 200;
+         Add_SSE_Header (Res);
+
+         if Request_Count = 1 then
+            Assert (Length (Msgs) = 1, "Tool-fail req 1: expected 1 msg");
+            Assert
+              (String'(Get (Msgs, 1).Get ("content").Get) = "Use failing tool",
+               "Tool-fail req 1: wrong prompt");
+            declare
+               Args : constant JSON_Value := Create_Object;
+            begin
+               Args.Set_Field ("path", Missing_Path);
+
+               declare
+                  Read_SSE : constant String :=
+                    Tool_Call_SSE_Payload
+                      ((1 => Tool_Call_Def
+                          ("call_1", "read", Write (Args))),
+                       Prompt_Tokens     => 12,
+                       Completion_Tokens => 6);
+               begin
+                  Append (Res.Body_Data, Read_SSE);
+               end;
+            end;
+         else
+            Assert (Length (Msgs) = 3, "Tool-fail req 2: expected 3 msgs");
+            Assert
+              (String'(Get (Msgs, 3).Get ("role").Get) = "tool",
+               "Tool-fail req 2: third msg should be tool result");
+            Assert
+              (String'(Get (Msgs, 3).Get ("tool_call_id").Get) = "call_1",
+               "Tool-fail req 2: wrong tool call id");
+            Assert
+              (Ada.Strings.Fixed.Index
+                 (Get (Msgs, 3).Get ("content").Get, "file not found") > 0,
+               "Tool-fail req 2: error text not present");
+            Append
+              (Res.Body_Data,
+               Text_SSE_Payload ("Handled failure", 18, 4));
+         end if;
+      end Handle_Request;
+
+      Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
    begin
       Prepare_Test_Home (Home);
       Write_OpenRouter_Cache (Home);
@@ -1384,15 +1030,15 @@ package body LLM_Agent_Tests is
          Model_Spec => "openrouter/openai/gpt-4o-mini",
          No_Tools   => False);
 
-      Handle := Spawn_Server (Tool_Failure_Server_Script (Port));
-      Wait_For_Server;
+      Srv.Bind (Port);
 
       LLM.Agent.Run_Prompt
         (S        => Agent_Session,
          Prompt   => "Use failing tool",
          On_Event => On_Event'Access);
 
-      Stop_Server (Handle);
+      Srv.Stop;
+      Server_Stopped := True;
 
       Messages := LLM.Session_Store.Load_Messages
         (LLM.Agent.Session_Id (Agent_Session));
@@ -1429,7 +1075,13 @@ package body LLM_Agent_Tests is
       Cleanup_Test_Home (Home);
    exception
       when others =>
-         Stop_Server (Handle);
+         if not Server_Stopped then
+            begin
+               Srv.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
          Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -1534,9 +1186,9 @@ package body LLM_Agent_Tests is
 
       Home          : constant String := "/tmp/coyote_llm_agent_test_3";
       Port          : constant Positive := 18_783;
-      Handle        : Process_Handle := Invalid_Handle;
       Agent_Session : LLM.Agent.Session;
       Messages      : LLM.Types.Message_Vectors.Vector;
+      Server_Stopped : Boolean := False;
       Home_Was_Set  : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
       Old_Home      : constant String :=
@@ -1589,6 +1241,19 @@ package body LLM_Agent_Tests is
          end if;
       end On_Event;
 
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         delay 1.0;
+         Res.Status := 200;
+         Add_SSE_Header (Res);
+         Append (Res.Body_Data, Text_SSE_Payload ("Too late", 1, 1));
+      end Handle_Request;
+
+      Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
    begin
       Prepare_Test_Home (Home);
       Write_OpenRouter_Cache (Home);
@@ -1603,8 +1268,7 @@ package body LLM_Agent_Tests is
          Model_Spec => "openrouter/openai/gpt-4o-mini",
          No_Tools   => True);
 
-      Handle := Spawn_Server (Delayed_Server_Script (Port));
-      Wait_For_Server;
+      Srv.Bind (Port);
 
       declare
          task Runner;
@@ -1628,7 +1292,8 @@ package body LLM_Agent_Tests is
          end loop;
       end;
 
-      Stop_Server (Handle);
+      Srv.Stop;
+      Server_Stopped := True;
 
       Messages := LLM.Session_Store.Load_Messages
         (LLM.Agent.Session_Id (Agent_Session));
@@ -1649,7 +1314,13 @@ package body LLM_Agent_Tests is
       Cleanup_Test_Home (Home);
    exception
       when others =>
-         Stop_Server (Handle);
+         if not Server_Stopped then
+            begin
+               Srv.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
          Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -1666,10 +1337,10 @@ package body LLM_Agent_Tests is
       Capture_Path   : constant String := Home & "/resume_request.json";
       Abort_Port     : constant Positive := 18_786;
       Resume_Port    : constant Positive := 18_787;
-      Abort_Handle   : Process_Handle := Invalid_Handle;
-      Resume_Handle  : Process_Handle := Invalid_Handle;
       Agent_Session  : LLM.Agent.Session;
       Messages       : LLM.Types.Message_Vectors.Vector;
+      Abort_Stopped  : Boolean := False;
+      Resume_Stopped : Boolean := False;
       Home_Was_Set   : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
       Old_Home       : constant String :=
@@ -1750,6 +1421,53 @@ package body LLM_Agent_Tests is
       begin
          null;
       end Ignore_Event;
+
+      Two_Tool_SSE : constant String :=
+        Tool_Call_SSE_Payload
+          ((1 => Tool_Call_Def
+             (Tool_Call_Id   => "call_1",
+              Tool_Name      => "bash",
+              Arguments_Json =>
+                "{""command"":""printf first-ok""}"),
+            2 => Tool_Call_Def
+             (Tool_Call_Id   => "call_2",
+              Tool_Name      => "bash",
+              Arguments_Json =>
+                "{""command"":""printf second-ok""}")),
+           Prompt_Tokens     => 14,
+           Completion_Tokens => 7);
+
+      procedure Handle_Abort
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Res.Status := 200;
+         Add_SSE_Header (Res);
+         Append (Res.Body_Data, Two_Tool_SSE);
+      end Handle_Abort;
+
+      Srv_Abort : Test_HTTP_Server.Server
+        (Handle_Abort'Unrestricted_Access);
+
+      procedure Handle_Resume
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         File : Ada.Text_IO.File_Type;
+      begin
+         Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, Capture_Path);
+         Ada.Text_IO.Put (File, To_String (Req.Body_Data));
+         Ada.Text_IO.Close (File);
+
+         Res.Status := 200;
+         Add_SSE_Header (Res);
+         Append (Res.Body_Data, Text_SSE_Payload ("Recovered", 16, 3));
+      end Handle_Resume;
+
+      Srv_Resume : Test_HTTP_Server.Server
+        (Handle_Resume'Unrestricted_Access);
    begin
       Prepare_Test_Home (Home);
       Write_OpenRouter_Cache (Home);
@@ -1764,8 +1482,7 @@ package body LLM_Agent_Tests is
          Model_Spec => "openrouter/openai/gpt-4o-mini",
          No_Tools   => False);
 
-      Abort_Handle := Spawn_Server (Two_Tool_Call_Server_Script (Abort_Port));
-      Wait_For_Server;
+      Srv_Abort.Bind (Abort_Port);
 
       declare
          task Runner;
@@ -1798,7 +1515,8 @@ package body LLM_Agent_Tests is
          Assert (Runner'Terminated, "Aborted Run_Prompt should terminate");
       end;
 
-      Stop_Server (Abort_Handle);
+      Srv_Abort.Stop;
+      Abort_Stopped := True;
 
       Assert (not State.Had_Error, "Aborted Run_Prompt should not raise");
       Assert
@@ -1814,19 +1532,15 @@ package body LLM_Agent_Tests is
       Ada.Environment_Variables.Set
         ("COYOTE_OPENROUTER_BASE_URL",
          "http://127.0.0.1:" & Natural_Image (Resume_Port) & "/api/v1");
-      Resume_Handle := Spawn_Server
-        (Capture_Request_Server_Script
-           (Port         => Resume_Port,
-            Capture_Path => Capture_Path,
-            Reply_Text   => "Recovered"));
-      Wait_For_Server;
+      Srv_Resume.Bind (Resume_Port);
 
       LLM.Agent.Run_Prompt
         (S        => Agent_Session,
          Prompt   => "After abort",
          On_Event => Ignore_Event'Access);
 
-      Stop_Server (Resume_Handle);
+      Srv_Resume.Stop;
+      Resume_Stopped := True;
 
       declare
          Parsed : constant GNATCOLL.JSON.Read_Result :=
@@ -1938,8 +1652,20 @@ package body LLM_Agent_Tests is
       Cleanup_Test_Home (Home);
    exception
       when others =>
-         Stop_Server (Abort_Handle);
-         Stop_Server (Resume_Handle);
+         if not Abort_Stopped then
+            begin
+               Srv_Abort.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
+         if not Resume_Stopped then
+            begin
+               Srv_Resume.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
          Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -1954,10 +1680,10 @@ package body LLM_Agent_Tests is
 
       Home          : constant String := "/tmp/coyote_llm_agent_test_6";
       Port          : constant Positive := 18_788;
-      Handle        : Process_Handle := Invalid_Handle;
       Agent_Session : LLM.Agent.Session;
       Mid_Messages  : LLM.Types.Message_Vectors.Vector;
       End_Messages  : LLM.Types.Message_Vectors.Vector;
+      Server_Stopped : Boolean := False;
       Home_Was_Set  : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
       Old_Home      : constant String :=
@@ -2009,6 +1735,81 @@ package body LLM_Agent_Tests is
             State.Note_Tool_End;
          end if;
       end On_Event;
+
+      Request_Count : aliased Natural := 0;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         use GNATCOLL.JSON;
+         Parsed   : constant Read_Result :=
+           Read (To_String (Req.Body_Data));
+         Req_Body : constant JSON_Value := Parsed.Value;
+         All_Msgs : constant JSON_Array := Req_Body.Get ("messages").Get;
+
+         function Is_System (M : JSON_Value) return Boolean is
+         begin
+            return String'(M.Get ("role").Get) = "system";
+         end Is_System;
+
+         Msgs : JSON_Array;
+      begin
+         for I in 1 .. Length (All_Msgs) loop
+            if not Is_System (Get (All_Msgs, I)) then
+               Append (Msgs, Get (All_Msgs, I));
+            end if;
+         end loop;
+
+         Request_Count := Request_Count + 1;
+         Res.Status := 200;
+         Add_SSE_Header (Res);
+
+         if Request_Count = 1 then
+            Assert
+              (String'(Get (Msgs, 1).Get ("content").Get) = "Use delayed tool",
+               "Delayed-tool req 1: wrong prompt");
+            Assert
+              (GNATCOLL.JSON.Length (Req_Body.Get ("tools").Get) > 0,
+               "Delayed-tool req 1: tools should be present");
+            declare
+               Args : constant JSON_Value := Create_Object;
+            begin
+               Args.Set_Field ("command", "printf slow-ok");
+
+               declare
+                  Tool_SSE : constant String :=
+                    Tool_Call_SSE_Payload
+                      ((1 => Tool_Call_Def
+                          ("call_1", "bash", Write (Args))),
+                       Prompt_Tokens     => 12,
+                       Completion_Tokens => 6);
+               begin
+                  Append (Res.Body_Data, Tool_SSE);
+               end;
+            end;
+         else
+            Assert
+              (String'(Get (Msgs, 2).Get ("role").Get) = "assistant",
+               "Delayed-tool req 2: second msg should be assistant");
+            Assert
+              (String'(Get
+                 (Get (Msgs, 2).Get ("tool_calls").Get, 1).Get ("id").Get)
+               = "call_1",
+               "Delayed-tool req 2: wrong tool call id");
+            Assert
+              (String'(Get (Msgs, 3).Get ("role").Get) = "tool",
+               "Delayed-tool req 2: third msg should be tool result");
+            Assert
+              (Ada.Strings.Fixed.Index
+                 (Get (Msgs, 3).Get ("content").Get, "slow-ok") > 0,
+               "Delayed-tool req 2: slow-ok not in result");
+            delay 1.0;
+            Append (Res.Body_Data, Text_SSE_Payload ("Done", 20, 4));
+         end if;
+      end Handle_Request;
+
+      Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
    begin
       Prepare_Test_Home (Home);
       Write_OpenRouter_Cache (Home);
@@ -2023,8 +1824,7 @@ package body LLM_Agent_Tests is
          Model_Spec => "openrouter/openai/gpt-4o-mini",
          No_Tools   => False);
 
-      Handle := Spawn_Server (Delayed_Tool_Call_Server_Script (Port));
-      Wait_For_Server;
+      Srv.Bind (Port);
 
       declare
          task Runner;
@@ -2070,7 +1870,8 @@ package body LLM_Agent_Tests is
             "Run_Prompt should finish after the delayed final response");
       end;
 
-      Stop_Server (Handle);
+      Srv.Stop;
+      Server_Stopped := True;
 
       Assert (not State.Had_Error, "Delayed Run_Prompt should not raise");
 
@@ -2096,7 +1897,13 @@ package body LLM_Agent_Tests is
       Cleanup_Test_Home (Home);
    exception
       when others =>
-         Stop_Server (Handle);
+         if not Server_Stopped then
+            begin
+               Srv.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
          Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -2111,12 +1918,12 @@ package body LLM_Agent_Tests is
         "/tmp/coyote_llm_agent_test_4";
       First_Port           : constant Positive := 18_784;
       Second_Port          : constant Positive := 18_785;
-      Second_Handle        : Process_Handle := Invalid_Handle;
       First_Session        : LLM.Agent.Session;
       Resume_Session       : LLM.Agent.Session;
       Session_UUID         : Unbounded_String;
       Messages             : LLM.Types.Message_Vectors.Vector;
-      First_Server_Stopped : Boolean := False;
+      First_Server_Stopped  : Boolean := False;
+      Second_Server_Stopped : Boolean := False;
       Home_Was_Set         : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
       Old_Home             : constant String :=
@@ -2149,6 +1956,57 @@ package body LLM_Agent_Tests is
 
       Srv_First : Test_HTTP_Server.Server
         (Handle_First_Request'Unrestricted_Access);
+
+      procedure Handle_Second_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         use GNATCOLL.JSON;
+         Parsed   : constant Read_Result :=
+           Read (To_String (Req.Body_Data));
+         Req_Body : constant JSON_Value := Parsed.Value;
+         All_Msgs : constant JSON_Array := Req_Body.Get ("messages").Get;
+
+         function Is_System (M : JSON_Value) return Boolean is
+         begin
+            return String'(M.Get ("role").Get) = "system";
+         end Is_System;
+
+         Msgs : JSON_Array;
+      begin
+         for I in 1 .. Length (All_Msgs) loop
+            if not Is_System (Get (All_Msgs, I)) then
+               Append (Msgs, Get (All_Msgs, I));
+            end if;
+         end loop;
+
+         Assert (Length (Msgs) = 3, "Resume req: expected 3 non-sys msgs");
+         Assert
+           (String'(Get (Msgs, 1).Get ("role").Get) = "user",
+            "Resume req: first msg should be user");
+         Assert
+           (String'(Get (Msgs, 1).Get ("content").Get) = "Say hello",
+            "Resume req: wrong original user prompt");
+         Assert
+           (String'(Get (Msgs, 2).Get ("role").Get) = "assistant",
+            "Resume req: second msg should be assistant");
+         Assert
+           (String'(Get (Msgs, 2).Get ("content").Get) = "Hello",
+            "Resume req: wrong original assistant response");
+         Assert
+           (String'(Get (Msgs, 3).Get ("role").Get) = "user",
+            "Resume req: third msg should be user");
+         Assert
+           (String'(Get (Msgs, 3).Get ("content").Get) = "Second prompt",
+            "Resume req: wrong second user prompt");
+
+         Res.Status := 200;
+         Add_SSE_Header (Res);
+         Append (Res.Body_Data, Text_SSE_Payload ("Resumed", 9, 3));
+      end Handle_Second_Request;
+
+      Srv_Second : Test_HTTP_Server.Server
+        (Handle_Second_Request'Unrestricted_Access);
    begin
       Prepare_Test_Home (Home);
       Write_OpenRouter_Cache (Home);
@@ -2184,19 +2042,14 @@ package body LLM_Agent_Tests is
          No_Tools   => True,
          Session_Id => To_String (Session_UUID));
 
-      Second_Handle := Spawn_Server
-        (Resume_Server_Script
-           (Port            => Second_Port,
-            Expect_First    => "Say hello",
-            Expect_Response => "Hello",
-            Reply_Text      => "Resumed"));
-      Wait_For_Server;
+      Srv_Second.Bind (Second_Port);
 
       LLM.Agent.Run_Prompt
         (S        => Resume_Session,
          Prompt   => "Second prompt",
          On_Event => Ignore_Event'Access);
-      Stop_Server (Second_Handle);
+      Srv_Second.Stop;
+      Second_Server_Stopped := True;
 
       Messages := LLM.Session_Store.Load_Messages (To_String (Session_UUID));
 
@@ -2223,7 +2076,13 @@ package body LLM_Agent_Tests is
                when Tasking_Error => null;
             end;
          end if;
-         Stop_Server (Second_Handle);
+         if not Second_Server_Stopped then
+            begin
+               Srv_Second.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
          Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -4013,12 +3872,12 @@ package body LLM_Agent_Tests is
       Home                  : constant String :=
         "/tmp/coyote_llm_agent_test_21";
       Port                  : constant Positive := 18_805;
-      Handle                : Process_Handle := Invalid_Handle;
       Agent_Session         : LLM.Agent.Session;
       Saw_Compaction_Start  : Boolean := False;
       Compaction_Reason     : Unbounded_String := Null_Unbounded_String;
       Summary_Text          : constant String :=
         "## Goal" & ASCII.LF & "threshold compaction";
+      Server_Stopped        : Boolean := False;
       Home_Was_Set          : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
       Old_Home              : constant String :=
@@ -4040,6 +3899,27 @@ package body LLM_Agent_Tests is
               LLM.Events.Auto_Compaction_Start_Event (E).Reason;
          end if;
       end On_Event;
+
+      Request_Count : aliased Natural := 0;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Request_Count := Request_Count + 1;
+         Res.Status := 200;
+         Add_SSE_Header (Res);
+         if Request_Count = 1 then
+            Append (Res.Body_Data,
+                    Text_SSE_Payload ("threshold reply", 120_000, 616));
+         else
+            Append (Res.Body_Data, Text_SSE_Payload (Summary_Text, 8, 3));
+         end if;
+      end Handle_Request;
+
+      Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
    begin
       Prepare_Test_Home (Home);
       Write_OpenRouter_Cache (Home);
@@ -4054,21 +3934,15 @@ package body LLM_Agent_Tests is
          Model_Spec => "openrouter/openai/gpt-4o-mini",
          No_Tools   => True);
 
-      Handle := Spawn_Server
-        (Prompt_Then_Compaction_Server_Script
-           (Port              => Port,
-            Reply_Text        => "threshold reply",
-            Summary_Text      => Summary_Text,
-            Prompt_Tokens     => 120_000,
-            Completion_Tokens => 616));
-      Wait_For_Server;
+      Srv.Bind (Port);
 
       LLM.Agent.Run_Prompt
         (S        => Agent_Session,
          Prompt   => "Trigger threshold compaction",
          On_Event => On_Event'Access);
 
-      Stop_Server (Handle);
+      Srv.Stop;
+      Server_Stopped := True;
 
       Assert
         (Saw_Compaction_Start,
@@ -4095,7 +3969,13 @@ package body LLM_Agent_Tests is
       Cleanup_Test_Home (Home);
    exception
       when others =>
-         Stop_Server (Handle);
+         if not Server_Stopped then
+            begin
+               Srv.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
          Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -4113,9 +3993,9 @@ package body LLM_Agent_Tests is
       Capture_Path          : constant String :=
         Home & "/threshold_request.json";
       Port                  : constant Positive := 18_806;
-      Handle                : Process_Handle := Invalid_Handle;
       Agent_Session         : LLM.Agent.Session;
       Saw_Compaction_Start  : Boolean := False;
+      Server_Stopped        : Boolean := False;
       Home_Was_Set          : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
       Old_Home              : constant String :=
@@ -4135,6 +4015,22 @@ package body LLM_Agent_Tests is
             Saw_Compaction_Start := True;
          end if;
       end On_Event;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         File : Ada.Text_IO.File_Type;
+      begin
+         Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, Capture_Path);
+         Ada.Text_IO.Put (File, To_String (Req.Body_Data));
+         Ada.Text_IO.Close (File);
+         Res.Status := 200;
+         Add_SSE_Header (Res);
+         Append (Res.Body_Data, Text_SSE_Payload ("small reply", 16, 3));
+      end Handle_Request;
+
+      Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
    begin
       Prepare_Test_Home (Home);
       Write_OpenRouter_Cache (Home);
@@ -4149,19 +4045,15 @@ package body LLM_Agent_Tests is
          Model_Spec => "openrouter/openai/gpt-4o-mini",
          No_Tools   => True);
 
-      Handle := Spawn_Server
-        (Capture_Request_Server_Script
-           (Port         => Port,
-            Capture_Path => Capture_Path,
-            Reply_Text   => "small reply"));
-      Wait_For_Server;
+      Srv.Bind (Port);
 
       LLM.Agent.Run_Prompt
         (S        => Agent_Session,
          Prompt   => "Stay below the threshold",
          On_Event => On_Event'Access);
 
-      Stop_Server (Handle);
+      Srv.Stop;
+      Server_Stopped := True;
 
       Assert
         (not Saw_Compaction_Start,
@@ -4180,7 +4072,13 @@ package body LLM_Agent_Tests is
       Cleanup_Test_Home (Home);
    exception
       when others =>
-         Stop_Server (Handle);
+         if not Server_Stopped then
+            begin
+               Srv.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
          Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -4195,9 +4093,11 @@ package body LLM_Agent_Tests is
 
       Home           : constant String := "/tmp/coyote_llm_agent_test_23";
       Port           : constant Positive := 18_807;
-      Handle         : Process_Handle := Invalid_Handle;
       Agent_Session  : LLM.Agent.Session;
       Messages       : LLM.Types.Message_Vectors.Vector;
+      Server_Stopped : Boolean := False;
+      Summary_Text   : constant String :=
+        "## Goal" & ASCII.LF & "persisted threshold";
       Home_Was_Set   : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
       Old_Home       : constant String :=
@@ -4216,6 +4116,27 @@ package body LLM_Agent_Tests is
       begin
          null;
       end On_Event;
+
+      Request_Count : aliased Natural := 0;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Request_Count := Request_Count + 1;
+         Res.Status := 200;
+         Add_SSE_Header (Res);
+         if Request_Count = 1 then
+            Append (Res.Body_Data,
+                    Text_SSE_Payload ("persisted reply", 120_000, 616));
+         else
+            Append (Res.Body_Data, Text_SSE_Payload (Summary_Text, 8, 3));
+         end if;
+      end Handle_Request;
+
+      Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
    begin
       Prepare_Test_Home (Home);
       Write_OpenRouter_Cache (Home);
@@ -4230,21 +4151,15 @@ package body LLM_Agent_Tests is
          Model_Spec => "openrouter/openai/gpt-4o-mini",
          No_Tools   => True);
 
-      Handle := Spawn_Server
-        (Prompt_Then_Compaction_Server_Script
-           (Port              => Port,
-            Reply_Text        => "persisted reply",
-            Summary_Text      => "## Goal" & ASCII.LF & "persisted threshold",
-            Prompt_Tokens     => 120_000,
-            Completion_Tokens => 616));
-      Wait_For_Server;
+      Srv.Bind (Port);
 
       LLM.Agent.Run_Prompt
         (S        => Agent_Session,
          Prompt   => "Persist threshold compaction",
          On_Event => On_Event'Access);
 
-      Stop_Server (Handle);
+      Srv.Stop;
+      Server_Stopped := True;
 
       Messages := LLM.Session_Store.Load_Messages
         (LLM.Agent.Session_Id (Agent_Session));
@@ -4261,7 +4176,13 @@ package body LLM_Agent_Tests is
       Cleanup_Test_Home (Home);
    exception
       when others =>
-         Stop_Server (Handle);
+         if not Server_Stopped then
+            begin
+               Srv.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
          Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);

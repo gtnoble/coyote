@@ -95,6 +95,197 @@ package body LLM_OpenAI_Completions_Tests is
       return SSE_Record (GNATCOLL.JSON.Write (Data));
    end SSE_Record;
 
+   function Build_Text_SSE
+     (Text                   : String;
+      Prompt_Tokens          : Natural;
+      Completion_Tokens      : Natural;
+      Include_Assistant_Role : Boolean := False) return String
+   is
+      use GNATCOLL.JSON;
+
+      Delta_Event  : constant JSON_Value := Create_Object;
+      Delta_Choice : constant JSON_Value := Create_Object;
+      Delta_Value        : constant JSON_Value := Create_Object;
+      Finish_Event : constant JSON_Value := Create_Object;
+      Finish_Choice : constant JSON_Value := Create_Object;
+      Finish_Delta : constant JSON_Value := Create_Object;
+      Usage        : constant JSON_Value := Create_Object;
+      Choices      : JSON_Array := Empty_Array;
+   begin
+      if Include_Assistant_Role then
+         Delta_Value.Set_Field ("role", "assistant");
+      end if;
+
+      Delta_Value.Set_Field ("content", Text);
+      Delta_Choice.Set_Field ("delta", Delta_Value);
+      Delta_Choice.Set_Field ("finish_reason", JSON_Null);
+      Append (Choices, Delta_Choice);
+      Delta_Event.Set_Field ("choices", Choices);
+
+      Choices := Empty_Array;
+      Finish_Choice.Set_Field ("delta", Finish_Delta);
+      Finish_Choice.Set_Field ("finish_reason", "stop");
+      Append (Choices, Finish_Choice);
+      Finish_Event.Set_Field ("choices", Choices);
+      Usage.Set_Field ("prompt_tokens", Integer (Prompt_Tokens));
+      Usage.Set_Field ("completion_tokens", Integer (Completion_Tokens));
+      Usage.Set_Field
+        ("total_tokens", Integer (Prompt_Tokens + Completion_Tokens));
+      Finish_Event.Set_Field ("usage", Usage);
+
+      return SSE_Record (Delta_Event)
+        & SSE_Record (Finish_Event)
+        & SSE_Record ("[DONE]");
+   end Build_Text_SSE;
+
+   function Build_Reasoning_SSE
+     (Thinking_Text      : String;
+      Prompt_Tokens      : Natural;
+      Completion_Tokens  : Natural) return String
+   is
+      use GNATCOLL.JSON;
+
+      Delta_Event  : constant JSON_Value := Create_Object;
+      Delta_Choice : constant JSON_Value := Create_Object;
+      Delta_Value        : constant JSON_Value := Create_Object;
+      Finish_Event : constant JSON_Value := Create_Object;
+      Finish_Choice : constant JSON_Value := Create_Object;
+      Finish_Delta : constant JSON_Value := Create_Object;
+      Usage        : constant JSON_Value := Create_Object;
+      Choices      : JSON_Array := Empty_Array;
+   begin
+      Delta_Value.Set_Field ("reasoning", Thinking_Text);
+      Delta_Choice.Set_Field ("delta", Delta_Value);
+      Delta_Choice.Set_Field ("finish_reason", JSON_Null);
+      Append (Choices, Delta_Choice);
+      Delta_Event.Set_Field ("choices", Choices);
+
+      Choices := Empty_Array;
+      Finish_Choice.Set_Field ("delta", Finish_Delta);
+      Finish_Choice.Set_Field ("finish_reason", "stop");
+      Append (Choices, Finish_Choice);
+      Finish_Event.Set_Field ("choices", Choices);
+      Usage.Set_Field ("prompt_tokens", Integer (Prompt_Tokens));
+      Usage.Set_Field ("completion_tokens", Integer (Completion_Tokens));
+      Usage.Set_Field
+        ("total_tokens", Integer (Prompt_Tokens + Completion_Tokens));
+      Finish_Event.Set_Field ("usage", Usage);
+
+      return SSE_Record (Delta_Event)
+        & SSE_Record (Finish_Event)
+        & SSE_Record ("[DONE]");
+   end Build_Reasoning_SSE;
+
+   function Build_Stop_SSE
+     (Prompt_Tokens      : Natural;
+      Completion_Tokens  : Natural) return String
+   is
+      use GNATCOLL.JSON;
+
+      Finish_Event  : constant JSON_Value := Create_Object;
+      Finish_Choice : constant JSON_Value := Create_Object;
+      Finish_Delta  : constant JSON_Value := Create_Object;
+      Usage         : constant JSON_Value := Create_Object;
+      Choices       : JSON_Array := Empty_Array;
+   begin
+      Finish_Choice.Set_Field ("delta", Finish_Delta);
+      Finish_Choice.Set_Field ("finish_reason", "stop");
+      Append (Choices, Finish_Choice);
+      Finish_Event.Set_Field ("choices", Choices);
+      Usage.Set_Field ("prompt_tokens", Integer (Prompt_Tokens));
+      Usage.Set_Field ("completion_tokens", Integer (Completion_Tokens));
+      Usage.Set_Field
+        ("total_tokens", Integer (Prompt_Tokens + Completion_Tokens));
+      Finish_Event.Set_Field ("usage", Usage);
+
+      return SSE_Record (Finish_Event)
+        & SSE_Record ("[DONE]");
+   end Build_Stop_SSE;
+
+   function Build_Non_Streaming_Text_Payload
+     (Text               : String;
+      Prompt_Tokens      : Natural;
+      Completion_Tokens  : Natural) return String
+   is
+      use GNATCOLL.JSON;
+
+      Root    : constant JSON_Value := Create_Object;
+      Choice  : constant JSON_Value := Create_Object;
+      Message : constant JSON_Value := Create_Object;
+      Usage   : constant JSON_Value := Create_Object;
+      Choices : JSON_Array := Empty_Array;
+   begin
+      Message.Set_Field ("role", "assistant");
+      Message.Set_Field ("content", Text);
+      Choice.Set_Field ("message", Message);
+      Choice.Set_Field ("finish_reason", "stop");
+      Append (Choices, Choice);
+      Root.Set_Field ("choices", Choices);
+      Usage.Set_Field ("prompt_tokens", Integer (Prompt_Tokens));
+      Usage.Set_Field ("completion_tokens", Integer (Completion_Tokens));
+      Usage.Set_Field
+        ("total_tokens", Integer (Prompt_Tokens + Completion_Tokens));
+      Root.Set_Field ("usage", Usage);
+      return Write (Root);
+   end Build_Non_Streaming_Text_Payload;
+
+   function Build_Non_Streaming_Tool_Payload
+     (Tool_Call_Id      : String;
+      Tool_Name         : String;
+      Arguments         : GNATCOLL.JSON.JSON_Value;
+      Prompt_Tokens     : Natural;
+      Completion_Tokens : Natural) return String
+   is
+      use GNATCOLL.JSON;
+
+      Root       : constant JSON_Value := Create_Object;
+      Choice     : constant JSON_Value := Create_Object;
+      Message    : constant JSON_Value := Create_Object;
+      Tool_Call    : constant JSON_Value := Create_Object;
+      Function_J   : constant JSON_Value := Create_Object;
+      Usage          : constant JSON_Value := Create_Object;
+      Null_Content   : constant JSON_Value := JSON_Null;
+      Arguments_Text : constant String := Write (Arguments);
+      Choices        : JSON_Array := Empty_Array;
+      Tool_Calls     : JSON_Array := Empty_Array;
+   begin
+      Message.Set_Field ("role", "assistant");
+      Message.Set_Field ("content", Null_Content);
+      Tool_Call.Set_Field ("id", Tool_Call_Id);
+      Tool_Call.Set_Field ("type", "function");
+      Function_J.Set_Field ("name", Tool_Name);
+      Function_J.Set_Field ("arguments", Arguments_Text);
+      Tool_Call.Set_Field ("function", Function_J);
+      Append (Tool_Calls, Tool_Call);
+      Message.Set_Field ("tool_calls", Tool_Calls);
+      Choice.Set_Field ("message", Message);
+      Choice.Set_Field ("finish_reason", "tool_calls");
+      Append (Choices, Choice);
+      Root.Set_Field ("choices", Choices);
+      Usage.Set_Field ("prompt_tokens", Integer (Prompt_Tokens));
+      Usage.Set_Field ("completion_tokens", Integer (Completion_Tokens));
+      Usage.Set_Field
+        ("total_tokens", Integer (Prompt_Tokens + Completion_Tokens));
+      Root.Set_Field ("usage", Usage);
+      return Write (Root);
+   end Build_Non_Streaming_Tool_Payload;
+
+   function Build_Partial_Text_SSE (Text : String) return String is
+      use GNATCOLL.JSON;
+
+      Delta_Event  : constant JSON_Value := Create_Object;
+      Delta_Choice : constant JSON_Value := Create_Object;
+      Delta_Value        : constant JSON_Value := Create_Object;
+      Choices      : JSON_Array := Empty_Array;
+   begin
+      Delta_Value.Set_Field ("content", Text);
+      Delta_Choice.Set_Field ("delta", Delta_Value);
+      Delta_Choice.Set_Field ("finish_reason", JSON_Null);
+      Append (Choices, Delta_Choice);
+      Delta_Event.Set_Field ("choices", Choices);
+      return SSE_Record (Delta_Event);
+   end Build_Partial_Text_SSE;
+
    procedure Collect_Event
      (Collector : in out Event_Collector;
       E         :        LLM.Events.Agent_Event'Class)
@@ -185,14 +376,11 @@ package body LLM_OpenAI_Completions_Tests is
 
       --  SSE payload: text delta then stop with usage.
       SSE_Payload : constant String :=
-         "data: {""choices"":[{""delta"":{""role"":""assistant"","
-         & """content"":""Hello""},""finish_reason"":null}]}"
-         & ASCII.LF & ASCII.LF
-         & "data: {""choices"":[{""delta"":{},""finish_reason"":""stop""}],"
-         & """usage"":{""prompt_tokens"":10,""completion_tokens"":5,"
-         & """total_tokens"":15}}"
-         & ASCII.LF & ASCII.LF
-         & "data: [DONE]" & ASCII.LF & ASCII.LF;
+         Build_Text_SSE
+           (Text                   => "Hello",
+            Prompt_Tokens          => 10,
+            Completion_Tokens      => 5,
+            Include_Assistant_Role => True);
 
       procedure Handle_Request
         (Req :     Test_HTTP_Server.Request;
@@ -804,14 +992,10 @@ package body LLM_OpenAI_Completions_Tests is
 
       --  SSE payload: reasoning delta then stop with usage.
       SSE_Payload : constant String :=
-         "data: {""choices"":[{""delta"":{""reasoning"":"
-         & """thinking text""},""finish_reason"":null}]}"
-         & ASCII.LF & ASCII.LF
-         & "data: {""choices"":[{""delta"":{},""finish_reason"":""stop""}],"
-         & """usage"":{""prompt_tokens"":8,""completion_tokens"":3,"
-         & """total_tokens"":11}}"
-         & ASCII.LF & ASCII.LF
-         & "data: [DONE]" & ASCII.LF & ASCII.LF;
+         Build_Reasoning_SSE
+           (Thinking_Text     => "thinking text",
+            Prompt_Tokens     => 8,
+            Completion_Tokens => 3);
 
       procedure Handle_Request
         (Req :     Test_HTTP_Server.Request;
@@ -899,11 +1083,9 @@ package body LLM_OpenAI_Completions_Tests is
 
       --  SSE payload: empty delta with stop reason and usage.
       SSE_Payload : constant String :=
-         "data: {""choices"":[{""delta"":{},""finish_reason"":""stop""}],"
-         & """usage"":{""prompt_tokens"":4,""completion_tokens"":0,"
-         & """total_tokens"":4}}"
-         & ASCII.LF & ASCII.LF
-         & "data: [DONE]" & ASCII.LF & ASCII.LF;
+         Build_Stop_SSE
+           (Prompt_Tokens     => 4,
+            Completion_Tokens => 0);
 
       procedure Handle_Request
         (Req :     Test_HTTP_Server.Request;
@@ -988,10 +1170,10 @@ package body LLM_OpenAI_Completions_Tests is
 
       --  Non-streaming JSON response payload.
       JSON_Payload : constant String :=
-         "{""choices"":[{""message"":{""role"":""assistant"","
-         & """content"":""Non-stream hello""},""finish_reason"":""stop""}],"
-         & """usage"":{""prompt_tokens"":13,""completion_tokens"":4,"
-         & """total_tokens"":17}}";
+         Build_Non_Streaming_Text_Payload
+           (Text               => "Non-stream hello",
+            Prompt_Tokens      => 13,
+            Completion_Tokens  => 4);
 
       procedure Handle_Request
         (Req :     Test_HTTP_Server.Request;
@@ -1095,14 +1277,19 @@ package body LLM_OpenAI_Completions_Tests is
 
       --  Non-streaming JSON response with a tool call.
       --  arguments value: {"path":"nonstream.adb"}
-      JSON_Payload : constant String :=
-         "{""choices"":[{""message"":{""role"":""assistant"","
-         & """content"":null,""tool_calls"":[{""id"":""call_1"","
-         & """type"":""function"",""function"":{""name"":""read"","
-         & """arguments"":""{\""path\"":\""nonstream.adb\""}"""
-         & "}}]},""finish_reason"":""tool_calls""}],"
-         & """usage"":{""prompt_tokens"":14,""completion_tokens"":6,"
-         & """total_tokens"":20}}";
+      function Build_JSON_Payload return String is
+         Args : GNATCOLL.JSON.JSON_Value := GNATCOLL.JSON.Create_Object;
+      begin
+         Args.Set_Field ("path", "nonstream.adb");
+         return Build_Non_Streaming_Tool_Payload
+           (Tool_Call_Id      => "call_1",
+            Tool_Name         => "read",
+            Arguments         => Args,
+            Prompt_Tokens     => 14,
+            Completion_Tokens => 6);
+      end Build_JSON_Payload;
+
+      JSON_Payload : constant String := Build_JSON_Payload;
 
       procedure Handle_Request
         (Req :     Test_HTTP_Server.Request;
@@ -1295,10 +1482,7 @@ package body LLM_OpenAI_Completions_Tests is
       User_Content : LLM.Types.Content_Block_Vectors.Vector;
 
       --  Partial SSE response: one data event, no [DONE] terminator.
-      SSE_Payload : constant String :=
-         "data: {""choices"":[{""delta"":{""content"":""partial""},"
-         & """finish_reason"":null}]}"
-         & ASCII.LF & ASCII.LF;
+      SSE_Payload : constant String := Build_Partial_Text_SSE ("partial");
 
       procedure Handle_Request
         (Req :     Test_HTTP_Server.Request;

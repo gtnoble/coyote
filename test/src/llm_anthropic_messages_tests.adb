@@ -44,6 +44,83 @@ package body LLM_Anthropic_Messages_Tests is
       return Image (Image'First + 1 .. Image'Last);
    end Natural_Image;
 
+   function Event_Record
+      (Event_Name : String;
+       Data       : GNATCOLL.JSON.JSON_Value) return String
+   is
+   begin
+      return "event: " & Event_Name & ASCII.LF
+         & "data: " & GNATCOLL.JSON.Write (Data)
+         & ASCII.LF & ASCII.LF;
+   end Event_Record;
+
+   function Build_Tool_Use_SSE_Payload return String is
+      use GNATCOLL.JSON;
+
+      Message_Start     : constant JSON_Value := Create_Object;
+      Message_Value     : constant JSON_Value := Create_Object;
+      Message_Usage     : constant JSON_Value := Create_Object;
+      Content_Block_1   : constant JSON_Value := Create_Object;
+      Block_Start       : constant JSON_Value := Create_Object;
+      Delta_Event_1     : constant JSON_Value := Create_Object;
+      Delta_Value_1     : constant JSON_Value := Create_Object;
+      Delta_Event_2     : constant JSON_Value := Create_Object;
+      Delta_Value_2     : constant JSON_Value := Create_Object;
+      Block_Stop        : constant JSON_Value := Create_Object;
+      Message_Delta     : constant JSON_Value := Create_Object;
+      Message_Delta_Val : constant JSON_Value := Create_Object;
+      Delta_Usage       : constant JSON_Value := Create_Object;
+      Message_Stop      : constant JSON_Value := Create_Object;
+   begin
+      Message_Start.Set_Field ("type", "message_start");
+      Message_Value.Set_Field ("id", "msg_tool");
+      Message_Value.Set_Field ("type", "message");
+      Message_Value.Set_Field ("role", "assistant");
+      Message_Value.Set_Field ("content", Empty_Array);
+      Message_Usage.Set_Field ("input_tokens", Integer (9));
+      Message_Usage.Set_Field ("output_tokens", Integer (0));
+      Message_Value.Set_Field ("usage", Message_Usage);
+      Message_Start.Set_Field ("message", Message_Value);
+
+      Block_Start.Set_Field ("type", "content_block_start");
+      Block_Start.Set_Field ("index", Integer (0));
+      Content_Block_1.Set_Field ("type", "tool_use");
+      Content_Block_1.Set_Field ("id", "tool_1");
+      Content_Block_1.Set_Field ("name", "read");
+      Block_Start.Set_Field ("content_block", Content_Block_1);
+
+      Delta_Event_1.Set_Field ("type", "content_block_delta");
+      Delta_Event_1.Set_Field ("index", Integer (0));
+      Delta_Value_1.Set_Field ("type", "input_json_delta");
+      Delta_Value_1.Set_Field ("partial_json", "{""path"":""tool");
+      Delta_Event_1.Set_Field ("delta", Delta_Value_1);
+
+      Delta_Event_2.Set_Field ("type", "content_block_delta");
+      Delta_Event_2.Set_Field ("index", Integer (0));
+      Delta_Value_2.Set_Field ("type", "input_json_delta");
+      Delta_Value_2.Set_Field ("partial_json", "-input.adb""}");
+      Delta_Event_2.Set_Field ("delta", Delta_Value_2);
+
+      Block_Stop.Set_Field ("type", "content_block_stop");
+      Block_Stop.Set_Field ("index", Integer (0));
+
+      Message_Delta.Set_Field ("type", "message_delta");
+      Message_Delta_Val.Set_Field ("stop_reason", "tool_use");
+      Message_Delta.Set_Field ("delta", Message_Delta_Val);
+      Delta_Usage.Set_Field ("output_tokens", Integer (5));
+      Message_Delta.Set_Field ("usage", Delta_Usage);
+
+      Message_Stop.Set_Field ("type", "message_stop");
+
+      return Event_Record ("message_start", Message_Start)
+         & Event_Record ("content_block_start", Block_Start)
+         & Event_Record ("content_block_delta", Delta_Event_1)
+         & Event_Record ("content_block_delta", Delta_Event_2)
+         & Event_Record ("content_block_stop", Block_Stop)
+         & Event_Record ("message_delta", Message_Delta)
+         & Event_Record ("message_stop", Message_Stop);
+   end Build_Tool_Use_SSE_Payload;
+
    --  SSE response payload served by the Anthropic capture handler.
    --  Contains thinking + text blocks, end_turn stop reason.
    Anthropic_SSE_Payload : constant String :=
@@ -88,42 +165,8 @@ package body LLM_Anthropic_Messages_Tests is
       & ASCII.LF & ASCII.LF;
 
    --  SSE response payload for the tool-use test.
-   --  partial_json fields contain embedded JSON-escaped double quotes.
-   Tool_Use_SSE_Payload : constant String :=
-      "event: message_start" & ASCII.LF
-      & "data: {""type"":""message_start"","
-      & """message"":{""id"":""msg_tool"","
-      & """type"":""message"",""role"":""assistant"","
-      & """content"":[],""usage"":"
-      & "{""input_tokens"":9,""output_tokens"":0}}}"
-      & ASCII.LF & ASCII.LF
-      & "event: content_block_start" & ASCII.LF
-      & "data: {""type"":""content_block_start"","
-      & """index"":0,""content_block"":"
-      & "{""type"":""tool_use"",""id"":""tool_1"","
-      & """name"":""read""}}"
-      & ASCII.LF & ASCII.LF
-      & "event: content_block_delta" & ASCII.LF
-      & "data: {""type"":""content_block_delta"","
-      & """index"":0,""delta"":{""type"":""input_json_delta"","
-      & """partial_json"":""{\""path\"":\""tool""}}"
-      & ASCII.LF & ASCII.LF
-      & "event: content_block_delta" & ASCII.LF
-      & "data: {""type"":""content_block_delta"","
-      & """index"":0,""delta"":{""type"":""input_json_delta"","
-      & """partial_json"":""-input.adb\""}""}}"
-      & ASCII.LF & ASCII.LF
-      & "event: content_block_stop" & ASCII.LF
-      & "data: {""type"":""content_block_stop"",""index"":0}"
-      & ASCII.LF & ASCII.LF
-      & "event: message_delta" & ASCII.LF
-      & "data: {""type"":""message_delta"","
-      & """delta"":{""stop_reason"":""tool_use""},"
-      & """usage"":{""output_tokens"":5}}"
-      & ASCII.LF & ASCII.LF
-      & "event: message_stop" & ASCII.LF
-      & "data: {""type"":""message_stop""}"
-      & ASCII.LF & ASCII.LF;
+   --  partial_json fields are emitted from JSON builders.
+   Tool_Use_SSE_Payload : constant String := Build_Tool_Use_SSE_Payload;
 
    --  Truncated SSE payload for the early-close test (no message_stop).
    Early_Close_SSE_Payload : constant String :=

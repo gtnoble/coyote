@@ -315,51 +315,111 @@ package body LLM_OpenRouter_Tests is
       return Messages;
    end Build_Messages;
 
+   function SSE_Record (Data : String) return String is
+   begin
+      return "data: " & Data & ASCII.LF & ASCII.LF;
+   end SSE_Record;
+
+   function SSE_Record
+      (Data : GNATCOLL.JSON.JSON_Value) return String
+   is
+   begin
+      return SSE_Record (GNATCOLL.JSON.Write (Data));
+   end SSE_Record;
+
+   function Build_Text_SSE_Payload
+      (Text              : String;
+       Prompt_Tokens     : Natural;
+       Completion_Tokens : Natural) return String
+   is
+      use GNATCOLL.JSON;
+
+      Delta_Event  : constant JSON_Value := Create_Object;
+      Delta_Choice : constant JSON_Value := Create_Object;
+      Delta_Value        : constant JSON_Value := Create_Object;
+      Finish_Event : constant JSON_Value := Create_Object;
+      Finish_Choice : constant JSON_Value := Create_Object;
+      Finish_Delta : constant JSON_Value := Create_Object;
+      Usage        : constant JSON_Value := Create_Object;
+      Choices      : JSON_Array := Empty_Array;
+   begin
+      Delta_Value.Set_Field ("content", Text);
+      Delta_Choice.Set_Field ("delta", Delta_Value);
+      Delta_Choice.Set_Field ("finish_reason", JSON_Null);
+      Append (Choices, Delta_Choice);
+      Delta_Event.Set_Field ("choices", Choices);
+
+      Choices := Empty_Array;
+      Finish_Choice.Set_Field ("delta", Finish_Delta);
+      Finish_Choice.Set_Field ("finish_reason", "stop");
+      Append (Choices, Finish_Choice);
+      Finish_Event.Set_Field ("choices", Choices);
+      Usage.Set_Field ("prompt_tokens", Integer (Prompt_Tokens));
+      Usage.Set_Field ("completion_tokens", Integer (Completion_Tokens));
+      Finish_Event.Set_Field ("usage", Usage);
+
+      return SSE_Record (Delta_Event)
+         & SSE_Record (Finish_Event)
+         & SSE_Record ("[DONE]");
+   end Build_Text_SSE_Payload;
+
+   function Build_Live_Models_Body return String is
+      use GNATCOLL.JSON;
+
+      Root                 : constant JSON_Value := Create_Object;
+      Model                : constant JSON_Value := Create_Object;
+      Architecture         : constant JSON_Value := Create_Object;
+      Pricing              : constant JSON_Value := Create_Object;
+      Top_Provider         : constant JSON_Value := Create_Object;
+      Data_Array           : JSON_Array := Empty_Array;
+      Input_Modalities     : JSON_Array := Empty_Array;
+      Output_Modalities    : JSON_Array := Empty_Array;
+      Supported_Parameters : JSON_Array := Empty_Array;
+   begin
+      Model.Set_Field ("id", "test/model");
+      Model.Set_Field ("name", "Test Model");
+      Model.Set_Field ("context_length", Integer (4096));
+      Append (Input_Modalities, Create ("text"));
+      Append (Output_Modalities, Create ("text"));
+      Architecture.Set_Field ("input_modalities", Input_Modalities);
+      Architecture.Set_Field ("output_modalities", Output_Modalities);
+      Model.Set_Field ("architecture", Architecture);
+      Pricing.Set_Field ("prompt", "0.000001");
+      Pricing.Set_Field ("completion", "0.000002");
+      Model.Set_Field ("pricing", Pricing);
+      Top_Provider.Set_Field ("context_length", Integer (4096));
+      Top_Provider.Set_Field ("max_completion_tokens", Integer (256));
+      Model.Set_Field ("top_provider", Top_Provider);
+      Append (Supported_Parameters, Create ("reasoning"));
+      Model.Set_Field ("supported_parameters", Supported_Parameters);
+      Append (Data_Array, Model);
+      Root.Set_Field ("data", Data_Array);
+      return Write (Root);
+   end Build_Live_Models_Body;
+
    --  SSE payload used by header and reasoning tests: streams "Hello".
    Hello_SSE_Payload : constant String :=
-      "data: {""choices"":[{""delta"":{""content"":""Hello""},"
-      & """finish_reason"":null}]}"
-      & ASCII.LF & ASCII.LF
-      & "data: {""choices"":[{""delta"":{},""finish_reason"":""stop""}],"
-      & """usage"":{""prompt_tokens"":1,""completion_tokens"":1}}"
-      & ASCII.LF & ASCII.LF
-      & "data: [DONE]" & ASCII.LF & ASCII.LF;
+      Build_Text_SSE_Payload
+         (Text              => "Hello",
+          Prompt_Tokens     => 1,
+          Completion_Tokens => 1);
 
    --  SSE payload used by the settings fallback test: streams "Settings".
    Settings_SSE_Payload : constant String :=
-      "data: {""choices"":[{""delta"":{""content"":""Settings""},"
-      & """finish_reason"":null}]}"
-      & ASCII.LF & ASCII.LF
-      & "data: {""choices"":[{""delta"":{},""finish_reason"":""stop""}],"
-      & """usage"":{""prompt_tokens"":1,""completion_tokens"":1}}"
-      & ASCII.LF & ASCII.LF
-      & "data: [DONE]" & ASCII.LF & ASCII.LF;
+      Build_Text_SSE_Payload
+         (Text              => "Settings",
+          Prompt_Tokens     => 1,
+          Completion_Tokens => 1);
 
    --  SSE payload used by the live-fetch-then-send test: streams "Live".
    Live_SSE_Payload : constant String :=
-      "data: {""choices"":[{""delta"":{""content"":""Live""},"
-      & """finish_reason"":null}]}"
-      & ASCII.LF & ASCII.LF
-      & "data: {""choices"":[{""delta"":{},""finish_reason"":""stop""}],"
-      & """usage"":{""prompt_tokens"":1,""completion_tokens"":1}}"
-      & ASCII.LF & ASCII.LF
-      & "data: [DONE]" & ASCII.LF & ASCII.LF;
+      Build_Text_SSE_Payload
+         (Text              => "Live",
+          Prompt_Tokens     => 1,
+          Completion_Tokens => 1);
 
    --  Models catalogue JSON body served by the live-fetch-then-send handler.
-   Live_Models_Body : constant String :=
-      "{""data"":[{""id"":""test/model"","
-      & """name"":""Test Model"","
-      & """context_length"":4096,"
-      & """architecture"":{"
-      & """input_modalities"":[""text""],"
-      & """output_modalities"":[""text""]},"
-      & """pricing"":{"
-      & """prompt"":""0.000001"","
-      & """completion"":""0.000002""},"
-      & """top_provider"":{"
-      & """context_length"":4096,"
-      & """max_completion_tokens"":256},"
-      & """supported_parameters"":[""reasoning""]}]}";
+   Live_Models_Body : constant String := Build_Live_Models_Body;
 
    procedure Test_Send_Adds_OpenRouter_Headers (T : in out Test) is
       pragma Unreferenced (T);

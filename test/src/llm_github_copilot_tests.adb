@@ -280,6 +280,54 @@ package body LLM_GitHub_Copilot_Tests is
       return Messages;
    end Build_Assistant_Messages;
 
+   function SSE_Record (Data : String) return String is
+   begin
+      return "data: " & Data & ASCII.LF & ASCII.LF;
+   end SSE_Record;
+
+   function SSE_Record
+      (Data : GNATCOLL.JSON.JSON_Value) return String
+   is
+   begin
+      return SSE_Record (GNATCOLL.JSON.Write (Data));
+   end SSE_Record;
+
+   function Build_OpenAI_SSE
+      (Text              : String;
+       Prompt_Tokens     : Natural;
+       Completion_Tokens : Natural) return String
+   is
+      use GNATCOLL.JSON;
+
+      Delta_Event  : constant JSON_Value := Create_Object;
+      Delta_Choice : constant JSON_Value := Create_Object;
+      Delta_Value        : constant JSON_Value := Create_Object;
+      Finish_Event : constant JSON_Value := Create_Object;
+      Finish_Choice : constant JSON_Value := Create_Object;
+      Finish_Delta : constant JSON_Value := Create_Object;
+      Usage        : constant JSON_Value := Create_Object;
+      Choices      : JSON_Array := Empty_Array;
+   begin
+      Delta_Value.Set_Field ("content", Text);
+      Delta_Choice.Set_Field ("delta", Delta_Value);
+      Delta_Choice.Set_Field ("finish_reason", JSON_Null);
+      Append (Choices, Delta_Choice);
+      Delta_Event.Set_Field ("choices", Choices);
+
+      Choices := Empty_Array;
+      Finish_Choice.Set_Field ("delta", Finish_Delta);
+      Finish_Choice.Set_Field ("finish_reason", "stop");
+      Append (Choices, Finish_Choice);
+      Finish_Event.Set_Field ("choices", Choices);
+      Usage.Set_Field ("prompt_tokens", Integer (Prompt_Tokens));
+      Usage.Set_Field ("completion_tokens", Integer (Completion_Tokens));
+      Finish_Event.Set_Field ("usage", Usage);
+
+      return SSE_Record (Delta_Event)
+         & SSE_Record (Finish_Event)
+         & SSE_Record ("[DONE]");
+   end Build_OpenAI_SSE;
+
    procedure Send_With_Retry
       (P        : in out LLM.Providers.GitHub_Copilot.Provider;
        Model_Id :        String;
@@ -390,14 +438,10 @@ package body LLM_GitHub_Copilot_Tests is
 
       --  OpenAI-format SSE stream — text delta contains "GPT".
       OpenAI_SSE : constant String :=
-         "data: {""choices"":[{""delta"":{""content"":""GPT""},"
-         & """finish_reason"":null}]}"
-         & ASCII.LF & ASCII.LF
-         & "data: {""choices"":[{""delta"":{},""finish_reason"":""stop""}],"
-         & """usage"":{""prompt_tokens"":1,""completion_tokens"":1}}"
-         & ASCII.LF & ASCII.LF
-         & "data: [DONE]"
-         & ASCII.LF & ASCII.LF;
+         Build_OpenAI_SSE
+           (Text              => "GPT",
+            Prompt_Tokens     => 1,
+            Completion_Tokens => 1);
 
       Provider       : LLM.Providers.GitHub_Copilot.Provider :=
          LLM.Providers.GitHub_Copilot.Create;
