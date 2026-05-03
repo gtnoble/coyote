@@ -551,6 +551,8 @@ package body Coyote_App is
 
          procedure Append_Task_Warning (Message : String) is
          begin
+            Ada.Text_IO.Put_Line
+              (Ada.Text_IO.Standard_Error, "[!] " & Message);
             Acme.Window.Append
               (Win,
                My_FS'Access,
@@ -772,6 +774,10 @@ package body Coyote_App is
          end if;
       exception
          when Ex : others =>
+            Ada.Text_IO.Put_Line
+              (Ada.Text_IO.Standard_Error,
+               "[!] Agent task: "
+               & Ada.Exceptions.Exception_Message (Ex));
             Acme.Window.Append
               (Win,
                My_FS'Access,

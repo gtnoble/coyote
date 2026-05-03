@@ -239,6 +239,10 @@ package body Coyote_App.History is
             if Ada.Text_IO.Is_Open (File) then
                Ada.Text_IO.Close (File);
             end if;
+            Ada.Text_IO.Put_Line
+              (Ada.Text_IO.Standard_Error,
+               "[!] could not read session file: "
+               & Ada.Exceptions.Exception_Message (Ex));
             Acme.Window.Append
               (Win, FS,
                "[could not read session file: "
@@ -733,6 +737,10 @@ package body Coyote_App.History is
             if Ada.Text_IO.Is_Open (File) then
                Ada.Text_IO.Close (File);
             end if;
+            Ada.Text_IO.Put_Line
+              (Ada.Text_IO.Standard_Error,
+               "[!] error rendering session history: "
+               & Ada.Exceptions.Exception_Message (Ex));
             Acme.Window.Append
               (Win, FS,
                "[error rendering session history: "
