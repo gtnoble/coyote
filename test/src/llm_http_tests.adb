@@ -1,87 +1,15 @@
 with AUnit.Assertions;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
-with GNATCOLL.OS.Process;   use GNATCOLL.OS.Process;
 with LLM.HTTP;
+with Test_HTTP_Server;
 
 package body LLM_HTTP_Tests is
 
    use AUnit.Assertions;
 
-   function Natural_Image (Value : Natural) return String is
-      Image : constant String := Natural'Image (Value);
-   begin
-      return Image (Image'First + 1 .. Image'Last);
-   end Natural_Image;
-
-   function Post_Server_Script (Port : Positive) return String is
-   begin
-      return
-        "import http.server" & ASCII.LF & "class S(http.server.HTTPServer):" &
-        ASCII.LF & "    allow_reuse_address = True" & ASCII.LF &
-        "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF &
-        "    def do_POST(self):" & ASCII.LF &
-        "        self.send_response(201)" & ASCII.LF &
-        "        self.send_header('Content-Length', '11')" & ASCII.LF &
-        "        self.end_headers()" & ASCII.LF &
-        "        self.wfile.write(b'hello ')" & ASCII.LF &
-        "        self.wfile.flush()" & ASCII.LF &
-        "        self.wfile.write(b'chunk')" & ASCII.LF &
-        "        self.wfile.flush()" & ASCII.LF &
-        "    def log_message(self, *a): pass" & ASCII.LF &
-        "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)" & ASCII.LF &
-        "s.timeout = 3" & ASCII.LF & "s.handle_request()" & ASCII.LF &
-        "s.server_close()" & ASCII.LF;
-   end Post_Server_Script;
-
-   function Get_Server_Script (Port : Positive) return String is
-   begin
-      return
-        "import http.server" & ASCII.LF & "class S(http.server.HTTPServer):" &
-        ASCII.LF & "    allow_reuse_address = True" & ASCII.LF &
-        "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF &
-        "    def do_GET(self):" & ASCII.LF &
-        "        self.send_response(200)" & ASCII.LF &
-        "        self.send_header('Content-Length', '9')" & ASCII.LF &
-        "        self.end_headers()" & ASCII.LF &
-        "        self.wfile.write(b'hello get')" & ASCII.LF &
-        "        self.wfile.flush()" & ASCII.LF &
-        "    def log_message(self, *a): pass" & ASCII.LF &
-        "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)" & ASCII.LF &
-        "s.timeout = 3" & ASCII.LF & "s.handle_request()" & ASCII.LF &
-        "s.server_close()" & ASCII.LF;
-   end Get_Server_Script;
-
-   function Error_Post_Server_Script (Port : Positive) return String is
-   begin
-      return
-        "import http.server" & ASCII.LF & "class S(http.server.HTTPServer):" &
-        ASCII.LF & "    allow_reuse_address = True" & ASCII.LF &
-        "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF &
-        "    def do_POST(self):" & ASCII.LF &
-        "        self.send_response(400)" & ASCII.LF &
-        "        self.send_header('Content-Length', '11')" & ASCII.LF &
-        "        self.end_headers()" & ASCII.LF &
-        "        self.wfile.write(b'bad request')" & ASCII.LF &
-        "        self.wfile.flush()" & ASCII.LF &
-        "    def log_message(self, *a): pass" & ASCII.LF &
-        "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)" & ASCII.LF &
-        "s.timeout = 3" & ASCII.LF & "s.handle_request()" & ASCII.LF &
-        "s.server_close()" & ASCII.LF;
-   end Error_Post_Server_Script;
-
-   function Spawn_Server (Script : String) return Process_Handle is
-      Args : Argument_List;
-   begin
-      Args.Append ("python3");
-      Args.Append ("-u");
-      Args.Append ("-c");
-      Args.Append (Script);
-
-      return Start (Args => Args);
-   end Spawn_Server;
-
    procedure Post_With_Retry
-     (URL      :     String; Headers : LLM.HTTP.Header_List; Payload : String;
+     (URL      :     String; Headers : LLM.HTTP.Header_List;
+      Payload  :     String;
       On_Chunk :     not null access procedure (Data : String);
       Status   : out Natural)
    is
@@ -132,7 +60,6 @@ package body LLM_HTTP_Tests is
       pragma Unreferenced (T);
 
       Port        : constant Positive := 18_765;
-      Handle      : Process_Handle    := Invalid_Handle;
       Response    : Unbounded_String;
       Chunk_Count : Natural           := 0;
       Headers     : LLM.HTTP.Header_List;
@@ -143,20 +70,30 @@ package body LLM_HTTP_Tests is
          Append (Response, Data);
          Chunk_Count := Chunk_Count + 1;
       end Collect;
+
+      procedure Post_Handler
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Res.Status := 201;
+         Append (Res.Body_Data, "hello chunk");
+      end Post_Handler;
+
+      Server : Test_HTTP_Server.Server
+        (Handler => Post_Handler'Unrestricted_Access);
+
    begin
-      Handle := Spawn_Server (Post_Server_Script (Port));
+      Server.Bind (Port);
       LLM.HTTP.Add_Header (Headers, "Content-Type", "text/plain");
 
       Post_With_Retry
-        (URL     => "http://127.0.0.1:18765/", Headers => Headers,
-         Payload => "ping", On_Chunk => Collect'Access, Status => Status);
+        (URL      => "http://127.0.0.1:18765/", Headers => Headers,
+         Payload  => "ping", On_Chunk => Collect'Access,
+         Status   => Status);
 
-      declare
-         Exit_Code : constant Integer := Wait (Handle);
-         pragma Unreferenced (Exit_Code);
-      begin
-         null;
-      end;
+      Server.Stop;
 
       Assert (Status = 201, "POST should return HTTP 201");
       Assert (Chunk_Count > 0, "POST should invoke On_Chunk at least once");
@@ -169,7 +106,6 @@ package body LLM_HTTP_Tests is
       pragma Unreferenced (T);
 
       Port        : constant Positive := 18_766;
-      Handle      : Process_Handle    := Invalid_Handle;
       Response    : Unbounded_String;
       Chunk_Count : Natural           := 0;
       Headers     : LLM.HTTP.Header_List;
@@ -180,20 +116,29 @@ package body LLM_HTTP_Tests is
          Append (Response, Data);
          Chunk_Count := Chunk_Count + 1;
       end Collect;
+
+      procedure Get_Handler
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Res.Status := 200;
+         Append (Res.Body_Data, "hello get");
+      end Get_Handler;
+
+      Server : Test_HTTP_Server.Server
+        (Handler => Get_Handler'Unrestricted_Access);
+
    begin
-      Handle := Spawn_Server (Get_Server_Script (Port));
+      Server.Bind (Port);
       LLM.HTTP.Add_Header (Headers, "Accept", "text/plain");
 
       Get_With_Retry
         (URL      => "http://127.0.0.1:18766/", Headers => Headers,
          On_Chunk => Collect'Access, Status => Status);
 
-      declare
-         Exit_Code : constant Integer := Wait (Handle);
-         pragma Unreferenced (Exit_Code);
-      begin
-         null;
-      end;
+      Server.Stop;
 
       Assert (Status = 200, "GET should return HTTP 200");
       Assert (Chunk_Count > 0, "GET should invoke On_Chunk at least once");
@@ -208,7 +153,6 @@ package body LLM_HTTP_Tests is
       pragma Unreferenced (T);
 
       Port        : constant Positive := 18_767;
-      Handle      : Process_Handle    := Invalid_Handle;
       Response    : Unbounded_String;
       Chunk_Count : Natural           := 0;
       Headers     : LLM.HTTP.Header_List;
@@ -219,20 +163,30 @@ package body LLM_HTTP_Tests is
          Append (Response, Data);
          Chunk_Count := Chunk_Count + 1;
       end Collect;
+
+      procedure Error_Handler
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Res.Status := 400;
+         Append (Res.Body_Data, "bad request");
+      end Error_Handler;
+
+      Server : Test_HTTP_Server.Server
+        (Handler => Error_Handler'Unrestricted_Access);
+
    begin
-      Handle := Spawn_Server (Error_Post_Server_Script (Port));
+      Server.Bind (Port);
       LLM.HTTP.Add_Header (Headers, "Content-Type", "text/plain");
 
       Post_With_Retry
-        (URL     => "http://127.0.0.1:18767/", Headers => Headers,
-         Payload => "ping", On_Chunk => Collect'Access, Status => Status);
+        (URL      => "http://127.0.0.1:18767/", Headers => Headers,
+         Payload  => "ping", On_Chunk => Collect'Access,
+         Status   => Status);
 
-      declare
-         Exit_Code : constant Integer := Wait (Handle);
-         pragma Unreferenced (Exit_Code);
-      begin
-         null;
-      end;
+      Server.Stop;
 
       Assert (Status = 400, "POST should return HTTP 400 without raising");
       Assert
