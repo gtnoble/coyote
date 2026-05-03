@@ -4,7 +4,7 @@
 PASS_WITH_NOTES
 
 ## Summary
-`LLM.Session_Store`'s native JSONL write path is compatible with the two in-tree readers reviewed here. `Create_Session` writes the native header shape that `Session_Lister.Parse_Session_File` explicitly accepts (`id`/`version`/`createdAt`/`workDir`), and `Append_Message` writes the exact role strings and content-block type strings that both `Session_Lister` and `Pi_Acme_App.History` recognise (`user`, `assistant`, `toolResult`, and `toolCall`). Usage field names also match exactly (`input`, `output`, `cacheRead`, `cacheWrite`), and the native Unix-millisecond timestamps are accepted by the relevant reader paths. Two compatibility gaps remain: `Fork_Session` generates non-RFC-4122 fork UUIDs because it never forces the variant nibble into the `8`-`b` range, and the written `toolResult.toolName` field is always empty because the native message model does not preserve that value.
+`LLM.Session_Store`'s native JSONL write path is compatible with the two in-tree readers reviewed here. `Create_Session` writes the native header shape that `Session_Lister.Parse_Session_File` explicitly accepts (`id`/`version`/`createdAt`/`workDir`), and `Append_Message` writes the exact role strings and content-block type strings that both `Session_Lister` and `Coyote_App.History` recognise (`user`, `assistant`, `toolResult`, and `toolCall`). Usage field names also match exactly (`input`, `output`, `cacheRead`, `cacheWrite`), and the native Unix-millisecond timestamps are accepted by the relevant reader paths. Two compatibility gaps remain: `Fork_Session` generates non-RFC-4122 fork UUIDs because it never forces the variant nibble into the `8`-`b` range, and the written `toolResult.toolName` field is always empty because the native message model does not preserve that value.
 
 ## Issues
 
@@ -38,7 +38,7 @@ PASS_WITH_NOTES
 **Fix:** Force the UUID variant nibble in `Fork_UUID` exactly as `New_UUID` does, so the first hex digit of the fourth group is always `8`, `9`, `a`, or `b`. Then extend the fork-session test to assert length, hyphen positions, version nibble, and variant nibble on the returned `Fork_Id`.
 
 ### [LOW] `toolResult.toolName` is written as an empty string and is not preserved on reload
-**Files:** `src/llm/llm-session_store.adb:387-438`, `src/llm/llm-session_store.adb:569-605`, `src/pi_acme_app-history.adb:187-193`, `test/src/llm_session_store_tests.adb:393-414`
+**Files:** `src/llm/llm-session_store.adb:387-438`, `src/llm/llm-session_store.adb:569-605`, `src/coyote_app-history.adb:187-193`, `test/src/llm_session_store_tests.adb:393-414`
 
 **Description:** The native writer emits a `toolName` field on `toolResult` messages, but `Tool_Result_Object` never assigns `Tool_Name`, so every written line contains `"toolName":""`. The reload path also drops the field entirely because `LLM.Types.Tool_Result_Block` has no place to store it, and `Render_Session_History` keys tool results only by `toolCallId`. This does not break current rendering because the UI gets the visible tool name from the assistant-side `toolCall` block, but it means the native JSONL is not fully field-for-field compatible with the planned/pi `toolResult` shape.
 
@@ -82,9 +82,9 @@ PASS_WITH_NOTES
 ## Confirmed Correct
 - `Create_Session` writes the native header fields `version`, `id`, `createdAt`, and `workDir`, and `Session_Lister.Parse_Session_File` explicitly recognises that native shape via the `createdAt` path.
 - The exact message role strings written by `Append_Message` match both readers: `user`, `assistant`, and `toolResult`.
-- Assistant tool-call content blocks are written with type `toolCall` and an object-valued `arguments` field; `Pi_Acme_App.History` reads exactly `toolCall` and `Get_Object (Block, "arguments")`.
+- Assistant tool-call content blocks are written with type `toolCall` and an object-valued `arguments` field; `Coyote_App.History` reads exactly `toolCall` and `Get_Object (Block, "arguments")`.
 - Assistant `usage` is written with the exact field names `input`, `output`, `cacheRead`, and `cacheWrite`; `Render_Session_History` restores token counts from those same names.
 - Native header timestamps are written as Unix-millisecond integers in `createdAt`; `Session_Lister` reads them with `Get_Integer (Obj, "createdAt")` and formats them through `Format_Unix_Milliseconds`.
-- Per-message timestamps are also written as Unix-millisecond integers. `Pi_Acme_App.History` does not depend on them, and `LLM.Session_Store.Load_Messages` accepts either integer or string timestamps when reloading.
+- Per-message timestamps are also written as Unix-millisecond integers. `Coyote_App.History` does not depend on them, and `LLM.Session_Store.Load_Messages` accepts either integer or string timestamps when reloading.
 - `LLM.Session_Store.New_UUID` itself is RFC-4122-conformant: it masks the version nibble to `4` and the variant nibble to the `8`-`b` range before formatting.
 - `Fork_Session`'s turn-counting logic recognises native direct-message lines via the same role strings (`user`, `assistant`, `toolResult`) that `Append_Message` writes, so native sessions can be forked without envelope conversion.

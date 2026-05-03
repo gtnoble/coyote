@@ -3,7 +3,7 @@
 --  These types represent messages, content blocks, usage counters, and
 --  related metadata shared by all LLM provider adapters.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Containers.Vectors;
@@ -12,7 +12,7 @@ with Ada.Strings.Unbounded;
 package LLM.Types is
 
    --  Conversation role for one message in the transcript.
-   type Role is (User, Assistant, Tool_Result);
+   type Role is (User, Assistant, Tool_Result, Compaction_Summary);
 
    --  Variant kind for one content block inside a message.
    type Content_Block_Kind is

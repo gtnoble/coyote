@@ -3,7 +3,7 @@
 --  Handles Copilot access-token expiry, refresh, and dynamic API base-URL
 --  extraction from the short-lived access token.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 package LLM.Auth.GitHub_Copilot is
@@ -26,7 +26,7 @@ package LLM.Auth.GitHub_Copilot is
    --  Refresh the short-lived Copilot API token using Creds.Refresh_Token.
    --
    --  On success, updates Creds.Access_Token and Creds.Expires_Ms in place and
-   --  persists the refreshed record back to ~/.pi/agent/auth.json.
+   --  persists the refreshed record back to ~/.coyote/auth.json.
    --  Raises Auth_Error on any HTTP, parse, or persistence failure.
    procedure Refresh_Token (Creds : in out Provider_Credentials);
 

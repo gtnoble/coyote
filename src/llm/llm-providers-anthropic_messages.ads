@@ -3,7 +3,7 @@
 --  Implements the Anthropic `/v1/messages` wire format used by GitHub
 --  Copilot Claude models and, later, direct Anthropic access.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Containers.Vectors;

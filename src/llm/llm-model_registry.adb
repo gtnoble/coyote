@@ -1,6 +1,6 @@
 --  LLM.Model_Registry body.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Characters.Handling;
@@ -243,6 +243,27 @@ package body LLM.Model_Registry is
     end if;
   end Lookup;
 
+  --  Compare two Model_Info values for ascending sort by provider then
+  --  model identifier, both case-insensitive.
+  function Model_Info_Before
+    (Left  : Model_Info;
+     Right : Model_Info) return Boolean
+  is
+    L_Prov : constant String :=
+      Ada.Characters.Handling.To_Lower (To_String (Left.Provider));
+    R_Prov : constant String :=
+      Ada.Characters.Handling.To_Lower (To_String (Right.Provider));
+  begin
+    if L_Prov /= R_Prov then
+      return L_Prov < R_Prov;
+    end if;
+    return Ada.Characters.Handling.To_Lower (To_String (Left.Model_Id))
+      < Ada.Characters.Handling.To_Lower (To_String (Right.Model_Id));
+  end Model_Info_Before;
+
+  package Model_Sort is new Model_Info_Vectors.Generic_Sorting
+    ("<" => Model_Info_Before);
+
   function Available_Models return Model_Info_Vectors.Vector is
     Result             : Model_Info_Vectors.Vector;
     Include_GitHub     : constant Boolean :=
@@ -255,14 +276,17 @@ package body LLM.Model_Registry is
         Provider_Name : constant String := Provider_Key (Item.Provider);
       begin
         if (Provider_Name = "github-copilot" and then Include_GitHub)
-          or else (Provider_Name = "openrouter" and then Include_OpenRouter)
-          or else (Provider_Name = "anthropic" and then Include_Anthropic)
+          or else
+            (Provider_Name = "openrouter" and then Include_OpenRouter)
+          or else
+            (Provider_Name = "anthropic" and then Include_Anthropic)
         then
           Result.Append (Item);
         end if;
       end;
     end loop;
 
+    Model_Sort.Sort (Result);
     return Result;
   end Available_Models;
 

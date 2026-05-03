@@ -1,10 +1,9 @@
 --  LLM.Events — event hierarchy emitted by native provider adapters.
 --
---  These tagged event types mirror the existing pi RPC event stream so the
---  native Ada agent can drive the existing display layer through a thin
---  compatibility adapter.
+--  These tagged event types are emitted by native provider adapters and
+--  consumed by the display layer (Coyote_App.Dispatch).
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Strings.Unbounded;

@@ -25,18 +25,18 @@ package body Subagent_Integration_Tests is
       when others => return False;
    end Acme_Running;
 
-   --  Locate the pi_acme binary under test.  Checks ../bin/pi_acme
-   --  relative to the test working directory first, then the PI_ACME_BIN
+   --  Locate the coyote binary under test.  Checks ../bin/coyote
+   --  relative to the test working directory first, then the COYOTE_BIN
    --  environment variable.  Returns "" when the binary cannot be found.
-   function Find_Pi_Acme return String is
-      Candidate : constant String := "../bin/pi_acme";
+   function Find_Coyote return String is
+      Candidate : constant String := "../bin/coyote";
    begin
       if Ada.Directories.Exists (Candidate) then
          return Candidate;
       end if;
       declare
          Env_Bin : constant String :=
-           Ada.Environment_Variables.Value ("PI_ACME_BIN", "");
+           Ada.Environment_Variables.Value ("COYOTE_BIN", "");
       begin
          if Env_Bin'Length > 0
            and then Ada.Directories.Exists (Env_Bin)
@@ -45,7 +45,7 @@ package body Subagent_Integration_Tests is
          end if;
       end;
       return "";
-   end Find_Pi_Acme;
+   end Find_Coyote;
 
    --  Return everything before the first newline in S, or S itself when
    --  no newline is present.
@@ -102,14 +102,14 @@ package body Subagent_Integration_Tests is
 
    --  ── Test_One_Shot_Returns_Json ────────────────────────────────────────
    --
-   --  Verifies the complete happy path: pi_acme --one-shot prints one JSON
+   --  Verifies the complete happy path: coyote --one-shot prints one JSON
    --  line whose "output" field contains "PONG" and whose "session_id" is
    --  a 36-character UUID.
 
    procedure Test_One_Shot_Returns_Json (T : in out Test) is
       pragma Unreferenced (T);
 
-      Pi_Acme    : constant String := Find_Pi_Acme;
+      Coyote    : constant String := Find_Coyote;
       Stdout_Out : Unbounded_String;
       Got_Result : Boolean         := False;
       Flag       : Done_Flag;
@@ -128,7 +128,7 @@ package body Subagent_Integration_Tests is
          Open_Pipe (Stdout_R, Stdout_W);
          Null_In  := Open (Null_File, Read_Mode);
          Null_Err := Open (Null_File, Write_Mode);
-         Args.Append (Pi_Acme);
+         Args.Append (Coyote);
          Args.Append ("--one-shot");
          Args.Append ("--model");
          Args.Append (Model);
@@ -157,8 +157,8 @@ package body Subagent_Integration_Tests is
       if not Acme_Running then
          return;
       end if;
-      if Pi_Acme'Length = 0 then
-         Assert (False, "pi_acme binary not found at ../bin/pi_acme");
+      if Coyote'Length = 0 then
+         Assert (False, "coyote binary not found at ../bin/coyote");
          return;
       end if;
 
@@ -206,14 +206,14 @@ package body Subagent_Integration_Tests is
    procedure Test_One_Shot_Fresh_Session_Each_Run (T : in out Test) is
       pragma Unreferenced (T);
 
-      Pi_Acme : constant String := Find_Pi_Acme;
+      Coyote : constant String := Find_Coyote;
       Out_1   : Unbounded_String;
       Out_2   : Unbounded_String;
       Done_1  : Boolean         := False;
       Done_2  : Boolean         := False;
       Flag    : Done_Flag;
 
-      --  Invoke pi_acme --one-shot once and store stdout in Result.
+      --  Invoke coyote --one-shot once and store stdout in Result.
       --  Sets Done to True on successful completion.
       procedure Run_One_Shot
         (Result : out Unbounded_String;
@@ -231,7 +231,7 @@ package body Subagent_Integration_Tests is
          Open_Pipe (Stdout_R, Stdout_W);
          Null_In  := Open (Null_File, Read_Mode);
          Null_Err := Open (Null_File, Write_Mode);
-         Args.Append (Pi_Acme);
+         Args.Append (Coyote);
          Args.Append ("--one-shot");
          Args.Append ("--model");
          Args.Append (Model);
@@ -266,8 +266,8 @@ package body Subagent_Integration_Tests is
       if not Acme_Running then
          return;
       end if;
-      if Pi_Acme'Length = 0 then
-         Assert (False, "pi_acme binary not found at ../bin/pi_acme");
+      if Coyote'Length = 0 then
+         Assert (False, "coyote binary not found at ../bin/coyote");
          return;
       end if;
 

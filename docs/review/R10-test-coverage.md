@@ -156,7 +156,7 @@ The suites that *do* wrap calls in retry loops (`llm_http_tests`, `llm_openai_co
 **Description:** Several suites use fixed `/tmp/...` paths rather than unique per-run temp names. The Anthropic and GitHub Copilot suites delete capture files before the test, but do not guarantee removal afterward, and `llm_tools_tests` uses a global fixed root. This is not a functional bug in the product, but it can contaminate concurrent or interrupted test runs.
 **Evidence:**
 ```ada
-Capture : constant String := "/tmp/pi_acme_anthropic_capture_1.json";
+Capture : constant String := "/tmp/coyote_anthropic_capture_1.json";
 ...
 Delete_If_Exists (Capture);
 Handle := Spawn_Server (...);
@@ -164,12 +164,12 @@ Handle := Spawn_Server (...);
 ```
 ```ada
 Run_Case
-  (Home         => "/tmp/pi_acme_github_copilot_test_1",
-   Capture_Path => "/tmp/pi_acme_github_copilot_capture_1.json",
+  (Home         => "/tmp/coyote_github_copilot_test_1",
+   Capture_Path => "/tmp/coyote_github_copilot_capture_1.json",
    ...);
 ```
 ```ada
-Test_Root : constant String := "/tmp/pi_acme_llm_tools_tests";
+Test_Root : constant String := "/tmp/coyote_llm_tools_tests";
 ```
 **Fix:** Use PID/UUID-suffixed temp directories/files for all homes, capture files, and tool roots, and delete them in both success and exception paths.
 

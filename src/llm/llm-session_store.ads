@@ -3,7 +3,7 @@
 --  Creates, appends, and reloads native-harness session files using the
 --  same JSONL format that pi uses for direct session storage.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with LLM.Types;
@@ -34,6 +34,24 @@ package LLM.Session_Store is
    procedure Append_Message
      (Session_Id : String;
       Msg        : LLM.Types.Message);
+
+   --  Append one compaction entry line to the session file.
+   --
+   --  Summary is the LLM-generated markdown summary. First_Kept_Index is
+   --  the 0-based index of the first pre-compaction message retained after
+   --  compaction. Tokens_Before records the estimated token count before
+   --  compaction. Read_Files and Modified_Files are newline-separated path
+   --  lists and are serialised as JSON arrays in the details object.
+   --
+   --  Raises Session_Error when the session file cannot be found or
+   --  written.
+   procedure Append_Compaction
+     (Session_Id       : String;
+      Summary          : String;
+      First_Kept_Index : Natural;
+      Tokens_Before    : Natural;
+      Read_Files       : String;
+      Modified_Files   : String);
 
    --  Load all messages from the session file for Session_Id.
    --

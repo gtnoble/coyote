@@ -141,7 +141,7 @@ package body Nine_P_Integration_Tests is
    --  Write to a new window via our Ada client and read back via 9p.
    procedure Test_Client_Matches_9p (T : in out Test) is
       pragma Unreferenced (T);
-      Marker : constant String := "pi_acme_integration_test_marker";
+      Marker : constant String := "coyote_integration_test_marker";
    begin
       if not Acme_Running then return; end if;
       declare

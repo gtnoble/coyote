@@ -1,5 +1,5 @@
-name = "pi_acme_test"
-description = "Tests for pi_acme"
+name = "coyote_test"
+description = "Tests for coyote"
 version = "0.1.0-dev"
 
 authors = ["Garret Noble"]
@@ -9,11 +9,11 @@ licenses = "MIT OR Apache-2.0 WITH LLVM-exception"
 website = ""
 tags = []
 
-executables = ["pi_acme_test"]
+executables = ["coyote_test"]
 
 [[depends-on]]
 aunit = "^25.0.0"
-pi_acme = "*"
+coyote = "*"
 
 [[pins]]
-pi_acme = { path = ".." }
+coyote = { path = ".." }

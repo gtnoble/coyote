@@ -1,6 +1,6 @@
 --  Session_Lister body.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Calendar;
@@ -42,7 +42,7 @@ package body Session_Lister is
       Home : constant String :=
         (if Exists ("HOME") then Value ("HOME") else "");
    begin
-      return Home & "/.pi/agent/sessions/" & Encode_Cwd (Cwd);
+      return Home & "/.coyote/sessions/" & Encode_Cwd (Cwd);
    end Sessions_Dir;
 
    --  ── Format_Timestamp ─────────────────────────────────────────────────
@@ -410,7 +410,7 @@ package body Session_Lister is
         (if Ada.Environment_Variables.Exists ("HOME")
          then Ada.Environment_Variables.Value ("HOME")
          else "");
-      Root    : constant String := Home & "/.pi/agent/sessions";
+      Root    : constant String := Home & "/.coyote/sessions";
       Pattern : constant String := "*" & UUID & "*.jsonl";
       Result  : Unbounded_String;
    begin

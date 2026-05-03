@@ -7,7 +7,7 @@
 --    * Unpack      — decode a Byte_Array to a Message
 --    * P9_Error    — raised on protocol violations during Unpack
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Strings.Unbounded;

@@ -5,8 +5,8 @@ with Acme.Window;
 with LLM.Events;
 with LLM.Types;
 with Nine_P.Client;
-with Pi_Acme_App;          use Pi_Acme_App;
-with Pi_Acme_App.Dispatch; use Pi_Acme_App.Dispatch;
+with Coyote_App;          use Coyote_App;
+with Coyote_App.Dispatch; use Coyote_App.Dispatch;
 
 package body Dispatch_Tests is
 
@@ -29,6 +29,11 @@ package body Dispatch_Tests is
      & Character'Val (16#9C#)
      & Character'Val (16#97#);
 
+   UC_Dbl_H : constant String :=
+     Character'Val (16#E2#)
+     & Character'Val (16#95#)
+     & Character'Val (16#90#);
+
    procedure Assert_Contains
      (Haystack : String;
       Needle   : String;
@@ -39,6 +44,17 @@ package body Dispatch_Tests is
         (Ada.Strings.Fixed.Index (Haystack, Needle) > 0,
          Message);
    end Assert_Contains;
+
+   procedure Assert_Not_Contains
+     (Haystack : String;
+      Needle   : String;
+      Message  : String)
+   is
+   begin
+      Assert
+        (Ada.Strings.Fixed.Index (Haystack, Needle) = 0,
+         Message);
+   end Assert_Not_Contains;
 
    procedure Test_Dispatch_Agent_Start (T : in out Test) is
       pragma Unreferenced (T);
@@ -66,7 +82,7 @@ package body Dispatch_Tests is
       begin
          Acme.Window.Append (Win, FS'Access, Format_Status (S) & ASCII.LF);
 
-         Dispatch_Pi_Event
+         Dispatch_Event
            (Event   => LLM.Events.Agent_Start_Event'
               (LLM.Events.Agent_Event with null record),
             Win     => Win,
@@ -132,7 +148,7 @@ package body Dispatch_Tests is
          Acme.Window.Append
            (Win, FS'Access, Format_Status (S, "running") & ASCII.LF);
 
-         Dispatch_Pi_Event
+         Dispatch_Event
            (Event   => LLM.Events.Agent_End_Event'
               (LLM.Events.Agent_Event with
                Was_Aborted => False),
@@ -195,7 +211,7 @@ package body Dispatch_Tests is
       begin
          Acme.Window.Append (Win, FS'Access, Format_Status (S) & ASCII.LF);
 
-         Dispatch_Pi_Event
+         Dispatch_Event
            (Event   => LLM.Events.Message_Update_Event'
               (LLM.Events.Agent_Event with
                Kind          => LLM.Events.Text_Delta,
@@ -262,7 +278,7 @@ package body Dispatch_Tests is
       begin
          Acme.Window.Append (Win, FS'Access, Format_Status (S) & ASCII.LF);
 
-         Dispatch_Pi_Event
+         Dispatch_Event
            (Event   => LLM.Events.Message_Update_Event'
               (LLM.Events.Agent_Event with
                Kind          => LLM.Events.Thinking_Delta,
@@ -330,7 +346,7 @@ package body Dispatch_Tests is
       begin
          Acme.Window.Append (Win, FS'Access, Format_Status (S) & ASCII.LF);
 
-         Dispatch_Pi_Event
+         Dispatch_Event
            (Event   => LLM.Events.Tool_Execution_Start_Event'
               (LLM.Events.Agent_Event with
                Tool_Call_Id => To_Unbounded_String ("tc-1"),
@@ -396,7 +412,7 @@ package body Dispatch_Tests is
       begin
          Acme.Window.Append (Win, FS'Access, Format_Status (S) & ASCII.LF);
 
-         Dispatch_Pi_Event
+         Dispatch_Event
            (Event   => LLM.Events.Tool_Execution_Start_Event'
               (LLM.Events.Agent_Event with
                Tool_Call_Id => To_Unbounded_String ("tc-ok"),
@@ -409,7 +425,7 @@ package body Dispatch_Tests is
             Section => Sect,
             PID     => PID);
 
-         Dispatch_Pi_Event
+         Dispatch_Event
            (Event   => LLM.Events.Tool_Execution_End_Event'
               (LLM.Events.Agent_Event with
                Tool_Call_Id => To_Unbounded_String ("tc-ok"),
@@ -474,7 +490,7 @@ package body Dispatch_Tests is
       begin
          Acme.Window.Append (Win, FS'Access, Format_Status (S) & ASCII.LF);
 
-         Dispatch_Pi_Event
+         Dispatch_Event
            (Event   => LLM.Events.Tool_Execution_Start_Event'
               (LLM.Events.Agent_Event with
                Tool_Call_Id => To_Unbounded_String ("tc-err"),
@@ -487,7 +503,7 @@ package body Dispatch_Tests is
             Section => Sect,
             PID     => PID);
 
-         Dispatch_Pi_Event
+         Dispatch_Event
            (Event   => LLM.Events.Tool_Execution_End_Event'
               (LLM.Events.Agent_Event with
                Tool_Call_Id => To_Unbounded_String ("tc-err"),
@@ -552,7 +568,7 @@ package body Dispatch_Tests is
       begin
          Acme.Window.Append (Win, FS'Access, Format_Status (S) & ASCII.LF);
 
-         Dispatch_Pi_Event
+         Dispatch_Event
            (Event   => LLM.Events.Message_End_Event'
               (LLM.Events.Agent_Event with
                Stop      => LLM.Types.Stop,
@@ -625,7 +641,7 @@ package body Dispatch_Tests is
          S.Set_Turn_Tokens (100, 50);
          Acme.Window.Append (Win, FS'Access, Format_Status (S) & ASCII.LF);
 
-         Dispatch_Pi_Event
+         Dispatch_Event
            (Event   => LLM.Events.Session_Stats_Event'
               (LLM.Events.Agent_Event with
                Cost_Dmil   => 10,
@@ -697,7 +713,7 @@ package body Dispatch_Tests is
       begin
          Acme.Window.Append (Win, FS'Access, Format_Status (S) & ASCII.LF);
 
-         Dispatch_Pi_Event
+         Dispatch_Event
            (Event   => LLM.Events.Model_Select_Event'
               (LLM.Events.Agent_Event with
                Provider       => To_Unbounded_String ("anthropic"),
@@ -764,7 +780,7 @@ package body Dispatch_Tests is
       begin
          Acme.Window.Append (Win, FS'Access, Format_Status (S) & ASCII.LF);
 
-         Dispatch_Pi_Event
+         Dispatch_Event
            (Event   => LLM.Events.Session_Info_Event'
               (LLM.Events.Agent_Event with
                Session_Id     => To_Unbounded_String ("test-uuid-1234"),
@@ -830,7 +846,7 @@ package body Dispatch_Tests is
       begin
          Acme.Window.Append (Win, FS'Access, Format_Status (S) & ASCII.LF);
 
-         Dispatch_Pi_Event
+         Dispatch_Event
            (Event   => LLM.Events.Auto_Retry_Start_Event'
               (LLM.Events.Agent_Event with
                Attempt      => 1,
@@ -869,5 +885,537 @@ package body Dispatch_Tests is
             raise;
       end;
    end Test_Dispatch_Auto_Retry_Start;
+
+   procedure Test_Dispatch_Full_Turn_Footer_Only_After_Session_Stats
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+      Session_Id : constant String := "dispatch-full-turn-1234";
+   begin
+      begin
+         declare
+            Guard_FS : aliased Nine_P.Client.Fs :=
+              Nine_P.Client.Ns_Mount ("acme");
+            pragma Unreferenced (Guard_FS);
+         begin
+            null;
+         end;
+      exception
+         when others =>
+            AUnit.Assertions.Assert (True, "");
+            return;
+      end;
+
+      declare
+         FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
+         Win  : Acme.Window.Win          :=
+           Acme.Window.New_Win (FS'Access);
+         S    : App_State;
+         Sect : Section_Kind             := No_Section;
+      begin
+         S.Set_Session_Id (Session_Id);
+         S.Set_Model ("anthropic/claude-3-5");
+         S.Set_Context_Window (200_000);
+         Acme.Window.Append (Win, FS'Access, Format_Status (S) & ASCII.LF);
+
+         Dispatch_Event
+           (Event   => LLM.Events.Agent_Start_Event'
+              (LLM.Events.Agent_Event with null record),
+            Win     => Win,
+            FS      => FS'Access,
+            State   => S,
+            Section => Sect,
+            PID     => PID);
+
+         Dispatch_Event
+           (Event   => LLM.Events.Message_Update_Event'
+              (LLM.Events.Agent_Event with
+               Kind          => LLM.Events.Text_Delta,
+               Delta_Text    => To_Unbounded_String ("hello"),
+               Content_Index => 0,
+               Tool_Call_Id  => Null_Unbounded_String,
+               Tool_Name     => Null_Unbounded_String),
+            Win     => Win,
+            FS      => FS'Access,
+            State   => S,
+            Section => Sect,
+            PID     => PID);
+
+         Dispatch_Event
+           (Event   => LLM.Events.Message_End_Event'
+              (LLM.Events.Agent_Event with
+               Stop      => LLM.Types.Stop,
+               Err_Msg   => Null_Unbounded_String,
+               Tok_Usage =>
+                 (Input       => 10,
+                  Output      => 5,
+                  Cache_Read  => 0,
+                  Cache_Write => 0),
+               Cost_Dmil => 1),
+            Win     => Win,
+            FS      => FS'Access,
+            State   => S,
+            Section => Sect,
+            PID     => PID);
+
+         Dispatch_Event
+           (Event   => LLM.Events.Agent_End_Event'
+              (LLM.Events.Agent_Event with
+               Was_Aborted => False),
+            Win     => Win,
+            FS      => FS'Access,
+            State   => S,
+            Section => Sect,
+            PID     => PID);
+
+         declare
+            Body_Text : constant String :=
+              Acme.Window.Read_Body (Win, FS'Access);
+         begin
+            Assert (S.Pending_Stats,
+                    "agent_end should defer the footer until session_stats");
+            Assert_Not_Contains
+              (Body_Text, UC_Dbl_H,
+               "footer separator must not appear before session_stats");
+         end;
+
+         Dispatch_Event
+           (Event   => LLM.Events.Session_Stats_Event'
+              (LLM.Events.Agent_Event with
+               Cost_Dmil   => 2,
+               Input       => 10,
+               Output      => 5,
+               Cache_Read  => 1,
+               Cache_Write => 1,
+               Total       => 17),
+            Win     => Win,
+            FS      => FS'Access,
+            State   => S,
+            Section => Sect,
+            PID     => PID);
+
+         declare
+            Body_Text : constant String :=
+              Acme.Window.Read_Body (Win, FS'Access);
+         begin
+            Assert_Contains
+              (Body_Text, UC_Dbl_H,
+               "footer separator must appear after session_stats");
+         end;
+
+         begin
+            Acme.Window.Delete (Win, FS'Access);
+         exception
+            when others => null;
+         end;
+      exception
+         when others =>
+            begin
+               Acme.Window.Delete (Win, FS'Access);
+            exception
+               when others => null;
+            end;
+            raise;
+      end;
+   end Test_Dispatch_Full_Turn_Footer_Only_After_Session_Stats;
+
+   procedure Test_Dispatch_Aborted_Turn_No_Footer
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+   begin
+      begin
+         declare
+            Guard_FS : aliased Nine_P.Client.Fs :=
+              Nine_P.Client.Ns_Mount ("acme");
+            pragma Unreferenced (Guard_FS);
+         begin
+            null;
+         end;
+      exception
+         when others =>
+            AUnit.Assertions.Assert (True, "");
+            return;
+      end;
+
+      declare
+         FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
+         Win  : Acme.Window.Win          :=
+           Acme.Window.New_Win (FS'Access);
+         S    : App_State;
+         Sect : Section_Kind             := No_Section;
+      begin
+         Acme.Window.Append (Win, FS'Access, Format_Status (S) & ASCII.LF);
+
+         Dispatch_Event
+           (Event   => LLM.Events.Agent_Start_Event'
+              (LLM.Events.Agent_Event with null record),
+            Win     => Win,
+            FS      => FS'Access,
+            State   => S,
+            Section => Sect,
+            PID     => PID);
+
+         Dispatch_Event
+           (Event   => LLM.Events.Message_Update_Event'
+              (LLM.Events.Agent_Event with
+               Kind          => LLM.Events.Text_Delta,
+               Delta_Text    => To_Unbounded_String ("partial"),
+               Content_Index => 0,
+               Tool_Call_Id  => Null_Unbounded_String,
+               Tool_Name     => Null_Unbounded_String),
+            Win     => Win,
+            FS      => FS'Access,
+            State   => S,
+            Section => Sect,
+            PID     => PID);
+
+         S.Set_Aborted (True);
+         Dispatch_Event
+           (Event   => LLM.Events.Agent_End_Event'
+              (LLM.Events.Agent_Event with
+               Was_Aborted => True),
+            Win     => Win,
+            FS      => FS'Access,
+            State   => S,
+            Section => Sect,
+            PID     => PID);
+
+         declare
+            Body_Text : constant String :=
+              Acme.Window.Read_Body (Win, FS'Access);
+         begin
+            Assert_Not_Contains
+              (Body_Text, UC_Dbl_H,
+               "aborted turn must not append the footer separator");
+            Assert (not S.Is_Streaming,
+                    "aborted agent_end should clear Is_Streaming");
+         end;
+
+         begin
+            Acme.Window.Delete (Win, FS'Access);
+         exception
+            when others => null;
+         end;
+      exception
+         when others =>
+            begin
+               Acme.Window.Delete (Win, FS'Access);
+            exception
+               when others => null;
+            end;
+            raise;
+      end;
+   end Test_Dispatch_Aborted_Turn_No_Footer;
+
+   procedure Test_Dispatch_Auto_Retry_End_Then_Normal_Turn
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+      Session_Id : constant String := "dispatch-retry-end-1234";
+   begin
+      begin
+         declare
+            Guard_FS : aliased Nine_P.Client.Fs :=
+              Nine_P.Client.Ns_Mount ("acme");
+            pragma Unreferenced (Guard_FS);
+         begin
+            null;
+         end;
+      exception
+         when others =>
+            AUnit.Assertions.Assert (True, "");
+            return;
+      end;
+
+      declare
+         FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
+         Win  : Acme.Window.Win          :=
+           Acme.Window.New_Win (FS'Access);
+         S    : App_State;
+         Sect : Section_Kind             := No_Section;
+      begin
+         S.Set_Session_Id (Session_Id);
+         S.Set_Model ("anthropic/claude-3-5");
+         S.Set_Context_Window (200_000);
+         Acme.Window.Append (Win, FS'Access, Format_Status (S) & ASCII.LF);
+
+         Dispatch_Event
+           (Event   => LLM.Events.Auto_Retry_Start_Event'
+              (LLM.Events.Agent_Event with
+               Attempt      => 1,
+               Max_Attempts => 3,
+               Delay_Ms     => 250,
+               Error_Msg    => To_Unbounded_String ("temporary error")),
+            Win     => Win,
+            FS      => FS'Access,
+            State   => S,
+            Section => Sect,
+            PID     => PID);
+
+         Assert (S.Is_Retrying,
+                 "auto_retry_start should set Is_Retrying");
+
+         Dispatch_Event
+           (Event   => LLM.Events.Auto_Retry_End_Event'
+              (LLM.Events.Agent_Event with
+               Success     => True,
+               Attempt     => 1,
+               Final_Error => Null_Unbounded_String),
+            Win     => Win,
+            FS      => FS'Access,
+            State   => S,
+            Section => Sect,
+            PID     => PID);
+
+         Dispatch_Event
+           (Event   => LLM.Events.Agent_Start_Event'
+              (LLM.Events.Agent_Event with null record),
+            Win     => Win,
+            FS      => FS'Access,
+            State   => S,
+            Section => Sect,
+            PID     => PID);
+
+         Dispatch_Event
+           (Event   => LLM.Events.Message_Update_Event'
+              (LLM.Events.Agent_Event with
+               Kind          => LLM.Events.Text_Delta,
+               Delta_Text    => To_Unbounded_String ("ok"),
+               Content_Index => 0,
+               Tool_Call_Id  => Null_Unbounded_String,
+               Tool_Name     => Null_Unbounded_String),
+            Win     => Win,
+            FS      => FS'Access,
+            State   => S,
+            Section => Sect,
+            PID     => PID);
+
+         Dispatch_Event
+           (Event   => LLM.Events.Message_End_Event'
+              (LLM.Events.Agent_Event with
+               Stop      => LLM.Types.Stop,
+               Err_Msg   => Null_Unbounded_String,
+               Tok_Usage =>
+                 (Input       => 4,
+                  Output      => 2,
+                  Cache_Read  => 0,
+                  Cache_Write => 0),
+               Cost_Dmil => 1),
+            Win     => Win,
+            FS      => FS'Access,
+            State   => S,
+            Section => Sect,
+            PID     => PID);
+
+         Dispatch_Event
+           (Event   => LLM.Events.Agent_End_Event'
+              (LLM.Events.Agent_Event with
+               Was_Aborted => False),
+            Win     => Win,
+            FS      => FS'Access,
+            State   => S,
+            Section => Sect,
+            PID     => PID);
+
+         Dispatch_Event
+           (Event   => LLM.Events.Session_Stats_Event'
+              (LLM.Events.Agent_Event with
+               Cost_Dmil   => 3,
+               Input       => 4,
+               Output      => 2,
+               Cache_Read  => 1,
+               Cache_Write => 0,
+               Total       => 7),
+            Win     => Win,
+            FS      => FS'Access,
+            State   => S,
+            Section => Sect,
+            PID     => PID);
+
+         declare
+            Body_Text : constant String :=
+              Acme.Window.Read_Body (Win, FS'Access);
+         begin
+            Assert (not S.Is_Retrying,
+                    "auto_retry_end should clear Is_Retrying");
+            Assert_Contains
+              (Body_Text, UC_Dbl_H,
+               "normal turn after retry should append the footer");
+         end;
+
+         begin
+            Acme.Window.Delete (Win, FS'Access);
+         exception
+            when others => null;
+         end;
+      exception
+         when others =>
+            begin
+               Acme.Window.Delete (Win, FS'Access);
+            exception
+               when others => null;
+            end;
+            raise;
+      end;
+   end Test_Dispatch_Auto_Retry_End_Then_Normal_Turn;
+
+   procedure Test_Dispatch_Auto_Compaction_Start_And_End
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+   begin
+      begin
+         declare
+            Guard_FS : aliased Nine_P.Client.Fs :=
+              Nine_P.Client.Ns_Mount ("acme");
+            pragma Unreferenced (Guard_FS);
+         begin
+            null;
+         end;
+      exception
+         when others =>
+            AUnit.Assertions.Assert (True, "");
+            return;
+      end;
+
+      declare
+         FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
+         Win  : Acme.Window.Win          :=
+           Acme.Window.New_Win (FS'Access);
+         S    : App_State;
+         Sect : Section_Kind             := No_Section;
+      begin
+         Acme.Window.Append (Win, FS'Access, Format_Status (S) & ASCII.LF);
+
+         Dispatch_Event
+           (Event   => LLM.Events.Auto_Compaction_Start_Event'
+              (LLM.Events.Agent_Event with
+               Reason => To_Unbounded_String ("threshold")),
+            Win     => Win,
+            FS      => FS'Access,
+            State   => S,
+            Section => Sect,
+            PID     => PID);
+
+         Dispatch_Event
+           (Event   => LLM.Events.Auto_Compaction_End_Event'
+              (LLM.Events.Agent_Event with
+               Summary    => To_Unbounded_String ("compacted"),
+               Aborted    => False,
+               Will_Retry => False,
+               Err_Msg    => Null_Unbounded_String),
+            Win     => Win,
+            FS      => FS'Access,
+            State   => S,
+            Section => Sect,
+            PID     => PID);
+
+         declare
+            Body_Text : constant String :=
+              Acme.Window.Read_Body (Win, FS'Access);
+         begin
+            Assert (not S.Is_Streaming,
+                    "compaction events should leave Is_Streaming False");
+            Assert (not S.Is_Compacting,
+                    "auto_compaction_end should clear Is_Compacting");
+            Assert_Contains
+              (Body_Text, "Compacting context",
+               "auto_compaction_start should append a visible notice");
+            Assert_Contains
+              (Body_Text, "Context compacted.",
+               "auto_compaction_end should append a completion notice");
+         end;
+
+         begin
+            Acme.Window.Delete (Win, FS'Access);
+         exception
+            when others => null;
+         end;
+      exception
+         when others =>
+            begin
+               Acme.Window.Delete (Win, FS'Access);
+            exception
+               when others => null;
+            end;
+            raise;
+      end;
+   end Test_Dispatch_Auto_Compaction_Start_And_End;
+
+   procedure Test_Dispatch_Agent_End_No_Response_Shows_Error
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+   begin
+      begin
+         declare
+            Guard_FS : aliased Nine_P.Client.Fs :=
+              Nine_P.Client.Ns_Mount ("acme");
+            pragma Unreferenced (Guard_FS);
+         begin
+            null;
+         end;
+      exception
+         when others =>
+            AUnit.Assertions.Assert (True, "");
+            return;
+      end;
+
+      declare
+         FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
+         Win  : Acme.Window.Win          :=
+           Acme.Window.New_Win (FS'Access);
+         S    : App_State;
+         Sect : Section_Kind             := No_Section;
+      begin
+         Acme.Window.Append (Win, FS'Access, Format_Status (S) & ASCII.LF);
+
+         Dispatch_Event
+           (Event   => LLM.Events.Agent_Start_Event'
+              (LLM.Events.Agent_Event with null record),
+            Win     => Win,
+            FS      => FS'Access,
+            State   => S,
+            Section => Sect,
+            PID     => PID);
+
+         Dispatch_Event
+           (Event   => LLM.Events.Agent_End_Event'
+              (LLM.Events.Agent_Event with
+               Was_Aborted => False),
+            Win     => Win,
+            FS      => FS'Access,
+            State   => S,
+            Section => Sect,
+            PID     => PID);
+
+         declare
+            Body_Text : constant String :=
+              Acme.Window.Read_Body (Win, FS'Access);
+         begin
+            Assert_Contains
+              (Body_Text, "No response from pi",
+               "agent_end without text or tool output should warn");
+            Assert_Contains
+              (Body_Text, "context may be too long",
+               "no-response warning should include the context hint");
+         end;
+
+         begin
+            Acme.Window.Delete (Win, FS'Access);
+         exception
+            when others => null;
+         end;
+      exception
+         when others =>
+            begin
+               Acme.Window.Delete (Win, FS'Access);
+            exception
+               when others => null;
+            end;
+            raise;
+      end;
+   end Test_Dispatch_Agent_End_No_Response_Shows_Error;
 
 end Dispatch_Tests;

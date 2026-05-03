@@ -2,7 +2,7 @@
 --
 --  Shared types for the acme text editor 9P interface.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 package Acme is

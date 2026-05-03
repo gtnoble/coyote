@@ -1,6 +1,6 @@
 --  LLM.Auth.GitHub_Copilot body.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Calendar;
@@ -59,7 +59,7 @@ package body LLM.Auth.GitHub_Copilot is
    function Token_Endpoint return String is
    begin
       return Ada.Environment_Variables.Value
-        ("PI_ACME_GITHUB_COPILOT_TOKEN_URL", DEFAULT_TOKEN_URL);
+        ("COYOTE_GITHUB_COPILOT_TOKEN_URL", DEFAULT_TOKEN_URL);
    end Token_Endpoint;
 
    function Get_String_Field

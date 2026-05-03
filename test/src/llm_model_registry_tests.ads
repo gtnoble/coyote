@@ -13,5 +13,6 @@ package LLM_Model_Registry_Tests is
   procedure Test_Unknown_Provider_Not_Found (T : in out Test);
   procedure Test_Available_Models_Filtering (T : in out Test);
   procedure Test_Anthropic_Available_Models (T : in out Test);
+  procedure Test_Available_Models_Sorted (T : in out Test);
 
 end LLM_Model_Registry_Tests;

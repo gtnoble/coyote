@@ -3,7 +3,7 @@
 --  Provides simple GET and POST operations with a chunk callback suitable
 --  for feeding streaming APIs such as SSE parsers.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Containers.Indefinite_Vectors;

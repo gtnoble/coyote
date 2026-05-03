@@ -4,13 +4,15 @@
 --  compatible session store, and runs the core agent→tool→agent loop for
 --  one user prompt.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Strings.Unbounded;
+with LLM.Compaction;
 with LLM.Events;
 with LLM.Model_Registry;
 with LLM.Providers;
+with LLM.Tools;
 with LLM.Types;
 
 package LLM.Agent is
@@ -23,7 +25,7 @@ package LLM.Agent is
    --  "github-copilot/claude-sonnet-4.6" or
    --  "openrouter/anthropic/claude-sonnet-4-20250514".
    --
-   --  When Model_Spec is empty, Create falls back to ~/.pi/agent/settings.json
+   --  When Model_Spec is empty, Create falls back to ~/.coyote/settings.json
    --  and then to the first available model in the live registry.
    --
    --  Session_Id resumes an existing session when non-empty.
@@ -45,6 +47,29 @@ package LLM.Agent is
       Prompt   :        String;
       On_Event :        not null access procedure
                           (E : LLM.Events.Agent_Event'Class));
+
+   --  Compact the session context by summarising older messages.
+   --
+   --  Calls the active model once with a compaction-specific system prompt,
+   --  replaces the in-memory history with one synthetic
+   --  Compaction_Summary message followed by the retained tail of the
+   --  transcript, and appends one compaction entry to the session JSONL
+   --  file.
+   --
+   --  Auto_Compaction_Start_Event is emitted before the summarisation call
+   --  and Auto_Compaction_End_Event is emitted on every exit path. On any
+   --  error the end event carries the error message, Aborted is True, and
+   --  S.History is left unchanged.
+   --
+   --  Reason is forwarded to Auto_Compaction_Start_Event.Reason. Typical
+   --  values are "manual", "threshold", and "overflow".
+   --
+   --  Must not be called while Run_Prompt is executing.
+   procedure Compact
+     (S        : in out Session;
+      On_Event :        not null access procedure
+                          (E : LLM.Events.Agent_Event'Class);
+      Reason   :        String := "manual");
 
    --  Request cancellation of the currently-running Run_Prompt call.
    --  Safe to call from another task.
@@ -92,14 +117,6 @@ private
       Wire_Format         => Ada.Strings.Unbounded.Null_Unbounded_String,
       Cost                => (others => 0.0));
 
-   protected type Abort_Flag is
-      procedure Set;
-      procedure Clear;
-      function Requested return Boolean;
-   private
-      Value : Boolean := False;
-   end Abort_Flag;
-
    type Session is limited record
       Model_Spec    : Ada.Strings.Unbounded.Unbounded_String :=
         Ada.Strings.Unbounded.Null_Unbounded_String;
@@ -110,11 +127,14 @@ private
       History       : LLM.Types.Message_Vectors.Vector;
       No_Tools      : Boolean := False;
       Thinking      : LLM.Providers.Thinking_Level := LLM.Providers.Off;
-      Abort_State   : Abort_Flag;
+      Abort_State   : aliased LLM.Tools.Abort_Flag;
       Streaming     : Boolean := False;
       Cwd           : Ada.Strings.Unbounded.Unbounded_String :=
         Ada.Strings.Unbounded.Null_Unbounded_String;
       Model_Info    : LLM.Model_Registry.Model_Info := EMPTY_MODEL_INFO;
+      Compact_Settings : LLM.Compaction.Compact_Settings :=
+        LLM.Compaction.Default_Compact_Settings;
+      Last_Context_Tokens : Natural := 0;
    end record;
 
 end LLM.Agent;

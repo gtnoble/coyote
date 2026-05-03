@@ -1,9 +1,9 @@
 --  LLM.Auth -- provider credential storage helpers.
 --
---  Reads and writes `~/.pi/agent/auth.json` for providers that store
+--  Reads and writes `~/.coyote/auth.json` for providers that store
 --  refreshable credentials, including GitHub Copilot.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Strings.Unbounded;
@@ -20,13 +20,13 @@ package LLM.Auth is
       Expires_Ms      : Long_Long_Integer := 0;
    end record;
 
-   --  Read credentials for Provider from ~/.pi/agent/auth.json.
+   --  Read credentials for Provider from ~/.coyote/auth.json.
    --
    --  Returns an all-empty record when the auth file is missing, the file
    --  cannot be parsed, or the named provider entry is absent.
    function Load_Credentials (Provider : String) return Provider_Credentials;
 
-   --  Write credentials for Provider to ~/.pi/agent/auth.json.
+   --  Write credentials for Provider to ~/.coyote/auth.json.
    --
    --  The file is updated atomically by writing a temporary file in the same
    --  directory and renaming it over the original path.

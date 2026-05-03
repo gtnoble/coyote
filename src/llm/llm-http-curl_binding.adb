@@ -1,6 +1,6 @@
 --  LLM.HTTP.Curl_Binding body.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with System;

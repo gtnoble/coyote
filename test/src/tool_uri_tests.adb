@@ -1,10 +1,10 @@
 --  Tool_URI_Tests body.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with AUnit.Assertions;
-with Pi_Acme_App.Utils;  use Pi_Acme_App.Utils;
+with Coyote_App.Utils;  use Coyote_App.Utils;
 
 package body Tool_URI_Tests is
 

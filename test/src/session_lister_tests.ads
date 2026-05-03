@@ -20,7 +20,7 @@ package Session_Lister_Tests is
    --  ^ Regression test: Parse_Session_File must not raise STORAGE_ERROR
    --    when a JSONL line exceeds GNAT's internal Get_Line stack buffer.
 
-   --  Find_Session_File (creates temp files under $HOME/.pi/agent/sessions/)
+   --  Find_Session_File (creates temp files under $HOME/.coyote/sessions/)
    procedure Test_Find_Session_File_Found     (T : in out Test);
    procedure Test_Find_Session_File_Not_Found (T : in out Test);
    procedure Test_Find_Session_File_Any_Dir   (T : in out Test);
@@ -30,5 +30,12 @@ package Session_Lister_Tests is
    procedure Test_Fork_Session_Second_Turn  (T : in out Test);
    procedure Test_Fork_Session_Beyond_End   (T : in out Test);
    procedure Test_Fork_Session_Missing_Src  (T : in out Test);
+
+   --  Native-format directory listing and forking coverage.
+   procedure Test_List_Sessions_Newest_First     (T : in out Test);
+   procedure Test_List_Sessions_Skips_Invalid_Files
+     (T : in out Test);
+   procedure Test_Fork_Native_Format_Preserves_Turn_Boundary
+     (T : in out Test);
 
 end Session_Lister_Tests;

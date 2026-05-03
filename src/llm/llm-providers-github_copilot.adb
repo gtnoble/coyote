@@ -1,9 +1,10 @@
 --  LLM.Providers.GitHub_Copilot body.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Environment_Variables;
+with Ada.Exceptions;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with LLM.Auth;
@@ -16,6 +17,9 @@ package body LLM.Providers.GitHub_Copilot is
 
    use type LLM.Types.Role;
 
+   subtype Cat_Vector is
+      LLM.Providers.GitHub_Copilot.Catalogue.Catalogue_Vectors.Vector;
+
    function Create return Provider is
    begin
       return Result : Provider do
@@ -26,11 +30,11 @@ package body LLM.Providers.GitHub_Copilot is
    function Effective_Base_Url (Access_Token : String) return String is
    begin
       if Ada.Environment_Variables.Exists
-         ("PI_ACME_GITHUB_COPILOT_BASE_URL")
+         ("COYOTE_GITHUB_COPILOT_BASE_URL")
       then
          declare
             Value : constant String := Ada.Environment_Variables.Value
-               ("PI_ACME_GITHUB_COPILOT_BASE_URL");
+               ("COYOTE_GITHUB_COPILOT_BASE_URL");
          begin
             if Value'Length > 0 then
                return Value;
@@ -116,7 +120,7 @@ package body LLM.Providers.GitHub_Copilot is
 
    function Supports_Anthropic
       (Model_Id : String;
-     Models   : LLM.Providers.GitHub_Copilot.Catalogue.Catalogue_Vectors.Vector)
+     Models   : Cat_Vector)
      return Boolean
    is
    begin
@@ -144,67 +148,114 @@ package body LLM.Providers.GitHub_Copilot is
 
       Creds      : LLM.Auth.Provider_Credentials :=
          LLM.Auth.Load_Credentials ("github-copilot");
-      Models     : LLM.Providers.GitHub_Copilot.Catalogue.Catalogue_Vectors.Vector;
+      Models     : Cat_Vector;
       Access_Tok : Unbounded_String;
       Base_Url   : Unbounded_String;
       Initiator  : constant String := Initiator_Header_Value (Messages);
+
+      --  Populate Access_Tok and Base_Url from Creds, then reload the
+      --  model catalogue.  Called once on the normal path and again after
+      --  a forced token refresh.
+      procedure Setup_Connection is
+      begin
+         Access_Tok := Creds.Access_Token;
+         Base_Url   :=
+            To_Unbounded_String
+               (Effective_Base_Url (To_String (Access_Tok)));
+         LLM.Providers.GitHub_Copilot.Catalogue.Load_Catalogue
+            (Base_Url => To_String (Base_Url),
+           Token    => To_String (Access_Tok),
+           Models   => Models);
+      end Setup_Connection;
+
+      --  Build the appropriate delegate provider and forward the request.
+      procedure Invoke_Delegate is
+      begin
+         if Supports_Anthropic (Model_Id, Models) then
+            declare
+               Delegate : LLM.Providers.Anthropic_Messages.Provider :=
+                  LLM.Providers.Anthropic_Messages.Create
+                     (Base_Url => To_String (Base_Url),
+                Api_Key  => To_String (Access_Tok));
+            begin
+               Add_Copilot_Headers (Delegate, Initiator);
+               Delegate.Send
+                  (Model_Id      => Model_Id,
+              System_Prompt => System_Prompt,
+              Messages      => Messages,
+              Tools_Json    => Tools_Json,
+              Thinking      => Thinking,
+              Max_Tokens    => Max_Tokens,
+              Handler       => Handler);
+            end;
+         else
+            declare
+               Delegate : LLM.Providers.OpenAI_Completions.Provider :=
+                  LLM.Providers.OpenAI_Completions.Create
+                     (Base_Url => To_String (Base_Url),
+                Api_Key  => To_String (Access_Tok));
+            begin
+               Add_Copilot_Headers (Delegate, Initiator);
+               Delegate.Send
+                  (Model_Id      => Model_Id,
+              System_Prompt => System_Prompt,
+              Messages      => Messages,
+              Tools_Json    => Tools_Json,
+              Thinking      => Thinking,
+              Max_Tokens    => Max_Tokens,
+              Handler       => Handler);
+            end;
+         end if;
+      end Invoke_Delegate;
+
+      --  Return True when the exception message signals an HTTP 401.
+      function Is_Http_401 (Msg : String) return Boolean is
+      begin
+         return Ada.Strings.Fixed.Index (Msg, "HTTP 401") > 0;
+      end Is_Http_401;
+
    begin
-      if Length (Creds.Refresh_Token) = 0 and then Length (Creds.Access_Token) = 0 then
+      if Length (Creds.Refresh_Token) = 0
+         and then Length (Creds.Access_Token) = 0
+      then
          raise LLM.Auth.GitHub_Copilot.Auth_Error with
             "GitHub Copilot credentials are not configured; run `pi login "
             & "github-copilot`";
       end if;
 
       LLM.Auth.GitHub_Copilot.Ensure_Valid (Creds);
-      Access_Tok := Creds.Access_Token;
 
-      if Length (Access_Tok) = 0 then
+      if Length (Creds.Access_Token) = 0 then
          raise LLM.Auth.GitHub_Copilot.Auth_Error with
             "GitHub Copilot access token is missing";
       end if;
 
-      Base_Url := To_Unbounded_String (Effective_Base_Url (To_String (Access_Tok)));
+      Setup_Connection;
 
-      LLM.Providers.GitHub_Copilot.Catalogue.Load_Catalogue
-         (Base_Url => To_String (Base_Url),
-       Token    => To_String (Access_Tok),
-       Models   => Models);
+      begin
+         Invoke_Delegate;
+      exception
+         when E : others =>
+            if not Is_Http_401 (Ada.Exceptions.Exception_Message (E)) then
+               raise;
+            end if;
 
-      if Supports_Anthropic (Model_Id, Models) then
-         declare
-            Delegate : LLM.Providers.Anthropic_Messages.Provider :=
-               LLM.Providers.Anthropic_Messages.Create
-                  (Base_Url => To_String (Base_Url),
-             Api_Key  => To_String (Access_Tok));
-         begin
-            Add_Copilot_Headers (Delegate, Initiator);
-            Delegate.Send
-               (Model_Id      => Model_Id,
-           System_Prompt => System_Prompt,
-           Messages      => Messages,
-           Tools_Json    => Tools_Json,
-           Thinking      => Thinking,
-           Max_Tokens    => Max_Tokens,
-           Handler       => Handler);
-         end;
-      else
-         declare
-            Delegate : LLM.Providers.OpenAI_Completions.Provider :=
-               LLM.Providers.OpenAI_Completions.Create
-                  (Base_Url => To_String (Base_Url),
-             Api_Key  => To_String (Access_Tok));
-         begin
-            Add_Copilot_Headers (Delegate, Initiator);
-            Delegate.Send
-               (Model_Id      => Model_Id,
-           System_Prompt => System_Prompt,
-           Messages      => Messages,
-           Tools_Json    => Tools_Json,
-           Thinking      => Thinking,
-           Max_Tokens    => Max_Tokens,
-           Handler       => Handler);
-         end;
-      end if;
+            --  The completions API rejected the token with HTTP 401 even
+            --  though Ensure_Valid considered it current.  This happens when
+            --  the token-exchange endpoint issues a token that the completions
+            --  endpoint immediately refuses (e.g. the underlying OAuth session
+            --  has been revoked server-side).  Force a fresh exchange and
+            --  retry exactly once; any further failure propagates as-is.
+            LLM.Auth.GitHub_Copilot.Refresh_Token (Creds);
+
+            if Length (Creds.Access_Token) = 0 then
+               raise LLM.Auth.GitHub_Copilot.Auth_Error with
+                  "GitHub Copilot access token missing after forced refresh";
+            end if;
+
+            Setup_Connection;
+            Invoke_Delegate;
+      end;
    end Send;
 
 end LLM.Providers.GitHub_Copilot;

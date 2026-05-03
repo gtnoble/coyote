@@ -1,6 +1,6 @@
 --  Nine_P.Proto body — 9P2000 message encode / decode.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;

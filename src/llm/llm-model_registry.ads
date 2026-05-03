@@ -4,7 +4,7 @@
 --  OpenRouter into one in-memory registry that can be refreshed at startup
 --  and queried by provider/model identifier.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Containers.Vectors;

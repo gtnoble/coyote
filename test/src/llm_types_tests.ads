@@ -9,6 +9,7 @@ package LLM_Types_Tests is
    procedure Test_Thinking_Block (T : in out Test);
    procedure Test_Tool_Call_Block (T : in out Test);
    procedure Test_Tool_Result_Block (T : in out Test);
+   procedure Test_Compaction_Summary_Role (T : in out Test);
    procedure Test_Usage_Addition (T : in out Test);
    procedure Test_Message_Vectors (T : in out Test);
 

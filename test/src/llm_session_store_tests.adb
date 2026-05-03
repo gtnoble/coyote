@@ -2,12 +2,14 @@ with AUnit.Assertions;
 with Ada.Containers;
 with Ada.Directories;
 with Ada.Environment_Variables;
+with Ada.Exceptions;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with GNATCOLL.JSON;
 with LLM.Session_Store;
 with LLM.Types;
+with Session_Fixture;
 with Session_Lister;
 
 package body LLM_Session_Store_Tests is
@@ -17,6 +19,7 @@ package body LLM_Session_Store_Tests is
    use type GNATCOLL.JSON.JSON_Value_Type;
    use type LLM.Types.Content_Block_Kind;
    use type LLM.Types.Role;
+   use type LLM.Types.Stop_Reason;
 
    function Getpid return Integer;
    pragma Import (C, Getpid, "getpid");
@@ -53,7 +56,7 @@ package body LLM_Session_Store_Tests is
    procedure Prepare_Test_Home is
    begin
       Cleanup_Test_Root;
-      Ada.Directories.Create_Path (Test_Root & "/.pi/agent");
+      Ada.Directories.Create_Path (Test_Root & "/.coyote");
       Ada.Environment_Variables.Set ("HOME", Test_Root);
    end Prepare_Test_Home;
 
@@ -127,6 +130,171 @@ package body LLM_Session_Store_Tests is
       return 0;
    end Get_Integer_Field;
 
+   function Get_Array_Field
+     (Value : GNATCOLL.JSON.JSON_Value;
+      Field : String) return GNATCOLL.JSON.JSON_Array
+   is
+   begin
+      if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
+        and then Value.Has_Field (Field)
+        and then Value.Get (Field).Kind = GNATCOLL.JSON.JSON_Array_Type
+      then
+         return Value.Get (Field).Get;
+      end if;
+
+      return GNATCOLL.JSON.Empty_Array;
+   end Get_Array_Field;
+
+   function Get_Array_Element_String
+     (Value : GNATCOLL.JSON.JSON_Array;
+      Index : Positive) return String
+   is
+      Element : constant GNATCOLL.JSON.JSON_Value :=
+        GNATCOLL.JSON.Get (Value, Index);
+   begin
+      if Element.Kind = GNATCOLL.JSON.JSON_String_Type then
+         return Element.Get;
+      end if;
+
+      return "";
+   end Get_Array_Element_String;
+
+   function Get_Object_Field
+     (Value : GNATCOLL.JSON.JSON_Value;
+      Field : String) return GNATCOLL.JSON.JSON_Value
+   is
+   begin
+      if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
+        and then Value.Has_Field (Field)
+        and then Value.Get (Field).Kind = GNATCOLL.JSON.JSON_Object_Type
+      then
+         return Value.Get (Field);
+      end if;
+
+      return GNATCOLL.JSON.JSON_Null;
+   end Get_Object_Field;
+
+   procedure Append_Raw_Line
+     (Path : String;
+      Line : String)
+   is
+      File : Ada.Text_IO.File_Type;
+   begin
+      Ada.Text_IO.Open (File, Ada.Text_IO.Append_File, Path);
+      Ada.Text_IO.Put_Line (File, Line);
+      Ada.Text_IO.Close (File);
+   exception
+      when others =>
+         if Ada.Text_IO.Is_Open (File) then
+            Ada.Text_IO.Close (File);
+         end if;
+         raise;
+   end Append_Raw_Line;
+
+   function Text_Block_JSON (Text : String) return GNATCOLL.JSON.JSON_Value is
+      Block : constant GNATCOLL.JSON.JSON_Value :=
+        GNATCOLL.JSON.Create_Object;
+   begin
+      Block.Set_Field ("type", "text");
+      Block.Set_Field ("text", Text);
+      return Block;
+   end Text_Block_JSON;
+
+   function User_Message_JSON (Text : String) return String is
+      Msg     : constant GNATCOLL.JSON.JSON_Value :=
+        GNATCOLL.JSON.Create_Object;
+      Content : GNATCOLL.JSON.JSON_Array := GNATCOLL.JSON.Empty_Array;
+   begin
+      GNATCOLL.JSON.Append (Content, Text_Block_JSON (Text));
+      Msg.Set_Field ("role", "user");
+      Msg.Set_Field ("content", Content);
+      Msg.Set_Field ("timestamp", Integer (1));
+      return GNATCOLL.JSON.Write (Msg);
+   end User_Message_JSON;
+
+   function Compaction_Record_JSON
+     (Summary          : String;
+      First_Kept_Index : Natural;
+      Tokens_Before    : Natural) return String
+   is
+      Record_Value : constant GNATCOLL.JSON.JSON_Value :=
+        GNATCOLL.JSON.Create_Object;
+      Details      : constant GNATCOLL.JSON.JSON_Value :=
+        GNATCOLL.JSON.Create_Object;
+   begin
+      Details.Set_Field ("readFiles", GNATCOLL.JSON.Empty_Array);
+      Details.Set_Field ("modifiedFiles", GNATCOLL.JSON.Empty_Array);
+
+      Record_Value.Set_Field ("type", "compaction");
+      Record_Value.Set_Field ("summary", Summary);
+      Record_Value.Set_Field
+        ("firstKeptMessageIndex", Integer (First_Kept_Index));
+      Record_Value.Set_Field ("tokensBefore", Integer (Tokens_Before));
+      Record_Value.Set_Field ("details", Details);
+
+      return GNATCOLL.JSON.Write (Record_Value);
+   end Compaction_Record_JSON;
+
+   function Find_Compaction_Record
+     (Path : String) return GNATCOLL.JSON.JSON_Value
+   is
+      File : Ada.Text_IO.File_Type;
+   begin
+      Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Path);
+
+      while not Ada.Text_IO.End_Of_File (File) loop
+         declare
+            Line   : constant String := Ada.Text_IO.Get_Line (File);
+            Parsed : constant GNATCOLL.JSON.Read_Result :=
+              GNATCOLL.JSON.Read (Line);
+         begin
+            if Parsed.Success
+              and then Get_String_Field (Parsed.Value, "type") = "compaction"
+            then
+               Ada.Text_IO.Close (File);
+               return Parsed.Value;
+            end if;
+         end;
+      end loop;
+
+      Ada.Text_IO.Close (File);
+      return GNATCOLL.JSON.JSON_Null;
+   exception
+      when others =>
+         if Ada.Text_IO.Is_Open (File) then
+            Ada.Text_IO.Close (File);
+         end if;
+         raise;
+   end Find_Compaction_Record;
+
+   function Message_Text (Msg : LLM.Types.Message) return String is
+   begin
+      for Block of Msg.Content loop
+         if Block.Kind = LLM.Types.Text_Block then
+            return To_String (Block.Text);
+         end if;
+      end loop;
+
+      return "";
+   end Message_Text;
+
+   function Make_Compaction_Summary_Message
+     (Text : String) return LLM.Types.Message
+   is
+      Content : LLM.Types.Content_Block_Vectors.Vector;
+   begin
+      Content.Append
+        ((Kind => LLM.Types.Text_Block,
+          Text => To_Unbounded_String (Text)));
+
+      return
+        (Role      => LLM.Types.Compaction_Summary,
+         Content   => Content,
+         Tok_Usage => (others => 0),
+         Stop      => LLM.Types.Unknown_Stop,
+         Timestamp => Null_Unbounded_String);
+   end Make_Compaction_Summary_Message;
+
    function Make_User_Message (Text : String) return LLM.Types.Message is
       Content : LLM.Types.Content_Block_Vectors.Vector;
    begin
@@ -157,6 +325,25 @@ package body LLM_Session_Store_Tests is
          Stop      => LLM.Types.Stop,
          Timestamp => Null_Unbounded_String);
    end Make_Assistant_Text;
+
+   function Make_Assistant_With_Usage
+     (Text : String;
+      Stop : LLM.Types.Stop_Reason;
+      Usage : LLM.Types.Usage) return LLM.Types.Message
+   is
+      Content : LLM.Types.Content_Block_Vectors.Vector;
+   begin
+      Content.Append
+        ((Kind => LLM.Types.Text_Block,
+          Text => To_Unbounded_String (Text)));
+
+      return
+        (Role      => LLM.Types.Assistant,
+         Content   => Content,
+         Tok_Usage => Usage,
+         Stop      => Stop,
+         Timestamp => Null_Unbounded_String);
+   end Make_Assistant_With_Usage;
 
    function Make_Assistant_Tool_Call return LLM.Types.Message is
       Content : LLM.Types.Content_Block_Vectors.Vector;
@@ -566,5 +753,493 @@ package body LLM_Session_Store_Tests is
          Cleanup_Test_Root;
          raise;
    end Test_Fork_Session_Native_Source;
+
+   procedure Test_Load_Legacy_Pi_Envelope_Lines (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Cwd_Slug     : constant String := "--legacy-envelope-test--";
+   begin
+      Prepare_Test_Home;
+      declare
+         Session_Id : constant String :=
+           Session_Fixture.Create_Native_Session
+             (Home     => Test_Root,
+              Cwd_Slug => Cwd_Slug,
+              Name     => "legacy-envelope");
+         Messages   : LLM.Types.Message_Vectors.Vector;
+      begin
+         Session_Fixture.Append_Legacy_User_Message
+           (Home     => Test_Root,
+            Cwd_Slug => Cwd_Slug,
+            UUID     => Session_Id,
+            Text     => "Legacy one");
+         Session_Fixture.Append_Legacy_User_Message
+           (Home     => Test_Root,
+            Cwd_Slug => Cwd_Slug,
+            UUID     => Session_Id,
+            Text     => "Legacy two");
+         Session_Fixture.Append_User_Message
+           (Home     => Test_Root,
+            Cwd_Slug => Cwd_Slug,
+            UUID     => Session_Id,
+            Text     => "Native three");
+
+         Messages := LLM.Session_Store.Load_Messages (Session_Id);
+
+         Assert (Messages.Length = 3, "Three user messages should load");
+         Assert
+           (Messages.Element (0).Role = LLM.Types.User,
+            "First loaded role should be User");
+         Assert
+           (Messages.Element (1).Role = LLM.Types.User,
+            "Second loaded role should be User");
+         Assert
+           (Messages.Element (2).Role = LLM.Types.User,
+            "Third loaded role should be User");
+         Assert
+           (To_String (Messages.Element (0).Content.Element (0).Text)
+              = "Legacy one",
+            "First legacy envelope text should load");
+         Assert
+           (To_String (Messages.Element (1).Content.Element (0).Text)
+              = "Legacy two",
+            "Second legacy envelope text should load");
+         Assert
+           (To_String (Messages.Element (2).Content.Element (0).Text)
+              = "Native three",
+            "Native user line should load after legacy lines");
+      end;
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Root;
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Root;
+         raise;
+   end Test_Load_Legacy_Pi_Envelope_Lines;
+
+   procedure Test_Load_Skips_Malformed_Lines (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Cwd_Slug     : constant String := "--malformed-lines-test--";
+   begin
+      Prepare_Test_Home;
+      declare
+         Session_Id : constant String :=
+           Session_Fixture.Create_Native_Session
+             (Home     => Test_Root,
+              Cwd_Slug => Cwd_Slug,
+              Name     => "malformed-lines");
+         Path       : constant String :=
+           Session_Fixture.Session_File_Path (Test_Root, Cwd_Slug, Session_Id);
+         Messages   : LLM.Types.Message_Vectors.Vector;
+         File       : Ada.Text_IO.File_Type;
+      begin
+         Session_Fixture.Append_User_Message
+           (Home     => Test_Root,
+            Cwd_Slug => Cwd_Slug,
+            UUID     => Session_Id,
+            Text     => "Before bad json");
+
+         Ada.Text_IO.Open (File, Ada.Text_IO.Append_File, Path);
+         Ada.Text_IO.Put_Line (File, "not json");
+         Ada.Text_IO.Close (File);
+
+         Session_Fixture.Append_User_Message
+           (Home     => Test_Root,
+            Cwd_Slug => Cwd_Slug,
+            UUID     => Session_Id,
+            Text     => "After bad json");
+
+         Messages := LLM.Session_Store.Load_Messages (Session_Id);
+
+         Assert
+           (Messages.Length = 2,
+            "Malformed JSON lines should be skipped by Load_Messages");
+         Assert
+           (To_String (Messages.Element (0).Content.Element (0).Text)
+              = "Before bad json",
+            "First valid message should survive malformed input");
+         Assert
+           (To_String (Messages.Element (1).Content.Element (0).Text)
+              = "After bad json",
+            "Second valid message should survive malformed input");
+      exception
+         when others =>
+            if Ada.Text_IO.Is_Open (File) then
+               Ada.Text_IO.Close (File);
+            end if;
+            raise;
+      end;
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Root;
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Root;
+         raise;
+   end Test_Load_Skips_Malformed_Lines;
+
+   procedure Test_Assistant_Usage_And_Stop_Reason_Persist
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+   begin
+      Prepare_Test_Home;
+      declare
+         Session_Id : constant String :=
+           LLM.Session_Store.Create_Session (Source_Cwd);
+         Messages   : LLM.Types.Message_Vectors.Vector;
+      begin
+         LLM.Session_Store.Append_Message
+           (Session_Id,
+            Make_Assistant_With_Usage
+              (Text  => "Usage persists",
+               Stop  => LLM.Types.Stop,
+               Usage =>
+                 (Input       => 31,
+                  Output      => 17,
+                  Cache_Read  => 5,
+                  Cache_Write => 2)));
+
+         Messages := LLM.Session_Store.Load_Messages (Session_Id);
+
+         Assert (Messages.Length = 1, "One assistant message should load");
+         Assert
+           (Messages.Element (0).Role = LLM.Types.Assistant,
+            "Loaded role should be Assistant");
+         Assert
+           (Messages.Element (0).Stop = LLM.Types.Stop,
+            "Stop reason should persist as stop");
+         Assert
+           (Messages.Element (0).Tok_Usage.Output > 0,
+            "Assistant output-token usage should persist");
+      end;
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Root;
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Root;
+         raise;
+   end Test_Assistant_Usage_And_Stop_Reason_Persist;
+
+   procedure Test_Append_Compaction_Writes_Entry (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+   begin
+      Prepare_Test_Home;
+      declare
+         Session_Id : constant String :=
+           LLM.Session_Store.Create_Session (Source_Cwd);
+         Path       : constant String :=
+           LLM.Session_Store.Session_File_Path (Session_Id);
+      begin
+         LLM.Session_Store.Append_Message
+           (Session_Id, Make_User_Message ("Before one"));
+         LLM.Session_Store.Append_Message
+           (Session_Id, Make_User_Message ("Before two"));
+         LLM.Session_Store.Append_Compaction
+           (Session_Id       => Session_Id,
+            Summary          => "## Goal" & ASCII.LF & "- Keep working",
+            First_Kept_Index => 1,
+            Tokens_Before    => 123,
+            Read_Files       => "src/one.adb" & ASCII.LF & "src/two.ads",
+            Modified_Files   => "src/three.adb");
+
+         declare
+            Record_Value : constant GNATCOLL.JSON.JSON_Value :=
+              Find_Compaction_Record (Path);
+            Details      : constant GNATCOLL.JSON.JSON_Value :=
+              Get_Object_Field (Record_Value, "details");
+            Read_Files   : constant GNATCOLL.JSON.JSON_Array :=
+              Get_Array_Field (Details, "readFiles");
+            Modified     : constant GNATCOLL.JSON.JSON_Array :=
+              Get_Array_Field (Details, "modifiedFiles");
+         begin
+            Assert
+              (Record_Value.Kind = GNATCOLL.JSON.JSON_Object_Type,
+               "A compaction record should be written to the JSONL file");
+            Assert
+              (Get_String_Field (Record_Value, "type") = "compaction",
+               "The appended record should have type=compaction");
+            Assert
+              (Get_Integer_Field (Record_Value, "firstKeptMessageIndex") = 1,
+               "firstKeptMessageIndex should be persisted");
+            Assert
+              (Get_Integer_Field (Record_Value, "tokensBefore") = 123,
+               "tokensBefore should be persisted");
+            Assert
+              (GNATCOLL.JSON.Length (Read_Files) = 2,
+               "Read_Files should split into two JSON array elements");
+            Assert
+              (Get_Array_Element_String (Read_Files, 1) = "src/one.adb",
+               "First readFiles element should match the first path");
+            Assert
+              (Get_Array_Element_String (Read_Files, 2) = "src/two.ads",
+               "Second readFiles element should match the second path");
+            Assert
+              (GNATCOLL.JSON.Length (Modified) = 1,
+               "Modified_Files should split into one JSON array element");
+            Assert
+              (Get_Array_Element_String (Modified, 1) = "src/three.adb",
+               "modifiedFiles should contain the written path");
+         end;
+      end;
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Root;
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Root;
+         raise;
+   end Test_Append_Compaction_Writes_Entry;
+
+   procedure Test_Compaction_Summary_Not_Persisted
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+   begin
+      Prepare_Test_Home;
+      declare
+         Session_Id     : constant String :=
+           LLM.Session_Store.Create_Session (Source_Cwd);
+         Raised         : Boolean := False;
+         Error_Message  : Unbounded_String;
+      begin
+         begin
+            LLM.Session_Store.Append_Message
+              (Session_Id,
+               Make_Compaction_Summary_Message ("already summarized"));
+         exception
+            when Error : LLM.Session_Store.Session_Error =>
+               Raised := True;
+               Error_Message := To_Unbounded_String
+                 (Ada.Exceptions.Exception_Message (Error));
+         end;
+
+         Assert
+           (Raised,
+            "Compaction_Summary messages should not be persisted directly");
+         Assert
+           (Contains
+              (To_String (Error_Message),
+               "must not be persisted directly"),
+            "The raised Session_Error should explain the guard");
+      end;
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Root;
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Root;
+         raise;
+   end Test_Compaction_Summary_Not_Persisted;
+
+   procedure Test_Load_With_Compaction_Entry (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Cwd_Slug     : constant String := "--compaction-load-test--";
+   begin
+      Prepare_Test_Home;
+      declare
+         Session_Id : constant String :=
+           Session_Fixture.Create_Native_Session
+             (Home     => Test_Root,
+              Cwd_Slug => Cwd_Slug,
+              Name     => "");
+         Path       : constant String :=
+           Session_Fixture.Session_File_Path (Test_Root, Cwd_Slug, Session_Id);
+         Messages   : LLM.Types.Message_Vectors.Vector;
+      begin
+         Append_Raw_Line (Path, User_Message_JSON ("First before"));
+         Append_Raw_Line (Path, User_Message_JSON ("Second before"));
+         Append_Raw_Line
+           (Path,
+            Compaction_Record_JSON
+              (Summary          => "## Goal" & ASCII.LF & "Keep context",
+               First_Kept_Index => 1,
+               Tokens_Before    => 88));
+         Append_Raw_Line (Path, User_Message_JSON ("After compaction"));
+
+         Messages := LLM.Session_Store.Load_Messages (Session_Id);
+
+         Assert
+           (Messages.Length = 3,
+            "Compaction load should return summary plus kept messages");
+         Assert
+           (Messages.Element (0).Role = LLM.Types.Compaction_Summary,
+            "The first loaded message should be a synthetic summary");
+         Assert
+           (Contains (Message_Text (Messages.Element (0)), "Keep context"),
+            "The summary text should be loaded into the synthetic message");
+         Assert
+           (Message_Text (Messages.Element (1)) = "Second before",
+            "The second pre-compaction message should be retained");
+         Assert
+           (Message_Text (Messages.Element (2)) = "After compaction",
+            "Messages after compaction should remain in order");
+      end;
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Root;
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Root;
+         raise;
+   end Test_Load_With_Compaction_Entry;
+
+   procedure Test_Load_Without_Compaction_Unchanged
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+   begin
+      Prepare_Test_Home;
+      declare
+         Session_Id : constant String :=
+           LLM.Session_Store.Create_Session (Source_Cwd);
+         Messages   : LLM.Types.Message_Vectors.Vector;
+      begin
+         LLM.Session_Store.Append_Message
+           (Session_Id, Make_User_Message ("Alpha"));
+         LLM.Session_Store.Append_Message
+           (Session_Id, Make_Assistant_Text ("Beta"));
+         LLM.Session_Store.Append_Message
+           (Session_Id, Make_User_Message ("Gamma"));
+
+         Messages := LLM.Session_Store.Load_Messages (Session_Id);
+
+         Assert
+           (Messages.Length = 3,
+            "Sessions without compaction should load every message");
+         Assert
+           (Messages.Element (0).Role = LLM.Types.User,
+            "First role should remain User");
+         Assert
+           (Messages.Element (1).Role = LLM.Types.Assistant,
+            "Second role should remain Assistant");
+         Assert
+           (Messages.Element (2).Role = LLM.Types.User,
+            "Third role should remain User");
+         Assert
+           (Message_Text (Messages.Element (0)) = "Alpha",
+            "First message text should remain unchanged");
+         Assert
+           (Message_Text (Messages.Element (1)) = "Beta",
+            "Second message text should remain unchanged");
+         Assert
+           (Message_Text (Messages.Element (2)) = "Gamma",
+            "Third message text should remain unchanged");
+      end;
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Root;
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Root;
+         raise;
+   end Test_Load_Without_Compaction_Unchanged;
+
+   procedure Test_Append_Then_Load_Round_Trip (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+   begin
+      Prepare_Test_Home;
+      declare
+         Session_Id : constant String :=
+           LLM.Session_Store.Create_Session (Source_Cwd);
+         Messages   : LLM.Types.Message_Vectors.Vector;
+      begin
+         LLM.Session_Store.Append_Message
+           (Session_Id, Make_User_Message ("Zero"));
+         LLM.Session_Store.Append_Message
+           (Session_Id, Make_User_Message ("One"));
+         LLM.Session_Store.Append_Message
+           (Session_Id, Make_User_Message ("Two"));
+         LLM.Session_Store.Append_Message
+           (Session_Id, Make_User_Message ("Three"));
+         LLM.Session_Store.Append_Compaction
+           (Session_Id       => Session_Id,
+            Summary          => "## Progress" & ASCII.LF & "- checkpoint",
+            First_Kept_Index => 2,
+            Tokens_Before    => 200,
+            Read_Files       => "",
+            Modified_Files   => "");
+         LLM.Session_Store.Append_Message
+           (Session_Id, Make_User_Message ("Four"));
+
+         Messages := LLM.Session_Store.Load_Messages (Session_Id);
+
+         Assert
+           (Messages.Length = 4,
+            "Round-trip load should return summary, kept messages, and post"
+            & "-compaction messages");
+         Assert
+           (Messages.Element (0).Role = LLM.Types.Compaction_Summary,
+            "Round-trip load should synthesize a compaction summary message");
+         Assert
+           (Contains (Message_Text (Messages.Element (0)), "checkpoint"),
+            "The synthetic summary should contain the stored summary text");
+         Assert
+           (Message_Text (Messages.Element (1)) = "Two",
+            "First kept message should be the third original message");
+         Assert
+           (Message_Text (Messages.Element (2)) = "Three",
+            "Second kept message should be the fourth original message");
+         Assert
+           (Message_Text (Messages.Element (3)) = "Four",
+            "Post-compaction messages should load after kept messages");
+      end;
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Root;
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Root;
+         raise;
+   end Test_Append_Then_Load_Round_Trip;
 
 end LLM_Session_Store_Tests;

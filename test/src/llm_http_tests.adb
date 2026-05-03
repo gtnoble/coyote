@@ -51,6 +51,24 @@ package body LLM_HTTP_Tests is
         "s.server_close()" & ASCII.LF;
    end Get_Server_Script;
 
+   function Error_Post_Server_Script (Port : Positive) return String is
+   begin
+      return
+        "import http.server" & ASCII.LF & "class S(http.server.HTTPServer):" &
+        ASCII.LF & "    allow_reuse_address = True" & ASCII.LF &
+        "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF &
+        "    def do_POST(self):" & ASCII.LF &
+        "        self.send_response(400)" & ASCII.LF &
+        "        self.send_header('Content-Length', '11')" & ASCII.LF &
+        "        self.end_headers()" & ASCII.LF &
+        "        self.wfile.write(b'bad request')" & ASCII.LF &
+        "        self.wfile.flush()" & ASCII.LF &
+        "    def log_message(self, *a): pass" & ASCII.LF &
+        "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)" & ASCII.LF &
+        "s.timeout = 3" & ASCII.LF & "s.handle_request()" & ASCII.LF &
+        "s.server_close()" & ASCII.LF;
+   end Error_Post_Server_Script;
+
    function Spawn_Server (Script : String) return Process_Handle is
       Args : Argument_List;
    begin
@@ -183,5 +201,46 @@ package body LLM_HTTP_Tests is
         (To_String (Response) = "hello get",
          "GET response body should be collected in full");
    end Test_Get_Status_And_Chunk;
+
+   procedure Test_HTTP_Non_200_Returns_Status_And_Body
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+
+      Port        : constant Positive := 18_767;
+      Handle      : Process_Handle    := Invalid_Handle;
+      Response    : Unbounded_String;
+      Chunk_Count : Natural           := 0;
+      Headers     : LLM.HTTP.Header_List;
+      Status      : Natural           := 0;
+
+      procedure Collect (Data : String) is
+      begin
+         Append (Response, Data);
+         Chunk_Count := Chunk_Count + 1;
+      end Collect;
+   begin
+      Handle := Spawn_Server (Error_Post_Server_Script (Port));
+      LLM.HTTP.Add_Header (Headers, "Content-Type", "text/plain");
+
+      Post_With_Retry
+        (URL     => "http://127.0.0.1:18767/", Headers => Headers,
+         Payload => "ping", On_Chunk => Collect'Access, Status => Status);
+
+      declare
+         Exit_Code : constant Integer := Wait (Handle);
+         pragma Unreferenced (Exit_Code);
+      begin
+         null;
+      end;
+
+      Assert (Status = 400, "POST should return HTTP 400 without raising");
+      Assert
+        (Chunk_Count > 0,
+         "POST non-200 responses should still invoke On_Chunk");
+      Assert
+        (To_String (Response) = "bad request",
+         "POST non-200 responses should deliver the response body");
+   end Test_HTTP_Non_200_Returns_Status_And_Body;
 
 end LLM_HTTP_Tests;

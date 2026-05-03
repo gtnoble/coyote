@@ -1,6 +1,6 @@
 --  Nine_P.Client body — synchronous 9P2000 client implementation.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Environment_Variables;

@@ -13,7 +13,7 @@
 --  loop to extract complete, fully-expanded Acme.Event_Parser.Event
 --  records without requiring the external acmeevent(1) program.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Acme.Event_Parser;

@@ -1,6 +1,6 @@
 --  LLM.Tools.File_Ops body.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Directories;
@@ -361,8 +361,11 @@ package body LLM.Tools.File_Ops is
    procedure Execute_Read
      (Args_Json :     String;
       Result    : out Ada.Strings.Unbounded.Unbounded_String;
-      Is_Error  : out Boolean)
+      Is_Error  : out Boolean;
+      Abort_Flg : access LLM.Tools.Abort_Flag := null)
    is
+      pragma Unreferenced (Abort_Flg);
+
       Root         : GNATCOLL.JSON.JSON_Value;
       Error        : Unbounded_String;
       Path         : Unbounded_String;
@@ -453,8 +456,11 @@ package body LLM.Tools.File_Ops is
    procedure Execute_Write
      (Args_Json :     String;
       Result    : out Ada.Strings.Unbounded.Unbounded_String;
-      Is_Error  : out Boolean)
+      Is_Error  : out Boolean;
+      Abort_Flg : access LLM.Tools.Abort_Flag := null)
    is
+      pragma Unreferenced (Abort_Flg);
+
       Root    : GNATCOLL.JSON.JSON_Value;
       Error   : Unbounded_String;
       Path    : Unbounded_String;
@@ -495,8 +501,11 @@ package body LLM.Tools.File_Ops is
    procedure Execute_Edit
      (Args_Json :     String;
       Result    : out Ada.Strings.Unbounded.Unbounded_String;
-      Is_Error  : out Boolean)
+      Is_Error  : out Boolean;
+      Abort_Flg : access LLM.Tools.Abort_Flag := null)
    is
+      pragma Unreferenced (Abort_Flg);
+
       Root      : GNATCOLL.JSON.JSON_Value;
       Error     : Unbounded_String;
       Path      : Unbounded_String;
@@ -592,8 +601,11 @@ package body LLM.Tools.File_Ops is
    procedure Execute_Find
      (Args_Json :     String;
       Result    : out Ada.Strings.Unbounded.Unbounded_String;
-      Is_Error  : out Boolean)
+      Is_Error  : out Boolean;
+      Abort_Flg : access LLM.Tools.Abort_Flag := null)
    is
+      pragma Unreferenced (Abort_Flg);
+
       Root    : GNATCOLL.JSON.JSON_Value;
       Error   : Unbounded_String;
       Path    : Unbounded_String;
@@ -647,7 +659,9 @@ package body LLM.Tools.File_Ops is
    procedure Execute_Glob
      (Args_Json :     String;
       Result    : out Ada.Strings.Unbounded.Unbounded_String;
-      Is_Error  : out Boolean) is
+      Is_Error  : out Boolean;
+      Abort_Flg : access LLM.Tools.Abort_Flag := null) is
+      pragma Unreferenced (Abort_Flg);
    begin
       Execute_Find (Args_Json, Result, Is_Error);
    end Execute_Glob;

@@ -18,8 +18,8 @@ begin
    return Result : Provider do
       Set_Base_Url (Result, Default_Base_Url);
       Set_Api_Key (Result, Api_Key);
-      Add_Header (Result, "HTTP-Referer", "https://github.com/gtnoble/pi_acme");
-      Add_Header (Result, "X-Title", "pi_acme");
+      Add_Header (Result, "HTTP-Referer", "https://github.com/gtnoble/coyote");
+      Add_Header (Result, "X-Title", "coyote");
    end return;
 end Create;
 ```
@@ -62,7 +62,7 @@ end loop;
 
 ## Confirmed Correct
 - **Authorization header on completions calls:** `Send` resolves the API key and stores it with `Set_Api_Key`, and the base OpenAI sender always emits `Authorization: Bearer <api_key>` before posting the request (`src/llm/llm-providers-openrouter.adb:130-145`, `src/llm/llm-providers-openai_completions.adb:778-780`).
-- **HTTP-Referer and X-Title when using the intended constructor path:** `Create` adds `HTTP-Referer: https://github.com/gtnoble/pi_acme` and `X-Title: pi_acme`, and the request sender forwards all extra headers (`src/llm/llm-providers-openrouter.adb:31-38`, `src/llm/llm-providers-openai_completions.adb:782-787`). The request test also asserts those headers for the normal `Create` path (`test/src/llm_openrouter_tests.adb:387-423`).
+- **HTTP-Referer and X-Title when using the intended constructor path:** `Create` adds `HTTP-Referer: https://github.com/gtnoble/coyote` and `X-Title: coyote`, and the request sender forwards all extra headers (`src/llm/llm-providers-openrouter.adb:31-38`, `src/llm/llm-providers-openai_completions.adb:782-787`). The request test also asserts those headers for the normal `Create` path (`test/src/llm_openrouter_tests.adb:387-423`).
 - **Reasoning-effort mapping:** `Minimal | Low -> "low"`, `Medium -> "medium"`, and `High | X_High -> "high"` exactly match the plan (`src/llm/llm-providers-openrouter.adb:79-93`).
 - **Reasoning injection is gated correctly:** `Customize_Request` returns immediately when `Thinking = Off` (empty effort) or the model is not marked as reasoning-capable in the catalogue, so `reasoning` is only added when both conditions are satisfied (`src/llm/llm-providers-openrouter.adb:95-117`).
 - **Reasoning capability detection is exact-match only:** catalogue parsing sets `Reasoning := Array_Contains (Parameters, "reasoning")`, so `"include_reasoning"` does not incorrectly enable reasoning support (`src/llm/llm-providers-openrouter-catalogue.adb:274-297`, `src/llm/llm-providers-openrouter-catalogue.adb:349-350`). The fixture and test explicitly cover this (`test/fixtures/openrouter_models.json`, `test/src/llm_openrouter_catalogue_tests.adb:326-328`).

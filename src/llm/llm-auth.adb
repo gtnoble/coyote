@@ -1,14 +1,14 @@
 --  LLM.Auth body.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Characters.Handling;
 with Ada.Directories;
-with Ada.Environment_Variables;
 with Ada.IO_Exceptions;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
+with LLM.Settings;
 with GNAT.OS_Lib;
 with GNATCOLL.JSON;
 
@@ -16,18 +16,8 @@ package body LLM.Auth is
 
    use type GNATCOLL.JSON.JSON_Value_Type;
 
-   function Agent_Dir return String is
-      Home : constant String := Ada.Environment_Variables.Value ("HOME", "");
-   begin
-      if Home'Length = 0 then
-         return "";
-      end if;
-
-      return Home & "/.pi/agent";
-   end Agent_Dir;
-
    function Auth_Path return String is
-      Base : constant String := Agent_Dir;
+      Base : constant String := LLM.Settings.Agent_Dir;
    begin
       if Base'Length = 0 then
          return "";

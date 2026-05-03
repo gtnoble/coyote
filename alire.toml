@@ -1,5 +1,5 @@
-name = "pi_acme"
-description = "Acme frontend for the pi coding agent"
+name = "coyote"
+description = "Coyote \u2014 native Ada LLM coding agent for Acme"
 version = "0.1.0-dev"
 
 authors = ["Garret Noble"]
@@ -12,7 +12,3 @@ tags = []
 [[depends-on]]
 gnatcoll = "^25.0.0"
 
-[[actions]]
-type = "post-build"
-command = ["sh", "-c",
-           "mkdir -p lib/pi_acme && cp extensions/subagent_window.ts lib/pi_acme/subagent_window.ts"]

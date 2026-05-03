@@ -8,7 +8,7 @@
 --  a bare word if no embedded spaces or quotes, otherwise enclosed in
 --  single quotes with '' representing a literal single quote.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Strings.Unbounded;

@@ -69,6 +69,31 @@ package body LLM_Types_Tests is
       Assert (Block.Is_Error, "Is_Error should round-trip");
    end Test_Tool_Result_Block;
 
+   procedure Test_Compaction_Summary_Role (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Content : Content_Block_Vectors.Vector;
+      Msg     : Message;
+   begin
+      Content.Append
+        ((Kind => Text_Block,
+          Text => To_Unbounded_String ("Checkpoint summary text")));
+
+      Msg :=
+        (Role      => Compaction_Summary,
+         Content   => Content,
+         Tok_Usage => (others => 0),
+         Stop      => Unknown_Stop,
+         Timestamp => To_Unbounded_String ("2026-05-02T12:00:00Z"));
+
+      Assert
+        (Msg.Role = Compaction_Summary,
+         "Compaction summary messages should preserve their role");
+      Assert
+        (To_String (Msg.Content.Element (0).Text) = "Checkpoint summary text",
+         "Compaction summary text should round-trip");
+   end Test_Compaction_Summary_Role;
+
    procedure Test_Usage_Addition (T : in out Test) is
       pragma Unreferenced (T);
 

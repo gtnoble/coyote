@@ -9,5 +9,8 @@ package LLM_Settings_Tests is
    procedure Test_Resolve_Api_Key_Literal (T : in out Test);
    procedure Test_Resolve_Api_Key_Interpolated_Env (T : in out Test);
    procedure Test_Resolve_Api_Key_Default_Env (T : in out Test);
+   procedure Test_Append_System_Prompt_Loaded (T : in out Test);
+   procedure Test_Append_System_Prompt_Missing (T : in out Test);
+   procedure Test_Append_Prompt_In_Built_Prompt (T : in out Test);
 
 end LLM_Settings_Tests;

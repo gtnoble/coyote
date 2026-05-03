@@ -1,4 +1,5 @@
 with AUnit.Assertions;
+with Ada.Characters.Handling;
 with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
@@ -22,7 +23,7 @@ package body LLM_Model_Registry_Tests is
 
   procedure Ensure_Test_Home (Home : String) is
   begin
-    Ada.Directories.Create_Path (Home & "/.pi/agent");
+    Ada.Directories.Create_Path (Home & "/.coyote");
   end Ensure_Test_Home;
 
   procedure Delete_If_Exists (Path : String) is
@@ -36,7 +37,7 @@ package body LLM_Model_Registry_Tests is
   end Delete_If_Exists;
 
   procedure Cleanup_Test_Home (Home : String) is
-    Agent_Dir : constant String := Home & "/.pi/agent";
+    Agent_Dir : constant String := Home & "/.coyote";
     Pi_Dir    : constant String := Home & "/.pi";
   begin
     Delete_If_Exists (Agent_Dir & "/auth.json");
@@ -130,7 +131,7 @@ package body LLM_Model_Registry_Tests is
   procedure Write_GitHub_Copilot_Auth (Home : String) is
   begin
     Write_File
-      (Home & "/.pi/agent/auth.json",
+      (Home & "/.coyote/auth.json",
        "{""github-copilot"":{"
        & """type"":""oauth"","
        & """refresh"":""fixture-refresh"","
@@ -142,7 +143,7 @@ package body LLM_Model_Registry_Tests is
   procedure Write_GitHub_Copilot_Cache (Home : String) is
   begin
     Write_File
-      (Home & "/.pi/agent/github_copilot_models_cache.json",
+      (Home & "/.coyote/github_copilot_models_cache.json",
        "{""fetched_at"":9999999999,"
        & """base_url"":""https://api.individual.githubcopilot.com"","
        & """data"":"
@@ -153,7 +154,7 @@ package body LLM_Model_Registry_Tests is
   procedure Write_OpenRouter_Cache (Home : String) is
   begin
     Write_File
-      (Home & "/.pi/agent/openrouter_models_cache.json",
+      (Home & "/.coyote/openrouter_models_cache.json",
        "{""fetched_at"":9999999999,"
        & """data"":"
        & Fixture_Data_Array ("openrouter_models.json")
@@ -210,7 +211,7 @@ package body LLM_Model_Registry_Tests is
   procedure Test_GitHub_Copilot_Anthropic_Wire_Format (T : in out Test) is
     pragma Unreferenced (T);
 
-    Home         : constant String := "/tmp/pi_acme_model_registry_test_1";
+    Home         : constant String := "/tmp/coyote_model_registry_test_1";
     Home_Was_Set : constant Boolean :=
       Ada.Environment_Variables.Exists ("HOME");
     Old_Home     : constant String :=
@@ -240,7 +241,7 @@ package body LLM_Model_Registry_Tests is
   procedure Test_GitHub_Copilot_OpenAI_Wire_Format (T : in out Test) is
     pragma Unreferenced (T);
 
-    Home         : constant String := "/tmp/pi_acme_model_registry_test_2";
+    Home         : constant String := "/tmp/coyote_model_registry_test_2";
     Home_Was_Set : constant Boolean :=
       Ada.Environment_Variables.Exists ("HOME");
     Old_Home     : constant String :=
@@ -269,7 +270,7 @@ package body LLM_Model_Registry_Tests is
   procedure Test_GitHub_Copilot_Not_Found (T : in out Test) is
     pragma Unreferenced (T);
 
-    Home         : constant String := "/tmp/pi_acme_model_registry_test_3";
+    Home         : constant String := "/tmp/coyote_model_registry_test_3";
     Home_Was_Set : constant Boolean :=
       Ada.Environment_Variables.Exists ("HOME");
     Old_Home     : constant String :=
@@ -307,7 +308,7 @@ package body LLM_Model_Registry_Tests is
   procedure Test_OpenRouter_Cost_Loaded (T : in out Test) is
     pragma Unreferenced (T);
 
-    Home         : constant String := "/tmp/pi_acme_model_registry_test_4";
+    Home         : constant String := "/tmp/coyote_model_registry_test_4";
     Home_Was_Set : constant Boolean :=
       Ada.Environment_Variables.Exists ("HOME");
     Old_Home     : constant String :=
@@ -376,7 +377,7 @@ package body LLM_Model_Registry_Tests is
   procedure Test_Available_Models_Filtering (T : in out Test) is
     pragma Unreferenced (T);
 
-    Home           : constant String := "/tmp/pi_acme_model_registry_test_5";
+    Home           : constant String := "/tmp/coyote_model_registry_test_5";
     Home_Was_Set   : constant Boolean :=
       Ada.Environment_Variables.Exists ("HOME");
     Old_Home       : constant String :=
@@ -418,7 +419,7 @@ package body LLM_Model_Registry_Tests is
       (Count_Provider (Available, "openrouter") = 4,
        "OpenRouter models should appear once an API key is configured");
 
-    Delete_If_Exists (Home & "/.pi/agent/auth.json");
+    Delete_If_Exists (Home & "/.coyote/auth.json");
     Available := LLM.Model_Registry.Available_Models;
 
     Assert
@@ -442,7 +443,7 @@ package body LLM_Model_Registry_Tests is
   procedure Test_Anthropic_Available_Models (T : in out Test) is
     pragma Unreferenced (T);
 
-    Home            : constant String := "/tmp/pi_acme_model_registry_test_6";
+    Home            : constant String := "/tmp/coyote_model_registry_test_6";
     Home_Was_Set    : constant Boolean :=
       Ada.Environment_Variables.Exists ("HOME");
     Old_Home        : constant String :=
@@ -483,5 +484,85 @@ package body LLM_Model_Registry_Tests is
       Cleanup_Test_Home (Home);
       raise;
   end Test_Anthropic_Available_Models;
+
+  --  Verify Available_Models returns entries sorted by provider then
+  --  model identifier, both compared case-insensitively.
+  procedure Test_Available_Models_Sorted (T : in out Test) is
+    pragma Unreferenced (T);
+
+    Home         : constant String :=
+      "/tmp/coyote_model_registry_test_7";
+    Home_Was_Set : constant Boolean :=
+      Ada.Environment_Variables.Exists ("HOME");
+    Old_Home     : constant String :=
+      Ada.Environment_Variables.Value ("HOME", "");
+    Key_Was_Set  : constant Boolean :=
+      Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
+    Old_Key      : constant String :=
+      Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
+    Available    : LLM.Model_Registry.Model_Info_Vectors.Vector;
+    Prev_Prov    : Unbounded_String;
+    Prev_Id      : Unbounded_String;
+    Is_First     : Boolean := True;
+  begin
+    Prepare_GitHub_Copilot_Fixture_Home (Home);
+    Write_OpenRouter_Cache (Home);
+
+    Ada.Environment_Variables.Set ("HOME", Home);
+    Ada.Environment_Variables.Set ("OPENROUTER_API_KEY", "fixture-or-key");
+
+    LLM.Model_Registry.Refresh_GitHub_Copilot;
+    LLM.Model_Registry.Refresh_OpenRouter;
+
+    Available := LLM.Model_Registry.Available_Models;
+
+    Assert
+      (not Available.Is_Empty,
+       "Available_Models should return at least one model");
+
+    --  Check each adjacent pair satisfies (provider, model_id) ordering.
+    for Model of Available loop
+      if not Is_First then
+        declare
+          Cur_Prov : constant String :=
+            Ada.Characters.Handling.To_Lower
+              (To_String (Model.Provider));
+          Pre_Prov : constant String :=
+            Ada.Characters.Handling.To_Lower (To_String (Prev_Prov));
+          Cur_Id   : constant String :=
+            Ada.Characters.Handling.To_Lower
+              (To_String (Model.Model_Id));
+          Pre_Id   : constant String :=
+            Ada.Characters.Handling.To_Lower (To_String (Prev_Id));
+        begin
+          if Pre_Prov = Cur_Prov then
+            Assert
+              (Pre_Id <= Cur_Id,
+               "Within provider " & Pre_Prov
+               & ": " & Pre_Id
+               & " should sort before " & Cur_Id);
+          else
+            Assert
+              (Pre_Prov < Cur_Prov,
+               "Provider " & Pre_Prov
+               & " should sort before " & Cur_Prov);
+          end if;
+        end;
+      end if;
+      Prev_Prov := Model.Provider;
+      Prev_Id   := Model.Model_Id;
+      Is_First  := False;
+    end loop;
+
+    Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
+    Restore_Env ("HOME", Home_Was_Set, Old_Home);
+    Cleanup_Test_Home (Home);
+  exception
+    when others =>
+      Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+      raise;
+  end Test_Available_Models_Sorted;
 
 end LLM_Model_Registry_Tests;

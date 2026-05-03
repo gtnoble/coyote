@@ -1,6 +1,6 @@
 --  LLM.Providers.OpenRouter.Catalogue body.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Calendar;
@@ -10,6 +10,7 @@ with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with GNAT.OS_Lib;
 with GNATCOLL.JSON;
+with LLM.Settings;
 with LLM.HTTP;
 
 package body LLM.Providers.OpenRouter.Catalogue is
@@ -22,18 +23,8 @@ package body LLM.Providers.OpenRouter.Catalogue is
       Models : Catalogue_Vectors.Vector;
    end record;
 
-   function Agent_Dir return String is
-      Home : constant String := Ada.Environment_Variables.Value ("HOME", "");
-   begin
-      if Home'Length = 0 then
-         return "";
-      end if;
-
-      return Home & "/.pi/agent";
-   end Agent_Dir;
-
    function Cache_Path return String is
-      Base : constant String := Agent_Dir;
+      Base : constant String := LLM.Settings.Agent_Dir;
    begin
       if Base'Length = 0 then
          return "";
@@ -44,10 +35,10 @@ package body LLM.Providers.OpenRouter.Catalogue is
 
    function Base_Url return String is
    begin
-      if Ada.Environment_Variables.Exists ("PI_ACME_OPENROUTER_BASE_URL") then
+      if Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL") then
          declare
             Value : constant String :=
-               Ada.Environment_Variables.Value ("PI_ACME_OPENROUTER_BASE_URL");
+               Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL");
          begin
             if Value'Length > 0 then
                return Value;

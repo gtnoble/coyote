@@ -1,6 +1,6 @@
 --  LLM.Providers.OpenAI_Completions body.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Containers;
@@ -441,7 +441,7 @@ package body LLM.Providers.OpenAI_Completions is
 
       for Msg of Messages loop
          case Msg.Role is
-            when LLM.Types.User =>
+            when LLM.Types.User | LLM.Types.Compaction_Summary =>
                Append_User_Message (Msgs, Msg);
             when LLM.Types.Assistant =>
                Append_Assistant_Message (Msgs, Msg);

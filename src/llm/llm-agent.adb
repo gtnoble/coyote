@@ -1,6 +1,6 @@
 --  LLM.Agent body.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Characters.Handling;
@@ -11,6 +11,7 @@ with Ada.Exceptions;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with GNATCOLL.JSON;
+with LLM.Compaction;
 with LLM.HTTP;
 with LLM.Model_Registry;
 with LLM.Providers.Anthropic_Messages;
@@ -18,6 +19,7 @@ with LLM.Providers.GitHub_Copilot;
 with LLM.Providers.OpenRouter;
 with LLM.Session_Store;
 with LLM.Settings;
+with LLM.System_Prompt;
 with LLM.Tools;
 
 package body LLM.Agent is
@@ -53,25 +55,6 @@ package body LLM.Agent is
       Saw_Msg_End  : Boolean := False;
    end record;
 
-   protected body Abort_Flag is
-
-      procedure Set is
-      begin
-         Value := True;
-      end Set;
-
-      procedure Clear is
-      begin
-         Value := False;
-      end Clear;
-
-      function Requested return Boolean is
-      begin
-         return Value;
-      end Requested;
-
-   end Abort_Flag;
-
    procedure Emit
      (Handler : not null access procedure
         (E : LLM.Events.Agent_Event'Class);
@@ -84,6 +67,19 @@ package body LLM.Agent is
    begin
       return Ada.Characters.Handling.To_Lower (Text);
    end Lowercase;
+
+   function Is_Context_Overflow_Error (Msg : String) return Boolean is
+      Lower : constant String := Ada.Characters.Handling.To_Lower (Msg);
+   begin
+      return Ada.Strings.Fixed.Index (Lower, "prompt is too long") > 0
+        or else Ada.Strings.Fixed.Index
+          (Lower, "context_length_exceeded") > 0
+        or else Ada.Strings.Fixed.Index
+          (Lower, "maximum context length") > 0
+        or else Ada.Strings.Fixed.Index (Lower, "too many tokens") > 0
+        or else Ada.Strings.Fixed.Index
+          (Lower, "reduce the length of the messages") > 0;
+   end Is_Context_Overflow_Error;
 
    function Thinking_From_String
      (Text : String) return LLM.Providers.Thinking_Level
@@ -201,7 +197,7 @@ package body LLM.Agent is
       end if;
 
       raise Constraint_Error with
-        "No model configured; pass --model or set ~/.pi/agent/settings.json";
+        "No model configured; pass --model or set ~/.coyote/settings.json";
    end Effective_Model_Spec;
 
    function Resolved_Model_Info (Spec : String)
@@ -351,6 +347,52 @@ package body LLM.Agent is
          Timestamp => Null_Unbounded_String);
    end Tool_Result_Message;
 
+   function Message_Text (Msg : LLM.Types.Message) return String is
+      Result : Unbounded_String;
+   begin
+      for Block of Msg.Content loop
+         if Block.Kind = LLM.Types.Text_Block then
+            Append (Result, To_String (Block.Text));
+            exit;
+         end if;
+      end loop;
+
+      return To_String (Result);
+   end Message_Text;
+
+   function Compaction_Summary_Message
+     (Summary : String) return LLM.Types.Message
+   is
+      Content : LLM.Types.Content_Block_Vectors.Vector;
+   begin
+      Content.Append
+        ((Kind => LLM.Types.Text_Block,
+          Text => To_Unbounded_String (Summary)));
+
+      return
+        (Role      => LLM.Types.Compaction_Summary,
+         Content   => Content,
+         Tok_Usage => (others => 0),
+         Stop      => LLM.Types.Unknown_Stop,
+         Timestamp => Null_Unbounded_String);
+   end Compaction_Summary_Message;
+
+   procedure Append_File_List_XML
+     (Summary        : in out Unbounded_String;
+      Tag            :        String;
+      Paths          :        Unbounded_String)
+   is
+   begin
+      if Length (Paths) = 0 then
+         return;
+      end if;
+
+      Append (Summary, ASCII.LF & ASCII.LF);
+      Append (Summary, "<" & Tag & ">" & ASCII.LF);
+      Append (Summary, To_String (Paths));
+      Append (Summary, ASCII.LF & "</" & Tag & ">");
+   end Append_File_List_XML;
+
    function Build_Tools_Json
      (Info     : LLM.Model_Registry.Model_Info;
       No_Tools : Boolean) return String
@@ -472,6 +514,24 @@ package body LLM.Agent is
         or else (Status >= 500 and then Status <= 599);
    end Is_Retryable_Error;
 
+   procedure Remove_Trailing_Error_Message
+     (History : in out LLM.Types.Message_Vectors.Vector)
+   is
+   begin
+      if not History.Is_Empty then
+         declare
+            Last_Message : constant LLM.Types.Message :=
+              History.Last_Element;
+         begin
+            if Last_Message.Stop = LLM.Types.Error_Stop
+              or else Last_Message.Stop = LLM.Types.Aborted
+            then
+               History.Delete_Last;
+            end if;
+         end;
+      end if;
+   end Remove_Trailing_Error_Message;
+
    procedure Delay_With_Abort
      (S           : in out Session;
       Delay_Ms    :        Natural;
@@ -579,6 +639,21 @@ package body LLM.Agent is
       Succeeded   : Boolean := False;
       Attempt     : Positive := 1;
       Retry_Used  : Boolean := False;
+      Overflow_Recovery_Attempted : Boolean := False;
+
+      procedure Reset_Attempt_State is
+      begin
+         Builder :=
+           (Content      => <>,
+            Open_Kind    => No_Open_Block,
+            Open_Text    => Null_Unbounded_String,
+            Stop         => LLM.Types.Unknown_Stop,
+            Tok_Usage    => (others => 0),
+            Error_Text   => Null_Unbounded_String,
+            Saw_Content  => False,
+            Saw_Msg_End  => False);
+         Pending_Tools.Clear;
+      end Reset_Attempt_State;
 
       procedure Provider_Event_Handler (E : LLM.Events.Agent_Event'Class) is
       begin
@@ -629,70 +704,127 @@ package body LLM.Agent is
    begin
       Attempt_Loop :
       while Attempt <= Delays_Ms'Last + 1 loop
+         declare
+            Retry_Same_Attempt : Boolean := True;
          begin
-            Provider.Send
-              (Model_Id      => To_String (S.Model_Info.Model_Id),
-               System_Prompt => To_String (S.System_Prompt),
-               Messages      => S.History,
-               Tools_Json    => Tools_Json,
-               Thinking      => S.Thinking,
-               Max_Tokens    => Max_Tokens_For (S.Model_Info),
-               Handler       => Provider_Event_Handler'Unrestricted_Access);
+            Provider_Call_Loop :
+            while Retry_Same_Attempt loop
+               Retry_Same_Attempt := False;
 
-            if Retry_Used then
-               declare
-                  Event : constant LLM.Events.Auto_Retry_End_Event :=
-                    (LLM.Events.Agent_Event with
-                     Success     => True,
-                     Attempt     => Attempt,
-                     Final_Error => Null_Unbounded_String);
                begin
-                  Emit (On_Event, Event);
-               end;
-            end if;
+                  Provider.Send
+                    (Model_Id      => To_String (S.Model_Info.Model_Id),
+                     System_Prompt => To_String (S.System_Prompt),
+                     Messages      => S.History,
+                     Tools_Json    => Tools_Json,
+                     Thinking      => S.Thinking,
+                     Max_Tokens    => Max_Tokens_For (S.Model_Info),
+                     Handler =>
+                       Provider_Event_Handler'Unrestricted_Access);
 
-            Succeeded := True;
-            exit Attempt_Loop;
-         exception
-            when Occurrence : others =>
-               if S.Abort_State.Requested then
+                  if Retry_Used then
+                     declare
+                        Event : constant LLM.Events.Auto_Retry_End_Event :=
+                          (LLM.Events.Agent_Event with
+                           Success     => True,
+                           Attempt     => Attempt,
+                           Final_Error => Null_Unbounded_String);
+                     begin
+                        Emit (On_Event, Event);
+                     end;
+                  end if;
+
+                  Succeeded := True;
                   exit Attempt_Loop;
-               elsif Is_Retryable_Error (Occurrence)
-                 and then Attempt <= Delays_Ms'Last
-               then
-                  Retry_Used := True;
-                  declare
-                     Delay_Ms : constant Natural := Delays_Ms (Attempt);
-                     Event    : constant LLM.Events.Auto_Retry_Start_Event :=
-                       (LLM.Events.Agent_Event with
-                        Attempt      => Attempt,
-                        Max_Attempts => Delays_Ms'Last + 1,
-                        Delay_Ms     => Delay_Ms,
-                        Error_Msg    => To_Unbounded_String
-                          (Ada.Exceptions.Exception_Message (Occurrence)));
-                     Was_Aborted : Boolean;
-                  begin
-                     Emit (On_Event, Event);
-                     Delay_With_Abort (S, Delay_Ms, Was_Aborted);
-                     if Was_Aborted then
+               exception
+                  when Occurrence : others =>
+                     if S.Abort_State.Requested then
                         exit Attempt_Loop;
+                     elsif Is_Context_Overflow_Error
+                       (Ada.Exceptions.Exception_Message (Occurrence))
+                     then
+                        if Overflow_Recovery_Attempted then
+                           declare
+                              Event : constant
+                                LLM.Events.Auto_Compaction_End_Event :=
+                                  (LLM.Events.Agent_Event with
+                                   Summary    => Null_Unbounded_String,
+                                   Aborted    => True,
+                                   Will_Retry => False,
+                                   Err_Msg    => To_Unbounded_String
+                                     ("Context overflow recovery failed"
+                                      & " after one attempt."));
+                           begin
+                              Emit (On_Event, Event);
+                           end;
+                           exit Attempt_Loop;
+                        end if;
+
+                        Overflow_Recovery_Attempted := True;
+                        Reset_Attempt_State;
+                        Remove_Trailing_Error_Message (S.History);
+                        Compact (S, On_Event, "overflow");
+
+                        if S.Abort_State.Requested then
+                           exit Attempt_Loop;
+                        end if;
+
+                        declare
+                           Event : constant
+                             LLM.Events.Auto_Compaction_End_Event :=
+                               (LLM.Events.Agent_Event with
+                                Summary    => Null_Unbounded_String,
+                                Aborted    => False,
+                                Will_Retry => True,
+                                Err_Msg    => Null_Unbounded_String);
+                        begin
+                           Emit (On_Event, Event);
+                        end;
+
+                        Retry_Same_Attempt := True;
+                     elsif Is_Retryable_Error (Occurrence)
+                       and then Attempt <= Delays_Ms'Last
+                     then
+                        Retry_Used := True;
+                        declare
+                           Delay_Ms : constant Natural := Delays_Ms (Attempt);
+                           Event : constant
+                             LLM.Events.Auto_Retry_Start_Event :=
+                               (LLM.Events.Agent_Event with
+                              Attempt      => Attempt,
+                              Max_Attempts => Delays_Ms'Last + 1,
+                              Delay_Ms     => Delay_Ms,
+                              Error_Msg    => To_Unbounded_String
+                                (Ada.Exceptions.Exception_Message
+                                   (Occurrence)));
+                           Was_Aborted : Boolean;
+                        begin
+                           Emit (On_Event, Event);
+                           Delay_With_Abort (S, Delay_Ms, Was_Aborted);
+                           if Was_Aborted then
+                              exit Attempt_Loop;
+                           end if;
+                        end;
+                     elsif Is_Retryable_Error (Occurrence)
+                       and then Retry_Used
+                     then
+                        declare
+                           Event : constant LLM.Events.Auto_Retry_End_Event :=
+                             (LLM.Events.Agent_Event with
+                              Success     => False,
+                              Attempt     => Attempt,
+                              Final_Error => To_Unbounded_String
+                                (Ada.Exceptions.Exception_Message
+                                   (Occurrence)));
+                        begin
+                           Emit (On_Event, Event);
+                        end;
+                        raise;
+                     else
+                        raise;
                      end if;
-                  end;
-               elsif Is_Retryable_Error (Occurrence) and then Retry_Used then
-                  declare
-                     Event : constant LLM.Events.Auto_Retry_End_Event :=
-                       (LLM.Events.Agent_Event with
-                        Success     => False,
-                        Attempt     => Attempt,
-                        Final_Error => To_Unbounded_String
-                          (Ada.Exceptions.Exception_Message (Occurrence)));
-                  begin
-                     Emit (On_Event, Event);
-                  end;
-                  raise;
-               else
-                  raise;
-               end if;
+               end;
+            end loop Provider_Call_Loop;
          end;
 
          Attempt := Attempt + 1;
@@ -715,7 +847,12 @@ package body LLM.Agent is
         LLM.Settings.Load_Settings;
    begin
       S.Model_Spec := Null_Unbounded_String;
-      S.System_Prompt := To_Unbounded_String (System_Prompt);
+      S.Cwd := To_Unbounded_String (Ada.Directories.Current_Directory);
+      S.System_Prompt := To_Unbounded_String
+        (LLM.System_Prompt.Build_System_Prompt
+           (Cwd           => To_String (S.Cwd),
+            No_Tools      => No_Tools,
+            Custom_Prompt => System_Prompt));
       S.Session_UUID := Null_Unbounded_String;
       S.History.Clear;
       S.No_Tools := No_Tools;
@@ -723,8 +860,9 @@ package body LLM.Agent is
         (To_String (Settings_Value.Default_Thinking));
       S.Abort_State.Clear;
       S.Streaming := False;
-      S.Cwd := To_Unbounded_String (Ada.Directories.Current_Directory);
       S.Model_Info := EMPTY_MODEL_INFO;
+      S.Compact_Settings := LLM.Compaction.Default_Compact_Settings;
+      S.Last_Context_Tokens := 0;
 
       LLM.Model_Registry.Refresh_GitHub_Copilot;
       LLM.Model_Registry.Refresh_OpenRouter;
@@ -740,11 +878,254 @@ package body LLM.Agent is
 
          S.Session_UUID := To_Unbounded_String (Session_Id);
          S.History := LLM.Session_Store.Load_Messages (Session_Id);
+         S.Last_Context_Tokens :=
+           LLM.Compaction.Estimate_Context_Tokens (S.History);
       else
          S.Session_UUID := To_Unbounded_String
            (LLM.Session_Store.Create_Session (To_String (S.Cwd)));
       end if;
    end Create;
+
+   procedure Compact
+     (S        : in out Session;
+      On_Event :        not null access procedure
+        (E : LLM.Events.Agent_Event'Class);
+      Reason   :        String := "manual")
+   is
+      Original_History : constant LLM.Types.Message_Vectors.Vector :=
+        S.History;
+      Original_Last_Context_Tokens : constant Natural :=
+        S.Last_Context_Tokens;
+      Cut              : Natural := 0;
+      Previous_Summary : Unbounded_String := Null_Unbounded_String;
+      Prompt_Text      : Unbounded_String := Null_Unbounded_String;
+      Summary_Text     : Unbounded_String := Null_Unbounded_String;
+      Read_Files       : Unbounded_String := Null_Unbounded_String;
+      Modified_Files   : Unbounded_String := Null_Unbounded_String;
+      Summary_Request  : LLM.Types.Message_Vectors.Vector;
+      Candidate        : LLM.Types.Message_Vectors.Vector;
+
+      procedure Emit_End_Event
+        (Summary    : Unbounded_String;
+         Aborted    : Boolean;
+         Err_Msg    : Unbounded_String)
+      is
+         Event : constant LLM.Events.Auto_Compaction_End_Event :=
+           (LLM.Events.Agent_Event with
+            Summary    => Summary,
+            Aborted    => Aborted,
+            Will_Retry => False,
+            Err_Msg    => Err_Msg);
+      begin
+         Emit (On_Event, Event);
+      end Emit_End_Event;
+
+      procedure Summary_Event_Handler
+        (E : LLM.Events.Agent_Event'Class)
+      is
+      begin
+         if S.Abort_State.Requested then
+            return;
+         end if;
+
+         if E in LLM.Events.Message_Update_Event then
+            declare
+               Update : constant LLM.Events.Message_Update_Event :=
+                 LLM.Events.Message_Update_Event (E);
+            begin
+               if Update.Kind = LLM.Events.Text_Delta then
+                  Append (Summary_Text, To_String (Update.Delta_Text));
+               end if;
+            end;
+         end if;
+      end Summary_Event_Handler;
+
+      function Summary_Max_Tokens return Positive is
+         Raw : constant Natural :=
+           (Natural (S.Compact_Settings.Reserve_Tokens) * 4) / 5;
+      begin
+         if Raw = 0 then
+            return 1;
+         else
+            return Positive (Raw);
+         end if;
+      end Summary_Max_Tokens;
+   begin
+      declare
+         Event : constant LLM.Events.Auto_Compaction_Start_Event :=
+           (LLM.Events.Agent_Event with
+            Reason => To_Unbounded_String (Reason));
+      begin
+         Emit (On_Event, Event);
+      end;
+
+      Cut := LLM.Compaction.Find_Cut_Point
+        (S.History, S.Compact_Settings);
+      if Cut = 0 and then S.History.Length <= 1 then
+         Emit_End_Event
+           (Summary => Null_Unbounded_String,
+            Aborted => True,
+            Err_Msg => To_Unbounded_String ("Nothing to compact"));
+         return;
+      end if;
+
+      if not S.History.Is_Empty
+        and then S.History.First_Element.Role = LLM.Types.Compaction_Summary
+      then
+         Previous_Summary := To_Unbounded_String
+           (Message_Text (S.History.First_Element));
+      end if;
+
+      if Cut > 0 then
+         for I in 0 .. Cut - 1 loop
+            Candidate.Append (S.History.Element (I));
+         end loop;
+      end if;
+
+      Append (Prompt_Text, "<conversation>" & ASCII.LF);
+      Append
+        (Prompt_Text,
+         LLM.Compaction.Serialize_Conversation (Candidate));
+      Append
+        (Prompt_Text,
+         ASCII.LF & "</conversation>" & ASCII.LF & ASCII.LF);
+
+      if Length (Previous_Summary) > 0 then
+         Append (Prompt_Text, "<previous-summary>" & ASCII.LF);
+         Append (Prompt_Text, To_String (Previous_Summary));
+         Append
+           (Prompt_Text,
+            ASCII.LF & "</previous-summary>" & ASCII.LF & ASCII.LF);
+         Append (Prompt_Text, LLM.Compaction.Update_Summarization_Prompt);
+      else
+         Append (Prompt_Text, LLM.Compaction.Summarization_Prompt);
+      end if;
+
+      Summary_Request.Append (User_Message (To_String (Prompt_Text)));
+
+      if Lowercase (To_String (S.Model_Info.Provider)) =
+        "github-copilot"
+      then
+         declare
+            Provider : LLM.Providers.GitHub_Copilot.Provider :=
+              LLM.Providers.GitHub_Copilot.Create;
+         begin
+            Provider.Send
+              (Model_Id      => To_String (S.Model_Info.Model_Id),
+               System_Prompt => LLM.Compaction.Summarization_System_Prompt,
+               Messages      => Summary_Request,
+               Tools_Json    => "",
+               Thinking      => LLM.Providers.Off,
+               Max_Tokens    => Summary_Max_Tokens,
+               Handler       => Summary_Event_Handler'Unrestricted_Access);
+         end;
+      elsif Lowercase (To_String (S.Model_Info.Provider)) = "openrouter" then
+         declare
+            Provider : LLM.Providers.OpenRouter.Provider :=
+              LLM.Providers.OpenRouter.Create;
+         begin
+            Provider.Send
+              (Model_Id      => To_String (S.Model_Info.Model_Id),
+               System_Prompt => LLM.Compaction.Summarization_System_Prompt,
+               Messages      => Summary_Request,
+               Tools_Json    => "",
+               Thinking      => LLM.Providers.Off,
+               Max_Tokens    => Summary_Max_Tokens,
+               Handler       => Summary_Event_Handler'Unrestricted_Access);
+         end;
+      elsif Lowercase (To_String (S.Model_Info.Provider)) = "anthropic" then
+         declare
+            Api_Key  : constant String :=
+              LLM.Settings.Resolve_Api_Key ("anthropic");
+            Provider : LLM.Providers.Anthropic_Messages.Provider :=
+              LLM.Providers.Anthropic_Messages.Create
+                ("https://api.anthropic.com", Api_Key);
+         begin
+            Provider.Send
+              (Model_Id      => To_String (S.Model_Info.Model_Id),
+               System_Prompt => LLM.Compaction.Summarization_System_Prompt,
+               Messages      => Summary_Request,
+               Tools_Json    => "",
+               Thinking      => LLM.Providers.Off,
+               Max_Tokens    => Summary_Max_Tokens,
+               Handler       => Summary_Event_Handler'Unrestricted_Access);
+         end;
+      else
+         raise Constraint_Error with
+           "Unsupported provider: " & To_String (S.Model_Info.Provider);
+      end if;
+
+      if S.Abort_State.Requested then
+         Emit_End_Event
+           (Summary => Null_Unbounded_String,
+            Aborted => True,
+            Err_Msg => Null_Unbounded_String);
+         return;
+      end if;
+
+      if Length (Summary_Text) = 0 then
+         Emit_End_Event
+           (Summary => Null_Unbounded_String,
+            Aborted => True,
+            Err_Msg => To_Unbounded_String ("Empty summary returned"));
+         return;
+      end if;
+
+      LLM.Compaction.Track_File_Ops
+        (History        => S.History,
+         Read_Files     => Read_Files,
+         Modified_Files => Modified_Files);
+      Append_File_List_XML (Summary_Text, "read-files", Read_Files);
+      Append_File_List_XML
+        (Summary_Text, "modified-files", Modified_Files);
+
+      declare
+         Tokens_Before : constant Natural :=
+           (if S.Last_Context_Tokens > 0
+            then S.Last_Context_Tokens
+            else LLM.Compaction.Estimate_Context_Tokens (S.History));
+      begin
+         LLM.Session_Store.Append_Compaction
+           (Session_Id       => To_String (S.Session_UUID),
+            Summary          => To_String (Summary_Text),
+            First_Kept_Index => Cut,
+            Tokens_Before    => Tokens_Before,
+            Read_Files       => To_String (Read_Files),
+            Modified_Files   => To_String (Modified_Files));
+      end;
+
+      declare
+         New_History : LLM.Types.Message_Vectors.Vector;
+      begin
+         New_History.Append
+           (Compaction_Summary_Message (To_String (Summary_Text)));
+
+         if not S.History.Is_Empty and then Cut <= S.History.Last_Index then
+            for I in Cut .. S.History.Last_Index loop
+               New_History.Append (S.History.Element (I));
+            end loop;
+         end if;
+
+         S.History := New_History;
+      end;
+
+      S.Last_Context_Tokens :=
+        LLM.Compaction.Estimate_Context_Tokens (S.History);
+
+      Emit_End_Event
+        (Summary => Summary_Text,
+         Aborted => False,
+         Err_Msg => Null_Unbounded_String);
+   exception
+      when Occurrence : others =>
+         S.History := Original_History;
+         S.Last_Context_Tokens := Original_Last_Context_Tokens;
+         Emit_End_Event
+           (Summary => Null_Unbounded_String,
+            Aborted => True,
+            Err_Msg => To_Unbounded_String
+              (Ada.Exceptions.Exception_Message (Occurrence)));
+   end Compact;
 
    procedure Run_Prompt
      (S        : in out Session;
@@ -914,7 +1295,8 @@ package body LLM.Agent is
                               Args_Json => To_String
                                 (Tool_Block.Arguments_Json),
                               Result    => Result_Text,
-                              Is_Error  => Is_Error);
+                              Is_Error  => Is_Error,
+                              Abort_Flg => S.Abort_State'Access);
                         exception
                            when Ex : others =>
                               Result_Text := To_Unbounded_String
@@ -987,6 +1369,20 @@ package body LLM.Agent is
 
          if not S.Abort_State.Requested and then Turn_Completed_Normally then
             Flush_Pending_Messages;
+            S.Last_Context_Tokens :=
+              Builder.Tok_Usage.Input
+              + Builder.Tok_Usage.Output
+              + Builder.Tok_Usage.Cache_Read
+              + Builder.Tok_Usage.Cache_Write;
+
+            if not S.Abort_State.Requested
+              and then LLM.Compaction.Should_Compact
+                (S.Last_Context_Tokens,
+                 S.Model_Info.Context_Window,
+                 S.Compact_Settings)
+            then
+               Compact (S, On_Event, "threshold");
+            end if;
          end if;
       exception
          when others =>
@@ -1024,6 +1420,7 @@ package body LLM.Agent is
       S.History.Clear;
       S.Session_UUID := To_Unbounded_String
         (LLM.Session_Store.Create_Session (To_String (S.Cwd)));
+      S.Last_Context_Tokens := 0;
       S.Abort_State.Clear;
       S.Streaming := False;
    end New_Session;
@@ -1037,6 +1434,8 @@ package body LLM.Agent is
 
       S.Session_UUID := To_Unbounded_String (UUID);
       S.History := LLM.Session_Store.Load_Messages (UUID);
+      S.Last_Context_Tokens :=
+        LLM.Compaction.Estimate_Context_Tokens (S.History);
       S.Abort_State.Clear;
       S.Streaming := False;
    end Switch_Session;

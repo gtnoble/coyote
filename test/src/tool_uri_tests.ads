@@ -6,7 +6,7 @@
 --  Hash_Tool_Id expected values were verified against the Python reference:
 --    hashlib.sha256(tool_id.encode()).hexdigest()[:16]
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with AUnit;

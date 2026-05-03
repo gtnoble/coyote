@@ -1,9 +1,9 @@
 --  Session_Lister — list pi agent sessions for a working directory.
 --
---  Reads JSONL files from ~/.pi/agent/sessions/<encoded-cwd>/
+--  Reads JSONL files from ~/.coyote/sessions/<encoded-cwd>/
 --  and extracts session metadata (UUID, name, date, first-message snippet).
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Containers.Vectors;
@@ -29,7 +29,7 @@ package Session_Lister is
    function Encode_Cwd (Cwd : String) return String;
 
    --  Full path to the session directory for the given Cwd.
-   --  Uses $HOME/.pi/agent/sessions/<Encode_Cwd(Cwd)>.
+   --  Uses $HOME/.coyote/sessions/<Encode_Cwd(Cwd)>.
    function Sessions_Dir (Cwd : String) return String;
 
    --  Format an ISO-8601 timestamp into "YYYY-MM-DD HH:MM".
@@ -44,7 +44,7 @@ package Session_Lister is
    function List_Sessions
      (Cwd : String) return Session_Vectors.Vector;
 
-   --  Search every subdirectory of ~/.pi/agent/sessions/ for a JSONL file
+   --  Search every subdirectory of ~/.coyote/sessions/ for a JSONL file
    --  whose filename contains UUID.  Returns the full filesystem path, or ""
    --  if no matching file is found.  Unlike Sessions_Dir / List_Sessions,
    --  this is not restricted to the current working directory, so it can

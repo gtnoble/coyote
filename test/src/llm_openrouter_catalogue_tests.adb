@@ -53,7 +53,7 @@ package body LLM_OpenRouter_Catalogue_Tests is
 
    procedure Ensure_Test_Home (Home : String) is
    begin
-      Ada.Directories.Create_Path (Home & "/.pi/agent");
+      Ada.Directories.Create_Path (Home & "/.coyote");
    end Ensure_Test_Home;
 
    procedure Delete_If_Exists (Path : String) is
@@ -67,7 +67,7 @@ package body LLM_OpenRouter_Catalogue_Tests is
    end Delete_If_Exists;
 
    procedure Cleanup_Test_Home (Home : String) is
-      Agent_Dir : constant String := Home & "/.pi/agent";
+      Agent_Dir : constant String := Home & "/.coyote";
       Pi_Dir    : constant String := Home & "/.pi";
    begin
       Delete_If_Exists (Agent_Dir & "/openrouter_models_cache.json");
@@ -179,7 +179,7 @@ package body LLM_OpenRouter_Catalogue_Tests is
    is
    begin
       Write_File
-         (Home & "/.pi/agent/openrouter_models_cache.json",
+         (Home & "/.coyote/openrouter_models_cache.json",
        "{""fetched_at"":" & Long_Long_Image (Fetched_At)
        & ",""data"":" & Data_Array & "}");
    end Write_Cache;
@@ -277,15 +277,15 @@ package body LLM_OpenRouter_Catalogue_Tests is
    procedure Test_Load_From_Fresh_Cache (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/pi_acme_openrouter_catalogue_1";
+      Home         : constant String := "/tmp/coyote_openrouter_catalogue_1";
       Home_Was_Set : constant Boolean :=
          Ada.Environment_Variables.Exists ("HOME");
       Old_Home     : constant String :=
          Ada.Environment_Variables.Value ("HOME", "");
       Base_Was_Set : constant Boolean :=
-         Ada.Environment_Variables.Exists ("PI_ACME_OPENROUTER_BASE_URL");
+         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
       Old_Base     : constant String :=
-         Ada.Environment_Variables.Value ("PI_ACME_OPENROUTER_BASE_URL", "");
+         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
       Models       : Catalogue_Vectors.Vector;
       Claude       : Natural := 0;
       Llama        : Natural := 0;
@@ -299,7 +299,7 @@ package body LLM_OpenRouter_Catalogue_Tests is
        Data_Array => Fixture_Data_Array);
 
       Ada.Environment_Variables.Set ("HOME", Home);
-      Ada.Environment_Variables.Clear ("PI_ACME_OPENROUTER_BASE_URL");
+      Ada.Environment_Variables.Clear ("COYOTE_OPENROUTER_BASE_URL");
 
       Load_Catalogue (Models);
 
@@ -327,12 +327,12 @@ package body LLM_OpenRouter_Catalogue_Tests is
          (not Models.Element (Grok).Reasoning,
        "include_reasoning alone should not enable reasoning support");
 
-      Restore_Env ("PI_ACME_OPENROUTER_BASE_URL", Base_Was_Set, Old_Base);
+      Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Base_Was_Set, Old_Base);
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
       Cleanup_Test_Home (Home);
    exception
       when others =>
-         Restore_Env ("PI_ACME_OPENROUTER_BASE_URL", Base_Was_Set, Old_Base);
+         Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Base_Was_Set, Old_Base);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
          Cleanup_Test_Home (Home);
          raise;
@@ -341,7 +341,7 @@ package body LLM_OpenRouter_Catalogue_Tests is
    procedure Test_Stale_Cache_Triggers_Live_Fetch (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/pi_acme_openrouter_catalogue_2";
+      Home         : constant String := "/tmp/coyote_openrouter_catalogue_2";
       Port         : constant Positive := 18_773;
       Handle       : Process_Handle := Invalid_Handle;
       Home_Was_Set : constant Boolean :=
@@ -349,9 +349,9 @@ package body LLM_OpenRouter_Catalogue_Tests is
       Old_Home     : constant String :=
          Ada.Environment_Variables.Value ("HOME", "");
       Base_Was_Set : constant Boolean :=
-         Ada.Environment_Variables.Exists ("PI_ACME_OPENROUTER_BASE_URL");
+         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
       Old_Base     : constant String :=
-         Ada.Environment_Variables.Value ("PI_ACME_OPENROUTER_BASE_URL", "");
+         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
       Models       : Catalogue_Vectors.Vector;
    begin
       Cleanup_Test_Home (Home);
@@ -363,7 +363,7 @@ package body LLM_OpenRouter_Catalogue_Tests is
 
       Ada.Environment_Variables.Set ("HOME", Home);
       Ada.Environment_Variables.Set
-         ("PI_ACME_OPENROUTER_BASE_URL", "http://127.0.0.1:18773/api/v1");
+         ("COYOTE_OPENROUTER_BASE_URL", "http://127.0.0.1:18773/api/v1");
 
       Handle := Spawn_Server (Live_Server_Script (Port, Fixture_Path));
       delay 0.05;
@@ -382,13 +382,13 @@ package body LLM_OpenRouter_Catalogue_Tests is
          (Find_Model (Models, "anthropic/claude-sonnet-4-20250514") > 0,
        "Live fetch should parse the fixture models");
 
-      Restore_Env ("PI_ACME_OPENROUTER_BASE_URL", Base_Was_Set, Old_Base);
+      Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Base_Was_Set, Old_Base);
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
       Cleanup_Test_Home (Home);
    exception
       when others =>
          Stop_Server (Handle);
-         Restore_Env ("PI_ACME_OPENROUTER_BASE_URL", Base_Was_Set, Old_Base);
+         Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Base_Was_Set, Old_Base);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
          Cleanup_Test_Home (Home);
          raise;
@@ -397,15 +397,15 @@ package body LLM_OpenRouter_Catalogue_Tests is
    procedure Test_Stale_Cache_Fallback (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/pi_acme_openrouter_catalogue_3";
+      Home         : constant String := "/tmp/coyote_openrouter_catalogue_3";
       Home_Was_Set : constant Boolean :=
          Ada.Environment_Variables.Exists ("HOME");
       Old_Home     : constant String :=
          Ada.Environment_Variables.Value ("HOME", "");
       Base_Was_Set : constant Boolean :=
-         Ada.Environment_Variables.Exists ("PI_ACME_OPENROUTER_BASE_URL");
+         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
       Old_Base     : constant String :=
-         Ada.Environment_Variables.Value ("PI_ACME_OPENROUTER_BASE_URL", "");
+         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
       Models       : Catalogue_Vectors.Vector;
    begin
       Cleanup_Test_Home (Home);
@@ -417,7 +417,7 @@ package body LLM_OpenRouter_Catalogue_Tests is
 
       Ada.Environment_Variables.Set ("HOME", Home);
       Ada.Environment_Variables.Set
-         ("PI_ACME_OPENROUTER_BASE_URL", "http://127.0.0.1:9/api/v1");
+         ("COYOTE_OPENROUTER_BASE_URL", "http://127.0.0.1:9/api/v1");
 
       Load_Catalogue (Models);
 
@@ -428,12 +428,12 @@ package body LLM_OpenRouter_Catalogue_Tests is
          (Find_Model (Models, "anthropic/claude-sonnet-4-20250514") > 0,
        "Stale cache fallback should preserve cached models");
 
-      Restore_Env ("PI_ACME_OPENROUTER_BASE_URL", Base_Was_Set, Old_Base);
+      Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Base_Was_Set, Old_Base);
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
       Cleanup_Test_Home (Home);
    exception
       when others =>
-         Restore_Env ("PI_ACME_OPENROUTER_BASE_URL", Base_Was_Set, Old_Base);
+         Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Base_Was_Set, Old_Base);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
          Cleanup_Test_Home (Home);
          raise;

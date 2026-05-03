@@ -4,7 +4,7 @@
 --  default base URL, metadata headers, API-key resolution, and optional
 --  reasoning-effort request field.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with GNATCOLL.JSON;

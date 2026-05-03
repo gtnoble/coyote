@@ -1,9 +1,9 @@
 --  LLM.Providers.OpenRouter.Catalogue — live OpenRouter model list.
 --
 --  Loads the public OpenRouter model catalogue, with a 24-hour disk cache
---  stored under ~/.pi/agent.
+--  stored under ~/.coyote.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Containers.Vectors;
@@ -30,7 +30,7 @@ package LLM.Providers.OpenRouter.Catalogue is
 
    --  Load the model catalogue from GET https://openrouter.ai/api/v1/models.
    --
-   --  Cache file: ~/.pi/agent/openrouter_models_cache.json.
+   --  Cache file: ~/.coyote/openrouter_models_cache.json.
    --  Max_Age_Hours selects how long cached data is considered fresh.
    --  When a live fetch fails, stale cached data is used when available;
    --  otherwise Models is returned empty.

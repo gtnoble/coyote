@@ -13,5 +13,9 @@ package LLM_Tools_Tests is
    procedure Test_Edit_Non_Unique (T : in out Test);
    procedure Test_Edit_Missing (T : in out Test);
    procedure Test_Find (T : in out Test);
+   procedure Test_Built_In_Tools_Include_Spawn_Subagent
+     (T : in out Test);
+   procedure Test_Spawn_Subagent_Success (T : in out Test);
+   procedure Test_Spawn_Subagent_Requires_Prompt (T : in out Test);
 
 end LLM_Tools_Tests;

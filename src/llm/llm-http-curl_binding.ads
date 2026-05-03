@@ -3,7 +3,7 @@
 --  Exposes the subset of libcurl needed by LLM.HTTP plus the exported
 --  Ada write callback used for streaming response chunks back into Ada.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Interfaces.C;

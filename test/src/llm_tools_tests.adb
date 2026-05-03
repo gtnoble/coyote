@@ -1,9 +1,12 @@
 with AUnit.Assertions;
 with Ada.Directories;
+with Ada.Environment_Variables;
 with Ada.Streams;
 with Ada.Streams.Stream_IO;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
+with GNATCOLL.OS.Process; use GNATCOLL.OS.Process;
+with LLM.Tools;
 with LLM.Tools.Bash;
 with LLM.Tools.File_Ops;
 
@@ -13,7 +16,7 @@ package body LLM_Tools_Tests is
    use type Ada.Directories.File_Kind;
    use type Ada.Streams.Stream_Element_Offset;
 
-   Test_Root : constant String := "/tmp/pi_acme_llm_tools_tests";
+   Test_Root : constant String := "/tmp/coyote_llm_tools_tests";
 
    function Contains (Text : String; Pattern : String) return Boolean is
    begin
@@ -24,6 +27,15 @@ package body LLM_Tools_Tests is
    begin
       Ada.Directories.Create_Path (Test_Root);
    end Ensure_Test_Root;
+
+   procedure Restore_Env (Name : String; Was_Set : Boolean; Value : String) is
+   begin
+      if Was_Set then
+         Ada.Environment_Variables.Set (Name, Value);
+      else
+         Ada.Environment_Variables.Clear (Name);
+      end if;
+   end Restore_Env;
 
    procedure Delete_If_Exists (Path : String) is
    begin
@@ -41,6 +53,7 @@ package body LLM_Tools_Tests is
 
    procedure Cleanup_Test_Root is
    begin
+      Delete_If_Exists (Test_Root & "/mock_coyote.py");
       Delete_If_Exists (Test_Root & "/write/nested/out.txt");
       Delete_If_Exists (Test_Root & "/write/nested");
       Delete_If_Exists (Test_Root & "/write");
@@ -109,6 +122,19 @@ package body LLM_Tools_Tests is
          end if;
          raise;
    end Read_Text;
+
+   procedure Make_Executable (Path : String) is
+      Args      : Argument_List;
+      Handle    : Process_Handle;
+      Exit_Code : Integer;
+   begin
+      Args.Append ("chmod");
+      Args.Append ("755");
+      Args.Append (Path);
+      Handle    := Start (Args => Args);
+      Exit_Code := Wait (Handle);
+      Assert (Exit_Code = 0, "chmod should succeed for " & Path);
+   end Make_Executable;
 
    procedure Test_Bash_Success (T : in out Test) is
       pragma Unreferenced (T);
@@ -310,5 +336,126 @@ package body LLM_Tools_Tests is
         (not Contains (To_String (Result), "gamma.txt"),
          "find should exclude non-matching fixture files");
    end Test_Find;
+
+   procedure Test_Built_In_Tools_Include_Spawn_Subagent
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+
+      Tools : constant LLM.Tools.Tool_Descriptor_Vectors.Vector :=
+        LLM.Tools.Built_In_Tools;
+      Found : Boolean := False;
+   begin
+      for Descriptor of Tools loop
+         if To_String (Descriptor.Name) = "spawn_subagent" then
+            Found := True;
+            exit;
+         end if;
+      end loop;
+
+      Assert (Found, "Built_In_Tools should include spawn_subagent");
+   end Test_Built_In_Tools_Include_Spawn_Subagent;
+
+   procedure Test_Spawn_Subagent_Success (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Script_Path    : constant String := Test_Root & "/mock_coyote.py";
+      Env_Name       : constant String := "COYOTE_BIN";
+      Was_Set        : constant Boolean :=
+        Ada.Environment_Variables.Exists (Env_Name);
+      Saved_Value    : constant String :=
+        Ada.Environment_Variables.Value (Env_Name, "");
+      Result         : Unbounded_String;
+      Is_Error       : Boolean;
+      Script_Content : constant String :=
+        "#!/usr/bin/env python3" & ASCII.LF
+        & "import json" & ASCII.LF
+        & "import sys" & ASCII.LF
+        & "prompt = ''" & ASCII.LF
+        & "model = ''" & ASCII.LF
+        & "agent = ''" & ASCII.LF
+        & "name = ''" & ASCII.LF
+        & "have_one_shot = False" & ASCII.LF
+        & "have_no_session = False" & ASCII.LF
+        & "args = sys.argv[1:]" & ASCII.LF
+        & "i = 0" & ASCII.LF
+        & "while i < len(args):" & ASCII.LF
+        & "    arg = args[i]" & ASCII.LF
+        & "    if arg == '--prompt' and i + 1 < len(args):" & ASCII.LF
+        & "        prompt = args[i + 1]" & ASCII.LF
+        & "        i += 2" & ASCII.LF
+        & "    elif arg == '--model' and i + 1 < len(args):" & ASCII.LF
+        & "        model = args[i + 1]" & ASCII.LF
+        & "        i += 2" & ASCII.LF
+        & "    elif arg == '--agent' and i + 1 < len(args):" & ASCII.LF
+        & "        agent = args[i + 1]" & ASCII.LF
+        & "        i += 2" & ASCII.LF
+        & "    elif arg == '--name' and i + 1 < len(args):" & ASCII.LF
+        & "        name = args[i + 1]" & ASCII.LF
+        & "        i += 2" & ASCII.LF
+        & "    elif arg == '--one-shot':" & ASCII.LF
+        & "        have_one_shot = True" & ASCII.LF
+        & "        i += 1" & ASCII.LF
+        & "    elif arg == '--no-session':" & ASCII.LF
+        & "        have_no_session = True" & ASCII.LF
+        & "        i += 1" & ASCII.LF
+        & "    else:" & ASCII.LF
+        & "        i += 1" & ASCII.LF
+        & "if not have_one_shot or not have_no_session:" & ASCII.LF
+        & "    print(json.dumps({'error': 'missing required flags'}))"
+        & ASCII.LF
+        & "    sys.exit(1)" & ASCII.LF
+        & "print('noise before json')" & ASCII.LF
+        & "print(json.dumps({'session_id': '123', 'output': "
+        & "'|'.join([prompt, model, agent, name])}))"
+        & ASCII.LF;
+   begin
+      Cleanup_Test_Root;
+      Ensure_Test_Root;
+      Write_Text (Script_Path, Script_Content);
+      Make_Executable (Script_Path);
+      Ada.Environment_Variables.Set (Env_Name, Script_Path);
+
+      LLM.Tools.Execute
+        (Name      => "spawn_subagent",
+         Args_Json =>
+           "{""prompt"":""Ping"""
+           & ",""model"":""provider/model"""
+           & ",""agent"":""worker.agent.md"""
+           & ",""name"":""worker""}",
+         Result    => Result,
+         Is_Error  => Is_Error);
+
+      Assert (not Is_Error, "spawn_subagent should succeed with JSON output");
+      Assert
+        (To_String (Result) = "Ping|provider/model|worker.agent.md|worker",
+         "spawn_subagent should return the subagent output field");
+
+      Restore_Env (Env_Name, Was_Set, Saved_Value);
+      Cleanup_Test_Root;
+   exception
+      when others =>
+         Restore_Env (Env_Name, Was_Set, Saved_Value);
+         Cleanup_Test_Root;
+         raise;
+   end Test_Spawn_Subagent_Success;
+
+   procedure Test_Spawn_Subagent_Requires_Prompt (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Result   : Unbounded_String;
+      Is_Error : Boolean;
+   begin
+      LLM.Tools.Execute
+        (Name      => "spawn_subagent",
+         Args_Json => "{}",
+         Result    => Result,
+         Is_Error  => Is_Error);
+
+      Assert (Is_Error, "spawn_subagent should reject missing prompt");
+      Assert
+        (Contains (To_String (Result), "prompt"),
+         "spawn_subagent should mention the missing prompt field");
+   end Test_Spawn_Subagent_Requires_Prompt;
 
 end LLM_Tools_Tests;

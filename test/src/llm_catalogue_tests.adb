@@ -54,7 +54,7 @@ package body LLM_Catalogue_Tests is
 
    procedure Ensure_Test_Home (Home : String) is
    begin
-      Ada.Directories.Create_Path (Home & "/.pi/agent");
+      Ada.Directories.Create_Path (Home & "/.coyote");
    end Ensure_Test_Home;
 
    function Read_File (Path : String) return String is
@@ -113,7 +113,7 @@ package body LLM_Catalogue_Tests is
    end Delete_If_Exists;
 
    procedure Cleanup_Test_Home (Home : String) is
-      Agent_Dir : constant String := Home & "/.pi/agent";
+      Agent_Dir : constant String := Home & "/.coyote";
       Pi_Dir    : constant String := Home & "/.pi";
    begin
       Delete_If_Exists (Agent_Dir & "/github_copilot_models_cache.json");
@@ -178,7 +178,7 @@ package body LLM_Catalogue_Tests is
    is
    begin
       Write_File
-        (Home & "/.pi/agent/github_copilot_models_cache.json",
+        (Home & "/.coyote/github_copilot_models_cache.json",
          "{""fetched_at"":" & Long_Long_Image (Fetched_At)
          & ",""base_url"":""" & Base_Url & """,""data"":"
          & Data_Array & "}");
@@ -289,7 +289,7 @@ package body LLM_Catalogue_Tests is
    procedure Test_Load_From_Fresh_Cache (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/pi_acme_llm_catalogue_test_1";
+      Home         : constant String := "/tmp/coyote_llm_catalogue_test_1";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
       Old_Home     : constant String :=
@@ -366,7 +366,7 @@ package body LLM_Catalogue_Tests is
       pragma Unreferenced (T);
 
       Port         : constant Positive := 18_770;
-      Home         : constant String := "/tmp/pi_acme_llm_catalogue_test_2";
+      Home         : constant String := "/tmp/coyote_llm_catalogue_test_2";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
       Old_Home     : constant String :=
@@ -401,11 +401,11 @@ package body LLM_Catalogue_Tests is
          "Live fetch results should replace stale cache contents");
       Assert
         (Ada.Directories.Exists
-           (Home & "/.pi/agent/github_copilot_models_cache.json"),
+           (Home & "/.coyote/github_copilot_models_cache.json"),
          "Live fetch should rewrite the catalogue cache file");
       Assert
         (Ada.Strings.Fixed.Index
-           (Read_File (Home & "/.pi/agent/github_copilot_models_cache.json"),
+           (Read_File (Home & "/.coyote/github_copilot_models_cache.json"),
             "http://127.0.0.1:18770") > 0,
          "Rewritten cache should be keyed to the requested base URL");
 
@@ -422,7 +422,7 @@ package body LLM_Catalogue_Tests is
    procedure Test_Stale_Cache_Fallback (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/pi_acme_llm_catalogue_test_3";
+      Home         : constant String := "/tmp/coyote_llm_catalogue_test_3";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
       Old_Home     : constant String :=

@@ -5,11 +5,23 @@ package Acme_Integration_Tests is
 
    type Test is new AUnit.Test_Fixtures.Test_Fixture with null record;
 
-   procedure Test_New_Win_Has_Valid_Id  (T : in out Test);
-   procedure Test_Append_Visible_Via_9p (T : in out Test);
-   procedure Test_Set_Name             (T : in out Test);
-   procedure Test_Selection_Empty      (T : in out Test);
-   procedure Test_Raw_Event_From_Live  (T : in out Test);
+   procedure Test_New_Win_Has_Valid_Id   (T : in out Test);
+   procedure Test_Append_Visible_Via_9p  (T : in out Test);
+   procedure Test_Append_Tag_Visible_Via_9p
+     (T : in out Test);
+   procedure Test_Set_Name               (T : in out Test);
+   procedure Test_Replace_Line1_Only_Rewrites_First_Line
+     (T : in out Test);
+   procedure Test_Delete_Removes_Window_From_Index
+     (T : in out Test);
+   procedure Test_Read_Body_Returns_Full_Content
+     (T : in out Test);
+   procedure Test_Read_Chars_Returns_Subrange
+     (T : in out Test);
+   procedure Test_Selection_Empty       (T : in out Test);
+   procedure Test_Selection_Text_After_Set_Dot
+     (T : in out Test);
+   procedure Test_Raw_Event_From_Live   (T : in out Test);
 
    --  Replace_Match tests
    procedure Test_Replace_Match_Simple           (T : in out Test);

@@ -1,6 +1,8 @@
 with AUnit.Assertions;
 with Ada.Containers;
 with Ada.Containers.Indefinite_Vectors;
+with Ada.Exceptions;
+with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;       use Ada.Strings.Unbounded;
 with Ada.Tags;
 with GNATCOLL.OS.Process;         use GNATCOLL.OS.Process;
@@ -447,6 +449,57 @@ package body LLM_OpenAI_Completions_Tests is
         & "s.server_close()" & ASCII.LF;
    end Thinking_Server_Script;
 
+   function Compaction_Summary_Server_Script (Port : Positive)
+     return String
+   is
+   begin
+      return
+        "import http.server, json" & ASCII.LF
+        & "class S(http.server.HTTPServer):" & ASCII.LF
+        & "    allow_reuse_address = True" & ASCII.LF
+        & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
+        & "    def do_POST(self):" & ASCII.LF
+        & "        try:" & ASCII.LF
+        & "            assert self.path == '/chat/completions'" & ASCII.LF
+        & "            n = int(self.headers.get('Content-Length', '0'))"
+        & ASCII.LF
+        & "            body = json.loads(self.rfile.read(n))" & ASCII.LF
+        & "            assert len(body['messages']) == 1" & ASCII.LF
+        & "            assert body['messages'][0]['role'] == 'user'"
+        & ASCII.LF
+        & "            assert body['messages'][0]['content'] == "
+        & "'Checkpoint summary text'" & ASCII.LF
+        & "            events = [" & ASCII.LF
+        & "                {'choices': [{'delta': {}, 'finish_reason': "
+        & "'stop'}], 'usage': {'prompt_tokens': 4,"
+        & " 'completion_tokens': 0, 'total_tokens': 4}}]" & ASCII.LF
+        & "            payload = ''.join(" & ASCII.LF
+        & "                'data: ' + json.dumps(event) + '\n\n'"
+        & ASCII.LF
+        & "                for event in events).encode()" & ASCII.LF
+        & "            payload += b'data: [DONE]\n\n'" & ASCII.LF
+        & "            self.send_response(200)" & ASCII.LF
+        & "            self.send_header('Content-Type', "
+        & "'text/event-stream')" & ASCII.LF
+        & "            self.send_header('Content-Length', "
+        & "str(len(payload)))" & ASCII.LF
+        & "            self.end_headers()" & ASCII.LF
+        & "            self.wfile.write(payload)" & ASCII.LF
+        & "            self.wfile.flush()" & ASCII.LF
+        & "        except Exception as exc:" & ASCII.LF
+        & "            self.send_response(500)" & ASCII.LF
+        & "            self.send_header('Content-Type', 'text/plain')"
+        & ASCII.LF
+        & "            self.end_headers()" & ASCII.LF
+        & "            self.wfile.write(str(exc).encode())" & ASCII.LF
+        & "    def log_message(self, *a): pass" & ASCII.LF
+        & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
+        & ASCII.LF
+        & "s.timeout = 5" & ASCII.LF
+        & "s.handle_request()" & ASCII.LF
+        & "s.server_close()" & ASCII.LF;
+   end Compaction_Summary_Server_Script;
+
    function Non_Streaming_Server_Script (Port : Positive) return String is
    begin
       return
@@ -491,6 +544,107 @@ package body LLM_OpenAI_Completions_Tests is
         & "s.handle_request()" & ASCII.LF
         & "s.server_close()" & ASCII.LF;
    end Non_Streaming_Server_Script;
+
+   function Non_Streaming_Tool_Server_Script (Port : Positive) return String is
+   begin
+      return
+        "import http.server, json" & ASCII.LF
+        & "class S(http.server.HTTPServer):" & ASCII.LF
+        & "    allow_reuse_address = True" & ASCII.LF
+        & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
+        & "    def do_POST(self):" & ASCII.LF
+        & "        try:" & ASCII.LF
+        & "            assert self.path == '/chat/completions'" & ASCII.LF
+        & "            n = int(self.headers.get('Content-Length', '0'))"
+        & ASCII.LF
+        & "            body = json.loads(self.rfile.read(n))" & ASCII.LF
+        & "            assert body['model'] == 'non-stream-tool-model'"
+        & ASCII.LF
+        & "            assert body['stream'] is False" & ASCII.LF
+        & "            assert len(body['tools']) == 1" & ASCII.LF
+        & "            payload = json.dumps({" & ASCII.LF
+        & "                'choices': [{'message': {'role': 'assistant',"
+        & " 'content': None, 'tool_calls': [{'id': 'call_1',"
+        & " 'type': 'function', 'function': {'name': 'read',"
+        & " 'arguments': '{""path"":""nonstream.adb""}'}}]},"
+        & " 'finish_reason': 'tool_calls'}]," & ASCII.LF
+        & "                'usage': {'prompt_tokens': 14,"
+        & " 'completion_tokens': 6, 'total_tokens': 20}}).encode()"
+        & ASCII.LF
+        & "            self.send_response(200)" & ASCII.LF
+        & "            self.send_header('Content-Type', 'application/json')"
+        & ASCII.LF
+        & "            self.send_header('Content-Length', str(len(payload)))"
+        & ASCII.LF
+        & "            self.end_headers()" & ASCII.LF
+        & "            self.wfile.write(payload)" & ASCII.LF
+        & "            self.wfile.flush()" & ASCII.LF
+        & "        except Exception as exc:" & ASCII.LF
+        & "            self.send_response(500)" & ASCII.LF
+        & "            self.send_header('Content-Type', 'text/plain')"
+        & ASCII.LF
+        & "            self.end_headers()" & ASCII.LF
+        & "            self.wfile.write(str(exc).encode())" & ASCII.LF
+        & "    def log_message(self, *a): pass" & ASCII.LF
+        & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
+        & ASCII.LF
+        & "s.timeout = 5" & ASCII.LF
+        & "s.handle_request()" & ASCII.LF
+        & "s.server_close()" & ASCII.LF;
+   end Non_Streaming_Tool_Server_Script;
+
+   function HTTP_Error_Server_Script (Port : Positive) return String is
+   begin
+      return
+        "import http.server" & ASCII.LF
+        & "payload = b'{""error"":""internal""}'" & ASCII.LF
+        & "class S(http.server.HTTPServer):" & ASCII.LF
+        & "    allow_reuse_address = True" & ASCII.LF
+        & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
+        & "    def do_POST(self):" & ASCII.LF
+        & "        self.send_response(500)" & ASCII.LF
+        & "        self.send_header('Content-Type', 'application/json')"
+        & ASCII.LF
+        & "        self.send_header('Content-Length', str(len(payload)))"
+        & ASCII.LF
+        & "        self.end_headers()" & ASCII.LF
+        & "        self.wfile.write(payload)" & ASCII.LF
+        & "        self.wfile.flush()" & ASCII.LF
+        & "    def log_message(self, *a): pass" & ASCII.LF
+        & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
+        & ASCII.LF
+        & "s.timeout = 5" & ASCII.LF
+        & "s.handle_request()" & ASCII.LF
+        & "s.server_close()" & ASCII.LF;
+   end HTTP_Error_Server_Script;
+
+   function Early_Close_Server_Script (Port : Positive) return String is
+   begin
+      return
+        "import http.server, json" & ASCII.LF
+        & "class S(http.server.HTTPServer):" & ASCII.LF
+        & "    allow_reuse_address = True" & ASCII.LF
+        & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
+        & "    def do_POST(self):" & ASCII.LF
+        & "        event = {'choices': [{'delta': {'content': 'partial'},"
+        & " 'finish_reason': None}]}" & ASCII.LF
+        & "        payload = ('data: ' + json.dumps(event) + '\n\n').encode()"
+        & ASCII.LF
+        & "        self.send_response(200)" & ASCII.LF
+        & "        self.send_header('Content-Type', 'text/event-stream')"
+        & ASCII.LF
+        & "        self.send_header('Content-Length', str(len(payload)))"
+        & ASCII.LF
+        & "        self.end_headers()" & ASCII.LF
+        & "        self.wfile.write(payload)" & ASCII.LF
+        & "        self.wfile.flush()" & ASCII.LF
+        & "    def log_message(self, *a): pass" & ASCII.LF
+        & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
+        & ASCII.LF
+        & "s.timeout = 5" & ASCII.LF
+        & "s.handle_request()" & ASCII.LF
+        & "s.server_close()" & ASCII.LF;
+   end Early_Close_Server_Script;
 
    procedure Test_Stream_Text_Response (T : in out Test) is
       pragma Unreferenced (T);
@@ -812,6 +966,54 @@ package body LLM_OpenAI_Completions_Tests is
          raise;
    end Test_Stream_Thinking_Response;
 
+   procedure Test_Compaction_Summary_Encodes_As_User_OpenAI
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+
+      Port            : constant Positive := 18_772;
+      Handle          : Process_Handle := Invalid_Handle;
+      Provider        : LLM.Providers.OpenAI_Completions.Provider :=
+        LLM.Providers.OpenAI_Completions.Create
+          (Base_Url => "http://127.0.0.1:18772",
+           Api_Key  => "test-key");
+      Messages        : LLM.Types.Message_Vectors.Vector;
+      Summary_Content : LLM.Types.Content_Block_Vectors.Vector;
+   begin
+      Reset_Collector;
+      Summary_Content.Append
+        ((Kind => LLM.Types.Text_Block,
+          Text => To_Unbounded_String ("Checkpoint summary text")));
+      Messages.Append
+        ((Role      => LLM.Types.Compaction_Summary,
+          Content   => Summary_Content,
+          Tok_Usage => (others => 0),
+          Stop      => LLM.Types.Unknown_Stop,
+          Timestamp => Null_Unbounded_String));
+
+      Handle := Spawn_Server (Compaction_Summary_Server_Script (Port));
+      Wait_For_Server;
+
+      Send_With_Retry
+        (P             => Provider,
+         Model_Id      => "summary-model",
+         System_Prompt => "",
+         Messages      => Messages,
+         Tools_Json    => "[]",
+         Max_Tokens    => 64,
+         Handler       => On_Event'Access);
+
+      Stop_Server (Handle);
+
+      Assert
+        (Current_Collector.Last_Stop = LLM.Types.Stop,
+         "Compaction summary OpenAI request should complete successfully");
+   exception
+      when others =>
+         Stop_Server (Handle);
+         raise;
+   end Test_Compaction_Summary_Encodes_As_User_OpenAI;
+
    procedure Test_Non_Streaming_Response (T : in out Test) is
       pragma Unreferenced (T);
 
@@ -877,5 +1079,209 @@ package body LLM_OpenAI_Completions_Tests is
          Stop_Server (Handle);
          raise;
    end Test_Non_Streaming_Response;
+
+   procedure Test_OpenAI_Non_Streaming_Tool_Calls (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Port         : constant Positive := 18_796;
+      Handle       : Process_Handle := Invalid_Handle;
+      Provider     : LLM.Providers.OpenAI_Completions.Provider :=
+        LLM.Providers.OpenAI_Completions.Create
+          (Base_Url => "http://127.0.0.1:18796",
+           Api_Key  => "test-key");
+      Messages     : LLM.Types.Message_Vectors.Vector;
+      User_Content : LLM.Types.Content_Block_Vectors.Vector;
+      Tools_Json   : constant String :=
+        "[{""type"":""function"",""function"":{"
+        & """name"":""read"",""description"":""Read file"","
+        & """parameters"":{""type"":""object"","
+        & """properties"":{""path"":{""type"":""string""}},"
+        & """required"":[""path""]}}}]";
+   begin
+      Reset_Collector;
+      LLM.Providers.OpenAI_Completions.Testing.Set_Streaming
+        (Provider, False);
+
+      User_Content.Append
+        ((Kind => LLM.Types.Text_Block,
+          Text => To_Unbounded_String ("Use a tool without SSE")));
+      Messages.Append
+        ((Role      => LLM.Types.User,
+          Content   => User_Content,
+          Tok_Usage => (others => 0),
+          Stop      => LLM.Types.Unknown_Stop,
+          Timestamp => Null_Unbounded_String));
+
+      Handle := Spawn_Server (Non_Streaming_Tool_Server_Script (Port));
+      Wait_For_Server;
+
+      Send_With_Retry
+        (P             => Provider,
+         Model_Id      => "non-stream-tool-model",
+         System_Prompt => "",
+         Messages      => Messages,
+         Tools_Json    => Tools_Json,
+         Max_Tokens    => 64,
+         Handler       => On_Event'Access);
+
+      Stop_Server (Handle);
+
+      Assert
+        (Current_Collector.Sequence.Find_Index
+           ("tool_call_start:call_1:read") > 0,
+         "Non-streaming tool calls should emit Tool_Call_Start: "
+         & Sequence_Image);
+      Assert
+        (Current_Collector.Sequence.Find_Index
+           ("tool_call_delta:{""path"":""nonstream.adb""}") > 0,
+         "Non-streaming tool calls should emit Tool_Call_Delta: "
+         & Sequence_Image);
+      Assert
+        (Current_Collector.Sequence.Find_Index
+           ("tool_call_end:call_1:{""path"":""nonstream.adb""}") > 0,
+         "Non-streaming tool calls should emit Tool_Call_End: "
+         & Sequence_Image);
+      Assert
+        (Current_Collector.Last_Stop = LLM.Types.Tool_Use,
+         "finish_reason tool_calls should map to Tool_Use");
+      Assert
+        (Current_Collector.Usage.Input = 14,
+         "Non-streaming tool-call usage.Input should be parsed");
+      Assert
+        (Current_Collector.Usage.Output = 6,
+         "Non-streaming tool-call usage.Output should be parsed");
+   exception
+      when others =>
+         Stop_Server (Handle);
+         raise;
+   end Test_OpenAI_Non_Streaming_Tool_Calls;
+
+   procedure Test_OpenAI_HTTP_Error_Propagates (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Port          : constant Positive := 18_797;
+      Handle        : Process_Handle := Invalid_Handle;
+      Provider      : LLM.Providers.OpenAI_Completions.Provider :=
+        LLM.Providers.OpenAI_Completions.Create
+          (Base_Url => "http://127.0.0.1:18797",
+           Api_Key  => "test-key");
+      Messages      : LLM.Types.Message_Vectors.Vector;
+      User_Content  : LLM.Types.Content_Block_Vectors.Vector;
+      Raised        : Boolean := False;
+      Error_Message : Unbounded_String;
+   begin
+      Reset_Collector;
+      User_Content.Append
+        ((Kind => LLM.Types.Text_Block,
+          Text => To_Unbounded_String ("Trigger an HTTP error")));
+      Messages.Append
+        ((Role      => LLM.Types.User,
+          Content   => User_Content,
+          Tok_Usage => (others => 0),
+          Stop      => LLM.Types.Unknown_Stop,
+          Timestamp => Null_Unbounded_String));
+
+      Handle := Spawn_Server (HTTP_Error_Server_Script (Port));
+      Wait_For_Server;
+
+      begin
+         Send_With_Retry
+           (P             => Provider,
+            Model_Id      => "error-model",
+            System_Prompt => "",
+            Messages      => Messages,
+            Tools_Json    => "[]",
+            Max_Tokens    => 64,
+            Handler       => On_Event'Access);
+      exception
+         when Error : others =>
+            Raised := True;
+            Error_Message := To_Unbounded_String
+              (Ada.Exceptions.Exception_Message (Error));
+      end;
+
+      Stop_Server (Handle);
+
+      Assert (Raised, "OpenAI HTTP 500 should propagate as an exception");
+      Assert
+        (Ada.Strings.Fixed.Index (To_String (Error_Message), "HTTP 500") > 0,
+         "OpenAI HTTP errors should include the status code");
+      Assert
+        (Current_Collector.Sequence.Length = 3,
+         "OpenAI HTTP errors should emit agent_start, message_start,"
+         & " and agent_end only: " & Sequence_Image);
+      Assert
+        (Current_Collector.Sequence.Element (1) = "agent_start",
+         "OpenAI HTTP errors should still emit Agent_Start_Event");
+      Assert
+        (Current_Collector.Sequence.Element (2) = "message_start",
+         "OpenAI HTTP errors should still emit Message_Start_Event");
+      Assert
+        (Current_Collector.Sequence.Element (3) = "agent_end",
+         "OpenAI HTTP errors should still emit Agent_End_Event");
+   exception
+      when others =>
+         Stop_Server (Handle);
+         raise;
+   end Test_OpenAI_HTTP_Error_Propagates;
+
+   procedure Test_OpenAI_Stream_Terminates_Early (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Port         : constant Positive := 18_798;
+      Handle       : Process_Handle := Invalid_Handle;
+      Provider     : LLM.Providers.OpenAI_Completions.Provider :=
+        LLM.Providers.OpenAI_Completions.Create
+          (Base_Url => "http://127.0.0.1:18798",
+           Api_Key  => "test-key");
+      Messages     : LLM.Types.Message_Vectors.Vector;
+      User_Content : LLM.Types.Content_Block_Vectors.Vector;
+   begin
+      Reset_Collector;
+      User_Content.Append
+        ((Kind => LLM.Types.Text_Block,
+          Text => To_Unbounded_String ("Handle EOF gracefully")));
+      Messages.Append
+        ((Role      => LLM.Types.User,
+          Content   => User_Content,
+          Tok_Usage => (others => 0),
+          Stop      => LLM.Types.Unknown_Stop,
+          Timestamp => Null_Unbounded_String));
+
+      Handle := Spawn_Server (Early_Close_Server_Script (Port));
+      Wait_For_Server;
+
+      Send_With_Retry
+        (P             => Provider,
+         Model_Id      => "early-close-model",
+         System_Prompt => "",
+         Messages      => Messages,
+         Tools_Json    => "[]",
+         Max_Tokens    => 64,
+         Handler       => On_Event'Access);
+
+      Stop_Server (Handle);
+
+      Assert
+        (Current_Collector.Sequence.Find_Index ("text_delta:partial") > 0,
+         "OpenAI should emit the partial streamed text before EOF: "
+         & Sequence_Image);
+      Assert
+        (Current_Collector.Sequence.Find_Index ("text_end") > 0,
+         "OpenAI should close an open text block on early EOF: "
+         & Sequence_Image);
+      Assert
+        (Current_Collector.Sequence.Find_Index ("message_end") > 0,
+         "OpenAI should finalize the message on early EOF: "
+         & Sequence_Image);
+      Assert
+        (Current_Collector.Sequence.Find_Index ("agent_end") > 0,
+         "OpenAI should still emit Agent_End_Event on early EOF: "
+         & Sequence_Image);
+   exception
+      when others =>
+         Stop_Server (Handle);
+         raise;
+   end Test_OpenAI_Stream_Terminates_Early;
 
 end LLM_OpenAI_Completions_Tests;

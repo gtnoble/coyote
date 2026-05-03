@@ -16,5 +16,43 @@ package LLM_Agent_Tests is
    procedure Test_Session_File_Written_Only_After_Turn_End
      (T : in out Test);
    procedure Test_Session_Resume                   (T : in out Test);
+   procedure Test_Create_Without_Model_Spec_Uses_Settings_Default
+     (T : in out Test);
+   procedure Test_Multi_Turn_Same_Session_Carries_History
+     (T : in out Test);
+   procedure Test_New_Session_Clears_History_And_Uses_Fresh_File
+     (T : in out Test);
+   procedure Test_Event_Sequence_Agent_Start_Through_Session_Stats
+     (T : in out Test);
+   procedure Test_Unknown_Tool_Becomes_Error_And_Agent_Continues
+     (T : in out Test);
+   procedure Test_Auto_Retry_On_HTTP_500_Then_Success
+     (T : in out Test);
+   procedure Test_Is_Context_Overflow_Error_Detects_Known_Phrases
+     (T : in out Test);
+   procedure Test_Overflow_Triggers_Compact_And_Retry
+     (T : in out Test);
+   procedure Test_Overflow_Recovery_Not_Attempted_Twice
+     (T : in out Test);
+   procedure Test_Overflow_Will_Retry_Event_Emitted
+     (T : in out Test);
+   procedure Test_Compact_Produces_Summary_Message
+     (T : in out Test);
+   procedure Test_Compact_Emits_Start_And_End_Events
+     (T : in out Test);
+   procedure Test_Compact_Short_History_Aborts
+     (T : in out Test);
+   procedure Test_Compact_Persists_Entry
+     (T : in out Test);
+   procedure Test_Auto_Compact_Fires_At_Threshold
+     (T : in out Test);
+   procedure Test_Auto_Compact_Does_Not_Fire_Below_Threshold
+     (T : in out Test);
+   procedure Test_Auto_Compact_Session_Persisted_After_Threshold
+     (T : in out Test);
+   procedure Test_Compact_Then_Resume
+     (T : in out Test);
+   procedure Test_Compact_Live_Summarises_Conversation
+     (T : in out Test);
 
 end LLM_Agent_Tests;

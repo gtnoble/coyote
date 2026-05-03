@@ -4,7 +4,7 @@
 --  the authenticated live catalogue and then delegating to either the
 --  Anthropic Messages or OpenAI Chat Completions provider.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with LLM.Providers;

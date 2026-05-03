@@ -29,7 +29,7 @@ except the two GPR files.
 
 ## Build system changes
 
-### `pi_acme.gpr`
+### `coyote.gpr`
 
 Add `"src/llm/"` to `Source_Dirs`, add C to `Languages`, add the curl
 linker switch, and add C compiler switches.  The file currently reads:
@@ -59,7 +59,7 @@ package Linker is
 end Linker;
 ```
 
-### `test/pi_acme_test.gpr`
+### `test/coyote_test.gpr`
 
 The test project inherits from the main project via an Alire pin, so it
 already sees all source.  Add `"src/llm/"` to its `Source_Dirs` as well:
@@ -85,7 +85,7 @@ Root package — empty spec, no body.
 ```ada
 --  LLM — native Ada agentic harness root package.
 --
---  Project: pi_acme
+--  Project: coyote
 package LLM is
 end LLM;
 ```
@@ -134,7 +134,7 @@ write callback declaration.
 --  passed to curl_set_writefunction.  Its UserData parameter must point to
 --  a Write_Context record (defined in llm-http.adb).
 --
---  Project: pi_acme
+--  Project: coyote
 
 with Interfaces.C;
 with Interfaces.C.Strings;
@@ -226,7 +226,7 @@ declared in `llm-http.adb` (private to that package body) and passed via
 --  Ada objects without copying, then calls the On_Chunk access procedure
 --  stored in the Write_Context.
 --
---  Project: pi_acme
+--  Project: coyote
 
 with Interfaces.C; use Interfaces.C;
 with System;
@@ -281,7 +281,7 @@ Public Ada-facing HTTP client.  Uses `LLM.HTTP.Curl_Binding` internally.
 --  TLS is handled transparently by libcurl using the system CA bundle.
 --  No SSL initialisation is required by the caller.
 --
---  Project: pi_acme
+--  Project: coyote
 
 package LLM.HTTP is
 
@@ -360,7 +360,7 @@ Add `with Ada.Strings.Unbounded;` to the spec (needed by the private part).
 --    1. models.json  providers.<provider>.apiKey  (literal or ${VAR})
 --    2. Environment variable for the provider (see Env_Var_For)
 --
---  Project: pi_acme
+--  Project: coyote
 
 package LLM.Settings is
 
@@ -477,7 +477,7 @@ Follow the existing pattern exactly.
 alr build
 
 # Test suite must pass (new tests included)
-cd test && alr run pi_acme_test
+cd test && alr run coyote_test
 ```
 
 All existing tests continue to pass.  The two new test packages add at

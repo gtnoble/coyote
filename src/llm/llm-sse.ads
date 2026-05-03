@@ -4,7 +4,7 @@
 --  once a blank-line terminator is seen.  It is shared by streaming OpenAI
 --  and Anthropic provider adapters.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Strings.Unbounded;

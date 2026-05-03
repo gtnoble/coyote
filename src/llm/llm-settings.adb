@@ -1,6 +1,6 @@
 --  LLM.Settings body.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Characters.Handling;
@@ -21,7 +21,7 @@ package body LLM.Settings is
          return "";
       end if;
 
-      return Home & "/.pi/agent";
+      return Home & "/.coyote";
    end Agent_Dir;
 
    function Settings_Path return String is
@@ -212,7 +212,10 @@ package body LLM.Settings is
            To_Unbounded_String (Get_String_Field (Root, "defaultModel")),
          Default_Thinking =>
            To_Unbounded_String
-             (Get_String_Field (Root, "defaultThinkingLevel")));
+             (Get_String_Field (Root, "defaultThinkingLevel")),
+         Append_System_Prompt =>
+           To_Unbounded_String (Get_String_Field
+             (Root, "appendSystemPrompt")));
    end Load_Settings;
 
    function Resolve_Api_Key (Provider : String) return String is

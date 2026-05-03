@@ -1,9 +1,11 @@
 with AUnit.Assertions;
 with Ada.Directories;
 with Ada.Environment_Variables;
+with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with LLM.Settings;
+with LLM.System_Prompt;
 
 package body LLM_Settings_Tests is
 
@@ -20,7 +22,7 @@ package body LLM_Settings_Tests is
 
    procedure Ensure_Test_Home (Home : String) is
    begin
-      Ada.Directories.Create_Path (Home & "/.pi/agent");
+      Ada.Directories.Create_Path (Home & "/.coyote");
    end Ensure_Test_Home;
 
    procedure Write_File (Path : String; Content : String) is
@@ -39,7 +41,7 @@ package body LLM_Settings_Tests is
    end Delete_If_Exists;
 
    procedure Cleanup_Test_Home (Home : String) is
-      Agent_Dir : constant String := Home & "/.pi/agent";
+      Agent_Dir : constant String := Home & "/.coyote";
       Pi_Dir    : constant String := Home & "/.pi";
    begin
       Delete_If_Exists (Agent_Dir & "/settings.json");
@@ -64,7 +66,7 @@ package body LLM_Settings_Tests is
    procedure Test_Load_Settings (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String  := "/tmp/pi_acme_llm_settings_test_1";
+      Home         : constant String  := "/tmp/coyote_llm_settings_test_1";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
       Old_Home     : constant String  :=
@@ -75,7 +77,7 @@ package body LLM_Settings_Tests is
       Ensure_Test_Home (Home);
 
       Write_File
-        (Home & "/.pi/agent/settings.json",
+        (Home & "/.coyote/settings.json",
          "{""defaultProvider"":""openrouter""," &
          """defaultModel"":""anthropic/claude-sonnet-4""," &
          """defaultThinkingLevel"":""medium""}");
@@ -102,10 +104,110 @@ package body LLM_Settings_Tests is
          raise;
    end Test_Load_Settings;
 
+   procedure Test_Append_System_Prompt_Loaded (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home         : constant String  := "/tmp/coyote_llm_settings_test_5";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String  :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Loaded       : LLM.Settings.Settings;
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+
+      Write_File
+        (Home & "/.coyote/settings.json",
+         "{""appendSystemPrompt"":""extra text""}");
+
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Loaded := LLM.Settings.Load_Settings;
+
+      Assert
+        (To_String (Loaded.Append_System_Prompt) = "extra text",
+         "appendSystemPrompt should be loaded from settings.json");
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Append_System_Prompt_Loaded;
+
+   procedure Test_Append_System_Prompt_Missing (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home         : constant String  := "/tmp/coyote_llm_settings_test_6";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String  :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Loaded       : LLM.Settings.Settings;
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+
+      Write_File
+        (Home & "/.coyote/settings.json",
+         "{""defaultModel"":""x/y""}");
+
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Loaded := LLM.Settings.Load_Settings;
+
+      Assert
+        (To_String (Loaded.Append_System_Prompt) = "",
+         "Append_System_Prompt should default to the empty string");
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Append_System_Prompt_Missing;
+
+   procedure Test_Append_Prompt_In_Built_Prompt (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home         : constant String  := "/tmp/coyote_llm_settings_test_7";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String  :=
+        Ada.Environment_Variables.Value ("HOME", "");
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+
+      Ada.Environment_Variables.Set ("HOME", Home);
+
+      declare
+         Result : constant String :=
+           LLM.System_Prompt.Build_System_Prompt
+             (Cwd           => "/tmp/test_cwd",
+              Append_Prompt => "APPEND_DIRECT");
+      begin
+         Assert
+           (Ada.Strings.Fixed.Index (Result, "APPEND_DIRECT") > 0,
+            "Append_Prompt parameter should appear in the built prompt");
+      end;
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Append_Prompt_In_Built_Prompt;
+
    procedure Test_Resolve_Api_Key_Literal (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String  := "/tmp/pi_acme_llm_settings_test_2";
+      Home         : constant String  := "/tmp/coyote_llm_settings_test_2";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
       Old_Home     : constant String  :=
@@ -119,7 +221,7 @@ package body LLM_Settings_Tests is
       Ensure_Test_Home (Home);
 
       Write_File
-        (Home & "/.pi/agent/models.json",
+        (Home & "/.coyote/models.json",
          "{""providers"":{""openrouter"":{""apiKey"":""literal-key""}}}");
 
       Ada.Environment_Variables.Set ("HOME", Home);
@@ -143,15 +245,15 @@ package body LLM_Settings_Tests is
    procedure Test_Resolve_Api_Key_Interpolated_Env (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String  := "/tmp/pi_acme_llm_settings_test_3";
+      Home         : constant String  := "/tmp/coyote_llm_settings_test_3";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
       Old_Home     : constant String  :=
         Ada.Environment_Variables.Value ("HOME", "");
       Env_Was_Set  : constant Boolean :=
-        Ada.Environment_Variables.Exists ("PI_ACME_TEST_OPENROUTER_KEY");
+        Ada.Environment_Variables.Exists ("COYOTE_TEST_OPENROUTER_KEY");
       Old_Env      : constant String  :=
-        Ada.Environment_Variables.Value ("PI_ACME_TEST_OPENROUTER_KEY", "");
+        Ada.Environment_Variables.Value ("COYOTE_TEST_OPENROUTER_KEY", "");
       Key_Was_Set  : constant Boolean :=
         Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
       Old_Key      : constant String  :=
@@ -161,13 +263,13 @@ package body LLM_Settings_Tests is
       Ensure_Test_Home (Home);
 
       Write_File
-        (Home & "/.pi/agent/models.json",
+        (Home & "/.coyote/models.json",
          "{""providers"":{""openrouter"":{""apiKey"":""" &
-         "${PI_ACME_TEST_OPENROUTER_KEY}" & """}}}");
+         "${COYOTE_TEST_OPENROUTER_KEY}" & """}}}");
 
       Ada.Environment_Variables.Set ("HOME", Home);
       Ada.Environment_Variables.Set
-        ("PI_ACME_TEST_OPENROUTER_KEY", "interpolated-key");
+        ("COYOTE_TEST_OPENROUTER_KEY", "interpolated-key");
       Ada.Environment_Variables.Set ("OPENROUTER_API_KEY", "fallback-key");
 
       Assert
@@ -175,13 +277,13 @@ package body LLM_Settings_Tests is
          "${ENV_VAR} apiKey should read from the named environment");
 
       Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
-      Restore_Env ("PI_ACME_TEST_OPENROUTER_KEY", Env_Was_Set, Old_Env);
+      Restore_Env ("COYOTE_TEST_OPENROUTER_KEY", Env_Was_Set, Old_Env);
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
       Cleanup_Test_Home (Home);
    exception
       when others =>
          Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
-         Restore_Env ("PI_ACME_TEST_OPENROUTER_KEY", Env_Was_Set, Old_Env);
+         Restore_Env ("COYOTE_TEST_OPENROUTER_KEY", Env_Was_Set, Old_Env);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
          Cleanup_Test_Home (Home);
          raise;
@@ -190,7 +292,7 @@ package body LLM_Settings_Tests is
    procedure Test_Resolve_Api_Key_Default_Env (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String  := "/tmp/pi_acme_llm_settings_test_4";
+      Home         : constant String  := "/tmp/coyote_llm_settings_test_4";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
       Old_Home     : constant String  :=

@@ -2,6 +2,7 @@ with AUnit.Assertions;
 with Ada.Containers;
 with Ada.Containers.Indefinite_Vectors;
 with Ada.Directories;
+with Ada.Exceptions;
 with Ada.Strings;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
@@ -310,6 +311,24 @@ package body LLM_Anthropic_Messages_Tests is
       return Messages;
    end Build_Messages;
 
+   function Build_Compaction_Summary_Messages
+     return LLM.Types.Message_Vectors.Vector
+   is
+      Messages : LLM.Types.Message_Vectors.Vector;
+      Content  : LLM.Types.Content_Block_Vectors.Vector;
+   begin
+      Content.Append
+         ((Kind => LLM.Types.Text_Block,
+            Text => To_Unbounded_String ("Checkpoint summary text")));
+      Messages.Append
+         ((Role      => LLM.Types.Compaction_Summary,
+            Content   => Content,
+            Tok_Usage => (others => 0),
+            Stop      => LLM.Types.Unknown_Stop,
+            Timestamp => Null_Unbounded_String));
+      return Messages;
+   end Build_Compaction_Summary_Messages;
+
    function Anthropic_Server_Script
       (Port         : Positive;
      Capture_Path : String) return String
@@ -382,7 +401,7 @@ package body LLM_Anthropic_Messages_Tests is
       pragma Unreferenced (T);
 
       Port        : constant Positive := 18_773;
-      Capture     : constant String := "/tmp/pi_acme_anthropic_capture_1.json";
+      Capture     : constant String := "/tmp/coyote_anthropic_capture_1.json";
       Handle      : Process_Handle := Invalid_Handle;
       Provider    : LLM.Providers.Anthropic_Messages.Provider :=
          LLM.Providers.Anthropic_Messages.Create
@@ -461,7 +480,7 @@ package body LLM_Anthropic_Messages_Tests is
       pragma Unreferenced (T);
 
       Port        : constant Positive := 18_774;
-      Capture     : constant String := "/tmp/pi_acme_anthropic_capture_2.json";
+      Capture     : constant String := "/tmp/coyote_anthropic_capture_2.json";
       Handle      : Process_Handle := Invalid_Handle;
       Provider    : LLM.Providers.Anthropic_Messages.Provider :=
          LLM.Providers.Anthropic_Messages.Create
@@ -530,7 +549,7 @@ package body LLM_Anthropic_Messages_Tests is
             Port      : constant Positive := 18_780 + Index;
             Port_Text : constant String := Natural_Image (Port);
             Capture   : constant String :=
-               "/tmp/pi_acme_anthropic_budget_" & Natural_Image (Index)
+               "/tmp/coyote_anthropic_budget_" & Natural_Image (Index)
                & ".json";
             Handle    : Process_Handle := Invalid_Handle;
             Provider  : LLM.Providers.Anthropic_Messages.Provider :=
@@ -583,6 +602,75 @@ package body LLM_Anthropic_Messages_Tests is
          end;
       end loop;
    end Test_Thinking_Budget_Injection;
+
+   procedure Test_Compaction_Summary_Encodes_As_User_Anthropic
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+
+      Port      : constant Positive := 18_789;
+      Capture   : constant String :=
+         "/tmp/coyote_anthropic_capture_compaction_summary.json";
+      Handle    : Process_Handle := Invalid_Handle;
+      Provider  : LLM.Providers.Anthropic_Messages.Provider :=
+         LLM.Providers.Anthropic_Messages.Create
+            (Base_Url => "http://127.0.0.1:18789",
+             Api_Key  => "test-key");
+      Messages  : constant LLM.Types.Message_Vectors.Vector :=
+         Build_Compaction_Summary_Messages;
+      Request   : GNATCOLL.JSON.JSON_Value;
+      Payload   : GNATCOLL.JSON.JSON_Value;
+   begin
+      Delete_If_Exists (Capture);
+      Handle := Spawn_Server (Anthropic_Server_Script (Port, Capture));
+      Wait_For_Server;
+
+      Send_With_Retry
+         (P             => Provider,
+          Model_Id      => "claude-sonnet-4.6",
+          System_Prompt => "",
+          Messages      => Messages,
+          Thinking      => LLM.Providers.Off,
+          Handler       => null);
+
+      Stop_Server (Handle);
+
+      Request := Load_Capture (Capture);
+      Payload := Get_Object_Field (Request, "body");
+
+      Assert
+         (Payload.Has_Field ("messages"),
+          "Anthropic compaction summary test should capture messages");
+      Assert
+         (Payload.Get ("messages").Kind = GNATCOLL.JSON.JSON_Array_Type,
+          "Anthropic captured messages should be a JSON array");
+
+      declare
+         Request_Messages : constant GNATCOLL.JSON.JSON_Array :=
+            Payload.Get ("messages").Get;
+         Message          : constant GNATCOLL.JSON.JSON_Value :=
+            GNATCOLL.JSON.Get (Request_Messages, 1);
+         Content          : constant GNATCOLL.JSON.JSON_Array :=
+            Message.Get ("content").Get;
+         Block            : constant GNATCOLL.JSON.JSON_Value :=
+            GNATCOLL.JSON.Get (Content, 1);
+      begin
+         Assert
+            (Get_String_Field (Message, "role") = "user",
+             "Anthropic should encode compaction summaries as user turns");
+         Assert
+            (Get_String_Field (Block, "type") = "text",
+             "Anthropic compaction summaries should contain text blocks");
+         Assert
+            (Get_String_Field (Block, "text") = "Checkpoint summary text",
+             "Anthropic compaction summary text should round-trip"
+             & " into the request body");
+      end;
+   exception
+      when others =>
+         Stop_Server (Handle);
+         raise;
+   end Test_Compaction_Summary_Encodes_As_User_Anthropic;
 
    function Tool_Use_Server_Script (Port : Positive) return String is
    begin
@@ -695,6 +783,68 @@ package body LLM_Anthropic_Messages_Tests is
          & "s.handle_request()" & ASCII.LF
          & "s.server_close()" & ASCII.LF;
    end Stop_Reason_Server_Script;
+
+   function HTTP_Error_Server_Script (Port : Positive) return String is
+   begin
+      return
+         "import http.server" & ASCII.LF
+         & "payload = b'{""error"":""internal""}'" & ASCII.LF
+         & "class S(http.server.HTTPServer):" & ASCII.LF
+         & "    allow_reuse_address = True" & ASCII.LF
+         & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
+         & "    def do_POST(self):" & ASCII.LF
+         & "        self.send_response(500)" & ASCII.LF
+         & "        self.send_header('Content-Type', 'application/json')"
+         & ASCII.LF
+         & "        self.send_header('Content-Length', str(len(payload)))"
+         & ASCII.LF
+         & "        self.end_headers()" & ASCII.LF
+         & "        self.wfile.write(payload)" & ASCII.LF
+         & "        self.wfile.flush()" & ASCII.LF
+         & "    def log_message(self, *a): pass" & ASCII.LF
+         & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
+         & ASCII.LF
+         & "s.timeout = 5" & ASCII.LF
+         & "s.handle_request()" & ASCII.LF
+         & "s.server_close()" & ASCII.LF;
+   end HTTP_Error_Server_Script;
+
+   function Early_Close_Server_Script (Port : Positive) return String is
+   begin
+      return
+         "import http.server, json" & ASCII.LF
+         & "events = [" & ASCII.LF
+         & "    ('message_start', {'type': 'message_start', 'message': {"
+         & "'id': 'msg_early', 'type': 'message', 'role': 'assistant',"
+         & " 'content': [], 'usage': {'input_tokens': 4,"
+         & " 'output_tokens': 0}}})," & ASCII.LF
+         & "    ('content_block_start', {'type': 'content_block_start',"
+         & " 'index': 0, 'content_block': {'type': 'text'}})," & ASCII.LF
+         & "    ('content_block_delta', {'type': 'content_block_delta',"
+         & " 'index': 0, 'delta': {'type': 'text_delta',"
+         & " 'text': 'partial'}})]" & ASCII.LF
+         & "payload = ''.join(" & ASCII.LF
+         & "    'event: ' + name + '\n' + 'data: ' + json.dumps(data)"
+         & " + '\n\n' for name, data in events).encode()" & ASCII.LF
+         & "class S(http.server.HTTPServer):" & ASCII.LF
+         & "    allow_reuse_address = True" & ASCII.LF
+         & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
+         & "    def do_POST(self):" & ASCII.LF
+         & "        self.send_response(200)" & ASCII.LF
+         & "        self.send_header('Content-Type', 'text/event-stream')"
+         & ASCII.LF
+         & "        self.send_header('Content-Length', str(len(payload)))"
+         & ASCII.LF
+         & "        self.end_headers()" & ASCII.LF
+         & "        self.wfile.write(payload)" & ASCII.LF
+         & "        self.wfile.flush()" & ASCII.LF
+         & "    def log_message(self, *a): pass" & ASCII.LF
+         & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
+         & ASCII.LF
+         & "s.timeout = 5" & ASCII.LF
+         & "s.handle_request()" & ASCII.LF
+         & "s.server_close()" & ASCII.LF;
+   end Early_Close_Server_Script;
 
    procedure Test_Stream_Tool_Use_Response (T : in out Test) is
       pragma Unreferenced (T);
@@ -859,5 +1009,154 @@ package body LLM_Anthropic_Messages_Tests is
          end;
       end loop;
    end Test_Stop_Reason_Mappings;
+
+   procedure Test_Anthropic_Uses_X_Api_Key_Header (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Port      : constant Positive := 18_793;
+      Capture   : constant String :=
+         "/tmp/coyote_anthropic_capture_x_api_key.json";
+      Handle    : Process_Handle := Invalid_Handle;
+      --  The provider currently keys off any Base_Url containing the
+      --  anthropic.com substring, so a loopback path component exercises the
+      --  x-api-key branch without depending on external DNS.
+      Provider  : LLM.Providers.Anthropic_Messages.Provider :=
+         LLM.Providers.Anthropic_Messages.Create
+            (Base_Url => "http://127.0.0.1:18793/anthropic.com",
+             Api_Key  => "test-key");
+      Messages  : constant LLM.Types.Message_Vectors.Vector := Build_Messages;
+      Request   : GNATCOLL.JSON.JSON_Value;
+      Headers   : GNATCOLL.JSON.JSON_Value;
+   begin
+      Delete_If_Exists (Capture);
+      Handle := Spawn_Server (Anthropic_Server_Script (Port, Capture));
+      Wait_For_Server;
+
+      Send_With_Retry
+         (P             => Provider,
+          Model_Id      => "claude-sonnet-4.6",
+          System_Prompt => "Be helpful.",
+          Messages      => Messages,
+          Thinking      => LLM.Providers.Off,
+          Handler       => null);
+
+      Stop_Server (Handle);
+
+      Request := Load_Capture (Capture);
+      Headers := Get_Object_Field (Request, "headers");
+
+      Assert
+         (Get_String_Field (Headers, "x-api-key") = "test-key",
+          "Anthropic direct-style URLs should send x-api-key");
+      Assert
+         (Get_String_Field (Headers, "authorization") = "",
+          "Anthropic direct-style URLs should omit Authorization: Bearer");
+   exception
+      when others =>
+         Stop_Server (Handle);
+         raise;
+   end Test_Anthropic_Uses_X_Api_Key_Header;
+
+   procedure Test_Anthropic_HTTP_Error_Propagates (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Port          : constant Positive := 18_794;
+      Handle        : Process_Handle := Invalid_Handle;
+      Provider      : LLM.Providers.Anthropic_Messages.Provider :=
+         LLM.Providers.Anthropic_Messages.Create
+            (Base_Url => "http://127.0.0.1:18794",
+             Api_Key  => "test-key");
+      Messages      : constant LLM.Types.Message_Vectors.Vector :=
+         Build_Messages;
+      Raised        : Boolean := False;
+      Error_Message : Unbounded_String;
+   begin
+      Reset_Collector;
+      Handle := Spawn_Server (HTTP_Error_Server_Script (Port));
+      Wait_For_Server;
+
+      begin
+         Send_With_Retry
+            (P             => Provider,
+             Model_Id      => "claude-sonnet-4.6",
+             System_Prompt => "",
+             Messages      => Messages,
+             Thinking      => LLM.Providers.Off,
+             Handler       => On_Event'Access);
+      exception
+         when Error : others =>
+            Raised := True;
+            Error_Message := To_Unbounded_String
+               (Ada.Exceptions.Exception_Message (Error));
+      end;
+
+      Stop_Server (Handle);
+
+      Assert (Raised, "Anthropic HTTP 500 should propagate as an exception");
+      Assert
+         (Ada.Strings.Fixed.Index (To_String (Error_Message), "HTTP 500") > 0,
+          "Anthropic HTTP errors should include the status code");
+      Assert
+         (Current_Collector.Sequence.Length = 2,
+          "Anthropic HTTP errors should only bracket the turn with agent"
+          & " events: " & Sequence_Image);
+      Assert
+         (Current_Collector.Sequence.Element (1) = "agent_start",
+          "Anthropic HTTP errors should still emit Agent_Start_Event");
+      Assert
+         (Current_Collector.Sequence.Element (2) = "agent_end",
+          "Anthropic HTTP errors should still emit Agent_End_Event");
+   exception
+      when others =>
+         Stop_Server (Handle);
+         raise;
+   end Test_Anthropic_HTTP_Error_Propagates;
+
+   procedure Test_Anthropic_Stream_Terminates_Early (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Port      : constant Positive := 18_795;
+      Handle    : Process_Handle := Invalid_Handle;
+      Provider  : LLM.Providers.Anthropic_Messages.Provider :=
+         LLM.Providers.Anthropic_Messages.Create
+            (Base_Url => "http://127.0.0.1:18795",
+             Api_Key  => "test-key");
+      Messages  : constant LLM.Types.Message_Vectors.Vector := Build_Messages;
+   begin
+      Reset_Collector;
+      Handle := Spawn_Server (Early_Close_Server_Script (Port));
+      Wait_For_Server;
+
+      Send_With_Retry
+         (P             => Provider,
+          Model_Id      => "claude-sonnet-4.6",
+          System_Prompt => "",
+          Messages      => Messages,
+          Thinking      => LLM.Providers.Off,
+          Handler       => On_Event'Access);
+
+      Stop_Server (Handle);
+
+      Assert
+         (Current_Collector.Sequence.Find_Index ("text_delta:partial") > 0,
+          "Anthropic should emit any streamed partial text before EOF: "
+          & Sequence_Image);
+      Assert
+         (Current_Collector.Sequence.Find_Index ("text_end") > 0,
+          "Anthropic should close an open text block on early EOF: "
+          & Sequence_Image);
+      Assert
+         (Current_Collector.Sequence.Find_Index ("message_end") > 0,
+          "Anthropic should finalize the message on early EOF: "
+          & Sequence_Image);
+      Assert
+         (Current_Collector.Sequence.Find_Index ("agent_end") > 0,
+          "Anthropic should still emit Agent_End_Event on early EOF: "
+          & Sequence_Image);
+   exception
+      when others =>
+         Stop_Server (Handle);
+         raise;
+   end Test_Anthropic_Stream_Terminates_Early;
 
 end LLM_Anthropic_Messages_Tests;

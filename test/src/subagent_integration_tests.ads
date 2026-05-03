@@ -1,9 +1,9 @@
 with AUnit;
 with AUnit.Test_Fixtures;
 
---  Integration tests for the pi_acme --one-shot (subagent) mode.
+--  Integration tests for the coyote --one-shot (subagent) mode.
 --
---  Each test spawns bin/pi_acme with --one-shot and verifies the JSON
+--  Each test spawns bin/coyote with --one-shot and verifies the JSON
 --  result line written to stdout.  Tests are silently skipped when acme
 --  is not running; they require a live acme 9P server and a configured
 --  pi installation with the github-copilot/gpt-5-mini model.

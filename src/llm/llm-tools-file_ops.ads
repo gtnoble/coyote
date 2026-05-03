@@ -3,7 +3,7 @@
 --  Provides the standard read, write, edit, find, and glob tools used by
 --  the native harness.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Strings.Unbounded;
@@ -87,7 +87,8 @@ package LLM.Tools.File_Ops is
    procedure Execute_Read
      (Args_Json :     String;
       Result    : out Ada.Strings.Unbounded.Unbounded_String;
-      Is_Error  : out Boolean);
+      Is_Error  : out Boolean;
+      Abort_Flg : access LLM.Tools.Abort_Flag := null);
 
    --  Write a file.
    --
@@ -97,7 +98,8 @@ package LLM.Tools.File_Ops is
    procedure Execute_Write
      (Args_Json :     String;
       Result    : out Ada.Strings.Unbounded.Unbounded_String;
-      Is_Error  : out Boolean);
+      Is_Error  : out Boolean;
+      Abort_Flg : access LLM.Tools.Abort_Flag := null);
 
    --  Edit a file by replacing exactly one occurrence of oldText.
    --
@@ -107,7 +109,8 @@ package LLM.Tools.File_Ops is
    procedure Execute_Edit
      (Args_Json :     String;
       Result    : out Ada.Strings.Unbounded.Unbounded_String;
-      Is_Error  : out Boolean);
+      Is_Error  : out Boolean;
+      Abort_Flg : access LLM.Tools.Abort_Flag := null);
 
    --  Recursively list matching files under a directory tree.
    --
@@ -117,12 +120,14 @@ package LLM.Tools.File_Ops is
    procedure Execute_Find
      (Args_Json :     String;
       Result    : out Ada.Strings.Unbounded.Unbounded_String;
-      Is_Error  : out Boolean);
+      Is_Error  : out Boolean;
+      Abort_Flg : access LLM.Tools.Abort_Flag := null);
 
    --  Alias for Execute_Find.
    procedure Execute_Glob
      (Args_Json :     String;
       Result    : out Ada.Strings.Unbounded.Unbounded_String;
-      Is_Error  : out Boolean);
+      Is_Error  : out Boolean;
+      Abort_Flg : access LLM.Tools.Abort_Flag := null);
 
 end LLM.Tools.File_Ops;

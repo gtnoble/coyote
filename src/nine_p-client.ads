@@ -15,7 +15,7 @@
 --       ...
 --    end;  --  Ctl clunked, FS socket closed here
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Finalization;

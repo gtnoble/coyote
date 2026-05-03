@@ -1,5 +1,4 @@
 with AUnit.Assertions;
-with Ada.Directories;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with GNATCOLL.OS.FS;
@@ -10,8 +9,8 @@ with Acme;
 with Acme.Window;
 with Acme.Event_Parser;
 with Acme.Raw_Events;
-with Pi_Acme_App;
-with Pi_Acme_App.Dispatch;   use Pi_Acme_App.Dispatch;
+with Coyote_App;
+with Coyote_App.Dispatch;    use Coyote_App.Dispatch;
 
 package body Acme_Integration_Tests is
 
@@ -19,9 +18,15 @@ package body Acme_Integration_Tests is
 
    function Acme_Running return Boolean is
    begin
-      return Ada.Directories.Exists (Namespace & "/acme");
+      declare
+         FS : Nine_P.Client.Fs := Ns_Mount ("acme");
+         pragma Unreferenced (FS);
+      begin
+         return True;
+      end;
    exception
-      when others => return False;
+      when others =>
+         return False;
    end Acme_Running;
 
    --  Natural'Image without the leading space.
@@ -30,6 +35,123 @@ package body Acme_Integration_Tests is
    begin
       return Image (Image'First + 1 .. Image'Last);
    end Natural_Image;
+
+   function Bytes_To_String (Data : Byte_Array) return String is
+   begin
+      if Data'Length = 0 then
+         return "";
+      end if;
+
+      return Result : String (1 .. Data'Length) do
+         for I in Data'Range loop
+            Result (I - Data'First + 1) := Character'Val (Data (I));
+         end loop;
+      end return;
+   end Bytes_To_String;
+
+   function First_Token (Text : String) return String is
+      Start : Natural := Text'First;
+   begin
+      if Text'Length = 0 then
+         return "";
+      end if;
+
+      while Start <= Text'Last
+        and then Text (Start) in ' ' | ASCII.LF | ASCII.CR | ASCII.HT
+      loop
+         Start := Start + 1;
+      end loop;
+
+      if Start > Text'Last then
+         return "";
+      end if;
+
+      declare
+         Stop : Natural := Start;
+      begin
+         while Stop <= Text'Last
+           and then Text (Stop)
+                      not in ' ' | ASCII.LF | ASCII.CR | ASCII.HT
+         loop
+            Stop := Stop + 1;
+         end loop;
+         return Text (Start .. Stop - 1);
+      end;
+   end First_Token;
+
+   function Read_Path
+     (FS   : not null access Nine_P.Client.Fs;
+      Path : String) return String
+   is
+      F    : aliased Nine_P.Client.File := Open (FS, Path, O_READ);
+      Data : constant Byte_Array := Read (F'Access);
+   begin
+      return Bytes_To_String (Data);
+   end Read_Path;
+
+   function Read_Window_File
+     (FS   : not null access Nine_P.Client.Fs;
+      Id   : Acme.Window_Id;
+      File : String) return String
+   is
+   begin
+      return Read_Path (FS, Acme.Win_File_Path (Id, File));
+   end Read_Window_File;
+
+   procedure Write_Window_File
+     (FS   : not null access Nine_P.Client.Fs;
+      Id   : Acme.Window_Id;
+      File : String;
+      Data : String)
+   is
+      F     : aliased Nine_P.Client.File :=
+        Open (FS, Acme.Win_File_Path (Id, File), O_WRITE);
+      Dummy : constant Natural := Write (F'Access, Data);
+      pragma Unreferenced (Dummy);
+   begin
+      null;
+   end Write_Window_File;
+
+   procedure Clear_Body
+     (Win : in out Acme.Window.Win;
+      FS  : not null access Nine_P.Client.Fs)
+   is
+   begin
+      Acme.Window.Replace_Match (Win, FS, "1,$", "");
+   end Clear_Body;
+
+   function Index_Contains_Window_Id
+     (Index_Text : String;
+      Id         : Acme.Window_Id) return Boolean
+   is
+      Target     : constant String := Natural_Image (Id);
+      Line_Start : Natural := Index_Text'First;
+      Line_End   : Natural;
+   begin
+      if Index_Text'Length = 0 then
+         return False;
+      end if;
+
+      while Line_Start <= Index_Text'Last loop
+         Line_End := Line_Start;
+         while Line_End <= Index_Text'Last
+           and then Index_Text (Line_End) /= ASCII.LF
+         loop
+            Line_End := Line_End + 1;
+         end loop;
+
+         if Line_End > Line_Start
+           and then First_Token
+                      (Index_Text (Line_Start .. Line_End - 1)) = Target
+         then
+            return True;
+         end if;
+
+         Line_Start := Line_End + 1;
+      end loop;
+
+      return False;
+   end Index_Contains_Window_Id;
 
    --  Run 9p read and return the output as a String.
    function Read_Via_9p (Path : String) return String is
@@ -62,15 +184,15 @@ package body Acme_Integration_Tests is
    procedure Test_New_Win_Has_Valid_Id (T : in out Test) is
       pragma Unreferenced (T);
    begin
-      if not Acme_Running then return; end if;
+      if not Acme_Running then
+         return;
+      end if;
       declare
          FS  : aliased Nine_P.Client.Fs := Ns_Mount ("acme");
          Win : Acme.Window.Win          :=
            Acme.Window.New_Win (FS'Access);
       begin
-         Assert (Acme.Window.Id (Win) > 0,
-                 "New window should have a positive ID");
-         --  Verify the window actually exists via 9p
+         --  A usable window ID must resolve to a live ctl file.
          declare
             Id_String : constant String :=
               Natural_Image (Acme.Window.Id (Win));
@@ -90,7 +212,9 @@ package body Acme_Integration_Tests is
       pragma Unreferenced (T);
       Marker : constant String := "acme_ada_test_content";
    begin
-      if not Acme_Running then return; end if;
+      if not Acme_Running then
+         return;
+      end if;
       declare
          FS  : aliased Nine_P.Client.Fs := Ns_Mount ("acme");
          Win : Acme.Window.Win          :=
@@ -112,13 +236,45 @@ package body Acme_Integration_Tests is
       end;
    end Test_Append_Visible_Via_9p;
 
+   --  ── Append_Tag visible via direct 9P read ───────────────────────────
+
+   procedure Test_Append_Tag_Visible_Via_9p (T : in out Test) is
+      pragma Unreferenced (T);
+      Marker : constant String := "MyTag";
+   begin
+      if not Acme_Running then
+         return;
+      end if;
+      declare
+         FS        : aliased Nine_P.Client.Fs := Ns_Mount ("acme");
+         Verify_FS : aliased Nine_P.Client.Fs := Ns_Mount ("acme");
+         Win       : Acme.Window.Win          :=
+           Acme.Window.New_Win (FS'Access);
+      begin
+         Acme.Window.Append_Tag (Win, FS'Access, " " & Marker);
+         declare
+            Tag_Text : constant String :=
+              Read_Window_File
+                (Verify_FS'Access, Acme.Window.Id (Win), "tag");
+         begin
+            Assert
+              (Ada.Strings.Fixed.Index (Tag_Text, Marker) > 0,
+               "tag file should contain text appended by "
+               & "Acme.Window.Append_Tag");
+         end;
+         Acme.Window.Delete (Win, FS'Access);
+      end;
+   end Test_Append_Tag_Visible_Via_9p;
+
    --  ── Set_Name ─────────────────────────────────────────────────────────
 
    procedure Test_Set_Name (T : in out Test) is
       pragma Unreferenced (T);
       Name : constant String := "/tmp/+ada_test_win";
    begin
-      if not Acme_Running then return; end if;
+      if not Acme_Running then
+         return;
+      end if;
       declare
          FS  : aliased Nine_P.Client.Fs := Ns_Mount ("acme");
          Win : Acme.Window.Win          :=
@@ -139,12 +295,162 @@ package body Acme_Integration_Tests is
       end;
    end Test_Set_Name;
 
+   --  ── Replace_Line1 rewrites only the first line ───────────────────────
+
+   procedure Test_Replace_Line1_Only_Rewrites_First_Line
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+      Body_Text : constant String :=
+        "first line" & ASCII.LF
+        & "second line" & ASCII.LF
+        & "third line" & ASCII.LF;
+      First_Line : constant String := "REPLACED";
+   begin
+      if not Acme_Running then
+         return;
+      end if;
+      declare
+         FS        : aliased Nine_P.Client.Fs := Ns_Mount ("acme");
+         Verify_FS : aliased Nine_P.Client.Fs := Ns_Mount ("acme");
+         Win       : Acme.Window.Win          :=
+           Acme.Window.New_Win (FS'Access);
+      begin
+         Clear_Body (Win, FS'Access);
+         Acme.Window.Append (Win, FS'Access, Body_Text);
+         Acme.Window.Replace_Line1 (Win, FS'Access, First_Line);
+         declare
+            Updated_Body : constant String :=
+              Acme.Window.Read_Body (Win, Verify_FS'Access);
+         begin
+            Assert
+              (Updated_Body'Length >= First_Line'Length
+               and then
+                 Updated_Body
+                   (Updated_Body'First
+                    .. Updated_Body'First + First_Line'Length - 1)
+                 = First_Line,
+               "Replace_Line1 should rewrite the first line only");
+            Assert
+              (Ada.Strings.Fixed.Index (Updated_Body, "second line") > 0,
+               "Replace_Line1 should preserve the second line");
+            Assert
+              (Ada.Strings.Fixed.Index (Updated_Body, "third line") > 0,
+               "Replace_Line1 should preserve the third line");
+         end;
+         Acme.Window.Delete (Win, FS'Access);
+      end;
+   end Test_Replace_Line1_Only_Rewrites_First_Line;
+
+   --  ── Delete removes the window from /index ───────────────────────────
+
+   procedure Test_Delete_Removes_Window_From_Index (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      if not Acme_Running then
+         return;
+      end if;
+      declare
+         FS        : aliased Nine_P.Client.Fs := Ns_Mount ("acme");
+         Verify_FS : aliased Nine_P.Client.Fs := Ns_Mount ("acme");
+         Win       : Acme.Window.Win          :=
+           Acme.Window.New_Win (FS'Access);
+         Win_Id    : constant Acme.Window_Id := Acme.Window.Id (Win);
+      begin
+         Acme.Window.Delete (Win, FS'Access);
+         declare
+            Removed : Boolean := False;
+         begin
+            for Attempt in 1 .. 10 loop
+               declare
+                  Index_Text : constant String :=
+                    Read_Path (Verify_FS'Access, "/index");
+               begin
+                  Removed :=
+                    not Index_Contains_Window_Id (Index_Text, Win_Id);
+               end;
+
+               exit when Removed;
+
+               if Attempt < 10 then
+                  delay 0.05;
+               end if;
+            end loop;
+
+            Assert (Removed,
+                    "Deleted window id should not appear in acme /index");
+         end;
+      end;
+   end Test_Delete_Removes_Window_From_Index;
+
+   --  ── Read_Body returns the full body text ─────────────────────────────
+
+   procedure Test_Read_Body_Returns_Full_Content (T : in out Test) is
+      pragma Unreferenced (T);
+      Expected : constant String :=
+        "alpha" & ASCII.LF
+        & "beta" & ASCII.LF
+        & "gamma" & ASCII.LF;
+   begin
+      if not Acme_Running then
+         return;
+      end if;
+      declare
+         FS        : aliased Nine_P.Client.Fs := Ns_Mount ("acme");
+         Verify_FS : aliased Nine_P.Client.Fs := Ns_Mount ("acme");
+         Win       : Acme.Window.Win          :=
+           Acme.Window.New_Win (FS'Access);
+      begin
+         Clear_Body (Win, FS'Access);
+         Acme.Window.Append (Win, FS'Access, Expected);
+         declare
+            Body_Text : constant String :=
+              Acme.Window.Read_Body (Win, Verify_FS'Access);
+         begin
+            Assert (Body_Text = Expected,
+                    "Read_Body should return the full body text");
+         end;
+         Acme.Window.Delete (Win, FS'Access);
+      end;
+   end Test_Read_Body_Returns_Full_Content;
+
+   --  ── Read_Chars returns the selected subrange ────────────────────────
+
+   procedure Test_Read_Chars_Returns_Subrange (T : in out Test) is
+      pragma Unreferenced (T);
+      Full_Text : constant String := "abcdefghij" & ASCII.LF;
+      Expected  : constant String := "abcd";
+   begin
+      if not Acme_Running then
+         return;
+      end if;
+      declare
+         FS        : aliased Nine_P.Client.Fs := Ns_Mount ("acme");
+         Verify_FS : aliased Nine_P.Client.Fs := Ns_Mount ("acme");
+         Win       : Acme.Window.Win          :=
+           Acme.Window.New_Win (FS'Access);
+      begin
+         Clear_Body (Win, FS'Access);
+         Acme.Window.Append (Win, FS'Access, Full_Text);
+         declare
+            Slice : constant String :=
+              Acme.Window.Read_Chars (Win, Verify_FS'Access, 0, 4);
+         begin
+            Assert (Slice = Expected,
+                    "Read_Chars should return the requested subrange");
+         end;
+         Acme.Window.Delete (Win, FS'Access);
+      end;
+   end Test_Read_Chars_Returns_Subrange;
+
    --  ── Selection_Text returns empty for a fresh window ───────────────────
 
    procedure Test_Selection_Empty (T : in out Test) is
       pragma Unreferenced (T);
    begin
-      if not Acme_Running then return; end if;
+      if not Acme_Running then
+         return;
+      end if;
       declare
          FS  : aliased Nine_P.Client.Fs := Ns_Mount ("acme");
          Win : Acme.Window.Win          :=
@@ -161,6 +467,39 @@ package body Acme_Integration_Tests is
       end;
    end Test_Selection_Empty;
 
+   --  ── Selection_Text after dot=addr ────────────────────────────────────
+
+   procedure Test_Selection_Text_After_Set_Dot (T : in out Test) is
+      pragma Unreferenced (T);
+      Content  : constant String := "hello world" & ASCII.LF;
+      Expected : constant String := "hello";
+   begin
+      if not Acme_Running then
+         return;
+      end if;
+      declare
+         FS        : aliased Nine_P.Client.Fs := Ns_Mount ("acme");
+         Verify_FS : aliased Nine_P.Client.Fs := Ns_Mount ("acme");
+         Win       : Acme.Window.Win          :=
+           Acme.Window.New_Win (FS'Access);
+         Win_Id    : constant Acme.Window_Id := Acme.Window.Id (Win);
+      begin
+         Clear_Body (Win, FS'Access);
+         Acme.Window.Append (Win, FS'Access, Content);
+         Write_Window_File (Verify_FS'Access, Win_Id, "addr", "#0,#5");
+         Write_Window_File (Verify_FS'Access, Win_Id, "ctl",
+                            "dot=addr" & ASCII.LF);
+         declare
+            Sel : constant String :=
+              Acme.Window.Selection_Text (Win, Verify_FS'Access);
+         begin
+            Assert (Sel = Expected,
+                    "Selection_Text should return the active dot text");
+         end;
+         Acme.Window.Delete (Win, FS'Access);
+      end;
+   end Test_Selection_Text_After_Set_Dot;
+
    --  ── Raw event parser with a live event file ───────────────────────────
    --
    --  We create a window then validate that the raw parser can decode
@@ -169,7 +508,9 @@ package body Acme_Integration_Tests is
    procedure Test_Raw_Event_From_Live (T : in out Test) is
       pragma Unreferenced (T);
    begin
-      if not Acme_Running then return; end if;
+      if not Acme_Running then
+         return;
+      end if;
       declare
          FS  : aliased Nine_P.Client.Fs := Ns_Mount ("acme");
          Win : Acme.Window.Win          :=
@@ -212,7 +553,9 @@ package body Acme_Integration_Tests is
       Pending : constant String := "PENDING:abc123ef";
       After   : constant String := ASCII.LF & "line three" & ASCII.LF;
    begin
-      if not Acme_Running then return; end if;
+      if not Acme_Running then
+         return;
+      end if;
       declare
          FS  : aliased Nine_P.Client.Fs := Ns_Mount ("acme");
          Win : Acme.Window.Win          :=
@@ -255,7 +598,9 @@ package body Acme_Integration_Tests is
       pragma Unreferenced (T);
       Content : constant String := "unchanged content" & ASCII.LF;
    begin
-      if not Acme_Running then return; end if;
+      if not Acme_Running then
+         return;
+      end if;
       declare
          FS  : aliased Nine_P.Client.Fs := Ns_Mount ("acme");
          Win : Acme.Window.Win          :=
@@ -300,7 +645,9 @@ package body Acme_Integration_Tests is
       Block2   : constant String :=
         ASCII.LF & "[tool2]" & ASCII.LF & Tok2 & ASCII.LF;
    begin
-      if not Acme_Running then return; end if;
+      if not Acme_Running then
+         return;
+      end if;
       declare
          FS  : aliased Nine_P.Client.Fs := Ns_Mount ("acme");
          Win : Acme.Window.Win          :=
@@ -368,7 +715,9 @@ package body Acme_Integration_Tests is
         "turn 1 response" & ASCII.LF
         & "turn 2 response" & ASCII.LF;
    begin
-      if not Acme_Running then return; end if;
+      if not Acme_Running then
+         return;
+      end if;
       declare
          FS  : aliased Nine_P.Client.Fs := Ns_Mount ("acme");
          Win : Acme.Window.Win          :=
@@ -411,7 +760,9 @@ package body Acme_Integration_Tests is
       Status_Line : constant String :=
         "CLEAR_STATUS_MARKER" & ASCII.LF;
    begin
-      if not Acme_Running then return; end if;
+      if not Acme_Running then
+         return;
+      end if;
       declare
          FS  : aliased Nine_P.Client.Fs := Ns_Mount ("acme");
          Win : Acme.Window.Win          :=
@@ -452,7 +803,9 @@ package body Acme_Integration_Tests is
       --  Plain ASCII status marker; avoids raw multi-byte UTF-8 literals.
       Status_Line : constant String := "CLEAR_STATUS_MARKER" & ASCII.LF;
    begin
-      if not Acme_Running then return; end if;
+      if not Acme_Running then
+         return;
+      end if;
       declare
          FS  : aliased Nine_P.Client.Fs := Ns_Mount ("acme");
          Win : Acme.Window.Win          :=
@@ -493,12 +846,14 @@ package body Acme_Integration_Tests is
         & Character'Val (16#95#)
         & Character'Val (16#90#);
    begin
-      if not Acme_Running then return; end if;
+      if not Acme_Running then
+         return;
+      end if;
       declare
          FS    : aliased Nine_P.Client.Fs := Ns_Mount ("acme");
          Win   : Acme.Window.Win          :=
            Acme.Window.New_Win (FS'Access);
-         State : Pi_Acme_App.App_State;
+         State : Coyote_App.App_State;
          Id    : constant String :=
            Natural_Image (Acme.Window.Id (Win));
       begin
@@ -547,12 +902,14 @@ package body Acme_Integration_Tests is
         "ca8add79-7902-415c-af1d-b4b4e93bb12b";
       PID        : constant String := "36546";
    begin
-      if not Acme_Running then return; end if;
+      if not Acme_Running then
+         return;
+      end if;
       declare
          FS    : aliased Nine_P.Client.Fs := Ns_Mount ("acme");
          Win   : Acme.Window.Win          :=
            Acme.Window.New_Win (FS'Access);
-         State : Pi_Acme_App.App_State;
+         State : Coyote_App.App_State;
          Id    : constant String :=
            Natural_Image (Acme.Window.Id (Win));
       begin

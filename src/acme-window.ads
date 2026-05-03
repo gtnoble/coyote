@@ -6,7 +6,7 @@
 --  This is the correct multi-task design: the mutex serialises the
 --  addr->data write pair; the Fs connections are task-local.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Nine_P.Client;

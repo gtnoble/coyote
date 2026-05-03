@@ -2,6 +2,7 @@ with AUnit.Assertions;
 with Ada.Calendar;
 with Ada.Directories;
 with Ada.Environment_Variables;
+with Ada.Exceptions;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
@@ -49,7 +50,7 @@ package body LLM_Auth_Tests is
 
    procedure Ensure_Test_Home (Home : String) is
    begin
-      Ada.Directories.Create_Path (Home & "/.pi/agent");
+      Ada.Directories.Create_Path (Home & "/.coyote");
    end Ensure_Test_Home;
 
    function Auth_Fixture_Path return String is
@@ -113,7 +114,7 @@ package body LLM_Auth_Tests is
    end Delete_If_Exists;
 
    procedure Cleanup_Test_Home (Home : String) is
-      Agent_Dir : constant String := Home & "/.pi/agent";
+      Agent_Dir : constant String := Home & "/.coyote";
       Pi_Dir    : constant String := Home & "/.pi";
    begin
       Delete_If_Exists (Agent_Dir & "/auth.json");
@@ -218,10 +219,182 @@ package body LLM_Auth_Tests is
         & "s.server_close()" & ASCII.LF;
    end Refresh_Server_Script;
 
+   function Refresh_Test_Auth_Content return String is
+   begin
+      return
+        "{" & ASCII.LF
+        & "  ""github-copilot"": {" & ASCII.LF
+        & "    ""type"": ""oauth""," & ASCII.LF
+        & "    ""refresh"": ""refresh-token""," & ASCII.LF
+        & "    ""access"": ""expired-token""," & ASCII.LF
+        & "    ""expires"": 0" & ASCII.LF
+        & "  }" & ASCII.LF
+        & "}" & ASCII.LF;
+   end Refresh_Test_Auth_Content;
+
+   function Refresh_Response_Server_Script
+     (Port          : Positive;
+      Status_Code   : Positive;
+      Response_Text : String;
+      Content_Type  : String := "application/json") return String
+   is
+   begin
+      return
+        "import http.server" & ASCII.LF
+        & "class S(http.server.HTTPServer):" & ASCII.LF
+        & "    allow_reuse_address = True" & ASCII.LF
+        & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
+        & "    def do_GET(self):" & ASCII.LF
+        & "        try:" & ASCII.LF
+        & "            assert self.path == '/copilot_internal/v2/token'"
+        & ASCII.LF
+        & "            assert self.headers['Authorization'] == "
+        & "'Bearer refresh-token'" & ASCII.LF
+        & "            assert self.headers['User-Agent'] == "
+        & "'GitHubCopilotChat/0.35.0'" & ASCII.LF
+        & "            assert self.headers['Editor-Version'] == "
+        & "'vscode/1.107.0'" & ASCII.LF
+        & "            assert self.headers['Editor-Plugin-Version'] == "
+        & "'copilot-chat/0.35.0'" & ASCII.LF
+        & "            assert self.headers['Copilot-Integration-Id'] == "
+        & "'vscode-chat'" & ASCII.LF
+        & "            body = '" & Response_Text & "'.encode()"
+        & ASCII.LF
+        & "            self.send_response(" & Natural_Image (Status_Code)
+        & ")" & ASCII.LF
+        & "            self.send_header('Content-Type', '" & Content_Type
+        & "')" & ASCII.LF
+        & "            self.send_header('Content-Length', str(len(body)))"
+        & ASCII.LF
+        & "            self.end_headers()" & ASCII.LF
+        & "            self.wfile.write(body)" & ASCII.LF
+        & "            self.wfile.flush()" & ASCII.LF
+        & "        except Exception as exc:" & ASCII.LF
+        & "            self.send_response(500)" & ASCII.LF
+        & "            self.send_header('Content-Type', 'text/plain')"
+        & ASCII.LF
+        & "            self.end_headers()" & ASCII.LF
+        & "            self.wfile.write(str(exc).encode())" & ASCII.LF
+        & "    def log_message(self, *a): pass" & ASCII.LF
+        & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
+        & ASCII.LF
+        & "s.timeout = 5" & ASCII.LF
+        & "s.handle_request()" & ASCII.LF
+        & "s.server_close()" & ASCII.LF;
+   end Refresh_Response_Server_Script;
+
+   function Is_Transient_Connect_Error (Message : String) return Boolean is
+   begin
+      return Contains (Message, "Couldn't connect")
+        or else Contains (Message, "Failed to connect")
+        or else Contains (Message, "Connection refused");
+   end Is_Transient_Connect_Error;
+
+   procedure Run_Refresh_Failure_Test
+     (Home                  : String;
+      Port                  : Positive;
+      Status_Code           : Positive;
+      Response_Body         : String;
+      Expected_Message_Part : String;
+      Content_Type          : String := "application/json")
+   is
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Url_Was_Set  : constant Boolean :=
+        Ada.Environment_Variables.Exists
+          ("COYOTE_GITHUB_COPILOT_TOKEN_URL");
+      Old_Url      : constant String :=
+        Ada.Environment_Variables.Value
+          ("COYOTE_GITHUB_COPILOT_TOKEN_URL", "");
+      Handle       : Process_Handle := Invalid_Handle;
+      Original_Auth : constant String := Refresh_Test_Auth_Content;
+      Creds        : LLM.Auth.Provider_Credentials;
+      Saved        : LLM.Auth.Provider_Credentials;
+      Raised       : Boolean := False;
+      Error_Message : Unbounded_String;
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+      Write_File (Home & "/.coyote/auth.json", Original_Auth);
+
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Set
+        ("COYOTE_GITHUB_COPILOT_TOKEN_URL",
+         "http://127.0.0.1:" & Natural_Image (Port)
+         & "/copilot_internal/v2/token");
+
+      Creds := LLM.Auth.Load_Credentials ("github-copilot");
+      Handle :=
+        Spawn_Server
+          (Refresh_Response_Server_Script
+             (Port          => Port,
+              Status_Code   => Status_Code,
+              Response_Text => Response_Body,
+              Content_Type  => Content_Type));
+
+      Retry_Loop :
+      for Attempt in 1 .. 20 loop
+         begin
+            LLM.Auth.GitHub_Copilot.Refresh_Token (Creds);
+            exit Retry_Loop;
+         exception
+            when E : LLM.Auth.GitHub_Copilot.Auth_Error =>
+               Error_Message :=
+                 To_Unbounded_String
+                   (Ada.Exceptions.Exception_Message (E));
+
+               if Is_Transient_Connect_Error (To_String (Error_Message))
+                 and then Attempt < 20
+               then
+                  delay 0.05;
+               else
+                  Raised := True;
+                  exit Retry_Loop;
+               end if;
+         end;
+      end loop Retry_Loop;
+
+      Stop_Server (Handle);
+      Saved := LLM.Auth.Load_Credentials ("github-copilot");
+
+      Assert (Raised, "Refresh_Token should raise Auth_Error");
+      Assert
+        (Contains (To_String (Error_Message), Expected_Message_Part),
+         "Refresh_Token should report the expected failure; got: "
+         & To_String (Error_Message));
+      Assert
+        (Read_File (Home & "/.coyote/auth.json") = Original_Auth,
+         "auth.json should remain unchanged after a failed refresh");
+      Assert
+        (To_String (Saved.Refresh_Token) = "refresh-token",
+         "A failed refresh should preserve the stored refresh token");
+      Assert
+        (To_String (Saved.Access_Token) = "expired-token",
+         "A failed refresh should preserve the stored access token");
+      Assert
+        (Saved.Expires_Ms = 0,
+         "A failed refresh should preserve the stored expiration");
+
+      Restore_Env
+        ("COYOTE_GITHUB_COPILOT_TOKEN_URL", Url_Was_Set, Old_Url);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Stop_Server (Handle);
+         Restore_Env
+           ("COYOTE_GITHUB_COPILOT_TOKEN_URL", Url_Was_Set, Old_Url);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Run_Refresh_Failure_Test;
+
    procedure Test_Load_Credentials (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/pi_acme_llm_auth_test_1";
+      Home         : constant String := "/tmp/coyote_llm_auth_test_1";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
       Old_Home     : constant String :=
@@ -231,7 +404,7 @@ package body LLM_Auth_Tests is
       Cleanup_Test_Home (Home);
       Ensure_Test_Home (Home);
       Write_File
-        (Home & "/.pi/agent/auth.json",
+        (Home & "/.coyote/auth.json",
          Read_File (Auth_Fixture_Path));
 
       Ada.Environment_Variables.Set ("HOME", Home);
@@ -265,7 +438,7 @@ package body LLM_Auth_Tests is
    procedure Test_Save_Credentials (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/pi_acme_llm_auth_test_2";
+      Home         : constant String := "/tmp/coyote_llm_auth_test_2";
       Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
       Old_Home     : constant String :=
@@ -282,14 +455,14 @@ package body LLM_Auth_Tests is
       Cleanup_Test_Home (Home);
       Ensure_Test_Home (Home);
       Write_File
-        (Home & "/.pi/agent/auth.json",
+        (Home & "/.coyote/auth.json",
          Read_File (Auth_Fixture_Path));
 
       Ada.Environment_Variables.Set ("HOME", Home);
       LLM.Auth.Save_Credentials ("github-copilot", Saved);
       Loaded := LLM.Auth.Load_Credentials ("github-copilot");
       Raw_Auth :=
-        To_Unbounded_String (Read_File (Home & "/.pi/agent/auth.json"));
+        To_Unbounded_String (Read_File (Home & "/.coyote/auth.json"));
 
       Assert
         (To_String (Loaded.Refresh_Token) = "saved-refresh",
@@ -305,7 +478,7 @@ package body LLM_Auth_Tests is
         (Contains (To_String (Raw_Auth), """openrouter"""),
          "Save_Credentials should preserve unrelated provider entries");
       Assert
-        (not Ada.Directories.Exists (Home & "/.pi/agent/auth.json.tmp"),
+        (not Ada.Directories.Exists (Home & "/.coyote/auth.json.tmp"),
          "Temporary auth file should not remain after atomic save");
 
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -362,17 +535,17 @@ package body LLM_Auth_Tests is
       pragma Unreferenced (T);
 
       Port           : constant Positive := 18_769;
-      Home           : constant String := "/tmp/pi_acme_llm_auth_test_3";
+      Home           : constant String := "/tmp/coyote_llm_auth_test_3";
       Home_Was_Set   : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
       Old_Home       : constant String :=
         Ada.Environment_Variables.Value ("HOME", "");
       Url_Was_Set    : constant Boolean :=
         Ada.Environment_Variables.Exists
-          ("PI_ACME_GITHUB_COPILOT_TOKEN_URL");
+          ("COYOTE_GITHUB_COPILOT_TOKEN_URL");
       Old_Url        : constant String :=
         Ada.Environment_Variables.Value
-          ("PI_ACME_GITHUB_COPILOT_TOKEN_URL", "");
+          ("COYOTE_GITHUB_COPILOT_TOKEN_URL", "");
       Handle         : Process_Handle := Invalid_Handle;
       Creds          : LLM.Auth.Provider_Credentials :=
         (Credential_Type => To_Unbounded_String ("oauth"),
@@ -386,7 +559,7 @@ package body LLM_Auth_Tests is
 
       Ada.Environment_Variables.Set ("HOME", Home);
       Ada.Environment_Variables.Set
-        ("PI_ACME_GITHUB_COPILOT_TOKEN_URL",
+        ("COYOTE_GITHUB_COPILOT_TOKEN_URL",
          "http://127.0.0.1:18769/copilot_internal/v2/token");
 
       Handle := Spawn_Server (Refresh_Server_Script (Port));
@@ -412,17 +585,67 @@ package body LLM_Auth_Tests is
          "Refresh_Token should persist the refreshed expiration timestamp");
 
       Restore_Env
-        ("PI_ACME_GITHUB_COPILOT_TOKEN_URL", Url_Was_Set, Old_Url);
+        ("COYOTE_GITHUB_COPILOT_TOKEN_URL", Url_Was_Set, Old_Url);
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
       Cleanup_Test_Home (Home);
    exception
       when others =>
          Stop_Server (Handle);
          Restore_Env
-           ("PI_ACME_GITHUB_COPILOT_TOKEN_URL", Url_Was_Set, Old_Url);
+           ("COYOTE_GITHUB_COPILOT_TOKEN_URL", Url_Was_Set, Old_Url);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
          Cleanup_Test_Home (Home);
          raise;
    end Test_Refresh_Token;
+
+   procedure Test_Refresh_Token_Non_200_Raises (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      Run_Refresh_Failure_Test
+        (Home                  => "/tmp/coyote_llm_auth_test_4",
+         Port                  => 18_770,
+         Status_Code           => 403,
+         Response_Body         => "{""error"":""forbidden""}",
+         Expected_Message_Part => "HTTP 403");
+   end Test_Refresh_Token_Non_200_Raises;
+
+   procedure Test_Refresh_Token_Invalid_JSON_Raises (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      Run_Refresh_Failure_Test
+        (Home                  => "/tmp/coyote_llm_auth_test_5",
+         Port                  => 18_771,
+         Status_Code           => 200,
+         Response_Body         => "not valid json",
+         Expected_Message_Part =>
+           "Invalid GitHub Copilot token refresh response",
+         Content_Type          => "text/plain");
+   end Test_Refresh_Token_Invalid_JSON_Raises;
+
+   procedure Test_Refresh_Token_Missing_Token_Field_Raises
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+   begin
+      Run_Refresh_Failure_Test
+        (Home                  => "/tmp/coyote_llm_auth_test_6",
+         Port                  => 18_772,
+         Status_Code           => 200,
+         Response_Body         => "{""expires_at"":9999999999}",
+         Expected_Message_Part => "missing fields");
+   end Test_Refresh_Token_Missing_Token_Field_Raises;
+
+   procedure Test_Refresh_Token_Missing_Expires_At_Field_Raises
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+   begin
+      Run_Refresh_Failure_Test
+        (Home                  => "/tmp/coyote_llm_auth_test_7",
+         Port                  => 18_773,
+         Status_Code           => 200,
+         Response_Body         => "{""token"":""abc123""}",
+         Expected_Message_Part => "missing fields");
+   end Test_Refresh_Token_Missing_Expires_At_Field_Raises;
 
 end LLM_Auth_Tests;

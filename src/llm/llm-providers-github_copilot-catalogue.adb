@@ -1,11 +1,10 @@
 --  LLM.Providers.GitHub_Copilot.Catalogue body.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Calendar;
 with Ada.Directories;
-with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
@@ -13,6 +12,7 @@ with GNAT.OS_Lib;
 with GNATCOLL.JSON;
 with LLM.Auth.GitHub_Copilot;
 with LLM.HTTP;
+with LLM.Settings;
 
 package body LLM.Providers.GitHub_Copilot.Catalogue is
 
@@ -24,18 +24,8 @@ package body LLM.Providers.GitHub_Copilot.Catalogue is
       Models : Catalogue_Vectors.Vector;
    end record;
 
-   function Agent_Dir return String is
-      Home : constant String := Ada.Environment_Variables.Value ("HOME", "");
-   begin
-      if Home'Length = 0 then
-         return "";
-      end if;
-
-      return Home & "/.pi/agent";
-   end Agent_Dir;
-
    function Cache_Path return String is
-      Base : constant String := Agent_Dir;
+      Base : constant String := LLM.Settings.Agent_Dir;
    begin
       if Base'Length = 0 then
          return "";

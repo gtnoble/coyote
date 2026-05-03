@@ -78,7 +78,7 @@ package body LLM_GitHub_Copilot_Tests is
 
    procedure Ensure_Test_Home (Home : String) is
    begin
-      Ada.Directories.Create_Path (Home & "/.pi/agent");
+      Ada.Directories.Create_Path (Home & "/.coyote");
    end Ensure_Test_Home;
 
    procedure Delete_If_Exists (Path : String) is
@@ -92,7 +92,7 @@ package body LLM_GitHub_Copilot_Tests is
    end Delete_If_Exists;
 
    procedure Cleanup_Test_Home (Home : String) is
-      Agent_Dir : constant String := Home & "/.pi/agent";
+      Agent_Dir : constant String := Home & "/.coyote";
       Pi_Dir    : constant String := Home & "/.pi";
    begin
       Delete_If_Exists (Agent_Dir & "/auth.json");
@@ -188,7 +188,7 @@ package body LLM_GitHub_Copilot_Tests is
    procedure Write_Credentials (Home : String) is
    begin
       Write_File
-         (Home & "/.pi/agent/auth.json",
+         (Home & "/.coyote/auth.json",
           "{""github-copilot"":{"
           & """type"":""oauth"","
           & """refresh"":""fixture-refresh"","
@@ -196,10 +196,21 @@ package body LLM_GitHub_Copilot_Tests is
           & """expires"":9999999999000}}");
    end Write_Credentials;
 
+   procedure Write_Expired_Credentials (Home : String) is
+   begin
+      Write_File
+         (Home & "/.coyote/auth.json",
+          "{""github-copilot"":{"
+          & """type"":""oauth"","
+          & """refresh"":""refresh-token"","
+          & """access"":""expired-token"","
+          & """expires"":0}}");
+   end Write_Expired_Credentials;
+
    procedure Write_Cache (Home : String; Base_Url : String) is
    begin
       Write_File
-         (Home & "/.pi/agent/github_copilot_models_cache.json",
+         (Home & "/.coyote/github_copilot_models_cache.json",
        "{""fetched_at"":" & Long_Long_Image (Current_Unix_S)
        & ",""base_url"":""" & Base_Url & """,""data"":"
        & Fixture_Data_Array & "}");
@@ -246,6 +257,27 @@ package body LLM_GitHub_Copilot_Tests is
 
       return Default;
    end Get_String_Field;
+
+   function Get_Natural_Field
+      (Value   : GNATCOLL.JSON.JSON_Value;
+     Field   : String;
+     Default : Natural := 0) return Natural
+   is
+      Raw : Long_Integer;
+   begin
+      if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
+         and then Value.Has_Field (Field)
+         and then Value.Get (Field).Kind = GNATCOLL.JSON.JSON_Int_Type
+      then
+         Raw := Value.Get (Field).Get;
+
+         if Raw >= 0 then
+            return Natural (Raw);
+         end if;
+      end if;
+
+      return Default;
+   end Get_Natural_Field;
 
    function Build_User_Messages return LLM.Types.Message_Vectors.Vector is
       Messages : LLM.Types.Message_Vectors.Vector;
@@ -456,6 +488,126 @@ package body LLM_GitHub_Copilot_Tests is
          & "s.server_close()" & ASCII.LF;
    end OpenAI_Server_Script;
 
+   function Refresh_Then_Send_Server_Script
+      (Port         : Positive;
+     Capture_Path : String;
+     Fixture_File : String) return String
+   is
+   begin
+      return
+         "import http.server, json, pathlib, time" & ASCII.LF
+         & "capture = pathlib.Path('" & Capture_Path & "')" & ASCII.LF
+         & "fixture = pathlib.Path('" & Fixture_File & "')" & ASCII.LF
+         & "state = {" & ASCII.LF
+         & "    'token_calls': 0," & ASCII.LF
+         & "    'models_calls': 0," & ASCII.LF
+         & "    'message_calls': 0," & ASCII.LF
+         & "    'models_authorization': ''," & ASCII.LF
+         & "    'message_authorization': ''}" & ASCII.LF
+         & "def save():" & ASCII.LF
+         & "    capture.write_text(json.dumps(state))" & ASCII.LF
+         & "events = [" & ASCII.LF
+         & "    ('message_start', {'type': 'message_start', 'message': {"
+         & "'id': 'msg_refresh', 'type': 'message', 'role': 'assistant',"
+         & " 'content': [], 'usage': {'input_tokens': 1,"
+         & " 'output_tokens': 0}}})," & ASCII.LF
+         & "    ('content_block_start', {'type': 'content_block_start',"
+         & " 'index': 0, 'content_block': {'type': 'text'}})," & ASCII.LF
+         & "    ('content_block_delta', {'type': 'content_block_delta',"
+         & " 'index': 0, 'delta': {'type': 'text_delta',"
+         & " 'text': 'Fresh Claude'}})," & ASCII.LF
+         & "    ('content_block_stop', {'type': 'content_block_stop',"
+         & " 'index': 0})," & ASCII.LF
+         & "    ('message_delta', {'type': 'message_delta', 'delta': {"
+         & "'stop_reason': 'end_turn'}, 'usage': {'output_tokens': 2}}),"
+         & ASCII.LF
+         & "    ('message_stop', {'type': 'message_stop'})]" & ASCII.LF
+         & "payload = ''.join(" & ASCII.LF
+         & "    'event: ' + name + '\n' + 'data: ' + json.dumps(data)"
+         & " + '\n\n' for name, data in events).encode()" & ASCII.LF
+         & "class S(http.server.HTTPServer):" & ASCII.LF
+         & "    allow_reuse_address = True" & ASCII.LF
+         & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
+         & "    def do_GET(self):" & ASCII.LF
+         & "        try:" & ASCII.LF
+         & "            if self.path == '/copilot_internal/v2/token':"
+         & ASCII.LF
+         & "                state['token_calls'] += 1" & ASCII.LF
+         & "                save()" & ASCII.LF
+         & "                body = json.dumps({'token': 'fresh_token_abc',"
+         & " 'expires_at': int(time.time()) + 7200})"
+         & ".encode()" & ASCII.LF
+         & "                self.send_response(200)" & ASCII.LF
+         & "                self.send_header('Content-Type', "
+         & "'application/json')" & ASCII.LF
+         & "                self.send_header('Content-Length', str(len(body)))"
+         & ASCII.LF
+         & "                self.end_headers()" & ASCII.LF
+         & "                self.wfile.write(body)" & ASCII.LF
+         & "                self.wfile.flush()" & ASCII.LF
+         & "            elif self.path == '/models':" & ASCII.LF
+         & "                state['models_calls'] += 1" & ASCII.LF
+         & "                state['models_authorization'] = "
+         & "self.headers.get('Authorization', '')" & ASCII.LF
+         & "                save()" & ASCII.LF
+         & "                body = fixture.read_bytes()" & ASCII.LF
+         & "                self.send_response(200)" & ASCII.LF
+         & "                self.send_header('Content-Type', "
+         & "'application/json')" & ASCII.LF
+         & "                self.send_header('Content-Length', str(len(body)))"
+         & ASCII.LF
+         & "                self.end_headers()" & ASCII.LF
+         & "                self.wfile.write(body)" & ASCII.LF
+         & "                self.wfile.flush()" & ASCII.LF
+         & "            else:" & ASCII.LF
+         & "                self.send_response(404)" & ASCII.LF
+         & "                self.end_headers()" & ASCII.LF
+         & "        except Exception as exc:" & ASCII.LF
+         & "            self.send_response(500)" & ASCII.LF
+         & "            self.send_header('Content-Type', 'text/plain')"
+         & ASCII.LF
+         & "            self.end_headers()" & ASCII.LF
+         & "            self.wfile.write(str(exc).encode())" & ASCII.LF
+         & "    def do_POST(self):" & ASCII.LF
+         & "        try:" & ASCII.LF
+         & "            if self.path != '/v1/messages':" & ASCII.LF
+         & "                self.send_response(404)" & ASCII.LF
+         & "                self.end_headers()" & ASCII.LF
+         & "                return" & ASCII.LF
+         & "            n = int(self.headers.get('Content-Length', '0'))"
+         & ASCII.LF
+         & "            json.loads(self.rfile.read(n))" & ASCII.LF
+         & "            state['message_calls'] += 1" & ASCII.LF
+         & "            state['message_authorization'] = "
+         & "self.headers.get('Authorization', '')" & ASCII.LF
+         & "            save()" & ASCII.LF
+         & "            self.send_response(200)" & ASCII.LF
+         & "            self.send_header('Content-Type', 'text/event-stream')"
+         & ASCII.LF
+         & "            self.send_header('Content-Length', str(len(payload)))"
+         & ASCII.LF
+         & "            self.end_headers()" & ASCII.LF
+         & "            self.wfile.write(payload)" & ASCII.LF
+         & "            self.wfile.flush()" & ASCII.LF
+         & "        except Exception as exc:" & ASCII.LF
+         & "            self.send_response(500)" & ASCII.LF
+         & "            self.send_header('Content-Type', 'text/plain')"
+         & ASCII.LF
+         & "            self.end_headers()" & ASCII.LF
+         & "            self.wfile.write(str(exc).encode())" & ASCII.LF
+         & "    def log_message(self, *a): pass" & ASCII.LF
+         & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
+         & ASCII.LF
+         & "s.timeout = 1" & ASCII.LF
+         & "for _ in range(10):" & ASCII.LF
+         & "    if state['token_calls'] and state['models_calls'] and"
+         & " state['message_calls']:" & ASCII.LF
+         & "        break" & ASCII.LF
+         & "    s.handle_request()" & ASCII.LF
+         & "save()" & ASCII.LF
+         & "s.server_close()" & ASCII.LF;
+   end Refresh_Then_Send_Server_Script;
+
    procedure Run_Case
       (Home         : String;
      Base_Url     : String;
@@ -475,10 +627,10 @@ package body LLM_GitHub_Copilot_Tests is
          Ada.Environment_Variables.Value ("HOME", "");
       Base_Was_Set    : constant Boolean :=
          Ada.Environment_Variables.Exists
-            ("PI_ACME_GITHUB_COPILOT_BASE_URL");
+            ("COYOTE_GITHUB_COPILOT_BASE_URL");
       Old_Base_Url    : constant String :=
          Ada.Environment_Variables.Value
-            ("PI_ACME_GITHUB_COPILOT_BASE_URL", "");
+            ("COYOTE_GITHUB_COPILOT_BASE_URL", "");
       Server_Script   : constant String :=
          (if Mode = Anthropic_Mode
        then Anthropic_Server_Script (Port, Capture_Path)
@@ -493,7 +645,7 @@ package body LLM_GitHub_Copilot_Tests is
 
       Ada.Environment_Variables.Set ("HOME", Home);
       Ada.Environment_Variables.Set
-         ("PI_ACME_GITHUB_COPILOT_BASE_URL", Base_Url);
+         ("COYOTE_GITHUB_COPILOT_BASE_URL", Base_Url);
 
       Handle := Spawn_Server (Server_Script);
       delay 0.05;
@@ -507,14 +659,14 @@ package body LLM_GitHub_Copilot_Tests is
       Request := Load_Capture (Capture_Path);
 
       Restore_Env
-         ("PI_ACME_GITHUB_COPILOT_BASE_URL", Base_Was_Set, Old_Base_Url);
+         ("COYOTE_GITHUB_COPILOT_BASE_URL", Base_Was_Set, Old_Base_Url);
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
       Cleanup_Test_Home (Home);
    exception
       when others =>
          Stop_Server (Handle);
          Restore_Env
-            ("PI_ACME_GITHUB_COPILOT_BASE_URL", Base_Was_Set, Old_Base_Url);
+            ("COYOTE_GITHUB_COPILOT_BASE_URL", Base_Was_Set, Old_Base_Url);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
          Cleanup_Test_Home (Home);
          raise;
@@ -527,9 +679,9 @@ package body LLM_GitHub_Copilot_Tests is
       Headers : GNATCOLL.JSON.JSON_Value;
    begin
       Run_Case
-         (Home         => "/tmp/pi_acme_github_copilot_test_1",
+         (Home         => "/tmp/coyote_github_copilot_test_1",
        Base_Url     => "http://127.0.0.1:18790",
-       Capture_Path => "/tmp/pi_acme_github_copilot_capture_1.json",
+       Capture_Path => "/tmp/coyote_github_copilot_capture_1.json",
        Port         => 18_790,
        Model_Id     => "claude-sonnet-4.6",
        Mode         => Anthropic_Mode,
@@ -573,9 +725,9 @@ package body LLM_GitHub_Copilot_Tests is
       Headers : GNATCOLL.JSON.JSON_Value;
    begin
       Run_Case
-         (Home         => "/tmp/pi_acme_github_copilot_test_2",
+         (Home         => "/tmp/coyote_github_copilot_test_2",
        Base_Url     => "http://127.0.0.1:18791",
-       Capture_Path => "/tmp/pi_acme_github_copilot_capture_2.json",
+       Capture_Path => "/tmp/coyote_github_copilot_capture_2.json",
        Port         => 18_791,
        Model_Id     => "claude-sonnet-4.6",
        Mode         => Anthropic_Mode,
@@ -596,9 +748,9 @@ package body LLM_GitHub_Copilot_Tests is
       Headers : GNATCOLL.JSON.JSON_Value;
    begin
       Run_Case
-         (Home         => "/tmp/pi_acme_github_copilot_test_3",
+         (Home         => "/tmp/coyote_github_copilot_test_3",
        Base_Url     => "http://127.0.0.1:18792",
-       Capture_Path => "/tmp/pi_acme_github_copilot_capture_3.json",
+       Capture_Path => "/tmp/coyote_github_copilot_capture_3.json",
        Port         => 18_792,
        Model_Id     => "gpt-4o",
        Mode         => OpenAI_Mode,
@@ -618,9 +770,9 @@ package body LLM_GitHub_Copilot_Tests is
       Request : GNATCOLL.JSON.JSON_Value;
    begin
       Run_Case
-         (Home         => "/tmp/pi_acme_github_copilot_test_4",
+         (Home         => "/tmp/coyote_github_copilot_test_4",
        Base_Url     => "http://127.0.0.1:18793",
-       Capture_Path => "/tmp/pi_acme_github_copilot_capture_4.json",
+       Capture_Path => "/tmp/coyote_github_copilot_capture_4.json",
        Port         => 18_793,
        Model_Id     => "claude-sonnet-4.6",
        Mode         => Anthropic_Mode,
@@ -641,9 +793,9 @@ package body LLM_GitHub_Copilot_Tests is
       Request : GNATCOLL.JSON.JSON_Value;
    begin
       Run_Case
-         (Home         => "/tmp/pi_acme_github_copilot_test_5",
+         (Home         => "/tmp/coyote_github_copilot_test_5",
        Base_Url     => "http://127.0.0.1:18794",
-       Capture_Path => "/tmp/pi_acme_github_copilot_capture_5.json",
+       Capture_Path => "/tmp/coyote_github_copilot_capture_5.json",
        Port         => 18_794,
        Model_Id     => "gpt-4o",
        Mode         => OpenAI_Mode,
@@ -655,5 +807,107 @@ package body LLM_GitHub_Copilot_Tests is
        "GPT models should use the OpenAI chat completions endpoint");
       Assert (To_String (Last_Text) = "GPT", "Expected OpenAI text delta");
    end Test_Send_Selects_OpenAI_Path;
+
+   procedure Test_Copilot_Refreshes_Expired_Token_Then_Sends
+      (T : in out Test)
+   is
+      pragma Unreferenced (T);
+
+      Port           : constant Positive := 18_795;
+      Home           : constant String :=
+         "/tmp/coyote_github_copilot_test_6";
+      Base_Url       : constant String := "http://127.0.0.1:18795";
+      Capture_Path   : constant String :=
+         "/tmp/coyote_github_copilot_capture_6.json";
+      Handle         : Process_Handle := Invalid_Handle;
+      Provider       : LLM.Providers.GitHub_Copilot.Provider :=
+         LLM.Providers.GitHub_Copilot.Create;
+      Home_Was_Set   : constant Boolean :=
+         Ada.Environment_Variables.Exists ("HOME");
+      Old_Home       : constant String :=
+         Ada.Environment_Variables.Value ("HOME", "");
+      Base_Was_Set   : constant Boolean :=
+         Ada.Environment_Variables.Exists
+            ("COYOTE_GITHUB_COPILOT_BASE_URL");
+      Old_Base_Url   : constant String :=
+         Ada.Environment_Variables.Value
+            ("COYOTE_GITHUB_COPILOT_BASE_URL", "");
+      Token_Was_Set  : constant Boolean :=
+         Ada.Environment_Variables.Exists
+            ("COYOTE_GITHUB_COPILOT_TOKEN_URL");
+      Old_Token_Url  : constant String :=
+         Ada.Environment_Variables.Value
+            ("COYOTE_GITHUB_COPILOT_TOKEN_URL", "");
+      Request        : GNATCOLL.JSON.JSON_Value;
+   begin
+      Reset_Collector;
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+      Write_Expired_Credentials (Home);
+      Delete_If_Exists (Capture_Path);
+
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Set
+         ("COYOTE_GITHUB_COPILOT_BASE_URL", Base_Url);
+      Ada.Environment_Variables.Set
+         ("COYOTE_GITHUB_COPILOT_TOKEN_URL",
+          Base_Url & "/copilot_internal/v2/token");
+
+      Handle := Spawn_Server
+         (Refresh_Then_Send_Server_Script
+             (Port         => Port,
+              Capture_Path => Capture_Path,
+              Fixture_File => Fixture_Path));
+      delay 0.05;
+
+      Send_With_Retry
+         (P        => Provider,
+       Model_Id => "claude-sonnet-4.6",
+       Messages => Build_User_Messages);
+
+      Stop_Server (Handle);
+      Request := Load_Capture (Capture_Path);
+
+      Assert
+         (To_String (Last_Text) = "Fresh Claude",
+          "Expired tokens should be refreshed before the Claude send");
+      Assert
+         (Get_Natural_Field (Request, "token_calls") = 1,
+          "Provider should refresh the expired Copilot token exactly once");
+      Assert
+         (Get_Natural_Field (Request, "models_calls") = 1,
+          "Provider should fetch the live Copilot catalogue");
+      Assert
+         (Get_Natural_Field (Request, "message_calls") = 1,
+          "Provider should send exactly one Anthropic request");
+      Assert
+         (Get_String_Field (Request, "models_authorization")
+            = "Bearer fresh_token_abc",
+          "Catalogue fetch should use the refreshed access token");
+      Assert
+         (Get_String_Field (Request, "message_authorization")
+            = "Bearer fresh_token_abc",
+          "Claude request should use the refreshed access token");
+
+      Restore_Env
+         ("COYOTE_GITHUB_COPILOT_TOKEN_URL", Token_Was_Set, Old_Token_Url);
+      Restore_Env
+         ("COYOTE_GITHUB_COPILOT_BASE_URL", Base_Was_Set, Old_Base_Url);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+      Delete_If_Exists (Capture_Path);
+   exception
+      when others =>
+         Stop_Server (Handle);
+         Restore_Env
+            ("COYOTE_GITHUB_COPILOT_TOKEN_URL", Token_Was_Set,
+             Old_Token_Url);
+         Restore_Env
+            ("COYOTE_GITHUB_COPILOT_BASE_URL", Base_Was_Set, Old_Base_Url);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         Delete_If_Exists (Capture_Path);
+         raise;
+   end Test_Copilot_Refreshes_Expired_Token_Then_Sends;
 
 end LLM_GitHub_Copilot_Tests;

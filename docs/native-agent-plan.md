@@ -2,7 +2,7 @@
 
 ## 1. Motivation
 
-`pi_acme` currently spawns `pi --mode rpc` as a subprocess and communicates
+`coyote` currently spawns `pi --mode rpc` as a subprocess and communicates
 with it over JSON-line pipes.  This works well but imposes three costs:
 
 - **Deployment dependency** — users must install the Node.js-based `pi` tool
@@ -138,8 +138,8 @@ SSE streaming.
 
 **Optional headers** (added by default):
 ```
-HTTP-Referer: https://github.com/gtnoble/pi_acme
-X-Title: pi_acme
+HTTP-Referer: https://github.com/gtnoble/coyote
+X-Title: coyote
 ```
 
 **Model-selection thinking parameter** (for reasoning models):
@@ -262,13 +262,13 @@ llm-agent-pi_adapter.ads    -- thin JSON bridge to Dispatch_Pi_Event
 ```
 
 Existing packages (`Nine_P.*`, `Acme.*`, `Session_Lister`,
-`Pi_Acme_App.*`) are **unchanged** until Phase 10.
+`Coyote_App.*`) are **unchanged** until Phase 10.
 
 ### 4.2 Integration Strategy — Thin Adapter
 
 `Dispatch_Pi_Event` is ~500 lines of working code.  The adapter converts
 `LLM.Events.Agent_Event'Class` values to the same JSON strings the existing
-dispatcher already parses.  No changes to `Pi_Acme_App.Dispatch`.
+dispatcher already parses.  No changes to `Coyote_App.Dispatch`.
 
 ### 4.3 Task Structure After Migration
 
@@ -290,7 +290,7 @@ Session switching becomes in-process; the `Restart_Loop` is eliminated.
 
 **Build system changes** (no Alire packages required for HTTP):
 
-`pi_acme.gpr`:
+`coyote.gpr`:
 ```ada
 for Languages use ("Ada", "C");
 for Source_Files use (... "thin_curl.c" ...);
@@ -554,8 +554,8 @@ Unit tests:
 1. **Base URL:** `https://openrouter.ai/api/v1` (hardcoded; overrideable).
 2. **Auth header:** `Authorization: Bearer <api_key>` (from settings or
    `OPENROUTER_API_KEY` env var).
-3. **Extra headers:** `HTTP-Referer: https://github.com/gtnoble/pi_acme`,
-   `X-Title: pi_acme`.
+3. **Extra headers:** `HTTP-Referer: https://github.com/gtnoble/coyote`,
+   `X-Title: coyote`.
 4. **Thinking:** `{"reasoning": {"effort": "<low|medium|high>"}}` added when
    thinking level is non-off and model has `Reasoning = True`.
 5. **Provider routing:** pass `{"provider": <routing_prefs>}` when the model
@@ -801,7 +801,7 @@ call; abort; retry on injected 429; `New_Session` resets history.
 - `Load_Messages (Session_Id)` → returns `Message_Vectors.Vector`
 
 The JSONL format must be field-for-field compatible with pi's format so that
-`Session_Lister.Parse_Session_File`, `Pi_Acme_App.History.Render_Session_History`,
+`Session_Lister.Parse_Session_File`, `Coyote_App.History.Render_Session_History`,
 and `Fork_Session` all continue to work unchanged.
 
 Unit tests:
@@ -865,7 +865,7 @@ copilot ID raises Not_Found; `Available_Models` with fixture credentials.
 
 ---
 
-### Phase 10 — `Pi_Acme_App` Integration  *(~3 days)*
+### Phase 10 — `Coyote_App` Integration  *(~3 days)*
 
 **The only phase that changes existing source files.**
 
@@ -874,7 +874,7 @@ New `LLM.Agent.Pi_Adapter`:
   string that `Dispatch_Pi_Event` already handles.
 - One-line per event: `Write (To_Json (Event))` → passed to `Dispatch_Pi_Event`.
 
-Changes to `Pi_Acme_App.Run` only:
+Changes to `Coyote_App.Run` only:
 - Remove `Pi_RPC.Process` and `Pi_Stdout_Task` / `Pi_Stderr_Task`.
 - Add `Agent : LLM.Agent.Session` in place of `Proc : Pi_RPC.Process`.
 - Add `Agent_Task` that calls `Agent.Run_Prompt` and feeds events.
@@ -929,7 +929,7 @@ implemented in Phase 5b for use by the Copilot adapter).  Phase 11 only adds:
 | 7 | Agentic loop | 3 d | None |
 | 8 | Session persistence (write path) | 2 d | None |
 | 9 | Model registry | 1 d | None |
-| 10 | `Pi_Acme_App` integration | 3 d | **Only phase with existing-code risk** |
+| 10 | `Coyote_App` integration | 3 d | **Only phase with existing-code risk** |
 | 11 | Anthropic direct | 1 d | None |
 | 12 | Cleanup + docs | 1 d | Low |
 | | **Total** | **~23 days** | |
@@ -966,7 +966,7 @@ llm (root)
 ├── llm-session_store           (depends on llm-types, session_lister)
 └── llm-agent                   (depends on all of the above)
     └── llm-agent-pi_adapter    (depends on llm-agent, gnatcoll.json,
-                                 pi_acme_app.dispatch types)
+                                 coyote_app.dispatch types)
 ```
 
 ---
@@ -1028,7 +1028,7 @@ the user to run `pi login`.
 
 ## 10. What Stays Unchanged
 
-`Nine_P.*`, `Acme.*`, `Session_Lister` (read path), `Pi_Acme_App.Dispatch`,
-`Pi_Acme_App.History`, `Pi_Acme_App.Utils`, `Pi_Acme_App.App_State`, all tag
+`Nine_P.*`, `Acme.*`, `Session_Lister` (read path), `Coyote_App.Dispatch`,
+`Coyote_App.History`, `Coyote_App.Utils`, `Coyote_App.App_State`, all tag
 commands, all plumb ports, the session listing tool, and the user-visible
 window interface are **identical before and after the migration**.

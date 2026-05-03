@@ -415,8 +415,8 @@ tools use `input_schema` not `parameters`.
 
 1. **Required headers** — every OpenRouter request must include:
    - `Authorization: Bearer <api_key>`
-   - `HTTP-Referer: https://github.com/gtnoble/pi_acme`
-   - `X-Title: pi_acme`
+   - `HTTP-Referer: https://github.com/gtnoble/coyote`
+   - `X-Title: coyote`
    Verify all three are present.
 
 2. **Reasoning injection** — when `Thinking /= Off` and the model has
@@ -464,7 +464,7 @@ tools use `input_schema` not `parameters`.
 
 **Primary files:**
 - `src/llm/llm-agent-pi_adapter.adb`
-- `src/pi_acme_app-dispatch.adb` (the consumer — read but do not modify)
+- `src/coyote_app-dispatch.adb` (the consumer — read but do not modify)
 
 **Method:** For each event type handled in `To_Pi_Json`, cross-check the
 produced JSON against the corresponding handler in `Dispatch_Pi_Event`.
@@ -534,7 +534,7 @@ produced JSON against the corresponding handler in `Dispatch_Pi_Event`.
 **Primary files:**
 - `src/llm/llm-session_store.adb`
 - `src/session_lister.adb` (the reader — check for compatibility)
-- `src/pi_acme_app-history.adb` (the renderer — check for compatibility)
+- `src/coyote_app-history.adb` (the renderer — check for compatibility)
 
 **Method:** For each message type written by `Append_Message`, check that
 `Session_Lister.Parse_Session_File` and `History.Render_Session_History` can

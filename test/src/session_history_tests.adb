@@ -1,6 +1,6 @@
 --  Session_History_Tests body.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with AUnit.Assertions;
@@ -16,8 +16,9 @@ with Nine_P;
 with Nine_P.Client;          use Nine_P.Client;
 with Acme;
 with Acme.Window;
-with Pi_Acme_App;            use Pi_Acme_App;
-with Pi_Acme_App.History;    use Pi_Acme_App.History;
+with Coyote_App;            use Coyote_App;
+with Coyote_App.History;    use Coyote_App.History;
+with Session_Fixture;
 
 package body Session_History_Tests is
 
@@ -31,6 +32,47 @@ package body Session_History_Tests is
    exception
       when others => return False;
    end Acme_Running;
+
+   function Getpid return Integer;
+   pragma Import (C, Getpid, "getpid");
+
+   function PID_Image return String is
+      Image : constant String := Integer'Image (Getpid);
+   begin
+      return Image (Image'First + 1 .. Image'Last);
+   end PID_Image;
+
+   Test_Home_Root : constant String :=
+     "/tmp/session_history_tests_" & PID_Image;
+
+   procedure Restore_Env (Name : String; Was_Set : Boolean; Value : String) is
+   begin
+      if Was_Set then
+         Ada.Environment_Variables.Set (Name, Value);
+      else
+         Ada.Environment_Variables.Clear (Name);
+      end if;
+   end Restore_Env;
+
+   procedure Prepare_Test_Home (Home : String) is
+   begin
+      if Ada.Directories.Exists (Home) then
+         Ada.Directories.Delete_Tree (Home);
+      end if;
+
+      Ada.Directories.Create_Path (Home & "/.coyote");
+      Ada.Environment_Variables.Set ("HOME", Home);
+   end Prepare_Test_Home;
+
+   procedure Cleanup_Test_Home (Home : String) is
+   begin
+      if Ada.Directories.Exists (Home) then
+         Ada.Directories.Delete_Tree (Home);
+      end if;
+   exception
+      when others =>
+         null;
+   end Cleanup_Test_Home;
 
    --  Natural'Image without the leading space.
    function Natural_Image (N : Natural) return String is
@@ -75,7 +117,7 @@ package body Session_History_Tests is
    --  Find_Session_File without interfering with real sessions.
    Sessions_Test_Dir : constant String :=
      Ada.Environment_Variables.Value ("HOME", "")
-     & "/.pi/agent/sessions/--pi-acme-test-render--";
+     & "/.coyote/sessions/--coyote-test-render--";
 
    --  Write a JSONL session file whose filename embeds UUID.
    --  Lines is the full JSONL content supplied by the caller.
@@ -762,5 +804,327 @@ package body Session_History_Tests is
             raise;
       end;
    end Test_Render_Tool_Call_No_URI;
+
+   procedure Test_History_Renders_Native_User_And_Assistant
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Home         : constant String :=
+        Test_Home_Root & "/native-user-assistant";
+      Cwd_Slug     : constant String := "--native-user-assistant--";
+   begin
+      if not Acme_Running then
+         return;
+      end if;
+
+      Prepare_Test_Home (Home);
+      declare
+         Session_UUID : constant String :=
+           Session_Fixture.Create_Native_Session
+             (Home     => Home,
+              Cwd_Slug => Cwd_Slug,
+              Name     => "native user assistant");
+         FS           : aliased Nine_P.Client.Fs :=
+           Ns_Mount ("acme");
+         Win          : Acme.Window.Win :=
+           Acme.Window.New_Win (FS'Access);
+         State        : App_State;
+         Id           : constant String :=
+           Natural_Image (Acme.Window.Id (Win));
+      begin
+         Session_Fixture.Append_User_Message
+           (Home     => Home,
+            Cwd_Slug => Cwd_Slug,
+            UUID     => Session_UUID,
+            Text     => "Native user prompt");
+         Session_Fixture.Append_Assistant_Text
+           (Home     => Home,
+            Cwd_Slug => Cwd_Slug,
+            UUID     => Session_UUID,
+            Text     => "Native assistant reply");
+
+         Render_Session_History (Session_UUID, Win, FS'Access, State);
+
+         declare
+            Body_Text : constant String :=
+              Read_Via_9p ("acme/" & Id & "/body");
+         begin
+            Assert
+              (Contains (Body_Text, "Native user prompt"),
+               "Rendered history should contain the native user text");
+            Assert
+              (Contains (Body_Text, "Native assistant reply"),
+               "Rendered history should contain the native assistant text");
+         end;
+
+         Acme.Window.Ctl (Win, FS'Access, "clean");
+         Acme.Window.Ctl (Win, FS'Access, "del");
+      exception
+         when others =>
+            Acme.Window.Ctl (Win, FS'Access, "clean");
+            Acme.Window.Ctl (Win, FS'Access, "del");
+            raise;
+      end;
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_History_Renders_Native_User_And_Assistant;
+
+   procedure Test_History_Renders_Native_Tool_Call (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Home         : constant String := Test_Home_Root & "/native-tool-call";
+      Cwd_Slug     : constant String := "--native-tool-call--";
+      UC_Check     : constant String :=
+        Character'Val (16#E2#)
+        & Character'Val (16#9C#)
+        & Character'Val (16#93#);
+   begin
+      if not Acme_Running then
+         return;
+      end if;
+
+      Prepare_Test_Home (Home);
+      declare
+         Session_UUID : constant String :=
+           Session_Fixture.Create_Native_Session
+             (Home     => Home,
+              Cwd_Slug => Cwd_Slug,
+              Name     => "native tool call");
+         FS           : aliased Nine_P.Client.Fs :=
+           Ns_Mount ("acme");
+         Win          : Acme.Window.Win :=
+           Acme.Window.New_Win (FS'Access);
+         State        : App_State;
+         Id           : constant String :=
+           Natural_Image (Acme.Window.Id (Win));
+      begin
+         Session_Fixture.Append_User_Message
+           (Home     => Home,
+            Cwd_Slug => Cwd_Slug,
+            UUID     => Session_UUID,
+            Text     => "Inspect file");
+         Session_Fixture.Append_Assistant_Tool_Call
+           (Home      => Home,
+            Cwd_Slug  => Cwd_Slug,
+            UUID      => Session_UUID,
+            Tool_Id   => "tool-call-1",
+            Tool_Name => "read",
+            Args_JSON => "{""path"":""demo.adb""}");
+         Session_Fixture.Append_Tool_Result
+           (Home      => Home,
+            Cwd_Slug  => Cwd_Slug,
+            UUID      => Session_UUID,
+            Tool_Id   => "tool-call-1",
+            Result    => "contents",
+            Is_Error  => False);
+
+         Render_Session_History (Session_UUID, Win, FS'Access, State);
+
+         declare
+            Body_Text : constant String :=
+              Read_Via_9p ("acme/" & Id & "/body");
+         begin
+            Assert
+              (Contains (Body_Text, "read"),
+               "Rendered history should contain the tool name");
+            Assert
+              (Contains (Body_Text, UC_Check),
+               "Rendered history should show a success check mark");
+         end;
+
+         Acme.Window.Ctl (Win, FS'Access, "clean");
+         Acme.Window.Ctl (Win, FS'Access, "del");
+      exception
+         when others =>
+            Acme.Window.Ctl (Win, FS'Access, "clean");
+            Acme.Window.Ctl (Win, FS'Access, "del");
+            raise;
+      end;
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_History_Renders_Native_Tool_Call;
+
+   procedure Test_History_Renders_Native_Model_Change (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Home         : constant String :=
+        Test_Home_Root & "/native-model-change";
+      Cwd_Slug     : constant String := "--native-model-change--";
+   begin
+      if not Acme_Running then
+         return;
+      end if;
+
+      Prepare_Test_Home (Home);
+      declare
+         Session_UUID : constant String :=
+           Session_Fixture.Create_Native_Session
+             (Home     => Home,
+              Cwd_Slug => Cwd_Slug,
+              Name     => "native model change");
+         FS           : aliased Nine_P.Client.Fs :=
+           Ns_Mount ("acme");
+         Win          : Acme.Window.Win :=
+           Acme.Window.New_Win (FS'Access);
+         State        : App_State;
+         Id           : constant String :=
+           Natural_Image (Acme.Window.Id (Win));
+      begin
+         Session_Fixture.Append_Model_Change
+           (Home     => Home,
+            Cwd_Slug => Cwd_Slug,
+            UUID     => Session_UUID,
+            Provider => "anthropic",
+            Model_Id => "claude-native-test");
+
+         Render_Session_History (Session_UUID, Win, FS'Access, State);
+
+         declare
+            Body_Text : constant String :=
+              Read_Via_9p ("acme/" & Id & "/body");
+         begin
+            Assert
+              (Contains (Body_Text, "[Model"),
+               "Rendered history should contain a model marker");
+         end;
+
+         Acme.Window.Ctl (Win, FS'Access, "clean");
+         Acme.Window.Ctl (Win, FS'Access, "del");
+      exception
+         when others =>
+            Acme.Window.Ctl (Win, FS'Access, "clean");
+            Acme.Window.Ctl (Win, FS'Access, "del");
+            raise;
+      end;
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_History_Renders_Native_Model_Change;
+
+   procedure Test_History_Renders_Two_Turn_Session (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Home         : constant String :=
+        Test_Home_Root & "/native-two-turn-session";
+      Cwd_Slug     : constant String := "--native-two-turn-session--";
+   begin
+      if not Acme_Running then
+         return;
+      end if;
+
+      Prepare_Test_Home (Home);
+      declare
+         Session_UUID : constant String :=
+           Session_Fixture.Create_Native_Session
+             (Home     => Home,
+              Cwd_Slug => Cwd_Slug,
+              Name     => "native two turn");
+         FS           : aliased Nine_P.Client.Fs :=
+           Ns_Mount ("acme");
+         Win          : Acme.Window.Win :=
+           Acme.Window.New_Win (FS'Access);
+         State        : App_State;
+         Id           : constant String :=
+           Natural_Image (Acme.Window.Id (Win));
+      begin
+         Session_Fixture.Append_User_Message
+           (Home     => Home,
+            Cwd_Slug => Cwd_Slug,
+            UUID     => Session_UUID,
+            Text     => "Turn one user");
+         Session_Fixture.Append_Assistant_Text
+           (Home     => Home,
+            Cwd_Slug => Cwd_Slug,
+            UUID     => Session_UUID,
+            Text     => "Turn one assistant");
+         Session_Fixture.Append_Turn_End
+           (Home     => Home,
+            Cwd_Slug => Cwd_Slug,
+            UUID     => Session_UUID);
+         Session_Fixture.Append_User_Message
+           (Home     => Home,
+            Cwd_Slug => Cwd_Slug,
+            UUID     => Session_UUID,
+            Text     => "Turn two user");
+         Session_Fixture.Append_Assistant_Text
+           (Home     => Home,
+            Cwd_Slug => Cwd_Slug,
+            UUID     => Session_UUID,
+            Text     => "Turn two assistant");
+
+         Render_Session_History (Session_UUID, Win, FS'Access, State);
+
+         declare
+            Body_Text : constant String :=
+              Read_Via_9p ("acme/" & Id & "/body");
+         begin
+            Assert
+              (Contains (Body_Text, "Turn one user"),
+               "Rendered history should contain the first turn user text");
+            Assert
+              (Contains (Body_Text, "Turn one assistant"),
+               "Rendered history should contain the first turn assistant");
+            Assert
+              (Contains (Body_Text, "Turn two user"),
+               "Rendered history should contain the second turn user text");
+            Assert
+              (Contains (Body_Text, "Turn two assistant"),
+               "Rendered history should contain the second turn assistant");
+            Assert
+              (State.Turn_Count = 2,
+               "Render_Session_History should restore Turn_Count = 2");
+         end;
+
+         Acme.Window.Ctl (Win, FS'Access, "clean");
+         Acme.Window.Ctl (Win, FS'Access, "del");
+      exception
+         when others =>
+            Acme.Window.Ctl (Win, FS'Access, "clean");
+            Acme.Window.Ctl (Win, FS'Access, "del");
+            raise;
+      end;
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_History_Renders_Two_Turn_Session;
 
 end Session_History_Tests;

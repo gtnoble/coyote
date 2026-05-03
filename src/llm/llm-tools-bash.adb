@@ -1,6 +1,6 @@
 --  LLM.Tools.Bash body.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Exceptions;
@@ -11,6 +11,7 @@ with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with GNATCOLL.JSON;
 with GNATCOLL.OS.FS;         use GNATCOLL.OS.FS;
 with GNATCOLL.OS.Process;    use GNATCOLL.OS.Process;
+with LLM.Tools.Internal;
 
 package body LLM.Tools.Bash is
 
@@ -48,7 +49,7 @@ package body LLM.Tools.Bash is
    begin
       Temp_Names.Next (Suffix);
       return
-        "/tmp/pi_acme_bash_tool_"
+        "/tmp/coyote_bash_tool_"
         & Image_Of (Getpid)
         & "_"
         & Image_Of (Integer (Suffix))
@@ -76,7 +77,8 @@ package body LLM.Tools.Bash is
    procedure Execute
      (Args_Json :     String;
       Result    : out Ada.Strings.Unbounded.Unbounded_String;
-      Is_Error  : out Boolean)
+      Is_Error  : out Boolean;
+      Abort_Flg : access LLM.Tools.Abort_Flag := null)
    is
       Parsed : constant GNATCOLL.JSON.Read_Result :=
         GNATCOLL.JSON.Read (Args_Json);
@@ -199,10 +201,30 @@ package body LLM.Tools.Bash is
 
          Read_Output_Loop :
          loop
+            exit Read_Output_Loop when
+              Abort_Flg /= null and then Abort_Flg.Requested;
             Bytes_Read := Read (Output_R, Chunk);
             exit Read_Output_Loop when Bytes_Read <= 0;
             Capture (Chunk (1 .. Bytes_Read));
          end loop Read_Output_Loop;
+
+         --  If aborted, terminate the child process before waiting.
+         if Abort_Flg /= null and then Abort_Flg.Requested then
+            if Handle /= Invalid_Handle then
+               declare
+                  Dummy : Integer;
+               begin
+                  Dummy :=
+                    LLM.Tools.Internal.C_Kill (Integer (Handle), 15);
+               end;
+            end if;
+            Close (Output_R);
+            Output_R := Invalid_FD;
+            Exit_Code := Wait (Handle);
+            Set_Error ("aborted", Result, Is_Error);
+            Cleanup;
+            return;
+         end if;
 
          Close (Output_R);
          Output_R := Invalid_FD;

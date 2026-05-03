@@ -1,6 +1,6 @@
 --  LLM.Providers.OpenRouter body.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Environment_Variables;
@@ -14,10 +14,10 @@ package body LLM.Providers.OpenRouter is
 
    function Default_Base_Url return String is
    begin
-      if Ada.Environment_Variables.Exists ("PI_ACME_OPENROUTER_BASE_URL") then
+      if Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL") then
          declare
             Value : constant String :=
-               Ada.Environment_Variables.Value ("PI_ACME_OPENROUTER_BASE_URL");
+               Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL");
          begin
             if Value'Length > 0 then
                return Value;
@@ -33,8 +33,8 @@ package body LLM.Providers.OpenRouter is
       return Result : Provider do
          Set_Base_Url (Result, Default_Base_Url);
          Set_Api_Key (Result, Api_Key);
-         Add_Header (Result, "HTTP-Referer", "https://github.com/gtnoble/pi_acme");
-         Add_Header (Result, "X-Title", "pi_acme");
+         Add_Header (Result, "HTTP-Referer", "https://github.com/gtnoble/coyote");
+         Add_Header (Result, "X-Title", "coyote");
       end return;
    end Create;
 

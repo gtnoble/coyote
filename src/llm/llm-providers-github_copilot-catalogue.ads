@@ -1,9 +1,9 @@
 --  LLM.Providers.GitHub_Copilot.Catalogue -- live Copilot model list.
 --
 --  Loads the authenticated GitHub Copilot model catalogue, with a 24-hour
---  disk cache stored under ~/.pi/agent.
+--  disk cache stored under ~/.coyote.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Containers.Vectors;

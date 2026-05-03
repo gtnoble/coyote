@@ -6,7 +6,7 @@
 --
 --  Reference: http://man.cat-v.org/plan_9/5/intro
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Containers.Vectors;

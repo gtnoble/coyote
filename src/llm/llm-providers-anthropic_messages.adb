@@ -1,6 +1,6 @@
 --  LLM.Providers.Anthropic_Messages body.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Characters.Handling;
@@ -335,7 +335,7 @@ package body LLM.Providers.Anthropic_Messages is
       Content : GNATCOLL.JSON.JSON_Array := GNATCOLL.JSON.Empty_Array;
    begin
       case Msg.Role is
-         when LLM.Types.User =>
+         when LLM.Types.User | LLM.Types.Compaction_Summary =>
             Message.Set_Field ("role", "user");
 
             for Block of Msg.Content loop

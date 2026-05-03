@@ -5,7 +5,7 @@
 --  All tests are guarded with an Acme_Running check and are silently
 --  skipped when acme is not available.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with AUnit;
@@ -47,5 +47,21 @@ package Session_History_Tests is
 
    --  Tool call header has no URI when toolCallId is absent.
    procedure Test_Render_Tool_Call_No_URI  (T : in out Test);
+
+   --  Native-format session renders a user message and assistant text.
+   procedure Test_History_Renders_Native_User_And_Assistant
+     (T : in out Test);
+
+   --  Native-format assistant tool call renders its tool name and success.
+   procedure Test_History_Renders_Native_Tool_Call
+     (T : in out Test);
+
+   --  Native-format model_change event renders a model transition line.
+   procedure Test_History_Renders_Native_Model_Change
+     (T : in out Test);
+
+   --  Two native turns render fully and restore State.Turn_Count.
+   procedure Test_History_Renders_Two_Turn_Session
+     (T : in out Test);
 
 end Session_History_Tests;

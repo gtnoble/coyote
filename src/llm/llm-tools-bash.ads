@@ -3,7 +3,7 @@
 --  Provides the built-in bash tool descriptor and its JSON-argument
 --  executor.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Strings.Unbounded;
@@ -33,6 +33,7 @@ package LLM.Tools.Bash is
    procedure Execute
      (Args_Json :     String;
       Result    : out Ada.Strings.Unbounded.Unbounded_String;
-      Is_Error  : out Boolean);
+      Is_Error  : out Boolean;
+      Abort_Flg : access LLM.Tools.Abort_Flag := null);
 
 end LLM.Tools.Bash;

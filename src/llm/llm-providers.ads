@@ -4,7 +4,7 @@
 --  provider adapters such as OpenAI Chat Completions and Anthropic
 --  Messages.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with LLM.Events;

@@ -1,14 +1,103 @@
 with AUnit.Assertions;
+with Ada.Containers;
 with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
+with LLM.Session_Store;
+with LLM.Types;
+with Session_Fixture;
 with Session_Lister;        use Session_Lister;
 
 package body Session_Lister_Tests is
 
    use AUnit.Assertions;
+   use type Ada.Containers.Count_Type;
+   use type LLM.Types.Role;
+
+   function Getpid return Integer;
+   pragma Import (C, Getpid, "getpid");
+
+   function PID_Image return String is
+      Image : constant String := Integer'Image (Getpid);
+   begin
+      return Image (Image'First + 1 .. Image'Last);
+   end PID_Image;
+
+   function Long_Long_Image (Value : Long_Long_Integer) return String is
+      Image : constant String := Long_Long_Integer'Image (Value);
+   begin
+      return Image (Image'First + 1 .. Image'Last);
+   end Long_Long_Image;
+
+   Test_Home_Root : constant String :=
+     "/tmp/session_lister_tests_" & PID_Image;
+
+   procedure Restore_Env (Name : String; Was_Set : Boolean; Value : String) is
+   begin
+      if Was_Set then
+         Ada.Environment_Variables.Set (Name, Value);
+      else
+         Ada.Environment_Variables.Clear (Name);
+      end if;
+   end Restore_Env;
+
+   procedure Prepare_Test_Home (Home : String) is
+   begin
+      if Ada.Directories.Exists (Home) then
+         Ada.Directories.Delete_Tree (Home);
+      end if;
+
+      Ada.Directories.Create_Path (Home & "/.coyote");
+      Ada.Environment_Variables.Set ("HOME", Home);
+   end Prepare_Test_Home;
+
+   procedure Cleanup_Test_Home (Home : String) is
+   begin
+      if Ada.Directories.Exists (Home) then
+         Ada.Directories.Delete_Tree (Home);
+      end if;
+   exception
+      when others =>
+         null;
+   end Cleanup_Test_Home;
+
+   procedure Write_File (Path : String; Content : String) is
+      F : Ada.Text_IO.File_Type;
+   begin
+      Ada.Text_IO.Create (F, Ada.Text_IO.Out_File, Path);
+      Ada.Text_IO.Put (F, Content);
+      Ada.Text_IO.Close (F);
+   exception
+      when others =>
+         if Ada.Text_IO.Is_Open (F) then
+            Ada.Text_IO.Close (F);
+         end if;
+         raise;
+   end Write_File;
+
+   procedure Rewrite_Native_Header
+     (Home       : String;
+      Cwd_Slug   : String;
+      UUID       : String;
+      Name       : String;
+      Created_At : Long_Long_Integer)
+   is
+      Path : constant String :=
+        Session_Fixture.Session_File_Path (Home, Cwd_Slug, UUID);
+   begin
+      Write_File
+        (Path,
+         "{""version"":1,""id"":""" & UUID & ""","
+         & """createdAt"":" & Long_Long_Image (Created_At)
+         & ",""workDir"":""" & Cwd_Slug & """}"
+         & ASCII.LF
+         & "{""role"":""session_info"",""name"":""" & Name
+         & """,""timestamp"":" & Long_Long_Image (Created_At)
+         & "}"
+         & ASCII.LF);
+   end Rewrite_Native_Header;
 
    --  ── Encode_Cwd ────────────────────────────────────────────────────────
 
@@ -17,8 +106,8 @@ package body Session_Lister_Tests is
    begin
       Assert (Encode_Cwd ("/home/user/proj") = "--home-user-proj--",
               "Absolute path encoding");
-      Assert (Encode_Cwd ("/home/gtnoble/Projects/pi_acme")
-              = "--home-gtnoble-Projects-pi_acme--",
+      Assert (Encode_Cwd ("/home/gtnoble/Projects/coyote")
+              = "--home-gtnoble-Projects-coyote--",
               "Deeper absolute path");
    end Test_Encode_Cwd_Absolute;
 
@@ -170,16 +259,16 @@ package body Session_Lister_Tests is
    --  ── Find_Session_File ─────────────────────────────────────────────────
    --
    --  These tests create temporary JSONL files under a dedicated test slug
-   --  inside $HOME/.pi/agent/sessions/ and clean them up afterward.
+   --  inside $HOME/.coyote/sessions/ and clean them up afterward.
 
    --  Directory slug used exclusively by these tests.
    Sessions_Test_Dir_A : constant String :=
      Ada.Environment_Variables.Value ("HOME", "")
-     & "/.pi/agent/sessions/--pi-acme-test--";
+     & "/.coyote/sessions/--coyote-test--";
 
    Sessions_Test_Dir_B : constant String :=
      Ada.Environment_Variables.Value ("HOME", "")
-     & "/.pi/agent/sessions/--pi-acme-test-B--";
+     & "/.coyote/sessions/--coyote-test-B--";
 
    --  Create JSONL file containing UUID in its name under Dir.
    --  Returns the full path of the created file.
@@ -260,10 +349,10 @@ package body Session_Lister_Tests is
    --  Test directory used for fork source files.
    Sessions_Fork_Dir : constant String :=
      Ada.Environment_Variables.Value ("HOME", "")
-     & "/.pi/agent/sessions/--pi-acme-fork-test--";
+     & "/.coyote/sessions/--coyote-fork-test--";
 
    --  Target CWD for forked sessions (maps to the fork test dir).
-   Fork_Target_Cwd : constant String := "/pi-acme-fork-test";
+   Fork_Target_Cwd : constant String := "/coyote-fork-test";
 
    --  Build a two-turn session JSONL string.
    --  Turn 1: user "Hello" / assistant "World"
@@ -440,5 +529,202 @@ package body Session_Lister_Tests is
         (Fork_Session ("no-such-uuid-xyzzy-999999", 1, Fork_Target_Cwd) = "",
          "Fork with non-existent source should return empty string");
    end Test_Fork_Session_Missing_Src;
+
+   procedure Test_List_Sessions_Newest_First (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Home         : constant String :=
+        Test_Home_Root & "/list-sessions-newest-first";
+      Cwd          : constant String := "/tmp/session-lister-newest-first";
+      Cwd_Slug     : constant String := Encode_Cwd (Cwd);
+      Newest_Ms    : constant Long_Long_Integer := 1_735_689_600_000;
+      Middle_Ms    : constant Long_Long_Integer := 1_704_067_200_000;
+      Oldest_Ms    : constant Long_Long_Integer := 1_672_531_200_000;
+   begin
+      Prepare_Test_Home (Home);
+      declare
+         Middle_UUID : constant String :=
+           Session_Fixture.Create_Native_Session
+             (Home     => Home,
+              Cwd_Slug => Cwd_Slug,
+              Name     => "middle");
+         Newest_UUID : constant String :=
+           Session_Fixture.Create_Native_Session
+             (Home     => Home,
+              Cwd_Slug => Cwd_Slug,
+              Name     => "newest");
+         Oldest_UUID : constant String :=
+           Session_Fixture.Create_Native_Session
+             (Home     => Home,
+              Cwd_Slug => Cwd_Slug,
+              Name     => "oldest");
+         Sessions    : Session_Vectors.Vector;
+      begin
+         Rewrite_Native_Header
+           (Home       => Home,
+            Cwd_Slug   => Cwd_Slug,
+            UUID       => Middle_UUID,
+            Name       => "middle",
+            Created_At => Middle_Ms);
+         Rewrite_Native_Header
+           (Home       => Home,
+            Cwd_Slug   => Cwd_Slug,
+            UUID       => Newest_UUID,
+            Name       => "newest",
+            Created_At => Newest_Ms);
+         Rewrite_Native_Header
+           (Home       => Home,
+            Cwd_Slug   => Cwd_Slug,
+            UUID       => Oldest_UUID,
+            Name       => "oldest",
+            Created_At => Oldest_Ms);
+
+         Sessions := List_Sessions (Cwd);
+
+         Assert (Sessions.Length = 3, "Three native sessions should list");
+         Assert
+           (To_String (Sessions.Element (0).UUID) = Newest_UUID,
+            "List_Sessions should sort native sessions newest first");
+      end;
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_List_Sessions_Newest_First;
+
+   procedure Test_List_Sessions_Skips_Invalid_Files (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Home         : constant String :=
+        Test_Home_Root & "/list-sessions-skips-invalid";
+      Cwd          : constant String := "/tmp/session-lister-invalid-files";
+      Cwd_Slug     : constant String := Encode_Cwd (Cwd);
+      Dir          : constant String :=
+        Home & "/.coyote/sessions/" & Cwd_Slug;
+   begin
+      Prepare_Test_Home (Home);
+      declare
+         Valid_UUID : constant String :=
+           Session_Fixture.Create_Native_Session
+             (Home     => Home,
+              Cwd_Slug => Cwd_Slug,
+              Name     => "valid native session");
+         pragma Unreferenced (Valid_UUID);
+         Sessions   : Session_Vectors.Vector;
+      begin
+         Ada.Directories.Create_Path (Dir);
+         Write_File (Dir & "/not-a-session.txt", "garbage" & ASCII.LF);
+
+         Sessions := List_Sessions (Cwd);
+
+         Assert
+           (Sessions.Length = 1,
+            "List_Sessions should ignore non-session files in the directory");
+      end;
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_List_Sessions_Skips_Invalid_Files;
+
+   procedure Test_Fork_Native_Format_Preserves_Turn_Boundary
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Home         : constant String :=
+        Test_Home_Root & "/fork-native-turn-boundary";
+      Source_Cwd   : constant String := "/tmp/native-fork-source";
+      Target_Cwd   : constant String := "/tmp/native-fork-target";
+      Source_Slug  : constant String := Encode_Cwd (Source_Cwd);
+   begin
+      Prepare_Test_Home (Home);
+      declare
+         Source_UUID : constant String :=
+           Session_Fixture.Create_Native_Session
+             (Home     => Home,
+              Cwd_Slug => Source_Slug,
+              Name     => "source native session");
+      begin
+         Session_Fixture.Append_User_Message
+           (Home     => Home,
+            Cwd_Slug => Source_Slug,
+            UUID     => Source_UUID,
+            Text     => "Turn one question");
+         Session_Fixture.Append_Assistant_Text
+           (Home     => Home,
+            Cwd_Slug => Source_Slug,
+            UUID     => Source_UUID,
+            Text     => "Turn one answer");
+         Session_Fixture.Append_Turn_End
+           (Home     => Home,
+            Cwd_Slug => Source_Slug,
+            UUID     => Source_UUID);
+         Session_Fixture.Append_User_Message
+           (Home     => Home,
+            Cwd_Slug => Source_Slug,
+            UUID     => Source_UUID,
+            Text     => "Turn two question");
+         Session_Fixture.Append_Assistant_Text
+           (Home     => Home,
+            Cwd_Slug => Source_Slug,
+            UUID     => Source_UUID,
+            Text     => "Turn two answer");
+
+         declare
+            Fork_UUID : constant String :=
+              Fork_Session (Source_UUID, 1, Target_Cwd);
+            Messages  : constant LLM.Types.Message_Vectors.Vector :=
+              LLM.Session_Store.Load_Messages (Fork_UUID);
+         begin
+            Assert (Fork_UUID'Length > 0, "Fork_Session should succeed");
+            Assert
+              (Messages.Length = 2,
+               "Forked native session should contain only the first turn");
+            Assert
+              (Messages.Element (0).Role = LLM.Types.User,
+               "Forked message 1 should be the first-turn user message");
+            Assert
+              (Messages.Element (1).Role = LLM.Types.Assistant,
+               "Forked message 2 should be the first-turn assistant message");
+            Assert
+              (To_String (Messages.Element (0).Content.Element (0).Text)
+                 = "Turn one question",
+               "Fork should preserve the first-turn user text");
+            Assert
+              (To_String (Messages.Element (1).Content.Element (0).Text)
+                 = "Turn one answer",
+               "Fork should preserve the first-turn assistant text");
+         end;
+      end;
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Fork_Native_Format_Preserves_Turn_Boundary;
 
 end Session_Lister_Tests;

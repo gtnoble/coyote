@@ -1,6 +1,6 @@
 --  Acme.Event_Parser body.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
@@ -9,7 +9,7 @@ package body Acme.Event_Parser is
 
    --  ── Rc-token parser ───────────────────────────────────────────────────
    --
-   --  Ported from the Python _rc_token helper in pi-acme.
+   --  Ported from the Python _rc_token helper in coyote.
    --  Reads one rc(1)-quoted token from Line starting at Position;
    --  advances Position past the token and returns the unescaped text.
 

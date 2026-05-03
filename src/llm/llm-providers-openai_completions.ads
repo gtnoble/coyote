@@ -4,7 +4,7 @@
 --  OpenRouter and GitHub Copilot models that do not use the Anthropic
 --  Messages endpoint.
 --
---  Project: pi_acme
+--  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Containers.Vectors;

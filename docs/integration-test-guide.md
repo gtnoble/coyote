@@ -27,10 +27,10 @@ Each live test should require:
 
 Suggested conventions:
 
-- OpenRouter: `PI_ACME_RUN_OPENROUTER_LIVE=1`
-- Anthropic: `PI_ACME_RUN_ANTHROPIC_LIVE=1`
-- GitHub Copilot: `PI_ACME_RUN_GITHUB_COPILOT_LIVE=1`
-- acme / 9P integration: `PI_ACME_RUN_ACME_LIVE=1`
+- OpenRouter: `COYOTE_RUN_OPENROUTER_LIVE=1`
+- Anthropic: `COYOTE_RUN_ANTHROPIC_LIVE=1`
+- GitHub Copilot: `COYOTE_RUN_GITHUB_COPILOT_LIVE=1`
+- acme / 9P integration: `COYOTE_RUN_ACME_LIVE=1`
 
 A test should return immediately when the guard is absent or not equal to `1`.
 If the guard is present but the credential is missing, the test should report a
@@ -40,7 +40,7 @@ clear skipped/disabled message.
 
 ```sh
 cd /home/gtnoble/Projects/pi_acme_dev/test
-alr run pi_acme_test
+alr run coyote_test
 ```
 
 This command should remain safe without any live credentials.
@@ -48,21 +48,21 @@ This command should remain safe without any live credentials.
 ## Example: Run Future OpenRouter Live Tests
 
 ```sh
-export PI_ACME_RUN_OPENROUTER_LIVE=1
+export COYOTE_RUN_OPENROUTER_LIVE=1
 export OPENROUTER_API_KEY=your-key-here
 
 cd /home/gtnoble/Projects/pi_acme_dev/test
-alr run pi_acme_test
+alr run coyote_test
 ```
 
 ## Example: Run Future Anthropic Live Tests
 
 ```sh
-export PI_ACME_RUN_ANTHROPIC_LIVE=1
+export COYOTE_RUN_ANTHROPIC_LIVE=1
 export ANTHROPIC_API_KEY=your-key-here
 
 cd /home/gtnoble/Projects/pi_acme_dev/test
-alr run pi_acme_test
+alr run coyote_test
 ```
 
 ## Example: Run Future GitHub Copilot Live Tests
@@ -71,10 +71,10 @@ GitHub Copilot live tests should rely on the existing authenticated pi agent
 state (`~/.pi/agent/auth.json`) rather than embedding tokens in the test code.
 
 ```sh
-export PI_ACME_RUN_GITHUB_COPILOT_LIVE=1
+export COYOTE_RUN_GITHUB_COPILOT_LIVE=1
 
 cd /home/gtnoble/Projects/pi_acme_dev/test
-alr run pi_acme_test
+alr run coyote_test
 ```
 
 If a test also needs a fresh login, run `pi login github-copilot` first.
@@ -86,10 +86,10 @@ ensure the Plan 9 environment is configured first:
 
 ```sh
 export PLAN9=/usr/local/plan9
-export PI_ACME_RUN_ACME_LIVE=1
+export COYOTE_RUN_ACME_LIVE=1
 
 cd /home/gtnoble/Projects/pi_acme_dev/test
-alr run pi_acme_test
+alr run coyote_test
 ```
 
 ## Test Authoring Notes
@@ -105,4 +105,4 @@ alr run pi_acme_test
 
 - Do not add tests that require real credentials in CI.
 - Do not record real API responses containing secrets.
-- Do not make the default `alr run pi_acme_test` depend on network access.
+- Do not make the default `alr run coyote_test` depend on network access.
