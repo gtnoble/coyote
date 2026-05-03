@@ -6,18 +6,13 @@ with Ada.Exceptions;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
-with GNATCOLL.OS.Process;   use GNATCOLL.OS.Process;
+with Test_HTTP_Server;
 with LLM.Auth;
 with LLM.Auth.GitHub_Copilot;
 
 package body LLM_Auth_Tests is
 
    use AUnit.Assertions;
-
-   function C_Kill
-     (Process_Id : Integer;
-      Signal     : Integer) return Integer
-     with Import, Convention => C, External_Name => "kill";
 
    function Contains (Text : String; Pattern : String) return Boolean is
    begin
@@ -136,89 +131,6 @@ package body LLM_Auth_Tests is
          null;
    end Cleanup_Test_Home;
 
-   function Spawn_Server (Script : String) return Process_Handle is
-      Args : Argument_List;
-   begin
-      Args.Append ("python3");
-      Args.Append ("-u");
-      Args.Append ("-c");
-      Args.Append (Script);
-      return Start (Args => Args);
-   end Spawn_Server;
-
-   procedure Stop_Server (Handle : in out Process_Handle) is
-      Dummy : Integer;
-      pragma Unreferenced (Dummy);
-   begin
-      if Handle = Invalid_Handle then
-         return;
-      end if;
-
-      if State (Handle) = RUNNING then
-         Dummy := C_Kill (Integer (Handle), 15);
-      end if;
-
-      declare
-         Exit_Code : constant Integer := Wait (Handle);
-         pragma Unreferenced (Exit_Code);
-      begin
-         null;
-      end;
-
-      Handle := Invalid_Handle;
-   exception
-      when others =>
-         Handle := Invalid_Handle;
-   end Stop_Server;
-
-   function Refresh_Server_Script (Port : Positive) return String is
-   begin
-      return
-        "import http.server, json" & ASCII.LF
-        & "class S(http.server.HTTPServer):" & ASCII.LF
-        & "    allow_reuse_address = True" & ASCII.LF
-        & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
-        & "    def do_GET(self):" & ASCII.LF
-        & "        try:" & ASCII.LF
-        & "            assert self.path == '/copilot_internal/v2/token'"
-        & ASCII.LF
-        & "            assert self.headers['Authorization'] == "
-        & "'Bearer refresh-token'" & ASCII.LF
-        & "            assert self.headers['User-Agent'] == "
-        & "'GitHubCopilotChat/0.35.0'" & ASCII.LF
-        & "            assert self.headers['Editor-Version'] == "
-        & "'vscode/1.107.0'" & ASCII.LF
-        & "            assert self.headers['Editor-Plugin-Version'] == "
-        & "'copilot-chat/0.35.0'" & ASCII.LF
-        & "            assert self.headers['Copilot-Integration-Id'] == "
-        & "'vscode-chat'" & ASCII.LF
-        & "            body = json.dumps({" & ASCII.LF
-        & "                'token': 'tid=abc;proxy-ep=proxy.test.com;"
-        & "exp=9999999999'," & ASCII.LF
-        & "                'expires_at': 9999999999}).encode()"
-        & ASCII.LF
-        & "            self.send_response(200)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'application/json')"
-        & ASCII.LF
-        & "            self.send_header('Content-Length', str(len(body)))"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(body)" & ASCII.LF
-        & "            self.wfile.flush()" & ASCII.LF
-        & "        except Exception as exc:" & ASCII.LF
-        & "            self.send_response(500)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/plain')"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(str(exc).encode())" & ASCII.LF
-        & "    def log_message(self, *a): pass" & ASCII.LF
-        & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
-        & ASCII.LF
-        & "s.timeout = 5" & ASCII.LF
-        & "s.handle_request()" & ASCII.LF
-        & "s.server_close()" & ASCII.LF;
-   end Refresh_Server_Script;
-
    function Refresh_Test_Auth_Content return String is
    begin
       return
@@ -231,57 +143,6 @@ package body LLM_Auth_Tests is
         & "  }" & ASCII.LF
         & "}" & ASCII.LF;
    end Refresh_Test_Auth_Content;
-
-   function Refresh_Response_Server_Script
-     (Port          : Positive;
-      Status_Code   : Positive;
-      Response_Text : String;
-      Content_Type  : String := "application/json") return String
-   is
-   begin
-      return
-        "import http.server" & ASCII.LF
-        & "class S(http.server.HTTPServer):" & ASCII.LF
-        & "    allow_reuse_address = True" & ASCII.LF
-        & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
-        & "    def do_GET(self):" & ASCII.LF
-        & "        try:" & ASCII.LF
-        & "            assert self.path == '/copilot_internal/v2/token'"
-        & ASCII.LF
-        & "            assert self.headers['Authorization'] == "
-        & "'Bearer refresh-token'" & ASCII.LF
-        & "            assert self.headers['User-Agent'] == "
-        & "'GitHubCopilotChat/0.35.0'" & ASCII.LF
-        & "            assert self.headers['Editor-Version'] == "
-        & "'vscode/1.107.0'" & ASCII.LF
-        & "            assert self.headers['Editor-Plugin-Version'] == "
-        & "'copilot-chat/0.35.0'" & ASCII.LF
-        & "            assert self.headers['Copilot-Integration-Id'] == "
-        & "'vscode-chat'" & ASCII.LF
-        & "            body = '" & Response_Text & "'.encode()"
-        & ASCII.LF
-        & "            self.send_response(" & Natural_Image (Status_Code)
-        & ")" & ASCII.LF
-        & "            self.send_header('Content-Type', '" & Content_Type
-        & "')" & ASCII.LF
-        & "            self.send_header('Content-Length', str(len(body)))"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(body)" & ASCII.LF
-        & "            self.wfile.flush()" & ASCII.LF
-        & "        except Exception as exc:" & ASCII.LF
-        & "            self.send_response(500)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/plain')"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(str(exc).encode())" & ASCII.LF
-        & "    def log_message(self, *a): pass" & ASCII.LF
-        & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
-        & ASCII.LF
-        & "s.timeout = 5" & ASCII.LF
-        & "s.handle_request()" & ASCII.LF
-        & "s.server_close()" & ASCII.LF;
-   end Refresh_Response_Server_Script;
 
    function Is_Transient_Connect_Error (Message : String) return Boolean is
    begin
@@ -298,23 +159,64 @@ package body LLM_Auth_Tests is
       Expected_Message_Part : String;
       Content_Type          : String := "application/json")
    is
-      Home_Was_Set : constant Boolean :=
+      Home_Was_Set  : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home     : constant String :=
+      Old_Home      : constant String :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Url_Was_Set  : constant Boolean :=
+      Url_Was_Set   : constant Boolean :=
         Ada.Environment_Variables.Exists
           ("COYOTE_GITHUB_COPILOT_TOKEN_URL");
-      Old_Url      : constant String :=
+      Old_Url       : constant String :=
         Ada.Environment_Variables.Value
           ("COYOTE_GITHUB_COPILOT_TOKEN_URL", "");
-      Handle       : Process_Handle := Invalid_Handle;
       Original_Auth : constant String := Refresh_Test_Auth_Content;
-      Creds        : LLM.Auth.Provider_Credentials;
-      Saved        : LLM.Auth.Provider_Credentials;
-      Raised       : Boolean := False;
+      Creds         : LLM.Auth.Provider_Credentials;
+      Saved         : LLM.Auth.Provider_Credentials;
+      Raised        : Boolean := False;
       Error_Message : Unbounded_String;
+
+      procedure Failure_Handler
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+      begin
+         Assert
+           (To_String (Req.Path) = "/copilot_internal/v2/token",
+            "Refresh request should target the token endpoint");
+         Assert
+           (Test_HTTP_Server.Get_Header (Req.Headers, "Authorization")
+              = "Bearer refresh-token",
+            "Refresh request should carry the stored refresh token");
+         Assert
+           (Test_HTTP_Server.Get_Header (Req.Headers, "User-Agent")
+              = "GitHubCopilotChat/0.35.0",
+            "Refresh request should carry the Copilot User-Agent");
+         Assert
+           (Test_HTTP_Server.Get_Header (Req.Headers, "Editor-Version")
+              = "vscode/1.107.0",
+            "Refresh request should carry the Editor-Version header");
+         Assert
+           (Test_HTTP_Server.Get_Header
+              (Req.Headers, "Editor-Plugin-Version")
+              = "copilot-chat/0.35.0",
+            "Refresh request should carry the Editor-Plugin-Version header");
+         Assert
+           (Test_HTTP_Server.Get_Header
+              (Req.Headers, "Copilot-Integration-Id")
+              = "vscode-chat",
+            "Refresh request should carry the Copilot-Integration-Id header");
+         Res.Status := Status_Code;
+         Res.Headers.Append
+           ((Name  => To_Unbounded_String ("Content-Type"),
+             Value => To_Unbounded_String (Content_Type)));
+         Append (Res.Body_Data, Response_Body);
+      end Failure_Handler;
+
+      Srv : Test_HTTP_Server.Server
+        (Handler => Failure_Handler'Unrestricted_Access);
+
    begin
+      Srv.Bind (Port);
       Cleanup_Test_Home (Home);
       Ensure_Test_Home (Home);
       Write_File (Home & "/.coyote/auth.json", Original_Auth);
@@ -326,13 +228,6 @@ package body LLM_Auth_Tests is
          & "/copilot_internal/v2/token");
 
       Creds := LLM.Auth.Load_Credentials ("github-copilot");
-      Handle :=
-        Spawn_Server
-          (Refresh_Response_Server_Script
-             (Port          => Port,
-              Status_Code   => Status_Code,
-              Response_Text => Response_Body,
-              Content_Type  => Content_Type));
 
       Retry_Loop :
       for Attempt in 1 .. 20 loop
@@ -356,7 +251,7 @@ package body LLM_Auth_Tests is
          end;
       end loop Retry_Loop;
 
-      Stop_Server (Handle);
+      Srv.Stop;
       Saved := LLM.Auth.Load_Credentials ("github-copilot");
 
       Assert (Raised, "Refresh_Token should raise Auth_Error");
@@ -383,7 +278,7 @@ package body LLM_Auth_Tests is
       Cleanup_Test_Home (Home);
    exception
       when others =>
-         Stop_Server (Handle);
+         Srv.Stop;
          Restore_Env
            ("COYOTE_GITHUB_COPILOT_TOKEN_URL", Url_Was_Set, Old_Url);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -534,26 +429,71 @@ package body LLM_Auth_Tests is
    procedure Test_Refresh_Token (T : in out Test) is
       pragma Unreferenced (T);
 
-      Port           : constant Positive := 18_769;
-      Home           : constant String := "/tmp/coyote_llm_auth_test_3";
-      Home_Was_Set   : constant Boolean :=
+      Port         : constant Positive := 18_769;
+      Home         : constant String := "/tmp/coyote_llm_auth_test_3";
+      Home_Was_Set : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
-      Old_Home       : constant String :=
+      Old_Home     : constant String :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Url_Was_Set    : constant Boolean :=
+      Url_Was_Set  : constant Boolean :=
         Ada.Environment_Variables.Exists
           ("COYOTE_GITHUB_COPILOT_TOKEN_URL");
-      Old_Url        : constant String :=
+      Old_Url      : constant String :=
         Ada.Environment_Variables.Value
           ("COYOTE_GITHUB_COPILOT_TOKEN_URL", "");
-      Handle         : Process_Handle := Invalid_Handle;
-      Creds          : LLM.Auth.Provider_Credentials :=
+      Creds        : LLM.Auth.Provider_Credentials :=
         (Credential_Type => To_Unbounded_String ("oauth"),
          Refresh_Token   => To_Unbounded_String ("refresh-token"),
          Access_Token    => To_Unbounded_String ("expired-token"),
          Expires_Ms      => 0);
-      Saved          : LLM.Auth.Provider_Credentials;
+      Saved        : LLM.Auth.Provider_Credentials;
+
+      procedure Refresh_Handler
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+      begin
+         Assert
+           (To_String (Req.Path) = "/copilot_internal/v2/token",
+            "Refresh request should target the token endpoint");
+         Assert
+           (Test_HTTP_Server.Get_Header (Req.Headers, "Authorization")
+              = "Bearer refresh-token",
+            "Refresh request should carry the stored refresh token");
+         Assert
+           (Test_HTTP_Server.Get_Header (Req.Headers, "User-Agent")
+              = "GitHubCopilotChat/0.35.0",
+            "Refresh request should carry the Copilot User-Agent");
+         Assert
+           (Test_HTTP_Server.Get_Header (Req.Headers, "Editor-Version")
+              = "vscode/1.107.0",
+            "Refresh request should carry the Editor-Version header");
+         Assert
+           (Test_HTTP_Server.Get_Header
+              (Req.Headers, "Editor-Plugin-Version")
+              = "copilot-chat/0.35.0",
+            "Refresh request should carry the Editor-Plugin-Version header");
+         Assert
+           (Test_HTTP_Server.Get_Header
+              (Req.Headers, "Copilot-Integration-Id")
+              = "vscode-chat",
+            "Refresh request should carry the Copilot-Integration-Id header");
+         Res.Status := 200;
+         Res.Headers.Append
+           ((Name  => To_Unbounded_String ("Content-Type"),
+             Value => To_Unbounded_String ("application/json")));
+         Append
+           (Res.Body_Data,
+            "{""token"":"
+            & """tid=abc;proxy-ep=proxy.test.com;exp=9999999999"","
+            & """expires_at"":9999999999}");
+      end Refresh_Handler;
+
+      Srv : Test_HTTP_Server.Server
+        (Handler => Refresh_Handler'Unrestricted_Access);
+
    begin
+      Srv.Bind (Port);
       Cleanup_Test_Home (Home);
       Ensure_Test_Home (Home);
 
@@ -562,13 +502,10 @@ package body LLM_Auth_Tests is
         ("COYOTE_GITHUB_COPILOT_TOKEN_URL",
          "http://127.0.0.1:18769/copilot_internal/v2/token");
 
-      Handle := Spawn_Server (Refresh_Server_Script (Port));
-      delay 0.05;
-
       LLM.Auth.GitHub_Copilot.Refresh_Token (Creds);
       Saved := LLM.Auth.Load_Credentials ("github-copilot");
 
-      Stop_Server (Handle);
+      Srv.Stop;
 
       Assert
         (To_String (Creds.Access_Token)
@@ -590,7 +527,7 @@ package body LLM_Auth_Tests is
       Cleanup_Test_Home (Home);
    exception
       when others =>
-         Stop_Server (Handle);
+         Srv.Stop;
          Restore_Env
            ("COYOTE_GITHUB_COPILOT_TOKEN_URL", Url_Was_Set, Old_Url);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);

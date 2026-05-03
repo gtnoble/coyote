@@ -6,7 +6,7 @@ with Ada.Environment_Variables;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with GNATCOLL.JSON;
-with GNATCOLL.OS.Process; use GNATCOLL.OS.Process;
+with Test_HTTP_Server;
 with LLM.Providers.OpenRouter.Catalogue;
 
 package body LLM_OpenRouter_Catalogue_Tests is
@@ -15,11 +15,6 @@ package body LLM_OpenRouter_Catalogue_Tests is
    use type Ada.Containers.Count_Type;
    use type GNATCOLL.JSON.JSON_Value_Type;
    use LLM.Providers.OpenRouter.Catalogue;
-
-   function C_Kill
-      (Process_Id : Integer;
-     Signal     : Integer) return Integer
-      with Import, Convention => C, External_Name => "kill";
 
    function Current_Unix_S return Long_Long_Integer is
       use Ada.Calendar;
@@ -35,12 +30,6 @@ package body LLM_OpenRouter_Catalogue_Tests is
    begin
       return Image (Image'First + 1 .. Image'Last);
    end Long_Long_Image;
-
-   function Natural_Image (Value : Natural) return String is
-      Image : constant String := Natural'Image (Value);
-   begin
-      return Image (Image'First + 1 .. Image'Last);
-   end Natural_Image;
 
    procedure Restore_Env (Name : String; Was_Set : Boolean; Value : String) is
    begin
@@ -202,78 +191,6 @@ package body LLM_OpenRouter_Catalogue_Tests is
       return 0;
    end Find_Model;
 
-   function Spawn_Server (Script : String) return Process_Handle is
-      Args : Argument_List;
-   begin
-      Args.Append ("python3");
-      Args.Append ("-u");
-      Args.Append ("-c");
-      Args.Append (Script);
-      return Start (Args => Args);
-   end Spawn_Server;
-
-   procedure Stop_Server (Handle : in out Process_Handle) is
-      Dummy : Integer;
-      pragma Unreferenced (Dummy);
-   begin
-      if Handle = Invalid_Handle then
-         return;
-      end if;
-
-      if State (Handle) = RUNNING then
-         Dummy := C_Kill (Integer (Handle), 15);
-      end if;
-
-      declare
-         Exit_Code : constant Integer := Wait (Handle);
-         pragma Unreferenced (Exit_Code);
-      begin
-         null;
-      end;
-
-      Handle := Invalid_Handle;
-   exception
-      when others =>
-         Handle := Invalid_Handle;
-   end Stop_Server;
-
-   function Live_Server_Script
-      (Port         : Positive;
-     Fixture_File : String) return String
-   is
-   begin
-      return
-         "import http.server, pathlib" & ASCII.LF
-         & "fixture = pathlib.Path('" & Fixture_File & "')" & ASCII.LF
-         & "class S(http.server.HTTPServer):" & ASCII.LF
-         & "    allow_reuse_address = True" & ASCII.LF
-         & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
-         & "    def do_GET(self):" & ASCII.LF
-         & "        try:" & ASCII.LF
-         & "            assert self.path == '/api/v1/models'" & ASCII.LF
-         & "            body = fixture.read_bytes()" & ASCII.LF
-         & "            self.send_response(200)" & ASCII.LF
-         & "            self.send_header('Content-Type', 'application/json')"
-         & ASCII.LF
-         & "            self.send_header('Content-Length', str(len(body)))"
-         & ASCII.LF
-         & "            self.end_headers()" & ASCII.LF
-         & "            self.wfile.write(body)" & ASCII.LF
-         & "            self.wfile.flush()" & ASCII.LF
-         & "        except Exception as exc:" & ASCII.LF
-         & "            self.send_response(500)" & ASCII.LF
-         & "            self.send_header('Content-Type', 'text/plain')"
-         & ASCII.LF
-         & "            self.end_headers()" & ASCII.LF
-         & "            self.wfile.write(str(exc).encode())" & ASCII.LF
-         & "    def log_message(self, *a): pass" & ASCII.LF
-         & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
-         & ASCII.LF
-         & "s.timeout = 5" & ASCII.LF
-         & "s.handle_request()" & ASCII.LF
-         & "s.server_close()" & ASCII.LF;
-   end Live_Server_Script;
-
    procedure Test_Load_From_Fresh_Cache (T : in out Test) is
       pragma Unreferenced (T);
 
@@ -341,53 +258,69 @@ package body LLM_OpenRouter_Catalogue_Tests is
    procedure Test_Stale_Cache_Triggers_Live_Fetch (T : in out Test) is
       pragma Unreferenced (T);
 
-      Home         : constant String := "/tmp/coyote_openrouter_catalogue_2";
       Port         : constant Positive := 18_773;
-      Handle       : Process_Handle := Invalid_Handle;
+      Home         : constant String := "/tmp/coyote_openrouter_catalogue_2";
       Home_Was_Set : constant Boolean :=
-         Ada.Environment_Variables.Exists ("HOME");
+        Ada.Environment_Variables.Exists ("HOME");
       Old_Home     : constant String :=
-         Ada.Environment_Variables.Value ("HOME", "");
+        Ada.Environment_Variables.Value ("HOME", "");
       Base_Was_Set : constant Boolean :=
-         Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
+        Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
       Old_Base     : constant String :=
-         Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
+        Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
       Models       : Catalogue_Vectors.Vector;
+
+      procedure Live_Handler
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+      begin
+         Assert
+           (To_String (Req.Path) = "/api/v1/models",
+            "OpenRouter catalogue request should target /api/v1/models");
+         Res.Status := 200;
+         Res.Headers.Append
+           ((Name  => To_Unbounded_String ("Content-Type"),
+             Value => To_Unbounded_String ("application/json")));
+         Append (Res.Body_Data, Read_File (Fixture_Path));
+      end Live_Handler;
+
+      Srv : Test_HTTP_Server.Server
+        (Handler => Live_Handler'Unrestricted_Access);
+
    begin
+      Srv.Bind (Port);
       Cleanup_Test_Home (Home);
       Ensure_Test_Home (Home);
       Write_Cache
-         (Home       => Home,
-       Fetched_At => 0,
-       Data_Array => Stale_Data_Array);
+        (Home       => Home,
+         Fetched_At => 0,
+         Data_Array => Stale_Data_Array);
 
       Ada.Environment_Variables.Set ("HOME", Home);
       Ada.Environment_Variables.Set
-         ("COYOTE_OPENROUTER_BASE_URL", "http://127.0.0.1:18773/api/v1");
-
-      Handle := Spawn_Server (Live_Server_Script (Port, Fixture_Path));
-      delay 0.05;
+        ("COYOTE_OPENROUTER_BASE_URL", "http://127.0.0.1:18773/api/v1");
 
       Load_Catalogue (Models);
 
-      Stop_Server (Handle);
+      Srv.Stop;
 
       Assert
-         (Models.Length = 4,
-       "A stale cache should trigger a live fetch of the fixture catalogue");
+        (Models.Length = 4,
+         "A stale cache should trigger a live fetch of the fixture catalogue");
       Assert
-         (Find_Model (Models, "stale-model") = 0,
-       "Live fetch results should replace stale cache contents");
+        (Find_Model (Models, "stale-model") = 0,
+         "Live fetch results should replace stale cache contents");
       Assert
-         (Find_Model (Models, "anthropic/claude-sonnet-4-20250514") > 0,
-       "Live fetch should parse the fixture models");
+        (Find_Model (Models, "anthropic/claude-sonnet-4-20250514") > 0,
+         "Live fetch should parse the fixture models");
 
       Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Base_Was_Set, Old_Base);
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
       Cleanup_Test_Home (Home);
    exception
       when others =>
-         Stop_Server (Handle);
+         Srv.Stop;
          Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Base_Was_Set, Old_Base);
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
          Cleanup_Test_Home (Home);

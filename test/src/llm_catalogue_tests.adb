@@ -7,7 +7,7 @@ with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with GNATCOLL.JSON;
-with GNATCOLL.OS.Process;   use GNATCOLL.OS.Process;
+with Test_HTTP_Server;
 with LLM.Providers.GitHub_Copilot.Catalogue;
 
 package body LLM_Catalogue_Tests is
@@ -16,11 +16,6 @@ package body LLM_Catalogue_Tests is
    use type Ada.Containers.Count_Type;
    use type GNATCOLL.JSON.JSON_Value_Type;
    use LLM.Providers.GitHub_Copilot.Catalogue;
-
-   function C_Kill
-     (Process_Id : Integer;
-      Signal     : Integer) return Integer
-     with Import, Convention => C, External_Name => "kill";
 
    function Current_Unix_S return Long_Long_Integer is
       use Ada.Calendar;
@@ -36,12 +31,6 @@ package body LLM_Catalogue_Tests is
    begin
       return Image (Image'First + 1 .. Image'Last);
    end Long_Long_Image;
-
-   function Natural_Image (Value : Natural) return String is
-      Image : constant String := Natural'Image (Value);
-   begin
-      return Image (Image'First + 1 .. Image'Last);
-   end Natural_Image;
 
    procedure Restore_Env (Name : String; Was_Set : Boolean; Value : String) is
    begin
@@ -202,90 +191,6 @@ package body LLM_Catalogue_Tests is
       return 0;
    end Find_Model;
 
-   function Spawn_Server (Script : String) return Process_Handle is
-      Args : Argument_List;
-   begin
-      Args.Append ("python3");
-      Args.Append ("-u");
-      Args.Append ("-c");
-      Args.Append (Script);
-      return Start (Args => Args);
-   end Spawn_Server;
-
-   procedure Stop_Server (Handle : in out Process_Handle) is
-      Dummy : Integer;
-      pragma Unreferenced (Dummy);
-   begin
-      if Handle = Invalid_Handle then
-         return;
-      end if;
-
-      if State (Handle) = RUNNING then
-         Dummy := C_Kill (Integer (Handle), 15);
-      end if;
-
-      declare
-         Exit_Code : constant Integer := Wait (Handle);
-         pragma Unreferenced (Exit_Code);
-      begin
-         null;
-      end;
-
-      Handle := Invalid_Handle;
-   exception
-      when others =>
-         Handle := Invalid_Handle;
-   end Stop_Server;
-
-   function Live_Server_Script
-     (Port         : Positive;
-      Fixture_File : String) return String
-   is
-   begin
-      return
-        "import http.server, pathlib" & ASCII.LF
-        & "fixture = pathlib.Path('" & Fixture_File & "')" & ASCII.LF
-        & "class S(http.server.HTTPServer):" & ASCII.LF
-        & "    allow_reuse_address = True" & ASCII.LF
-        & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
-        & "    def do_GET(self):" & ASCII.LF
-        & "        try:" & ASCII.LF
-        & "            assert self.path == '/models'" & ASCII.LF
-        & "            assert self.headers['Authorization'] == "
-        & "'Bearer live-token'" & ASCII.LF
-        & "            assert self.headers['User-Agent'] == "
-        & "'GitHubCopilotChat/0.35.0'" & ASCII.LF
-        & "            assert self.headers['Editor-Version'] == "
-        & "'vscode/1.107.0'" & ASCII.LF
-        & "            assert self.headers['Editor-Plugin-Version'] == "
-        & "'copilot-chat/0.35.0'" & ASCII.LF
-        & "            assert self.headers['Copilot-Integration-Id'] == "
-        & "'vscode-chat'" & ASCII.LF
-        & "            assert self.headers['Openai-Intent'] == "
-        & "'conversation-edits'" & ASCII.LF
-        & "            body = fixture.read_bytes()" & ASCII.LF
-        & "            self.send_response(200)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'application/json')"
-        & ASCII.LF
-        & "            self.send_header('Content-Length', str(len(body)))"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(body)" & ASCII.LF
-        & "            self.wfile.flush()" & ASCII.LF
-        & "        except Exception as exc:" & ASCII.LF
-        & "            self.send_response(500)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/plain')"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(str(exc).encode())" & ASCII.LF
-        & "    def log_message(self, *a): pass" & ASCII.LF
-        & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
-        & ASCII.LF
-        & "s.timeout = 5" & ASCII.LF
-        & "s.handle_request()" & ASCII.LF
-        & "s.server_close()" & ASCII.LF;
-   end Live_Server_Script;
-
    procedure Test_Load_From_Fresh_Cache (T : in out Test) is
       pragma Unreferenced (T);
 
@@ -371,9 +276,55 @@ package body LLM_Catalogue_Tests is
         Ada.Environment_Variables.Exists ("HOME");
       Old_Home     : constant String :=
         Ada.Environment_Variables.Value ("HOME", "");
-      Handle       : Process_Handle := Invalid_Handle;
       Models       : Catalogue_Vectors.Vector;
+
+      procedure Live_Handler
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+      begin
+         Assert
+           (To_String (Req.Path) = "/models",
+            "Catalogue request should target the models endpoint");
+         Assert
+           (Test_HTTP_Server.Get_Header (Req.Headers, "Authorization")
+              = "Bearer live-token",
+            "Catalogue request should carry the live token");
+         Assert
+           (Test_HTTP_Server.Get_Header (Req.Headers, "User-Agent")
+              = "GitHubCopilotChat/0.35.0",
+            "Catalogue request should carry the Copilot User-Agent");
+         Assert
+           (Test_HTTP_Server.Get_Header (Req.Headers, "Editor-Version")
+              = "vscode/1.107.0",
+            "Catalogue request should carry the Editor-Version header");
+         Assert
+           (Test_HTTP_Server.Get_Header
+              (Req.Headers, "Editor-Plugin-Version")
+              = "copilot-chat/0.35.0",
+            "Catalogue request should carry the Editor-Plugin-Version header");
+         Assert
+           (Test_HTTP_Server.Get_Header
+              (Req.Headers, "Copilot-Integration-Id")
+              = "vscode-chat",
+            "Catalogue request should carry the"
+            & " Copilot-Integration-Id header");
+         Assert
+           (Test_HTTP_Server.Get_Header (Req.Headers, "Openai-Intent")
+              = "conversation-edits",
+            "Catalogue request should carry the Openai-Intent header");
+         Res.Status := 200;
+         Res.Headers.Append
+           ((Name  => To_Unbounded_String ("Content-Type"),
+             Value => To_Unbounded_String ("application/json")));
+         Append (Res.Body_Data, Read_File (Fixture_Path));
+      end Live_Handler;
+
+      Srv : Test_HTTP_Server.Server
+        (Handler => Live_Handler'Unrestricted_Access);
+
    begin
+      Srv.Bind (Port);
       Cleanup_Test_Home (Home);
       Ensure_Test_Home (Home);
       Write_Cache
@@ -383,15 +334,13 @@ package body LLM_Catalogue_Tests is
          Data_Array => Stale_Data_Array);
 
       Ada.Environment_Variables.Set ("HOME", Home);
-      Handle := Spawn_Server (Live_Server_Script (Port, Fixture_Path));
-      delay 0.05;
 
       Load_Catalogue
         (Base_Url => "http://127.0.0.1:18770",
          Token    => "live-token",
          Models   => Models);
 
-      Stop_Server (Handle);
+      Srv.Stop;
 
       Assert
         (Models.Length = 3,
@@ -413,7 +362,7 @@ package body LLM_Catalogue_Tests is
       Cleanup_Test_Home (Home);
    exception
       when others =>
-         Stop_Server (Handle);
+         Srv.Stop;
          Restore_Env ("HOME", Home_Was_Set, Old_Home);
          Cleanup_Test_Home (Home);
          raise;
