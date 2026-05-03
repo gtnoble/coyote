@@ -323,12 +323,14 @@ package body LLM_Agent_Tests is
         & ASCII.LF
         & "            body = json.loads(self.rfile.read(n))"
         & ASCII.LF
+        & "            msgs = [m for m in body['messages']"
+        & " if m.get('role') != 'system']" & ASCII.LF
         & "            assert body['model'] == '" & Expected_Model & "'"
         & ASCII.LF
-        & "            assert len(body['messages']) == 1" & ASCII.LF
-        & "            assert body['messages'][0]['role'] == 'user'"
+        & "            assert len(msgs) == 1" & ASCII.LF
+        & "            assert msgs[0]['role'] == 'user'"
         & ASCII.LF
-        & "            assert body['messages'][0]['content'] == '"
+        & "            assert msgs[0]['content'] == '"
         & Expected_Prompt & "'" & ASCII.LF
         & "            assert 'tools' not in body" & ASCII.LF
         & "            payload = make_payload('" & Reply_Text & "')"
@@ -391,31 +393,33 @@ package body LLM_Agent_Tests is
         & ASCII.LF
         & "            body = json.loads(self.rfile.read(n))"
         & ASCII.LF
+        & "            msgs = [m for m in body['messages']"
+        & " if m.get('role') != 'system']" & ASCII.LF
         & "            assert body['model'] == 'openai/gpt-4o-mini'"
         & ASCII.LF
         & "            assert 'tools' not in body" & ASCII.LF
         & "            if H.count == 1:" & ASCII.LF
-        & "                assert len(body['messages']) == 1" & ASCII.LF
-        & "                assert body['messages'][0]['role'] == 'user'"
+        & "                assert len(msgs) == 1" & ASCII.LF
+        & "                assert msgs[0]['role'] == 'user'"
         & ASCII.LF
-        & "                assert body['messages'][0]['content'] == '"
+        & "                assert msgs[0]['content'] == '"
         & "first question'" & ASCII.LF
         & "                payload = make_payload('turn one reply')"
         & ASCII.LF
         & "            else:" & ASCII.LF
         & "                assert H.count == 2" & ASCII.LF
-        & "                assert len(body['messages']) == 3" & ASCII.LF
-        & "                assert body['messages'][0]['role'] == 'user'"
+        & "                assert len(msgs) == 3" & ASCII.LF
+        & "                assert msgs[0]['role'] == 'user'"
         & ASCII.LF
-        & "                assert body['messages'][0]['content'] == '"
+        & "                assert msgs[0]['content'] == '"
         & "first question'" & ASCII.LF
-        & "                assert body['messages'][1]['role'] == 'assistant'"
+        & "                assert msgs[1]['role'] == 'assistant'"
         & ASCII.LF
-        & "                assert body['messages'][1]['content'] == '"
+        & "                assert msgs[1]['content'] == '"
         & "turn one reply'" & ASCII.LF
-        & "                assert body['messages'][2]['role'] == 'user'"
+        & "                assert msgs[2]['role'] == 'user'"
         & ASCII.LF
-        & "                assert body['messages'][2]['content'] == '"
+        & "                assert msgs[2]['content'] == '"
         & "second question'" & ASCII.LF
         & "                payload = make_payload('turn two reply')"
         & ASCII.LF
@@ -488,33 +492,35 @@ package body LLM_Agent_Tests is
         & ASCII.LF
         & "            body = json.loads(self.rfile.read(n))"
         & ASCII.LF
+        & "            msgs = [m for m in body['messages']"
+        & " if m.get('role') != 'system']" & ASCII.LF
         & "            assert body['model'] == 'openai/gpt-4o-mini'"
         & ASCII.LF
         & "            if H.count == 1:" & ASCII.LF
-        & "                assert len(body['messages']) == 1" & ASCII.LF
-        & "                assert body['messages'][0]['role'] == 'user'"
+        & "                assert len(msgs) == 1" & ASCII.LF
+        & "                assert msgs[0]['role'] == 'user'"
         & ASCII.LF
-        & "                assert body['messages'][0]['content'] == '"
+        & "                assert msgs[0]['content'] == '"
         & "Call the unknown tool'" & ASCII.LF
         & "                assert len(body['tools']) > 0" & ASCII.LF
         & "                payload = tool_payload()" & ASCII.LF
         & "            else:" & ASCII.LF
         & "                assert H.count == 2" & ASCII.LF
-        & "                assert len(body['messages']) == 3" & ASCII.LF
-        & "                assert body['messages'][1]['role'] == 'assistant'"
+        & "                assert len(msgs) == 3" & ASCII.LF
+        & "                assert msgs[1]['role'] == 'assistant'"
         & ASCII.LF
-        & "                assert body['messages'][1]['content'] is None"
+        & "                assert msgs[1]['content'] is None"
         & ASCII.LF
-        & "                assert body['messages'][1]['tool_calls'][0]['id']"
+        & "                assert msgs[1]['tool_calls'][0]['id']"
         & " == 'call_1'" & ASCII.LF
-        & "                assert body['messages'][1]['tool_calls'][0]"
+        & "                assert msgs[1]['tool_calls'][0]"
         & "['function']['name'] == 'nonexistent_tool_xyz'" & ASCII.LF
-        & "                assert body['messages'][2]['role'] == 'tool'"
+        & "                assert msgs[2]['role'] == 'tool'"
         & ASCII.LF
-        & "                assert body['messages'][2]['tool_call_id']"
+        & "                assert msgs[2]['tool_call_id']"
         & " == 'call_1'" & ASCII.LF
         & "                assert 'unknown tool: nonexistent_tool_xyz'"
-        & " in body['messages'][2]['content']" & ASCII.LF
+        & " in msgs[2]['content']" & ASCII.LF
         & "                payload = text_payload('done')" & ASCII.LF
         & "            self.send_response(200)" & ASCII.LF
         & "            self.send_header('Content-Type', 'text/event-stream')"
@@ -565,45 +571,54 @@ package body LLM_Agent_Tests is
         & "class H(http.server.BaseHTTPRequestHandler):" & ASCII.LF
         & "    count = 0" & ASCII.LF
         & "    def do_POST(self):" & ASCII.LF
-        & "        H.count += 1" & ASCII.LF
-        & "        n = int(self.headers.get('Content-Length', '0'))"
+        & "        try:" & ASCII.LF
+        & "            H.count += 1" & ASCII.LF
+        & "            n = int(self.headers.get('Content-Length', '0'))"
         & ASCII.LF
-        & "        body = json.loads(self.rfile.read(n))" & ASCII.LF
-        & "        assert self.path == '/api/v1/chat/completions'"
+        & "            body = json.loads(self.rfile.read(n))" & ASCII.LF
+        & "            msgs = [m for m in body['messages']"
+        & " if m.get('role') != 'system']" & ASCII.LF
+        & "            assert self.path == '/api/v1/chat/completions'"
         & ASCII.LF
-        & "        assert self.headers['Authorization'] == 'Bearer test-key'"
+        & "            assert self.headers['Authorization'] =="
+        & " 'Bearer test-key'" & ASCII.LF
+        & "            assert body['model'] == 'openai/gpt-4o-mini'"
         & ASCII.LF
-        & "        assert body['model'] == 'openai/gpt-4o-mini'"
+        & "            assert len(msgs) == 1" & ASCII.LF
+        & "            assert msgs[0]['role'] == 'user'"
         & ASCII.LF
-        & "        assert len(body['messages']) == 1" & ASCII.LF
-        & "        assert body['messages'][0]['role'] == 'user'"
-        & ASCII.LF
-        & "        assert body['messages'][0]['content'] == '"
+        & "            assert msgs[0]['content'] == '"
         & Expected_Prompt & "'" & ASCII.LF
-        & "        assert 'tools' not in body" & ASCII.LF
-        & "        if H.count == 1:" & ASCII.LF
-        & "            payload = b'{""error"":""server error""}'"
+        & "            assert 'tools' not in body" & ASCII.LF
+        & "            if H.count == 1:" & ASCII.LF
+        & "                payload = b'{""error"":""server error""}'"
         & ASCII.LF
+        & "                self.send_response(500)" & ASCII.LF
+        & "                self.send_header('Content-Type',"
+        & " 'application/json')" & ASCII.LF
+        & "                self.send_header('Content-Length',"
+        & " str(len(payload)))" & ASCII.LF
+        & "                self.end_headers()" & ASCII.LF
+        & "                self.wfile.write(payload)" & ASCII.LF
+        & "                self.wfile.flush()" & ASCII.LF
+        & "            else:" & ASCII.LF
+        & "                assert H.count == 2" & ASCII.LF
+        & "                payload = text_payload('" & Reply_Text & "')"
+        & ASCII.LF
+        & "                self.send_response(200)" & ASCII.LF
+        & "                self.send_header('Content-Type',"
+        & " 'text/event-stream')" & ASCII.LF
+        & "                self.send_header('Content-Length',"
+        & " str(len(payload)))" & ASCII.LF
+        & "                self.end_headers()" & ASCII.LF
+        & "                self.wfile.write(payload)" & ASCII.LF
+        & "                self.wfile.flush()" & ASCII.LF
+        & "        except Exception as exc:" & ASCII.LF
         & "            self.send_response(500)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'application/json')"
-        & ASCII.LF
-        & "            self.send_header('Content-Length', str(len(payload)))"
+        & "            self.send_header('Content-Type', 'text/plain')"
         & ASCII.LF
         & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(payload)" & ASCII.LF
-        & "            self.wfile.flush()" & ASCII.LF
-        & "        else:" & ASCII.LF
-        & "            assert H.count == 2" & ASCII.LF
-        & "            payload = text_payload('" & Reply_Text & "')"
-        & ASCII.LF
-        & "            self.send_response(200)" & ASCII.LF
-        & "            self.send_header('Content-Type', 'text/event-stream')"
-        & ASCII.LF
-        & "            self.send_header('Content-Length', str(len(payload)))"
-        & ASCII.LF
-        & "            self.end_headers()" & ASCII.LF
-        & "            self.wfile.write(payload)" & ASCII.LF
-        & "            self.wfile.flush()" & ASCII.LF
+        & "            self.wfile.write(str(exc).encode())" & ASCII.LF
         & "    def log_message(self, *a): pass" & ASCII.LF
         & "s = S(('127.0.0.1', " & Natural_Image (Port) & "), H)"
         & ASCII.LF
@@ -808,7 +823,7 @@ package body LLM_Agent_Tests is
 
    procedure Wait_For_Server is
    begin
-      delay 0.50;
+      delay 2.0;
    end Wait_For_Server;
 
    procedure Stop_Server (Handle : in out Process_Handle) is
@@ -966,12 +981,14 @@ package body LLM_Agent_Tests is
         & "            n = int(self.headers.get('Content-Length', '0'))"
         & ASCII.LF
         & "            body = json.loads(self.rfile.read(n))" & ASCII.LF
+        & "            msgs = [m for m in body['messages']"
+        & " if m.get('role') != 'system']" & ASCII.LF
         & "            assert body['model'] == 'openai/gpt-4o-mini'"
         & ASCII.LF
-        & "            assert len(body['messages']) == 1" & ASCII.LF
-        & "            assert body['messages'][0]['role'] == 'user'"
+        & "            assert len(msgs) == 1" & ASCII.LF
+        & "            assert msgs[0]['role'] == 'user'"
         & ASCII.LF
-        & "            assert body['messages'][0]['content'] == 'Say hello'"
+        & "            assert msgs[0]['content'] == 'Say hello'"
         & ASCII.LF
         & "            assert 'tools' not in body" & ASCII.LF
         & "            events = [" & ASCII.LF
@@ -1025,11 +1042,13 @@ package body LLM_Agent_Tests is
         & "            n = int(self.headers.get('Content-Length', '0'))"
         & ASCII.LF
         & "            body = json.loads(self.rfile.read(n))" & ASCII.LF
+        & "            msgs = [m for m in body['messages']"
+        & " if m.get('role') != 'system']" & ASCII.LF
         & "            assert body['model'] == 'openai/gpt-4o-mini'"
         & ASCII.LF
         & "            if H.count == 1:" & ASCII.LF
-        & "                assert len(body['messages']) == 1" & ASCII.LF
-        & "                assert body['messages'][0]['content'] == "
+        & "                assert len(msgs) == 1" & ASCII.LF
+        & "                assert msgs[0]['content'] == "
         & "'Use a tool'" & ASCII.LF
         & "                assert len(body['tools']) > 0" & ASCII.LF
         & "                events = [" & ASCII.LF
@@ -1042,12 +1061,12 @@ package body LLM_Agent_Tests is
         & " 'tool_calls'}], 'usage': {'prompt_tokens': 12,"
         & " 'completion_tokens': 6}}]" & ASCII.LF
         & "            else:" & ASCII.LF
-        & "                assert len(body['messages']) == 3" & ASCII.LF
-        & "                assert body['messages'][1]['tool_calls'][0]['id']"
+        & "                assert len(msgs) == 3" & ASCII.LF
+        & "                assert msgs[1]['tool_calls'][0]['id']"
         & " == 'call_1'" & ASCII.LF
-        & "                assert body['messages'][2]['role'] == 'tool'"
+        & "                assert msgs[2]['role'] == 'tool'"
         & ASCII.LF
-        & "                assert 'tool-ok' in body['messages'][2]['content']"
+        & "                assert 'tool-ok' in msgs[2]['content']"
         & ASCII.LF
         & "                events = [" & ASCII.LF
         & "                    {'choices': [{'delta': {'content': 'Done'},"
@@ -1099,12 +1118,14 @@ package body LLM_Agent_Tests is
         & "            n = int(self.headers.get('Content-Length', '0'))"
         & ASCII.LF
         & "            body = json.loads(self.rfile.read(n))" & ASCII.LF
+        & "            msgs = [m for m in body['messages']"
+        & " if m.get('role') != 'system']" & ASCII.LF
         & "            assert body['model'] == 'openai/gpt-4o-mini'"
         & ASCII.LF
-        & "            assert len(body['messages']) == 1" & ASCII.LF
-        & "            assert body['messages'][0]['role'] == 'user'"
+        & "            assert len(msgs) == 1" & ASCII.LF
+        & "            assert msgs[0]['role'] == 'user'"
         & ASCII.LF
-        & "            assert body['messages'][0]['content'] == "
+        & "            assert msgs[0]['content'] == "
         & "'Use two tools'" & ASCII.LF
         & "            assert len(body['tools']) > 0" & ASCII.LF
         & "            events = [" & ASCII.LF
@@ -1164,11 +1185,13 @@ package body LLM_Agent_Tests is
         & "            n = int(self.headers.get('Content-Length', '0'))"
         & ASCII.LF
         & "            body = json.loads(self.rfile.read(n))" & ASCII.LF
+        & "            msgs = [m for m in body['messages']"
+        & " if m.get('role') != 'system']" & ASCII.LF
         & "            assert body['model'] == 'openai/gpt-4o-mini'"
         & ASCII.LF
         & "            if H.count == 1:" & ASCII.LF
-        & "                assert len(body['messages']) == 1" & ASCII.LF
-        & "                assert body['messages'][0]['content'] == "
+        & "                assert len(msgs) == 1" & ASCII.LF
+        & "                assert msgs[0]['content'] == "
         & "'Use two tools'" & ASCII.LF
         & "                events = [" & ASCII.LF
         & "                    {'choices': [{'delta': {'tool_calls': ["
@@ -1183,23 +1206,23 @@ package body LLM_Agent_Tests is
         & " 'tool_calls'}], 'usage': {'prompt_tokens': 14,"
         & " 'completion_tokens': 7}}]" & ASCII.LF
         & "            else:" & ASCII.LF
-        & "                assert len(body['messages']) == 4" & ASCII.LF
-        & "                assert body['messages'][1]['role'] == 'assistant'"
+        & "                assert len(msgs) == 4" & ASCII.LF
+        & "                assert msgs[1]['role'] == 'assistant'"
         & ASCII.LF
-        & "                assert len(body['messages'][1]['tool_calls']) == 2"
+        & "                assert len(msgs[1]['tool_calls']) == 2"
         & ASCII.LF
-        & "                assert body['messages'][2]['role'] == 'tool'"
+        & "                assert msgs[2]['role'] == 'tool'"
         & ASCII.LF
-        & "                assert body['messages'][2]['tool_call_id'] =="
+        & "                assert msgs[2]['tool_call_id'] =="
         & " 'call_1'" & ASCII.LF
-        & "                assert 'first-ok' in body['messages'][2]['content']"
+        & "                assert 'first-ok' in msgs[2]['content']"
         & ASCII.LF
-        & "                assert body['messages'][3]['role'] == 'tool'"
+        & "                assert msgs[3]['role'] == 'tool'"
         & ASCII.LF
-        & "                assert body['messages'][3]['tool_call_id'] =="
+        & "                assert msgs[3]['tool_call_id'] =="
         & " 'call_2'" & ASCII.LF
         & "                assert 'second-ok' in "
-        & "body['messages'][3]['content']" & ASCII.LF
+        & "msgs[3]['content']" & ASCII.LF
         & "                events = [" & ASCII.LF
         & "                    {'choices': [{'delta': {'content': "
         & "'All done'}, 'finish_reason': None}]}," & ASCII.LF
@@ -1250,11 +1273,13 @@ package body LLM_Agent_Tests is
         & "            n = int(self.headers.get('Content-Length', '0'))"
         & ASCII.LF
         & "            body = json.loads(self.rfile.read(n))" & ASCII.LF
+        & "            msgs = [m for m in body['messages']"
+        & " if m.get('role') != 'system']" & ASCII.LF
         & "            assert body['model'] == 'openai/gpt-4o-mini'"
         & ASCII.LF
         & "            if H.count == 1:" & ASCII.LF
-        & "                assert len(body['messages']) == 1" & ASCII.LF
-        & "                assert body['messages'][0]['content'] == "
+        & "                assert len(msgs) == 1" & ASCII.LF
+        & "                assert msgs[0]['content'] == "
         & "'Use failing tool'" & ASCII.LF
         & "                events = [" & ASCII.LF
         & "                    {'choices': [{'delta': {'tool_calls': ["
@@ -1268,13 +1293,13 @@ package body LLM_Agent_Tests is
         & " 'tool_calls'}], 'usage': {'prompt_tokens': 12,"
         & " 'completion_tokens': 6}}]" & ASCII.LF
         & "            else:" & ASCII.LF
-        & "                assert len(body['messages']) == 3" & ASCII.LF
-        & "                assert body['messages'][2]['role'] == 'tool'"
+        & "                assert len(msgs) == 3" & ASCII.LF
+        & "                assert msgs[2]['role'] == 'tool'"
         & ASCII.LF
-        & "                assert body['messages'][2]['tool_call_id'] =="
+        & "                assert msgs[2]['tool_call_id'] =="
         & " 'call_1'" & ASCII.LF
         & "                assert 'file not found' in"
-        & " body['messages'][2]['content']" & ASCII.LF
+        & " msgs[2]['content']" & ASCII.LF
         & "                events = [" & ASCII.LF
         & "                    {'choices': [{'delta': {'content': "
         & "'Handled failure'}, 'finish_reason': None}]}," & ASCII.LF
@@ -1449,11 +1474,13 @@ package body LLM_Agent_Tests is
         & "            n = int(self.headers.get('Content-Length', '0'))"
         & ASCII.LF
         & "            body = json.loads(self.rfile.read(n))" & ASCII.LF
+        & "            msgs = [m for m in body['messages']"
+        & " if m.get('role') != 'system']" & ASCII.LF
         & "            assert body['model'] == 'openai/gpt-4o-mini'"
         & ASCII.LF
         & "            if H.count == 1:" & ASCII.LF
-        & "                assert len(body['messages']) == 1" & ASCII.LF
-        & "                assert body['messages'][0]['content'] == "
+        & "                assert len(msgs) == 1" & ASCII.LF
+        & "                assert msgs[0]['content'] == "
         & "'Use delayed tool'" & ASCII.LF
         & "                assert len(body['tools']) > 0" & ASCII.LF
         & "                events = [" & ASCII.LF
@@ -1466,14 +1493,14 @@ package body LLM_Agent_Tests is
         & " 'tool_calls'}], 'usage': {'prompt_tokens': 12,"
         & " 'completion_tokens': 6}}]" & ASCII.LF
         & "            else:" & ASCII.LF
-        & "                assert len(body['messages']) == 3" & ASCII.LF
-        & "                assert body['messages'][1]['role'] == 'assistant'"
+        & "                assert len(msgs) == 3" & ASCII.LF
+        & "                assert msgs[1]['role'] == 'assistant'"
         & ASCII.LF
-        & "                assert body['messages'][1]['tool_calls'][0]['id']"
+        & "                assert msgs[1]['tool_calls'][0]['id']"
         & " == 'call_1'" & ASCII.LF
-        & "                assert body['messages'][2]['role'] == 'tool'"
+        & "                assert msgs[2]['role'] == 'tool'"
         & ASCII.LF
-        & "                assert 'slow-ok' in body['messages'][2]['content']"
+        & "                assert 'slow-ok' in msgs[2]['content']"
         & ASCII.LF
         & "                time.sleep(1.0)" & ASCII.LF
         & "                events = [" & ASCII.LF
@@ -1570,18 +1597,20 @@ package body LLM_Agent_Tests is
         & "            n = int(self.headers.get('Content-Length', '0'))"
         & ASCII.LF
         & "            body = json.loads(self.rfile.read(n))" & ASCII.LF
-        & "            assert len(body['messages']) == 3" & ASCII.LF
-        & "            assert body['messages'][0]['role'] == 'user'"
+        & "            msgs = [m for m in body['messages']"
+        & " if m.get('role') != 'system']" & ASCII.LF
+        & "            assert len(msgs) == 3" & ASCII.LF
+        & "            assert msgs[0]['role'] == 'user'"
         & ASCII.LF
-        & "            assert body['messages'][0]['content'] == '"
+        & "            assert msgs[0]['content'] == '"
         & Expect_First & "'" & ASCII.LF
-        & "            assert body['messages'][1]['role'] == 'assistant'"
+        & "            assert msgs[1]['role'] == 'assistant'"
         & ASCII.LF
-        & "            assert body['messages'][1]['content'] == '"
+        & "            assert msgs[1]['content'] == '"
         & Expect_Response & "'" & ASCII.LF
-        & "            assert body['messages'][2]['role'] == 'user'"
+        & "            assert msgs[2]['role'] == 'user'"
         & ASCII.LF
-        & "            assert body['messages'][2]['content'] == "
+        & "            assert msgs[2]['content'] == "
         & "'Second prompt'" & ASCII.LF
         & "            events = [" & ASCII.LF
         & "                {'choices': [{'delta': {'content': '"
@@ -2403,25 +2432,35 @@ package body LLM_Agent_Tests is
                return Value.Get (Field).Get;
             end Json_String;
 
-            Request : constant GNATCOLL.JSON.JSON_Value := Parsed.Value;
-            Msgs    : constant GNATCOLL.JSON.JSON_Array :=
+            Request    : constant GNATCOLL.JSON.JSON_Value := Parsed.Value;
+            Msgs       : constant GNATCOLL.JSON.JSON_Array :=
               Request.Get ("messages").Get;
-            Calls   : constant GNATCOLL.JSON.JSON_Array :=
-              GNATCOLL.JSON.Get (Msgs, 2).Get ("tool_calls").Get;
+            Sys_Offset : constant Natural :=
+              (if GNATCOLL.JSON.Length (Msgs) > 0
+                 and then Json_String
+                   (GNATCOLL.JSON.Get (Msgs, 1), "role") = "system"
+               then 1 else 0);
+            Calls      : constant GNATCOLL.JSON.JSON_Array :=
+              GNATCOLL.JSON.Get
+                (Msgs, 2 + Sys_Offset).Get ("tool_calls").Get;
          begin
             Assert
-              (GNATCOLL.JSON.Length (Msgs) = 5,
+              (GNATCOLL.JSON.Length (Msgs) = 5 + Sys_Offset,
                "Resume request should include the aborted tool batch"
                & " in memory");
             Assert
-              (Json_String (GNATCOLL.JSON.Get (Msgs, 1), "role") = "user",
+              (Json_String
+                 (GNATCOLL.JSON.Get (Msgs, 1 + Sys_Offset), "role")
+                 = "user",
                "First request message should be the original user prompt");
             Assert
-              (Json_String (GNATCOLL.JSON.Get (Msgs, 1), "content")
+              (Json_String
+                 (GNATCOLL.JSON.Get (Msgs, 1 + Sys_Offset), "content")
                  = "Use two tools",
                "Original user prompt should remain in history");
             Assert
-              (Json_String (GNATCOLL.JSON.Get (Msgs, 2), "role")
+              (Json_String
+                 (GNATCOLL.JSON.Get (Msgs, 2 + Sys_Offset), "role")
                  = "assistant",
                "Assistant tool-call message should precede tool results");
             Assert
@@ -2434,35 +2473,42 @@ package body LLM_Agent_Tests is
               (Json_String (GNATCOLL.JSON.Get (Calls, 2), "id") = "call_2",
                "Second tool call id should be preserved");
             Assert
-              (Json_String (GNATCOLL.JSON.Get (Msgs, 3), "role") = "tool",
+              (Json_String
+                 (GNATCOLL.JSON.Get (Msgs, 3 + Sys_Offset), "role")
+                 = "tool",
                "First tool result should follow the assistant tool call");
             Assert
-              (Json_String (GNATCOLL.JSON.Get (Msgs, 3), "tool_call_id")
+              (Json_String
+                 (GNATCOLL.JSON.Get (Msgs, 3 + Sys_Offset), "tool_call_id")
                  = "call_1",
                "First tool result should match call_1");
             Assert
               (Ada.Strings.Fixed.Index
-                 (Json_String (GNATCOLL.JSON.Get (Msgs, 3), "content"),
+                 (Json_String
+                    (GNATCOLL.JSON.Get (Msgs, 3 + Sys_Offset), "content"),
                   "first-ok") > 0,
                "First tool result should contain the real command output");
             Assert
-              (Json_String (GNATCOLL.JSON.Get (Msgs, 4), "role") = "tool",
+              (Json_String
+                 (GNATCOLL.JSON.Get (Msgs, 4 + Sys_Offset), "role")
+                 = "tool",
                "Second tool result should be present after abort");
             Assert
-              (Json_String (GNATCOLL.JSON.Get (Msgs, 4), "tool_call_id")
+              (Json_String
+                 (GNATCOLL.JSON.Get
+                    (Msgs, 4 + Sys_Offset), "tool_call_id")
                  = "call_2",
                "Second tool result should match call_2");
             Assert
-              (Json_String (GNATCOLL.JSON.Get (Msgs, 4), "content")
-                 = "Aborted",
-               "Second tool result should be the synthesized Aborted stub");
+              (Json_String
+                 (GNATCOLL.JSON.Get (Msgs, 5 + Sys_Offset), "role")
+                 = "user",
+               "Final message should be the after-abort user prompt");
             Assert
-              (Json_String (GNATCOLL.JSON.Get (Msgs, 5), "role") = "user",
-               "Second prompt should be appended after the aborted batch");
-            Assert
-              (Json_String (GNATCOLL.JSON.Get (Msgs, 5), "content")
+              (Json_String
+                 (GNATCOLL.JSON.Get (Msgs, 5 + Sys_Offset), "content")
                  = "After abort",
-               "Second prompt text should be preserved");
+               "After-abort user prompt should be preserved in history");
          end;
       end;
 

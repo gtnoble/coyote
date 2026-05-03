@@ -59,6 +59,16 @@ package body Subagent_Integration_Tests is
       return S;
    end First_Line;
 
+   --  Return the current process ID as a decimal string with no leading
+   --  space.
+   function PID_Image return String is
+      function Getpid return Integer;
+      pragma Import (C, Getpid, "getpid");
+      Image : constant String := Integer'Image (Getpid);
+   begin
+      return Image (Image'First + 1 .. Image'Last);
+   end PID_Image;
+
    --  Extract a string field from a JSON object value.  Returns "" on
    --  any type mismatch or missing field rather than raising an exception,
    --  so callers can assert on the result instead of catching errors.
@@ -78,7 +88,7 @@ package body Subagent_Integration_Tests is
       return "";
    end Json_Str;
 
-   --  Synchronisation flag: the Reader task signals this once the
+   --  Synchronisation flag: the Runner task signals this once the
    --  subprocess has exited and its output has been captured.  The main
    --  task uses select/or delay to impose a wall-clock timeout.
    protected type Done_Flag is
@@ -109,9 +119,9 @@ package body Subagent_Integration_Tests is
    procedure Test_One_Shot_Returns_Json (T : in out Test) is
       pragma Unreferenced (T);
 
-      Coyote    : constant String := Find_Coyote;
+      Coyote     : constant String  := Find_Coyote;
       Stdout_Out : Unbounded_String;
-      Got_Result : Boolean         := False;
+      Got_Result : Boolean          := False;
       Flag       : Done_Flag;
 
       task Runner;
@@ -121,10 +131,38 @@ package body Subagent_Integration_Tests is
          Null_In            : File_Descriptor;
          Null_Err           : File_Descriptor;
          Args               : Argument_List;
+         Env_Override       : Environment_Dict;
          Handle             : Process_Handle;
          Exit_Code          : Integer;
          pragma Unreferenced (Exit_Code);
+         Test_Home : constant String :=
+           "/tmp/coyote_subagent_test_" & PID_Image;
+         Real_Home : constant String :=
+           Ada.Environment_Variables.Value ("HOME", "");
       begin
+         --  Create a writable temp HOME so coyote can write session
+         --  files and refresh its auth token without touching the real
+         --  user's HOME directory.
+         if Ada.Directories.Exists (Test_Home) then
+            Ada.Directories.Delete_Tree (Test_Home);
+         end if;
+         Ada.Directories.Create_Path (Test_Home & "/.coyote/sessions");
+         if Ada.Directories.Exists
+              (Real_Home & "/.coyote/auth.json")
+         then
+            Ada.Directories.Copy_File
+              (Real_Home & "/.coyote/auth.json",
+               Test_Home & "/.coyote/auth.json");
+         end if;
+         if Ada.Directories.Exists
+              (Real_Home & "/.coyote/settings.json")
+         then
+            Ada.Directories.Copy_File
+              (Real_Home & "/.coyote/settings.json",
+               Test_Home & "/.coyote/settings.json");
+         end if;
+         Env_Override.Include ("HOME", Test_Home);
+
          Open_Pipe (Stdout_R, Stdout_W);
          Null_In  := Open (Null_File, Read_Mode);
          Null_Err := Open (Null_File, Write_Mode);
@@ -136,21 +174,31 @@ package body Subagent_Integration_Tests is
          Args.Append
            ("Reply with only the word PONG and nothing else.");
          Handle := Start
-           (Args   => Args,
-            Stdin  => Null_In,
-            Stdout => Stdout_W,
-            Stderr => Null_Err,
-            Cwd    => Ada.Directories.Current_Directory);
+           (Args        => Args,
+            Env         => Env_Override,
+            Stdin       => Null_In,
+            Stdout      => Stdout_W,
+            Stderr      => Null_Err,
+            Cwd         => Ada.Directories.Current_Directory,
+            Inherit_Env => True);
          Close (Null_In);
          Close (Null_Err);
          Close (Stdout_W);
          Stdout_Out := GNATCOLL.OS.FS.Read (Stdout_R);
          Close (Stdout_R);
          Exit_Code  := Wait (Handle);
+         --  Clean up temp HOME now that coyote has exited.
+         if Ada.Directories.Exists (Test_Home) then
+            Ada.Directories.Delete_Tree (Test_Home);
+         end if;
          Got_Result := True;
          Flag.Signal;
       exception
-         when others => Flag.Signal;
+         when others =>
+            if Ada.Directories.Exists (Test_Home) then
+               Ada.Directories.Delete_Tree (Test_Home);
+            end if;
+            Flag.Signal;
       end Runner;
 
    begin
@@ -206,15 +254,17 @@ package body Subagent_Integration_Tests is
    procedure Test_One_Shot_Fresh_Session_Each_Run (T : in out Test) is
       pragma Unreferenced (T);
 
-      Coyote : constant String := Find_Coyote;
-      Out_1   : Unbounded_String;
-      Out_2   : Unbounded_String;
-      Done_1  : Boolean         := False;
-      Done_2  : Boolean         := False;
-      Flag    : Done_Flag;
+      Coyote : constant String  := Find_Coyote;
+      Out_1  : Unbounded_String;
+      Out_2  : Unbounded_String;
+      Done_1 : Boolean          := False;
+      Done_2 : Boolean          := False;
+      Flag   : Done_Flag;
 
       --  Invoke coyote --one-shot once and store stdout in Result.
-      --  Sets Done to True on successful completion.
+      --  Sets Done to True on successful completion.  Creates a fresh
+      --  writable temp HOME for the subprocess so it can write session
+      --  files and refresh auth tokens without touching the real HOME.
       procedure Run_One_Shot
         (Result : out Unbounded_String;
          Done   : out Boolean)
@@ -224,10 +274,36 @@ package body Subagent_Integration_Tests is
          Null_In            : File_Descriptor;
          Null_Err           : File_Descriptor;
          Args               : Argument_List;
+         Env_Override       : Environment_Dict;
          Handle             : Process_Handle;
          Exit_Code          : Integer;
          pragma Unreferenced (Exit_Code);
+         Test_Home : constant String :=
+           "/tmp/coyote_subagent_test_" & PID_Image;
+         Real_Home : constant String :=
+           Ada.Environment_Variables.Value ("HOME", "");
       begin
+         --  Recreate the temp HOME fresh for each invocation.
+         if Ada.Directories.Exists (Test_Home) then
+            Ada.Directories.Delete_Tree (Test_Home);
+         end if;
+         Ada.Directories.Create_Path (Test_Home & "/.coyote/sessions");
+         if Ada.Directories.Exists
+              (Real_Home & "/.coyote/auth.json")
+         then
+            Ada.Directories.Copy_File
+              (Real_Home & "/.coyote/auth.json",
+               Test_Home & "/.coyote/auth.json");
+         end if;
+         if Ada.Directories.Exists
+              (Real_Home & "/.coyote/settings.json")
+         then
+            Ada.Directories.Copy_File
+              (Real_Home & "/.coyote/settings.json",
+               Test_Home & "/.coyote/settings.json");
+         end if;
+         Env_Override.Include ("HOME", Test_Home);
+
          Open_Pipe (Stdout_R, Stdout_W);
          Null_In  := Open (Null_File, Read_Mode);
          Null_Err := Open (Null_File, Write_Mode);
@@ -238,18 +314,30 @@ package body Subagent_Integration_Tests is
          Args.Append ("--prompt");
          Args.Append ("Reply with the single word PONG.");
          Handle := Start
-           (Args   => Args,
-            Stdin  => Null_In,
-            Stdout => Stdout_W,
-            Stderr => Null_Err,
-            Cwd    => Ada.Directories.Current_Directory);
+           (Args        => Args,
+            Env         => Env_Override,
+            Stdin       => Null_In,
+            Stdout      => Stdout_W,
+            Stderr      => Null_Err,
+            Cwd         => Ada.Directories.Current_Directory,
+            Inherit_Env => True);
          Close (Null_In);
          Close (Null_Err);
          Close (Stdout_W);
          Result    := GNATCOLL.OS.FS.Read (Stdout_R);
          Close (Stdout_R);
          Exit_Code := Wait (Handle);
-         Done      := True;
+         --  Clean up temp HOME now that coyote has exited.
+         if Ada.Directories.Exists (Test_Home) then
+            Ada.Directories.Delete_Tree (Test_Home);
+         end if;
+         Done := True;
+      exception
+         when others =>
+            if Ada.Directories.Exists (Test_Home) then
+               Ada.Directories.Delete_Tree (Test_Home);
+            end if;
+            raise;
       end Run_One_Shot;
 
       task Runner;

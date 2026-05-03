@@ -262,13 +262,17 @@ package body Session_Lister_Tests is
    --  inside $HOME/.coyote/sessions/ and clean them up afterward.
 
    --  Directory slug used exclusively by these tests.
-   Sessions_Test_Dir_A : constant String :=
-     Ada.Environment_Variables.Value ("HOME", "")
-     & "/.coyote/sessions/--coyote-test--";
+   function Sessions_Test_Dir_A return String is
+   begin
+      return Ada.Environment_Variables.Value ("HOME", "")
+             & "/.coyote/sessions/--coyote-test--";
+   end Sessions_Test_Dir_A;
 
-   Sessions_Test_Dir_B : constant String :=
-     Ada.Environment_Variables.Value ("HOME", "")
-     & "/.coyote/sessions/--coyote-test-B--";
+   function Sessions_Test_Dir_B return String is
+   begin
+      return Ada.Environment_Variables.Value ("HOME", "")
+             & "/.coyote/sessions/--coyote-test-B--";
+   end Sessions_Test_Dir_B;
 
    --  Create JSONL file containing UUID in its name under Dir.
    --  Returns the full path of the created file.
@@ -280,7 +284,7 @@ package body Session_Lister_Tests is
       F    : Ada.Text_IO.File_Type;
    begin
       if not Ada.Directories.Exists (Dir) then
-         Ada.Directories.Create_Directory (Dir);
+         Ada.Directories.Create_Path (Dir);
       end if;
       Ada.Text_IO.Create (F, Ada.Text_IO.Out_File, Path);
       Ada.Text_IO.Put_Line
@@ -303,17 +307,34 @@ package body Session_Lister_Tests is
 
    procedure Test_Find_Session_File_Found (T : in out Test) is
       pragma Unreferenced (T);
-      UUID : constant String := "test-piacme-find-found";
-      Path : constant String :=
-        Write_Session_File (Sessions_Test_Dir_A, UUID);
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Home         : constant String :=
+        Test_Home_Root & "/find-found";
+      UUID         : constant String := "test-piacme-find-found";
    begin
-      Assert (Find_Session_File (UUID) = Path,
-              "Find_Session_File should return the full path of "
-              & "the matching file");
-      Delete_Session_File (Sessions_Test_Dir_A, UUID);
+      Prepare_Test_Home (Home);
+      declare
+         Path : constant String :=
+           Write_Session_File (Sessions_Test_Dir_A, UUID);
+      begin
+         Assert (Find_Session_File (UUID) = Path,
+                 "Find_Session_File should return the full path of "
+                 & "the matching file");
+         Delete_Session_File (Sessions_Test_Dir_A, UUID);
+      exception
+         when others =>
+            Delete_Session_File (Sessions_Test_Dir_A, UUID);
+            raise;
+      end;
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
    exception
       when others =>
-         Delete_Session_File (Sessions_Test_Dir_A, UUID);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
          raise;
    end Test_Find_Session_File_Found;
 
@@ -329,27 +350,46 @@ package body Session_Lister_Tests is
 
    procedure Test_Find_Session_File_Any_Dir (T : in out Test) is
       pragma Unreferenced (T);
-      UUID : constant String := "test-piacme-find-any-dir";
-      Path : constant String :=
-        Write_Session_File (Sessions_Test_Dir_B, UUID);
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Home         : constant String :=
+        Test_Home_Root & "/find-any-dir";
+      UUID         : constant String := "test-piacme-find-any-dir";
    begin
-      --  File is in a different directory slug; should still be found.
-      Assert (Find_Session_File (UUID) = Path,
-              "Find_Session_File should locate sessions in any "
-              & "subdirectory, not just the current CWD slug");
-      Delete_Session_File (Sessions_Test_Dir_B, UUID);
+      Prepare_Test_Home (Home);
+      declare
+         Path : constant String :=
+           Write_Session_File (Sessions_Test_Dir_B, UUID);
+      begin
+         --  File is in a different directory slug; should still be found.
+         Assert (Find_Session_File (UUID) = Path,
+                 "Find_Session_File should locate sessions in any "
+                 & "subdirectory, not just the current CWD slug");
+         Delete_Session_File (Sessions_Test_Dir_B, UUID);
+      exception
+         when others =>
+            Delete_Session_File (Sessions_Test_Dir_B, UUID);
+            raise;
+      end;
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
    exception
       when others =>
-         Delete_Session_File (Sessions_Test_Dir_B, UUID);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
          raise;
    end Test_Find_Session_File_Any_Dir;
 
    --  ── Fork_Session ──────────────────────────────────────────────────────
    --
    --  Test directory used for fork source files.
-   Sessions_Fork_Dir : constant String :=
-     Ada.Environment_Variables.Value ("HOME", "")
-     & "/.coyote/sessions/--coyote-fork-test--";
+   function Sessions_Fork_Dir return String is
+   begin
+      return Ada.Environment_Variables.Value ("HOME", "")
+             & "/.coyote/sessions/--coyote-fork-test--";
+   end Sessions_Fork_Dir;
 
    --  Target CWD for forked sessions (maps to the fork test dir).
    Fork_Target_Cwd : constant String := "/coyote-fork-test";
@@ -386,7 +426,7 @@ package body Session_Lister_Tests is
       F    : Ada.Text_IO.File_Type;
    begin
       if not Ada.Directories.Exists (Sessions_Fork_Dir) then
-         Ada.Directories.Create_Directory (Sessions_Fork_Dir);
+         Ada.Directories.Create_Path (Sessions_Fork_Dir);
       end if;
       Ada.Text_IO.Create (F, Ada.Text_IO.Out_File, Path);
       Ada.Text_IO.Put (F, Content);
@@ -437,8 +477,15 @@ package body Session_Lister_Tests is
    --  contains turn 1 messages but not turn 2, and carries a fork name.
    procedure Test_Fork_Session_One_Turn (T : in out Test) is
       pragma Unreferenced (T);
-      Src_UUID : constant String := "test-fork-src-one-turn";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Home         : constant String :=
+        Test_Home_Root & "/fork-one-turn";
+      Src_UUID     : constant String := "test-fork-src-one-turn";
    begin
+      Prepare_Test_Home (Home);
       Write_Fork_Source (Src_UUID, Two_Turn_JSONL (Src_UUID));
       declare
          New_UUID : constant String :=
@@ -467,17 +514,28 @@ package body Session_Lister_Tests is
          Delete_Fork_Result (New_UUID);
       end;
       Delete_Fork_Source (Src_UUID);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
    exception
       when others =>
          Delete_Fork_Source (Src_UUID);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
          raise;
    end Test_Fork_Session_One_Turn;
 
    --  Fork after turn 2 (the last turn); both turns must be present.
    procedure Test_Fork_Session_Second_Turn (T : in out Test) is
       pragma Unreferenced (T);
-      Src_UUID : constant String := "test-fork-src-two-turn";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Home         : constant String :=
+        Test_Home_Root & "/fork-second-turn";
+      Src_UUID     : constant String := "test-fork-src-two-turn";
    begin
+      Prepare_Test_Home (Home);
       Write_Fork_Source (Src_UUID, Two_Turn_JSONL (Src_UUID));
       declare
          New_UUID : constant String :=
@@ -500,24 +558,39 @@ package body Session_Lister_Tests is
          Delete_Fork_Result (New_UUID);
       end;
       Delete_Fork_Source (Src_UUID);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
    exception
       when others =>
          Delete_Fork_Source (Src_UUID);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
          raise;
    end Test_Fork_Session_Second_Turn;
 
    --  Requesting a turn that does not exist returns "".
    procedure Test_Fork_Session_Beyond_End (T : in out Test) is
       pragma Unreferenced (T);
-      Src_UUID : constant String := "test-fork-src-beyond";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Home         : constant String :=
+        Test_Home_Root & "/fork-beyond-end";
+      Src_UUID     : constant String := "test-fork-src-beyond";
    begin
+      Prepare_Test_Home (Home);
       Write_Fork_Source (Src_UUID, Two_Turn_JSONL (Src_UUID));
       Assert (Fork_Session (Src_UUID, 99, Fork_Target_Cwd) = "",
               "Fork beyond last turn should return empty string");
       Delete_Fork_Source (Src_UUID);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
    exception
       when others =>
          Delete_Fork_Source (Src_UUID);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
          raise;
    end Test_Fork_Session_Beyond_End;
 

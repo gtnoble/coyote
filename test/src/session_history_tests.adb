@@ -115,9 +115,12 @@ package body Session_History_Tests is
 
    --  Session files are written to this directory so they are found by
    --  Find_Session_File without interfering with real sessions.
-   Sessions_Test_Dir : constant String :=
-     Ada.Environment_Variables.Value ("HOME", "")
-     & "/.coyote/sessions/--coyote-test-render--";
+   --  Reads HOME at call time so tests can redirect it to a writable temp dir.
+   function Sessions_Test_Dir return String is
+   begin
+      return Ada.Environment_Variables.Value ("HOME", "")
+             & "/.coyote/sessions/--coyote-test-render--";
+   end Sessions_Test_Dir;
 
    --  Write a JSONL session file whose filename embeds UUID.
    --  Lines is the full JSONL content supplied by the caller.
@@ -130,7 +133,7 @@ package body Session_History_Tests is
       F    : Ada.Text_IO.File_Type;
    begin
       if not Ada.Directories.Exists (Sessions_Test_Dir) then
-         Ada.Directories.Create_Directory (Sessions_Test_Dir);
+         Ada.Directories.Create_Path (Sessions_Test_Dir);
       end if;
       Ada.Text_IO.Create (F, Ada.Text_IO.Out_File, Path);
       Ada.Text_IO.Put (F, Lines);
@@ -195,11 +198,18 @@ package body Session_History_Tests is
 
    procedure Test_Render_User_Message (T : in out Test) is
       pragma Unreferenced (T);
-      UUID : constant String := "test-piacme-render-user";
+      UUID         : constant String := "test-piacme-render-user";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Home         : constant String :=
+        Test_Home_Root & "/render-user";
    begin
       if not Acme_Running then
          return;
       end if;
+      Prepare_Test_Home (Home);
       declare
          Path : constant String := Write_Session
            (UUID,
@@ -228,23 +238,37 @@ package body Session_History_Tests is
          end;
          Acme.Window.Ctl (Win, FS'Access, "clean");
          Acme.Window.Ctl (Win, FS'Access, "del");
-         Delete_Session (UUID);
       exception
          when others =>
-            Delete_Session (UUID);
+            Acme.Window.Ctl (Win, FS'Access, "clean");
+            Acme.Window.Ctl (Win, FS'Access, "del");
             raise;
       end;
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
    end Test_Render_User_Message;
 
    --  ── Test_Render_Assistant_Text ────────────────────────────────────────
 
    procedure Test_Render_Assistant_Text (T : in out Test) is
       pragma Unreferenced (T);
-      UUID : constant String := "test-piacme-render-asst";
+      UUID         : constant String := "test-piacme-render-asst";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Home         : constant String :=
+        Test_Home_Root & "/render-asst";
    begin
       if not Acme_Running then
          return;
       end if;
+      Prepare_Test_Home (Home);
       declare
          Path : constant String := Write_Session
            (UUID,
@@ -280,28 +304,42 @@ package body Session_History_Tests is
          end;
          Acme.Window.Ctl (Win, FS'Access, "clean");
          Acme.Window.Ctl (Win, FS'Access, "del");
-         Delete_Session (UUID);
       exception
          when others =>
-            Delete_Session (UUID);
+            Acme.Window.Ctl (Win, FS'Access, "clean");
+            Acme.Window.Ctl (Win, FS'Access, "del");
             raise;
       end;
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
    end Test_Render_Assistant_Text;
 
    --  ── Test_Render_Tool_Call_Success ─────────────────────────────────────
 
    procedure Test_Render_Tool_Call_Success (T : in out Test) is
       pragma Unreferenced (T);
-      UUID : constant String := "test-piacme-render-tool-ok";
+      UUID         : constant String := "test-piacme-render-tool-ok";
       --  UC_CHECK  U+2713
-      UC_Check : constant String :=
+      UC_Check     : constant String :=
         Character'Val (16#E2#)
         & Character'Val (16#9C#)
         & Character'Val (16#93#);
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Home         : constant String :=
+        Test_Home_Root & "/render-tool-ok";
    begin
       if not Acme_Running then
          return;
       end if;
+      Prepare_Test_Home (Home);
       declare
          Path : constant String := Write_Session
            (UUID,
@@ -348,28 +386,42 @@ package body Session_History_Tests is
          end;
          Acme.Window.Ctl (Win, FS'Access, "clean");
          Acme.Window.Ctl (Win, FS'Access, "del");
-         Delete_Session (UUID);
       exception
          when others =>
-            Delete_Session (UUID);
+            Acme.Window.Ctl (Win, FS'Access, "clean");
+            Acme.Window.Ctl (Win, FS'Access, "del");
             raise;
       end;
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
    end Test_Render_Tool_Call_Success;
 
    --  ── Test_Render_Tool_Call_Error ───────────────────────────────────────
 
    procedure Test_Render_Tool_Call_Error (T : in out Test) is
       pragma Unreferenced (T);
-      UUID : constant String := "test-piacme-render-tool-err";
+      UUID         : constant String := "test-piacme-render-tool-err";
       --  UC_CROSS  U+2717
-      UC_Cross : constant String :=
+      UC_Cross     : constant String :=
         Character'Val (16#E2#)
         & Character'Val (16#9C#)
         & Character'Val (16#97#);
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Home         : constant String :=
+        Test_Home_Root & "/render-tool-err";
    begin
       if not Acme_Running then
          return;
       end if;
+      Prepare_Test_Home (Home);
       declare
          Path : constant String := Write_Session
            (UUID,
@@ -416,28 +468,42 @@ package body Session_History_Tests is
          end;
          Acme.Window.Ctl (Win, FS'Access, "clean");
          Acme.Window.Ctl (Win, FS'Access, "del");
-         Delete_Session (UUID);
       exception
          when others =>
-            Delete_Session (UUID);
+            Acme.Window.Ctl (Win, FS'Access, "clean");
+            Acme.Window.Ctl (Win, FS'Access, "del");
             raise;
       end;
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
    end Test_Render_Tool_Call_Error;
 
    --  ── Test_Render_Thinking_Block ────────────────────────────────────────
 
    procedure Test_Render_Thinking_Block (T : in out Test) is
       pragma Unreferenced (T);
-      UUID : constant String := "test-piacme-render-think";
+      UUID         : constant String := "test-piacme-render-think";
       --  UC_BOX_V  U+2502
-      UC_Box_V : constant String :=
+      UC_Box_V     : constant String :=
         Character'Val (16#E2#)
         & Character'Val (16#94#)
         & Character'Val (16#82#);
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Home         : constant String :=
+        Test_Home_Root & "/render-think";
    begin
       if not Acme_Running then
          return;
       end if;
+      Prepare_Test_Home (Home);
       declare
          Path : constant String := Write_Session
            (UUID,
@@ -479,23 +545,37 @@ package body Session_History_Tests is
          end;
          Acme.Window.Ctl (Win, FS'Access, "clean");
          Acme.Window.Ctl (Win, FS'Access, "del");
-         Delete_Session (UUID);
       exception
          when others =>
-            Delete_Session (UUID);
+            Acme.Window.Ctl (Win, FS'Access, "clean");
+            Acme.Window.Ctl (Win, FS'Access, "del");
             raise;
       end;
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
    end Test_Render_Thinking_Block;
 
    --  ── Test_Render_Model_Change ──────────────────────────────────────────
 
    procedure Test_Render_Model_Change (T : in out Test) is
       pragma Unreferenced (T);
-      UUID : constant String := "test-piacme-render-model";
+      UUID         : constant String := "test-piacme-render-model";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Home         : constant String :=
+        Test_Home_Root & "/render-model";
    begin
       if not Acme_Running then
          return;
       end if;
+      Prepare_Test_Home (Home);
       declare
          Path : constant String := Write_Session
            (UUID,
@@ -530,23 +610,37 @@ package body Session_History_Tests is
          end;
          Acme.Window.Ctl (Win, FS'Access, "clean");
          Acme.Window.Ctl (Win, FS'Access, "del");
-         Delete_Session (UUID);
       exception
          when others =>
-            Delete_Session (UUID);
+            Acme.Window.Ctl (Win, FS'Access, "clean");
+            Acme.Window.Ctl (Win, FS'Access, "del");
             raise;
       end;
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
    end Test_Render_Model_Change;
 
    --  ── Test_Render_Token_Stats ───────────────────────────────────────────
 
    procedure Test_Render_Token_Stats (T : in out Test) is
       pragma Unreferenced (T);
-      UUID : constant String := "test-piacme-render-tokens";
+      UUID         : constant String := "test-piacme-render-tokens";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Home         : constant String :=
+        Test_Home_Root & "/render-tokens";
    begin
       if not Acme_Running then
          return;
       end if;
+      Prepare_Test_Home (Home);
       declare
          Path : constant String := Write_Session
            (UUID,
@@ -593,28 +687,42 @@ package body Session_History_Tests is
          end;
          Acme.Window.Ctl (Win, FS'Access, "clean");
          Acme.Window.Ctl (Win, FS'Access, "del");
-         Delete_Session (UUID);
       exception
          when others =>
-            Delete_Session (UUID);
+            Acme.Window.Ctl (Win, FS'Access, "clean");
+            Acme.Window.Ctl (Win, FS'Access, "del");
             raise;
       end;
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
    end Test_Render_Token_Stats;
 
    --  ── Test_Render_Separator ─────────────────────────────────────────────
 
    procedure Test_Render_Separator (T : in out Test) is
       pragma Unreferenced (T);
-      UUID : constant String := "test-piacme-render-sep";
+      UUID         : constant String := "test-piacme-render-sep";
       --  UC_DBL_H  U+2550  (used in turn footer separator rule)
-      UC_Dbl_H : constant String :=
+      UC_Dbl_H     : constant String :=
         Character'Val (16#E2#)
         & Character'Val (16#95#)
         & Character'Val (16#90#);
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Home         : constant String :=
+        Test_Home_Root & "/render-sep";
    begin
       if not Acme_Running then
          return;
       end if;
+      Prepare_Test_Home (Home);
       declare
          --  A complete turn requires both a user message and an assistant
          --  text message; the separator is only emitted after a complete turn.
@@ -654,12 +762,19 @@ package body Session_History_Tests is
          end;
          Acme.Window.Ctl (Win, FS'Access, "clean");
          Acme.Window.Ctl (Win, FS'Access, "del");
-         Delete_Session (UUID);
       exception
          when others =>
-            Delete_Session (UUID);
+            Acme.Window.Ctl (Win, FS'Access, "clean");
+            Acme.Window.Ctl (Win, FS'Access, "del");
             raise;
       end;
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
    end Test_Render_Separator;
 
    --  ── Test_Render_Tool_Call_URI ─────────────────────────────────────────
@@ -670,18 +785,25 @@ package body Session_History_Tests is
 
    procedure Test_Render_Tool_Call_URI (T : in out Test) is
       pragma Unreferenced (T);
-      Session_UUID : constant String := "test-piacme-render-uri";
-      Tool_Call_Id : constant String := "tc-uri-check-001";
+      Session_UUID  : constant String := "test-piacme-render-uri";
+      Tool_Call_Id  : constant String := "tc-uri-check-001";
       --  Compute the expected 16-char hash the same way the production code
       --  does, using GNAT.SHA256 directly so the test is self-contained.
       Expected_Hash : constant String :=
         GNAT.SHA256.Digest (Tool_Call_Id) (1 .. 16);
       Expected_URI  : constant String :=
         "llm-chat+" & Session_UUID & "/tool/" & Expected_Hash;
+      Home_Was_Set  : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home      : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Home          : constant String :=
+        Test_Home_Root & "/render-uri";
    begin
       if not Acme_Running then
          return;
       end if;
+      Prepare_Test_Home (Home);
       declare
          Path : constant String := Write_Session
            (Session_UUID,
@@ -728,12 +850,19 @@ package body Session_History_Tests is
          end;
          Acme.Window.Ctl (Win, FS'Access, "clean");
          Acme.Window.Ctl (Win, FS'Access, "del");
-         Delete_Session (Session_UUID);
       exception
          when others =>
-            Delete_Session (Session_UUID);
+            Acme.Window.Ctl (Win, FS'Access, "clean");
+            Acme.Window.Ctl (Win, FS'Access, "del");
             raise;
       end;
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
    end Test_Render_Tool_Call_URI;
 
    --  ── Test_Render_Tool_Call_No_URI ──────────────────────────────────────
@@ -745,10 +874,17 @@ package body Session_History_Tests is
    procedure Test_Render_Tool_Call_No_URI (T : in out Test) is
       pragma Unreferenced (T);
       Session_UUID : constant String := "test-piacme-render-nouri";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Home         : constant String :=
+        Test_Home_Root & "/render-nouri";
    begin
       if not Acme_Running then
          return;
       end if;
+      Prepare_Test_Home (Home);
       declare
          Path : constant String := Write_Session
            (Session_UUID,
@@ -797,12 +933,19 @@ package body Session_History_Tests is
          end;
          Acme.Window.Ctl (Win, FS'Access, "clean");
          Acme.Window.Ctl (Win, FS'Access, "del");
-         Delete_Session (Session_UUID);
       exception
          when others =>
-            Delete_Session (Session_UUID);
+            Acme.Window.Ctl (Win, FS'Access, "clean");
+            Acme.Window.Ctl (Win, FS'Access, "del");
             raise;
       end;
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
    end Test_Render_Tool_Call_No_URI;
 
    procedure Test_History_Renders_Native_User_And_Assistant
