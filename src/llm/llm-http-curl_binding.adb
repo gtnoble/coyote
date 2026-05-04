@@ -3,7 +3,7 @@
 --  Project: coyote
 --  For revision history, see the project version-control log.
 
-with System;
+with Ada.Exceptions;
 
 package body LLM.HTTP.Curl_Binding is
 
@@ -21,30 +21,39 @@ package body LLM.HTTP.Curl_Binding is
          return 0;
       end if;
 
-      if Bytes > 0 then
-         declare
-            Ctx : Write_Context;
-            for Ctx'Address use User_Data;
-            pragma Import (Ada, Ctx);
+      --  Overlay Ctx on the caller's Write_Context so that any exception
+      --  caught below is stored there for Perform_Request to re-raise with
+      --  the real message, rather than surfacing as CURLE_WRITE_ERROR.
+      declare
+         Ctx : Write_Context;
+         for Ctx'Address use User_Data;
+         pragma Import (Ada, Ctx);
+      begin
+         if Bytes > 0 then
+            declare
+               Handler : access procedure (Data : String);
+               for Handler'Address use Ctx.On_Chunk_Address;
+               pragma Import (Ada, Handler);
 
-            Handler : access procedure (Data : String);
-            for Handler'Address use Ctx.On_Chunk_Address;
-            pragma Import (Ada, Handler);
+               Data : String (1 .. Natural (Bytes));
+               for Data'Address use Buffer;
+               pragma Import (Ada, Data);
+            begin
+               if Handler /= null then
+                  Handler.all (Data);
+               end if;
+            end;
+         end if;
 
-            Data : String (1 .. Natural (Bytes));
-            for Data'Address use Buffer;
-            pragma Import (Ada, Data);
-         begin
-            if Handler /= null then
-               Handler.all (Data);
-            end if;
-         end;
-      end if;
-
-      return Bytes;
-   exception
-      when others =>
-         return 0;
+         return Bytes;
+      exception
+         when E : others =>
+            Ctx.Exception_Occurred := True;
+            Ctx.Exception_Message  :=
+               Ada.Strings.Unbounded.To_Unbounded_String
+                  (Ada.Exceptions.Exception_Information (E));
+            return 0;
+      end;
    end Ada_Write_Callback;
 
 end LLM.HTTP.Curl_Binding;

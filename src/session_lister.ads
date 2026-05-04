@@ -1,4 +1,4 @@
---  Session_Lister — list pi agent sessions for a working directory.
+--  Session_Lister — list coyote sessions for a working directory.
 --
 --  Reads JSONL files from ~/.coyote/sessions/<encoded-cwd>/
 --  and extracts session metadata (UUID, name, date, first-message snippet).

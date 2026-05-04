@@ -87,7 +87,6 @@ package body LLM_OpenRouter_Tests is
 
    procedure Cleanup_Test_Home (Home : String) is
       Agent_Dir : constant String := Home & "/.coyote";
-      Pi_Dir    : constant String := Home & "/.pi";
    begin
       Delete_If_Exists (Agent_Dir & "/openrouter_models_cache.json");
       Delete_If_Exists (Agent_Dir & "/openrouter_models_cache.json.tmp");
@@ -95,10 +94,6 @@ package body LLM_OpenRouter_Tests is
 
       if Ada.Directories.Exists (Agent_Dir) then
          Ada.Directories.Delete_Directory (Agent_Dir);
-      end if;
-
-      if Ada.Directories.Exists (Pi_Dir) then
-         Ada.Directories.Delete_Directory (Pi_Dir);
       end if;
 
       if Ada.Directories.Exists (Home) then

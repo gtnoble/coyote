@@ -53,7 +53,7 @@ package Session_Fixture is
       Result    : String;
       Is_Error  : Boolean := False);
 
-   --  Append one legacy pi envelope line containing a user message.
+   --  Append one legacy envelope line containing a user message.
    procedure Append_Legacy_User_Message
      (Home     : String;
       Cwd_Slug : String;

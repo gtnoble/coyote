@@ -1395,7 +1395,7 @@ package body Dispatch_Tests is
               Acme.Window.Read_Body (Win, FS'Access);
          begin
             Assert_Contains
-              (Body_Text, "No response from pi",
+              (Body_Text, "No response from the agent",
                "agent_end without text or tool output should warn");
             Assert_Contains
               (Body_Text, "context may be too long",

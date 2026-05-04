@@ -4,6 +4,7 @@
 --  For revision history, see the project version-control log.
 
 with Ada.Directories;
+with Ada.Environment_Variables;
 with Ada.Strings;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
@@ -181,15 +182,23 @@ package body LLM.Skills is
    end Collect_Skills_From_Root;
 
    function Load_Skills (Cwd : String) return Skill_Vectors.Vector is
-      Result       : Skill_Vectors.Vector;
-      Agent_Dir    : constant String := LLM.Settings.Agent_Dir;
-      Global_Root  : constant String :=
+      Result              : Skill_Vectors.Vector;
+      Agent_Dir           : constant String := LLM.Settings.Agent_Dir;
+      Home                : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Global_Coyote_Root  : constant String :=
         (if Agent_Dir'Length > 0 then Agent_Dir & "/skills" else "");
-      Project_Root : constant String :=
+      Global_Agents_Root  : constant String :=
+        (if Home'Length > 0 then Home & "/.agents/skills" else "");
+      Project_Coyote_Root : constant String :=
         (if Cwd'Length > 0 then Cwd & "/.coyote/skills" else "");
+      Project_Agents_Root : constant String :=
+        (if Cwd'Length > 0 then Cwd & "/.agents/skills" else "");
    begin
-      Collect_Skills_From_Root (Global_Root, Result);
-      Collect_Skills_From_Root (Project_Root, Result);
+      Collect_Skills_From_Root (Global_Coyote_Root, Result);
+      Collect_Skills_From_Root (Global_Agents_Root, Result);
+      Collect_Skills_From_Root (Project_Coyote_Root, Result);
+      Collect_Skills_From_Root (Project_Agents_Root, Result);
       return Result;
    end Load_Skills;
 

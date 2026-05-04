@@ -5,8 +5,8 @@ with AUnit.Test_Fixtures;
 --
 --  Each test spawns bin/coyote with --one-shot and verifies the JSON
 --  result line written to stdout.  Tests are silently skipped when acme
---  is not running; they require a live acme 9P server and a configured
---  pi installation with the github-copilot/gpt-5-mini model.
+--  is not running; they require a live acme 9P server and the
+--  github-copilot/gpt-5-mini model configured.
 
 package Subagent_Integration_Tests is
 
@@ -18,7 +18,7 @@ package Subagent_Integration_Tests is
    procedure Test_One_Shot_Returns_Json
      (T : in out Test);
 
-   --  --one-shot implies --no-session: each invocation opens a fresh pi
+   --  --one-shot implies --no-session: each invocation opens a fresh coyote
    --  session, so two consecutive runs must return distinct session IDs.
    procedure Test_One_Shot_Fresh_Session_Each_Run
      (T : in out Test);

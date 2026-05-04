@@ -7,6 +7,7 @@
 --  Project: coyote
 --  For revision history, see the project version-control log.
 
+with Ada.Strings.Unbounded;
 with GNATCOLL.JSON;
 with Nine_P;
 
@@ -80,37 +81,25 @@ package Coyote_App.Utils is
      (Data       : String;
       Pid_Prefix : String) return String;
 
+   --  Parse a fork+PID/UUID/N token received from the pi-fork plumb port.
+   --
+   --  Data       : the data field of the plumb message (already extracted).
+   --  Pid_Prefix : the expected prefix string, e.g. "fork+" & My_PID & "/".
+   --
+   --  On success (token begins with Pid_Prefix and has the form
+   --  "fork+PID/UUID/N") sets UUID and Turn_N and returns True.
+   --  On any mismatch or malformed input returns False and leaves
+   --  UUID / Turn_N unchanged.
+   function Parse_Fork_Token
+     (Data       : String;
+      Pid_Prefix : String;
+      UUID       : out Ada.Strings.Unbounded.Unbounded_String;
+      Turn_N     : out Positive) return Boolean;
+
    --  Return the first 16 hex characters of the SHA-256 digest of Tool_Id,
    --  matching the token computed by the Python reference implementation:
    --    hashlib.sha256(tool_id.encode()).hexdigest()[:16]
    function Hash_Tool_Id (Tool_Id : String) return String;
-
-   --  Scan Context (a substring of the acme body starting at rune Ctx_Start)
-   --  for a llm-chat+.../tool/... URI that contains rune position Anchor.
-   --  Returns the first matching token string, or "" if none is found.
-   --
-   --  Token pattern:  llm-chat+ [0-9a-f-]+ /tool/ [0-9a-f]+
-   --
-   --  Local byte positions in Context are converted to approximate body rune
-   --  offsets by adding Ctx_Start.  This is exact for the ASCII-only tokens
-   --  this function scans for; any multi-byte UTF-8 characters that precede
-   --  the token introduce only a small positive error acceptable for
-   --  click-position matching.
-   function Scan_Tool_Token
-     (Context   : String;
-      Ctx_Start : Natural;
-      Anchor    : Natural) return String;
-
-   --  Scan Context for a fork+PID/SESSION-UUID/TURN-N token that contains
-   --  rune position Anchor.  Returns the token string, or "".
-   --
-   --  Token pattern:  fork+ [0-9]+ / [0-9a-f-]+ / [0-9]+
-   --
-   --  The same ASCII-only approximation for rune offsets applies here.
-   function Scan_Fork_Token
-     (Context   : String;
-      Ctx_Start : Natural;
-      Anchor    : Natural) return String;
 
    --  Run `diff -u` on Old_Text vs New_Text, strip the ---/+++/@@ unified
    --  diff header lines, and return the remaining body lines joined by
@@ -174,7 +163,7 @@ package Coyote_App.Utils is
 
    --  Read a JSON cost field (float or integer) and return the value in
    --  units of $0.0001 ("dmil").  Handles JSON_Float_Type (the normal case
-   --  from pi's cost.total computation) and JSON_Int_Type (zero when no
+   --  from the cost.total computation) and JSON_Int_Type (zero when no
    --  pricing is configured).  Returns 0 when the field is absent, zero,
    --  or negative.
    function Get_Cost_Dmil

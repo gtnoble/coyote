@@ -88,6 +88,48 @@ package body Subagent_Integration_Tests is
       return "";
    end Json_Str;
 
+   --  Copy one test prerequisite file into the subprocess HOME when it
+   --  exists in the real HOME.
+   procedure Copy_If_Exists
+     (Source : String;
+      Target : String) is
+   begin
+      if Ada.Directories.Exists (Source) then
+         Ada.Directories.Copy_File (Source, Target);
+      end if;
+   end Copy_If_Exists;
+
+   --  Prepare an isolated HOME for a spawned one-shot coyote subprocess.
+   --
+   --  The live model catalogue refresh can fail transiently, in which case
+   --  coyote falls back to its cached catalogue under ~/.coyote/.  The
+   --  subagent tests run the child with a temporary HOME, so copy the
+   --  relevant cache files as well as auth/settings to preserve the same
+   --  model-resolution behaviour as the parent environment.
+   procedure Populate_Test_Home
+     (Test_Home : String;
+      Real_Home : String) is
+      Real_Agent_Dir : constant String := Real_Home & "/.coyote";
+      Test_Agent_Dir : constant String := Test_Home & "/.coyote";
+   begin
+      Ada.Directories.Create_Path (Test_Agent_Dir & "/sessions");
+      Copy_If_Exists
+        (Real_Agent_Dir & "/auth.json",
+         Test_Agent_Dir & "/auth.json");
+      Copy_If_Exists
+        (Real_Agent_Dir & "/settings.json",
+         Test_Agent_Dir & "/settings.json");
+      Copy_If_Exists
+        (Real_Agent_Dir & "/models.json",
+         Test_Agent_Dir & "/models.json");
+      Copy_If_Exists
+        (Real_Agent_Dir & "/github_copilot_models_cache.json",
+         Test_Agent_Dir & "/github_copilot_models_cache.json");
+      Copy_If_Exists
+        (Real_Agent_Dir & "/openrouter_models_cache.json",
+         Test_Agent_Dir & "/openrouter_models_cache.json");
+   end Populate_Test_Home;
+
    --  Synchronisation flag: the Runner task signals this once the
    --  subprocess has exited and its output has been captured.  The main
    --  task uses select/or delay to impose a wall-clock timeout.
@@ -146,21 +188,7 @@ package body Subagent_Integration_Tests is
          if Ada.Directories.Exists (Test_Home) then
             Ada.Directories.Delete_Tree (Test_Home);
          end if;
-         Ada.Directories.Create_Path (Test_Home & "/.coyote/sessions");
-         if Ada.Directories.Exists
-              (Real_Home & "/.coyote/auth.json")
-         then
-            Ada.Directories.Copy_File
-              (Real_Home & "/.coyote/auth.json",
-               Test_Home & "/.coyote/auth.json");
-         end if;
-         if Ada.Directories.Exists
-              (Real_Home & "/.coyote/settings.json")
-         then
-            Ada.Directories.Copy_File
-              (Real_Home & "/.coyote/settings.json",
-               Test_Home & "/.coyote/settings.json");
-         end if;
+         Populate_Test_Home (Test_Home, Real_Home);
          Env_Override.Include ("HOME", Test_Home);
 
          Open_Pipe (Stdout_R, Stdout_W);
@@ -248,7 +276,7 @@ package body Subagent_Integration_Tests is
    --  ── Test_One_Shot_Fresh_Session_Each_Run ─────────────────────────────
    --
    --  Verifies that --one-shot implies --no-session: two consecutive
-   --  invocations each start a fresh pi session, so the returned
+   --  invocations each start a fresh coyote session, so the returned
    --  session_id values must differ.
 
    procedure Test_One_Shot_Fresh_Session_Each_Run (T : in out Test) is
@@ -287,21 +315,7 @@ package body Subagent_Integration_Tests is
          if Ada.Directories.Exists (Test_Home) then
             Ada.Directories.Delete_Tree (Test_Home);
          end if;
-         Ada.Directories.Create_Path (Test_Home & "/.coyote/sessions");
-         if Ada.Directories.Exists
-              (Real_Home & "/.coyote/auth.json")
-         then
-            Ada.Directories.Copy_File
-              (Real_Home & "/.coyote/auth.json",
-               Test_Home & "/.coyote/auth.json");
-         end if;
-         if Ada.Directories.Exists
-              (Real_Home & "/.coyote/settings.json")
-         then
-            Ada.Directories.Copy_File
-              (Real_Home & "/.coyote/settings.json",
-               Test_Home & "/.coyote/settings.json");
-         end if;
+         Populate_Test_Home (Test_Home, Real_Home);
          Env_Override.Include ("HOME", Test_Home);
 
          Open_Pipe (Stdout_R, Stdout_W);

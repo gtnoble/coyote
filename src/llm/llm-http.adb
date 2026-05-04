@@ -6,7 +6,6 @@
 with Interfaces.C;
 with Interfaces.C.Strings;
 with LLM.HTTP.Curl_Binding;
-with System;
 
 package body LLM.HTTP is
 
@@ -108,7 +107,10 @@ package body LLM.HTTP is
       URL_C : Interfaces.C.Strings.chars_ptr := Interfaces.C.Strings.Null_Ptr;
       Payload_C : Interfaces.C.Strings.chars_ptr :=
         Interfaces.C.Strings.Null_Ptr;
-      Ctx : aliased Write_Context := (On_Chunk_Address => On_Chunk'Address);
+      Ctx : aliased Write_Context :=
+        (On_Chunk_Address   => On_Chunk'Address,
+         Exception_Occurred => False,
+         Exception_Message  => Ada.Strings.Unbounded.Null_Unbounded_String);
       Response  : aliased Interfaces.C.long      := 0;
    begin
       if H = Curl_Binding.NULL_HANDLE then
@@ -150,7 +152,20 @@ package body LLM.HTTP is
             "curl_easy_setopt(CURLOPT_POSTFIELDSIZE)");
       end if;
 
-      Check (Curl_Binding.Easy_Perform (H), "curl_easy_perform");
+      declare
+         Curl_Result : constant Curl_Binding.Code :=
+           Curl_Binding.Easy_Perform (H);
+      begin
+         --  Re-raise the original exception when the write callback swallowed
+         --  one; this surfaces the real error (e.g. a JSON parse failure)
+         --  instead of the opaque CURLE_WRITE_ERROR message.
+         if Ctx.Exception_Occurred then
+            raise Curl_Error
+              with Ada.Strings.Unbounded.To_String (Ctx.Exception_Message);
+         end if;
+
+         Check (Curl_Result, "curl_easy_perform");
+      end;
       Check
         (Curl_Binding.Get_Response_Code (H, Response'Access),
          "curl_easy_getinfo(CURLINFO_RESPONSE_CODE)");

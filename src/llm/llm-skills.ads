@@ -1,8 +1,10 @@
 --  LLM.Skills — discover and format agent skills for the system prompt.
 --
---  Skills are SKILL.md files found under:
---    ~/.coyote/skills/*/SKILL.md       (global)
---    {Cwd}/.coyote/skills/*/SKILL.md   (project-local)
+--  Skills are SKILL.md files found under (in scan order):
+--    ~/.coyote/skills/*/SKILL.md       (global, coyote-specific)
+--    ~/.agents/skills/*/SKILL.md       (global, provider-agnostic)
+--    {Cwd}/.coyote/skills/*/SKILL.md   (project-local, coyote-specific)
+--    {Cwd}/.agents/skills/*/SKILL.md   (project-local, provider-agnostic)
 --
 --  Each SKILL.md has YAML frontmatter with "name" and "description"
 --  fields. Skills missing either field are silently skipped.
@@ -23,7 +25,7 @@ package LLM.Skills is
      (Index_Type   => Natural,
       Element_Type => Skill);
 
-   --  Scan ~/.coyote/skills/ and {Cwd}/.coyote/skills/ for SKILL.md files.
+   --  Scan all four skill roots (see package header) for SKILL.md files.
    --  Returns an empty vector when no skills are found.
    --  Skills missing a name or description are silently skipped.
    function Load_Skills (Cwd : String) return Skill_Vectors.Vector;

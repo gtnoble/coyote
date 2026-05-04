@@ -205,6 +205,91 @@ package body Coyote_App_Tests is
          "session: prefix (not llm-chat+) should return empty string");
    end Test_Parse_Token_Non_Token;
 
+   --  ── Parse_Fork_Token ────────────────────────────────────────────────
+
+   procedure Test_Parse_Fork_Token_Match (T : in out Test) is
+      pragma Unreferenced (T);
+      UUID   : Unbounded_String;
+      Turn_N : Positive := 1;
+      Result : constant Boolean :=
+        Parse_Fork_Token
+          ("fork+42/abc1-def2-3456-789a-bcdef0123456/7",
+           "fork+42/",
+           UUID,
+           Turn_N);
+   begin
+      Assert (Result, "Valid token should return True");
+      Assert (To_String (UUID) = "abc1-def2-3456-789a-bcdef0123456",
+              "UUID should be extracted correctly");
+      Assert (Turn_N = 7, "Turn number should be 7");
+   end Test_Parse_Fork_Token_Match;
+
+   procedure Test_Parse_Fork_Token_Pid_Mismatch (T : in out Test) is
+      pragma Unreferenced (T);
+      UUID   : Unbounded_String;
+      Turn_N : Positive := 1;
+      Result : constant Boolean :=
+        Parse_Fork_Token
+          ("fork+99/abc1-def2-3456-789a-bcdef0123456/7",
+           "fork+42/",
+           UUID,
+           Turn_N);
+   begin
+      Assert (not Result,
+              "Mismatched PID prefix should return False");
+   end Test_Parse_Fork_Token_Pid_Mismatch;
+
+   procedure Test_Parse_Fork_Token_No_Slash (T : in out Test) is
+      pragma Unreferenced (T);
+      UUID   : Unbounded_String;
+      Turn_N : Positive := 1;
+      Result : constant Boolean :=
+        Parse_Fork_Token
+          ("fork+42/abc1-def2-3456-789a-bcdef0123456",
+           "fork+42/",
+           UUID,
+           Turn_N);
+   begin
+      Assert (not Result,
+              "Token without trailing /turn should return False");
+   end Test_Parse_Fork_Token_No_Slash;
+
+   procedure Test_Parse_Fork_Token_Bad_Turn (T : in out Test) is
+      pragma Unreferenced (T);
+      UUID   : Unbounded_String;
+      Turn_N : Positive := 1;
+      Result : constant Boolean :=
+        Parse_Fork_Token
+          ("fork+42/abc1-def2-3456-789a-bcdef0123456/not-a-number",
+           "fork+42/",
+           UUID,
+           Turn_N);
+   begin
+      Assert (not Result,
+              "Non-numeric turn field should return False");
+   end Test_Parse_Fork_Token_Bad_Turn;
+
+   procedure Test_Parse_Fork_Token_Empty_Uuid (T : in out Test) is
+      pragma Unreferenced (T);
+      UUID   : Unbounded_String;
+      Turn_N : Positive := 1;
+      Result : constant Boolean :=
+        Parse_Fork_Token ("fork+42//7", "fork+42/", UUID, Turn_N);
+   begin
+      Assert (not Result,
+              "Empty UUID field should return False");
+   end Test_Parse_Fork_Token_Empty_Uuid;
+
+   procedure Test_Parse_Fork_Token_Empty (T : in out Test) is
+      pragma Unreferenced (T);
+      UUID   : Unbounded_String;
+      Turn_N : Positive := 1;
+      Result : constant Boolean :=
+        Parse_Fork_Token ("", "fork+42/", UUID, Turn_N);
+   begin
+      Assert (not Result, "Empty input should return False");
+   end Test_Parse_Fork_Token_Empty;
+
    --  ── App_State Turn_Count ──────────────────────────────────────────────
 
    procedure Test_State_Turn_Count_Increment (T : in out Test) is
@@ -247,9 +332,9 @@ package body Coyote_App_Tests is
    --  flight.  It is set by the auto_retry_start event handler and cleared
    --  by auto_retry_end, new_session, and session reload.  The flag is used
    --  in the agent_end handler to suppress the spurious "No response" message
-   --  for every failed attempt after the first: pi emits agent_end before
-   --  auto_retry_start, so the very first failure always sees Is_Retrying =
-   --  False, but subsequent retry cycles see Is_Retrying = True.
+   --  for every failed attempt after the first: the agent emits agent_end
+   --  before auto_retry_start, so the very first failure always sees
+   --  Is_Retrying = False, but subsequent retry cycles see Is_Retrying = True.
 
    --  Is_Retrying defaults to False on a freshly created App_State.
    procedure Test_State_Is_Retrying_Initial (T : in out Test) is
@@ -391,7 +476,7 @@ package body Coyote_App_Tests is
       Assert (not S.Pending_Stats,
               "Pending_Stats must be False when stopReason = ""toolUse""");
 
-      --  Path B: stopReason "" (no message_end received, e.g. pi crashed).
+      --  Path B: stopReason "" (no message_end received, e.g. agent crashed).
       --  Pending_Stats must stay False.
       S.Set_Last_Stop_Reason ("");
       Run_Agent_End_Gate;
@@ -1385,7 +1470,7 @@ package body Coyote_App_Tests is
    procedure Test_Agent_Stem_With_Extension (T : in out Test) is
       pragma Unreferenced (T);
    begin
-      Assert (Agent_Stem ("/home/user/.pi/myagent.agent.md") = "myagent",
+      Assert (Agent_Stem ("/home/user/.coyote/myagent.agent.md") = "myagent",
               "Full path with .agent.md -> stem only");
       Assert (Agent_Stem ("plain.agent.md") = "plain",
               "Relative path with .agent.md extension -> stem only");

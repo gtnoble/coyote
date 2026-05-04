@@ -34,6 +34,7 @@ with LLM_GitHub_Copilot_Tests;
 with LLM_Model_Registry_Tests;
 with LLM_Session_Store_Tests;
 with LLM_Agent_Tests;
+with LLM_Parallel_Tools_Tests;
 
 package body Test_Suites is
 
@@ -107,6 +108,8 @@ package body Test_Suites is
      new AUnit.Test_Caller (LLM_Session_Store_Tests.Test);
    package LLM_Agent_Caller is
      new AUnit.Test_Caller (LLM_Agent_Tests.Test);
+   package LLM_Parallel_Caller is
+     new AUnit.Test_Caller (LLM_Parallel_Tools_Tests.Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
@@ -185,11 +188,35 @@ package body Test_Suites is
         ("Namespace fallback to /tmp/ns.<user>.<display>",
          Nine_P_Client_Tests.Test_Namespace_Fallback'Access));
       Result.Add_Test (Client_Caller.Create
+        ("Connect mutates an existing Fs in place",
+         Nine_P_Client_Tests.Test_Connect'Access));
+      Result.Add_Test (Client_Caller.Create
+        ("Open procedure mutates an existing File in place",
+         Nine_P_Client_Tests.Test_Open_Procedure'Access));
+      Result.Add_Test (Client_Caller.Create
+        ("Connect closes old socket and reconnects cleanly",
+         Nine_P_Client_Tests.Test_Connect_Reconnect'Access));
+      Result.Add_Test (Client_Caller.Create
+        ("Connect raises when service is absent from namespace",
+         Nine_P_Client_Tests.Test_Connect_Failure'Access));
+      Result.Add_Test (Client_Caller.Create
         ("Read_Message / Write_Message round-trip",
          Nine_P_Client_Tests.Test_Read_Write_Message'Access));
       Result.Add_Test (Client_Caller.Create
         ("Read_Message respects size framing",
          Nine_P_Client_Tests.Test_Read_Message_Framing'Access));
+      Result.Add_Test (Client_Caller.Create
+        ("Connect_With_Retry succeeds on first attempt",
+         Nine_P_Client_Tests
+           .Test_Connect_With_Retry_Happy_Path'Access));
+      Result.Add_Test (Client_Caller.Create
+        ("Connect_With_Retry succeeds on second attempt after one failure",
+         Nine_P_Client_Tests
+           .Test_Connect_With_Retry_Succeeds_On_Second_Attempt'Access));
+      Result.Add_Test (Client_Caller.Create
+        ("Connect_With_Retry raises after all retries exhausted",
+         Nine_P_Client_Tests
+           .Test_Connect_With_Retry_Exhausted'Access));
 
       --  Nine_P.Client protocol tests via TCP mock server
       Result.Add_Test (Mock_Caller.Create
@@ -522,6 +549,24 @@ package body Test_Suites is
         ("Parse_Session_Token non-session token",
          Coyote_App_Tests.Test_Parse_Token_Non_Token'Access));
       Result.Add_Test (App_State_Caller.Create
+        ("Parse_Fork_Token: matching PID extracts UUID and turn",
+         Coyote_App_Tests.Test_Parse_Fork_Token_Match'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Parse_Fork_Token: mismatched PID returns False",
+         Coyote_App_Tests.Test_Parse_Fork_Token_Pid_Mismatch'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Parse_Fork_Token: missing trailing slash returns False",
+         Coyote_App_Tests.Test_Parse_Fork_Token_No_Slash'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Parse_Fork_Token: non-numeric turn returns False",
+         Coyote_App_Tests.Test_Parse_Fork_Token_Bad_Turn'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Parse_Fork_Token: empty UUID returns False",
+         Coyote_App_Tests.Test_Parse_Fork_Token_Empty_Uuid'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Parse_Fork_Token: empty input returns False",
+         Coyote_App_Tests.Test_Parse_Fork_Token_Empty'Access));
+      Result.Add_Test (App_State_Caller.Create
         ("App_State Turn_Count increment",
          Coyote_App_Tests.Test_State_Turn_Count_Increment'Access));
       Result.Add_Test (App_State_Caller.Create
@@ -836,69 +881,6 @@ package body Test_Suites is
       Result.Add_Test (Tool_URI_Caller.Create
         ("Hash_Tool_Id: result contains only lowercase hex",
          Tool_URI_Tests.Test_Hash_Lowercase_Hex'Access));
-      Result.Add_Test (Tool_URI_Caller.Create
-        ("Scan_Tool_Token: token at context start",
-         Tool_URI_Tests.Test_Scan_Token_At_Start'Access));
-      Result.Add_Test (Tool_URI_Caller.Create
-        ("Scan_Tool_Token: token at context end",
-         Tool_URI_Tests.Test_Scan_Token_At_End'Access));
-      Result.Add_Test (Tool_URI_Caller.Create
-        ("Scan_Tool_Token: token in middle of context",
-         Tool_URI_Tests.Test_Scan_Token_In_Middle'Access));
-      Result.Add_Test (Tool_URI_Caller.Create
-        ("Scan_Tool_Token: anchor at first character of token",
-         Tool_URI_Tests.Test_Scan_Anchor_At_Token_Start'Access));
-      Result.Add_Test (Tool_URI_Caller.Create
-        ("Scan_Tool_Token: anchor at last character of token",
-         Tool_URI_Tests.Test_Scan_Anchor_At_Token_End'Access));
-      Result.Add_Test (Tool_URI_Caller.Create
-        ("Scan_Tool_Token: anchor one position before token",
-         Tool_URI_Tests.Test_Scan_Anchor_Before_Token'Access));
-      Result.Add_Test (Tool_URI_Caller.Create
-        ("Scan_Tool_Token: anchor one position after token",
-         Tool_URI_Tests.Test_Scan_Anchor_After_Token'Access));
-      Result.Add_Test (Tool_URI_Caller.Create
-        ("Scan_Tool_Token: empty context",
-         Tool_URI_Tests.Test_Scan_Empty_Context'Access));
-      Result.Add_Test (Tool_URI_Caller.Create
-        ("Scan_Tool_Token: context with no token",
-         Tool_URI_Tests.Test_Scan_No_Token'Access));
-      Result.Add_Test (Tool_URI_Caller.Create
-        ("Scan_Tool_Token: token missing /tool/ separator",
-         Tool_URI_Tests.Test_Scan_No_Tool_Separator'Access));
-      Result.Add_Test (Tool_URI_Caller.Create
-        ("Scan_Tool_Token: empty hex suffix after /tool/",
-         Tool_URI_Tests.Test_Scan_Empty_Hex_Suffix'Access));
-      Result.Add_Test (Tool_URI_Caller.Create
-        ("Scan_Tool_Token: empty UUID part",
-         Tool_URI_Tests.Test_Scan_Empty_Uuid'Access));
-      Result.Add_Test (Tool_URI_Caller.Create
-        ("Scan_Tool_Token: non-zero Ctx_Start shifts positions",
-         Tool_URI_Tests.Test_Scan_Nonzero_Ctx_Start'Access));
-      Result.Add_Test (Tool_URI_Caller.Create
-        ("Scan_Tool_Token: anchor in second of two tokens",
-         Tool_URI_Tests.Test_Scan_Second_Of_Two'Access));
-      Result.Add_Test (Tool_URI_Caller.Create
-        ("Scan_Fork_Token: anchor in fork token",
-         Tool_URI_Tests.Test_Scan_Fork_Basic'Access));
-      Result.Add_Test (Tool_URI_Caller.Create
-        ("Scan_Fork_Token: anchor before token",
-         Tool_URI_Tests.Test_Scan_Fork_Before'Access));
-      Result.Add_Test (Tool_URI_Caller.Create
-        ("Scan_Fork_Token: anchor after token",
-         Tool_URI_Tests.Test_Scan_Fork_After'Access));
-      Result.Add_Test (Tool_URI_Caller.Create
-        ("Scan_Fork_Token: empty context",
-         Tool_URI_Tests.Test_Scan_Fork_Empty'Access));
-      Result.Add_Test (Tool_URI_Caller.Create
-        ("Scan_Fork_Token: non-zero Ctx_Start",
-         Tool_URI_Tests.Test_Scan_Fork_Ctx_Start'Access));
-      Result.Add_Test (Tool_URI_Caller.Create
-        ("Scan_Fork_Token: missing UUID",
-         Tool_URI_Tests.Test_Scan_Fork_No_Uuid'Access));
-      Result.Add_Test (Tool_URI_Caller.Create
-        ("Scan_Fork_Token: missing turn number",
-         Tool_URI_Tests.Test_Scan_Fork_No_Turn'Access));
 
       --  Subagent (--one-shot) integration tests (require live acme)
       Result.Add_Test (Subagent_Int_Caller.Create
@@ -1016,6 +998,12 @@ package body Test_Suites is
       Result.Add_Test (LLM_Skills_Caller.Create
         ("LLM.Skills loads project skills",
          LLM_Skills_Tests.Test_Project_Skills_Loaded'Access));
+      Result.Add_Test (LLM_Skills_Caller.Create
+        ("LLM.Skills loads global ~/.agents/skills",
+         LLM_Skills_Tests.Test_Global_Agents_Skills_Loaded'Access));
+      Result.Add_Test (LLM_Skills_Caller.Create
+        ("LLM.Skills loads project .agents/skills",
+         LLM_Skills_Tests.Test_Project_Agents_Skills_Loaded'Access));
       Result.Add_Test (LLM_Skills_Caller.Create
         ("LLM.Skills format contains skill name",
          LLM_Skills_Tests.Test_Format_Contains_Skill_Name'Access));
@@ -1162,7 +1150,7 @@ package body Test_Suites is
         ("LLM.Session_Store native sessions can be forked",
          LLM_Session_Store_Tests.Test_Fork_Session_Native_Source'Access));
       Result.Add_Test (LLM_Session_Store_Caller.Create
-        ("LLM.Session_Store loads legacy pi envelope lines",
+        ("LLM.Session_Store loads legacy envelope lines",
          LLM_Session_Store_Tests.Test_Load_Legacy_Pi_Envelope_Lines'Access));
       Result.Add_Test (LLM_Session_Store_Caller.Create
         ("LLM.Session_Store skips malformed JSONL lines",
@@ -1573,6 +1561,14 @@ package body Test_Suites is
         ("[live] LLM.Agent Compact summarises a GitHub Copilot conversation",
          LLM_Agent_Tests
            .Test_Compact_Live_Summarises_Conversation'Access));
+      Result.Add_Test (LLM_Parallel_Caller.Create
+        ("Parallel batch: two 0.4 s tools complete in < 0.75 s",
+         LLM_Parallel_Tools_Tests
+           .Test_Parallel_Tools_Run_Concurrently'Access));
+      Result.Add_Test (LLM_Parallel_Caller.Create
+        ("Parallel batch: abort during batch sets Was_Aborted",
+         LLM_Parallel_Tools_Tests
+           .Test_Parallel_Abort_During_Batch'Access));
 
       return Result;
    end Suite;

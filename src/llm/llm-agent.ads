@@ -1,7 +1,7 @@
 --  LLM.Agent — native agentic conversation loop.
 --
---  Owns one mutable conversation session, persists messages to the pi-
---  compatible session store, and runs the core agent→tool→agent loop for
+--  Owns one mutable conversation session, persists messages to the
+--  session store, and runs the core agent→tool→agent loop for
 --  one user prompt.
 --
 --  Project: coyote

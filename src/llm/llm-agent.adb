@@ -41,6 +41,97 @@ package body LLM.Agent is
      (Index_Type   => Natural,
       Element_Type => Pending_Tool);
 
+   --  Result of one executed tool call, stored by a Worker_Task.
+   type Tool_Result_Slot is record
+      Result_Text : Ada.Strings.Unbounded.Unbounded_String :=
+        Ada.Strings.Unbounded.Null_Unbounded_String;
+      Is_Error    : Boolean := False;
+   end record;
+
+   type Tool_Result_Slot_Array is array (Positive range <>) of
+     Tool_Result_Slot;
+
+   --  Fork-join barrier.  Each worker calls Set once; the main task calls
+   --  Wait_All to block until every slot is filled.
+   protected type Results_Store (Count : Positive) is
+      procedure Set
+        (Index    : Positive;
+         Result   : Ada.Strings.Unbounded.Unbounded_String;
+         Is_Error : Boolean);
+      entry Wait_All;
+      function Get (Index : Positive) return Tool_Result_Slot;
+   private
+      Slots      : Tool_Result_Slot_Array (1 .. Count);
+      Done_Count : Natural := 0;
+   end Results_Store;
+
+   --  Executes one tool call and stores the result in a Results_Store.
+   --  Workers never call On_Event or touch any Nine_P.Client.Fs.
+   task type Worker_Task
+     (Store     : not null access Results_Store;
+      Abort_Flg : access LLM.Tools.Abort_Flag)
+   is
+      entry Start
+        (Index : Positive;
+         Tool  : Pending_Tool);
+   end Worker_Task;
+
+   protected body Results_Store is
+
+      procedure Set
+        (Index    : Positive;
+         Result   : Ada.Strings.Unbounded.Unbounded_String;
+         Is_Error : Boolean)
+      is
+      begin
+         Slots (Index) := (Result_Text => Result, Is_Error => Is_Error);
+         Done_Count := Done_Count + 1;
+      end Set;
+
+      entry Wait_All when Done_Count = Count is
+      begin
+         null;
+      end Wait_All;
+
+      function Get (Index : Positive) return Tool_Result_Slot is
+      begin
+         return Slots (Index);
+      end Get;
+
+   end Results_Store;
+
+   task body Worker_Task is
+      My_Index : Positive;
+      My_Tool  : Pending_Tool;
+      Result   : Ada.Strings.Unbounded.Unbounded_String;
+      Is_Error : Boolean := False;
+   begin
+      accept Start
+        (Index : Positive;
+         Tool  : Pending_Tool)
+      do
+         My_Index := Index;
+         My_Tool  := Tool;
+      end Start;
+
+      begin
+         LLM.Tools.Execute
+           (Name      => Ada.Strings.Unbounded.To_String (My_Tool.Tool_Name),
+            Args_Json => Ada.Strings.Unbounded.To_String
+                           (My_Tool.Arguments_Json),
+            Result    => Result,
+            Is_Error  => Is_Error,
+            Abort_Flg => Abort_Flg);
+      exception
+         when Ex : others =>
+            Result   := Ada.Strings.Unbounded.To_Unbounded_String
+              (Ada.Exceptions.Exception_Message (Ex));
+            Is_Error := True;
+      end;
+
+      Store.Set (My_Index, Result, Is_Error);
+   end Worker_Task;
+
    type Open_Block_Kind is (No_Open_Block, Open_Text, Open_Thinking);
 
    type Assistant_Builder is record
@@ -1245,84 +1336,81 @@ package body LLM.Agent is
                   Reply         : constant LLM.Types.Message :=
                     Assistant_Message (Builder);
                   Tool_Messages : LLM.Types.Message_Vectors.Vector;
-                  Next_Index    : Natural := Pending_Tools.First_Index;
+                  --  Worker_Access is declared here (not at package body
+                  --  scope) so that heap-allocated Worker_Task objects are
+                  --  mastered by this block per Ada RM 9.3 — the runtime
+                  --  awaits their termination when the block exits.
+                  N             : constant Positive :=
+                    Positive (Pending_Tools.Length);
+                  type Worker_Access is access Worker_Task;
+                  Store         : aliased Results_Store (Count => N);
+                  Workers       : array (1 .. N) of Worker_Access;
                begin
                   if not Has_Assistant_Message (Builder) then
                      raise Constraint_Error with
                        "Tool batch missing assistant message";
                   end if;
 
-                  while Next_Index <= Pending_Tools.Last_Index loop
-                     exit when S.Abort_State.Requested;
-
+                  --  Phase 1: emit Tool_Execution_Start_Event for every tool
+                  --  (main task, sequential) before any worker is spawned.
+                  for I in Pending_Tools.First_Index
+                    .. Pending_Tools.Last_Index
+                  loop
                      declare
-                        Tool_Block : constant Pending_Tool :=
-                          Pending_Tools.Element (Next_Index);
+                        Tool_Block  : constant Pending_Tool :=
+                          Pending_Tools.Element (I);
                         Start_Event : constant
                           LLM.Events.Tool_Execution_Start_Event :=
                             (LLM.Events.Agent_Event with
                              Tool_Call_Id => Tool_Block.Tool_Call_Id,
                              Tool_Name    => Tool_Block.Tool_Name,
                              Args_Json    => Tool_Block.Arguments_Json);
-                        Result_Text : Unbounded_String;
-                        Is_Error    : Boolean := False;
                      begin
                         Emit (On_Event, Start_Event);
-
-                        begin
-                           LLM.Tools.Execute
-                             (Name      => To_String
-                                (Tool_Block.Tool_Name),
-                              Args_Json => To_String
-                                (Tool_Block.Arguments_Json),
-                              Result    => Result_Text,
-                              Is_Error  => Is_Error,
-                              Abort_Flg => S.Abort_State'Access);
-                        exception
-                           when Ex : others =>
-                              Result_Text := To_Unbounded_String
-                                (Ada.Exceptions.Exception_Message (Ex));
-                              Is_Error := True;
-                        end;
-
-                        declare
-                           End_Event : constant
-                             LLM.Events.Tool_Execution_End_Event :=
-                               (LLM.Events.Agent_Event with
-                                Tool_Call_Id => Tool_Block.Tool_Call_Id,
-                                Tool_Name    => Tool_Block.Tool_Name,
-                                Result_Text  => Result_Text,
-                                Is_Error     => Is_Error);
-                        begin
-                           Emit (On_Event, End_Event);
-                        end;
-
-                        Tool_Messages.Append
-                          (Tool_Result_Message
-                             (Tool_Call_Id => To_String
-                                (Tool_Block.Tool_Call_Id),
-                              Result_Text  => To_String (Result_Text),
-                              Is_Error     => Is_Error));
-                        Next_Index := Next_Index + 1;
                      end;
                   end loop;
 
-                  if S.Abort_State.Requested then
-                     while Next_Index <= Pending_Tools.Last_Index loop
-                        declare
-                           Tool_Block : constant Pending_Tool :=
-                             Pending_Tools.Element (Next_Index);
-                        begin
-                           Tool_Messages.Append
-                             (Tool_Result_Message
-                                (Tool_Call_Id => To_String
-                                   (Tool_Block.Tool_Call_Id),
-                                 Result_Text  => "Aborted",
-                                 Is_Error     => True));
-                           Next_Index := Next_Index + 1;
-                        end;
-                     end loop;
-                  end if;
+                  --  Phase 2: spawn one Worker_Task per pending tool and wait
+                  --  for all to complete.  Workers do not call On_Event; they
+                  --  only call Store.Set, which is a protected operation.
+                  for I in 1 .. N loop
+                     Workers (I) := new Worker_Task
+                       (Store     => Store'Access,
+                        Abort_Flg => S.Abort_State'Access);
+                     Workers (I).Start
+                       (Index => I,
+                        Tool  => Pending_Tools.Element (I - 1));
+                  end loop;
+
+                  Store.Wait_All;
+
+                  --  Phase 3: emit Tool_Execution_End_Event for every tool in
+                  --  the original call order, then build the Tool_Messages
+                  --  batch.
+                  for I in 1 .. N loop
+                     declare
+                        Tool_Block : constant Pending_Tool :=
+                          Pending_Tools.Element (I - 1);
+                        Slot       : constant Tool_Result_Slot :=
+                          Store.Get (I);
+                        End_Event  : constant
+                          LLM.Events.Tool_Execution_End_Event :=
+                            (LLM.Events.Agent_Event with
+                             Tool_Call_Id => Tool_Block.Tool_Call_Id,
+                             Tool_Name    => Tool_Block.Tool_Name,
+                             Result_Text  => Slot.Result_Text,
+                             Is_Error     => Slot.Is_Error);
+                     begin
+                        Emit (On_Event, End_Event);
+                        Tool_Messages.Append
+                          (Tool_Result_Message
+                             (Tool_Call_Id => Ada.Strings.Unbounded.To_String
+                                (Tool_Block.Tool_Call_Id),
+                              Result_Text  => Ada.Strings.Unbounded.To_String
+                                (Slot.Result_Text),
+                              Is_Error     => Slot.Is_Error));
+                     end;
+                  end loop;
 
                   Append_Pending_Message (Reply);
                   Append_Pending_Batch (Tool_Messages);

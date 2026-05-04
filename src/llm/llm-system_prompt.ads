@@ -42,7 +42,7 @@ package LLM.System_Prompt is
    --
    --  Returns "" when no context files are found.
    --
-   --  Search order (mirrors the pi coding agent):
+   --  Search order (mirrors the coyote agent):
    --    1. Global:  ~/.coyote/context/*.md  (alphabetical)
    --    2. Project: {Cwd}/.coyote/context/*.md  (alphabetical)
    --    3. Root:    {Cwd}/AGENTS.md  (if the file exists)

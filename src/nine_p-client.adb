@@ -272,14 +272,15 @@ package body Nine_P.Client is
       end;
    end Namespace;
 
-   function Dial
-     (Addr  : String;
-      Aname : String := "";
-      Uname : String := "") return Fs
+   procedure Dial_Into
+     (Filesystem : in out Fs;
+      Addr       : String;
+      Aname      : String;
+      Uname      : String)
    is
-      use GNAT.Sockets;
       use Ada.Environment_Variables;
-      --  Parse "net!rest" into (Net, Rest)
+      use GNAT.Sockets;
+
       Exclaim_Pos : Natural := 0;
    begin
       for I in Addr'Range loop
@@ -291,61 +292,69 @@ package body Nine_P.Client is
       if Exclaim_Pos = 0 then
          raise P9_Error with "malformed dial address: " & Addr;
       end if;
-      return Result : Fs do
-         Result.Uname := To_Unbounded_String
-           ((if Uname'Length > 0 then Uname
-             elsif Exists ("USER") then Value ("USER")
-             else "nobody"));
-         declare
-            Net  : constant String :=
-              Addr (Addr'First .. Exclaim_Pos - 1);
-            Rest : constant String :=
-              Addr (Exclaim_Pos + 1 .. Addr'Last);
-         begin
-            if Net = "unix" then
-               Create_Socket
-                 (Result.Socket, Family_Unix, Socket_Stream);
-               Connect_Socket
-                 (Result.Socket, Unix_Socket_Address (Rest));
-            elsif Net in "tcp" | "tcp4" | "tcp6" then
-               --  Parse "host!port" within Rest
+
+      Filesystem.Uname := To_Unbounded_String
+        ((if Uname'Length > 0 then Uname
+          elsif Exists ("USER") then Value ("USER")
+          else "nobody"));
+
+      declare
+         Net  : constant String := Addr (Addr'First .. Exclaim_Pos - 1);
+         Rest : constant String := Addr (Exclaim_Pos + 1 .. Addr'Last);
+      begin
+         if Net = "unix" then
+            Create_Socket
+              (Filesystem.Socket, Family_Unix, Socket_Stream);
+            Connect_Socket
+              (Filesystem.Socket, Unix_Socket_Address (Rest));
+         elsif Net in "tcp" | "tcp4" | "tcp6" then
+            declare
+               Second_Exclaim : Natural := 0;
+            begin
+               for I in Rest'Range loop
+                  if Rest (I) = '!' then
+                     Second_Exclaim := I;
+                     exit;
+                  end if;
+               end loop;
                declare
-                  Second_Exclaim : Natural := 0;
+                  Host : constant String :=
+                    (if Second_Exclaim > 0
+                     then Rest (Rest'First .. Second_Exclaim - 1)
+                     else Rest);
+                  Port : constant Port_Type :=
+                    (if Second_Exclaim > 0
+                     then Port_Type'Value
+                            (Rest (Second_Exclaim + 1 .. Rest'Last))
+                     else 564);
                begin
-                  for I in Rest'Range loop
-                     if Rest (I) = '!' then
-                        Second_Exclaim := I;
-                        exit;
-                     end if;
-                  end loop;
-                  declare
-                     Host : constant String :=
-                       (if Second_Exclaim > 0
-                        then Rest (Rest'First .. Second_Exclaim - 1)
-                        else Rest);
-                     Port : constant Port_Type :=
-                       (if Second_Exclaim > 0
-                        then Port_Type'Value
-                               (Rest (Second_Exclaim + 1 .. Rest'Last))
-                        else 564);
-                  begin
-                     Create_Socket
-                       (Result.Socket, Family_Inet, Socket_Stream);
-                     Connect_Socket
-                       (Result.Socket,
-                        (Family => Family_Inet,
-                         Addr   => Inet_Addr (Host),
-                         Port   => Port));
-                  end;
+                  Create_Socket
+                    (Filesystem.Socket, Family_Inet, Socket_Stream);
+                  Connect_Socket
+                    (Filesystem.Socket,
+                     (Family => Family_Inet,
+                      Addr   => Inet_Addr (Host),
+                      Port   => Port));
                end;
-            else
-               raise P9_Error with "unsupported network: " & Net;
-            end if;
-         end;
-         --  Wrap socket as a stream
-         Result.Stream := GNAT.Sockets.Stream (Result.Socket);
-         Do_Negotiate (Result'Access);
-         Do_Attach    (Result'Access, Aname);
+            end;
+         else
+            raise P9_Error with "unsupported network: " & Net;
+         end if;
+      end;
+
+      Filesystem.Stream := GNAT.Sockets.Stream (Filesystem.Socket);
+      Do_Negotiate (Filesystem'Access);
+      Do_Attach (Filesystem'Access, Aname);
+   end Dial_Into;
+
+   function Dial
+     (Addr  : String;
+      Aname : String := "";
+      Uname : String := "") return Fs
+   is
+   begin
+      return Result : Fs do
+         Dial_Into (Result, Addr, Aname, Uname);
       end return;
    end Dial;
 
@@ -357,6 +366,42 @@ package body Nine_P.Client is
    begin
       return Dial ("unix!" & Namespace & "/" & Name, Aname, Uname);
    end Ns_Mount;
+
+   procedure Connect
+     (Filesystem : in out Fs;
+      Name       : String;
+      Aname      : String := "";
+      Uname      : String := "")
+   is
+   begin
+      Finalize (Filesystem);
+      Dial_Into
+        (Filesystem,
+         "unix!" & Namespace & "/" & Name,
+         Aname,
+         Uname);
+   end Connect;
+
+   procedure Connect_With_Retry
+     (Filesystem  : in out Fs;
+      Name        : String;
+      Max_Retries : Positive := 5;
+      Retry_Delay : Duration := 0.0)
+   is
+   begin
+      for Attempt in 1 .. Max_Retries loop
+         begin
+            Connect (Filesystem, Name);
+            return;
+         exception
+            when others =>
+               if Attempt = Max_Retries then
+                  raise;
+               end if;
+               delay Retry_Delay;
+         end;
+      end loop;
+   end Connect_With_Retry;
 
    --  ── Finalize ─────────────────────────────────────────────────────────
 
@@ -394,6 +439,45 @@ package body Nine_P.Client is
 
    --  ── Open / Read / Write ───────────────────────────────────────────────
 
+   procedure Open
+     (F          : in out File;
+      Filesystem : not null access Fs'Class;
+      Path       : String;
+      Mode       : Uint8 := O_READ)
+   is
+   begin
+      if F.Is_Open then
+         raise P9_Error with "file is already open: " & Path;
+      end if;
+
+      F.Filesystem := Filesystem.all'Unchecked_Access;
+      F.Fid        := Walk_Path (Filesystem, Path);
+      begin
+         declare
+            Tag      : constant Uint16 := Alloc_Tag (Filesystem);
+            Response : constant Message :=
+              RPC (Filesystem,
+                   (Kind      => Kind_Topen,
+                    Tag       => Tag,
+                    Open_Fid  => F.Fid,
+                    Open_Mode => Mode));
+         begin
+            F.IOunit :=
+              (if Response.Opened_Iounit > 0
+               then Natural (Response.Opened_Iounit)
+               else Natural (Filesystem.MSize) - 24);
+            F.Mode    := Mode;
+            F.Offset  := 0;
+            F.Is_Open := True;
+         end;
+      exception
+         when others =>
+            Clunk_Fid (Filesystem, F.Fid);
+            F.Fid := 0;
+            raise;
+      end;
+   end Open;
+
    function Open
      (Filesystem : not null access Fs'Class;
       Path       : String;
@@ -401,31 +485,7 @@ package body Nine_P.Client is
    is
    begin
       return Result : File do
-         Result.Filesystem := Filesystem.all'Unchecked_Access;
-         Result.Fid        := Walk_Path (Filesystem, Path);
-         begin
-            declare
-               Tag      : constant Uint16 := Alloc_Tag (Filesystem);
-               Response : constant Message :=
-                 RPC (Filesystem,
-                      (Kind      => Kind_Topen,
-                       Tag       => Tag,
-                       Open_Fid  => Result.Fid,
-                       Open_Mode => Mode));
-            begin
-               Result.IOunit :=
-                 (if Response.Opened_Iounit > 0
-                  then Natural (Response.Opened_Iounit)
-                  else Natural (Filesystem.MSize) - 24);
-               Result.Mode    := Mode;
-               Result.Offset  := 0;
-               Result.Is_Open := True;
-            end;
-         exception
-            when others =>
-               Clunk_Fid (Filesystem, Result.Fid);
-               raise;
-         end;
+         Open (Result, Filesystem, Path, Mode);
       end return;
    end Open;
 
@@ -450,15 +510,15 @@ package body Nine_P.Client is
                       (Iounit,
                        Uint32 (N) -
                          Uint32 (Natural (Chunks.Length))));
-            Tag      : constant Uint16   := Alloc_Tag (F.Filesystem);
-            Response : constant Message  :=
+            Tag      : constant Uint16 := Alloc_Tag (F.Filesystem);
+            Response : constant Message :=
               RPC (F.Filesystem,
                    (Kind      => Kind_Tread,
                     Tag       => Tag,
                     Rd_Fid    => F.Fid,
                     Rd_Offset => F.Offset,
                     Rd_Count  => Count));
-            Data : constant String := To_String (Response.Rd_Data);
+            Data     : constant String  := To_String (Response.Rd_Data);
          begin
             exit when Data'Length = 0;
             for C of Data loop
@@ -484,15 +544,15 @@ package body Nine_P.Client is
         (if F.IOunit > 0
          then Uint32 (F.IOunit)
          else F.Filesystem.MSize - 24);
-      Tag      : constant Uint16   := Alloc_Tag (F.Filesystem);
-      Response : constant Message  :=
+      Tag      : constant Uint16 := Alloc_Tag (F.Filesystem);
+      Response : constant Message :=
         RPC (F.Filesystem,
              (Kind      => Kind_Tread,
               Tag       => Tag,
               Rd_Fid    => F.Fid,
               Rd_Offset => F.Offset,
               Rd_Count  => Iounit));
-      Data : constant String := To_String (Response.Rd_Data);
+      Data     : constant String  := To_String (Response.Rd_Data);
    begin
       F.Offset := F.Offset + Uint64 (Data'Length);
       declare
@@ -523,7 +583,7 @@ package body Nine_P.Client is
       --  this case explicitly before entering the loop.
       if Data'Length = 0 then
          declare
-            Tag      : constant Uint16  := Alloc_Tag (F.Filesystem);
+            Tag      : constant Uint16 := Alloc_Tag (F.Filesystem);
             Response : constant Message :=
               RPC (F.Filesystem,
                    (Kind      => Kind_Twrite,
@@ -556,7 +616,7 @@ package body Nine_P.Client is
                        Wr_Offset => F.Offset,
                        Wr_Data   =>
                          To_Unbounded_String (Chunk_String)));
-               Written : constant Natural :=
+               Written  : constant Natural :=
                  Natural (Response.Wr_Count);
             begin
                F.Offset := F.Offset + Uint64 (Written);

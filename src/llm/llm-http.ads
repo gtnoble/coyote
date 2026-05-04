@@ -7,6 +7,7 @@
 --  For revision history, see the project version-control log.
 
 with Ada.Containers.Indefinite_Vectors;
+with Ada.Strings.Unbounded;
 with System;
 
 package LLM.HTTP is
@@ -46,8 +47,16 @@ private
       Headers : Header_Vectors.Vector;
    end record;
 
+   --  Passed as CURLOPT_WRITEDATA; shared between Perform_Request and the
+   --  C-convention write callback.  If the chunk handler raises an exception,
+   --  the callback stores it here rather than letting libcurl see a non-zero
+   --  return (which would report the uninformative CURLE_WRITE_ERROR instead).
    type Write_Context is record
-      On_Chunk_Address : System.Address := System.Null_Address;
+      On_Chunk_Address   : System.Address                          :=
+        System.Null_Address;
+      Exception_Occurred : Boolean                                 := False;
+      Exception_Message  : Ada.Strings.Unbounded.Unbounded_String :=
+        Ada.Strings.Unbounded.Null_Unbounded_String;
    end record;
 
 end LLM.HTTP;

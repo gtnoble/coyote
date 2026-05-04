@@ -38,7 +38,6 @@ package body LLM_Model_Registry_Tests is
 
   procedure Cleanup_Test_Home (Home : String) is
     Agent_Dir : constant String := Home & "/.coyote";
-    Pi_Dir    : constant String := Home & "/.pi";
   begin
     Delete_If_Exists (Agent_Dir & "/auth.json");
     Delete_If_Exists (Agent_Dir & "/auth.json.tmp");
@@ -50,10 +49,6 @@ package body LLM_Model_Registry_Tests is
 
     if Ada.Directories.Exists (Agent_Dir) then
       Ada.Directories.Delete_Directory (Agent_Dir);
-    end if;
-
-    if Ada.Directories.Exists (Pi_Dir) then
-      Ada.Directories.Delete_Directory (Pi_Dir);
     end if;
 
     if Ada.Directories.Exists (Home) then

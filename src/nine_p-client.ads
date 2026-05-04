@@ -58,6 +58,36 @@ package Nine_P.Client is
                   Path       : String;
                   Mode       : Uint8 := O_READ) return File;
 
+   --  Connect an already-declared (or previously disconnected) Fs to the
+   --  named service in the plan9port namespace.  Equivalent to the result
+   --  of Ns_Mount applied in place.  Safe to call on a default-initialised
+   --  Fs (Socket = No_Socket) or on one that has already been connected
+   --  and finalised.
+   procedure Connect
+     (Filesystem : in out Fs;
+      Name       : String;
+      Aname      : String := "";
+      Uname      : String := "");
+
+   --  Call Connect up to Max_Retries times, waiting Retry_Delay between
+   --  attempts.  Returns normally on the first successful connection.
+   --  Re-raises the last exception if all attempts fail.  Pass
+   --  Retry_Delay => 0.0 in tests to avoid wall-clock delays.
+   procedure Connect_With_Retry
+     (Filesystem  : in out Fs;
+      Name        : String;
+      Max_Retries : Positive := 5;
+      Retry_Delay : Duration := 0.0);
+
+   --  Walk and open Path on Filesystem, storing the result in F in place.
+   --  F must not currently be open (Is_Open must be False).  Raises
+   --  P9_Error if the walk or open fails.
+   procedure Open
+     (F          : in out File;
+      Filesystem : not null access Fs'Class;
+      Path       : String;
+      Mode       : Uint8 := O_READ);
+
    --  Read up to N bytes (N < 0 → read until EOF).
    --  Uses Byte_Vectors internally for chunk accumulation;
    --  returns a flat Byte_Array.

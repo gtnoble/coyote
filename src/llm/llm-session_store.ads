@@ -1,7 +1,7 @@
---  LLM.Session_Store — pi-compatible JSONL session persistence.
+--  LLM.Session_Store — JSONL session persistence.
 --
---  Creates, appends, and reloads native-harness session files using the
---  same JSONL format that pi uses for direct session storage.
+--  Creates, appends, and reloads coyote session files using the
+--  native JSONL format.
 --
 --  Project: coyote
 --  For revision history, see the project version-control log.

@@ -4295,7 +4295,7 @@ package body LLM_Agent_Tests is
 
       Guard_Name : constant String := "COYOTE_RUN_GITHUB_COPILOT_LIVE";
       Auth_Path  : constant String :=
-        Ada.Environment_Variables.Value ("HOME", "") & "/.pi/agent/auth.json";
+        Ada.Environment_Variables.Value ("HOME", "") & "/.coyote/auth.json";
       Agent_Session : LLM.Agent.Session;
 
       procedure Ignore_Event (E : LLM.Events.Agent_Event'Class) is

@@ -1,4 +1,4 @@
---  coyote_list_sessions — print pi sessions for the current directory.
+--  coyote_list_sessions — print coyote sessions for the current directory.
 --
 --  Output (tab-separated per line):
 --    llm-chat+UUID<TAB>name<TAB>date<TAB>snippet

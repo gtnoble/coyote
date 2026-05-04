@@ -18,7 +18,7 @@ package LLM.Providers.OpenRouter is
 
    --  Construct an OpenRouter provider.
    --
-   --  Api_Key may be empty when OPENROUTER_API_KEY or the pi models.json
+   --  Api_Key may be empty when OPENROUTER_API_KEY or the coyote models.json
    --  configuration supplies the key at send time.
    function Create (Api_Key : String := "") return Provider;
 

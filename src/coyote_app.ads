@@ -1,7 +1,7 @@
 --  Coyote_App — main application state and entry point.
 --
 --  App_State is a protected object holding all mutable state shared between
---  tasks.  Run spawns the acme window, starts pi, and blocks until the
+--  tasks.  Run spawns the acme window and blocks until the
 --  window is closed.
 --
 --  Project: coyote
@@ -33,8 +33,8 @@ package Coyote_App is
       --  auto_retry_start, cleared by auto_retry_end and explicit reset
       --  points (new_session response, session reload).  Used to suppress
       --  the spurious "No response" message for all but the first failed
-      --  attempt: pi emits agent_end before auto_retry_start, so the first
-      --  failure always arrives before we know a retry is coming.
+      --  attempt: the agent emits agent_end before auto_retry_start, so
+      --  the first failure always arrives before we know a retry is coming.
       function Is_Retrying        return Boolean;
       --  True only when at least one text_delta arrived in the current
       --  agent turn (tool-only turns leave this False).
@@ -43,8 +43,8 @@ package Coyote_App is
       --  Reset at agent_start alongside Has_Text_Delta.
       function Has_Tool_In_Turn   return Boolean;
       --  stopReason from the last assistant message_end event in the
-      --  current agent run.  Reset to "" at agent_start.  Possible values
-      --  emitted by pi: "stop" (normal completion), "length" (max tokens),
+      --  current agent run.  Reset to "" at agent_start.  Possible values:
+      --  "stop" (normal completion), "length" (max tokens),
       --  "toolUse" (intermediate turn — another LLM call follows),
       --  "aborted", "error".  A value of "stop" or "length" means the
       --  agent's final LLM call produced a text response; "toolUse" means
@@ -53,7 +53,7 @@ package Coyote_App is
       function Last_Stop_Reason   return String;
       --  errorMessage from the last assistant message_end with
       --  stopReason "error".  Empty when the last turn did not produce
-      --  an error, or when pi did not supply a message.  Reset at
+      --  an error, or when no message was supplied.  Reset at
       --  agent_start alongside Last_Stop_Reason.
       function Last_Error_Message return String;
       function Pending_Stats        return Boolean;

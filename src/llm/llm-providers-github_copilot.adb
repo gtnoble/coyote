@@ -219,7 +219,7 @@ package body LLM.Providers.GitHub_Copilot is
          and then Length (Creds.Access_Token) = 0
       then
          raise LLM.Auth.GitHub_Copilot.Auth_Error with
-            "GitHub Copilot credentials are not configured; run `pi login "
+            "GitHub Copilot credentials are not configured; run `coyote login "
             & "github-copilot`";
       end if;
 

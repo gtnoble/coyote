@@ -385,6 +385,92 @@ package body LLM_Skills_Tests is
          raise;
    end Test_Project_Skills_Loaded;
 
+   procedure Test_Global_Agents_Skills_Loaded (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home         : constant String := "/tmp/coyote_skills_test_ga";
+      Cwd          : constant String := "/tmp/coyote_skills_test_ga_cwd";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+   begin
+      Cleanup (Home);
+      Cleanup (Cwd);
+      Mkdir (Home & "/.coyote");
+      Mkdir (Cwd);
+      Write_File
+        (Home & "/.agents/skills/pkg1/SKILL.md",
+         Valid_Skill_Content ("agents-skill", "A skill used only in tests."));
+
+      Ada.Environment_Variables.Set ("HOME", Home);
+
+      declare
+         Skills : constant LLM.Skills.Skill_Vectors.Vector :=
+           LLM.Skills.Load_Skills (Cwd);
+      begin
+         Assert
+           (Skills.Length = 1,
+            "global ~/.agents/skills should be loaded");
+         Assert
+           (To_String (Skills (0).Name) = "agents-skill",
+            "the skill from ~/.agents/skills should be present");
+      end;
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup (Cwd);
+      Cleanup (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup (Cwd);
+         Cleanup (Home);
+         raise;
+   end Test_Global_Agents_Skills_Loaded;
+
+   procedure Test_Project_Agents_Skills_Loaded (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home         : constant String := "/tmp/coyote_skills_test_pa";
+      Cwd          : constant String := "/tmp/coyote_skills_test_pa_cwd";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+   begin
+      Cleanup (Home);
+      Cleanup (Cwd);
+      Mkdir (Home & "/.coyote");
+      Write_File
+        (Cwd & "/.agents/skills/pkg1/SKILL.md",
+         Valid_Skill_Content
+           ("project-agents-skill", "A skill used only in tests."));
+
+      Ada.Environment_Variables.Set ("HOME", Home);
+
+      declare
+         Skills : constant LLM.Skills.Skill_Vectors.Vector :=
+           LLM.Skills.Load_Skills (Cwd);
+      begin
+         Assert
+           (Skills.Length = 1,
+            "project .agents/skills should be loaded");
+         Assert
+           (To_String (Skills (0).Name) = "project-agents-skill",
+            "the skill from .agents/skills should be present");
+      end;
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup (Cwd);
+      Cleanup (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup (Cwd);
+         Cleanup (Home);
+         raise;
+   end Test_Project_Agents_Skills_Loaded;
+
    procedure Test_Format_Contains_Skill_Name (T : in out Test) is
       pragma Unreferenced (T);
 

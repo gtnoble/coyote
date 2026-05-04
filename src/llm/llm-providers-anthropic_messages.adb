@@ -663,25 +663,36 @@ package body LLM.Providers.Anthropic_Messages is
      State      : in out Response_State;
      Handler    :        LLM.Providers.Event_Handler)
    is
-      Root : constant GNATCOLL.JSON.JSON_Value :=
-         Parse_Json (Event_Data, "Invalid Anthropic streaming event");
    begin
-      if Event_Name = "message_start" then
-         Process_Message_Start (Root, State, Handler);
-      elsif Event_Name = "content_block_start" then
-         Process_Content_Block_Start (Root, State, Handler);
-      elsif Event_Name = "content_block_delta" then
-         Process_Content_Block_Delta (Root, State, Handler);
-      elsif Event_Name = "content_block_stop" then
-         Finish_Block
-            (State   => State,
-         Index   => Get_Natural_Field (Root, "index", 0),
-         Handler => Handler);
-      elsif Event_Name = "message_delta" then
-         Process_Message_Delta (Root, State);
-      elsif Event_Name = "message_stop" then
-         Finalize_Message (State, Handler);
+      --  Skip OpenAI-style stream terminators (e.g. "[DONE]") that some
+      --  Anthropic-compatible proxies, including GitHub Copilot, append to
+      --  the SSE stream.  They are not valid JSON and carry no information
+      --  in the Anthropic streaming protocol.
+      if Event_Data'Length = 0 or else Event_Data = "[DONE]" then
+         return;
       end if;
+
+      declare
+         Root : constant GNATCOLL.JSON.JSON_Value :=
+            Parse_Json (Event_Data, "Invalid Anthropic streaming event");
+      begin
+         if Event_Name = "message_start" then
+            Process_Message_Start (Root, State, Handler);
+         elsif Event_Name = "content_block_start" then
+            Process_Content_Block_Start (Root, State, Handler);
+         elsif Event_Name = "content_block_delta" then
+            Process_Content_Block_Delta (Root, State, Handler);
+         elsif Event_Name = "content_block_stop" then
+            Finish_Block
+               (State   => State,
+            Index   => Get_Natural_Field (Root, "index", 0),
+            Handler => Handler);
+         elsif Event_Name = "message_delta" then
+            Process_Message_Delta (Root, State);
+         elsif Event_Name = "message_stop" then
+            Finalize_Message (State, Handler);
+         end if;
+      end;
    end Process_Stream_Event;
 
    procedure Process_Stream_Data

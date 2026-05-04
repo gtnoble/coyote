@@ -25,6 +25,27 @@ package Coyote_App_Tests is
    procedure Test_Parse_Token_Empty        (T : in out Test);
    procedure Test_Parse_Token_Non_Token    (T : in out Test);
 
+   --  ── Parse_Fork_Token ──────────────────────────────────────────────────
+
+   --  Valid token with matching PID prefix returns True and extracts fields.
+   procedure Test_Parse_Fork_Token_Match        (T : in out Test);
+
+   --  Mismatched PID prefix returns False.
+   procedure Test_Parse_Fork_Token_Pid_Mismatch (T : in out Test);
+
+   --  Token with no slash after UUID returns False.
+   procedure Test_Parse_Fork_Token_No_Slash     (T : in out Test);
+
+   --  Non-numeric turn field returns False.
+   procedure Test_Parse_Fork_Token_Bad_Turn     (T : in out Test);
+
+   --  Empty UUID part (nothing between prefix slash and turn slash)
+   --  returns False.
+   procedure Test_Parse_Fork_Token_Empty_Uuid   (T : in out Test);
+
+   --  Empty input returns False.
+   procedure Test_Parse_Fork_Token_Empty        (T : in out Test);
+
    --  App_State Turn_Count
    procedure Test_State_Turn_Count_Increment (T : in out Test);
    procedure Test_State_Turn_Count_Set       (T : in out Test);
@@ -56,7 +77,7 @@ package Coyote_App_Tests is
 
    --  App_State Last_Error_Message — errorMessage from the last assistant
    --  message_end with stopReason "error".  Empty when the last turn did not
-   --  produce an error, or when pi did not supply a message.
+   --  produce an error, or when no message was supplied.
    procedure Test_State_Last_Error_Message_Initial         (T : in out Test);
    procedure Test_State_Last_Error_Message_Round_Trip      (T : in out Test);
 

@@ -168,150 +168,65 @@ package body Coyote_App.Utils is
       return "";
    end Parse_Session_Token;
 
+   function Parse_Fork_Token
+     (Data       : String;
+      Pid_Prefix : String;
+      UUID       : out Unbounded_String;
+      Turn_N     : out Positive) return Boolean
+   is
+      Prefix_End : constant Natural :=
+        Data'First + Pid_Prefix'Length - 1;
+      Last_Slash : Natural := 0;
+   begin
+      if Data'Length <= Pid_Prefix'Length
+        or else Data (Data'First .. Prefix_End) /= Pid_Prefix
+      then
+         return False;
+      end if;
+
+      for I in reverse Prefix_End + 1 .. Data'Last loop
+         if Data (I) = '/' then
+            Last_Slash := I;
+            exit;
+         end if;
+      end loop;
+
+      if Last_Slash = 0 or else Last_Slash <= Prefix_End + 1 then
+         return False;
+      end if;
+
+      if Last_Slash = Data'Last then
+         return False;
+      end if;
+
+      declare
+         UUID_Text : constant String :=
+           Data (Prefix_End + 1 .. Last_Slash - 1);
+         Turn_Text : constant String :=
+           Data (Last_Slash + 1 .. Data'Last);
+         Turn      : Positive;
+      begin
+         if UUID_Text'Length = 0 or else Turn_Text'Length = 0 then
+            return False;
+         end if;
+
+         begin
+            Turn := Positive'Value (Turn_Text);
+         exception
+            when Constraint_Error =>
+               return False;
+         end;
+
+         UUID   := To_Unbounded_String (UUID_Text);
+         Turn_N := Turn;
+         return True;
+      end;
+   end Parse_Fork_Token;
+
    function Hash_Tool_Id (Tool_Id : String) return String is
    begin
       return GNAT.SHA256.Digest (Tool_Id) (1 .. 16);
    end Hash_Tool_Id;
-
-   function Scan_Tool_Token
-     (Context   : String;
-      Ctx_Start : Natural;
-      Anchor    : Natural) return String
-   is
-      Prefix   : constant String  := "llm-chat+";
-      Pref_Len : constant Natural := Prefix'Length;
-   begin
-      if Context'Length < Pref_Len then
-         return "";
-      end if;
-      for I in Context'First .. Context'Last - Pref_Len + 1 loop
-         if Context (I .. I + Pref_Len - 1) = Prefix then
-            --  Advance past the UUID part: [0-9a-f-]+
-            declare
-               J : Natural := I + Pref_Len;
-            begin
-               while J <= Context'Last
-                 and then
-                   (Context (J) in '0' .. '9' | 'a' .. 'f' | '-')
-               loop
-                  J := J + 1;
-               end loop;
-               --  Require at least one char before "/tool/" and the
-               --  separator itself.
-               if J > I + Pref_Len
-                 and then J + 5 <= Context'Last
-                 and then Context (J .. J + 5) = "/tool/"
-               then
-                  --  Advance past the hex suffix: [0-9a-f]+
-                  declare
-                     H : Natural := J + 6;
-                  begin
-                     while H <= Context'Last
-                       and then
-                         (Context (H) in '0' .. '9' | 'a' .. 'f')
-                     loop
-                        H := H + 1;
-                     end loop;
-                     if H > J + 6 then
-                        --  Token occupies Context(I .. H-1).
-                        --  Convert to approximate body rune offsets.
-                        declare
-                           Tok_Q0 : constant Natural :=
-                             Ctx_Start + (I - Context'First);
-                           Tok_Q1 : constant Natural :=
-                             Ctx_Start + (H - 1 - Context'First);
-                        begin
-                           if Tok_Q0 <= Anchor
-                             and then Anchor <= Tok_Q1
-                           then
-                              return Context (I .. H - 1);
-                           end if;
-                        end;
-                     end if;
-                  end;
-               end if;
-            end;
-         end if;
-      end loop;
-      return "";
-   end Scan_Tool_Token;
-
-   function Scan_Fork_Token
-     (Context   : String;
-      Ctx_Start : Natural;
-      Anchor    : Natural) return String
-   is
-      Prefix   : constant String  := "fork+";
-      Pref_Len : constant Natural := Prefix'Length;
-   begin
-      if Context'Length < Pref_Len then
-         return "";
-      end if;
-      for I in Context'First .. Context'Last - Pref_Len + 1 loop
-         if Context (I .. I + Pref_Len - 1) = Prefix then
-            --  Advance past PID digits: [0-9]+
-            declare
-               J : Natural := I + Pref_Len;
-            begin
-               while J <= Context'Last
-                 and then Context (J) in '0' .. '9'
-               loop
-                  J := J + 1;
-               end loop;
-               --  Require at least one digit, then '/'.
-               if J > I + Pref_Len
-                 and then J <= Context'Last
-                 and then Context (J) = '/'
-               then
-                  --  Advance past UUID chars: [0-9a-f-]+
-                  declare
-                     K : Natural := J + 1;
-                  begin
-                     while K <= Context'Last
-                       and then
-                         (Context (K) in '0' .. '9' | 'a' .. 'f' | '-')
-                     loop
-                        K := K + 1;
-                     end loop;
-                     --  Require at least one UUID char, then '/'.
-                     if K > J + 1
-                       and then K <= Context'Last
-                       and then Context (K) = '/'
-                     then
-                        --  Advance past turn digits: [0-9]+
-                        declare
-                           L : Natural := K + 1;
-                        begin
-                           while L <= Context'Last
-                             and then Context (L) in '0' .. '9'
-                           loop
-                              L := L + 1;
-                           end loop;
-                           --  Require at least one digit.
-                           if L > K + 1 then
-                              --  Token is Context(I .. L-1).
-                              declare
-                                 Tok_Q0 : constant Natural :=
-                                   Ctx_Start + (I - Context'First);
-                                 Tok_Q1 : constant Natural :=
-                                   Ctx_Start + (L - 1 - Context'First);
-                              begin
-                                 if Tok_Q0 <= Anchor
-                                   and then Anchor <= Tok_Q1
-                                 then
-                                    return Context (I .. L - 1);
-                                 end if;
-                              end;
-                           end if;
-                        end;
-                     end if;
-                  end;
-               end if;
-            end;
-         end if;
-      end loop;
-      return "";
-   end Scan_Fork_Token;
 
    --  ── Edit_Diff_Lines ───────────────────────────────────────────────────
    --

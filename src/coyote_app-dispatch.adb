@@ -179,7 +179,7 @@ package body Coyote_App.Dispatch is
                  (Win, FS,
                   ASCII.LF
                   & UC_WARN
-                  & " No response from pi"
+                  & " No response from the agent"
                   & (if Err_Msg'Length > 0
                      then ": " & Err_Msg
                      else " -- context may be too long, or a temporary"
@@ -188,7 +188,7 @@ package body Coyote_App.Dispatch is
             end;
          end if;
          --  Emit the turn footer and request stats when the agent's final
-         --  LLM call ended normally.  pi sets stopReason "stop" or "length"
+         --  LLM call ended normally.  The stop reason is "stop" or "length"
          --  on the last text-producing call; intermediate tool-calling turns
          --  use "toolUse".  agent_end fires exactly once per user prompt
          --  (not once per internal LLM call), so there is no risk of a
@@ -451,16 +451,16 @@ package body Coyote_App.Dispatch is
          end;
 
       --  ── auto_retry_start ──────────────────────────────────────────────
-      --  Emitted by pi before each retry attempt.  Show a compact notice
+      --  Emitted before each retry attempt.  Show a compact notice
       --  so the user can see why the turn is being retried and how long
       --  the backoff delay is.
       --
-      --  NOTE: pi emits agent_end BEFORE this event.  Setting Is_Retrying
-      --  here means the flag is True for all subsequent agent_end events
-      --  within the same retry sequence (i.e. the 2nd, 3rd, … failed
-      --  attempt), suppressing the spurious "No response" message for
-      --  those attempts.  The very first failure is shown once, followed
-      --  immediately by this retry notice.
+      --  NOTE: An agent_end event is emitted BEFORE this event.  Setting
+      --  Is_Retrying here means the flag is True for all subsequent
+      --  agent_end events within the same retry sequence (i.e. the 2nd,
+      --  3rd, … failed attempt), suppressing the spurious "No response"
+      --  message for those attempts.  The very first failure is shown
+      --  once, followed immediately by this retry notice.
       elsif Event in LLM.Events.Auto_Retry_Start_Event then
          State.Set_Is_Retrying (True);
          declare
@@ -490,7 +490,7 @@ package body Coyote_App.Dispatch is
 
       --  ── auto_retry_end ────────────────────────────────────────────────
       --  Emitted when the retry sequence concludes (success or exhausted).
-      --  On success pi immediately continues streaming so no extra note is
+      --  On success streaming continues immediately so no extra note is
       --  needed.  On failure show the final error prominently.
       elsif Event in LLM.Events.Auto_Retry_End_Event then
          State.Set_Is_Retrying (False);
@@ -518,7 +518,7 @@ package body Coyote_App.Dispatch is
          end;
 
       --  ── auto_compaction_start ────────────────────────────────────────
-      --  Emitted when pi begins auto-compacting the context (either because
+      --  Emitted when auto-compacting the context begins (either because
       --  the context overflowed or because the configured threshold was
       --  crossed).  Show a compact notice and update the tag.
       elsif Event in LLM.Events.Auto_Compaction_Start_Event then
@@ -580,7 +580,7 @@ package body Coyote_App.Dispatch is
                (if State.Is_Streaming then "running" else "ready")));
 
       --  ── model_select ─────────────────────────────────────────────────
-      --  Emitted by pi when the active model changes.
+      --  Emitted when the active model changes.
       elsif Event in LLM.Events.Model_Select_Event then
          declare
             Ev         : constant LLM.Events.Model_Select_Event :=
