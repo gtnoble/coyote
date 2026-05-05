@@ -573,7 +573,7 @@ package body Coyote_App.History is
                                                       & UC_BOX_TL
                                                       & " " & UC_GEAR
                                                       & " " & Tool_Name
-                                                      & " llm-chat+"
+                                                      & " coyote-session+"
                                                       & UUID & "/tool/"
                                                       & Tok);
                                                 else

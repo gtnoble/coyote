@@ -10,9 +10,11 @@ harness. The frontend opens a `+coyote` acme window, runs the in-process
 `/usr/local/plan9`. The `PLAN9` environment variable should point there;
 binaries such as `acmeevent` live in `/usr/local/plan9/bin/`.
 
-Two executables are built:
+Three executables are built:
 - `bin/coyote` — the main frontend (opens a `+coyote` acme window)
 - `bin/coyote_list_sessions` — lists saved sessions for the current directory
+- `bin/coyote_open` — opens a tool-call detail window; launched by the plumber
+  for `coyote-session+UUID/tool/TOKEN` links
 
 ## Language & Build System
 
@@ -79,20 +81,20 @@ src/
     llm-agent.ads/.adb          -- Native agentic loop
 tools/
   coyote_list_sessions.adb   -- Entry point for the session listing utility
+  coyote_open.adb            -- Entry point for the tool-call detail window utility
 test/src/                -- AUnit-based test suite
 ```
 
 ## Architecture
 
-`Coyote_App.Run` drives the application with five long-lived Ada tasks:
+`Coyote_App.Run` drives the application with four long-lived Ada tasks:
 
 | Task | Responsibility |
 |---|---|
 | `Agent_Task` | Owns `LLM.Agent.Session`, drives prompts, and calls `Dispatch_Event` to render each `LLM.Events.Agent_Event'Class` value into the acme window |
 | `Acme_Event_Task` | Reads the acme window event file via 9P; handles Send/Stop/New/Clear tag commands |
-| `Plumb_Model_Task` | Reads the `/pi-model` plumb port; updates the active model via `LLM.Agent.Set_Model` |
-| `Plumb_Session_Task` | Reads the `/pi-session` plumb port; switches sessions in-process via `LLM.Agent.Switch_Session` |
-| `Plumb_Thinking_Task` | Reads the `/pi-thinking` plumb port; updates the reasoning level via `LLM.Agent.Set_Thinking` |
+| `Plumb_Model_Task` | Reads the `/coyote-model` plumb port; updates the active model via `LLM.Agent.Set_Model` |
+| `Plumb_Thinking_Task` | Reads the `/coyote-thinking` plumb port; updates the reasoning level via `LLM.Agent.Set_Thinking` |
 
 All shared mutable state lives in `App_State`, a protected object. Each task
 opens its own `Nine_P.Client.Fs` connection to avoid cross-task 9P contention.
@@ -101,6 +103,29 @@ The `Addr_Mutex` inside `Acme.Window.Win` serialises the addr→data write pair.
 `Dispatch_Event` in `Coyote_App.Dispatch` is the rendering core: it maps each
 incoming `LLM.Events.Agent_Event'Class` value to the appropriate acme window
 mutation (streaming text, tool summaries, status line updates, etc.).
+
+## Plumb Token Schema
+
+Coyote uses its own family of plumb tokens. All token strings begin with a
+`coyote-` prefix so they are distinct from the `model+`, `thinking+`, and
+`llm-chat+` tokens used by pi-acme.
+
+| Token | Plumb port | Purpose |
+|---|---|---|
+| `coyote-model+PID/PROVIDER/ID` | `/coyote-model` | Switch the active model in the running instance identified by PID |
+| `coyote-session+UUID` | launches `coyote --session UUID` | Load a session; the plumber spawns a new `coyote` process |
+| `coyote-session+UUID/tool/TOKEN` | launches `bin/coyote_open` | Open a tool-call detail window; TOKEN is the first 16 hex chars of SHA-256(tool_call_id) |
+| `coyote-thinking+PID/LEVEL` | `/coyote-thinking` | Set the reasoning level in the running instance identified by PID |
+| `coyote-fork+PID/UUID/N` | `/coyote-fork` | Fork the session at turn N in the running instance identified by PID |
+
+**Design notes:**
+
+- Session tokens (`coyote-session+UUID`) carry **no PID**. The plumber always
+  launches a fresh `coyote --session UUID` process rather than routing to a
+  running instance. Consequently, there is no `Plumb_Session_Task` in coyote.
+- Model, thinking, and fork tokens are PID-tagged because they must target a
+  specific running window.
+- `bin/coyote_open` is a native Ada binary, not a shell script.
 
 ## 9P / Acme VFS Conventions
 

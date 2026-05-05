@@ -6,7 +6,7 @@ project Coyote is
    for Object_Dir use "obj/" & Coyote_Config.Build_Profile;
    for Create_Missing_Dirs use "True";
    for Exec_Dir use "bin";
-   for Main use ("coyote.adb", "coyote_list_sessions.adb");
+   for Main use ("coyote.adb", "coyote_list_sessions.adb", "coyote_open.adb");
 
    package Compiler is
       for Default_Switches ("Ada") use Coyote_Config.Ada_Compiler_Switches;

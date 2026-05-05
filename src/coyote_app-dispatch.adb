@@ -290,7 +290,7 @@ package body Coyote_App.Dispatch is
                Acme.Window.Append
                  (Win, FS,
                   ASCII.LF & UC_BOX_TL & " " & UC_GEAR & " " & Tool
-                  & " llm-chat+" & Sess & "/tool/" & Tok);
+                  & " coyote-session+" & Sess & "/tool/" & Tok);
             else
                Acme.Window.Append
                  (Win, FS,

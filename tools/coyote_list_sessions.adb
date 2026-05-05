@@ -1,9 +1,9 @@
 --  coyote_list_sessions — print coyote sessions for the current directory.
 --
 --  Output (tab-separated per line):
---    llm-chat+UUID<TAB>name<TAB>date<TAB>snippet
+--    coyote-session+UUID<TAB>name<TAB>date<TAB>snippet
 --
---  Button-3 any llm-chat+ token in acme to load that session.
+--  Button-3 any coyote-session+ token in acme to load that session.
 
 with Ada.Command_Line;
 with Ada.Directories;
@@ -17,7 +17,7 @@ procedure Coyote_List_Sessions is
 begin
    for S of Sessions loop
       Ada.Text_IO.Put_Line
-        ("llm-chat+" & To_String (S.UUID)
+        ("coyote-session+" & To_String (S.UUID)
          & ASCII.HT & To_String (S.Name)
          & ASCII.HT & To_String (S.Date)
          & ASCII.HT & To_String (S.Snippet));

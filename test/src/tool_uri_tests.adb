@@ -26,7 +26,7 @@ package body Tool_URI_Tests is
    --  Build the canonical token string for a given session UUID and tool hash.
    function Make_Token (Session_UUID : String; Hash : String) return String is
    begin
-      return "llm-chat+" & Session_UUID & "/tool/" & Hash;
+      return "coyote-session+" & Session_UUID & "/tool/" & Hash;
    end Make_Token;
 
    --  Sample UUID used throughout the Scan tests.

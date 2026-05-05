@@ -667,7 +667,7 @@ package body Dispatch_Tests is
             Assert (S.Turn_Count = 1,
                     "session_stats should append the live turn footer");
             Assert_Contains
-              (Body_Text, "fork+" & PID & "/" & Session_Id & "/1",
+              (Body_Text, "coyote-fork+" & PID & "/" & Session_Id & "/1",
                "session_stats should append the live turn footer");
          end;
 

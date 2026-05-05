@@ -682,7 +682,7 @@ package body Session_History_Tests is
               Read_Via_9p ("acme/" & Id & "/body");
          begin
             Assert
-              (Contains (Body_Text, "] fork+"),
+              (Contains (Body_Text, "] coyote-fork+"),
                "Summary block and fork token should share one line");
          end;
          Acme.Window.Ctl (Win, FS'Access, "clean");
@@ -755,8 +755,8 @@ package body Session_History_Tests is
          begin
             Assert (Contains (Body_Text, UC_Dbl_H),
                     "double-line separator should appear after complete turn");
-            Assert (Contains (Body_Text, "fork+"),
-                    "fork+ token should be present in separator");
+            Assert (Contains (Body_Text, "coyote-fork+"),
+                    "coyote-fork+ token should be present in separator");
             Assert (State.Turn_Count = 1,
                     "Turn_Count should be 1 after one complete turn");
          end;
@@ -792,7 +792,7 @@ package body Session_History_Tests is
       Expected_Hash : constant String :=
         GNAT.SHA256.Digest (Tool_Call_Id) (1 .. 16);
       Expected_URI  : constant String :=
-        "llm-chat+" & Session_UUID & "/tool/" & Expected_Hash;
+        "coyote-session+" & Session_UUID & "/tool/" & Expected_Hash;
       Home_Was_Set  : constant Boolean :=
         Ada.Environment_Variables.Exists ("HOME");
       Old_Home      : constant String :=
@@ -845,7 +845,7 @@ package body Session_History_Tests is
          begin
             Assert
               (Contains (Body_Text, Expected_URI),
-               "Tool call header should contain the llm-chat+UUID/tool/HASH "
+               "Tool call header should contain the coyote-session+UUID/tool/HASH "
                & "URI; expected: " & Expected_URI);
          end;
          Acme.Window.Ctl (Win, FS'Access, "clean");
@@ -928,8 +928,8 @@ package body Session_History_Tests is
               (Contains (Body_Text, "bash"),
                "Tool name should appear in body even without a URI");
             Assert
-              (not Contains (Body_Text, "llm-chat+"),
-               "No llm-chat+ URI should appear when tool call id is empty");
+              (not Contains (Body_Text, "coyote-session+"),
+               "No coyote-session+ URI should appear when tool call id is empty");
          end;
          Acme.Window.Ctl (Win, FS'Access, "clean");
          Acme.Window.Ctl (Win, FS'Access, "del");

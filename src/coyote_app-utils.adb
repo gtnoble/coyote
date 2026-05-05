@@ -132,42 +132,6 @@ package body Coyote_App.Utils is
       return "";
    end Nth_Field;
 
-   function Parse_Session_Token
-     (Data       : String;
-      Pid_Prefix : String) return String
-   is
-      Bare_Prefix : constant String := "llm-chat+";
-   begin
-      --  PID-tagged: "llm-chat+PID/UUID"
-      if Data'Length > Pid_Prefix'Length
-        and then
-          Data (Data'First .. Data'First + Pid_Prefix'Length - 1)
-          = Pid_Prefix
-      then
-         return Data (Data'First + Pid_Prefix'Length .. Data'Last);
-      end if;
-      --  Bare: "llm-chat+UUID" — accept only when UUID contains no '/'
-      --  (a '/' would indicate it is PID-tagged for a different instance).
-      if Data'Length > Bare_Prefix'Length
-        and then
-          Data (Data'First .. Data'First + Bare_Prefix'Length - 1)
-          = Bare_Prefix
-      then
-         declare
-            Rest : constant String :=
-              Data (Data'First + Bare_Prefix'Length .. Data'Last);
-         begin
-            for C of Rest loop
-               if C = '/' then
-                  return "";
-               end if;
-            end loop;
-            return Rest;
-         end;
-      end if;
-      return "";
-   end Parse_Session_Token;
-
    function Parse_Fork_Token
      (Data       : String;
       Pid_Prefix : String;
@@ -527,7 +491,7 @@ package body Coyote_App.Utils is
    begin
       return ASCII.LF & ASCII.LF
              & (if Summary'Length > 0 then Summary & " " else "")
-             & "fork+" & PID & "/" & UUID & "/"
+             & "coyote-fork+" & PID & "/" & UUID & "/"
              & Natural_Image (Turn_N) & ASCII.LF
              & Str_Repeat (UC_DBL_H, 60)
              & ASCII.LF & ASCII.LF;

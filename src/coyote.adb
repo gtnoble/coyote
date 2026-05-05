@@ -33,7 +33,9 @@ begin
          then
             I := I + 1;
             Opts.Session_Id :=
-              To_Unbounded_String (Ada.Command_Line.Argument (I));
+              To_Unbounded_String
+                (Coyote_Utils.Strip_Session_Prefix
+                   (Ada.Command_Line.Argument (I)));
          elsif Arg = "--model"
            and then I < Ada.Command_Line.Argument_Count
          then

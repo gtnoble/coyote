@@ -68,26 +68,15 @@ package Coyote_App.Utils is
    --  or "" if Text has fewer than N tokens.  Whitespace is space or HT.
    function Nth_Field (Text : String; N : Positive) return String;
 
-   --  Extract the session UUID from a plumb session token.
-   --  Pid_Prefix must be "llm-chat+PID/" for this coyote instance.
-   --
-   --  Accepts:
-   --    "llm-chat+PID/UUID"       -> UUID  (PID-tagged for this instance)
-   --    "llm-chat+UUID"           -> UUID  (bare token, backward-compat)
-   --  Rejects (returns ""):
-   --    "llm-chat+OTHER_PID/UUID" -> ""   (tagged for another instance)
-   --    anything else             -> ""
-   function Parse_Session_Token
-     (Data       : String;
-      Pid_Prefix : String) return String;
-
-   --  Parse a fork+PID/UUID/N token received from the pi-fork plumb port.
+   --  Parse a coyote-fork+PID/UUID/N token received from the coyote-fork
+   --  plumb port.
    --
    --  Data       : the data field of the plumb message (already extracted).
-   --  Pid_Prefix : the expected prefix string, e.g. "fork+" & My_PID & "/".
+   --  Pid_Prefix : the expected prefix string,
+   --               e.g. "coyote-fork+" & My_PID & "/".
    --
    --  On success (token begins with Pid_Prefix and has the form
-   --  "fork+PID/UUID/N") sets UUID and Turn_N and returns True.
+   --  "coyote-fork+PID/UUID/N") sets UUID and Turn_N and returns True.
    --  On any mismatch or malformed input returns False and leaves
    --  UUID / Turn_N unchanged.
    function Parse_Fork_Token
@@ -135,7 +124,7 @@ package Coyote_App.Utils is
 
    --  Turn footer between completed turns.  Carries a clickable fork token
    --  so button-3 opens a forked session.
-   --  Format: [summary ]fork+PID/UUID/N\n════...════\n\n
+   --  Format: [summary ]coyote-fork+PID/UUID/N\n════...════\n\n
    function Format_Turn_Footer
      (Turn_N            : Positive;
       UUID              : String;

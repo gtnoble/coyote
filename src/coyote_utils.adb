@@ -43,4 +43,15 @@ package body Coyote_Utils is
          return "";
    end Read_File_If_Exists;
 
+   function Strip_Session_Prefix (S : String) return String is
+      Prefix : constant String := "coyote-session+";
+   begin
+      if S'Length > Prefix'Length
+        and then S (S'First .. S'First + Prefix'Length - 1) = Prefix
+      then
+         return S (S'First + Prefix'Length .. S'Last);
+      end if;
+      return S;
+   end Strip_Session_Prefix;
+
 end Coyote_Utils;

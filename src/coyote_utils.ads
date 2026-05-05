@@ -10,4 +10,14 @@ package Coyote_Utils is
    --  exist, or cannot be read.
    function Read_File_If_Exists (Path : String) return String;
 
+   --  Strip the "coyote-session+" prefix from S if present.
+   --  Returns the UUID portion; returns S unchanged if the prefix
+   --  is absent.
+   --
+   --  Examples:
+   --    "coyote-session+abc-123" -> "abc-123"
+   --    "abc-123"                -> "abc-123"
+   --    ""                       -> ""
+   function Strip_Session_Prefix (S : String) return String;
+
 end Coyote_Utils;

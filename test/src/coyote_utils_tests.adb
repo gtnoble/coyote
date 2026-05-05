@@ -108,4 +108,30 @@ package body Coyote_Utils_Tests is
          raise;
    end Test_Reads_Multiline_File;
 
+   procedure Test_Strip_Session_Prefix_With_Prefix (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      Assert
+        (Coyote_Utils.Strip_Session_Prefix ("coyote-session+abc-123-def")
+           = "abc-123-def",
+         "Strip_Session_Prefix should remove the coyote-session+ prefix");
+   end Test_Strip_Session_Prefix_With_Prefix;
+
+   procedure Test_Strip_Session_Prefix_Without_Prefix (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      Assert
+        (Coyote_Utils.Strip_Session_Prefix ("abc-123-def") = "abc-123-def",
+         "Strip_Session_Prefix should return the string unchanged "
+         & "when the prefix is absent");
+   end Test_Strip_Session_Prefix_Without_Prefix;
+
+   procedure Test_Strip_Session_Prefix_Empty (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      Assert
+        (Coyote_Utils.Strip_Session_Prefix ("") = "",
+         "Strip_Session_Prefix should return empty string for empty input");
+   end Test_Strip_Session_Prefix_Empty;
+
 end Coyote_Utils_Tests;

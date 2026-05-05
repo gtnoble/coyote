@@ -531,24 +531,6 @@ package body Test_Suites is
         ("Nth_Field edge cases",
          Coyote_App_Tests.Test_Nth_Field_Edges'Access));
       Result.Add_Test (App_State_Caller.Create
-        ("Parse_Session_Token PID match",
-         Coyote_App_Tests.Test_Parse_Token_Pid_Match'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("Parse_Session_Token PID mismatch",
-         Coyote_App_Tests.Test_Parse_Token_Pid_Mismatch'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("Parse_Session_Token bare token",
-         Coyote_App_Tests.Test_Parse_Token_Bare'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("Parse_Session_Token bare token with another PID",
-         Coyote_App_Tests.Test_Parse_Token_Other_Pid'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("Parse_Session_Token empty input",
-         Coyote_App_Tests.Test_Parse_Token_Empty'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("Parse_Session_Token non-session token",
-         Coyote_App_Tests.Test_Parse_Token_Non_Token'Access));
-      Result.Add_Test (App_State_Caller.Create
         ("Parse_Fork_Token: matching PID extracts UUID and turn",
          Coyote_App_Tests.Test_Parse_Fork_Token_Match'Access));
       Result.Add_Test (App_State_Caller.Create
@@ -843,7 +825,7 @@ package body Test_Suites is
         ("[integration] Render: separator appended after history",
          Session_History_Tests.Test_Render_Separator'Access));
       Result.Add_Test (Session_History_Caller.Create
-        ("[integration] Render: tool call header contains llm-chat+ URI",
+        ("[integration] Render: tool call header contains coyote-session+ URI",
          Session_History_Tests.Test_Render_Tool_Call_URI'Access));
       Result.Add_Test (Session_History_Caller.Create
         ("[integration] Render: tool call header has no URI when id absent",
@@ -1039,6 +1021,18 @@ package body Test_Suites is
       Result.Add_Test (Coyote_Utils_Caller.Create
         ("Coyote_Utils reads multiline file",
          Coyote_Utils_Tests.Test_Reads_Multiline_File'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("Coyote_Utils Strip_Session_Prefix removes coyote-session+ prefix",
+         Coyote_Utils_Tests
+           .Test_Strip_Session_Prefix_With_Prefix'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("Coyote_Utils Strip_Session_Prefix returns input unchanged "
+         & "when prefix absent",
+         Coyote_Utils_Tests
+           .Test_Strip_Session_Prefix_Without_Prefix'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("Coyote_Utils Strip_Session_Prefix returns empty for empty input",
+         Coyote_Utils_Tests.Test_Strip_Session_Prefix_Empty'Access));
 
       --  LLM.HTTP tests
       Result.Add_Test (LLM_HTTP_Caller.Create

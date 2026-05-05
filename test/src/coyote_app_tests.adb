@@ -135,76 +135,6 @@ package body Coyote_App_Tests is
       Assert (Nth_Field ("x",     1) = "x", "Single char");
    end Test_Nth_Field_Edges;
 
-   --  ── Parse_Session_Token ──────────────────────────────────────────────
-
-   --  PID-tagged token matching this instance → bare UUID.
-   procedure Test_Parse_Token_Pid_Match (T : in out Test) is
-      pragma Unreferenced (T);
-      Prefix : constant String := "llm-chat+12345/";
-      UUID   : constant String := "aabbccdd-1122-3344-5566-aabbccddeeff";
-   begin
-      Assert
-        (Parse_Session_Token ("llm-chat+12345/" & UUID, Prefix) = UUID,
-         "PID-tagged token for this instance should return UUID");
-   end Test_Parse_Token_Pid_Match;
-
-   --  PID-tagged token for a different instance → "".
-   procedure Test_Parse_Token_Pid_Mismatch (T : in out Test) is
-      pragma Unreferenced (T);
-      Prefix : constant String := "llm-chat+12345/";
-      UUID   : constant String := "aabbccdd-1122-3344-5566-aabbccddeeff";
-   begin
-      Assert
-        (Parse_Session_Token ("llm-chat+99999/" & UUID, Prefix) = "",
-         "PID-tagged token for another instance should return empty");
-   end Test_Parse_Token_Pid_Mismatch;
-
-   --  Bare token (no PID, no '/' in UUID part) → UUID (backward-compat).
-   procedure Test_Parse_Token_Bare (T : in out Test) is
-      pragma Unreferenced (T);
-      Prefix : constant String := "llm-chat+12345/";
-      UUID   : constant String := "aabbccdd11223344";
-   begin
-      Assert
-        (Parse_Session_Token ("llm-chat+" & UUID, Prefix) = UUID,
-         "Bare llm-chat+UUID token should return UUID");
-   end Test_Parse_Token_Bare;
-
-   --  A bare-looking token that turns out to have a '/' after "llm-chat+"
-   --  belongs to another PID → "".
-   procedure Test_Parse_Token_Other_Pid (T : in out Test) is
-      pragma Unreferenced (T);
-      Prefix : constant String := "llm-chat+12345/";
-   begin
-      Assert
-        (Parse_Session_Token
-           ("llm-chat+99999/uuid-part", Prefix) = "",
-         "Token with different PID prefix should return empty");
-   end Test_Parse_Token_Other_Pid;
-
-   --  Empty data string → "".
-   procedure Test_Parse_Token_Empty (T : in out Test) is
-      pragma Unreferenced (T);
-      Prefix : constant String := "llm-chat+12345/";
-   begin
-      Assert
-        (Parse_Session_Token ("", Prefix) = "",
-         "Empty data should return empty string");
-   end Test_Parse_Token_Empty;
-
-   --  Unrelated string → "".
-   procedure Test_Parse_Token_Non_Token (T : in out Test) is
-      pragma Unreferenced (T);
-      Prefix : constant String := "llm-chat+12345/";
-   begin
-      Assert
-        (Parse_Session_Token ("model+12345/openai/gpt-4o", Prefix) = "",
-         "Non-session token should return empty string");
-      Assert
-        (Parse_Session_Token ("session:abcd1234", Prefix) = "",
-         "session: prefix (not llm-chat+) should return empty string");
-   end Test_Parse_Token_Non_Token;
-
    --  ── Parse_Fork_Token ────────────────────────────────────────────────
 
    procedure Test_Parse_Fork_Token_Match (T : in out Test) is
@@ -213,8 +143,8 @@ package body Coyote_App_Tests is
       Turn_N : Positive := 1;
       Result : constant Boolean :=
         Parse_Fork_Token
-          ("fork+42/abc1-def2-3456-789a-bcdef0123456/7",
-           "fork+42/",
+          ("coyote-fork+42/abc1-def2-3456-789a-bcdef0123456/7",
+           "coyote-fork+42/",
            UUID,
            Turn_N);
    begin
@@ -230,8 +160,8 @@ package body Coyote_App_Tests is
       Turn_N : Positive := 1;
       Result : constant Boolean :=
         Parse_Fork_Token
-          ("fork+99/abc1-def2-3456-789a-bcdef0123456/7",
-           "fork+42/",
+          ("coyote-fork+99/abc1-def2-3456-789a-bcdef0123456/7",
+           "coyote-fork+42/",
            UUID,
            Turn_N);
    begin
@@ -245,8 +175,8 @@ package body Coyote_App_Tests is
       Turn_N : Positive := 1;
       Result : constant Boolean :=
         Parse_Fork_Token
-          ("fork+42/abc1-def2-3456-789a-bcdef0123456",
-           "fork+42/",
+          ("coyote-fork+42/abc1-def2-3456-789a-bcdef0123456",
+           "coyote-fork+42/",
            UUID,
            Turn_N);
    begin
@@ -260,8 +190,8 @@ package body Coyote_App_Tests is
       Turn_N : Positive := 1;
       Result : constant Boolean :=
         Parse_Fork_Token
-          ("fork+42/abc1-def2-3456-789a-bcdef0123456/not-a-number",
-           "fork+42/",
+          ("coyote-fork+42/abc1-def2-3456-789a-bcdef0123456/not-a-number",
+           "coyote-fork+42/",
            UUID,
            Turn_N);
    begin
@@ -274,7 +204,7 @@ package body Coyote_App_Tests is
       UUID   : Unbounded_String;
       Turn_N : Positive := 1;
       Result : constant Boolean :=
-        Parse_Fork_Token ("fork+42//7", "fork+42/", UUID, Turn_N);
+        Parse_Fork_Token ("coyote-fork+42//7", "coyote-fork+42/", UUID, Turn_N);
    begin
       Assert (not Result,
               "Empty UUID field should return False");
@@ -285,7 +215,7 @@ package body Coyote_App_Tests is
       UUID   : Unbounded_String;
       Turn_N : Positive := 1;
       Result : constant Boolean :=
-        Parse_Fork_Token ("", "fork+42/", UUID, Turn_N);
+        Parse_Fork_Token ("", "coyote-fork+42/", UUID, Turn_N);
    begin
       Assert (not Result, "Empty input should return False");
    end Test_Parse_Fork_Token_Empty;
@@ -1506,7 +1436,7 @@ package body Coyote_App_Tests is
       --  Fields: src / dst / wdir / type / attr / ndata / data
       Msg : constant Nine_P.Byte_Array :=
         To_Bytes ("app"      & ASCII.LF
-                  & "pi-model" & ASCII.LF
+                  & "coyote-model" & ASCII.LF
                   & "/home"    & ASCII.LF
                   & "text"     & ASCII.LF
                   & ""         & ASCII.LF
@@ -1523,7 +1453,7 @@ package body Coyote_App_Tests is
       Uuid : constant String := "aabbccdd-1122-3344-5566-aabbccddeeff";
       Msg  : constant Nine_P.Byte_Array :=
         To_Bytes ("app"         & ASCII.LF
-                  & "pi-session" & ASCII.LF
+                  & "coyote-session" & ASCII.LF
                   & "/home"      & ASCII.LF
                   & "text"       & ASCII.LF
                   & ""           & ASCII.LF

@@ -381,12 +381,8 @@ package body Coyote_App is
 
       --  ── List_Sessions_Text ──────────────────────────────────────────
       --
-      --  Returns one PID-tagged session token per line:
-      --    llm-chat+PID/UUID<TAB>name<TAB>date<TAB>snippet
-      --
-      --  The PID prefix ensures that button-3 in the +sessions window
-      --  routes the plumb message only to this coyote instance.
-      --  Referencing My_PID directly avoids a redundant string build.
+      --  Returns one session token per line:
+      --    coyote-session+UUID<TAB>name<TAB>date<TAB>snippet
       function List_Sessions_Text return String is
          Sessions : constant Session_Vectors.Vector :=
            List_Sessions (Ada.Directories.Current_Directory);
@@ -394,12 +390,12 @@ package body Coyote_App is
       begin
          Append
            (Result,
-            "# Button-3 any llm-chat+ token to load that session."
+            "# Button-3 any coyote-session+ token to load that session."
             & ASCII.LF & ASCII.LF);
          for Session of Sessions loop
             Append
               (Result,
-               "llm-chat+" & My_PID & "/" & To_String (Session.UUID)
+               "coyote-session+" & To_String (Session.UUID)
                & ASCII.HT & To_String (Session.Name)
                & ASCII.HT & To_String (Session.Date)
                & ASCII.HT & To_String (Session.Snippet)
@@ -444,7 +440,6 @@ package body Coyote_App is
       task Agent_Task;
       task Acme_Event_Task;
       task Plumb_Model_Task;
-      task Plumb_Session_Task;
       task Plumb_Thinking_Task;
       task Plumb_Fork_Task;
 
@@ -868,7 +863,7 @@ package body Coyote_App is
                for Model of Models loop
                   Append
                     (Content,
-                     "model+" & My_PID & "/"
+                     "coyote-model+" & My_PID & "/"
                      & To_String (Model.Provider) & "/"
                      & To_String (Model.Model_Id) & ASCII.LF);
                end loop;
@@ -1042,11 +1037,13 @@ package body Coyote_App is
                                          Ada.Directories.Current_Directory
                                          & "/+coyote";
                                        Content : constant String :=
-                                         "thinking+" & My_PID & "/low"
+                                         "coyote-thinking+" & My_PID & "/low"
                                          & ASCII.LF
-                                         & "thinking+" & My_PID & "/medium"
+                                         & "coyote-thinking+" & My_PID
+                                         & "/medium"
                                          & ASCII.LF
-                                         & "thinking+" & My_PID & "/high"
+                                         & "coyote-thinking+" & My_PID
+                                         & "/high"
                                          & ASCII.LF;
                                     begin
                                        Open_Sub_Window
@@ -1280,7 +1277,7 @@ package body Coyote_App is
                begin
                   Connect (Pl_FS, "plumb");
                   Connect (My_FS, "acme");
-                  Open (Port, Pl_FS'Access, "/pi-model", O_READ);
+                  Open (Port, Pl_FS'Access, "/coyote-model", O_READ);
                   Connected := True;
                   exit Connection_Retry;
                exception
@@ -1292,7 +1289,7 @@ package body Coyote_App is
 
             if not Connected then
                raise Nine_P.Proto.P9_Error with
-                 "Plumb_Model_Task could not open /pi-model";
+                 "Plumb_Model_Task could not open /coyote-model";
             end if;
 
             Plumb_Loop : loop
@@ -1318,7 +1315,7 @@ package body Coyote_App is
                            end loop;
                            if First_Slash > 0
                              and then Data (Data'First .. First_Slash - 1)
-                                      = "model+" & My_PID
+                                      = "coyote-model+" & My_PID
                            then
                               declare
                                  Rest : constant String :=
@@ -1347,85 +1344,6 @@ package body Coyote_App is
                & Ada.Exceptions.Exception_Information (Ex));
       end Plumb_Model_Task;
 
-      --  ── Plumb_Session_Task ────────────────────────────────────────────
-      --
-      --  Reads the pi-session plumb port.  Tokens written by our own
-      --  +sessions window are PID-tagged ("llm-chat+PID/UUID"); bare
-      --  "llm-chat+UUID" tokens (no PID, backward-compat) are also
-      --  accepted.  Tokens belonging to other coyote instances are
-      --  silently ignored.
-
-      task body Plumb_Session_Task is
-         Pid_Prefix   : constant String :=
-           "llm-chat+" & My_PID & "/";
-         Got_Shutdown : Boolean := False;
-      begin
-         declare
-            Pl_FS       : aliased Nine_P.Client.Fs;
-            Port        : aliased Nine_P.Client.File;
-            Max_Retries : constant Positive := 5;
-            Retry_Delay : constant Duration := 0.5;
-            Connected   : Boolean := False;
-         begin
-            Connection_Retry : for Attempt in 1 .. Max_Retries loop
-               begin
-                  Connect (Pl_FS, "plumb");
-                  Open (Port, Pl_FS'Access, "/pi-session", O_READ);
-                  Connected := True;
-                  exit Connection_Retry;
-               exception
-                  when Nine_P.Proto.P9_Error =>
-                     exit Connection_Retry when Attempt = Max_Retries;
-                     delay Retry_Delay;
-               end;
-            end loop Connection_Retry;
-
-            if not Connected then
-               raise Nine_P.Proto.P9_Error with
-                 "Plumb_Session_Task could not open /pi-session";
-            end if;
-
-            Plumb_Loop : loop
-               select
-                  State.Wait_Shutdown;
-                  Got_Shutdown := True;
-               then abort
-                  declare
-                     Raw  : constant Byte_Array :=
-                       Nine_P.Client.Read_Once (Port'Access);
-                     Data : constant String := Extract_Plumb_Data (Raw);
-                  begin
-                     exit Plumb_Loop when Raw'Length = 0;
-                     if Data'Length > 0 then
-                        declare
-                           UUID : constant String :=
-                             Parse_Session_Token (Data, Pid_Prefix);
-                        begin
-                           if UUID'Length > 0 then
-                              if
-                                State.Is_Streaming
-                                  or else State.Is_Retrying
-                              then
-                                 State.Set_Aborted (True);
-                                 LLM.Agent.Request_Abort (Agent_Session);
-                              end if;
-                              Commands.Enqueue (Switch_Session_Command, UUID);
-                           end if;
-                        end;
-                     end if;
-                  end;
-               end select;
-               exit Plumb_Loop when Got_Shutdown;
-            end loop Plumb_Loop;
-         end;
-      exception
-         when Ex : others =>
-            Ada.Text_IO.Put_Line
-              (Ada.Text_IO.Standard_Error,
-               "Plumb_Session_Task terminated: "
-               & Ada.Exceptions.Exception_Information (Ex));
-      end Plumb_Session_Task;
-
       --  ── Plumb_Thinking_Task ───────────────────────────────────────────
 
       task body Plumb_Thinking_Task is
@@ -1443,7 +1361,7 @@ package body Coyote_App is
                begin
                   Connect (Pl_FS, "plumb");
                   Connect (My_FS, "acme");
-                  Open (Port, Pl_FS'Access, "/pi-thinking", O_READ);
+                  Open (Port, Pl_FS'Access, "/coyote-thinking", O_READ);
                   Connected := True;
                   exit Connection_Retry;
                exception
@@ -1455,7 +1373,7 @@ package body Coyote_App is
 
             if not Connected then
                raise Nine_P.Proto.P9_Error with
-                 "Plumb_Thinking_Task could not open /pi-thinking";
+                 "Plumb_Thinking_Task could not open /coyote-thinking";
             end if;
 
             Plumb_Loop : loop
@@ -1538,7 +1456,7 @@ package body Coyote_App is
          use GNATCOLL.OS.Process;
 
          Pid_Prefix   : constant String :=
-           "fork+" & My_PID & "/";
+           "coyote-fork+" & My_PID & "/";
          Got_Shutdown : Boolean := False;
       begin
          declare
@@ -1553,7 +1471,7 @@ package body Coyote_App is
                begin
                   Connect (Pl_FS, "plumb");
                   Connect (My_FS, "acme");
-                  Open (Port, Pl_FS'Access, "/pi-fork", O_READ);
+                  Open (Port, Pl_FS'Access, "/coyote-fork", O_READ);
                   Connected := True;
                   exit Connection_Retry;
                exception
@@ -1565,7 +1483,7 @@ package body Coyote_App is
 
             if not Connected then
                raise Nine_P.Proto.P9_Error with
-                 "Plumb_Fork_Task could not open /pi-fork";
+                 "Plumb_Fork_Task could not open /coyote-fork";
             end if;
 
             Plumb_Loop : loop

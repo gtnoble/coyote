@@ -17,14 +17,6 @@ package Coyote_App_Tests is
    procedure Test_Nth_Field_Tabs      (T : in out Test);
    procedure Test_Nth_Field_Edges     (T : in out Test);
 
-   --  Parse_Session_Token
-   procedure Test_Parse_Token_Pid_Match    (T : in out Test);
-   procedure Test_Parse_Token_Pid_Mismatch (T : in out Test);
-   procedure Test_Parse_Token_Bare         (T : in out Test);
-   procedure Test_Parse_Token_Other_Pid    (T : in out Test);
-   procedure Test_Parse_Token_Empty        (T : in out Test);
-   procedure Test_Parse_Token_Non_Token    (T : in out Test);
-
    --  ── Parse_Fork_Token ──────────────────────────────────────────────────
 
    --  Valid token with matching PID prefix returns True and extracts fields.

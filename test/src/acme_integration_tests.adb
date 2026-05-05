@@ -872,7 +872,7 @@ package body Acme_Integration_Tests is
             Body_Text : constant String :=
               Read_Via_9p ("acme/" & Id & "/body");
             Footer    : constant String :=
-              "] fork+" & PID & "/" & Session_Id & "/1";
+              "] coyote-fork+" & PID & "/" & Session_Id & "/1";
          begin
             Assert (State.Turn_Count = 1,
                     "Append_Live_Turn_Footer must increment Turn_Count");
@@ -881,7 +881,7 @@ package body Acme_Integration_Tests is
                "Summary block and fork token must share one line");
             Assert
               (Ada.Strings.Fixed.Index
-                 (Body_Text, ASCII.LF & ASCII.LF & "fork+") = 0,
+                 (Body_Text, ASCII.LF & ASCII.LF & "coyote-fork+") = 0,
                "fork token must not start a standalone line when summary "
                & "exists");
             Assert
@@ -955,7 +955,7 @@ package body Acme_Integration_Tests is
                  Ada.Strings.Fixed.Index (Body_Text, Session_Seg);
                Fork_Pos    : constant Natural :=
                  Ada.Strings.Fixed.Index
-                   (Body_Text, "fork+" & PID & "/" & Session_Id & "/1");
+                   (Body_Text, "coyote-fork+" & PID & "/" & Session_Id & "/1");
             begin
                Assert (Turn_Pos > 0 and then Session_Pos > 0
                        and then Fork_Pos > 0,
