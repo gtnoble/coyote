@@ -61,8 +61,8 @@ package body Coyote_App.Dispatch is
          else "");
       Context_Part : constant String :=
         (if Input_Tokens > 0 and then Ctx_Window > 0
-         then " " & Format_Kilo (Input_Tokens)
-              & "/" & Format_Kilo (Ctx_Window)
+         then " " & Format_SI_Count (Input_Tokens)
+              & "/" & Format_SI_Count (Ctx_Window)
               & " (" & Natural_Image (Input_Tokens * 100 / Ctx_Window)
               & "%)"
          else "");

@@ -39,7 +39,8 @@ Binaries are placed in `bin/`:
 ## Usage
 
 ```
-coyote [--session UUID] [--model PROVIDER/ID] [--agent NAME|FILE]
+coyote [--session UUID] [--model PROVIDER/ID] [--agent NAME]
+       [--custom-prompt TEXT|@PATH]
        [--no-tools] [--no-session]
        [--prompt TEXT] [--one-shot] [--name LABEL]
 ```
@@ -48,7 +49,8 @@ coyote [--session UUID] [--model PROVIDER/ID] [--agent NAME|FILE]
 |---|---|
 | `--session UUID` | Resume an existing session by UUID |
 | `--model PROVIDER/ID` | Select a model (e.g. `github-copilot/claude-sonnet-4.6`) |
-| `--agent NAME\|FILE` | Custom system prompt: a named agent or a path to a text/markdown file |
+| `--agent NAME` | Use a named agent definition from the discovered catalogue |
+| `--custom-prompt TEXT\|@PATH` | Append extra instructions to the system prompt; prefix with `@` to load from a file |
 | `--no-tools` | Disable the built-in tool set for this session |
 | `--no-session` | Do not persist the conversation to disk |
 | `--prompt TEXT` | Send TEXT as the first prompt immediately after startup |
@@ -224,10 +226,47 @@ Skills that are found are listed in the system prompt as an `<available_skills>`
 
 Skills missing a `name` or `description` in their frontmatter are silently skipped.
 
+### Agent Definitions (`~/.coyote/agents/`, `~/.agents/agents/`, `.coyote/agents/`, `.agents/agents/`)
+
+Agent definitions are named system-prompt files that the agent can spawn as subagents via the `spawn_subagent` tool. Each definition lives in its own subdirectory and must contain an `AGENT.md` file with YAML frontmatter declaring `name` and `description` fields:
+
+```
+~/.coyote/agents/
+  code-reviewer/
+    AGENT.md        ← frontmatter + system prompt body
+    guidelines.md   ← optional supporting files (accessible via location)
+```
+
+**`AGENT.md` structure:**
+
+```markdown
+---
+name: code-reviewer
+description: "Reviews Ada source for style, correctness, and potential issues."
+---
+
+You are an expert Ada code reviewer...
+```
+
+Coyote scans four directories at startup (in this order):
+
+1. `~/.coyote/agents/` — global, coyote-specific
+2. `~/.agents/agents/` — global, provider-agnostic (shared across agents)
+3. `{Cwd}/.coyote/agents/` — project-local, coyote-specific
+4. `{Cwd}/.agents/agents/` — project-local, provider-agnostic
+
+When two definitions share the same `name`, the later entry (more project-local) shadows the earlier one.
+
+Discovered definitions are listed in the system prompt as an `<available_agents>` block including each agent's name, description, and file location. The location lets the agent access files packaged alongside the definition (e.g. a `guidelines.md` sibling).
+
+To invoke an agent definition use `--agent NAME` on the command line, or pass the `agent` field (by name) to the `spawn_subagent` tool. Only names are accepted — inline text and file paths are not valid values for `--agent`.
+
 ### System prompt assembly order
 
 ```
-[default preamble + tool guidelines]   ← always present (unless --agent overrides)
+[Agent_Def from --agent NAME]          ← replaces default preamble when supplied
+  OR [default preamble + tool guidelines]
+[--custom-prompt TEXT|@PATH]           ← appended after preamble when supplied
 [appendSystemPrompt from settings.json] ← optional global append
 [# Project Context]
   [~/.coyote/context/*.md]             ← global context files
@@ -236,10 +275,11 @@ Skills missing a `name` or `description` in their frontmatter are silently skipp
 [<available_skills> block]             ← skill names + descriptions only
                                        ← sources: ~/.coyote/skills, ~/.agents/skills,
                                        ←          {Cwd}/.coyote/skills, {Cwd}/.agents/skills
+[<available_agents> block]             ← agent names, descriptions, locations
+                                       ← sources: ~/.coyote/agents, ~/.agents/agents,
+                                       ←          {Cwd}/.coyote/agents, {Cwd}/.agents/agents
 [Current date / working directory]     ← always last
 ```
-
-When `--agent NAME|FILE` is passed on the command line, the entire preamble is replaced by the supplied text; the context sections and skills block are still appended after it.
 
 ## Plumber Integration
 

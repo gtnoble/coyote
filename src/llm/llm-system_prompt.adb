@@ -10,6 +10,7 @@ with Ada.Directories;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
+with LLM.Agent_Defs;
 with LLM.Settings;
 with LLM.Skills;
 with LLM.Tools;
@@ -219,18 +220,19 @@ package body LLM.System_Prompt is
    end Load_Context_Sections;
 
    function Build_System_Prompt
-     (Cwd              : String;
-      No_Tools         : Boolean := False;
-      Custom_Prompt    : String  := "";
-      Append_Prompt    : String  := "";
-      Context_Sections : String  := "";
-      Skills_Section   : String  := "") return String
+     (Cwd                : String;
+      No_Tools           : Boolean := False;
+      Agent_Def          : String  := "";
+      Custom_Prompt      : String  := "";
+      Context_Sections   : String  := "";
+      Skills_Section     : String  := "";
+      Agent_Defs_Section : String  := "") return String
    is
       Result : Unbounded_String;
       Tools  : constant LLM.Tools.Tool_Descriptor_Vectors.Vector :=
         LLM.Tools.Built_In_Tools;
    begin
-      if Custom_Prompt'Length = 0 then
+      if Agent_Def'Length = 0 then
          Append
            (Result,
             "You are an expert coding assistant operating inside coyote, a"
@@ -273,11 +275,11 @@ package body LLM.System_Prompt is
                & "- Show file paths clearly when working with files");
          end if;
       else
-         Append (Result, Custom_Prompt);
+         Append (Result, Agent_Def);
       end if;
 
-      if Append_Prompt'Length > 0 then
-         Append (Result, ASCII.LF & ASCII.LF & Append_Prompt);
+      if Custom_Prompt'Length > 0 then
+         Append (Result, ASCII.LF & ASCII.LF & Custom_Prompt);
       end if;
 
       --  Append the settings-based appendSystemPrompt value (step 4b).
@@ -323,6 +325,23 @@ package body LLM.System_Prompt is
          if Merged_Skills'Length > 0 then
             Ada.Strings.Unbounded.Append
               (Result, ASCII.LF & ASCII.LF & Merged_Skills);
+         end if;
+      end;
+
+      declare
+         Loaded_Defs   : constant LLM.Agent_Defs.Agent_Def_Vectors.Vector :=
+           LLM.Agent_Defs.Load_Agent_Defs (Cwd);
+         Auto_Section  : constant String :=
+           LLM.Agent_Defs.Format_Agent_Defs_For_Prompt (Loaded_Defs);
+         Merged_Defs   : constant String :=
+           (if Agent_Defs_Section'Length > 0 and then Auto_Section'Length > 0
+            then Agent_Defs_Section & ASCII.LF & ASCII.LF & Auto_Section
+            elsif Agent_Defs_Section'Length > 0 then Agent_Defs_Section
+            else Auto_Section);
+      begin
+         if Merged_Defs'Length > 0 then
+            Ada.Strings.Unbounded.Append
+              (Result, ASCII.LF & ASCII.LF & Merged_Defs);
          end if;
       end;
 

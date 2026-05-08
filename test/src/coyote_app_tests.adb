@@ -1329,38 +1329,46 @@ package body Coyote_App_Tests is
               & "got """ & Result & """");
    end Test_Format_Tool_Field_Truncation;
 
-   --  ── Format_Kilo ───────────────────────────────────────────────────────
+   --  ── Format_SI_Count ──────────────────────────────────────────────────
 
-   procedure Test_Format_Kilo_Below_Threshold (T : in out Test) is
+   procedure Test_Format_SI_Count_Below_Threshold (T : in out Test) is
       pragma Unreferenced (T);
    begin
-      Assert (Format_Kilo (0)   = "0",   "0 -> ""0""");
-      Assert (Format_Kilo (1)   = "1",   "1 -> ""1""");
-      Assert (Format_Kilo (999) = "999", "999 -> ""999""");
-   end Test_Format_Kilo_Below_Threshold;
+      Assert (Format_SI_Count (0)   = "0",   "0 -> ""0""");
+      Assert (Format_SI_Count (1)   = "1",   "1 -> ""1""");
+      Assert (Format_SI_Count (999) = "999", "999 -> ""999""");
+   end Test_Format_SI_Count_Below_Threshold;
 
    --  Round multiples of 1000 have no fractional part.
-   procedure Test_Format_Kilo_Round_Numbers (T : in out Test) is
+   procedure Test_Format_SI_Count_Round_Numbers (T : in out Test) is
       pragma Unreferenced (T);
    begin
-      Assert (Format_Kilo (1000)   = "1k",   "1000 -> ""1k""");
-      Assert (Format_Kilo (2000)   = "2k",   "2000 -> ""2k""");
-      Assert (Format_Kilo (10000)  = "10k",  "10000 -> ""10k""");
-      Assert (Format_Kilo (200000) = "200k", "200000 -> ""200k""");
-   end Test_Format_Kilo_Round_Numbers;
+      Assert (Format_SI_Count (1_000)   = "1k",   "1000 -> ""1k""");
+      Assert (Format_SI_Count (2_000)   = "2k",   "2000 -> ""2k""");
+      Assert (Format_SI_Count (10_000)  = "10k",  "10000 -> ""10k""");
+      Assert (Format_SI_Count (200_000) = "200k", "200000 -> ""200k""");
+   end Test_Format_SI_Count_Round_Numbers;
 
-   --  Values whose tenth is non-zero produce a "N.Mk" result.
-   --  Note: Format_Kilo uses Float'Floor for the fractional tenth, so
-   --  1050 -> frac = Floor(0.05 * 10) = Floor(0.5) = 0 -> "1k".
-   procedure Test_Format_Kilo_Fractional (T : in out Test) is
+   --  Values with non-zero hundredths produce a "N.FFk" result;
+   --  trailing zeros in the fractional part are stripped.
+   procedure Test_Format_SI_Count_Fractional (T : in out Test) is
       pragma Unreferenced (T);
    begin
-      Assert (Format_Kilo (1500)  = "1.5k",  "1500 -> ""1.5k""");
-      Assert (Format_Kilo (1100)  = "1.1k",  "1100 -> ""1.1k""");
-      Assert (Format_Kilo (12300) = "12.3k", "12300 -> ""12.3k""");
-      Assert (Format_Kilo (1050)  = "1k",
-              "1050: frac = floor(0.5) = 0, no decimal part");
-   end Test_Format_Kilo_Fractional;
+      Assert (Format_SI_Count (1_500)  = "1.5k",  "1500 -> ""1.5k""");
+      Assert (Format_SI_Count (1_100)  = "1.1k",  "1100 -> ""1.1k""");
+      Assert (Format_SI_Count (12_300) = "12.3k", "12300 -> ""12.3k""");
+      Assert (Format_SI_Count (1_050)  = "1.05k",
+              "1050: rounds to 1.05 -> ""1.05k""");
+   end Test_Format_SI_Count_Fractional;
+
+   --  Values >= 1 000 000 use the M prefix; >= 1 000 000 000 use G.
+   procedure Test_Format_SI_Count_M_Range (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      Assert (Format_SI_Count (1_000_000)   = "1M",   "1M -> ""1M""");
+      Assert (Format_SI_Count (1_500_000)   = "1.5M", "1.5M -> ""1.5M""");
+      Assert (Format_SI_Count (200_000_000) = "200M", "200M -> ""200M""");
+   end Test_Format_SI_Count_M_Range;
 
    --  ── Format_Cost ───────────────────────────────────────────────────────
 
@@ -1608,5 +1616,71 @@ package body Coyote_App_Tests is
       Assert (Status_Contains (Format_Status (S), " ~medium"),
               "Thinking level -> "" ~medium"" in status");
    end Test_Format_Status_With_Thinking;
+
+   --  ── Format_Model_Price ───────────────────────────────────────────────
+
+   procedure Test_Format_Model_Price_All_Zeros (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      Assert
+        (Format_Model_Price (0.0, 0.0, 0.0, 0.0) = "",
+         "All-zero prices should return an empty string");
+   end Test_Format_Model_Price_All_Zeros;
+
+   procedure Test_Format_Model_Price_In_Out_Only (T : in out Test) is
+      pragma Unreferenced (T);
+      Result : constant String :=
+        Format_Model_Price (3.0, 15.0, 0.0, 0.0);
+   begin
+      Assert
+        (Result = "in $3" & UC_MICRO & " out $15" & UC_MICRO & " /tok",
+         "in/out-only prices should produce SI µ segments"
+         & " but got """ & Result & """");
+   end Test_Format_Model_Price_In_Out_Only;
+
+   procedure Test_Format_Model_Price_All_Four (T : in out Test) is
+      pragma Unreferenced (T);
+      Result : constant String :=
+        Format_Model_Price (3.0, 15.0, 0.3, 4.0);
+   begin
+      Assert
+        (Result = "in $3" & UC_MICRO
+                  & " out $15" & UC_MICRO
+                  & " cr $300n"
+                  & " cw $4" & UC_MICRO
+                  & " /tok",
+         "All-four prices should produce four SI-prefixed segments"
+         & " but got """ & Result & """");
+   end Test_Format_Model_Price_All_Four;
+
+   procedure Test_Format_Model_Price_Omits_Zeros (T : in out Test) is
+      pragma Unreferenced (T);
+      Result : constant String :=
+        Format_Model_Price (2.5, 10.0, 0.0, 0.0);
+   begin
+      Assert
+        (Ada.Strings.Unbounded.Index
+           (To_Unbounded_String (Result), "cr") = 0,
+         "Zero cache_read should not produce a ""cr"" label");
+      Assert
+        (Ada.Strings.Unbounded.Index
+           (To_Unbounded_String (Result), "cw") = 0,
+         "Zero cache_write should not produce a ""cw"" label");
+      Assert
+        (Ada.Strings.Unbounded.Index
+           (To_Unbounded_String (Result), "/tok") > 0,
+         "Non-zero in/out should still end with /tok");
+   end Test_Format_Model_Price_Omits_Zeros;
+
+   procedure Test_Format_Model_Price_Cache_Only (T : in out Test) is
+      pragma Unreferenced (T);
+      Result : constant String :=
+        Format_Model_Price (0.0, 0.0, 0.3, 0.0);
+   begin
+      Assert
+        (Result = "cr $300n /tok",
+         "Cache-read-only price should produce ""cr $300n /tok"""
+         & " but got """ & Result & """");
+   end Test_Format_Model_Price_Cache_Only;
 
 end Coyote_App_Tests;

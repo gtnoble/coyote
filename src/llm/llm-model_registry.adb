@@ -98,9 +98,10 @@ package body LLM.Model_Registry is
        Min_Thinking_Budget => 0,
        Wire_Format         => To_Unbounded_String ("openai-completions"),
        Cost                =>
-         (Input      => Item.Cost_Input,
-          Output     => Item.Cost_Output,
-          Cache_Read => Item.Cost_Cache_Read));
+         (Input       => Item.Cost_Input,
+          Output      => Item.Cost_Output,
+          Cache_Read  => Item.Cost_Cache_Read,
+          Cache_Write => Item.Cost_Cache_Write));
   end To_Model_Info;
 
   function Default_OpenRouter_Model (Model_Id : String) return Model_Info is

@@ -340,9 +340,10 @@ package body LLM.Providers.OpenRouter.Catalogue is
       Result.Supports_Tools := Array_Contains (Parameters, "tools");
       Result.Reasoning := Array_Contains (Parameters, "reasoning");
       Result.Supports_Images := Array_Contains (Input_Modes, "image");
-      Result.Cost_Input := Parse_Price (Pricing, "prompt");
-      Result.Cost_Output := Parse_Price (Pricing, "completion");
-      Result.Cost_Cache_Read := Parse_Price (Pricing, "input_cache_read");
+      Result.Cost_Input       := Parse_Price (Pricing, "prompt");
+      Result.Cost_Output      := Parse_Price (Pricing, "completion");
+      Result.Cost_Cache_Read  := Parse_Price (Pricing, "input_cache_read");
+      Result.Cost_Cache_Write := Parse_Price (Pricing, "input_cache_write");
       return Result;
    end Parse_Model;
 

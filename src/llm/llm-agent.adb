@@ -910,7 +910,8 @@ package body LLM.Agent is
    procedure Create
      (S             :    out Session;
       Model_Spec    :        String  := "";
-      System_Prompt :        String  := "";
+      Agent_Def     :        String  := "";
+      Custom_Prompt :        String  := "";
       No_Tools      :        Boolean := False;
       Session_Id    :        String  := "")
    is
@@ -924,7 +925,8 @@ package body LLM.Agent is
         (LLM.System_Prompt.Build_System_Prompt
            (Cwd           => To_String (S.Cwd),
             No_Tools      => No_Tools,
-            Custom_Prompt => System_Prompt));
+            Agent_Def     => Agent_Def,
+            Custom_Prompt => Custom_Prompt));
       S.Session_UUID := Null_Unbounded_String;
       S.History.Clear;
       S.No_Tools := No_Tools;
@@ -1414,6 +1416,10 @@ package body LLM.Agent is
 
                   Append_Pending_Message (Reply);
                   Append_Pending_Batch (Tool_Messages);
+                  if not S.Abort_State.Requested then
+                     Flush_Pending_Messages;
+                     Messages_To_Persist.Clear;
+                  end if;
                end;
 
                exit Agentic_Loop when S.Abort_State.Requested;

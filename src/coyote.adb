@@ -1,9 +1,15 @@
 --  coyote — Acme window frontend for the native LLM agent.
 --
 --  Usage: coyote [--session UUID] [--model PROVIDER/ID]
---                 [--agent NAME] [--no-tools] [--no-session]
+--                 [--agent NAME] [--custom-prompt TEXT|@PATH]
+--                 [--no-tools] [--no-session]
 --                 [--prompt TEXT] [--one-shot] [--name LABEL]
 --
+--  --agent NAME   Use the named agent definition (looked up from the
+--                 discovered AGENT.md catalogue).
+--  --custom-prompt TEXT|@PATH
+--                 Append extra instructions to the system prompt.
+--                 Prefix with '@' to load from a file.
 --  --prompt TEXT  Send TEXT as the first prompt immediately after startup.
 --  --one-shot     Exit automatically after the first complete agent turn,
 --                 printing a JSON result line to stdout.  Intended for use
@@ -15,6 +21,7 @@
 --  For revision history, see the project version-control log.
 
 with Ada.Command_Line;
+with Ada.Exceptions;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with Coyote_App;
@@ -46,14 +53,16 @@ begin
            and then I < Ada.Command_Line.Argument_Count
          then
             I := I + 1;
-            declare
-               Raw   : constant String := Ada.Command_Line.Argument (I);
-               Fread : constant String :=
-                 Coyote_Utils.Read_File_If_Exists (Raw);
-            begin
-               Opts.Agent :=
-                 To_Unbounded_String (if Fread'Length > 0 then Fread else Raw);
-            end;
+            Opts.Agent :=
+              To_Unbounded_String (Ada.Command_Line.Argument (I));
+         elsif Arg = "--custom-prompt"
+           and then I < Ada.Command_Line.Argument_Count
+         then
+            I := I + 1;
+            Opts.Custom_Prompt :=
+              To_Unbounded_String
+                (Coyote_Utils.Resolve_Text_Arg
+                   (Ada.Command_Line.Argument (I)));
          elsif Arg = "--no-tools" then
             Opts.No_Tools := True;
          elsif Arg = "--no-session" then
@@ -84,4 +93,10 @@ begin
 
    Coyote_App.Run (Opts);
    Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Success);
+exception
+   when E : Coyote_Utils.Bad_Arg_Error =>
+      Ada.Text_IO.Put_Line
+        (Ada.Text_IO.Standard_Error,
+         "error: " & Ada.Exceptions.Exception_Message (E));
+      Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Failure);
 end Coyote;

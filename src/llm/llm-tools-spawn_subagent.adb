@@ -43,8 +43,14 @@ package body LLM.Tools.Spawn_Subagent is
                    & " Defaults to the current model."));
       Props.Set_Field
         ("agent",
-         Str_Prop ("System-prompt text or path to an .agent.md file"
-                   & " for the subagent."));
+         Str_Prop ("Name of an agent definition to use for the subagent."
+                   & " Must match the name field of a discovered AGENT.md"
+                   & " file."));
+      Props.Set_Field
+        ("custom_prompt",
+         Str_Prop ("Additional instructions appended to the agent"
+                   & " definition system prompt.  Use @path to load from"
+                   & " a file."));
       Props.Set_Field
         ("name",
          Str_Prop ("Short label for the subagent window tagline."));
@@ -210,6 +216,17 @@ package body LLM.Tools.Spawn_Subagent is
             return;
          end if;
 
+         if Root.Has_Field ("custom_prompt")
+           and then Root.Get ("custom_prompt").Kind /=
+             GNATCOLL.JSON.JSON_String_Type
+         then
+            Set_Error
+              ("spawn_subagent tool field 'custom_prompt' must be a string",
+               Result,
+               Is_Error);
+            return;
+         end if;
+
          if Root.Has_Field ("name")
            and then Root.Get ("name").Kind /=
              GNATCOLL.JSON.JSON_String_Type
@@ -229,6 +246,9 @@ package body LLM.Tools.Spawn_Subagent is
             Agent         : constant String :=
               (if Root.Has_Field ("agent")
                then Root.Get ("agent").Get else "");
+            Custom_Prompt : constant String :=
+              (if Root.Has_Field ("custom_prompt")
+               then Root.Get ("custom_prompt").Get else "");
             Name          : constant String :=
               (if Root.Has_Field ("name")
                then Root.Get ("name").Get else "");
@@ -285,6 +305,10 @@ package body LLM.Tools.Spawn_Subagent is
             if Agent'Length > 0 then
                Args.Append ("--agent");
                Args.Append (Agent);
+            end if;
+            if Custom_Prompt'Length > 0 then
+               Args.Append ("--custom-prompt");
+               Args.Append (Custom_Prompt);
             end if;
             if Name'Length > 0 then
                Args.Append ("--name");

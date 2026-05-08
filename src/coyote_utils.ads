@@ -10,6 +10,22 @@ package Coyote_Utils is
    --  exist, or cannot be read.
    function Read_File_If_Exists (Path : String) return String;
 
+   --  Raised by Resolve_Text_Arg when the argument begins with '@' but
+   --  the referenced file cannot be found or read.
+   Bad_Arg_Error : exception;
+
+   --  Resolve a CLI text argument that may be either a file reference or
+   --  inline text.
+   --
+   --  When Arg begins with '@' the '@' is stripped and the remainder is
+   --  treated as a file path; the file contents are read and returned.
+   --  Raises Bad_Arg_Error when the path portion is empty, the file does
+   --  not exist, or the file cannot be read.
+   --
+   --  When Arg does not begin with '@' it is returned unchanged as inline
+   --  text.
+   function Resolve_Text_Arg (Arg : String) return String;
+
    --  Strip the "coyote-session+" prefix from S if present.
    --  Returns the UUID portion; returns S unchanged if the prefix
    --  is absent.

@@ -227,6 +227,9 @@ package body LLM_OpenRouter_Catalogue_Tests is
          (Models.Element (Claude).Cost_Input = 3.0,
        "0.000003 prompt pricing should become $3.0/M tokens");
       Assert
+         (Models.Element (Claude).Cost_Cache_Write = 4.0,
+       "0.000004 input_cache_write pricing should become $4.0/M tokens");
+      Assert
          (Models.Element (Claude).Reasoning,
        "reasoning support should require the reasoning parameter");
       Assert

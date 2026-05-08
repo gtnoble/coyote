@@ -17,6 +17,7 @@ with Subagent_Integration_Tests;
 with LLM_System_Prompt_Tests;
 with LLM_Context_Tests;
 with LLM_Skills_Tests;
+with LLM_Agent_Defs_Tests;
 with LLM_HTTP_Tests;
 with LLM_Settings_Tests;
 with LLM_Types_Tests;
@@ -72,6 +73,8 @@ package body Test_Suites is
      new AUnit.Test_Caller (LLM_Context_Tests.Test);
    package LLM_Skills_Caller is
      new AUnit.Test_Caller (LLM_Skills_Tests.Test);
+   package LLM_Agent_Defs_Caller is
+     new AUnit.Test_Caller (LLM_Agent_Defs_Tests.Test);
    package Coyote_Utils_Caller is
      new AUnit.Test_Caller (Coyote_Utils_Tests.Test);
    package LLM_HTTP_Caller is
@@ -715,16 +718,19 @@ package body Test_Suites is
         ("Format_Tool_Field: value over Max_Len is truncated with ellipsis",
          Coyote_App_Tests.Test_Format_Tool_Field_Truncation'Access));
 
-      --  Format_Kilo
+      --  Format_SI_Count
       Result.Add_Test (App_State_Caller.Create
-        ("Format_Kilo: values below 1000 returned as decimal",
-         Coyote_App_Tests.Test_Format_Kilo_Below_Threshold'Access));
+        ("Format_SI_Count: values below 1000 returned as decimal",
+         Coyote_App_Tests.Test_Format_SI_Count_Below_Threshold'Access));
       Result.Add_Test (App_State_Caller.Create
-        ("Format_Kilo: exact multiples of 1000 use ""k"" suffix",
-         Coyote_App_Tests.Test_Format_Kilo_Round_Numbers'Access));
+        ("Format_SI_Count: exact multiples of 1000 use ""k"" suffix",
+         Coyote_App_Tests.Test_Format_SI_Count_Round_Numbers'Access));
       Result.Add_Test (App_State_Caller.Create
-        ("Format_Kilo: non-zero tenth produces ""N.Mk"" form",
-         Coyote_App_Tests.Test_Format_Kilo_Fractional'Access));
+        ("Format_SI_Count: non-zero hundredths produce ""N.FFk"" form",
+         Coyote_App_Tests.Test_Format_SI_Count_Fractional'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_SI_Count: values >= 1 000 000 use ""M"" suffix",
+         Coyote_App_Tests.Test_Format_SI_Count_M_Range'Access));
 
       --  Format_Cost
       Result.Add_Test (App_State_Caller.Create
@@ -736,6 +742,23 @@ package body Test_Suites is
       Result.Add_Test (App_State_Caller.Create
         ("Format_Cost: values >= 10000 dmil have non-zero dollar part",
          Coyote_App_Tests.Test_Format_Cost_Dollars'Access));
+
+      --  Format_Model_Price
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_Model_Price: all zeros returns empty string",
+         Coyote_App_Tests.Test_Format_Model_Price_All_Zeros'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_Model_Price: in/out only produces two SI µ segments",
+         Coyote_App_Tests.Test_Format_Model_Price_In_Out_Only'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_Model_Price: all four fields produce four SI-prefixed segments",
+         Coyote_App_Tests.Test_Format_Model_Price_All_Four'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_Model_Price: zero cache fields are silently omitted",
+         Coyote_App_Tests.Test_Format_Model_Price_Omits_Zeros'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_Model_Price: cache-read-only produces nano cr segment",
+         Coyote_App_Tests.Test_Format_Model_Price_Cache_Only'Access));
 
       --  Agent_Stem
       Result.Add_Test (App_State_Caller.Create
@@ -895,17 +918,17 @@ package body Test_Suites is
          LLM_System_Prompt_Tests
            .Test_Default_Prompt_Contains_Date'Access));
       Result.Add_Test (LLM_Sys_Prompt_Caller.Create
-        ("LLM.System_Prompt custom prompt replaces preamble",
+        ("LLM.System_Prompt agent def replaces preamble",
          LLM_System_Prompt_Tests
-           .Test_Custom_Prompt_Replaces_Preamble'Access));
+           .Test_Agent_Def_Replaces_Preamble'Access));
       Result.Add_Test (LLM_Sys_Prompt_Caller.Create
-        ("LLM.System_Prompt custom prompt keeps cwd",
+        ("LLM.System_Prompt agent def keeps cwd",
          LLM_System_Prompt_Tests
-           .Test_Custom_Prompt_Keeps_Cwd'Access));
+           .Test_Agent_Def_Keeps_Cwd'Access));
       Result.Add_Test (LLM_Sys_Prompt_Caller.Create
-        ("LLM.System_Prompt append prompt appears",
+        ("LLM.System_Prompt custom prompt appears",
          LLM_System_Prompt_Tests
-           .Test_Append_Prompt_Appears'Access));
+           .Test_Custom_Prompt_Appears'Access));
       Result.Add_Test (LLM_Sys_Prompt_Caller.Create
         ("LLM.System_Prompt no-tools suppresses tool list",
          LLM_System_Prompt_Tests
@@ -1008,6 +1031,44 @@ package body Test_Suites is
         ("LLM.Skills auto-injects into Build_System_Prompt",
          LLM_Skills_Tests.Test_Injected_Into_Built_Prompt'Access));
 
+      --  LLM.Agent_Defs tests
+      Result.Add_Test (LLM_Agent_Defs_Caller.Create
+        ("LLM.Agent_Defs empty when no roots exist",
+         LLM_Agent_Defs_Tests.Test_Empty_When_No_Roots'Access));
+      Result.Add_Test (LLM_Agent_Defs_Caller.Create
+        ("LLM.Agent_Defs loads valid agent definition",
+         LLM_Agent_Defs_Tests.Test_Loads_Valid_Agent_Def'Access));
+      Result.Add_Test (LLM_Agent_Defs_Caller.Create
+        ("LLM.Agent_Defs skips entry missing frontmatter",
+         LLM_Agent_Defs_Tests.Test_Skips_Missing_Frontmatter'Access));
+      Result.Add_Test (LLM_Agent_Defs_Caller.Create
+        ("LLM.Agent_Defs skips entry missing name",
+         LLM_Agent_Defs_Tests.Test_Skips_Missing_Name'Access));
+      Result.Add_Test (LLM_Agent_Defs_Caller.Create
+        ("LLM.Agent_Defs skips entry missing description",
+         LLM_Agent_Defs_Tests.Test_Skips_Missing_Description'Access));
+      Result.Add_Test (LLM_Agent_Defs_Caller.Create
+        ("LLM.Agent_Defs project-local shadows global",
+         LLM_Agent_Defs_Tests.Test_Project_Local_Shadows_Global'Access));
+      Result.Add_Test (LLM_Agent_Defs_Caller.Create
+        ("LLM.Agent_Defs resolve returns body text",
+         LLM_Agent_Defs_Tests.Test_Resolve_Returns_Body'Access));
+      Result.Add_Test (LLM_Agent_Defs_Caller.Create
+        ("LLM.Agent_Defs resolve raises when not found",
+         LLM_Agent_Defs_Tests.Test_Resolve_Raises_When_Not_Found'Access));
+      Result.Add_Test (LLM_Agent_Defs_Caller.Create
+        ("LLM.Agent_Defs format empty returns empty",
+         LLM_Agent_Defs_Tests.Test_Format_Empty_Returns_Empty'Access));
+      Result.Add_Test (LLM_Agent_Defs_Caller.Create
+        ("LLM.Agent_Defs format includes name",
+         LLM_Agent_Defs_Tests.Test_Format_Includes_Name'Access));
+      Result.Add_Test (LLM_Agent_Defs_Caller.Create
+        ("LLM.Agent_Defs format includes description",
+         LLM_Agent_Defs_Tests.Test_Format_Includes_Description'Access));
+      Result.Add_Test (LLM_Agent_Defs_Caller.Create
+        ("LLM.Agent_Defs format includes location",
+         LLM_Agent_Defs_Tests.Test_Format_Includes_Location'Access));
+
       --  Coyote_Utils tests
       Result.Add_Test (Coyote_Utils_Caller.Create
         ("Coyote_Utils reads file when path exists",
@@ -1056,7 +1117,7 @@ package body Test_Suites is
         ("LLM.Settings Append_System_Prompt defaults to empty",
          LLM_Settings_Tests.Test_Append_System_Prompt_Missing'Access));
       Result.Add_Test (LLM_Settings_Caller.Create
-        ("LLM.Settings Append_Prompt parameter appears in built prompt",
+        ("LLM.Settings Custom_Prompt parameter appears in built prompt",
          LLM_Settings_Tests.Test_Append_Prompt_In_Built_Prompt'Access));
       Result.Add_Test (LLM_Settings_Caller.Create
         ("LLM.Settings Resolve_Api_Key prefers models.json literal value",
@@ -1472,7 +1533,7 @@ package body Test_Suites is
         ("LLM.Agent keeps aborted multi-tool history structurally valid",
          LLM_Agent_Tests.Test_Abort_Batched_Tools_Keep_History_Valid'Access));
       Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent writes assistant turns only after the turn"
+        ("LLM.Agent flushes tool batch to session file as soon as it"
          & " completes",
          LLM_Agent_Tests.
            Test_Session_File_Written_Only_After_Turn_End'Access));

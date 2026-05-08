@@ -44,6 +44,8 @@ package Coyote_App.Utils is
      Character'Val (16#E2#) & Character'Val (16#86#) & Character'Val (16#BB#);
    UC_HOOK_L : constant String :=  --  ↩  U+21A9
      Character'Val (16#E2#) & Character'Val (16#86#) & Character'Val (16#A9#);
+   UC_MICRO  : constant String :=  --  µ  U+00B5
+     Character'Val (16#C2#) & Character'Val (16#B5#);
 
    --  ── String utilities ─────────────────────────────────────────────────
 
@@ -53,10 +55,52 @@ package Coyote_App.Utils is
    --  Natural'Image without the leading space.
    function Natural_Image (N : Natural) return String;
 
-   --  Format a token count compactly: 800 -> "800", 1500 -> "1.5k".
-   function Format_Kilo (N : Natural) return String;
+   --  Format a token count with an appropriate SI prefix.
+   --
+   --  Returns the raw decimal integer for N < 1 000; appends "k" for
+   --  the kilo range, "M" for the mega range, and "G" for the giga
+   --  range.  Precision is at most two decimal places with trailing
+   --  zeros stripped.
+   --
+   --  Examples: 999 → "999", 1500 → "1.5k", 200000 → "200k",
+   --            1000000 → "1M", 1500000 → "1.5M".
+   function Format_SI_Count (N : Natural) return String;
 
-   --  Format N (units of $0.0001) as "$D.FFFF".
+   --  Format a single per-token rate (given in $/MTok) as a compact
+   --  SI-prefixed price string.
+   --
+   --  $/MTok equals µ$/tok exactly, so the prefix thresholds are:
+   --    ≥ 1.0   →  µ (micro)  e.g. 3.0 → "$3µ"
+   --    ≥ 0.001 →  n (nano)   e.g. 0.3 → "$300n"
+   --    < 0.001 →  p (pico)   (very cheap / free-tier models)
+   --
+   --  Precision is at most two decimal places with trailing zeros
+   --  stripped.  Returns "" for non-positive values.
+   --
+   --  Examples: 3.0 → "$3µ", 1.25 → "$1.25µ", 0.3 → "$300n",
+   --            0.075 → "$75n".
+   function Format_SI_Price (Per_MTok : Long_Float) return String;
+
+   --  Format a compact per-million-token price string for model display.
+   --
+   --  Each non-zero field produces one labelled segment:
+   --    in  — prompt / input tokens
+   --    out — completion / output tokens
+   --    cr  — cache read tokens
+   --    cw  — cache write tokens
+   --
+   --  Segments are separated by spaces and the whole result ends with
+   --  "/tok" using SI-prefixed prices from Format_SI_Price.  Returns ""
+   --  when all four values are zero (e.g. for GitHub Copilot and
+   --  Anthropic models where no pricing is available).
+   --
+   --  Example: "in $3µ out $15µ cr $300n /tok"
+   function Format_Model_Price
+     (Input_Per_MTok       : Long_Float;
+      Output_Per_MTok      : Long_Float;
+      Cache_Read_Per_MTok  : Long_Float;
+      Cache_Write_Per_MTok : Long_Float) return String;
+
    --  Examples: 0 -> "$0.0000", 234 -> "$0.0234", 12345 -> "$1.2345".
    function Format_Cost (Dmil : Natural) return String;
 

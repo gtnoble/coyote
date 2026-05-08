@@ -28,12 +28,19 @@ package LLM.Agent is
    --  When Model_Spec is empty, Create falls back to ~/.coyote/settings.json
    --  and then to the first available model in the live registry.
    --
+   --  Agent_Def is the body text of a loaded agent definition.  When
+   --  non-empty it replaces the default system-prompt preamble verbatim.
+   --
+   --  Custom_Prompt is appended to the system prompt after Agent_Def (or
+   --  after the default preamble when Agent_Def is empty).
+   --
    --  Session_Id resumes an existing session when non-empty.
    --  No_Tools disables the built-in tool set when True.
    procedure Create
      (S             :    out Session;
       Model_Spec    :        String  := "";
-      System_Prompt :        String  := "";
+      Agent_Def     :        String  := "";
+      Custom_Prompt :        String  := "";
       No_Tools      :        Boolean := False;
       Session_Id    :        String  := "");
 

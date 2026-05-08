@@ -95,47 +95,47 @@ package body LLM_System_Prompt_Tests is
          "default prompt should include today's date");
    end Test_Default_Prompt_Contains_Date;
 
-   procedure Test_Custom_Prompt_Replaces_Preamble (T : in out Test) is
+   procedure Test_Agent_Def_Replaces_Preamble (T : in out Test) is
       pragma Unreferenced (T);
 
       P : constant String :=
         LLM.System_Prompt.Build_System_Prompt
-          (Cwd           => Test_Cwd,
-           Custom_Prompt => "CUSTOM_SENTINEL");
+          (Cwd       => Test_Cwd,
+           Agent_Def => "AGENT_DEF_SENTINEL");
    begin
       Assert
-        (Ada.Strings.Fixed.Index (P, "CUSTOM_SENTINEL") > 0,
-         "custom prompt should be used verbatim");
+        (Ada.Strings.Fixed.Index (P, "AGENT_DEF_SENTINEL") > 0,
+         "agent definition should be used verbatim");
       Assert
         (Ada.Strings.Fixed.Index (P, "expert coding assistant") = 0,
-         "custom prompt should replace the default preamble");
-   end Test_Custom_Prompt_Replaces_Preamble;
+         "agent definition should replace the default preamble");
+   end Test_Agent_Def_Replaces_Preamble;
 
-   procedure Test_Custom_Prompt_Keeps_Cwd (T : in out Test) is
+   procedure Test_Agent_Def_Keeps_Cwd (T : in out Test) is
       pragma Unreferenced (T);
 
       P : constant String :=
         LLM.System_Prompt.Build_System_Prompt
-          (Cwd           => Test_Cwd,
-           Custom_Prompt => "CUSTOM_SENTINEL");
+          (Cwd       => Test_Cwd,
+           Agent_Def => "AGENT_DEF_SENTINEL");
    begin
       Assert
         (Ada.Strings.Fixed.Index (P, Test_Cwd) > 0,
-         "custom prompt should still include the current working directory");
-   end Test_Custom_Prompt_Keeps_Cwd;
+         "agent definition should still include the current working directory");
+   end Test_Agent_Def_Keeps_Cwd;
 
-   procedure Test_Append_Prompt_Appears (T : in out Test) is
+   procedure Test_Custom_Prompt_Appears (T : in out Test) is
       pragma Unreferenced (T);
 
       P : constant String :=
         LLM.System_Prompt.Build_System_Prompt
           (Cwd           => Test_Cwd,
-           Append_Prompt => "APPEND_SENTINEL");
+           Custom_Prompt => "CUSTOM_PROMPT_SENTINEL");
    begin
       Assert
-        (Ada.Strings.Fixed.Index (P, "APPEND_SENTINEL") > 0,
-         "append prompt should be appended to the system prompt");
-   end Test_Append_Prompt_Appears;
+        (Ada.Strings.Fixed.Index (P, "CUSTOM_PROMPT_SENTINEL") > 0,
+         "custom prompt should be appended to the system prompt");
+   end Test_Custom_Prompt_Appears;
 
    procedure Test_No_Tools_Suppresses_Tool_List (T : in out Test) is
       pragma Unreferenced (T);

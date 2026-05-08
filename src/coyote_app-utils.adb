@@ -36,27 +36,90 @@ package body Coyote_App.Utils is
       return Image (Image'First + 1 .. Image'Last);
    end Natural_Image;
 
-   function Format_Kilo (N : Natural) return String is
+   --  Format a Long_Float with at most 2 decimal places, trailing zeros
+   --  stripped.  Caller is responsible for passing a non-negative,
+   --  already-scaled value.
+   --
+   --  Examples: 3.0 -> "3", 1.25 -> "1.25", 2.5 -> "2.5", 300.0 -> "300".
+   function Format_Compact (V : Long_Float) return String is
+      Total     : constant Natural :=
+        Natural (Long_Float'Rounding (V * 100.0));
+      Int_Part  : constant Natural  := Total / 100;
+      Frac_Part : constant Natural  := Total mod 100;
+      D1        : constant Character :=
+        Character'Val (Character'Pos ('0') + Frac_Part / 10);
+      D2        : constant Character :=
+        Character'Val (Character'Pos ('0') + Frac_Part mod 10);
    begin
-      if N >= 1000 then
-         declare
-            Value       : constant Float   := Float (N) / 1000.0;
-            Whole_Part  : constant Natural :=
-              Natural (Float'Floor (Value));
-            Frac_Part   : constant Natural :=
-              Natural (Float'Floor
-                         ((Value - Float (Whole_Part)) * 10.0));
-         begin
-            if Frac_Part = 0 then
-               return Natural_Image (Whole_Part) & "k";
-            else
-               return Natural_Image (Whole_Part)
-                      & "." & Natural_Image (Frac_Part) & "k";
-            end if;
-         end;
+      if Frac_Part = 0 then
+         return Natural_Image (Int_Part);
+      elsif Frac_Part mod 10 = 0 then
+         return Natural_Image (Int_Part) & "." & (1 => D1);
+      else
+         return Natural_Image (Int_Part) & "." & (D1 & D2);
       end if;
-      return Natural_Image (N);
-   end Format_Kilo;
+   end Format_Compact;
+
+   function Format_SI_Count (N : Natural) return String is
+      V : constant Long_Float := Long_Float (N);
+   begin
+      if N >= 1_000_000_000 then
+         return Format_Compact (V / 1_000_000_000.0) & "G";
+      elsif N >= 1_000_000 then
+         return Format_Compact (V / 1_000_000.0) & "M";
+      elsif N >= 1_000 then
+         return Format_Compact (V / 1_000.0) & "k";
+      else
+         return Natural_Image (N);
+      end if;
+   end Format_SI_Count;
+
+   function Format_SI_Price (Per_MTok : Long_Float) return String is
+   begin
+      if Per_MTok <= 0.0 then
+         return "";
+      elsif Per_MTok >= 1.0 then
+         return "$" & Format_Compact (Per_MTok) & UC_MICRO;
+      elsif Per_MTok >= 0.001 then
+         return "$" & Format_Compact (Per_MTok * 1_000.0) & "n";
+      else
+         return "$" & Format_Compact (Per_MTok * 1_000_000.0) & "p";
+      end if;
+   end Format_SI_Price;
+
+   function Format_Model_Price
+     (Input_Per_MTok       : Long_Float;
+      Output_Per_MTok      : Long_Float;
+      Cache_Read_Per_MTok  : Long_Float;
+      Cache_Write_Per_MTok : Long_Float) return String
+   is
+      Result : Ada.Strings.Unbounded.Unbounded_String;
+
+      procedure Append_Field (Label : String; Per_MTok : Long_Float) is
+         Price : constant String := Format_SI_Price (Per_MTok);
+      begin
+         if Price'Length = 0 then
+            return;
+         end if;
+         if Length (Result) > 0 then
+            Append (Result, " ");
+         end if;
+         Append (Result, Label & " " & Price);
+      end Append_Field;
+
+   begin
+      Append_Field ("in",  Input_Per_MTok);
+      Append_Field ("out", Output_Per_MTok);
+      Append_Field ("cr",  Cache_Read_Per_MTok);
+      Append_Field ("cw",  Cache_Write_Per_MTok);
+
+      if Length (Result) = 0 then
+         return "";
+      end if;
+
+      Append (Result, " /tok");
+      return To_String (Result);
+   end Format_Model_Price;
 
    function Format_Cost (Dmil : Natural) return String is
 
@@ -430,8 +493,8 @@ package body Coyote_App.Utils is
          Append
            (Parts,
             "ctx "
-            & Format_Kilo (Input_Tokens)
-            & "/" & Format_Kilo (Ctx_Window)
+            & Format_SI_Count (Input_Tokens)
+            & "/" & Format_SI_Count (Ctx_Window)
             & " ("
             & Natural_Image (Input_Tokens * 100 / Ctx_Window)
             & "%)");
@@ -442,7 +505,7 @@ package body Coyote_App.Utils is
          end if;
          Append
            (Parts,
-            "^" & Format_Kilo (Output_Tokens)
+            "^" & Format_SI_Count (Output_Tokens)
             & " out");
       end if;
       if Turn_Cost_Dmil > 0 then

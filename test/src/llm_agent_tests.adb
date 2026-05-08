@@ -1854,11 +1854,18 @@ package body LLM_Agent_Tests is
            (LLM.Agent.Session_Id (Agent_Session));
 
          Assert
-           (Mid_Messages.Length = 1,
-            "Session file should contain only the user prompt mid-turn");
+           (Mid_Messages.Length = 3,
+            "Session file should contain user, tool call, and tool result"
+            & " as soon as the tool batch completes");
          Assert
            (Mid_Messages.Element (0).Role = LLM.Types.User,
-            "Mid-turn session file should contain the user message");
+            "First mid-turn message should be the user prompt");
+         Assert
+           (Mid_Messages.Element (1).Role = LLM.Types.Assistant,
+            "Second mid-turn message should be the assistant tool-call");
+         Assert
+           (Mid_Messages.Element (2).Role = LLM.Types.Tool_Result,
+            "Third mid-turn message should be the tool result");
 
          for I in 1 .. 100 loop
             exit when Runner'Terminated;

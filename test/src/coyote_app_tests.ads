@@ -152,14 +152,15 @@ package Coyote_App_Tests is
    procedure Test_Format_Tool_Field_Truncation    (T : in out Test);
    --  Value longer than Max_Len is truncated and ends with "…".
 
-   --  ── Format_Kilo ───────────────────────────────────────────────────────
-   --  Format_Kilo formats a Natural as a compact kilo string.
-   --  Values below 1000 are returned as plain decimal; values >= 1000 are
-   --  expressed as Nk (whole) or N.Mk (with fractional tenth).
+   --  ── Format_SI_Count ───────────────────────────────────────────────────
+   --  Format_SI_Count formats a Natural with an appropriate SI prefix:
+   --  plain decimal for N < 1000; "Nk" for the kilo range; "NM" for
+   --  the mega range.
 
-   procedure Test_Format_Kilo_Below_Threshold (T : in out Test);
-   procedure Test_Format_Kilo_Round_Numbers   (T : in out Test);
-   procedure Test_Format_Kilo_Fractional      (T : in out Test);
+   procedure Test_Format_SI_Count_Below_Threshold (T : in out Test);
+   procedure Test_Format_SI_Count_Round_Numbers   (T : in out Test);
+   procedure Test_Format_SI_Count_Fractional      (T : in out Test);
+   procedure Test_Format_SI_Count_M_Range         (T : in out Test);
 
    --  ── Format_Cost ───────────────────────────────────────────────────────
    --  Format_Cost converts an integer in units of $0.0001 (dmil) to
@@ -168,6 +169,28 @@ package Coyote_App_Tests is
    procedure Test_Format_Cost_Zero       (T : in out Test);
    procedure Test_Format_Cost_Fractional (T : in out Test);
    procedure Test_Format_Cost_Dollars    (T : in out Test);
+
+   --  ── Format_Model_Price ────────────────────────────────────────────────
+   --  Format_Model_Price formats a per-MTok rate string for the model
+   --  selection window.  Each non-zero field emits one labelled segment
+   --  ("in", "out", "cr", "cw"); all segments are absent (empty result)
+   --  when every value is zero.
+
+   --  All four values zero → returns "".
+   procedure Test_Format_Model_Price_All_Zeros   (T : in out Test);
+
+   --  Input and output non-zero, cache fields zero → "in … out … /MTok",
+   --  no "cr" or "cw" labels.
+   procedure Test_Format_Model_Price_In_Out_Only (T : in out Test);
+
+   --  All four values non-zero → all four labels appear.
+   procedure Test_Format_Model_Price_All_Four    (T : in out Test);
+
+   --  Zero cache fields are silently omitted even when in/out are set.
+   procedure Test_Format_Model_Price_Omits_Zeros (T : in out Test);
+
+   --  Only cache_read non-zero → only "cr" label appears.
+   procedure Test_Format_Model_Price_Cache_Only  (T : in out Test);
 
    --  ── Agent_Stem ────────────────────────────────────────────────────────
    --  Agent_Stem extracts the basename of an agent path, stripping the

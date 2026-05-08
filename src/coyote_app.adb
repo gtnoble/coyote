@@ -14,6 +14,7 @@ with GNATCOLL.JSON;          use GNATCOLL.JSON;
 with GNATCOLL.OS.FS;
 with GNATCOLL.OS.Process;
 with LLM.Agent;
+with LLM.Agent_Defs;
 with LLM.Events;
 with LLM.Model_Registry;
 with LLM.Providers;
@@ -682,12 +683,25 @@ package body Coyote_App is
                State.Set_Agent (To_String (Opts.Agent));
             end if;
 
-            LLM.Agent.Create
-              (S             => Agent_Session,
-               Model_Spec    => To_String (Opts.Model),
-               System_Prompt => To_String (Opts.Agent),
-               No_Tools      => Opts.No_Tools,
-               Session_Id    => To_String (Opts.Session_Id));
+            declare
+               Agent_Name : constant String := To_String (Opts.Agent);
+               All_Defs   : constant LLM.Agent_Defs.Agent_Def_Vectors.Vector
+                 := LLM.Agent_Defs.Load_Agent_Defs
+                      (Ada.Directories.Current_Directory);
+               Agent_Body : constant String :=
+                 (if Agent_Name'Length > 0
+                  then LLM.Agent_Defs.Resolve_Agent_Def
+                         (Agent_Name, All_Defs)
+                  else "");
+            begin
+               LLM.Agent.Create
+                 (S             => Agent_Session,
+                  Model_Spec    => To_String (Opts.Model),
+                  Agent_Def     => Agent_Body,
+                  Custom_Prompt => To_String (Opts.Custom_Prompt),
+                  No_Tools      => Opts.No_Tools,
+                  Session_Id    => To_String (Opts.Session_Id));
+            end;
 
             if Length (Opts.Session_Id) > 0 then
                Render_Loaded_Session (To_String (Opts.Session_Id));
@@ -861,11 +875,27 @@ package body Coyote_App is
                Content : Unbounded_String;
             begin
                for Model of Models loop
-                  Append
-                    (Content,
-                     "coyote-model+" & My_PID & "/"
-                     & To_String (Model.Provider) & "/"
-                     & To_String (Model.Model_Id) & ASCII.LF);
+                  declare
+                     Name  : constant String :=
+                       To_String (Model.Name);
+                     Price : constant String :=
+                       Format_Model_Price
+                         (Input_Per_MTok       => Model.Cost.Input,
+                          Output_Per_MTok      => Model.Cost.Output,
+                          Cache_Read_Per_MTok  => Model.Cost.Cache_Read,
+                          Cache_Write_Per_MTok => Model.Cost.Cache_Write);
+                  begin
+                     Append
+                       (Content,
+                        "coyote-model+" & My_PID & "/"
+                        & To_String (Model.Provider) & "/"
+                        & To_String (Model.Model_Id)
+                        & ASCII.HT & Name
+                        & (if Price'Length > 0
+                           then ASCII.HT & Price
+                           else "")
+                        & ASCII.LF);
+                  end;
                end loop;
                Open_Sub_Window
                  (My_FS'Access,
@@ -1094,7 +1124,7 @@ package body Coyote_App is
                                              Append
                                                (Buf,
                                                 " ("
-                                                & Format_Kilo (Ctx_Win)
+                                                & Format_SI_Count (Ctx_Win)
                                                 & " ctx)");
                                           end if;
                                           Append (Buf, "" & ASCII.LF);

@@ -183,11 +183,11 @@ package body LLM_Settings_Tests is
          Result : constant String :=
            LLM.System_Prompt.Build_System_Prompt
              (Cwd           => "/tmp/test_cwd",
-              Append_Prompt => "APPEND_DIRECT");
+              Custom_Prompt => "APPEND_DIRECT");
       begin
          Assert
            (Ada.Strings.Fixed.Index (Result, "APPEND_DIRECT") > 0,
-            "Append_Prompt parameter should appear in the built prompt");
+            "Custom_Prompt parameter should appear in the built prompt");
       end;
 
       Restore_Env ("HOME", Home_Was_Set, Old_Home);

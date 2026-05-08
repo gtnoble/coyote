@@ -167,6 +167,7 @@ package Coyote_App is
       Session_Id     : Ada.Strings.Unbounded.Unbounded_String;
       Model          : Ada.Strings.Unbounded.Unbounded_String;
       Agent          : Ada.Strings.Unbounded.Unbounded_String;
+      Custom_Prompt  : Ada.Strings.Unbounded.Unbounded_String;
       No_Tools       : Boolean := False;
       No_Session     : Boolean := False;
       --  When non-empty, sent as the first prompt immediately after the

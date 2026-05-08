@@ -45,7 +45,8 @@ Object files go to `obj/<profile>/`, binaries to `bin/`.
 
 ```
 src/
-  coyote.adb            -- Entry point; parses --session / --model / --agent flags
+  coyote.adb            -- Entry point; parses --session / --model / --agent /
+                        --   --custom-prompt flags
   coyote_app.ads/.adb   -- App_State, options, acme/plumb tasks, Run procedure
   coyote_app-dispatch.ads/.adb -- Dispatch_Event: native LLM event → acme window
   acme.ads/.adb          -- Root package; Win_File_Path helper
@@ -77,8 +78,10 @@ src/
     llm-tools.ads/.adb          -- Built-in tool descriptors and dispatcher
     llm-tools-bash.ads/.adb     -- bash tool implementation
     llm-tools-file_ops.ads/.adb -- read / write / edit / find / glob tools
+    llm-tools-spawn_subagent.ads/.adb -- spawn_subagent tool implementation
     llm-session_store.ads/.adb  -- JSONL session persistence
     llm-agent.ads/.adb          -- Native agentic loop
+    llm-agent_defs.ads/.adb     -- Agent definition discovery, resolution, formatting
 tools/
   coyote_list_sessions.adb   -- Entry point for the session listing utility
   coyote_open.adb            -- Entry point for the tool-call detail window utility

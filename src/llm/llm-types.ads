@@ -65,9 +65,10 @@ package LLM.Types is
 
    --  Per-million-token cost information for a model.
    type Model_Cost is record
-      Input      : Long_Float := 0.0;
-      Output     : Long_Float := 0.0;
-      Cache_Read : Long_Float := 0.0;
+      Input       : Long_Float := 0.0;
+      Output      : Long_Float := 0.0;
+      Cache_Read  : Long_Float := 0.0;
+      Cache_Write : Long_Float := 0.0;
    end record;
 
    --  One complete conversation message.
