@@ -43,6 +43,7 @@ coyote [--session UUID] [--model PROVIDER/ID] [--agent NAME]
        [--custom-prompt TEXT|@PATH]
        [--no-tools] [--no-session]
        [--prompt TEXT] [--one-shot] [--name LABEL]
+       [--prompt-filter CMD]
 ```
 
 | Flag | Description |
@@ -56,6 +57,7 @@ coyote [--session UUID] [--model PROVIDER/ID] [--agent NAME]
 | `--prompt TEXT` | Send TEXT as the first prompt immediately after startup |
 | `--one-shot` | Exit after the first complete agent turn; prints a JSON result to stdout |
 | `--name LABEL` | Append `:LABEL` to the window name (e.g. `CWD/+coyote:refactor`) |
+| `--prompt-filter CMD` | Shell command through which interactive prompts are filtered before being sent to the agent. The raw prompt is written to stdin; stdout becomes the filtered prompt (and the echoed text). Runs via `$SHELL -c CMD`. Overrides `promptFilter` in `settings.json`. |
 
 ### Acme tag commands
 
@@ -97,9 +99,18 @@ All configuration files live under `~/.coyote/`.
   "defaultProvider": "github-copilot",
   "defaultModel":    "claude-sonnet-4.6",
   "defaultThinking": "low",
-  "appendSystemPrompt": "You are a helpful coding assistant."
+  "appendSystemPrompt": "You are a helpful coding assistant.",
+  "promptFilter": "m4 -"
 }
 ```
+
+| Field | Description |
+|---|---|
+| `defaultProvider` | Provider to use when `--model` is not specified |
+| `defaultModel` | Model ID to use when `--model` is not specified |
+| `defaultThinking` | Reasoning level at startup (`low`, `medium`, `high`) |
+| `appendSystemPrompt` | Text appended to every system prompt |
+| `promptFilter` | Shell command through which interactive prompts (Send/Steer) are filtered. The raw prompt is written to stdin; stdout becomes the prompt sent to the agent and the text echoed in the window. Runs via `$SHELL -c CMD`. Can be overridden per-invocation with `--prompt-filter`. |
 
 ### `~/.coyote/models.json`
 

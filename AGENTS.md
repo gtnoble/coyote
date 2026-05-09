@@ -59,12 +59,13 @@ Object files go to `obj/<profile>/`, binaries to `bin/`.
 src/
   coyote.adb            -- Entry point; parses --session / --model / --agent /
                         --   --custom-prompt / --no-tools / --no-session /
-                        --   --prompt / --one-shot / --name flags
+                        --   --prompt / --one-shot / --name / --prompt-filter flags
   coyote_app.ads/.adb   -- App_State, options, acme/plumb tasks, Run procedure
   coyote_app-dispatch.ads/.adb -- Dispatch_Event: native LLM event → acme window
   coyote_app-history.ads/.adb  -- Session JSONL replay into the acme window
   coyote_app-utils.ads/.adb    -- Pure utility functions (formatting, token
-                        --   helpers, turn footer builders, JSON helpers)
+                        --   helpers, turn footer builders, JSON helpers,
+                        --   Apply_Prompt_Filter)
   coyote_utils.ads/.adb -- Small utilities shared across entry points
                         --   (CLI arg resolution, session prefix stripping)
   acme.ads/.adb          -- Root package; Win_File_Path helper
@@ -214,3 +215,19 @@ cd test && alr run coyote_test
 When adding new functionality, add unit tests first (TDD preferred).
 Integration tests that require live external services should be guarded and
 clearly marked.
+
+## Definition of Done
+
+A feature is **not complete** until all of the following are satisfied:
+
+1. **Tests written and passing** — every new public subprogram or behaviour
+   must have corresponding AUnit tests in `test/src/`. Run the full test suite
+   (`cd test && alr run coyote_test`) and confirm all tests pass before
+   declaring the work done.
+2. **Existing tests still pass** — no regressions. The full suite must remain
+   green after the change.
+3. **Documentation updated** — any user-visible behaviour, CLI flag, plumb
+   token, event type, or public API change must be reflected in the relevant
+   `docs/` file(s) and, where appropriate, in this `AGENTS.md` (e.g. new
+   source files added to the Source Layout table, new tasks added to the
+   Architecture table).
