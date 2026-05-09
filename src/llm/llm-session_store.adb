@@ -790,6 +790,37 @@ package body LLM.Session_Store is
            & Ada.Exceptions.Exception_Message (Ex);
    end Append_Compaction;
 
+   function Session_Work_Dir (Session_Id : String) return String is
+      Path : constant String := Session_File_Path (Session_Id);
+      File : Ada.Text_IO.File_Type;
+   begin
+      if Path'Length = 0 or else not Ada.Directories.Exists (Path) then
+         return "";
+      end if;
+
+      Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Path);
+
+      declare
+         Line   : constant String := To_String (Read_Line (File));
+         Parsed : constant GNATCOLL.JSON.Read_Result :=
+           GNATCOLL.JSON.Read (Line);
+      begin
+         Ada.Text_IO.Close (File);
+
+         if Parsed.Success then
+            return Get_String_Field (Parsed.Value, "workDir");
+         end if;
+      end;
+
+      return "";
+   exception
+      when others =>
+         if Ada.Text_IO.Is_Open (File) then
+            Ada.Text_IO.Close (File);
+         end if;
+         return "";
+   end Session_Work_Dir;
+
    function Load_Messages
      (Session_Id : String) return LLM.Types.Message_Vectors.Vector
    is

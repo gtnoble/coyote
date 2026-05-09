@@ -53,6 +53,13 @@ package LLM.Session_Store is
       Read_Files       : String;
       Modified_Files   : String);
 
+   --  Return the working directory recorded in the header of the session
+   --  file for Session_Id.
+   --
+   --  Returns "" when the file does not exist, the header cannot be
+   --  parsed, or the header contains no "workDir" field.
+   function Session_Work_Dir (Session_Id : String) return String;
+
    --  Load all messages from the session file for Session_Id.
    --
    --  Returns an empty vector when the file does not exist.

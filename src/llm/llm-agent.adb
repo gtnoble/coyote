@@ -1052,7 +1052,28 @@ package body LLM.Agent is
         LLM.Settings.Load_Settings;
    begin
       S.Model_Spec := Null_Unbounded_String;
+
+      --  Determine the working directory.  When resuming an existing session,
+      --  restore the directory recorded in the session header so that the
+      --  system prompt and all tool calls operate in the original project
+      --  tree.  Fall back to the process CWD when the saved path is absent
+      --  or no longer exists.
       S.Cwd := To_Unbounded_String (Ada.Directories.Current_Directory);
+
+      if Session_Id'Length > 0 then
+         declare
+            Saved_Dir : constant String :=
+              LLM.Session_Store.Session_Work_Dir (Session_Id);
+         begin
+            if Saved_Dir'Length > 0
+              and then Ada.Directories.Exists (Saved_Dir)
+            then
+               Ada.Directories.Set_Directory (Saved_Dir);
+               S.Cwd := To_Unbounded_String (Saved_Dir);
+            end if;
+         end;
+      end if;
+
       S.System_Prompt := To_Unbounded_String
         (LLM.System_Prompt.Build_System_Prompt
            (Cwd           => To_String (S.Cwd),
