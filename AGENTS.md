@@ -178,6 +178,68 @@ event hierarchy is defined in `src/llm/llm-events.ads`; key types include
 `Model_Select_Event`, `Auto_Retry_Start_Event`, `Auto_Compaction_Start_Event`,
 and `Session_Stats_Event`.
 
+## Adding a New LLM Provider
+
+To add a new provider (e.g. `my-provider`), touch these files in order:
+
+1. **`src/llm/llm-settings.adb`** — Add the provider name to
+   `Standard_Env_Name` so `Resolve_Api_Key ("my-provider")` checks the right
+   env var. (If the provider needs config beyond an API key, extend
+   `Find_Provider_Config` or add a dedicated resolution function.)
+
+2. **`src/llm/llm-providers-my_provider.ads/.adb`** — Provider package. Either:
+   - A thin routing provider that delegates to `OpenAI_Completions` and/or
+     `Anthropic_Messages` (like `GitHub_Copilot` or `OpenCode_Go` does), **or**
+   - A direct subclass of `OpenAI_Completions.Provider` with `Create` and
+     `Customize_Request` overrides (like `OpenRouter`), **or**
+   - A standalone `Provider` descendant with its own wire format.
+
+3. **`src/llm/llm-providers-my_provider-catalogue.ads/.adb`** (optional) — If
+   the provider has a `/models` endpoint, build a catalogue package modelled on
+   `OpenRouter.Catalogue`: fetch from the live API, cache to
+   `~/.coyote/my_provider_models_cache.json`, parse into a
+   `Catalogue_Vectors.Vector`.
+
+4. **`src/llm/llm-model_registry.ads/.adb`** — Add `Refresh_My_Provider`,
+   `Has_My_Provider_Key`, and a `To_Model_Info` conversion from the catalogue
+   type.  Update `Available_Models` to include the provider when keyed, and
+   update `Lookup` to provide a default fallback for unknown model IDs of this
+   provider.
+
+5. **`src/llm/llm-agent.adb`** — Three changes:
+   - Add `with LLM.Providers.My_Provider;`
+   - Add `LLM.Model_Registry.Refresh_My_Provider;` in `Create` (around line
+     1098, next to the other Refresh calls)
+   - Add an `elsif` branch in **two places**: the agentic loop dispatch
+     (≈line 1490) and the summarisation dispatch (≈line 1282). Both follow
+     the same pattern — create the provider, call `Send` or `Send_With_Retry`.
+
+6. **`coyote.gpr`** — No changes needed; `for Source_Dirs` already includes
+   `src/llm/`, so new files there are picked up automatically.
+
+### Wire format routing
+
+Providers that serve models on both OpenAI and Anthropic wire formats (like
+GitHub Copilot and OpenCode Go) use a routing pattern: the provider's `Send`
+checks the model ID against a known set, constructs the appropriate delegate
+(`OpenAI_Completions.Provider` or `Anthropic_Messages.Provider`), and forwards
+the request. See `LLM.Providers.GitHub_Copilot.Send` for the reference
+implementation.
+
+### Model_Info fields
+
+`LLM.Model_Registry.Model_Info` records carry a `Wire_Format` field
+(`"openai-completions"` or `"anthropic-messages"`) that determines tool JSON
+shape in `Build_Tools_Json` (llm-agent.adb ≈line 497). Catalogue packages
+must set this field; routing providers set it dynamically.
+
+### API key resolution
+
+`Resolve_Api_Key` checks in order: (1) literal `apiKey` in
+`~/.coyote/models.json`, (2) `${ENV_VAR}` interpolation in models.json, (3)
+the `Standard_Env_Name` fallback. Add the provider to `Standard_Env_Name` so
+step 3 works out of the box.
+
 ## Ada Style Guide
 
 **Always load the `ada-style-guide` skill before reading, writing, or reviewing
