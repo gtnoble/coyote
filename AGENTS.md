@@ -92,6 +92,8 @@ src/
     llm-providers-anthropic_messages.ads/.adb -- Anthropic messages wire
     llm-providers-openrouter.ads/.adb -- OpenRouter adapter
     llm-providers-openrouter-catalogue.ads/.adb -- OpenRouter model cache
+    llm-providers-opencode_go.ads/.adb -- OpenCode Go provider adapter
+    llm-providers-opencode_go-catalogue.ads/.adb -- OpenCode Go model cache
     llm-providers-github_copilot.ads/.adb -- Copilot provider adapter
     llm-providers-github_copilot-catalogue.ads/.adb -- Copilot model cache
     llm-tools.ads/.adb          -- Built-in tool descriptors and dispatcher

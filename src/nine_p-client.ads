@@ -71,8 +71,10 @@ package Nine_P.Client is
 
    --  Call Connect up to Max_Retries times, waiting Retry_Delay between
    --  attempts.  Returns normally on the first successful connection.
-   --  Re-raises the last exception if all attempts fail.  Pass
-   --  Retry_Delay => 0.0 in tests to avoid wall-clock delays.
+   --  Only P9_Error and GNAT.Sockets.Socket_Error are retried; all other
+   --  exceptions propagate immediately.  Re-raises the last exception if
+   --  all attempts fail.  Pass Retry_Delay => 0.0 in tests to avoid
+   --  wall-clock delays.
    procedure Connect_With_Retry
      (Filesystem  : in out Fs;
       Name        : String;

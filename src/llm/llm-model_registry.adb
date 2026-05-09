@@ -8,6 +8,8 @@ with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with LLM.Auth;
 with LLM.Auth.GitHub_Copilot;
 with LLM.Providers.GitHub_Copilot.Catalogue;
+with LLM.Providers.OpenCode_Go.Catalogue;
+use type LLM.Providers.OpenCode_Go.Catalogue.Wire_Kind;
 with LLM.Providers.OpenRouter.Catalogue;
 with LLM.Settings;
 
@@ -42,6 +44,59 @@ package body LLM.Model_Registry is
   begin
     return LLM.Settings.Resolve_Api_Key ("anthropic")'Length > 0;
   end Has_Anthropic_Key;
+
+  function Has_OpenCode_Go_Key return Boolean is
+  begin
+    return LLM.Settings.Resolve_Api_Key ("opencode-go")'Length > 0;
+  end Has_OpenCode_Go_Key;
+
+  function To_Model_Info
+    (Item : LLM.Providers.OpenCode_Go.Catalogue.Model_Info)
+    return Model_Info
+  is
+  begin
+    return
+      (Model_Id            => Item.Model_Id,
+       Name                => Item.Name,
+       Provider            => To_Unbounded_String ("opencode-go"),
+       Context_Window      => Item.Context_Window,
+       Max_Tokens          => Item.Max_Tokens,
+       Reasoning           => Item.Reasoning,
+       Supports_Tools      => Item.Supports_Tools,
+       Supports_Images     => Item.Supports_Images,
+       Max_Thinking_Budget => 0,
+       Min_Thinking_Budget => 0,
+       Wire_Format         =>
+         (if Item.Wire =
+            LLM.Providers.OpenCode_Go.Catalogue.Anthropic_Messages_Wire
+          then To_Unbounded_String ("anthropic-messages")
+          else To_Unbounded_String ("openai-completions")),
+       Cost                => (others => 0.0));
+  end To_Model_Info;
+
+  function Default_OpenCode_Go_Model (Model_Id : String) return Model_Info
+  is
+     Wire : constant LLM.Providers.OpenCode_Go.Catalogue.Wire_Kind :=
+       LLM.Providers.OpenCode_Go.Catalogue.Wire_Format_For (Model_Id);
+  begin
+    return
+      (Model_Id            => To_Unbounded_String (Model_Id),
+       Name                => To_Unbounded_String (Model_Id),
+       Provider            => To_Unbounded_String ("opencode-go"),
+       Context_Window      => 128_000,
+       Max_Tokens          => 16_384,
+       Reasoning           => False,
+       Supports_Tools      => True,
+       Supports_Images     => False,
+       Max_Thinking_Budget => 0,
+       Min_Thinking_Budget => 0,
+       Wire_Format         =>
+         (if Wire =
+            LLM.Providers.OpenCode_Go.Catalogue.Anthropic_Messages_Wire
+          then To_Unbounded_String ("anthropic-messages")
+          else To_Unbounded_String ("openai-completions")),
+       Cost                => (others => 0.0));
+  end Default_OpenCode_Go_Model;
 
   procedure Remove_Provider_Entries (Provider : String) is
     Want : constant String := Provider_Key (Provider);
@@ -218,6 +273,22 @@ package body LLM.Model_Registry is
        Reasoning    => True);
   end Refresh_Anthropic;
 
+  procedure Refresh_OpenCode_Go is
+    Models : LLM.Providers.OpenCode_Go.Catalogue.Catalogue_Vectors.Vector;
+  begin
+    Remove_Provider_Entries ("opencode-go");
+
+    if not Has_OpenCode_Go_Key then
+      return;
+    end if;
+
+    LLM.Providers.OpenCode_Go.Catalogue.Load_Catalogue (Models);
+
+    for Item of Models loop
+      Registry.Append (To_Model_Info (Item));
+    end loop;
+  end Refresh_OpenCode_Go;
+
   function Lookup
     (Provider : String;
      Model_Id : String) return Model_Info
@@ -234,6 +305,8 @@ package body LLM.Model_Registry is
 
     if Want_Provider = "openrouter" then
       return Default_OpenRouter_Model (Model_Id);
+    elsif Want_Provider = "opencode-go" then
+      return Default_OpenCode_Go_Model (Model_Id);
     elsif Want_Provider = "github-copilot" then
       raise Not_Found with
         "GitHub Copilot model not found: " & Model_Id;
@@ -271,6 +344,7 @@ package body LLM.Model_Registry is
       Has_GitHub_Copilot_Credentials;
     Include_OpenRouter : constant Boolean := Has_OpenRouter_Key;
     Include_Anthropic  : constant Boolean := Has_Anthropic_Key;
+    Include_OpenCode   : constant Boolean := Has_OpenCode_Go_Key;
   begin
     for Item of Registry loop
       declare
@@ -281,6 +355,8 @@ package body LLM.Model_Registry is
             (Provider_Name = "openrouter" and then Include_OpenRouter)
           or else
             (Provider_Name = "anthropic" and then Include_Anthropic)
+          or else
+            (Provider_Name = "opencode-go" and then Include_OpenCode)
         then
           Result.Append (Item);
         end if;

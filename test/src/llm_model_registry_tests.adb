@@ -45,6 +45,8 @@ package body LLM_Model_Registry_Tests is
     Delete_If_Exists (Agent_Dir & "/github_copilot_models_cache.json.tmp");
     Delete_If_Exists (Agent_Dir & "/openrouter_models_cache.json");
     Delete_If_Exists (Agent_Dir & "/openrouter_models_cache.json.tmp");
+    Delete_If_Exists (Agent_Dir & "/opencode_go_models_cache.json");
+    Delete_If_Exists (Agent_Dir & "/opencode_go_models_cache.json.tmp");
     Delete_If_Exists (Agent_Dir & "/models.json");
 
     if Ada.Directories.Exists (Agent_Dir) then
@@ -156,6 +158,16 @@ package body LLM_Model_Registry_Tests is
        & "}");
   end Write_OpenRouter_Cache;
 
+  procedure Write_OpenCode_Go_Cache (Home : String) is
+  begin
+    Write_File
+      (Home & "/.coyote/opencode_go_models_cache.json",
+       "{""fetched_at"":9999999999,"
+       & """data"":"
+       & Fixture_Data_Array ("opencode_go_models.json")
+       & "}");
+  end Write_OpenCode_Go_Cache;
+
   function Count_Provider
     (Models   : LLM.Model_Registry.Model_Info_Vectors.Vector;
      Provider : String) return Natural
@@ -202,6 +214,13 @@ package body LLM_Model_Registry_Tests is
     Ensure_Test_Home (Home);
     Write_OpenRouter_Cache (Home);
   end Prepare_OpenRouter_Fixture_Home;
+
+  procedure Prepare_OpenCode_Go_Fixture_Home (Home : String) is
+  begin
+    Cleanup_Test_Home (Home);
+    Ensure_Test_Home (Home);
+    Write_OpenCode_Go_Cache (Home);
+  end Prepare_OpenCode_Go_Fixture_Home;
 
   procedure Test_GitHub_Copilot_Anthropic_Wire_Format (T : in out Test) is
     pragma Unreferenced (T);
@@ -559,5 +578,145 @@ package body LLM_Model_Registry_Tests is
       Cleanup_Test_Home (Home);
       raise;
   end Test_Available_Models_Sorted;
+
+  --  Verify that MiniMax models use the Anthropic wire format.
+  procedure Test_OpenCode_Go_Wire_Format_Anthropic (T : in out Test) is
+    pragma Unreferenced (T);
+
+    Home         : constant String := "/tmp/coyote_model_registry_test_8";
+    Home_Was_Set : constant Boolean :=
+      Ada.Environment_Variables.Exists ("HOME");
+    Old_Home     : constant String :=
+      Ada.Environment_Variables.Value ("HOME", "");
+    Key_Was_Set  : constant Boolean :=
+      Ada.Environment_Variables.Exists ("OPENCODE_API_KEY");
+    Old_Key      : constant String :=
+      Ada.Environment_Variables.Value ("OPENCODE_API_KEY", "");
+    Model        : LLM.Model_Registry.Model_Info;
+  begin
+    Prepare_OpenCode_Go_Fixture_Home (Home);
+    Ada.Environment_Variables.Set ("HOME", Home);
+    Ada.Environment_Variables.Set ("OPENCODE_API_KEY", "fixture-key");
+
+    LLM.Model_Registry.Refresh_OpenCode_Go;
+    Model := LLM.Model_Registry.Lookup ("opencode-go", "minimax-m2.7");
+
+    Assert
+      (To_String (Model.Wire_Format) = "anthropic-messages",
+       "MiniMax M2.7 should use the Anthropic Messages wire format");
+    Assert
+      (To_String (Model.Provider) = "opencode-go",
+       "MiniMax M2.7 should have opencode-go provider");
+
+    Restore_Env ("OPENCODE_API_KEY", Key_Was_Set, Old_Key);
+    Restore_Env ("HOME", Home_Was_Set, Old_Home);
+    Cleanup_Test_Home (Home);
+  exception
+    when others =>
+      Restore_Env ("OPENCODE_API_KEY", Key_Was_Set, Old_Key);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+      raise;
+  end Test_OpenCode_Go_Wire_Format_Anthropic;
+
+  --  Verify that non-MiniMax OpenCode Go models use OpenAI wire format.
+  procedure Test_OpenCode_Go_Wire_Format_OpenAI (T : in out Test) is
+    pragma Unreferenced (T);
+
+    Home         : constant String := "/tmp/coyote_model_registry_test_9";
+    Home_Was_Set : constant Boolean :=
+      Ada.Environment_Variables.Exists ("HOME");
+    Old_Home     : constant String :=
+      Ada.Environment_Variables.Value ("HOME", "");
+    Key_Was_Set  : constant Boolean :=
+      Ada.Environment_Variables.Exists ("OPENCODE_API_KEY");
+    Old_Key      : constant String :=
+      Ada.Environment_Variables.Value ("OPENCODE_API_KEY", "");
+    Model        : LLM.Model_Registry.Model_Info;
+  begin
+    Prepare_OpenCode_Go_Fixture_Home (Home);
+    Ada.Environment_Variables.Set ("HOME", Home);
+    Ada.Environment_Variables.Set ("OPENCODE_API_KEY", "fixture-key");
+
+    LLM.Model_Registry.Refresh_OpenCode_Go;
+    Model := LLM.Model_Registry.Lookup ("opencode-go", "deepseek-v4-pro");
+
+    Assert
+      (To_String (Model.Wire_Format) = "openai-completions",
+       "DeepSeek V4 Pro should use the OpenAI completions wire format");
+
+    Restore_Env ("OPENCODE_API_KEY", Key_Was_Set, Old_Key);
+    Restore_Env ("HOME", Home_Was_Set, Old_Home);
+    Cleanup_Test_Home (Home);
+  exception
+    when others =>
+      Restore_Env ("OPENCODE_API_KEY", Key_Was_Set, Old_Key);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+      raise;
+  end Test_OpenCode_Go_Wire_Format_OpenAI;
+
+  --  Verify that unknown opencode-go models get a sensible default.
+  procedure Test_OpenCode_Go_Default_Fallback (T : in out Test) is
+    pragma Unreferenced (T);
+
+    Model : constant LLM.Model_Registry.Model_Info :=
+      LLM.Model_Registry.Lookup ("opencode-go", "future-model-v9");
+  begin
+    Assert
+      (To_String (Model.Provider) = "opencode-go",
+       "Default OpenCode Go fallback should keep the provider name");
+    Assert
+      (To_String (Model.Model_Id) = "future-model-v9",
+       "Default OpenCode Go fallback should preserve the requested id");
+    Assert
+      (To_String (Model.Wire_Format) = "openai-completions",
+       "Default OpenCode Go fallback should use OpenAI completions");
+  end Test_OpenCode_Go_Default_Fallback;
+
+  --  Verify that OpenCode Go models appear in Available_Models only when
+  --  an API key is configured.
+  procedure Test_OpenCode_Go_Available_With_Key (T : in out Test) is
+    pragma Unreferenced (T);
+
+    Home         : constant String := "/tmp/coyote_model_registry_test_10";
+    Home_Was_Set : constant Boolean :=
+      Ada.Environment_Variables.Exists ("HOME");
+    Old_Home     : constant String :=
+      Ada.Environment_Variables.Value ("HOME", "");
+    Key_Was_Set  : constant Boolean :=
+      Ada.Environment_Variables.Exists ("OPENCODE_API_KEY");
+    Old_Key      : constant String :=
+      Ada.Environment_Variables.Value ("OPENCODE_API_KEY", "");
+    Available    : LLM.Model_Registry.Model_Info_Vectors.Vector;
+  begin
+    Cleanup_Test_Home (Home);
+    Ensure_Test_Home (Home);
+    Ada.Environment_Variables.Set ("HOME", Home);
+    Ada.Environment_Variables.Clear ("OPENCODE_API_KEY");
+
+    LLM.Model_Registry.Refresh_OpenCode_Go;
+    Available := LLM.Model_Registry.Available_Models;
+    Assert
+      (Count_Provider (Available, "opencode-go") = 0,
+       "OpenCode Go models should be hidden without an API key");
+
+    Ada.Environment_Variables.Set ("OPENCODE_API_KEY", "fixture-key");
+    LLM.Model_Registry.Refresh_OpenCode_Go;
+    Available := LLM.Model_Registry.Available_Models;
+    Assert
+      (Count_Provider (Available, "opencode-go") > 0,
+       "OpenCode Go models should appear when OPENCODE_API_KEY is set");
+
+    Restore_Env ("OPENCODE_API_KEY", Key_Was_Set, Old_Key);
+    Restore_Env ("HOME", Home_Was_Set, Old_Home);
+    Cleanup_Test_Home (Home);
+  exception
+    when others =>
+      Restore_Env ("OPENCODE_API_KEY", Key_Was_Set, Old_Key);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+      raise;
+  end Test_OpenCode_Go_Available_With_Key;
 
 end LLM_Model_Registry_Tests;

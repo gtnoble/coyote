@@ -47,9 +47,10 @@ package Acme.Window is
    --  Find the first body region matching Pattern (a regexp addr
    --  expression, e.g. "/└ …abc123ef/") and replace it with
    --  Replacement.  Pattern is written verbatim to the addr file so
-   --  any valid acme address expression is accepted.  If Pattern does
-   --  not match, or if the addr write fails for any other reason, the
-   --  operation is silently ignored.
+   --  any valid acme address expression is accepted.  P9_Error during
+   --  the addr or data write is silently ignored (the pattern may not
+   --  match or the window may have been deleted).  Other exceptions
+   --  (e.g. socket errors) propagate to the caller.
    procedure Replace_Match
      (W           : in out Win;
       FS          : not null access Nine_P.Client.Fs;

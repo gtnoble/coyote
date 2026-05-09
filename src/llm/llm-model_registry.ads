@@ -1,8 +1,8 @@
 --  LLM.Model_Registry — live in-memory model catalogue registry.
 --
---  Unifies provider-specific catalogue data from GitHub Copilot and
---  OpenRouter into one in-memory registry that can be refreshed at startup
---  and queried by provider/model identifier.
+--  Unifies provider-specific catalogue data from GitHub Copilot, OpenRouter,
+--  Anthropic, and OpenCode Go into one in-memory registry that can be
+--  refreshed at startup and queried by provider/model identifier.
 --
 --  Project: coyote
 --  For revision history, see the project version-control log.
@@ -62,11 +62,23 @@ package LLM.Model_Registry is
   --  cleared before the refreshed data is appended.
   procedure Refresh_Anthropic;
 
+  --  Populate the registry from the live OpenCode Go catalogue.
+  --
+  --  Calls LLM.Providers.OpenCode_Go.Catalogue.Load_Catalogue.
+  --
+  --  All existing "opencode-go" entries are cleared before the refreshed
+  --  catalogue data is appended. When no OpenCode Go API key is configured,
+  --  the OpenCode Go portion of the registry becomes empty.
+  procedure Refresh_OpenCode_Go;
+
   --  Look up one model by provider and model identifier.
   --
   --  For "openrouter", an unknown Model_Id returns a default record with
   --  OpenAI-completions wire format and conservative limits rather than
   --  raising an exception.
+  --
+  --  For "opencode-go", an unknown Model_Id returns a default record with
+  --  OpenAI-completions wire format and conservative limits.
   --
   --  For "github-copilot", a missing Model_Id raises Not_Found.
   --
@@ -81,6 +93,8 @@ package LLM.Model_Registry is
   --  GitHub Copilot models are included when auth.json contains a
   --  github-copilot credential entry. OpenRouter and Anthropic models are
   --  included when an API key resolves from the environment or models.json.
+  --  OpenCode Go models are included when an OPENCODE_API_KEY is available
+  --  or providers.opencode-go.apiKey is configured.
   function Available_Models return Model_Info_Vectors.Vector;
 
 end LLM.Model_Registry;

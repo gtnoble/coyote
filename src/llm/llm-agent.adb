@@ -16,6 +16,7 @@ with LLM.HTTP;
 with LLM.Model_Registry;
 with LLM.Providers.Anthropic_Messages;
 with LLM.Providers.GitHub_Copilot;
+with LLM.Providers.OpenCode_Go;
 with LLM.Providers.OpenRouter;
 with LLM.Session_Store;
 with LLM.Settings;
@@ -1094,6 +1095,7 @@ package body LLM.Agent is
       LLM.Model_Registry.Refresh_GitHub_Copilot;
       LLM.Model_Registry.Refresh_OpenRouter;
       LLM.Model_Registry.Refresh_Anthropic;
+      LLM.Model_Registry.Refresh_OpenCode_Go;
 
       Set_Model_Internal (S, Effective_Spec);
 
@@ -1267,6 +1269,20 @@ package body LLM.Agent is
             Provider : LLM.Providers.Anthropic_Messages.Provider :=
               LLM.Providers.Anthropic_Messages.Create
                 ("https://api.anthropic.com", Api_Key);
+         begin
+            Provider.Send
+              (Model_Id      => To_String (S.Model_Info.Model_Id),
+               System_Prompt => LLM.Compaction.Summarization_System_Prompt,
+               Messages      => Summary_Request,
+               Tools_Json    => "",
+               Thinking      => LLM.Providers.Off,
+               Max_Tokens    => Summary_Max_Tokens,
+               Handler       => Summary_Event_Handler'Unrestricted_Access);
+         end;
+      elsif Lowercase (To_String (S.Model_Info.Provider)) = "opencode-go" then
+         declare
+            Provider : LLM.Providers.OpenCode_Go.Provider :=
+              LLM.Providers.OpenCode_Go.Create;
          begin
             Provider.Send
               (Model_Id      => To_String (S.Model_Info.Model_Id),
@@ -1470,6 +1486,21 @@ package body LLM.Agent is
                   Provider : LLM.Providers.Anthropic_Messages.Provider :=
                     LLM.Providers.Anthropic_Messages.Create
                       ("https://api.anthropic.com", Api_Key);
+               begin
+                  Send_With_Retry
+                    (S             => S,
+                     Provider      => Provider,
+                     Tools_Json    => Tools_Json,
+                     Builder       => Builder,
+                     Pending_Tools => Pending_Tools,
+                     On_Event      => On_Event);
+               end;
+            elsif Lowercase (To_String (S.Model_Info.Provider)) =
+              "opencode-go"
+            then
+               declare
+                  Provider : LLM.Providers.OpenCode_Go.Provider :=
+                    LLM.Providers.OpenCode_Go.Create;
                begin
                   Send_With_Retry
                     (S             => S,

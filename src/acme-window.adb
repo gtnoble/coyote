@@ -5,11 +5,13 @@
 
 with Ada.Exceptions;
 with Ada.Text_IO;
+with Nine_P.Proto;
 
 package body Acme.Window is
 
    use Nine_P;
    use Nine_P.Client;
+   use Nine_P.Proto;
 
    --  ── Protected mutex body ─────────────────────────────────────────────
 
@@ -171,7 +173,7 @@ package body Acme.Window is
          Write_Win_File (FS, W.Win_Id, "addr", Pattern);
          Write_Win_File (FS, W.Win_Id, "data", Replacement);
       exception
-         when others =>
+         when P9_Error =>
             --  Pattern did not match or addr write failed; ignore silently.
             W.Mutex.Release;
             return;

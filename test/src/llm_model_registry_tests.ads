@@ -14,5 +14,9 @@ package LLM_Model_Registry_Tests is
   procedure Test_Available_Models_Filtering (T : in out Test);
   procedure Test_Anthropic_Available_Models (T : in out Test);
   procedure Test_Available_Models_Sorted (T : in out Test);
+  procedure Test_OpenCode_Go_Wire_Format_Anthropic (T : in out Test);
+  procedure Test_OpenCode_Go_Wire_Format_OpenAI (T : in out Test);
+  procedure Test_OpenCode_Go_Default_Fallback (T : in out Test);
+  procedure Test_OpenCode_Go_Available_With_Key (T : in out Test);
 
 end LLM_Model_Registry_Tests;

@@ -33,6 +33,7 @@ with LLM_OpenRouter_Catalogue_Tests;
 with LLM_Anthropic_Messages_Tests;
 with LLM_GitHub_Copilot_Tests;
 with LLM_Model_Registry_Tests;
+with LLM_OpenCode_Go_Catalogue_Tests;
 with LLM_Session_Store_Tests;
 with LLM_Agent_Tests;
 with LLM_Parallel_Tools_Tests;
@@ -107,6 +108,8 @@ package body Test_Suites is
      new AUnit.Test_Caller (LLM_GitHub_Copilot_Tests.Test);
    package LLM_Model_Registry_Caller is
      new AUnit.Test_Caller (LLM_Model_Registry_Tests.Test);
+   package LLM_OpenCode_Go_Catalogue_Caller is
+     new AUnit.Test_Caller (LLM_OpenCode_Go_Catalogue_Tests.Test);
    package LLM_Session_Store_Caller is
      new AUnit.Test_Caller (LLM_Session_Store_Tests.Test);
    package LLM_Agent_Caller is
@@ -1582,6 +1585,36 @@ package body Test_Suites is
       Result.Add_Test (LLM_Model_Registry_Caller.Create
         ("LLM.Model_Registry Available_Models returns sorted order",
          LLM_Model_Registry_Tests.Test_Available_Models_Sorted'Access));
+      Result.Add_Test (LLM_Model_Registry_Caller.Create
+        ("LLM.Model_Registry MiniMax M2.7 uses Anthropic wire format",
+         LLM_Model_Registry_Tests
+           .Test_OpenCode_Go_Wire_Format_Anthropic'Access));
+      Result.Add_Test (LLM_Model_Registry_Caller.Create
+        ("LLM.Model_Registry DeepSeek V4 Pro uses OpenAI wire format",
+         LLM_Model_Registry_Tests
+           .Test_OpenCode_Go_Wire_Format_OpenAI'Access));
+      Result.Add_Test (LLM_Model_Registry_Caller.Create
+        ("LLM.Model_Registry defaults unknown opencode-go ids",
+         LLM_Model_Registry_Tests
+           .Test_OpenCode_Go_Default_Fallback'Access));
+      Result.Add_Test (LLM_Model_Registry_Caller.Create
+        ("LLM.Model_Registry OpenCode Go models available with key",
+         LLM_Model_Registry_Tests
+           .Test_OpenCode_Go_Available_With_Key'Access));
+
+      --  LLM.Providers.OpenCode_Go.Catalogue tests
+      Result.Add_Test (LLM_OpenCode_Go_Catalogue_Caller.Create
+        ("LLM.OpenCode_Go.Catalogue MiniMax uses Anthropic wire",
+         LLM_OpenCode_Go_Catalogue_Tests
+           .Test_Wire_Format_MiniMax_Anthropic'Access));
+      Result.Add_Test (LLM_OpenCode_Go_Catalogue_Caller.Create
+        ("LLM.OpenCode_Go.Catalogue DeepSeek uses OpenAI wire",
+         LLM_OpenCode_Go_Catalogue_Tests
+           .Test_Wire_Format_DeepSeek_OpenAI'Access));
+      Result.Add_Test (LLM_OpenCode_Go_Catalogue_Caller.Create
+        ("LLM.OpenCode_Go.Catalogue unknown models default to OpenAI wire",
+         LLM_OpenCode_Go_Catalogue_Tests
+           .Test_Wire_Format_Unknown_Defaults_OpenAI'Access));
 
       --  LLM.Agent tests
       Result.Add_Test (LLM_Agent_Caller.Create

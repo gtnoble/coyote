@@ -4,7 +4,9 @@
 --  For revision history, see the project version-control log.
 
 with Ada.Environment_Variables;
+with Ada.Exceptions;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
+with Ada.Text_IO;
 with Interfaces;             use Interfaces;
 with Nine_P.Proto;           use Nine_P.Proto;
 
@@ -94,6 +96,33 @@ package body Nine_P.Client is
       return Fid;
    end Alloc_Fid;
 
+   --  Return the expected R-message kind for a given T-message kind.
+   --  Raises P9_Error if Request_Kind is not a recognised T-message kind.
+   function Expected_Response_Kind
+     (Request_Kind : Message_Kind) return Message_Kind
+   is
+   begin
+      case Request_Kind is
+         when Kind_Tversion => return Kind_Rversion;
+         when Kind_Tauth    => return Kind_Rauth;
+         when Kind_Tattach  => return Kind_Rattach;
+         when Kind_Tflush   => return Kind_Rflush;
+         when Kind_Twalk    => return Kind_Rwalk;
+         when Kind_Topen    => return Kind_Ropen;
+         when Kind_Tcreate  => return Kind_Rcreate;
+         when Kind_Tread    => return Kind_Rread;
+         when Kind_Twrite   => return Kind_Rwrite;
+         when Kind_Tclunk   => return Kind_Rclunk;
+         when Kind_Tremove  => return Kind_Rremove;
+         when Kind_Tstat    => return Kind_Rstat;
+         when Kind_Twstat   => return Kind_Rwstat;
+         when others =>
+            raise P9_Error
+              with "unexpected request kind: "
+                   & Message_Kind'Image (Request_Kind);
+      end case;
+   end Expected_Response_Kind;
+
    function RPC (Conn : not null access Fs'Class;
                  Msg  : Message) return Message is
    begin
@@ -101,9 +130,22 @@ package body Nine_P.Client is
       declare
          Response : constant Message :=
            Unpack (Read_Message (Conn.Stream));
+         Expected : constant Message_Kind :=
+           Expected_Response_Kind (Msg.Kind);
       begin
          if Response.Kind = Kind_Rerror then
             raise P9_Error with To_String (Response.Ename);
+         end if;
+         if Response.Tag /= Msg.Tag then
+            raise P9_Error
+              with "9P tag mismatch: expected " & Msg.Tag'Image
+              & ", got " & Response.Tag'Image;
+         end if;
+         if Response.Kind /= Expected then
+            raise P9_Error
+              with "9P response kind mismatch: expected "
+              & Message_Kind'Image (Expected)
+              & ", got " & Message_Kind'Image (Response.Kind);
          end if;
          return Response;
       end;
@@ -127,7 +169,10 @@ package body Nine_P.Client is
          null;
       end;
    exception
-      when others => null;  --  Best-effort cleanup; errors silently dropped.
+      when Ex : others =>
+         Ada.Text_IO.Put_Line
+           (Ada.Text_IO.Standard_Error,
+            "Clunk_Fid: " & Ada.Exceptions.Exception_Information (Ex));
    end Clunk_Fid;
 
    --  Split a path like "/1/ctl" into walk name components.
@@ -388,13 +433,14 @@ package body Nine_P.Client is
       Max_Retries : Positive := 5;
       Retry_Delay : Duration := 0.0)
    is
+      use GNAT.Sockets;
    begin
       for Attempt in 1 .. Max_Retries loop
          begin
             Connect (Filesystem, Name);
             return;
          exception
-            when others =>
+            when P9_Error | Socket_Error =>
                if Attempt = Max_Retries then
                   raise;
                end if;
@@ -410,14 +456,23 @@ package body Nine_P.Client is
    begin
       if Object.Socket /= No_Socket then
          begin
-            --  Best-effort root clunk before closing.
             Clunk_Fid (Object'Unchecked_Access, Object.Root_Fid);
          exception
-            --  Exceptions during finalization are silently discarded
-            --  (Ada RM 7.6.1); nothing useful can be done here.
-            when others => null;
+            when Ex : others =>
+               Ada.Text_IO.Put_Line
+                 (Ada.Text_IO.Standard_Error,
+                  "Nine_P.Client.Fs.Finalize: "
+                  & Ada.Exceptions.Exception_Information (Ex));
          end;
-         Close_Socket (Object.Socket);
+         begin
+            Close_Socket (Object.Socket);
+         exception
+            when Ex : others =>
+               Ada.Text_IO.Put_Line
+                 (Ada.Text_IO.Standard_Error,
+                  "Nine_P.Client.Fs.Finalize (close): "
+                  & Ada.Exceptions.Exception_Information (Ex));
+         end;
          Object.Socket := No_Socket;
          Object.Stream := null;
       end if;
@@ -425,14 +480,16 @@ package body Nine_P.Client is
 
    overriding procedure Finalize (Object : in out File) is
    begin
-      if Object.Is_Open then
+      if Object.Is_Open and then Object.Filesystem /= null then
          Object.Is_Open := False;
          begin
             Clunk_Fid (Object.Filesystem, Object.Fid);
          exception
-            --  Exceptions during finalization are silently discarded
-            --  (Ada RM 7.6.1); nothing useful can be done here.
-            when others => null;
+            when Ex : others =>
+               Ada.Text_IO.Put_Line
+                 (Ada.Text_IO.Standard_Error,
+                  "Nine_P.Client.File.Finalize: "
+                  & Ada.Exceptions.Exception_Information (Ex));
          end;
       end if;
    end Finalize;
