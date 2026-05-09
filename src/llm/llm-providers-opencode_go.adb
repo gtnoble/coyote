@@ -99,9 +99,17 @@ package body LLM.Providers.OpenCode_Go is
          end;
       else
          declare
+            --  OpenCode Go's OpenAI-compatible endpoint lives under
+            --  /v1/chat/completions, so the base URL passed to the
+            --  delegate must include the /v1 prefix.
+            V1_Base : constant String :=
+              (if Base_Url'Length > 0
+                    and then Base_Url (Base_Url'Last) = '/'
+               then Base_Url & "v1"
+               else Base_Url & "/v1");
             Delegate : LLM.Providers.OpenAI_Completions.Provider :=
               LLM.Providers.OpenAI_Completions.Create
-                (Base_Url => Base_Url,
+                (Base_Url => V1_Base,
                  Api_Key  => Api_Key);
          begin
             LLM.Providers.OpenAI_Completions.Send_Request
