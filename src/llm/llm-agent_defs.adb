@@ -68,10 +68,14 @@ package body LLM.Agent_Defs is
       Closing_Delimiter_Found : Boolean := False;
       Name_Value              : Unbounded_String;
       Description_Value       : Unbounded_String;
+      Model_Value             : Unbounded_String;
+      Thinking_Value          : Unbounded_String;
    begin
       D := (Name        => To_Unbounded_String (""),
             Description => To_Unbounded_String (""),
-            Location    => To_Unbounded_String (Path));
+            Location    => To_Unbounded_String (Path),
+            Model       => To_Unbounded_String (""),
+            Thinking    => To_Unbounded_String (""));
       Success := False;
 
       Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Path);
@@ -109,6 +113,12 @@ package body LLM.Agent_Defs is
             elsif Has_Prefix (Trimmed_Line, "description:") then
                Description_Value :=
                  To_Unbounded_String (Extract_Value (Trimmed_Line));
+            elsif Has_Prefix (Trimmed_Line, "model:") then
+               Model_Value :=
+                 To_Unbounded_String (Extract_Value (Trimmed_Line));
+            elsif Has_Prefix (Trimmed_Line, "thinking:") then
+               Thinking_Value :=
+                 To_Unbounded_String (Extract_Value (Trimmed_Line));
             end if;
          end;
       end loop;
@@ -121,7 +131,9 @@ package body LLM.Agent_Defs is
       then
          D := (Name        => Name_Value,
                Description => Description_Value,
-               Location    => To_Unbounded_String (Path));
+               Location    => To_Unbounded_String (Path),
+               Model       => Model_Value,
+               Thinking    => Thinking_Value);
          Success := True;
       end if;
    exception
@@ -291,6 +303,34 @@ package body LLM.Agent_Defs is
               "could not read agent definition file: " & Path;
       end;
    end Resolve_Agent_Def;
+
+   function Resolve_Agent_Model
+     (Name : String;
+      Defs : Agent_Def_Vectors.Vector) return String
+   is
+   begin
+      for D of Defs loop
+         if To_String (D.Name) = Name then
+            return To_String (D.Model);
+         end if;
+      end loop;
+
+      return "";
+   end Resolve_Agent_Model;
+
+   function Resolve_Agent_Thinking
+     (Name : String;
+      Defs : Agent_Def_Vectors.Vector) return String
+   is
+   begin
+      for D of Defs loop
+         if To_String (D.Name) = Name then
+            return To_String (D.Thinking);
+         end if;
+      end loop;
+
+      return "";
+   end Resolve_Agent_Thinking;
 
    function Format_Agent_Defs_For_Prompt
      (Defs : Agent_Def_Vectors.Vector) return String

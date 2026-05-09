@@ -1068,6 +1068,45 @@ package body Test_Suites is
       Result.Add_Test (LLM_Agent_Defs_Caller.Create
         ("LLM.Agent_Defs format includes location",
          LLM_Agent_Defs_Tests.Test_Format_Includes_Location'Access));
+      Result.Add_Test (LLM_Agent_Defs_Caller.Create
+        ("Agent_Def loads model field from frontmatter",
+         LLM_Agent_Defs_Tests.Test_Loads_Model_Field'Access));
+      Result.Add_Test (LLM_Agent_Defs_Caller.Create
+        ("Agent_Def loads thinking field from frontmatter",
+         LLM_Agent_Defs_Tests.Test_Loads_Thinking_Field'Access));
+      Result.Add_Test (LLM_Agent_Defs_Caller.Create
+        ("Agent_Def model field is empty when absent",
+         LLM_Agent_Defs_Tests.Test_Model_Empty_When_Absent'Access));
+      Result.Add_Test (LLM_Agent_Defs_Caller.Create
+        ("Agent_Def thinking field is empty when absent",
+         LLM_Agent_Defs_Tests.Test_Thinking_Empty_When_Absent'Access));
+      Result.Add_Test (LLM_Agent_Defs_Caller.Create
+        ("Resolve_Agent_Model returns model from frontmatter",
+         LLM_Agent_Defs_Tests.Test_Resolve_Model_Returns_Value'Access));
+      Result.Add_Test (LLM_Agent_Defs_Caller.Create
+        ("Resolve_Agent_Model returns empty string for unknown agent",
+         LLM_Agent_Defs_Tests
+           .Test_Resolve_Model_Returns_Empty_When_Absent'Access));
+      Result.Add_Test (LLM_Agent_Defs_Caller.Create
+        ("Resolve_Agent_Thinking returns thinking from frontmatter",
+         LLM_Agent_Defs_Tests
+           .Test_Resolve_Thinking_Returns_Value'Access));
+      Result.Add_Test (LLM_Agent_Defs_Caller.Create
+        ("Resolve_Agent_Thinking returns empty string for unknown agent",
+         LLM_Agent_Defs_Tests
+           .Test_Resolve_Thinking_Returns_Empty_When_Absent'Access));
+      Result.Add_Test (LLM_Agent_Defs_Caller.Create
+        ("Resolve_Agent_Model returns empty for found agent without field",
+         LLM_Agent_Defs_Tests
+           .Test_Resolve_Model_Empty_For_Found_Agent_Without_Field'Access));
+      Result.Add_Test (LLM_Agent_Defs_Caller.Create
+        ("Resolve_Agent_Thinking returns empty for found agent without field",
+         LLM_Agent_Defs_Tests
+           .Test_Resolve_Thinking_Empty_For_Found_Agent_Without_Field
+             'Access));
+      Result.Add_Test (LLM_Agent_Defs_Caller.Create
+        ("Agent_Def loads both model and thinking fields correctly",
+         LLM_Agent_Defs_Tests.Test_Loads_Both_Model_And_Thinking'Access));
 
       --  Coyote_Utils tests
       Result.Add_Test (Coyote_Utils_Caller.Create

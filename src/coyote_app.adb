@@ -684,23 +684,57 @@ package body Coyote_App is
             end if;
 
             declare
-               Agent_Name : constant String := To_String (Opts.Agent);
-               All_Defs   : constant LLM.Agent_Defs.Agent_Def_Vectors.Vector
-                 := LLM.Agent_Defs.Load_Agent_Defs
-                      (Ada.Directories.Current_Directory);
-               Agent_Body : constant String :=
+               Agent_Name     : constant String :=
+                 To_String (Opts.Agent);
+               All_Defs       :
+                 constant LLM.Agent_Defs.Agent_Def_Vectors.Vector :=
+                   LLM.Agent_Defs.Load_Agent_Defs
+                     (Ada.Directories.Current_Directory);
+               Agent_Body     : constant String :=
                  (if Agent_Name'Length > 0
                   then LLM.Agent_Defs.Resolve_Agent_Def
                          (Agent_Name, All_Defs)
                   else "");
+               Agent_Model    : constant String :=
+                 (if Agent_Name'Length > 0
+                  then LLM.Agent_Defs.Resolve_Agent_Model
+                         (Agent_Name, All_Defs)
+                  else "");
+               Agent_Thinking : constant String :=
+                 (if Agent_Name'Length > 0
+                  then LLM.Agent_Defs.Resolve_Agent_Thinking
+                         (Agent_Name, All_Defs)
+                  else "");
+               --  Policy A: agent definition model overrides all other
+               --  selections, including the --model CLI flag.
+               Effective_Model : constant String :=
+                 (if Agent_Model'Length > 0
+                  then Agent_Model
+                  else To_String (Opts.Model));
             begin
+               --  Policy A-initial: agent definition thinking level
+               --  overrides the settings.json default at startup but can
+               --  still be changed at runtime via the plumber.
+               if Agent_Thinking'Length > 0 then
+                  Current_Thinking :=
+                    To_Unbounded_String (Agent_Thinking);
+               end if;
+
                LLM.Agent.Create
                  (S             => Agent_Session,
-                  Model_Spec    => To_String (Opts.Model),
+                  Model_Spec    => Effective_Model,
                   Agent_Def     => Agent_Body,
                   Custom_Prompt => To_String (Opts.Custom_Prompt),
                   No_Tools      => Opts.No_Tools,
                   Session_Id    => To_String (Opts.Session_Id));
+
+               --  Apply agent thinking preference after Create, since
+               --  Create initialises thinking from settings.json internally.
+               if Agent_Thinking'Length > 0 then
+                  LLM.Agent.Set_Thinking
+                    (S     => Agent_Session,
+                     Level => Thinking_Level_Of (Agent_Thinking));
+               end if;
             end;
 
             if Length (Opts.Session_Id) > 0 then

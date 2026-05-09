@@ -25,6 +25,13 @@ package LLM.Agent_Defs is
       Name        : Ada.Strings.Unbounded.Unbounded_String;
       Description : Ada.Strings.Unbounded.Unbounded_String;
       Location    : Ada.Strings.Unbounded.Unbounded_String;
+      --  Optional "provider/model-id" from the frontmatter model: field.
+      --  Empty when no model is specified.
+      Model       : Ada.Strings.Unbounded.Unbounded_String;
+      --  Optional thinking/reasoning level name from the frontmatter
+      --  thinking: field (e.g. "off", "low", "medium", "high", "xhigh").
+      --  Empty when no thinking level is specified.
+      Thinking    : Ada.Strings.Unbounded.Unbounded_String;
    end record;
 
    package Agent_Def_Vectors is new Ada.Containers.Vectors
@@ -49,6 +56,20 @@ package LLM.Agent_Defs is
    --  Raises Agent_Not_Found when no entry with that name exists in Defs
    --  or when the file at its location cannot be read.
    function Resolve_Agent_Def
+     (Name : String;
+      Defs : Agent_Def_Vectors.Vector) return String;
+
+   --  Return the model specification from the named agent's frontmatter,
+   --  or "" when the agent has no model: field or is not found in Defs.
+   --  Never raises.
+   function Resolve_Agent_Model
+     (Name : String;
+      Defs : Agent_Def_Vectors.Vector) return String;
+
+   --  Return the thinking level name from the named agent's frontmatter,
+   --  or "" when the agent has no thinking: field or is not found in Defs.
+   --  Never raises.
+   function Resolve_Agent_Thinking
      (Name : String;
       Defs : Agent_Def_Vectors.Vector) return String;
 

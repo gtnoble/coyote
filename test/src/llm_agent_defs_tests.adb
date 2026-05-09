@@ -40,18 +40,29 @@ package body LLM_Agent_Defs_Tests is
    end Remove_Tree;
 
    --  Build a minimal valid AGENT.md with the given name, description,
-   --  and body text.
+   --  body text, and optional model / thinking frontmatter fields.
    function Agent_Md
      (Name        : String;
       Description : String;
-      Body_Text   : String := "You are a test agent.") return String
+      Body_Text   : String := "You are a test agent.";
+      Model       : String := "";
+      Thinking    : String := "") return String
    is
+      use Ada.Strings.Unbounded;
+      Result : Unbounded_String;
    begin
-      return "---" & ASCII.LF
-        & "name: " & Name & ASCII.LF
-        & "description: " & Description & ASCII.LF
-        & "---" & ASCII.LF
-        & Body_Text & ASCII.LF;
+      Append (Result, "---" & ASCII.LF);
+      Append (Result, "name: " & Name & ASCII.LF);
+      Append (Result, "description: " & Description & ASCII.LF);
+      if Model'Length > 0 then
+         Append (Result, "model: " & Model & ASCII.LF);
+      end if;
+      if Thinking'Length > 0 then
+         Append (Result, "thinking: " & Thinking & ASCII.LF);
+      end if;
+      Append (Result, "---" & ASCII.LF);
+      Append (Result, Body_Text & ASCII.LF);
+      return To_String (Result);
    end Agent_Md;
 
    --  ── Tests ────────────────────────────────────────────────────────────
@@ -409,7 +420,9 @@ package body LLM_Agent_Defs_Tests is
           Description =>
             Ada.Strings.Unbounded.To_Unbounded_String ("Does things."),
           Location    =>
-            Ada.Strings.Unbounded.To_Unbounded_String ("/path/AGENT.md")));
+            Ada.Strings.Unbounded.To_Unbounded_String ("/path/AGENT.md"),
+          Model       => Ada.Strings.Unbounded.Null_Unbounded_String,
+          Thinking    => Ada.Strings.Unbounded.Null_Unbounded_String));
 
       declare
          Result : constant String :=
@@ -432,7 +445,9 @@ package body LLM_Agent_Defs_Tests is
           Description =>
             Ada.Strings.Unbounded.To_Unbounded_String ("Does things."),
           Location    =>
-            Ada.Strings.Unbounded.To_Unbounded_String ("/path/AGENT.md")));
+            Ada.Strings.Unbounded.To_Unbounded_String ("/path/AGENT.md"),
+          Model       => Ada.Strings.Unbounded.Null_Unbounded_String,
+          Thinking    => Ada.Strings.Unbounded.Null_Unbounded_String));
 
       declare
          Result : constant String :=
@@ -455,7 +470,9 @@ package body LLM_Agent_Defs_Tests is
           Description =>
             Ada.Strings.Unbounded.To_Unbounded_String ("Does things."),
           Location    =>
-            Ada.Strings.Unbounded.To_Unbounded_String ("/path/AGENT.md")));
+            Ada.Strings.Unbounded.To_Unbounded_String ("/path/AGENT.md"),
+          Model       => Ada.Strings.Unbounded.Null_Unbounded_String,
+          Thinking    => Ada.Strings.Unbounded.Null_Unbounded_String));
 
       declare
          Result : constant String :=
@@ -466,5 +483,470 @@ package body LLM_Agent_Defs_Tests is
             "formatted output should include the agent location");
       end;
    end Test_Format_Includes_Location;
+
+   procedure Test_Loads_Model_Field (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home         : constant String := "/tmp/coyote_agent_defs_test_8";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+   begin
+      Remove_Tree (Home);
+      Make_Dir (Home);
+      Make_Dir (Home & "/.coyote");
+      Make_Dir (Home & "/.coyote/agents");
+      Make_Dir (Home & "/.coyote/agents/coder");
+      Write_File
+        (Home & "/.coyote/agents/coder/AGENT.md",
+         Agent_Md
+           (Name     => "coder",
+            Description => "Writes code.",
+            Model    => "test-provider/test-model"));
+      Ada.Environment_Variables.Set ("HOME", Home);
+
+      declare
+         Defs : constant LLM.Agent_Defs.Agent_Def_Vectors.Vector :=
+           LLM.Agent_Defs.Load_Agent_Defs ("/tmp/nonexistent_cwd_xyz");
+      begin
+         Assert
+           (not Defs.Is_Empty,
+            "expected one agent definition to be loaded");
+         Assert
+           (Ada.Strings.Unbounded.To_String (Defs.First_Element.Model)
+              = "test-provider/test-model",
+            "expected model field 'test-provider/test-model'");
+      end;
+
+      if Home_Was_Set then
+         Ada.Environment_Variables.Set ("HOME", Old_Home);
+      end if;
+      Remove_Tree (Home);
+   exception
+      when others =>
+         if Home_Was_Set then
+            Ada.Environment_Variables.Set ("HOME", Old_Home);
+         end if;
+         Remove_Tree (Home);
+         raise;
+   end Test_Loads_Model_Field;
+
+   procedure Test_Loads_Thinking_Field (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home         : constant String := "/tmp/coyote_agent_defs_test_9";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+   begin
+      Remove_Tree (Home);
+      Make_Dir (Home);
+      Make_Dir (Home & "/.coyote");
+      Make_Dir (Home & "/.coyote/agents");
+      Make_Dir (Home & "/.coyote/agents/thinker");
+      Write_File
+        (Home & "/.coyote/agents/thinker/AGENT.md",
+         Agent_Md
+           (Name        => "thinker",
+            Description => "Reasons carefully.",
+            Thinking    => "high"));
+      Ada.Environment_Variables.Set ("HOME", Home);
+
+      declare
+         Defs : constant LLM.Agent_Defs.Agent_Def_Vectors.Vector :=
+           LLM.Agent_Defs.Load_Agent_Defs ("/tmp/nonexistent_cwd_xyz");
+      begin
+         Assert
+           (not Defs.Is_Empty,
+            "expected one agent definition to be loaded");
+         Assert
+           (Ada.Strings.Unbounded.To_String (Defs.First_Element.Thinking)
+              = "high",
+            "expected thinking field 'high'");
+      end;
+
+      if Home_Was_Set then
+         Ada.Environment_Variables.Set ("HOME", Old_Home);
+      end if;
+      Remove_Tree (Home);
+   exception
+      when others =>
+         if Home_Was_Set then
+            Ada.Environment_Variables.Set ("HOME", Old_Home);
+         end if;
+         Remove_Tree (Home);
+         raise;
+   end Test_Loads_Thinking_Field;
+
+   procedure Test_Model_Empty_When_Absent (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home         : constant String := "/tmp/coyote_agent_defs_test_10";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+   begin
+      Remove_Tree (Home);
+      Make_Dir (Home);
+      Make_Dir (Home & "/.coyote");
+      Make_Dir (Home & "/.coyote/agents");
+      Make_Dir (Home & "/.coyote/agents/plain");
+      Write_File
+        (Home & "/.coyote/agents/plain/AGENT.md",
+         Agent_Md ("plain", "No model specified."));
+      Ada.Environment_Variables.Set ("HOME", Home);
+
+      declare
+         Defs : constant LLM.Agent_Defs.Agent_Def_Vectors.Vector :=
+           LLM.Agent_Defs.Load_Agent_Defs ("/tmp/nonexistent_cwd_xyz");
+      begin
+         Assert
+           (not Defs.Is_Empty,
+            "expected one agent definition to be loaded");
+         Assert
+           (Ada.Strings.Unbounded.Length (Defs.First_Element.Model) = 0,
+            "expected model field to be empty when absent from frontmatter");
+      end;
+
+      if Home_Was_Set then
+         Ada.Environment_Variables.Set ("HOME", Old_Home);
+      end if;
+      Remove_Tree (Home);
+   exception
+      when others =>
+         if Home_Was_Set then
+            Ada.Environment_Variables.Set ("HOME", Old_Home);
+         end if;
+         Remove_Tree (Home);
+         raise;
+   end Test_Model_Empty_When_Absent;
+
+   procedure Test_Thinking_Empty_When_Absent (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home         : constant String := "/tmp/coyote_agent_defs_test_11";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+   begin
+      Remove_Tree (Home);
+      Make_Dir (Home);
+      Make_Dir (Home & "/.coyote");
+      Make_Dir (Home & "/.coyote/agents");
+      Make_Dir (Home & "/.coyote/agents/plain2");
+      Write_File
+        (Home & "/.coyote/agents/plain2/AGENT.md",
+         Agent_Md ("plain2", "No thinking specified."));
+      Ada.Environment_Variables.Set ("HOME", Home);
+
+      declare
+         Defs : constant LLM.Agent_Defs.Agent_Def_Vectors.Vector :=
+           LLM.Agent_Defs.Load_Agent_Defs ("/tmp/nonexistent_cwd_xyz");
+      begin
+         Assert
+           (not Defs.Is_Empty,
+            "expected one agent definition to be loaded");
+         Assert
+           (Ada.Strings.Unbounded.Length
+              (Defs.First_Element.Thinking) = 0,
+            "expected thinking field empty when absent from frontmatter");
+      end;
+
+      if Home_Was_Set then
+         Ada.Environment_Variables.Set ("HOME", Old_Home);
+      end if;
+      Remove_Tree (Home);
+   exception
+      when others =>
+         if Home_Was_Set then
+            Ada.Environment_Variables.Set ("HOME", Old_Home);
+         end if;
+         Remove_Tree (Home);
+         raise;
+   end Test_Thinking_Empty_When_Absent;
+
+   procedure Test_Resolve_Model_Returns_Value (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home         : constant String := "/tmp/coyote_agent_defs_test_12";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+   begin
+      Remove_Tree (Home);
+      Make_Dir (Home);
+      Make_Dir (Home & "/.coyote");
+      Make_Dir (Home & "/.coyote/agents");
+      Make_Dir (Home & "/.coyote/agents/pinned");
+      Write_File
+        (Home & "/.coyote/agents/pinned/AGENT.md",
+         Agent_Md
+           (Name        => "pinned",
+            Description => "Uses a fixed model.",
+            Model       => "my-provider/my-model-id"));
+      Ada.Environment_Variables.Set ("HOME", Home);
+
+      declare
+         Defs  : constant LLM.Agent_Defs.Agent_Def_Vectors.Vector :=
+           LLM.Agent_Defs.Load_Agent_Defs ("/tmp/nonexistent_cwd_xyz");
+         Model : constant String :=
+           LLM.Agent_Defs.Resolve_Agent_Model ("pinned", Defs);
+      begin
+         Assert
+           (Model = "my-provider/my-model-id",
+            "expected Resolve_Agent_Model to return 'my-provider/my-model-id'"
+            & ", got '" & Model & "'");
+      end;
+
+      if Home_Was_Set then
+         Ada.Environment_Variables.Set ("HOME", Old_Home);
+      end if;
+      Remove_Tree (Home);
+   exception
+      when others =>
+         if Home_Was_Set then
+            Ada.Environment_Variables.Set ("HOME", Old_Home);
+         end if;
+         Remove_Tree (Home);
+         raise;
+   end Test_Resolve_Model_Returns_Value;
+
+   procedure Test_Resolve_Model_Returns_Empty_When_Absent
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+
+      Defs  : LLM.Agent_Defs.Agent_Def_Vectors.Vector;
+      Model : constant String :=
+        LLM.Agent_Defs.Resolve_Agent_Model ("nonexistent", Defs);
+   begin
+      Assert
+        (Model = "",
+         "expected Resolve_Agent_Model to return empty string for unknown"
+         & " agent, got '" & Model & "'");
+   end Test_Resolve_Model_Returns_Empty_When_Absent;
+
+   procedure Test_Resolve_Thinking_Returns_Value (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home         : constant String := "/tmp/coyote_agent_defs_test_13";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+   begin
+      Remove_Tree (Home);
+      Make_Dir (Home);
+      Make_Dir (Home & "/.coyote");
+      Make_Dir (Home & "/.coyote/agents");
+      Make_Dir (Home & "/.coyote/agents/deep");
+      Write_File
+        (Home & "/.coyote/agents/deep/AGENT.md",
+         Agent_Md
+           (Name        => "deep",
+            Description => "Thinks hard.",
+            Thinking    => "medium"));
+      Ada.Environment_Variables.Set ("HOME", Home);
+
+      declare
+         Defs     : constant LLM.Agent_Defs.Agent_Def_Vectors.Vector :=
+           LLM.Agent_Defs.Load_Agent_Defs ("/tmp/nonexistent_cwd_xyz");
+         Thinking : constant String :=
+           LLM.Agent_Defs.Resolve_Agent_Thinking ("deep", Defs);
+      begin
+         Assert
+           (Thinking = "medium",
+            "expected Resolve_Agent_Thinking to return 'medium'"
+            & ", got '" & Thinking & "'");
+      end;
+
+      if Home_Was_Set then
+         Ada.Environment_Variables.Set ("HOME", Old_Home);
+      end if;
+      Remove_Tree (Home);
+   exception
+      when others =>
+         if Home_Was_Set then
+            Ada.Environment_Variables.Set ("HOME", Old_Home);
+         end if;
+         Remove_Tree (Home);
+         raise;
+   end Test_Resolve_Thinking_Returns_Value;
+
+   procedure Test_Resolve_Thinking_Returns_Empty_When_Absent
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+
+      Defs     : LLM.Agent_Defs.Agent_Def_Vectors.Vector;
+      Thinking : constant String :=
+        LLM.Agent_Defs.Resolve_Agent_Thinking ("nonexistent", Defs);
+   begin
+      Assert
+        (Thinking = "",
+         "expected Resolve_Agent_Thinking to return empty string for"
+         & " unknown agent, got '" & Thinking & "'");
+   end Test_Resolve_Thinking_Returns_Empty_When_Absent;
+
+   procedure Test_Resolve_Model_Empty_For_Found_Agent_Without_Field
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+
+      Home         : constant String := "/tmp/coyote_agent_defs_test_14";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+   begin
+      Remove_Tree (Home);
+      Make_Dir (Home);
+      Make_Dir (Home & "/.coyote");
+      Make_Dir (Home & "/.coyote/agents");
+      Make_Dir (Home & "/.coyote/agents/nomodel");
+      Write_File
+        (Home & "/.coyote/agents/nomodel/AGENT.md",
+         Agent_Md ("nomodel", "Agent with no model field."));
+      Ada.Environment_Variables.Set ("HOME", Home);
+
+      declare
+         Defs  : constant LLM.Agent_Defs.Agent_Def_Vectors.Vector :=
+           LLM.Agent_Defs.Load_Agent_Defs ("/tmp/nonexistent_cwd_xyz");
+         Model : constant String :=
+           LLM.Agent_Defs.Resolve_Agent_Model ("nomodel", Defs);
+      begin
+         Assert
+           (not Defs.Is_Empty,
+            "expected agent to be loaded");
+         Assert
+           (Model = "",
+            "expected Resolve_Agent_Model to return empty string for"
+            & " found agent with no model field, got '"
+            & Model & "'");
+      end;
+
+      if Home_Was_Set then
+         Ada.Environment_Variables.Set ("HOME", Old_Home);
+      end if;
+      Remove_Tree (Home);
+   exception
+      when others =>
+         if Home_Was_Set then
+            Ada.Environment_Variables.Set ("HOME", Old_Home);
+         end if;
+         Remove_Tree (Home);
+         raise;
+   end Test_Resolve_Model_Empty_For_Found_Agent_Without_Field;
+
+   procedure Test_Resolve_Thinking_Empty_For_Found_Agent_Without_Field
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+
+      Home         : constant String := "/tmp/coyote_agent_defs_test_15";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+   begin
+      Remove_Tree (Home);
+      Make_Dir (Home);
+      Make_Dir (Home & "/.coyote");
+      Make_Dir (Home & "/.coyote/agents");
+      Make_Dir (Home & "/.coyote/agents/nothinking");
+      Write_File
+        (Home & "/.coyote/agents/nothinking/AGENT.md",
+         Agent_Md ("nothinking", "Agent with no thinking field."));
+      Ada.Environment_Variables.Set ("HOME", Home);
+
+      declare
+         Defs     : constant LLM.Agent_Defs.Agent_Def_Vectors.Vector :=
+           LLM.Agent_Defs.Load_Agent_Defs ("/tmp/nonexistent_cwd_xyz");
+         Thinking : constant String :=
+           LLM.Agent_Defs.Resolve_Agent_Thinking ("nothinking", Defs);
+      begin
+         Assert
+           (not Defs.Is_Empty,
+            "expected agent to be loaded");
+         Assert
+           (Thinking = "",
+            "expected Resolve_Agent_Thinking to return empty string for"
+            & " found agent with no thinking field, got '"
+            & Thinking & "'");
+      end;
+
+      if Home_Was_Set then
+         Ada.Environment_Variables.Set ("HOME", Old_Home);
+      end if;
+      Remove_Tree (Home);
+   exception
+      when others =>
+         if Home_Was_Set then
+            Ada.Environment_Variables.Set ("HOME", Old_Home);
+         end if;
+         Remove_Tree (Home);
+         raise;
+   end Test_Resolve_Thinking_Empty_For_Found_Agent_Without_Field;
+
+   procedure Test_Loads_Both_Model_And_Thinking (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home         : constant String := "/tmp/coyote_agent_defs_test_16";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+   begin
+      Remove_Tree (Home);
+      Make_Dir (Home);
+      Make_Dir (Home & "/.coyote");
+      Make_Dir (Home & "/.coyote/agents");
+      Make_Dir (Home & "/.coyote/agents/full");
+      Write_File
+        (Home & "/.coyote/agents/full/AGENT.md",
+         Agent_Md
+           (Name        => "full",
+            Description => "Agent with both model and thinking.",
+            Model       => "acme-provider/acme-model",
+            Thinking    => "medium"));
+      Ada.Environment_Variables.Set ("HOME", Home);
+
+      declare
+         Defs     : constant LLM.Agent_Defs.Agent_Def_Vectors.Vector :=
+           LLM.Agent_Defs.Load_Agent_Defs ("/tmp/nonexistent_cwd_xyz");
+         Model    : constant String :=
+           LLM.Agent_Defs.Resolve_Agent_Model ("full", Defs);
+         Thinking : constant String :=
+           LLM.Agent_Defs.Resolve_Agent_Thinking ("full", Defs);
+      begin
+         Assert
+           (not Defs.Is_Empty,
+            "expected agent to be loaded");
+         Assert
+           (Model = "acme-provider/acme-model",
+            "expected model 'acme-provider/acme-model', got '"
+            & Model & "'");
+         Assert
+           (Thinking = "medium",
+            "expected thinking 'medium', got '" & Thinking & "'");
+      end;
+
+      if Home_Was_Set then
+         Ada.Environment_Variables.Set ("HOME", Old_Home);
+      end if;
+      Remove_Tree (Home);
+   exception
+      when others =>
+         if Home_Was_Set then
+            Ada.Environment_Variables.Set ("HOME", Old_Home);
+         end if;
+         Remove_Tree (Home);
+         raise;
+   end Test_Loads_Both_Model_And_Thinking;
 
 end LLM_Agent_Defs_Tests;

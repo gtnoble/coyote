@@ -22,5 +22,19 @@ package LLM_Agent_Defs_Tests is
    procedure Test_Format_Includes_Name (T : in out Test);
    procedure Test_Format_Includes_Description (T : in out Test);
    procedure Test_Format_Includes_Location (T : in out Test);
+   procedure Test_Loads_Model_Field (T : in out Test);
+   procedure Test_Loads_Thinking_Field (T : in out Test);
+   procedure Test_Model_Empty_When_Absent (T : in out Test);
+   procedure Test_Thinking_Empty_When_Absent (T : in out Test);
+   procedure Test_Resolve_Model_Returns_Value (T : in out Test);
+   procedure Test_Resolve_Model_Returns_Empty_When_Absent (T : in out Test);
+   procedure Test_Resolve_Thinking_Returns_Value (T : in out Test);
+   procedure Test_Resolve_Thinking_Returns_Empty_When_Absent
+     (T : in out Test);
+   procedure Test_Resolve_Model_Empty_For_Found_Agent_Without_Field
+     (T : in out Test);
+   procedure Test_Resolve_Thinking_Empty_For_Found_Agent_Without_Field
+     (T : in out Test);
+   procedure Test_Loads_Both_Model_And_Thinking (T : in out Test);
 
 end LLM_Agent_Defs_Tests;
