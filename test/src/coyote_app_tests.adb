@@ -1683,4 +1683,112 @@ package body Coyote_App_Tests is
          & " but got """ & Result & """");
    end Test_Format_Model_Price_Cache_Only;
 
+   --  ── Apply_Prompt_Filter ───────────────────────────────────────────────
+
+   --  Empty filter: raw returned unchanged, Warn_Buf empty.
+   procedure Test_Apply_Filter_Empty_Filter (T : in out Test) is
+      pragma Unreferenced (T);
+      Warn   : Ada.Strings.Unbounded.Unbounded_String;
+      Result : constant String :=
+        Apply_Prompt_Filter ("hello world", "", Warn);
+   begin
+      Assert (Result = "hello world",
+              "Empty filter should return raw prompt unchanged");
+      Assert (Ada.Strings.Unbounded.Length (Warn) = 0,
+              "Empty filter should leave Warn_Buf empty");
+   end Test_Apply_Filter_Empty_Filter;
+
+   --  Filter that echoes stdin back: output equals trimmed input.
+   procedure Test_Apply_Filter_Echo (T : in out Test) is
+      pragma Unreferenced (T);
+      Warn   : Ada.Strings.Unbounded.Unbounded_String;
+      Result : constant String :=
+        Apply_Prompt_Filter ("hello", "cat", Warn);
+   begin
+      Assert (Result = "hello",
+              "cat filter should echo the prompt back; got """
+              & Result & """");
+      Assert (Ada.Strings.Unbounded.Length (Warn) = 0,
+              "Successful filter should leave Warn_Buf empty");
+   end Test_Apply_Filter_Echo;
+
+   --  Filter that transforms input (convert to uppercase with tr).
+   procedure Test_Apply_Filter_Transform (T : in out Test) is
+      pragma Unreferenced (T);
+      Warn   : Ada.Strings.Unbounded.Unbounded_String;
+      Result : constant String :=
+        Apply_Prompt_Filter ("hello", "tr a-z A-Z", Warn);
+   begin
+      Assert (Result = "HELLO",
+              "tr filter should uppercase the prompt; got """
+              & Result & """");
+      Assert (Ada.Strings.Unbounded.Length (Warn) = 0,
+              "Successful filter should leave Warn_Buf empty");
+   end Test_Apply_Filter_Transform;
+
+   --  Filter that exits non-zero: raw returned, Warn_Buf non-empty.
+   procedure Test_Apply_Filter_Non_Zero_Exit (T : in out Test) is
+      pragma Unreferenced (T);
+      Warn   : Ada.Strings.Unbounded.Unbounded_String;
+      Result : constant String :=
+        Apply_Prompt_Filter ("hello", "exit 1", Warn);
+   begin
+      Assert (Result = "hello",
+              "Non-zero-exit filter should return raw prompt");
+      Assert (Ada.Strings.Unbounded.Length (Warn) > 0,
+              "Non-zero-exit filter should populate Warn_Buf");
+   end Test_Apply_Filter_Non_Zero_Exit;
+
+   --  Filter that produces empty stdout: raw returned, Warn_Buf non-empty.
+   procedure Test_Apply_Filter_Empty_Output (T : in out Test) is
+      pragma Unreferenced (T);
+      Warn   : Ada.Strings.Unbounded.Unbounded_String;
+      --  Discard stdin and emit nothing.
+      Result : constant String :=
+        Apply_Prompt_Filter ("hello", "cat /dev/null", Warn);
+   begin
+      Assert (Result = "hello",
+              "Empty-output filter should return raw prompt");
+      Assert (Ada.Strings.Unbounded.Length (Warn) > 0,
+              "Empty-output filter should populate Warn_Buf");
+   end Test_Apply_Filter_Empty_Output;
+
+   --  Output with surrounding whitespace/newlines is trimmed.
+   procedure Test_Apply_Filter_Trims_Whitespace (T : in out Test) is
+      pragma Unreferenced (T);
+      Warn   : Ada.Strings.Unbounded.Unbounded_String;
+      --  printf adds a trailing newline; echo adds one too.
+      --  Use printf to emit leading/trailing spaces around the content.
+      Result : constant String :=
+        Apply_Prompt_Filter
+          ("x", "printf '  trimmed  '", Warn);
+   begin
+      Assert (Result = "trimmed",
+              "Filter output should be trimmed; got """ & Result & """");
+      Assert (Ada.Strings.Unbounded.Length (Warn) = 0,
+              "Successful filter should leave Warn_Buf empty");
+   end Test_Apply_Filter_Trims_Whitespace;
+
+   --  ── App_State Prompt_Filter ───────────────────────────────────────────
+
+   procedure Test_State_Prompt_Filter_Initial (T : in out Test) is
+      pragma Unreferenced (T);
+      S : App_State;
+   begin
+      Assert (S.Prompt_Filter = "",
+              "Prompt_Filter should be empty initially");
+   end Test_State_Prompt_Filter_Initial;
+
+   procedure Test_State_Prompt_Filter_Round_Trip (T : in out Test) is
+      pragma Unreferenced (T);
+      S : App_State;
+   begin
+      S.Set_Prompt_Filter ("m4 -");
+      Assert (S.Prompt_Filter = "m4 -",
+              "Prompt_Filter should return stored value");
+      S.Set_Prompt_Filter ("");
+      Assert (S.Prompt_Filter = "",
+              "Prompt_Filter should update to empty string");
+   end Test_State_Prompt_Filter_Round_Trip;
+
 end Coyote_App_Tests;

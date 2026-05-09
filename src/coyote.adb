@@ -4,6 +4,7 @@
 --                 [--agent NAME] [--custom-prompt TEXT|@PATH]
 --                 [--no-tools] [--no-session]
 --                 [--prompt TEXT] [--one-shot] [--name LABEL]
+--                 [--prompt-filter CMD]
 --
 --  --agent NAME   Use the named agent definition (looked up from the
 --                 discovered AGENT.md catalogue).
@@ -16,6 +17,12 @@
 --                 by the native spawn_subagent tool.
 --  --name LABEL   Short label appended to the window name as ":LABEL" so
 --                 the acme tagline reads "CWD/+coyote:LABEL | …".
+--  --prompt-filter CMD
+--                 Shell command through which interactive prompts are
+--                 filtered before being sent to the agent.  The raw prompt
+--                 is written to stdin; stdout is used as the filtered
+--                 prompt.  Runs via "$SHELL -c CMD" ($SHELL defaults to
+--                 "sh").  Overrides the "promptFilter" settings.json field.
 --
 --  Project: coyote
 --  For revision history, see the project version-control log.
@@ -81,6 +88,12 @@ begin
          then
             I := I + 1;
             Opts.Name :=
+              To_Unbounded_String (Ada.Command_Line.Argument (I));
+         elsif Arg = "--prompt-filter"
+           and then I < Ada.Command_Line.Argument_Count
+         then
+            I := I + 1;
+            Opts.Prompt_Filter :=
               To_Unbounded_String (Ada.Command_Line.Argument (I));
          else
             Ada.Text_IO.Put_Line

@@ -154,6 +154,26 @@ package Coyote_App.Utils is
    --  the data payload.  Returns "" if the message is malformed.
    function Extract_Plumb_Data (Raw : Nine_P.Byte_Array) return String;
 
+   --  Run the raw prompt text through a shell filter command and return
+   --  the filtered result.
+   --
+   --  Filter is passed to "$SHELL -c <Filter>" (falling back to "sh" when
+   --  $SHELL is unset); the raw prompt is written to the command's stdin
+   --  and stdout is read as the filtered prompt.
+   --
+   --  Returns Raw unchanged when:
+   --    * Filter is empty (no filtering configured);
+   --    * the subprocess cannot be started;
+   --    * the command exits with a non-zero status; or
+   --    * stdout is empty after trimming leading/trailing whitespace.
+   --
+   --  In the latter three cases a "[!] prompt filter …" warning is appended
+   --  to Warn_Buf so the caller can display it to the user.
+   function Apply_Prompt_Filter
+     (Raw      : String;
+      Filter   : String;
+      Warn_Buf : out Ada.Strings.Unbounded.Unbounded_String) return String;
+
    --  ── Turn footer builders ─────────────────────────────────────────────
 
    --  Build the bracketed per-turn summary placed before the fork token.

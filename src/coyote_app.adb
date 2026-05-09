@@ -72,6 +72,8 @@ package body Coyote_App is
       function Session_Total_Tokens  return Natural is (P_Sess_Total);
       function Win_Name           return String  is
         (To_String (P_Win_Name));
+      function Prompt_Filter      return String  is
+        (To_String (P_Prompt_Filter));
 
       procedure Set_Session_Id (Id : String) is
       begin
@@ -193,6 +195,11 @@ package body Coyote_App is
       begin
          P_Win_Name := To_Unbounded_String (Name);
       end Set_Win_Name;
+
+      procedure Set_Prompt_Filter (Cmd : String) is
+      begin
+         P_Prompt_Filter := To_Unbounded_String (Cmd);
+      end Set_Prompt_Filter;
 
       procedure Increment_Turn_Count is
       begin
@@ -677,6 +684,13 @@ package body Coyote_App is
                  LLM.Settings.Load_Settings;
             begin
                Current_Thinking := Settings_Value.Default_Thinking;
+               --  CLI --prompt-filter wins; fall back to settings.json.
+               if Length (Opts.Prompt_Filter) > 0 then
+                  State.Set_Prompt_Filter (To_String (Opts.Prompt_Filter));
+               else
+                  State.Set_Prompt_Filter
+                    (To_String (Settings_Value.Prompt_Filter));
+               end if;
             end;
 
             if Length (Opts.Agent) > 0 then
@@ -991,7 +1005,7 @@ package body Coyote_App is
                               if C2 in 'X' | 'x' then
                                  if Text = "Send" then
                                     declare
-                                       Sel : constant String :=
+                                       Sel  : constant String :=
                                          Acme.Window.Selection_Text
                                            (Win, My_FS'Access);
                                     begin
@@ -1011,13 +1025,31 @@ package body Coyote_App is
                                                 & " or Stop first."
                                                 & ASCII.LF);
                                           else
-                                             Acme.Window.Append
-                                               (Win,
-                                                My_FS'Access,
-                                                ASCII.LF & UC_TRI_R
-                                                & " " & Sel & ASCII.LF);
-                                             Commands.Enqueue
-                                               (Prompt_Command, Sel);
+                                             declare
+                                                Warn     : Unbounded_String;
+                                                Filtered : constant String :=
+                                                  Apply_Prompt_Filter
+                                                    (Sel,
+                                                     State.Prompt_Filter,
+                                                     Warn);
+                                             begin
+                                                if Length (Warn) > 0 then
+                                                   Acme.Window.Append
+                                                     (Win,
+                                                      My_FS'Access,
+                                                      ASCII.LF & "[!] "
+                                                      & To_String (Warn)
+                                                      & ASCII.LF);
+                                                end if;
+                                                Acme.Window.Append
+                                                  (Win,
+                                                   My_FS'Access,
+                                                   ASCII.LF & UC_TRI_R
+                                                   & " " & Filtered
+                                                   & ASCII.LF);
+                                                Commands.Enqueue
+                                                  (Prompt_Command, Filtered);
+                                             end;
                                           end if;
                                        end if;
                                     end;
@@ -1030,25 +1062,43 @@ package body Coyote_App is
                                     LLM.Agent.Request_Abort (Agent_Session);
                                  elsif Text = "Steer" then
                                     declare
-                                       Sel : constant String :=
+                                       Sel  : constant String :=
                                          Acme.Window.Selection_Text
                                            (Win, My_FS'Access);
                                     begin
                                        if Sel'Length > 0 then
-                                          Acme.Window.Append
-                                            (Win,
-                                             My_FS'Access,
-                                             ASCII.LF & UC_HOOK_L
-                                             & " Steer: " & Sel & ASCII.LF);
-                                          if State.Is_Streaming
-                                            or else State.Is_Retrying
-                                          then
-                                             State.Set_Aborted (True);
-                                             LLM.Agent.Request_Abort
-                                               (Agent_Session);
-                                          end if;
-                                          Commands.Enqueue
-                                            (Prompt_Command, Sel, True);
+                                          declare
+                                             Warn     : Unbounded_String;
+                                             Filtered : constant String :=
+                                               Apply_Prompt_Filter
+                                                 (Sel,
+                                                  State.Prompt_Filter,
+                                                  Warn);
+                                          begin
+                                             if Length (Warn) > 0 then
+                                                Acme.Window.Append
+                                                  (Win,
+                                                   My_FS'Access,
+                                                   ASCII.LF & "[!] "
+                                                   & To_String (Warn)
+                                                   & ASCII.LF);
+                                             end if;
+                                             Acme.Window.Append
+                                               (Win,
+                                                My_FS'Access,
+                                                ASCII.LF & UC_HOOK_L
+                                                & " Steer: " & Filtered
+                                                & ASCII.LF);
+                                             if State.Is_Streaming
+                                               or else State.Is_Retrying
+                                             then
+                                                State.Set_Aborted (True);
+                                                LLM.Agent.Request_Abort
+                                                  (Agent_Session);
+                                             end if;
+                                             Commands.Enqueue
+                                               (Prompt_Command, Filtered, True);
+                                          end;
                                        end if;
                                     end;
                                  elsif Text = "New" then
@@ -1286,15 +1336,21 @@ package body Coyote_App is
             Initiate_Shutdown;
          exception
             when Ex : Nine_P.Proto.P9_Error =>
-               if
-                 Ada.Exceptions.Exception_Message (Ex) /=
-                   "deleted window"
-               then
-                  Ada.Text_IO.Put_Line
-                    (Ada.Text_IO.Standard_Error,
-                     "Acme_Event_Task terminated: "
-                     & Ada.Exceptions.Exception_Information (Ex));
-               end if;
+               declare
+                  Msg : constant String :=
+                    Ada.Exceptions.Exception_Message (Ex);
+               begin
+                  --  "deleted window" and "file does not exist" both mean the
+                  --  acme window was closed; shut down silently in that case.
+                  if Msg /= "deleted window"
+                    and then Msg /= "file does not exist"
+                  then
+                     Ada.Text_IO.Put_Line
+                       (Ada.Text_IO.Standard_Error,
+                        "Acme_Event_Task terminated: "
+                        & Ada.Exceptions.Exception_Information (Ex));
+                  end if;
+               end;
                begin
                   Acme.Window.Append
                     (Win,

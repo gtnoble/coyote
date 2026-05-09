@@ -233,4 +233,36 @@ package Coyote_App_Tests is
    procedure Test_Format_Status_With_Context   (T : in out Test);
    procedure Test_Format_Status_With_Thinking  (T : in out Test);
 
+   --  ── Apply_Prompt_Filter ───────────────────────────────────────────────
+   --  Apply_Prompt_Filter pipes the raw prompt through $SHELL -c <Filter>.
+   --  When Filter is empty the raw prompt is returned unchanged (no Warn_Buf).
+   --  On filter success the trimmed stdout is returned.
+   --  On non-zero exit, empty stdout, or exception, Raw is returned and
+   --  Warn_Buf carries a descriptive message.
+
+   --  Empty filter returns raw prompt unchanged with empty Warn_Buf.
+   procedure Test_Apply_Filter_Empty_Filter      (T : in out Test);
+
+   --  Filter that echoes input produces trimmed output.
+   procedure Test_Apply_Filter_Echo              (T : in out Test);
+
+   --  Filter that transforms input (e.g. uppercase).
+   procedure Test_Apply_Filter_Transform         (T : in out Test);
+
+   --  Filter with non-zero exit falls back to raw with warning.
+   procedure Test_Apply_Filter_Non_Zero_Exit     (T : in out Test);
+
+   --  Filter that emits empty stdout falls back to raw with warning.
+   procedure Test_Apply_Filter_Empty_Output      (T : in out Test);
+
+   --  Filter output is trimmed of leading/trailing whitespace.
+   procedure Test_Apply_Filter_Trims_Whitespace  (T : in out Test);
+
+   --  ── App_State Prompt_Filter ───────────────────────────────────────────
+   --  Prompt_Filter is stored in App_State so that Acme_Event_Task (a
+   --  separate task from Agent_Task) can read it at Send/Steer time.
+
+   procedure Test_State_Prompt_Filter_Initial    (T : in out Test);
+   procedure Test_State_Prompt_Filter_Round_Trip (T : in out Test);
+
 end Coyote_App_Tests;

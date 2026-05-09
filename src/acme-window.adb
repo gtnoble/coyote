@@ -98,12 +98,8 @@ package body Acme.Window is
          Write_Win_File (FS, W.Win_Id, "addr", Addr);
          Write_Win_File (FS, W.Win_Id, "data", Data);
       exception
-         when Ex : others =>
+         when others =>
             W.Mutex.Release;
-            Ada.Text_IO.Put_Line
-              (Ada.Text_IO.Standard_Error,
-               "Atomic_Write failed: "
-               & Ada.Exceptions.Exception_Information (Ex));
             raise;
       end;
       W.Mutex.Release;

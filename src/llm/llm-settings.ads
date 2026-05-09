@@ -20,6 +20,10 @@ package LLM.Settings is
       Default_Model        : Ada.Strings.Unbounded.Unbounded_String;
       Default_Thinking     : Ada.Strings.Unbounded.Unbounded_String;
       Append_System_Prompt : Ada.Strings.Unbounded.Unbounded_String;
+      --  Shell command line through which interactive prompts are filtered
+      --  before being sent to the agent.  The raw prompt is written to stdin
+      --  and stdout is used as the filtered prompt.  Empty means no filter.
+      Prompt_Filter        : Ada.Strings.Unbounded.Unbounded_String;
    end record;
 
    --  Load ~/.coyote/settings.json.

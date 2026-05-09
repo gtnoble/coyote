@@ -328,4 +328,70 @@ package body LLM_Settings_Tests is
          raise;
    end Test_Resolve_Api_Key_Default_Env;
 
+   procedure Test_Prompt_Filter_Loaded (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home         : constant String  := "/tmp/coyote_llm_settings_test_8";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String  :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Loaded       : LLM.Settings.Settings;
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+
+      Write_File
+        (Home & "/.coyote/settings.json",
+         "{""promptFilter"":""m4 -""}");
+
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Loaded := LLM.Settings.Load_Settings;
+
+      Assert
+        (To_String (Loaded.Prompt_Filter) = "m4 -",
+         "promptFilter should be loaded from settings.json");
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Prompt_Filter_Loaded;
+
+   procedure Test_Prompt_Filter_Missing (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home         : constant String  := "/tmp/coyote_llm_settings_test_9";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String  :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Loaded       : LLM.Settings.Settings;
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+
+      Write_File
+        (Home & "/.coyote/settings.json",
+         "{""defaultModel"":""x/y""}");
+
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Loaded := LLM.Settings.Load_Settings;
+
+      Assert
+        (To_String (Loaded.Prompt_Filter) = "",
+         "Prompt_Filter should default to the empty string when absent");
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Prompt_Filter_Missing;
+
 end LLM_Settings_Tests;

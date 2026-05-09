@@ -13,4 +13,10 @@ package LLM_Settings_Tests is
    procedure Test_Append_System_Prompt_Missing (T : in out Test);
    procedure Test_Append_Prompt_In_Built_Prompt (T : in out Test);
 
+   --  promptFilter field round-trips through Load_Settings.
+   procedure Test_Prompt_Filter_Loaded (T : in out Test);
+
+   --  Absent promptFilter field defaults to the empty string.
+   procedure Test_Prompt_Filter_Missing (T : in out Test);
+
 end LLM_Settings_Tests;

@@ -819,6 +819,34 @@ package body Test_Suites is
         ("Format_Status: thinking level shown as "" ~level""",
          Coyote_App_Tests.Test_Format_Status_With_Thinking'Access));
 
+      --  Apply_Prompt_Filter
+      Result.Add_Test (App_State_Caller.Create
+        ("Apply_Prompt_Filter: empty filter returns raw unchanged",
+         Coyote_App_Tests.Test_Apply_Filter_Empty_Filter'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Apply_Prompt_Filter: cat filter echoes prompt back",
+         Coyote_App_Tests.Test_Apply_Filter_Echo'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Apply_Prompt_Filter: tr filter transforms prompt to uppercase",
+         Coyote_App_Tests.Test_Apply_Filter_Transform'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Apply_Prompt_Filter: non-zero exit falls back to raw with warning",
+         Coyote_App_Tests.Test_Apply_Filter_Non_Zero_Exit'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Apply_Prompt_Filter: empty stdout falls back to raw with warning",
+         Coyote_App_Tests.Test_Apply_Filter_Empty_Output'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Apply_Prompt_Filter: output is trimmed of surrounding whitespace",
+         Coyote_App_Tests.Test_Apply_Filter_Trims_Whitespace'Access));
+
+      --  App_State Prompt_Filter
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Prompt_Filter initial value is empty",
+         Coyote_App_Tests.Test_State_Prompt_Filter_Initial'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Prompt_Filter round-trip via Set_Prompt_Filter",
+         Coyote_App_Tests.Test_State_Prompt_Filter_Round_Trip'Access));
+
       --  Session_History integration tests (require live acme)
       Result.Add_Test (Session_History_Caller.Create
         ("[integration] Render: file not found writes error",
@@ -1167,6 +1195,12 @@ package body Test_Suites is
       Result.Add_Test (LLM_Settings_Caller.Create
         ("LLM.Settings Resolve_Api_Key falls back to standard env map",
          LLM_Settings_Tests.Test_Resolve_Api_Key_Default_Env'Access));
+      Result.Add_Test (LLM_Settings_Caller.Create
+        ("LLM.Settings loads promptFilter from settings.json",
+         LLM_Settings_Tests.Test_Prompt_Filter_Loaded'Access));
+      Result.Add_Test (LLM_Settings_Caller.Create
+        ("LLM.Settings Prompt_Filter defaults to empty when absent",
+         LLM_Settings_Tests.Test_Prompt_Filter_Missing'Access));
 
       --  LLM.Types tests
       Result.Add_Test (LLM_Types_Caller.Create

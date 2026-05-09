@@ -214,8 +214,11 @@ package body LLM.Settings is
            To_Unbounded_String
              (Get_String_Field (Root, "defaultThinkingLevel")),
          Append_System_Prompt =>
-           To_Unbounded_String (Get_String_Field
-             (Root, "appendSystemPrompt")));
+           To_Unbounded_String
+             (Get_String_Field (Root, "appendSystemPrompt")),
+         Prompt_Filter =>
+           To_Unbounded_String
+             (Get_String_Field (Root, "promptFilter")));
    end Load_Settings;
 
    function Resolve_Api_Key (Provider : String) return String is

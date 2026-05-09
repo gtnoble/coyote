@@ -76,6 +76,9 @@ package Coyote_App is
       function Session_Cache_Write   return Natural;
       function Session_Total_Tokens  return Natural;
       function Win_Name              return String;
+      --  Effective prompt filter command (CLI flag overrides settings.json).
+      --  Empty when no filter is configured.
+      function Prompt_Filter         return String;
 
       --  Writers
       procedure Set_Session_Id     (Id    : String);
@@ -106,6 +109,7 @@ package Coyote_App is
          Cache_Write : Natural;
          Total       : Natural);
       procedure Set_Win_Name       (Name  : String);
+      procedure Set_Prompt_Filter  (Cmd   : String);
 
       --  Turn counter — incremented after each completed agent turn,
       --  reset on new_session, and restored from history on session reload.
@@ -155,6 +159,7 @@ package Coyote_App is
       P_Sess_Cache_W  : Natural := 0;
       P_Sess_Total    : Natural := 0;
       P_Win_Name      : Ada.Strings.Unbounded.Unbounded_String;
+      P_Prompt_Filter : Ada.Strings.Unbounded.Unbounded_String;
       P_Shutdown      : Boolean := False;
       P_Turn_Count    : Natural := 0;
       --  One-shot result (empty until set)
@@ -179,6 +184,10 @@ package Coyote_App is
       --  Optional short label appended to the window name as ":Name" so the
       --  acme tagline reads "CWD/+coyote:Name | …".  Empty means no suffix.
       Name           : Ada.Strings.Unbounded.Unbounded_String;
+      --  Shell command through which interactive prompts are filtered before
+      --  being sent to the agent.  CLI flag wins over settings.json.
+      --  Empty means no filter.
+      Prompt_Filter  : Ada.Strings.Unbounded.Unbounded_String;
    end record;
 
    --  ── Section_Kind ─────────────────────────────────────────────────────

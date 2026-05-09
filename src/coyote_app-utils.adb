@@ -4,6 +4,8 @@
 --  For revision history, see the project version-control log.
 
 with Ada.Directories;
+with Ada.Environment_Variables;
+with Ada.Exceptions;
 with Ada.Streams.Stream_IO;
 with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
 with GNAT.SHA256;
@@ -477,7 +479,125 @@ package body Coyote_App.Utils is
       return "";
    end Extract_Plumb_Data;
 
-   --  ── Turn footer builders ─────────────────────────────────────────────
+   --  ── Apply_Prompt_Filter ───────────────────────────────────────────────
+   --
+   --  Pipe Raw through the shell command Filter and return stdout.
+   --  Falls back to Raw on any error, populating Warn_Buf with a message.
+
+   function Apply_Prompt_Filter
+     (Raw      : String;
+      Filter   : String;
+      Warn_Buf : out Ada.Strings.Unbounded.Unbounded_String) return String
+   is
+      use GNATCOLL.OS.FS;
+      use GNATCOLL.OS.Process;
+   begin
+      Warn_Buf := Null_Unbounded_String;
+
+      if Filter'Length = 0 then
+         return Raw;
+      end if;
+
+      declare
+         Stdin_R,  Stdin_W  : File_Descriptor;
+         Stdout_R, Stdout_W : File_Descriptor;
+         Stderr_Null        : constant File_Descriptor :=
+           Open (Null_File, Write_Mode);
+         Args               : Argument_List;
+         Handle             : Process_Handle;
+         Exit_Code          : Integer;
+         Output_Buf         : Unbounded_String;
+         Chunk              : String (1 .. 4_096);
+         N                  : Integer;
+      begin
+         Open_Pipe (Stdin_R,  Stdin_W);
+         Open_Pipe (Stdout_R, Stdout_W);
+
+         declare
+            Shell : constant String :=
+              Ada.Environment_Variables.Value ("SHELL", "sh");
+         begin
+            Args.Append (Shell);
+         end;
+         Args.Append ("-c");
+         Args.Append (Filter);
+
+         Handle := Start
+           (Args   => Args,
+            Stdin  => Stdin_R,
+            Stdout => Stdout_W,
+            Stderr => Stderr_Null);
+
+         Close (Stdin_R);
+         Close (Stdout_W);
+         Close (Stderr_Null);
+
+         --  Write the raw prompt to the child's stdin then close the pipe
+         --  so the child sees EOF.
+         declare
+            Bytes_Written : Integer;
+            pragma Unreferenced (Bytes_Written);
+         begin
+            Bytes_Written := Write (Stdin_W, Raw);
+         end;
+         Close (Stdin_W);
+
+         --  Read child stdout.
+         loop
+            N := Read (Stdout_R, Chunk);
+            exit when N <= 0;
+            Append (Output_Buf, Chunk (1 .. N));
+         end loop;
+         Close (Stdout_R);
+
+         Exit_Code := Wait (Handle);
+
+         if Exit_Code /= 0 then
+            Warn_Buf :=
+              To_Unbounded_String
+                ("prompt filter exited with status "
+                 & Natural_Image (Natural (Exit_Code))
+                 & " -- sending raw prompt");
+            return Raw;
+         end if;
+
+         --  Trim leading/trailing whitespace from the output.
+         declare
+            Output : constant String := To_String (Output_Buf);
+            First  : Natural         := Output'First;
+            Last   : Natural         := Output'Last;
+         begin
+            while First <= Last
+              and then Output (First) in ' ' | ASCII.HT | ASCII.LF | ASCII.CR
+            loop
+               First := First + 1;
+            end loop;
+            while Last >= First
+              and then Output (Last) in ' ' | ASCII.HT | ASCII.LF | ASCII.CR
+            loop
+               Last := Last - 1;
+            end loop;
+
+            if First > Last then
+               Warn_Buf :=
+                 To_Unbounded_String
+                   ("prompt filter returned empty output"
+                    & " -- sending raw prompt");
+               return Raw;
+            end if;
+
+            return Output (First .. Last);
+         end;
+      end;
+   exception
+      when Ex : others =>
+         Warn_Buf :=
+           To_Unbounded_String
+             ("prompt filter failed: "
+              & Ada.Exceptions.Exception_Message (Ex)
+              & " -- sending raw prompt");
+         return Raw;
+   end Apply_Prompt_Filter;
 
    function Format_Turn_Summary
      (Input_Tokens      : Natural;

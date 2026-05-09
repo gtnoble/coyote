@@ -16,6 +16,18 @@ Three executables are built:
 - `bin/coyote_open` — opens a tool-call detail window; launched by the plumber
   for `coyote-session+UUID/tool/TOKEN` links
 
+## Documentation
+
+- `docs/agent-definitions.md` — full reference for the `AGENT.md` file format
+  (frontmatter fields, body, discovery roots, shadowing, usage with `--agent`
+  and `spawn_subagent`)
+- `docs/skills.md` — full reference for the `SKILL.md` file format
+  (frontmatter fields, discovery roots, shadowing, writing effective
+  descriptions and bodies)
+
+When authoring or editing a `SKILL.md` or `AGENT.md` for this project, load
+the `coyote-skill-author` skill for a condensed quick-reference.
+
 ## Language & Build System
 
 - **Language:** Ada 2022 (GNAT/GCC)
