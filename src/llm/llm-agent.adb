@@ -630,6 +630,74 @@ package body LLM.Agent is
       end loop;
    end Delay_With_Abort;
 
+   --  Natural'Image without the leading space.
+   function Natural_Image (N : Natural) return String is
+      Img : constant String := Natural'Image (N);
+   begin
+      return Img (Img'First + 1 .. Img'Last);
+   end Natural_Image;
+
+   --  Format a Long_Float with at most two decimal places, trailing zeros
+   --  stripped.  Only used internally for SI-prefixed token counts and
+   --  cost strings.
+   function Format_Compact (V : Long_Float) return String is
+      Total     : constant Natural :=
+        Natural (Long_Float'Rounding (V * 100.0));
+      Int_Part  : constant Natural  := Total / 100;
+      Frac_Part : constant Natural  := Total mod 100;
+      D1        : constant Character :=
+        Character'Val (Character'Pos ('0') + Frac_Part / 10);
+      D2        : constant Character :=
+        Character'Val (Character'Pos ('0') + Frac_Part mod 10);
+   begin
+      if Frac_Part = 0 then
+         return Natural_Image (Int_Part);
+      elsif Frac_Part mod 10 = 0 then
+         return Natural_Image (Int_Part) & "." & (1 => D1);
+      else
+         return Natural_Image (Int_Part) & "." & (D1 & D2);
+      end if;
+   end Format_Compact;
+
+   --  Format a token count with an SI prefix (k / M / G).
+   function Token_Image (N : Natural) return String is
+      V : constant Long_Float := Long_Float (N);
+   begin
+      if N >= 1_000_000_000 then
+         return Format_Compact (V / 1_000_000_000.0) & "G";
+      elsif N >= 1_000_000 then
+         return Format_Compact (V / 1_000_000.0) & "M";
+      elsif N >= 1_000 then
+         return Format_Compact (V / 1_000.0) & "k";
+      else
+         return Natural_Image (N);
+      end if;
+   end Token_Image;
+
+   --  Format a cost in deci-milli-dollar units as "$X.YYYY".
+   function Cost_Image (Dmil : Natural) return String is
+
+      function Pad4 (N : Natural) return String is
+         Buf : String (1 .. 4) := "0000";
+         V   : Natural         := N;
+      begin
+         Buf (4) := Character'Val (Character'Pos ('0') + V mod 10);
+         V       := V / 10;
+         Buf (3) := Character'Val (Character'Pos ('0') + V mod 10);
+         V       := V / 10;
+         Buf (2) := Character'Val (Character'Pos ('0') + V mod 10);
+         V       := V / 10;
+         Buf (1) := Character'Val (Character'Pos ('0') + V mod 10);
+         return Buf;
+      end Pad4;
+
+   begin
+      return "$"
+        & Natural_Image (Dmil / 10_000)
+        & "."
+        & Pad4 (Dmil mod 10_000);
+   end Cost_Image;
+
    function Usage_Cost_Dollars
      (Tok_Usage : LLM.Types.Usage;
       Rates     : LLM.Types.Model_Cost) return Long_Float
@@ -652,27 +720,91 @@ package body LLM.Agent is
       return Natural (Long_Float'Floor (Cost * 10_000.0 + 0.5));
    end Usage_Cost_Dmil;
 
-   function Session_Stats
-     (S : Session) return LLM.Events.Session_Stats_Event
+   --  Build the [coyote: ...] stats footer appended to the last tool result
+   --  in each batch so the model can track context consumption and cost.
+   --
+   --  Turn_Usage is the Tok_Usage from the most recent Message_End_Event.
+   --  S.History is the in-memory transcript before the current assistant
+   --  message has been appended.  Turn_Usage is included in the session
+   --  totals explicitly so the model sees the up-to-date running sums.
+   --
+   --  Returns "" when Turn_Usage is all zeros (no token data available).
+   --  The cost segment is omitted when the active model has no pricing.
+   function Format_Session_Cost_Footer
+     (S          : Session;
+      Turn_Usage : LLM.Types.Usage) return String
    is
-      Totals                 : LLM.Types.Usage := (others => 0);
-      Latest_Assistant_Usage : LLM.Types.Usage := (others => 0);
-      Saw_Assistant          : Boolean         := False;
-      Total_Cost            : Long_Float      := 0.0;
+      Turn_Input  : constant Natural :=
+        Turn_Usage.Input
+        + Turn_Usage.Cache_Read
+        + Turn_Usage.Cache_Write;
+      Turn_Output : constant Natural := Turn_Usage.Output;
+      Sess_Input  : Natural          := Turn_Input;
+      Sess_Output : Natural          := Turn_Output;
+      Sess_Cost   : Long_Float       := 0.0;
+      Has_Cost    : constant Boolean :=
+        S.Model_Info.Cost.Input > 0.0
+        or else S.Model_Info.Cost.Output > 0.0;
+      Footer      : Unbounded_String;
    begin
-      for Msg of S.History loop
-         Totals := Totals + Msg.Tok_Usage;
+      if Turn_Input = 0 and then Turn_Output = 0 then
+         return "";
+      end if;
 
+      --  Accumulate session-wide totals from history.  The current turn's
+      --  assistant message has not yet been appended to S.History at the
+      --  call site, so Turn_Usage is added to the running sums above.
+      for Msg of S.History loop
+         Sess_Input  :=
+           Sess_Input
+           + Msg.Tok_Usage.Input
+           + Msg.Tok_Usage.Cache_Read
+           + Msg.Tok_Usage.Cache_Write;
+         Sess_Output := Sess_Output + Msg.Tok_Usage.Output;
          if Msg.Role = LLM.Types.Assistant then
-            Latest_Assistant_Usage := Msg.Tok_Usage;
-            Saw_Assistant := True;
+            Sess_Cost :=
+              Sess_Cost
+              + Usage_Cost_Dollars (Msg.Tok_Usage, S.Model_Info.Cost);
          end if;
       end loop;
 
-      if Saw_Assistant then
-         Total_Cost :=
-           Usage_Cost_Dollars (Latest_Assistant_Usage, S.Model_Info.Cost);
+      if Has_Cost then
+         Sess_Cost :=
+           Sess_Cost + Usage_Cost_Dollars (Turn_Usage, S.Model_Info.Cost);
       end if;
+
+      Append (Footer, "[coyote: turn=");
+      Append (Footer, Token_Image (Turn_Input) & "in/");
+      Append (Footer, Token_Image (Turn_Output) & "out");
+      Append (Footer, " session=");
+      Append (Footer, Token_Image (Sess_Input) & "in/");
+      Append (Footer, Token_Image (Sess_Output) & "out");
+      if Has_Cost then
+         declare
+            Cost_Dmil : constant Natural :=
+              Natural (Long_Float'Floor (Sess_Cost * 10_000.0 + 0.5));
+         begin
+            Append (Footer, " cost~" & Cost_Image (Cost_Dmil));
+         end;
+      end if;
+      Append (Footer, "]");
+      return To_String (Footer);
+   end Format_Session_Cost_Footer;
+
+   function Session_Stats
+     (S : Session) return LLM.Events.Session_Stats_Event
+   is
+      Totals     : LLM.Types.Usage := (others => 0);
+      Total_Cost : Long_Float      := 0.0;
+   begin
+      for Msg of S.History loop
+         Totals := Totals + Msg.Tok_Usage;
+         if Msg.Role = LLM.Types.Assistant then
+            Total_Cost :=
+              Total_Cost
+              + Usage_Cost_Dollars (Msg.Tok_Usage, S.Model_Info.Cost);
+         end if;
+      end loop;
 
       return
         (LLM.Events.Agent_Event with
@@ -1388,31 +1520,48 @@ package body LLM.Agent is
 
                   --  Phase 3: emit Tool_Execution_End_Event for every tool in
                   --  the original call order, then build the Tool_Messages
-                  --  batch.
-                  for I in 1 .. N loop
-                     declare
-                        Tool_Block : constant Pending_Tool :=
-                          Pending_Tools.Element (I - 1);
-                        Slot       : constant Tool_Result_Slot :=
-                          Store.Get (I);
-                        End_Event  : constant
-                          LLM.Events.Tool_Execution_End_Event :=
-                            (LLM.Events.Agent_Event with
-                             Tool_Call_Id => Tool_Block.Tool_Call_Id,
-                             Tool_Name    => Tool_Block.Tool_Name,
-                             Result_Text  => Slot.Result_Text,
-                             Is_Error     => Slot.Is_Error);
-                     begin
-                        Emit (On_Event, End_Event);
-                        Tool_Messages.Append
-                          (Tool_Result_Message
-                             (Tool_Call_Id => Ada.Strings.Unbounded.To_String
-                                (Tool_Block.Tool_Call_Id),
-                              Result_Text  => Ada.Strings.Unbounded.To_String
-                                (Slot.Result_Text),
-                              Is_Error     => Slot.Is_Error));
-                     end;
-                  end loop;
+                  --  batch.  The stats footer is appended to the persisted
+                  --  result text of the last tool so the model can track
+                  --  token consumption and cost across turns.
+                  declare
+                     Stats_Footer : constant String :=
+                       Format_Session_Cost_Footer (S, Builder.Tok_Usage);
+                  begin
+                     for I in 1 .. N loop
+                        declare
+                           Tool_Block  : constant Pending_Tool :=
+                             Pending_Tools.Element (I - 1);
+                           Slot        : constant Tool_Result_Slot :=
+                             Store.Get (I);
+                           End_Event   : constant
+                             LLM.Events.Tool_Execution_End_Event :=
+                               (LLM.Events.Agent_Event with
+                                Tool_Call_Id => Tool_Block.Tool_Call_Id,
+                                Tool_Name    => Tool_Block.Tool_Name,
+                                Result_Text  => Slot.Result_Text,
+                                Is_Error     => Slot.Is_Error);
+                           --  Append footer to the stored text of the last
+                           --  tool only.  The UI event always shows the raw
+                           --  tool output so the footer does not clutter
+                           --  the error preview or the tool result panel.
+                           Stored_Text : constant String :=
+                             Ada.Strings.Unbounded.To_String
+                               (Slot.Result_Text)
+                             & (if I = N and then Stats_Footer'Length > 0
+                                then ASCII.LF & Stats_Footer
+                                else "");
+                        begin
+                           Emit (On_Event, End_Event);
+                           Tool_Messages.Append
+                             (Tool_Result_Message
+                                (Tool_Call_Id =>
+                                   Ada.Strings.Unbounded.To_String
+                                     (Tool_Block.Tool_Call_Id),
+                                 Result_Text  => Stored_Text,
+                                 Is_Error     => Slot.Is_Error));
+                        end;
+                     end loop;
+                  end;
 
                   Append_Pending_Message (Reply);
                   Append_Pending_Batch (Tool_Messages);

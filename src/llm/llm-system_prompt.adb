@@ -272,7 +272,11 @@ package body LLM.System_Prompt is
                & ASCII.LF
                & "- Be concise in your responses"
                & ASCII.LF
-               & "- Show file paths clearly when working with files");
+               & "- Show file paths clearly when working with files"
+               & ASCII.LF
+               & "- Each tool batch appends a [coyote: turn=...in/...out"
+               & " session=...in/...out] footer to the last result;"
+               & " use this to monitor token consumption and cost");
          end if;
       else
          Append (Result, Agent_Def);

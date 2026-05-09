@@ -10,7 +10,7 @@ Sessions are stored in a JSONL format compatible with [pi](https://github.com/ma
 - **Built-in tools** — `bash`, `read`, `write`, `edit`, `find`, `glob`, and `spawn_subagent`
 - **Multiple providers** — OpenAI Chat Completions, Anthropic Messages, OpenRouter, and GitHub Copilot
 - **Context compaction** — automatic or manual summarisation of older conversation history to stay within model context windows
-- **Plumber integration** — switch model, session, or thinking level by button-3 clicking `model://`, `session://`, or `thinking://` URIs in any acme window; button-3 a `fork+` token at the end of any turn to branch the session at that point
+- **Plumber integration** — switch model or thinking level by button-3 clicking `coyote-model+` or `coyote-thinking+` tokens in any acme window; button-3 a `coyote-session+` token to open a session in a new window; button-3 a `coyote-fork+` token at the end of any turn to branch the session at that point
 - **Session persistence** — conversations saved to `~/.coyote/sessions/` as JSONL files
 - **Subagent support** — `spawn_subagent` opens a child `+coyote:<label>` window for parallel tasks
 
@@ -67,7 +67,10 @@ Once running, the `+coyote` window tag contains:
 | `Stop` | Abort the currently-running agent turn |
 | `New` | Start a fresh session |
 | `Clear` | Clear the window body |
-| `Models` | Open a `+models` sub-window listing available models as `model://` URIs |
+| `Models` | Open a `+models` sub-window listing available models as `coyote-model+PID/PROVIDER/ID` tokens |
+| `Sessions` | Open a `+sessions` sub-window listing saved sessions for the current directory |
+| `Thinking` | Open a `+thinking` sub-window with clickable `coyote-thinking+PID/LEVEL` tokens |
+| `Stats` | Open a `+stats` sub-window with current session token usage and cost |
 
 ### Session listing
 
@@ -78,10 +81,10 @@ coyote_list_sessions
 Prints sessions for the current working directory as tab-separated lines:
 
 ```
-session://UUID    name    date
+coyote-session+UUID    name    date    snippet
 ```
 
-Button-3 any `session://` URI in acme (with the `/pi-session` plumber rule active) to resume that session.
+Button-3 any `coyote-session+` token in acme (with the coyote plumber rule active) to launch a new `coyote --session UUID` process for that session.
 
 ## Configuration
 
@@ -285,27 +288,27 @@ To invoke an agent definition use `--agent NAME` on the command line, or pass th
 
 Coyote listens on three plumb ports:
 
-| Port | URI format | Action |
+| Port | Token format | Action |
 |---|---|---|
-| `/pi-model` | `model://provider/model-id` | Switch the active model |
-| `/pi-session` | `session://UUID` | Load an existing session |
-| `/pi-thinking` | `thinking://level` | Set the reasoning level (`off`, `low`, `medium`, `high`, …) |
-| `/pi-fork` | `fork+PID/UUID/N` | Fork the session at turn N and open it in a new window |
+| `/coyote-model` | `coyote-model+PID/PROVIDER/ID` | Switch the active model in the running instance identified by PID |
+| `/coyote-thinking` | `coyote-thinking+PID/LEVEL` | Set the reasoning level (`low`, `medium`, `high`) |
+| `/coyote-fork` | `coyote-fork+PID/UUID/N` | Fork the session at turn N and open it in a new window |
 
-Button-3 any matching URI in any acme window to trigger a switch.
+Session tokens (`coyote-session+UUID`) are emitted by `coyote_list_sessions` and in the `+sessions` sub-window. The plumber rule for them launches a fresh `coyote --session UUID` process rather than routing to a running instance — no running coyote window is required.
+
+Button-3 any matching token in any acme window to trigger the action.
 
 ## Architecture
 
-`Coyote_App.Run` drives the application with six concurrent Ada tasks:
+`Coyote_App.Run` drives the application with five concurrent Ada tasks:
 
 | Task | Responsibility |
 |---|---|
 | `Agent_Task` | Owns the `LLM.Agent.Session`, drives prompts, calls `Dispatch_Event` to render each streaming event into the acme window |
-| `Acme_Event_Task` | Reads the acme event file via 9P; handles `Send`, `Stop`, `New`, `Clear`, `Models` tag commands |
-| `Plumb_Model_Task` | Reads the `/pi-model` plumb port; calls `LLM.Agent.Set_Model` |
-| `Plumb_Session_Task` | Reads the `/pi-session` plumb port; calls `LLM.Agent.Switch_Session` |
-| `Plumb_Thinking_Task` | Reads the `/pi-thinking` plumb port; calls `LLM.Agent.Set_Thinking` |
-| `Plumb_Fork_Task` | Reads the `/pi-fork` plumb port; forks the session at the requested turn and spawns a new coyote window |
+| `Acme_Event_Task` | Reads the acme event file via 9P; handles `Send`, `Stop`, `New`, `Clear`, `Models`, `Sessions`, `Thinking`, `Stats` tag commands |
+| `Plumb_Model_Task` | Reads the `/coyote-model` plumb port; calls `LLM.Agent.Set_Model` |
+| `Plumb_Thinking_Task` | Reads the `/coyote-thinking` plumb port; calls `LLM.Agent.Set_Thinking` |
+| `Plumb_Fork_Task` | Reads the `/coyote-fork` plumb port; forks the session at the requested turn and spawns a new coyote window |
 
 All shared mutable state lives in `App_State`, a protected object. Each task opens its own 9P connection to avoid cross-task contention.
 

@@ -912,6 +912,8 @@ package body Coyote_App is
                   declare
                      Name  : constant String :=
                        To_String (Model.Name);
+                     Ctx   : constant String :=
+                       Format_SI_Count (Model.Context_Window) & " ctx";
                      Price : constant String :=
                        Format_Model_Price
                          (Input_Per_MTok       => Model.Cost.Input,
@@ -925,6 +927,7 @@ package body Coyote_App is
                         & To_String (Model.Provider) & "/"
                         & To_String (Model.Model_Id)
                         & ASCII.HT & Name
+                        & ASCII.HT & Ctx
                         & (if Price'Length > 0
                            then ASCII.HT & Price
                            else "")

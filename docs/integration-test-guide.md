@@ -39,7 +39,7 @@ clear skipped/disabled message.
 ## Running the Full Default Test Suite
 
 ```sh
-cd /home/gtnoble/Projects/pi_acme_dev/test
+cd /home/gtnoble/Projects/coyote/test
 alr run coyote_test
 ```
 
@@ -51,7 +51,7 @@ This command should remain safe without any live credentials.
 export COYOTE_RUN_OPENROUTER_LIVE=1
 export OPENROUTER_API_KEY=your-key-here
 
-cd /home/gtnoble/Projects/pi_acme_dev/test
+cd /home/gtnoble/Projects/coyote/test
 alr run coyote_test
 ```
 
@@ -61,7 +61,7 @@ alr run coyote_test
 export COYOTE_RUN_ANTHROPIC_LIVE=1
 export ANTHROPIC_API_KEY=your-key-here
 
-cd /home/gtnoble/Projects/pi_acme_dev/test
+cd /home/gtnoble/Projects/coyote/test
 alr run coyote_test
 ```
 
@@ -73,7 +73,7 @@ state (`~/.pi/agent/auth.json`) rather than embedding tokens in the test code.
 ```sh
 export COYOTE_RUN_GITHUB_COPILOT_LIVE=1
 
-cd /home/gtnoble/Projects/pi_acme_dev/test
+cd /home/gtnoble/Projects/coyote/test
 alr run coyote_test
 ```
 
@@ -88,7 +88,7 @@ ensure the Plan 9 environment is configured first:
 export PLAN9=/usr/local/plan9
 export COYOTE_RUN_ACME_LIVE=1
 
-cd /home/gtnoble/Projects/pi_acme_dev/test
+cd /home/gtnoble/Projects/coyote/test
 alr run coyote_test
 ```
 

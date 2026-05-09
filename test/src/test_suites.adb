@@ -1655,6 +1655,14 @@ package body Test_Suites is
         ("[live] LLM.Agent Compact summarises a GitHub Copilot conversation",
          LLM_Agent_Tests
            .Test_Compact_Live_Summarises_Conversation'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("Tool result contains [coyote: turn=...] stats footer",
+         LLM_Agent_Tests
+           .Test_Tool_Result_Has_Stats_Footer'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("Stats footer appears only on last tool in a batch",
+         LLM_Agent_Tests
+           .Test_Stats_Footer_Only_On_Last_Tool_In_Batch'Access));
       Result.Add_Test (LLM_Parallel_Caller.Create
         ("Parallel batch: two 0.4 s tools complete in < 0.75 s",
          LLM_Parallel_Tools_Tests

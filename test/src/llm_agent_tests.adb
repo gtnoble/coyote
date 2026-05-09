@@ -4366,4 +4366,289 @@ package body LLM_Agent_Tests is
       end;
    end Test_Compact_Live_Summarises_Conversation;
 
+   --  ── Test_Tool_Result_Has_Stats_Footer ────────────────────────────────
+   --
+   --  After a single tool call the persisted tool result text should end
+   --  with a [coyote: turn=...in/...out session=...in/...out...] footer.
+
+   procedure Test_Tool_Result_Has_Stats_Footer (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home           : constant String :=
+        "/tmp/coyote_llm_agent_footer_1";
+      Port           : constant Positive := 18_860;
+      Agent_Session  : LLM.Agent.Session;
+      Messages       : LLM.Types.Message_Vectors.Vector;
+      Server_Stopped : Boolean := False;
+      Home_Was_Set   : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home       : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Key_Was_Set    : constant Boolean :=
+        Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
+      Old_Key        : constant String :=
+        Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
+      Url_Was_Set    : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
+      Old_Url        : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
+
+      procedure Ignore_Event (E : LLM.Events.Agent_Event'Class) is
+         pragma Unreferenced (E);
+      begin
+         null;
+      end Ignore_Event;
+
+      Request_Count : aliased Natural := 0;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Request_Count := Request_Count + 1;
+         Res.Status := 200;
+         Add_SSE_Header (Res);
+
+         if Request_Count = 1 then
+            Append
+              (Res.Body_Data,
+               Tool_Call_SSE_Payload
+                 ((1 => Tool_Call_Def
+                    (Tool_Call_Id   => "call_footer_1",
+                     Tool_Name      => "bash",
+                     Arguments_Json => "{""command"":""echo footer-ok""}")),
+                  Prompt_Tokens     => 50,
+                  Completion_Tokens => 20));
+         else
+            Append (Res.Body_Data, Text_SSE_Payload ("Done", 10, 5));
+         end if;
+      end Handle_Request;
+
+      Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
+   begin
+      Prepare_Test_Home (Home);
+      Write_Minimal_OpenRouter_Cache (Home, "openai/gpt-4o-mini");
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Set ("OPENROUTER_API_KEY", "test-key");
+      Ada.Environment_Variables.Set
+        ("COYOTE_OPENROUTER_BASE_URL",
+         "http://127.0.0.1:" & Natural_Image (Port) & "/api/v1");
+
+      LLM.Agent.Create
+        (S          => Agent_Session,
+         Model_Spec => "openrouter/openai/gpt-4o-mini",
+         No_Tools   => False);
+
+      Srv.Bind (Port);
+
+      LLM.Agent.Run_Prompt
+        (S        => Agent_Session,
+         Prompt   => "Use a tool",
+         On_Event => Ignore_Event'Access);
+
+      Srv.Stop;
+      Server_Stopped := True;
+
+      Messages := LLM.Session_Store.Load_Messages
+        (LLM.Agent.Session_Id (Agent_Session));
+
+      --  Messages: user, assistant tool call, tool result, assistant reply.
+      Assert
+        (Messages.Length = 4,
+         "Footer test: expected 4 messages");
+      Assert
+        (Messages.Element (2).Role = LLM.Types.Tool_Result,
+         "Footer test: third message should be the tool result");
+
+      declare
+         Result_Text : constant String :=
+           To_String
+             (Messages.Element (2).Content.Element (0).Result_Text);
+      begin
+         Assert
+           (Ada.Strings.Fixed.Index (Result_Text, "footer-ok") > 0,
+            "Footer test: tool output should be present in result text");
+         Assert
+           (Ada.Strings.Fixed.Index (Result_Text, "[coyote: turn=") > 0,
+            "Footer test: stats footer should be present in result text");
+         Assert
+           (Ada.Strings.Fixed.Index (Result_Text, "in/") > 0,
+            "Footer test: in/ token separator should be in footer");
+         Assert
+           (Ada.Strings.Fixed.Index (Result_Text, "out") > 0,
+            "Footer test: out token label should be in footer");
+         Assert
+           (Ada.Strings.Fixed.Index (Result_Text, "session=") > 0,
+            "Footer test: session= field should be in footer");
+         Assert
+           (Ada.Strings.Fixed.Index (Result_Text, "50in/20out") > 0
+            or else Ada.Strings.Fixed.Index (Result_Text, "turn=50in") > 0,
+            "Footer test: turn token counts should reflect SSE payload");
+      end;
+
+      Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
+      Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         if not Server_Stopped then
+            begin
+               Srv.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
+         Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
+         Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Tool_Result_Has_Stats_Footer;
+
+   --  ── Test_Stats_Footer_Only_On_Last_Tool_In_Batch ─────────────────────
+   --
+   --  In a two-tool batch only the last tool result should carry the stats
+   --  footer; the first should contain only its raw tool output.
+
+   procedure Test_Stats_Footer_Only_On_Last_Tool_In_Batch
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+
+      Home           : constant String :=
+        "/tmp/coyote_llm_agent_footer_2";
+      Port           : constant Positive := 18_861;
+      Agent_Session  : LLM.Agent.Session;
+      Messages       : LLM.Types.Message_Vectors.Vector;
+      Server_Stopped : Boolean := False;
+      Home_Was_Set   : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home       : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Key_Was_Set    : constant Boolean :=
+        Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
+      Old_Key        : constant String :=
+        Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
+      Url_Was_Set    : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
+      Old_Url        : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
+
+      procedure Ignore_Event (E : LLM.Events.Agent_Event'Class) is
+         pragma Unreferenced (E);
+      begin
+         null;
+      end Ignore_Event;
+
+      Request_Count : aliased Natural := 0;
+
+      Two_Tool_SSE : constant String :=
+        Tool_Call_SSE_Payload
+          ((1 => Tool_Call_Def
+             (Tool_Call_Id   => "call_f1",
+              Tool_Name      => "bash",
+              Arguments_Json => "{""command"":""printf first-ok""}"),
+            2 => Tool_Call_Def
+             (Tool_Call_Id   => "call_f2",
+              Tool_Name      => "bash",
+              Arguments_Json => "{""command"":""printf second-ok""}")),
+           Prompt_Tokens     => 30,
+           Completion_Tokens => 10);
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Request_Count := Request_Count + 1;
+         Res.Status := 200;
+         Add_SSE_Header (Res);
+
+         if Request_Count = 1 then
+            Append (Res.Body_Data, Two_Tool_SSE);
+         else
+            Append (Res.Body_Data, Text_SSE_Payload ("All done", 12, 4));
+         end if;
+      end Handle_Request;
+
+      Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
+   begin
+      Prepare_Test_Home (Home);
+      Write_Minimal_OpenRouter_Cache (Home, "openai/gpt-4o-mini");
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Set ("OPENROUTER_API_KEY", "test-key");
+      Ada.Environment_Variables.Set
+        ("COYOTE_OPENROUTER_BASE_URL",
+         "http://127.0.0.1:" & Natural_Image (Port) & "/api/v1");
+
+      LLM.Agent.Create
+        (S          => Agent_Session,
+         Model_Spec => "openrouter/openai/gpt-4o-mini",
+         No_Tools   => False);
+
+      Srv.Bind (Port);
+
+      LLM.Agent.Run_Prompt
+        (S        => Agent_Session,
+         Prompt   => "Use two tools",
+         On_Event => Ignore_Event'Access);
+
+      Srv.Stop;
+      Server_Stopped := True;
+
+      Messages := LLM.Session_Store.Load_Messages
+        (LLM.Agent.Session_Id (Agent_Session));
+
+      --  Messages: user, assistant tool batch, first result,
+      --  second result, assistant reply.
+      Assert
+        (Messages.Length = 5,
+         "Two-tool footer test: expected 5 messages");
+
+      declare
+         First_Result  : constant String :=
+           To_String
+             (Messages.Element (2).Content.Element (0).Result_Text);
+         Second_Result : constant String :=
+           To_String
+             (Messages.Element (3).Content.Element (0).Result_Text);
+      begin
+         Assert
+           (Ada.Strings.Fixed.Index (First_Result, "first-ok") > 0,
+            "Two-tool footer: first tool output should be present");
+         Assert
+           (Ada.Strings.Fixed.Index (First_Result, "[coyote:") = 0,
+            "Two-tool footer: first tool result should NOT have the footer");
+         Assert
+           (Ada.Strings.Fixed.Index (Second_Result, "second-ok") > 0,
+            "Two-tool footer: second tool output should be present");
+         Assert
+           (Ada.Strings.Fixed.Index (Second_Result, "[coyote: turn=") > 0,
+            "Two-tool footer: second (last) result should have the footer");
+      end;
+
+      Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
+      Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         if not Server_Stopped then
+            begin
+               Srv.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
+         Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
+         Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Stats_Footer_Only_On_Last_Tool_In_Batch;
+
 end LLM_Agent_Tests;

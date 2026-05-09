@@ -54,5 +54,9 @@ package LLM_Agent_Tests is
      (T : in out Test);
    procedure Test_Compact_Live_Summarises_Conversation
      (T : in out Test);
+   procedure Test_Tool_Result_Has_Stats_Footer
+     (T : in out Test);
+   procedure Test_Stats_Footer_Only_On_Last_Tool_In_Batch
+     (T : in out Test);
 
 end LLM_Agent_Tests;

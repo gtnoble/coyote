@@ -46,9 +46,15 @@ Object files go to `obj/<profile>/`, binaries to `bin/`.
 ```
 src/
   coyote.adb            -- Entry point; parses --session / --model / --agent /
-                        --   --custom-prompt flags
+                        --   --custom-prompt / --no-tools / --no-session /
+                        --   --prompt / --one-shot / --name flags
   coyote_app.ads/.adb   -- App_State, options, acme/plumb tasks, Run procedure
   coyote_app-dispatch.ads/.adb -- Dispatch_Event: native LLM event → acme window
+  coyote_app-history.ads/.adb  -- Session JSONL replay into the acme window
+  coyote_app-utils.ads/.adb    -- Pure utility functions (formatting, token
+                        --   helpers, turn footer builders, JSON helpers)
+  coyote_utils.ads/.adb -- Small utilities shared across entry points
+                        --   (CLI arg resolution, session prefix stripping)
   acme.ads/.adb          -- Root package; Win_File_Path helper
   acme-window.ads/.adb   -- Acme window operations over Nine_P (Append, Ctl, etc.)
   acme-event_parser.ads/.adb  -- Parses acme event-file records
@@ -78,7 +84,12 @@ src/
     llm-tools.ads/.adb          -- Built-in tool descriptors and dispatcher
     llm-tools-bash.ads/.adb     -- bash tool implementation
     llm-tools-file_ops.ads/.adb -- read / write / edit / find / glob tools
+    llm-tools-internal.ads      -- Private POSIX bindings for tool implementations
     llm-tools-spawn_subagent.ads/.adb -- spawn_subagent tool implementation
+    llm-skills.ads/.adb         -- Skill discovery and system-prompt formatting
+    llm-system_prompt.ads/.adb  -- System prompt construction; context loading
+    llm-compaction.ads/.adb     -- Context compaction helpers (threshold,
+                        --   cut-point, serialisation, file-op tracking)
     llm-session_store.ads/.adb  -- JSONL session persistence
     llm-agent.ads/.adb          -- Native agentic loop
     llm-agent_defs.ads/.adb     -- Agent definition discovery, resolution, formatting
@@ -90,14 +101,15 @@ test/src/                -- AUnit-based test suite
 
 ## Architecture
 
-`Coyote_App.Run` drives the application with four long-lived Ada tasks:
+`Coyote_App.Run` drives the application with five long-lived Ada tasks:
 
 | Task | Responsibility |
 |---|---|
 | `Agent_Task` | Owns `LLM.Agent.Session`, drives prompts, and calls `Dispatch_Event` to render each `LLM.Events.Agent_Event'Class` value into the acme window |
-| `Acme_Event_Task` | Reads the acme window event file via 9P; handles Send/Stop/New/Clear tag commands |
+| `Acme_Event_Task` | Reads the acme window event file via 9P; handles Send/Stop/New/Clear/Models/Sessions/Thinking/Stats tag commands |
 | `Plumb_Model_Task` | Reads the `/coyote-model` plumb port; updates the active model via `LLM.Agent.Set_Model` |
 | `Plumb_Thinking_Task` | Reads the `/coyote-thinking` plumb port; updates the reasoning level via `LLM.Agent.Set_Thinking` |
+| `Plumb_Fork_Task` | Reads the `/coyote-fork` plumb port; forks the session at the requested turn and spawns a new `coyote` window |
 
 All shared mutable state lives in `App_State`, a protected object. Each task
 opens its own `Nine_P.Client.Fs` connection to avoid cross-task 9P contention.
