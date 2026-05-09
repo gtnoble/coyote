@@ -99,6 +99,9 @@ package LLM.Agent is
    --  Return the active session UUID.
    function Session_Id (S : Session) return String;
 
+   --  True once Run_Prompt has been called at least once.
+   function Has_Submitted_Prompts (S : Session) return Boolean;
+
    --  Return the normalised active model specification.
    function Current_Model_Spec (S : Session) return String;
 
@@ -142,6 +145,7 @@ private
       Compact_Settings : LLM.Compaction.Compact_Settings :=
         LLM.Compaction.Default_Compact_Settings;
       Last_Context_Tokens : Natural := 0;
+      Has_Submitted_Prompts : Boolean := False;
    end record;
 
 end LLM.Agent;

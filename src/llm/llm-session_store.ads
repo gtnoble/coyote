@@ -72,6 +72,12 @@ package LLM.Session_Store is
    --  Delegates to Session_Lister.Find_Session_File.
    function Session_File_Path (Session_Id : String) return String;
 
+   --  Delete the session JSONL file for Session_Id.
+   --
+   --  This is a no-op when the file does not exist.
+   --  Raises Session_Error on any deletion failure.
+   procedure Delete_Session (Session_Id : String);
+
    Session_Error : exception;
 
 end LLM.Session_Store;

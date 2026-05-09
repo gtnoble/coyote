@@ -724,6 +724,20 @@ package body LLM.Session_Store is
            "Create_Session failed: " & Ada.Exceptions.Exception_Message (Ex);
    end Create_Session;
 
+   procedure Delete_Session
+     (Session_Id : String)
+   is
+      Path : constant String := Session_File_Path (Session_Id);
+   begin
+      if Path'Length > 0 and then Ada.Directories.Exists (Path) then
+         Ada.Directories.Delete_File (Path);
+      end if;
+   exception
+      when Ex : others =>
+         raise Session_Error with
+           "Delete_Session failed: " & Ada.Exceptions.Exception_Message (Ex);
+   end Delete_Session;
+
    procedure Append_Message
      (Session_Id : String;
       Msg        : LLM.Types.Message)

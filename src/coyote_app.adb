@@ -18,6 +18,7 @@ with LLM.Agent_Defs;
 with LLM.Events;
 with LLM.Model_Registry;
 with LLM.Providers;
+with LLM.Session_Store;
 with LLM.Settings;
 with LLM.Types;
 with Nine_P;                 use Nine_P;
@@ -1746,6 +1747,27 @@ package body Coyote_App is
                   Ada.Text_IO.Put_Line (Write (Err));
                end;
             end if;
+         end;
+      end if;
+
+      --  ── Clean up empty sessions ───────────────────────────────────────
+      --  If this was a freshly-created session (not resumed) and no
+      --  prompts were ever submitted, delete the session file so it does
+      --  not clutter the session list.
+      if not Opts.One_Shot
+        and then not Opts.No_Session
+        and then Length (Opts.Session_Id) = 0
+        and then not LLM.Agent.Has_Submitted_Prompts (Agent_Session)
+      then
+         declare
+            S_Id : constant String := LLM.Agent.Session_Id (Agent_Session);
+         begin
+            if S_Id'Length > 0 then
+               LLM.Session_Store.Delete_Session (S_Id);
+            end if;
+         exception
+            when others =>
+               null;
          end;
       end if;
 

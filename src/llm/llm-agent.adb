@@ -1109,9 +1109,11 @@ package body LLM.Agent is
          S.History := LLM.Session_Store.Load_Messages (Session_Id);
          S.Last_Context_Tokens :=
            LLM.Compaction.Estimate_Context_Tokens (S.History);
+         S.Has_Submitted_Prompts := True;
       else
          S.Session_UUID := To_Unbounded_String
            (LLM.Session_Store.Create_Session (To_String (S.Cwd)));
+         S.Has_Submitted_Prompts := False;
       end if;
    end Create;
 
@@ -1411,6 +1413,7 @@ package body LLM.Agent is
    begin
       S.Abort_State.Clear;
       S.History.Append (Prompt_Msg);
+      S.Has_Submitted_Prompts := True;
       LLM.Session_Store.Append_Message
         (To_String (S.Session_UUID), Prompt_Msg);
 
@@ -1699,6 +1702,7 @@ package body LLM.Agent is
       S.Last_Context_Tokens := 0;
       S.Abort_State.Clear;
       S.Streaming := False;
+      S.Has_Submitted_Prompts := False;
    end New_Session;
 
    procedure Switch_Session (S : in out Session; UUID : String) is
@@ -1732,6 +1736,11 @@ package body LLM.Agent is
    begin
       return To_String (S.Session_UUID);
    end Session_Id;
+
+   function Has_Submitted_Prompts (S : Session) return Boolean is
+   begin
+      return S.Has_Submitted_Prompts;
+   end Has_Submitted_Prompts;
 
    function Current_Model_Spec (S : Session) return String is
    begin
