@@ -19,6 +19,22 @@ package Coyote_App.Dispatch is
      (State : App_State;
       Extra : String := "ready") return String;
 
+   --  Dynamic tag modes for Update_Tag.
+   type Tag_Mode is (Idle_Tag, Running_Tag, Armed_Tag, Paused_Tag);
+
+   --  Replace the acme window tag with the button set appropriate for Mode,
+   --  appending Suffix (e.g. " Models Sessions Thinking Stats").
+   --
+   --     Idle_Tag    →  | Send Steer New Compact Clear<Suffix>
+   --     Running_Tag →  | Stop Steer Pause<Suffix>
+   --     Armed_Tag   →  | Stop Steer Pausing<Suffix>
+   --     Paused_Tag  →  | Stop Steer Send Resume<Suffix>
+   procedure Update_Tag
+     (Win    : in out Acme.Window.Win;
+      FS     : not null access Nine_P.Client.Fs;
+      Mode   : Tag_Mode;
+      Suffix : String);
+
    --  Append the live end-of-turn footer to Win using the current values in
    --  State, and increment State.Turn_Count.
    procedure Append_Live_Turn_Footer

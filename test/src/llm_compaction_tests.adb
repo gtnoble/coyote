@@ -63,8 +63,9 @@ package body LLM_Compaction_Tests is
         ((Kind => LLM.Types.Text_Block,
           Text => To_Unbounded_String (Text)));
       Content.Append
-        ((Kind     => LLM.Types.Thinking_Block,
-          Thinking => To_Unbounded_String (Thinking)));
+        ((Kind      => LLM.Types.Thinking_Block,
+          Thinking  => To_Unbounded_String (Thinking),
+          Signature => Null_Unbounded_String));
       Content.Append
         ((Kind           => LLM.Types.Tool_Call_Block,
           Tool_Call_Id   => To_Unbounded_String ("call-1"),

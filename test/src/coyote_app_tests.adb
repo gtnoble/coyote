@@ -1791,4 +1791,70 @@ package body Coyote_App_Tests is
               "Prompt_Filter should update to empty string");
    end Test_State_Prompt_Filter_Round_Trip;
 
+   --  ── Is_Paused ─────────────────────────────────────────────────────────
+
+   procedure Test_State_Is_Paused_Initial (T : in out Test) is
+      pragma Unreferenced (T);
+      S : App_State;
+   begin
+      Assert (not S.Is_Paused, "Is_Paused should be False initially");
+   end Test_State_Is_Paused_Initial;
+
+   procedure Test_State_Is_Paused_Set_And_Clear (T : in out Test) is
+      pragma Unreferenced (T);
+      S : App_State;
+   begin
+      S.Set_Paused (True);
+      Assert (S.Is_Paused, "Is_Paused should be True after Set_Paused (True)");
+      S.Set_Paused (False);
+      Assert
+        (not S.Is_Paused,
+         "Is_Paused should be False after Set_Paused (False)");
+   end Test_State_Is_Paused_Set_And_Clear;
+
+   --  ── Is_Pause_Armed ────────────────────────────────────────────────────
+
+   procedure Test_State_Is_Pause_Armed_Initial (T : in out Test) is
+      pragma Unreferenced (T);
+      S : App_State;
+   begin
+      Assert (not S.Is_Pause_Armed, "Is_Pause_Armed should be False initially");
+   end Test_State_Is_Pause_Armed_Initial;
+
+   procedure Test_State_Is_Pause_Armed_Set_And_Clear (T : in out Test) is
+      pragma Unreferenced (T);
+      S : App_State;
+   begin
+      S.Set_Pause_Armed (True);
+      Assert
+        (S.Is_Pause_Armed,
+         "Is_Pause_Armed should be True after Set_Pause_Armed (True)");
+      S.Set_Pause_Armed (False);
+      Assert
+        (not S.Is_Pause_Armed,
+         "Is_Pause_Armed should be False after Set_Pause_Armed (False)");
+   end Test_State_Is_Pause_Armed_Set_And_Clear;
+
+   --  ── Tag_Suffix ────────────────────────────────────────────────────────
+
+   procedure Test_State_Tag_Suffix_Initial (T : in out Test) is
+      pragma Unreferenced (T);
+      S : App_State;
+   begin
+      Assert (S.Tag_Suffix = "", "Tag_Suffix should be empty initially");
+   end Test_State_Tag_Suffix_Initial;
+
+   procedure Test_State_Tag_Suffix_Round_Trip (T : in out Test) is
+      pragma Unreferenced (T);
+      S      : App_State;
+      Suffix : constant String := " Models Sessions Thinking Stats";
+   begin
+      S.Set_Tag_Suffix (Suffix);
+      Assert
+        (S.Tag_Suffix = Suffix,
+         "Tag_Suffix should return the stored suffix verbatim");
+      S.Set_Tag_Suffix ("");
+      Assert (S.Tag_Suffix = "", "Tag_Suffix should update to empty string");
+   end Test_State_Tag_Suffix_Round_Trip;
+
 end Coyote_App_Tests;

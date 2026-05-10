@@ -28,6 +28,10 @@ package Coyote_App is
       function Is_Streaming       return Boolean;
       function Is_Compacting      return Boolean;
       function Was_Aborted        return Boolean;
+      --  True while the agentic loop is blocked at a turn boundary.
+      function Is_Paused          return Boolean;
+      --  True after Pause is clicked and before the pause actually fires.
+      function Is_Pause_Armed     return Boolean;
       function Text_Emitted       return Boolean;
       --  True while an auto-retry sequence is in progress.  Set by
       --  auto_retry_start, cleared by auto_retry_end and explicit reset
@@ -88,6 +92,8 @@ package Coyote_App is
       procedure Set_Streaming      (Value : Boolean);
       procedure Set_Compacting     (Value : Boolean);
       procedure Set_Aborted        (Value : Boolean);
+      procedure Set_Paused         (Value : Boolean);
+      procedure Set_Pause_Armed    (Value : Boolean);
       procedure Set_Is_Retrying    (Value : Boolean);
       procedure Set_Text_Emitted   (Value : Boolean);
       procedure Set_Has_Text_Delta   (Value : Boolean);
@@ -110,6 +116,10 @@ package Coyote_App is
          Total       : Natural);
       procedure Set_Win_Name       (Name  : String);
       procedure Set_Prompt_Filter  (Cmd   : String);
+      --  Static tag suffix appended after the dynamic button group.
+      --  Set once at startup; read by tag-update helpers in dispatch.
+      function  Tag_Suffix         return String;
+      procedure Set_Tag_Suffix     (Suffix : String);
 
       --  Turn counter — incremented after each completed agent turn,
       --  reset on new_session, and restored from history on session reload.
@@ -138,6 +148,8 @@ package Coyote_App is
       P_Streaming     : Boolean := False;
       P_Compacting    : Boolean := False;
       P_Aborted       : Boolean := False;
+      P_Paused        : Boolean := False;
+      P_Pause_Armed   : Boolean := False;
       P_Is_Retrying   : Boolean := False;
       P_Text_Emitted  : Boolean := False;
       P_Has_Text_Delta   : Boolean := False;
@@ -160,6 +172,7 @@ package Coyote_App is
       P_Sess_Total    : Natural := 0;
       P_Win_Name      : Ada.Strings.Unbounded.Unbounded_String;
       P_Prompt_Filter : Ada.Strings.Unbounded.Unbounded_String;
+      P_Tag_Suffix    : Ada.Strings.Unbounded.Unbounded_String;
       P_Shutdown      : Boolean := False;
       P_Turn_Count    : Natural := 0;
       --  One-shot result (empty until set)
@@ -188,6 +201,10 @@ package Coyote_App is
       --  being sent to the agent.  CLI flag wins over settings.json.
       --  Empty means no filter.
       Prompt_Filter  : Ada.Strings.Unbounded.Unbounded_String;
+      --  When non-empty, a warning message to display in the acme window
+      --  (and on stderr) after startup.  Set by coyote.adb when the working
+      --  directory stored in the resumed session no longer exists.
+      Work_Dir_Warning : Ada.Strings.Unbounded.Unbounded_String;
    end record;
 
    --  ── Section_Kind ─────────────────────────────────────────────────────

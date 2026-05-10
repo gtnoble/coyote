@@ -31,9 +31,10 @@ package body LLM_Anthropic_Messages_Tests is
        Element_Type => String);
 
    type Event_Collector is record
-      Sequence  : String_Vectors.Vector;
-      Last_Stop : LLM.Types.Stop_Reason := LLM.Types.Unknown_Stop;
-      Usage     : LLM.Types.Usage := (others => 0);
+      Sequence             : String_Vectors.Vector;
+      Last_Stop            : LLM.Types.Stop_Reason := LLM.Types.Unknown_Stop;
+      Usage                : LLM.Types.Usage := (others => 0);
+      Last_Thinking_Sig    : Unbounded_String;
    end record;
 
    Current_Collector : Event_Collector;
@@ -192,6 +193,7 @@ package body LLM_Anthropic_Messages_Tests is
       Current_Collector.Sequence.Clear;
       Current_Collector.Last_Stop := LLM.Types.Unknown_Stop;
       Current_Collector.Usage := (others => 0);
+      Current_Collector.Last_Thinking_Sig := Null_Unbounded_String;
    end Reset_Collector;
 
    procedure Collect_Event (E : LLM.Events.Agent_Event'Class) is
@@ -223,6 +225,7 @@ package body LLM_Anthropic_Messages_Tests is
                   Current_Collector.Sequence.Append
                      ("thinking_delta:" & To_String (Event.Delta_Text));
                when LLM.Events.Thinking_End =>
+                  Current_Collector.Last_Thinking_Sig := Event.Signature;
                   Current_Collector.Sequence.Append ("thinking_end");
                when LLM.Events.Text_Start =>
                   Current_Collector.Sequence.Append ("text_start");
@@ -434,6 +437,35 @@ package body LLM_Anthropic_Messages_Tests is
 
       return Default;
    end Get_Natural_Field;
+
+   function Get_Array_Field
+      (Value : GNATCOLL.JSON.JSON_Value;
+       Field : String) return GNATCOLL.JSON.JSON_Array
+   is
+   begin
+      if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
+         and then Value.Has_Field (Field)
+         and then Value.Get (Field).Kind = GNATCOLL.JSON.JSON_Array_Type
+      then
+         return Value.Get (Field).Get;
+      end if;
+
+      return GNATCOLL.JSON.Empty_Array;
+   end Get_Array_Field;
+
+   function Parse_Json
+      (Data    : String;
+       Context : String) return GNATCOLL.JSON.JSON_Value
+   is
+      Result : constant GNATCOLL.JSON.Read_Result := GNATCOLL.JSON.Read (Data);
+   begin
+      if not Result.Success then
+         raise Constraint_Error with
+            Context & ": " & GNATCOLL.JSON.Format_Parsing_Error (Result.Error);
+      end if;
+
+      return Result.Value;
+   end Parse_Json;
 
    function Build_Messages return LLM.Types.Message_Vectors.Vector is
       Messages : LLM.Types.Message_Vectors.Vector;
@@ -1222,5 +1254,247 @@ package body LLM_Anthropic_Messages_Tests is
          end if;
          raise;
    end Test_Anthropic_Stream_Terminates_Early;
+
+   --  ── Test_Signature_Parsed_From_SSE ───────────────────────────────────
+   --  Verify that a signature_delta event in the SSE stream is captured
+   --  and delivered in the Thinking_End Message_Update_Event.Signature field.
+
+   procedure Test_Signature_Parsed_From_SSE (T : in out Test) is
+      pragma Unreferenced (T);
+
+      --  Minimal SSE payload: one thinking block with both a thinking_delta
+      --  and a signature_delta, followed by a message_delta + message_stop.
+      SSE_With_Signature : constant String :=
+         "event: message_start" & ASCII.LF
+         & "data: {""type"":""message_start"","
+         & """message"":{""id"":""msg_sig"","
+         & """type"":""message"",""role"":""assistant"","
+         & """content"":[],""usage"":"
+         & "{""input_tokens"":5,""output_tokens"":0}}}"
+         & ASCII.LF & ASCII.LF
+         & "event: content_block_start" & ASCII.LF
+         & "data: {""type"":""content_block_start"","
+         & """index"":0,""content_block"":{""type"":""thinking""}}"
+         & ASCII.LF & ASCII.LF
+         & "event: content_block_delta" & ASCII.LF
+         & "data: {""type"":""content_block_delta"","
+         & """index"":0,""delta"":{""type"":""thinking_delta"","
+         & """thinking"":""I reason""}}"
+         & ASCII.LF & ASCII.LF
+         & "event: content_block_delta" & ASCII.LF
+         & "data: {""type"":""content_block_delta"","
+         & """index"":0,""delta"":{""type"":""signature_delta"","
+         & """signature"":""sig-xyz-123""}}"
+         & ASCII.LF & ASCII.LF
+         & "event: content_block_stop" & ASCII.LF
+         & "data: {""type"":""content_block_stop"",""index"":0}"
+         & ASCII.LF & ASCII.LF
+         & "event: message_delta" & ASCII.LF
+         & "data: {""type"":""message_delta"","
+         & """delta"":{""stop_reason"":""end_turn""},"
+         & """usage"":{""output_tokens"":3}}"
+         & ASCII.LF & ASCII.LF
+         & "event: message_stop" & ASCII.LF
+         & "data: {""type"":""message_stop""}"
+         & ASCII.LF & ASCII.LF;
+
+      Port     : constant Positive := 18_774;
+      Provider : LLM.Providers.Anthropic_Messages.Provider :=
+         LLM.Providers.Anthropic_Messages.Create
+            (Base_Url => "http://127.0.0.1:18774",
+             Api_Key  => "test-key");
+      Messages : constant LLM.Types.Message_Vectors.Vector :=
+         Build_Messages;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Res.Status := 200;
+         Append (Res.Body_Data, SSE_With_Signature);
+      end Handle_Request;
+
+      Server_Stopped : Boolean := False;
+      Srv            : Test_HTTP_Server.Server
+        (Handler => Handle_Request'Unrestricted_Access);
+   begin
+      Reset_Collector;
+      Srv.Bind (Port);
+
+      Send_With_Retry
+         (P             => Provider,
+          Model_Id      => "claude-sonnet-4-5",
+          System_Prompt => "Be helpful.",
+          Messages      => Messages,
+          Thinking      => LLM.Providers.Medium,
+          Handler       => On_Event'Access);
+
+      Srv.Stop;
+      Server_Stopped := True;
+
+      Assert
+         (To_String (Current_Collector.Last_Thinking_Sig) = "sig-xyz-123",
+          "Signature from signature_delta should be delivered in "
+          & "Thinking_End event; got: "
+          & To_String (Current_Collector.Last_Thinking_Sig));
+   exception
+      when others =>
+         if not Server_Stopped then
+            Srv.Stop;
+         end if;
+         raise;
+   end Test_Signature_Parsed_From_SSE;
+
+   --  ── Test_Thinking_Block_Serialised_In_Request ─────────────────────────
+   --  Verify that when the history contains an assistant message with a
+   --  Thinking_Block (carrying a signature), the outgoing request body
+   --  includes a content item of type "thinking" with both the thinking text
+   --  and the signature echoed back verbatim.
+
+   procedure Test_Thinking_Block_Serialised_In_Request (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Port     : constant Positive := 18_775;
+      Capture  : constant String :=
+         "/tmp/coyote_anthropic_thinking_request.json";
+
+      --  History: assistant message with a thinking block + text block,
+      --  as would appear after a previous sub-turn in the agentic loop.
+      function Build_History return LLM.Types.Message_Vectors.Vector is
+         Messages      : LLM.Types.Message_Vectors.Vector;
+         User_Content  : LLM.Types.Content_Block_Vectors.Vector;
+         Asst_Content  : LLM.Types.Content_Block_Vectors.Vector;
+      begin
+         User_Content.Append
+            ((Kind => LLM.Types.Text_Block,
+              Text => To_Unbounded_String ("What is 2+2?")));
+         Messages.Append
+            ((Role      => LLM.Types.User,
+              Content   => User_Content,
+              Tok_Usage => (others => 0),
+              Stop      => LLM.Types.Unknown_Stop,
+              Timestamp => Null_Unbounded_String));
+
+         Asst_Content.Append
+            ((Kind      => LLM.Types.Thinking_Block,
+              Thinking  => To_Unbounded_String ("Let me add these."),
+              Signature => To_Unbounded_String ("opaque-sig-abc")));
+         Asst_Content.Append
+            ((Kind => LLM.Types.Text_Block,
+              Text => To_Unbounded_String ("The answer is 4.")));
+         Messages.Append
+            ((Role      => LLM.Types.Assistant,
+              Content   => Asst_Content,
+              Tok_Usage => (others => 0),
+              Stop      => LLM.Types.Stop,
+              Timestamp => Null_Unbounded_String));
+
+         return Messages;
+      end Build_History;
+
+      --  Minimal SSE response — content is irrelevant for this test.
+      Minimal_SSE : constant String :=
+         "event: message_start" & ASCII.LF
+         & "data: {""type"":""message_start"","
+         & """message"":{""id"":""msg_x"","
+         & """type"":""message"",""role"":""assistant"","
+         & """content"":[],""usage"":"
+         & "{""input_tokens"":10,""output_tokens"":0}}}"
+         & ASCII.LF & ASCII.LF
+         & "event: content_block_start" & ASCII.LF
+         & "data: {""type"":""content_block_start"","
+         & """index"":0,""content_block"":{""type"":""text""}}"
+         & ASCII.LF & ASCII.LF
+         & "event: content_block_delta" & ASCII.LF
+         & "data: {""type"":""content_block_delta"","
+         & """index"":0,""delta"":{""type"":""text_delta"","
+         & """text"":""OK""}}"
+         & ASCII.LF & ASCII.LF
+         & "event: content_block_stop" & ASCII.LF
+         & "data: {""type"":""content_block_stop"",""index"":0}"
+         & ASCII.LF & ASCII.LF
+         & "event: message_delta" & ASCII.LF
+         & "data: {""type"":""message_delta"","
+         & """delta"":{""stop_reason"":""end_turn""},"
+         & """usage"":{""output_tokens"":1}}"
+         & ASCII.LF & ASCII.LF
+         & "event: message_stop" & ASCII.LF
+         & "data: {""type"":""message_stop""}"
+         & ASCII.LF & ASCII.LF;
+
+      Provider : LLM.Providers.Anthropic_Messages.Provider :=
+         LLM.Providers.Anthropic_Messages.Create
+            (Base_Url => "http://127.0.0.1:18775",
+             Api_Key  => "test-key");
+      Messages : constant LLM.Types.Message_Vectors.Vector :=
+         Build_History;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+      begin
+         Write_Capture (Req, Capture);
+         Res.Status := 200;
+         Append (Res.Body_Data, Minimal_SSE);
+      end Handle_Request;
+
+      Server_Stopped : Boolean := False;
+      Srv            : Test_HTTP_Server.Server
+        (Handler => Handle_Request'Unrestricted_Access);
+   begin
+      Reset_Collector;
+      Delete_If_Exists (Capture);
+      Srv.Bind (Port);
+
+      Send_With_Retry
+         (P             => Provider,
+          Model_Id      => "claude-sonnet-4-5",
+          System_Prompt => "Be helpful.",
+          Messages      => Messages,
+          Thinking      => LLM.Providers.Medium,
+          Handler       => On_Event'Access);
+
+      Srv.Stop;
+      Server_Stopped := True;
+
+      declare
+         use GNATCOLL.JSON;
+
+         Captured  : constant JSON_Value :=
+            Parse_Json (Read_File (Capture), "captured request");
+         Body_Val  : constant JSON_Value :=
+            Get_Object_Field (Captured, "body");
+         Msg_Array : constant JSON_Array :=
+            Get_Array_Field (Body_Val, "messages");
+         --  messages[0] = system(skipped), [1] = user, [2] = assistant
+         Asst_Msg  : constant JSON_Value :=
+            GNATCOLL.JSON.Get (Msg_Array, 2);
+         Content   : constant JSON_Array :=
+            Get_Array_Field (Asst_Msg, "content");
+         --  First content item should be the thinking block.
+         Think_Item : constant JSON_Value :=
+            GNATCOLL.JSON.Get (Content, 1);
+      begin
+         Assert
+            (Get_String_Field (Think_Item, "type") = "thinking",
+             "First assistant content item should have type=thinking");
+         Assert
+            (Get_String_Field (Think_Item, "thinking") = "Let me add these.",
+             "Thinking text should be echoed verbatim");
+         Assert
+            (Get_String_Field (Think_Item, "signature") = "opaque-sig-abc",
+             "Signature should be echoed verbatim; got: "
+             & Get_String_Field (Think_Item, "signature"));
+      end;
+   exception
+      when others =>
+         if not Server_Stopped then
+            Srv.Stop;
+         end if;
+         raise;
+   end Test_Thinking_Block_Serialised_In_Request;
 
 end LLM_Anthropic_Messages_Tests;

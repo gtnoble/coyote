@@ -23,8 +23,9 @@ package body LLM_Types_Tests is
       pragma Unreferenced (T);
 
       Block : constant Content_Block :=
-        (Kind => Thinking_Block,
-         Thinking => To_Unbounded_String ("step by step"));
+        (Kind      => Thinking_Block,
+         Thinking  => To_Unbounded_String ("step by step"),
+         Signature => Null_Unbounded_String);
    begin
       Assert
         (To_String (Block.Thinking) = "step by step",

@@ -27,7 +27,8 @@ package LLM.Types is
          when Text_Block =>
             Text : Ada.Strings.Unbounded.Unbounded_String;
          when Thinking_Block =>
-            Thinking : Ada.Strings.Unbounded.Unbounded_String;
+            Thinking  : Ada.Strings.Unbounded.Unbounded_String;
+            Signature : Ada.Strings.Unbounded.Unbounded_String;
          when Tool_Call_Block =>
             Tool_Call_Id   : Ada.Strings.Unbounded.Unbounded_String;
             Tool_Name      : Ada.Strings.Unbounded.Unbounded_String;

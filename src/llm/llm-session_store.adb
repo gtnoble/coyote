@@ -419,6 +419,8 @@ package body LLM.Session_Store is
                         Item.Set_Field ("type", "thinking");
                         Item.Set_Field
                           ("thinking", To_String (Block.Thinking));
+                        Item.Set_Field
+                          ("signature", To_String (Block.Signature));
                         GNATCOLL.JSON.Append (Result, Item);
                      end;
                   when LLM.Types.Tool_Call_Block =>
@@ -608,9 +610,11 @@ package body LLM.Session_Store is
                      (Get_String_Field (Block, "text"))));
             elsif Kind = "thinking" then
                Content.Append
-                 ((Kind     => LLM.Types.Thinking_Block,
-                   Thinking => To_Unbounded_String
-                     (Get_String_Field (Block, "thinking"))));
+                 ((Kind      => LLM.Types.Thinking_Block,
+                   Thinking  => To_Unbounded_String
+                     (Get_String_Field (Block, "thinking")),
+                   Signature => To_Unbounded_String
+                     (Get_String_Field (Block, "signature"))));
             elsif Kind = "toolCall" then
                declare
                   Arguments : constant GNATCOLL.JSON.JSON_Value :=

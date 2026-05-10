@@ -133,6 +133,24 @@ package body Coyote_App.Dispatch is
             & Ada.Exceptions.Exception_Information (Ex));
    end Open_Sub_Window;
 
+   procedure Update_Tag
+     (Win    : in out Acme.Window.Win;
+      FS     : not null access Nine_P.Client.Fs;
+      Mode   : Tag_Mode;
+      Suffix : String)
+   is
+      Text : constant String :=
+        (case Mode is
+         when Idle_Tag    => " | Send Steer New Compact Clear",
+         when Running_Tag => " | Stop Steer Pause",
+         when Armed_Tag   => " | Stop Steer Pausing",
+         when Paused_Tag  => " | Stop Steer Send Resume")
+        & Suffix;
+   begin
+      Acme.Window.Ctl (Win, FS, "cleartag");
+      Acme.Window.Append_Tag (Win, FS, Text);
+   end Update_Tag;
+
    procedure Dispatch_Event
      (Event   : LLM.Events.Agent_Event'Class;
       Win     : in out Acme.Window.Win;
@@ -154,10 +172,13 @@ package body Coyote_App.Dispatch is
          Section := No_Section;
          Acme.Window.Replace_Line1
            (Win, FS, Format_Status (State, "running"));
+         Update_Tag (Win, FS, Running_Tag, State.Tag_Suffix);
 
       --  ── agent_end ─────────────────────────────────────────────────────
       elsif Event in LLM.Events.Agent_End_Event then
          State.Set_Streaming (False);
+         State.Set_Paused (False);
+         State.Set_Pause_Armed (False);
          Section := No_Section;
          if State.Was_Aborted then
             Acme.Window.Append
@@ -202,6 +223,7 @@ package body Coyote_App.Dispatch is
          end;
          Acme.Window.Replace_Line1
            (Win, FS, Format_Status (State, "ready"));
+         Update_Tag (Win, FS, Idle_Tag, State.Tag_Suffix);
 
       elsif Event in LLM.Events.Message_Update_Event then
          declare
@@ -376,7 +398,12 @@ package body Coyote_App.Dispatch is
             if Tok'Length > 0 then
                --  Replace the pending-close placeholder written by
                --  tool_execution_start in-place via acme regexp addr.
-               if Ev.Is_Error then
+               if Ev.Is_Cancelled then
+                  Acme.Window.Replace_Match
+                    (Win, FS,
+                     "/" & UC_BOX_BL & " " & UC_ELLIP & Tok & "/",
+                     UC_BOX_BL & " " & UC_CROSS & " cancelled");
+               elsif Ev.Is_Error then
                   declare
                      Result  : constant String  := To_String (Ev.Result_Text);
                      Preview : constant Natural :=
@@ -398,7 +425,12 @@ package body Coyote_App.Dispatch is
                end if;
             else
                --  No token: fall back to appending the close marker.
-               if Ev.Is_Error then
+               if Ev.Is_Cancelled then
+                  Acme.Window.Append
+                    (Win, FS,
+                     ASCII.LF & UC_BOX_BL & " " & UC_CROSS & " cancelled"
+                     & ASCII.LF & ASCII.LF);
+               elsif Ev.Is_Error then
                   declare
                      Result  : constant String  := To_String (Ev.Result_Text);
                      Preview : constant Natural :=
@@ -646,6 +678,25 @@ package body Coyote_App.Dispatch is
          end if;
          Acme.Window.Replace_Line1
            (Win, FS, Format_Status (State, "ready"));
+
+      --  ── agent_paused ──────────────────────────────────────────────────
+      --  Emitted by Run_Prompt when a pending pause fires at a turn
+      --  boundary.  The loop is now blocked waiting for Resume.
+      elsif Event in LLM.Events.Agent_Paused_Event then
+         State.Set_Paused (True);
+         State.Set_Pause_Armed (False);
+         Acme.Window.Replace_Line1
+           (Win, FS, Format_Status (State, "paused"));
+         Update_Tag (Win, FS, Paused_Tag, State.Tag_Suffix);
+
+      --  ── agent_resumed ─────────────────────────────────────────────────
+      --  Emitted by Run_Prompt immediately after the loop unblocks.
+      elsif Event in LLM.Events.Agent_Resumed_Event then
+         State.Set_Paused (False);
+         Acme.Window.Replace_Line1
+           (Win, FS, Format_Status (State, "running"));
+         Update_Tag (Win, FS, Running_Tag, State.Tag_Suffix);
+
       end if;
    end Dispatch_Event;
 

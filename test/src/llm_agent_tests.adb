@@ -4651,4 +4651,316 @@ package body LLM_Agent_Tests is
          raise;
    end Test_Stats_Footer_Only_On_Last_Tool_In_Batch;
 
+   --  ── Pause_Flag agent integration tests ───────────────────────────────
+
+   procedure Test_Pause_Fires_At_Turn_Boundary (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home           : constant String  := "/tmp/coyote_llm_agent_pause_1";
+      Port           : constant Positive := 18_870;
+      Agent_Session  : LLM.Agent.Session;
+      Server_Stopped : Boolean := False;
+      Home_Was_Set   : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home       : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Key_Was_Set    : constant Boolean :=
+        Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
+      Old_Key        : constant String :=
+        Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
+      Url_Was_Set    : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
+      Old_Url        : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
+
+      protected State is
+         procedure Note_Paused;
+         procedure Note_Resumed;
+         procedure Note_End (Was_Aborted : Boolean);
+         procedure Note_Error;
+         function Saw_Paused  return Boolean;
+         function Saw_Resumed return Boolean;
+         function Saw_End     return Boolean;
+         function Was_Aborted return Boolean;
+         function Had_Error   return Boolean;
+      private
+         P_Paused    : Boolean := False;
+         P_Resumed   : Boolean := False;
+         P_End       : Boolean := False;
+         P_Aborted   : Boolean := False;
+         P_Error     : Boolean := False;
+      end State;
+
+      protected body State is
+         procedure Note_Paused  is begin P_Paused  := True; end Note_Paused;
+         procedure Note_Resumed is begin P_Resumed := True; end Note_Resumed;
+         procedure Note_End (Was_Aborted : Boolean) is
+         begin
+            P_End     := True;
+            P_Aborted := Was_Aborted;
+         end Note_End;
+         procedure Note_Error   is begin P_Error   := True; end Note_Error;
+         function Saw_Paused  return Boolean is (P_Paused);
+         function Saw_Resumed return Boolean is (P_Resumed);
+         function Saw_End     return Boolean is (P_End);
+         function Was_Aborted return Boolean is (P_Aborted);
+         function Had_Error   return Boolean is (P_Error);
+      end State;
+
+      procedure On_Event (E : LLM.Events.Agent_Event'Class) is
+      begin
+         if E in LLM.Events.Agent_Paused_Event then
+            State.Note_Paused;
+         elsif E in LLM.Events.Agent_Resumed_Event then
+            State.Note_Resumed;
+         elsif E in LLM.Events.Agent_End_Event then
+            State.Note_End (LLM.Events.Agent_End_Event (E).Was_Aborted);
+         end if;
+      end On_Event;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Res.Status := 200;
+         Add_SSE_Header (Res);
+         Append (Res.Body_Data, Text_SSE_Payload ("Resumed and done", 10, 5));
+      end Handle_Request;
+
+      Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
+   begin
+      Prepare_Test_Home (Home);
+      Write_OpenRouter_Cache (Home);
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Set ("OPENROUTER_API_KEY", "test-key");
+      Ada.Environment_Variables.Set
+        ("COYOTE_OPENROUTER_BASE_URL",
+         "http://127.0.0.1:" & Natural_Image (Port) & "/api/v1");
+
+      LLM.Agent.Create
+        (S          => Agent_Session,
+         Model_Spec => "openrouter/openai/gpt-4o-mini",
+         No_Tools   => True);
+
+      --  Arm the pause before the loop starts: it will fire at the first
+      --  iteration boundary, before any LLM call is made.
+      LLM.Agent.Request_Pause (Agent_Session);
+
+      Srv.Bind (Port);
+
+      declare
+         task Runner;
+
+         task body Runner is
+         begin
+            LLM.Agent.Run_Prompt
+              (S        => Agent_Session,
+               Prompt   => "Pause then continue",
+               On_Event => On_Event'Access);
+         exception
+            when others =>
+               State.Note_Error;
+         end Runner;
+      begin
+         --  Wait up to 5 s for the loop to pause.
+         for I in 1 .. 100 loop
+            exit when State.Saw_Paused;
+            delay 0.05;
+         end loop;
+
+         Assert (State.Saw_Paused,
+                 "Agent_Paused_Event should be received within 5 s");
+         Assert (not State.Saw_Resumed,
+                 "Agent_Resumed_Event should not fire before Resume");
+
+         LLM.Agent.Resume (Agent_Session);
+
+         --  Wait for the runner to finish.
+         while not Runner'Terminated loop
+            delay 0.05;
+         end loop;
+      end;
+
+      Srv.Stop;
+      Server_Stopped := True;
+
+      Assert (not State.Had_Error, "Run_Prompt task should not raise");
+      Assert (State.Saw_Resumed,
+              "Agent_Resumed_Event should be received after Resume");
+      Assert (State.Saw_End,
+              "Agent_End_Event should be received");
+      Assert (not State.Was_Aborted,
+              "Run should complete normally (not aborted)");
+
+      Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
+      Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         if not Server_Stopped then
+            begin
+               Srv.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
+         Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
+         Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Pause_Fires_At_Turn_Boundary;
+
+   procedure Test_Stop_While_Paused (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home           : constant String  := "/tmp/coyote_llm_agent_pause_2";
+      Port           : constant Positive := 18_871;
+      Agent_Session  : LLM.Agent.Session;
+      Server_Stopped : Boolean := False;
+      Home_Was_Set   : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home       : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Key_Was_Set    : constant Boolean :=
+        Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
+      Old_Key        : constant String :=
+        Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
+      Url_Was_Set    : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
+      Old_Url        : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
+
+      protected State is
+         procedure Note_Paused;
+         procedure Note_End (Was_Aborted : Boolean);
+         procedure Note_Error;
+         function Saw_Paused  return Boolean;
+         function Saw_End     return Boolean;
+         function Was_Aborted return Boolean;
+         function Had_Error   return Boolean;
+      private
+         P_Paused  : Boolean := False;
+         P_End     : Boolean := False;
+         P_Aborted : Boolean := False;
+         P_Error   : Boolean := False;
+      end State;
+
+      protected body State is
+         procedure Note_Paused is begin P_Paused := True; end Note_Paused;
+         procedure Note_End (Was_Aborted : Boolean) is
+         begin
+            P_End     := True;
+            P_Aborted := Was_Aborted;
+         end Note_End;
+         procedure Note_Error   is begin P_Error := True; end Note_Error;
+         function Saw_Paused  return Boolean is (P_Paused);
+         function Saw_End     return Boolean is (P_End);
+         function Was_Aborted return Boolean is (P_Aborted);
+         function Had_Error   return Boolean is (P_Error);
+      end State;
+
+      procedure On_Event (E : LLM.Events.Agent_Event'Class) is
+      begin
+         if E in LLM.Events.Agent_Paused_Event then
+            State.Note_Paused;
+         elsif E in LLM.Events.Agent_End_Event then
+            State.Note_End (LLM.Events.Agent_End_Event (E).Was_Aborted);
+         end if;
+      end On_Event;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         --  Should never be reached: the loop aborts before calling the
+         --  provider.  Return a valid response anyway for robustness.
+         Res.Status := 200;
+         Add_SSE_Header (Res);
+         Append (Res.Body_Data, Text_SSE_Payload ("Unexpected", 1, 1));
+      end Handle_Request;
+
+      Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
+   begin
+      Prepare_Test_Home (Home);
+      Write_OpenRouter_Cache (Home);
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Set ("OPENROUTER_API_KEY", "test-key");
+      Ada.Environment_Variables.Set
+        ("COYOTE_OPENROUTER_BASE_URL",
+         "http://127.0.0.1:" & Natural_Image (Port) & "/api/v1");
+
+      LLM.Agent.Create
+        (S          => Agent_Session,
+         Model_Spec => "openrouter/openai/gpt-4o-mini",
+         No_Tools   => True);
+
+      LLM.Agent.Request_Pause (Agent_Session);
+
+      Srv.Bind (Port);
+
+      declare
+         task Runner;
+
+         task body Runner is
+         begin
+            LLM.Agent.Run_Prompt
+              (S        => Agent_Session,
+               Prompt   => "Stop while paused",
+               On_Event => On_Event'Access);
+         exception
+            when others =>
+               State.Note_Error;
+         end Runner;
+      begin
+         --  Wait for the pause to fire.
+         for I in 1 .. 100 loop
+            exit when State.Saw_Paused;
+            delay 0.05;
+         end loop;
+
+         Assert (State.Saw_Paused,
+                 "Agent_Paused_Event should be received within 5 s");
+
+         --  Abort while paused: should unblock the loop and exit.
+         LLM.Agent.Request_Abort (Agent_Session);
+
+         while not Runner'Terminated loop
+            delay 0.05;
+         end loop;
+      end;
+
+      Srv.Stop;
+      Server_Stopped := True;
+
+      Assert (not State.Had_Error, "Run_Prompt task should not raise");
+      Assert (State.Saw_End, "Agent_End_Event should be received");
+      Assert (State.Was_Aborted,
+              "Agent_End_Event should report Was_Aborted=True");
+
+      Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
+      Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         if not Server_Stopped then
+            begin
+               Srv.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
+         Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
+         Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Stop_While_Paused;
+
 end LLM_Agent_Tests;

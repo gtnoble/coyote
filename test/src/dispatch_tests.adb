@@ -216,6 +216,7 @@ package body Dispatch_Tests is
               (LLM.Events.Agent_Event with
                Kind          => LLM.Events.Text_Delta,
                Delta_Text    => To_Unbounded_String ("hello world"),
+               Signature     => Null_Unbounded_String,
                Content_Index => 0,
                Tool_Call_Id  => Null_Unbounded_String,
                Tool_Name     => Null_Unbounded_String),
@@ -283,6 +284,7 @@ package body Dispatch_Tests is
               (LLM.Events.Agent_Event with
                Kind          => LLM.Events.Thinking_Delta,
                Delta_Text    => To_Unbounded_String ("a thought"),
+               Signature     => Null_Unbounded_String,
                Content_Index => 0,
                Tool_Call_Id  => Null_Unbounded_String,
                Tool_Name     => Null_Unbounded_String),
@@ -431,7 +433,8 @@ package body Dispatch_Tests is
                Tool_Call_Id => To_Unbounded_String ("tc-ok"),
                Tool_Name    => To_Unbounded_String ("read"),
                Result_Text  => To_Unbounded_String ("done"),
-               Is_Error     => False),
+               Is_Error     => False,
+               Is_Cancelled => False),
             Win     => Win,
             FS      => FS'Access,
             State   => S,
@@ -509,7 +512,8 @@ package body Dispatch_Tests is
                Tool_Call_Id => To_Unbounded_String ("tc-err"),
                Tool_Name    => To_Unbounded_String ("read"),
                Result_Text  => To_Unbounded_String ("boom"),
-               Is_Error     => True),
+               Is_Error     => True,
+               Is_Cancelled => False),
             Win     => Win,
             FS      => FS'Access,
             State   => S,
@@ -541,6 +545,88 @@ package body Dispatch_Tests is
             raise;
       end;
    end Test_Dispatch_Tool_End_Error;
+
+   procedure Test_Dispatch_Tool_End_Cancelled (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      begin
+         declare
+            Guard_FS : aliased Nine_P.Client.Fs :=
+              Nine_P.Client.Ns_Mount ("acme");
+            pragma Unreferenced (Guard_FS);
+         begin
+            null;
+         end;
+      exception
+         when others =>
+            AUnit.Assertions.Assert (True, "");
+            return;
+      end;
+
+      declare
+         FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
+         Win  : Acme.Window.Win          :=
+           Acme.Window.New_Win (FS'Access);
+         S    : App_State;
+         Sect : Section_Kind             := No_Section;
+      begin
+         Acme.Window.Append (Win, FS'Access, Format_Status (S) & ASCII.LF);
+
+         Dispatch_Event
+           (Event   => LLM.Events.Tool_Execution_Start_Event'
+              (LLM.Events.Agent_Event with
+               Tool_Call_Id => To_Unbounded_String ("tc-cancel"),
+               Tool_Name    => To_Unbounded_String ("bash"),
+               Args_Json    => To_Unbounded_String
+                 ("{""command"":""sleep 60""}")),
+            Win     => Win,
+            FS      => FS'Access,
+            State   => S,
+            Section => Sect,
+            PID     => PID);
+
+         Dispatch_Event
+           (Event   => LLM.Events.Tool_Execution_End_Event'
+              (LLM.Events.Agent_Event with
+               Tool_Call_Id => To_Unbounded_String ("tc-cancel"),
+               Tool_Name    => To_Unbounded_String ("bash"),
+               Result_Text  => To_Unbounded_String ("aborted"),
+               Is_Error     => True,
+               Is_Cancelled => True),
+            Win     => Win,
+            FS      => FS'Access,
+            State   => S,
+            Section => Sect,
+            PID     => PID);
+
+         declare
+            Body_Text : constant String :=
+              Acme.Window.Read_Body (Win, FS'Access);
+         begin
+            Assert_Contains
+              (Body_Text, UC_Cross,
+               "tool_execution_end cancelled should render a cross mark");
+            Assert_Contains
+              (Body_Text, "cancelled",
+               "tool_execution_end cancelled should render the word"
+               & " 'cancelled'");
+         end;
+
+         begin
+            Acme.Window.Delete (Win, FS'Access);
+         exception
+            when others => null;
+         end;
+      exception
+         when others =>
+            begin
+               Acme.Window.Delete (Win, FS'Access);
+            exception
+               when others => null;
+            end;
+            raise;
+      end;
+   end Test_Dispatch_Tool_End_Cancelled;
 
    procedure Test_Dispatch_Message_End_Tokens (T : in out Test) is
       pragma Unreferenced (T);
@@ -932,6 +1018,7 @@ package body Dispatch_Tests is
               (LLM.Events.Agent_Event with
                Kind          => LLM.Events.Text_Delta,
                Delta_Text    => To_Unbounded_String ("hello"),
+               Signature     => Null_Unbounded_String,
                Content_Index => 0,
                Tool_Call_Id  => Null_Unbounded_String,
                Tool_Name     => Null_Unbounded_String),
@@ -1061,6 +1148,7 @@ package body Dispatch_Tests is
               (LLM.Events.Agent_Event with
                Kind          => LLM.Events.Text_Delta,
                Delta_Text    => To_Unbounded_String ("partial"),
+               Signature     => Null_Unbounded_String,
                Content_Index => 0,
                Tool_Call_Id  => Null_Unbounded_String,
                Tool_Name     => Null_Unbounded_String),
@@ -1182,6 +1270,7 @@ package body Dispatch_Tests is
               (LLM.Events.Agent_Event with
                Kind          => LLM.Events.Text_Delta,
                Delta_Text    => To_Unbounded_String ("ok"),
+               Signature     => Null_Unbounded_String,
                Content_Index => 0,
                Tool_Call_Id  => Null_Unbounded_String,
                Tool_Name     => Null_Unbounded_String),
@@ -1417,5 +1506,139 @@ package body Dispatch_Tests is
             raise;
       end;
    end Test_Dispatch_Agent_End_No_Response_Shows_Error;
+
+   procedure Test_Dispatch_Agent_Paused_Event (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      begin
+         declare
+            Guard_FS : aliased Nine_P.Client.Fs :=
+              Nine_P.Client.Ns_Mount ("acme");
+            pragma Unreferenced (Guard_FS);
+         begin
+            null;
+         end;
+      exception
+         when others =>
+            AUnit.Assertions.Assert (True, "");
+            return;
+      end;
+
+      declare
+         FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
+         Win  : Acme.Window.Win          :=
+           Acme.Window.New_Win (FS'Access);
+         S    : App_State;
+         Sect : Section_Kind             := No_Section;
+      begin
+         Acme.Window.Append (Win, FS'Access, Format_Status (S) & ASCII.LF);
+
+         --  Simulate state just before the pause fires.
+         S.Set_Streaming (True);
+         S.Set_Pause_Armed (True);
+
+         Dispatch_Event
+           (Event   => LLM.Events.Agent_Paused_Event'
+              (LLM.Events.Agent_Event with null record),
+            Win     => Win,
+            FS      => FS'Access,
+            State   => S,
+            Section => Sect,
+            PID     => PID);
+
+         declare
+            Body_Text : constant String :=
+              Acme.Window.Read_Body (Win, FS'Access);
+         begin
+            Assert (S.Is_Paused,
+                    "Agent_Paused_Event should set Is_Paused");
+            Assert (not S.Is_Pause_Armed,
+                    "Agent_Paused_Event should clear Is_Pause_Armed");
+            Assert_Contains
+              (Body_Text, "paused",
+               "Agent_Paused_Event should update status to ""paused""");
+         end;
+
+         begin
+            Acme.Window.Delete (Win, FS'Access);
+         exception
+            when others => null;
+         end;
+      exception
+         when others =>
+            begin
+               Acme.Window.Delete (Win, FS'Access);
+            exception
+               when others => null;
+            end;
+            raise;
+      end;
+   end Test_Dispatch_Agent_Paused_Event;
+
+   procedure Test_Dispatch_Agent_Resumed_Event (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      begin
+         declare
+            Guard_FS : aliased Nine_P.Client.Fs :=
+              Nine_P.Client.Ns_Mount ("acme");
+            pragma Unreferenced (Guard_FS);
+         begin
+            null;
+         end;
+      exception
+         when others =>
+            AUnit.Assertions.Assert (True, "");
+            return;
+      end;
+
+      declare
+         FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
+         Win  : Acme.Window.Win          :=
+           Acme.Window.New_Win (FS'Access);
+         S    : App_State;
+         Sect : Section_Kind             := No_Section;
+      begin
+         Acme.Window.Append (Win, FS'Access, Format_Status (S) & ASCII.LF);
+
+         --  Simulate state while paused.
+         S.Set_Streaming (True);
+         S.Set_Paused (True);
+
+         Dispatch_Event
+           (Event   => LLM.Events.Agent_Resumed_Event'
+              (LLM.Events.Agent_Event with null record),
+            Win     => Win,
+            FS      => FS'Access,
+            State   => S,
+            Section => Sect,
+            PID     => PID);
+
+         declare
+            Body_Text : constant String :=
+              Acme.Window.Read_Body (Win, FS'Access);
+         begin
+            Assert (not S.Is_Paused,
+                    "Agent_Resumed_Event should clear Is_Paused");
+            Assert_Contains
+              (Body_Text, "running",
+               "Agent_Resumed_Event should restore ""running"" status");
+         end;
+
+         begin
+            Acme.Window.Delete (Win, FS'Access);
+         exception
+            when others => null;
+         end;
+      exception
+         when others =>
+            begin
+               Acme.Window.Delete (Win, FS'Access);
+            exception
+               when others => null;
+            end;
+            raise;
+      end;
+   end Test_Dispatch_Agent_Resumed_Event;
 
 end Dispatch_Tests;

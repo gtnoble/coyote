@@ -265,4 +265,28 @@ package Coyote_App_Tests is
    procedure Test_State_Prompt_Filter_Initial    (T : in out Test);
    procedure Test_State_Prompt_Filter_Round_Trip (T : in out Test);
 
+   --  ── Is_Paused ─────────────────────────────────────────────────────────
+
+   --  Is_Paused is False by default.
+   procedure Test_State_Is_Paused_Initial        (T : in out Test);
+
+   --  Set_Paused toggles the Is_Paused flag.
+   procedure Test_State_Is_Paused_Set_And_Clear  (T : in out Test);
+
+   --  ── Is_Pause_Armed ────────────────────────────────────────────────────
+
+   --  Is_Pause_Armed is False by default.
+   procedure Test_State_Is_Pause_Armed_Initial       (T : in out Test);
+
+   --  Set_Pause_Armed toggles the Is_Pause_Armed flag.
+   procedure Test_State_Is_Pause_Armed_Set_And_Clear (T : in out Test);
+
+   --  ── Tag_Suffix ────────────────────────────────────────────────────────
+
+   --  Tag_Suffix is empty by default.
+   procedure Test_State_Tag_Suffix_Initial       (T : in out Test);
+
+   --  Set_Tag_Suffix stores the suffix verbatim.
+   procedure Test_State_Tag_Suffix_Round_Trip    (T : in out Test);
+
 end Coyote_App_Tests;

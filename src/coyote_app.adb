@@ -55,6 +55,8 @@ package body Coyote_App is
       function Is_Streaming       return Boolean is (P_Streaming);
       function Is_Compacting      return Boolean is (P_Compacting);
       function Was_Aborted        return Boolean is (P_Aborted);
+      function Is_Paused          return Boolean is (P_Paused);
+      function Is_Pause_Armed     return Boolean is (P_Pause_Armed);
       function Is_Retrying        return Boolean is (P_Is_Retrying);
       function Text_Emitted       return Boolean is (P_Text_Emitted);
       function Has_Tool_In_Turn return Boolean is (P_Has_Tool_In_Turn);
@@ -110,6 +112,16 @@ package body Coyote_App is
       begin
          P_Aborted := Value;
       end Set_Aborted;
+
+      procedure Set_Paused (Value : Boolean) is
+      begin
+         P_Paused := Value;
+      end Set_Paused;
+
+      procedure Set_Pause_Armed (Value : Boolean) is
+      begin
+         P_Pause_Armed := Value;
+      end Set_Pause_Armed;
 
       procedure Set_Is_Retrying (Value : Boolean) is
       begin
@@ -201,6 +213,14 @@ package body Coyote_App is
       begin
          P_Prompt_Filter := To_Unbounded_String (Cmd);
       end Set_Prompt_Filter;
+
+      function Tag_Suffix return String is
+        (To_String (P_Tag_Suffix));
+
+      procedure Set_Tag_Suffix (Suffix : String) is
+      begin
+         P_Tag_Suffix := To_Unbounded_String (Suffix);
+      end Set_Tag_Suffix;
 
       procedure Increment_Turn_Count is
       begin
@@ -382,7 +402,7 @@ package body Coyote_App is
       Tag_Extra : constant String :=
         (if Opts.One_Shot
          then " | Stop Steer"
-         else " | Send Stop Steer New Compact Clear"
+         else " | Send Steer New Compact Clear"
               & " Models Sessions Thinking Stats");
 
       --  Process ID used to build window-specific selector tokens.
@@ -426,6 +446,8 @@ package body Coyote_App is
             return "compacting";
          elsif State.Is_Retrying then
             return "retrying";
+         elsif State.Is_Paused then
+            return "paused";
          elsif State.Is_Streaming then
             return "running";
          else
@@ -756,6 +778,10 @@ package body Coyote_App is
                Render_Loaded_Session (To_String (Opts.Session_Id));
             end if;
 
+            if Length (Opts.Work_Dir_Warning) > 0 then
+               Append_Task_Warning (To_String (Opts.Work_Dir_Warning));
+            end if;
+
             Emit_Bootstrap;
 
             if Opts.One_Shot then
@@ -1011,8 +1037,9 @@ package body Coyote_App is
                                            (Win, My_FS'Access);
                                     begin
                                        if Sel'Length > 0 then
-                                          if State.Is_Streaming
-                                            or else State.Is_Retrying
+                                          if (State.Is_Streaming
+                                            or else State.Is_Retrying)
+                                            and then not State.Is_Paused
                                           then
                                              Acme.Window.Append
                                                (Win,
@@ -1116,6 +1143,31 @@ package body Coyote_App is
                                        LLM.Agent.Request_Abort (Agent_Session);
                                     end if;
                                     Commands.Enqueue (New_Session_Command);
+                                 elsif Text = "Pause" then
+                                    --  Arm a pause to fire at the next turn
+                                    --  boundary.  Update the tag immediately
+                                    --  to show "Pausing" as visual feedback.
+                                    if State.Is_Streaming
+                                      and then not State.Is_Paused
+                                      and then not State.Is_Pause_Armed
+                                    then
+                                       State.Set_Pause_Armed (True);
+                                       LLM.Agent.Request_Pause (Agent_Session);
+                                       Update_Tag
+                                         (Win,
+                                          My_FS'Access,
+                                          Armed_Tag,
+                                          State.Tag_Suffix);
+                                    end if;
+                                 elsif Text = "Resume" then
+                                    --  Release the paused loop.  The
+                                    --  Agent_Resumed_Event emitted by
+                                    --  Run_Prompt will update the tag back
+                                    --  to Running_Tag.
+                                    if State.Is_Paused then
+                                       State.Set_Paused (False);
+                                       LLM.Agent.Resume (Agent_Session);
+                                    end if;
                                  elsif Text = "Compact" then
                                     if not State.Is_Streaming
                                       and then not State.Is_Compacting
@@ -1695,6 +1747,8 @@ package body Coyote_App is
 
    begin
       --  ── Initial window setup ──────────────────────────────────────────
+      State.Set_Tag_Suffix
+        (if Opts.One_Shot then "" else " Models Sessions Thinking Stats");
       Acme.Window.Ctl (Win, Win_FS'Access, "cleartag");
       Acme.Window.Append_Tag (Win, Win_FS'Access, Tag_Extra);
       Acme.Window.Set_Name

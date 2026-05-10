@@ -24,19 +24,25 @@ package body LLM.Providers.Anthropic_Messages is
      Tool_Use_Block);
 
    type Stream_Block_State is record
-      Kind         : Stream_Block_Kind := No_Block;
-      Started      : Boolean := False;
-      Tool_Call_Id : Unbounded_String;
-      Tool_Name    : Unbounded_String;
-      Tool_Input   : Unbounded_String;
+      Kind              : Stream_Block_Kind := No_Block;
+      Started           : Boolean := False;
+      Tool_Call_Id      : Unbounded_String;
+      Tool_Name         : Unbounded_String;
+      Tool_Input        : Unbounded_String;
+      --  Thinking block accumulator and its opaque Anthropic signature.
+      --  The signature must be echoed back verbatim in subsequent requests.
+      Thinking_Text     : Unbounded_String;
+      Thinking_Sig      : Unbounded_String;
    end record;
 
    EMPTY_STREAM_BLOCK_STATE : constant Stream_Block_State :=
-      (Kind         => No_Block,
-     Started      => False,
-     Tool_Call_Id => Null_Unbounded_String,
-     Tool_Name    => Null_Unbounded_String,
-     Tool_Input   => Null_Unbounded_String);
+      (Kind              => No_Block,
+     Started           => False,
+     Tool_Call_Id      => Null_Unbounded_String,
+     Tool_Name         => Null_Unbounded_String,
+     Tool_Input        => Null_Unbounded_String,
+     Thinking_Text     => Null_Unbounded_String,
+     Thinking_Sig      => Null_Unbounded_String);
 
    package Stream_Block_State_Vectors is new Ada.Containers.Vectors
       (Index_Type   => Natural,
@@ -265,6 +271,7 @@ package body LLM.Providers.Anthropic_Messages is
       (Handler       : LLM.Providers.Event_Handler;
      Kind          : LLM.Events.Message_Update_Kind;
      Delta_Text    : String := "";
+     Signature     : String := "";
      Content_Index : Natural := 0;
      Tool_Call_Id  : String := "";
      Tool_Name     : String := "")
@@ -273,12 +280,27 @@ package body LLM.Providers.Anthropic_Messages is
          (LLM.Events.Agent_Event with
        Kind          => Kind,
        Delta_Text    => To_Unbounded_String (Delta_Text),
+       Signature     => To_Unbounded_String (Signature),
        Content_Index => Content_Index,
        Tool_Call_Id  => To_Unbounded_String (Tool_Call_Id),
        Tool_Name     => To_Unbounded_String (Tool_Name));
    begin
       Emit (Handler, Event);
    end Emit_Update;
+
+   --  Append a thinking block to a content array, including the opaque
+   --  signature that Anthropic requires be echoed back verbatim.
+   procedure Append_Thinking_Content
+      (Content   : in out GNATCOLL.JSON.JSON_Array;
+       Block     :        LLM.Types.Content_Block)
+   is
+      Item : constant GNATCOLL.JSON.JSON_Value := GNATCOLL.JSON.Create_Object;
+   begin
+      Item.Set_Field ("type", "thinking");
+      Item.Set_Field ("thinking", To_String (Block.Thinking));
+      Item.Set_Field ("signature", To_String (Block.Signature));
+      GNATCOLL.JSON.Append (Content, Item);
+   end Append_Thinking_Content;
 
    procedure Append_Text_Content
       (Content : in out GNATCOLL.JSON.JSON_Array;
@@ -353,6 +375,8 @@ package body LLM.Providers.Anthropic_Messages is
                case Block.Kind is
                   when LLM.Types.Text_Block =>
                      Append_Text_Content (Content, To_String (Block.Text));
+                  when LLM.Types.Thinking_Block =>
+                     Append_Thinking_Content (Content, Block);
                   when LLM.Types.Tool_Call_Block =>
                      Append_Tool_Use_Content (Content, Block);
                   when others =>
@@ -472,7 +496,10 @@ package body LLM.Providers.Anthropic_Messages is
 
          case Block.Kind is
             when Thinking_Block =>
-               Emit_Update (Handler, LLM.Events.Thinking_End);
+               Emit_Update
+                  (Handler   => Handler,
+                   Kind      => LLM.Events.Thinking_End,
+                   Signature => To_String (Block.Thinking_Sig));
             when Text_Block =>
                Emit_Update (Handler, LLM.Events.Text_End);
             when Tool_Use_Block =>
@@ -610,6 +637,8 @@ package body LLM.Providers.Anthropic_Messages is
          Fragment : constant String :=
             (if Delta_Type = "thinking_delta"
          then Get_String_Field (Delta_Value, "thinking")
+         elsif Delta_Type = "signature_delta"
+         then Get_String_Field (Delta_Value, "signature")
          elsif Delta_Type = "text_delta"
          then Get_String_Field (Delta_Value, "text")
          elsif Delta_Type = "input_json_delta"
@@ -617,10 +646,16 @@ package body LLM.Providers.Anthropic_Messages is
          else "");
       begin
          if Delta_Type = "thinking_delta" then
+            Append (Block.Thinking_Text, Fragment);
             Emit_Update
                (Handler    => Handler,
            Kind       => LLM.Events.Thinking_Delta,
            Delta_Text => Fragment);
+         elsif Delta_Type = "signature_delta" then
+            --  Signature is accumulated silently; it is not streamed to the
+            --  UI but must be stored so it can be echoed back to Anthropic.
+            Append (Block.Thinking_Sig, Fragment);
+            State.Blocks.Replace_Element (Index, Block);
          elsif Delta_Type = "text_delta" then
             Emit_Update
                (Handler    => Handler,

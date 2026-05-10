@@ -43,6 +43,7 @@ package LLM.Events is
    type Message_Update_Event is new Agent_Event with record
       Kind          : Message_Update_Kind := Text_Delta;
       Delta_Text    : Ada.Strings.Unbounded.Unbounded_String;
+      Signature     : Ada.Strings.Unbounded.Unbounded_String;
       Content_Index : Natural := 0;
       Tool_Call_Id  : Ada.Strings.Unbounded.Unbounded_String;
       Tool_Name     : Ada.Strings.Unbounded.Unbounded_String;
@@ -59,6 +60,7 @@ package LLM.Events is
       Tool_Name    : Ada.Strings.Unbounded.Unbounded_String;
       Result_Text  : Ada.Strings.Unbounded.Unbounded_String;
       Is_Error     : Boolean := False;
+      Is_Cancelled : Boolean := False;
    end record;
 
    type Model_Select_Event is new Agent_Event with record
@@ -104,5 +106,13 @@ package LLM.Events is
       Cache_Write : Natural := 0;
       Total       : Natural := 0;
    end record;
+
+   --  Emitted by Run_Prompt when a pending pause fires at a turn boundary.
+   --  The loop is now blocked waiting for Resume to be called.
+   type Agent_Paused_Event is new Agent_Event with null record;
+
+   --  Emitted by Run_Prompt immediately after the loop unblocks following
+   --  a Resume call.
+   type Agent_Resumed_Event is new Agent_Event with null record;
 
 end LLM.Events;

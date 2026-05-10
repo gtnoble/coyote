@@ -397,4 +397,73 @@ package body LLM_Tools_Tests is
          "spawn_subagent should mention the missing prompt field");
    end Test_Spawn_Subagent_Requires_Prompt;
 
+   --  ── Pause_Flag unit tests ─────────────────────────────────────────────
+
+   procedure Test_Pause_Flag_Initial_State (T : in out Test) is
+      pragma Unreferenced (T);
+      Flag : LLM.Tools.Pause_Flag;
+   begin
+      Assert (not Flag.Is_Armed,  "initial Is_Armed must be False");
+      Assert (not Flag.Is_Paused, "initial Is_Paused must be False");
+   end Test_Pause_Flag_Initial_State;
+
+   procedure Test_Pause_Flag_Arm_Sets_Armed (T : in out Test) is
+      pragma Unreferenced (T);
+      Flag : LLM.Tools.Pause_Flag;
+   begin
+      Flag.Arm;
+      Assert (Flag.Is_Armed,      "Arm must set Is_Armed");
+      Assert (not Flag.Is_Paused, "Arm must not set Is_Paused");
+   end Test_Pause_Flag_Arm_Sets_Armed;
+
+   procedure Test_Pause_Flag_Unarm_Cancels_Arm (T : in out Test) is
+      pragma Unreferenced (T);
+      Flag : LLM.Tools.Pause_Flag;
+   begin
+      Flag.Arm;
+      Flag.Unarm;
+      Assert (not Flag.Is_Armed,  "Unarm must clear Is_Armed");
+      Assert (not Flag.Is_Paused, "Unarm must not set Is_Paused");
+   end Test_Pause_Flag_Unarm_Cancels_Arm;
+
+   procedure Test_Pause_Flag_Fire_Transitions (T : in out Test) is
+      pragma Unreferenced (T);
+      Flag : LLM.Tools.Pause_Flag;
+   begin
+      Flag.Arm;
+      Flag.Fire;
+      Assert (not Flag.Is_Armed,  "Fire must clear Armed");
+      Assert (Flag.Is_Paused,     "Fire must set Paused when Armed was True");
+   end Test_Pause_Flag_Fire_Transitions;
+
+   procedure Test_Pause_Flag_Fire_No_Op_When_Not_Armed (T : in out Test) is
+      pragma Unreferenced (T);
+      Flag : LLM.Tools.Pause_Flag;
+   begin
+      Flag.Fire;
+      Assert (not Flag.Is_Armed,  "Fire without Arm must leave Is_Armed False");
+      Assert (not Flag.Is_Paused, "Fire without Arm must leave Is_Paused False");
+   end Test_Pause_Flag_Fire_No_Op_When_Not_Armed;
+
+   procedure Test_Pause_Flag_Release_Clears_Paused (T : in out Test) is
+      pragma Unreferenced (T);
+      Flag : LLM.Tools.Pause_Flag;
+   begin
+      Flag.Arm;
+      Flag.Fire;
+      Assert (Flag.Is_Paused, "precondition: Is_Paused must be True after Fire");
+      Flag.Release;
+      Assert (not Flag.Is_Paused, "Release must clear Is_Paused");
+   end Test_Pause_Flag_Release_Clears_Paused;
+
+   procedure Test_Pause_Flag_Release_Clears_Armed (T : in out Test) is
+      pragma Unreferenced (T);
+      Flag : LLM.Tools.Pause_Flag;
+   begin
+      Flag.Arm;
+      Assert (Flag.Is_Armed, "precondition: Is_Armed must be True after Arm");
+      Flag.Release;
+      Assert (not Flag.Is_Armed, "Release must also clear Is_Armed");
+   end Test_Pause_Flag_Release_Clears_Armed;
+
 end LLM_Tools_Tests;

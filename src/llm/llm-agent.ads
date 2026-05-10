@@ -82,6 +82,21 @@ package LLM.Agent is
    --  Safe to call from another task.
    procedure Request_Abort (S : in out Session);
 
+   --  Arm a pause that will fire at the next turn boundary inside
+   --  Run_Prompt.  The loop emits Agent_Paused_Event and blocks until
+   --  Resume is called.  Safe to call from another task.
+   procedure Request_Pause (S : in out Session);
+
+   --  Release a paused loop so it continues from the next turn.
+   --  Safe to call from another task.
+   procedure Resume (S : in out Session);
+
+   --  True when a pause has been armed but has not yet fired.
+   function Is_Pause_Armed (S : Session) return Boolean;
+
+   --  True while the loop is blocked at a turn boundary waiting for Resume.
+   function Is_Paused (S : Session) return Boolean;
+
    --  Start a new empty conversation with a fresh on-disk session id.
    procedure New_Session (S : in out Session);
 
@@ -138,6 +153,7 @@ private
       No_Tools      : Boolean := False;
       Thinking      : LLM.Providers.Thinking_Level := LLM.Providers.Off;
       Abort_State   : aliased LLM.Tools.Abort_Flag;
+      Pause_State   : aliased LLM.Tools.Pause_Flag;
       Streaming     : Boolean := False;
       Cwd           : Ada.Strings.Unbounded.Unbounded_String :=
         Ada.Strings.Unbounded.Null_Unbounded_String;

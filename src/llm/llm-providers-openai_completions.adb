@@ -300,6 +300,7 @@ package body LLM.Providers.OpenAI_Completions is
          (LLM.Events.Agent_Event with
        Kind          => Kind,
        Delta_Text    => To_Unbounded_String (Delta_Text),
+       Signature     => Null_Unbounded_String,
        Content_Index => Content_Index,
        Tool_Call_Id  => To_Unbounded_String (Tool_Call_Id),
        Tool_Name     => To_Unbounded_String (Tool_Name));

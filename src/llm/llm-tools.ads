@@ -16,15 +16,40 @@ package LLM.Tools is
    --
    --  The agent sets the flag by calling Set when the user requests an
    --  abort.  Tools poll Requested before each blocking operation and
-   --  terminate early when it returns True.  Clear resets the flag for
-   --  the next turn.
+   --  terminate early when it returns True.  Wait_Requested blocks the
+   --  caller until the flag is set; it is used as the triggering
+   --  alternative in an ATC select-then-abort construct to interrupt a
+   --  blocking I/O loop without polling.  Clear resets the flag for the
+   --  next turn.
    protected type Abort_Flag is
       procedure Set;
       procedure Clear;
       function Requested return Boolean;
+      entry Wait_Requested;
    private
       Value : Boolean := False;
    end Abort_Flag;
+
+   --  Pause / resume flag for the agentic loop.
+   --
+   --  Arm marks the intent to pause; the loop calls Fire at the next
+   --  turn boundary, which transitions Armed → False, Paused → True.
+   --  Wait_If_Paused blocks the caller (inside Run_Prompt) until Release
+   --  is called, which happens when the user clicks Resume or Stop.
+   --  Unarm cancels a pending arm before it fires (e.g. when Stop is
+   --  clicked while the loop is still running but armed).
+   protected type Pause_Flag is
+      procedure Arm;
+      procedure Unarm;
+      procedure Fire;
+      procedure Release;
+      function Is_Armed  return Boolean;
+      function Is_Paused return Boolean;
+      entry Wait_If_Paused;
+   private
+      Armed  : Boolean := False;
+      Paused : Boolean := False;
+   end Pause_Flag;
 
    --  Description of one tool available to the LLM.
    type Tool_Descriptor is record

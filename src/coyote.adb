@@ -28,11 +28,13 @@
 --  For revision history, see the project version-control log.
 
 with Ada.Command_Line;
+with Ada.Directories;
 with Ada.Exceptions;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with Coyote_App;
 with Coyote_Utils;
+with LLM.Session_Store;
 
 procedure Coyote is
    Opts : Coyote_App.Options;
@@ -103,6 +105,33 @@ begin
       end;
       I := I + 1;
    end loop;
+
+   --  When resuming a session, change to the working directory that was
+   --  current when the session was created so all relative paths resolve
+   --  consistently.  If the stored directory no longer exists, record a
+   --  warning for display in the acme window after it opens.
+   if Length (Opts.Session_Id) > 0 then
+      declare
+         Wd : constant String :=
+           LLM.Session_Store.Session_Work_Dir
+             (To_String (Opts.Session_Id));
+      begin
+         if Wd /= "" then
+            if Ada.Directories.Exists (Wd) then
+               Ada.Directories.Set_Directory (Wd);
+            else
+               declare
+                  Msg : constant String :=
+                    "Session work dir no longer exists: " & Wd;
+               begin
+                  Ada.Text_IO.Put_Line
+                    (Ada.Text_IO.Standard_Error, "[!] " & Msg);
+                  Opts.Work_Dir_Warning := To_Unbounded_String (Msg);
+               end;
+            end if;
+         end if;
+      end;
+   end if;
 
    Coyote_App.Run (Opts);
    Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Success);

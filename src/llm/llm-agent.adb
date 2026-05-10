@@ -139,6 +139,7 @@ package body LLM.Agent is
       Content      : LLM.Types.Content_Block_Vectors.Vector;
       Open_Kind    : Open_Block_Kind := No_Open_Block;
       Open_Text    : Unbounded_String;
+      Open_Sig     : Unbounded_String;
       Stop         : LLM.Types.Stop_Reason := LLM.Types.Unknown_Stop;
       Tok_Usage    : LLM.Types.Usage := (others => 0);
       Error_Text   : Unbounded_String;
@@ -323,13 +324,15 @@ package body LLM.Agent is
          Builder.Saw_Content := True;
       elsif Builder.Open_Kind = Open_Thinking then
          Builder.Content.Append
-           ((Kind     => LLM.Types.Thinking_Block,
-             Thinking => Builder.Open_Text));
+           ((Kind      => LLM.Types.Thinking_Block,
+             Thinking  => Builder.Open_Text,
+             Signature => Builder.Open_Sig));
          Builder.Saw_Content := True;
       end if;
 
       Builder.Open_Kind := No_Open_Block;
       Builder.Open_Text := Null_Unbounded_String;
+      Builder.Open_Sig  := Null_Unbounded_String;
    end Finish_Open_Block;
 
    procedure Start_Open_Block
@@ -356,6 +359,7 @@ package body LLM.Agent is
             Append (Builder.Open_Text, To_String (Event.Delta_Text));
 
          when LLM.Events.Thinking_End =>
+            Builder.Open_Sig := Event.Signature;
             Finish_Open_Block (Builder);
 
          when LLM.Events.Text_Start =>
@@ -852,6 +856,7 @@ package body LLM.Agent is
            (Content      => <>,
             Open_Kind    => No_Open_Block,
             Open_Text    => Null_Unbounded_String,
+            Open_Sig     => Null_Unbounded_String,
             Stop         => LLM.Types.Unknown_Stop,
             Tok_Usage    => (others => 0),
             Error_Text   => Null_Unbounded_String,
@@ -1439,6 +1444,7 @@ package body LLM.Agent is
               (Content      => <>,
                Open_Kind    => No_Open_Block,
                Open_Text    => Null_Unbounded_String,
+               Open_Sig     => Null_Unbounded_String,
                Stop         => LLM.Types.Unknown_Stop,
                Tok_Usage    => (others => 0),
                Error_Text   => Null_Unbounded_String,
@@ -1448,6 +1454,25 @@ package body LLM.Agent is
 
             if S.Abort_State.Requested then
                exit Agentic_Loop;
+            end if;
+
+            --  If a pause was armed, fire it now (at the turn boundary).
+            --  Emit Agent_Paused_Event, block until Resume is called, then
+            --  emit Agent_Resumed_Event.  A concurrent Stop clears both
+            --  Armed and Paused via Request_Abort, so after unblocking we
+            --  re-check the abort flag and exit when appropriate.
+            S.Pause_State.Fire;
+            if S.Pause_State.Is_Paused then
+               Emit
+                 (On_Event,
+                  LLM.Events.Agent_Paused_Event'
+                    (LLM.Events.Agent_Event with null record));
+               S.Pause_State.Wait_If_Paused;
+               exit Agentic_Loop when S.Abort_State.Requested;
+               Emit
+                 (On_Event,
+                  LLM.Events.Agent_Resumed_Event'
+                    (LLM.Events.Agent_Event with null record));
             end if;
 
             if Lowercase (To_String (S.Model_Info.Provider)) =
@@ -1594,7 +1619,8 @@ package body LLM.Agent is
                                 Tool_Call_Id => Tool_Block.Tool_Call_Id,
                                 Tool_Name    => Tool_Block.Tool_Name,
                                 Result_Text  => Slot.Result_Text,
-                                Is_Error     => Slot.Is_Error);
+                                Is_Error     => Slot.Is_Error,
+                                Is_Cancelled => S.Abort_State.Requested);
                            --  Append footer to the stored text of the last
                            --  tool only.  The UI event always shows the raw
                            --  tool output so the footer does not clutter
@@ -1674,6 +1700,7 @@ package body LLM.Agent is
                Emit (On_Event, End_Event);
             end;
             S.Abort_State.Clear;
+            S.Pause_State.Release;
             raise;
       end;
 
@@ -1687,12 +1714,34 @@ package body LLM.Agent is
       end;
       Emit (On_Event, Session_Stats (S));
       S.Abort_State.Clear;
+      S.Pause_State.Release;
    end Run_Prompt;
 
    procedure Request_Abort (S : in out Session) is
    begin
       S.Abort_State.Set;
+      S.Pause_State.Release;
    end Request_Abort;
+
+   procedure Request_Pause (S : in out Session) is
+   begin
+      S.Pause_State.Arm;
+   end Request_Pause;
+
+   procedure Resume (S : in out Session) is
+   begin
+      S.Pause_State.Release;
+   end Resume;
+
+   function Is_Pause_Armed (S : Session) return Boolean is
+   begin
+      return S.Pause_State.Is_Armed;
+   end Is_Pause_Armed;
+
+   function Is_Paused (S : Session) return Boolean is
+   begin
+      return S.Pause_State.Is_Paused;
+   end Is_Paused;
 
    procedure New_Session (S : in out Session) is
    begin
@@ -1701,6 +1750,7 @@ package body LLM.Agent is
         (LLM.Session_Store.Create_Session (To_String (S.Cwd)));
       S.Last_Context_Tokens := 0;
       S.Abort_State.Clear;
+      S.Pause_State.Release;
       S.Streaming := False;
       S.Has_Submitted_Prompts := False;
    end New_Session;
@@ -1717,6 +1767,7 @@ package body LLM.Agent is
       S.Last_Context_Tokens :=
         LLM.Compaction.Estimate_Context_Tokens (S.History);
       S.Abort_State.Clear;
+      S.Pause_State.Release;
       S.Streaming := False;
    end Switch_Session;
 

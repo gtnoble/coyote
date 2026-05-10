@@ -419,6 +419,9 @@ package body Test_Suites is
         ("[integration] Dispatch tool_execution_end error closes block",
          Dispatch_Tests.Test_Dispatch_Tool_End_Error'Access));
       Result.Add_Test (Dispatch_Caller.Create
+        ("[integration] Dispatch tool_execution_end cancelled closes block",
+         Dispatch_Tests.Test_Dispatch_Tool_End_Cancelled'Access));
+      Result.Add_Test (Dispatch_Caller.Create
         ("[integration] Dispatch message_end updates token counts",
          Dispatch_Tests.Test_Dispatch_Message_End_Tokens'Access));
       Result.Add_Test (Dispatch_Caller.Create
@@ -450,6 +453,12 @@ package body Test_Suites is
         ("[integration] Dispatch agent_end with no response shows warning",
          Dispatch_Tests.Test_Dispatch_Agent_End_No_Response_Shows_Error
            'Access));
+      Result.Add_Test (Dispatch_Caller.Create
+        ("[integration] Dispatch Agent_Paused_Event sets Is_Paused",
+         Dispatch_Tests.Test_Dispatch_Agent_Paused_Event'Access));
+      Result.Add_Test (Dispatch_Caller.Create
+        ("[integration] Dispatch Agent_Resumed_Event clears Is_Paused",
+         Dispatch_Tests.Test_Dispatch_Agent_Resumed_Event'Access));
 
       --  Session_Lister tests
       Result.Add_Test (Session_Lister_Caller.Create
@@ -849,6 +858,24 @@ package body Test_Suites is
       Result.Add_Test (App_State_Caller.Create
         ("App_State Prompt_Filter round-trip via Set_Prompt_Filter",
          Coyote_App_Tests.Test_State_Prompt_Filter_Round_Trip'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Is_Paused initial value is False",
+         Coyote_App_Tests.Test_State_Is_Paused_Initial'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Is_Paused toggles via Set_Paused",
+         Coyote_App_Tests.Test_State_Is_Paused_Set_And_Clear'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Is_Pause_Armed initial value is False",
+         Coyote_App_Tests.Test_State_Is_Pause_Armed_Initial'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Is_Pause_Armed toggles via Set_Pause_Armed",
+         Coyote_App_Tests.Test_State_Is_Pause_Armed_Set_And_Clear'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Tag_Suffix initial value is empty",
+         Coyote_App_Tests.Test_State_Tag_Suffix_Initial'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Tag_Suffix round-trip via Set_Tag_Suffix",
+         Coyote_App_Tests.Test_State_Tag_Suffix_Round_Trip'Access));
 
       --  Session_History integration tests (require live acme)
       Result.Add_Test (Session_History_Caller.Create
@@ -1310,6 +1337,10 @@ package body Test_Suites is
         ("LLM.Session_Store append/load compaction round-trips",
          LLM_Session_Store_Tests
            .Test_Append_Then_Load_Round_Trip'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store.Session_Work_Dir returns stored Cwd and empty "
+         & "string for missing session or missing field",
+         LLM_Session_Store_Tests.Test_Session_Work_Dir'Access));
 
       --  LLM.SSE tests
       Result.Add_Test (LLM_SSE_Caller.Create
@@ -1372,6 +1403,27 @@ package body Test_Suites is
       Result.Add_Test (LLM_Tools_Caller.Create
         ("LLM.Tools spawn_subagent rejects missing prompt",
          LLM_Tools_Tests.Test_Spawn_Subagent_Requires_Prompt'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Pause_Flag initial state is not armed and not paused",
+         LLM_Tools_Tests.Test_Pause_Flag_Initial_State'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Pause_Flag Arm sets Is_Armed",
+         LLM_Tools_Tests.Test_Pause_Flag_Arm_Sets_Armed'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Pause_Flag Unarm cancels a pending Arm",
+         LLM_Tools_Tests.Test_Pause_Flag_Unarm_Cancels_Arm'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Pause_Flag Fire transitions Armed to Paused",
+         LLM_Tools_Tests.Test_Pause_Flag_Fire_Transitions'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Pause_Flag Fire without Arm is a no-op",
+         LLM_Tools_Tests.Test_Pause_Flag_Fire_No_Op_When_Not_Armed'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Pause_Flag Release clears Paused",
+         LLM_Tools_Tests.Test_Pause_Flag_Release_Clears_Paused'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Pause_Flag Release also clears Armed",
+         LLM_Tools_Tests.Test_Pause_Flag_Release_Clears_Armed'Access));
 
       --  LLM.Tools.Spawn_Subagent tests
       Result.Add_Test (LLM_Spawn_Subagent_Caller.Create
@@ -1533,6 +1585,15 @@ package body Test_Suites is
         ("LLM.Anthropic_Messages finalizes early-terminated streams",
          LLM_Anthropic_Messages_Tests
            .Test_Anthropic_Stream_Terminates_Early'Access));
+      Result.Add_Test (LLM_Anthropic_Messages_Caller.Create
+        ("LLM.Anthropic_Messages captures signature from signature_delta",
+         LLM_Anthropic_Messages_Tests
+           .Test_Signature_Parsed_From_SSE'Access));
+      Result.Add_Test (LLM_Anthropic_Messages_Caller.Create
+        ("LLM.Anthropic_Messages echoes thinking block with signature "
+         & "in subsequent request",
+         LLM_Anthropic_Messages_Tests
+           .Test_Thinking_Block_Serialised_In_Request'Access));
 
       --  LLM.Providers.GitHub_Copilot tests
       Result.Add_Test (LLM_GitHub_Copilot_Caller.Create
@@ -1738,6 +1799,12 @@ package body Test_Suites is
         ("Parallel batch: abort during batch sets Was_Aborted",
          LLM_Parallel_Tools_Tests
            .Test_Parallel_Abort_During_Batch'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent pause fires at turn boundary and resumes normally",
+         LLM_Agent_Tests.Test_Pause_Fires_At_Turn_Boundary'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent Request_Abort while paused exits with Was_Aborted",
+         LLM_Agent_Tests.Test_Stop_While_Paused'Access));
 
       return Result;
    end Suite;

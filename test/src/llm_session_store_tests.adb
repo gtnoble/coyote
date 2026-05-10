@@ -368,8 +368,9 @@ package body LLM_Session_Store_Tests is
       Content : LLM.Types.Content_Block_Vectors.Vector;
    begin
       Content.Append
-        ((Kind     => LLM.Types.Thinking_Block,
-          Thinking => To_Unbounded_String ("trace this")));
+        ((Kind      => LLM.Types.Thinking_Block,
+          Thinking  => To_Unbounded_String ("trace this"),
+          Signature => Ada.Strings.Unbounded.To_Unbounded_String ("sig-abc")));
       Content.Append
         ((Kind => LLM.Types.Text_Block,
           Text => To_Unbounded_String ("Final answer")));
@@ -626,6 +627,10 @@ package body LLM_Session_Store_Tests is
            (To_String (Messages.Element (0).Content.Element (0).Thinking)
               = "trace this",
             "Thinking block text should round-trip");
+         Assert
+           (To_String (Messages.Element (0).Content.Element (0).Signature)
+              = "sig-abc",
+            "Thinking block signature should round-trip");
          Assert
            (Messages.Element (0).Content.Element (1).Kind
               = LLM.Types.Text_Block,
@@ -1241,5 +1246,62 @@ package body LLM_Session_Store_Tests is
          Cleanup_Test_Root;
          raise;
    end Test_Append_Then_Load_Round_Trip;
+
+   procedure Test_Session_Work_Dir (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+   begin
+      Prepare_Test_Home;
+
+      --  Case 1: happy path — Session_Work_Dir returns the Cwd written by
+      --  Create_Session.
+      declare
+         Session_Id : constant String :=
+           LLM.Session_Store.Create_Session (Source_Cwd);
+      begin
+         Assert
+           (LLM.Session_Store.Session_Work_Dir (Session_Id) = Source_Cwd,
+            "Session_Work_Dir should return the Cwd passed to Create_Session");
+      end;
+
+      --  Case 2: unknown UUID — Session_Work_Dir returns "".
+      Assert
+        (LLM.Session_Store.Session_Work_Dir ("no-such-uuid") = "",
+         "Session_Work_Dir should return empty string for an unknown UUID");
+
+      --  Case 3: header present but missing workDir field — returns "".
+      declare
+         Session_Id : constant String :=
+           LLM.Session_Store.Create_Session (Source_Cwd);
+         Path       : constant String :=
+           LLM.Session_Store.Session_File_Path (Session_Id);
+         File       : Ada.Text_IO.File_Type;
+      begin
+         --  Overwrite the session file with a header that has no workDir.
+         Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, Path);
+         Ada.Text_IO.Put_Line
+           (File,
+            "{""version"":1,""id"":""" & Session_Id & ""","
+            & """createdAt"":1000000}");
+         Ada.Text_IO.Close (File);
+
+         Assert
+           (LLM.Session_Store.Session_Work_Dir (Session_Id) = "",
+            "Session_Work_Dir should return empty string when header has no "
+            & "workDir field");
+      end;
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Root;
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Root;
+         raise;
+   end Test_Session_Work_Dir;
 
 end LLM_Session_Store_Tests;

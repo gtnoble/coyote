@@ -42,6 +42,11 @@ package Dispatch_Tests is
    procedure Test_Dispatch_Tool_End_Error
      (T : in out Test);
 
+   --  tool_execution_end (cancelled) replaces the placeholder with a cross
+   --  and the word "cancelled".
+   procedure Test_Dispatch_Tool_End_Cancelled
+     (T : in out Test);
+
    --  message_end updates turn token counts and stop reason in App_State.
    procedure Test_Dispatch_Message_End_Tokens
      (T : in out Test);
@@ -82,5 +87,11 @@ package Dispatch_Tests is
    --  agent_end with no text or tool output shows the no-response warning.
    procedure Test_Dispatch_Agent_End_No_Response_Shows_Error
      (T : in out Test);
+
+   --  Agent_Paused_Event sets Is_Paused and clears Is_Pause_Armed.
+   procedure Test_Dispatch_Agent_Paused_Event (T : in out Test);
+
+   --  Agent_Resumed_Event clears Is_Paused and restores "running" status.
+   procedure Test_Dispatch_Agent_Resumed_Event (T : in out Test);
 
 end Dispatch_Tests;

@@ -233,14 +233,29 @@ package body LLM.Tools.Bash is
          Close (Output_W);
          Output_W := Invalid_FD;
 
-         Read_Output_Loop :
-         loop
-            exit Read_Output_Loop when
-              Abort_Flg /= null and then Abort_Flg.Requested;
-            Bytes_Read := Read (Output_R, Chunk);
-            exit Read_Output_Loop when Bytes_Read <= 0;
-            Capture (Chunk (1 .. Bytes_Read));
-         end loop Read_Output_Loop;
+         --  Read all output from the child process.  When an abort flag is
+         --  provided the read loop runs inside an ATC block: if the user
+         --  requests abort while Read is blocking, Wait_Requested fires and
+         --  Ada's runtime interrupts the blocked syscall immediately.
+         if Abort_Flg /= null then
+            select
+               Abort_Flg.Wait_Requested;
+            then abort
+               Read_Output_Loop :
+               loop
+                  Bytes_Read := Read (Output_R, Chunk);
+                  exit Read_Output_Loop when Bytes_Read <= 0;
+                  Capture (Chunk (1 .. Bytes_Read));
+               end loop Read_Output_Loop;
+            end select;
+         else
+            No_Abort_Read_Loop :
+            loop
+               Bytes_Read := Read (Output_R, Chunk);
+               exit No_Abort_Read_Loop when Bytes_Read <= 0;
+               Capture (Chunk (1 .. Bytes_Read));
+            end loop No_Abort_Read_Loop;
+         end if;
 
          --  If aborted, terminate the child process before waiting.
          if Abort_Flg /= null and then Abort_Flg.Requested then
