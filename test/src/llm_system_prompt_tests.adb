@@ -1,6 +1,7 @@
 with AUnit.Assertions;
 with Ada.Calendar;
 with Ada.Calendar.Formatting;
+with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
 with LLM.System_Prompt;
 
@@ -41,8 +42,8 @@ package body LLM_System_Prompt_Tests is
         LLM.System_Prompt.Build_System_Prompt (Cwd => Test_Cwd);
    begin
       Assert
-        (Ada.Strings.Fixed.Index (P, "bash") > 0,
-         "default prompt should mention the bash tool");
+        (Ada.Strings.Fixed.Index (P, "shell") > 0,
+         "default prompt should mention the shell tool");
       Assert
         (Ada.Strings.Fixed.Index (P, "read") > 0,
          "default prompt should mention the read tool");
@@ -149,7 +150,7 @@ package body LLM_System_Prompt_Tests is
         (Ada.Strings.Fixed.Index (P, "Available tools:") = 0,
          "No_Tools should suppress the tool heading");
       Assert
-        (Ada.Strings.Fixed.Index (P, "bash") = 0,
+        (Ada.Strings.Fixed.Index (P, "- shell:") = 0,
          "No_Tools should suppress the tool list and guidelines");
    end Test_No_Tools_Suppresses_Tool_List;
 
@@ -191,6 +192,19 @@ package body LLM_System_Prompt_Tests is
         (Ada.Strings.Fixed.Index (P, "# Project Context") = 0,
          "empty context sections should not add a project-context header");
    end Test_Empty_Context_Sections_Silent;
+
+   procedure Test_Default_Prompt_Contains_Shell (T : in out Test) is
+      pragma Unreferenced (T);
+
+      P          : constant String :=
+        LLM.System_Prompt.Build_System_Prompt (Cwd => Test_Cwd);
+      Shell_Path : constant String :=
+        Ada.Environment_Variables.Value ("SHELL", "/bin/sh");
+   begin
+      Assert
+        (Ada.Strings.Fixed.Index (P, "Current shell: " & Shell_Path) > 0,
+         "default prompt should include the current shell path");
+   end Test_Default_Prompt_Contains_Shell;
 
    procedure Test_Section_Order (T : in out Test) is
       pragma Unreferenced (T);

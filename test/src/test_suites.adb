@@ -1004,6 +1004,9 @@ package body Test_Suites is
          LLM_System_Prompt_Tests
            .Test_Empty_Context_Sections_Silent'Access));
       Result.Add_Test (LLM_Sys_Prompt_Caller.Create
+        ("LLM.System_Prompt default prompt contains current shell",
+         LLM_System_Prompt_Tests.Test_Default_Prompt_Contains_Shell'Access));
+      Result.Add_Test (LLM_Sys_Prompt_Caller.Create
         ("LLM.System_Prompt preserves section order",
          LLM_System_Prompt_Tests.Test_Section_Order'Access));
 
@@ -1341,6 +1344,11 @@ package body Test_Suites is
         ("LLM.Session_Store.Session_Work_Dir returns stored Cwd and empty "
          & "string for missing session or missing field",
          LLM_Session_Store_Tests.Test_Session_Work_Dir'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store.Append_Message handles large tool result without "
+         & "secondary-stack overflow",
+         LLM_Session_Store_Tests
+           .Test_Large_Tool_Result_Round_Trip'Access));
 
       --  LLM.SSE tests
       Result.Add_Test (LLM_SSE_Caller.Create
@@ -1370,11 +1378,20 @@ package body Test_Suites is
 
       --  LLM.Tools tests
       Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Bash executes a successful command",
-         LLM_Tools_Tests.Test_Bash_Success'Access));
+        ("LLM.Tools.Shell executes a successful command",
+         LLM_Tools_Tests.Test_Shell_Success'Access));
       Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Bash reports a non-zero exit status",
-         LLM_Tools_Tests.Test_Bash_Failure'Access));
+        ("LLM.Tools.Shell reports a non-zero exit status",
+         LLM_Tools_Tests.Test_Shell_Failure'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell pipes stdin text into the command",
+         LLM_Tools_Tests.Test_Shell_Stdin_Piped'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell treats empty stdin field as absent",
+         LLM_Tools_Tests.Test_Shell_Stdin_Empty_Ignored'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell succeeds without a stdin field",
+         LLM_Tools_Tests.Test_Shell_Stdin_Absent_Dev_Null'Access));
       Result.Add_Test (LLM_Tools_Caller.Create
         ("LLM.Tools.File_Ops read returns file contents",
          LLM_Tools_Tests.Test_Read'Access));
@@ -1438,6 +1455,33 @@ package body Test_Suites is
       Result.Add_Test (LLM_Spawn_Subagent_Caller.Create
         ("LLM.Tools.Spawn_Subagent returns an error when aborted",
          LLM_Spawn_Subagent_Tests.Test_Abort_Before_Spawn'Access));
+      Result.Add_Test (LLM_Spawn_Subagent_Caller.Create
+        ("LLM.Tools.Spawn_Subagent rejects 'name' and 'names' together",
+         LLM_Spawn_Subagent_Tests
+           .Test_Name_And_Names_Conflict'Access));
+      Result.Add_Test (LLM_Spawn_Subagent_Caller.Create
+        ("LLM.Tools.Spawn_Subagent rejects an empty 'names' array",
+         LLM_Spawn_Subagent_Tests.Test_Names_Empty_Array'Access));
+      Result.Add_Test (LLM_Spawn_Subagent_Caller.Create
+        ("LLM.Tools.Spawn_Subagent rejects non-string elements in 'names'",
+         LLM_Spawn_Subagent_Tests
+           .Test_Names_Non_String_Element'Access));
+      Result.Add_Test (LLM_Spawn_Subagent_Caller.Create
+        ("LLM.Tools.Spawn_Subagent rejects empty strings in 'names'",
+         LLM_Spawn_Subagent_Tests
+           .Test_Names_Empty_String_Element'Access));
+      Result.Add_Test (LLM_Spawn_Subagent_Caller.Create
+        ("LLM.Tools.Spawn_Subagent rejects non-string 'prompt_filter'",
+         LLM_Spawn_Subagent_Tests
+           .Test_Prompt_Filter_Wrong_Type'Access));
+      Result.Add_Test (LLM_Spawn_Subagent_Caller.Create
+        ("LLM.Tools.Spawn_Subagent prompt_filter sets COYOTE_SUBAGENT_NAME",
+         LLM_Spawn_Subagent_Tests
+           .Test_Prompt_Filter_Sets_Subagent_Name'Access));
+      Result.Add_Test (LLM_Spawn_Subagent_Caller.Create
+        ("LLM.Tools.Spawn_Subagent accepts single-element 'names' array",
+         LLM_Spawn_Subagent_Tests
+           .Test_Names_Single_Element_Accepted'Access));
 
       --  LLM.Providers.OpenAI_Completions tests
       Result.Add_Test (LLM_OpenAI_Completions_Caller.Create

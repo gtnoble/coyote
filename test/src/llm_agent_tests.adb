@@ -614,7 +614,7 @@ package body LLM_Agent_Tests is
                  Tool_Call_SSE_Payload
                    ((1 => Tool_Call_Def
                       (Tool_Call_Id   => "call_1",
-                       Tool_Name      => "bash",
+                       Tool_Name      => "shell",
                        Arguments_Json =>
                          "{""command"":""echo tool-ok""}")),
                     Prompt_Tokens     => 12,
@@ -739,12 +739,12 @@ package body LLM_Agent_Tests is
         Tool_Call_SSE_Payload
           ((1 => Tool_Call_Def
              (Tool_Call_Id   => "call_1",
-              Tool_Name      => "bash",
+              Tool_Name      => "shell",
               Arguments_Json =>
                 "{""command"":""printf first-ok""}"),
             2 => Tool_Call_Def
              (Tool_Call_Id   => "call_2",
-              Tool_Name      => "bash",
+              Tool_Name      => "shell",
               Arguments_Json =>
                 "{""command"":""printf second-ok""}")),
            Prompt_Tokens     => 14,
@@ -1426,12 +1426,12 @@ package body LLM_Agent_Tests is
         Tool_Call_SSE_Payload
           ((1 => Tool_Call_Def
              (Tool_Call_Id   => "call_1",
-              Tool_Name      => "bash",
+              Tool_Name      => "shell",
               Arguments_Json =>
                 "{""command"":""printf first-ok""}"),
             2 => Tool_Call_Def
              (Tool_Call_Id   => "call_2",
-              Tool_Name      => "bash",
+              Tool_Name      => "shell",
               Arguments_Json =>
                 "{""command"":""printf second-ok""}")),
            Prompt_Tokens     => 14,
@@ -1781,7 +1781,7 @@ package body LLM_Agent_Tests is
                   Tool_SSE : constant String :=
                     Tool_Call_SSE_Payload
                       ((1 => Tool_Call_Def
-                          ("call_1", "bash", Write (Args))),
+                          ("call_1", "shell", Write (Args))),
                        Prompt_Tokens     => 12,
                        Completion_Tokens => 6);
                begin
@@ -4417,7 +4417,7 @@ package body LLM_Agent_Tests is
                Tool_Call_SSE_Payload
                  ((1 => Tool_Call_Def
                     (Tool_Call_Id   => "call_footer_1",
-                     Tool_Name      => "bash",
+                     Tool_Name      => "shell",
                      Arguments_Json => "{""command"":""echo footer-ok""}")),
                   Prompt_Tokens     => 50,
                   Completion_Tokens => 20));
@@ -4549,11 +4549,11 @@ package body LLM_Agent_Tests is
         Tool_Call_SSE_Payload
           ((1 => Tool_Call_Def
              (Tool_Call_Id   => "call_f1",
-              Tool_Name      => "bash",
+              Tool_Name      => "shell",
               Arguments_Json => "{""command"":""printf first-ok""}"),
             2 => Tool_Call_Def
              (Tool_Call_Id   => "call_f2",
-              Tool_Name      => "bash",
+              Tool_Name      => "shell",
               Arguments_Json => "{""command"":""printf second-ok""}")),
            Prompt_Tokens     => 30,
            Completion_Tokens => 10);

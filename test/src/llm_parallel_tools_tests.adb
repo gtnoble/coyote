@@ -270,11 +270,11 @@ package body LLM_Parallel_Tools_Tests is
         Tool_Call_SSE_Payload
           ((1 => Tool_Call_Def
              (Tool_Call_Id   => "call_1",
-              Tool_Name      => "bash",
+              Tool_Name      => "shell",
               Arguments_Json => "{""command"":""sleep 0.4""}"),
             2 => Tool_Call_Def
              (Tool_Call_Id   => "call_2",
-              Tool_Name      => "bash",
+              Tool_Name      => "shell",
               Arguments_Json => "{""command"":""sleep 0.4""}")));
 
       Request_Count : aliased Natural := 0;
@@ -485,11 +485,11 @@ package body LLM_Parallel_Tools_Tests is
         Tool_Call_SSE_Payload
           ((1 => Tool_Call_Def
              (Tool_Call_Id   => "call_1",
-              Tool_Name      => "bash",
+              Tool_Name      => "shell",
               Arguments_Json => "{""command"":""sleep 2""}"),
             2 => Tool_Call_Def
              (Tool_Call_Id   => "call_2",
-              Tool_Name      => "bash",
+              Tool_Name      => "shell",
               Arguments_Json => "{""command"":""echo done""}")));
 
       Request_Count : aliased Natural := 0;

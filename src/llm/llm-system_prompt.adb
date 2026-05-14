@@ -7,6 +7,7 @@ with Ada.Calendar;
 with Ada.Calendar.Formatting;
 with Ada.Containers.Indefinite_Vectors;
 with Ada.Directories;
+with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
@@ -258,7 +259,7 @@ package body LLM.System_Prompt is
                & ASCII.LF
                & "Guidelines:"
                & ASCII.LF
-               & "- Use bash for file operations like ls, grep, find"
+               & "- Use shell for file operations like ls, grep, find"
                & ASCII.LF
                & "- Use read to examine files before editing. You must use"
                & " this tool instead of cat or sed."
@@ -351,6 +352,11 @@ package body LLM.System_Prompt is
 
       Append (Result, ASCII.LF & "Current date: " & Today_String);
       Append (Result, ASCII.LF & "Current working directory: " & Cwd);
+      Append
+        (Result,
+         ASCII.LF
+         & "Current shell: "
+         & Ada.Environment_Variables.Value ("SHELL", "/bin/sh"));
 
       return To_String (Result);
    end Build_System_Prompt;

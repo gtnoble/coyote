@@ -5,8 +5,11 @@ package LLM_Tools_Tests is
 
    type Test is new AUnit.Test_Fixtures.Test_Fixture with null record;
 
-   procedure Test_Bash_Success (T : in out Test);
-   procedure Test_Bash_Failure (T : in out Test);
+   procedure Test_Shell_Success (T : in out Test);
+   procedure Test_Shell_Failure (T : in out Test);
+   procedure Test_Shell_Stdin_Piped           (T : in out Test);
+   procedure Test_Shell_Stdin_Empty_Ignored   (T : in out Test);
+   procedure Test_Shell_Stdin_Absent_Dev_Null (T : in out Test);
    procedure Test_Read (T : in out Test);
    procedure Test_Write (T : in out Test);
    procedure Test_Edit_Unique (T : in out Test);

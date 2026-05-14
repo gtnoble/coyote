@@ -17,6 +17,7 @@ package LLM_System_Prompt_Tests is
    procedure Test_Context_Sections_Injected (T : in out Test);
    procedure Test_Skills_Section_Injected (T : in out Test);
    procedure Test_Empty_Context_Sections_Silent (T : in out Test);
+   procedure Test_Default_Prompt_Contains_Shell (T : in out Test);
    procedure Test_Section_Order (T : in out Test);
 
 end LLM_System_Prompt_Tests;

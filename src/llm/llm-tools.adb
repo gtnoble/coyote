@@ -3,7 +3,7 @@
 --  Project: coyote
 --  For revision history, see the project version-control log.
 
-with LLM.Tools.Bash;
+with LLM.Tools.Shell;
 with LLM.Tools.File_Ops;
 with LLM.Tools.Spawn_Subagent;
 
@@ -79,7 +79,7 @@ package body LLM.Tools is
    function Built_In_Tools return Tool_Descriptor_Vectors.Vector is
       Result : Tool_Descriptor_Vectors.Vector;
    begin
-      Result.Append (LLM.Tools.Bash.Descriptor);
+      Result.Append (LLM.Tools.Shell.Descriptor);
       Result.Append (LLM.Tools.File_Ops.Read_Descriptor);
       Result.Append (LLM.Tools.File_Ops.Write_Descriptor);
       Result.Append (LLM.Tools.File_Ops.Edit_Descriptor);
@@ -97,8 +97,8 @@ package body LLM.Tools is
       Abort_Flg : access Abort_Flag := null)
    is
    begin
-      if Name = "bash" then
-         LLM.Tools.Bash.Execute (Args_Json, Result, Is_Error, Abort_Flg);
+      if Name = "shell" then
+         LLM.Tools.Shell.Execute (Args_Json, Result, Is_Error, Abort_Flg);
       elsif Name = "read" then
          LLM.Tools.File_Ops.Execute_Read (Args_Json, Result, Is_Error);
       elsif Name = "write" then

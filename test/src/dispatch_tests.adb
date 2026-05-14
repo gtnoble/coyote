@@ -576,7 +576,7 @@ package body Dispatch_Tests is
            (Event   => LLM.Events.Tool_Execution_Start_Event'
               (LLM.Events.Agent_Event with
                Tool_Call_Id => To_Unbounded_String ("tc-cancel"),
-               Tool_Name    => To_Unbounded_String ("bash"),
+               Tool_Name    => To_Unbounded_String ("shell"),
                Args_Json    => To_Unbounded_String
                  ("{""command"":""sleep 60""}")),
             Win     => Win,
@@ -589,7 +589,7 @@ package body Dispatch_Tests is
            (Event   => LLM.Events.Tool_Execution_End_Event'
               (LLM.Events.Agent_Event with
                Tool_Call_Id => To_Unbounded_String ("tc-cancel"),
-               Tool_Name    => To_Unbounded_String ("bash"),
+               Tool_Name    => To_Unbounded_String ("shell"),
                Result_Text  => To_Unbounded_String ("aborted"),
                Is_Error     => True,
                Is_Cancelled => True),

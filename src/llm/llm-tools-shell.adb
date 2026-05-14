@@ -1,8 +1,9 @@
---  LLM.Tools.Bash body.
+--  LLM.Tools.Shell body.
 --
 --  Project: coyote
 --  For revision history, see the project version-control log.
 
+with Ada.Environment_Variables;
 with Ada.Exceptions;
 with Ada.Streams.Stream_IO;
 with Ada.Strings;
@@ -13,11 +14,29 @@ with GNATCOLL.OS.FS;         use GNATCOLL.OS.FS;
 with GNATCOLL.OS.Process;    use GNATCOLL.OS.Process;
 with LLM.Tools.Internal;
 
-package body LLM.Tools.Bash is
+package body LLM.Tools.Shell is
 
    use type GNATCOLL.JSON.JSON_Value_Type;
 
    Max_Output_Bytes : constant Natural := 200 * 1024;
+
+   Default_Shell : constant String := "/bin/sh";
+
+   function Resolve_Shell return String is
+   begin
+      if Ada.Environment_Variables.Exists ("SHELL") then
+         declare
+            Value : constant String :=
+              Ada.Environment_Variables.Value ("SHELL");
+         begin
+            if Value'Length > 0 then
+               return Value;
+            end if;
+         end;
+      end if;
+
+      return Default_Shell;
+   end Resolve_Shell;
 
    function Descriptor return Tool_Descriptor is
       Schema   : constant GNATCOLL.JSON.JSON_Value :=
@@ -28,6 +47,8 @@ package body LLM.Tools.Bash is
         GNATCOLL.JSON.Create_Object;
       Desc_P   : constant GNATCOLL.JSON.JSON_Value :=
         GNATCOLL.JSON.Create_Object;
+      Stdin_P  : constant GNATCOLL.JSON.JSON_Value :=
+        GNATCOLL.JSON.Create_Object;
       Required : GNATCOLL.JSON.JSON_Array := GNATCOLL.JSON.Empty_Array;
    begin
       Command.Set_Field ("type", "string");
@@ -37,8 +58,14 @@ package body LLM.Tools.Bash is
       Desc_P.Set_Field
         ("description", "Optional description of what the command does");
 
+      Stdin_P.Set_Field ("type", "string");
+      Stdin_P.Set_Field
+        ("description",
+         "Optional text to pipe into the command's standard input");
+
       Props.Set_Field ("command", Command);
       Props.Set_Field ("description", Desc_P);
+      Props.Set_Field ("stdin", Stdin_P);
 
       GNATCOLL.JSON.Append (Required, GNATCOLL.JSON.Create ("command"));
 
@@ -47,9 +74,11 @@ package body LLM.Tools.Bash is
       Schema.Set_Field ("required", GNATCOLL.JSON.Create (Required));
 
       return
-        (Name        => To_Unbounded_String ("bash"),
+        (Name        => To_Unbounded_String ("shell"),
          Description => To_Unbounded_String
-           ("Execute a shell command and return its combined output."),
+           ("Execute a shell command and return its combined output."
+            & " Optionally pipe text into the command via the"
+            & " `stdin` field."),
          Schema_Json => Schema);
    end Descriptor;
 
@@ -83,7 +112,7 @@ package body LLM.Tools.Bash is
    begin
       Temp_Names.Next (Suffix);
       return
-        "/tmp/coyote_bash_tool_"
+        "/tmp/coyote_shell_tool_"
         & Image_Of (Getpid)
         & "_"
         & Image_Of (Integer (Suffix))
@@ -123,7 +152,7 @@ package body LLM.Tools.Bash is
 
       if not Parsed.Success or else Root.Kind /= GNATCOLL.JSON.JSON_Object_Type
       then
-         Set_Error ("invalid JSON arguments for bash tool", Result, Is_Error);
+         Set_Error ("invalid JSON arguments for shell tool", Result, Is_Error);
          return;
       end if;
 
@@ -131,7 +160,7 @@ package body LLM.Tools.Bash is
         or else Root.Get ("command").Kind /= GNATCOLL.JSON.JSON_String_Type
       then
          Set_Error
-           ("bash tool requires a string field 'command'",
+           ("shell tool requires a string field 'command'",
             Result,
             Is_Error);
          return;
@@ -139,6 +168,7 @@ package body LLM.Tools.Bash is
 
       declare
          Command        : constant String := Root.Get ("command").Get;
+         Shell_Path     : constant String := Resolve_Shell;
          Output_R       : File_Descriptor := Invalid_FD;
          Output_W       : File_Descriptor := Invalid_FD;
          Null_In        : File_Descriptor := Invalid_FD;
@@ -153,6 +183,10 @@ package body LLM.Tools.Bash is
          Temp_Path      : Unbounded_String;
          Was_Truncated  : Boolean         := False;
          Total_Bytes    : Natural         := 0;
+         Has_Stdin_Text : Boolean         := False;
+         Stdin_Text     : Unbounded_String := Null_Unbounded_String;
+         Stdin_R        : File_Descriptor := Invalid_FD;
+         Stdin_W        : File_Descriptor := Invalid_FD;
 
          procedure Cleanup is
          begin
@@ -169,6 +203,16 @@ package body LLM.Tools.Bash is
             if Null_In /= Invalid_FD then
                Close (Null_In);
                Null_In := Invalid_FD;
+            end if;
+
+            if Stdin_R /= Invalid_FD then
+               Close (Stdin_R);
+               Stdin_R := Invalid_FD;
+            end if;
+
+            if Stdin_W /= Invalid_FD then
+               Close (Stdin_W);
+               Stdin_W := Invalid_FD;
             end if;
 
             if Temp_Open then
@@ -215,21 +259,59 @@ package body LLM.Tools.Bash is
          end Capture;
 
       begin
-         Open_Pipe (Output_R, Output_W);
-         Null_In := Open (Null_File, Read_Mode);
+         --  Parse the optional "stdin" field before spawning the child.
+         if Root.Has_Field ("stdin")
+           and then
+             Root.Get ("stdin").Kind = GNATCOLL.JSON.JSON_String_Type
+         then
+            declare
+               Value : constant String := Root.Get ("stdin").Get;
+            begin
+               if Value'Length > 0 then
+                  Has_Stdin_Text := True;
+                  Stdin_Text     := To_Unbounded_String (Value);
+               end if;
+            end;
+         end if;
 
-         Args.Append ("bash");
+         Open_Pipe (Output_R, Output_W);
+
+         if Has_Stdin_Text then
+            --  Open a pipe whose write end the parent fills after Start.
+            --  Note: this pattern is safe for stdin content that fits in
+            --  the OS pipe buffer (typically 64 KB on Linux).  Larger
+            --  payloads are handled correctly because the child begins
+            --  consuming stdin as soon as it starts, and the parent
+            --  drains stdout immediately afterward.
+            Open_Pipe (Stdin_R, Stdin_W);
+         else
+            Null_In := Open (Null_File, Read_Mode);
+         end if;
+
+         Args.Append (Shell_Path);
          Args.Append ("-lc");
          Args.Append (Command);
 
          Handle := Start
            (Args   => Args,
-            Stdin  => Null_In,
+            Stdin  => (if Has_Stdin_Text then Stdin_R else Null_In),
             Stdout => Output_W,
             Stderr => Output_W);
 
-         Close (Null_In);
-         Null_In := Invalid_FD;
+         --  The child has inherited the read end of the stdin pipe; the
+         --  parent no longer needs it.  Write the stdin content and close
+         --  the write end so the child receives EOF when done reading.
+         if Has_Stdin_Text then
+            Close (Stdin_R);
+            Stdin_R := Invalid_FD;
+            Write (Stdin_W, To_String (Stdin_Text));
+            Close (Stdin_W);
+            Stdin_W := Invalid_FD;
+         else
+            Close (Null_In);
+            Null_In := Invalid_FD;
+         end if;
+
          Close (Output_W);
          Output_W := Invalid_FD;
 
@@ -316,10 +398,10 @@ package body LLM.Tools.Bash is
          when Ex : others =>
             Cleanup;
             Set_Error
-              ("bash tool failed: " & Ada.Exceptions.Exception_Message (Ex),
+              ("shell tool failed: " & Ada.Exceptions.Exception_Message (Ex),
                Result,
                Is_Error);
       end;
    end Execute;
 
-end LLM.Tools.Bash;
+end LLM.Tools.Shell;

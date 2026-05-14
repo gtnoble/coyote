@@ -251,7 +251,8 @@ package body LLM.Session_Store is
       end if;
 
       Stream := Ada.Streams.Stream_IO.Stream (File);
-      String'Write (Stream, Line & ASCII.LF);
+      String'Write (Stream, Line);
+      Character'Write (Stream, ASCII.LF);
       Ada.Streams.Stream_IO.Close (File);
    exception
       when others =>

@@ -1304,4 +1304,69 @@ package body LLM_Session_Store_Tests is
          raise;
    end Test_Session_Work_Dir;
 
+   procedure Test_Large_Tool_Result_Round_Trip (T : in out Test) is
+      --  Regression test for a secondary-stack overflow in Write_Raw_Line.
+      --  Before the fix, Append_Message raised Storage_Error (SIGSEGV) when
+      --  the tool-result text was large enough that the temporary produced by
+      --  "Line & ASCII.LF" overflowed the secondary stack alongside the
+      --  String result of Message_To_Json.  512 KB is comfortably above any
+      --  typical secondary-stack limit and well within heap limits.
+      pragma Unreferenced (T);
+
+      Large_Size   : constant := 512 * 1_024;  --  512 KB
+      Large_Text   : constant String (1 .. Large_Size) := (others => 'x');
+      Content      : LLM.Types.Content_Block_Vectors.Vector;
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+   begin
+      Prepare_Test_Home;
+
+      Content.Append
+        ((Kind        => LLM.Types.Tool_Result_Block,
+          Result_Id   => To_Unbounded_String ("call-large"),
+          Result_Text => To_Unbounded_String (Large_Text),
+          Is_Error    => False));
+
+      declare
+         Msg : constant LLM.Types.Message :=
+           (Role      => LLM.Types.Tool_Result,
+            Content   => Content,
+            Tok_Usage => (others => 0),
+            Stop      => LLM.Types.Unknown_Stop,
+            Timestamp => Null_Unbounded_String);
+
+         Session_Id : constant String :=
+           LLM.Session_Store.Create_Session (Source_Cwd);
+         Messages   : LLM.Types.Message_Vectors.Vector;
+      begin
+         --  This must not raise Storage_Error or any other exception.
+         LLM.Session_Store.Append_Message (Session_Id, Msg);
+
+         Messages := LLM.Session_Store.Load_Messages (Session_Id);
+
+         Assert
+           (Messages.Length = 1,
+            "Large tool result: one message should round-trip");
+         Assert
+           (Messages.Element (0).Role = LLM.Types.Tool_Result,
+            "Large tool result: role should round-trip");
+         Assert
+           (To_String
+              (Messages.Element (0).Content.Element (0).Result_Text)
+              = Large_Text,
+            "Large tool result: full text should round-trip without "
+            & "truncation or corruption");
+      end;
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Root;
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Root;
+         raise;
+   end Test_Large_Tool_Result_Round_Trip;
+
 end LLM_Session_Store_Tests;

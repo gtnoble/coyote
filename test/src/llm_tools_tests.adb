@@ -6,7 +6,7 @@ with Ada.Streams.Stream_IO;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with LLM.Tools;
-with LLM.Tools.Bash;
+with LLM.Tools.Shell;
 with LLM.Tools.File_Ops;
 
 package body LLM_Tools_Tests is
@@ -121,13 +121,13 @@ package body LLM_Tools_Tests is
          raise;
    end Read_Text;
 
-   procedure Test_Bash_Success (T : in out Test) is
+   procedure Test_Shell_Success (T : in out Test) is
       pragma Unreferenced (T);
 
       Result   : Unbounded_String;
       Is_Error : Boolean;
    begin
-      LLM.Tools.Bash.Execute
+      LLM.Tools.Shell.Execute
         (Args_Json => "{""command"":""echo hello""}",
          Result    => Result,
          Is_Error  => Is_Error);
@@ -135,16 +135,16 @@ package body LLM_Tools_Tests is
       Assert (not Is_Error, "echo hello should succeed");
       Assert
         (Contains (To_String (Result), "hello"),
-         "bash result should contain command output");
-   end Test_Bash_Success;
+         "shell result should contain command output");
+   end Test_Shell_Success;
 
-   procedure Test_Bash_Failure (T : in out Test) is
+   procedure Test_Shell_Failure (T : in out Test) is
       pragma Unreferenced (T);
 
       Result   : Unbounded_String;
       Is_Error : Boolean;
    begin
-      LLM.Tools.Bash.Execute
+      LLM.Tools.Shell.Execute
         (Args_Json => "{""command"":""exit 1""}",
          Result    => Result,
          Is_Error  => Is_Error);
@@ -153,7 +153,65 @@ package body LLM_Tools_Tests is
       Assert
         (Contains (To_String (Result), "status 1"),
          "non-zero exit should mention the failing status");
-   end Test_Bash_Failure;
+   end Test_Shell_Failure;
+
+   procedure Test_Shell_Stdin_Piped (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Result   : Unbounded_String;
+      Is_Error : Boolean;
+   begin
+      --  "cat" reads its stdin and writes it to stdout.  The output should
+      --  exactly reproduce the text supplied via the "stdin" field.
+      LLM.Tools.Shell.Execute
+        (Args_Json =>
+           "{""command"":""cat"",""stdin"":""hello from stdin\n""}",
+         Result    => Result,
+         Is_Error  => Is_Error);
+
+      Assert (not Is_Error, "cat with stdin should succeed");
+      Assert
+        (Contains (To_String (Result), "hello from stdin"),
+         "output should contain the text piped through stdin");
+   end Test_Shell_Stdin_Piped;
+
+   procedure Test_Shell_Stdin_Empty_Ignored (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Result   : Unbounded_String;
+      Is_Error : Boolean;
+   begin
+      --  An empty "stdin" field should be treated as absent: the command
+      --  reads from /dev/null so it receives EOF immediately and succeeds.
+      LLM.Tools.Shell.Execute
+        (Args_Json => "{""command"":""cat"",""stdin"":""""}",
+         Result    => Result,
+         Is_Error  => Is_Error);
+
+      Assert (not Is_Error, "cat with empty stdin should succeed");
+      Assert
+        (To_String (Result) = "",
+         "output should be empty when stdin field is an empty string");
+   end Test_Shell_Stdin_Empty_Ignored;
+
+   procedure Test_Shell_Stdin_Absent_Dev_Null (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Result   : Unbounded_String;
+      Is_Error : Boolean;
+   begin
+      --  When no "stdin" field is present the command should still run
+      --  normally, receiving EOF from /dev/null.
+      LLM.Tools.Shell.Execute
+        (Args_Json => "{""command"":""echo no-stdin""}",
+         Result    => Result,
+         Is_Error  => Is_Error);
+
+      Assert (not Is_Error, "echo without stdin should succeed");
+      Assert
+        (Contains (To_String (Result), "no-stdin"),
+         "output should contain the echo'd text");
+   end Test_Shell_Stdin_Absent_Dev_Null;
 
    procedure Test_Read (T : in out Test) is
       pragma Unreferenced (T);

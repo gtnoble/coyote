@@ -111,6 +111,115 @@ field.  The agent definition's body becomes the subagent's system prompt; the
 }
 ```
 
+#### Tool parameters reference
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `prompt` | string | **Yes** | Task or question for the subagent. |
+| `model` | string | No | Override model (`provider/model-id`). Defaults to the current model. |
+| `agent` | string | No | Agent definition name (matches `name` frontmatter field). |
+| `custom_prompt` | string | No | Extra instructions appended to the agent's system prompt. Use `@path` to load from a file. |
+| `name` | string | No | Short label for the subagent window tagline. Mutually exclusive with `names`. |
+| `names` | array of strings | No | Spawn one subagent per entry **in parallel**. Each element is used as the window tagline and is exposed as `COYOTE_SUBAGENT_NAME` to `prompt_filter`. Mutually exclusive with `name`. |
+| `prompt_filter` | string | No | Shell command run once per subagent before spawning. The raw `prompt` is piped to stdin; `COYOTE_SUBAGENT_NAME` is set in the environment. Stdout becomes the effective prompt for that subagent. Falls back to the raw prompt on any error. |
+
+#### Single-agent mode
+
+The original single-subagent form: provide `prompt` and optionally `name`,
+`model`, `agent`, `custom_prompt`, and/or `prompt_filter`.  The result is
+the subagent's output as a plain string.
+
+```json
+{
+  "agent":  "code-reviewer",
+  "name":   "review",
+  "prompt": "Review src/llm/llm-agent.adb for concurrency issues."
+}
+```
+
+#### Multi-agent mode (`names`)
+
+Provide `names` (an array of strings) instead of `name` to spawn one
+subagent per entry.  All subagents are started in parallel; results are
+collected and returned together.
+
+The result is a labelled text document with one section per agent:
+
+```
+[agent-alpha]
+<output from agent-alpha>
+
+[agent-beta]
+<output from agent-beta>
+```
+
+If every subagent fails, `is_error` is set and the result is prefixed with
+`all subagents failed:`.  If at least one succeeds, partial agent errors are
+embedded inline as `[error: <message>]` and `is_error` is `false`.
+
+```json
+{
+  "agent": "code-reviewer",
+  "names": ["security", "performance", "style"],
+  "prompt": "Review the attached diff."
+}
+```
+
+#### Prompt filtering with `prompt_filter`
+
+`prompt_filter` lets a single compact prompt template fan out into distinct
+prompts for each subagent with minimal token usage.  The raw `prompt` is
+piped to stdin of the shell command; `COYOTE_SUBAGENT_NAME` is set to the
+current agent name; stdout becomes the effective prompt for that subagent.
+
+**m4 example** — use one m4 template that conditions on `COYOTE_SUBAGENT_NAME`:
+
+Write a template `review.m4`:
+
+```m4
+ifelse(AGENT, security,
+Review src/llm/llm-agent.adb for security vulnerabilities only.,
+ifelse(AGENT, performance,
+Review src/llm/llm-agent.adb for performance hot-spots only.,
+Review src/llm/llm-agent.adb for Ada style conformance only.))
+```
+
+Then invoke `spawn_subagent`:
+
+```json
+{
+  "agent":         "code-reviewer",
+  "names":         ["security", "performance", "style"],
+  "prompt":        "review.m4",
+  "prompt_filter": "m4 -DAGENT=$COYOTE_SUBAGENT_NAME"
+}
+```
+
+Each subagent receives a different specialised prompt produced by the same
+m4 template, while the model only sees the short `spawn_subagent` call
+rather than three separate full prompts.
+
+**Simple per-agent differentiation** without a template file — embed the
+whole template in the prompt string and let m4 strip the unused branches:
+
+```json
+{
+  "names":  ["alpha", "beta"],
+  "prompt": "ifelse(AGENT,alpha,Do task A.,Do task B.)",
+  "prompt_filter": "m4 -DAGENT=$COYOTE_SUBAGENT_NAME"
+}
+```
+
+**Shell-only transformation** — no m4 required for simple cases:
+
+```json
+{
+  "names":  ["src/foo.adb", "src/bar.adb"],
+  "prompt": "Review the following file for Ada style issues:",
+  "prompt_filter": "sh -c 'cat - <(echo) <(cat $COYOTE_SUBAGENT_NAME)'"
+}
+```
+
 ### In the System Prompt
 
 Discovered definitions are listed in the `<available_agents>` XML block that
