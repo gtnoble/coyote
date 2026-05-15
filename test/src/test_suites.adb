@@ -1695,6 +1695,10 @@ package body Test_Suites is
          LLM_Agent_Tests
            .Test_Auto_Compact_Session_Persisted_After_Threshold'Access));
       Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent Set_Compact_Settings with Enabled => False prevents auto-compaction",
+         LLM_Agent_Tests
+           .Test_Set_Compact_Settings_Disabled'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
         ("LLM.Agent Compact survives a session reload round-trip",
          LLM_Agent_Tests
            .Test_Compact_Then_Resume'Access));

@@ -1753,6 +1753,13 @@ package body LLM.Agent is
       S.Thinking := Level;
    end Set_Thinking;
 
+   procedure Set_Compact_Settings
+     (S        : in out Session;
+      Settings :        LLM.Compaction.Compact_Settings) is
+   begin
+      S.Compact_Settings := Settings;
+   end Set_Compact_Settings;
+
    function Session_Id (S : Session) return String is
    begin
       return To_String (S.Session_UUID);

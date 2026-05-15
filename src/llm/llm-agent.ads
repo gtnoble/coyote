@@ -106,6 +106,13 @@ package LLM.Agent is
      (S     : in out Session;
       Level :        LLM.Providers.Thinking_Level);
 
+   --  Override the compaction settings for subsequent prompts.
+   --  Pass a value with Enabled => False to disable automatic
+   --  context compaction entirely (e.g. for ephemeral one-shot sessions).
+   procedure Set_Compact_Settings
+     (S        : in out Session;
+      Settings :        LLM.Compaction.Compact_Settings);
+
    --  Return the active session UUID.
    function Session_Id (S : Session) return String;
 

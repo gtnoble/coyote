@@ -9,6 +9,7 @@ with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with GNATCOLL.JSON;
 with Test_HTTP_Server;
+with LLM.Compaction;
 with LLM.Agent;
 with LLM.Agent.Testing;
 with LLM.Events;
@@ -4197,7 +4198,113 @@ package body LLM_Agent_Tests is
          raise;
    end Test_Auto_Compact_Session_Persisted_After_Threshold;
 
-   procedure Test_Compact_Then_Resume
+   procedure Test_Set_Compact_Settings_Disabled
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+
+      Home                  : constant String :=
+        "/tmp/coyote_llm_agent_test_24";
+      Port                  : constant Positive := 18_808;
+      Agent_Session         : LLM.Agent.Session;
+      Saw_Compaction_Start  : Boolean := False;
+      Server_Stopped        : Boolean := False;
+      Home_Was_Set          : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home              : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Key_Was_Set           : constant Boolean :=
+        Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
+      Old_Key               : constant String :=
+        Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
+      Url_Was_Set           : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
+      Old_Url               : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
+
+      procedure On_Event (E : LLM.Events.Agent_Event'Class) is
+      begin
+         if E in LLM.Events.Auto_Compaction_Start_Event then
+            Saw_Compaction_Start := True;
+         end if;
+      end On_Event;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Res.Status := 200;
+         Add_SSE_Header (Res);
+         Append (Res.Body_Data,
+                 Text_SSE_Payload ("disabled compact reply", 120_000, 616));
+      end Handle_Request;
+
+      Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
+   begin
+      Prepare_Test_Home (Home);
+      Write_OpenRouter_Cache (Home);
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Set ("OPENROUTER_API_KEY", "test-key");
+      Ada.Environment_Variables.Set
+        ("COYOTE_OPENROUTER_BASE_URL",
+         "http://127.0.0.1:" & Natural_Image (Port) & "/api/v1");
+
+      LLM.Agent.Create
+        (S          => Agent_Session,
+         Model_Spec => "openrouter/openai/gpt-4o-mini",
+         No_Tools   => True);
+      LLM.Agent.Set_Compact_Settings
+        (Agent_Session,
+         (Enabled            => False,
+          Reserve_Tokens     =>
+            LLM.Compaction.Default_Compact_Settings.Reserve_Tokens,
+          Keep_Recent_Tokens =>
+            LLM.Compaction.Default_Compact_Settings.Keep_Recent_Tokens));
+
+      Srv.Bind (Port);
+
+      LLM.Agent.Run_Prompt
+        (S        => Agent_Session,
+         Prompt   => "Trigger threshold but compaction is disabled",
+         On_Event => On_Event'Access);
+
+      Srv.Stop;
+      Server_Stopped := True;
+
+      Assert
+        (not Saw_Compaction_Start,
+         "Compaction should not fire when disabled via Set_Compact_Settings");
+      Assert
+        (LLM.Agent.Testing.History_Length (Agent_Session) = 2,
+         "History should contain only user and assistant turns");
+      Assert
+        (LLM.Agent.Testing.History_Element (Agent_Session, 0).Role
+           /= LLM.Types.Compaction_Summary,
+         "Disabled compaction should not prepend a Compaction_Summary message");
+
+      Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
+      Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         if not Server_Stopped then
+            begin
+               Srv.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
+         Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
+         Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Set_Compact_Settings_Disabled;
+
+      procedure Test_Compact_Then_Resume
      (T : in out Test)
    is
       pragma Unreferenced (T);

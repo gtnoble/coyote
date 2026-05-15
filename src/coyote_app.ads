@@ -184,6 +184,7 @@ package Coyote_App is
       Agent          : Ada.Strings.Unbounded.Unbounded_String;
       No_Tools       : Boolean := False;
       No_Session     : Boolean := False;
+      No_Compact     : Boolean := False;
       --  When non-empty, sent as the first prompt immediately after the
       --  bootstrap get_state exchange.  Only meaningful with One_Shot.
       Initial_Prompt : Ada.Strings.Unbounded.Unbounded_String;

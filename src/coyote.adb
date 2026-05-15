@@ -78,6 +78,7 @@ begin
               To_Unbounded_String (Ada.Command_Line.Argument (I));
          elsif Arg = "--one-shot" then
             Opts.One_Shot   := True;
+            Opts.No_Compact := True;
          elsif Arg = "--name"
            and then I < Ada.Command_Line.Argument_Count
          then

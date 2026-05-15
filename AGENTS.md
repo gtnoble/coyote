@@ -262,6 +262,17 @@ conform to the guidelines it defines.
 - `GNATCOLL.JSON` is the JSON library; use `Read` / `Get_Str` / `Get_Int`
   helpers.
 
+## Shell Tool Usage
+
+- **Never use inline code mode** when a tool or command supports a `stdin`
+  parameter. Always pass code via `stdin` instead.
+- **Perl specifically:** never use `perl -e '...'` or `perl -E '...'` to run
+  inline code. Always invoke `perl` (or `perl -0777 -i -pe`, etc.) without
+  inline code arguments and supply the script body through the `stdin` field.
+- The same principle applies to any other interpreter or tool that accepts
+  code via standard input (e.g. `python`, `awk`, `sed` scripts): prefer
+  `stdin` over embedding code in the command string.
+
 ## Testing
 
 Tests live in `test/src/` and use AUnit. Integration tests that need a live

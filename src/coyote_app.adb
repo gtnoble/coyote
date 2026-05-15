@@ -14,6 +14,7 @@ with Ada.Text_IO;
 with GNATCOLL.JSON;          use GNATCOLL.JSON;
 with GNATCOLL.OS.FS;
 with GNATCOLL.OS.Process;
+with LLM.Compaction;
 with LLM.Agent;
 with LLM.Events;
 with LLM.Model_Registry;
@@ -701,6 +702,16 @@ package body Coyote_App is
                Agent      => To_String (Opts.Agent),
                No_Tools   => Opts.No_Tools,
                Session_Id => To_String (Opts.Session_Id));
+            if Opts.No_Compact then
+               LLM.Agent.Set_Compact_Settings
+                 (Agent_Session,
+                  (Enabled            => False,
+                   Reserve_Tokens     =>
+                     LLM.Compaction.Default_Compact_Settings.Reserve_Tokens,
+                   Keep_Recent_Tokens =>
+                     LLM.Compaction.Default_Compact_Settings
+                       .Keep_Recent_Tokens));
+            end if;
             --  Publish the session ID so subagent child processes can record
             --  it as their parentSession.  COYOTE_SESSION_ID is inherited by
             --  every subprocess spawned from this coyote instance.

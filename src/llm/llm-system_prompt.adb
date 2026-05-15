@@ -274,6 +274,12 @@ package body LLM.System_Prompt is
             & " body via the stdin field rather than embedding it in"
             & " the command argument to avoid shell-quoting issues"
             & ASCII.LF
+            & "- Never pass code to an interpreter via inline flags when"
+            & " stdin is available; always supply the script body through"
+            & " the stdin field instead (e.g. never use perl -e '...'"
+            & " or perl -E '...'; invoke perl without inline code arguments"
+            & " and pass the script via stdin)"
+            & ASCII.LF
             & "- Find files: find path -name pattern;"
             & " search content: grep -r pattern path (or rg)"
             & ASCII.LF

@@ -50,6 +50,8 @@ package LLM_Agent_Tests is
      (T : in out Test);
    procedure Test_Auto_Compact_Session_Persisted_After_Threshold
      (T : in out Test);
+   procedure Test_Set_Compact_Settings_Disabled
+     (T : in out Test);
    procedure Test_Compact_Then_Resume
      (T : in out Test);
    procedure Test_Compact_Live_Summarises_Conversation
