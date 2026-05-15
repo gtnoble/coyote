@@ -5,7 +5,7 @@
 --
 --  Single-agent mode (existing behaviour):
 --    Provide "prompt" (required) and optionally "model", "agent",
---    "custom_prompt", "name", and "prompt_filter".
+--    "name", and "prompt_filter".
 --
 --  Multi-agent mode (new):
 --    Provide "names" (a JSON array of strings) instead of "name".
@@ -34,7 +34,7 @@ package LLM.Tools.Spawn_Subagent is
    --
    --  Single-agent mode: Args_Json must provide a required non-empty
    --  string field "prompt" and may provide optional string fields
-   --  "model", "agent", "custom_prompt", "name", and "prompt_filter".
+   --  "model", "agent", "name", and "prompt_filter".
    --
    --  Multi-agent mode: as above but with "names" (a non-empty JSON
    --  array of strings) in place of "name".  "name" and "names" must

@@ -15,17 +15,13 @@ Three executables are built:
 - `bin/coyote_list_sessions` — lists saved sessions for the current directory
 - `bin/coyote_open` — opens a tool-call detail window; launched by the plumber
   for `coyote-session+UUID/tool/TOKEN` links
-
 ## Documentation
 
-- `docs/agent-definitions.md` — full reference for the `AGENT.md` file format
-  (frontmatter fields, body, discovery roots, shadowing, usage with `--agent`
-  and `spawn_subagent`)
 - `docs/skills.md` — full reference for the `SKILL.md` file format
   (frontmatter fields, discovery roots, shadowing, writing effective
   descriptions and bodies)
 
-When authoring or editing a `SKILL.md` or `AGENT.md` for this project, load
+When authoring or editing a `SKILL.md` for this project, load
 the `coyote-skill-author` skill for a condensed quick-reference.
 
 ## Language & Build System
@@ -107,8 +103,6 @@ src/
     llm-compaction.ads/.adb     -- Context compaction helpers (threshold,
                         --   cut-point, serialisation)
     llm-session_store.ads/.adb  -- JSONL session persistence
-    llm-agent.ads/.adb          -- Native agentic loop
-    llm-agent_defs.ads/.adb     -- Agent definition discovery, resolution, formatting
 tools/
   coyote_list_sessions.adb   -- Entry point for the session listing utility
   coyote_open.adb            -- Entry point for the tool-call detail window utility

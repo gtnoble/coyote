@@ -11,7 +11,6 @@ with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
-with LLM.Agent_Defs;
 with LLM.Settings;
 with LLM.Skills;
 with LLM.Tools;
@@ -223,76 +222,70 @@ package body LLM.System_Prompt is
    function Build_System_Prompt
      (Cwd                : String;
       No_Tools           : Boolean := False;
-      Agent_Def          : String  := "";
-      Custom_Prompt      : String  := "";
+      Agent              : String  := "";
       Context_Sections   : String  := "";
-      Skills_Section     : String  := "";
-      Agent_Defs_Section : String  := "") return String
+      Skills_Section   : String  := "") return String
    is
       Result : Unbounded_String;
       Tools  : constant LLM.Tools.Tool_Descriptor_Vectors.Vector :=
         LLM.Tools.Built_In_Tools;
    begin
-      if Agent_Def'Length = 0 then
-         Append
-           (Result,
-            "You are an expert coding assistant operating inside coyote, a"
-            & " native coding agent. You help users by reading files,"
-            & " executing commands, editing code, and writing new files.");
+      Append
+        (Result,
+         "You are an expert coding assistant operating inside coyote, a"
+         & " native coding agent. You help users by reading files,"
+         & " executing commands, editing code, and writing new files.");
 
-         if not No_Tools then
-            Append (Result, ASCII.LF & ASCII.LF & "Available tools:");
+      if not No_Tools then
+         Append (Result, ASCII.LF & ASCII.LF & "Available tools:");
 
-            for Descriptor of Tools loop
-               Append
-                 (Result,
-                  ASCII.LF
-                  & "- "
-                  & To_String (Descriptor.Name)
-                  & ": "
-                  & To_String (Descriptor.Description));
-            end loop;
-
+         for Descriptor of Tools loop
             Append
               (Result,
                ASCII.LF
-               & ASCII.LF
-               & "Guidelines:"
-               & ASCII.LF
-               & "- Prefer the stdin field over shell heredocs when"
-               & " passing multi-line content to a command"
-               & ASCII.LF
-               & "- Read files: cat path (full file),"
-               & " sed -n 'N,Mp' path (line range), head/tail"
-               & ASCII.LF
-               & "- Write new files or complete rewrites:"
-               & " command=""cat > path"","
-               & " stdin=""<file content>"""
-               & ASCII.LF
-               & "- Edit files precisely with ex, ed, sed, or perl"
-               & " (pass commands via the stdin field for ex/ed;"
-               & " use perl -0777 -i -pe for multi-line patterns)"
-               & ASCII.LF
-               & "- Find files: find path -name pattern;"
-               & " search content: grep -r pattern path (or rg)"
-               & ASCII.LF
-               & "- When summarizing your actions, output plain text directly"
-               & " - do NOT use cat or bash to display what you did"
-               & ASCII.LF
-               & "- Be concise in your responses"
-               & ASCII.LF
-               & "- Show file paths clearly when working with files"
-               & ASCII.LF
-               & "- Each tool batch appends a [coyote: turn=...in/...out"
-               & " session=...in/...out] footer to the last result;"
-               & " use this to monitor token consumption and cost");
-         end if;
-      else
-         Append (Result, Agent_Def);
+               & "- "
+               & To_String (Descriptor.Name)
+               & ": "
+               & To_String (Descriptor.Description));
+         end loop;
+
+         Append
+           (Result,
+            ASCII.LF
+            & ASCII.LF
+            & "Guidelines:"
+            & ASCII.LF
+            & "- Prefer the stdin field over shell heredocs when"
+            & " passing multi-line content to a command"
+            & ASCII.LF
+            & "- Read files: cat path (full file),"
+            & " sed -n 'N,Mp' path (line range), head/tail"
+            & ASCII.LF
+            & "- Write new files or complete rewrites:"
+            & " command=""cat > path"","
+            & " stdin=""<file content>"""
+            & ASCII.LF
+            & "- Edit files precisely with ex, ed, sed, or perl"
+            & " (pass commands via the stdin field for ex/ed;"
+            & " use perl -0777 -i -pe for multi-line patterns)"
+            & ASCII.LF
+            & "- Find files: find path -name pattern;"
+            & " search content: grep -r pattern path (or rg)"
+            & ASCII.LF
+            & "- When summarizing your actions, output plain text directly"
+            & " - do NOT use cat or bash to display what you did"
+            & ASCII.LF
+            & "- Be concise in your responses"
+            & ASCII.LF
+            & "- Show file paths clearly when working with files"
+            & ASCII.LF
+            & "- Each tool batch appends a [coyote: turn=...in/...out"
+            & " session=...in/...out] footer to the last result;"
+            & " use this to monitor token consumption and cost");
       end if;
 
-      if Custom_Prompt'Length > 0 then
-         Append (Result, ASCII.LF & ASCII.LF & Custom_Prompt);
+      if Agent'Length > 0 then
+         Append (Result, ASCII.LF & ASCII.LF & Agent);
       end if;
 
       --  Append the settings-based appendSystemPrompt value (step 4b).
@@ -338,23 +331,6 @@ package body LLM.System_Prompt is
          if Merged_Skills'Length > 0 then
             Ada.Strings.Unbounded.Append
               (Result, ASCII.LF & ASCII.LF & Merged_Skills);
-         end if;
-      end;
-
-      declare
-         Loaded_Defs   : constant LLM.Agent_Defs.Agent_Def_Vectors.Vector :=
-           LLM.Agent_Defs.Load_Agent_Defs (Cwd);
-         Auto_Section  : constant String :=
-           LLM.Agent_Defs.Format_Agent_Defs_For_Prompt (Loaded_Defs);
-         Merged_Defs   : constant String :=
-           (if Agent_Defs_Section'Length > 0 and then Auto_Section'Length > 0
-            then Agent_Defs_Section & ASCII.LF & ASCII.LF & Auto_Section
-            elsif Agent_Defs_Section'Length > 0 then Agent_Defs_Section
-            else Auto_Section);
-      begin
-         if Merged_Defs'Length > 0 then
-            Ada.Strings.Unbounded.Append
-              (Result, ASCII.LF & ASCII.LF & Merged_Defs);
          end if;
       end;
 

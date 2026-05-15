@@ -23,7 +23,6 @@ package Coyote_App is
       --  Readers
       function Session_Id         return String;
       function Current_Model      return String;
-      function Current_Agent      return String;
       function Current_Thinking   return String;
       function Is_Streaming       return Boolean;
       function Is_Compacting      return Boolean;
@@ -87,7 +86,6 @@ package Coyote_App is
       --  Writers
       procedure Set_Session_Id     (Id    : String);
       procedure Set_Model          (Model : String);
-      procedure Set_Agent          (Agent : String);
       procedure Set_Thinking       (Level : String);
       procedure Set_Streaming      (Value : Boolean);
       procedure Set_Compacting     (Value : Boolean);
@@ -143,7 +141,6 @@ package Coyote_App is
    private
       P_Session_Id    : Ada.Strings.Unbounded.Unbounded_String;
       P_Model         : Ada.Strings.Unbounded.Unbounded_String;
-      P_Agent         : Ada.Strings.Unbounded.Unbounded_String;
       P_Thinking      : Ada.Strings.Unbounded.Unbounded_String;
       P_Streaming     : Boolean := False;
       P_Compacting    : Boolean := False;
@@ -185,7 +182,6 @@ package Coyote_App is
       Session_Id     : Ada.Strings.Unbounded.Unbounded_String;
       Model          : Ada.Strings.Unbounded.Unbounded_String;
       Agent          : Ada.Strings.Unbounded.Unbounded_String;
-      Custom_Prompt  : Ada.Strings.Unbounded.Unbounded_String;
       No_Tools       : Boolean := False;
       No_Session     : Boolean := False;
       --  When non-empty, sent as the first prompt immediately after the

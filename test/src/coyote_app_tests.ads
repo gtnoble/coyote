@@ -172,13 +172,6 @@ package Coyote_App_Tests is
    --  Only cache_read non-zero → only "cr" label appears.
    procedure Test_Format_Model_Price_Cache_Only  (T : in out Test);
 
-   --  ── Agent_Stem ────────────────────────────────────────────────────────
-   --  Agent_Stem extracts the basename of an agent path, stripping the
-   --  ".agent.md" suffix when present.
-
-   procedure Test_Agent_Stem_With_Extension (T : in out Test);
-   procedure Test_Agent_Stem_No_Extension   (T : in out Test);
-
    --  ── Extract_Plumb_Data ────────────────────────────────────────────────
    --  Extract_Plumb_Data parses a 7-field newline-delimited plumb message
    --  and returns the data field, clipped to ndata bytes so that any

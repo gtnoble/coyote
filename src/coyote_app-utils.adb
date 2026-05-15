@@ -140,30 +140,6 @@ package body Coyote_App.Utils is
              & Pad4 (Dmil mod 10_000);
    end Format_Cost;
 
-   function Agent_Stem (Path : String) return String is
-      Slash : Natural := 0;
-   begin
-      for I in reverse Path'Range loop
-         if Path (I) = '/' then
-            Slash := I;
-            exit;
-         end if;
-      end loop;
-      declare
-         Base   : constant String := Path (Slash + 1 .. Path'Last);
-         Suffix : constant String := ".agent.md";
-         Dot    : constant Natural :=
-           (if Base'Length > Suffix'Length
-              and then Base
-                         (Base'Last - Suffix'Length + 1 .. Base'Last)
-                       = Suffix
-            then Base'Last - Suffix'Length
-            else Base'Last);
-      begin
-         return Base (Base'First .. Dot);
-      end;
-   end Agent_Stem;
-
    function Nth_Field (Text : String; N : Positive) return String is
       Count   : Natural := 0;
       Start   : Natural := 0;

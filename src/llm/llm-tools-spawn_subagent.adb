@@ -73,26 +73,12 @@ package body LLM.Tools.Spawn_Subagent is
       Props.Set_Field
         ("model",
          Str_Prop ("Model to use in provider/model-id form."
-                   & " Overrides both the current model and any model"
-                   & " preference from an agent definition's"
-                   & " frontmatter."));
+                   & " Overrides the current model."));
       Props.Set_Field
         ("agent",
-         Str_Prop ("Name of an agent definition to use for the"
-                   & " subagent.  Must match the name field of a"
-                   & " discovered AGENT.md file (see"
-                   & " <available_agents> in the system prompt)."
-                   & "  The AGENT.md body becomes the subagent's"
-                   & " system prompt; its model and thinking"
-                   & " frontmatter fields are honoured unless"
-                   & " overridden by the model parameter."));
-      Props.Set_Field
-        ("custom_prompt",
          Str_Prop ("Additional instructions appended to the"
-                   & " subagent's system prompt: appended to the"
-                   & " agent body when agent is supplied, or to the"
-                   & " default system prompt otherwise.  Use @path"
-                   & " to load content from a file."));
+                   & " subagent's system prompt."
+                   & " Use @path to load content from a file."));
       Props.Set_Field
         ("name",
          Str_Prop ("Short label for the subagent window tagline."
@@ -127,14 +113,9 @@ package body LLM.Tools.Spawn_Subagent is
             & " response. The window closes automatically when the"
             & " turn completes. Subagents are ephemeral and do not"
             & " persist sessions."
-            & " agent: load a named AGENT.md definition (listed in"
-            & " <available_agents>): its body becomes the"
-            & " subagent's system prompt and its model/thinking"
-            & " frontmatter fields are honoured automatically."
-            & " custom_prompt: append extra instructions to the"
-            & " system prompt (works with or without agent)."
-            & " model: override the model in provider/model-id form"
-            & " (takes precedence over agent frontmatter)."
+            & " agent: append extra instructions to the subagent's"
+            & " system prompt. Use @path to load from a file."
+            & " model: override the model in provider/model-id form."
             & " names (array): spawn one subagent per entry in"
             & " parallel; combine with prompt_filter to produce a"
             & " distinct prompt for each subagent."),
@@ -330,13 +311,12 @@ package body LLM.Tools.Spawn_Subagent is
    --  Output_W is consumed (closed) before returning.
 
    procedure Spawn_One
-     (Prompt        : String;
-      Model         : String;
-      Agent         : String;
-      Custom_Prompt : String;
-      Name          : String;
-      Output_R      : out File_Descriptor;
-      Handle        : out Process_Handle)
+     (Prompt   : String;
+      Model    : String;
+      Agent    : String;
+      Name     : String;
+      Output_R : out File_Descriptor;
+      Handle   : out Process_Handle)
    is
       Output_W : File_Descriptor;
       Null_In  : File_Descriptor;
@@ -359,10 +339,6 @@ package body LLM.Tools.Spawn_Subagent is
       if Agent'Length > 0 then
          Args.Append ("--agent");
          Args.Append (Agent);
-      end if;
-      if Custom_Prompt'Length > 0 then
-         Args.Append ("--custom-prompt");
-         Args.Append (Custom_Prompt);
       end if;
       if Name'Length > 0 then
          Args.Append ("--name");
@@ -519,18 +495,6 @@ package body LLM.Tools.Spawn_Subagent is
                return;
             end if;
 
-            if Root.Has_Field ("custom_prompt")
-              and then Root.Get ("custom_prompt").Kind /=
-                GNATCOLL.JSON.JSON_String_Type
-            then
-               Set_Error
-                 ("spawn_subagent tool field 'custom_prompt' must"
-                  & " be a string",
-                  Result,
-                  Is_Error);
-               return;
-            end if;
-
             if Root.Has_Field ("name")
               and then Root.Get ("name").Kind /=
                 GNATCOLL.JSON.JSON_String_Type
@@ -617,24 +581,21 @@ package body LLM.Tools.Spawn_Subagent is
 
          --  All validation done.  Extract values and proceed.
          declare
-            Prompt        : constant String :=
+            Prompt     : constant String :=
               Root.Get ("prompt").Get;
-            Model         : constant String :=
+            Model      : constant String :=
               (if Root.Has_Field ("model")
                then Root.Get ("model").Get else "");
-            Agent         : constant String :=
+            Agent      : constant String :=
               (if Root.Has_Field ("agent")
                then Root.Get ("agent").Get else "");
-            Custom_Prompt : constant String :=
-              (if Root.Has_Field ("custom_prompt")
-               then Root.Get ("custom_prompt").Get else "");
-            Name          : constant String :=
+            Name       : constant String :=
               (if Root.Has_Field ("name")
                then Root.Get ("name").Get else "");
-            Filter        : constant String :=
+            Filter     : constant String :=
               (if Root.Has_Field ("prompt_filter")
                then Root.Get ("prompt_filter").Get else "");
-            Multi_Mode    : constant Boolean :=
+            Multi_Mode : constant Boolean :=
               Root.Has_Field ("names");
 
             Jobs           : Job_Vectors.Vector;
@@ -729,18 +690,17 @@ package body LLM.Tools.Spawn_Subagent is
                Spawn_Phase_Loop :
                for I in 1 .. Natural (Jobs.Length) loop
                   declare
-                     Job      : Agent_Job := Jobs.Element (I);
-                     Out_R    : File_Descriptor;
-                     Hnd      : Process_Handle;
+                     Job   : Agent_Job := Jobs.Element (I);
+                     Out_R : File_Descriptor;
+                     Hnd   : Process_Handle;
                   begin
                      Spawn_One
-                       (Prompt        => To_String (Job.Effective_Prompt),
-                        Model         => Model,
-                        Agent         => Agent,
-                        Custom_Prompt => Custom_Prompt,
-                        Name          => To_String (Job.Name),
-                        Output_R      => Out_R,
-                        Handle        => Hnd);
+                       (Prompt   => To_String (Job.Effective_Prompt),
+                        Model    => Model,
+                        Agent    => Agent,
+                        Name     => To_String (Job.Name),
+                        Output_R => Out_R,
+                        Handle   => Hnd);
                      Job.Output_R := Out_R;
                      Job.Handle   := Hnd;
                      Jobs.Replace_Element (I, Job);
@@ -765,7 +725,7 @@ package body LLM.Tools.Spawn_Subagent is
                type Text_Array is
                  array (Positive range <>) of Unbounded_String;
 
-               N_Jobs   : constant Positive :=
+               N_Jobs    : constant Positive :=
                  Natural (Jobs.Length);
                Successes : Success_Array (1 .. N_Jobs) :=
                  (others => False);
@@ -866,8 +826,8 @@ package body LLM.Tools.Spawn_Subagent is
 
                      --  Trim the trailing blank line.
                      declare
-                        S     : constant String := To_String (Combined);
-                        Last  : Natural := S'Last;
+                        S    : constant String := To_String (Combined);
+                        Last : Natural := S'Last;
                      begin
                         while Last >= S'First
                           and then S (Last) in ASCII.LF | ASCII.CR

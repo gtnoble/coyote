@@ -1038,29 +1038,6 @@ package body Coyote_App_Tests is
               "100000 dmil -> ""$10.0000""");
    end Test_Format_Cost_Dollars;
 
-   --  ── Agent_Stem ────────────────────────────────────────────────────────
-
-   --  When the basename ends with ".agent.md" the suffix is stripped.
-   procedure Test_Agent_Stem_With_Extension (T : in out Test) is
-      pragma Unreferenced (T);
-   begin
-      Assert (Agent_Stem ("/home/user/.coyote/myagent.agent.md") = "myagent",
-              "Full path with .agent.md -> stem only");
-      Assert (Agent_Stem ("plain.agent.md") = "plain",
-              "Relative path with .agent.md extension -> stem only");
-   end Test_Agent_Stem_With_Extension;
-
-   --  Without the ".agent.md" suffix the whole basename is returned.
-   procedure Test_Agent_Stem_No_Extension (T : in out Test) is
-      pragma Unreferenced (T);
-   begin
-      Assert (Agent_Stem ("/path/to/noext") = "noext",
-              "Path without .agent.md -> basename returned as-is");
-      Assert (Agent_Stem ("bare") = "bare",
-              "No slash, no extension -> returned unchanged");
-   end Test_Agent_Stem_No_Extension;
-
-   --  ── Extract_Plumb_Data ────────────────────────────────────────────────
 
    --  Build a Nine_P.Byte_Array from a plain String for test input.
    --  Declared at the package body level so all Extract_Plumb_Data tests

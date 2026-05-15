@@ -10,9 +10,8 @@ package LLM_System_Prompt_Tests is
    procedure Test_Default_Prompt_Contains_Guidelines (T : in out Test);
    procedure Test_Default_Prompt_Contains_Cwd (T : in out Test);
    procedure Test_Default_Prompt_Contains_Date (T : in out Test);
-   procedure Test_Agent_Def_Replaces_Preamble (T : in out Test);
-   procedure Test_Agent_Def_Keeps_Cwd (T : in out Test);
-   procedure Test_Custom_Prompt_Appears (T : in out Test);
+   procedure Test_Agent_Appended (T : in out Test);
+   procedure Test_Agent_Prompt_Appears (T : in out Test);
    procedure Test_No_Tools_Suppresses_Tool_List (T : in out Test);
    procedure Test_Context_Sections_Injected (T : in out Test);
    procedure Test_Skills_Section_Injected (T : in out Test);

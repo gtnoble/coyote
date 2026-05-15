@@ -11,34 +11,27 @@ package LLM.System_Prompt is
 
    --  Build and return the full system prompt string.
    --
-   --  Cwd               : working directory appended as "Current working
-   --                      directory: <Cwd>" at the very end of the prompt.
-   --  No_Tools          : when True the tool list and tool-related
-   --                      guidelines are omitted entirely.
-   --  Agent_Def         : when non-empty, replaces the default preamble +
-   --                      tools + guidelines block verbatim.
-   --  Custom_Prompt     : appended verbatim after the preamble/guidelines
-   --                      block (and after Agent_Def when that is used).
-   --  Context_Sections  : pre-formatted project-context block (produced by
-   --                      Load_Context_Sections in Task D); appended after
-   --                      the preamble block when non-empty.
-   --  Skills_Section    : pre-formatted skills block (produced by
-   --                      LLM.Skills in Task E); appended after
-   --                      Context_Sections when non-empty.
-   --  Agent_Defs_Section : pre-formatted agent definitions block (produced
-   --                      by LLM.Agent_Defs); appended after
-   --                      Skills_Section when non-empty.
+   --  Cwd              : working directory appended as "Current working
+   --                     directory: <Cwd>" at the very end of the prompt.
+   --  No_Tools         : when True the tool list and tool-related
+   --                     guidelines are omitted entirely.
+   --  Agent            : appended verbatim after the preamble/guidelines
+   --                     block when non-empty.
+   --  Context_Sections : pre-formatted project-context block (produced by
+   --                     Load_Context_Sections in Task D); appended after
+   --                     the preamble block when non-empty.
+   --  Skills_Section   : pre-formatted skills block (produced by
+   --                     LLM.Skills in Task E); appended after
+   --                     Context_Sections when non-empty.
    --
    --  The current date (YYYY-MM-DD) and Cwd are always appended last,
    --  regardless of which other parameters are set.
    function Build_System_Prompt
-     (Cwd                : String;
-      No_Tools           : Boolean := False;
-      Agent_Def          : String  := "";
-      Custom_Prompt      : String  := "";
-      Context_Sections   : String  := "";
-      Skills_Section     : String  := "";
-      Agent_Defs_Section : String  := "") return String;
+     (Cwd              : String;
+      No_Tools         : Boolean := False;
+      Agent            : String  := "";
+      Context_Sections : String  := "";
+      Skills_Section   : String  := "") return String;
 
    --  Scan the filesystem for project-context markdown files and return a
    --  pre-formatted block suitable for injection into Build_System_Prompt.

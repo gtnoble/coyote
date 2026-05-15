@@ -1,16 +1,15 @@
 --  coyote — Acme window frontend for the native LLM agent.
 --
 --  Usage: coyote [--session UUID] [--model PROVIDER/ID]
---                 [--agent NAME] [--custom-prompt TEXT|@PATH]
+--                 [--agent TEXT|@PATH]
 --                 [--no-tools] [--no-session]
 --                 [--prompt TEXT] [--one-shot] [--name LABEL]
 --                 [--prompt-filter CMD]
 --
---  --agent NAME   Use the named agent definition (looked up from the
---                 discovered AGENT.md catalogue).
---  --custom-prompt TEXT|@PATH
+--  --agent TEXT|@PATH
 --                 Append extra instructions to the system prompt.
 --                 Prefix with '@' to load from a file.
+--  --prompt TEXT  Send TEXT as the first prompt immediately after startup.
 --  --prompt TEXT  Send TEXT as the first prompt immediately after startup.
 --  --one-shot     Exit automatically after the first complete agent turn,
 --                 printing a JSON result line to stdout.  Intended for use
@@ -63,12 +62,6 @@ begin
          then
             I := I + 1;
             Opts.Agent :=
-              To_Unbounded_String (Ada.Command_Line.Argument (I));
-         elsif Arg = "--custom-prompt"
-           and then I < Ada.Command_Line.Argument_Count
-         then
-            I := I + 1;
-            Opts.Custom_Prompt :=
               To_Unbounded_String
                 (Coyote_Utils.Resolve_Text_Arg
                    (Ada.Command_Line.Argument (I)));

@@ -37,7 +37,6 @@ package body Coyote_App.Dispatch is
       Extra : String := "ready") return String
    is
       Model_Text   : constant String  := State.Current_Model;
-      Agent_Text   : constant String  := State.Current_Agent;
       Session_Text : constant String  := State.Session_Id;
       Think_Text   : constant String  := State.Current_Thinking;
       Input_Tokens : constant Natural := State.Turn_Input_Tokens;
@@ -46,10 +45,6 @@ package body Coyote_App.Dispatch is
       Model_Part   : constant String :=
         (if Model_Text'Length > 0
          then " [" & Model_Text & "]"
-         else "");
-      Agent_Part   : constant String :=
-        (if Agent_Text'Length > 0
-         then " <" & Agent_Stem (Agent_Text) & ">"
          else "");
       Think_Part   : constant String :=
         (if Think_Text'Length > 0 then " ~" & Think_Text else "");
@@ -68,7 +63,7 @@ package body Coyote_App.Dispatch is
          else "");
    begin
       return UC_BULLET & " " & Extra
-             & Agent_Part & Model_Part & Think_Part
+             & Model_Part & Think_Part
              & Context_Part & Session_Part;
    end Format_Status;
 

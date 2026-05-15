@@ -104,10 +104,6 @@ package Coyote_App.Utils is
    --  Examples: 0 -> "$0.0000", 234 -> "$0.0234", 12345 -> "$1.2345".
    function Format_Cost (Dmil : Natural) return String;
 
-   --  Return just the stem of an agent path.
-   --  E.g. "~/.../foo.agent.md" -> "foo"
-   function Agent_Stem (Path : String) return String;
-
    --  Return the N-th (1-based) whitespace-separated token from Text,
    --  or "" if Text has fewer than N tokens.  Whitespace is space or HT.
    function Nth_Field (Text : String; N : Positive) return String;

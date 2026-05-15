@@ -1032,8 +1032,7 @@ package body LLM.Agent is
    procedure Create
      (S             :    out Session;
       Model_Spec    :        String  := "";
-      Agent_Def     :        String  := "";
-      Custom_Prompt :        String  := "";
+      Agent         :        String  := "";
       No_Tools      :        Boolean := False;
       Session_Id    :        String  := "")
    is
@@ -1068,8 +1067,7 @@ package body LLM.Agent is
         (LLM.System_Prompt.Build_System_Prompt
            (Cwd           => To_String (S.Cwd),
             No_Tools      => No_Tools,
-            Agent_Def     => Agent_Def,
-            Custom_Prompt => Custom_Prompt));
+            Agent         => Agent));
       S.Session_UUID := Null_Unbounded_String;
       S.History.Clear;
       S.No_Tools := No_Tools;
