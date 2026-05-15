@@ -368,7 +368,11 @@ package body LLM.Tools.Spawn_Subagent is
    --
    --  Extract the "output" or "error" string from the raw one-shot
    --  subprocess stdout.  Returns (True, text) on success or (False,
-   --  message) when no valid JSON result line is found.
+   --  message) when no valid JSON result line is found.  When the JSON
+   --  result carries a "session_id" field the returned text is suffixed
+   --  with a blank line and a plumbable coyote-session+UUID link so
+   --  both the model and coyote_open can navigate to the subagent
+   --  session.
 
    procedure Parse_Job_Output
      (Raw      :     String;
@@ -383,32 +387,47 @@ package body LLM.Tools.Spawn_Subagent is
          return;
       end if;
 
-      if Json_Result.Has_Field ("output")
-        and then Json_Result.Get ("output").Kind =
-          GNATCOLL.JSON.JSON_String_Type
-      then
-         declare
-            Output_Text : constant String :=
-              Json_Result.Get ("output").Get;
+      --  Retrieve session_id once; append as a link if present.
+      declare
+         Session_Id : constant String :=
+           (if Json_Result.Has_Field ("session_id")
+              and then Json_Result.Get ("session_id").Kind =
+                GNATCOLL.JSON.JSON_String_Type
+            then Json_Result.Get ("session_id").Get
+            else "");
+
+         procedure Append_Session_Link (T : in out Unbounded_String) is
          begin
+            if Session_Id'Length > 0 then
+               Append (T, ASCII.LF & ASCII.LF
+                 & "coyote-session+" & Session_Id);
+            end if;
+         end Append_Session_Link;
+      begin
+         if Json_Result.Has_Field ("output")
+           and then Json_Result.Get ("output").Kind =
+             GNATCOLL.JSON.JSON_String_Type
+         then
             Success := True;
-            Text    := To_Unbounded_String (Output_Text);
-         end;
-      elsif Json_Result.Has_Field ("error")
-        and then Json_Result.Get ("error").Kind =
-          GNATCOLL.JSON.JSON_String_Type
-      then
-         declare
-            Error_Text : constant String :=
-              Json_Result.Get ("error").Get;
-         begin
+            Text    := To_Unbounded_String
+              (String'(Json_Result.Get ("output").Get));
+            Append_Session_Link (Text);
+
+         elsif Json_Result.Has_Field ("error")
+           and then Json_Result.Get ("error").Kind =
+             GNATCOLL.JSON.JSON_String_Type
+         then
             Success := False;
-            Text    := To_Unbounded_String (Error_Text);
-         end;
-      else
-         Success := False;
-         Text    := To_Unbounded_String ("subagent produced no output");
-      end if;
+            Text    := To_Unbounded_String
+              (String'(Json_Result.Get ("error").Get));
+            Append_Session_Link (Text);
+
+         else
+            Success := False;
+            Text    := To_Unbounded_String
+              ("subagent produced no output");
+         end if;
+      end;
    end Parse_Job_Output;
 
    --  ── Execute ──────────────────────────────────────────────────────────

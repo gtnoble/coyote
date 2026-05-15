@@ -160,7 +160,9 @@ package body LLM_Tools_Tests is
 
       Assert (not Is_Error, "spawn_subagent should succeed with JSON output");
       Assert
-        (To_String (Result) = "Ping|provider/model|worker.agent.md|worker",
+        (To_String (Result) =
+           "Ping|provider/model|worker.agent.md|worker"
+           & ASCII.LF & ASCII.LF & "coyote-session+123",
          "spawn_subagent should return the subagent output field");
 
       Restore_Env (Env_Name, Was_Set, Saved_Value);

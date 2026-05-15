@@ -615,6 +615,9 @@ package body Coyote_App is
             begin
                if Was_Aborted then
                   Result.Set_Field ("error", Create ("aborted"));
+                  Result.Set_Field
+                    ("session_id",
+                     Create (LLM.Agent.Session_Id (Agent_Session)));
                   State.Set_One_Shot_Result (Write (Result));
                elsif Length (Final_Text) > 0 then
                   Result.Set_Field
@@ -624,10 +627,16 @@ package body Coyote_App is
                   State.Set_One_Shot_Result (Write (Result));
                elsif Length (Final_Error) > 0 then
                   Result.Set_Field ("error", Create (To_String (Final_Error)));
+                  Result.Set_Field
+                    ("session_id",
+                     Create (LLM.Agent.Session_Id (Agent_Session)));
                   State.Set_One_Shot_Result (Write (Result));
                else
                   Result.Set_Field
                     ("error", Create ("No response from agent"));
+                  Result.Set_Field
+                    ("session_id",
+                     Create (LLM.Agent.Session_Id (Agent_Session)));
                   State.Set_One_Shot_Result (Write (Result));
                end if;
             end Store_One_Shot_Result;
