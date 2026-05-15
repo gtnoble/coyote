@@ -1548,6 +1548,19 @@ package body Test_Suites is
          & "in subsequent request",
          LLM_Anthropic_Messages_Tests
            .Test_Thinking_Block_Serialised_In_Request'Access));
+      Result.Add_Test (LLM_Anthropic_Messages_Caller.Create
+        ("Anthropic system prompt is content-block array with cache_control",
+         LLM_Anthropic_Messages_Tests
+           .Test_System_Prompt_Is_Content_Block_Array'Access));
+      Result.Add_Test (LLM_Anthropic_Messages_Caller.Create
+        ("Anthropic last tool has cache_control breakpoint",
+         LLM_Anthropic_Messages_Tests
+           .Test_Cache_Control_On_Last_Tool'Access));
+      Result.Add_Test (LLM_Anthropic_Messages_Caller.Create
+        ("Anthropic last user message has cache_control breakpoint",
+         LLM_Anthropic_Messages_Tests
+           .Test_Cache_Control_On_Last_User_Message'Access));
+
 
       Result.Add_Test (LLM_Anthropic_Messages_Caller.Create
         ("Anthropic tool_result with Is_Error includes is_error field",
