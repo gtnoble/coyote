@@ -7,15 +7,13 @@
 --  return value is the first Threshold bytes followed by a trailer that
 --  identifies the file and the total byte count.
 --
---  This package is the single policy point for all built-in tools;
---  LLM.Tools.Execute calls Truncated on every result automatically.
+--  This package is the single mechanism for capping tool output size;
+--  the policy for choosing the threshold lives in LLM.Tools.
 --
 --  Project: coyote
 --  For revision history, see the project version-control log.
 
 package LLM.Tools.Temp_File is
-
-   Default_Threshold : constant Natural := 200 * 1024;
 
    --  Return Text unchanged when Text'Length <= Threshold.
    --
@@ -30,7 +28,7 @@ package LLM.Tools.Temp_File is
    --  with a note replacing the file path.  The function never raises.
    function Truncated
      (Text      : String;
-      Threshold : Natural := Default_Threshold;
-      Tool_Name : String  := "tool") return String;
+      Threshold : Positive;
+      Tool_Name : String := "tool") return String;
 
 end LLM.Tools.Temp_File;

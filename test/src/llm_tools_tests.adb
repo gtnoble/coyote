@@ -189,6 +189,54 @@ package body LLM_Tools_Tests is
         (Contains (To_String (Result), "prompt"),
          "spawn_subagent should mention the missing prompt field");
    end Test_Spawn_Subagent_Requires_Prompt;
+   --  ── Result_Threshold unit tests ───────────────────────────────────────
+
+   procedure Test_Result_Threshold_Zero_Returns_Max (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      Assert
+        (LLM.Tools.Result_Threshold (0) =
+            LLM.Tools.MAX_RESULT_THRESHOLD,
+         "Context_Window = 0 should return MAX_RESULT_THRESHOLD");
+   end Test_Result_Threshold_Zero_Returns_Max;
+
+   procedure Test_Result_Threshold_Small_Clamped_To_Min (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      --  8 k tokens → 8_000 × 4 ÷ 8 = 4_000 bytes < MIN (4_096)
+      Assert
+        (LLM.Tools.Result_Threshold (8_000) =
+            LLM.Tools.MIN_RESULT_THRESHOLD,
+         "8k context should clamp to MIN_RESULT_THRESHOLD");
+   end Test_Result_Threshold_Small_Clamped_To_Min;
+
+   procedure Test_Result_Threshold_Typical_128k (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      --  128_000 × 4 ÷ 8 = 64_000 (64 KB) — within bounds
+      Assert
+        (LLM.Tools.Result_Threshold (128_000) = 64_000,
+         "128k context should yield 64 KB threshold");
+   end Test_Result_Threshold_Typical_128k;
+
+   procedure Test_Result_Threshold_Typical_200k (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      --  200_000 × 4 ÷ 8 = 100_000 (100 KB) — within bounds
+      Assert
+        (LLM.Tools.Result_Threshold (200_000) = 100_000,
+         "200k context should yield 100 KB threshold");
+   end Test_Result_Threshold_Typical_200k;
+
+   procedure Test_Result_Threshold_Large_Clamped_To_Max (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      --  1_000_000 × 4 ÷ 8 = 500_000 > MAX (204_800)
+      Assert
+        (LLM.Tools.Result_Threshold (1_000_000) =
+            LLM.Tools.MAX_RESULT_THRESHOLD,
+         "1M context should clamp to MAX_RESULT_THRESHOLD");
+   end Test_Result_Threshold_Large_Clamped_To_Max;
 
    --  ── Pause_Flag unit tests ─────────────────────────────────────────────
 

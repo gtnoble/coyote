@@ -50,8 +50,8 @@ package body LLM.Tools.Temp_File is
 
    function Truncated
      (Text      : String;
-      Threshold : Natural := Default_Threshold;
-      Tool_Name : String  := "tool") return String
+      Threshold : Positive;
+      Tool_Name : String := "tool") return String
    is
    begin
       if Text'Length <= Threshold then

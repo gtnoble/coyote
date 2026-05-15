@@ -15,6 +15,23 @@ package LLM_Tools_Tests is
    procedure Test_Spawn_Subagent_Success (T : in out Test);
    procedure Test_Spawn_Subagent_Requires_Prompt (T : in out Test);
 
+   --  ── Result_Threshold unit tests ───────────────────────────────────────
+
+   --  Context_Window = 0 yields the maximum threshold.
+   procedure Test_Result_Threshold_Zero_Returns_Max      (T : in out Test);
+
+   --  A very small context window is clamped to the floor.
+   procedure Test_Result_Threshold_Small_Clamped_To_Min  (T : in out Test);
+
+   --  A typical 128 k-token window produces the expected mid-range value.
+   procedure Test_Result_Threshold_Typical_128k           (T : in out Test);
+
+   --  A 200 k-token window is still within the ceiling.
+   procedure Test_Result_Threshold_Typical_200k           (T : in out Test);
+
+   --  A very large context window is clamped to the ceiling.
+   procedure Test_Result_Threshold_Large_Clamped_To_Max  (T : in out Test);
+
    --  ── Pause_Flag unit tests ─────────────────────────────────────────────
 
    --  Both Is_Armed and Is_Paused start False.

@@ -84,12 +84,31 @@ package body LLM.Tools is
       return Result;
    end Built_In_Tools;
 
+   function Result_Threshold (Context_Window : Natural) return Positive is
+      Raw : Natural;
+   begin
+      if Context_Window = 0 then
+         return MAX_RESULT_THRESHOLD;
+      end if;
+
+      Raw := Context_Window * BYTES_PER_TOKEN / CONTEXT_SHARE;
+
+      if Raw < MIN_RESULT_THRESHOLD then
+         return MIN_RESULT_THRESHOLD;
+      elsif Raw > MAX_RESULT_THRESHOLD then
+         return MAX_RESULT_THRESHOLD;
+      else
+         return Raw;
+      end if;
+   end Result_Threshold;
+
    procedure Execute
-     (Name      :     String;
-      Args_Json :     String;
-      Result    : out Ada.Strings.Unbounded.Unbounded_String;
-      Is_Error  : out Boolean;
-      Abort_Flg : access Abort_Flag := null)
+     (Name           :     String;
+      Args_Json      :     String;
+      Result         : out Ada.Strings.Unbounded.Unbounded_String;
+      Is_Error       : out Boolean;
+      Abort_Flg      : access Abort_Flag := null;
+      Context_Window :     Natural       := 0)
    is
       use Ada.Strings.Unbounded;
    begin
@@ -107,7 +126,9 @@ package body LLM.Tools is
       --  receives an excerpt followed by a path to the complete file.
       Result := To_Unbounded_String
         (LLM.Tools.Temp_File.Truncated
-           (To_String (Result), Tool_Name => Name));
+           (To_String (Result),
+            Threshold => Result_Threshold (Context_Window),
+            Tool_Name => Name));
    end Execute;
 
 end LLM.Tools;

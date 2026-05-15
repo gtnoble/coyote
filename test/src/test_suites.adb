@@ -1300,6 +1300,21 @@ package body Test_Suites is
         ("LLM.Tools spawn_subagent rejects missing prompt",
          LLM_Tools_Tests.Test_Spawn_Subagent_Requires_Prompt'Access));
       Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Result_Threshold zero returns MAX",
+         LLM_Tools_Tests.Test_Result_Threshold_Zero_Returns_Max'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Result_Threshold small clamped to MIN",
+         LLM_Tools_Tests.Test_Result_Threshold_Small_Clamped_To_Min'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Result_Threshold 128k yields 64 KB",
+         LLM_Tools_Tests.Test_Result_Threshold_Typical_128k'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Result_Threshold 200k yields 100 KB",
+         LLM_Tools_Tests.Test_Result_Threshold_Typical_200k'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Result_Threshold large clamped to MAX",
+         LLM_Tools_Tests.Test_Result_Threshold_Large_Clamped_To_Max'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
         ("LLM.Tools.Pause_Flag initial state is not armed and not paused",
          LLM_Tools_Tests.Test_Pause_Flag_Initial_State'Access));
       Result.Add_Test (LLM_Tools_Caller.Create

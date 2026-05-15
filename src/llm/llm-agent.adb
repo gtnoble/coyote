@@ -69,8 +69,9 @@ package body LLM.Agent is
    --  Executes one tool call and stores the result in a Results_Store.
    --  Workers never call On_Event or touch any Nine_P.Client.Fs.
    task type Worker_Task
-     (Store     : not null access Results_Store;
-      Abort_Flg : access LLM.Tools.Abort_Flag)
+     (Store          : not null access Results_Store;
+      Abort_Flg      : access LLM.Tools.Abort_Flag;
+      Context_Window : Natural)
    is
       entry Start
         (Index : Positive;
@@ -122,7 +123,8 @@ package body LLM.Agent is
                            (My_Tool.Arguments_Json),
             Result    => Result,
             Is_Error  => Is_Error,
-            Abort_Flg => Abort_Flg);
+            Abort_Flg => Abort_Flg,
+            Context_Window => Context_Window);
       exception
          when Ex : others =>
             Result   := Ada.Strings.Unbounded.To_Unbounded_String
@@ -1559,8 +1561,9 @@ package body LLM.Agent is
                   --  only call Store.Set, which is a protected operation.
                   for I in 1 .. N loop
                      Workers (I) := new Worker_Task
-                       (Store     => Store'Access,
-                        Abort_Flg => S.Abort_State'Access);
+                       (Store          => Store'Access,
+                        Abort_Flg      => S.Abort_State'Access,
+                        Context_Window => S.Model_Info.Context_Window);
                      Workers (I).Start
                        (Index => I,
                         Tool  => Pending_Tools.Element (I - 1));
