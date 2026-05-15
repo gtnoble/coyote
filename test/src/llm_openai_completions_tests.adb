@@ -1547,4 +1547,307 @@ package body LLM_OpenAI_Completions_Tests is
          raise;
    end Test_OpenAI_Stream_Terminates_Early;
 
+
+
+   --  ── Test_OpenAI_System_Cache_Control ──────────────────────────────────
+   --  Verify that the system message carries a cache_control ephemeral
+   --  marker so OpenAI's automatic prompt caching can reuse it.
+
+   procedure Test_OpenAI_System_Cache_Control (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Port     : constant Positive := 18_800;
+      Provider : LLM.Providers.OpenAI_Completions.Provider :=
+        LLM.Providers.OpenAI_Completions.Create
+          (Base_Url => "http://127.0.0.1:18800",
+           Api_Key  => "test-key");
+      Messages : LLM.Types.Message_Vectors.Vector;
+      Content  : LLM.Types.Content_Block_Vectors.Vector;
+
+      SSE_Payload : constant String :=
+        Build_Stop_SSE (Prompt_Tokens => 10, Completion_Tokens => 0);
+
+      Parsed_Body : GNATCOLL.JSON.JSON_Value;
+      Body_Msgs   : GNATCOLL.JSON.JSON_Array;
+      Sys_Msg     : GNATCOLL.JSON.JSON_Value;
+      CC          : GNATCOLL.JSON.JSON_Value;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         Parsed : constant GNATCOLL.JSON.Read_Result :=
+           GNATCOLL.JSON.Read (To_String (Req.Body_Data));
+      begin
+         Assert
+           (To_String (Req.Path) = "/chat/completions",
+            "Expected /chat/completions path");
+         Assert (Parsed.Success, "Failed to parse request body");
+         Parsed_Body := Parsed.Value;
+         Res.Status := 200;
+         Append (Res.Body_Data, SSE_Payload);
+      end Handle_Request;
+
+      Server_Stopped : Boolean := False;
+      Srv            : Test_HTTP_Server.Server
+        (Handler => Handle_Request'Unrestricted_Access);
+   begin
+      Reset_Collector;
+      Content.Append
+        ((Kind => LLM.Types.Text_Block,
+          Text => To_Unbounded_String ("Hello")));
+      Messages.Append
+        ((Role      => LLM.Types.User,
+          Content   => Content,
+          Tok_Usage => (others => 0),
+          Stop      => LLM.Types.Unknown_Stop,
+          Timestamp => Null_Unbounded_String));
+
+      Srv.Bind (Port);
+
+      Send_With_Retry
+        (P             => Provider,
+         Model_Id      => "test-cache-model",
+         System_Prompt => "You are a cache test.",
+         Messages      => Messages,
+         Tools_Json    => "[]",
+         Max_Tokens    => 64,
+         Handler       => On_Event'Access);
+
+      Srv.Stop;
+      Server_Stopped := True;
+
+      Body_Msgs := Parsed_Body.Get ("messages").Get;
+      Sys_Msg := GNATCOLL.JSON.Get (Body_Msgs, 1);
+
+      Assert
+        (Json_String (Sys_Msg.Get ("role")) = "system",
+         "First message should have system role");
+      Assert
+        (Sys_Msg.Has_Field ("cache_control"),
+         "System message should have cache_control field");
+      CC := Sys_Msg.Get ("cache_control");
+      Assert
+        (CC.Kind = GNATCOLL.JSON.JSON_Object_Type
+         and then Json_String (CC.Get ("type")) = "ephemeral",
+         "cache_control type should be ephemeral");
+   exception
+      when others =>
+         if not Server_Stopped then
+            Srv.Stop;
+         end if;
+         raise;
+   end Test_OpenAI_System_Cache_Control;
+
+   --  ── Test_OpenAI_Last_Tool_Cache_Control ──────────────────────────────
+   --  Verify that the last tool definition in the tools array has a
+   --  cache_control marker when tools are present.
+
+   procedure Test_OpenAI_Last_Tool_Cache_Control (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Port     : constant Positive := 18_801;
+      Provider : LLM.Providers.OpenAI_Completions.Provider :=
+        LLM.Providers.OpenAI_Completions.Create
+          (Base_Url => "http://127.0.0.1:18801",
+           Api_Key  => "test-key");
+      Messages : LLM.Types.Message_Vectors.Vector;
+      Content  : LLM.Types.Content_Block_Vectors.Vector;
+      Tools_Json : constant String :=
+        "[{""type"":""function"",""function"":{"
+        & """name"":""read"",""description"":""Read file"","
+        & """parameters"":{""type"":""object"","
+        & """properties"":{""path"":{""type"":""string""}},"
+        & """required"":[""path""]}}},"
+        & "{""type"":""function"",""function"":{"
+        & """name"":""shell"",""description"":""Run command"","
+        & """parameters"":{""type"":""object"","
+        & """properties"":{""command"":{""type"":""string""}},"
+        & """required"":[""command""]}}}]";
+
+      SSE_Payload : constant String :=
+        Build_Stop_SSE (Prompt_Tokens => 15, Completion_Tokens => 0);
+
+      Parsed_Body : GNATCOLL.JSON.JSON_Value;
+      Tools_Arr   : GNATCOLL.JSON.JSON_Array;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         Parsed : constant GNATCOLL.JSON.Read_Result :=
+           GNATCOLL.JSON.Read (To_String (Req.Body_Data));
+      begin
+         Assert (Parsed.Success, "Failed to parse request body");
+         Parsed_Body := Parsed.Value;
+         Res.Status := 200;
+         Append (Res.Body_Data, SSE_Payload);
+      end Handle_Request;
+
+      Server_Stopped : Boolean := False;
+      Srv            : Test_HTTP_Server.Server
+        (Handler => Handle_Request'Unrestricted_Access);
+   begin
+      Reset_Collector;
+      Content.Append
+        ((Kind => LLM.Types.Text_Block,
+          Text => To_Unbounded_String ("Use a tool")));
+      Messages.Append
+        ((Role      => LLM.Types.User,
+          Content   => Content,
+          Tok_Usage => (others => 0),
+          Stop      => LLM.Types.Unknown_Stop,
+          Timestamp => Null_Unbounded_String));
+
+      Srv.Bind (Port);
+
+      Send_With_Retry
+        (P             => Provider,
+         Model_Id      => "test-cache-model",
+         System_Prompt => "Be helpful.",
+         Messages      => Messages,
+         Tools_Json    => Tools_Json,
+         Max_Tokens    => 64,
+         Handler       => On_Event'Access);
+
+      Srv.Stop;
+      Server_Stopped := True;
+
+      Tools_Arr := Parsed_Body.Get ("tools").Get;
+
+      Assert
+        (GNATCOLL.JSON.Length (Tools_Arr) = 2,
+         "tools array should have 2 elements");
+
+      declare
+         Tool_1 : constant GNATCOLL.JSON.JSON_Value :=
+           GNATCOLL.JSON.Get (Tools_Arr, 1);
+      begin
+         Assert
+           (not Tool_1.Has_Field ("cache_control"),
+            "first tool should not have cache_control");
+      end;
+
+      declare
+         Tool_2 : constant GNATCOLL.JSON.JSON_Value :=
+           GNATCOLL.JSON.Get (Tools_Arr, 2);
+         CC     : constant GNATCOLL.JSON.JSON_Value :=
+           Tool_2.Get ("cache_control");
+      begin
+         Assert
+           (Tool_2.Has_Field ("cache_control"),
+            "last tool should have cache_control");
+         Assert
+           (CC.Kind = GNATCOLL.JSON.JSON_Object_Type
+            and then Json_String (CC.Get ("type")) = "ephemeral",
+            "last tool cache_control should be ephemeral");
+      end;
+   exception
+      when others =>
+         if not Server_Stopped then
+            Srv.Stop;
+         end if;
+         raise;
+   end Test_OpenAI_Last_Tool_Cache_Control;
+
+   --  ── Test_OpenAI_Cached_Tokens_In_Usage ───────────────────────────────
+   --  Verify that cached_tokens in prompt_tokens_details are parsed
+   --  into Cache_Read in the Usage record.
+
+   procedure Test_OpenAI_Cached_Tokens_In_Usage (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Port     : constant Positive := 18_802;
+      Provider : LLM.Providers.OpenAI_Completions.Provider :=
+        LLM.Providers.OpenAI_Completions.Create
+          (Base_Url => "http://127.0.0.1:18802",
+           Api_Key  => "test-key");
+      Messages : LLM.Types.Message_Vectors.Vector;
+      Content  : LLM.Types.Content_Block_Vectors.Vector;
+
+      --  SSE payload: finish event with usage containing
+      --  prompt_tokens_details.cached_tokens.
+      function Build_Cached_SSE return String is
+         use GNATCOLL.JSON;
+
+         Finish_Event  : constant JSON_Value := Create_Object;
+         Finish_Choice : constant JSON_Value := Create_Object;
+         Finish_Delta   : constant JSON_Value := Create_Object;
+         Usage         : constant JSON_Value := Create_Object;
+         Details       : constant JSON_Value := Create_Object;
+         Choices       : JSON_Array := Empty_Array;
+      begin
+         Finish_Choice.Set_Field ("delta", Finish_Delta);
+         Finish_Choice.Set_Field ("finish_reason", "stop");
+         Append (Choices, Finish_Choice);
+         Finish_Event.Set_Field ("choices", Choices);
+         Usage.Set_Field ("prompt_tokens", Integer (500));
+         Usage.Set_Field ("completion_tokens", Integer (50));
+         Usage.Set_Field ("total_tokens", Integer (550));
+         Details.Set_Field ("cached_tokens", Integer (300));
+         Usage.Set_Field ("prompt_tokens_details", Details);
+         Finish_Event.Set_Field ("usage", Usage);
+
+         return SSE_Record (Finish_Event)
+           & SSE_Record ("[DONE]");
+      end Build_Cached_SSE;
+
+      SSE_Payload : constant String := Build_Cached_SSE;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Res.Status := 200;
+         Append (Res.Body_Data, SSE_Payload);
+      end Handle_Request;
+
+      Server_Stopped : Boolean := False;
+      Srv            : Test_HTTP_Server.Server
+        (Handler => Handle_Request'Unrestricted_Access);
+   begin
+      Reset_Collector;
+      Content.Append
+        ((Kind => LLM.Types.Text_Block,
+          Text => To_Unbounded_String ("Test cached tokens")));
+      Messages.Append
+        ((Role      => LLM.Types.User,
+          Content   => Content,
+          Tok_Usage => (others => 0),
+          Stop      => LLM.Types.Unknown_Stop,
+          Timestamp => Null_Unbounded_String));
+
+      Srv.Bind (Port);
+
+      Send_With_Retry
+        (P             => Provider,
+         Model_Id      => "test-cache-model",
+         System_Prompt => "Cache test",
+         Messages      => Messages,
+         Tools_Json    => "[]",
+         Max_Tokens    => 64,
+         Handler       => On_Event'Access);
+
+      Srv.Stop;
+      Server_Stopped := True;
+
+      Assert
+        (Current_Collector.Usage.Input = 500,
+         "Usage.Input should be 500");
+      Assert
+        (Current_Collector.Usage.Output = 50,
+         "Usage.Output should be 50");
+      Assert
+        (Current_Collector.Usage.Cache_Read = 300,
+         "Usage.Cache_Read should be 300 from cached_tokens");
+   exception
+      when others =>
+         if not Server_Stopped then
+            Srv.Stop;
+         end if;
+         raise;
+   end Test_OpenAI_Cached_Tokens_In_Usage;
+
 end LLM_OpenAI_Completions_Tests;

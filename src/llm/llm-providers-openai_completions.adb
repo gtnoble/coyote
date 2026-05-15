@@ -157,6 +157,21 @@ package body LLM.Providers.OpenAI_Completions is
       return Default;
    end Get_String_Field;
 
+   --  OpenRouter appends a trailing LF after every streamed reasoning token.
+   --  Strip those so thinking renders as flowing text rather than one word
+   --  per line.  Genuine paragraph breaks (e.g. "\n\n") survive because only
+   --  the trailing end of the delta is trimmed.
+   function Strip_Trailing_Newlines (Text : String) return String is
+      Last : Natural := Text'Last;
+   begin
+      while Last >= Text'First
+        and then (Text (Last) = ASCII.LF or else Text (Last) = ASCII.CR)
+      loop
+         Last := Last - 1;
+      end loop;
+      return Text (Text'First .. Last);
+   end Strip_Trailing_Newlines;
+
    function Get_Object_Field
       (Value : GNATCOLL.JSON.JSON_Value;
      Field : String) return GNATCOLL.JSON.JSON_Value
@@ -234,11 +249,26 @@ package body LLM.Providers.OpenAI_Completions is
    function Parse_Usage
       (Value : GNATCOLL.JSON.JSON_Value) return LLM.Types.Usage
    is
+      --  OpenAI returns cached input tokens inside a nested
+      --  prompt_tokens_details object:
+      --    "usage": {
+      --      "prompt_tokens": N,
+      --      "completion_tokens": M,
+      --      "prompt_tokens_details": {
+      --        "cached_tokens": C
+      --      }
+      --    }
+      --  The Cache_Read field captures these cached tokens;
+      --  Cache_Write is left at 0 because OpenAI does not
+      --  charge a separate creation premium for automatic
+      --  caching.
+      Details : constant GNATCOLL.JSON.JSON_Value :=
+         Get_Object_Field (Value, "prompt_tokens_details");
    begin
       return
          (Input       => Get_Natural_Field (Value, "prompt_tokens"),
        Output      => Get_Natural_Field (Value, "completion_tokens"),
-       Cache_Read  => 0,
+       Cache_Read  => Get_Natural_Field (Details, "cached_tokens"),
        Cache_Write => 0);
    end Parse_Usage;
 
@@ -325,20 +355,26 @@ package body LLM.Providers.OpenAI_Completions is
 
    procedure Append_System_Message
       (Messages      : in out GNATCOLL.JSON.JSON_Array;
-     System_Prompt :        String)
+       System_Prompt :        String)
    is
-      Message : constant GNATCOLL.JSON.JSON_Value :=
+      --  Emit the system prompt as a single system message with a
+      --  cache_control breakpoint so OpenAI's automatic prompt
+      --  caching can reuse it across turns.
+      Message      : constant GNATCOLL.JSON.JSON_Value :=
+         GNATCOLL.JSON.Create_Object;
+      Cache_Marker : constant GNATCOLL.JSON.JSON_Value :=
          GNATCOLL.JSON.Create_Object;
    begin
       if System_Prompt'Length = 0 then
          return;
       end if;
 
+      Cache_Marker.Set_Field ("type", "ephemeral");
       Message.Set_Field ("role", "system");
       Message.Set_Field ("content", System_Prompt);
+      Message.Set_Field ("cache_control", Cache_Marker);
       GNATCOLL.JSON.Append (Messages, Message);
    end Append_System_Message;
-
    procedure Append_User_Message
       (Messages : in out GNATCOLL.JSON.JSON_Array;
      Msg      :        LLM.Types.Message)
@@ -463,11 +499,50 @@ package body LLM.Providers.OpenAI_Completions is
             raise Constraint_Error with "Invalid tools JSON: expected array";
          else
             declare
-               Tools_Array : constant GNATCOLL.JSON.JSON_Array :=
+               Raw_Tools : constant GNATCOLL.JSON.JSON_Array :=
                   Tools_Read.Value.Get;
             begin
-               if GNATCOLL.JSON.Length (Tools_Array) > 0 then
-                  Request.Set_Field ("tools", Tools_Array);
+               if GNATCOLL.JSON.Length (Raw_Tools) > 0 then
+                  --  Add a cache_control breakpoint on the last tool
+                  --  definition so the tool schema is cached across
+                  --  turns with OpenAI-compatible providers.
+                  declare
+                     Cached_Tools : GNATCOLL.JSON.JSON_Array :=
+                       GNATCOLL.JSON.Empty_Array;
+                     Cache_Marker : constant GNATCOLL.JSON.JSON_Value :=
+                       GNATCOLL.JSON.Create_Object;
+                  begin
+                     Cache_Marker.Set_Field ("type", "ephemeral");
+                     for I in
+                       1 .. GNATCOLL.JSON.Length (Raw_Tools)
+                     loop
+                        declare
+                           Item : constant GNATCOLL.JSON.JSON_Value :=
+                             GNATCOLL.JSON.Get (Raw_Tools, I);
+                        begin
+                           if I =
+                             GNATCOLL.JSON.Length (Raw_Tools)
+                           then
+                              --  Set_Field mutates the underlying JSON
+                              --  object through the reference-counted
+                              --  handle even on a constant view.
+                              declare
+                                 Item_Copy : constant GNATCOLL.JSON.JSON_Value :=
+                                   GNATCOLL.JSON.Get (Raw_Tools, I);
+                              begin
+                                 Item_Copy.Set_Field
+                                   ("cache_control", Cache_Marker);
+                                 GNATCOLL.JSON.Append
+                                   (Cached_Tools, Item_Copy);
+                              end;
+                           else
+                              GNATCOLL.JSON.Append
+                                (Cached_Tools, Item);
+                           end if;
+                        end;
+                     end loop;
+                     Request.Set_Field ("tools", Cached_Tools);
+                  end;
                end if;
             end;
          end if;
@@ -637,7 +712,8 @@ package body LLM.Providers.OpenAI_Completions is
             Emit_Update
                (Handler    => Handler,
            Kind       => LLM.Events.Thinking_Delta,
-           Delta_Text => Get_String_Field (Delta_Value, "reasoning"));
+           Delta_Text => Strip_Trailing_Newlines
+                           (Get_String_Field (Delta_Value, "reasoning")));
          end if;
 
          if Has_String_Field (Delta_Value, "content") then

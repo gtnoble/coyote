@@ -492,6 +492,12 @@ package body Test_Suites is
         ("Parse_Session_File leaves Parent_Id empty when absent",
          Session_Lister_Tests.Test_Parse_Session_No_Parent_Id'Access));
       Result.Add_Test (Session_Lister_Caller.Create
+        ("Parse_Session_File: Is_Fork True when relation is fork",
+         Session_Lister_Tests.Test_Parse_Session_Is_Fork_True'Access));
+      Result.Add_Test (Session_Lister_Caller.Create
+        ("Parse_Session_File: Is_Fork False when relation is subagent",
+         Session_Lister_Tests.Test_Parse_Session_Is_Fork_False'Access));
+      Result.Add_Test (Session_Lister_Caller.Create
         ("Find_Session_File found in test dir",
          Session_Lister_Tests.Test_Find_Session_File_Found'Access));
       Result.Add_Test (Session_Lister_Caller.Create
@@ -736,7 +742,7 @@ package body Test_Suites is
         ("Format_Model_Price: in/out only produces two SI µ segments",
          Coyote_App_Tests.Test_Format_Model_Price_In_Out_Only'Access));
       Result.Add_Test (App_State_Caller.Create
-        ("Format_Model_Price: all four fields produce four SI-prefixed segments",
+        ("Format_Model_Price: all four fields, four SI-prefixed segments",
          Coyote_App_Tests.Test_Format_Model_Price_All_Four'Access));
       Result.Add_Test (App_State_Caller.Create
         ("Format_Model_Price: zero cache fields are silently omitted",
@@ -850,6 +856,12 @@ package body Test_Suites is
       Result.Add_Test (App_State_Caller.Create
         ("Format_Session_List: multiple children ordered after parent",
          Coyote_App_Tests.Test_Format_Session_List_Multi_Child'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_Session_List: subagent child uses hook connector",
+         Coyote_App_Tests.Test_Format_Session_List_Subagent_Uses_Hook'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_Session_List: fork child uses branch connector",
+         Coyote_App_Tests.Test_Format_Session_List_Fork_Uses_Branch'Access));
       Result.Add_Test (App_State_Caller.Create
         ("App_State Tag_Suffix initial value is empty",
          Coyote_App_Tests.Test_State_Tag_Suffix_Initial'Access));
@@ -1004,10 +1016,10 @@ package body Test_Suites is
         ("LLM.System_Prompt Load_Context_Sections loads project context dir",
          LLM_Context_Tests.Test_Project_Context_Dir'Access));
       Result.Add_Test (LLM_Context_Caller.Create
-        ("LLM.System_Prompt Load_Context_Sections orders global before project",
+        ("LLM.System_Prompt Load_Context_Sections: global before project",
          LLM_Context_Tests.Test_Global_Before_Project'Access));
       Result.Add_Test (LLM_Context_Caller.Create
-        ("LLM.System_Prompt Load_Context_Sections orders project before AGENTS",
+        ("LLM.System_Prompt Load_Context_Sections: project before AGENTS",
          LLM_Context_Tests.Test_Project_Before_Agents_Md'Access));
       Result.Add_Test (LLM_Context_Caller.Create
         ("LLM.System_Prompt Load_Context_Sections sorts files alphabetically",
@@ -1429,6 +1441,18 @@ package body Test_Suites is
         ("LLM.OpenAI_Completions finalizes early-terminated streams",
          LLM_OpenAI_Completions_Tests
            .Test_OpenAI_Stream_Terminates_Early'Access));
+      Result.Add_Test (LLM_OpenAI_Completions_Caller.Create
+        ("LLM.OpenAI_Completions system message has cache_control",
+         LLM_OpenAI_Completions_Tests
+           .Test_OpenAI_System_Cache_Control'Access));
+      Result.Add_Test (LLM_OpenAI_Completions_Caller.Create
+        ("LLM.OpenAI_Completions last tool has cache_control breakpoint",
+         LLM_OpenAI_Completions_Tests
+           .Test_OpenAI_Last_Tool_Cache_Control'Access));
+      Result.Add_Test (LLM_OpenAI_Completions_Caller.Create
+        ("LLM.OpenAI_Completions cached_tokens parsed in usage",
+         LLM_OpenAI_Completions_Tests
+           .Test_OpenAI_Cached_Tokens_In_Usage'Access));
 
       --  LLM.Auth tests
       Result.Add_Test (LLM_Auth_Caller.Create
@@ -1560,7 +1584,6 @@ package body Test_Suites is
         ("Anthropic last user message has cache_control breakpoint",
          LLM_Anthropic_Messages_Tests
            .Test_Cache_Control_On_Last_User_Message'Access));
-
 
       Result.Add_Test (LLM_Anthropic_Messages_Caller.Create
         ("Anthropic tool_result with Is_Error includes is_error field",
@@ -1748,7 +1771,7 @@ package body Test_Suites is
          LLM_Agent_Tests
            .Test_Auto_Compact_Session_Persisted_After_Threshold'Access));
       Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent Set_Compact_Settings with Enabled => False prevents auto-compaction",
+        ("LLM.Agent Set_Compact_Settings Enabled=False prevents compaction",
          LLM_Agent_Tests
            .Test_Set_Compact_Settings_Disabled'Access));
       Result.Add_Test (LLM_Agent_Caller.Create

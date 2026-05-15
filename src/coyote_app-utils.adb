@@ -642,18 +642,25 @@ package body Coyote_App.Utils is
         Character'Val (16#E2#) & Character'Val (16#86#)
         & Character'Val (16#B3#);
 
+      --  ⎇  U+2387 ALTERNATIVE KEY SYMBOL (branch/fork)
+      UC_FORK_R : constant String :=
+        Character'Val (16#E2#) & Character'Val (16#8E#)
+        & Character'Val (16#87#);
+
       Result : Unbounded_String;
 
       --  Render one session and, recursively, all of its descendants.
       --  Depth = 0 means top-level (no indent); each additional level adds
-      --  two spaces before the "↳ " connector.
+      --  two spaces before a connector: "↳ " for subagents, "⎇ " for forks.
       procedure Render_Session
         (Info  : Session_Info;
          Depth : Natural)
       is
-         Indent : constant String :=
+         Connector : constant String :=
+           (if Info.Is_Fork then UC_FORK_R else UC_HOOK_R);
+         Indent    : constant String :=
            (if Depth = 0 then ""
-            else Str_Repeat ("  ", Depth) & UC_HOOK_R & " ");
+            else Str_Repeat ("  ", Depth) & Connector & " ");
       begin
          Append
            (Result,

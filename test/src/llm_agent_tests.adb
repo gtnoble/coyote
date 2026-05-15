@@ -3537,6 +3537,7 @@ package body LLM_Agent_Tests is
       end Handle_Request;
 
       Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
+      Compact_OK : Boolean;
    begin
       Prepare_Test_Home (Home);
       Write_OpenRouter_Cache (Home);
@@ -3556,7 +3557,8 @@ package body LLM_Agent_Tests is
 
       LLM.Agent.Compact
         (S        => Agent_Session,
-         On_Event => Ignore_Event'Access);
+         On_Event => Ignore_Event'Access,
+         Succeeded => Compact_OK);
 
       Srv.Stop;
       Server_Stopped := True;
@@ -3640,6 +3642,7 @@ package body LLM_Agent_Tests is
       end Handle_Request;
 
       Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
+      Compact_OK : Boolean;
    begin
       Prepare_Test_Home (Home);
       Write_OpenRouter_Cache (Home);
@@ -3659,7 +3662,8 @@ package body LLM_Agent_Tests is
 
       LLM.Agent.Compact
         (S        => Agent_Session,
-         On_Event => On_Event'Access);
+         On_Event => On_Event'Access,
+         Succeeded => Compact_OK);
 
       Srv.Stop;
       Server_Stopped := True;
@@ -3729,6 +3733,7 @@ package body LLM_Agent_Tests is
             End_Aborted := LLM.Events.Auto_Compaction_End_Event (E).Aborted;
          end if;
       end On_Event;
+      Compact_OK : Boolean;
    begin
       Prepare_Test_Home (Home);
       Write_OpenRouter_Cache (Home);
@@ -3753,7 +3758,8 @@ package body LLM_Agent_Tests is
 
       LLM.Agent.Compact
         (S        => Agent_Session,
-         On_Event => On_Event'Access);
+         On_Event => On_Event'Access,
+         Succeeded => Compact_OK);
 
       Assert (Saw_End, "Short-history compaction should emit an end event");
       Assert (End_Aborted, "Short histories should abort compaction");
@@ -3819,6 +3825,7 @@ package body LLM_Agent_Tests is
       end Handle_Request;
 
       Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
+      Compact_OK : Boolean;
    begin
       Prepare_Test_Home (Home);
       Write_OpenRouter_Cache (Home);
@@ -3838,7 +3845,8 @@ package body LLM_Agent_Tests is
 
       LLM.Agent.Compact
         (S        => Agent_Session,
-         On_Event => Ignore_Event'Access);
+         On_Event => Ignore_Event'Access,
+         Succeeded => Compact_OK);
 
       Srv.Stop;
       Server_Stopped := True;
@@ -4347,6 +4355,7 @@ package body LLM_Agent_Tests is
       end Handle_Request;
 
       Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
+      Compact_OK : Boolean;
    begin
       Prepare_Test_Home (Home);
       Write_OpenRouter_Cache (Home);
@@ -4368,7 +4377,8 @@ package body LLM_Agent_Tests is
 
       LLM.Agent.Compact
         (S        => Agent_Session,
-         On_Event => Ignore_Event'Access);
+         On_Event => Ignore_Event'Access,
+         Succeeded => Compact_OK);
 
       Srv.Stop;
       Server_Stopped := True;
@@ -4417,6 +4427,7 @@ package body LLM_Agent_Tests is
       begin
          null;
       end Ignore_Event;
+      Compact_OK : Boolean;
    begin
       if Ada.Environment_Variables.Value (Guard_Name, "") /= "1" then
          return;
@@ -4450,7 +4461,8 @@ package body LLM_Agent_Tests is
 
       LLM.Agent.Compact
         (S        => Agent_Session,
-         On_Event => Ignore_Event'Access);
+         On_Event => Ignore_Event'Access,
+         Succeeded => Compact_OK);
 
       Assert
         (LLM.Agent.Testing.History_Length (Agent_Session) >= 1,

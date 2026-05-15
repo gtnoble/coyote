@@ -20,6 +20,8 @@ package Session_Lister_Tests is
    --  Parent_Id extraction from the session header.
    procedure Test_Parse_Session_Parent_Id     (T : in out Test);
    procedure Test_Parse_Session_No_Parent_Id  (T : in out Test);
+   procedure Test_Parse_Session_Is_Fork_True   (T : in out Test);
+   procedure Test_Parse_Session_Is_Fork_False  (T : in out Test);
    --  ^ Regression test: Parse_Session_File must not raise STORAGE_ERROR
    --    when a JSONL line exceeds GNAT's internal Get_Line stack buffer.
 

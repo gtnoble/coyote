@@ -58,7 +58,10 @@ package body LLM.Tools.Shell is
       Stdin_P.Set_Field ("type", "string");
       Stdin_P.Set_Field
         ("description",
-         "Optional text to pipe into the command's standard input");
+         "Text to pipe into the command's standard input."
+         & " Use this instead of heredocs (<<EOF) or interpreter"
+         & " inline-code flags (-e, -E) whenever passing multi-line"
+         & " content to a command.");
 
       Props.Set_Field ("command", Command);
       Props.Set_Field ("description", Desc_P);
@@ -74,8 +77,9 @@ package body LLM.Tools.Shell is
         (Name        => To_Unbounded_String ("shell"),
          Description => To_Unbounded_String
            ("Execute a shell command and return its combined output."
-            & " Optionally pipe text into the command via the"
-            & " `stdin` field."),
+            & " Optionally pipe text into the command via the `stdin` field."
+            & " Never use heredocs or interpreter inline-code flags"
+            & " (-e, -E) to pass multi-line content; always use `stdin` instead."),
          Schema_Json => Schema);
    end Descriptor;
 

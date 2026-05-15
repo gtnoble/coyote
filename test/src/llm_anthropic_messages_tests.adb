@@ -310,7 +310,8 @@ package body LLM_Anthropic_Messages_Tests is
        System_Prompt :        String;
        Messages      :        LLM.Types.Message_Vectors.Vector;
        Thinking      :        LLM.Providers.Thinking_Level;
-       Handler       :        LLM.Providers.Event_Handler)
+       Handler       :        LLM.Providers.Event_Handler;
+       Tools_Json   :        String := "[]")
    is
    begin
       Retry_Loop :
@@ -320,7 +321,7 @@ package body LLM_Anthropic_Messages_Tests is
                (Model_Id      => Model_Id,
                 System_Prompt => System_Prompt,
                 Messages      => Messages,
-                Tools_Json    => "[]",
+                Tools_Json    => Tools_Json,
                 Thinking      => Thinking,
                 Max_Tokens    => 128,
                 Handler       => Handler);
@@ -1745,11 +1746,12 @@ package body LLM_Anthropic_Messages_Tests is
       Messages : constant LLM.Types.Message_Vectors.Vector :=
          Build_Messages;
       Tools_Json : constant String :=
-         "[{""name"":""read"",""description"":""read file"",""
-         & ""input_schema"":{""type"":""object"",""""properties"":{""path"":{""type"":""string""}}}},"
-         & "{""name"":""shell"",""description"":""run command"",""
-         & ""input_schema"":{""type"":""object"",""""properties"":{""command"":{""type"":""string""}}}}]";
-
+         "[{""name"":""read"",""description"":""read file""," &
+         """input_schema"":{""type"":""object""," &
+         """properties"":{""path"":{""type"":""string""}}}}," &
+         "{""name"":""shell"",""description"":""run command""," &
+         """input_schema"":{""type"":""object""," &
+         """properties"":{""command"":{""type"":""string""}}}}]";
       procedure Handle_Request
         (Req :     Test_HTTP_Server.Request;
          Res : out Test_HTTP_Server.Response)
@@ -1773,7 +1775,8 @@ package body LLM_Anthropic_Messages_Tests is
           System_Prompt => "Be helpful.",
           Messages      => Messages,
           Thinking      => LLM.Providers.Off,
-          Handler       => null);
+          Handler       => null,
+          Tools_Json   => Tools_Json);
 
       Srv.Stop;
       Server_Stopped := True;
@@ -1948,5 +1951,4 @@ package body LLM_Anthropic_Messages_Tests is
          end if;
          raise;
    end Test_Cache_Control_On_Last_User_Message;
-
 end LLM_Anthropic_Messages_Tests;

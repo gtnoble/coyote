@@ -319,7 +319,9 @@ package body LLM.Agent is
 
    procedure Finish_Open_Block (Builder : in out Assistant_Builder) is
    begin
-      if Builder.Open_Kind = Open_Text then
+      if Builder.Open_Kind = Open_Text
+         and then Builder.Open_Text /= Null_Unbounded_String
+      then
          Builder.Content.Append
            ((Kind => LLM.Types.Text_Block,
              Text => Builder.Open_Text));
@@ -835,6 +837,7 @@ package body LLM.Agent is
       Attempt     : Positive := 1;
       Retry_Used  : Boolean := False;
       Overflow_Recovery_Attempted : Boolean := False;
+      Compact_OK : Boolean := False;
 
       procedure Reset_Attempt_State is
       begin
@@ -959,9 +962,12 @@ package body LLM.Agent is
                         Overflow_Recovery_Attempted := True;
                         Reset_Attempt_State;
                         Remove_Trailing_Error_Message (S.History);
-                        Compact (S, On_Event, "overflow");
+                        Compact (S, On_Event, "overflow", Compact_OK);
 
                         if S.Abort_State.Requested then
+                           exit Attempt_Loop;
+                        end if;
+                        if not Compact_OK then
                            exit Attempt_Loop;
                         end if;
 
@@ -1110,7 +1116,8 @@ package body LLM.Agent is
      (S        : in out Session;
       On_Event :        not null access procedure
         (E : LLM.Events.Agent_Event'Class);
-      Reason   :        String := "manual")
+      Reason    :        String := "manual";
+      Succeeded :    out Boolean)
    is
       Original_History : constant LLM.Types.Message_Vectors.Vector :=
         S.History;
@@ -1169,6 +1176,7 @@ package body LLM.Agent is
          end if;
       end Summary_Max_Tokens;
    begin
+      Succeeded := False;
       declare
          Event : constant LLM.Events.Auto_Compaction_Start_Event :=
            (LLM.Events.Agent_Event with
@@ -1334,6 +1342,7 @@ package body LLM.Agent is
       S.Last_Context_Tokens :=
         LLM.Compaction.Estimate_Context_Tokens (S.History);
 
+      Succeeded := True;
       Emit_End_Event
         (Summary => Summary_Text,
          Aborted => False,
@@ -1364,6 +1373,7 @@ package body LLM.Agent is
         User_Message (Prompt);
       Was_Aborted             : Boolean := False;
       Turn_Completed_Normally : Boolean := False;
+      Compact_OK              : Boolean := False;
 
       procedure Append_Pending_Message (Msg : LLM.Types.Message) is
       begin
@@ -1659,7 +1669,7 @@ package body LLM.Agent is
                  S.Model_Info.Context_Window,
                  S.Compact_Settings)
             then
-               Compact (S, On_Event, "threshold");
+               Compact (S, On_Event, "threshold", Compact_OK);
             end if;
          end if;
       exception

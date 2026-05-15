@@ -293,6 +293,41 @@ package body LLM.System_Prompt is
             & "- Each tool batch appends a [coyote: turn=...in/...out"
             & " session=...in/...out] footer to the last result;"
             & " use this to monitor token consumption and cost");
+         Append
+           (Result,
+            ASCII.LF
+            & ASCII.LF
+            & "# Editing Discipline"
+            & ASCII.LF
+            & ASCII.LF
+            & "Before making any code edits:"
+            & ASCII.LF
+            & ASCII.LF
+            & "1. **Map every affected site first.** Identify all call"
+            & " sites, declaration sites, and test files that will need"
+            & " changing. Read enough context at each site to confirm the"
+            & " surrounding scope (which procedure, which package, what"
+            & " indentation) before writing a single edit."
+            & ASCII.LF
+            & ASCII.LF
+            & "2. **Verify structural assumptions explicitly.** Never assume"
+            & " a variable declared in one procedure is visible at a call"
+            & " site in another. Grep for the containing procedure of each"
+            & " call site and confirm it matches expectations."
+            & ASCII.LF
+            & ASCII.LF
+            & "3. **Watch for irregular formatting.** Source files may"
+            & " contain mis-indented or otherwise non-standard constructs"
+            & " that defeat pattern-matching greps. If a grep returns fewer"
+            & " hits than expected, investigate before proceeding."
+            & ASCII.LF
+            & ASCII.LF
+            & "4. **Plan all changes before executing any.** Collect the"
+            & " full list of edits -- including every call site, declaration,"
+            & " spec, and test -- then execute them in one coherent pass"
+            & " (bottom-to-top when inserting lines to keep line numbers"
+            & " stable), rather than making incremental edits that shift"
+            & " line numbers and require re-greps.");
       end if;
 
       if Agent'Length > 0 then

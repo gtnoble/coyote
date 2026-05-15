@@ -308,3 +308,27 @@ A feature is **not complete** until all of the following are satisfied:
    `docs/` file(s) and, where appropriate, in this `AGENTS.md` (e.g. new
    source files added to the Source Layout table, new tasks added to the
    Architecture table).
+
+## Editing Discipline
+
+Before making any code edits:
+
+1. **Map every affected site first.** Identify all call sites, declaration
+   sites, and test files that will need changing. Read enough context at each
+   site to confirm the surrounding scope (which procedure, which package, what
+   indentation) before writing a single edit.
+
+2. **Verify structural assumptions explicitly.** Never assume a variable
+   declared in one procedure is visible at a call site in another. Grep for the
+   containing procedure of each call site and confirm it matches expectations.
+
+3. **Watch for irregular formatting.** Source files may contain mis-indented or
+   otherwise non-standard constructs that defeat pattern-matching greps (e.g.
+   `^   procedure` missing a call site indented with 6 spaces). If a grep
+   returns fewer hits than expected, investigate before proceeding.
+
+4. **Plan all changes before executing any.** Collect the full list of edits —
+   including every call site, declaration, spec, and test — then execute them
+   in one coherent pass (bottom-to-top when inserting lines to keep line
+   numbers stable), rather than making incremental edits that shift line
+   numbers and require re-greps.

@@ -294,6 +294,12 @@ package body Session_Lister is
                                    To_Unbounded_String (Parent);
                               end if;
                            end;
+                           declare
+                              Relation : constant String :=
+                                Get_String (Obj, "parentRelation");
+                           begin
+                              Result.Is_Fork := Relation = "fork";
+                           end;
 
                         elsif Kind = "session_info"
                           or else Role = "session_info"
@@ -719,6 +725,8 @@ package body Session_Lister is
                   Header.Set_Field ("id", New_UUID);
                   Header.Set_Field ("createdAt", Now_Unix_Milliseconds);
                   Header.Set_Field ("workDir", Target_Cwd);
+                  Header.Set_Field ("parentSession", Source_UUID);
+                  Header.Set_Field ("parentRelation", "fork");
                   Write_Raw_Line (Write (Header));
 
                   Info.Set_Field ("role", "session_info");
@@ -734,6 +742,8 @@ package body Session_Lister is
                   Session_Obj.Set_Field ("type", "session");
                   Session_Obj.Set_Field ("id", New_UUID);
                   Session_Obj.Set_Field ("timestamp", Now_Timestamp);
+                  Session_Obj.Set_Field ("parentSession", Source_UUID);
+                  Session_Obj.Set_Field ("parentRelation", "fork");
                   Write_Raw_Line (Write (Session_Obj));
 
                   Info_Obj.Set_Field ("type", "session_info");

@@ -19,6 +19,7 @@ package Session_Lister is
       Date    : Ada.Strings.Unbounded.Unbounded_String;
       Snippet : Ada.Strings.Unbounded.Unbounded_String;
       Parent_Id : Ada.Strings.Unbounded.Unbounded_String;  --  "" = top-level
+      Is_Fork   : Boolean := False;  --  True = fork; False = subagent
    end record;
 
    package Session_Vectors is new Ada.Containers.Vectors

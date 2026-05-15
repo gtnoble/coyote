@@ -375,7 +375,9 @@ package body LLM.Providers.Anthropic_Messages is
             for Block of Msg.Content loop
                case Block.Kind is
                   when LLM.Types.Text_Block =>
-                     Append_Text_Content (Content, To_String (Block.Text));
+                     if Block.Text /= Null_Unbounded_String then
+                        Append_Text_Content (Content, To_String (Block.Text));
+                     end if;
                   when others =>
                      null;
                end case;
@@ -386,7 +388,9 @@ package body LLM.Providers.Anthropic_Messages is
             for Block of Msg.Content loop
                case Block.Kind is
                   when LLM.Types.Text_Block =>
-                     Append_Text_Content (Content, To_String (Block.Text));
+                     if Block.Text /= Null_Unbounded_String then
+                        Append_Text_Content (Content, To_String (Block.Text));
+                     end if;
                   when LLM.Types.Thinking_Block =>
                      Append_Thinking_Content (Content, Block);
                   when LLM.Types.Tool_Call_Block =>
@@ -401,7 +405,9 @@ package body LLM.Providers.Anthropic_Messages is
             for Block of Msg.Content loop
                case Block.Kind is
                   when LLM.Types.Text_Block =>
-                     Append_Text_Content (Content, To_String (Block.Text));
+                     if Block.Text /= Null_Unbounded_String then
+                        Append_Text_Content (Content, To_String (Block.Text));
+                     end if;
                   when LLM.Types.Tool_Result_Block =>
                      Append_Tool_Result_Content (Content, Block);
                   when others =>
@@ -439,7 +445,7 @@ package body LLM.Providers.Anthropic_Messages is
          declare
             System_Blocks : GNATCOLL.JSON.JSON_Array :=
               GNATCOLL.JSON.Empty_Array;
-            System_Block  : GNATCOLL.JSON.JSON_Value :=
+            System_Block  : constant GNATCOLL.JSON.JSON_Value :=
               GNATCOLL.JSON.Create_Object;
             Cache_Marker  : constant GNATCOLL.JSON.JSON_Value :=
               GNATCOLL.JSON.Create_Object;
@@ -456,6 +462,54 @@ package body LLM.Providers.Anthropic_Messages is
       for Msg of Messages loop
          Append_Message (Request_Msgs, Msg);
       end loop;
+
+      --  Add a cache breakpoint on the last user-role message's
+      --  final content block.  This caches the conversation prefix
+      --  so only new tokens are re-processed each turn, yielding
+      --  significant input-cost savings for Anthropic models that
+      --  support prompt caching.
+      declare
+         Cache_Marker : constant GNATCOLL.JSON.JSON_Value :=
+           GNATCOLL.JSON.Create_Object;
+      begin
+         Cache_Marker.Set_Field ("type", "ephemeral");
+         for J in reverse 1 .. GNATCOLL.JSON.Length (Request_Msgs) loop
+            declare
+               Msg : constant  GNATCOLL.JSON.JSON_Value :=
+                 GNATCOLL.JSON.Get (Request_Msgs, J);
+            begin
+               if Get_String_Field (Msg, "role") = "user"
+                 and then Msg.Has_Field ("content")
+                 and then Msg.Get ("content").Kind =
+                   GNATCOLL.JSON.JSON_Array_Type
+               then
+                  declare
+                     Content : constant GNATCOLL.JSON.JSON_Array :=
+                       Msg.Get ("content").Get;
+                     Last    : constant Positive :=
+                       GNATCOLL.JSON.Length (Content);
+                     New_Content : GNATCOLL.JSON.JSON_Array :=
+                       GNATCOLL.JSON.Empty_Array;
+                  begin
+                     for K in 1 .. GNATCOLL.JSON.Length (Content) loop
+                        declare
+                           Item : constant GNATCOLL.JSON.JSON_Value :=
+                             GNATCOLL.JSON.Get (Content, K);
+                        begin
+                           if K = Last then
+                              Item.Set_Field
+                                ("cache_control", Cache_Marker);
+                           end if;
+                           GNATCOLL.JSON.Append (New_Content, Item);
+                        end;
+                     end loop;
+                     Msg.Set_Field ("content", New_Content);
+                  end;
+                  exit;
+               end if;
+            end;
+         end loop;
+      end;
 
       Request.Set_Field ("messages", Request_Msgs);
 
@@ -484,7 +538,7 @@ package body LLM.Providers.Anthropic_Messages is
                      Cache_Marker.Set_Field ("type", "ephemeral");
                      for I in 1 .. GNATCOLL.JSON.Length (Raw_Tools) loop
                         declare
-                           Item : GNATCOLL.JSON.JSON_Value :=
+                           Item : constant GNATCOLL.JSON.JSON_Value :=
                              GNATCOLL.JSON.Get (Raw_Tools, I);
                         begin
                            if I = GNATCOLL.JSON.Length (Raw_Tools) then

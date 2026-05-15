@@ -798,10 +798,15 @@ package body Coyote_App is
                            if not State.Is_Streaming
                              and then not State.Is_Compacting
                            then
-                              LLM.Agent.Compact
-                                (Agent_Session,
-                                 Dispatch_Agent_Event'Unrestricted_Access,
-                                 "manual");
+                              declare
+                                 Compact_OK : Boolean;
+                              begin
+                                 LLM.Agent.Compact
+                                   (Agent_Session,
+                                    Dispatch_Agent_Event'Unrestricted_Access,
+                                    "manual",
+                                    Compact_OK);
+                              end;
                            end if;
 
                         when Switch_Session_Command =>

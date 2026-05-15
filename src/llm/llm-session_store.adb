@@ -686,6 +686,7 @@ package body LLM.Session_Store is
                begin
                   if Parent_Id'Length > 0 then
                      Header.Set_Field ("parentSession", Parent_Id);
+                     Header.Set_Field ("parentRelation", "subagent");
                   end if;
                end;
 

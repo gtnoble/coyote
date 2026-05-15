@@ -15,5 +15,8 @@ package LLM_OpenAI_Completions_Tests is
    procedure Test_OpenAI_Non_Streaming_Tool_Calls (T : in out Test);
    procedure Test_OpenAI_HTTP_Error_Propagates (T : in out Test);
    procedure Test_OpenAI_Stream_Terminates_Early (T : in out Test);
+   procedure Test_OpenAI_System_Cache_Control (T : in out Test);
+   procedure Test_OpenAI_Last_Tool_Cache_Control (T : in out Test);
+   procedure Test_OpenAI_Cached_Tokens_In_Usage (T : in out Test);
 
 end LLM_OpenAI_Completions_Tests;

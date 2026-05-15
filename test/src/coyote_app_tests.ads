@@ -195,7 +195,7 @@ package Coyote_App_Tests is
 
    --  ── Format_Status ─────────────────────────────────────────────────────
    --  Format_Status builds the one-line status string placed in the first
-   --  body line of the +coyote window.  Parts (model, agent, thinking, context,
+   --  body line of the +coyote window.  Parts (model, agent, thinking,
    --  session) are included only when the corresponding App_State fields
    --  are populated.
 
@@ -278,5 +278,13 @@ package Coyote_App_Tests is
 
    --  Multiple children of the same parent each get the one-level indent.
    procedure Test_Format_Session_List_Multi_Child   (T : in out Test);
+
+   --  Subagent child uses hook connector (↳).
+   procedure Test_Format_Session_List_Subagent_Uses_Hook
+     (T : in out Test);
+
+   --  Fork child uses branch connector (⎇).
+   procedure Test_Format_Session_List_Fork_Uses_Branch
+     (T : in out Test);
 
 end Coyote_App_Tests;

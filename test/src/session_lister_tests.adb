@@ -296,7 +296,38 @@ package body Session_Lister_Tests is
               "Parent_Id should be empty for a top-level session");
    end Test_Parse_Session_No_Parent_Id;
 
+   procedure Test_Parse_Session_Is_Fork_True (T : in out Test) is
+      pragma Unreferenced (T);
+      Path : constant String := Write_Temp
+        ("{""type"":""session"","
+         & """id"":""fork-uuid"","
+         & """timestamp"":""2024-06-01T12:00:00Z"","
+         & """parentSession"":""parent-uuid"","
+         & """parentRelation"":""fork""}"
+         & ASCII.LF
+         & "{""type"":""session_info"",""name"":""Fork Session""}"
+         & ASCII.LF);
+      Info : constant Session_Info := Parse_Session_File (Path);
+   begin
+      Assert (Info.Is_Fork, "Is_Fork should be True for fork relation");
+   end Test_Parse_Session_Is_Fork_True;
 
+   procedure Test_Parse_Session_Is_Fork_False (T : in out Test) is
+      pragma Unreferenced (T);
+      Path : constant String := Write_Temp
+        ("{""type"":""session"","
+         & """id"":""sub-uuid"","
+         & """timestamp"":""2024-06-01T12:00:00Z"","
+         & """parentSession"":""parent-uuid"","
+         & """parentRelation"":""subagent""}"
+         & ASCII.LF
+         & "{""type"":""session_info"",""name"":""Sub Session""}"
+         & ASCII.LF);
+      Info : constant Session_Info := Parse_Session_File (Path);
+   begin
+      Assert (not Info.Is_Fork,
+              "Is_Fork should be False for subagent relation");
+   end Test_Parse_Session_Is_Fork_False;
    --  ── Find_Session_File ─────────────────────────────────────────────────
    --
    --  These tests create temporary JSONL files under a dedicated test slug

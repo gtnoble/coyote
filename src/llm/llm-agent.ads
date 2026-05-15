@@ -67,11 +67,14 @@ package LLM.Agent is
    --  values are "manual", "threshold", and "overflow".
    --
    --  Must not be called while Run_Prompt is executing.
+   --  Succeeded is set to True when compaction completes successfully and
+   --  False on any abort or error path.
    procedure Compact
-     (S        : in out Session;
-      On_Event :        not null access procedure
-                          (E : LLM.Events.Agent_Event'Class);
-      Reason   :        String := "manual");
+     (S         : in out Session;
+      On_Event  :        not null access procedure
+                           (E : LLM.Events.Agent_Event'Class);
+      Reason    :        String := "manual";
+      Succeeded :    out Boolean);
 
    --  Request cancellation of the currently-running Run_Prompt call.
    --  Safe to call from another task.

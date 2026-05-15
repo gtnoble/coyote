@@ -206,7 +206,8 @@ package body Coyote_App_Tests is
       UUID   : Unbounded_String;
       Turn_N : Positive := 1;
       Result : constant Boolean :=
-        Parse_Fork_Token ("coyote-fork+42//7", "coyote-fork+42/", UUID, Turn_N);
+        Parse_Fork_Token
+          ("coyote-fork+42//7", "coyote-fork+42/", UUID, Turn_N);
    begin
       Assert (not Result,
               "Empty UUID field should return False");
@@ -590,7 +591,6 @@ package body Coyote_App_Tests is
               "Last_Stop_Reason must still be ""error"" after clearing "
               & "Last_Error_Message");
    end Test_State_Last_Error_Message_Round_Trip;
-
 
    --  ── Model in stats summary ────────────────────────────────────────────
    --
@@ -1040,7 +1040,6 @@ package body Coyote_App_Tests is
               "100000 dmil -> ""$10.0000""");
    end Test_Format_Cost_Dollars;
 
-
    --  Build a Nine_P.Byte_Array from a plain String for test input.
    --  Declared at the package body level so all Extract_Plumb_Data tests
    --  can use it.
@@ -1433,7 +1432,8 @@ package body Coyote_App_Tests is
       pragma Unreferenced (T);
       S : App_State;
    begin
-      Assert (not S.Is_Pause_Armed, "Is_Pause_Armed should be False initially");
+      Assert (not S.Is_Pause_Armed,
+              "Is_Pause_Armed should be False initially");
    end Test_State_Is_Pause_Armed_Initial;
 
    procedure Test_State_Is_Pause_Armed_Set_And_Clear (T : in out Test) is
@@ -1479,7 +1479,8 @@ package body Coyote_App_Tests is
       Name      : String      := "";
       Date      : String      := "2026-01-01 00:00";
       Snippet   : String      := "snippet";
-      Parent_Id : String      := "") return Session_Info
+      Parent_Id : String      := "";
+      Is_Fork   : Boolean     := False) return Session_Info
    is
    begin
       return
@@ -1487,12 +1488,17 @@ package body Coyote_App_Tests is
          Name      => To_Unbounded_String (Name),
          Date      => To_Unbounded_String (Date),
          Snippet   => To_Unbounded_String (Snippet),
-         Parent_Id => To_Unbounded_String (Parent_Id));
+         Parent_Id => To_Unbounded_String (Parent_Id),
+         Is_Fork   => Is_Fork);
    end Make_Info;
 
    UC_Hook_R : constant String :=
      Character'Val (16#E2#) & Character'Val (16#86#)
      & Character'Val (16#B3#);
+
+   UC_Fork_R : constant String :=
+     Character'Val (16#E2#) & Character'Val (16#8E#)
+     & Character'Val (16#87#);
 
    function Contains (Text : String; Pattern : String) return Boolean is
    begin
@@ -1557,8 +1563,10 @@ package body Coyote_App_Tests is
                                   Parent_Id => "parent-1"));
       declare
          R           : constant String   := Format_Session_List (Sessions);
-         Parent_Line : constant Natural  := Line_Index (R, "coyote-session+parent-1");
-         Child_Line  : constant Natural  := Line_Index (R, "coyote-session+child-1");
+         Parent_Line : constant Natural :=
+            Line_Index (R, "coyote-session+parent-1");
+         Child_Line  : constant Natural :=
+            Line_Index (R, "coyote-session+child-1");
       begin
          Assert (Parent_Line > 0, "Parent session should appear");
          Assert (Child_Line  > 0, "Child session should appear");
@@ -1599,13 +1607,18 @@ package body Coyote_App_Tests is
       Sessions : Session_Vectors.Vector;
    begin
       Sessions.Append (Make_Info ("root-1",  "Root"));
-      Sessions.Append (Make_Info ("mid-1",   "Middle",      Parent_Id => "root-1"));
-      Sessions.Append (Make_Info ("leaf-1",  "Leaf",        Parent_Id => "mid-1"));
+      Sessions.Append
+        (Make_Info ("mid-1", "Middle", Parent_Id => "root-1"));
+      Sessions.Append
+        (Make_Info ("leaf-1", "Leaf",   Parent_Id => "mid-1"));
       declare
          R          : constant String  := Format_Session_List (Sessions);
-         Root_Line  : constant Natural := Line_Index (R, "coyote-session+root-1");
-         Mid_Line   : constant Natural := Line_Index (R, "coyote-session+mid-1");
-         Leaf_Line  : constant Natural := Line_Index (R, "coyote-session+leaf-1");
+         Root_Line  : constant Natural :=
+            Line_Index (R, "coyote-session+root-1");
+         Mid_Line   : constant Natural :=
+            Line_Index (R, "coyote-session+mid-1");
+         Leaf_Line  : constant Natural :=
+            Line_Index (R, "coyote-session+leaf-1");
       begin
          Assert (Root_Line > 0,  "Root should appear");
          Assert (Mid_Line  > 0,  "Middle should appear");
@@ -1643,10 +1656,14 @@ package body Coyote_App_Tests is
       Sessions.Append (Make_Info ("ch-3",   "Child 3", Parent_Id => "par-1"));
       declare
          R          : constant String  := Format_Session_List (Sessions);
-         Par_Line   : constant Natural := Line_Index (R, "coyote-session+par-1");
-         Ch1_Line   : constant Natural := Line_Index (R, "coyote-session+ch-1");
-         Ch2_Line   : constant Natural := Line_Index (R, "coyote-session+ch-2");
-         Ch3_Line   : constant Natural := Line_Index (R, "coyote-session+ch-3");
+         Par_Line   : constant Natural :=
+           Line_Index (R, "coyote-session+par-1");
+         Ch1_Line   : constant Natural :=
+           Line_Index (R, "coyote-session+ch-1");
+         Ch2_Line   : constant Natural :=
+           Line_Index (R, "coyote-session+ch-2");
+         Ch3_Line   : constant Natural :=
+           Line_Index (R, "coyote-session+ch-3");
       begin
          Assert (Par_Line > 0 and then Ch1_Line > 0
                  and then Ch2_Line > 0 and then Ch3_Line > 0,
@@ -1657,5 +1674,47 @@ package body Coyote_App_Tests is
                  "Children appear in order after parent");
       end;
    end Test_Format_Session_List_Multi_Child;
+
+   procedure Test_Format_Session_List_Subagent_Uses_Hook
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+      Sessions : Session_Vectors.Vector;
+   begin
+      Sessions.Append (Make_Info ("parent-s", "Parent"));
+      Sessions.Append
+        (Make_Info ("child-s",  "Child",
+                    Parent_Id => "parent-s",
+                    Is_Fork   => False));
+      declare
+         R : constant String := Format_Session_List (Sessions);
+      begin
+         Assert (Contains (R, UC_Hook_R),
+                 "Subagent child should use hook connector");
+         Assert (not Contains (R, UC_Fork_R),
+                 "Subagent child should not use fork connector");
+      end;
+   end Test_Format_Session_List_Subagent_Uses_Hook;
+
+   procedure Test_Format_Session_List_Fork_Uses_Branch
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+      Sessions : Session_Vectors.Vector;
+   begin
+      Sessions.Append (Make_Info ("parent-f", "Parent"));
+      Sessions.Append
+        (Make_Info ("child-f",  "Fork",
+                    Parent_Id => "parent-f",
+                    Is_Fork   => True));
+      declare
+         R : constant String := Format_Session_List (Sessions);
+      begin
+         Assert (Contains (R, UC_Fork_R),
+                 "Fork child should use branch connector");
+         Assert (not Contains (R, UC_Hook_R),
+                 "Fork child should not use hook connector");
+      end;
+   end Test_Format_Session_List_Fork_Uses_Branch;
 
 end Coyote_App_Tests;
