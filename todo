@@ -1,9 +1,1 @@
 Continue sessions with same model used in session
-Change `bash` tool to `shell` tool
-	Uses $SHELL
-	$SHELL is output in the system prompt
-	Add stdin argument
-Add prompt command filter to `spawn_subagent`
-Allow spawning multiple subagents by providing subagent names list.
-	subagent name is provided as $AGENT_NAME env var when command filter executed
-	allows generating subagent prompts programmatically

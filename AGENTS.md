@@ -54,7 +54,7 @@ Object files go to `obj/<profile>/`, binaries to `bin/`.
 ```
 src/
   coyote.adb            -- Entry point; parses --session / --model / --agent /
-                        --   --custom-prompt / --no-tools / --no-session /
+                        --   --no-tools / --no-session /
                         --   --prompt / --one-shot / --name / --prompt-filter flags
   coyote_app.ads/.adb   -- App_State, options, acme/plumb tasks, Run procedure
   coyote_app-dispatch.ads/.adb -- Dispatch_Event: native LLM event → acme window
@@ -96,6 +96,7 @@ src/
     llm-tools-shell.ads/.adb    -- shell tool implementation
     llm-tools-spawn_subagent.ads/.adb -- spawn_subagent tool: single-agent and
                         --   multi-agent parallel spawning via "names" array;
+                        --   agent param = system-prompt text or @path;
                         --   per-agent prompt transformation via prompt_filter
                         --   (COYOTE_SUBAGENT_NAME env var)
     llm-skills.ads/.adb         -- Skill discovery and system-prompt formatting
@@ -103,6 +104,8 @@ src/
     llm-compaction.ads/.adb     -- Context compaction helpers (threshold,
                         --   cut-point, serialisation)
     llm-session_store.ads/.adb  -- JSONL session persistence
+    llm-agent.ads/.adb          -- Native agentic loop (Session, Run_Prompt,
+                        --   Request_Pause, Resume, Is_Paused)
 tools/
   coyote_list_sessions.adb   -- Entry point for the session listing utility
   coyote_open.adb            -- Entry point for the tool-call detail window utility
@@ -116,7 +119,7 @@ test/src/                -- AUnit-based test suite
 | Task | Responsibility |
 |---|---|
 | `Agent_Task` | Owns `LLM.Agent.Session`, drives prompts, and calls `Dispatch_Event` to render each `LLM.Events.Agent_Event'Class` value into the acme window |
-| `Acme_Event_Task` | Reads the acme window event file via 9P; handles Send/Stop/New/Clear/Models/Sessions/Thinking/Stats tag commands |
+| `Acme_Event_Task` | Reads the acme window event file via 9P; handles Send/Stop/New/Clear/Models/Sessions/Thinking/Stats/Pause/Resume tag commands |
 | `Plumb_Model_Task` | Reads the `/coyote-model` plumb port; updates the active model via `LLM.Agent.Set_Model` |
 | `Plumb_Thinking_Task` | Reads the `/coyote-thinking` plumb port; updates the reasoning level via `LLM.Agent.Set_Thinking` |
 | `Plumb_Fork_Task` | Reads the `/coyote-fork` plumb port; forks the session at the requested turn and spawns a new `coyote` window |
@@ -171,6 +174,7 @@ event hierarchy is defined in `src/llm/llm-events.ads`; key types include
 `Agent_Start_Event`, `Agent_End_Event`, `Message_Update_Event`,
 `Tool_Execution_Start_Event`, `Tool_Execution_End_Event`, `Message_End_Event`,
 `Model_Select_Event`, `Auto_Retry_Start_Event`, `Auto_Compaction_Start_Event`,
+`Agent_Paused_Event`, `Agent_Resumed_Event`,
 and `Session_Stats_Event`.
 
 ## Adding a New LLM Provider

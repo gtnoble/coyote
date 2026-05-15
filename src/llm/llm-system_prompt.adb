@@ -255,8 +255,9 @@ package body LLM.System_Prompt is
             & ASCII.LF
             & "Guidelines:"
             & ASCII.LF
-            & "- Prefer the stdin field over shell heredocs when"
-            & " passing multi-line content to a command"
+            & "- Always use the stdin field instead of heredocs when"
+            & " passing multi-line content to a command;"
+            & " never use <<EOF or <<'EOF' heredoc syntax"
             & ASCII.LF
             & "- Read files: cat path (full file),"
             & " sed -n 'N,Mp' path (line range), head/tail"
@@ -268,6 +269,10 @@ package body LLM.System_Prompt is
             & "- Edit files precisely with ex, ed, sed, or perl"
             & " (pass commands via the stdin field for ex/ed;"
             & " use perl -0777 -i -pe for multi-line patterns)"
+            & ASCII.LF
+            & "- For non-trivial sed/perl/awk scripts, pass the script"
+            & " body via the stdin field rather than embedding it in"
+            & " the command argument to avoid shell-quoting issues"
             & ASCII.LF
             & "- Find files: find path -name pattern;"
             & " search content: grep -r pattern path (or rg)"
