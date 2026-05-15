@@ -436,7 +436,21 @@ package body LLM.Providers.Anthropic_Messages is
       Request.Set_Field ("max_tokens", Integer (Max_Tokens));
 
       if System_Prompt'Length > 0 then
-         Request.Set_Field ("system", System_Prompt);
+         declare
+            System_Blocks : GNATCOLL.JSON.JSON_Array :=
+              GNATCOLL.JSON.Empty_Array;
+            System_Block  : GNATCOLL.JSON.JSON_Value :=
+              GNATCOLL.JSON.Create_Object;
+            Cache_Marker  : constant GNATCOLL.JSON.JSON_Value :=
+              GNATCOLL.JSON.Create_Object;
+         begin
+            Cache_Marker.Set_Field ("type", "ephemeral");
+            System_Block.Set_Field ("type", "text");
+            System_Block.Set_Field ("text", System_Prompt);
+            System_Block.Set_Field ("cache_control", Cache_Marker);
+            GNATCOLL.JSON.Append (System_Blocks, System_Block);
+            Request.Set_Field ("system", System_Blocks);
+         end;
       end if;
 
       for Msg of Messages loop
@@ -455,11 +469,33 @@ package body LLM.Providers.Anthropic_Messages is
             raise Constraint_Error with "Invalid tools JSON: expected array";
          else
             declare
-               Tools_Array : constant GNATCOLL.JSON.JSON_Array :=
+               Raw_Tools    : constant GNATCOLL.JSON.JSON_Array :=
                   Tools_Read.Value.Get;
             begin
-               if GNATCOLL.JSON.Length (Tools_Array) > 0 then
-                  Request.Set_Field ("tools", Tools_Array);
+               if GNATCOLL.JSON.Length (Raw_Tools) > 0 then
+                  --  Add a cache_control breakpoint on the last tool
+                  --  definition so the tool schema is cached across turns.
+                  declare
+                     Cached_Tools : GNATCOLL.JSON.JSON_Array :=
+                       GNATCOLL.JSON.Empty_Array;
+                     Cache_Marker : constant GNATCOLL.JSON.JSON_Value :=
+                       GNATCOLL.JSON.Create_Object;
+                  begin
+                     Cache_Marker.Set_Field ("type", "ephemeral");
+                     for I in 1 .. GNATCOLL.JSON.Length (Raw_Tools) loop
+                        declare
+                           Item : GNATCOLL.JSON.JSON_Value :=
+                             GNATCOLL.JSON.Get (Raw_Tools, I);
+                        begin
+                           if I = GNATCOLL.JSON.Length (Raw_Tools) then
+                              Item.Set_Field
+                                ("cache_control", Cache_Marker);
+                           end if;
+                           GNATCOLL.JSON.Append (Cached_Tools, Item);
+                        end;
+                     end loop;
+                     Request.Set_Field ("tools", Cached_Tools);
+                  end;
                end if;
             end;
          end if;
