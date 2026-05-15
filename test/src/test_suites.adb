@@ -933,6 +933,10 @@ package body Test_Suites is
         ("[subagent] Two --one-shot runs use distinct sessions",
          Subagent_Integration_Tests
            .Test_One_Shot_Fresh_Session_Each_Run'Access));
+      Result.Add_Test (Subagent_Int_Caller.Create
+        ("[subagent] Prompt-failure one-shot still returns session_id",
+         Subagent_Integration_Tests
+           .Test_One_Shot_Prompt_Failure_Has_Session_Id'Access));
 
       --  LLM.System_Prompt tests
       Result.Add_Test (LLM_Sys_Prompt_Caller.Create

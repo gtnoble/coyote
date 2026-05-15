@@ -668,6 +668,9 @@ package body Coyote_App is
                           ("error",
                            "prompt failed: "
                            & Ada.Exceptions.Exception_Message (Ex));
+                        Err.Set_Field
+                          ("session_id",
+                           Create (LLM.Agent.Session_Id (Agent_Session)));
                         State.Set_One_Shot_Result (Write (Err));
                      end;
                      Initiate_Shutdown;
@@ -878,6 +881,15 @@ package body Coyote_App is
                        ("error",
                         "agent task failed: "
                         & Ada.Exceptions.Exception_Message (Ex));
+                     declare
+                        Sess : constant String :=
+                          LLM.Agent.Session_Id (Agent_Session);
+                     begin
+                        if Sess'Length > 0 then
+                           Err.Set_Field
+                             ("session_id", Create (Sess));
+                        end if;
+                     end;
                      State.Set_One_Shot_Result (Write (Err));
                   end;
                end if;

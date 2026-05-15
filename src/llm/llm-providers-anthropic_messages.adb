@@ -99,7 +99,8 @@ package body LLM.Providers.Anthropic_Messages is
       Lower_Base_Url : constant String :=
          Ada.Characters.Handling.To_Lower (Base_Url);
    begin
-      return Ada.Strings.Fixed.Index (Lower_Base_Url, "anthropic.com") > 0;
+      return Ada.Strings.Fixed.Index (Lower_Base_Url, "anthropic.com") > 0
+        or else Ada.Strings.Fixed.Index (Lower_Base_Url, "opencode.ai") > 0;
    end Uses_X_Api_Key;
 
    function Parse_Json

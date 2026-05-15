@@ -47,6 +47,7 @@ abstract project Coyote_Config is
            ,"-gnatyx" -- Check extra parentheses
            ,"-gnatW8" -- UTF-8 encoding for wide characters
           );
+
    type Build_Profile_Kind is ("release", "validation", "development");
    Build_Profile : Build_Profile_Kind := "development";
 

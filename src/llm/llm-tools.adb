@@ -5,6 +5,7 @@
 
 with LLM.Tools.Shell;
 with LLM.Tools.Spawn_Subagent;
+with LLM.Tools.Temp_File;
 
 package body LLM.Tools is
 
@@ -90,6 +91,7 @@ package body LLM.Tools is
       Is_Error  : out Boolean;
       Abort_Flg : access Abort_Flag := null)
    is
+      use Ada.Strings.Unbounded;
    begin
       if Name = "shell" then
          LLM.Tools.Shell.Execute (Args_Json, Result, Is_Error, Abort_Flg);
@@ -99,6 +101,13 @@ package body LLM.Tools is
       else
          raise Unknown_Tool with "unknown tool: " & Name;
       end if;
+
+      --  Enforce the result size cap.  Any tool whose output exceeds the
+      --  threshold has the full content spilled to a temp file; the caller
+      --  receives an excerpt followed by a path to the complete file.
+      Result := To_Unbounded_String
+        (LLM.Tools.Temp_File.Truncated
+           (To_String (Result), Tool_Name => Name));
    end Execute;
 
 end LLM.Tools;

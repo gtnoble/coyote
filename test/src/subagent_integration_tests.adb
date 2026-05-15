@@ -413,4 +413,136 @@ package body Subagent_Integration_Tests is
       end;
    end Test_One_Shot_Fresh_Session_Each_Run;
 
+   --  ── Test_One_Shot_Prompt_Failure_Has_Session_Id ──────────────────────
+   --
+   --  Verifies that when Run_Prompt raises an exception (triggered here by
+   --  supplying an invalid OpenRouter API key so the provider gets an
+   --  HTTP 401), the one-shot result JSON still carries both an "error"
+   --  field and a well-formed "session_id" UUID.
+   --
+   --  The OpenRouter model catalogue is restored from the cache copied by
+   --  Populate_Test_Home, so Agent.Create succeeds without any live
+   --  network calls.  Only Run_Prompt touches the API and fails.
+
+   procedure Test_One_Shot_Prompt_Failure_Has_Session_Id
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+
+      Coyote     : constant String  := Find_Coyote;
+      Stdout_Out : Unbounded_String;
+      Got_Result : Boolean          := False;
+      Flag       : Done_Flag;
+
+      task Runner;
+      task body Runner is
+         use GNATCOLL.OS.FS;
+         Stdout_R, Stdout_W : File_Descriptor;
+         Null_In            : File_Descriptor;
+         Null_Err           : File_Descriptor;
+         Args               : Argument_List;
+         Env_Override       : Environment_Dict;
+         Handle             : Process_Handle;
+         Exit_Code          : Integer;
+         pragma Unreferenced (Exit_Code);
+         Test_Home : constant String :=
+           "/tmp/coyote_subagent_fail_test_" & PID_Image;
+         Real_Home : constant String :=
+           Ada.Environment_Variables.Value ("HOME", "");
+      begin
+         if Ada.Directories.Exists (Test_Home) then
+            Ada.Directories.Delete_Tree (Test_Home);
+         end if;
+         --  Populate with real settings and model caches so that
+         --  Agent.Create can resolve the openrouter provider without
+         --  any live network calls.
+         Populate_Test_Home (Test_Home, Real_Home);
+
+         --  Override OPENROUTER_API_KEY to an invalid value.  Agent.Create
+         --  succeeds (catalogue loaded from cache), but Run_Prompt gets an
+         --  HTTP 401 and raises Constraint_Error, which exercises the
+         --  Run_Queued_Prompt exception handler.
+         Env_Override.Include ("HOME", Test_Home);
+         Env_Override.Include
+           ("OPENROUTER_API_KEY", "invalid_token_for_test");
+
+         Open_Pipe (Stdout_R, Stdout_W);
+         Null_In  := Open (Null_File, Read_Mode);
+         Null_Err := Open (Null_File, Write_Mode);
+         Args.Append (Coyote);
+         Args.Append ("--one-shot");
+         Args.Append ("--model");
+         Args.Append ("openrouter/openai/gpt-4o-mini");
+         Args.Append ("--prompt");
+         Args.Append ("Hello.");
+         Handle := Start
+           (Args        => Args,
+            Env         => Env_Override,
+            Stdin       => Null_In,
+            Stdout      => Stdout_W,
+            Stderr      => Null_Err,
+            Cwd         => Ada.Directories.Current_Directory,
+            Inherit_Env => True);
+         Close (Null_In);
+         Close (Null_Err);
+         Close (Stdout_W);
+         Stdout_Out := GNATCOLL.OS.FS.Read (Stdout_R);
+         Close (Stdout_R);
+         Exit_Code  := Wait (Handle);
+         if Ada.Directories.Exists (Test_Home) then
+            Ada.Directories.Delete_Tree (Test_Home);
+         end if;
+         Got_Result := True;
+         Flag.Signal;
+      exception
+         when others =>
+            if Ada.Directories.Exists (Test_Home) then
+               Ada.Directories.Delete_Tree (Test_Home);
+            end if;
+            Flag.Signal;
+      end Runner;
+
+   begin
+      if not Acme_Running then
+         return;
+      end if;
+      if Coyote'Length = 0 then
+         Assert (False, "coyote binary not found at ../bin/coyote");
+         return;
+      end if;
+
+      select
+         Flag.Wait;
+      or
+         delay 30.0;
+      end select;
+
+      Assert (Got_Result,
+              "Prompt-failure one-shot must complete within 30 s");
+      declare
+         Raw : constant String :=
+           First_Line (To_String (Stdout_Out));
+         R   : constant Read_Result := Read (Raw);
+      begin
+         Assert (R.Success,
+                 "stdout must be valid JSON on prompt failure, got: " & Raw);
+         declare
+            Error_Text : constant String :=
+              Json_Str (R.Value, "error");
+            Session_Id : constant String :=
+              Json_Str (R.Value, "session_id");
+         begin
+            Assert
+              (Error_Text'Length > 0,
+               "JSON must have a non-empty ""error"" field"
+               & " on prompt failure");
+            Assert
+              (Session_Id'Length = 36,
+               "JSON must have a 36-char ""session_id"""
+               & " even on prompt failure,"
+               & " got: " & Session_Id);
+         end;
+      end;
+   end Test_One_Shot_Prompt_Failure_Has_Session_Id;
+
 end Subagent_Integration_Tests;

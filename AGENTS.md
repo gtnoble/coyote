@@ -99,6 +99,9 @@ src/
                         --   agent param = system-prompt text or @path;
                         --   per-agent prompt transformation via prompt_filter
                         --   (COYOTE_SUBAGENT_NAME env var)
+    llm-tools-temp_file.ads/.adb -- tool-result size cap; Truncated writes
+                        --   excess bytes to a temp file under /tmp/ and
+                        --   returns an excerpt with a path trailer
     llm-skills.ads/.adb         -- Skill discovery and system-prompt formatting
     llm-system_prompt.ads/.adb  -- System prompt construction; context loading
     llm-compaction.ads/.adb     -- Context compaction helpers (threshold,

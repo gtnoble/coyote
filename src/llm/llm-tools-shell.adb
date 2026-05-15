@@ -5,7 +5,6 @@
 
 with Ada.Environment_Variables;
 with Ada.Exceptions;
-with Ada.Streams.Stream_IO;
 with Ada.Strings;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
@@ -17,8 +16,6 @@ with LLM.Tools.Internal;
 package body LLM.Tools.Shell is
 
    use type GNATCOLL.JSON.JSON_Value_Type;
-
-   Max_Output_Bytes : constant Natural := 200 * 1024;
 
    Default_Shell : constant String := "/bin/sh";
 
@@ -82,51 +79,11 @@ package body LLM.Tools.Shell is
          Schema_Json => Schema);
    end Descriptor;
 
-   --  POSIX getpid() used to generate stable temporary-output paths.
-   function Getpid return Integer;
-   pragma Import (C, Getpid, "getpid");
-
-   protected Temp_Names is
-      procedure Next (Value : out Natural);
-   private
-      Counter : Natural := 0;
-   end Temp_Names;
-
-   protected body Temp_Names is
-      procedure Next (Value : out Natural) is
-      begin
-         Counter := Counter + 1;
-         Value   := Counter;
-      end Next;
-   end Temp_Names;
-
    function Image_Of (Value : Integer) return String is
-      Image : constant String := Ada.Strings.Fixed.Trim
+   begin
+      return Ada.Strings.Fixed.Trim
         (Integer'Image (Value), Ada.Strings.Both);
-   begin
-      return Image;
    end Image_Of;
-
-   function Temp_Output_Path return String is
-      Suffix : Natural;
-   begin
-      Temp_Names.Next (Suffix);
-      return
-        "/tmp/coyote_shell_tool_"
-        & Image_Of (Getpid)
-        & "_"
-        & Image_Of (Integer (Suffix))
-        & ".txt";
-   end Temp_Output_Path;
-
-   procedure Write_String
-     (File : in out Ada.Streams.Stream_IO.File_Type;
-      Data : String) is
-   begin
-      if Data'Length > 0 then
-         String'Write (Ada.Streams.Stream_IO.Stream (File), Data);
-      end if;
-   end Write_String;
 
    procedure Set_Error
      (Message  :     String;
@@ -178,11 +135,6 @@ package body LLM.Tools.Shell is
          Bytes_Read     : Integer;
          Exit_Code      : Integer         := 0;
          Output         : Unbounded_String;
-         Temp_File      : Ada.Streams.Stream_IO.File_Type;
-         Temp_Open      : Boolean         := False;
-         Temp_Path      : Unbounded_String;
-         Was_Truncated  : Boolean         := False;
-         Total_Bytes    : Natural         := 0;
          Has_Stdin_Text : Boolean         := False;
          Stdin_Text     : Unbounded_String := Null_Unbounded_String;
          Stdin_R        : File_Descriptor := Invalid_FD;
@@ -214,49 +166,7 @@ package body LLM.Tools.Shell is
                Close (Stdin_W);
                Stdin_W := Invalid_FD;
             end if;
-
-            if Temp_Open then
-               Ada.Streams.Stream_IO.Close (Temp_File);
-               Temp_Open := False;
-            end if;
          end Cleanup;
-
-         procedure Capture (Data : String) is
-            Current_Length : constant Natural := Length (Output);
-            Keep_Count     : Natural          := 0;
-         begin
-            Total_Bytes := Total_Bytes + Data'Length;
-
-            if Was_Truncated then
-               Write_String (Temp_File, Data);
-               return;
-            end if;
-
-            if Current_Length + Data'Length <= Max_Output_Bytes then
-               Append (Output, Data);
-               return;
-            end if;
-
-            Temp_Path := To_Unbounded_String (Temp_Output_Path);
-            Ada.Streams.Stream_IO.Create
-              (Temp_File,
-               Ada.Streams.Stream_IO.Out_File,
-               To_String (Temp_Path));
-            Temp_Open := True;
-            Write_String (Temp_File, To_String (Output));
-            Write_String (Temp_File, Data);
-
-            if Current_Length < Max_Output_Bytes then
-               Keep_Count := Max_Output_Bytes - Current_Length;
-               if Keep_Count > 0 then
-                  Append
-                    (Output,
-                     Data (Data'First .. Data'First + Keep_Count - 1));
-               end if;
-            end if;
-
-            Was_Truncated := True;
-         end Capture;
 
       begin
          --  Parse the optional "stdin" field before spawning the child.
@@ -327,7 +237,7 @@ package body LLM.Tools.Shell is
                loop
                   Bytes_Read := Read (Output_R, Chunk);
                   exit Read_Output_Loop when Bytes_Read <= 0;
-                  Capture (Chunk (1 .. Bytes_Read));
+                  Append (Output, Chunk (1 .. Bytes_Read));
                end loop Read_Output_Loop;
             end select;
          else
@@ -335,7 +245,7 @@ package body LLM.Tools.Shell is
             loop
                Bytes_Read := Read (Output_R, Chunk);
                exit No_Abort_Read_Loop when Bytes_Read <= 0;
-               Capture (Chunk (1 .. Bytes_Read));
+               Append (Output, Chunk (1 .. Bytes_Read));
             end loop No_Abort_Read_Loop;
          end if;
 
@@ -361,21 +271,6 @@ package body LLM.Tools.Shell is
          Output_R := Invalid_FD;
 
          Exit_Code := Wait (Handle);
-
-         if Was_Truncated then
-            Ada.Streams.Stream_IO.Close (Temp_File);
-            Temp_Open := False;
-            Append (Output, ASCII.LF);
-            Append
-              (Output,
-               "[output truncated at "
-               & Image_Of (Integer (Max_Output_Bytes))
-               & " bytes; full output saved to "
-               & To_String (Temp_Path)
-               & "; total bytes "
-               & Image_Of (Integer (Total_Bytes))
-               & "]");
-         end if;
 
          if Exit_Code /= 0 then
             Is_Error := True;

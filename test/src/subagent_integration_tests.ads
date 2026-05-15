@@ -23,4 +23,10 @@ package Subagent_Integration_Tests is
    procedure Test_One_Shot_Fresh_Session_Each_Run
      (T : in out Test);
 
+   --  Prompt-failure path: when Run_Prompt raises an exception (e.g. an
+   --  HTTP 4xx from an invalid API key), the one-shot result JSON must
+   --  still carry a "session_id" field alongside the "error" field.
+   procedure Test_One_Shot_Prompt_Failure_Has_Session_Id
+     (T : in out Test);
+
 end Subagent_Integration_Tests;
