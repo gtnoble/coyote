@@ -19,4 +19,8 @@ package LLM_Anthropic_Messages_Tests is
    procedure Test_Thinking_Block_Serialised_In_Request (T : in out Test);
    procedure Test_Tool_Result_Is_Error_Serialised (T : in out Test);
 
+   procedure Test_System_Prompt_Is_Content_Block_Array (T : in out Test);
+   procedure Test_Cache_Control_On_Last_Tool (T : in out Test);
+   procedure Test_Cache_Control_On_Last_User_Message (T : in out Test);
+
 end LLM_Anthropic_Messages_Tests;
