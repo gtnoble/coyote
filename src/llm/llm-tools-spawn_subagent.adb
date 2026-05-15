@@ -73,17 +73,26 @@ package body LLM.Tools.Spawn_Subagent is
       Props.Set_Field
         ("model",
          Str_Prop ("Model to use in provider/model-id form."
-                   & " Defaults to the current model."));
+                   & " Overrides both the current model and any model"
+                   & " preference from an agent definition's"
+                   & " frontmatter."));
       Props.Set_Field
         ("agent",
          Str_Prop ("Name of an agent definition to use for the"
                    & " subagent.  Must match the name field of a"
-                   & " discovered AGENT.md file."));
+                   & " discovered AGENT.md file (see"
+                   & " <available_agents> in the system prompt)."
+                   & "  The AGENT.md body becomes the subagent's"
+                   & " system prompt; its model and thinking"
+                   & " frontmatter fields are honoured unless"
+                   & " overridden by the model parameter."));
       Props.Set_Field
         ("custom_prompt",
-         Str_Prop ("Additional instructions appended to the agent"
-                   & " definition system prompt.  Use @path to load"
-                   & " from a file."));
+         Str_Prop ("Additional instructions appended to the"
+                   & " subagent's system prompt: appended to the"
+                   & " agent body when agent is supplied, or to the"
+                   & " default system prompt otherwise.  Use @path"
+                   & " to load content from a file."));
       Props.Set_Field
         ("name",
          Str_Prop ("Short label for the subagent window tagline."
@@ -117,9 +126,18 @@ package body LLM.Tools.Spawn_Subagent is
            ("Spawn a subagent in a new coyote window and return its"
             & " response. The window closes automatically when the"
             & " turn completes. Subagents are ephemeral and do not"
-            & " persist sessions. Use ""names"" to spawn multiple"
-            & " subagents in parallel with per-agent prompt"
-            & " transformation via prompt_filter."),
+            & " persist sessions."
+            & " agent: load a named AGENT.md definition (listed in"
+            & " <available_agents>): its body becomes the"
+            & " subagent's system prompt and its model/thinking"
+            & " frontmatter fields are honoured automatically."
+            & " custom_prompt: append extra instructions to the"
+            & " system prompt (works with or without agent)."
+            & " model: override the model in provider/model-id form"
+            & " (takes precedence over agent frontmatter)."
+            & " names (array): spawn one subagent per entry in"
+            & " parallel; combine with prompt_filter to produce a"
+            & " distinct prompt for each subagent."),
          Schema_Json => Schema);
    end Descriptor;
 
