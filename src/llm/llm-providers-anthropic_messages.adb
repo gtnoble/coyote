@@ -318,17 +318,24 @@ package body LLM.Providers.Anthropic_Messages is
       (Content : in out GNATCOLL.JSON.JSON_Array;
      Block   :        LLM.Types.Content_Block)
    is
-      Item  : constant GNATCOLL.JSON.JSON_Value := GNATCOLL.JSON.Create_Object;
-      Input : constant GNATCOLL.JSON.JSON_Value :=
-         (if Length (Block.Arguments_Json) = 0
-       then GNATCOLL.JSON.Create_Object
-       else Parse_Json
-         (To_String (Block.Arguments_Json),
-               "Invalid Anthropic tool input JSON"));
+      Item : constant GNATCOLL.JSON.JSON_Value :=
+        GNATCOLL.JSON.Create_Object;
+      Parsed : constant GNATCOLL.JSON.Read_Result :=
+        GNATCOLL.JSON.Read (To_String (Block.Arguments_Json));
+      Input  : GNATCOLL.JSON.JSON_Value;
    begin
-      if Input.Kind /= GNATCOLL.JSON.JSON_Object_Type then
-         raise Constraint_Error with
-            "Invalid Anthropic tool input JSON: expected object";
+      if Length (Block.Arguments_Json) = 0 then
+         Input := GNATCOLL.JSON.Create_Object;
+      elsif Parsed.Success
+        and then Parsed.Value.Kind = GNATCOLL.JSON.JSON_Object_Type
+      then
+         Input := Parsed.Value;
+      else
+         --  The LLM generated invalid JSON arguments.  Use an empty
+         --  object so the API request remains well-formed; the tool
+         --  will fail with an argument-parsing error on the next turn,
+         --  which the model can learn from and retry.
+         Input := GNATCOLL.JSON.Create_Object;
       end if;
 
       Item.Set_Field ("type", "tool_use");
@@ -347,6 +354,9 @@ package body LLM.Providers.Anthropic_Messages is
       Item.Set_Field ("type", "tool_result");
       Item.Set_Field ("tool_use_id", To_String (Block.Result_Id));
       Item.Set_Field ("content", To_String (Block.Result_Text));
+      if Block.Is_Error then
+         Item.Set_Field ("is_error", True);
+      end if;
       GNATCOLL.JSON.Append (Content, Item);
    end Append_Tool_Result_Content;
 
@@ -354,7 +364,8 @@ package body LLM.Providers.Anthropic_Messages is
       (Messages : in out GNATCOLL.JSON.JSON_Array;
      Msg      :        LLM.Types.Message)
    is
-      Message : constant GNATCOLL.JSON.JSON_Value := GNATCOLL.JSON.Create_Object;
+      Message : constant GNATCOLL.JSON.JSON_Value :=
+        GNATCOLL.JSON.Create_Object;
       Content : GNATCOLL.JSON.JSON_Array := GNATCOLL.JSON.Empty_Array;
    begin
       case Msg.Role is

@@ -102,200 +102,207 @@ package body LLM.Tools.Shell is
    is
       Parsed : constant GNATCOLL.JSON.Read_Result :=
         GNATCOLL.JSON.Read (Args_Json);
-      Root   : constant GNATCOLL.JSON.JSON_Value  := Parsed.Value;
    begin
       Result   := Null_Unbounded_String;
       Is_Error := False;
 
-      if not Parsed.Success or else Root.Kind /= GNATCOLL.JSON.JSON_Object_Type
-      then
+      if not Parsed.Success then
          Set_Error ("invalid JSON arguments for shell tool", Result, Is_Error);
          return;
       end if;
 
-      if not Root.Has_Field ("command")
-        or else Root.Get ("command").Kind /= GNATCOLL.JSON.JSON_String_Type
-      then
-         Set_Error
-           ("shell tool requires a string field 'command'",
-            Result,
-            Is_Error);
-         return;
-      end if;
-
       declare
-         Command        : constant String := Root.Get ("command").Get;
-         Shell_Path     : constant String := Resolve_Shell;
-         Output_R       : File_Descriptor := Invalid_FD;
-         Output_W       : File_Descriptor := Invalid_FD;
-         Null_In        : File_Descriptor := Invalid_FD;
-         Handle         : Process_Handle  := Invalid_Handle;
-         Args           : Argument_List;
-         Chunk          : String (1 .. 4096);
-         Bytes_Read     : Integer;
-         Exit_Code      : Integer         := 0;
-         Output         : Unbounded_String;
-         Has_Stdin_Text : Boolean         := False;
-         Stdin_Text     : Unbounded_String := Null_Unbounded_String;
-         Stdin_R        : File_Descriptor := Invalid_FD;
-         Stdin_W        : File_Descriptor := Invalid_FD;
+         Root : constant GNATCOLL.JSON.JSON_Value := Parsed.Value;
+      begin
+         if Root.Kind /= GNATCOLL.JSON.JSON_Object_Type then
+            Set_Error ("invalid JSON arguments for shell tool", Result, Is_Error);
+            return;
+         end if;
 
-         procedure Cleanup is
+         if not Root.Has_Field ("command")
+           or else Root.Get ("command").Kind /= GNATCOLL.JSON.JSON_String_Type
+         then
+            Set_Error
+              ("shell tool requires a string field 'command'",
+               Result,
+               Is_Error);
+            return;
+         end if;
+
+         declare
+            Command        : constant String := Root.Get ("command").Get;
+            Shell_Path     : constant String := Resolve_Shell;
+            Output_R       : File_Descriptor := Invalid_FD;
+            Output_W       : File_Descriptor := Invalid_FD;
+            Null_In        : File_Descriptor := Invalid_FD;
+            Handle         : Process_Handle  := Invalid_Handle;
+            Args           : Argument_List;
+            Chunk          : String (1 .. 4096);
+            Bytes_Read     : Integer;
+            Exit_Code      : Integer         := 0;
+            Output         : Unbounded_String;
+            Has_Stdin_Text : Boolean         := False;
+            Stdin_Text     : Unbounded_String := Null_Unbounded_String;
+            Stdin_R        : File_Descriptor := Invalid_FD;
+            Stdin_W        : File_Descriptor := Invalid_FD;
+
+            procedure Cleanup is
+            begin
+               if Output_R /= Invalid_FD then
+                  Close (Output_R);
+                  Output_R := Invalid_FD;
+               end if;
+
+               if Output_W /= Invalid_FD then
+                  Close (Output_W);
+                  Output_W := Invalid_FD;
+               end if;
+
+               if Null_In /= Invalid_FD then
+                  Close (Null_In);
+                  Null_In := Invalid_FD;
+               end if;
+
+               if Stdin_R /= Invalid_FD then
+                  Close (Stdin_R);
+                  Stdin_R := Invalid_FD;
+               end if;
+
+               if Stdin_W /= Invalid_FD then
+                  Close (Stdin_W);
+                  Stdin_W := Invalid_FD;
+               end if;
+            end Cleanup;
+
          begin
-            if Output_R /= Invalid_FD then
-               Close (Output_R);
-               Output_R := Invalid_FD;
+            --  Parse the optional "stdin" field before spawning the child.
+            if Root.Has_Field ("stdin")
+              and then
+                Root.Get ("stdin").Kind = GNATCOLL.JSON.JSON_String_Type
+            then
+               declare
+                  Value : constant String := Root.Get ("stdin").Get;
+               begin
+                  if Value'Length > 0 then
+                     Has_Stdin_Text := True;
+                     Stdin_Text     := To_Unbounded_String (Value);
+                  end if;
+               end;
             end if;
 
-            if Output_W /= Invalid_FD then
-               Close (Output_W);
-               Output_W := Invalid_FD;
+            Open_Pipe (Output_R, Output_W);
+
+            if Has_Stdin_Text then
+               --  Open a pipe whose write end the parent fills after Start.
+               --  Note: this pattern is safe for stdin content that fits in
+               --  the OS pipe buffer (typically 64 KB on Linux).  Larger
+               --  payloads are handled correctly because the child begins
+               --  consuming stdin as soon as it starts, and the parent
+               --  drains stdout immediately afterward.
+               Open_Pipe (Stdin_R, Stdin_W);
+            else
+               Null_In := Open (Null_File, Read_Mode);
             end if;
 
-            if Null_In /= Invalid_FD then
+            Args.Append (Shell_Path);
+            Args.Append ("-lc");
+            Args.Append (Command);
+
+            Handle := Start
+              (Args   => Args,
+               Stdin  => (if Has_Stdin_Text then Stdin_R else Null_In),
+               Stdout => Output_W,
+               Stderr => Output_W);
+
+            --  The child has inherited the read end of the stdin pipe; the
+            --  parent no longer needs it.  Write the stdin content and close
+            --  the write end so the child receives EOF when done reading.
+            if Has_Stdin_Text then
+               Close (Stdin_R);
+               Stdin_R := Invalid_FD;
+               Write (Stdin_W, To_String (Stdin_Text));
+               Close (Stdin_W);
+               Stdin_W := Invalid_FD;
+            else
                Close (Null_In);
                Null_In := Invalid_FD;
             end if;
 
-            if Stdin_R /= Invalid_FD then
-               Close (Stdin_R);
-               Stdin_R := Invalid_FD;
-            end if;
+            Close (Output_W);
+            Output_W := Invalid_FD;
 
-            if Stdin_W /= Invalid_FD then
-               Close (Stdin_W);
-               Stdin_W := Invalid_FD;
-            end if;
-         end Cleanup;
-
-      begin
-         --  Parse the optional "stdin" field before spawning the child.
-         if Root.Has_Field ("stdin")
-           and then
-             Root.Get ("stdin").Kind = GNATCOLL.JSON.JSON_String_Type
-         then
-            declare
-               Value : constant String := Root.Get ("stdin").Get;
-            begin
-               if Value'Length > 0 then
-                  Has_Stdin_Text := True;
-                  Stdin_Text     := To_Unbounded_String (Value);
-               end if;
-            end;
-         end if;
-
-         Open_Pipe (Output_R, Output_W);
-
-         if Has_Stdin_Text then
-            --  Open a pipe whose write end the parent fills after Start.
-            --  Note: this pattern is safe for stdin content that fits in
-            --  the OS pipe buffer (typically 64 KB on Linux).  Larger
-            --  payloads are handled correctly because the child begins
-            --  consuming stdin as soon as it starts, and the parent
-            --  drains stdout immediately afterward.
-            Open_Pipe (Stdin_R, Stdin_W);
-         else
-            Null_In := Open (Null_File, Read_Mode);
-         end if;
-
-         Args.Append (Shell_Path);
-         Args.Append ("-lc");
-         Args.Append (Command);
-
-         Handle := Start
-           (Args   => Args,
-            Stdin  => (if Has_Stdin_Text then Stdin_R else Null_In),
-            Stdout => Output_W,
-            Stderr => Output_W);
-
-         --  The child has inherited the read end of the stdin pipe; the
-         --  parent no longer needs it.  Write the stdin content and close
-         --  the write end so the child receives EOF when done reading.
-         if Has_Stdin_Text then
-            Close (Stdin_R);
-            Stdin_R := Invalid_FD;
-            Write (Stdin_W, To_String (Stdin_Text));
-            Close (Stdin_W);
-            Stdin_W := Invalid_FD;
-         else
-            Close (Null_In);
-            Null_In := Invalid_FD;
-         end if;
-
-         Close (Output_W);
-         Output_W := Invalid_FD;
-
-         --  Read all output from the child process.  When an abort flag is
-         --  provided the read loop runs inside an ATC block: if the user
-         --  requests abort while Read is blocking, Wait_Requested fires and
-         --  Ada's runtime interrupts the blocked syscall immediately.
-         if Abort_Flg /= null then
-            select
-               Abort_Flg.Wait_Requested;
-            then abort
-               Read_Output_Loop :
+            --  Read all output from the child process.  When an abort flag is
+            --  provided the read loop runs inside an ATC block: if the user
+            --  requests abort while Read is blocking, Wait_Requested fires and
+            --  Ada's runtime interrupts the blocked syscall immediately.
+            if Abort_Flg /= null then
+               select
+                  Abort_Flg.Wait_Requested;
+               then abort
+                  Read_Output_Loop :
+                  loop
+                     Bytes_Read := Read (Output_R, Chunk);
+                     exit Read_Output_Loop when Bytes_Read <= 0;
+                     Append (Output, Chunk (1 .. Bytes_Read));
+                  end loop Read_Output_Loop;
+               end select;
+            else
+               No_Abort_Read_Loop :
                loop
                   Bytes_Read := Read (Output_R, Chunk);
-                  exit Read_Output_Loop when Bytes_Read <= 0;
+                  exit No_Abort_Read_Loop when Bytes_Read <= 0;
                   Append (Output, Chunk (1 .. Bytes_Read));
-               end loop Read_Output_Loop;
-            end select;
-         else
-            No_Abort_Read_Loop :
-            loop
-               Bytes_Read := Read (Output_R, Chunk);
-               exit No_Abort_Read_Loop when Bytes_Read <= 0;
-               Append (Output, Chunk (1 .. Bytes_Read));
-            end loop No_Abort_Read_Loop;
-         end if;
-
-         --  If aborted, terminate the child process before waiting.
-         if Abort_Flg /= null and then Abort_Flg.Requested then
-            if Handle /= Invalid_Handle then
-               declare
-                  Dummy : Integer;
-               begin
-                  Dummy :=
-                    LLM.Tools.Internal.C_Kill (Integer (Handle), 15);
-               end;
+               end loop No_Abort_Read_Loop;
             end if;
+
+            --  If aborted, terminate the child process before waiting.
+            if Abort_Flg /= null and then Abort_Flg.Requested then
+               if Handle /= Invalid_Handle then
+                  declare
+                     Dummy : Integer;
+                  begin
+                     Dummy :=
+                       LLM.Tools.Internal.C_Kill (Integer (Handle), 15);
+                  end;
+               end if;
+               Close (Output_R);
+               Output_R := Invalid_FD;
+               Exit_Code := Wait (Handle);
+               Set_Error ("aborted", Result, Is_Error);
+               Cleanup;
+               return;
+            end if;
+
             Close (Output_R);
             Output_R := Invalid_FD;
+
             Exit_Code := Wait (Handle);
-            Set_Error ("aborted", Result, Is_Error);
-            Cleanup;
-            return;
-         end if;
 
-         Close (Output_R);
-         Output_R := Invalid_FD;
-
-         Exit_Code := Wait (Handle);
-
-         if Exit_Code /= 0 then
-            Is_Error := True;
-            if Length (Output) > 0 then
-               Append (Output, ASCII.LF);
-               Append
-                 (Output,
-                  "[command exited with status "
-                  & Image_Of (Exit_Code)
-                  & "]");
-            else
-               Output := To_Unbounded_String
-                 ("command exited with status " & Image_Of (Exit_Code));
+            if Exit_Code /= 0 then
+               Is_Error := True;
+               if Length (Output) > 0 then
+                  Append (Output, ASCII.LF);
+                  Append
+                    (Output,
+                     "[command exited with status "
+                     & Image_Of (Exit_Code)
+                     & "]");
+               else
+                  Output := To_Unbounded_String
+                    ("command exited with status " & Image_Of (Exit_Code));
+               end if;
             end if;
-         end if;
 
-         Result := Output;
-         Cleanup;
-      exception
-         when Ex : others =>
+            Result := Output;
             Cleanup;
-            Set_Error
-              ("shell tool failed: " & Ada.Exceptions.Exception_Message (Ex),
-               Result,
-               Is_Error);
+         exception
+            when Ex : others =>
+               Cleanup;
+               Set_Error
+                 ("shell tool failed: " & Ada.Exceptions.Exception_Message (Ex),
+                  Result,
+                  Is_Error);
+         end;
       end;
    end Execute;
 

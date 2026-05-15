@@ -1344,4 +1344,80 @@ package body LLM_Session_Store_Tests is
          raise;
    end Test_Large_Tool_Result_Round_Trip;
 
+   procedure Test_Assistant_Tool_Call_Invalid_Args (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+   begin
+      Prepare_Test_Home;
+      declare
+         Session_Id : constant String :=
+           LLM.Session_Store.Create_Session (Source_Cwd);
+
+         --  Tool call with invalid JSON arguments (unterminated string).
+         --  The LLM sometimes generates malformed JSON arguments; the
+         --  session store must persist them gracefully rather than crash.
+         Content : LLM.Types.Content_Block_Vectors.Vector;
+         Msg     : LLM.Types.Message;
+         Loaded  : LLM.Types.Message_Vectors.Vector;
+      begin
+         --  Create an assistant message with invalid Args_Json
+         Content.Append
+           ((Kind           => LLM.Types.Tool_Call_Block,
+             Tool_Call_Id   => To_Unbounded_String ("call-bad-args"),
+             Tool_Name      => To_Unbounded_String ("shell"),
+             Arguments_Json => To_Unbounded_String
+               ("{""command"":""echo 'unterminated)")));
+
+         Msg :=
+           (Role      => LLM.Types.Assistant,
+            Content   => Content,
+            Tok_Usage => (others => 0),
+            Stop      => LLM.Types.Tool_Use,
+            Timestamp => Null_Unbounded_String);
+
+         --  Persisting a message with invalid Arguments_Json must not
+         --  raise Session_Error.
+         LLM.Session_Store.Append_Message (Session_Id, Msg);
+
+         --  Loading it back should recover the id, name, and raw args.
+         Loaded := LLM.Session_Store.Load_Messages (Session_Id);
+
+         Assert (Loaded.Length = 1,
+           "One assistant message should load after invalid-args round-trip");
+         Assert (Loaded.Element (0).Role = LLM.Types.Assistant,
+           "Loaded role should be Assistant");
+         Assert (Loaded.Element (0).Content.Length = 1,
+           "Message should have one content block");
+         Assert (Loaded.Element (0).Content.Element (0).Kind
+            = LLM.Types.Tool_Call_Block,
+           "Block should be Tool_Call_Block");
+         Assert
+           (To_String (Loaded.Element (0).Content.Element (0).Tool_Call_Id)
+              = "call-bad-args",
+            "Tool call id should round-trip with invalid args");
+         Assert
+           (To_String (Loaded.Element (0).Content.Element (0).Tool_Name)
+              = "shell",
+            "Tool call name should round-trip with invalid args");
+         Assert
+           (Contains
+              (To_String
+                 (Loaded.Element (0).Content.Element (0).Arguments_Json),
+               "unterminated"),
+            "Invalid arguments JSON should round-trip as raw text");
+      end;
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Root;
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Root;
+         raise;
+   end Test_Assistant_Tool_Call_Invalid_Args;
+
 end LLM_Session_Store_Tests;

@@ -15,6 +15,20 @@ package LLM_Tools_Tests is
    procedure Test_Spawn_Subagent_Success (T : in out Test);
    procedure Test_Spawn_Subagent_Requires_Prompt (T : in out Test);
 
+   --  ── Validate_Arguments unit tests ─────────────────────────────────────
+
+   --  Valid JSON object returns empty string.
+   procedure Test_Validate_Arguments_Valid_Object  (T : in out Test);
+
+   --  Invalid JSON returns a diagnostic mentioning truncation.
+   procedure Test_Validate_Arguments_Invalid_Json   (T : in out Test);
+
+   --  Valid JSON but non-object (e.g. an array) returns a diagnostic.
+   procedure Test_Validate_Arguments_Non_Object     (T : in out Test);
+
+   --  Empty string returns a diagnostic (not valid JSON).
+   procedure Test_Validate_Arguments_Empty_String    (T : in out Test);
+
    --  ── Result_Threshold unit tests ───────────────────────────────────────
 
    --  Context_Window = 0 yields the maximum threshold.

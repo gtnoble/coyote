@@ -1246,6 +1246,10 @@ package body Test_Suites is
          & "secondary-stack overflow",
          LLM_Session_Store_Tests
            .Test_Large_Tool_Result_Round_Trip'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store tool call with invalid args round-trips",
+         LLM_Session_Store_Tests
+           .Test_Assistant_Tool_Call_Invalid_Args'Access));
 
       --  LLM.SSE tests
       Result.Add_Test (LLM_SSE_Caller.Create
@@ -1314,6 +1318,18 @@ package body Test_Suites is
       Result.Add_Test (LLM_Tools_Caller.Create
         ("LLM.Tools.Result_Threshold large clamped to MAX",
          LLM_Tools_Tests.Test_Result_Threshold_Large_Clamped_To_Max'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Validate_Arguments accepts valid JSON object",
+         LLM_Tools_Tests.Test_Validate_Arguments_Valid_Object'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Validate_Arguments rejects invalid JSON",
+         LLM_Tools_Tests.Test_Validate_Arguments_Invalid_Json'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Validate_Arguments rejects non-object JSON",
+         LLM_Tools_Tests.Test_Validate_Arguments_Non_Object'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Validate_Arguments rejects empty string",
+         LLM_Tools_Tests.Test_Validate_Arguments_Empty_String'Access));
       Result.Add_Test (LLM_Tools_Caller.Create
         ("LLM.Tools.Pause_Flag initial state is not armed and not paused",
          LLM_Tools_Tests.Test_Pause_Flag_Initial_State'Access));
@@ -1532,6 +1548,11 @@ package body Test_Suites is
          & "in subsequent request",
          LLM_Anthropic_Messages_Tests
            .Test_Thinking_Block_Serialised_In_Request'Access));
+
+      Result.Add_Test (LLM_Anthropic_Messages_Caller.Create
+        ("Anthropic tool_result with Is_Error includes is_error field",
+         LLM_Anthropic_Messages_Tests
+           .Test_Tool_Result_Is_Error_Serialised'Access));
 
       --  LLM.Providers.GitHub_Copilot tests
       Result.Add_Test (LLM_GitHub_Copilot_Caller.Create

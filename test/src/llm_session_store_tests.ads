@@ -27,5 +27,7 @@ package LLM_Session_Store_Tests is
    procedure Test_Append_Then_Load_Round_Trip     (T : in out Test);
    procedure Test_Session_Work_Dir                (T : in out Test);
    procedure Test_Large_Tool_Result_Round_Trip    (T : in out Test);
+   procedure Test_Assistant_Tool_Call_Invalid_Args
+     (T : in out Test);
 
 end LLM_Session_Store_Tests;

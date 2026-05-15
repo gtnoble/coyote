@@ -94,6 +94,15 @@ package LLM.Tools is
    --  callers with an unknown model get the most permissive safe cap.
    function Result_Threshold (Context_Window : Natural) return Positive;
 
+   --  Check whether Args_Json is syntactically valid JSON whose top-level
+   --  value is a JSON object.  Returns an empty string when valid, or a
+   --  short diagnostic message when not.
+   --
+   --  This is used by Execute to short-circuit tool calls whose arguments
+   --  were truncated by the LLM's output-token limit before reaching the
+   --  per-tool dispatcher.
+   function Validate_Arguments (Args_Json : String) return String;
+
    --  ── Dispatcher ───────────────────────────────────────────────────────
 
    --  Execute the named built-in tool with Args_Json.

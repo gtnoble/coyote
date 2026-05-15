@@ -17,5 +17,6 @@ package LLM_Anthropic_Messages_Tests is
    procedure Test_Anthropic_Stream_Terminates_Early (T : in out Test);
    procedure Test_Signature_Parsed_From_SSE (T : in out Test);
    procedure Test_Thinking_Block_Serialised_In_Request (T : in out Test);
+   procedure Test_Tool_Result_Is_Error_Serialised (T : in out Test);
 
 end LLM_Anthropic_Messages_Tests;

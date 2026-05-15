@@ -7,7 +7,10 @@ with LLM.Tools.Shell;
 with LLM.Tools.Spawn_Subagent;
 with LLM.Tools.Temp_File;
 
+with GNATCOLL.JSON;
 package body LLM.Tools is
+
+   use type GNATCOLL.JSON.JSON_Value_Type;
 
    protected body Abort_Flag is
 
@@ -84,6 +87,21 @@ package body LLM.Tools is
       return Result;
    end Built_In_Tools;
 
+   function Validate_Arguments (Args_Json : String) return String is
+      Parsed : constant GNATCOLL.JSON.Read_Result :=
+        GNATCOLL.JSON.Read (Args_Json);
+   begin
+      if not Parsed.Success then
+         return "tool arguments are not valid JSON; "
+                & "the LLM response may have been truncated "
+                & "due to output token limits";
+      elsif Parsed.Value.Kind /= GNATCOLL.JSON.JSON_Object_Type then
+         return "tool arguments must be a JSON object";
+      else
+         return "";
+      end if;
+   end Validate_Arguments;
+
    function Result_Threshold (Context_Window : Natural) return Positive is
       Raw : Natural;
    begin
@@ -111,7 +129,14 @@ package body LLM.Tools is
       Context_Window :     Natural       := 0)
    is
       use Ada.Strings.Unbounded;
+      Validation : constant String := Validate_Arguments (Args_Json);
    begin
+      if Validation'Length > 0 then
+         Result   := To_Unbounded_String (Validation);
+         Is_Error := True;
+         return;
+      end if;
+
       if Name = "shell" then
          LLM.Tools.Shell.Execute (Args_Json, Result, Is_Error, Abort_Flg);
       elsif Name = "spawn_subagent" then

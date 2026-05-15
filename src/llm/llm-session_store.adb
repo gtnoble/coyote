@@ -137,21 +137,6 @@ package body LLM.Session_Store is
       return "";
    end Get_Integer_Image;
 
-   function Parse_Json
-     (Text : String;
-      What : String) return GNATCOLL.JSON.JSON_Value
-   is
-      Parsed : constant GNATCOLL.JSON.Read_Result :=
-        GNATCOLL.JSON.Read (Text);
-   begin
-      if Parsed.Success then
-         return Parsed.Value;
-      end if;
-
-      raise Session_Error with
-        What & ": " & GNATCOLL.JSON.Format_Parsing_Error (Parsed.Error);
-   end Parse_Json;
-
    function To_Stop_Reason (Text : String) return LLM.Types.Stop_Reason is
    begin
       if Text = "stop" then
@@ -400,19 +385,27 @@ package body LLM.Session_Store is
                      declare
                         Item      : constant GNATCOLL.JSON.JSON_Value :=
                           GNATCOLL.JSON.Create_Object;
-                        Arguments : constant GNATCOLL.JSON.JSON_Value :=
-                          (if Length (Block.Arguments_Json) = 0
-                           then GNATCOLL.JSON.Create_Object
-                           else Parse_Json
-                             (To_String (Block.Arguments_Json),
-                              "Invalid toolCall arguments JSON"));
+                        Parsed    : constant GNATCOLL.JSON.Read_Result :=
+                          GNATCOLL.JSON.Read
+                            (To_String (Block.Arguments_Json));
+                        Arguments : GNATCOLL.JSON.JSON_Value;
                      begin
-                        if Arguments.Kind
-                          /= GNATCOLL.JSON.JSON_Object_Type
+                        if Length (Block.Arguments_Json) = 0 then
+                           Arguments := GNATCOLL.JSON.Create_Object;
+                        elsif Parsed.Success
+                          and then Parsed.Value.Kind
+                            = GNATCOLL.JSON.JSON_Object_Type
                         then
-                           raise Session_Error with
-                             "Invalid toolCall arguments JSON:"
-                             & " expected object";
+                           Arguments := Parsed.Value;
+                        else
+                           --  The LLM generated invalid JSON arguments.
+                           --  Preserve the raw text so session persistence
+                           --  never crashes and the tool-call can still be
+                           --  replayed.  On reload, a string-valued
+                           --  "arguments" field is restored as-is.
+                           Arguments :=
+                             GNATCOLL.JSON.Create
+                               (To_String (Block.Arguments_Json));
                         end if;
 
                         Item.Set_Field ("type", "toolCall");
@@ -591,10 +584,12 @@ package body LLM.Session_Store is
             elsif Kind = "toolCall" then
                declare
                   Arguments : constant GNATCOLL.JSON.JSON_Value :=
-                    Get_Object_Field (Block, "arguments");
+                    Block.Get ("arguments");
                   Args_Json : constant String :=
                     (if Arguments.Kind = GNATCOLL.JSON.JSON_Object_Type
                      then GNATCOLL.JSON.Write (Arguments)
+                     elsif Arguments.Kind = GNATCOLL.JSON.JSON_String_Type
+                     then Arguments.Get
                      else "{}");
                begin
                   Content.Append

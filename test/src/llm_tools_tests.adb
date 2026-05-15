@@ -307,4 +307,55 @@ package body LLM_Tools_Tests is
       Assert (not Flag.Is_Armed, "Release must also clear Is_Armed");
    end Test_Pause_Flag_Release_Clears_Armed;
 
+
+   --  Validate_Arguments unit tests
+
+   procedure Test_Validate_Arguments_Valid_Object (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      Assert
+        (LLM.Tools.Validate_Arguments
+           ("{""command"":""echo hi""}") = "",
+         "Validate_Arguments should return empty string for valid JSON");
+   end Test_Validate_Arguments_Valid_Object;
+
+   procedure Test_Validate_Arguments_Invalid_Json (T : in out Test) is
+      pragma Unreferenced (T);
+      --  Simulates a truncated tool-call argument where the LLM hit
+      --  max_tokens mid-JSON.
+      Result : constant String :=
+        LLM.Tools.Validate_Arguments
+          ("""command"":""echo hi""");
+   begin
+      Assert (Result'Length > 0,
+              "Validate_Arguments should reject broken JSON");
+      Assert
+        (Contains (Result, "truncated"),
+         "Diagnostic should mention truncation, got: " & Result);
+   end Test_Validate_Arguments_Invalid_Json;
+
+   procedure Test_Validate_Arguments_Non_Object (T : in out Test) is
+      pragma Unreferenced (T);
+      Result : constant String :=
+        LLM.Tools.Validate_Arguments ("[1, 2, 3]");
+   begin
+      Assert (Result'Length > 0,
+              "Validate_Arguments should reject a JSON array");
+      Assert
+        (Contains (Result, "object"),
+         "Diagnostic should mention object, got: " & Result);
+   end Test_Validate_Arguments_Non_Object;
+
+   procedure Test_Validate_Arguments_Empty_String (T : in out Test) is
+      pragma Unreferenced (T);
+      Result : constant String :=
+        LLM.Tools.Validate_Arguments ("");
+   begin
+      Assert (Result'Length > 0,
+              "Validate_Arguments should reject an empty string");
+      Assert
+        (Contains (Result, "truncated"),
+         "Diagnostic should mention truncation, got: " & Result);
+   end Test_Validate_Arguments_Empty_String;
+
 end LLM_Tools_Tests;
