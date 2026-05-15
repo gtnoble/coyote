@@ -259,6 +259,9 @@ package body LLM.System_Prompt is
                & ASCII.LF
                & "Guidelines:"
                & ASCII.LF
+               & "- Prefer the stdin field over shell heredocs when"
+               & " passing multi-line content to a command"
+               & ASCII.LF
                & "- Read files: cat path (full file),"
                & " sed -n 'N,Mp' path (line range), head/tail"
                & ASCII.LF
