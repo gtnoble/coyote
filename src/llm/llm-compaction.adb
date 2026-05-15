@@ -3,8 +3,6 @@
 --  Project: coyote
 --  For revision history, see the project version-control log.
 
-with Ada.Containers.Vectors;
-with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with GNATCOLL.JSON;
 
@@ -13,10 +11,6 @@ package body LLM.Compaction is
    use type GNATCOLL.JSON.JSON_Value_Type;
    use type LLM.Types.Content_Block_Kind;
    use type LLM.Types.Role;
-
-   package String_Vectors is new Ada.Containers.Vectors
-     (Index_Type   => Natural,
-      Element_Type => Ada.Strings.Unbounded.Unbounded_String);
 
    function Usage_Total (Value : LLM.Types.Usage) return Natural is
    begin
@@ -110,77 +104,6 @@ package body LLM.Compaction is
          return Tool_Name & "()";
       end if;
    end Render_Tool_Call;
-
-   function Extract_Path (Arguments_Json : Unbounded_String) return String is
-      Parsed : constant GNATCOLL.JSON.Read_Result :=
-        GNATCOLL.JSON.Read (To_String (Arguments_Json));
-   begin
-      if Parsed.Success
-        and then Parsed.Value.Kind = GNATCOLL.JSON.JSON_Object_Type
-        and then Parsed.Value.Has_Field ("path")
-        and then Parsed.Value.Get ("path").Kind
-          = GNATCOLL.JSON.JSON_String_Type
-      then
-         return Parsed.Value.Get ("path").Get;
-      end if;
-
-      return "";
-   end Extract_Path;
-
-   function Contains_Path
-     (Paths : String_Vectors.Vector;
-      Path  : String) return Boolean
-   is
-   begin
-      for Existing of Paths loop
-         if To_String (Existing) = Path then
-            return True;
-         end if;
-      end loop;
-
-      return False;
-   end Contains_Path;
-
-   procedure Remove_Path
-     (Paths : in out String_Vectors.Vector;
-      Path  : String)
-   is
-   begin
-      if Paths.Is_Empty then
-         return;
-      end if;
-
-      for I in reverse Paths.First_Index .. Paths.Last_Index loop
-         if To_String (Paths.Element (I)) = Path then
-            Paths.Delete (I);
-            exit;
-         end if;
-      end loop;
-   end Remove_Path;
-
-   procedure Append_Unique_Path
-     (Paths : in out String_Vectors.Vector;
-      Path  : String) is
-   begin
-      if Path'Length = 0 or else Contains_Path (Paths, Path) then
-         return;
-      end if;
-
-      Paths.Append (To_Unbounded_String (Path));
-   end Append_Unique_Path;
-
-   function Join_Paths (Paths : String_Vectors.Vector) return Unbounded_String is
-      Result : Unbounded_String;
-   begin
-      for Path of Paths loop
-         Append_With_Separator
-           (Target    => Result,
-            Fragment  => To_String (Path),
-            Separator => "" & ASCII.LF);
-      end loop;
-
-      return Result;
-   end Join_Paths;
 
    function Truncate (Text : String; Max_Length : Natural) return String is
    begin
@@ -423,43 +346,5 @@ package body LLM.Compaction is
 
       return To_String (Result);
    end Serialize_Conversation;
-
-   procedure Track_File_Ops
-     (History        :     LLM.Types.Message_Vectors.Vector;
-      Read_Files     : out Unbounded_String;
-      Modified_Files : out Unbounded_String)
-   is
-      Read_Paths     : String_Vectors.Vector;
-      Modified_Paths : String_Vectors.Vector;
-   begin
-      Read_Files := Null_Unbounded_String;
-      Modified_Files := Null_Unbounded_String;
-
-      for Msg of History loop
-         if Msg.Role = LLM.Types.Assistant then
-            for Block of Msg.Content loop
-               if Block.Kind = LLM.Types.Tool_Call_Block then
-                  declare
-                     Tool_Name : constant String := To_String (Block.Tool_Name);
-                     Path      : constant String :=
-                       Extract_Path (Block.Arguments_Json);
-                  begin
-                     if Tool_Name = "read" then
-                        if not Contains_Path (Modified_Paths, Path) then
-                           Append_Unique_Path (Read_Paths, Path);
-                        end if;
-                     elsif Tool_Name = "write" or else Tool_Name = "edit" then
-                        Remove_Path (Read_Paths, Path);
-                        Append_Unique_Path (Modified_Paths, Path);
-                     end if;
-                  end;
-               end if;
-            end loop;
-         end if;
-      end loop;
-
-      Read_Files := Join_Paths (Read_Paths);
-      Modified_Files := Join_Paths (Modified_Paths);
-   end Track_File_Ops;
 
 end LLM.Compaction;

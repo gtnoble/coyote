@@ -45,18 +45,6 @@ package body LLM_System_Prompt_Tests is
         (Ada.Strings.Fixed.Index (P, "shell") > 0,
          "default prompt should mention the shell tool");
       Assert
-        (Ada.Strings.Fixed.Index (P, "read") > 0,
-         "default prompt should mention the read tool");
-      Assert
-        (Ada.Strings.Fixed.Index (P, "edit") > 0,
-         "default prompt should mention the edit tool");
-      Assert
-        (Ada.Strings.Fixed.Index (P, "write") > 0,
-         "default prompt should mention the write tool");
-      Assert
-        (Ada.Strings.Fixed.Index (P, "find") > 0,
-         "default prompt should mention the find tool");
-      Assert
         (Ada.Strings.Fixed.Index (P, "spawn_subagent") > 0,
          "default prompt should mention the spawn_subagent tool");
    end Test_Default_Prompt_Lists_Tools;
@@ -68,8 +56,7 @@ package body LLM_System_Prompt_Tests is
         LLM.System_Prompt.Build_System_Prompt (Cwd => Test_Cwd);
    begin
       Assert
-        (Ada.Strings.Fixed.Index
-           (P, "read to examine files before editing") > 0,
+        (Ada.Strings.Fixed.Index (P, "ex, ed, sed, or perl") > 0,
          "default prompt should include the editing guideline");
    end Test_Default_Prompt_Contains_Guidelines;
 

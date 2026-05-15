@@ -259,14 +259,19 @@ package body LLM.System_Prompt is
                & ASCII.LF
                & "Guidelines:"
                & ASCII.LF
-               & "- Use shell for file operations like ls, grep, find"
+               & "- Read files: cat path (full file),"
+               & " sed -n 'N,Mp' path (line range), head/tail"
                & ASCII.LF
-               & "- Use read to examine files before editing. You must use"
-               & " this tool instead of cat or sed."
+               & "- Write new files or complete rewrites:"
+               & " command=""cat > path"","
+               & " stdin=""<file content>"""
                & ASCII.LF
-               & "- Use edit for precise changes (old text must match exactly)"
+               & "- Edit files precisely with ex, ed, sed, or perl"
+               & " (pass commands via the stdin field for ex/ed;"
+               & " use perl -0777 -i -pe for multi-line patterns)"
                & ASCII.LF
-               & "- Use write only for new files or complete rewrites"
+               & "- Find files: find path -name pattern;"
+               & " search content: grep -r pattern path (or rg)"
                & ASCII.LF
                & "- When summarizing your actions, output plain text directly"
                & " - do NOT use cat or bash to display what you did"

@@ -1007,7 +1007,7 @@ package body LLM_Agent_Tests is
                "Tool-fail req 2: wrong tool call id");
             Assert
               (Ada.Strings.Fixed.Index
-                 (Get (Msgs, 3).Get ("content").Get, "file not found") > 0,
+                 (Get (Msgs, 3).Get ("content").Get, "unknown tool") > 0,
                "Tool-fail req 2: error text not present");
             Append
               (Res.Body_Data,
@@ -1049,8 +1049,8 @@ package body LLM_Agent_Tests is
          "Tool_Execution_End_Event.Is_Error should be True");
       Assert
         (Ada.Strings.Fixed.Index (To_String (Tool_End_Result),
-           "file not found") > 0,
-         "Tool failure result text should describe the missing file");
+           "unknown tool") > 0,
+         "Tool failure result text should describe the unknown tool");
       Assert
         (Messages.Length = 4,
          "Failed tool turn should persist user, tool call, result, and reply");
@@ -1063,8 +1063,8 @@ package body LLM_Agent_Tests is
       Assert
         (Ada.Strings.Fixed.Index
            (To_String (Messages.Element (2).Content.Element (0).Result_Text),
-            "file not found") > 0,
-         "Persisted tool result text should describe the missing file");
+            "unknown tool") > 0,
+         "Persisted tool result text should describe the unknown tool");
       Assert
         (Assistant_Text (Messages.Element (3)) = "Handled failure",
          "Final assistant reply should still complete after tool failure");

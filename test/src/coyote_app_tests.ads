@@ -84,26 +84,6 @@ package Coyote_App_Tests is
    procedure Test_State_Models_Pending_Set_And_Clear     (T : in out Test);
    procedure Test_State_Models_Pending_Independent       (T : in out Test);
 
-   --  Edit_Diff_Lines
-   procedure Test_Edit_Diff_No_Change          (T : in out Test);
-   procedure Test_Edit_Diff_Single_Substitution (T : in out Test);
-   procedure Test_Edit_Diff_Added_Lines        (T : in out Test);
-   procedure Test_Edit_Diff_Removed_Lines      (T : in out Test);
-   procedure Test_Edit_Diff_No_Headers         (T : in out Test);
-   procedure Test_Edit_Diff_Truncation         (T : in out Test);
-
-   --  Edit_Diff_Lines: UTF-8 preservation (-gnatW8 regression)
-   --
-   --  These tests guard against double-encoding: with -gnatW8, Ada.Text_IO
-   --  re-encodes each Latin-1 byte > 16#7F# as UTF-8, turning already-UTF-8
-   --  file content into mojibake.  The fix uses Ada.Streams.Stream_IO for
-   --  binary temp-file writes; these tests verify that the raw UTF-8 byte
-   --  sequences are preserved intact through Edit_Diff_Lines.
-   procedure Test_Edit_Diff_Utf8_Context_Line  (T : in out Test);
-   procedure Test_Edit_Diff_Utf8_Removed_Line  (T : in out Test);
-   procedure Test_Edit_Diff_Utf8_Added_Line    (T : in out Test);
-   procedure Test_Edit_Diff_No_Double_Encoding (T : in out Test);
-
    --  Model in stats summary line
    --  Verify the App_State accessor that gates the model part in the
    --  get_session_stats summary appended at the end of each agentic turn.

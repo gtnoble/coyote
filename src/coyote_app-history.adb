@@ -586,20 +586,7 @@ package body Coyote_App.History is
                                                       & " " & Tool_Name);
                                                 end if;
                                                 --  Show args.
-                                                if Tool_Name = "edit"
-                                                  and then
-                                                    Args.Kind
-                                                    /= JSON_Null_Type
-                                                then
-                                                   Append
-                                                     (Buf,
-                                                      ASCII.LF
-                                                      & UC_BOX_V
-                                                      & " path: "
-                                                      & Get_String
-                                                          (Args,
-                                                           "path"));
-                                                elsif Args.Kind
+                                                if Args.Kind
                                                    = JSON_Object_Type
                                                 then
                                                    declare
@@ -627,20 +614,14 @@ package body Coyote_App.History is
                                                                 & UC_ELLIP
                                                               else Text);
                                                       begin
-                                                         if Name
-                                                            not in
-                                                              "oldText"
-                                                              | "newText"
-                                                         then
-                                                            Append
-                                                              (Buf,
-                                                               ASCII.LF
-                                                               & UC_BOX_V
-                                                               & " "
-                                                               & Name
-                                                               & ": "
-                                                               & Val_S);
-                                                         end if;
+                                                         Append
+                                                           (Buf,
+                                                            ASCII.LF
+                                                            & UC_BOX_V
+                                                            & " "
+                                                            & Name
+                                                            & ": "
+                                                            & Val_S);
                                                       end Show_Arg;
                                                    begin
                                                       Args

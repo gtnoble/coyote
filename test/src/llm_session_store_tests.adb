@@ -968,19 +968,11 @@ package body LLM_Session_Store_Tests is
            (Session_Id       => Session_Id,
             Summary          => "## Goal" & ASCII.LF & "- Keep working",
             First_Kept_Index => 1,
-            Tokens_Before    => 123,
-            Read_Files       => "src/one.adb" & ASCII.LF & "src/two.ads",
-            Modified_Files   => "src/three.adb");
+            Tokens_Before    => 123);
 
          declare
             Record_Value : constant GNATCOLL.JSON.JSON_Value :=
               Find_Compaction_Record (Path);
-            Details      : constant GNATCOLL.JSON.JSON_Value :=
-              Get_Object_Field (Record_Value, "details");
-            Read_Files   : constant GNATCOLL.JSON.JSON_Array :=
-              Get_Array_Field (Details, "readFiles");
-            Modified     : constant GNATCOLL.JSON.JSON_Array :=
-              Get_Array_Field (Details, "modifiedFiles");
          begin
             Assert
               (Record_Value.Kind = GNATCOLL.JSON.JSON_Object_Type,
@@ -994,21 +986,6 @@ package body LLM_Session_Store_Tests is
             Assert
               (Get_Integer_Field (Record_Value, "tokensBefore") = 123,
                "tokensBefore should be persisted");
-            Assert
-              (GNATCOLL.JSON.Length (Read_Files) = 2,
-               "Read_Files should split into two JSON array elements");
-            Assert
-              (Get_Array_Element_String (Read_Files, 1) = "src/one.adb",
-               "First readFiles element should match the first path");
-            Assert
-              (Get_Array_Element_String (Read_Files, 2) = "src/two.ads",
-               "Second readFiles element should match the second path");
-            Assert
-              (GNATCOLL.JSON.Length (Modified) = 1,
-               "Modified_Files should split into one JSON array element");
-            Assert
-              (Get_Array_Element_String (Modified, 1) = "src/three.adb",
-               "modifiedFiles should contain the written path");
          end;
       end;
 
@@ -1209,9 +1186,7 @@ package body LLM_Session_Store_Tests is
            (Session_Id       => Session_Id,
             Summary          => "## Progress" & ASCII.LF & "- checkpoint",
             First_Kept_Index => 2,
-            Tokens_Before    => 200,
-            Read_Files       => "",
-            Modified_Files   => "");
+            Tokens_Before    => 200);
          LLM.Session_Store.Append_Message
            (Session_Id, Make_User_Message ("Four"));
 

@@ -98,8 +98,6 @@ src/
     llm-providers-github_copilot-catalogue.ads/.adb -- Copilot model cache
     llm-tools.ads/.adb          -- Built-in tool descriptors and dispatcher
     llm-tools-shell.ads/.adb    -- shell tool implementation
-    llm-tools-file_ops.ads/.adb -- read / write / edit / find / glob tools
-    llm-tools-internal.ads      -- Private POSIX bindings for tool implementations
     llm-tools-spawn_subagent.ads/.adb -- spawn_subagent tool: single-agent and
                         --   multi-agent parallel spawning via "names" array;
                         --   per-agent prompt transformation via prompt_filter
@@ -107,7 +105,7 @@ src/
     llm-skills.ads/.adb         -- Skill discovery and system-prompt formatting
     llm-system_prompt.ads/.adb  -- System prompt construction; context loading
     llm-compaction.ads/.adb     -- Context compaction helpers (threshold,
-                        --   cut-point, serialisation, file-op tracking)
+                        --   cut-point, serialisation)
     llm-session_store.ads/.adb  -- JSONL session persistence
     llm-agent.ads/.adb          -- Native agentic loop
     llm-agent_defs.ads/.adb     -- Agent definition discovery, resolution, formatting

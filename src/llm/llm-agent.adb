@@ -472,22 +472,6 @@ package body LLM.Agent is
          Timestamp => Null_Unbounded_String);
    end Compaction_Summary_Message;
 
-   procedure Append_File_List_XML
-     (Summary        : in out Unbounded_String;
-      Tag            :        String;
-      Paths          :        Unbounded_String)
-   is
-   begin
-      if Length (Paths) = 0 then
-         return;
-      end if;
-
-      Append (Summary, ASCII.LF & ASCII.LF);
-      Append (Summary, "<" & Tag & ">" & ASCII.LF);
-      Append (Summary, To_String (Paths));
-      Append (Summary, ASCII.LF & "</" & Tag & ">");
-   end Append_File_List_XML;
-
    function Build_Tools_Json
      (Info     : LLM.Model_Registry.Model_Info;
       No_Tools : Boolean) return String
@@ -1136,8 +1120,6 @@ package body LLM.Agent is
       Previous_Summary : Unbounded_String := Null_Unbounded_String;
       Prompt_Text      : Unbounded_String := Null_Unbounded_String;
       Summary_Text     : Unbounded_String := Null_Unbounded_String;
-      Read_Files       : Unbounded_String := Null_Unbounded_String;
-      Modified_Files   : Unbounded_String := Null_Unbounded_String;
       Summary_Request  : LLM.Types.Message_Vectors.Vector;
       Candidate        : LLM.Types.Message_Vectors.Vector;
 
@@ -1321,14 +1303,6 @@ package body LLM.Agent is
          return;
       end if;
 
-      LLM.Compaction.Track_File_Ops
-        (History        => S.History,
-         Read_Files     => Read_Files,
-         Modified_Files => Modified_Files);
-      Append_File_List_XML (Summary_Text, "read-files", Read_Files);
-      Append_File_List_XML
-        (Summary_Text, "modified-files", Modified_Files);
-
       declare
          Tokens_Before : constant Natural :=
            (if S.Last_Context_Tokens > 0
@@ -1339,9 +1313,7 @@ package body LLM.Agent is
            (Session_Id       => To_String (S.Session_UUID),
             Summary          => To_String (Summary_Text),
             First_Kept_Index => Cut,
-            Tokens_Before    => Tokens_Before,
-            Read_Files       => To_String (Read_Files),
-            Modified_Files   => To_String (Modified_Files));
+            Tokens_Before    => Tokens_Before);
       end;
 
       declare

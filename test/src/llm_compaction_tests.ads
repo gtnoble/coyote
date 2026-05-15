@@ -10,8 +10,6 @@ package LLM_Compaction_Tests is
    procedure Test_Should_Compact (T : in out Test);
    procedure Test_Find_Cut_Point (T : in out Test);
    procedure Test_Serialize_Conversation (T : in out Test);
-   procedure Test_Track_File_Ops (T : in out Test);
    procedure Test_Full_Compaction_Candidate (T : in out Test);
-   procedure Test_Track_File_Ops_Multi_Turn (T : in out Test);
 
 end LLM_Compaction_Tests;

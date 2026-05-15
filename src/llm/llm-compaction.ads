@@ -1,13 +1,11 @@
 --  LLM.Compaction — pure helpers for context compaction decisions.
 --
 --  Provides conservative token estimation, compaction-threshold checks,
---  cut-point selection, transcript serialisation for summarisation, and
---  assistant tool-call scanning for file-operation tracking.
+--  cut-point selection, and transcript serialisation for summarisation.
 --
 --  Project: coyote
 --  For revision history, see the project version-control log.
 
-with Ada.Strings.Unbounded;
 with LLM.Types;
 
 package LLM.Compaction is
@@ -196,19 +194,5 @@ package LLM.Compaction is
    --  role is present, it is rendered as "[Summary]: ...".
    function Serialize_Conversation
      (Messages : LLM.Types.Message_Vectors.Vector) return String;
-
-   --  Scan assistant tool-call blocks for file operations and return two
-   --  newline-separated path lists.
-   --
-   --  Tool calls named "read" contribute to Read_Files when the path was
-   --  not later written or edited. Tool calls named "write" and "edit"
-   --  contribute to Modified_Files. If the same path appears in both
-   --  categories, it is reported only in Modified_Files.
-   --
-   --  Both outputs are set to the empty string when nothing is found.
-   procedure Track_File_Ops
-     (History        :     LLM.Types.Message_Vectors.Vector;
-      Read_Files     : out Ada.Strings.Unbounded.Unbounded_String;
-      Modified_Files : out Ada.Strings.Unbounded.Unbounded_String);
 
 end LLM.Compaction;

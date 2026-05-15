@@ -40,8 +40,7 @@ package LLM.Session_Store is
    --  Summary is the LLM-generated markdown summary. First_Kept_Index is
    --  the 0-based index of the first pre-compaction message retained after
    --  compaction. Tokens_Before records the estimated token count before
-   --  compaction. Read_Files and Modified_Files are newline-separated path
-   --  lists and are serialised as JSON arrays in the details object.
+   --  compaction.
    --
    --  Raises Session_Error when the session file cannot be found or
    --  written.
@@ -49,9 +48,7 @@ package LLM.Session_Store is
      (Session_Id       : String;
       Summary          : String;
       First_Kept_Index : Natural;
-      Tokens_Before    : Natural;
-      Read_Files       : String;
-      Modified_Files   : String);
+      Tokens_Before    : Natural);
 
    --  Return the working directory recorded in the header of the session
    --  file for Session_Id.

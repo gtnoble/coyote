@@ -3,8 +3,8 @@
 Skills are reusable instruction documents that coyote surfaces to the agent
 at startup.  Only the `name` and `description` from each skill's frontmatter
 are injected into the system prompt; the full body is loaded on demand — the
-agent reads the `SKILL.md` file with the `read` tool when it decides the
-skill is relevant.
+agent reads the `SKILL.md` file via the `shell` tool (e.g. `cat`) when it
+decides the skill is relevant.
 
 This lazy-load model keeps the context window lean while still making every
 installed skill discoverable.

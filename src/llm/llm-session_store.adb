@@ -278,35 +278,6 @@ package body LLM.Session_Store is
       return Result;
    end Read_Line;
 
-   function String_List_To_Array
-     (Text : String) return GNATCOLL.JSON.JSON_Array
-   is
-      Result : GNATCOLL.JSON.JSON_Array := GNATCOLL.JSON.Empty_Array;
-      Start  : Natural := Text'First;
-   begin
-      if Text'Length = 0 then
-         return Result;
-      end if;
-
-      for I in Text'Range loop
-         if Text (I) = ASCII.LF then
-            if Start <= I - 1 then
-               GNATCOLL.JSON.Append
-                 (Result, GNATCOLL.JSON.Create (Text (Start .. I - 1)));
-            end if;
-
-            Start := I + 1;
-         end if;
-      end loop;
-
-      if Start <= Text'Last then
-         GNATCOLL.JSON.Append
-           (Result, GNATCOLL.JSON.Create (Text (Start .. Text'Last)));
-      end if;
-
-      return Result;
-   end String_List_To_Array;
-
    function Compaction_Summary_Message
      (Summary : String) return LLM.Types.Message
    is
@@ -770,14 +741,10 @@ package body LLM.Session_Store is
      (Session_Id       : String;
       Summary          : String;
       First_Kept_Index : Natural;
-      Tokens_Before    : Natural;
-      Read_Files       : String;
-      Modified_Files   : String)
+      Tokens_Before    : Natural)
    is
       Path         : constant String := Session_File_Path (Session_Id);
       Record_Value : constant GNATCOLL.JSON.JSON_Value :=
-        GNATCOLL.JSON.Create_Object;
-      Details      : constant GNATCOLL.JSON.JSON_Value :=
         GNATCOLL.JSON.Create_Object;
    begin
       if Path'Length = 0 then
@@ -785,16 +752,11 @@ package body LLM.Session_Store is
            "Append_Compaction: session file not found for " & Session_Id;
       end if;
 
-      Details.Set_Field ("readFiles", String_List_To_Array (Read_Files));
-      Details.Set_Field
-        ("modifiedFiles", String_List_To_Array (Modified_Files));
-
       Record_Value.Set_Field ("type", "compaction");
       Record_Value.Set_Field ("summary", Summary);
       Record_Value.Set_Field
         ("firstKeptMessageIndex", Integer (First_Kept_Index));
       Record_Value.Set_Field ("tokensBefore", Integer (Tokens_Before));
-      Record_Value.Set_Field ("details", Details);
 
       Write_Raw_Line
         (Path  => Path,

@@ -623,36 +623,6 @@ package body Test_Suites is
          Coyote_App_Tests
            .Test_State_Models_Pending_Independent'Access));
       Result.Add_Test (App_State_Caller.Create
-        ("Edit_Diff_Lines: identical texts return (no changes)",
-         Coyote_App_Tests.Test_Edit_Diff_No_Change'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("Edit_Diff_Lines: changed line shows - and + lines",
-         Coyote_App_Tests.Test_Edit_Diff_Single_Substitution'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("Edit_Diff_Lines: added lines appear as + lines",
-         Coyote_App_Tests.Test_Edit_Diff_Added_Lines'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("Edit_Diff_Lines: removed lines appear as - lines",
-         Coyote_App_Tests.Test_Edit_Diff_Removed_Lines'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("Edit_Diff_Lines: output contains no ---/+++/@@ headers",
-         Coyote_App_Tests.Test_Edit_Diff_No_Headers'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("Edit_Diff_Lines: diff > Max_L lines is truncated with trailer",
-         Coyote_App_Tests.Test_Edit_Diff_Truncation'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("Edit_Diff_Lines: UTF-8 bytes in context lines preserved",
-         Coyote_App_Tests.Test_Edit_Diff_Utf8_Context_Line'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("Edit_Diff_Lines: UTF-8 bytes in removed lines preserved",
-         Coyote_App_Tests.Test_Edit_Diff_Utf8_Removed_Line'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("Edit_Diff_Lines: UTF-8 bytes in added lines preserved",
-         Coyote_App_Tests.Test_Edit_Diff_Utf8_Added_Line'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("Edit_Diff_Lines: no double-encoding under -gnatW8 (regression)",
-         Coyote_App_Tests.Test_Edit_Diff_No_Double_Encoding'Access));
-      Result.Add_Test (App_State_Caller.Create
         ("Stats model part: non-empty when model is set",
          Coyote_App_Tests.Test_Stats_Model_Part_When_Set'Access));
       Result.Add_Test (App_State_Caller.Create
@@ -1275,14 +1245,8 @@ package body Test_Suites is
         ("LLM.Compaction serialises conversations for summarisation",
          LLM_Compaction_Tests.Test_Serialize_Conversation'Access));
       Result.Add_Test (LLM_Compaction_Caller.Create
-        ("LLM.Compaction tracks read and modified files",
-         LLM_Compaction_Tests.Test_Track_File_Ops'Access));
-      Result.Add_Test (LLM_Compaction_Caller.Create
         ("LLM.Compaction builds a realistic compaction candidate",
          LLM_Compaction_Tests.Test_Full_Compaction_Candidate'Access));
-      Result.Add_Test (LLM_Compaction_Caller.Create
-        ("LLM.Compaction tracks file ops across multiple turns",
-         LLM_Compaction_Tests.Test_Track_File_Ops_Multi_Turn'Access));
 
       --  LLM.Session_Store tests
       Result.Add_Test (LLM_Session_Store_Caller.Create
@@ -1392,24 +1356,6 @@ package body Test_Suites is
       Result.Add_Test (LLM_Tools_Caller.Create
         ("LLM.Tools.Shell succeeds without a stdin field",
          LLM_Tools_Tests.Test_Shell_Stdin_Absent_Dev_Null'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.File_Ops read returns file contents",
-         LLM_Tools_Tests.Test_Read'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.File_Ops write creates files and directories",
-         LLM_Tools_Tests.Test_Write'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.File_Ops edit replaces a unique match",
-         LLM_Tools_Tests.Test_Edit_Unique'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.File_Ops edit rejects non-unique matches",
-         LLM_Tools_Tests.Test_Edit_Non_Unique'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.File_Ops edit rejects missing matches",
-         LLM_Tools_Tests.Test_Edit_Missing'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.File_Ops find walks fixture directories",
-         LLM_Tools_Tests.Test_Find'Access));
       Result.Add_Test (LLM_Tools_Caller.Create
         ("LLM.Tools.Built_In_Tools includes spawn_subagent",
          LLM_Tools_Tests

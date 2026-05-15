@@ -4,7 +4,6 @@
 --  For revision history, see the project version-control log.
 
 with LLM.Tools.Shell;
-with LLM.Tools.File_Ops;
 with LLM.Tools.Spawn_Subagent;
 
 package body LLM.Tools is
@@ -80,11 +79,6 @@ package body LLM.Tools is
       Result : Tool_Descriptor_Vectors.Vector;
    begin
       Result.Append (LLM.Tools.Shell.Descriptor);
-      Result.Append (LLM.Tools.File_Ops.Read_Descriptor);
-      Result.Append (LLM.Tools.File_Ops.Write_Descriptor);
-      Result.Append (LLM.Tools.File_Ops.Edit_Descriptor);
-      Result.Append (LLM.Tools.File_Ops.Find_Descriptor);
-      Result.Append (LLM.Tools.File_Ops.Glob_Descriptor);
       Result.Append (LLM.Tools.Spawn_Subagent.Descriptor);
       return Result;
    end Built_In_Tools;
@@ -99,16 +93,6 @@ package body LLM.Tools is
    begin
       if Name = "shell" then
          LLM.Tools.Shell.Execute (Args_Json, Result, Is_Error, Abort_Flg);
-      elsif Name = "read" then
-         LLM.Tools.File_Ops.Execute_Read (Args_Json, Result, Is_Error);
-      elsif Name = "write" then
-         LLM.Tools.File_Ops.Execute_Write (Args_Json, Result, Is_Error);
-      elsif Name = "edit" then
-         LLM.Tools.File_Ops.Execute_Edit (Args_Json, Result, Is_Error);
-      elsif Name = "find" then
-         LLM.Tools.File_Ops.Execute_Find (Args_Json, Result, Is_Error);
-      elsif Name = "glob" then
-         LLM.Tools.File_Ops.Execute_Glob (Args_Json, Result, Is_Error);
       elsif Name = "spawn_subagent" then
          LLM.Tools.Spawn_Subagent.Execute
            (Args_Json, Result, Is_Error, Abort_Flg);

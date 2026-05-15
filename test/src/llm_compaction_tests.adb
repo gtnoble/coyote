@@ -309,66 +309,6 @@ package body LLM_Compaction_Tests is
          "messages should be separated by one blank line");
    end Test_Serialize_Conversation;
 
-   procedure Test_Track_File_Ops (T : in out Test) is
-      pragma Unreferenced (T);
-
-      Empty_History   : LLM.Types.Message_Vectors.Vector;
-      History         : LLM.Types.Message_Vectors.Vector;
-      Read_Files      : Unbounded_String;
-      Modified_Files  : Unbounded_String;
-   begin
-      LLM.Compaction.Track_File_Ops
-        (History        => Empty_History,
-         Read_Files     => Read_Files,
-         Modified_Files => Modified_Files);
-      Assert (Length (Read_Files) = 0, "empty history should yield no reads");
-      Assert
-        (Length (Modified_Files) = 0,
-         "empty history should yield no modified files");
-
-      History.Append
-        (Make_Assistant_Tool_Call_Message
-           (Tool_Name      => "read",
-            Arguments_Json => "{""path"":""src/read_only.adb""}"));
-      History.Append
-        (Make_Assistant_Tool_Call_Message
-           (Tool_Name      => "write",
-            Arguments_Json => "{""path"":""src/written.adb""}"));
-      History.Append
-        (Make_Assistant_Tool_Call_Message
-           (Tool_Name      => "edit",
-            Arguments_Json => "{""path"":""src/edited.adb""}"));
-      History.Append
-        (Make_Assistant_Tool_Call_Message
-           (Tool_Name      => "read",
-            Arguments_Json => "{""path"":""src/promoted.adb""}"));
-      History.Append
-        (Make_Assistant_Tool_Call_Message
-           (Tool_Name      => "write",
-            Arguments_Json => "{""path"":""src/promoted.adb""}"));
-
-      LLM.Compaction.Track_File_Ops
-        (History        => History,
-         Read_Files     => Read_Files,
-         Modified_Files => Modified_Files);
-
-      Assert
-        (Contains (To_String (Read_Files), "src/read_only.adb"),
-         "read-only paths should appear in Read_Files");
-      Assert
-        (not Contains (To_String (Read_Files), "src/promoted.adb"),
-         "paths that were later written should not stay in Read_Files");
-      Assert
-        (Contains (To_String (Modified_Files), "src/written.adb"),
-         "write calls should appear in Modified_Files");
-      Assert
-        (Contains (To_String (Modified_Files), "src/edited.adb"),
-         "edit calls should appear in Modified_Files");
-      Assert
-        (Contains (To_String (Modified_Files), "src/promoted.adb"),
-         "paths seen in both read and write should move to Modified_Files");
-   end Test_Track_File_Ops;
-
    procedure Test_Full_Compaction_Candidate (T : in out Test) is
       pragma Unreferenced (T);
 
@@ -415,48 +355,5 @@ package body LLM_Compaction_Tests is
         (Contains (To_String (Text), "[Assistant]:"),
          "serialised candidate should include assistant text labels");
    end Test_Full_Compaction_Candidate;
-
-   procedure Test_Track_File_Ops_Multi_Turn (T : in out Test) is
-      pragma Unreferenced (T);
-
-      History        : LLM.Types.Message_Vectors.Vector;
-      Read_Files     : Unbounded_String;
-      Modified_Files : Unbounded_String;
-      Path           : constant String := "src/multi_turn.adb";
-   begin
-      History.Append (Make_User_Message ("Inspect the file first."));
-      History.Append
-        (Make_Assistant_Tool_Call_Message
-           (Tool_Name      => "read",
-            Arguments_Json => "{""path"":""src/multi_turn.adb""}"));
-
-      LLM.Compaction.Track_File_Ops
-        (History        => History,
-         Read_Files     => Read_Files,
-         Modified_Files => Modified_Files);
-      Assert
-        (To_String (Read_Files) = Path,
-         "a read tool call should extract its path into Read_Files");
-      Assert
-        (Length (Modified_Files) = 0,
-         "reads alone should not mark files as modified");
-
-      History.Append (Make_User_Message ("Now update it."));
-      History.Append
-        (Make_Assistant_Tool_Call_Message
-           (Tool_Name      => "write",
-            Arguments_Json => "{""path"":""src/multi_turn.adb""}"));
-
-      LLM.Compaction.Track_File_Ops
-        (History        => History,
-         Read_Files     => Read_Files,
-         Modified_Files => Modified_Files);
-      Assert
-        (Length (Read_Files) = 0,
-         "a later write should remove the path from Read_Files");
-      Assert
-        (To_String (Modified_Files) = Path,
-         "the same path should migrate into Modified_Files after write");
-   end Test_Track_File_Ops_Multi_Turn;
 
 end LLM_Compaction_Tests;

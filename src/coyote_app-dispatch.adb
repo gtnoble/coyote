@@ -318,53 +318,19 @@ package body Coyote_App.Dispatch is
                  (Win, FS,
                   ASCII.LF & UC_BOX_TL & " " & UC_GEAR & " " & Tool);
             end if;
-            --  Show key args.  For the edit tool, display the file path
-            --  followed by a compact unified diff of oldText vs newText,
-            --  matching the Python reference's edit_diff_lines() output.
-            if Tool = "edit" then
-               declare
-                  Edit_Path : constant String :=
-                    Get_String (Args, "path");
-                  Diff_Body : constant String :=
-                    Edit_Diff_Lines
-                      (Get_String (Args, "oldText"),
-                       Get_String (Args, "newText"));
-                  Diff_Pos  : Natural := Diff_Body'First;
-               begin
-                  Acme.Window.Append
-                    (Win, FS,
-                     ASCII.LF & UC_BOX_V & " path: " & Edit_Path);
-                  --  Append each diff body line with the │ prefix.
-                  for I in Diff_Body'Range loop
-                     if Diff_Body (I) = ASCII.LF then
-                        Acme.Window.Append
-                          (Win, FS,
-                           ASCII.LF & UC_BOX_V & " "
-                           & Diff_Body (Diff_Pos .. I - 1));
-                        Diff_Pos := I + 1;
-                     end if;
-                  end loop;
-                  if Diff_Pos <= Diff_Body'Last then
-                     Acme.Window.Append
-                       (Win, FS,
-                        ASCII.LF & UC_BOX_V & " "
-                        & Diff_Body (Diff_Pos .. Diff_Body'Last));
-                  end if;
-               end;
-            elsif Args.Kind = GNATCOLL.JSON.JSON_Object_Type then
+            --  Show tool arguments: render each JSON field on its own line.
+            if Args.Kind = GNATCOLL.JSON.JSON_Object_Type then
                declare
                   procedure Show_Field
                     (Name  : GNATCOLL.JSON.UTF8_String;
                      Value : GNATCOLL.JSON.JSON_Value)
                   is
                   begin
-                     if Name not in "oldText" | "newText" then
-                        Acme.Window.Append
-                          (Win, FS,
-                           ASCII.LF
-                           & Format_Tool_Field
-                               (Name, JSON_Scalar_Image (Value)));
-                     end if;
+                     Acme.Window.Append
+                       (Win, FS,
+                        ASCII.LF
+                        & Format_Tool_Field
+                            (Name, JSON_Scalar_Image (Value)));
                   end Show_Field;
                begin
                   Args.Map_JSON_Object (Show_Field'Access);

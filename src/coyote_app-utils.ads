@@ -134,21 +134,6 @@ package Coyote_App.Utils is
    --    hashlib.sha256(tool_id.encode()).hexdigest()[:16]
    function Hash_Tool_Id (Tool_Id : String) return String;
 
-   --  Run `diff -u` on Old_Text vs New_Text, strip the ---/+++/@@ unified
-   --  diff header lines, and return the remaining body lines joined by
-   --  ASCII.LF.  Truncates to Max_L body lines (default 30) and appends a
-   --  "… N more lines" trailer when the diff exceeds the limit.
-   --
-   --  Returns "(no changes)" when Old_Text = New_Text or when the diff
-   --  produces no body lines.  Returns "(diff error)" if the `diff`
-   --  subprocess cannot be started.
-   --
-   --  Matches the behaviour of the Python reference's edit_diff_lines().
-   function Edit_Diff_Lines
-     (Old_Text : String;
-      New_Text : String;
-      Max_L    : Positive := 30) return String;
-
    --  Extract the data payload from a raw plumb message byte array.
    --  A plumb message is 7 newline-separated fields; the last field is
    --  the data payload.  Returns "" if the message is malformed.
