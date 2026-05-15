@@ -318,20 +318,26 @@ package body LLM.Tools.Spawn_Subagent is
       Output_R : out File_Descriptor;
       Handle   : out Process_Handle)
    is
-      Output_W : File_Descriptor;
-      Null_In  : File_Descriptor;
-      Null_Err : File_Descriptor;
-      Args     : Argument_List;
+      Output_W    : File_Descriptor;
+      Null_In     : File_Descriptor;
+      Null_Err    : File_Descriptor;
+      Args        : Argument_List;
+      Env         : Environment_Dict;
+      Parent_Sess : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_SESSION_ID", "");
    begin
       Open_Pipe (Output_R, Output_W);
       Null_In  := Open (Null_File, Read_Mode);
       Null_Err := Open (Null_File, Write_Mode);
 
+      if Parent_Sess'Length > 0 then
+         Env.Include ("COYOTE_PARENT_SESSION", Parent_Sess);
+      end if;
+
       Args.Append (Find_Coyote);
       Args.Append ("--prompt");
       Args.Append (Prompt);
       Args.Append ("--one-shot");
-      Args.Append ("--no-session");
       if Model'Length > 0 then
          Args.Append ("--model");
          Args.Append (Model);
@@ -346,10 +352,12 @@ package body LLM.Tools.Spawn_Subagent is
       end if;
 
       Handle := Start
-        (Args   => Args,
-         Stdin  => Null_In,
-         Stdout => Output_W,
-         Stderr => Null_Err);
+        (Args        => Args,
+         Env         => Env,
+         Stdin       => Null_In,
+         Stdout      => Output_W,
+         Stderr      => Null_Err,
+         Inherit_Env => True);
 
       Close (Null_In);
       Close (Null_Err);

@@ -18,6 +18,7 @@ package Session_Lister is
       Name    : Ada.Strings.Unbounded.Unbounded_String;
       Date    : Ada.Strings.Unbounded.Unbounded_String;
       Snippet : Ada.Strings.Unbounded.Unbounded_String;
+      Parent_Id : Ada.Strings.Unbounded.Unbounded_String;  --  "" = top-level
    end record;
 
    package Session_Vectors is new Ada.Containers.Vectors

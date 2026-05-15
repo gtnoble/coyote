@@ -4,6 +4,7 @@
 --  For revision history, see the project version-control log.
 
 with Ada.Calendar;
+with Ada.Environment_Variables;
 with Ada.Directories;
 with Ada.Exceptions;
 with Ada.Numerics.Discrete_Random;
@@ -683,6 +684,15 @@ package body LLM.Session_Store is
                Header.Set_Field ("id", Session_Id);
                Header.Set_Field ("createdAt", Created_At);
                Header.Set_Field ("workDir", Cwd);
+               declare
+                  Parent_Id : constant String :=
+                    Ada.Environment_Variables.Value
+                      ("COYOTE_PARENT_SESSION", "");
+               begin
+                  if Parent_Id'Length > 0 then
+                     Header.Set_Field ("parentSession", Parent_Id);
+                  end if;
+               end;
 
                Write_Raw_Line
                  (Path  => Path,

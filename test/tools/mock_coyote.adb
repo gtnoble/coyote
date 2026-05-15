@@ -10,10 +10,12 @@
 --    --agent  VAL   Agent file.
 --    --name   VAL   Session label.
 --    --one-shot     Required; marks a one-shot invocation.
---    --no-session   Required; suppresses session persistence.
+--    --no-session   Accepted but ignored; session creation is now
+--                   suppressed via the COYOTE_NO_SESSION environment
+--                   variable instead.
 --
 --  Exit status 0  : success (both required flags present)
---  Exit status 1  : --one-shot or --no-session absent
+--  Exit status 1  : --one-shot absent (--no-session is accepted but not required)
 --
 --  Project: coyote
 --  For revision history, see the project version-control log.
@@ -32,7 +34,6 @@ procedure Mock_Coyote is
    Agent           : Unbounded_String;
    Name            : Unbounded_String;
    Have_One_Shot   : Boolean := False;
-   Have_No_Session : Boolean := False;
    I               : Positive := 1;
 
 begin
@@ -54,14 +55,12 @@ begin
             Name := To_Unbounded_String (Argument (I));
          elsif Arg = "--one-shot" then
             Have_One_Shot := True;
-         elsif Arg = "--no-session" then
-            Have_No_Session := True;
          end if;
       end;
       I := I + 1;
    end loop;
 
-   if not Have_One_Shot or else not Have_No_Session then
+   if not Have_One_Shot then
       Put_Line ("{""error"": ""missing required flags""}");
       Set_Exit_Status (Failure);
       return;

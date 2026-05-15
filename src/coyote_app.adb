@@ -5,6 +5,7 @@
 
 with Ada.Characters.Handling;
 with Ada.Command_Line;
+with Ada.Environment_Variables;
 with Ada.Directories;
 with Ada.Exceptions;
 with Ada.Strings.Fixed;
@@ -84,7 +85,6 @@ package body Coyote_App is
       begin
          P_Model := To_Unbounded_String (Model);
       end Set_Model;
-
 
       procedure Set_Thinking (Level : String) is
       begin
@@ -408,22 +408,8 @@ package body Coyote_App is
       function List_Sessions_Text return String is
          Sessions : constant Session_Vectors.Vector :=
            List_Sessions (Ada.Directories.Current_Directory);
-         Result   : Unbounded_String;
       begin
-         Append
-           (Result,
-            "# Button-3 any coyote-session+ token to load that session."
-            & ASCII.LF & ASCII.LF);
-         for Session of Sessions loop
-            Append
-              (Result,
-               "coyote-session+" & To_String (Session.UUID)
-               & ASCII.HT & To_String (Session.Name)
-               & ASCII.HT & To_String (Session.Date)
-               & ASCII.HT & To_String (Session.Snippet)
-               & ASCII.LF);
-         end loop;
-         return To_String (Result);
+         return Coyote_App.Utils.Format_Session_List (Sessions);
       end List_Sessions_Text;
 
       --  Shared objects — all tasks close over these:
@@ -715,6 +701,18 @@ package body Coyote_App is
                Agent      => To_String (Opts.Agent),
                No_Tools   => Opts.No_Tools,
                Session_Id => To_String (Opts.Session_Id));
+            --  Publish the session ID so subagent child processes can record
+            --  it as their parentSession.  COYOTE_SESSION_ID is inherited by
+            --  every subprocess spawned from this coyote instance.
+            declare
+               Sess : constant String :=
+                 LLM.Agent.Session_Id (Agent_Session);
+            begin
+               if Sess'Length > 0 then
+                  Ada.Environment_Variables.Set
+                    ("COYOTE_SESSION_ID", Sess);
+               end if;
+            end;
 
             if Length (Opts.Session_Id) > 0 then
                Render_Loaded_Session (To_String (Opts.Session_Id));

@@ -262,4 +262,21 @@ package Coyote_App_Tests is
    --  Set_Tag_Suffix stores the suffix verbatim.
    procedure Test_State_Tag_Suffix_Round_Trip    (T : in out Test);
 
+   --  ── Format_Session_List ──────────────────────────────────────────────
+
+   --  Flat list with no subagents renders one line per session.
+   procedure Test_Format_Session_List_Flat          (T : in out Test);
+
+   --  A child session is indented under its parent.
+   procedure Test_Format_Session_List_Parent_Child  (T : in out Test);
+
+   --  A grandchild session is indented two levels deep.
+   procedure Test_Format_Session_List_Deep          (T : in out Test);
+
+   --  A subagent whose parent UUID is not in the list is rendered as a root.
+   procedure Test_Format_Session_List_Orphan        (T : in out Test);
+
+   --  Multiple children of the same parent each get the one-level indent.
+   procedure Test_Format_Session_List_Multi_Child   (T : in out Test);
+
 end Coyote_App_Tests;

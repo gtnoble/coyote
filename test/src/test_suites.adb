@@ -486,6 +486,12 @@ package body Test_Suites is
         ("Parse session JSONL with a very long line (no stack overflow)",
          Session_Lister_Tests.Test_Parse_Session_Long_Line'Access));
       Result.Add_Test (Session_Lister_Caller.Create
+        ("Parse_Session_File extracts Parent_Id from header",
+         Session_Lister_Tests.Test_Parse_Session_Parent_Id'Access));
+      Result.Add_Test (Session_Lister_Caller.Create
+        ("Parse_Session_File leaves Parent_Id empty when absent",
+         Session_Lister_Tests.Test_Parse_Session_No_Parent_Id'Access));
+      Result.Add_Test (Session_Lister_Caller.Create
         ("Find_Session_File found in test dir",
          Session_Lister_Tests.Test_Find_Session_File_Found'Access));
       Result.Add_Test (Session_Lister_Caller.Create
@@ -829,6 +835,21 @@ package body Test_Suites is
       Result.Add_Test (App_State_Caller.Create
         ("App_State Is_Pause_Armed toggles via Set_Pause_Armed",
          Coyote_App_Tests.Test_State_Is_Pause_Armed_Set_And_Clear'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_Session_List: flat list has no tree connectors",
+         Coyote_App_Tests.Test_Format_Session_List_Flat'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_Session_List: child indented under parent",
+         Coyote_App_Tests.Test_Format_Session_List_Parent_Child'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_Session_List: grandchild indented two levels",
+         Coyote_App_Tests.Test_Format_Session_List_Deep'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_Session_List: orphaned subagent rendered as root",
+         Coyote_App_Tests.Test_Format_Session_List_Orphan'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_Session_List: multiple children ordered after parent",
+         Coyote_App_Tests.Test_Format_Session_List_Multi_Child'Access));
       Result.Add_Test (App_State_Caller.Create
         ("App_State Tag_Suffix initial value is empty",
          Coyote_App_Tests.Test_State_Tag_Suffix_Initial'Access));

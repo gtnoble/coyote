@@ -5,6 +5,8 @@ with Coyote_App; use Coyote_App;
 with Coyote_App.Utils; use Coyote_App.Utils;
 with Nine_P;
 with Coyote_App.Dispatch;   use Coyote_App.Dispatch;
+with Ada.Strings.Fixed;
+with Session_Lister;        use Session_Lister;
 
 package body Coyote_App_Tests is
 
@@ -1469,5 +1471,191 @@ package body Coyote_App_Tests is
       S.Set_Tag_Suffix ("");
       Assert (S.Tag_Suffix = "", "Tag_Suffix should update to empty string");
    end Test_State_Tag_Suffix_Round_Trip;
+
+   --  ── Format_Session_List ──────────────────────────────────────────────
+
+   function Make_Info
+     (UUID      : String;
+      Name      : String      := "";
+      Date      : String      := "2026-01-01 00:00";
+      Snippet   : String      := "snippet";
+      Parent_Id : String      := "") return Session_Info
+   is
+   begin
+      return
+        (UUID      => To_Unbounded_String (UUID),
+         Name      => To_Unbounded_String (Name),
+         Date      => To_Unbounded_String (Date),
+         Snippet   => To_Unbounded_String (Snippet),
+         Parent_Id => To_Unbounded_String (Parent_Id));
+   end Make_Info;
+
+   UC_Hook_R : constant String :=
+     Character'Val (16#E2#) & Character'Val (16#86#)
+     & Character'Val (16#B3#);
+
+   function Contains (Text : String; Pattern : String) return Boolean is
+   begin
+      return Ada.Strings.Fixed.Index (Text, Pattern) > 0;
+   end Contains;
+
+   function Line_Index (Text : String; Pattern : String) return Natural is
+      Pos  : Natural := Text'First;
+      Line : Natural := 1;
+   begin
+      loop
+         declare
+            LF : constant Natural :=
+              Ada.Strings.Fixed.Index (Text (Pos .. Text'Last), "" & ASCII.LF);
+            NL : constant Natural :=
+              (if LF = 0 then Text'Last + 1 else LF);
+         begin
+            if Ada.Strings.Fixed.Index
+                 (Text (Pos .. NL - 1), Pattern) > 0
+            then
+               return Line;
+            end if;
+            exit when LF = 0;
+            Pos  := LF + 1;
+            Line := Line + 1;
+         end;
+      end loop;
+      return 0;
+   end Line_Index;
+
+   procedure Test_Format_Session_List_Flat (T : in out Test) is
+      pragma Unreferenced (T);
+      Sessions : Session_Vectors.Vector;
+      Result   : constant String :=
+        Format_Session_List (Sessions);
+   begin
+      --  Empty list should still return the header comment.
+      Assert (Contains (Result, "Button-3"),
+              "Header comment should be present");
+
+      Sessions.Append (Make_Info ("aaaa", "Alpha"));
+      Sessions.Append (Make_Info ("bbbb", "Beta"));
+      declare
+         R : constant String := Format_Session_List (Sessions);
+      begin
+         Assert (Contains (R, "coyote-session+aaaa"),
+                 "First session token present");
+         Assert (Contains (R, "coyote-session+bbbb"),
+                 "Second session token present");
+         --  Neither entry should be indented.
+         Assert (not Contains (R, UC_Hook_R),
+                 "No tree connectors when no subagents");
+      end;
+   end Test_Format_Session_List_Flat;
+
+   procedure Test_Format_Session_List_Parent_Child (T : in out Test) is
+      pragma Unreferenced (T);
+      Sessions : Session_Vectors.Vector;
+   begin
+      Sessions.Append (Make_Info ("parent-1", "Parent"));
+      Sessions.Append (Make_Info ("child-1", "Child",
+                                  Parent_Id => "parent-1"));
+      declare
+         R           : constant String   := Format_Session_List (Sessions);
+         Parent_Line : constant Natural  := Line_Index (R, "coyote-session+parent-1");
+         Child_Line  : constant Natural  := Line_Index (R, "coyote-session+child-1");
+      begin
+         Assert (Parent_Line > 0, "Parent session should appear");
+         Assert (Child_Line  > 0, "Child session should appear");
+         Assert (Child_Line > Parent_Line,
+                 "Child should appear after its parent");
+         Assert (Contains (R, UC_Hook_R),
+                 "Tree connector present for child");
+         --  Parent line itself must not be indented.
+         declare
+            Lines  : constant String := R;
+            Pos    : Natural         := Lines'First;
+            L      : Natural         := 1;
+         begin
+            loop
+               declare
+                  LF : constant Natural :=
+                    Ada.Strings.Fixed.Index
+                      (Lines (Pos .. Lines'Last), "" & ASCII.LF);
+                  NL : constant Natural :=
+                    (if LF = 0 then Lines'Last + 1 else LF);
+               begin
+                  if L = Parent_Line then
+                     Assert (Lines (Pos) = 'c',
+                             "Parent line should start with 'c' (no indent)");
+                     exit;
+                  end if;
+                  exit when LF = 0;
+                  Pos := LF + 1;
+                  L   := L + 1;
+               end;
+            end loop;
+         end;
+      end;
+   end Test_Format_Session_List_Parent_Child;
+
+   procedure Test_Format_Session_List_Deep (T : in out Test) is
+      pragma Unreferenced (T);
+      Sessions : Session_Vectors.Vector;
+   begin
+      Sessions.Append (Make_Info ("root-1",  "Root"));
+      Sessions.Append (Make_Info ("mid-1",   "Middle",      Parent_Id => "root-1"));
+      Sessions.Append (Make_Info ("leaf-1",  "Leaf",        Parent_Id => "mid-1"));
+      declare
+         R          : constant String  := Format_Session_List (Sessions);
+         Root_Line  : constant Natural := Line_Index (R, "coyote-session+root-1");
+         Mid_Line   : constant Natural := Line_Index (R, "coyote-session+mid-1");
+         Leaf_Line  : constant Natural := Line_Index (R, "coyote-session+leaf-1");
+      begin
+         Assert (Root_Line > 0,  "Root should appear");
+         Assert (Mid_Line  > 0,  "Middle should appear");
+         Assert (Leaf_Line > 0,  "Leaf should appear");
+         Assert (Root_Line  < Mid_Line,  "Root before middle");
+         Assert (Mid_Line   < Leaf_Line, "Middle before leaf");
+      end;
+   end Test_Format_Session_List_Deep;
+
+   procedure Test_Format_Session_List_Orphan (T : in out Test) is
+      pragma Unreferenced (T);
+      Sessions : Session_Vectors.Vector;
+   begin
+      --  "orphan-1"'s parent UUID is not in the list.
+      Sessions.Append (Make_Info ("orphan-1", "Orphan",
+                                  Parent_Id => "missing-parent-uuid"));
+      declare
+         R : constant String := Format_Session_List (Sessions);
+      begin
+         Assert (Contains (R, "coyote-session+orphan-1"),
+                 "Orphan session should appear");
+         --  Should be rendered as a root (no indent, no connector).
+         Assert (not Contains (R, UC_Hook_R),
+                 "No tree connector for orphaned subagent");
+      end;
+   end Test_Format_Session_List_Orphan;
+
+   procedure Test_Format_Session_List_Multi_Child (T : in out Test) is
+      pragma Unreferenced (T);
+      Sessions : Session_Vectors.Vector;
+   begin
+      Sessions.Append (Make_Info ("par-1",  "Parent"));
+      Sessions.Append (Make_Info ("ch-1",   "Child 1", Parent_Id => "par-1"));
+      Sessions.Append (Make_Info ("ch-2",   "Child 2", Parent_Id => "par-1"));
+      Sessions.Append (Make_Info ("ch-3",   "Child 3", Parent_Id => "par-1"));
+      declare
+         R          : constant String  := Format_Session_List (Sessions);
+         Par_Line   : constant Natural := Line_Index (R, "coyote-session+par-1");
+         Ch1_Line   : constant Natural := Line_Index (R, "coyote-session+ch-1");
+         Ch2_Line   : constant Natural := Line_Index (R, "coyote-session+ch-2");
+         Ch3_Line   : constant Natural := Line_Index (R, "coyote-session+ch-3");
+      begin
+         Assert (Par_Line > 0 and then Ch1_Line > 0
+                 and then Ch2_Line > 0 and then Ch3_Line > 0,
+                 "All four sessions should appear");
+         Assert (Par_Line < Ch1_Line
+                 and then Ch1_Line < Ch2_Line
+                 and then Ch2_Line < Ch3_Line,
+                 "Children appear in order after parent");
+      end;
+   end Test_Format_Session_List_Multi_Child;
 
 end Coyote_App_Tests;

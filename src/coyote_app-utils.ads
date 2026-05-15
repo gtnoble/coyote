@@ -8,6 +8,7 @@
 --  For revision history, see the project version-control log.
 
 with Ada.Strings.Unbounded;
+with Session_Lister;
 with GNATCOLL.JSON;
 with Nine_P;
 
@@ -241,5 +242,23 @@ package Coyote_App.Utils is
      (Name    : String;
       Value   : String;
       Max_Len : Positive := 200) return String;
+
+   --  Format a vector of session records as a tree for the Sessions window.
+   --
+   --  Sessions whose Parent_Id is empty, or whose parent UUID is not present
+   --  in the vector, are rendered as roots.  Children are rendered
+   --  immediately after their parent, indented by 2*Depth spaces followed
+   --  by a "↳ " connector.  Each level of nesting adds one depth unit.
+   --  Within each group (roots and children of the same parent) sessions
+   --  are presented in the order they appear in the input vector; the caller
+   --  is responsible for sorting before passing.
+   --
+   --  Each line has the form:
+   --    [indent]coyote-session+UUID<TAB>name<TAB>date<TAB>snippet
+   --
+   --  The introductory comment line and trailing newline are included in the
+   --  returned string.  Returns just the comment line when Sessions is empty.
+   function Format_Session_List
+     (Sessions : Session_Lister.Session_Vectors.Vector) return String;
 
 end Coyote_App.Utils;

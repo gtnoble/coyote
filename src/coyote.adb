@@ -28,6 +28,7 @@
 
 with Ada.Command_Line;
 with Ada.Directories;
+with Ada.Environment_Variables;
 with Ada.Exceptions;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
@@ -77,7 +78,6 @@ begin
               To_Unbounded_String (Ada.Command_Line.Argument (I));
          elsif Arg = "--one-shot" then
             Opts.One_Shot   := True;
-            Opts.No_Session := True;
          elsif Arg = "--name"
            and then I < Ada.Command_Line.Argument_Count
          then
@@ -98,6 +98,17 @@ begin
       end;
       I := I + 1;
    end loop;
+   --  Inherit No_Session from the parent process when spawned as a
+   --  subagent.  The parent sets COYOTE_NO_SESSION=1 before spawning
+   --  so that --no-session propagates to all descendants automatically.
+   if Ada.Environment_Variables.Exists ("COYOTE_NO_SESSION") then
+      Opts.No_Session := True;
+   end if;
+
+   --  Propagate No_Session to child processes for this invocation.
+   if Opts.No_Session then
+      Ada.Environment_Variables.Set ("COYOTE_NO_SESSION", "1");
+   end if;
 
    --  When resuming a session, change to the working directory that was
    --  current when the session was created so all relative paths resolve

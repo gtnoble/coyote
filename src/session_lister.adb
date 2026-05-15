@@ -285,6 +285,15 @@ package body Session_Lister is
                                   (Format_Unix_Milliseconds
                                      (Get_Integer (Obj, "createdAt")));
                            end if;
+                           declare
+                              Parent : constant String :=
+                                Get_String (Obj, "parentSession");
+                           begin
+                              if Parent'Length > 0 then
+                                 Result.Parent_Id :=
+                                   To_Unbounded_String (Parent);
+                              end if;
+                           end;
 
                         elsif Kind = "session_info"
                           or else Role = "session_info"

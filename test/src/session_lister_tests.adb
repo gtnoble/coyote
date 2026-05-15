@@ -256,6 +256,47 @@ package body Session_Lister_Tests is
          raise;
    end Test_Parse_Session_Long_Line;
 
+   --  ── Parent_Id ─────────────────────────────────────────────────────────
+
+   procedure Test_Parse_Session_Parent_Id (T : in out Test) is
+      pragma Unreferenced (T);
+      Path : constant String := Write_Temp
+        ("{""type"":""session"","
+         & """id"":""child-uuid"","
+         & """timestamp"":""2024-06-01T12:00:00Z"","
+         & """parentSession"":""parent-uuid""}"
+         & ASCII.LF
+         & "{""type"":""session_info"",""name"":""Child Session""}"
+         & ASCII.LF
+         & "{""type"":""message"","
+         & """message"":{""role"":""user"","
+         & """content"":[{""type"":""text"","
+         & """text"":""Do the thing""}]}}"
+         & ASCII.LF);
+      Info : constant Session_Info := Parse_Session_File (Path);
+   begin
+      Assert (To_String (Info.UUID)      = "child-uuid",
+              "UUID should be 'child-uuid'");
+      Assert (To_String (Info.Parent_Id) = "parent-uuid",
+              "Parent_Id should be 'parent-uuid'");
+   end Test_Parse_Session_Parent_Id;
+
+   procedure Test_Parse_Session_No_Parent_Id (T : in out Test) is
+      pragma Unreferenced (T);
+      Path : constant String := Write_Temp
+        ("{""type"":""session"","
+         & """id"":""solo-uuid"","
+         & """timestamp"":""2024-06-01T10:00:00Z""}"
+         & ASCII.LF);
+      Info : constant Session_Info := Parse_Session_File (Path);
+   begin
+      Assert (To_String (Info.UUID)      = "solo-uuid",
+              "UUID should be 'solo-uuid'");
+      Assert (To_String (Info.Parent_Id) = "",
+              "Parent_Id should be empty for a top-level session");
+   end Test_Parse_Session_No_Parent_Id;
+
+
    --  ── Find_Session_File ─────────────────────────────────────────────────
    --
    --  These tests create temporary JSONL files under a dedicated test slug

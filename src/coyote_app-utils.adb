@@ -12,6 +12,7 @@ with GNATCOLL.OS.FS;
 with GNATCOLL.OS.Process;
 with Interfaces;             use Interfaces;
 with Nine_P;                 use Nine_P;
+with Session_Lister;         use Session_Lister;
 
 package body Coyote_App.Utils is
 
@@ -629,5 +630,79 @@ package body Coyote_App.Utils is
       end if;
       return To_String (Result);
    end Format_Tool_Field;
+
+   --  ── Format_Session_List ──────────────────────────────────────────────
+
+   function Format_Session_List
+     (Sessions : Session_Lister.Session_Vectors.Vector) return String
+   is
+
+      --  ↳  U+21B3 DOWNWARDS ARROW WITH TIP RIGHTWARDS
+      UC_HOOK_R : constant String :=
+        Character'Val (16#E2#) & Character'Val (16#86#)
+        & Character'Val (16#B3#);
+
+      Result : Unbounded_String;
+
+      --  Render one session and, recursively, all of its descendants.
+      --  Depth = 0 means top-level (no indent); each additional level adds
+      --  two spaces before the "↳ " connector.
+      procedure Render_Session
+        (Info  : Session_Info;
+         Depth : Natural)
+      is
+         Indent : constant String :=
+           (if Depth = 0 then ""
+            else Str_Repeat ("  ", Depth) & UC_HOOK_R & " ");
+      begin
+         Append
+           (Result,
+            Indent
+            & "coyote-session+" & To_String (Info.UUID)
+            & ASCII.HT & To_String (Info.Name)
+            & ASCII.HT & To_String (Info.Date)
+            & ASCII.HT & To_String (Info.Snippet)
+            & ASCII.LF);
+
+         --  Render direct children in input order.
+         for Child of Sessions loop
+            if To_String (Child.Parent_Id) = To_String (Info.UUID) then
+               Render_Session (Child, Depth + 1);
+            end if;
+         end loop;
+      end Render_Session;
+
+      --  Return True when the session's parent UUID is present in Sessions.
+      function Parent_In_List (Info : Session_Info) return Boolean is
+      begin
+         if Length (Info.Parent_Id) = 0 then
+            return False;
+         end if;
+
+         for Other of Sessions loop
+            if To_String (Other.UUID) = To_String (Info.Parent_Id) then
+               return True;
+            end if;
+         end loop;
+
+         return False;
+      end Parent_In_List;
+
+   begin
+      Append
+        (Result,
+         "# Button-3 any coyote-session+ token to load that session."
+         & ASCII.LF & ASCII.LF);
+
+      --  Render roots: sessions with no parent, or whose parent UUID does
+      --  not appear in this list (e.g. a subagent of a cross-CWD session).
+      for Info of Sessions loop
+         if not Parent_In_List (Info) then
+            Render_Session (Info, 0);
+         end if;
+      end loop;
+
+      return To_String (Result);
+   end Format_Session_List;
 
 end Coyote_App.Utils;
