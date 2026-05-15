@@ -1633,4 +1633,320 @@ package body LLM_Anthropic_Messages_Tests is
          raise;
    end Test_Tool_Result_Is_Error_Serialised;
 
+   --  ── Test_System_Prompt_Is_Content_Block_Array ──────────────────────────
+   --  Verify that the system prompt is serialised as an array of content
+   --  blocks with cache_control rather than a plain string, matching the
+   --  Anthropic prompt-caching wire format.
+
+   procedure Test_System_Prompt_Is_Content_Block_Array (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Port     : constant Positive := 18_797;
+      Capture  : constant String :=
+         "/tmp/coyote_anthropic_cache_system.json";
+      Provider : LLM.Providers.Anthropic_Messages.Provider :=
+         LLM.Providers.Anthropic_Messages.Create
+            (Base_Url => "http://127.0.0.1:18797",
+             Api_Key  => "test-key");
+      Messages : constant LLM.Types.Message_Vectors.Vector :=
+         Build_Messages;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+      begin
+         Write_Capture (Req, Capture);
+         Res.Status := 200;
+         Append (Res.Body_Data, Anthropic_SSE_Payload);
+      end Handle_Request;
+
+      Server_Stopped : Boolean := False;
+      Srv            : Test_HTTP_Server.Server
+        (Handler => Handle_Request'Unrestricted_Access);
+   begin
+      Delete_If_Exists (Capture);
+      Srv.Bind (Port);
+
+      Send_With_Retry
+         (P             => Provider,
+          Model_Id      => "claude-sonnet-4-5",
+          System_Prompt => "You are a helpful assistant.",
+          Messages      => Messages,
+          Thinking      => LLM.Providers.Off,
+          Handler       => null);
+
+      Srv.Stop;
+      Server_Stopped := True;
+
+      declare
+         use GNATCOLL.JSON;
+
+         Captured     : constant JSON_Value :=
+            Parse_Json (Read_File (Capture), "captured request");
+         Body_Val     : constant JSON_Value :=
+            Get_Object_Field (Captured, "body");
+         System_Field : constant JSON_Value := Body_Val.Get ("system");
+      begin
+         --  system should be an array, not a string
+         Assert
+           (System_Field.Kind = JSON_Array_Type,
+            "system field should be a JSON array for caching; got type "
+            & JSON_Value_Type'Image (System_Field.Kind));
+
+         declare
+            Blocks : constant JSON_Array := System_Field.Get;
+         begin
+            Assert
+              (Length (Blocks) = 1,
+               "system array should have exactly one block");
+
+            declare
+               Block : constant JSON_Value := Get (Blocks, 1);
+               CC    : constant JSON_Value :=
+                 Get_Object_Field (Block, "cache_control");
+            begin
+               Assert
+                 (Get_String_Field (Block, "type") = "text",
+                  "system block type should be text");
+               Assert
+                 (Get_String_Field (Block, "text")
+                  = "You are a helpful assistant.",
+                  "system block text should match the prompt");
+               Assert
+                 (CC.Kind = JSON_Object_Type
+                  and then Get_String_Field (CC, "type") = "ephemeral",
+                  "system block should have cache_control ephemeral");
+            end;
+         end;
+      end;
+   exception
+      when others =>
+         if not Server_Stopped then
+            Srv.Stop;
+         end if;
+         raise;
+   end Test_System_Prompt_Is_Content_Block_Array;
+
+   --  ── Test_Cache_Control_On_Last_Tool ────────────────────────────────────
+   --  Verify that the last tool definition in the tools array has a
+   --  cache_control marker when tools are present.
+
+   procedure Test_Cache_Control_On_Last_Tool (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Port     : constant Positive := 18_798;
+      Capture  : constant String :=
+         "/tmp/coyote_anthropic_cache_tools.json";
+      Provider : LLM.Providers.Anthropic_Messages.Provider :=
+         LLM.Providers.Anthropic_Messages.Create
+            (Base_Url => "http://127.0.0.1:18798",
+             Api_Key  => "test-key");
+      Messages : constant LLM.Types.Message_Vectors.Vector :=
+         Build_Messages;
+      Tools_Json : constant String :=
+         "[{""name"":""read"",""description"":""read file"",""
+         & ""input_schema"":{""type"":""object"",""""properties"":{""path"":{""type"":""string""}}}},"
+         & "{""name"":""shell"",""description"":""run command"",""
+         & ""input_schema"":{""type"":""object"",""""properties"":{""command"":{""type"":""string""}}}}]";
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+      begin
+         Write_Capture (Req, Capture);
+         Res.Status := 200;
+         Append (Res.Body_Data, Anthropic_SSE_Payload);
+      end Handle_Request;
+
+      Server_Stopped : Boolean := False;
+      Srv            : Test_HTTP_Server.Server
+        (Handler => Handle_Request'Unrestricted_Access);
+   begin
+      Delete_If_Exists (Capture);
+      Srv.Bind (Port);
+
+      Send_With_Retry
+         (P             => Provider,
+          Model_Id      => "claude-sonnet-4-5",
+          System_Prompt => "Be helpful.",
+          Messages      => Messages,
+          Thinking      => LLM.Providers.Off,
+          Handler       => null);
+
+      Srv.Stop;
+      Server_Stopped := True;
+
+      declare
+         use GNATCOLL.JSON;
+
+         Captured : constant JSON_Value :=
+            Parse_Json (Read_File (Capture), "captured request");
+         Body_Val : constant JSON_Value :=
+            Get_Object_Field (Captured, "body");
+         Tools    : constant JSON_Array :=
+            Get_Array_Field (Body_Val, "tools");
+      begin
+         Assert
+           (Length (Tools) = 2,
+            "tools array should have 2 elements");
+
+         --  First tool should NOT have cache_control
+         declare
+            Tool_1 : constant JSON_Value := Get (Tools, 1);
+         begin
+            Assert
+              (not Tool_1.Has_Field ("cache_control"),
+               "first tool should not have cache_control");
+         end;
+
+         --  Last tool should have cache_control with type ephemeral
+         declare
+            Tool_2   : constant JSON_Value := Get (Tools, 2);
+            CC       : constant JSON_Value :=
+              Get_Object_Field (Tool_2, "cache_control");
+         begin
+            Assert
+              (Tool_2.Has_Field ("cache_control"),
+               "last tool should have cache_control");
+            Assert
+              (CC.Kind = JSON_Object_Type
+               and then Get_String_Field (CC, "type") = "ephemeral",
+               "last tool cache_control should be ephemeral");
+         end;
+      end;
+   exception
+      when others =>
+         if not Server_Stopped then
+            Srv.Stop;
+         end if;
+         raise;
+   end Test_Cache_Control_On_Last_Tool;
+
+   --  ── Test_Cache_Control_On_Last_User_Message ────────────────────────────
+   --  Verify that the last user-role message's final content block has a
+   --  cache_control marker so the growing conversation prefix is cached.
+
+   procedure Test_Cache_Control_On_Last_User_Message (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Port     : constant Positive := 18_799;
+      Capture  : constant String :=
+         "/tmp/coyote_anthropic_cache_user_msg.json";
+      Provider : LLM.Providers.Anthropic_Messages.Provider :=
+         LLM.Providers.Anthropic_Messages.Create
+            (Base_Url => "http://127.0.0.1:18799",
+             Api_Key  => "test-key");
+
+      --  Two-user-message history: first without cache_control, second with.
+      function Build_Two_User_Messages
+        return LLM.Types.Message_Vectors.Vector
+      is
+         Messages      : LLM.Types.Message_Vectors.Vector;
+         Content_1     : LLM.Types.Content_Block_Vectors.Vector;
+         Content_2     : LLM.Types.Content_Block_Vectors.Vector;
+      begin
+         Content_1.Append
+           ((Kind => LLM.Types.Text_Block,
+             Text => To_Unbounded_String ("First message")));
+         Messages.Append
+           ((Role      => LLM.Types.User,
+             Content   => Content_1,
+             Tok_Usage => (others => 0),
+             Stop      => LLM.Types.Unknown_Stop,
+             Timestamp => Null_Unbounded_String));
+
+         Content_2.Append
+           ((Kind => LLM.Types.Text_Block,
+             Text => To_Unbounded_String ("Second message")));
+         Messages.Append
+           ((Role      => LLM.Types.User,
+             Content   => Content_2,
+             Tok_Usage => (others => 0),
+             Stop      => LLM.Types.Unknown_Stop,
+             Timestamp => Null_Unbounded_String));
+
+         return Messages;
+      end Build_Two_User_Messages;
+
+      Messages : constant LLM.Types.Message_Vectors.Vector :=
+         Build_Two_User_Messages;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+      begin
+         Write_Capture (Req, Capture);
+         Res.Status := 200;
+         Append (Res.Body_Data, Anthropic_SSE_Payload);
+      end Handle_Request;
+
+      Server_Stopped : Boolean := False;
+      Srv            : Test_HTTP_Server.Server
+        (Handler => Handle_Request'Unrestricted_Access);
+   begin
+      Delete_If_Exists (Capture);
+      Srv.Bind (Port);
+
+      Send_With_Retry
+         (P             => Provider,
+          Model_Id      => "claude-sonnet-4-5",
+          System_Prompt => "Be helpful.",
+          Messages      => Messages,
+          Thinking      => LLM.Providers.Off,
+          Handler       => null);
+
+      Srv.Stop;
+      Server_Stopped := True;
+
+      declare
+         use GNATCOLL.JSON;
+
+         Captured  : constant JSON_Value :=
+            Parse_Json (Read_File (Capture), "captured request");
+         Body_Val  : constant JSON_Value :=
+            Get_Object_Field (Captured, "body");
+         Msg_Array : constant JSON_Array :=
+            Get_Array_Field (Body_Val, "messages");
+      begin
+         --  msg[1] = first user message, msg[2] = second user message
+         declare
+            Msg_1 : constant JSON_Value := Get (Msg_Array, 1);
+            C1    : constant JSON_Array :=
+              Get_Array_Field (Msg_1, "content");
+            Block_1 : constant JSON_Value := Get (C1, 1);
+         begin
+            Assert
+              (not Block_1.Has_Field ("cache_control"),
+               "first user message content block should NOT have"
+               & " cache_control");
+         end;
+
+         declare
+            Msg_2   : constant JSON_Value := Get (Msg_Array, 2);
+            C2      : constant JSON_Array :=
+              Get_Array_Field (Msg_2, "content");
+            Block_2 : constant JSON_Value := Get (C2, 1);
+            CC      : constant JSON_Value :=
+              Get_Object_Field (Block_2, "cache_control");
+         begin
+            Assert
+              (Block_2.Has_Field ("cache_control"),
+               "last user message block should have cache_control");
+            Assert
+              (CC.Kind = JSON_Object_Type
+               and then Get_String_Field (CC, "type") = "ephemeral",
+               "last user message cache_control should be ephemeral");
+         end;
+      end;
+   exception
+      when others =>
+         if not Server_Stopped then
+            Srv.Stop;
+         end if;
+         raise;
+   end Test_Cache_Control_On_Last_User_Message;
+
 end LLM_Anthropic_Messages_Tests;
