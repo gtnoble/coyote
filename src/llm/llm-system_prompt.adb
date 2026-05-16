@@ -307,7 +307,21 @@ package body LLM.System_Prompt is
             & ASCII.LF
             & "- Each tool batch appends a [coyote: turn=...in/...out"
             & " session=...in/...out] footer to the last result;"
-            & " use this to monitor token consumption and cost");
+            & " use this to monitor token consumption and cost"
+            & ASCII.LF
+            & "- To spawn a subagent, use the shell tool:"
+            & " command=""coyote --one-shot --prompt -"","
+            & " with the prompt text in the `stdin` field."
+            & " Pass `--model provider/id` to override the model,"
+            & " `--agent TEXT|@path` to extend the system prompt,"
+            & " and `--name label` to name the window."
+            & " Session lineage is recorded automatically."
+            & " To preprocess the prompt with a template engine, pipe"
+            & " through it before coyote: e.g."
+            & " `printf 'include(tmpl.m4)' | m4 |"
+            & " coyote --one-shot --prompt -`."
+            & " This works for any filter: m4 macro sets, envsubst,"
+            & " or custom scripts.");
          Append
            (Result,
             ASCII.LF

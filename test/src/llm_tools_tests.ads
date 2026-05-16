@@ -10,10 +10,6 @@ package LLM_Tools_Tests is
    procedure Test_Shell_Stdin_Piped           (T : in out Test);
    procedure Test_Shell_Stdin_Empty_Ignored   (T : in out Test);
    procedure Test_Shell_Stdin_Absent_Dev_Null (T : in out Test);
-   procedure Test_Built_In_Tools_Include_Spawn_Subagent
-     (T : in out Test);
-   procedure Test_Spawn_Subagent_Success (T : in out Test);
-   procedure Test_Spawn_Subagent_Requires_Prompt (T : in out Test);
 
    --  ── Validate_Arguments unit tests ─────────────────────────────────────
 

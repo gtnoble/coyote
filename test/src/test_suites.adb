@@ -23,7 +23,6 @@ with LLM_Types_Tests;
 with LLM_Compaction_Tests;
 with LLM_SSE_Tests;
 with LLM_Tools_Tests;
-with LLM_Spawn_Subagent_Tests;
 with LLM_OpenAI_Completions_Tests;
 with LLM_Auth_Tests;
 with LLM_Catalogue_Tests;
@@ -87,8 +86,6 @@ package body Test_Suites is
      new AUnit.Test_Caller (LLM_SSE_Tests.Test);
    package LLM_Tools_Caller is
      new AUnit.Test_Caller (LLM_Tools_Tests.Test);
-   package LLM_Spawn_Subagent_Caller is
-     new AUnit.Test_Caller (LLM_Spawn_Subagent_Tests.Test);
    package LLM_OpenAI_Completions_Caller is
      new AUnit.Test_Caller (LLM_OpenAI_Completions_Tests.Test);
    package LLM_Auth_Caller is
@@ -1309,16 +1306,6 @@ package body Test_Suites is
         ("LLM.Tools.Shell succeeds without a stdin field",
          LLM_Tools_Tests.Test_Shell_Stdin_Absent_Dev_Null'Access));
       Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools.Built_In_Tools includes spawn_subagent",
-         LLM_Tools_Tests
-           .Test_Built_In_Tools_Include_Spawn_Subagent'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools dispatches spawn_subagent and returns output",
-         LLM_Tools_Tests.Test_Spawn_Subagent_Success'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
-        ("LLM.Tools spawn_subagent rejects missing prompt",
-         LLM_Tools_Tests.Test_Spawn_Subagent_Requires_Prompt'Access));
-      Result.Add_Test (LLM_Tools_Caller.Create
         ("LLM.Tools.Result_Threshold zero returns MAX",
          LLM_Tools_Tests.Test_Result_Threshold_Zero_Returns_Max'Access));
       Result.Add_Test (LLM_Tools_Caller.Create
@@ -1367,7 +1354,6 @@ package body Test_Suites is
         ("LLM.Tools.Pause_Flag Release also clears Armed",
          LLM_Tools_Tests.Test_Pause_Flag_Release_Clears_Armed'Access));
 
-      --  LLM.Tools.Spawn_Subagent tests
       Result.Add_Test (LLM_Tools_Caller.Create
         ("LLM.Tools.Shell media_type base64-encodes stdout",
          LLM_Tools_Tests.Test_Shell_Media_Type_Sets_Base64_Result'Access));
@@ -1380,45 +1366,6 @@ package body Test_Suites is
       Result.Add_Test (LLM_Tools_Caller.Create
         ("LLM.Tools.Execute image results bypass truncation cap",
          LLM_Tools_Tests.Test_Execute_Image_Not_Truncated'Access));
-      Result.Add_Test (LLM_Spawn_Subagent_Caller.Create
-        ("LLM.Tools.Spawn_Subagent rejects malformed JSON",
-         LLM_Spawn_Subagent_Tests.Test_Bad_Json'Access));
-      Result.Add_Test (LLM_Spawn_Subagent_Caller.Create
-        ("LLM.Tools.Spawn_Subagent rejects an empty prompt",
-         LLM_Spawn_Subagent_Tests.Test_Empty_Prompt'Access));
-      Result.Add_Test (LLM_Spawn_Subagent_Caller.Create
-        ("LLM.Tools.Spawn_Subagent reports missing coyote binary",
-         LLM_Spawn_Subagent_Tests.Test_Binary_Not_Found'Access));
-      Result.Add_Test (LLM_Spawn_Subagent_Caller.Create
-        ("LLM.Tools.Spawn_Subagent returns an error when aborted",
-         LLM_Spawn_Subagent_Tests.Test_Abort_Before_Spawn'Access));
-      Result.Add_Test (LLM_Spawn_Subagent_Caller.Create
-        ("LLM.Tools.Spawn_Subagent rejects 'name' and 'names' together",
-         LLM_Spawn_Subagent_Tests
-           .Test_Name_And_Names_Conflict'Access));
-      Result.Add_Test (LLM_Spawn_Subagent_Caller.Create
-        ("LLM.Tools.Spawn_Subagent rejects an empty 'names' array",
-         LLM_Spawn_Subagent_Tests.Test_Names_Empty_Array'Access));
-      Result.Add_Test (LLM_Spawn_Subagent_Caller.Create
-        ("LLM.Tools.Spawn_Subagent rejects non-string elements in 'names'",
-         LLM_Spawn_Subagent_Tests
-           .Test_Names_Non_String_Element'Access));
-      Result.Add_Test (LLM_Spawn_Subagent_Caller.Create
-        ("LLM.Tools.Spawn_Subagent rejects empty strings in 'names'",
-         LLM_Spawn_Subagent_Tests
-           .Test_Names_Empty_String_Element'Access));
-      Result.Add_Test (LLM_Spawn_Subagent_Caller.Create
-        ("LLM.Tools.Spawn_Subagent rejects non-string 'prompt_filter'",
-         LLM_Spawn_Subagent_Tests
-           .Test_Prompt_Filter_Wrong_Type'Access));
-      Result.Add_Test (LLM_Spawn_Subagent_Caller.Create
-        ("LLM.Tools.Spawn_Subagent prompt_filter sets COYOTE_SUBAGENT_NAME",
-         LLM_Spawn_Subagent_Tests
-           .Test_Prompt_Filter_Sets_Subagent_Name'Access));
-      Result.Add_Test (LLM_Spawn_Subagent_Caller.Create
-        ("LLM.Tools.Spawn_Subagent accepts single-element 'names' array",
-         LLM_Spawn_Subagent_Tests
-           .Test_Names_Single_Element_Accepted'Access));
 
       --  LLM.Providers.OpenAI_Completions tests
       Result.Add_Test (LLM_OpenAI_Completions_Caller.Create

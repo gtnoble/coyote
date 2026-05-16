@@ -45,8 +45,8 @@ package body LLM_System_Prompt_Tests is
         (Ada.Strings.Fixed.Index (P, "shell") > 0,
          "default prompt should mention the shell tool");
       Assert
-        (Ada.Strings.Fixed.Index (P, "spawn_subagent") > 0,
-         "default prompt should mention the spawn_subagent tool");
+        (Ada.Strings.Fixed.Index (P, "coyote --one-shot") > 0,
+         "default prompt should explain the subagent shell pattern");
    end Test_Default_Prompt_Lists_Tools;
 
    procedure Test_Default_Prompt_Contains_Guidelines (T : in out Test) is

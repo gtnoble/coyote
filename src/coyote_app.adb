@@ -707,6 +707,26 @@ package body Coyote_App is
                end if;
             end;
 
+            --  When spawned as a subagent via the shell tool, the parent
+            --  coyote's COYOTE_SESSION_ID is inherited by all child
+            --  processes.  Promote it to COYOTE_PARENT_SESSION so that
+            --  LLM.Session_Store records the parentSession link in the
+            --  new session's JSONL header.  Do this only when
+            --  COYOTE_PARENT_SESSION is not already set explicitly.
+            declare
+               Inherited_Sid : constant String :=
+                 Ada.Environment_Variables.Value ("COYOTE_SESSION_ID", "");
+               Parent_Sid    : constant String :=
+                 Ada.Environment_Variables.Value
+                   ("COYOTE_PARENT_SESSION", "");
+            begin
+               if Parent_Sid'Length = 0
+                 and then Inherited_Sid'Length > 0
+               then
+                  Ada.Environment_Variables.Set
+                    ("COYOTE_PARENT_SESSION", Inherited_Sid);
+               end if;
+            end;
             LLM.Agent.Create
               (S          => Agent_Session,
                Model_Spec => To_String (Opts.Model),
@@ -751,7 +771,10 @@ package body Coyote_App is
                   declare
                      Err : constant JSON_Value := Create_Object;
                   begin
-                     Err.Set_Field ("error", "one-shot requires --prompt");
+                     Err.Set_Field
+                       ("error",
+                        "one-shot requires --prompt"
+                        & " (use --prompt - to read from stdin)");
                      State.Set_One_Shot_Result (Write (Err));
                   end;
                   Initiate_Shutdown;

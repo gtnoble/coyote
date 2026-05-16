@@ -368,7 +368,7 @@ package body LLM.Tools.Shell is
                      Dummy : Integer;
                   begin
                      Dummy :=
-                       LLM.Tools.Internal.C_Kill (Integer (Handle), 15);
+                       LLM.Tools.Internal.C_Kill (-Integer (Handle), 15);
                   end;
                end if;
                Close (Output_R);

@@ -65,7 +65,7 @@ package LLM.Tools is
 
    --  Return the standard set of built-in tools.
    --
-   --  The result contains the descriptors for shell and spawn_subagent
+   --  The result contains the descriptor for the shell tool
    --  in that order.
    function Built_In_Tools return Tool_Descriptor_Vectors.Vector;
 

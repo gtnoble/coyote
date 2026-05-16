@@ -3,17 +3,17 @@
 --  Usage: coyote [--session UUID] [--model PROVIDER/ID]
 --                 [--agent TEXT|@PATH]
 --                 [--no-tools] [--no-session]
---                 [--prompt TEXT] [--one-shot] [--name LABEL]
+--                 [--prompt TEXT|-] [--one-shot] [--name LABEL]
 --                 [--prompt-filter CMD]
 --
 --  --agent TEXT|@PATH
 --                 Append extra instructions to the system prompt.
 --                 Prefix with '@' to load from a file.
---  --prompt TEXT  Send TEXT as the first prompt immediately after startup.
---  --prompt TEXT  Send TEXT as the first prompt immediately after startup.
+--  --prompt TEXT|-
+--                 Send TEXT as the first prompt immediately after startup.
 --  --one-shot     Exit automatically after the first complete agent turn,
 --                 printing a JSON result line to stdout.  Intended for use
---                 by the native spawn_subagent tool.
+--                 by spawn_subagent callers (see "shell" tool guidelines).
 --  --name LABEL   Short label appended to the window name as ":LABEL" so
 --                 the acme tagline reads "CWD/+coyote:LABEL | …".
 --  --prompt-filter CMD
@@ -74,8 +74,26 @@ begin
            and then I < Ada.Command_Line.Argument_Count
          then
             I := I + 1;
-            Opts.Initial_Prompt :=
-              To_Unbounded_String (Ada.Command_Line.Argument (I));
+            declare
+               Arg_Val : constant String := Ada.Command_Line.Argument (I);
+            begin
+               if Arg_Val = "-" then
+                  --  Read the prompt from stdin; each Get_Line call
+                  --  raises End_Error at EOF, so the End_Of_File guard
+                  --  is the safe termination condition.
+                  declare
+                     Content : Unbounded_String;
+                  begin
+                     while not Ada.Text_IO.End_Of_File loop
+                        Append (Content, Ada.Text_IO.Get_Line);
+                        Append (Content, "" & ASCII.LF);
+                     end loop;
+                     Opts.Initial_Prompt := Content;
+                  end;
+               else
+                  Opts.Initial_Prompt := To_Unbounded_String (Arg_Val);
+               end if;
+            end;
          elsif Arg = "--one-shot" then
             Opts.One_Shot   := True;
             Opts.No_Compact := True;

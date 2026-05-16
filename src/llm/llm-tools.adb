@@ -4,7 +4,6 @@
 --  For revision history, see the project version-control log.
 
 with LLM.Tools.Shell;
-with LLM.Tools.Spawn_Subagent;
 with LLM.Tools.Temp_File;
 
 with GNATCOLL.JSON;
@@ -83,7 +82,6 @@ package body LLM.Tools is
       Result : Tool_Descriptor_Vectors.Vector;
    begin
       Result.Append (LLM.Tools.Shell.Descriptor);
-      Result.Append (LLM.Tools.Spawn_Subagent.Descriptor);
       return Result;
    end Built_In_Tools;
 
@@ -143,9 +141,6 @@ package body LLM.Tools is
       if Name = "shell" then
          LLM.Tools.Shell.Execute
            (Args_Json, Result, Media_Type, Is_Error, Abort_Flg);
-      elsif Name = "spawn_subagent" then
-         LLM.Tools.Spawn_Subagent.Execute
-           (Args_Json, Result, Is_Error, Abort_Flg);
       else
          raise Unknown_Tool with "unknown tool: " & Name;
       end if;

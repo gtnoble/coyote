@@ -1,5 +1,4 @@
 with AUnit.Assertions;
-with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with LLM.Tools;
@@ -13,15 +12,6 @@ package body LLM_Tools_Tests is
    begin
       return Ada.Strings.Fixed.Index (Text, Pattern) > 0;
    end Contains;
-
-   procedure Restore_Env (Name : String; Was_Set : Boolean; Value : String) is
-   begin
-      if Was_Set then
-         Ada.Environment_Variables.Set (Name, Value);
-      else
-         Ada.Environment_Variables.Clear (Name);
-      end if;
-   end Restore_Env;
 
    procedure Test_Shell_Success (T : in out Test) is
       pragma Unreferenced (T);
@@ -125,84 +115,6 @@ package body LLM_Tools_Tests is
          "output should contain the echo'd text");
    end Test_Shell_Stdin_Absent_Dev_Null;
 
-   procedure Test_Built_In_Tools_Include_Spawn_Subagent
-     (T : in out Test)
-   is
-      pragma Unreferenced (T);
-
-      Tools : constant LLM.Tools.Tool_Descriptor_Vectors.Vector :=
-        LLM.Tools.Built_In_Tools;
-      Found : Boolean := False;
-   begin
-      for Descriptor of Tools loop
-         if To_String (Descriptor.Name) = "spawn_subagent" then
-            Found := True;
-            exit;
-         end if;
-      end loop;
-
-      Assert (Found, "Built_In_Tools should include spawn_subagent");
-   end Test_Built_In_Tools_Include_Spawn_Subagent;
-
-   procedure Test_Spawn_Subagent_Success (T : in out Test) is
-      pragma Unreferenced (T);
-
-      Mock_Coyote_Bin : constant String := "bin/mock_coyote";
-      Env_Name        : constant String := "COYOTE_BIN";
-      Was_Set         : constant Boolean :=
-        Ada.Environment_Variables.Exists (Env_Name);
-      Saved_Value     : constant String :=
-        Ada.Environment_Variables.Value (Env_Name, "");
-      Result          : Unbounded_String;
-      Is_Error        : Boolean;
-      Media_Type     : Unbounded_String;
-   begin
-      Ada.Environment_Variables.Set (Env_Name, Mock_Coyote_Bin);
-
-      LLM.Tools.Execute
-        (Name      => "spawn_subagent",
-         Args_Json =>
-           "{""prompt"":""Ping"""
-           & ",""model"":""provider/model"""
-           & ",""agent"":""worker.agent.md"""
-           & ",""name"":""worker""}",
-         Result    => Result,
-         Media_Type => Media_Type,
-         Is_Error  => Is_Error);
-
-      Assert (not Is_Error, "spawn_subagent should succeed with JSON output");
-      Assert
-        (To_String (Result) =
-           "Ping|provider/model|worker.agent.md|worker"
-           & ASCII.LF & ASCII.LF & "coyote-session+123",
-         "spawn_subagent should return the subagent output field");
-
-      Restore_Env (Env_Name, Was_Set, Saved_Value);
-   exception
-      when others =>
-         Restore_Env (Env_Name, Was_Set, Saved_Value);
-         raise;
-   end Test_Spawn_Subagent_Success;
-
-   procedure Test_Spawn_Subagent_Requires_Prompt (T : in out Test) is
-      pragma Unreferenced (T);
-
-      Result   : Unbounded_String;
-      Is_Error : Boolean;
-      Media_Type : Unbounded_String;
-   begin
-      LLM.Tools.Execute
-        (Name      => "spawn_subagent",
-         Args_Json => "{}",
-         Result    => Result,
-         Media_Type => Media_Type,
-         Is_Error  => Is_Error);
-
-      Assert (Is_Error, "spawn_subagent should reject missing prompt");
-      Assert
-        (Contains (To_String (Result), "prompt"),
-         "spawn_subagent should mention the missing prompt field");
-   end Test_Spawn_Subagent_Requires_Prompt;
    --  ── Result_Threshold unit tests ───────────────────────────────────────
 
    procedure Test_Result_Threshold_Zero_Returns_Max (T : in out Test) is

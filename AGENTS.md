@@ -108,11 +108,6 @@ src/
     llm-tools-shell.ads/.adb    -- shell tool implementation; optional
                         --   "media_type" arg base64-encodes stdout and
                         --   returns an image content block of that MIME type
-    llm-tools-spawn_subagent.ads/.adb -- spawn_subagent tool: single-agent and
-                        --   multi-agent parallel spawning via "names" array;
-                        --   agent param = system-prompt text or @path;
-                        --   per-agent prompt transformation via prompt_filter
-                        --   (COYOTE_SUBAGENT_NAME env var)
     llm-tools-temp_file.ads/.adb -- tool-result size cap; Truncated writes
                         --   excess bytes to a temp file under /tmp/ and
                         --   returns an excerpt with a path trailer;
