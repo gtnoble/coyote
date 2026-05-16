@@ -312,6 +312,10 @@ package Coyote_App_Tests is
    procedure Test_Advance_Search_Forward_Wrap   (T : in out Test);
    --  Advance_Search wraps from the first match backward to the last.
    procedure Test_Advance_Search_Backward_Wrap  (T : in out Test);
+   --  Match_Record Byte_Offset points to first byte of the match in Content.
+   procedure Test_Search_Match_Byte_Offset      (T : in out Test);
+   --  Match_Record Match_Len equals the length of the search term.
+   procedure Test_Search_Match_Len              (T : in out Test);
 
    --  ── TUI stats summary ────────────────────────────────────────────────
 

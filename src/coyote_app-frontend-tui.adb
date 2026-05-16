@@ -22,6 +22,8 @@
 
 with Interfaces;
 with Interfaces.C;
+with Interfaces.C.Strings;
+with Coyote_Cmark;
 with Ada.Characters.Latin_1;
 with Ada.Containers.Vectors;
 with Ada.Directories;
@@ -49,7 +51,9 @@ package body Coyote_App.Frontend.TUI is
    --  ── Match buffer (for / search) ──────────────────────────────────────
 
    type Match_Record is record
-      Seg_Index : Positive;
+      Seg_Index   : Positive;
+      Byte_Offset : Natural := 0;
+      Match_Len   : Natural := 0;
    end record;
 
    package Match_Vectors is new Ada.Containers.Vectors
@@ -259,6 +263,8 @@ package body Coyote_App.Frontend.TUI is
       procedure Set_Search_Matches (Matches : Match_Vectors.Vector);
       procedure Advance_Search (Dir : Integer);
       function  Search_Seg return Natural;
+      function  Search_Match_Offset return Natural;
+      function  Search_Match_Len    return Natural;
    private
       P_Win_Name   : Unbounded_String :=
         To_Unbounded_String ("coyote");
@@ -426,6 +432,21 @@ package body Coyote_App.Frontend.TUI is
          end if;
          return P_Search_Matches (P_Search_Cursor).Seg_Index;
       end Search_Seg;
+      function Search_Match_Offset return Natural is
+      begin
+         if P_Search_Cursor = 0 or else P_Search_Matches.Is_Empty then
+            return 0;
+         end if;
+         return P_Search_Matches (P_Search_Cursor).Byte_Offset;
+      end Search_Match_Offset;
+
+      function Search_Match_Len return Natural is
+      begin
+         if P_Search_Cursor = 0 or else P_Search_Matches.Is_Empty then
+            return 0;
+         end if;
+         return P_Search_Matches (P_Search_Cursor).Match_Len;
+      end Search_Match_Len;
 
    end TUI_State;
 
@@ -448,9 +469,15 @@ package body Coyote_App.Frontend.TUI is
             Content    : constant String := To_String (Buffer.Get (I).Content);
             UC_Content : constant String := To_Upper (Content);
          begin
-            if Index (UC_Content, UC_Term) > 0 then
-               Matches.Append ((Seg_Index => I));
-            end if;
+            declare
+               Pos : constant Natural := Index (UC_Content, UC_Term);
+            begin
+               if Pos > 0 then
+                  Matches.Append ((Seg_Index   => I,
+                                   Byte_Offset => Pos - UC_Content'First,
+                                   Match_Len   => UC_Term'Length));
+               end if;
+            end;
          end;
       end loop;
       return Matches;
@@ -492,176 +519,358 @@ package body Coyote_App.Frontend.TUI is
       Last_Cols := Cols;
    end Resize_Windows;
 
-   --  ── UTF-8 / word-wrap helpers ─────────────────────────────────────────
-
-   --  Return the display width of one UTF-8 sequence starting at
-   --  Text (Pos).  Advances Pos past the sequence.  Returns 1 on
-   --  malformed input so rendering still advances.
-   function Utf8_Width (Text : String; Pos : in out Positive) return Natural
-   is
-      use Interfaces;
-      C  : constant Unsigned_32 :=
-        Unsigned_32 (Character'Pos (Text (Pos)));
-      CP : Unsigned_32;
-      W  : Integer;
-   begin
-      if C < 16#80# then
-         CP  := C;
-         Pos := Pos + 1;
-      elsif C < 16#E0# then
-         if Pos + 1 <= Text'Last then
-            CP  :=
-              (C and 16#1F#) * 16#40#
-              + (Unsigned_32 (Character'Pos (Text (Pos + 1)))
-                 and 16#3F#);
-            Pos := Pos + 2;
-         else
-            CP  := C;
-            Pos := Pos + 1;
-         end if;
-      elsif C < 16#F0# then
-         if Pos + 2 <= Text'Last then
-            CP  :=
-              (C and 16#0F#) * 16#1000#
-              + (Unsigned_32 (Character'Pos (Text (Pos + 1)))
-                 and 16#3F#) * 16#40#
-              + (Unsigned_32 (Character'Pos (Text (Pos + 2)))
-                 and 16#3F#);
-            Pos := Pos + 3;
-         else
-            CP  := C;
-            Pos := Pos + 1;
-         end if;
-      else
-         if Pos + 3 <= Text'Last then
-            CP  :=
-              (C and 16#07#) * 16#40000#
-              + (Unsigned_32 (Character'Pos (Text (Pos + 1)))
-                 and 16#3F#) * 16#1000#
-              + (Unsigned_32 (Character'Pos (Text (Pos + 2)))
-                 and 16#3F#) * 16#40#
-              + (Unsigned_32 (Character'Pos (Text (Pos + 3)))
-                 and 16#3F#);
-            Pos := Pos + 4;
-         else
-            CP  := C;
-            Pos := Pos + 1;
-         end if;
-      end if;
-      W := Coyote_Ncurses.Wcwidth (Natural (CP));
-      if W < 0 then
-         return 1;
-      end if;
-      return Natural (W);
-   end Utf8_Width;
-
-   --  Word-wrap Text at Cols columns, writing each output line to Win
-   --  via Coyote_Ncurses.Waddstr with a Prefix prepended.
+   --  Emit Text to Win preceded by Prefix on every output line, splitting
+   --  only at embedded newline characters (no word-wrap).
+   --  If Match_Start >= 0 and Match_Len > 0, the bytes
+   --  Text (Text'First + Match_Start ..
+   --  Text'First + Match_Start + Match_Len - 1)
+   --  are highlighted with A_Reverse.
    --  Returns the number of terminal rows consumed.
    function Wrap_And_Put
-     (Win    : Coyote_Ncurses.Window;
-      Text   : String;
-      Cols   : Positive;
-      Prefix : String := "") return Natural
+     (Win         : Coyote_Ncurses.Window;
+      Text        : String;
+      Cols        : Positive;
+      Prefix      : String  := "";
+      Match_Start : Integer := -1;
+      Match_Len   : Natural := 0) return Natural
    is
-      procedure Put_Line (S : String) is
+      pragma Unreferenced (Cols);
+      use Coyote_Ncurses;
+
+      --  Emit Prefix then Content, bracketing Content (Hl_First .. Hl_Last)
+      --  with A_Reverse.  Pass Hl_First < Content'First to suppress highlight.
+      procedure Emit_Line
+        (Content  : String;
+         Hl_First : Integer;
+         Hl_Last  : Integer)
+      is
       begin
-         Coyote_Ncurses.Waddstr (Win, S);
-         Coyote_Ncurses.Waddch  (Win, Ada.Characters.Latin_1.LF);
-      end Put_Line;
+         Waddstr (Win, Prefix);
+         if Hl_First >= Content'First
+           and then Hl_Last  <= Content'Last
+           and then Hl_First <= Hl_Last
+         then
+            if Hl_First > Content'First then
+               Waddstr (Win, Content (Content'First .. Hl_First - 1));
+            end if;
+            Wattron  (Win, A_Reverse);
+            Waddstr  (Win, Content (Hl_First .. Hl_Last));
+            Wattroff (Win, A_Reverse);
+            if Hl_Last < Content'Last then
+               Waddstr (Win, Content (Hl_Last + 1 .. Content'Last));
+            end if;
+         elsif Content'Length > 0 then
+            Waddstr (Win, Content);
+         end if;
+         Waddch (Win, Ada.Characters.Latin_1.LF);
+      end Emit_Line;
 
-      Prefix_W : Natural := 0;
-      P        : Positive := Prefix'First;
+      --  Absolute byte bounds of the match within Text (Ada 1-based indices).
+      M_First : constant Integer :=
+        (if Match_Start >= 0 and then Match_Len > 0
+         then Text'First + Match_Start else -1);
+      M_Last  : constant Integer :=
+        (if M_First >= 0 then M_First + Integer (Match_Len) - 1 else -1);
+
+      Rows_Out   : Natural := 0;
+      Line_Start : Natural := Text'First;
+      I          : Natural := Text'First;
    begin
-      --  Measure prefix display width.
-      while P <= Prefix'Last loop
-         Prefix_W := Prefix_W + Utf8_Width (Prefix, P);
-      end loop;
-
-      if Cols <= Prefix_W then
-         Put_Line (Prefix & Text);
+      if Text'Length = 0 then
+         Emit_Line ("", -1, -1);
          return 1;
       end if;
 
+      while I <= Text'Last loop
+         if Text (I) = Ada.Characters.Latin_1.LF then
+            declare
+               Content  : constant String := Text (Line_Start .. I - 1);
+               Hl_First : constant Integer :=
+                 (if M_First >= 0
+                  then Integer'Max (M_First, Content'First) else -1);
+               Hl_Last  : constant Integer :=
+                 (if M_First >= 0
+                  then Integer'Min (M_Last, Content'Last) else -1);
+            begin
+               Emit_Line (Content, Hl_First, Hl_Last);
+            end;
+            Rows_Out   := Rows_Out + 1;
+            Line_Start := I + 1;
+         end if;
+         I := I + 1;
+      end loop;
+
+      --  Flush trailing text after the last newline (or the whole string
+      --  when there are no embedded newlines at all).
       declare
-         Max_W    : constant Positive := Cols - Prefix_W;
-         Rows_Out : Natural  := 0;
-         I        : Positive := Text'First;
-         Line_W   : Natural  := 0;
-         Word_S   : Natural  := Text'First;
-         Word_W   : Natural  := 0;
-         Line_Buf : Unbounded_String;
+         Content  : constant String := Text (Line_Start .. Text'Last);
+         Hl_First : constant Integer :=
+           (if M_First >= 0
+            then Integer'Max (M_First, Content'First) else -1);
+         Hl_Last  : constant Integer :=
+           (if M_First >= 0
+            then Integer'Min (M_Last, Content'Last) else -1);
       begin
-         if Text'Length = 0 then
-            Put_Line (Prefix);
-            return 1;
-         end if;
-
-         while I <= Text'Last loop
-            if Text (I) = Ada.Characters.Latin_1.LF then
-               Put_Line (Prefix & To_String (Line_Buf));
-               Rows_Out := Rows_Out + 1;
-               Line_Buf := Null_Unbounded_String;
-               Line_W   := 0;
-               Word_S   := I + 1;
-               Word_W   := 0;
-               I        := I + 1;
-            elsif Text (I) = ' ' then
-               if Word_W > 0 then
-                  if Line_W + Word_W > Max_W then
-                     Put_Line (Prefix & To_String (Line_Buf));
-                     Rows_Out := Rows_Out + 1;
-                     Line_Buf := To_Unbounded_String (Text (Word_S .. I - 1));
-                     Line_W   := Word_W;
-                  else
-                     if Line_W > 0 then
-                        Append (Line_Buf, ' ');
-                        Line_W := Line_W + 1;
-                     end if;
-                     Append (Line_Buf, Text (Word_S .. I - 1));
-                     Line_W := Line_W + Word_W;
-                  end if;
-                  Word_W := 0;
-               end if;
-               Word_S := I + 1;
-               I      := I + 1;
-            else
-               declare
-                  I2 : Positive := I;
-                  W  : constant Natural := Utf8_Width (Text, I2);
-               begin
-                  Word_W := Word_W + W;
-                  I      := I2;
-               end;
-            end if;
-         end loop;
-
-         --  Flush remaining word.
-         if Word_S <= Text'Last then
-            if Line_W + Word_W > Max_W and then Line_W > 0 then
-               Put_Line (Prefix & To_String (Line_Buf));
-               Rows_Out := Rows_Out + 1;
-               Put_Line (Prefix & Text (Word_S .. Text'Last));
-               Rows_Out := Rows_Out + 1;
-            else
-               if Line_W > 0 then
-                  Append (Line_Buf, ' ');
-               end if;
-               Append (Line_Buf, Text (Word_S .. Text'Last));
-               Put_Line (Prefix & To_String (Line_Buf));
-               Rows_Out := Rows_Out + 1;
-            end if;
-         elsif Length (Line_Buf) > 0 then
-            Put_Line (Prefix & To_String (Line_Buf));
-            Rows_Out := Rows_Out + 1;
-         end if;
-
-         if Rows_Out = 0 then
-            Rows_Out := 1;
-         end if;
-         return Rows_Out;
+         Emit_Line (Content, Hl_First, Hl_Last);
       end;
+      Rows_Out := Rows_Out + 1;
+
+      return Rows_Out;
    end Wrap_And_Put;
+
+   --  ── Render_Markdown ──────────────────────────────────────────────────
+
+   --  Render a complete CommonMark document to Win using ncurses attributes.
+   --  Returns the number of screen lines emitted (each Waddch LF is one
+   --  line; at minimum 1 is returned).  Do_Color gates attribute calls.
+   function Render_Markdown
+     (Win      : Coyote_Ncurses.Window;
+      Text     : String;
+      Cols     : Positive;
+      Do_Color : Boolean) return Natural
+   is
+      use Coyote_Ncurses;
+      use Interfaces.C;
+      use Interfaces.C.Strings;
+
+      Lines_Used : Natural := 0;
+
+      --  ── List-nesting state ──────────────────────────────────────────
+
+      Max_List_Depth : constant := 8;
+
+      type List_Kind is (Bullet_List, Ordered_List);
+
+      type List_Entry is record
+         Kind    : List_Kind;
+         Counter : Positive;
+      end record;
+
+      type List_Stack_Array is array (1 .. Max_List_Depth) of List_Entry;
+
+      List_Stack : List_Stack_Array;
+      List_Depth : Natural := 0;
+
+      --  Block-quote nesting depth; each level renders as A_Dim.
+      Quote_Depth : Natural := 0;
+
+      --  ── Helpers ─────────────────────────────────────────────────────
+
+      procedure Emit_LF is
+      begin
+         Waddch (Win, Ada.Characters.Latin_1.LF);
+         Lines_Used := Lines_Used + 1;
+      end Emit_LF;
+
+      --  Convert a cmark literal to an Ada String; never crashes on null.
+      function Literal
+        (Node : Coyote_Cmark.Node_Ptr) return String
+      is
+         Ptr : constant chars_ptr :=
+           Coyote_Cmark.Node_Get_Literal (Node);
+      begin
+         if Ptr = Null_Ptr then
+            return "";
+         end if;
+         return Value (Ptr);
+      end Literal;
+
+      --  Emit a multi-line string line-by-line, each line preceded by Prefix.
+      procedure Emit_Lines
+        (S      : String;
+         Prefix : String)
+      is
+         Line_Start : Positive := S'First;
+         J          : Positive;
+      begin
+         if S'Length = 0 then
+            return;
+         end if;
+         J := S'First;
+         while J <= S'Last loop
+            if S (J) = Ada.Characters.Latin_1.LF then
+               Waddstr (Win, Prefix);
+               Waddstr (Win, S (Line_Start .. J - 1));
+               Emit_LF;
+               Line_Start := J + 1;
+            end if;
+            J := J + 1;
+         end loop;
+         if Line_Start <= S'Last then
+            Waddstr (Win, Prefix);
+            Waddstr (Win, S (Line_Start .. S'Last));
+            Emit_LF;
+         end if;
+      end Emit_Lines;
+
+      --  ── Parse and iterate ───────────────────────────────────────────
+
+      C_Text : constant char_array := To_C (Text, Append_Nul => True);
+      Doc    : Coyote_Cmark.Node_Ptr;
+      Iter   : Coyote_Cmark.Iter_Ptr;
+      Ev     : Coyote_Cmark.Event_Type_Int;
+      Node   : Coyote_Cmark.Node_Ptr;
+      NT     : Coyote_Cmark.Node_Type_Int;
+
+   begin
+      Doc  := Coyote_Cmark.Parse_Document
+                (C_Text, size_t (Text'Length), Coyote_Cmark.OPT_DEFAULT);
+      Iter := Coyote_Cmark.Iter_New (Doc);
+
+      loop
+         Ev := Coyote_Cmark.Iter_Next (Iter);
+         exit when Ev = Coyote_Cmark.EVENT_DONE;
+
+         Node := Coyote_Cmark.Iter_Get_Node (Iter);
+         NT   := Coyote_Cmark.Node_Get_Type (Node);
+
+         if Ev = Coyote_Cmark.EVENT_ENTER then
+
+            if NT = Coyote_Cmark.NODE_HEADING then
+               declare
+                  Level    : constant Integer :=
+                    Integer (Coyote_Cmark.Node_Get_Heading_Level (Node));
+                  H_Prefix : String (1 .. Level);
+               begin
+                  H_Prefix := (others => '#');
+                  if Do_Color then
+                     Wattron (Win, A_Bold);
+                  end if;
+                  Waddstr (Win, H_Prefix & " ");
+               end;
+
+            elsif NT = Coyote_Cmark.NODE_THEMATIC_BREAK then
+               for K in 1 .. Cols loop
+                  Waddstr (Win, UC_HORIZ);
+               end loop;
+               Emit_LF;
+
+            elsif NT = Coyote_Cmark.NODE_BLOCK_QUOTE then
+               Quote_Depth := Quote_Depth + 1;
+               if Do_Color then
+                  Wattron (Win, A_Dim);
+               end if;
+
+            elsif NT = Coyote_Cmark.NODE_LIST then
+               if List_Depth < Max_List_Depth then
+                  List_Depth := List_Depth + 1;
+                  if Coyote_Cmark.Node_Get_List_Type (Node)
+                     = Coyote_Cmark.LIST_ORDERED
+                  then
+                     List_Stack (List_Depth) :=
+                       (Kind    => Ordered_List,
+                        Counter =>
+                          Positive
+                            (Coyote_Cmark.Node_Get_List_Start (Node)));
+                  else
+                     List_Stack (List_Depth) :=
+                       (Kind => Bullet_List, Counter => 1);
+                  end if;
+               end if;
+
+            elsif NT = Coyote_Cmark.NODE_ITEM then
+               if List_Depth > 0 then
+                  case List_Stack (List_Depth).Kind is
+                     when Bullet_List =>
+                        Waddstr (Win, UC_BULLET & " ");
+                     when Ordered_List =>
+                        declare
+                           N_Img : constant String :=
+                             Ada.Strings.Fixed.Trim
+                               (Positive'Image
+                                  (List_Stack (List_Depth).Counter),
+                                Ada.Strings.Left);
+                        begin
+                           Waddstr (Win, N_Img & ". ");
+                           List_Stack (List_Depth).Counter :=
+                             List_Stack (List_Depth).Counter + 1;
+                        end;
+                  end case;
+               end if;
+
+            elsif NT = Coyote_Cmark.NODE_CODE_BLOCK then
+               if Do_Color then
+                  Wattron (Win, A_Dim);
+               end if;
+               Emit_Lines (Literal (Node), "  ");
+               if Do_Color then
+                  Wattroff (Win, A_Dim);
+               end if;
+
+            elsif NT = Coyote_Cmark.NODE_EMPH then
+               if Do_Color then
+                  Wattron (Win, A_Dim);
+               end if;
+
+            elsif NT = Coyote_Cmark.NODE_STRONG then
+               if Do_Color then
+                  Wattron (Win, A_Bold);
+               end if;
+
+            elsif NT = Coyote_Cmark.NODE_CODE then
+               if Do_Color then
+                  Wattron (Win, A_Reverse);
+               end if;
+               Waddstr (Win, Literal (Node));
+               if Do_Color then
+                  Wattroff (Win, A_Reverse);
+               end if;
+
+            elsif NT = Coyote_Cmark.NODE_TEXT then
+               Waddstr (Win, Literal (Node));
+
+            elsif NT = Coyote_Cmark.NODE_SOFTBREAK then
+               Waddstr (Win, " ");
+
+            elsif NT = Coyote_Cmark.NODE_LINEBREAK then
+               Emit_LF;
+
+            end if;
+
+         elsif Ev = Coyote_Cmark.EVENT_EXIT then
+
+            if NT = Coyote_Cmark.NODE_HEADING then
+               if Do_Color then
+                  Wattroff (Win, A_Bold);
+               end if;
+               Emit_LF;
+
+            elsif NT = Coyote_Cmark.NODE_BLOCK_QUOTE then
+               if Quote_Depth > 0 then
+                  Quote_Depth := Quote_Depth - 1;
+               end if;
+               if Do_Color then
+                  Wattroff (Win, A_Dim);
+               end if;
+
+            elsif NT = Coyote_Cmark.NODE_PARAGRAPH then
+               Emit_LF;
+
+            elsif NT = Coyote_Cmark.NODE_LIST then
+               if List_Depth > 0 then
+                  List_Depth := List_Depth - 1;
+               end if;
+
+            elsif NT = Coyote_Cmark.NODE_EMPH then
+               if Do_Color then
+                  Wattroff (Win, A_Dim);
+               end if;
+
+            elsif NT = Coyote_Cmark.NODE_STRONG then
+               if Do_Color then
+                  Wattroff (Win, A_Bold);
+               end if;
+
+            end if;
+
+         end if;
+      end loop;
+
+      Coyote_Cmark.Iter_Free (Iter);
+      Coyote_Cmark.Node_Free (Doc);
+
+      return (if Lines_Used = 0 then 1 else Lines_Used);
+   end Render_Markdown;
 
    --  ── Do_Render ────────────────────────────────────────────────────────
 
@@ -698,25 +907,23 @@ package body Coyote_App.Frontend.TUI is
          begin
             while I <= Count and then Used < Eff_Rows - 2 loop
                declare
-                  S : constant Segment := Buffer.Get (I);
-                  Hi : constant Boolean := (I = Search_Hi);
-                  N : Natural;
+                  S  : constant Segment  := Buffer.Get (I);
+                  Hi : constant Boolean  :=
+                    Search_Hi /= 0 and then I = Search_Hi;
+                  MS : constant Integer  :=
+                    (if Hi then Integer (TUI_State.Search_Match_Offset)
+                     else -1);
+                  ML : constant Natural  :=
+                    (if Hi then TUI_State.Search_Match_Len else 0);
+                  N  : Natural;
                begin
-                  if Hi and then Search_Hi /= 0 then
-                     Wattron  (Content_Win, A_Reverse);
-                     Waddstr  (Content_Win, UC_TRI_R & " match");
-                     Wattrset (Content_Win, A_Normal);
-                     Waddch   (Content_Win, Ada.Characters.Latin_1.LF);
-                     if Used < Eff_Rows - 2 then
-                        Used := Used + 1;
-                     end if;
-                  end if;
                   case S.Kind is
                      when User_Turn =>
                         Wattron (Content_Win, A_Bold);
                         N := Wrap_And_Put
                                (Content_Win, To_String (S.Content),
-                                Eff_Cols, Prefix => UC_TRI_R & " ");
+                                Eff_Cols, Prefix => UC_TRI_R & " ",
+                                Match_Start => MS, Match_Len => ML);
                         Wattrset (Content_Win, A_Normal);
                         Used := Used + N;
 
@@ -724,21 +931,31 @@ package body Coyote_App.Frontend.TUI is
                         Wattron (Content_Win, A_Bold);
                         N := Wrap_And_Put
                                (Content_Win, To_String (S.Content),
-                                Eff_Cols, Prefix => UC_HOOK_L & " ");
+                                Eff_Cols, Prefix => UC_HOOK_L & " ",
+                                Match_Start => MS, Match_Len => ML);
                         Wattrset (Content_Win, A_Normal);
                         Used := Used + N;
 
                      when Assistant_Text =>
-                        N    := Wrap_And_Put
+                        if S.Complete then
+                           N := Render_Markdown
+                                  (Content_Win,
+                                   To_String (S.Content),
+                                   Eff_Cols, Use_Color);
+                        else
+                           N := Wrap_And_Put
                                   (Content_Win, To_String (S.Content),
-                                   Eff_Cols);
+                                   Eff_Cols,
+                                   Match_Start => MS, Match_Len => ML);
+                        end if;
                         Used := Used + N;
 
                      when Thinking_Block =>
                         Wattron (Content_Win, A_Dim);
                         N    := Wrap_And_Put
                                   (Content_Win, To_String (S.Content),
-                                   Eff_Cols, Prefix => UC_BOX_V & " ");
+                                   Eff_Cols, Prefix => UC_BOX_V & " ",
+                                   Match_Start => MS, Match_Len => ML);
                         Wattrset (Content_Win, A_Normal);
                         Used := Used + N;
 
@@ -1165,7 +1382,9 @@ package body Coyote_App.Frontend.TUI is
                      Append (Buf, To_String (M.Provider) & "/"
                              & To_String (M.Model_Id));
                      Append (Buf, Ada.Characters.Latin_1.HT);
-                     Append (Buf, To_String (M.Name));
+                     Append (Buf,
+                             To_String (M.Provider) & "  "
+                             & To_String (M.Name));
                      Append (Buf, Ada.Characters.Latin_1.LF);
                   end loop;
                   declare
@@ -1844,12 +2063,23 @@ package body Coyote_App.Frontend.TUI is
       return TUI_State.Search_Seg;
    end Current_Search_Seg;
 
+   function Current_Search_Match_Offset (F : Instance) return Natural is
+      pragma Unreferenced (F);
+   begin
+      return TUI_State.Search_Match_Offset;
+   end Current_Search_Match_Offset;
+
+   function Current_Search_Match_Len (F : Instance) return Natural is
+      pragma Unreferenced (F);
+   begin
+      return TUI_State.Search_Match_Len;
+   end Current_Search_Match_Len;
+
    function Stats_Summary_Text (F : Instance) return String is
       pragma Unreferenced (F);
    begin
       return TUI_State.Stats_Summary;
    end Stats_Summary_Text;
-
 
    --  ── Read_Prompt ──────────────────────────────────────────────────────
 

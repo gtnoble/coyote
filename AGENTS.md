@@ -105,6 +105,17 @@ src/
                         --   mkstemp, isatty, close fd)
   coyote_tui_terminal_c.c      -- C implementations of all tui_* functions;
                         --   no Ada-accessible symbols; linked into libcoyote.a
+  coyote_cmark_c.c     -- C shim for libcmark: one getter per enum constant
+                        --   (`cmark_shim_node_*`, `cmark_shim_list_*`,
+                        --   `cmark_shim_event_*`) plus `cmark_shim_get_literal`
+                        --   (null-safe literal accessor); all resolved at
+                        --   package elaboration time by `Coyote_Cmark`
+  coyote_cmark.ads/.adb -- Thin Ada binding to libcmark: opaque Node_Ptr /
+                        --   Iter_Ptr (System.Address), integer enum-constant
+                        --   variables initialised from C shim getters, and
+                        --   Import bindings to Parse_Document, Node_Free,
+                        --   Node_Get_Type/Literal/Heading_Level/List_Type/
+                        --   List_Start, Iter_New/Next/Get_Node/Free
   coyote_utils.ads/.adb -- Small utilities shared across entry points
                         --   (CLI arg resolution, session prefix stripping)
   acme.ads/.adb          -- Root package; Win_File_Path helper
@@ -243,49 +254,39 @@ incoming `LLM.Events.Agent_Event'Class` value to the appropriate
 turn footers, notices, etc.).  Both the acme and TUI paths share the same
 `Dispatch_Event` implementation.
 
-### TUI — Known unimplemented features
+### TUI — Implemented features
 
-Two features from the original TUI specification remain to be built:
+Both originally listed features are now complete:
 
-**1. Markdown rendering via `libcmark`**
+**1. Markdown rendering via `libcmark`** *(implemented)*
 
-`Assistant_Text` segments are currently displayed as raw markdown text — no
-rendering occurs at turn completion.  The full design is:
+Completed `Assistant_Text` segments (`Complete = True`) are rendered through
+`Render_Markdown` in `coyote_app-frontend-tui.adb`.  The renderer calls
+`Coyote_Cmark.Parse_Document`, walks the AST with `cmark_iter`, and emits
+ncurses attributes:
 
-- Add `libcmark` as a system dependency (`libcmark-dev`; add `-lcmark` to
-  `coyote.gpr` linker switches).
-- Write `src/coyote_cmark.ads/.adb`: thin Ada binding to
-  `cmark_parse_document` / `cmark_iter` / `cmark_node_free`.
-- Each `Segment` already carries `Complete : Boolean` (set by
-  `Set_Last_Complete` on `message_end`).  When `Complete = True`, `Do_Render`
-  should call the cmark renderer instead of `Wrap_And_Put`.
-- The cmark renderer walks the AST and emits ncurses attributes: `A_Bold` for
-  `**bold**`, `A_Dim` for `*italic*`, `A_Reverse` for `` `code` ``, indented
-  `A_Dim` blocks for fenced code, `•`/`1.` prefixes for lists, `│` gutter for
-  blockquotes, full-width `─` for `---`.  `NO_COLOR` gates colour pair calls
-  (same pattern as the existing `System_Notice` rendering).
-- While streaming (`Complete = False`) the segment continues to render as raw
-  text, preserving live output.
+- `A_Bold` for `**strong**` and headings (with `#`×level prefix)
+- `A_Dim` for `*emphasis*`, fenced code blocks, and block quotes
+- `A_Reverse` for `` `inline code` ``
+- `UC_BULLET / N.` prefixes for unordered / ordered lists
+- `UC_HORIZ`×cols for thematic breaks (`---`)
 
-**2. Search — inline character-level match highlighting**
+Streaming segments (`Complete = False`) continue to render via `Wrap_And_Put`
+(raw text), preserving live output.
 
-`/` search, `n`/`N` navigation, and viewport jumping are fully implemented.
-What is missing is *inline* highlighting: the current renderer prepends a
-`▶ match` indicator line before the matching segment but does not highlight
-the matched substring within the text.  The full design is:
+`Coyote_Cmark` is a thin Ada binding backed by a C shim
+(`src/coyote_cmark_c.c`) whose trivial getter functions resolve all
+`cmark_node_type`, `cmark_list_type`, and `cmark_event_type` enum values at
+package elaboration time — ensuring the values always agree with the installed
+`<cmark.h>` regardless of library version.
 
-- `Match_Record` currently stores only `Seg_Index`.  Extend it with
-  `Byte_Offset : Natural` (first match offset within `Content`).
-- `Compute_Matches` already uses `Ada.Strings.Fixed.Index`; capture the
-  returned offset and store it in `Match_Record`.
-- Pass `Match_Start` and `Match_Len` into `Wrap_And_Put` (optional parameters,
-  default `-1`/`0`).  Inside the word-wrap loop, track the current byte
-  position in `Text`; when it enters `[Match_Start, Match_Start+Match_Len)`,
-  call `Wattron(A_Reverse)` before writing the character and
-  `Wattroff(A_Reverse)` after.
-- Remove the prepended `▶ match` indicator line from `Do_Render` once inline
-  highlighting is in place.
+**2. Search — inline character-level match highlighting** *(implemented)*
 
+`/` search, `n`/`N` navigation, viewport jumping, and inline `A_Reverse`
+highlighting of the matched substring are all implemented.  `Match_Record`
+stores `Byte_Offset` and `Match_Len`; `Wrap_And_Put` accepts `Match_Start`
+and `Match_Len` optional parameters and brackets the matching bytes with
+`Wattron`/`Wattroff (A_Reverse)`.
 
 ## Plumb Token Schema
 

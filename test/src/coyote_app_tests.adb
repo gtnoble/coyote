@@ -1864,6 +1864,33 @@ package body Coyote_App_Tests is
               "Going backward from first match must wrap to segment 5");
    end Test_Advance_Search_Backward_Wrap;
 
+   procedure Test_Search_Match_Byte_Offset (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_App.Frontend.TUI;
+      F : Instance;
+   begin
+      F.Clear_Buffer;
+      --  "world" starts at byte offset 6 (0-based) inside "hello world".
+      F.Append_Text ("hello world");
+      Assert (F.Match_Count_For ("world") = 1,
+              "Setup: one segment must match 'world'");
+      Assert (F.Current_Search_Match_Offset = 6,
+              "Byte_Offset must point to 'w' in 'hello world' (offset 6)");
+   end Test_Search_Match_Byte_Offset;
+
+   procedure Test_Search_Match_Len (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_App.Frontend.TUI;
+      F : Instance;
+   begin
+      F.Clear_Buffer;
+      F.Append_Text ("the quick brown fox");
+      Assert (F.Match_Count_For ("quick") = 1,
+              "Setup: one segment must match 'quick'");
+      Assert (F.Current_Search_Match_Len = 5,
+              "Match_Len must equal the search term length (5 for 'quick')");
+   end Test_Search_Match_Len;
+
    --  ── TUI stats summary ────────────────────────────────────────────────
 
    procedure Test_Stats_Summary_Placeholder (T : in out Test) is

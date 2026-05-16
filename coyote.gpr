@@ -19,7 +19,7 @@ project Coyote is
    end Binder;
 
    package Linker is
-      for Switches ("Ada") use ("-lcurl", "-lncursesw");
+      for Switches ("Ada") use ("-lcurl", "-lncursesw", "-lcmark");
    end Linker;
 
    package Install is

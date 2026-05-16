@@ -108,10 +108,11 @@ package Coyote_App.Frontend.TUI is
 
    --  Segment index of the current search match (0 when no match set).
    function Current_Search_Seg (F : Instance) return Natural;
+   function Current_Search_Match_Offset (F : Instance) return Natural;
+   function Current_Search_Match_Len    (F : Instance) return Natural;
 
    --  The current stats-summary text (placeholder when not yet set).
    function Stats_Summary_Text (F : Instance) return String;
-
 
 private
 

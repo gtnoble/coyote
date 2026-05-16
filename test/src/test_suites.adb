@@ -11,6 +11,7 @@ with Dispatch_Tests;
 with Session_Lister_Tests;
 with Coyote_App_Tests;
 with Coyote_Utils_Tests;
+with Coyote_Cmark_Tests;
 with Session_History_Tests;
 with Tool_URI_Tests;
 with Subagent_Integration_Tests;
@@ -74,6 +75,8 @@ package body Test_Suites is
      new AUnit.Test_Caller (LLM_Skills_Tests.Test);
    package Coyote_Utils_Caller is
      new AUnit.Test_Caller (Coyote_Utils_Tests.Test);
+   package Coyote_Cmark_Caller is
+     new AUnit.Test_Caller (Coyote_Cmark_Tests.Test);
    package LLM_HTTP_Caller is
      new AUnit.Test_Caller (LLM_HTTP_Tests.Test);
    package LLM_Settings_Caller is
@@ -899,6 +902,12 @@ package body Test_Suites is
       Result.Add_Test (App_State_Caller.Create
         ("TUI search: Advance_Search wraps backward from first match",
          Coyote_App_Tests.Test_Advance_Search_Backward_Wrap'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("TUI search: Match_Record carries correct byte offset",
+         Coyote_App_Tests.Test_Search_Match_Byte_Offset'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("TUI search: Match_Record carries correct match length",
+         Coyote_App_Tests.Test_Search_Match_Len'Access));
 
       --  TUI stats summary
       Result.Add_Test (App_State_Caller.Create
@@ -1148,6 +1157,50 @@ package body Test_Suites is
       Result.Add_Test (Coyote_Utils_Caller.Create
         ("Coyote_Utils Strip_Session_Prefix returns empty for empty input",
          Coyote_Utils_Tests.Test_Strip_Session_Prefix_Empty'Access));
+
+      --  Coyote_Cmark binding tests
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote_Cmark enum constants are non-negative after elaboration",
+         Coyote_Cmark_Tests.Test_Constants_Are_Non_Negative'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote_Cmark Parse_Document returns non-null root node",
+         Coyote_Cmark_Tests.Test_Parse_Returns_Non_Null'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote_Cmark root node type equals NODE_DOCUMENT",
+         Coyote_Cmark_Tests.Test_Root_Type_Is_Document'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote_Cmark iterator yields TEXT event for plain paragraph",
+         Coyote_Cmark_Tests.Test_Iterator_Yields_Text_Event'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote_Cmark TEXT node literal matches the input word",
+         Coyote_Cmark_Tests.Test_Literal_Matches_Input'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote_Cmark Node_Free and Iter_Free do not raise",
+         Coyote_Cmark_Tests.Test_Free_Does_Not_Raise'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote_Cmark Node_Get_Heading_Level returns correct level",
+         Coyote_Cmark_Tests.Test_Heading_Level'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote_Cmark Node_Get_List_Type returns LIST_BULLET",
+         Coyote_Cmark_Tests.Test_List_Type_Is_Bullet'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote_Cmark Node_Get_List_Type returns LIST_ORDERED",
+         Coyote_Cmark_Tests.Test_List_Type_Is_Ordered'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote_Cmark Node_Get_List_Start returns declared ordinal",
+         Coyote_Cmark_Tests.Test_List_Start_Ordinal'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote_Cmark Node_Get_Literal on code block returns content",
+         Coyote_Cmark_Tests.Test_Code_Block_Literal'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote_Cmark shim returns empty string for null literal",
+         Coyote_Cmark_Tests.Test_Get_Literal_Null_Safety'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote_Cmark event constants are mutually distinct",
+         Coyote_Cmark_Tests.Test_Event_Constants_Are_Distinct'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote_Cmark Render_Markdown node-type constants are distinct",
+         Coyote_Cmark_Tests.Test_Node_Constants_Are_Distinct'Access));
 
       --  LLM.HTTP tests
       Result.Add_Test (LLM_HTTP_Caller.Create

@@ -1,4 +1,5 @@
 with AUnit.Test_Suites;
+with Coyote_Cmark_Tests;
 with Coyote_Utils_Tests;
 with Dispatch_Tests;
 with LLM_Compaction_Tests;

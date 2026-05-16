@@ -2322,6 +2322,7 @@ package body Coyote_App is
                   end if;
                end;
             end loop Prompt_Loop;
+            My_Frontend.Shutdown;
 
             State.Signal_Shutdown;
 
