@@ -7,12 +7,12 @@ Sessions are stored in a JSONL format compatible with [pi](https://github.com/ma
 ## Features
 
 - **Streaming output** — thinking blocks, assistant text, and tool summaries rendered live in the acme window body
-- **Built-in tools** — `bash`, `read`, `write`, `edit`, `find`, `glob`, and `spawn_subagent`
+- **Built-in tools** — `bash`, `read`, `write`, `edit`, `find`, `glob`, and `shell — use to spawn ephemeral subagents with `coyote --one-shot --prompt -``
 - **Multiple providers** — OpenAI Chat Completions, Anthropic Messages, OpenRouter, and GitHub Copilot
 - **Context compaction** — automatic or manual summarisation of older conversation history to stay within model context windows
 - **Plumber integration** — switch model or thinking level by button-3 clicking `coyote-model+` or `coyote-thinking+` tokens in any acme window; button-3 a `coyote-session+` token to open a session in a new window; button-3 a `coyote-fork+` token at the end of any turn to branch the session at that point
 - **Session persistence** — conversations saved to `~/.coyote/sessions/` as JSONL files
-- **Subagent support** — `spawn_subagent` opens a child `+coyote:<label>` window for parallel tasks
+- **Subagent support** — spawn an ephemeral coyote window by invoking coyote via the shell tool: pipe the prompt to stdin and call `coyote --one-shot --prompt -`. Use `--model provider/id`, `--agent TEXT|@path`, and `--name LABEL` to control the subagent. Session lineage is recorded automatically.
 
 ## Requirements
 
@@ -156,14 +156,7 @@ Model specs use `provider/model-id` format:
 
 | Tool | Description |
 |---|---|
-| `bash` | Execute a shell command; returns combined stdout/stderr |
-| `read` | Read a file, with optional `offset`/`limit` line slicing |
-| `write` | Write (or overwrite) a file; parent directories created automatically |
-| `edit` | Replace exactly one occurrence of `oldText` with `newText` in a file |
-| `find` | Recursively list files matching a shell-style wildcard pattern |
-| `glob` | Alias for `find` |
-| `spawn_subagent` | Launch a child coyote instance in a new acme window and return its result |
-
+| `shell` | Execute a shell command; use it to spawn ephemeral subagents: pipe the prompt to stdin and call `coyote --one-shot --prompt -` (pass `--model`, `--agent`, `--name` to control the subagent) |
 ## Project Context and Skills
 
 Coyote builds the system prompt from several optional sources, loaded each time a session starts. This lets you inject project-specific instructions and reusable reference knowledge without altering the agent's core prompt.
@@ -174,13 +167,7 @@ Place an `AGENTS.md` file in the root of your working directory and coyote will 
 
 ```
 your-project/
-  AGENTS.md        ← picked up automatically
-  src/
-  ...
-```
-
-### Context files (`.coyote/context/`)
-
+| `shell` | Execute a shell command; use it to spawn ephemeral subagents with `coyote --one-shot --prompt -` |
 For finer-grained or shareable context, place Markdown files inside a `.coyote/context/` directory. Files are loaded in alphabetical order and injected into the system prompt in the same `# Project Context` block as `AGENTS.md`.
 
 ```
@@ -242,7 +229,7 @@ Skills missing a `name` or `description` in their frontmatter are silently skipp
 
 ### Agent Definitions (`~/.coyote/agents/`, `~/.agents/agents/`, `.coyote/agents/`, `.agents/agents/`)
 
-Agent definitions are named system-prompt files that the agent can spawn as subagents via the `spawn_subagent` tool. Each definition lives in its own subdirectory and must contain an `AGENT.md` file with YAML frontmatter declaring `name` and `description` fields:
+Agent definitions are named system-prompt files that the agent can be invoked as subagents by spawning coyote via the shell tool. Each definition lives in its own subdirectory and must contain an `AGENT.md` file with YAML frontmatter declaring `name` and `description` fields:
 
 ```
 ~/.coyote/agents/
@@ -251,31 +238,9 @@ Agent definitions are named system-prompt files that the agent can spawn as suba
     guidelines.md   ← optional supporting files (accessible via location)
 ```
 
-**`AGENT.md` structure:**
+[...snip...]
 
-```markdown
----
-name: code-reviewer
-description: "Reviews Ada source for style, correctness, and potential issues."
----
-
-You are an expert Ada code reviewer...
-```
-
-Coyote scans four directories at startup (in this order):
-
-1. `~/.coyote/agents/` — global, coyote-specific
-2. `~/.agents/agents/` — global, provider-agnostic (shared across agents)
-3. `{Cwd}/.coyote/agents/` — project-local, coyote-specific
-4. `{Cwd}/.agents/agents/` — project-local, provider-agnostic
-
-When two definitions share the same `name`, the later entry (more project-local) shadows the earlier one.
-
-Discovered definitions are listed in the system prompt as an `<available_agents>` block including each agent's name, description, and file location. The location lets the agent access files packaged alongside the definition (e.g. a `guidelines.md` sibling).
-
-To invoke an agent definition use `--agent NAME` on the command line, or pass the `agent` field (by name) to the `spawn_subagent` tool. Only names are accepted — inline text and file paths are not valid values for `--agent`.
-
-### System prompt assembly order
+To invoke an agent definition use `--agent NAME` on the command line when launching a new coyote process (e.g. `printf "..." | coyote --one-shot --agent NAME --prompt -`), or provide `--agent NAME` when launching an interactive coyote window. Only names are accepted — inline text and file paths are not valid values for `--agent`.
 
 ```
 [Agent_Def from --agent NAME]          ← replaces default preamble when supplied

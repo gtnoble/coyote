@@ -169,6 +169,34 @@ Coyote uses its own family of plumb tokens. All token strings begin with a
   specific running window.
 - `bin/coyote_open` is a native Ada binary, not a shell script.
 
+## Subagent invocation (shell-based)
+
+The dedicated built-in spawn_subagent tool has been removed. Instead, subagents should be launched by invoking the coyote binary itself via the shell tool or a shell pipeline. This preserves session lineage and makes prompt passing robust for long or preprocessed prompts.
+
+Key points:
+
+- Canonical invocation: pipe the prompt to stdin and call coyote with --one-shot and --prompt -
+
+  Example:
+
+  printf 'Review the following code...\n' | coyote --one-shot --prompt -
+
+  You may also pass --model PROVIDER/ID, --agent NAME, and --name LABEL to control the spawned instance.
+
+- Prompt preprocessing: use standard filters or macro preprocessors before piping to coyote. For example, with m4:
+
+  printf 'include(tmpl.m4)' | m4 | coyote --one-shot --prompt -
+
+  Or with environment substitution:
+
+  envsubst < tmpl.txt | coyote --one-shot --prompt -
+
+- Session lineage: on startup coyote will auto-promote an inherited COYOTE_SESSION_ID to COYOTE_PARENT_SESSION when COYOTE_PARENT_SESSION is not already set. This ensures child sessions record their parentSession automatically when launched from a parent coyote process.
+
+- Abort semantics: the shell tool implementation kills the child process group on abort (uses a negative PID kill), so spawned coyotes and their descendants are terminated cleanly if an abort is requested.
+
+
+
 ## 9P / Acme VFS Conventions
 
 - The acme namespace is mounted with `Ns_Mount ("acme")`.
