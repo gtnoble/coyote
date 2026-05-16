@@ -287,7 +287,7 @@ conform to the guidelines it defines.
 - The same principle applies to any other interpreter or tool that accepts
   code via standard input (e.g. `python`, `awk`, `sed` scripts): prefer
   `stdin` over embedding code in the command string.
-- **Always load the `ed` skill before editing or writing any file.** The skill is at `/home/gtnoble/.coyote/skills/ed/SKILL.md`. It defines when to use `ed`, `sed`, `perl -0777 -i -pe`, or `printf >>` and provides the full command reference.
+- **Always load the `ed` skill before editing or writing any file.** The skill is at `/home/gtnoble/.coyote/skills/ed/SKILL.md`. It defines when to use `ed`, `sed`, `perl -0777 -i -pe`, or `printf >>` and provides the full command reference. Always invoke ed as `ed -vs` (verbose + silent) for informative error messages.
 
 ## Testing
 
@@ -325,7 +325,7 @@ A feature is **not complete** until all of the following are satisfied:
 ## Editing Discipline
 
 Before making any code edits:
-**Before making any edits, load the `ed` skill** (`/home/gtnoble/.coyote/skills/ed/SKILL.md`) to ensure the correct file-editing tool is selected.
+**Before making any edits, load the `ed` skill** (`/home/gtnoble/.coyote/skills/ed/SKILL.md`) to ensure the correct file-editing tool is selected. Always use `ed -vs` when invoking ed.
 
 
 1. **Map every affected site first.** Identify all call sites, declaration

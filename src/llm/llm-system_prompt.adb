@@ -270,6 +270,10 @@ package body LLM.System_Prompt is
             & " (pass commands via the stdin field for ex/ed;"
             & " use perl -0777 -i -pe for multi-line patterns)"
             & ASCII.LF
+            & "- Always invoke ed as `ed -vs`: -v prints verbose error"
+            & " explanations for every `?` so failures are diagnosable;"
+            & " -s suppresses byte-count output"
+            & ASCII.LF
             & "- When using ed, combine edit and spot-check in one call:"
             & " add a range p command after the edits but before w"
             & " (e.g. 105a / text / . / 99,119p / w / q);"
