@@ -2,19 +2,32 @@
 
 ## Project Overview
 
-The project is an acme text editor frontend for a native Ada coding-agent
-harness. The frontend opens a `+coyote` acme window, runs the in-process
-`LLM.Agent` loop, and renders streaming model/tool output inside acme.
+The project is a multi-frontend Ada coding-agent harness.  Three frontends are
+available and selected automatically at startup:
+
+- **Acme frontend** — opens a `+coyote` acme window and renders streaming
+  output there (selected when `$ACME` is set, i.e. when running inside acme).
+- **TUI frontend** — ANSI/VT100 terminal UI with a typed conversation buffer,
+  vi-style scroll navigation, and `$EDITOR`/`$PAGER` integration (selected
+  when stdout is a TTY and `$ACME` is not set).
+- **Plain frontend** — line-oriented text output with no ANSI (selected for
+  `--one-shot` mode and when stdout is not a TTY, e.g. piped output).
+
+All frontends implement the abstract `Coyote_App.Frontend.Instance` interface
+and drive the same `LLM.Agent` agentic loop.
 
 **plan9port** (acme, plumber, 9P utilities) is installed at
 `/usr/local/plan9`. The `PLAN9` environment variable should point there;
 binaries such as `acmeevent` live in `/usr/local/plan9/bin/`.
 
 Three executables are built:
-- `bin/coyote` — the main frontend (opens a `+coyote` acme window)
+- `bin/coyote` — the main entry point; selects the appropriate frontend
+  (`Acme_Frontend`, `TUI_Frontend`, or `Plain_Frontend`) based on `$ACME` and
+  TTY detection, then calls `Coyote_App.Run` or `Coyote_App.Run_TUI`
 - `bin/coyote_list_sessions` — lists saved sessions for the current directory
 - `bin/coyote_open` — opens a tool-call detail window; launched by the plumber
   for `coyote-session+UUID/tool/TOKEN` links
+
 ## Documentation
 
 - `docs/skills.md` — full reference for the `SKILL.md` file format
@@ -63,13 +76,35 @@ Object files go to `obj/<profile>/`, binaries to `bin/`.
 src/
   coyote.adb            -- Entry point; parses --session / --model / --agent /
                         --   --no-tools / --no-session /
-                        --   --prompt / --one-shot / --name / --prompt-filter flags
-  coyote_app.ads/.adb   -- App_State, options, acme/plumb tasks, Run procedure
-  coyote_app-dispatch.ads/.adb -- Dispatch_Event: native LLM event → acme window
+                        --   --prompt / --one-shot / --name / --prompt-filter flags;
+                        --   detects frontend (Acme/TUI/Plain) and dispatches
+                        --   to Coyote_App.Run or Coyote_App.Run_TUI
+  coyote_app.ads/.adb   -- App_State, Options (including Frontend_Kind),
+                        --   Run (acme path) and Run_TUI (TUI path) procedures;
+                        --   inner tasks: Agent_Task, Acme_Event_Task, Plumb_*
+  coyote_app-dispatch.ads/.adb -- Dispatch_Event: native LLM event → Frontend'Class
   coyote_app-history.ads/.adb  -- Session JSONL replay into the acme window
   coyote_app-utils.ads/.adb    -- Pure utility functions (formatting, token
                         --   helpers, turn footer builders, JSON helpers,
-                        --   Apply_Prompt_Filter)
+                        --   Apply_Prompt_Filter); UC_* Unicode glyph constants
+  coyote_app-frontend.ads      -- Abstract Frontend interface (Instance tagged
+                        --   limited type): Append_Text, Begin/End_Thinking,
+                        --   Begin/End_Tool, Append_Notice, Set_Status,
+                        --   Read_Prompt, Shutdown, etc.
+  coyote_app-frontend-acme_win.ads/.adb
+                        -- Concrete acme window frontend; routes all calls to
+                        --   Acme.Window.Win via a per-instance Nine_P.Client.Fs
+  coyote_app-frontend-tui.ads/.adb
+                        -- Concrete TUI frontend; maintains a typed Segment
+                        --   buffer, drives a single ncurses UI_Task for all
+                        --   rendering and input; $EDITOR/$PAGER/$fzf integration;
+                        --   vi-style navigation; `/` search with `n`/`N` cycling;
+                        --   `NO_COLOR` support; Set_Stats_Summary (TUI-specific)
+  coyote_tui_terminal.ads/.adb -- Ada bindings to C terminal primitives
+                        --   (termios save/restore/raw, TIOCGWINSZ, wcwidth,
+                        --   mkstemp, isatty, close fd)
+  coyote_tui_terminal_c.c      -- C implementations of all tui_* functions;
+                        --   no Ada-accessible symbols; linked into libcoyote.a
   coyote_utils.ads/.adb -- Small utilities shared across entry points
                         --   (CLI arg resolution, session prefix stripping)
   acme.ads/.adb          -- Root package; Win_File_Path helper
@@ -128,13 +163,30 @@ tools/
 test/src/                -- AUnit-based test suite
 ```
 
+## Frontend Selection
+
+`coyote.adb` selects the frontend before calling `Run` or `Run_TUI`:
+
+```
+--one-shot flag set           → Plain_Frontend  (Coyote_App.Run)
+$ACME env var non-empty       → Acme_Frontend   (Coyote_App.Run)
+stdout is a TTY               → TUI_Frontend    (Coyote_App.Run_TUI)
+otherwise (piped / no TTY)    → Plain_Frontend  (Coyote_App.Run)
+```
+
+The selected kind is stored in `Options.Frontend : Frontend_Kind`.
+TTY detection is provided by `Coyote_TUI_Terminal.Is_TTY` (calls POSIX
+`isatty(STDOUT_FILENO)` via `coyote_tui_terminal_c.c`).
+
 ## Architecture
 
-`Coyote_App.Run` drives the application with five long-lived Ada tasks:
+### Acme path — `Coyote_App.Run`
+
+Drives the application with five long-lived Ada tasks:
 
 | Task | Responsibility |
 |---|---|
-| `Agent_Task` | Owns `LLM.Agent.Session`, drives prompts, and calls `Dispatch_Event` to render each `LLM.Events.Agent_Event'Class` value into the acme window |
+| `Agent_Task` | Owns `LLM.Agent.Session`, drives prompts, calls `Dispatch_Event` to render each `LLM.Events.Agent_Event'Class` value via `Frontend'Class` |
 | `Acme_Event_Task` | Reads the acme window event file via 9P; handles Send/Stop/New/Clear/Models/Sessions/Thinking/Stats/Pause/Resume tag commands |
 | `Plumb_Model_Task` | Reads the `/coyote-model` plumb port; updates the active model via `LLM.Agent.Set_Model` |
 | `Plumb_Thinking_Task` | Reads the `/coyote-thinking` plumb port; updates the reasoning level via `LLM.Agent.Set_Thinking` |
@@ -144,9 +196,96 @@ All shared mutable state lives in `App_State`, a protected object. Each task
 opens its own `Nine_P.Client.Fs` connection to avoid cross-task 9P contention.
 The `Addr_Mutex` inside `Acme.Window.Win` serialises the addr→data write pair.
 
+### TUI path — `Coyote_App.Run_TUI`
+
+A simpler task structure — no acme window, no 9P, no plumb tasks:
+
+| Task | Responsibility |
+|---|---|
+| `Agent_Task` | Same agent loop as the acme path, but reads prompts via `My_Frontend.Read_Prompt` (blocking on `Prompt_Queue`) instead of `Commands.Dequeue`; receives `:command` strings forwarded from `UI_Task` via `Prompt_Queue`; dispatches them to `LLM.Agent` operations; calls `My_Frontend.Set_Stats_Summary` on `Session_Stats_Event` |
+| `UI_Task` (inside `Frontend.TUI`) | Single ncurses task owning all terminal I/O: polls `Wget_Wch`, dispatches vi-style key events, runs `Execute_Command`, launches `$EDITOR`/`$PAGER`/`fzf`, re-renders the segment buffer when `TUI_State.Render_Needed` is set |
+
+`UI_Task` is a package-level task object in `Coyote_App.Frontend.TUI`.  It
+declares `entry Start` and uses `select accept Start; or terminate; end select;`
+before its main loop so it terminates cleanly when `Create` is never called
+(e.g. in the test suite).  `Create` calls `UI_Task.Start` after ncurses init.
+
+### TUI command protocol
+
+When the user types `:verb [args]` in the TUI, `Execute_Command` either handles
+the command directly or forwards it to `Prompt_Queue` prefixed with `:`.
+
+Commands handled directly by `Execute_Command`:
+
+| Command | Behaviour |
+|---|---|
+| `:send [text]` | Send text as prompt (no arg → `$EDITOR`); steers if agent is running |
+| `:help` | Open keybinding reference in `$PAGER` |
+| `:stats` | Format session stats from the last `Session_Stats_Event` and open in `$PAGER` |
+| `:models` | List available models via `LLM.Model_Registry.Available_Models`, pipe through `fzf`; selection enqueues `:model provider/id` |
+| `:sessions` | List sessions via `Session_Lister.List_Sessions`, pipe through `fzf`; selection enqueues `:session UUID` |
+| `:clear` | Signal re-render |
+| `:q` | Shut down |
+
+Commands forwarded to `Prompt_Queue` (handled by `Run_TUI`'s `Agent_Task`):
+`:stop`, `:pause`, `:resume`, `:compact`, `:model`, `:thinking`, `:new`, `:session`.
+
+`Run_TUI`'s `Agent_Task` also watches for `Session_Stats_Event` in its
+`Track_Event` hook and calls `My_Frontend.Set_Stats_Summary(formatted_text)` —
+a TUI-specific (non-overriding) method — so that `:stats` always reflects the
+most recent session totals.
+
+### Dispatch
+
 `Dispatch_Event` in `Coyote_App.Dispatch` is the rendering core: it maps each
-incoming `LLM.Events.Agent_Event'Class` value to the appropriate acme window
-mutation (streaming text, tool summaries, status line updates, etc.).
+incoming `LLM.Events.Agent_Event'Class` value to the appropriate
+`Frontend'Class` call (streaming text, tool summaries, status line updates,
+turn footers, notices, etc.).  Both the acme and TUI paths share the same
+`Dispatch_Event` implementation.
+
+### TUI — Known unimplemented features
+
+Two features from the original TUI specification remain to be built:
+
+**1. Markdown rendering via `libcmark`**
+
+`Assistant_Text` segments are currently displayed as raw markdown text — no
+rendering occurs at turn completion.  The full design is:
+
+- Add `libcmark` as a system dependency (`libcmark-dev`; add `-lcmark` to
+  `coyote.gpr` linker switches).
+- Write `src/coyote_cmark.ads/.adb`: thin Ada binding to
+  `cmark_parse_document` / `cmark_iter` / `cmark_node_free`.
+- Each `Segment` already carries `Complete : Boolean` (set by
+  `Set_Last_Complete` on `message_end`).  When `Complete = True`, `Do_Render`
+  should call the cmark renderer instead of `Wrap_And_Put`.
+- The cmark renderer walks the AST and emits ncurses attributes: `A_Bold` for
+  `**bold**`, `A_Dim` for `*italic*`, `A_Reverse` for `` `code` ``, indented
+  `A_Dim` blocks for fenced code, `•`/`1.` prefixes for lists, `│` gutter for
+  blockquotes, full-width `─` for `---`.  `NO_COLOR` gates colour pair calls
+  (same pattern as the existing `System_Notice` rendering).
+- While streaming (`Complete = False`) the segment continues to render as raw
+  text, preserving live output.
+
+**2. Search — inline character-level match highlighting**
+
+`/` search, `n`/`N` navigation, and viewport jumping are fully implemented.
+What is missing is *inline* highlighting: the current renderer prepends a
+`▶ match` indicator line before the matching segment but does not highlight
+the matched substring within the text.  The full design is:
+
+- `Match_Record` currently stores only `Seg_Index`.  Extend it with
+  `Byte_Offset : Natural` (first match offset within `Content`).
+- `Compute_Matches` already uses `Ada.Strings.Fixed.Index`; capture the
+  returned offset and store it in `Match_Record`.
+- Pass `Match_Start` and `Match_Len` into `Wrap_And_Put` (optional parameters,
+  default `-1`/`0`).  Inside the word-wrap loop, track the current byte
+  position in `Text`; when it enters `[Match_Start, Match_Start+Match_Len)`,
+  call `Wattron(A_Reverse)` before writing the character and
+  `Wattroff(A_Reverse)` after.
+- Remove the prepended `▶ match` indicator line from `Do_Render` once inline
+  highlighting is in place.
+
 
 ## Plumb Token Schema
 
@@ -170,6 +309,8 @@ Coyote uses its own family of plumb tokens. All token strings begin with a
 - Model, thinking, and fork tokens are PID-tagged because they must target a
   specific running window.
 - `bin/coyote_open` is a native Ada binary, not a shell script.
+- Plumb tokens are only meaningful in the acme frontend path; the TUI frontend
+  does not read plumb ports.
 
 ## Subagent invocation (shell-based)
 
@@ -197,7 +338,8 @@ Key points:
 
 - Abort semantics: the shell tool implementation kills the child process group on abort (uses a negative PID kill), so spawned coyotes and their descendants are terminated cleanly if an abort is requested.
 
-
+- Subagent invocations always select the **Plain** frontend because stdout is a
+  pipe, not a TTY, and `--one-shot` is set.
 
 ## 9P / Acme VFS Conventions
 
@@ -213,9 +355,9 @@ Key points:
 
 `LLM.Agent` drives the in-process agentic loop. As it runs, it emits
 `LLM.Events.Agent_Event'Class` values directly to a callback in `Agent_Task`,
-which calls `Dispatch_Event` to render them into the acme window. The full
-event hierarchy is defined in `src/llm/llm-events.ads`; key types include
-`Agent_Start_Event`, `Agent_End_Event`, `Message_Update_Event`,
+which calls `Dispatch_Event` to render them via the active `Frontend'Class`.
+The full event hierarchy is defined in `src/llm/llm-events.ads`; key types
+include `Agent_Start_Event`, `Agent_End_Event`, `Message_Update_Event`,
 `Tool_Execution_Start_Event`, `Tool_Execution_End_Event`, `Message_End_Event`,
 `Model_Select_Event`, `Auto_Retry_Start_Event`, `Auto_Compaction_Start_Event`,
 `Agent_Paused_Event`, `Agent_Resumed_Event`,
@@ -301,10 +443,24 @@ conform to the guidelines it defines.
 - Protected objects and task types should be declared as `type`s (not
   singletons) so they can be tested in isolation.
 - Never share a `Nine_P.Client.Fs` or `Nine_P.Client.File` between tasks.
-- Error handling: catch exceptions at task boundaries, append a `[!] ...` line
-  to the acme window, and signal shutdown where appropriate.
+- Error handling: catch exceptions at task boundaries; in the acme path append
+  a `[!] ...` line to the window, in the TUI path call
+  `My_Frontend.Append_Notice (Error, ...)`.  Always signal shutdown.
 - `GNATCOLL.JSON` is the JSON library; use `Read` / `Get_Str` / `Get_Int`
   helpers.
+- **UC_* glyph constants** (bullet, box-drawing, gear, check, cross, arrow,
+  ellipsis, etc.) must always be taken from `Coyote_App.Utils`, not defined
+  locally and never expressed as raw Unicode string literals in Ada `String`
+  values (Ada's `Character` type is Latin-1; code points > 255 require UTF-8
+  multi-byte encoding via `Character'Val` sequences, which is what the `UC_*`
+  constants provide).
+- **Package-level task objects** that may not be started in every execution
+  context (e.g. `UI_Task` in `Coyote_App.Frontend.TUI`)
+  must declare `entry Start` and use
+  `select accept Start; or terminate; end select;` before their main loop.
+  This allows Ada's tasking runtime to terminate them cleanly when `Start` is
+  never called — for example in the test suite, which does not instantiate the
+  TUI frontend.
 
 ## Shell Tool Usage
 
@@ -334,6 +490,11 @@ cd test && alr run coyote_test
 When adding new functionality, add unit tests first (TDD preferred).
 Integration tests that require live external services should be guarded and
 clearly marked.
+
+**TUI-specific test note:** The `Coyote_App.Frontend.TUI` package contains
+package-level task object (`UI_Task`).  It must not block the test process.
+The `select accept Start; or terminate; end select;` pattern (see Coding
+Conventions above) is required to keep the test suite from hanging.
 
 ## Definition of Done
 

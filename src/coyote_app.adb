@@ -28,6 +28,8 @@ with Nine_P.Proto;
 with Acme.Event_Parser;
 with Acme.Raw_Events;
 with Acme.Window;
+with Coyote_App.Frontend.Acme_Win;
+with Coyote_App.Frontend.TUI;
 with Coyote_App.History;    use Coyote_App.History;
 with Coyote_App.Dispatch;   use Coyote_App.Dispatch;
 with Coyote_App.Utils;      use Coyote_App.Utils;
@@ -414,7 +416,7 @@ package body Coyote_App is
 
       --  Shared objects — all tasks close over these:
       Win_FS : aliased Nine_P.Client.Fs := Ns_Mount ("acme");
-      Win    : Acme.Window.Win := Acme.Window.New_Win (Win_FS'Access);
+      Win    : aliased Acme.Window.Win := Acme.Window.New_Win (Win_FS'Access);
       State         : App_State;
       Agent_Session : LLM.Agent.Session;
       Commands      : Agent_Command_Queue;
@@ -465,6 +467,7 @@ package body Coyote_App is
       begin
          declare
             My_FS       : aliased Nine_P.Client.Fs;
+            My_Frontend : Coyote_App.Frontend.Acme_Win.Instance;
             Max_Retries : constant Positive := 5;
             Retry_Delay : constant Duration := 0.5;
             Connected   : Boolean := False;
@@ -511,12 +514,11 @@ package body Coyote_App is
             begin
                Track_Event (E);
                Coyote_App.Dispatch.Dispatch_Event
-                 (Event   => E,
-                  Win     => Win,
-                  FS      => My_FS'Access,
-                  State   => State,
-                  Section => Section,
-                  PID     => My_PID);
+                 (Event    => E,
+                  Frontend => My_Frontend,
+                  State    => State,
+                  Section  => Section,
+                  PID      => My_PID);
             end Dispatch_Event;
 
             procedure Dispatch_Agent_Event
@@ -692,6 +694,7 @@ package body Coyote_App is
                raise Nine_P.Proto.P9_Error with
                  "Agent_Task could not connect to acme";
             end if;
+            Coyote_App.Frontend.Acme_Win.Create (My_Frontend, Win'Unchecked_Access);
 
             declare
                Settings_Value : constant LLM.Settings.Settings :=
@@ -1834,5 +1837,528 @@ package body Coyote_App is
             null;
       end;
    end Run;
+
+
+   --  ── Run_TUI ───────────────────────────────────────────────────────────
+   --
+   --  TUI variant of Run.  Uses Coyote_App.Frontend.TUI instead of the
+   --  acme window frontend.  No Win, no Acme_Event_Task, no Plumb_* tasks.
+   --  The TUI frontend's internal Input_Task drives all user interaction;
+   --  Agent_Task reads prompts via My_Frontend.Read_Prompt.
+
+   procedure Run_TUI (Opts : Options) is
+      use type LLM.Events.Message_Update_Kind;
+
+      My_PID   : constant String := Natural_Image (Natural (Getpid));
+      Win_Name : constant String :=
+        Ada.Directories.Current_Directory & "/+coyote"
+        & (if Length (Opts.Name) > 0
+           then ":" & To_String (Opts.Name)
+           else "");
+
+      --  Shared objects closed over by Agent_Task:
+      State         : App_State;
+      Agent_Session : LLM.Agent.Session;
+      My_Frontend   : Coyote_App.Frontend.TUI.Instance;
+
+      function Status_Label return String is
+      begin
+         if State.Is_Compacting then
+            return "compacting";
+         elsif State.Is_Retrying then
+            return "retrying";
+         elsif State.Is_Paused then
+            return "paused";
+         elsif State.Is_Streaming then
+            return "running";
+         else
+            return "ready";
+         end if;
+      end Status_Label;
+
+      procedure Initiate_Shutdown is
+      begin
+         LLM.Agent.Request_Abort (Agent_Session);
+         My_Frontend.Shutdown;
+         State.Signal_Shutdown;
+      exception
+         when others =>
+            My_Frontend.Shutdown;
+            State.Signal_Shutdown;
+      end Initiate_Shutdown;
+
+      task Agent_Task;
+
+      task body Agent_Task is
+         Section          : Section_Kind    := No_Section;
+         Current_Thinking : Unbounded_String := Null_Unbounded_String;
+         Current_Text     : Unbounded_String := Null_Unbounded_String;
+         Final_Text       : Unbounded_String := Null_Unbounded_String;
+         Final_Error      : Unbounded_String := Null_Unbounded_String;
+         pragma Unreferenced (Final_Text, Final_Error);
+      begin
+         declare
+
+            procedure Track_Event
+              (E : LLM.Events.Agent_Event'Class)
+            is
+            begin
+               if E in LLM.Events.Message_Update_Event then
+                  declare
+                     Event : constant LLM.Events.Message_Update_Event :=
+                       LLM.Events.Message_Update_Event (E);
+                  begin
+                     if Event.Kind = LLM.Events.Text_Delta then
+                        Append (Current_Text, To_String (Event.Delta_Text));
+                     end if;
+                  end;
+               elsif E in LLM.Events.Message_End_Event then
+                  declare
+                     Event : constant LLM.Events.Message_End_Event :=
+                       LLM.Events.Message_End_Event (E);
+                  begin
+                     if Event.Stop in LLM.Types.Stop | LLM.Types.Length then
+                        Final_Text := Current_Text;
+                     end if;
+                     if Length (Event.Err_Msg) > 0 then
+                        Final_Error := Event.Err_Msg;
+                     end if;
+                     Current_Text := Null_Unbounded_String;
+                  end;
+               elsif E in LLM.Events.Session_Stats_Event then
+                  declare
+                     Ev      : constant LLM.Events.Session_Stats_Event :=
+                       LLM.Events.Session_Stats_Event (E);
+                     LF      : constant Character := Character'Val (10);
+                     Ruler   : constant String    :=
+                       "----------------------------" & LF;
+                     Sid     : constant String    := State.Session_Id;
+                     Sid_Pfx : constant String    :=
+                       (if Sid'Length >= 8
+                        then Sid (Sid'First .. Sid'First + 7) & "..."
+                        else Sid);
+                  begin
+                     My_Frontend.Set_Stats_Summary
+                       ("Session stats" & LF
+                        & Ruler
+                        & "Model:         " & State.Current_Model & LF
+                        & "Session:       " & Sid_Pfx & LF
+                        & "Turn:          "
+                        & Coyote_App.Utils.Format_SI_Count
+                            (State.Turn_Count) & LF
+                        & Ruler
+                        & "Last turn" & LF
+                        & "  Input:       "
+                        & Coyote_App.Utils.Format_SI_Count
+                            (State.Turn_Input_Tokens) & " tok" & LF
+                        & "  Output:      "
+                        & Coyote_App.Utils.Format_SI_Count
+                            (State.Turn_Output_Tokens) & " tok" & LF
+                        & "  Cost:        "
+                        & Coyote_App.Utils.Format_Cost
+                            (State.Turn_Cost_Dmil) & LF
+                        & Ruler
+                        & "Session totals" & LF
+                        & "  Input:       "
+                        & Coyote_App.Utils.Format_SI_Count (Ev.Input)
+                        & " tok" & LF
+                        & "  Cache read:  "
+                        & Coyote_App.Utils.Format_SI_Count (Ev.Cache_Read)
+                        & " tok" & LF
+                        & "  Cache write: "
+                        & Coyote_App.Utils.Format_SI_Count (Ev.Cache_Write)
+                        & " tok" & LF
+                        & "  Output:      "
+                        & Coyote_App.Utils.Format_SI_Count (Ev.Output)
+                        & " tok" & LF
+                        & "  Cost:        "
+                        & Coyote_App.Utils.Format_Cost (Ev.Cost_Dmil) & LF);
+                  end;
+               end if;
+            end Track_Event;
+
+            procedure Dispatch_Event
+              (E : LLM.Events.Agent_Event'Class)
+            is
+            begin
+               Track_Event (E);
+               Coyote_App.Dispatch.Dispatch_Event
+                 (Event    => E,
+                  Frontend => My_Frontend,
+                  State    => State,
+                  Section  => Section,
+                  PID      => My_PID);
+            end Dispatch_Event;
+
+            procedure Dispatch_Agent_Event
+              (E : LLM.Events.Agent_Event'Class)
+              renames Dispatch_Event;
+
+            procedure Emit_Model_Select is
+               Model_Spec : constant String :=
+                 LLM.Agent.Current_Model_Spec (Agent_Session);
+               Provider   : Unbounded_String;
+               Model_Id   : Unbounded_String;
+            begin
+               if Model_Spec'Length = 0 then
+                  return;
+               end if;
+               Split_Model_Spec (Model_Spec, Provider, Model_Id);
+               declare
+                  Event : constant LLM.Events.Model_Select_Event :=
+                    (LLM.Events.Agent_Event with
+                     Provider       => Provider,
+                     Model_Id       => Model_Id,
+                     Context_Window =>
+                       LLM.Agent.Context_Window (Agent_Session));
+               begin
+                  Dispatch_Event (Event);
+               end;
+            end Emit_Model_Select;
+
+            procedure Emit_Session_Info is
+               Event : constant LLM.Events.Session_Info_Event :=
+                 (LLM.Events.Agent_Event with
+                  Session_Id     =>
+                    To_Unbounded_String
+                      (LLM.Agent.Session_Id (Agent_Session)),
+                  Thinking_Level => Current_Thinking);
+            begin
+               Dispatch_Event (Event);
+            end Emit_Session_Info;
+
+            procedure Emit_Bootstrap is
+            begin
+               Emit_Model_Select;
+               Emit_Session_Info;
+            end Emit_Bootstrap;
+
+            procedure Append_Task_Warning (Message : String) is
+            begin
+               Ada.Text_IO.Put_Line
+                 (Ada.Text_IO.Standard_Error, "[!] " & Message);
+               My_Frontend.Append_Notice
+                 (Coyote_App.Frontend.Error, Message);
+            end Append_Task_Warning;
+
+            procedure Reset_Session_State is
+            begin
+               State.Set_Streaming (False);
+               State.Set_Compacting (False);
+               State.Set_Aborted (False);
+               State.Set_Is_Retrying (False);
+               State.Set_Text_Emitted (False);
+               State.Set_Has_Text_Delta (False);
+               State.Set_Has_Tool_In_Turn (False);
+               State.Set_Last_Stop_Reason ("");
+               State.Set_Last_Error_Message ("");
+               State.Set_Pending_Stats (False);
+               State.Set_Models_Pending (False);
+               State.Set_Turn_Tokens (0, 0);
+               State.Set_Turn_Cost (0);
+               State.Set_Session_Stats (0, 0, 0, 0, 0, 0);
+               State.Reset_Turn_Count;
+            end Reset_Session_State;
+
+            procedure Render_Loaded_Session (UUID : String) is
+               Short_Id : constant String :=
+                 (if UUID'Length >= 8
+                  then UUID (UUID'First .. UUID'First + 7)
+                  else UUID);
+            begin
+               --  TUI: show a brief notice rather than replaying full
+               --  history into the buffer (history rendering is a future
+               --  enhancement).
+               My_Frontend.Append_Notice
+                 (Coyote_App.Frontend.Info,
+                  "Session " & Short_Id & UC_ELLIP & " loaded.");
+            end Render_Loaded_Session;
+
+            procedure Run_Queued_Prompt
+              (Prompt   : String;
+               Is_Steer : Boolean)
+            is
+               pragma Unreferenced (Is_Steer);
+            begin
+               LLM.Agent.Run_Prompt
+                 (S        => Agent_Session,
+                  Prompt   => Prompt,
+                  On_Event => Dispatch_Event'Access);
+            exception
+               when Ex : others =>
+                  Append_Task_Warning
+                    ("prompt failed: "
+                     & Ada.Exceptions.Exception_Message (Ex));
+            end Run_Queued_Prompt;
+
+            --  Handle a command string received from the TUI input task
+            --  (prefixed with ':' in the prompt queue).
+            procedure Execute_TUI_Command (Cmd : String) is
+            begin
+               if Cmd = "stop" then
+                  State.Set_Aborted (True);
+                  LLM.Agent.Request_Abort (Agent_Session);
+
+               elsif Cmd = "pause" then
+                  if State.Is_Streaming
+                    and then not State.Is_Paused
+                    and then not State.Is_Pause_Armed
+                  then
+                     State.Set_Pause_Armed (True);
+                     LLM.Agent.Request_Pause (Agent_Session);
+                  end if;
+
+               elsif Cmd = "resume" then
+                  if State.Is_Paused then
+                     State.Set_Paused (False);
+                     LLM.Agent.Resume (Agent_Session);
+                  end if;
+
+               elsif Cmd = "compact" then
+                  if not State.Is_Streaming
+                    and then not State.Is_Compacting
+                  then
+                     declare
+                        Compact_OK : Boolean;
+                     begin
+                        LLM.Agent.Compact
+                          (Agent_Session,
+                           Dispatch_Agent_Event'Unrestricted_Access,
+                           "manual",
+                           Compact_OK);
+                     end;
+                  end if;
+
+               elsif Cmd'Length > 6
+                 and then Cmd (Cmd'First .. Cmd'First + 5) = "model "
+               then
+                  begin
+                     LLM.Agent.Set_Model
+                       (S    => Agent_Session,
+                        Spec => Cmd (Cmd'First + 6 .. Cmd'Last));
+                     Emit_Model_Select;
+                  exception
+                     when Ex : others =>
+                        Append_Task_Warning
+                          ("model change failed: "
+                           & Ada.Exceptions.Exception_Message (Ex));
+                  end;
+
+               elsif Cmd'Length > 9
+                 and then Cmd (Cmd'First .. Cmd'First + 8) = "thinking "
+               then
+                  begin
+                     declare
+                        Level_Str : constant String :=
+                          Cmd (Cmd'First + 9 .. Cmd'Last);
+                     begin
+                        Current_Thinking :=
+                          To_Unbounded_String (Level_Str);
+                        LLM.Agent.Set_Thinking
+                          (S     => Agent_Session,
+                           Level => Thinking_Level_Of (Level_Str));
+                        My_Frontend.Set_Status
+                          (Format_Status (State, Status_Label));
+                     end;
+                  exception
+                     when Ex : others =>
+                        Append_Task_Warning
+                          ("thinking change failed: "
+                           & Ada.Exceptions.Exception_Message (Ex));
+                  end;
+
+               elsif Cmd = "new" then
+                  declare
+                     use GNATCOLL.OS.FS;
+                     use GNATCOLL.OS.Process;
+                     Model   : constant String :=
+                       LLM.Agent.Current_Model_Spec (Agent_Session);
+                     Null_FD : File_Descriptor;
+                     Args    : Argument_List;
+                     Handle  : Process_Handle;
+                     pragma Unreferenced (Handle);
+                  begin
+                     Null_FD := Open (Null_File, Read_Mode);
+                     Args.Append (Ada.Command_Line.Command_Name);
+                     if Model'Length > 0 then
+                        Args.Append ("--model");
+                        Args.Append (Model);
+                     end if;
+                     Handle := Start
+                       (Args   => Args,
+                        Stdin  => Null_FD,
+                        Stdout => Null_FD,
+                        Stderr => Null_FD,
+                        Cwd    => Ada.Directories.Current_Directory);
+                     Close (Null_FD);
+                  end;
+
+               elsif Cmd'Length > 8
+                 and then Cmd (Cmd'First .. Cmd'First + 7) = "session "
+               then
+                  declare
+                     UUID : constant String :=
+                       Cmd (Cmd'First + 8 .. Cmd'Last);
+                  begin
+                     LLM.Agent.Switch_Session
+                       (S    => Agent_Session,
+                        UUID => UUID);
+                     Reset_Session_State;
+                     Render_Loaded_Session (UUID);
+                     Emit_Bootstrap;
+                  exception
+                     when Ex : others =>
+                        Append_Task_Warning
+                          ("session switch failed: "
+                           & Ada.Exceptions.Exception_Message (Ex));
+                  end;
+
+               end if;
+            end Execute_TUI_Command;
+
+         begin
+            --  Load settings.
+            declare
+               Settings_Value : constant LLM.Settings.Settings :=
+                 LLM.Settings.Load_Settings;
+            begin
+               Current_Thinking := Settings_Value.Default_Thinking;
+               if Length (Opts.Prompt_Filter) > 0 then
+                  State.Set_Prompt_Filter
+                    (To_String (Opts.Prompt_Filter));
+               else
+                  State.Set_Prompt_Filter
+                    (To_String (Settings_Value.Prompt_Filter));
+               end if;
+            end;
+
+            --  Promote inherited session ID for subagent lineage.
+            declare
+               Inherited_Sid : constant String :=
+                 Ada.Environment_Variables.Value
+                   ("COYOTE_SESSION_ID", "");
+               Parent_Sid    : constant String :=
+                 Ada.Environment_Variables.Value
+                   ("COYOTE_PARENT_SESSION", "");
+            begin
+               if Parent_Sid'Length = 0
+                 and then Inherited_Sid'Length > 0
+               then
+                  Ada.Environment_Variables.Set
+                    ("COYOTE_PARENT_SESSION", Inherited_Sid);
+               end if;
+            end;
+
+            LLM.Agent.Create
+              (S          => Agent_Session,
+               Model_Spec => To_String (Opts.Model),
+               Agent      => To_String (Opts.Agent),
+               No_Tools   => Opts.No_Tools,
+               Session_Id => To_String (Opts.Session_Id));
+            if Opts.No_Compact then
+               LLM.Agent.Set_Compact_Settings
+                 (Agent_Session,
+                  (Enabled            => False,
+                   Reserve_Tokens     =>
+                     LLM.Compaction.Default_Compact_Settings
+                       .Reserve_Tokens,
+                   Keep_Recent_Tokens =>
+                     LLM.Compaction.Default_Compact_Settings
+                       .Keep_Recent_Tokens));
+            end if;
+
+            --  Publish session ID for child processes.
+            declare
+               Sess : constant String :=
+                 LLM.Agent.Session_Id (Agent_Session);
+            begin
+               if Sess'Length > 0 then
+                  Ada.Environment_Variables.Set
+                    ("COYOTE_SESSION_ID", Sess);
+               end if;
+            end;
+
+            --  Initialise TUI frontend.
+            Coyote_App.Frontend.TUI.Create (My_Frontend, Win_Name);
+
+            if Length (Opts.Session_Id) > 0 then
+               Render_Loaded_Session (To_String (Opts.Session_Id));
+            end if;
+            if Length (Opts.Work_Dir_Warning) > 0 then
+               Append_Task_Warning (To_String (Opts.Work_Dir_Warning));
+            end if;
+            Emit_Bootstrap;
+
+            --  Main input loop.
+            Prompt_Loop : loop
+               declare
+                  Prompt   : constant String :=
+                    My_Frontend.Read_Prompt;
+                  Is_Steer : constant Boolean :=
+                    State.Is_Streaming or else State.Is_Retrying;
+               begin
+                  exit Prompt_Loop when Prompt = "";
+
+                  if Prompt'Length > 0
+                    and then Prompt (Prompt'First) = ':'
+                  then
+                     Execute_TUI_Command
+                       (Ada.Strings.Fixed.Trim
+                          (Prompt
+                             (Prompt'First + 1 .. Prompt'Last),
+                           Ada.Strings.Both));
+                  elsif Is_Steer then
+                     My_Frontend.Append_Notice
+                       (Coyote_App.Frontend.Info,
+                        ASCII.LF & UC_HOOK_L & " Steer: "
+                        & Prompt & ASCII.LF);
+                     Run_Queued_Prompt (Prompt, True);
+                  else
+                     My_Frontend.Append_Notice
+                       (Coyote_App.Frontend.Info,
+                        ASCII.LF & UC_TRI_R & " "
+                        & Prompt & ASCII.LF);
+                     Run_Queued_Prompt (Prompt, False);
+                  end if;
+               end;
+            end loop Prompt_Loop;
+
+            State.Signal_Shutdown;
+
+         exception
+            when Ex : others =>
+               Ada.Text_IO.Put_Line
+                 (Ada.Text_IO.Standard_Error,
+                  "[!] Agent task: "
+                  & Ada.Exceptions.Exception_Message (Ex));
+               My_Frontend.Append_Notice
+                 (Coyote_App.Frontend.Error,
+                  "Agent task: "
+                  & Ada.Exceptions.Exception_Message (Ex));
+               Initiate_Shutdown;
+         end;
+      end Agent_Task;
+
+   begin
+      State.Wait_Shutdown;
+
+      --  Delete empty sessions (not resumed, no prompts submitted).
+      if not Opts.No_Session
+        and then Length (Opts.Session_Id) = 0
+        and then not LLM.Agent.Has_Submitted_Prompts (Agent_Session)
+      then
+         declare
+            S_Id : constant String :=
+              LLM.Agent.Session_Id (Agent_Session);
+         begin
+            if S_Id'Length > 0 then
+               LLM.Session_Store.Delete_Session (S_Id);
+            end if;
+         exception
+            when others =>
+               null;
+         end;
+      end if;
+   end Run_TUI;
 
 end Coyote_App;

@@ -11,6 +11,7 @@ with Acme.Event_Parser;
 with Acme.Raw_Events;
 with Coyote_App;
 with Coyote_App.Dispatch;    use Coyote_App.Dispatch;
+with Coyote_App.Frontend.Acme_Win;
 
 package body Acme_Integration_Tests is
 
@@ -851,22 +852,23 @@ package body Acme_Integration_Tests is
       end if;
       declare
          FS    : aliased Nine_P.Client.Fs := Ns_Mount ("acme");
-         Win   : Acme.Window.Win          :=
+         Win   : aliased Acme.Window.Win          :=
            Acme.Window.New_Win (FS'Access);
+         My_Frontend : Coyote_App.Frontend.Acme_Win.Instance;
          State : Coyote_App.App_State;
          Id    : constant String :=
            Natural_Image (Acme.Window.Id (Win));
       begin
+         Coyote_App.Frontend.Acme_Win.Create (My_Frontend, Win'Unchecked_Access);
          State.Set_Session_Id (Session_Id);
          State.Set_Model ("github-copilot/gpt-5.3-codex");
          State.Set_Context_Window (400_000);
          State.Set_Turn_Tokens (24_000, 537);
 
          Append_Live_Turn_Footer
-           (Win   => Win,
-            FS    => FS'Access,
-            State => State,
-            PID   => PID);
+           (Frontend => My_Frontend,
+            State    => State,
+            PID      => PID);
 
          declare
             Body_Text : constant String :=
@@ -907,12 +909,14 @@ package body Acme_Integration_Tests is
       end if;
       declare
          FS    : aliased Nine_P.Client.Fs := Ns_Mount ("acme");
-         Win   : Acme.Window.Win          :=
+         Win   : aliased Acme.Window.Win          :=
            Acme.Window.New_Win (FS'Access);
+         My_Frontend : Coyote_App.Frontend.Acme_Win.Instance;
          State : Coyote_App.App_State;
          Id    : constant String :=
            Natural_Image (Acme.Window.Id (Win));
       begin
+         Coyote_App.Frontend.Acme_Win.Create (My_Frontend, Win'Unchecked_Access);
          State.Set_Session_Id (Session_Id);
          State.Set_Model ("github-copilot/gpt-5.3-codex");
          State.Set_Context_Window (400_000);
@@ -928,10 +932,9 @@ package body Acme_Integration_Tests is
             Total       => 52_000);
 
          Append_Live_Turn_Footer
-           (Win   => Win,
-            FS    => FS'Access,
-            State => State,
-            PID   => PID);
+           (Frontend => My_Frontend,
+            State    => State,
+            PID      => PID);
 
          declare
             Body_Text    : constant String :=

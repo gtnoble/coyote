@@ -35,6 +35,7 @@ with Ada.Text_IO;
 with Coyote_App;
 with Coyote_Utils;
 with LLM.Session_Store;
+with Coyote_TUI_Terminal;
 
 procedure Coyote is
    Opts : Coyote_App.Options;
@@ -156,7 +157,26 @@ begin
       end;
    end if;
 
-   Coyote_App.Run (Opts);
+   --  ── Frontend detection ────────────────────────────────────────────────
+   --  Priority: --one-shot always → Plain; $ACME set → Acme; TTY → TUI.
+   if Opts.One_Shot then
+      Opts.Frontend := Coyote_App.Plain_Frontend;
+   elsif Ada.Environment_Variables.Exists ("ACME")
+     and then Ada.Environment_Variables.Value ("ACME", "")'Length > 0
+   then
+      Opts.Frontend := Coyote_App.Acme_Frontend;
+   elsif Coyote_TUI_Terminal.Is_TTY then
+      Opts.Frontend := Coyote_App.TUI_Frontend;
+   else
+      Opts.Frontend := Coyote_App.Plain_Frontend;
+   end if;
+
+   case Opts.Frontend is
+      when Coyote_App.Acme_Frontend | Coyote_App.Plain_Frontend =>
+         Coyote_App.Run (Opts);
+      when Coyote_App.TUI_Frontend =>
+         Coyote_App.Run_TUI (Opts);
+   end case;
    Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Success);
 exception
    when E : Coyote_Utils.Bad_Arg_Error =>

@@ -287,4 +287,38 @@ package Coyote_App_Tests is
    procedure Test_Format_Session_List_Fork_Uses_Branch
      (T : in out Test);
 
+   --  ── Utf8_Display_Width ───────────────────────────────────────────────
+
+   --  ASCII-only strings: width equals length.
+   procedure Test_Utf8_Display_Width_Ascii     (T : in out Test);
+   --  Three-byte UC_BULLET glyph counts as 1 column, not 3.
+   procedure Test_Utf8_Display_Width_UC_Bullet (T : in out Test);
+   --  Status bar pattern: mix of ASCII and multi-byte glyphs.
+   procedure Test_Utf8_Display_Width_Mixed     (T : in out Test);
+   --  Empty string returns 0.
+   procedure Test_Utf8_Display_Width_Empty     (T : in out Test);
+
+   --  ── TUI search (Compute_Matches / Advance_Search) ────────────────────
+
+   --  Empty search term returns zero matches.
+   procedure Test_Compute_Matches_Empty_Term    (T : in out Test);
+   --  Term absent from all segments returns zero matches.
+   procedure Test_Compute_Matches_No_Match      (T : in out Test);
+   --  Search is case-insensitive; upper-case term matches lower-case text.
+   procedure Test_Compute_Matches_Case_Insens   (T : in out Test);
+   --  Two out of three segments contain the term; other is not counted.
+   procedure Test_Compute_Matches_Multi_Seg     (T : in out Test);
+   --  Advance_Search wraps from the last match forward to the first.
+   procedure Test_Advance_Search_Forward_Wrap   (T : in out Test);
+   --  Advance_Search wraps from the first match backward to the last.
+   procedure Test_Advance_Search_Backward_Wrap  (T : in out Test);
+
+   --  ── TUI stats summary ────────────────────────────────────────────────
+
+   --  Before Set_Stats_Summary is called the result is a non-empty placeholder.
+   procedure Test_Stats_Summary_Placeholder     (T : in out Test);
+   --  After Set_Stats_Summary the stored text is returned verbatim.
+   procedure Test_Stats_Summary_Round_Trip      (T : in out Test);
+
+
 end Coyote_App_Tests;

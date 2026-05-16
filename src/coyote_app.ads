@@ -178,6 +178,17 @@ package Coyote_App is
 
    --  ── Options ──────────────────────────────────────────────────────────
 
+   --  ── Frontend_Kind ────────────────────────────────────────────────────
+   --
+   --  Which display frontend to use.  Set by coyote.adb at startup based
+   --  on the $ACME environment variable and stdout TTY detection.
+   --
+   --    Acme_Frontend  — acme window via 9P  (default when $ACME is set)
+   --    TUI_Frontend   — ANSI terminal UI    (default in a plain TTY)
+   --    Plain_Frontend — line-oriented text  (--one-shot / piped output)
+
+   type Frontend_Kind is (Acme_Frontend, TUI_Frontend, Plain_Frontend);
+
    type Options is record
       Session_Id     : Ada.Strings.Unbounded.Unbounded_String;
       Model          : Ada.Strings.Unbounded.Unbounded_String;
@@ -202,6 +213,8 @@ package Coyote_App is
       --  (and on stderr) after startup.  Set by coyote.adb when the working
       --  directory stored in the resumed session no longer exists.
       Work_Dir_Warning : Ada.Strings.Unbounded.Unbounded_String;
+      --  Which frontend to use; set by the entry-point before calling Run.
+      Frontend       : Frontend_Kind := Acme_Frontend;
    end record;
 
    --  ── Section_Kind ─────────────────────────────────────────────────────
@@ -214,6 +227,11 @@ package Coyote_App is
      (No_Section, Thinking_Section, Text_Section, Tool_Section);
 
    --  ── Entry point ──────────────────────────────────────────────────────
+   --  TUI variant of Run: uses Coyote_App.Frontend.TUI instead of
+   --  Coyote_App.Frontend.Acme_Win.  Called by coyote.adb when
+   --  Frontend_Kind = TUI_Frontend.
+   procedure Run_TUI (Opts : Options);
+
 
    procedure Run (Opts : Options);
 

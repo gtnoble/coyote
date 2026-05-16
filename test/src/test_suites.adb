@@ -866,6 +866,48 @@ package body Test_Suites is
         ("App_State Tag_Suffix round-trip via Set_Tag_Suffix",
          Coyote_App_Tests.Test_State_Tag_Suffix_Round_Trip'Access));
 
+      --  Utf8_Display_Width unit tests
+      Result.Add_Test (App_State_Caller.Create
+        ("Utf8_Display_Width: ASCII string width equals length",
+         Coyote_App_Tests.Test_Utf8_Display_Width_Ascii'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Utf8_Display_Width: UC_BULLET (3 bytes) has display width 1",
+         Coyote_App_Tests.Test_Utf8_Display_Width_UC_Bullet'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Utf8_Display_Width: mixed ASCII+glyph string counts columns",
+         Coyote_App_Tests.Test_Utf8_Display_Width_Mixed'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Utf8_Display_Width: empty string returns 0",
+         Coyote_App_Tests.Test_Utf8_Display_Width_Empty'Access));
+
+      --  TUI search: Compute_Matches / Advance_Search
+      Result.Add_Test (App_State_Caller.Create
+        ("TUI search: empty term returns zero matches",
+         Coyote_App_Tests.Test_Compute_Matches_Empty_Term'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("TUI search: absent term returns zero matches",
+         Coyote_App_Tests.Test_Compute_Matches_No_Match'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("TUI search: matching is case-insensitive",
+         Coyote_App_Tests.Test_Compute_Matches_Case_Insens'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("TUI search: two of five segments match",
+         Coyote_App_Tests.Test_Compute_Matches_Multi_Seg'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("TUI search: Advance_Search wraps forward past last match",
+         Coyote_App_Tests.Test_Advance_Search_Forward_Wrap'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("TUI search: Advance_Search wraps backward from first match",
+         Coyote_App_Tests.Test_Advance_Search_Backward_Wrap'Access));
+
+      --  TUI stats summary
+      Result.Add_Test (App_State_Caller.Create
+        ("TUI stats: placeholder text before first stats event",
+         Coyote_App_Tests.Test_Stats_Summary_Placeholder'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("TUI stats: Set_Stats_Summary round-trip",
+         Coyote_App_Tests.Test_Stats_Summary_Round_Trip'Access));
+
       --  Session_History integration tests (require live acme)
       Result.Add_Test (Session_History_Caller.Create
         ("[integration] Render: file not found writes error",

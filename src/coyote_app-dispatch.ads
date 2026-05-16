@@ -1,6 +1,7 @@
 --  Coyote_App.Dispatch — live LLM event dispatch and window rendering.
 --
---  Dispatch_Event maps incoming native LLM events to acme window mutations.
+--  Dispatch_Event maps incoming native LLM events to frontend mutations
+--  via the abstract Coyote_App.Frontend.Instance'Class interface.
 --  Format_Status builds the one-line status string shown in line 1 of the
 --  window body.  Append_Live_Turn_Footer appends the end-of-turn footer.
 --  Open_Sub_Window creates a named child acme window.
@@ -9,6 +10,7 @@
 --  For revision history, see the project version-control log.
 
 with Acme.Window;
+with Coyote_App.Frontend;
 with LLM.Events;
 with Nine_P.Client;
 
@@ -35,13 +37,12 @@ package Coyote_App.Dispatch is
       Mode   : Tag_Mode;
       Suffix : String);
 
-   --  Append the live end-of-turn footer to Win using the current values in
-   --  State, and increment State.Turn_Count.
+   --  Append the live end-of-turn footer using the current values in State,
+   --  and increment State.Turn_Count.
    procedure Append_Live_Turn_Footer
-     (Win   : in out Acme.Window.Win;
-      FS    : not null access Nine_P.Client.Fs;
-      State : in out App_State;
-      PID   : String);
+     (Frontend : in out Coyote_App.Frontend.Instance'Class;
+      State    : in out App_State;
+      PID      : String);
 
    --  Create a new acme window named Parent/Sub, write Content, mark clean.
    procedure Open_Sub_Window
@@ -50,15 +51,14 @@ package Coyote_App.Dispatch is
       Sub     : String;
       Content : String);
 
-   --  Dispatch one native agent event to the appropriate window mutation.
+   --  Dispatch one native agent event to the appropriate frontend mutation.
    --  Section tracks the current streaming content kind and is updated
    --  in place.  PID is this process's PID as a decimal string.
    procedure Dispatch_Event
-     (Event   : LLM.Events.Agent_Event'Class;
-      Win     : in out Acme.Window.Win;
-      FS      : not null access Nine_P.Client.Fs;
-      State   : in out App_State;
-      Section : in out Section_Kind;
-      PID     : String);
+     (Event    : LLM.Events.Agent_Event'Class;
+      Frontend : in out Coyote_App.Frontend.Instance'Class;
+      State    : in out App_State;
+      Section  : in out Section_Kind;
+      PID      : String);
 
 end Coyote_App.Dispatch;

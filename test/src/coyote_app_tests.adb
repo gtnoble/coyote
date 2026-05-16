@@ -7,6 +7,8 @@ with Nine_P;
 with Coyote_App.Dispatch;   use Coyote_App.Dispatch;
 with Ada.Strings.Fixed;
 with Session_Lister;        use Session_Lister;
+with Coyote_TUI_Terminal;
+with Coyote_App.Frontend.TUI;
 
 package body Coyote_App_Tests is
 
@@ -1716,5 +1718,178 @@ package body Coyote_App_Tests is
                  "Fork child should not use hook connector");
       end;
    end Test_Format_Session_List_Fork_Uses_Branch;
+
+
+   --  ── Utf8_Display_Width ───────────────────────────────────────────────
+
+   procedure Test_Utf8_Display_Width_Ascii (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      Assert (Coyote_TUI_Terminal.Utf8_Display_Width ("hello") = 5,
+              "ASCII string width should equal its length");
+      Assert (Coyote_TUI_Terminal.Utf8_Display_Width ("AB") = 2,
+              "Two ASCII chars width should be 2");
+   end Test_Utf8_Display_Width_Ascii;
+
+   procedure Test_Utf8_Display_Width_UC_Bullet (T : in out Test) is
+      pragma Unreferenced (T);
+      --  UC_BULLET is the 3-byte UTF-8 sequence for U+25CF (●).
+   begin
+      Assert (Coyote_TUI_Terminal.Utf8_Display_Width (UC_BULLET) = 1,
+              "UC_BULLET (3 bytes) should have display width 1");
+   end Test_Utf8_Display_Width_UC_Bullet;
+
+   procedure Test_Utf8_Display_Width_Mixed (T : in out Test) is
+      pragma Unreferenced (T);
+      --  Simulate a fragment of the TUI status bar: " " & UC_BULLET & " ready"
+      --  Bytes: 1 + 3 + 6 = 10; columns: 1 + 1 + 6 = 8.
+      S : constant String := " " & UC_BULLET & " ready";
+   begin
+      Assert (Coyote_TUI_Terminal.Utf8_Display_Width (S) = 8,
+              "Mixed string width should count glyphs not bytes");
+   end Test_Utf8_Display_Width_Mixed;
+
+   procedure Test_Utf8_Display_Width_Empty (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      Assert (Coyote_TUI_Terminal.Utf8_Display_Width ("") = 0,
+              "Empty string should have width 0");
+   end Test_Utf8_Display_Width_Empty;
+
+
+   --  ── TUI search: Compute_Matches ──────────────────────────────────────
+   --
+   --  All tests use a shared package-level buffer.  Each test calls
+   --  F.Clear_Buffer first so previous test content does not interfere.
+
+   procedure Test_Compute_Matches_Empty_Term (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_App.Frontend.TUI;
+      F : Instance;
+   begin
+      F.Clear_Buffer;
+      F.Append_Text ("hello world");
+      Assert (F.Match_Count_For ("") = 0,
+              "Empty search term must match no segments");
+   end Test_Compute_Matches_Empty_Term;
+
+   procedure Test_Compute_Matches_No_Match (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_App.Frontend.TUI;
+      F : Instance;
+   begin
+      F.Clear_Buffer;
+      F.Append_Text ("hello world");
+      Assert (F.Match_Count_For ("xyz") = 0,
+              "Term absent from all content must return zero matches");
+   end Test_Compute_Matches_No_Match;
+
+   procedure Test_Compute_Matches_Case_Insens (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_App.Frontend.TUI;
+      F : Instance;
+   begin
+      F.Clear_Buffer;
+      F.Append_Text ("hello world");
+      Assert (F.Match_Count_For ("HELLO") = 1,
+              "Upper-case term must match lower-case segment content");
+      Assert (F.Current_Search_Seg = 1,
+              "Current match segment should be the first segment");
+   end Test_Compute_Matches_Case_Insens;
+
+   procedure Test_Compute_Matches_Multi_Seg (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_App.Frontend.TUI;
+      F : Instance;
+   begin
+      F.Clear_Buffer;
+      --  Segment 1 (Assistant_Text): contains "foo"
+      F.Append_Text ("foo bar");
+      --  Segment 2 (Turn_Footer): separator — does not contain "foo"
+      F.Append_Turn_Footer ("---");
+      --  Segment 3 (Assistant_Text): no match
+      F.Append_Text ("baz qux");
+      --  Segment 4 (Turn_Footer): separator
+      F.Append_Turn_Footer ("---");
+      --  Segment 5 (Assistant_Text): contains "foo"
+      F.Append_Text ("another foo here");
+      Assert (F.Match_Count_For ("foo") = 2,
+              "Exactly two of five segments should match 'foo'");
+   end Test_Compute_Matches_Multi_Seg;
+
+   procedure Test_Advance_Search_Forward_Wrap (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_App.Frontend.TUI;
+      F : Instance;
+   begin
+      F.Clear_Buffer;
+      --  Three match segments (1, 3, 5) interleaved with footers.
+      F.Append_Text ("foo first");
+      F.Append_Turn_Footer ("---");
+      F.Append_Text ("foo second");
+      F.Append_Turn_Footer ("---");
+      F.Append_Text ("foo third");
+      Assert (F.Match_Count_For ("foo") = 3,
+              "Setup: three segments should match");
+      Assert (F.Current_Search_Seg = 1,
+              "Initial cursor should point to segment 1");
+      F.Advance_Search (+1);
+      Assert (F.Current_Search_Seg = 3,
+              "After +1, cursor should point to segment 3");
+      F.Advance_Search (+1);
+      Assert (F.Current_Search_Seg = 5,
+              "After +1 again, cursor should point to segment 5");
+      F.Advance_Search (+1);
+      Assert (F.Current_Search_Seg = 1,
+              "Advancing past last match must wrap to segment 1");
+   end Test_Advance_Search_Forward_Wrap;
+
+   procedure Test_Advance_Search_Backward_Wrap (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_App.Frontend.TUI;
+      F : Instance;
+   begin
+      F.Clear_Buffer;
+      F.Append_Text ("foo first");
+      F.Append_Turn_Footer ("---");
+      F.Append_Text ("foo second");
+      F.Append_Turn_Footer ("---");
+      F.Append_Text ("foo third");
+      Assert (F.Match_Count_For ("foo") = 3,
+              "Setup: three segments should match");
+      Assert (F.Current_Search_Seg = 1,
+              "Initial cursor should point to segment 1");
+      F.Advance_Search (-1);
+      Assert (F.Current_Search_Seg = 5,
+              "Going backward from first match must wrap to segment 5");
+   end Test_Advance_Search_Backward_Wrap;
+
+   --  ── TUI stats summary ────────────────────────────────────────────────
+
+   procedure Test_Stats_Summary_Placeholder (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_App.Frontend.TUI;
+      F : Instance;
+   begin
+      F.Clear_Buffer;
+      Assert (F.Stats_Summary_Text'Length > 0,
+              "Placeholder stats text must be non-empty");
+      Assert (Ada.Strings.Fixed.Index
+                (F.Stats_Summary_Text, "yet") > 0,
+              "Placeholder should contain 'yet' (not-yet-available hint)");
+   end Test_Stats_Summary_Placeholder;
+
+   procedure Test_Stats_Summary_Round_Trip (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_App.Frontend.TUI;
+      F : Instance;
+   begin
+      F.Clear_Buffer;
+      F.Set_Stats_Summary ("Model: test-model" & ASCII.LF
+                           & "Cost: $0.00");
+      Assert (F.Stats_Summary_Text = "Model: test-model" & ASCII.LF
+                                     & "Cost: $0.00",
+              "Stats_Summary_Text must return exactly what was stored");
+   end Test_Stats_Summary_Round_Trip;
 
 end Coyote_App_Tests;

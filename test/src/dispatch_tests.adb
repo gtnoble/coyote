@@ -7,6 +7,7 @@ with LLM.Types;
 with Nine_P.Client;
 with Coyote_App;          use Coyote_App;
 with Coyote_App.Dispatch; use Coyote_App.Dispatch;
+with Coyote_App.Frontend.Acme_Win;
 
 package body Dispatch_Tests is
 
@@ -75,18 +76,19 @@ package body Dispatch_Tests is
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
-         Win  : Acme.Window.Win          :=
+         Win  : aliased Acme.Window.Win          :=
            Acme.Window.New_Win (FS'Access);
+         My_Frontend : Coyote_App.Frontend.Acme_Win.Instance;
          S    : App_State;
          Sect : Section_Kind             := No_Section;
       begin
+         Coyote_App.Frontend.Acme_Win.Create (My_Frontend, Win'Unchecked_Access);
          Acme.Window.Append (Win, FS'Access, Format_Status (S) & ASCII.LF);
 
          Dispatch_Event
            (Event   => LLM.Events.Agent_Start_Event'
               (LLM.Events.Agent_Event with null record),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
@@ -137,11 +139,13 @@ package body Dispatch_Tests is
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
-         Win  : Acme.Window.Win          :=
+         Win  : aliased Acme.Window.Win          :=
            Acme.Window.New_Win (FS'Access);
+         My_Frontend : Coyote_App.Frontend.Acme_Win.Instance;
          S    : App_State;
          Sect : Section_Kind             := No_Section;
       begin
+         Coyote_App.Frontend.Acme_Win.Create (My_Frontend, Win'Unchecked_Access);
          S.Set_Streaming (True);
          S.Set_Text_Emitted (True);
          S.Set_Last_Stop_Reason ("toolUse");
@@ -152,8 +156,7 @@ package body Dispatch_Tests is
            (Event   => LLM.Events.Agent_End_Event'
               (LLM.Events.Agent_Event with
                Was_Aborted => False),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
@@ -204,11 +207,13 @@ package body Dispatch_Tests is
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
-         Win  : Acme.Window.Win          :=
+         Win  : aliased Acme.Window.Win          :=
            Acme.Window.New_Win (FS'Access);
+         My_Frontend : Coyote_App.Frontend.Acme_Win.Instance;
          S    : App_State;
          Sect : Section_Kind             := No_Section;
       begin
+         Coyote_App.Frontend.Acme_Win.Create (My_Frontend, Win'Unchecked_Access);
          Acme.Window.Append (Win, FS'Access, Format_Status (S) & ASCII.LF);
 
          Dispatch_Event
@@ -220,8 +225,7 @@ package body Dispatch_Tests is
                Content_Index => 0,
                Tool_Call_Id  => Null_Unbounded_String,
                Tool_Name     => Null_Unbounded_String),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
@@ -272,11 +276,13 @@ package body Dispatch_Tests is
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
-         Win  : Acme.Window.Win          :=
+         Win  : aliased Acme.Window.Win          :=
            Acme.Window.New_Win (FS'Access);
+         My_Frontend : Coyote_App.Frontend.Acme_Win.Instance;
          S    : App_State;
          Sect : Section_Kind             := No_Section;
       begin
+         Coyote_App.Frontend.Acme_Win.Create (My_Frontend, Win'Unchecked_Access);
          Acme.Window.Append (Win, FS'Access, Format_Status (S) & ASCII.LF);
 
          Dispatch_Event
@@ -288,8 +294,7 @@ package body Dispatch_Tests is
                Content_Index => 0,
                Tool_Call_Id  => Null_Unbounded_String,
                Tool_Name     => Null_Unbounded_String),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
@@ -341,11 +346,13 @@ package body Dispatch_Tests is
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
-         Win  : Acme.Window.Win          :=
+         Win  : aliased Acme.Window.Win          :=
            Acme.Window.New_Win (FS'Access);
+         My_Frontend : Coyote_App.Frontend.Acme_Win.Instance;
          S    : App_State;
          Sect : Section_Kind             := No_Section;
       begin
+         Coyote_App.Frontend.Acme_Win.Create (My_Frontend, Win'Unchecked_Access);
          Acme.Window.Append (Win, FS'Access, Format_Status (S) & ASCII.LF);
 
          Dispatch_Event
@@ -355,8 +362,7 @@ package body Dispatch_Tests is
                Tool_Name    => To_Unbounded_String ("read"),
                Args_Json    => To_Unbounded_String
                  ("{""path"":""x.adb""}")),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
@@ -407,11 +413,13 @@ package body Dispatch_Tests is
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
-         Win  : Acme.Window.Win          :=
+         Win  : aliased Acme.Window.Win          :=
            Acme.Window.New_Win (FS'Access);
+         My_Frontend : Coyote_App.Frontend.Acme_Win.Instance;
          S    : App_State;
          Sect : Section_Kind             := No_Section;
       begin
+         Coyote_App.Frontend.Acme_Win.Create (My_Frontend, Win'Unchecked_Access);
          Acme.Window.Append (Win, FS'Access, Format_Status (S) & ASCII.LF);
 
          Dispatch_Event
@@ -421,8 +429,7 @@ package body Dispatch_Tests is
                Tool_Name    => To_Unbounded_String ("read"),
                Args_Json    => To_Unbounded_String
                  ("{""path"":""x.adb""}")),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
@@ -435,8 +442,7 @@ package body Dispatch_Tests is
                Result_Text  => To_Unbounded_String ("done"),
                Is_Error     => False,
                Is_Cancelled => False),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
@@ -486,11 +492,13 @@ package body Dispatch_Tests is
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
-         Win  : Acme.Window.Win          :=
+         Win  : aliased Acme.Window.Win          :=
            Acme.Window.New_Win (FS'Access);
+         My_Frontend : Coyote_App.Frontend.Acme_Win.Instance;
          S    : App_State;
          Sect : Section_Kind             := No_Section;
       begin
+         Coyote_App.Frontend.Acme_Win.Create (My_Frontend, Win'Unchecked_Access);
          Acme.Window.Append (Win, FS'Access, Format_Status (S) & ASCII.LF);
 
          Dispatch_Event
@@ -500,8 +508,7 @@ package body Dispatch_Tests is
                Tool_Name    => To_Unbounded_String ("read"),
                Args_Json    => To_Unbounded_String
                  ("{""path"":""x.adb""}")),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
@@ -514,8 +521,7 @@ package body Dispatch_Tests is
                Result_Text  => To_Unbounded_String ("boom"),
                Is_Error     => True,
                Is_Cancelled => False),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
@@ -565,11 +571,13 @@ package body Dispatch_Tests is
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
-         Win  : Acme.Window.Win          :=
+         Win  : aliased Acme.Window.Win          :=
            Acme.Window.New_Win (FS'Access);
+         My_Frontend : Coyote_App.Frontend.Acme_Win.Instance;
          S    : App_State;
          Sect : Section_Kind             := No_Section;
       begin
+         Coyote_App.Frontend.Acme_Win.Create (My_Frontend, Win'Unchecked_Access);
          Acme.Window.Append (Win, FS'Access, Format_Status (S) & ASCII.LF);
 
          Dispatch_Event
@@ -579,8 +587,7 @@ package body Dispatch_Tests is
                Tool_Name    => To_Unbounded_String ("shell"),
                Args_Json    => To_Unbounded_String
                  ("{""command"":""sleep 60""}")),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
@@ -593,8 +600,7 @@ package body Dispatch_Tests is
                Result_Text  => To_Unbounded_String ("aborted"),
                Is_Error     => True,
                Is_Cancelled => True),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
@@ -647,11 +653,13 @@ package body Dispatch_Tests is
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
-         Win  : Acme.Window.Win          :=
+         Win  : aliased Acme.Window.Win          :=
            Acme.Window.New_Win (FS'Access);
+         My_Frontend : Coyote_App.Frontend.Acme_Win.Instance;
          S    : App_State;
          Sect : Section_Kind             := No_Section;
       begin
+         Coyote_App.Frontend.Acme_Win.Create (My_Frontend, Win'Unchecked_Access);
          Acme.Window.Append (Win, FS'Access, Format_Status (S) & ASCII.LF);
 
          Dispatch_Event
@@ -665,8 +673,7 @@ package body Dispatch_Tests is
                   Cache_Read  => 10,
                   Cache_Write => 5),
                Cost_Dmil => 0),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
@@ -715,11 +722,13 @@ package body Dispatch_Tests is
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
-         Win  : Acme.Window.Win          :=
+         Win  : aliased Acme.Window.Win          :=
            Acme.Window.New_Win (FS'Access);
+         My_Frontend : Coyote_App.Frontend.Acme_Win.Instance;
          S    : App_State;
          Sect : Section_Kind             := No_Section;
       begin
+         Coyote_App.Frontend.Acme_Win.Create (My_Frontend, Win'Unchecked_Access);
          S.Set_Session_Id (Session_Id);
          S.Set_Model ("anthropic/claude-3-5");
          S.Set_Context_Window (200_000);
@@ -736,8 +745,7 @@ package body Dispatch_Tests is
                Cache_Read  => 0,
                Cache_Write => 0,
                Total       => 280),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
@@ -792,11 +800,13 @@ package body Dispatch_Tests is
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
-         Win  : Acme.Window.Win          :=
+         Win  : aliased Acme.Window.Win          :=
            Acme.Window.New_Win (FS'Access);
+         My_Frontend : Coyote_App.Frontend.Acme_Win.Instance;
          S    : App_State;
          Sect : Section_Kind             := No_Section;
       begin
+         Coyote_App.Frontend.Acme_Win.Create (My_Frontend, Win'Unchecked_Access);
          Acme.Window.Append (Win, FS'Access, Format_Status (S) & ASCII.LF);
 
          Dispatch_Event
@@ -805,8 +815,7 @@ package body Dispatch_Tests is
                Provider       => To_Unbounded_String ("anthropic"),
                Model_Id       => To_Unbounded_String ("claude-3-5"),
                Context_Window => 200_000),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
@@ -859,11 +868,13 @@ package body Dispatch_Tests is
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
-         Win  : Acme.Window.Win          :=
+         Win  : aliased Acme.Window.Win          :=
            Acme.Window.New_Win (FS'Access);
+         My_Frontend : Coyote_App.Frontend.Acme_Win.Instance;
          S    : App_State;
          Sect : Section_Kind             := No_Section;
       begin
+         Coyote_App.Frontend.Acme_Win.Create (My_Frontend, Win'Unchecked_Access);
          Acme.Window.Append (Win, FS'Access, Format_Status (S) & ASCII.LF);
 
          Dispatch_Event
@@ -871,8 +882,7 @@ package body Dispatch_Tests is
               (LLM.Events.Agent_Event with
                Session_Id     => To_Unbounded_String ("test-uuid-1234"),
                Thinking_Level => To_Unbounded_String ("medium")),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
@@ -925,11 +935,13 @@ package body Dispatch_Tests is
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
-         Win  : Acme.Window.Win          :=
+         Win  : aliased Acme.Window.Win          :=
            Acme.Window.New_Win (FS'Access);
+         My_Frontend : Coyote_App.Frontend.Acme_Win.Instance;
          S    : App_State;
          Sect : Section_Kind             := No_Section;
       begin
+         Coyote_App.Frontend.Acme_Win.Create (My_Frontend, Win'Unchecked_Access);
          Acme.Window.Append (Win, FS'Access, Format_Status (S) & ASCII.LF);
 
          Dispatch_Event
@@ -939,8 +951,7 @@ package body Dispatch_Tests is
                Max_Attempts => 3,
                Delay_Ms     => 2_000,
                Error_Msg    => To_Unbounded_String ("rate limit")),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
@@ -994,11 +1005,13 @@ package body Dispatch_Tests is
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
-         Win  : Acme.Window.Win          :=
+         Win  : aliased Acme.Window.Win          :=
            Acme.Window.New_Win (FS'Access);
+         My_Frontend : Coyote_App.Frontend.Acme_Win.Instance;
          S    : App_State;
          Sect : Section_Kind             := No_Section;
       begin
+         Coyote_App.Frontend.Acme_Win.Create (My_Frontend, Win'Unchecked_Access);
          S.Set_Session_Id (Session_Id);
          S.Set_Model ("anthropic/claude-3-5");
          S.Set_Context_Window (200_000);
@@ -1007,8 +1020,7 @@ package body Dispatch_Tests is
          Dispatch_Event
            (Event   => LLM.Events.Agent_Start_Event'
               (LLM.Events.Agent_Event with null record),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
@@ -1022,8 +1034,7 @@ package body Dispatch_Tests is
                Content_Index => 0,
                Tool_Call_Id  => Null_Unbounded_String,
                Tool_Name     => Null_Unbounded_String),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
@@ -1039,8 +1050,7 @@ package body Dispatch_Tests is
                   Cache_Read  => 0,
                   Cache_Write => 0),
                Cost_Dmil => 1),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
@@ -1049,8 +1059,7 @@ package body Dispatch_Tests is
            (Event   => LLM.Events.Agent_End_Event'
               (LLM.Events.Agent_Event with
                Was_Aborted => False),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
@@ -1075,8 +1084,7 @@ package body Dispatch_Tests is
                Cache_Read  => 1,
                Cache_Write => 1,
                Total       => 17),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
@@ -1127,18 +1135,19 @@ package body Dispatch_Tests is
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
-         Win  : Acme.Window.Win          :=
+         Win  : aliased Acme.Window.Win          :=
            Acme.Window.New_Win (FS'Access);
+         My_Frontend : Coyote_App.Frontend.Acme_Win.Instance;
          S    : App_State;
          Sect : Section_Kind             := No_Section;
       begin
+         Coyote_App.Frontend.Acme_Win.Create (My_Frontend, Win'Unchecked_Access);
          Acme.Window.Append (Win, FS'Access, Format_Status (S) & ASCII.LF);
 
          Dispatch_Event
            (Event   => LLM.Events.Agent_Start_Event'
               (LLM.Events.Agent_Event with null record),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
@@ -1152,8 +1161,7 @@ package body Dispatch_Tests is
                Content_Index => 0,
                Tool_Call_Id  => Null_Unbounded_String,
                Tool_Name     => Null_Unbounded_String),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
@@ -1163,8 +1171,7 @@ package body Dispatch_Tests is
            (Event   => LLM.Events.Agent_End_Event'
               (LLM.Events.Agent_Event with
                Was_Aborted => True),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
@@ -1218,11 +1225,13 @@ package body Dispatch_Tests is
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
-         Win  : Acme.Window.Win          :=
+         Win  : aliased Acme.Window.Win          :=
            Acme.Window.New_Win (FS'Access);
+         My_Frontend : Coyote_App.Frontend.Acme_Win.Instance;
          S    : App_State;
          Sect : Section_Kind             := No_Section;
       begin
+         Coyote_App.Frontend.Acme_Win.Create (My_Frontend, Win'Unchecked_Access);
          S.Set_Session_Id (Session_Id);
          S.Set_Model ("anthropic/claude-3-5");
          S.Set_Context_Window (200_000);
@@ -1235,8 +1244,7 @@ package body Dispatch_Tests is
                Max_Attempts => 3,
                Delay_Ms     => 250,
                Error_Msg    => To_Unbounded_String ("temporary error")),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
@@ -1250,8 +1258,7 @@ package body Dispatch_Tests is
                Success     => True,
                Attempt     => 1,
                Final_Error => Null_Unbounded_String),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
@@ -1259,8 +1266,7 @@ package body Dispatch_Tests is
          Dispatch_Event
            (Event   => LLM.Events.Agent_Start_Event'
               (LLM.Events.Agent_Event with null record),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
@@ -1274,8 +1280,7 @@ package body Dispatch_Tests is
                Content_Index => 0,
                Tool_Call_Id  => Null_Unbounded_String,
                Tool_Name     => Null_Unbounded_String),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
@@ -1291,8 +1296,7 @@ package body Dispatch_Tests is
                   Cache_Read  => 0,
                   Cache_Write => 0),
                Cost_Dmil => 1),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
@@ -1301,8 +1305,7 @@ package body Dispatch_Tests is
            (Event   => LLM.Events.Agent_End_Event'
               (LLM.Events.Agent_Event with
                Was_Aborted => False),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
@@ -1316,8 +1319,7 @@ package body Dispatch_Tests is
                Cache_Read  => 1,
                Cache_Write => 0,
                Total       => 7),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
@@ -1370,19 +1372,20 @@ package body Dispatch_Tests is
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
-         Win  : Acme.Window.Win          :=
+         Win  : aliased Acme.Window.Win          :=
            Acme.Window.New_Win (FS'Access);
+         My_Frontend : Coyote_App.Frontend.Acme_Win.Instance;
          S    : App_State;
          Sect : Section_Kind             := No_Section;
       begin
+         Coyote_App.Frontend.Acme_Win.Create (My_Frontend, Win'Unchecked_Access);
          Acme.Window.Append (Win, FS'Access, Format_Status (S) & ASCII.LF);
 
          Dispatch_Event
            (Event   => LLM.Events.Auto_Compaction_Start_Event'
               (LLM.Events.Agent_Event with
                Reason => To_Unbounded_String ("threshold")),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
@@ -1394,8 +1397,7 @@ package body Dispatch_Tests is
                Aborted    => False,
                Will_Retry => False,
                Err_Msg    => Null_Unbounded_String),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
@@ -1453,18 +1455,19 @@ package body Dispatch_Tests is
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
-         Win  : Acme.Window.Win          :=
+         Win  : aliased Acme.Window.Win          :=
            Acme.Window.New_Win (FS'Access);
+         My_Frontend : Coyote_App.Frontend.Acme_Win.Instance;
          S    : App_State;
          Sect : Section_Kind             := No_Section;
       begin
+         Coyote_App.Frontend.Acme_Win.Create (My_Frontend, Win'Unchecked_Access);
          Acme.Window.Append (Win, FS'Access, Format_Status (S) & ASCII.LF);
 
          Dispatch_Event
            (Event   => LLM.Events.Agent_Start_Event'
               (LLM.Events.Agent_Event with null record),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
@@ -1473,8 +1476,7 @@ package body Dispatch_Tests is
            (Event   => LLM.Events.Agent_End_Event'
               (LLM.Events.Agent_Event with
                Was_Aborted => False),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
@@ -1526,11 +1528,13 @@ package body Dispatch_Tests is
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
-         Win  : Acme.Window.Win          :=
+         Win  : aliased Acme.Window.Win          :=
            Acme.Window.New_Win (FS'Access);
+         My_Frontend : Coyote_App.Frontend.Acme_Win.Instance;
          S    : App_State;
          Sect : Section_Kind             := No_Section;
       begin
+         Coyote_App.Frontend.Acme_Win.Create (My_Frontend, Win'Unchecked_Access);
          Acme.Window.Append (Win, FS'Access, Format_Status (S) & ASCII.LF);
 
          --  Simulate state just before the pause fires.
@@ -1540,8 +1544,7 @@ package body Dispatch_Tests is
          Dispatch_Event
            (Event   => LLM.Events.Agent_Paused_Event'
               (LLM.Events.Agent_Event with null record),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
@@ -1594,11 +1597,13 @@ package body Dispatch_Tests is
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
-         Win  : Acme.Window.Win          :=
+         Win  : aliased Acme.Window.Win          :=
            Acme.Window.New_Win (FS'Access);
+         My_Frontend : Coyote_App.Frontend.Acme_Win.Instance;
          S    : App_State;
          Sect : Section_Kind             := No_Section;
       begin
+         Coyote_App.Frontend.Acme_Win.Create (My_Frontend, Win'Unchecked_Access);
          Acme.Window.Append (Win, FS'Access, Format_Status (S) & ASCII.LF);
 
          --  Simulate state while paused.
@@ -1608,8 +1613,7 @@ package body Dispatch_Tests is
          Dispatch_Event
            (Event   => LLM.Events.Agent_Resumed_Event'
               (LLM.Events.Agent_Event with null record),
-            Win     => Win,
-            FS      => FS'Access,
+            Frontend => My_Frontend,
             State   => S,
             Section => Sect,
             PID     => PID);
