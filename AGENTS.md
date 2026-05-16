@@ -49,6 +49,10 @@ cd test && alr run coyote_test
 
 Object files go to `obj/<profile>/`, binaries to `bin/`.
 
+The build profile in `config/coyote_config.*` must always remain set to
+**development** unless explicitly instructed otherwise. Never switch it to
+`release` or `validation` without a direct request to do so.
+
 ## Source Layout
 
 ```
