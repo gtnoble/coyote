@@ -1622,6 +1622,8 @@ package body LLM.Agent is
                              Ada.Strings.Unbounded.To_String
                                (Slot.Result_Text)
                              & (if I = N and then Stats_Footer'Length > 0
+                                   and then Ada.Strings.Unbounded.Length
+                                              (Slot.Media_Type) = 0
                                 then ASCII.LF & Stats_Footer
                                 else "");
                         begin
