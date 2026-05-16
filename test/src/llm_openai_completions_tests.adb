@@ -1944,24 +1944,39 @@ package body LLM_OpenAI_Completions_Tests is
 
       declare
          use GNATCOLL.JSON;
-         Body_Msgs   : constant JSON_Array :=
+         Body_Msgs    : constant JSON_Array :=
            Parsed_Body.Get ("messages").Get;
-         --  messages (no system when empty): user, assistant, tool
-         Tool_Msg    : constant JSON_Value :=
+         --  messages (no system when empty): user, assistant, tool stub,
+         --  user (image)
+         Tool_Msg     : constant JSON_Value :=
            GNATCOLL.JSON.Get (Body_Msgs, 3);
-         Content_Val : constant JSON_Value := Tool_Msg.Get ("content");
-         Image_Part  : constant JSON_Value :=
-           GNATCOLL.JSON.Get (Content_Val.Get, 1);
-         Image_Url   : constant JSON_Value :=
+         Tool_Content : constant JSON_Value := Tool_Msg.Get ("content");
+         User_Img_Msg : constant JSON_Value :=
+           GNATCOLL.JSON.Get (Body_Msgs, 4);
+         Img_Content  : constant JSON_Value := User_Img_Msg.Get ("content");
+         Image_Part   : constant JSON_Value :=
+           GNATCOLL.JSON.Get (Img_Content.Get, 1);
+         Image_Url    : constant JSON_Value :=
            Image_Part.Get ("image_url");
       begin
          Assert
            (Json_String (Tool_Msg.Get ("role")) = "tool",
             "Tool result message should have role=tool");
          Assert
-           (Content_Val.Kind = JSON_Array_Type,
-            "content should be a JSON array for image results, got: "
-            & JSON_Value_Type'Image (Content_Val.Kind));
+           (Tool_Content.Kind = JSON_String_Type,
+            "Tool content should be a plain string stub for image results,"
+            & " got: " & JSON_Value_Type'Image (Tool_Content.Kind));
+         Assert
+           (Json_String (Tool_Content) = "[image result]",
+            "Tool content stub should be ""[image result]"", got: "
+            & Json_String (Tool_Content));
+         Assert
+           (Json_String (User_Img_Msg.Get ("role")) = "user",
+            "Follow-up image message should have role=user");
+         Assert
+           (Img_Content.Kind = JSON_Array_Type,
+            "Image message content should be a JSON array, got: "
+            & JSON_Value_Type'Image (Img_Content.Kind));
          Assert
            (Json_String (Image_Part.Get ("type")) = "image_url",
             "Content part type should be image_url");

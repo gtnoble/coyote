@@ -464,8 +464,15 @@ package body LLM.Providers.OpenAI_Completions is
       Message.Set_Field ("tool_call_id", To_String (Tool_Call_Id));
 
       if Length (Media_Type) > 0 then
-         --  Emit a content array with a single image_url part.
+         --  OpenAI chat-completions does not support vision content inside
+         --  tool-role messages.  Emit a plain-text stub in the tool message
+         --  then follow it with a user message carrying the image_url so the
+         --  model can actually see the image.
+         Message.Set_Field ("content", "[image result]");
+         GNATCOLL.JSON.Append (Messages, Message);
          declare
+            User_Msg   : constant GNATCOLL.JSON.JSON_Value :=
+              GNATCOLL.JSON.Create_Object;
             Content    : GNATCOLL.JSON.JSON_Array :=
               GNATCOLL.JSON.Empty_Array;
             Image_Part : constant GNATCOLL.JSON.JSON_Value :=
@@ -480,13 +487,15 @@ package body LLM.Providers.OpenAI_Completions is
             Image_Part.Set_Field ("type", "image_url");
             Image_Part.Set_Field ("image_url", Image_Url);
             GNATCOLL.JSON.Append (Content, Image_Part);
-            Message.Set_Field ("content", GNATCOLL.JSON.Create (Content));
+            User_Msg.Set_Field ("role", "user");
+            User_Msg.Set_Field
+              ("content", GNATCOLL.JSON.Create (Content));
+            GNATCOLL.JSON.Append (Messages, User_Msg);
          end;
       else
          Message.Set_Field ("content", To_String (Result_Text));
+         GNATCOLL.JSON.Append (Messages, Message);
       end if;
-
-      GNATCOLL.JSON.Append (Messages, Message);
    end Append_Tool_Result_Message;
 
    function Build_Request_Body
