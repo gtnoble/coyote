@@ -261,7 +261,6 @@ package body Coyote_App is
 
    type Agent_Command_Kind is
      (Prompt_Command,
-      New_Session_Command,
       Compact_Command,
       Switch_Session_Command,
       Set_Model_Command,
@@ -781,19 +780,6 @@ package body Coyote_App is
                      case Kind is
                         when Prompt_Command =>
                            Run_Queued_Prompt (To_String (Text), Is_Steer);
-
-                        when New_Session_Command =>
-                           begin
-                              LLM.Agent.New_Session (Agent_Session);
-                              Reset_Session_State;
-                              Emit_Bootstrap;
-                           exception
-                              when Ex : others =>
-                                 Append_Task_Warning
-                                   ("new session failed: "
-                                    & Ada.Exceptions.Exception_Message (Ex));
-                           end;
-
                         when Compact_Command =>
                            if not State.Is_Streaming
                              and then not State.Is_Compacting
@@ -1107,19 +1093,35 @@ package body Coyote_App is
                                        end if;
                                     end;
                                  elsif Text = "New" then
-                                    Acme.Window.Append
-                                      (Win,
-                                       My_FS'Access,
-                                       ASCII.LF
-                                       & UC_HORIZ & UC_HORIZ & " New session "
-                                       & UC_HORIZ & UC_HORIZ & ASCII.LF);
-                                    if State.Is_Streaming
-                                      or else State.Is_Retrying
-                                    then
-                                       State.Set_Aborted (True);
-                                       LLM.Agent.Request_Abort (Agent_Session);
-                                    end if;
-                                    Commands.Enqueue (New_Session_Command);
+                                    declare
+                                       use GNATCOLL.OS.FS;
+                                       use GNATCOLL.OS.Process;
+                                       Model   : constant String :=
+                                         LLM.Agent.Current_Model_Spec
+                                           (Agent_Session);
+                                       Null_FD : File_Descriptor;
+                                       Args    : Argument_List;
+                                       Handle  : Process_Handle;
+                                       pragma Unreferenced (Handle);
+                                    begin
+                                       Null_FD := Open (Null_File, Read_Mode);
+                                       Args.Append
+                                         (Ada.Command_Line.Command_Name);
+                                       if Model'Length > 0 then
+                                          Args.Append ("--model");
+                                          Args.Append (Model);
+                                       end if;
+                                       Handle :=
+                                         Start
+                                           (Args   => Args,
+                                            Stdin  => Null_FD,
+                                            Stdout => Null_FD,
+                                            Stderr => Null_FD,
+                                            Cwd    =>
+                                              Ada.Directories
+                                                .Current_Directory);
+                                       Close (Null_FD);
+                                    end;
                                  elsif Text = "Pause" then
                                     --  Arm a pause to fire at the next turn
                                     --  boundary.  Update the tag immediately

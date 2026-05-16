@@ -1734,10 +1734,6 @@ package body Test_Suites is
          LLM_Agent_Tests
            .Test_Multi_Turn_Same_Session_Carries_History'Access));
       Result.Add_Test (LLM_Agent_Caller.Create
-        ("LLM.Agent New_Session clears history and creates a fresh file",
-         LLM_Agent_Tests
-           .Test_New_Session_Clears_History_And_Uses_Fresh_File'Access));
-      Result.Add_Test (LLM_Agent_Caller.Create
         ("LLM.Agent emits model/start/update/end/stats in order",
          LLM_Agent_Tests
            .Test_Event_Sequence_Agent_Start_Through_Session_Stats'Access));

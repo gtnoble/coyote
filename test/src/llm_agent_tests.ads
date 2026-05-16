@@ -20,8 +20,6 @@ package LLM_Agent_Tests is
      (T : in out Test);
    procedure Test_Multi_Turn_Same_Session_Carries_History
      (T : in out Test);
-   procedure Test_New_Session_Clears_History_And_Uses_Fresh_File
-     (T : in out Test);
    procedure Test_Event_Sequence_Agent_Start_Through_Session_Stats
      (T : in out Test);
    procedure Test_Unknown_Tool_Becomes_Error_And_Agent_Continues

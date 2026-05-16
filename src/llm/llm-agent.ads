@@ -95,9 +95,6 @@ package LLM.Agent is
    --  True while the loop is blocked at a turn boundary waiting for Resume.
    function Is_Paused (S : Session) return Boolean;
 
-   --  Start a new empty conversation with a fresh on-disk session id.
-   procedure New_Session (S : in out Session);
-
    --  Switch to an existing session UUID and load its persisted history.
    procedure Switch_Session (S : in out Session; UUID : String);
 

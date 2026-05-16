@@ -1741,18 +1741,6 @@ package body LLM.Agent is
       return S.Pause_State.Is_Paused;
    end Is_Paused;
 
-   procedure New_Session (S : in out Session) is
-   begin
-      S.History.Clear;
-      S.Session_UUID := To_Unbounded_String
-        (LLM.Session_Store.Create_Session (To_String (S.Cwd)));
-      S.Last_Context_Tokens := 0;
-      S.Abort_State.Clear;
-      S.Pause_State.Release;
-      S.Streaming := False;
-      S.Has_Submitted_Prompts := False;
-   end New_Session;
-
    procedure Switch_Session (S : in out Session; UUID : String) is
    begin
       if LLM.Session_Store.Session_File_Path (UUID)'Length = 0 then
