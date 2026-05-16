@@ -61,6 +61,8 @@ package LLM_Agent_Tests is
    procedure Test_Stats_Footer_Only_On_Last_Tool_In_Batch
      (T : in out Test);
 
+   procedure Test_Image_Tool_Result_No_Footer (T : in out Test);
+
    --  Pause fires at the turn boundary: Agent_Paused_Event is emitted,
    --  the loop blocks, Resume unblocks it, and Agent_Resumed_Event is
    --  emitted before the run completes normally.

@@ -89,6 +89,10 @@ src/
     llm-http.ads/.adb           -- libcurl-backed streaming HTTP client
     llm-http-curl_binding.ads/.adb -- thin libcurl binding + callback shim
     llm-providers-openai_completions.ads/.adb -- OpenAI chat-completions wire
+                        --   image tool results are split: a plain-text stub
+                        --   in the tool message + a follow-up user message
+                        --   carrying the image_url (OpenAI does not support
+                        --   vision content inside role=tool messages)
     llm-providers-anthropic_messages.ads/.adb -- Anthropic messages wire
     llm-providers-openrouter.ads/.adb -- OpenRouter adapter
     llm-providers-openrouter-catalogue.ads/.adb -- OpenRouter model cache

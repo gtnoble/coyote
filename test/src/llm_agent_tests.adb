@@ -4770,6 +4770,138 @@ package body LLM_Agent_Tests is
          raise;
    end Test_Stats_Footer_Only_On_Last_Tool_In_Batch;
 
+
+   --  ── Test_Image_Tool_Result_No_Footer ──────────────────────────────
+   --
+   --  Image tool results are base64 blobs and must NOT have the stats
+   --  footer appended; the footer would corrupt the base64 and break image
+   --  decoding.
+
+   procedure Test_Image_Tool_Result_No_Footer (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home           : constant String :=
+        "/tmp/coyote_llm_agent_footer_3";
+      Port           : constant Positive := 18_862;
+      Agent_Session  : LLM.Agent.Session;
+      Messages       : LLM.Types.Message_Vectors.Vector;
+      Server_Stopped : Boolean := False;
+      Home_Was_Set   : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home       : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Key_Was_Set    : constant Boolean :=
+        Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
+      Old_Key        : constant String :=
+        Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
+      Url_Was_Set    : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
+      Old_Url        : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
+
+      procedure Ignore_Event (E : LLM.Events.Agent_Event'Class) is
+         pragma Unreferenced (E);
+      begin
+         null;
+      end Ignore_Event;
+
+      Request_Count : aliased Natural := 0;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Request_Count := Request_Count + 1;
+         Res.Status := 200;
+         Add_SSE_Header (Res);
+
+         if Request_Count = 1 then
+            Append
+              (Res.Body_Data,
+               Tool_Call_SSE_Payload
+                 ((1 => Tool_Call_Def
+                    (Tool_Call_Id   => "call_footer_3",
+                     Tool_Name      => "shell",
+                     Arguments_Json =>
+                       "{""command"":""printf test"",""media_type"":""image/png""}")),
+                  Prompt_Tokens     => 50,
+                  Completion_Tokens => 20));
+         else
+            Append (Res.Body_Data, Text_SSE_Payload ("Done", 10, 5));
+         end if;
+      end Handle_Request;
+
+      Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
+   begin
+      Prepare_Test_Home (Home);
+      Write_Minimal_OpenRouter_Cache (Home, "openai/gpt-4o-mini");
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Set ("OPENROUTER_API_KEY", "test-key");
+      Ada.Environment_Variables.Set
+        ("COYOTE_OPENROUTER_BASE_URL",
+         "http://127.0.0.1:" & Natural_Image (Port) & "/api/v1");
+
+      LLM.Agent.Create
+        (S          => Agent_Session,
+         Model_Spec => "openrouter/openai/gpt-4o-mini",
+         No_Tools   => False);
+
+      Srv.Bind (Port);
+
+      LLM.Agent.Run_Prompt
+        (S        => Agent_Session,
+         Prompt   => "Use a tool",
+         On_Event => Ignore_Event'Access);
+
+      Srv.Stop;
+      Server_Stopped := True;
+
+      Messages := LLM.Session_Store.Load_Messages
+        (LLM.Agent.Session_Id (Agent_Session));
+
+      --  Messages: user, assistant tool call, tool result, assistant reply.
+      Assert
+        (Messages.Length = 4,
+         "Footer test: expected 4 messages");
+      Assert
+        (Messages.Element (2).Role = LLM.Types.Tool_Result,
+         "Footer test: third message should be the tool result");
+
+      declare
+         Block : LLM.Types.Content_Block :=
+           Messages.Element (2).Content.Element (0);
+      begin
+         Assert
+           (Ada.Strings.Unbounded.Length (Block.Media_Type) > 0,
+            "Image tool result should have non-empty Media_Type");
+         Assert
+           (Ada.Strings.Fixed.Index (Ada.Strings.Unbounded.To_String
+            (Block.Result_Text), "[coyote: turn=") = 0,
+            "Stats footer must not be appended to base64 image data");
+      end;
+
+      Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
+      Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         if not Server_Stopped then
+            begin
+               Srv.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
+         Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
+         Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Image_Tool_Result_No_Footer;
+
    --  ── Pause_Flag agent integration tests ───────────────────────────────
 
    procedure Test_Pause_Fires_At_Turn_Boundary (T : in out Test) is

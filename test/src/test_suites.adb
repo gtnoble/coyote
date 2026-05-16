@@ -1813,6 +1813,10 @@ package body Test_Suites is
         ("Stats footer appears only on last tool in a batch",
          LLM_Agent_Tests
            .Test_Stats_Footer_Only_On_Last_Tool_In_Batch'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("Image tool results have no stats footer appended",
+         LLM_Agent_Tests
+           .Test_Image_Tool_Result_No_Footer'Access));
       Result.Add_Test (LLM_Parallel_Caller.Create
         ("Parallel batch: two 0.4 s tools complete in < 0.75 s",
          LLM_Parallel_Tools_Tests
