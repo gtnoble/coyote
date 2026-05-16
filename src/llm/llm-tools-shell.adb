@@ -11,11 +11,16 @@ with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with GNATCOLL.JSON;
 with GNATCOLL.OS.FS;         use GNATCOLL.OS.FS;
 with GNATCOLL.OS.Process;    use GNATCOLL.OS.Process;
-with LLM.Tools.Internal;
 
 package body LLM.Tools.Shell is
 
    use type GNATCOLL.JSON.JSON_Value_Type;
+
+   --  Thin binding for POSIX kill(2); sends Signal to process group -Pid.
+   function C_Kill
+     (Pid    : Integer;
+      Signal : Integer) return Integer
+     with Import, Convention => C, External_Name => "kill";
 
    Default_Shell : constant String := "/bin/sh";
 
@@ -368,7 +373,7 @@ package body LLM.Tools.Shell is
                      Dummy : Integer;
                   begin
                      Dummy :=
-                       LLM.Tools.Internal.C_Kill (-Integer (Handle), 15);
+                       C_Kill (-Integer (Handle), 15);
                   end;
                end if;
                Close (Output_R);

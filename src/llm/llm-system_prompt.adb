@@ -14,6 +14,7 @@ with Ada.Text_IO;
 with LLM.Settings;
 with LLM.Skills;
 with LLM.Tools;
+with LLM.Tools.Shell;
 
 package body LLM.System_Prompt is
 
@@ -227,8 +228,8 @@ package body LLM.System_Prompt is
       Skills_Section   : String  := "") return String
    is
       Result : Unbounded_String;
-      Tools  : constant LLM.Tools.Tool_Descriptor_Vectors.Vector :=
-        LLM.Tools.Built_In_Tools;
+      Descriptor : constant LLM.Tools.Tool_Descriptor :=
+        LLM.Tools.Shell.Descriptor;
    begin
       Append
         (Result,
@@ -239,15 +240,13 @@ package body LLM.System_Prompt is
       if not No_Tools then
          Append (Result, ASCII.LF & ASCII.LF & "Available tools:");
 
-         for Descriptor of Tools loop
-            Append
-              (Result,
-               ASCII.LF
-               & "- "
-               & To_String (Descriptor.Name)
-               & ": "
-               & To_String (Descriptor.Description));
-         end loop;
+         Append
+           (Result,
+            ASCII.LF
+            & "- "
+            & To_String (Descriptor.Name)
+            & ": "
+            & To_String (Descriptor.Description));
 
          Append
            (Result,

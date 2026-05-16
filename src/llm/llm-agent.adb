@@ -21,6 +21,8 @@ with LLM.Session_Store;
 with LLM.Settings;
 with LLM.System_Prompt;
 with LLM.Tools;
+with LLM.Tools.Shell;
+with LLM.Tools.Temp_File;
 package body LLM.Agent is
 
    use type Ada.Containers.Count_Type;
@@ -122,16 +124,37 @@ package body LLM.Agent is
       end Start;
 
       begin
-         LLM.Tools.Execute
-           (Name           => Ada.Strings.Unbounded.To_String
-                                (My_Tool.Tool_Name),
-            Args_Json      => Ada.Strings.Unbounded.To_String
-                                (My_Tool.Arguments_Json),
-            Result         => Result,
-            Media_Type     => Media_Type,
-            Is_Error       => Is_Error,
-            Abort_Flg      => Abort_Flg,
-            Context_Window => Context_Window);
+         if Ada.Strings.Unbounded.To_String (My_Tool.Tool_Name) = "shell"
+         then
+            LLM.Tools.Shell.Execute
+              (Args_Json  => Ada.Strings.Unbounded.To_String
+                               (My_Tool.Arguments_Json),
+               Result     => Result,
+               Media_Type => Media_Type,
+               Is_Error   => Is_Error,
+               Abort_Flg  => Abort_Flg);
+
+            --  Apply the result-size cap to plain-text results.  Image
+            --  results (Media_Type non-empty) are base64-encoded binary and
+            --  must not be truncated.
+            if Ada.Strings.Unbounded.Length (Media_Type) = 0 then
+               Result := Ada.Strings.Unbounded.To_Unbounded_String
+                 (LLM.Tools.Temp_File.Truncated
+                    (Ada.Strings.Unbounded.To_String (Result),
+                     Threshold => LLM.Tools.Temp_File.Result_Threshold
+                                    (Context_Window),
+                     Tool_Name => Ada.Strings.Unbounded.To_String
+                                    (My_Tool.Tool_Name)));
+            end if;
+         else
+            --  The model called a tool name that is not registered.
+            Result :=
+              Ada.Strings.Unbounded.To_Unbounded_String
+                ("unknown tool: "
+                 & Ada.Strings.Unbounded.To_String (My_Tool.Tool_Name));
+            Media_Type := Ada.Strings.Unbounded.Null_Unbounded_String;
+            Is_Error   := True;
+         end if;
       exception
          when Ex : others =>
             Result     := Ada.Strings.Unbounded.To_Unbounded_String
@@ -496,7 +519,10 @@ package body LLM.Agent is
          return "[]";
       end if;
 
-      for Descriptor of LLM.Tools.Built_In_Tools loop
+      declare
+         Descriptor : constant LLM.Tools.Tool_Descriptor :=
+           LLM.Tools.Shell.Descriptor;
+      begin
          if Lowercase (To_String (Info.Wire_Format)) =
            "anthropic-messages"
          then
@@ -529,7 +555,7 @@ package body LLM.Agent is
                GNATCOLL.JSON.Append (Tools, Tool_Object);
             end;
          end if;
-      end loop;
+      end;
 
       declare
          Tools_Value : constant GNATCOLL.JSON.JSON_Value :=

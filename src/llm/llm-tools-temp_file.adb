@@ -48,6 +48,24 @@ package body LLM.Tools.Temp_File is
         & ".txt";
    end Next_Temp_Path;
 
+   function Result_Threshold (Context_Window : Natural) return Positive is
+      Raw : Natural;
+   begin
+      if Context_Window = 0 then
+         return MAX_RESULT_THRESHOLD;
+      end if;
+
+      Raw := Context_Window * BYTES_PER_TOKEN / CONTEXT_SHARE;
+
+      if Raw < MIN_RESULT_THRESHOLD then
+         return MIN_RESULT_THRESHOLD;
+      elsif Raw > MAX_RESULT_THRESHOLD then
+         return MAX_RESULT_THRESHOLD;
+      else
+         return Raw;
+      end if;
+   end Result_Threshold;
+
    function Truncated
      (Text      : String;
       Threshold : Positive;

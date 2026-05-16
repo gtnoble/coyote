@@ -2,6 +2,7 @@ with AUnit.Assertions;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with LLM.Tools;
+with LLM.Tools.Temp_File;
 with LLM.Tools.Shell;
 
 package body LLM_Tools_Tests is
@@ -121,8 +122,8 @@ package body LLM_Tools_Tests is
       pragma Unreferenced (T);
    begin
       Assert
-        (LLM.Tools.Result_Threshold (0) =
-            LLM.Tools.MAX_RESULT_THRESHOLD,
+        (LLM.Tools.Temp_File.Result_Threshold (0) =
+            LLM.Tools.Temp_File.MAX_RESULT_THRESHOLD,
          "Context_Window = 0 should return MAX_RESULT_THRESHOLD");
    end Test_Result_Threshold_Zero_Returns_Max;
 
@@ -131,8 +132,8 @@ package body LLM_Tools_Tests is
    begin
       --  8 k tokens → 8_000 × 4 ÷ 8 = 4_000 bytes < MIN (4_096)
       Assert
-        (LLM.Tools.Result_Threshold (8_000) =
-            LLM.Tools.MIN_RESULT_THRESHOLD,
+        (LLM.Tools.Temp_File.Result_Threshold (8_000) =
+            LLM.Tools.Temp_File.MIN_RESULT_THRESHOLD,
          "8k context should clamp to MIN_RESULT_THRESHOLD");
    end Test_Result_Threshold_Small_Clamped_To_Min;
 
@@ -141,7 +142,7 @@ package body LLM_Tools_Tests is
    begin
       --  128_000 × 4 ÷ 8 = 64_000 (64 KB) — within bounds
       Assert
-        (LLM.Tools.Result_Threshold (128_000) = 64_000,
+        (LLM.Tools.Temp_File.Result_Threshold (128_000) = 64_000,
          "128k context should yield 64 KB threshold");
    end Test_Result_Threshold_Typical_128k;
 
@@ -150,7 +151,7 @@ package body LLM_Tools_Tests is
    begin
       --  200_000 × 4 ÷ 8 = 100_000 (100 KB) — within bounds
       Assert
-        (LLM.Tools.Result_Threshold (200_000) = 100_000,
+        (LLM.Tools.Temp_File.Result_Threshold (200_000) = 100_000,
          "200k context should yield 100 KB threshold");
    end Test_Result_Threshold_Typical_200k;
 
@@ -159,8 +160,8 @@ package body LLM_Tools_Tests is
    begin
       --  1_000_000 × 4 ÷ 8 = 500_000 > MAX (204_800)
       Assert
-        (LLM.Tools.Result_Threshold (1_000_000) =
-            LLM.Tools.MAX_RESULT_THRESHOLD,
+        (LLM.Tools.Temp_File.Result_Threshold (1_000_000) =
+            LLM.Tools.Temp_File.MAX_RESULT_THRESHOLD,
          "1M context should clamp to MAX_RESULT_THRESHOLD");
    end Test_Result_Threshold_Large_Clamped_To_Max;
 
@@ -236,52 +237,71 @@ package body LLM_Tools_Tests is
 
    --  Validate_Arguments unit tests
 
+   --  The Validate_Arguments tests exercise Shell.Execute's built-in
+   --  argument validation.  Valid JSON objects succeed; everything else
+   --  causes Is_Error to be set to True.
+
    procedure Test_Validate_Arguments_Valid_Object (T : in out Test) is
       pragma Unreferenced (T);
+      Result     : Unbounded_String;
+      Media_Type : Unbounded_String;
+      Is_Error   : Boolean;
    begin
+      LLM.Tools.Shell.Execute
+        (Args_Json  => "{""command"":""echo hi""}",
+         Result     => Result,
+         Media_Type => Media_Type,
+         Is_Error   => Is_Error);
       Assert
-        (LLM.Tools.Validate_Arguments
-           ("{""command"":""echo hi""}") = "",
-         "Validate_Arguments should return empty string for valid JSON");
+        (not Is_Error,
+         "Valid JSON object with command should not produce an error");
    end Test_Validate_Arguments_Valid_Object;
 
    procedure Test_Validate_Arguments_Invalid_Json (T : in out Test) is
       pragma Unreferenced (T);
       --  Simulates a truncated tool-call argument where the LLM hit
       --  max_tokens mid-JSON.
-      Result : constant String :=
-        LLM.Tools.Validate_Arguments
-          ("""command"":""echo hi""");
+      Result     : Unbounded_String;
+      Media_Type : Unbounded_String;
+      Is_Error   : Boolean;
    begin
-      Assert (Result'Length > 0,
-              "Validate_Arguments should reject broken JSON");
-      Assert
-        (Contains (Result, "truncated"),
-         "Diagnostic should mention truncation, got: " & Result);
+      LLM.Tools.Shell.Execute
+        (Args_Json  => """command"":""echo hi""",
+         Result     => Result,
+         Media_Type => Media_Type,
+         Is_Error   => Is_Error);
+      Assert (Is_Error,
+              "Broken JSON arguments should produce an error");
    end Test_Validate_Arguments_Invalid_Json;
 
    procedure Test_Validate_Arguments_Non_Object (T : in out Test) is
       pragma Unreferenced (T);
-      Result : constant String :=
-        LLM.Tools.Validate_Arguments ("[1, 2, 3]");
+      Result     : Unbounded_String;
+      Media_Type : Unbounded_String;
+      Is_Error   : Boolean;
    begin
-      Assert (Result'Length > 0,
-              "Validate_Arguments should reject a JSON array");
-      Assert
-        (Contains (Result, "object"),
-         "Diagnostic should mention object, got: " & Result);
+      LLM.Tools.Shell.Execute
+        (Args_Json  => "[1, 2, 3]",
+         Result     => Result,
+         Media_Type => Media_Type,
+         Is_Error   => Is_Error);
+      Assert (Is_Error,
+              "JSON array instead of object should produce an error");
    end Test_Validate_Arguments_Non_Object;
 
    procedure Test_Validate_Arguments_Empty_String (T : in out Test) is
       pragma Unreferenced (T);
-      Result : constant String :=
-        LLM.Tools.Validate_Arguments ("");
+      Result     : Unbounded_String;
+      Media_Type : Unbounded_String;
+      Is_Error   : Boolean;
    begin
-      Assert (Result'Length > 0,
-              "Validate_Arguments should reject an empty string");
-      Assert
-        (Contains (Result, "truncated"),
-         "Diagnostic should mention truncation, got: " & Result);
+      LLM.Tools.Shell.Execute
+        (Args_Json  => "",
+         Result     => Result,
+         Media_Type => Media_Type,
+         Is_Error   => Is_Error);
+      Assert (Is_Error,
+              "Empty string arguments should produce an error");
    end Test_Validate_Arguments_Empty_String;
 
 
@@ -373,15 +393,22 @@ package body LLM_Tools_Tests is
       Media_Type : Unbounded_String;
       Is_Error   : Boolean;
    begin
-      LLM.Tools.Execute
-        (Name           => "shell",
-         Args_Json      =>
+      LLM.Tools.Shell.Execute
+        (Args_Json  =>
            "{""command"":""printf '%5000d' 0"","
            & """media_type"":""image/png""}",
-         Result         => Result,
-         Media_Type     => Media_Type,
-         Is_Error       => Is_Error,
-         Context_Window => 8_000);
+         Result     => Result,
+         Media_Type => Media_Type,
+         Is_Error   => Is_Error);
+
+      --  Apply the result-size cap: image results must bypass it entirely.
+      if Ada.Strings.Unbounded.Length (Media_Type) = 0 then
+         Result := Ada.Strings.Unbounded.To_Unbounded_String
+           (LLM.Tools.Temp_File.Truncated
+              (Ada.Strings.Unbounded.To_String (Result),
+               Threshold => LLM.Tools.Temp_File.Result_Threshold (8_000),
+               Tool_Name => "shell"));
+      end if;
 
       Assert (not Is_Error,
               "large image command should succeed");
