@@ -157,20 +157,26 @@ package body LLM.Providers.OpenAI_Completions is
       return Default;
    end Get_String_Field;
 
-   --  OpenRouter appends a trailing LF after every streamed reasoning token.
-   --  Strip those so thinking renders as flowing text rather than one word
-   --  per line.  Genuine paragraph breaks (e.g. "\n\n") survive because only
-   --  the trailing end of the delta is trimmed.
-   function Strip_Trailing_Newlines (Text : String) return String is
-      Last : Natural := Text'Last;
+   --  Some OpenRouter models append a trailing LF after every streamed
+   --  reasoning token; others (e.g. MiniMax M2.7) prepend leading newlines
+   --  to each token instead.  Strip both ends so thinking renders as flowing
+   --  text rather than one fragment per line.
+   function Normalize_Thinking_Delta (Text : String) return String is
+      First : Natural := Text'First;
+      Last  : Natural := Text'Last;
    begin
-      while Last >= Text'First
+      while First <= Last
+        and then (Text (First) = ASCII.LF or else Text (First) = ASCII.CR)
+      loop
+         First := First + 1;
+      end loop;
+      while Last >= First
         and then (Text (Last) = ASCII.LF or else Text (Last) = ASCII.CR)
       loop
          Last := Last - 1;
       end loop;
-      return Text (Text'First .. Last);
-   end Strip_Trailing_Newlines;
+      return Text (First .. Last);
+   end Normalize_Thinking_Delta;
 
    function Get_Object_Field
       (Value : GNATCOLL.JSON.JSON_Value;
@@ -712,7 +718,7 @@ package body LLM.Providers.OpenAI_Completions is
             Emit_Update
                (Handler    => Handler,
            Kind       => LLM.Events.Thinking_Delta,
-           Delta_Text => Strip_Trailing_Newlines
+           Delta_Text => Normalize_Thinking_Delta
                            (Get_String_Field (Delta_Value, "reasoning")));
          end if;
 
