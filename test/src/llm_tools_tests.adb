@@ -28,10 +28,12 @@ package body LLM_Tools_Tests is
 
       Result   : Unbounded_String;
       Is_Error : Boolean;
+      Media_Type : Unbounded_String;
    begin
       LLM.Tools.Shell.Execute
         (Args_Json => "{""command"":""echo hello""}",
          Result    => Result,
+         Media_Type => Media_Type,
          Is_Error  => Is_Error);
 
       Assert (not Is_Error, "echo hello should succeed");
@@ -45,10 +47,12 @@ package body LLM_Tools_Tests is
 
       Result   : Unbounded_String;
       Is_Error : Boolean;
+      Media_Type : Unbounded_String;
    begin
       LLM.Tools.Shell.Execute
         (Args_Json => "{""command"":""exit 1""}",
          Result    => Result,
+         Media_Type => Media_Type,
          Is_Error  => Is_Error);
 
       Assert (Is_Error, "exit 1 should report a tool error");
@@ -62,6 +66,7 @@ package body LLM_Tools_Tests is
 
       Result   : Unbounded_String;
       Is_Error : Boolean;
+      Media_Type : Unbounded_String;
    begin
       --  "cat" reads its stdin and writes it to stdout.  The output should
       --  exactly reproduce the text supplied via the "stdin" field.
@@ -69,6 +74,7 @@ package body LLM_Tools_Tests is
         (Args_Json =>
            "{""command"":""cat"",""stdin"":""hello from stdin\n""}",
          Result    => Result,
+         Media_Type => Media_Type,
          Is_Error  => Is_Error);
 
       Assert (not Is_Error, "cat with stdin should succeed");
@@ -82,12 +88,14 @@ package body LLM_Tools_Tests is
 
       Result   : Unbounded_String;
       Is_Error : Boolean;
+      Media_Type : Unbounded_String;
    begin
       --  An empty "stdin" field should be treated as absent: the command
       --  reads from /dev/null so it receives EOF immediately and succeeds.
       LLM.Tools.Shell.Execute
         (Args_Json => "{""command"":""cat"",""stdin"":""""}",
          Result    => Result,
+         Media_Type => Media_Type,
          Is_Error  => Is_Error);
 
       Assert (not Is_Error, "cat with empty stdin should succeed");
@@ -101,12 +109,14 @@ package body LLM_Tools_Tests is
 
       Result   : Unbounded_String;
       Is_Error : Boolean;
+      Media_Type : Unbounded_String;
    begin
       --  When no "stdin" field is present the command should still run
       --  normally, receiving EOF from /dev/null.
       LLM.Tools.Shell.Execute
         (Args_Json => "{""command"":""echo no-stdin""}",
          Result    => Result,
+         Media_Type => Media_Type,
          Is_Error  => Is_Error);
 
       Assert (not Is_Error, "echo without stdin should succeed");
@@ -145,6 +155,7 @@ package body LLM_Tools_Tests is
         Ada.Environment_Variables.Value (Env_Name, "");
       Result          : Unbounded_String;
       Is_Error        : Boolean;
+      Media_Type     : Unbounded_String;
    begin
       Ada.Environment_Variables.Set (Env_Name, Mock_Coyote_Bin);
 
@@ -156,6 +167,7 @@ package body LLM_Tools_Tests is
            & ",""agent"":""worker.agent.md"""
            & ",""name"":""worker""}",
          Result    => Result,
+         Media_Type => Media_Type,
          Is_Error  => Is_Error);
 
       Assert (not Is_Error, "spawn_subagent should succeed with JSON output");
@@ -177,11 +189,13 @@ package body LLM_Tools_Tests is
 
       Result   : Unbounded_String;
       Is_Error : Boolean;
+      Media_Type : Unbounded_String;
    begin
       LLM.Tools.Execute
         (Name      => "spawn_subagent",
          Args_Json => "{}",
          Result    => Result,
+         Media_Type => Media_Type,
          Is_Error  => Is_Error);
 
       Assert (Is_Error, "spawn_subagent should reject missing prompt");
@@ -357,5 +371,118 @@ package body LLM_Tools_Tests is
         (Contains (Result, "truncated"),
          "Diagnostic should mention truncation, got: " & Result);
    end Test_Validate_Arguments_Empty_String;
+
+
+   --  ── Shell media_type tests ────────────────────────────────────────────
+
+   procedure Test_Shell_Media_Type_Sets_Base64_Result (T : in out Test) is
+      pragma Unreferenced (T);
+
+      --  "Hello" in standard base64 is "SGVsbG8="
+      Result     : Unbounded_String;
+      Media_Type : Unbounded_String;
+      Is_Error   : Boolean;
+   begin
+      LLM.Tools.Shell.Execute
+        (Args_Json  =>
+           "{""command"":""printf Hello"","
+           & """media_type"":""image/png""}",
+         Result     => Result,
+         Media_Type => Media_Type,
+         Is_Error   => Is_Error);
+
+      Assert (not Is_Error,
+              "command with media_type should succeed");
+      Assert
+        (To_String (Media_Type) = "image/png",
+         "Media_Type out param should be ""image/png"", got: "
+         & To_String (Media_Type));
+      Assert
+        (To_String (Result) = "SGVsbG8=",
+         "Base64 of ""Hello"" should be ""SGVsbG8="", got: "
+         & To_String (Result));
+   end Test_Shell_Media_Type_Sets_Base64_Result;
+
+   procedure Test_Shell_Media_Type_Error_Clears_Type (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Result     : Unbounded_String;
+      Media_Type : Unbounded_String;
+      Is_Error   : Boolean;
+   begin
+      LLM.Tools.Shell.Execute
+        (Args_Json  =>
+           "{""command"":""exit 1"","
+           & """media_type"":""image/jpeg""}",
+         Result     => Result,
+         Media_Type => Media_Type,
+         Is_Error   => Is_Error);
+
+      Assert (Is_Error,
+              "failed command should set Is_Error");
+      Assert
+        (To_String (Media_Type) = "",
+         "Media_Type should be empty on command error, got: "
+         & To_String (Media_Type));
+   end Test_Shell_Media_Type_Error_Clears_Type;
+
+   procedure Test_Shell_Media_Type_Absent_Is_Plain_Text (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Result     : Unbounded_String;
+      Media_Type : Unbounded_String;
+      Is_Error   : Boolean;
+   begin
+      LLM.Tools.Shell.Execute
+        (Args_Json  => "{""command"":""echo plain""}",
+         Result     => Result,
+         Media_Type => Media_Type,
+         Is_Error   => Is_Error);
+
+      Assert (not Is_Error,
+              "echo without media_type should succeed");
+      Assert
+        (To_String (Media_Type) = "",
+         "Media_Type should be empty when field is absent, got: "
+         & To_String (Media_Type));
+      Assert
+        (Contains (To_String (Result), "plain"),
+         "Result should contain the plain-text output");
+   end Test_Shell_Media_Type_Absent_Is_Plain_Text;
+
+   procedure Test_Execute_Image_Not_Truncated (T : in out Test) is
+      pragma Unreferenced (T);
+
+      --  printf '%5000d' 0 produces a 5000-character output (4999 spaces +
+      --  the digit 0), which exceeds the 4 096-byte Temp_File threshold for
+      --  context_window=8_000.  A plain-text result at this size would be
+      --  truncated; an image result must bypass the cap entirely.
+      Result     : Unbounded_String;
+      Media_Type : Unbounded_String;
+      Is_Error   : Boolean;
+   begin
+      LLM.Tools.Execute
+        (Name           => "shell",
+         Args_Json      =>
+           "{""command"":""printf '%5000d' 0"","
+           & """media_type"":""image/png""}",
+         Result         => Result,
+         Media_Type     => Media_Type,
+         Is_Error       => Is_Error,
+         Context_Window => 8_000);
+
+      Assert (not Is_Error,
+              "large image command should succeed");
+      Assert
+        (To_String (Media_Type) = "image/png",
+         "Media_Type should be image/png");
+      Assert
+        (not Contains (To_String (Result), "truncated"),
+         "Image result must not contain a truncation trailer");
+      Assert
+        (not Contains (To_String (Result), "["),
+         "Base64 output must not contain '[' (truncation marker)");
+   end Test_Execute_Image_Not_Truncated;
+
 
 end LLM_Tools_Tests;

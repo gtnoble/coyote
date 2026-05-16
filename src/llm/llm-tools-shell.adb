@@ -19,6 +19,71 @@ package body LLM.Tools.Shell is
 
    Default_Shell : constant String := "/bin/sh";
 
+   --  Standard base64 alphabet (RFC 4648, Table 1).
+   Base64_Alphabet : constant String :=
+     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+   --  Encode the bytes of Data as standard base64 with '=' padding.
+   function Base64_Encode (Data : String) return String is
+      Len    : constant Natural := Data'Length;
+      --  Output length: ceil(Len / 3) * 4
+      Out_Len : constant Natural := ((Len + 2) / 3) * 4;
+      Result  : String (1 .. Out_Len);
+      Out_Pos : Positive := 1;
+      B0, B1, B2 : Natural;
+   begin
+      if Len = 0 then
+         return "";
+      end if;
+
+      declare
+         In_Pos : Positive := Data'First;
+      begin
+         while In_Pos <= Data'Last loop
+            B0 := Character'Pos (Data (In_Pos));
+            In_Pos := In_Pos + 1;
+
+            if In_Pos <= Data'Last then
+               B1 := Character'Pos (Data (In_Pos));
+               In_Pos := In_Pos + 1;
+            else
+               B1 := 0;
+            end if;
+
+            if In_Pos <= Data'Last then
+               B2 := Character'Pos (Data (In_Pos));
+               In_Pos := In_Pos + 1;
+            else
+               B2 := 0;
+            end if;
+
+            Result (Out_Pos)     :=
+              Base64_Alphabet (1 + B0 / 4);
+            Result (Out_Pos + 1) :=
+              Base64_Alphabet (1 + (B0 mod 4) * 16 + B1 / 16);
+            Result (Out_Pos + 2) :=
+              Base64_Alphabet (1 + (B1 mod 16) * 4 + B2 / 64);
+            Result (Out_Pos + 3) :=
+              Base64_Alphabet (1 + B2 mod 64);
+            Out_Pos := Out_Pos + 4;
+         end loop;
+      end;
+
+      --  Apply '=' padding for incomplete final groups.
+      declare
+         Remainder : constant Natural := Len mod 3;
+      begin
+         if Remainder = 1 then
+            Result (Out_Len - 1) := '=';
+            Result (Out_Len)     := '=';
+         elsif Remainder = 2 then
+            Result (Out_Len) := '=';
+         end if;
+      end;
+
+      return Result;
+   end Base64_Encode;
+
    function Resolve_Shell return String is
    begin
       if Ada.Environment_Variables.Exists ("SHELL") then
@@ -36,17 +101,19 @@ package body LLM.Tools.Shell is
    end Resolve_Shell;
 
    function Descriptor return Tool_Descriptor is
-      Schema   : constant GNATCOLL.JSON.JSON_Value :=
+      Schema     : constant GNATCOLL.JSON.JSON_Value :=
         GNATCOLL.JSON.Create_Object;
-      Props    : constant GNATCOLL.JSON.JSON_Value :=
+      Props      : constant GNATCOLL.JSON.JSON_Value :=
         GNATCOLL.JSON.Create_Object;
-      Command  : constant GNATCOLL.JSON.JSON_Value :=
+      Command    : constant GNATCOLL.JSON.JSON_Value :=
         GNATCOLL.JSON.Create_Object;
-      Desc_P   : constant GNATCOLL.JSON.JSON_Value :=
+      Desc_P     : constant GNATCOLL.JSON.JSON_Value :=
         GNATCOLL.JSON.Create_Object;
-      Stdin_P  : constant GNATCOLL.JSON.JSON_Value :=
+      Stdin_P    : constant GNATCOLL.JSON.JSON_Value :=
         GNATCOLL.JSON.Create_Object;
-      Required : GNATCOLL.JSON.JSON_Array := GNATCOLL.JSON.Empty_Array;
+      Media_P    : constant GNATCOLL.JSON.JSON_Value :=
+        GNATCOLL.JSON.Create_Object;
+      Required   : GNATCOLL.JSON.JSON_Array := GNATCOLL.JSON.Empty_Array;
    begin
       Command.Set_Field ("type", "string");
       Command.Set_Field ("description", "The shell command to execute");
@@ -63,9 +130,18 @@ package body LLM.Tools.Shell is
          & " inline-code flags (-e, -E) whenever passing multi-line"
          & " content to a command.");
 
+      Media_P.Set_Field ("type", "string");
+      Media_P.Set_Field
+        ("description",
+         "Optional MIME type of the command's stdout (e.g. ""image/png"","
+         & " ""image/jpeg"").  When non-empty the raw stdout bytes are"
+         & " base64-encoded and returned as an image content block of this"
+         & " type.  Omit or leave empty for plain-text output (the default).");
+
       Props.Set_Field ("command", Command);
       Props.Set_Field ("description", Desc_P);
       Props.Set_Field ("stdin", Stdin_P);
+      Props.Set_Field ("media_type", Media_P);
 
       GNATCOLL.JSON.Append (Required, GNATCOLL.JSON.Create ("command"));
 
@@ -79,7 +155,11 @@ package body LLM.Tools.Shell is
            ("Execute a shell command and return its combined output."
             & " Optionally pipe text into the command via the `stdin` field."
             & " Never use heredocs or interpreter inline-code flags"
-            & " (-e, -E) to pass multi-line content; always use `stdin` instead."),
+            & " (-e, -E) to pass multi-line content; always use `stdin`"
+            & " instead. Set `media_type` to a MIME type string (e.g."
+            & " ""image/png"") when the command produces binary image output;"
+            & " the bytes will be base64-encoded and returned as an image"
+            & " content block."),
          Schema_Json => Schema);
    end Descriptor;
 
@@ -90,28 +170,34 @@ package body LLM.Tools.Shell is
    end Image_Of;
 
    procedure Set_Error
-     (Message  :     String;
-      Result   : out Unbounded_String;
-      Is_Error : out Boolean) is
+     (Message    :     String;
+      Result     : out Unbounded_String;
+      Media_Type : out Unbounded_String;
+      Is_Error   : out Boolean) is
    begin
-      Result   := To_Unbounded_String (Message);
-      Is_Error := True;
+      Result     := To_Unbounded_String (Message);
+      Media_Type := Null_Unbounded_String;
+      Is_Error   := True;
    end Set_Error;
 
    procedure Execute
-     (Args_Json :     String;
-      Result    : out Ada.Strings.Unbounded.Unbounded_String;
-      Is_Error  : out Boolean;
-      Abort_Flg : access LLM.Tools.Abort_Flag := null)
+     (Args_Json  :     String;
+      Result     : out Ada.Strings.Unbounded.Unbounded_String;
+      Media_Type : out Ada.Strings.Unbounded.Unbounded_String;
+      Is_Error   : out Boolean;
+      Abort_Flg  : access LLM.Tools.Abort_Flag := null)
    is
       Parsed : constant GNATCOLL.JSON.Read_Result :=
         GNATCOLL.JSON.Read (Args_Json);
    begin
-      Result   := Null_Unbounded_String;
-      Is_Error := False;
+      Result     := Null_Unbounded_String;
+      Media_Type := Null_Unbounded_String;
+      Is_Error   := False;
 
       if not Parsed.Success then
-         Set_Error ("invalid JSON arguments for shell tool", Result, Is_Error);
+         Set_Error
+           ("invalid JSON arguments for shell tool",
+            Result, Media_Type, Is_Error);
          return;
       end if;
 
@@ -119,7 +205,9 @@ package body LLM.Tools.Shell is
          Root : constant GNATCOLL.JSON.JSON_Value := Parsed.Value;
       begin
          if Root.Kind /= GNATCOLL.JSON.JSON_Object_Type then
-            Set_Error ("invalid JSON arguments for shell tool", Result, Is_Error);
+            Set_Error
+              ("invalid JSON arguments for shell tool",
+               Result, Media_Type, Is_Error);
             return;
          end if;
 
@@ -128,27 +216,27 @@ package body LLM.Tools.Shell is
          then
             Set_Error
               ("shell tool requires a string field 'command'",
-               Result,
-               Is_Error);
+               Result, Media_Type, Is_Error);
             return;
          end if;
 
          declare
-            Command        : constant String := Root.Get ("command").Get;
-            Shell_Path     : constant String := Resolve_Shell;
-            Output_R       : File_Descriptor := Invalid_FD;
-            Output_W       : File_Descriptor := Invalid_FD;
-            Null_In        : File_Descriptor := Invalid_FD;
-            Handle         : Process_Handle  := Invalid_Handle;
-            Args           : Argument_List;
-            Chunk          : String (1 .. 4096);
-            Bytes_Read     : Integer;
-            Exit_Code      : Integer         := 0;
-            Output         : Unbounded_String;
-            Has_Stdin_Text : Boolean         := False;
-            Stdin_Text     : Unbounded_String := Null_Unbounded_String;
-            Stdin_R        : File_Descriptor := Invalid_FD;
-            Stdin_W        : File_Descriptor := Invalid_FD;
+            Command          : constant String := Root.Get ("command").Get;
+            Shell_Path       : constant String := Resolve_Shell;
+            Output_R         : File_Descriptor := Invalid_FD;
+            Output_W         : File_Descriptor := Invalid_FD;
+            Null_In          : File_Descriptor := Invalid_FD;
+            Handle           : Process_Handle  := Invalid_Handle;
+            Args             : Argument_List;
+            Chunk            : String (1 .. 4096);
+            Bytes_Read       : Integer;
+            Exit_Code        : Integer         := 0;
+            Output           : Unbounded_String;
+            Has_Stdin_Text   : Boolean         := False;
+            Stdin_Text       : Unbounded_String := Null_Unbounded_String;
+            Stdin_R          : File_Descriptor := Invalid_FD;
+            Stdin_W          : File_Descriptor := Invalid_FD;
+            Requested_Mime   : Unbounded_String := Null_Unbounded_String;
 
             procedure Cleanup is
             begin
@@ -190,6 +278,20 @@ package body LLM.Tools.Shell is
                   if Value'Length > 0 then
                      Has_Stdin_Text := True;
                      Stdin_Text     := To_Unbounded_String (Value);
+                  end if;
+               end;
+            end if;
+
+            --  Parse the optional "media_type" field.
+            if Root.Has_Field ("media_type")
+              and then Root.Get ("media_type").Kind =
+                GNATCOLL.JSON.JSON_String_Type
+            then
+               declare
+                  Value : constant String := Root.Get ("media_type").Get;
+               begin
+                  if Value'Length > 0 then
+                     Requested_Mime := To_Unbounded_String (Value);
                   end if;
                end;
             end if;
@@ -272,7 +374,7 @@ package body LLM.Tools.Shell is
                Close (Output_R);
                Output_R := Invalid_FD;
                Exit_Code := Wait (Handle);
-               Set_Error ("aborted", Result, Is_Error);
+               Set_Error ("aborted", Result, Media_Type, Is_Error);
                Cleanup;
                return;
             end if;
@@ -295,17 +397,30 @@ package body LLM.Tools.Shell is
                   Output := To_Unbounded_String
                     ("command exited with status " & Image_Of (Exit_Code));
                end if;
+               --  On error discard any requested media type; the result is
+               --  always an error text message.
+               Result := Output;
+               Cleanup;
+               return;
             end if;
 
-            Result := Output;
+            --  Successful exit: base64-encode when a media type was requested.
+            if Length (Requested_Mime) > 0 then
+               Result     :=
+                 To_Unbounded_String (Base64_Encode (To_String (Output)));
+               Media_Type := Requested_Mime;
+            else
+               Result := Output;
+            end if;
+
             Cleanup;
          exception
             when Ex : others =>
                Cleanup;
                Set_Error
-                 ("shell tool failed: " & Ada.Exceptions.Exception_Message (Ex),
-                  Result,
-                  Is_Error);
+                 ("shell tool failed: "
+                  & Ada.Exceptions.Exception_Message (Ex),
+                  Result, Media_Type, Is_Error);
          end;
       end;
    end Execute;

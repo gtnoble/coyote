@@ -391,6 +391,7 @@ package body LLM_Session_Store_Tests is
         ((Kind        => LLM.Types.Tool_Result_Block,
           Result_Id   => To_Unbounded_String ("call-1"),
           Result_Text => To_Unbounded_String ("file contents"),
+          Media_Type  => Null_Unbounded_String,
           Is_Error    => False));
 
       return
@@ -1302,6 +1303,7 @@ package body LLM_Session_Store_Tests is
         ((Kind        => LLM.Types.Tool_Result_Block,
           Result_Id   => To_Unbounded_String ("call-large"),
           Result_Text => To_Unbounded_String (Large_Text),
+          Media_Type  => Null_Unbounded_String,
           Is_Error    => False));
 
       declare

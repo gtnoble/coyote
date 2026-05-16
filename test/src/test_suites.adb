@@ -1164,6 +1164,9 @@ package body Test_Suites is
         ("LLM.Types tool-result block stores result and error flag",
          LLM_Types_Tests.Test_Tool_Result_Block'Access));
       Result.Add_Test (LLM_Types_Caller.Create
+        ("LLM.Types tool-result block stores Media_Type field",
+         LLM_Types_Tests.Test_Tool_Result_Block_Media_Type'Access));
+      Result.Add_Test (LLM_Types_Caller.Create
         ("LLM.Types compaction summary messages preserve role and text",
          LLM_Types_Tests.Test_Compaction_Summary_Role'Access));
       Result.Add_Test (LLM_Types_Caller.Create
@@ -1365,6 +1368,18 @@ package body Test_Suites is
          LLM_Tools_Tests.Test_Pause_Flag_Release_Clears_Armed'Access));
 
       --  LLM.Tools.Spawn_Subagent tests
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell media_type base64-encodes stdout",
+         LLM_Tools_Tests.Test_Shell_Media_Type_Sets_Base64_Result'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell media_type on error returns empty Media_Type",
+         LLM_Tools_Tests.Test_Shell_Media_Type_Error_Clears_Type'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell absent media_type is plain text",
+         LLM_Tools_Tests.Test_Shell_Media_Type_Absent_Is_Plain_Text'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Execute image results bypass truncation cap",
+         LLM_Tools_Tests.Test_Execute_Image_Not_Truncated'Access));
       Result.Add_Test (LLM_Spawn_Subagent_Caller.Create
         ("LLM.Tools.Spawn_Subagent rejects malformed JSON",
          LLM_Spawn_Subagent_Tests.Test_Bad_Json'Access));
@@ -1455,6 +1470,10 @@ package body Test_Suites is
            .Test_OpenAI_Cached_Tokens_In_Usage'Access));
 
       --  LLM.Auth tests
+      Result.Add_Test (LLM_OpenAI_Completions_Caller.Create
+        ("OpenAI tool_result image uses image_url data URI format",
+         LLM_OpenAI_Completions_Tests
+           .Test_Tool_Result_Image_Serialised'Access));
       Result.Add_Test (LLM_Auth_Caller.Create
         ("LLM.Auth loads GitHub Copilot credentials from auth.json",
          LLM_Auth_Tests.Test_Load_Credentials'Access));
@@ -1591,6 +1610,10 @@ package body Test_Suites is
            .Test_Tool_Result_Is_Error_Serialised'Access));
 
       --  LLM.Providers.GitHub_Copilot tests
+      Result.Add_Test (LLM_Anthropic_Messages_Caller.Create
+        ("Anthropic tool_result image block uses base64 source format",
+         LLM_Anthropic_Messages_Tests
+           .Test_Tool_Result_Image_Serialised'Access));
       Result.Add_Test (LLM_GitHub_Copilot_Caller.Create
         ("LLM.GitHub_Copilot adds the static Copilot headers",
          LLM_GitHub_Copilot_Tests.Test_Send_Adds_Static_Headers'Access));

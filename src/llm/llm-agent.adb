@@ -2,7 +2,6 @@
 --
 --  Project: coyote
 --  For revision history, see the project version-control log.
-
 with Ada.Characters.Handling;
 with Ada.Containers;
 with Ada.Containers.Vectors;
@@ -22,7 +21,6 @@ with LLM.Session_Store;
 with LLM.Settings;
 with LLM.System_Prompt;
 with LLM.Tools;
-
 package body LLM.Agent is
 
    use type Ada.Containers.Count_Type;
@@ -46,6 +44,8 @@ package body LLM.Agent is
    type Tool_Result_Slot is record
       Result_Text : Ada.Strings.Unbounded.Unbounded_String :=
         Ada.Strings.Unbounded.Null_Unbounded_String;
+      Media_Type  : Ada.Strings.Unbounded.Unbounded_String :=
+        Ada.Strings.Unbounded.Null_Unbounded_String;
       Is_Error    : Boolean := False;
    end record;
 
@@ -56,16 +56,16 @@ package body LLM.Agent is
    --  Wait_All to block until every slot is filled.
    protected type Results_Store (Count : Positive) is
       procedure Set
-        (Index    : Positive;
-         Result   : Ada.Strings.Unbounded.Unbounded_String;
-         Is_Error : Boolean);
+        (Index      : Positive;
+         Result     : Ada.Strings.Unbounded.Unbounded_String;
+         Media_Type : Ada.Strings.Unbounded.Unbounded_String;
+         Is_Error   : Boolean);
       entry Wait_All;
       function Get (Index : Positive) return Tool_Result_Slot;
    private
       Slots      : Tool_Result_Slot_Array (1 .. Count);
       Done_Count : Natural := 0;
    end Results_Store;
-
    --  Executes one tool call and stores the result in a Results_Store.
    --  Workers never call On_Event or touch any Nine_P.Client.Fs.
    task type Worker_Task
@@ -81,12 +81,16 @@ package body LLM.Agent is
    protected body Results_Store is
 
       procedure Set
-        (Index    : Positive;
-         Result   : Ada.Strings.Unbounded.Unbounded_String;
-         Is_Error : Boolean)
+        (Index      : Positive;
+         Result     : Ada.Strings.Unbounded.Unbounded_String;
+         Media_Type : Ada.Strings.Unbounded.Unbounded_String;
+         Is_Error   : Boolean)
       is
       begin
-         Slots (Index) := (Result_Text => Result, Is_Error => Is_Error);
+         Slots (Index) :=
+           (Result_Text => Result,
+            Media_Type  => Media_Type,
+            Is_Error    => Is_Error);
          Done_Count := Done_Count + 1;
       end Set;
 
@@ -103,10 +107,11 @@ package body LLM.Agent is
    end Results_Store;
 
    task body Worker_Task is
-      My_Index : Positive;
-      My_Tool  : Pending_Tool;
-      Result   : Ada.Strings.Unbounded.Unbounded_String;
-      Is_Error : Boolean := False;
+      My_Index   : Positive;
+      My_Tool    : Pending_Tool;
+      Result     : Ada.Strings.Unbounded.Unbounded_String;
+      Media_Type : Ada.Strings.Unbounded.Unbounded_String;
+      Is_Error   : Boolean := False;
    begin
       accept Start
         (Index : Positive;
@@ -118,21 +123,24 @@ package body LLM.Agent is
 
       begin
          LLM.Tools.Execute
-           (Name      => Ada.Strings.Unbounded.To_String (My_Tool.Tool_Name),
-            Args_Json => Ada.Strings.Unbounded.To_String
-                           (My_Tool.Arguments_Json),
-            Result    => Result,
-            Is_Error  => Is_Error,
-            Abort_Flg => Abort_Flg,
+           (Name           => Ada.Strings.Unbounded.To_String
+                                (My_Tool.Tool_Name),
+            Args_Json      => Ada.Strings.Unbounded.To_String
+                                (My_Tool.Arguments_Json),
+            Result         => Result,
+            Media_Type     => Media_Type,
+            Is_Error       => Is_Error,
+            Abort_Flg      => Abort_Flg,
             Context_Window => Context_Window);
       exception
          when Ex : others =>
-            Result   := Ada.Strings.Unbounded.To_Unbounded_String
+            Result     := Ada.Strings.Unbounded.To_Unbounded_String
               (Ada.Exceptions.Exception_Message (Ex));
-            Is_Error := True;
+            Media_Type := Ada.Strings.Unbounded.Null_Unbounded_String;
+            Is_Error   := True;
       end;
 
-      Store.Set (My_Index, Result, Is_Error);
+      Store.Set (My_Index, Result, Media_Type, Is_Error);
    end Worker_Task;
 
    type Open_Block_Kind is (No_Open_Block, Open_Text, Open_Thinking);
@@ -428,7 +436,8 @@ package body LLM.Agent is
    function Tool_Result_Message
      (Tool_Call_Id : String;
       Result_Text  : String;
-      Is_Error     : Boolean) return LLM.Types.Message
+      Is_Error     : Boolean;
+      Media_Type   : String := "") return LLM.Types.Message
    is
       Content : LLM.Types.Content_Block_Vectors.Vector;
    begin
@@ -436,7 +445,8 @@ package body LLM.Agent is
         ((Kind        => LLM.Types.Tool_Result_Block,
           Result_Id   => To_Unbounded_String (Tool_Call_Id),
           Result_Text => To_Unbounded_String (Result_Text),
-          Is_Error    => Is_Error));
+          Is_Error    => Is_Error,
+          Media_Type  => To_Unbounded_String (Media_Type)));
 
       return
         (Role      => LLM.Types.Tool_Result,
@@ -1622,7 +1632,10 @@ package body LLM.Agent is
                                    Ada.Strings.Unbounded.To_String
                                      (Tool_Block.Tool_Call_Id),
                                  Result_Text  => Stored_Text,
-                                 Is_Error     => Slot.Is_Error));
+                                 Is_Error     => Slot.Is_Error,
+                                 Media_Type   =>
+                                   Ada.Strings.Unbounded.To_String
+                                     (Slot.Media_Type)));
                         end;
                      end loop;
                   end;

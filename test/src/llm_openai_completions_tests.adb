@@ -696,6 +696,7 @@ package body LLM_OpenAI_Completions_Tests is
         ((Kind        => LLM.Types.Tool_Result_Block,
           Result_Id   => To_Unbounded_String ("call_1"),
           Result_Text => To_Unbounded_String ("file contents"),
+          Media_Type  => Null_Unbounded_String,
           Is_Error    => False));
       Messages.Append
         ((Role      => LLM.Types.Tool_Result,
@@ -1849,5 +1850,134 @@ package body LLM_OpenAI_Completions_Tests is
          end if;
          raise;
    end Test_OpenAI_Cached_Tokens_In_Usage;
+
+   --  ── Test_Tool_Result_Image_Serialised ─────────────────────────────────
+   --  Verify that a Tool_Result message with a non-empty Media_Type is
+   --  serialised using the OpenAI image_url content format (data URL).
+
+   procedure Test_Tool_Result_Image_Serialised (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Port     : constant Positive := 18_803;
+      Provider : LLM.Providers.OpenAI_Completions.Provider :=
+        LLM.Providers.OpenAI_Completions.Create
+          (Base_Url => "http://127.0.0.1:18803",
+           Api_Key  => "test-key");
+      Messages       : LLM.Types.Message_Vectors.Vector;
+      User_Content   : LLM.Types.Content_Block_Vectors.Vector;
+      Asst_Content   : LLM.Types.Content_Block_Vectors.Vector;
+      Result_Content : LLM.Types.Content_Block_Vectors.Vector;
+
+      SSE_Payload : constant String :=
+        Build_Stop_SSE (Prompt_Tokens => 10, Completion_Tokens => 0);
+
+      Parsed_Body : GNATCOLL.JSON.JSON_Value;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         Parsed : constant GNATCOLL.JSON.Read_Result :=
+           GNATCOLL.JSON.Read (To_String (Req.Body_Data));
+      begin
+         Assert (Parsed.Success, "Failed to parse request body");
+         Parsed_Body := Parsed.Value;
+         Res.Status := 200;
+         Append (Res.Body_Data, SSE_Payload);
+      end Handle_Request;
+
+      Server_Stopped : Boolean := False;
+      Srv            : Test_HTTP_Server.Server
+        (Handler => Handle_Request'Unrestricted_Access);
+   begin
+      Reset_Collector;
+
+      User_Content.Append
+        ((Kind => LLM.Types.Text_Block,
+          Text => To_Unbounded_String ("Take a screenshot")));
+      Messages.Append
+        ((Role      => LLM.Types.User,
+          Content   => User_Content,
+          Tok_Usage => (others => 0),
+          Stop      => LLM.Types.Unknown_Stop,
+          Timestamp => Null_Unbounded_String));
+
+      Asst_Content.Append
+        ((Kind           => LLM.Types.Tool_Call_Block,
+          Tool_Call_Id   => To_Unbounded_String ("call_img"),
+          Tool_Name      => To_Unbounded_String ("shell"),
+          Arguments_Json => To_Unbounded_String
+            ("{""command"":""screenshot"",""media_type"":""image/png""}")));
+      Messages.Append
+        ((Role      => LLM.Types.Assistant,
+          Content   => Asst_Content,
+          Tok_Usage => (others => 0),
+          Stop      => LLM.Types.Tool_Use,
+          Timestamp => Null_Unbounded_String));
+
+      Result_Content.Append
+        ((Kind        => LLM.Types.Tool_Result_Block,
+          Result_Id   => To_Unbounded_String ("call_img"),
+          Result_Text => To_Unbounded_String ("SGVsbG8="),
+          Media_Type  => To_Unbounded_String ("image/png"),
+          Is_Error    => False));
+      Messages.Append
+        ((Role      => LLM.Types.Tool_Result,
+          Content   => Result_Content,
+          Tok_Usage => (others => 0),
+          Stop      => LLM.Types.Unknown_Stop,
+          Timestamp => Null_Unbounded_String));
+
+      Srv.Bind (Port);
+
+      Send_With_Retry
+        (P             => Provider,
+         Model_Id      => "image-test-model",
+         System_Prompt => "",
+         Messages      => Messages,
+         Tools_Json    => "[]",
+         Max_Tokens    => 64,
+         Handler       => On_Event'Access);
+
+      Srv.Stop;
+      Server_Stopped := True;
+
+      declare
+         use GNATCOLL.JSON;
+         Body_Msgs   : constant JSON_Array :=
+           Parsed_Body.Get ("messages").Get;
+         --  messages (no system when empty): user, assistant, tool
+         Tool_Msg    : constant JSON_Value :=
+           GNATCOLL.JSON.Get (Body_Msgs, 3);
+         Content_Val : constant JSON_Value := Tool_Msg.Get ("content");
+         Image_Part  : constant JSON_Value :=
+           GNATCOLL.JSON.Get (Content_Val.Get, 1);
+         Image_Url   : constant JSON_Value :=
+           Image_Part.Get ("image_url");
+      begin
+         Assert
+           (Json_String (Tool_Msg.Get ("role")) = "tool",
+            "Tool result message should have role=tool");
+         Assert
+           (Content_Val.Kind = JSON_Array_Type,
+            "content should be a JSON array for image results, got: "
+            & JSON_Value_Type'Image (Content_Val.Kind));
+         Assert
+           (Json_String (Image_Part.Get ("type")) = "image_url",
+            "Content part type should be image_url");
+         Assert
+           (Json_String (Image_Url.Get ("url")) =
+              "data:image/png;base64,SGVsbG8=",
+            "image_url.url should be data URI, got: "
+            & Json_String (Image_Url.Get ("url")));
+      end;
+   exception
+      when others =>
+         if not Server_Stopped then
+            Srv.Stop;
+         end if;
+         raise;
+   end Test_Tool_Result_Image_Serialised;
+
 
 end LLM_OpenAI_Completions_Tests;

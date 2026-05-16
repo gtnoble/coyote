@@ -23,4 +23,6 @@ package LLM_Anthropic_Messages_Tests is
    procedure Test_Cache_Control_On_Last_Tool (T : in out Test);
    procedure Test_Cache_Control_On_Last_User_Message (T : in out Test);
 
+   procedure Test_Tool_Result_Image_Serialised (T : in out Test);
+
 end LLM_Anthropic_Messages_Tests;

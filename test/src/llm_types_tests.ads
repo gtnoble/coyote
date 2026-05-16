@@ -13,4 +13,6 @@ package LLM_Types_Tests is
    procedure Test_Usage_Addition (T : in out Test);
    procedure Test_Message_Vectors (T : in out Test);
 
+   procedure Test_Tool_Result_Block_Media_Type (T : in out Test);
+
 end LLM_Types_Tests;

@@ -270,6 +270,17 @@ package body LLM.System_Prompt is
             & " (pass commands via the stdin field for ex/ed;"
             & " use perl -0777 -i -pe for multi-line patterns)"
             & ASCII.LF
+            & "- When using ed, combine edit and spot-check in one call:"
+            & " add a range p command after the edits but before w"
+            & " (e.g. 105a / text / . / 99,119p / w / q);"
+            & " use post-edit line numbers since insertions shift lines below"
+            & ASCII.LF
+            & "- To insert a block containing a lone . line via ed, write"
+            & " the block to a temp file first (cat > /tmp/block via stdin),"
+            & " then use ed's r command to read it into the buffer"
+            & " (e.g. 42r /tmp/block) -- ed input mode has no escape for"
+            & " a lone . terminator"
+            & ASCII.LF
             & "- For non-trivial sed/perl/awk scripts, pass the script"
             & " body via the stdin field rather than embedding it in"
             & " the command argument to avoid shell-quoting issues"

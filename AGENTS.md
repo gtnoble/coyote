@@ -97,7 +97,9 @@ src/
     llm-providers-github_copilot.ads/.adb -- Copilot provider adapter
     llm-providers-github_copilot-catalogue.ads/.adb -- Copilot model cache
     llm-tools.ads/.adb          -- Built-in tool descriptors and dispatcher
-    llm-tools-shell.ads/.adb    -- shell tool implementation
+    llm-tools-shell.ads/.adb    -- shell tool implementation; optional
+                        --   "media_type" arg base64-encodes stdout and
+                        --   returns an image content block of that MIME type
     llm-tools-spawn_subagent.ads/.adb -- spawn_subagent tool: single-agent and
                         --   multi-agent parallel spawning via "names" array;
                         --   agent param = system-prompt text or @path;
@@ -105,7 +107,9 @@ src/
                         --   (COYOTE_SUBAGENT_NAME env var)
     llm-tools-temp_file.ads/.adb -- tool-result size cap; Truncated writes
                         --   excess bytes to a temp file under /tmp/ and
-                        --   returns an excerpt with a path trailer
+                        --   returns an excerpt with a path trailer;
+                        --   image results (Media_Type non-empty) bypass the
+                        --   cap entirely
     llm-skills.ads/.adb         -- Skill discovery and system-prompt formatting
     llm-system_prompt.ads/.adb  -- System prompt construction; context loading
     llm-compaction.ads/.adb     -- Context compaction helpers (threshold,

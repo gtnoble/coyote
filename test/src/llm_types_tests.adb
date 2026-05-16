@@ -59,6 +59,7 @@ package body LLM_Types_Tests is
         (Kind        => Tool_Result_Block,
          Result_Id   => To_Unbounded_String ("call-1"),
          Result_Text => To_Unbounded_String ("file contents"),
+         Media_Type  => Null_Unbounded_String,
          Is_Error    => True);
    begin
       Assert
@@ -161,5 +162,30 @@ package body LLM_Types_Tests is
         (Messages.Element (1).Stop = Length,
          "Second message stop reason should round-trip");
    end Test_Message_Vectors;
+
+   procedure Test_Tool_Result_Block_Media_Type (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Block : constant Content_Block :=
+        (Kind        => Tool_Result_Block,
+         Result_Id   => To_Unbounded_String ("call-2"),
+         Result_Text => To_Unbounded_String ("SGVsbG8="),
+         Media_Type  => To_Unbounded_String ("image/png"),
+         Is_Error    => False);
+   begin
+      Assert
+        (To_String (Block.Result_Id) = "call-2",
+         "Result_Id should round-trip");
+      Assert
+        (To_String (Block.Result_Text) = "SGVsbG8=",
+         "Result_Text should round-trip");
+      Assert
+        (To_String (Block.Media_Type) = "image/png",
+         "Media_Type should round-trip");
+      Assert
+        (not Block.Is_Error,
+         "Is_Error should be False");
+   end Test_Tool_Result_Block_Media_Type;
+
 
 end LLM_Types_Tests;

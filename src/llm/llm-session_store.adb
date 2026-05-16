@@ -435,6 +435,7 @@ package body LLM.Session_Store is
       Tool_Call_Id : Unbounded_String;
       Tool_Name    : Unbounded_String;
       Result_Text  : Unbounded_String;
+      Media_Type   : Unbounded_String;
       Is_Error     : Boolean := False;
    begin
       for Block of Msg.Content loop
@@ -444,6 +445,9 @@ package body LLM.Session_Store is
                   Tool_Call_Id := Block.Result_Id;
                end if;
                Is_Error := Is_Error or else Block.Is_Error;
+               if Length (Block.Media_Type) > 0 then
+                  Media_Type := Block.Media_Type;
+               end if;
 
                if Length (Result_Text) > 0 then
                   Append (Result_Text, ASCII.LF);
@@ -467,8 +471,14 @@ package body LLM.Session_Store is
          Ms   : constant Long_Integer :=
            Long_Integer (Current_Unix_Milliseconds);
       begin
-         Item.Set_Field ("type", "text");
-         Item.Set_Field ("text", To_String (Result_Text));
+         if Length (Media_Type) > 0 then
+            Item.Set_Field ("type", "image");
+            Item.Set_Field ("media_type", To_String (Media_Type));
+            Item.Set_Field ("data", To_String (Result_Text));
+         else
+            Item.Set_Field ("type", "text");
+            Item.Set_Field ("text", To_String (Result_Text));
+         end if;
          GNATCOLL.JSON.Append (Content, Item);
 
          Result.Set_Field ("role", "toolResult");
@@ -620,21 +630,28 @@ package body LLM.Session_Store is
      (Envelope : GNATCOLL.JSON.JSON_Value;
       Msg      : GNATCOLL.JSON.JSON_Value) return LLM.Types.Message
    is
-      Content : LLM.Types.Content_Block_Vectors.Vector;
-      Blocks  : constant GNATCOLL.JSON.JSON_Array :=
+      Content    : LLM.Types.Content_Block_Vectors.Vector;
+      Blocks     : constant GNATCOLL.JSON.JSON_Array :=
         Get_Array_Field (Msg, "content");
-      Text    : Unbounded_String;
+      Text       : Unbounded_String;
+      Media_Type : Unbounded_String;
    begin
       for I in 1 .. GNATCOLL.JSON.Length (Blocks) loop
          declare
-            Block : constant GNATCOLL.JSON.JSON_Value :=
+            Block      : constant GNATCOLL.JSON.JSON_Value :=
               GNATCOLL.JSON.Get (Blocks, I);
+            Block_Type : constant String := Get_String_Field (Block, "type");
          begin
-            if Get_String_Field (Block, "type") = "text" then
+            if Block_Type = "text" then
                if Length (Text) > 0 then
                   Append (Text, ASCII.LF);
                end if;
                Append (Text, Get_String_Field (Block, "text"));
+            elsif Block_Type = "image" then
+               Media_Type := To_Unbounded_String
+                 (Get_String_Field (Block, "media_type"));
+               Text       := To_Unbounded_String
+                 (Get_String_Field (Block, "data"));
             end if;
          end;
       end loop;
@@ -644,6 +661,7 @@ package body LLM.Session_Store is
           Result_Id   => To_Unbounded_String
             (Get_String_Field (Msg, "toolCallId")),
           Result_Text => Text,
+          Media_Type  => Media_Type,
           Is_Error    => Get_Boolean_Field (Msg, "isError")));
 
       return
@@ -653,6 +671,7 @@ package body LLM.Session_Store is
          Stop      => LLM.Types.Unknown_Stop,
          Timestamp => Message_Timestamp (Envelope, Msg));
    end Parse_Tool_Result_Message;
+
 
    function Session_File_Path (Session_Id : String) return String is
    begin

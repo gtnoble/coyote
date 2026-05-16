@@ -19,4 +19,6 @@ package LLM_OpenAI_Completions_Tests is
    procedure Test_OpenAI_Last_Tool_Cache_Control (T : in out Test);
    procedure Test_OpenAI_Cached_Tokens_In_Usage (T : in out Test);
 
+   procedure Test_Tool_Result_Image_Serialised (T : in out Test);
+
 end LLM_OpenAI_Completions_Tests;

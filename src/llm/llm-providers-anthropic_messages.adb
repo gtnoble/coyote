@@ -349,11 +349,34 @@ package body LLM.Providers.Anthropic_Messages is
       (Content : in out GNATCOLL.JSON.JSON_Array;
      Block   :        LLM.Types.Content_Block)
    is
+      use Ada.Strings.Unbounded;
       Item : constant GNATCOLL.JSON.JSON_Value := GNATCOLL.JSON.Create_Object;
    begin
       Item.Set_Field ("type", "tool_result");
       Item.Set_Field ("tool_use_id", To_String (Block.Result_Id));
-      Item.Set_Field ("content", To_String (Block.Result_Text));
+
+      if Length (Block.Media_Type) > 0 then
+         --  Emit a structured content array with a single image block.
+         declare
+            Inner_Content : GNATCOLL.JSON.JSON_Array :=
+              GNATCOLL.JSON.Empty_Array;
+            Image_Block   : constant GNATCOLL.JSON.JSON_Value :=
+              GNATCOLL.JSON.Create_Object;
+            Source        : constant GNATCOLL.JSON.JSON_Value :=
+              GNATCOLL.JSON.Create_Object;
+         begin
+            Source.Set_Field ("type", "base64");
+            Source.Set_Field ("media_type", To_String (Block.Media_Type));
+            Source.Set_Field ("data", To_String (Block.Result_Text));
+            Image_Block.Set_Field ("type", "image");
+            Image_Block.Set_Field ("source", Source);
+            GNATCOLL.JSON.Append (Inner_Content, Image_Block);
+            Item.Set_Field ("content", GNATCOLL.JSON.Create (Inner_Content));
+         end;
+      else
+         Item.Set_Field ("content", To_String (Block.Result_Text));
+      end if;
+
       if Block.Is_Error then
          Item.Set_Field ("is_error", True);
       end if;

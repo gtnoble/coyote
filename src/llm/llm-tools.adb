@@ -124,6 +124,7 @@ package body LLM.Tools is
      (Name           :     String;
       Args_Json      :     String;
       Result         : out Ada.Strings.Unbounded.Unbounded_String;
+      Media_Type     : out Ada.Strings.Unbounded.Unbounded_String;
       Is_Error       : out Boolean;
       Abort_Flg      : access Abort_Flag := null;
       Context_Window :     Natural       := 0)
@@ -131,6 +132,8 @@ package body LLM.Tools is
       use Ada.Strings.Unbounded;
       Validation : constant String := Validate_Arguments (Args_Json);
    begin
+      Media_Type := Null_Unbounded_String;
+
       if Validation'Length > 0 then
          Result   := To_Unbounded_String (Validation);
          Is_Error := True;
@@ -138,7 +141,8 @@ package body LLM.Tools is
       end if;
 
       if Name = "shell" then
-         LLM.Tools.Shell.Execute (Args_Json, Result, Is_Error, Abort_Flg);
+         LLM.Tools.Shell.Execute
+           (Args_Json, Result, Media_Type, Is_Error, Abort_Flg);
       elsif Name = "spawn_subagent" then
          LLM.Tools.Spawn_Subagent.Execute
            (Args_Json, Result, Is_Error, Abort_Flg);
@@ -146,14 +150,16 @@ package body LLM.Tools is
          raise Unknown_Tool with "unknown tool: " & Name;
       end if;
 
-      --  Enforce the result size cap.  Any tool whose output exceeds the
-      --  threshold has the full content spilled to a temp file; the caller
-      --  receives an excerpt followed by a path to the complete file.
-      Result := To_Unbounded_String
-        (LLM.Tools.Temp_File.Truncated
-           (To_String (Result),
-            Threshold => Result_Threshold (Context_Window),
-            Tool_Name => Name));
+      --  Enforce the result size cap for plain-text results only.  Image
+      --  data (Media_Type non-empty) is base64-encoded binary and must not
+      --  be truncated; the caller handles it as an image content block.
+      if Length (Media_Type) = 0 then
+         Result := To_Unbounded_String
+           (LLM.Tools.Temp_File.Truncated
+              (To_String (Result),
+               Threshold => Result_Threshold (Context_Window),
+               Tool_Name => Name));
+      end if;
    end Execute;
 
 end LLM.Tools;

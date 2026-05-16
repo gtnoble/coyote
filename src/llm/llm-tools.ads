@@ -107,6 +107,9 @@ package LLM.Tools is
 
    --  Execute the named built-in tool with Args_Json.
    --
+   --  Media_Type receives the MIME type string when the tool produced image
+   --  data (e.g. "image/png"); it is empty for plain-text results.
+   --
    --  Result receives the tool output on success or a diagnostic message on
    --  failure.  Is_Error is True when the tool itself fails because of bad
    --  arguments, missing files, non-zero command exit status, and similar
@@ -122,6 +125,7 @@ package LLM.Tools is
      (Name           :     String;
       Args_Json      :     String;
       Result         : out Ada.Strings.Unbounded.Unbounded_String;
+      Media_Type     : out Ada.Strings.Unbounded.Unbounded_String;
       Is_Error       : out Boolean;
       Abort_Flg      : access Abort_Flag := null;
       Context_Window :     Natural       := 0);

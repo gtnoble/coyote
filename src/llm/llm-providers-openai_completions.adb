@@ -441,12 +441,16 @@ package body LLM.Providers.OpenAI_Completions is
          GNATCOLL.JSON.Create_Object;
       Tool_Call_Id : Unbounded_String;
       Result_Text  : Unbounded_String;
+      Media_Type   : Unbounded_String;
    begin
       for Block of Msg.Content loop
          case Block.Kind is
             when LLM.Types.Tool_Result_Block =>
                if Length (Tool_Call_Id) = 0 then
                   Tool_Call_Id := Block.Result_Id;
+               end if;
+               if Length (Block.Media_Type) > 0 then
+                  Media_Type  := Block.Media_Type;
                end if;
                Append (Result_Text, To_String (Block.Result_Text));
             when LLM.Types.Text_Block =>
@@ -458,7 +462,30 @@ package body LLM.Providers.OpenAI_Completions is
 
       Message.Set_Field ("role", "tool");
       Message.Set_Field ("tool_call_id", To_String (Tool_Call_Id));
-      Message.Set_Field ("content", To_String (Result_Text));
+
+      if Length (Media_Type) > 0 then
+         --  Emit a content array with a single image_url part.
+         declare
+            Content    : GNATCOLL.JSON.JSON_Array :=
+              GNATCOLL.JSON.Empty_Array;
+            Image_Part : constant GNATCOLL.JSON.JSON_Value :=
+              GNATCOLL.JSON.Create_Object;
+            Image_Url  : constant GNATCOLL.JSON.JSON_Value :=
+              GNATCOLL.JSON.Create_Object;
+         begin
+            Image_Url.Set_Field
+              ("url",
+               "data:" & To_String (Media_Type) & ";base64,"
+               & To_String (Result_Text));
+            Image_Part.Set_Field ("type", "image_url");
+            Image_Part.Set_Field ("image_url", Image_Url);
+            GNATCOLL.JSON.Append (Content, Image_Part);
+            Message.Set_Field ("content", GNATCOLL.JSON.Create (Content));
+         end;
+      else
+         Message.Set_Field ("content", To_String (Result_Text));
+      end if;
+
       GNATCOLL.JSON.Append (Messages, Message);
    end Append_Tool_Result_Message;
 

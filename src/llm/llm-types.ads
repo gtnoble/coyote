@@ -36,6 +36,7 @@ package LLM.Types is
          when Tool_Result_Block =>
             Result_Id   : Ada.Strings.Unbounded.Unbounded_String;
             Result_Text : Ada.Strings.Unbounded.Unbounded_String;
+            Media_Type  : Ada.Strings.Unbounded.Unbounded_String;
             Is_Error    : Boolean := False;
       end case;
    end record;

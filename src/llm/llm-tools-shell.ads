@@ -18,16 +18,29 @@ package LLM.Tools.Shell is
    --
    --  Args_Json must provide a required string field "command" and may
    --  provide an optional string field "description" (ignored by the
-   --  executor) and an optional string field "stdin" whose value is
-   --  written to the command's standard input before reading output.
+   --  executor), an optional string field "stdin" whose value is written to
+   --  the command's standard input before reading output, and an optional
+   --  string field "media_type".
+   --
+   --  When "media_type" is non-empty the command's stdout is treated as raw
+   --  binary data: the bytes are base64-encoded and returned in Result, and
+   --  Media_Type is set to the given MIME type (e.g. "image/png").  The
+   --  caller is responsible for forming the appropriate image content block.
+   --  When "media_type" is absent or empty the tool behaves as plain text
+   --  (the current default).
+   --
    --  When "stdin" is absent or empty the command reads from /dev/null.
    --
-   --  Result receives the combined stdout/stderr text.  Is_Error is True
-   --  when the arguments are invalid or the command exits non-zero.
+   --  Result receives the combined stdout/stderr text (or base64-encoded
+   --  image bytes when media_type is non-empty).  Media_Type receives the
+   --  value of the "media_type" argument, or an empty Unbounded_String when
+   --  absent.  Is_Error is True when the arguments are invalid or the
+   --  command exits non-zero.
    procedure Execute
-     (Args_Json :     String;
-      Result    : out Ada.Strings.Unbounded.Unbounded_String;
-      Is_Error  : out Boolean;
-      Abort_Flg : access LLM.Tools.Abort_Flag := null);
+     (Args_Json  :     String;
+      Result     : out Ada.Strings.Unbounded.Unbounded_String;
+      Media_Type : out Ada.Strings.Unbounded.Unbounded_String;
+      Is_Error   : out Boolean;
+      Abort_Flg  : access LLM.Tools.Abort_Flag := null);
 
 end LLM.Tools.Shell;

@@ -70,4 +70,21 @@ package LLM_Tools_Tests is
    --  Release also clears Armed (e.g. when Stop is clicked while armed).
    procedure Test_Pause_Flag_Release_Clears_Armed   (T : in out Test);
 
+
+   --  ── Shell media_type tests ────────────────────────────────────────────
+
+   --  When media_type is set, stdout is base64-encoded and Media_Type is
+   --  populated with the requested MIME string.
+   procedure Test_Shell_Media_Type_Sets_Base64_Result  (T : in out Test);
+
+   --  When media_type is set and the command fails, Is_Error is True and
+   --  Media_Type is empty (no image data on error).
+   procedure Test_Shell_Media_Type_Error_Clears_Type   (T : in out Test);
+
+   --  When media_type is absent the tool behaves as plain text.
+   procedure Test_Shell_Media_Type_Absent_Is_Plain_Text (T : in out Test);
+
+   --  LLM.Tools.Execute skips Temp_File truncation for image results.
+   procedure Test_Execute_Image_Not_Truncated           (T : in out Test);
+
 end LLM_Tools_Tests;
