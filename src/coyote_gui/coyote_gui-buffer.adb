@@ -5,6 +5,7 @@
 with Ada.Strings.Unbounded;          use Ada.Strings.Unbounded;
 with Ada.Strings.Fixed;
 with Coyote_App.Utils;               use Coyote_App.Utils;
+with GNATCOLL.JSON;
 with Coyote_Cmark;                   use Coyote_Cmark;
 with Glib;                           use Glib;
 with Glib.Properties;                use Glib.Properties;
@@ -15,6 +16,8 @@ with Gtk.Text_Iter;
 with Gtk.Text_Mark;
 with Gtk.Text_View;
 with Gtk.Box;
+with Gtk.Expander;
+with Gtk.Separator;
 with Gtk.Text_Child_Anchor;
 with Gtk.Text_Tag;                   use Gtk.Text_Tag;
 with Gtk.Widget;
@@ -297,7 +300,9 @@ package body Coyote_GUI.Buffer is
       use Gtk.Text_Iter;
       SI, EI : Gtk.Text_Iter.Gtk_Text_Iter;
       Markup : constant String :=
-        To_Pango_Markup (To_String (B.Stream_Buf));
+        (if B.Render_Markdown
+         then To_Pango_Markup (To_String (B.Stream_Buf))
+         else "");
    begin
       if not B.In_Text_Block then
          return;
@@ -328,6 +333,9 @@ package body Coyote_GUI.Buffer is
 
    procedure Begin_Thinking (B : in out Instance) is
    begin
+      --  Close any open streaming text block first, so its Stream_Mark
+      --  cannot span the thinking-block insertion and be swept away later.
+      End_Text_Block (B);
       if not B.In_Thinking then
          B.In_Thinking := True;
          Insert_Tagged (B, UC_BOX_V & " ", B.Tag_Thinking);
@@ -358,7 +366,9 @@ package body Coyote_GUI.Buffer is
    is
       pragma Unreferenced (Session_Id);
       use Ada.Strings.Unbounded;
+      use type GNATCOLL.JSON.JSON_Value_Type;
       use Gtk.Box;
+      use Gtk.Expander;
       use Gtk.Frame;
       use Gtk.Label;
       use Gtk.Text_Iter;
@@ -367,40 +377,166 @@ package body Coyote_GUI.Buffer is
       Iter   : Gtk.Text_Iter.Gtk_Text_Iter;
       Anchor : Gtk.Text_Child_Anchor.Gtk_Text_Child_Anchor;
 
-      Frame    : Gtk.Frame.Gtk_Frame;
-      Vbox     : Gtk.Box.Gtk_Box;
-      Args_Lab : Gtk.Label.Gtk_Label;
-      Stat_Lab : Gtk.Label.Gtk_Label;
-   begin
-      Insert_Plain (B, "" & ASCII.LF);
+      Frame       : Gtk.Frame.Gtk_Frame;
+      Outer_Vbox  : Gtk.Box.Gtk_Box;
+      Summary_Lab : Gtk.Label.Gtk_Label;
+      Expander    : Gtk.Expander.Gtk_Expander;
+      Detail_Vbox : Gtk.Box.Gtk_Box;
 
+      --  Parse the arguments JSON.
+      Args_Parsed : constant GNATCOLL.JSON.Read_Result :=
+        GNATCOLL.JSON.Read (Args);
+      Args_Val    : constant GNATCOLL.JSON.JSON_Value  :=
+        (if Args_Parsed.Success
+         then Args_Parsed.Value
+         else GNATCOLL.JSON.JSON_Null);
+
+      --  Return the full display string for a JSON value.
+      --  Strings are returned raw; all other types use JSON serialisation.
+      function Format_Value_Full
+        (Val : GNATCOLL.JSON.JSON_Value) return String
+      is
+      begin
+         if Val.Kind = GNATCOLL.JSON.JSON_String_Type then
+            return Val.Get;
+         else
+            return Val.Write;
+         end if;
+      end Format_Value_Full;
+      Summary_Prefix_S : Unbounded_String;
+      Summary_Full_S   : Unbounded_String;
+   begin
+      --  Close any open streaming text block before inserting the tool
+      --  widget anchor.  The Stream_Mark must not span the child anchor,
+      --  otherwise a later End_Text_Block will delete the tool frame.
+      End_Text_Block (B);
+      --  Build summary prefix: header line + per-field arg lines.
+      Append (Summary_Prefix_S,
+              UC_BOX_TL & " " & UC_GEAR & " " & Name);
+      if Args_Val.Kind = GNATCOLL.JSON.JSON_Object_Type then
+         declare
+            procedure Add_Summary_Field
+              (Field_Name  : GNATCOLL.JSON.UTF8_String;
+               Field_Value : GNATCOLL.JSON.JSON_Value)
+            is
+            begin
+               Append (Summary_Prefix_S,
+                       ASCII.LF
+                       & Format_Tool_Field
+                           (Field_Name,
+                            JSON_Scalar_Image (Field_Value),
+                            Max_Len => 80));
+            end Add_Summary_Field;
+         begin
+            Args_Val.Map_JSON_Object (Add_Summary_Field'Access);
+         end;
+      end if;
+      --  Full pending summary = prefix + ellipsis footer.
+      Summary_Full_S := Summary_Prefix_S;
+      Append (Summary_Full_S, ASCII.LF & UC_BOX_BL & " " & UC_ELLIP);
+
+      --  ── Build GTK widget tree ──────────────────────────────────────────
+      Insert_Plain (B, "" & ASCII.LF);
       B.The_Buf.Get_End_Iter (Iter);
       Anchor := B.The_Buf.Create_Child_Anchor (Iter);
 
       Gtk.Frame.Gtk_New (Frame, UC_GEAR & " " & Name);
-      Gtk.Box.Gtk_New_Vbox (Vbox, Homogeneous => False, Spacing => 2);
+      Gtk.Box.Gtk_New_Vbox
+        (Outer_Vbox, Homogeneous => False, Spacing => 2);
 
-      Gtk.Label.Gtk_New (Args_Lab);
-      Args_Lab.Set_Markup
-        ("<tt><small>" & Xml_Escape (Args) & "</small></tt>");
-      Args_Lab.Set_Xalign (0.0);
+      --  Summary label: always visible, monospace, acme-style box drawing.
+      Gtk.Label.Gtk_New (Summary_Lab);
+      Summary_Lab.Set_Markup
+        ("<tt><small>"
+         & Xml_Escape (To_String (Summary_Full_S))
+         & "</small></tt>");
+      Summary_Lab.Set_Xalign (0.0);
+      Summary_Lab.Set_Line_Wrap (False);
 
-      Gtk.Label.Gtk_New (Stat_Lab, "running...");
-      Stat_Lab.Set_Xalign (1.0);
+      --  Expander for the coyote-open-style detail view.
+      --  GtkExpander manages its own toggle; no custom callbacks needed.
+      Gtk.Expander.Gtk_New (Expander, "details");
+      Gtk.Box.Gtk_New_Vbox
+        (Detail_Vbox, Homogeneous => False, Spacing => 4);
 
-      Vbox.Pack_Start (Args_Lab, Expand => True,  Fill => True,
-                       Padding => 2);
-      Vbox.Pack_Start (Stat_Lab, Expand => False, Fill => False,
-                       Padding => 2);
-      Frame.Add (Vbox);
+      --  Populate Detail_Vbox: one labelled section per argument field.
+      if Args_Val.Kind = GNATCOLL.JSON.JSON_Object_Type then
+         declare
+            procedure Add_Detail_Field
+              (Field_Name  : GNATCOLL.JSON.UTF8_String;
+               Field_Value : GNATCOLL.JSON.JSON_Value)
+            is
+               Section_Lab : Gtk.Label.Gtk_Label;
+            begin
+               Gtk.Label.Gtk_New (Section_Lab);
+               Section_Lab.Set_Markup
+                 ("<b><tt>"
+                  & Xml_Escape
+                      (UC_HORIZ & UC_HORIZ & " " & Field_Name
+                       & " " & UC_HORIZ & UC_HORIZ)
+                  & "</tt></b>" & ASCII.LF
+                  & "<tt>"
+                  & Xml_Escape (Format_Value_Full (Field_Value))
+                  & "</tt>");
+               Section_Lab.Set_Xalign (0.0);
+               Section_Lab.Set_Line_Wrap (True);
+               Section_Lab.Set_Max_Width_Chars (80);
+               Detail_Vbox.Pack_Start
+                 (Section_Lab,
+                  Expand  => False,
+                  Fill    => False,
+                  Padding => 2);
+            end Add_Detail_Field;
+         begin
+            Args_Val.Map_JSON_Object (Add_Detail_Field'Access);
+         end;
+      elsif Args_Val.Kind /= GNATCOLL.JSON.JSON_Null_Type then
+         declare
+            Raw_Lab : Gtk.Label.Gtk_Label;
+         begin
+            Gtk.Label.Gtk_New (Raw_Lab);
+            Raw_Lab.Set_Markup
+              ("<b><tt>"
+               & Xml_Escape
+                   (UC_HORIZ & UC_HORIZ & " arguments "
+                    & UC_HORIZ & UC_HORIZ)
+               & "</tt></b>" & ASCII.LF
+               & "<tt>" & Xml_Escape (Args) & "</tt>");
+            Raw_Lab.Set_Xalign (0.0);
+            Raw_Lab.Set_Line_Wrap (True);
+            Raw_Lab.Set_Max_Width_Chars (80);
+            Detail_Vbox.Pack_Start
+              (Raw_Lab,
+               Expand  => False,
+               Fill    => False,
+               Padding => 2);
+         end;
+      end if;
+
+      Expander.Add (Detail_Vbox);
+
+      Outer_Vbox.Pack_Start
+        (Summary_Lab,
+         Expand  => False,
+         Fill    => False,
+         Padding => 2);
+      Outer_Vbox.Pack_Start
+        (Expander,
+         Expand  => False,
+         Fill    => False,
+         Padding => 2);
+      Frame.Add (Outer_Vbox);
 
       B.The_View.Add_Child_At_Anchor (Frame, Anchor);
       Frame.Show_All;
 
-      B.Tools.Insert (Tool_Id,
-        (Frame        => Frame,
-         Status_Label => Stat_Lab,
-         Name         => To_Unbounded_String (Name)));
+      B.Tools.Insert
+        (Tool_Id,
+         (Frame          => Frame,
+          Summary_Label  => Summary_Lab,
+          Summary_Prefix => Summary_Prefix_S,
+          Detail_Box     => Detail_Vbox,
+          Name           => To_Unbounded_String (Name)));
 
       Insert_Plain (B, "" & ASCII.LF);
    end Begin_Tool;
@@ -411,8 +547,9 @@ package body Coyote_GUI.Buffer is
       Status  :        Tool_End_Status;
       Result  :        String)
    is
-      pragma Unreferenced (Result);
       use Ada.Strings.Unbounded;
+      use Gtk.Label;
+      use Gtk.Separator;
       use Tool_Maps;
       Pos : constant Cursor := B.Tools.Find (Tool_Id);
    begin
@@ -420,20 +557,79 @@ package body Coyote_GUI.Buffer is
          return;
       end if;
       declare
-         Info  : constant Tool_Frame_Info := Element (Pos);
-         Label : constant String          := To_String (Info.Name);
+         Info       : constant Tool_Frame_Info := Element (Pos);
+         Tool_Name  : constant String          := To_String (Info.Name);
+         New_Footer : Unbounded_String;
+         Sep        : Gtk.Separator.Gtk_Separator;
+         Result_Lab : Gtk.Label.Gtk_Label;
+         Status_Str : constant String :=
+           (case Status is
+               when Success   => UC_CHECK & " ok",
+               when Error     => UC_CROSS & " error",
+               when Cancelled => "- cancelled");
       begin
+         --  Update the frame title icon.
+         case Status is
+            when Success   =>
+               Info.Frame.Set_Label (UC_CHECK & " " & Tool_Name);
+            when Error     =>
+               Info.Frame.Set_Label (UC_CROSS & " " & Tool_Name);
+            when Cancelled =>
+               Info.Frame.Set_Label ("- " & Tool_Name);
+         end case;
+
+         --  Rebuild the summary label with the resolved footer line.
          case Status is
             when Success =>
-               Info.Frame.Set_Label (UC_CHECK & " " & Label);
-               Info.Status_Label.Set_Text ("done");
+               Append (New_Footer, UC_BOX_BL & " " & UC_CHECK);
             when Error =>
-               Info.Frame.Set_Label (UC_CROSS & " " & Label);
-               Info.Status_Label.Set_Text ("error");
+               declare
+                  Clip_End : constant Natural :=
+                    (if Result'Length > 80
+                     then Result'First + 79
+                     else Result'Last);
+               begin
+                  Append
+                    (New_Footer,
+                     UC_BOX_BL & " " & UC_CROSS & " "
+                     & Result (Result'First .. Clip_End));
+               end;
             when Cancelled =>
-               Info.Frame.Set_Label ("- " & Label);
-               Info.Status_Label.Set_Text ("cancelled");
+               Append
+                 (New_Footer, UC_BOX_BL & " " & UC_CROSS & " cancelled");
          end case;
+         Info.Summary_Label.Set_Markup
+           ("<tt><small>"
+            & Xml_Escape
+                (To_String (Info.Summary_Prefix)
+                 & ASCII.LF & To_String (New_Footer))
+            & "</small></tt>");
+
+         --  Append separator + result section to Detail_Box.
+         Gtk.Separator.Gtk_New_Hseparator (Sep);
+         Info.Detail_Box.Pack_Start
+           (Sep, Expand => False, Fill => False, Padding => 4);
+
+         Gtk.Label.Gtk_New (Result_Lab);
+         Result_Lab.Set_Markup
+           ("<b><tt>"
+            & Xml_Escape
+                (UC_HORIZ & UC_HORIZ & " result "
+                 & UC_HORIZ & UC_HORIZ & "  " & Status_Str)
+            & "</tt></b>" & ASCII.LF
+            & "<tt>"
+            & Xml_Escape
+                (if Result'Length > 0 then Result else "(no result)")
+            & "</tt>");
+         Result_Lab.Set_Xalign (0.0);
+         Result_Lab.Set_Line_Wrap (True);
+         Result_Lab.Set_Max_Width_Chars (80);
+         Info.Detail_Box.Pack_Start
+           (Result_Lab,
+            Expand  => False,
+            Fill    => False,
+            Padding => 2);
+         Info.Detail_Box.Show_All;
       end;
    end End_Tool;
 
@@ -465,5 +661,15 @@ package body Coyote_GUI.Buffer is
    begin
       B.The_View.Scroll_Mark_Onscreen (B.The_Buf.Get_Insert);
    end Scroll_To_End;
+
+   procedure Set_Render_Markdown (B : in out Instance; Enabled : Boolean) is
+   begin
+      B.Render_Markdown := Enabled;
+   end Set_Render_Markdown;
+
+   function Get_Render_Markdown (B : Instance) return Boolean is
+   begin
+      return B.Render_Markdown;
+   end Get_Render_Markdown;
 
 end Coyote_GUI.Buffer;

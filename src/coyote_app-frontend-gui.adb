@@ -7,6 +7,7 @@ with Gdk.Types;
 with Gdk.Types.Keysyms;
 with Glib;                       use Glib;
 with Glib.Main;
+with Gtk.Adjustment;
 with Glib.Properties;            use Glib.Properties;
 with Gtk.Box;
 with Gtk.Button;
@@ -17,6 +18,7 @@ with Gtk.Main;
 with Gtk.Menu;
 with Gtk.Menu_Item;
 with Gtk.Menu_Shell;
+with Gtk.Check_Menu_Item;
 with Gtk.Scrolled_Window;
 with Gtk.Separator_Menu_Item;
 with Gtk.Text_Buffer;
@@ -35,6 +37,7 @@ with Gtk.Tree_Selection;
 with Gtk.Tree_View;
 with Gtk.Tree_View_Column;
 with Session_Lister;
+with LLM.Agent;
 with LLM.Providers;
 with Coyote_App.Utils;
 with LLM.Model_Registry;
@@ -93,27 +96,48 @@ package body Coyote_App.Frontend.GUI is
       Win.Show_All;
    end Show_Text_Window;
 
+   --  ── At_Bottom — true iff the conversation viewport is at (or very near)
+   --  the bottom.  Used to implement follow mode: auto-scroll only when the
+   --  user has not scrolled away from the end.
+   function At_Bottom (F : Instance) return Boolean is
+      use Gtk.Adjustment;
+      Adj       : constant Gtk_Adjustment := F.Conv_Scroll.Get_Vadjustment;
+      Threshold : constant Gdouble        := 20.0;  --  pixel slop
+   begin
+      if Adj = null then
+         return True;
+      end if;
+      return Adj.Get_Value + Adj.Get_Page_Size >= Adj.Get_Upper - Threshold;
+   end At_Bottom;
+
    --  ── Apply_Update — called on the GTK main thread by Drain_Idle ────────
 
    procedure Apply_Update (F : in out Instance; U : Coyote_GUI.Update) is
       use Coyote_GUI;
+      Follow : constant Boolean := At_Bottom (F);
    begin
       case U.Kind is
 
          when Append_Text =>
             F.Buf.Append_Text (To_String (U.Text));
-            F.Buf.Scroll_To_End;
+            if Follow then
+               F.Buf.Scroll_To_End;
+            end if;
 
          when End_Text_Block =>
             F.Buf.End_Text_Block;
-            F.Buf.Scroll_To_End;
+            if Follow then
+               F.Buf.Scroll_To_End;
+            end if;
 
          when Begin_Thinking =>
             F.Buf.Begin_Thinking;
 
          when Append_Thinking =>
             F.Buf.Append_Thinking (To_String (U.Text));
-            F.Buf.Scroll_To_End;
+            if Follow then
+               F.Buf.Scroll_To_End;
+            end if;
 
          when End_Thinking =>
             F.Buf.End_Thinking;
@@ -124,7 +148,9 @@ package body Coyote_App.Frontend.GUI is
                Args       => To_String (U.Text2),
                Session_Id => To_String (U.Text3),
                Tool_Id    => To_String (U.Text4));
-            F.Buf.Scroll_To_End;
+            if Follow then
+               F.Buf.Scroll_To_End;
+            end if;
 
          when End_Tool =>
             F.Buf.End_Tool
@@ -143,11 +169,15 @@ package body Coyote_App.Frontend.GUI is
                             (Coyote_App.Frontend.Notice_Kind'Val
                                (Coyote_GUI.Notice_Kind'Pos (U.N_Kind)))),
                Text => To_String (U.Text));
-            F.Buf.Scroll_To_End;
+            if Follow then
+               F.Buf.Scroll_To_End;
+            end if;
 
          when Append_Turn_Footer =>
             F.Buf.Append_Turn_Footer (To_String (U.Text));
-            F.Buf.Scroll_To_End;
+            if Follow then
+               F.Buf.Scroll_To_End;
+            end if;
 
          when Set_Status =>
             F.Status_Bar.Set_Text (To_String (U.Text));
@@ -189,8 +219,22 @@ package body Coyote_App.Frontend.GUI is
          exit when not Got;
          Apply_Update (Current_Frontend.all, U);
       end loop;
-      return True;
+      return False;
    end Drain_Idle;
+
+   --  ── Enqueue_Update — enqueue and schedule idle drain if needed ────────
+
+   procedure Enqueue_Update (F : in out Instance; U : Coyote_GUI.Update) is
+      Needed  : Boolean;
+      Idle_Id : Glib.Main.G_Source_Id;
+      pragma Unreferenced (Idle_Id);
+   begin
+      F.Updates.Enqueue (U);
+      F.Updates.Take_Idle_Request (Needed);
+      if Needed then
+         Idle_Id := Glib.Main.Idle_Add (Drain_Idle'Access);
+      end if;
+   end Enqueue_Update;
 
    --  ── Signal handlers ───────────────────────────────────────────────────
 
@@ -276,6 +320,9 @@ package body Coyote_App.Frontend.GUI is
       pragma Unreferenced (Self);
    begin
       if Current_Frontend /= null then
+         if Current_Frontend.Agent_Sess /= null then
+            LLM.Agent.Request_Abort (Current_Frontend.Agent_Sess.all);
+         end if;
          Current_Frontend.PQ.Enqueue ((Kind => Stop));
       end if;
    end On_Stop_Activate;
@@ -668,6 +715,15 @@ package body Coyote_App.Frontend.GUI is
            ((Set_Thinking, Level => LLM.Providers.X_High));
       end if;
    end On_Thinking_X_High_Activate;
+   --  ── Markdown rendering toggle ─────────────────────────────────────────
+
+   procedure On_Render_Markdown_Toggled
+     (Self : access Gtk.Check_Menu_Item.Gtk_Check_Menu_Item_Record'Class) is
+   begin
+      if Current_Frontend /= null then
+         Current_Frontend.Buf.Set_Render_Markdown (Self.Get_Active);
+      end if;
+   end On_Render_Markdown_Toggled;
 
    --  ── Menu construction helper ──────────────────────────────────────────
 
@@ -719,8 +775,6 @@ package body Coyote_App.Frontend.GUI is
       Agent_Menu : Gtk_Menu;
       Agent_Item : Gtk_Menu_Item;
 
-      Idle_Id : Glib.Main.G_Source_Id;
-      pragma Unreferenced (Idle_Id);
    begin
       F.Win_Name := To_Unbounded_String (Win_Name);
       Current_Frontend := F'Unchecked_Access;
@@ -801,11 +855,30 @@ package body Coyote_App.Frontend.GUI is
       Add_Sep (Agent_Menu);
       Item := Make_Item ("Session _Stats", Agent_Menu);
       Item.On_Activate (On_Stats_Activate'Access);
+      --  ── View menu ─────────────────────────────────────────────────────
+      declare
+         View_Menu : Gtk.Menu.Gtk_Menu;
+         View_Item : Gtk.Menu_Item.Gtk_Menu_Item;
+      begin
+         Gtk.Menu.Gtk_New (View_Menu);
+         Gtk.Menu_Item.Gtk_New_With_Mnemonic (View_Item, "_View");
+         View_Item.Set_Submenu (View_Menu);
+         Gtk.Menu_Shell.Append
+           (Gtk.Menu_Shell.Gtk_Menu_Shell (F.Menu_Bar), View_Item);
+         Gtk.Check_Menu_Item.Gtk_New
+           (F.Render_Markdown_Item, "_Render Markdown");
+         F.Render_Markdown_Item.Set_Active (True);
+         F.Render_Markdown_Item.On_Toggled
+           (On_Render_Markdown_Toggled'Access);
+         Gtk.Menu_Shell.Append
+           (Gtk.Menu_Shell.Gtk_Menu_Shell (View_Menu),
+            F.Render_Markdown_Item);
+      end;
 
       --  ── Conversation view ─────────────────────────────────────────────
 
       Gtk.Scrolled_Window.Gtk_New (F.Conv_Scroll);
-      F.Conv_Scroll.Set_Policy (Policy_Automatic, Policy_Automatic);
+      F.Conv_Scroll.Set_Policy (Policy_Never, Policy_Automatic);
 
       Gtk.Text_View.Gtk_New (F.Conv_View);
       F.Conv_View.Set_Editable (False);
@@ -876,7 +949,6 @@ package body Coyote_App.Frontend.GUI is
 
       F.Win.Show_All;
 
-      Idle_Id := Glib.Main.Idle_Add (Drain_Idle'Access);
    end Create;
 
    --  ── Frontend.Instance overrides ───────────────────────────────────────
@@ -887,16 +959,15 @@ package body Coyote_App.Frontend.GUI is
    begin
       U.Kind := Coyote_GUI.Set_Status;
       U.Text := To_Unbounded_String (Text);
-      F.Updates.Enqueue (U);
+      Enqueue_Update (F, U);
    end Set_Status;
 
-   overriding
    procedure Set_Mode (F : in out Instance; Mode : in Run_Mode) is
       U : Coyote_GUI.Update;
    begin
       U.Kind := Coyote_GUI.Set_Mode;
       U.Mode := Coyote_GUI.Run_Mode'Val (Run_Mode'Pos (Mode));
-      F.Updates.Enqueue (U);
+      Enqueue_Update (F, U);
    end Set_Mode;
 
    overriding
@@ -905,7 +976,7 @@ package body Coyote_App.Frontend.GUI is
    begin
       U.Kind := Coyote_GUI.Append_Text;
       U.Text := To_Unbounded_String (Text);
-      F.Updates.Enqueue (U);
+      Enqueue_Update (F, U);
    end Append_Text;
 
    overriding
@@ -913,7 +984,7 @@ package body Coyote_App.Frontend.GUI is
       U : Coyote_GUI.Update;
    begin
       U.Kind := Coyote_GUI.End_Text_Block;
-      F.Updates.Enqueue (U);
+      Enqueue_Update (F, U);
    end End_Text_Block;
 
    overriding
@@ -921,7 +992,7 @@ package body Coyote_App.Frontend.GUI is
       U : Coyote_GUI.Update;
    begin
       U.Kind := Coyote_GUI.Begin_Thinking;
-      F.Updates.Enqueue (U);
+      Enqueue_Update (F, U);
    end Begin_Thinking;
 
    overriding
@@ -930,7 +1001,7 @@ package body Coyote_App.Frontend.GUI is
    begin
       U.Kind := Coyote_GUI.Append_Thinking;
       U.Text := To_Unbounded_String (Text);
-      F.Updates.Enqueue (U);
+      Enqueue_Update (F, U);
    end Append_Thinking;
 
    overriding
@@ -938,7 +1009,7 @@ package body Coyote_App.Frontend.GUI is
       U : Coyote_GUI.Update;
    begin
       U.Kind := Coyote_GUI.End_Thinking;
-      F.Updates.Enqueue (U);
+      Enqueue_Update (F, U);
    end End_Thinking;
 
    overriding
@@ -956,7 +1027,7 @@ package body Coyote_App.Frontend.GUI is
       U.Text2 := To_Unbounded_String (Args_Json);
       U.Text3 := To_Unbounded_String (Session_Id);
       U.Text4 := To_Unbounded_String (Tool_Id);
-      F.Updates.Enqueue (U);
+      Enqueue_Update (F, U);
    end Begin_Tool;
 
    overriding
@@ -973,16 +1044,17 @@ package body Coyote_App.Frontend.GUI is
       U.Text2    := To_Unbounded_String (Result_Text);
       U.T_Status :=
         Coyote_GUI.Tool_End_Status'Val (Tool_End_Status'Pos (Status));
-      F.Updates.Enqueue (U);
+      Enqueue_Update (F, U);
    end End_Tool;
 
    overriding
-   procedure Append_Turn_Footer (F : in out Instance; Text : in String) is
-      U : Coyote_GUI.Update;
+   procedure Append_Turn_Footer
+     (F : in out Instance; Text : in String)
+   is
+      pragma Unreferenced (F, Text);
    begin
-      U.Kind := Coyote_GUI.Append_Turn_Footer;
-      U.Text := To_Unbounded_String (Text);
-      F.Updates.Enqueue (U);
+      null;  --  GUI uses the status bar; the acme separator and fork token
+             --  are not meaningful in a GTK window.
    end Append_Turn_Footer;
 
    overriding
@@ -997,7 +1069,7 @@ package body Coyote_App.Frontend.GUI is
       U.Text   := To_Unbounded_String (Text);
       U.N_Kind :=
         Coyote_GUI.Notice_Kind'Val (Notice_Kind'Pos (Kind));
-      F.Updates.Enqueue (U);
+      Enqueue_Update (F, U);
    end Append_Notice;
 
    overriding
@@ -1011,7 +1083,7 @@ package body Coyote_App.Frontend.GUI is
       U.Kind  := Coyote_GUI.Show_Detail;
       U.Text  := To_Unbounded_String (Title);
       U.Text2 := To_Unbounded_String (Content);
-      F.Updates.Enqueue (U);
+      Enqueue_Update (F, U);
    end Show_Detail;
 
    function Read_Item (F : in out Instance)
@@ -1044,7 +1116,7 @@ package body Coyote_App.Frontend.GUI is
       U : Coyote_GUI.Update;
    begin
       U.Kind := Coyote_GUI.Shutdown;
-      F.Updates.Enqueue (U);
+      Enqueue_Update (F, U);
    end Shutdown;
 
    --  ── GUI-specific ──────────────────────────────────────────────────────
@@ -1054,6 +1126,13 @@ package body Coyote_App.Frontend.GUI is
       F.Stats_Text := To_Unbounded_String (Text);
    end Set_Stats_Summary;
 
+
+   procedure Register_Session
+     (F : in out Instance;
+      S : access LLM.Agent.Session) is
+   begin
+      F.Agent_Sess := S;
+   end Register_Session;
    function Stats_Summary_Text (F : Instance) return String is
    begin
       return To_String (F.Stats_Text);

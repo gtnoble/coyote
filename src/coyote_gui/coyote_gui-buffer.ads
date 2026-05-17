@@ -24,6 +24,7 @@ with Ada.Containers.Indefinite_Hashed_Maps;
 with Ada.Strings.Hash;
 with Ada.Strings.Unbounded;        use Ada.Strings.Unbounded;
 with Gtk.Frame;
+with Gtk.Box;
 with Gtk.Label;
 with Gtk.Text_Buffer;
 with Gtk.Text_Mark;
@@ -78,13 +79,23 @@ package Coyote_GUI.Buffer is
    --  ── Scroll ───────────────────────────────────────────────────────────
 
    procedure Scroll_To_End (B : in out Instance);
+   --  ── Markdown rendering toggle ─────────────────────────────────────────
+
+   procedure Set_Render_Markdown (B : in out Instance; Enabled : Boolean);
+   --  Enable or disable Pango-markup rendering of assistant text blocks.
+   --  When disabled, End_Text_Block inserts plain UTF-8 instead.
+
+   function Get_Render_Markdown (B : Instance) return Boolean;
+   --  Return the current markdown-rendering state.
 
 private
 
    type Tool_Frame_Info is record
-      Frame        : Gtk.Frame.Gtk_Frame;
-      Status_Label : Gtk.Label.Gtk_Label;
-      Name         : Unbounded_String;
+      Frame          : Gtk.Frame.Gtk_Frame;
+      Summary_Label  : Gtk.Label.Gtk_Label;
+      Summary_Prefix : Ada.Strings.Unbounded.Unbounded_String;
+      Detail_Box     : Gtk.Box.Gtk_Box;
+      Name           : Ada.Strings.Unbounded.Unbounded_String;
    end record;
 
    package Tool_Maps is new Ada.Containers.Indefinite_Hashed_Maps
@@ -106,6 +117,7 @@ private
       Stream_Buf       : Unbounded_String;
       In_Thinking      : Boolean := False;
       Tools            : Tool_Maps.Map;
+      Render_Markdown  : Boolean := True;
    end record;
 
 end Coyote_GUI.Buffer;

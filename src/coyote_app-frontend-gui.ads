@@ -20,6 +20,7 @@
 --  Project: coyote
 
 with Ada.Strings.Unbounded;        use Ada.Strings.Unbounded;
+with LLM.Agent;
 with Coyote_GUI.Buffer;
 with Coyote_GUI.Prompt_Queue;
 with Coyote_GUI.Updates;
@@ -27,6 +28,7 @@ with Gtk.Box;
 with Gtk.Button;
 with Gtk.Label;
 with Gtk.Menu_Bar;
+with Gtk.Check_Menu_Item;
 with Gtk.Scrolled_Window;
 with Gtk.Status_Bar;
 with Gtk.Text_Buffer;
@@ -121,6 +123,13 @@ package Coyote_App.Frontend.GUI is
    --  Read (and clear) stats text for display.
    function Stats_Summary_Text (F : Instance) return String;
 
+   --  Register the agent session so that Stop can call Request_Abort
+   --  directly from the GTK callback thread, bypassing the prompt queue.
+   --  Must be called from Agent_Task after LLM.Agent.Create.
+   procedure Register_Session
+     (F : in out Instance;
+      S : access LLM.Agent.Session);
+
 private
 
    type Instance is new Coyote_App.Frontend.Instance with record
@@ -132,6 +141,7 @@ private
       Buf       : Coyote_GUI.Buffer.Instance;
       --  GTK widgets.
       Win       : Gtk.Window.Gtk_Window;
+      Render_Markdown_Item : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
       Menu_Bar  : Gtk.Menu_Bar.Gtk_Menu_Bar;
       Conv_View : Gtk.Text_View.Gtk_Text_View;
       Conv_Buf  : Gtk.Text_Buffer.Gtk_Text_Buffer;
@@ -147,6 +157,7 @@ private
       Stats_Text  : Unbounded_String;
       Current_Mode : Coyote_App.Frontend.Run_Mode :=
         Coyote_App.Frontend.Idle;
+      Agent_Sess  : access LLM.Agent.Session := null;
    end record;
 
 end Coyote_App.Frontend.GUI;

@@ -1867,7 +1867,7 @@ package body Coyote_App is
 
       --  Shared objects closed over by Agent_Task:
       State         : App_State;
-      Agent_Session : LLM.Agent.Session;
+      Agent_Session : aliased LLM.Agent.Session;
       My_Frontend   : Coyote_App.Frontend.GUI.Instance;
 
       function Status_Label return String is
@@ -2193,6 +2193,7 @@ package body Coyote_App is
                Agent      => To_String (Opts.Agent),
                No_Tools   => Opts.No_Tools,
                Session_Id => To_String (Opts.Session_Id));
+            My_Frontend.Register_Session (Agent_Session'Unchecked_Access);
             if Opts.No_Compact then
                LLM.Agent.Set_Compact_Settings
                  (Agent_Session,
@@ -2223,6 +2224,20 @@ package body Coyote_App is
                Append_Task_Warning (To_String (Opts.Work_Dir_Warning));
             end if;
             Emit_Bootstrap;
+
+            --  If an initial prompt was supplied via --prompt, run it now.
+            --  For --subagent / one-shot mode Run_Queued_Prompt calls
+            --  Initiate_Shutdown after the turn, which marks the prompt
+            --  queue for shutdown so Prompt_Loop exits immediately.
+            if Length (Opts.Initial_Prompt) > 0 then
+               My_Frontend.Append_Notice
+                 (Coyote_App.Frontend.Info,
+                  ASCII.LF & UC_TRI_R & " "
+                  & To_String (Opts.Initial_Prompt) & ASCII.LF);
+               Run_Queued_Prompt
+                 (Prompt   => To_String (Opts.Initial_Prompt),
+                  Is_Steer => False);
+            end if;
 
             --  Main input loop.
             Prompt_Loop : loop

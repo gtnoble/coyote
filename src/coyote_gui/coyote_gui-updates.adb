@@ -10,18 +10,27 @@ package body Coyote_GUI.Updates is
          Tail : Positive;
       begin
          if Count < Max_Depth then
+            if Count = 0 then
+               Idle_Needed := True;
+            end if;
             Tail := (Head - 1 + Count) mod Max_Depth + 1;
             Items (Tail) := U;
             Count := Count + 1;
          end if;
       end Enqueue;
 
+      procedure Take_Idle_Request (Needed : out Boolean) is
+      begin
+         Needed      := Idle_Needed;
+         Idle_Needed := False;
+      end Take_Idle_Request;
+
       procedure Dequeue (U : out Update; Got : out Boolean) is
       begin
          Got := Count > 0;
          if Got then
-            U    := Items (Head);
-            Head := Head mod Max_Depth + 1;
+            U     := Items (Head);
+            Head  := Head mod Max_Depth + 1;
             Count := Count - 1;
          end if;
       end Dequeue;
