@@ -29,7 +29,6 @@ with Ada.Directories;
 with Glib.Values;
 with Gtk.Cell_Renderer_Text;
 with Gtk.Dialog;
-with Gtk.GEntry;
 with Gtk.List_Store;
 with Gtk.Tree_Model;
 with Gtk.Tree_Selection;
@@ -37,6 +36,8 @@ with Gtk.Tree_View;
 with Gtk.Tree_View_Column;
 with Session_Lister;
 with LLM.Providers;
+with Coyote_App.Utils;
+with LLM.Model_Registry;
 
 package body Coyote_App.Frontend.GUI is
    use Coyote_GUI.Prompt_Queue;
@@ -434,50 +435,174 @@ package body Coyote_App.Frontend.GUI is
    is
       pragma Unreferenced (Self);
       use Gtk.Dialog;
-      use Gtk.GEntry;
-      use Gtk.Label;
+      use Gtk.List_Store;
+      use Gtk.Tree_Model;
+      use Gtk.Tree_View;
 
-      Dialog  : Gtk_Dialog;
+      Models  : constant LLM.Model_Registry.Model_Info_Vectors.Vector :=
+                  LLM.Model_Registry.Available_Models;
+      Store   : Gtk_List_Store;
+      View    : Gtk_Tree_View;
+      Scroll  : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
       Content : Gtk.Box.Gtk_Box;
-      Lbl     : Gtk.Label.Gtk_Label;
-      Ent     : Gtk_Entry;
+      Dialog  : Gtk_Dialog;
       Resp    : Gtk_Response_Type;
+      Sel     : Gtk.Tree_Selection.Gtk_Tree_Selection;
+      Tmodel  : Gtk_Tree_Model;
+      Iter    : Gtk_Tree_Iter;
+      Val     : Glib.Values.GValue;
+      Dummy   : Glib.Gint;
+      pragma Unreferenced (Dummy);
       Btn     : Gtk.Widget.Gtk_Widget;
       pragma Unreferenced (Btn);
+
+      --  Append one text column to View backed by Col_Num of Store.
+      --  If Sort_Col >= 0 the column header becomes clickable for sorting.
+      procedure Add_Text_Column
+        (Title    : String;
+         Col_Num  : Glib.Gint;
+         Sort_Col : Glib.Gint := -1)
+      is
+         Col      : Gtk.Tree_View_Column.Gtk_Tree_View_Column;
+         Renderer : Gtk.Cell_Renderer_Text.Gtk_Cell_Renderer_Text;
+      begin
+         Gtk.Cell_Renderer_Text.Gtk_New (Renderer);
+         Gtk.Tree_View_Column.Gtk_New (Col);
+         Col.Set_Title (Title);
+         Col.Pack_Start (Renderer, Expand => True);
+         Col.Add_Attribute (Renderer, "text", Col_Num);
+         Col.Set_Resizable (True);
+         if Sort_Col >= 0 then
+            Col.Set_Sort_Column_Id (Sort_Col);
+         end if;
+         Dummy := View.Append_Column (Col);
+      end Add_Text_Column;
+
+      --  Convert a price (dollars per MTok) to a Gint sort key
+      --  (micro-dollars per MTok).  Clamped to avoid Gint overflow.
+      function Price_Sort (P : Long_Float) return Glib.Gint is
+         Scale : constant Long_Float := 1.0e6;
+         Max   : constant Long_Float := Long_Float (Glib.Gint'Last);
+      begin
+         if P <= 0.0 then
+            return 0;
+         elsif P * Scale >= Max then
+            return Glib.Gint'Last;
+         else
+            return Glib.Gint (P * Scale);
+         end if;
+      end Price_Sort;
+
    begin
       if Current_Frontend = null then
          return;
       end if;
 
+      --  Store columns: 0=Provider 1=Name 2=Context 3=In 4=Out 5=CR 6=CW
+      --  (displayed strings); 7=Spec (hidden string);
+      --  8=Ctx 9=In 10=Out 11=CR 12=CW (hidden Gint sort keys).
+      Gtk.List_Store.Gtk_New
+        (Store,
+         (0  => Glib.GType_String,
+          1  => Glib.GType_String,
+          2  => Glib.GType_String,
+          3  => Glib.GType_String,
+          4  => Glib.GType_String,
+          5  => Glib.GType_String,
+          6  => Glib.GType_String,
+          7  => Glib.GType_String,
+          8  => Glib.GType_Int,
+          9  => Glib.GType_Int,
+          10 => Glib.GType_Int,
+          11 => Glib.GType_Int,
+          12 => Glib.GType_Int));
+
+      for M of Models loop
+         declare
+            use Ada.Strings.Unbounded;
+            Provider : constant String := To_String (M.Provider);
+            Name     : constant String :=
+              (if Length (M.Name) > 0
+               then To_String (M.Name)
+               else To_String (M.Model_Id));
+            Ctx      : constant String :=
+              Coyote_App.Utils.Format_SI_Count (M.Context_Window) & " ctx";
+            In_P     : constant String :=
+              Coyote_App.Utils.Format_SI_Price (M.Cost.Input);
+            Out_P    : constant String :=
+              Coyote_App.Utils.Format_SI_Price (M.Cost.Output);
+            CR_P     : constant String :=
+              Coyote_App.Utils.Format_SI_Price (M.Cost.Cache_Read);
+            CW_P     : constant String :=
+              Coyote_App.Utils.Format_SI_Price (M.Cost.Cache_Write);
+            Spec     : constant String :=
+              Provider & "/" & To_String (M.Model_Id);
+            Row      : Gtk_Tree_Iter;
+         begin
+            Store.Append (Row);
+            Store.Set (Row, 0,  Provider);
+            Store.Set (Row, 1,  Name);
+            Store.Set (Row, 2,  Ctx);
+            Store.Set (Row, 3,  In_P);
+            Store.Set (Row, 4,  Out_P);
+            Store.Set (Row, 5,  CR_P);
+            Store.Set (Row, 6,  CW_P);
+            Store.Set (Row, 7,  Spec);
+            Store.Set (Row, 8,  Glib.Gint (M.Context_Window));
+            Store.Set (Row, 9,  Price_Sort (M.Cost.Input));
+            Store.Set (Row, 10, Price_Sort (M.Cost.Output));
+            Store.Set (Row, 11, Price_Sort (M.Cost.Cache_Read));
+            Store.Set (Row, 12, Price_Sort (M.Cost.Cache_Write));
+         end;
+      end loop;
+
+      --  Tree view: interactive typeahead search on the Name column.
+      Gtk.Tree_View.Gtk_New (View, +Store);
+      View.Set_Enable_Search (True);
+      View.Set_Search_Column (1);
+      Add_Text_Column ("Provider",   0, Sort_Col => 0);
+      Add_Text_Column ("Name",       1, Sort_Col => 1);
+      Add_Text_Column ("Context",    2, Sort_Col => 8);
+      Add_Text_Column ("In $/MTok",  3, Sort_Col => 9);
+      Add_Text_Column ("Out $/MTok", 4, Sort_Col => 10);
+      Add_Text_Column ("CR $/MTok",  5, Sort_Col => 11);
+      Add_Text_Column ("CW $/MTok",  6, Sort_Col => 12);
+
+      Gtk.Scrolled_Window.Gtk_New (Scroll);
+      Scroll.Set_Policy (Gtk.Enums.Policy_Automatic,
+                         Gtk.Enums.Policy_Automatic);
+      Scroll.Add (View);
+
       Gtk.Dialog.Gtk_New (Dialog);
-      Dialog.Set_Title ("Change Model");
-      Dialog.Set_Default_Size (480, 130);
+      Dialog.Set_Title ("Select Model");
+      Dialog.Set_Default_Size (1000, 520);
       Dialog.Set_Transient_For (Current_Frontend.Win);
       Btn := Dialog.Add_Button ("_Cancel", Gtk_Response_Cancel);
-      Btn := Dialog.Add_Button ("_OK",     Gtk_Response_OK);
+      Btn := Dialog.Add_Button ("_Select", Gtk_Response_OK);
       Dialog.Set_Default_Response (Gtk_Response_OK);
 
       Content := Dialog.Get_Content_Area;
-      Gtk.Label.Gtk_New (Lbl, "Model spec (provider/id):");
-      Content.Pack_Start (Lbl, Expand => False, Fill => False, Padding => 4);
-      Gtk.GEntry.Gtk_New (Ent);
-      Ent.Set_Activates_Default (True);
-      Content.Pack_Start (Ent, Expand => False, Fill => True, Padding => 4);
-
+      Content.Pack_Start (Scroll, Expand => True, Fill => True, Padding => 4);
       Dialog.Show_All;
-      Ent.Grab_Focus;
 
       Resp := Dialog.Run;
       if Resp = Gtk_Response_OK then
-         declare
-            Spec : constant String := Ent.Get_Text;
-         begin
-            if Spec'Length > 0 then
-               Current_Frontend.PQ.Enqueue
-                 ((Set_Model,
-                   Model_Spec => To_Unbounded_String (Spec)));
-            end if;
-         end;
+         Sel := View.Get_Selection;
+         Sel.Get_Selected (Tmodel, Iter);
+         if Iter /= Null_Iter then
+            Gtk.Tree_Model.Get_Value (Tmodel, Iter, 7, Val);
+            declare
+               use Ada.Strings.Unbounded;
+               Spec : constant String := Glib.Values.Get_String (Val);
+            begin
+               Glib.Values.Unset (Val);
+               if Spec'Length > 0 then
+                  Current_Frontend.PQ.Enqueue
+                    ((Set_Model,
+                      Model_Spec => To_Unbounded_String (Spec)));
+               end if;
+            end;
+         end if;
       end if;
       Dialog.Destroy;
    end On_Change_Model_Activate;
