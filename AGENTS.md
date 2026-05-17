@@ -46,6 +46,9 @@ the `coyote-skill-author` skill for a condensed quick-reference.
   - `gnatcoll` ≥ 25.0.0 (JSON, OS, process utilities)
   - system `libcurl` development headers (`libcurl4-openssl-dev` on Debian /
     Ubuntu) for the native HTTP/SSE client
+  - system `libcmark-gfm` development headers (`libcmark-gfm-dev` and
+    `libcmark-gfm-extensions-dev` on Debian / Ubuntu) for GFM Markdown
+    rendering in the TUI frontend
 
 ### Build commands
 
@@ -83,7 +86,7 @@ src/
                         --   Run (acme path) and Run_TUI (TUI path) procedures;
                         --   inner tasks: Agent_Task, Acme_Event_Task, Plumb_*
   coyote_app-dispatch.ads/.adb -- Dispatch_Event: native LLM event → Frontend'Class
-  coyote_app-history.ads/.adb  -- Session JSONL replay into the acme window
+  coyote_app-history.ads/.adb  -- Session JSONL replay via Frontend'Class;
   coyote_app-utils.ads/.adb    -- Pure utility functions (formatting, token
                         --   helpers, turn footer builders, JSON helpers,
                         --   Apply_Prompt_Filter); UC_* Unicode glyph constants
@@ -105,17 +108,25 @@ src/
                         --   mkstemp, isatty, close fd)
   coyote_tui_terminal_c.c      -- C implementations of all tui_* functions;
                         --   no Ada-accessible symbols; linked into libcoyote.a
-  coyote_cmark_c.c     -- C shim for libcmark: one getter per enum constant
-                        --   (`cmark_shim_node_*`, `cmark_shim_list_*`,
+  coyote_cmark_c.c     -- C shim for libcmark-gfm: one getter per enum
+                        --   constant (`cmark_shim_node_*`, `cmark_shim_list_*`,
                         --   `cmark_shim_event_*`) plus `cmark_shim_get_literal`
-                        --   (null-safe literal accessor); all resolved at
-                        --   package elaboration time by `Coyote_Cmark`
-  coyote_cmark.ads/.adb -- Thin Ada binding to libcmark: opaque Node_Ptr /
+                        --   (null-safe literal accessor),
+                        --   `cmark_shim_parse_document_gfm` (creates a parser
+                        --   with the table / strikethrough / autolink extensions
+                        --   attached), `cmark_shim_node_get_type_string` (safe
+                        --   wrapper for cmark_node_get_type_string), and
+                        --   `cmark_shim_table_row_is_header`; all standard
+                        --   enum constants resolved at package elaboration time
+                        --   by `Coyote_Cmark`
+  coyote_cmark.ads/.adb -- Thin Ada binding to libcmark-gfm: opaque Node_Ptr /
                         --   Iter_Ptr (System.Address), integer enum-constant
                         --   variables initialised from C shim getters, and
-                        --   Import bindings to Parse_Document, Node_Free,
-                        --   Node_Get_Type/Literal/Heading_Level/List_Type/
-                        --   List_Start, Iter_New/Next/Get_Node/Free
+                        --   Import bindings to Parse_Document (GFM-extended),
+                        --   Node_Free, Node_Get_Type/Literal/Heading_Level/
+                        --   List_Type/List_Start, Node_Get_Type_String,
+                        --   Table_Row_Is_Header, Node_First_Child, Node_Next,
+                        --   Iter_New/Next/Get_Node/Free
   coyote_utils.ads/.adb -- Small utilities shared across entry points
                         --   (CLI arg resolution, session prefix stripping)
   acme.ads/.adb          -- Root package; Win_File_Path helper
@@ -250,27 +261,31 @@ most recent session totals.
 
 `Dispatch_Event` in `Coyote_App.Dispatch` is the rendering core: it maps each
 incoming `LLM.Events.Agent_Event'Class` value to the appropriate
-`Frontend'Class` call (streaming text, tool summaries, status line updates,
+**1. Markdown rendering via `libcmark-gfm`** *(implemented)*
 turn footers, notices, etc.).  Both the acme and TUI paths share the same
-`Dispatch_Event` implementation.
-
-### TUI — Implemented features
-
-Both originally listed features are now complete:
-
-**1. Markdown rendering via `libcmark`** *(implemented)*
-
-Completed `Assistant_Text` segments (`Complete = True`) are rendered through
 `Render_Markdown` in `coyote_app-frontend-tui.adb`.  The renderer calls
-`Coyote_Cmark.Parse_Document`, walks the AST with `cmark_iter`, and emits
-ncurses attributes:
+`Coyote_Cmark.Parse_Document` (which uses `libcmark-gfm` with the GFM
+`table`, `strikethrough`, and `autolink` extensions enabled), walks the AST
+with `cmark_iter`, and emits ncurses attributes:
 
 - `A_Bold` for `**strong**` and headings (with `#`×level prefix)
-- `A_Dim` for `*emphasis*`, fenced code blocks, and block quotes
+- `A_Dim` for `*emphasis*`, fenced code blocks, block quotes, and
+  `~~strikethrough~~`
 - `A_Reverse` for `` `inline code` ``
 - `UC_BULLET / N.` prefixes for unordered / ordered lists
 - `UC_HORIZ`×cols for thematic breaks (`---`)
-
+- GFM pipe tables rendered as box-drawn ASCII tables (bold header row,
+  `┌─┬─┐` / `├─┼─┤` / `└─┴─┘` borders, column-width auto-fit capped to
+  terminal width with `UC_ELLIP` truncation)
+- `A_Dim` for `*emphasis*`, fenced code blocks, and block quotes
+`Coyote_Cmark` is a thin Ada binding backed by a C shim
+(`src/coyote_cmark_c.c`) whose getter functions resolve all
+`cmark_node_type`, `cmark_list_type`, and `cmark_event_type` enum values at
+package elaboration time — ensuring the values always agree with the installed
+`<cmark-gfm.h>` regardless of library version.  Extension node types (table,
+table_row, table_cell, strikethrough) are identified by the string returned
+by `cmark_node_get_type_string` since their integer IDs are allocated
+dynamically.
 Streaming segments (`Complete = False`) continue to render via `Wrap_And_Put`
 (raw text), preserving live output.
 
@@ -473,7 +488,7 @@ conform to the guidelines it defines.
 - The same principle applies to any other interpreter or tool that accepts
   code via standard input (e.g. `python`, `awk`, `sed` scripts): prefer
   `stdin` over embedding code in the command string.
-- **Always load the `ed` skill before editing or writing any file.** The skill is at `/home/gtnoble/.coyote/skills/ed/SKILL.md`. It defines when to use `ed`, `sed`, `perl -0777 -i -pe`, or `printf >>` and provides the full command reference. Always invoke ed as `ed -vs` (verbose + silent) for informative error messages.
+- **Always load the `oed` skill before editing or writing any file.** The skill is at `/home/gtnoble/.coyote/skills/oed/SKILL.md`. `oed` is a portable `ed(1)` with agent-oriented extensions; always invoke it as `oed -M` for deferred-write, transactional, machine-mode edits.
 
 ## Testing
 
@@ -516,7 +531,7 @@ A feature is **not complete** until all of the following are satisfied:
 ## Editing Discipline
 
 Before making any code edits:
-**Before making any edits, load the `ed` skill** (`/home/gtnoble/.coyote/skills/ed/SKILL.md`) to ensure the correct file-editing tool is selected. Always use `ed -vs` when invoking ed.
+**Before making any edits, load the `oed` skill** (`/home/gtnoble/.coyote/skills/oed/SKILL.md`) to ensure the correct file-editing tool is selected. Always invoke `oed` with `-M` (machine/agent mode) for safe, transactional edits.
 
 
 1. **Map every affected site first.** Identify all call sites, declaration

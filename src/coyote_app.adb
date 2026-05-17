@@ -579,17 +579,16 @@ package body Coyote_App is
                   then UUID (UUID'First .. UUID'First + 7)
                   else UUID);
             begin
-               Acme.Window.Append
-                 (Win,
-                  My_FS'Access,
+               My_Frontend.Append_Notice
+                 (Coyote_App.Frontend.Info,
                   ASCII.LF
                   & "[Loading session " & Short_Id & UC_ELLIP & "]"
                   & ASCII.LF);
                Render_Session_History
-                 (UUID  => UUID,
-                  Win   => Win,
-                  FS    => My_FS'Access,
-                  State => State);
+                 (UUID     => UUID,
+                  Frontend => My_Frontend,
+                  PID      => My_PID,
+                  State    => State);
             end Render_Loaded_Session;
 
             procedure Reset_Session_State is
@@ -695,6 +694,8 @@ package body Coyote_App is
                  "Agent_Task could not connect to acme";
             end if;
             Coyote_App.Frontend.Acme_Win.Create (My_Frontend, Win'Unchecked_Access);
+            My_Frontend.Set_Tag_Suffix
+              (if Opts.One_Shot then "" else " Models Sessions Thinking Stats");
 
             declare
                Settings_Value : constant LLM.Settings.Settings :=
@@ -2066,12 +2067,14 @@ package body Coyote_App is
                   then UUID (UUID'First .. UUID'First + 7)
                   else UUID);
             begin
-               --  TUI: show a brief notice rather than replaying full
-               --  history into the buffer (history rendering is a future
-               --  enhancement).
+               My_Frontend.Clear_Buffer;
                My_Frontend.Append_Notice
                  (Coyote_App.Frontend.Info,
-                  "Session " & Short_Id & UC_ELLIP & " loaded.");
+                  "Loading session " & Short_Id & UC_ELLIP);
+               Render_Session_History
+                 (UUID     => UUID,
+                  Frontend => My_Frontend,
+                  State    => State);
             end Render_Loaded_Session;
 
             procedure Run_Queued_Prompt

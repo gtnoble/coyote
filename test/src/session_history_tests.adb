@@ -16,6 +16,7 @@ with Nine_P;
 with Nine_P.Client;          use Nine_P.Client;
 with Acme;
 with Acme.Window;
+with Coyote_App.Frontend.Acme_Win;
 with Coyote_App;            use Coyote_App;
 with Coyote_App.History;    use Coyote_App.History;
 with Session_Fixture;
@@ -23,6 +24,9 @@ with Session_Fixture;
 package body Session_History_Tests is
 
    use AUnit.Assertions;
+   --  Named library-level access type so that Win allocations have
+   --  library-level accessibility and can be stored in Instance.Win_Ptr.
+   type Test_Win_Access is not null access Acme.Window.Win;
 
    --  ── Helpers ───────────────────────────────────────────────────────────
 
@@ -171,16 +175,18 @@ package body Session_History_Tests is
       declare
          FS    : aliased Nine_P.Client.Fs :=
            Ns_Mount ("acme");
-         Win   : Acme.Window.Win :=
-           Acme.Window.New_Win (FS'Access);
+         Win   : constant Test_Win_Access :=
+           new Acme.Window.Win'(Acme.Window.New_Win (FS'Access));
          State : App_State;
          UUID  : constant String :=
            "test-piacme-render-notfound-9999";
          Id    : constant String :=
-           Natural_Image (Acme.Window.Id (Win));
+           Natural_Image (Acme.Window.Id (Win.all));
+         Frontend : Coyote_App.Frontend.Acme_Win.Instance;
       begin
          --  UUID is not backed by any file.
-         Render_Session_History (UUID, Win, FS'Access, State);
+         Coyote_App.Frontend.Acme_Win.Create (Frontend, Win);
+         Render_Session_History (UUID, Frontend, State);
          declare
             Body_Text : constant String :=
               Read_Via_9p ("acme/" & Id & "/body");
@@ -189,8 +195,8 @@ package body Session_History_Tests is
                     "Window body should contain 'not found' error "
                     & "when session file is missing");
          end;
-         Acme.Window.Ctl (Win, FS'Access, "clean");
-         Acme.Window.Ctl (Win, FS'Access, "del");
+         Acme.Window.Ctl (Win.all, FS'Access, "clean");
+         Acme.Window.Ctl (Win.all, FS'Access, "del");
       end;
    end Test_Render_File_Not_Found;
 
@@ -222,13 +228,15 @@ package body Session_History_Tests is
          pragma Unreferenced (Path);
          FS    : aliased Nine_P.Client.Fs :=
            Ns_Mount ("acme");
-         Win   : Acme.Window.Win :=
-           Acme.Window.New_Win (FS'Access);
+         Win   : constant Test_Win_Access :=
+           new Acme.Window.Win'(Acme.Window.New_Win (FS'Access));
          State : App_State;
          Id    : constant String :=
-           Natural_Image (Acme.Window.Id (Win));
+           Natural_Image (Acme.Window.Id (Win.all));
+         Frontend : Coyote_App.Frontend.Acme_Win.Instance;
       begin
-         Render_Session_History (UUID, Win, FS'Access, State);
+         Coyote_App.Frontend.Acme_Win.Create (Frontend, Win);
+         Render_Session_History (UUID, Frontend, State);
          declare
             Body_Text : constant String :=
               Read_Via_9p ("acme/" & Id & "/body");
@@ -236,12 +244,12 @@ package body Session_History_Tests is
             Assert (Contains (Body_Text, "Hello world test"),
                     "User message text should appear in the window body");
          end;
-         Acme.Window.Ctl (Win, FS'Access, "clean");
-         Acme.Window.Ctl (Win, FS'Access, "del");
+         Acme.Window.Ctl (Win.all, FS'Access, "clean");
+         Acme.Window.Ctl (Win.all, FS'Access, "del");
       exception
          when others =>
-            Acme.Window.Ctl (Win, FS'Access, "clean");
-            Acme.Window.Ctl (Win, FS'Access, "del");
+            Acme.Window.Ctl (Win.all, FS'Access, "clean");
+            Acme.Window.Ctl (Win.all, FS'Access, "del");
             raise;
       end;
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -288,13 +296,15 @@ package body Session_History_Tests is
          pragma Unreferenced (Path);
          FS    : aliased Nine_P.Client.Fs :=
            Ns_Mount ("acme");
-         Win   : Acme.Window.Win :=
-           Acme.Window.New_Win (FS'Access);
+         Win   : constant Test_Win_Access :=
+           new Acme.Window.Win'(Acme.Window.New_Win (FS'Access));
          State : App_State;
          Id    : constant String :=
-           Natural_Image (Acme.Window.Id (Win));
+           Natural_Image (Acme.Window.Id (Win.all));
+         Frontend : Coyote_App.Frontend.Acme_Win.Instance;
       begin
-         Render_Session_History (UUID, Win, FS'Access, State);
+         Coyote_App.Frontend.Acme_Win.Create (Frontend, Win);
+         Render_Session_History (UUID, Frontend, State);
          declare
             Body_Text : constant String :=
               Read_Via_9p ("acme/" & Id & "/body");
@@ -302,12 +312,12 @@ package body Session_History_Tests is
             Assert (Contains (Body_Text, "Pong response text"),
                     "Assistant text should appear verbatim in window body");
          end;
-         Acme.Window.Ctl (Win, FS'Access, "clean");
-         Acme.Window.Ctl (Win, FS'Access, "del");
+         Acme.Window.Ctl (Win.all, FS'Access, "clean");
+         Acme.Window.Ctl (Win.all, FS'Access, "del");
       exception
          when others =>
-            Acme.Window.Ctl (Win, FS'Access, "clean");
-            Acme.Window.Ctl (Win, FS'Access, "del");
+            Acme.Window.Ctl (Win.all, FS'Access, "clean");
+            Acme.Window.Ctl (Win.all, FS'Access, "del");
             raise;
       end;
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -368,13 +378,15 @@ package body Session_History_Tests is
          pragma Unreferenced (Path);
          FS    : aliased Nine_P.Client.Fs :=
            Ns_Mount ("acme");
-         Win   : Acme.Window.Win :=
-           Acme.Window.New_Win (FS'Access);
+         Win   : constant Test_Win_Access :=
+           new Acme.Window.Win'(Acme.Window.New_Win (FS'Access));
          State : App_State;
          Id    : constant String :=
-           Natural_Image (Acme.Window.Id (Win));
+           Natural_Image (Acme.Window.Id (Win.all));
+         Frontend : Coyote_App.Frontend.Acme_Win.Instance;
       begin
-         Render_Session_History (UUID, Win, FS'Access, State);
+         Coyote_App.Frontend.Acme_Win.Create (Frontend, Win);
+         Render_Session_History (UUID, Frontend, State);
          declare
             Body_Text : constant String :=
               Read_Via_9p ("acme/" & Id & "/body");
@@ -384,12 +396,12 @@ package body Session_History_Tests is
             Assert (Contains (Body_Text, UC_Check),
                     "Check mark should appear for a successful tool call");
          end;
-         Acme.Window.Ctl (Win, FS'Access, "clean");
-         Acme.Window.Ctl (Win, FS'Access, "del");
+         Acme.Window.Ctl (Win.all, FS'Access, "clean");
+         Acme.Window.Ctl (Win.all, FS'Access, "del");
       exception
          when others =>
-            Acme.Window.Ctl (Win, FS'Access, "clean");
-            Acme.Window.Ctl (Win, FS'Access, "del");
+            Acme.Window.Ctl (Win.all, FS'Access, "clean");
+            Acme.Window.Ctl (Win.all, FS'Access, "del");
             raise;
       end;
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -450,13 +462,15 @@ package body Session_History_Tests is
          pragma Unreferenced (Path);
          FS    : aliased Nine_P.Client.Fs :=
            Ns_Mount ("acme");
-         Win   : Acme.Window.Win :=
-           Acme.Window.New_Win (FS'Access);
+         Win   : constant Test_Win_Access :=
+           new Acme.Window.Win'(Acme.Window.New_Win (FS'Access));
          State : App_State;
          Id    : constant String :=
-           Natural_Image (Acme.Window.Id (Win));
+           Natural_Image (Acme.Window.Id (Win.all));
+         Frontend : Coyote_App.Frontend.Acme_Win.Instance;
       begin
-         Render_Session_History (UUID, Win, FS'Access, State);
+         Coyote_App.Frontend.Acme_Win.Create (Frontend, Win);
+         Render_Session_History (UUID, Frontend, State);
          declare
             Body_Text : constant String :=
               Read_Via_9p ("acme/" & Id & "/body");
@@ -466,12 +480,12 @@ package body Session_History_Tests is
             Assert (Contains (Body_Text, "File not found"),
                     "First line of error text should appear in the body");
          end;
-         Acme.Window.Ctl (Win, FS'Access, "clean");
-         Acme.Window.Ctl (Win, FS'Access, "del");
+         Acme.Window.Ctl (Win.all, FS'Access, "clean");
+         Acme.Window.Ctl (Win.all, FS'Access, "del");
       exception
          when others =>
-            Acme.Window.Ctl (Win, FS'Access, "clean");
-            Acme.Window.Ctl (Win, FS'Access, "del");
+            Acme.Window.Ctl (Win.all, FS'Access, "clean");
+            Acme.Window.Ctl (Win.all, FS'Access, "del");
             raise;
       end;
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -525,13 +539,15 @@ package body Session_History_Tests is
          pragma Unreferenced (Path);
          FS    : aliased Nine_P.Client.Fs :=
            Ns_Mount ("acme");
-         Win   : Acme.Window.Win :=
-           Acme.Window.New_Win (FS'Access);
+         Win   : constant Test_Win_Access :=
+           new Acme.Window.Win'(Acme.Window.New_Win (FS'Access));
          State : App_State;
          Id    : constant String :=
-           Natural_Image (Acme.Window.Id (Win));
+           Natural_Image (Acme.Window.Id (Win.all));
+         Frontend : Coyote_App.Frontend.Acme_Win.Instance;
       begin
-         Render_Session_History (UUID, Win, FS'Access, State);
+         Coyote_App.Frontend.Acme_Win.Create (Frontend, Win);
+         Render_Session_History (UUID, Frontend, State);
          declare
             Body_Text : constant String :=
               Read_Via_9p ("acme/" & Id & "/body");
@@ -543,12 +559,12 @@ package body Session_History_Tests is
             Assert (Contains (Body_Text, "Conclusion text"),
                     "Text block after thinking should appear in the body");
          end;
-         Acme.Window.Ctl (Win, FS'Access, "clean");
-         Acme.Window.Ctl (Win, FS'Access, "del");
+         Acme.Window.Ctl (Win.all, FS'Access, "clean");
+         Acme.Window.Ctl (Win.all, FS'Access, "del");
       exception
          when others =>
-            Acme.Window.Ctl (Win, FS'Access, "clean");
-            Acme.Window.Ctl (Win, FS'Access, "del");
+            Acme.Window.Ctl (Win.all, FS'Access, "clean");
+            Acme.Window.Ctl (Win.all, FS'Access, "del");
             raise;
       end;
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -592,13 +608,15 @@ package body Session_History_Tests is
          pragma Unreferenced (Path);
          FS    : aliased Nine_P.Client.Fs :=
            Ns_Mount ("acme");
-         Win   : Acme.Window.Win :=
-           Acme.Window.New_Win (FS'Access);
+         Win   : constant Test_Win_Access :=
+           new Acme.Window.Win'(Acme.Window.New_Win (FS'Access));
          State : App_State;
          Id    : constant String :=
-           Natural_Image (Acme.Window.Id (Win));
+           Natural_Image (Acme.Window.Id (Win.all));
+         Frontend : Coyote_App.Frontend.Acme_Win.Instance;
       begin
-         Render_Session_History (UUID, Win, FS'Access, State);
+         Coyote_App.Frontend.Acme_Win.Create (Frontend, Win);
+         Render_Session_History (UUID, Frontend, State);
          declare
             Body_Text : constant String :=
               Read_Via_9p ("acme/" & Id & "/body");
@@ -608,12 +626,12 @@ package body Session_History_Tests is
             Assert (Contains (Body_Text, "anthropic/claude-sonnet-test"),
                     "Model change should include provider/modelId");
          end;
-         Acme.Window.Ctl (Win, FS'Access, "clean");
-         Acme.Window.Ctl (Win, FS'Access, "del");
+         Acme.Window.Ctl (Win.all, FS'Access, "clean");
+         Acme.Window.Ctl (Win.all, FS'Access, "del");
       exception
          when others =>
-            Acme.Window.Ctl (Win, FS'Access, "clean");
-            Acme.Window.Ctl (Win, FS'Access, "del");
+            Acme.Window.Ctl (Win.all, FS'Access, "clean");
+            Acme.Window.Ctl (Win.all, FS'Access, "del");
             raise;
       end;
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -661,13 +679,15 @@ package body Session_History_Tests is
          pragma Unreferenced (Path);
          FS    : aliased Nine_P.Client.Fs :=
            Ns_Mount ("acme");
-         Win   : Acme.Window.Win :=
-           Acme.Window.New_Win (FS'Access);
+         Win   : constant Test_Win_Access :=
+           new Acme.Window.Win'(Acme.Window.New_Win (FS'Access));
          State : App_State;
          Id    : constant String :=
-           Natural_Image (Acme.Window.Id (Win));
+           Natural_Image (Acme.Window.Id (Win.all));
+         Frontend : Coyote_App.Frontend.Acme_Win.Instance;
       begin
-         Render_Session_History (UUID, Win, FS'Access, State);
+         Coyote_App.Frontend.Acme_Win.Create (Frontend, Win);
+         Render_Session_History (UUID, Frontend, State);
          --  input + cacheRead + cacheWrite = 1500 + 300 + 100 = 1900
          Assert
            (State.Turn_Input_Tokens = 1900,
@@ -685,12 +705,12 @@ package body Session_History_Tests is
               (Contains (Body_Text, "] coyote-fork+"),
                "Summary block and fork token should share one line");
          end;
-         Acme.Window.Ctl (Win, FS'Access, "clean");
-         Acme.Window.Ctl (Win, FS'Access, "del");
+         Acme.Window.Ctl (Win.all, FS'Access, "clean");
+         Acme.Window.Ctl (Win.all, FS'Access, "del");
       exception
          when others =>
-            Acme.Window.Ctl (Win, FS'Access, "clean");
-            Acme.Window.Ctl (Win, FS'Access, "del");
+            Acme.Window.Ctl (Win.all, FS'Access, "clean");
+            Acme.Window.Ctl (Win.all, FS'Access, "del");
             raise;
       end;
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -742,13 +762,15 @@ package body Session_History_Tests is
          pragma Unreferenced (Path);
          FS    : aliased Nine_P.Client.Fs :=
            Ns_Mount ("acme");
-         Win   : Acme.Window.Win :=
-           Acme.Window.New_Win (FS'Access);
+         Win   : constant Test_Win_Access :=
+           new Acme.Window.Win'(Acme.Window.New_Win (FS'Access));
          State : App_State;
          Id    : constant String :=
-           Natural_Image (Acme.Window.Id (Win));
+           Natural_Image (Acme.Window.Id (Win.all));
+         Frontend : Coyote_App.Frontend.Acme_Win.Instance;
       begin
-         Render_Session_History (UUID, Win, FS'Access, State);
+         Coyote_App.Frontend.Acme_Win.Create (Frontend, Win);
+         Render_Session_History (UUID, Frontend, State);
          declare
             Body_Text : constant String :=
               Read_Via_9p ("acme/" & Id & "/body");
@@ -760,12 +782,12 @@ package body Session_History_Tests is
             Assert (State.Turn_Count = 1,
                     "Turn_Count should be 1 after one complete turn");
          end;
-         Acme.Window.Ctl (Win, FS'Access, "clean");
-         Acme.Window.Ctl (Win, FS'Access, "del");
+         Acme.Window.Ctl (Win.all, FS'Access, "clean");
+         Acme.Window.Ctl (Win.all, FS'Access, "del");
       exception
          when others =>
-            Acme.Window.Ctl (Win, FS'Access, "clean");
-            Acme.Window.Ctl (Win, FS'Access, "del");
+            Acme.Window.Ctl (Win.all, FS'Access, "clean");
+            Acme.Window.Ctl (Win.all, FS'Access, "del");
             raise;
       end;
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -832,13 +854,15 @@ package body Session_History_Tests is
          pragma Unreferenced (Path);
          FS    : aliased Nine_P.Client.Fs :=
            Ns_Mount ("acme");
-         Win   : Acme.Window.Win :=
-           Acme.Window.New_Win (FS'Access);
+         Win   : constant Test_Win_Access :=
+           new Acme.Window.Win'(Acme.Window.New_Win (FS'Access));
          State : App_State;
          Id    : constant String :=
-           Natural_Image (Acme.Window.Id (Win));
+           Natural_Image (Acme.Window.Id (Win.all));
+         Frontend : Coyote_App.Frontend.Acme_Win.Instance;
       begin
-         Render_Session_History (Session_UUID, Win, FS'Access, State);
+         Coyote_App.Frontend.Acme_Win.Create (Frontend, Win);
+         Render_Session_History (Session_UUID, Frontend, State);
          declare
             Body_Text : constant String :=
               Read_Via_9p ("acme/" & Id & "/body");
@@ -848,12 +872,12 @@ package body Session_History_Tests is
                "Tool call header should contain the coyote-session+UUID/tool/HASH "
                & "URI; expected: " & Expected_URI);
          end;
-         Acme.Window.Ctl (Win, FS'Access, "clean");
-         Acme.Window.Ctl (Win, FS'Access, "del");
+         Acme.Window.Ctl (Win.all, FS'Access, "clean");
+         Acme.Window.Ctl (Win.all, FS'Access, "del");
       exception
          when others =>
-            Acme.Window.Ctl (Win, FS'Access, "clean");
-            Acme.Window.Ctl (Win, FS'Access, "del");
+            Acme.Window.Ctl (Win.all, FS'Access, "clean");
+            Acme.Window.Ctl (Win.all, FS'Access, "del");
             raise;
       end;
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -913,13 +937,15 @@ package body Session_History_Tests is
          pragma Unreferenced (Path);
          FS    : aliased Nine_P.Client.Fs :=
            Ns_Mount ("acme");
-         Win   : Acme.Window.Win :=
-           Acme.Window.New_Win (FS'Access);
+         Win   : constant Test_Win_Access :=
+           new Acme.Window.Win'(Acme.Window.New_Win (FS'Access));
          State : App_State;
          Id    : constant String :=
-           Natural_Image (Acme.Window.Id (Win));
+           Natural_Image (Acme.Window.Id (Win.all));
+         Frontend : Coyote_App.Frontend.Acme_Win.Instance;
       begin
-         Render_Session_History (Session_UUID, Win, FS'Access, State);
+         Coyote_App.Frontend.Acme_Win.Create (Frontend, Win);
+         Render_Session_History (Session_UUID, Frontend, State);
          declare
             Body_Text : constant String :=
               Read_Via_9p ("acme/" & Id & "/body");
@@ -931,12 +957,12 @@ package body Session_History_Tests is
               (not Contains (Body_Text, "coyote-session+"),
                "No coyote-session+ URI should appear when tool call id is empty");
          end;
-         Acme.Window.Ctl (Win, FS'Access, "clean");
-         Acme.Window.Ctl (Win, FS'Access, "del");
+         Acme.Window.Ctl (Win.all, FS'Access, "clean");
+         Acme.Window.Ctl (Win.all, FS'Access, "del");
       exception
          when others =>
-            Acme.Window.Ctl (Win, FS'Access, "clean");
-            Acme.Window.Ctl (Win, FS'Access, "del");
+            Acme.Window.Ctl (Win.all, FS'Access, "clean");
+            Acme.Window.Ctl (Win.all, FS'Access, "del");
             raise;
       end;
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -974,11 +1000,12 @@ package body Session_History_Tests is
               Name     => "native user assistant");
          FS           : aliased Nine_P.Client.Fs :=
            Ns_Mount ("acme");
-         Win          : Acme.Window.Win :=
-           Acme.Window.New_Win (FS'Access);
+         Win          : constant Test_Win_Access :=
+           new Acme.Window.Win'(Acme.Window.New_Win (FS'Access));
          State        : App_State;
          Id           : constant String :=
-           Natural_Image (Acme.Window.Id (Win));
+           Natural_Image (Acme.Window.Id (Win.all));
+         Frontend : Coyote_App.Frontend.Acme_Win.Instance;
       begin
          Session_Fixture.Append_User_Message
            (Home     => Home,
@@ -991,7 +1018,8 @@ package body Session_History_Tests is
             UUID     => Session_UUID,
             Text     => "Native assistant reply");
 
-         Render_Session_History (Session_UUID, Win, FS'Access, State);
+         Coyote_App.Frontend.Acme_Win.Create (Frontend, Win);
+         Render_Session_History (Session_UUID, Frontend, State);
 
          declare
             Body_Text : constant String :=
@@ -1005,12 +1033,12 @@ package body Session_History_Tests is
                "Rendered history should contain the native assistant text");
          end;
 
-         Acme.Window.Ctl (Win, FS'Access, "clean");
-         Acme.Window.Ctl (Win, FS'Access, "del");
+         Acme.Window.Ctl (Win.all, FS'Access, "clean");
+         Acme.Window.Ctl (Win.all, FS'Access, "del");
       exception
          when others =>
-            Acme.Window.Ctl (Win, FS'Access, "clean");
-            Acme.Window.Ctl (Win, FS'Access, "del");
+            Acme.Window.Ctl (Win.all, FS'Access, "clean");
+            Acme.Window.Ctl (Win.all, FS'Access, "del");
             raise;
       end;
 
@@ -1050,11 +1078,12 @@ package body Session_History_Tests is
               Name     => "native tool call");
          FS           : aliased Nine_P.Client.Fs :=
            Ns_Mount ("acme");
-         Win          : Acme.Window.Win :=
-           Acme.Window.New_Win (FS'Access);
+         Win          : constant Test_Win_Access :=
+           new Acme.Window.Win'(Acme.Window.New_Win (FS'Access));
          State        : App_State;
          Id           : constant String :=
-           Natural_Image (Acme.Window.Id (Win));
+           Natural_Image (Acme.Window.Id (Win.all));
+         Frontend : Coyote_App.Frontend.Acme_Win.Instance;
       begin
          Session_Fixture.Append_User_Message
            (Home     => Home,
@@ -1076,7 +1105,8 @@ package body Session_History_Tests is
             Result    => "contents",
             Is_Error  => False);
 
-         Render_Session_History (Session_UUID, Win, FS'Access, State);
+         Coyote_App.Frontend.Acme_Win.Create (Frontend, Win);
+         Render_Session_History (Session_UUID, Frontend, State);
 
          declare
             Body_Text : constant String :=
@@ -1090,12 +1120,12 @@ package body Session_History_Tests is
                "Rendered history should show a success check mark");
          end;
 
-         Acme.Window.Ctl (Win, FS'Access, "clean");
-         Acme.Window.Ctl (Win, FS'Access, "del");
+         Acme.Window.Ctl (Win.all, FS'Access, "clean");
+         Acme.Window.Ctl (Win.all, FS'Access, "del");
       exception
          when others =>
-            Acme.Window.Ctl (Win, FS'Access, "clean");
-            Acme.Window.Ctl (Win, FS'Access, "del");
+            Acme.Window.Ctl (Win.all, FS'Access, "clean");
+            Acme.Window.Ctl (Win.all, FS'Access, "del");
             raise;
       end;
 
@@ -1132,11 +1162,12 @@ package body Session_History_Tests is
               Name     => "native model change");
          FS           : aliased Nine_P.Client.Fs :=
            Ns_Mount ("acme");
-         Win          : Acme.Window.Win :=
-           Acme.Window.New_Win (FS'Access);
+         Win          : constant Test_Win_Access :=
+           new Acme.Window.Win'(Acme.Window.New_Win (FS'Access));
          State        : App_State;
          Id           : constant String :=
-           Natural_Image (Acme.Window.Id (Win));
+           Natural_Image (Acme.Window.Id (Win.all));
+         Frontend : Coyote_App.Frontend.Acme_Win.Instance;
       begin
          Session_Fixture.Append_Model_Change
            (Home     => Home,
@@ -1145,7 +1176,8 @@ package body Session_History_Tests is
             Provider => "anthropic",
             Model_Id => "claude-native-test");
 
-         Render_Session_History (Session_UUID, Win, FS'Access, State);
+         Coyote_App.Frontend.Acme_Win.Create (Frontend, Win);
+         Render_Session_History (Session_UUID, Frontend, State);
 
          declare
             Body_Text : constant String :=
@@ -1156,12 +1188,12 @@ package body Session_History_Tests is
                "Rendered history should contain a model marker");
          end;
 
-         Acme.Window.Ctl (Win, FS'Access, "clean");
-         Acme.Window.Ctl (Win, FS'Access, "del");
+         Acme.Window.Ctl (Win.all, FS'Access, "clean");
+         Acme.Window.Ctl (Win.all, FS'Access, "del");
       exception
          when others =>
-            Acme.Window.Ctl (Win, FS'Access, "clean");
-            Acme.Window.Ctl (Win, FS'Access, "del");
+            Acme.Window.Ctl (Win.all, FS'Access, "clean");
+            Acme.Window.Ctl (Win.all, FS'Access, "del");
             raise;
       end;
 
@@ -1198,11 +1230,12 @@ package body Session_History_Tests is
               Name     => "native two turn");
          FS           : aliased Nine_P.Client.Fs :=
            Ns_Mount ("acme");
-         Win          : Acme.Window.Win :=
-           Acme.Window.New_Win (FS'Access);
+         Win          : constant Test_Win_Access :=
+           new Acme.Window.Win'(Acme.Window.New_Win (FS'Access));
          State        : App_State;
          Id           : constant String :=
-           Natural_Image (Acme.Window.Id (Win));
+           Natural_Image (Acme.Window.Id (Win.all));
+         Frontend : Coyote_App.Frontend.Acme_Win.Instance;
       begin
          Session_Fixture.Append_User_Message
            (Home     => Home,
@@ -1229,7 +1262,8 @@ package body Session_History_Tests is
             UUID     => Session_UUID,
             Text     => "Turn two assistant");
 
-         Render_Session_History (Session_UUID, Win, FS'Access, State);
+         Coyote_App.Frontend.Acme_Win.Create (Frontend, Win);
+         Render_Session_History (Session_UUID, Frontend, State);
 
          declare
             Body_Text : constant String :=
@@ -1252,12 +1286,12 @@ package body Session_History_Tests is
                "Render_Session_History should restore Turn_Count = 2");
          end;
 
-         Acme.Window.Ctl (Win, FS'Access, "clean");
-         Acme.Window.Ctl (Win, FS'Access, "del");
+         Acme.Window.Ctl (Win.all, FS'Access, "clean");
+         Acme.Window.Ctl (Win.all, FS'Access, "del");
       exception
          when others =>
-            Acme.Window.Ctl (Win, FS'Access, "clean");
-            Acme.Window.Ctl (Win, FS'Access, "del");
+            Acme.Window.Ctl (Win.all, FS'Access, "clean");
+            Acme.Window.Ctl (Win.all, FS'Access, "del");
             raise;
       end;
 

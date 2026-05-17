@@ -1,5 +1,6 @@
 with AUnit.Assertions;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
+with Ada.Characters.Latin_1;
 with GNATCOLL.JSON;         use GNATCOLL.JSON;
 with Coyote_App; use Coyote_App;
 with Coyote_App.Utils; use Coyote_App.Utils;
@@ -9,6 +10,10 @@ with Ada.Strings.Fixed;
 with Session_Lister;        use Session_Lister;
 with Coyote_TUI_Terminal;
 with Coyote_App.Frontend.TUI;
+with Coyote_Cmark;
+with Interfaces.C;
+with Interfaces.C.Strings;
+with System;
 
 package body Coyote_App_Tests is
 
@@ -969,6 +974,45 @@ package body Coyote_App_Tests is
               & "got """ & Result & """");
    end Test_Format_Tool_Field_Truncation;
 
+   --  ── Test_Tool_Segment_Line_Count ──────────────────────────────────────
+   --  Verify the LF-count arithmetic used by the TUI rendering block for
+   --  Tool_Segment arg fields: count(LF in Format_Tool_Field output) + 1
+   --  must equal the number of ncurses display lines produced.
+
+   procedure Test_Tool_Segment_Line_Count (T : in out Test) is
+      pragma Unreferenced (T);
+      use Ada.Characters.Latin_1;
+
+      --  Single-line value: no embedded LF → 0 LFs in result → 1 line.
+      Single    : constant String :=
+        Format_Tool_Field ("command", "echo hello");
+      NL_Single : Natural          := 0;
+
+      --  Two-line value: one embedded LF → 1 LF in result → 2 lines.
+      Multi     : constant String :=
+        Format_Tool_Field ("command", "line1" & LF & "line2");
+      NL_Multi  : Natural          := 0;
+   begin
+      for C of Single loop
+         if C = LF then
+            NL_Single := NL_Single + 1;
+         end if;
+      end loop;
+      Assert (NL_Single + 1 = 1,
+              "Single-line field: expected 1 display line, got "
+              & Natural'Image (NL_Single + 1));
+
+      for C of Multi loop
+         if C = LF then
+            NL_Multi := NL_Multi + 1;
+         end if;
+      end loop;
+      Assert (NL_Multi + 1 = 2,
+              "Two-line field: expected 2 display lines, got "
+              & Natural'Image (NL_Multi + 1));
+   end Test_Tool_Segment_Line_Count;
+
+
    --  ── Format_SI_Count ──────────────────────────────────────────────────
 
    procedure Test_Format_SI_Count_Below_Threshold (T : in out Test) is
@@ -1918,5 +1962,96 @@ package body Coyote_App_Tests is
                                      & "Cost: $0.00",
               "Stats_Summary_Text must return exactly what was stored");
    end Test_Stats_Summary_Round_Trip;
+
+
+   --  ── GFM (libcmark-gfm) table parsing ─────────────────────────────────
+
+   --  Verify that Parse_Document with the GFM extensions enabled parses a
+   --  pipe table and exposes a node whose type string is "table".
+   procedure Test_Cmark_GFM_Table_Parsed (T : in out Test) is
+      pragma Unreferenced (T);
+      use Interfaces.C;
+      use Interfaces.C.Strings;
+      use System;
+
+      Table_MD : constant String :=
+        "| Name  | Value |" & ASCII.LF &
+        "|-------|-------|" & ASCII.LF &
+        "| foo   | 42    |" & ASCII.LF;
+
+      C_Text   : constant char_array := To_C (Table_MD, Append_Nul => True);
+      Doc      : Coyote_Cmark.Node_Ptr;
+      Iter     : Coyote_Cmark.Iter_Ptr;
+      Ev       : Coyote_Cmark.Event_Type_Int;
+      Node     : Coyote_Cmark.Node_Ptr;
+      Found_Table : Boolean := False;
+      TS_Ptr   : chars_ptr;
+   begin
+      Doc  := Coyote_Cmark.Parse_Document
+                (C_Text, size_t (Table_MD'Length),
+                 Coyote_Cmark.OPT_DEFAULT);
+      Assert (Doc /= System.Null_Address,
+              "Parse_Document must return a non-null document node");
+
+      Iter := Coyote_Cmark.Iter_New (Doc);
+      loop
+         Ev := Coyote_Cmark.Iter_Next (Iter);
+         exit when Ev = Coyote_Cmark.EVENT_DONE;
+         if Ev = Coyote_Cmark.EVENT_ENTER then
+            Node   := Coyote_Cmark.Iter_Get_Node (Iter);
+            TS_Ptr := Coyote_Cmark.Node_Get_Type_String (Node);
+            if String'(Value (TS_Ptr)) = "table" then
+               Found_Table := True;
+            end if;
+         end if;
+      end loop;
+      Coyote_Cmark.Iter_Free (Iter);
+      Coyote_Cmark.Node_Free (Doc);
+
+      Assert (Found_Table,
+              "GFM table input must produce a node with type_string='table'");
+   end Test_Cmark_GFM_Table_Parsed;
+
+   --  Verify that standard CommonMark paragraph nodes still have the
+   --  correct type string after the migration to libcmark-gfm.
+   procedure Test_Cmark_Paragraph_Type_String (T : in out Test) is
+      pragma Unreferenced (T);
+      use Interfaces.C;
+      use Interfaces.C.Strings;
+      use System;
+
+      Para_MD : constant String := "Hello, world." & ASCII.LF;
+      C_Text  : constant char_array := To_C (Para_MD, Append_Nul => True);
+      Doc     : Coyote_Cmark.Node_Ptr;
+      Iter    : Coyote_Cmark.Iter_Ptr;
+      Ev      : Coyote_Cmark.Event_Type_Int;
+      Node    : Coyote_Cmark.Node_Ptr;
+      Found_Para : Boolean := False;
+      TS_Ptr  : chars_ptr;
+   begin
+      Doc  := Coyote_Cmark.Parse_Document
+                (C_Text, size_t (Para_MD'Length),
+                 Coyote_Cmark.OPT_DEFAULT);
+      Assert (Doc /= System.Null_Address,
+              "Parse_Document must return a non-null document node");
+
+      Iter := Coyote_Cmark.Iter_New (Doc);
+      loop
+         Ev := Coyote_Cmark.Iter_Next (Iter);
+         exit when Ev = Coyote_Cmark.EVENT_DONE;
+         if Ev = Coyote_Cmark.EVENT_ENTER then
+            Node   := Coyote_Cmark.Iter_Get_Node (Iter);
+            TS_Ptr := Coyote_Cmark.Node_Get_Type_String (Node);
+            if String'(Value (TS_Ptr)) = "paragraph" then
+               Found_Para := True;
+            end if;
+         end if;
+      end loop;
+      Coyote_Cmark.Iter_Free (Iter);
+      Coyote_Cmark.Node_Free (Doc);
+
+      Assert (Found_Para,
+              "Standard paragraph must still have type_string='paragraph'");
+   end Test_Cmark_Paragraph_Type_String;
 
 end Coyote_App_Tests;

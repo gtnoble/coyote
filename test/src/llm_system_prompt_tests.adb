@@ -56,7 +56,7 @@ package body LLM_System_Prompt_Tests is
         LLM.System_Prompt.Build_System_Prompt (Cwd => Test_Cwd);
    begin
       Assert
-        (Ada.Strings.Fixed.Index (P, "ex, ed, sed, or perl") > 0,
+        (Ada.Strings.Fixed.Index (P, "oed, sed, or perl") > 0,
          "default prompt should include the editing guideline");
    end Test_Default_Prompt_Contains_Guidelines;
 

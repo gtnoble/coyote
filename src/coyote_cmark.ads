@@ -76,14 +76,15 @@ package Coyote_Cmark is
 
    --  ── libcmark API ───────────────────────────────────────────────────
 
-   --  Parse a CommonMark document from a byte buffer.
+   --  Parse a GFM document from a byte buffer (table, strikethrough, and
+   --  autolink extensions are enabled automatically).
    --  Options should be OPT_DEFAULT (0) for standard parsing.
    --  Caller must free the returned node with Node_Free.
    function Parse_Document
      (Buffer  : Interfaces.C.char_array;
       Len     : Interfaces.C.size_t;
       Options : Interfaces.C.int) return Node_Ptr
-   with Import, Convention => C, External_Name => "cmark_parse_document";
+   with Import, Convention => C, External_Name => "cmark_shim_parse_document_gfm";
 
    --  Free a document node tree returned by Parse_Document.
    procedure Node_Free (Node : Node_Ptr)
@@ -129,5 +130,30 @@ package Coyote_Cmark is
    --  Free an iterator created by Iter_New.
    procedure Iter_Free (Iter : Iter_Ptr)
    with Import, Convention => C, External_Name => "cmark_iter_free";
+
+   --  Return the type-name string for Node (e.g. "paragraph", "table",
+   --  "table_row", "table_cell", "strikethrough").  Extension nodes carry
+   --  dynamic integer type-ids; this string is the only portable identifier.
+   --  Never returns Null_Ptr.
+   function Node_Get_Type_String
+     (Node : Node_Ptr) return Interfaces.C.Strings.chars_ptr
+   with Import, Convention => C,
+        External_Name => "cmark_shim_node_get_type_string";
+
+   --  Return 1 if Node is a table_row that is the header row, else 0.
+   function Table_Row_Is_Header
+     (Node : Node_Ptr) return Interfaces.C.int
+   with Import, Convention => C,
+        External_Name => "cmark_shim_table_row_is_header";
+
+   --  Return the first child of Node, or System.Null_Address if none.
+   function Node_First_Child (Node : Node_Ptr) return Node_Ptr
+   with Import, Convention => C,
+        External_Name => "cmark_node_first_child";
+
+   --  Return the next sibling of Node, or System.Null_Address if none.
+   function Node_Next (Node : Node_Ptr) return Node_Ptr
+   with Import, Convention => C,
+        External_Name => "cmark_node_next";
 
 end Coyote_Cmark;

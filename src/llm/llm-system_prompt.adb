@@ -265,23 +265,18 @@ package body LLM.System_Prompt is
             & " command=""cat > path"","
             & " stdin=""<file content>"""
             & ASCII.LF
-            & "- Edit files precisely with ex, ed, sed, or perl"
-            & " (pass commands via the stdin field for ex/ed;"
+            & "- Edit files precisely with oed, sed, or perl"
+            & " (pass the script via the stdin field;"
             & " use perl -0777 -i -pe for multi-line patterns)"
             & ASCII.LF
-            & "- Always invoke ed as `ed -vs`: -v prints verbose error"
-            & " explanations for every `?` so failures are diagnosable;"
-            & " -s suppresses byte-count output"
+            & "- Always invoke oed as `oed -M` (machine/agent mode):"
+            & " provides deferred writes with transactional rollback,"
+            & " OK/? per-command signalling, and verbose error output"
             & ASCII.LF
-            & "- When using ed, combine edit and spot-check in one call:"
-            & " add a range p command after the edits but before w"
-            & " (e.g. 105a / text / . / 99,119p / w / q);"
-            & " use post-edit line numbers since insertions shift lines below"
-            & ASCII.LF
-            & "- To insert a block containing a lone . line via ed, write"
+            & "- To insert a block containing a lone . line via oed, write"
             & " the block to a temp file first (cat > /tmp/block via stdin),"
-            & " then use ed's r command to read it into the buffer"
-            & " (e.g. 42r /tmp/block) -- ed input mode has no escape for"
+            & " then use oed's r command to read it into the buffer"
+            & " (e.g. 42r /tmp/block) -- input mode has no escape for"
             & " a lone . terminator"
             & ASCII.LF
             & "- For non-trivial sed/perl/awk scripts, pass the script"

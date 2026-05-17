@@ -1,20 +1,28 @@
-/*  coyote_cmark_c.c — C shim for libcmark enum constants and helpers.
+/*  coyote_cmark_c.c — C shim for libcmark-gfm enum constants and helpers.
  *
  *  All enum-getter functions are trivial one-liners that return a single
  *  cmark enum value.  The Ada package Coyote_Cmark imports these at
  *  elaboration time to initialise package-body constants, ensuring the
- *  values always agree with the installed <cmark.h> regardless of the
+ *  values always agree with the installed <cmark-gfm.h> regardless of the
  *  library version.
  *
  *  cmark_shim_get_literal wraps cmark_node_get_literal so the Ada side
  *  receives a valid (possibly empty) C string rather than a null pointer.
  *
+ *  cmark_shim_parse_document_gfm creates a parser with the GFM "table",
+ *  "strikethrough", and "autolink" extensions attached, parses the supplied
+ *  buffer, and returns the document root node.  The caller must free the
+ *  returned node with cmark_node_free.
+ *
  *  Project: coyote
  *  For revision history, see the project version-control log.
  */
 
-#include <cmark.h>
+#include <cmark-gfm.h>
+#include <cmark-gfm-core-extensions.h>
+#include <cmark-gfm-extension_api.h>
 #include <stddef.h>
+#include <string.h>
 
 /* ── Node types ──────────────────────────────────────────────────────────── */
 
@@ -65,4 +73,56 @@ const char *cmark_shim_get_literal(cmark_node *node)
 {
     const char *s = cmark_node_get_literal(node);
     return (s != NULL) ? s : "";
+}
+
+/* ── GFM parse with table extension ─────────────────────────────────────── */
+
+/*  Parse buffer with the GFM "table", "strikethrough", and "autolink"
+ *  extensions enabled.  Returns the document root; caller must free with
+ *  cmark_node_free.                                                     */
+cmark_node *cmark_shim_parse_document_gfm(const char *buffer,
+                                           size_t      len,
+                                           int         options)
+{
+    static const char *const ext_names[] = {
+        "table", "strikethrough", "autolink", NULL
+    };
+    const char *const *name;
+    cmark_syntax_extension *ext;
+    cmark_parser *parser;
+    cmark_node   *doc;
+
+    cmark_gfm_core_extensions_ensure_registered();
+
+    parser = cmark_parser_new(options);
+    for (name = ext_names; *name != NULL; ++name) {
+        ext = cmark_find_syntax_extension(*name);
+        if (ext != NULL)
+            cmark_parser_attach_syntax_extension(parser, ext);
+    }
+
+    cmark_parser_feed(parser, buffer, len);
+    doc = cmark_parser_finish(parser);
+    cmark_parser_free(parser);
+    return doc;
+}
+
+/* ── Node type string ────────────────────────────────────────────────────── */
+
+/*  Returns the type-name string for a node (e.g. "table", "table_row",
+ *  "table_cell", "paragraph", …).  Extension nodes carry dynamic integer
+ *  type ids; the string is the only portable way to identify them.
+ *  Never returns NULL.                                                   */
+const char *cmark_shim_node_get_type_string(cmark_node *node)
+{
+    const char *s = cmark_node_get_type_string(node);
+    return (s != NULL) ? s : "";
+}
+
+/* ── Table row header predicate ──────────────────────────────────────────── */
+
+/*  Returns non-zero if node is a table_row that is the header row.     */
+int cmark_shim_table_row_is_header(cmark_node *node)
+{
+    return cmark_gfm_extensions_get_table_row_is_header(node);
 }

@@ -1,20 +1,28 @@
---  Coyote_App.Frontend.TUI — terminal UI frontend (ANSI/VT100).
+--  Coyote_App.Frontend.TUI — terminal UI frontend.
 --
---  Implements Coyote_App.Frontend.Instance by maintaining a typed
---  conversation buffer, rendering it to a VT100 terminal, and reading
---  user input from stdin in raw mode.
+--  Implements the abstract Frontend.Instance interface by delegating to
+--  the Coyote_TUI subsystem.  All state is carried in the Instance record
+--  itself (Conv, PQ, Nav, The_Task); there are no package-level globals.
+--
+--  Two instances may coexist.  Tests may construct an Instance, call any
+--  combination of Append_Text / End_Text_Block / Append_Turn_Footer / etc.
+--  and then call the testing-support subprograms — without ever calling
+--  Create and without a UI task being started.
 --
 --  Project: coyote
 --  For revision history, see the project version-control log.
 
-with Ada.Strings.Unbounded;
+with Coyote_TUI.Store;
+with Coyote_TUI.Prompt_Queue;
+with Coyote_TUI.Nav_State;
+with Coyote_TUI.UI;
 
 package Coyote_App.Frontend.TUI is
 
    type Instance is new Coyote_App.Frontend.Instance with private;
 
-   --  Initialise F: enter raw terminal mode, start Render_Task and
-   --  Input_Task.  Win_Name is used in the status bar title.
+   --  Initialise F: enter raw terminal mode, start the UI task.
+   --  Win_Name is shown in the status bar title.
    procedure Create
      (F        : in out Instance;
       Win_Name : in     String);
@@ -86,66 +94,43 @@ package Coyote_App.Frontend.TUI is
 
    overriding
    procedure Shutdown (F : in out Instance);
-   --  Store a formatted stats summary for display by the :stats command.
-   --  Not part of the abstract Frontend interface; TUI-specific.
+
+   --  ── TUI-specific (not in abstract Frontend interface) ─────────────────
+
+   --  Store a formatted stats summary for the :stats command.
    procedure Set_Stats_Summary (F : in out Instance; Text : String);
 
-   --  ── Testing-support subprograms ──────────────────────────────────────
+   --  ── Testing-support subprograms ───────────────────────────────────────
    --
-   --  Not part of the Frontend interface.  Expose internal state for
-   --  white-box unit tests that must not require an initialised terminal.
+   --  These expose internal state for white-box unit tests.  They do not
+   --  require Create to have been called and never touch ncurses.
 
-   --  Reset the segment buffer and all search / stats state.
-   procedure Clear_Buffer       (F : in out Instance);
+   --  Reset the segment buffer and search/stats state.
+   procedure Clear_Buffer (F : in out Instance);
 
-   --  Compute matches for Term, store results, return match count.
+   --  Compute matches for Term, store in Nav, return match count.
    function Match_Count_For
      (F    : in out Instance;
       Term :        String) return Natural;
 
    --  Advance the search cursor by Dir (+1 forward, -1 backward).
-   procedure Advance_Search     (F : in out Instance; Dir : Integer);
+   procedure Advance_Search (F : in out Instance; Dir : Integer);
 
-   --  Segment index of the current search match (0 when no match set).
+   --  Segment index of the current search match (0 when none).
    function Current_Search_Seg (F : Instance) return Natural;
    function Current_Search_Match_Offset (F : Instance) return Natural;
    function Current_Search_Match_Len    (F : Instance) return Natural;
 
-   --  The current stats-summary text (placeholder when not yet set).
+   --  The current stats-summary text.
    function Stats_Summary_Text (F : Instance) return String;
 
 private
 
-   --  ── Segment buffer types ─────────────────────────────────────────────
-
-   type Segment_Kind is
-     (User_Turn,
-      Steer_Turn,
-      Assistant_Text,
-      Thinking_Block,
-      Tool_Segment,
-      Turn_Footer,
-      System_Notice);
-
-   type Tool_Run_Status is (Running, Success, Error, Cancelled);
-
-   type Segment (Kind : Segment_Kind := System_Notice) is record
-      Content   : Ada.Strings.Unbounded.Unbounded_String;
-      Complete  : Boolean := False;
-      Sev       : Coyote_App.Frontend.Notice_Kind :=
-                    Coyote_App.Frontend.Info;
-      Tool_Name : Ada.Strings.Unbounded.Unbounded_String;
-      Tool_Args : Ada.Strings.Unbounded.Unbounded_String;
-      Tool_Id   : Ada.Strings.Unbounded.Unbounded_String;
-      T_Status  : Tool_Run_Status := Running;
-   end record;
-
-   --  ── Instance record ───────────────────────────────────────────────────
-   --  All mutable state lives in package-level protected objects (body).
-   --  This record just tracks whether Create has been called.
-
    type Instance is new Coyote_App.Frontend.Instance with record
-      Created : Boolean := False;
+      Conv     : aliased Coyote_TUI.Store.Conversation;
+      PQ       : aliased Coyote_TUI.Prompt_Queue.Queue;
+      Nav      : aliased Coyote_TUI.Nav_State.State;
+      The_Task : Coyote_TUI.UI.Task_Access := null;
    end record;
 
 end Coyote_App.Frontend.TUI;

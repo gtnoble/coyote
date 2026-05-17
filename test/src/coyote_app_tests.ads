@@ -132,6 +132,9 @@ package Coyote_App_Tests is
    procedure Test_Format_Tool_Field_Truncation    (T : in out Test);
    --  Value longer than Max_Len is truncated and ends with "…".
 
+   procedure Test_Tool_Segment_Line_Count (T : in out Test);
+   --  LF-count + 1 in Format_Tool_Field output equals ncurses display lines.
+
    --  ── Format_SI_Count ───────────────────────────────────────────────────
    --  Format_SI_Count formats a Natural with an appropriate SI prefix:
    --  plain decimal for N < 1000; "Nk" for the kilo range; "NM" for
@@ -325,4 +328,11 @@ package Coyote_App_Tests is
    procedure Test_Stats_Summary_Round_Trip      (T : in out Test);
 
 
+
+   --  ── GFM (libcmark-gfm) table parsing ─────────────────────────────────
+
+   --  GFM table input produces a node with type_string "table".
+   procedure Test_Cmark_GFM_Table_Parsed       (T : in out Test);
+   --  Standard CommonMark paragraph still has type_string "paragraph".
+   procedure Test_Cmark_Paragraph_Type_String  (T : in out Test);
 end Coyote_App_Tests;

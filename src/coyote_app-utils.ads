@@ -27,6 +27,20 @@ package Coyote_App.Utils is
      Character'Val (16#E2#) & Character'Val (16#94#) & Character'Val (16#8C#);
    UC_BOX_BL : constant String :=  --  └  U+2514
      Character'Val (16#E2#) & Character'Val (16#94#) & Character'Val (16#94#);
+   UC_BOX_TR : constant String :=  --  ┐  U+2510
+     Character'Val (16#E2#) & Character'Val (16#94#) & Character'Val (16#90#);
+   UC_BOX_BR : constant String :=  --  ┘  U+2518
+     Character'Val (16#E2#) & Character'Val (16#94#) & Character'Val (16#98#);
+   UC_BOX_T  : constant String :=  --  ┬  U+252C  (top T-junction)
+     Character'Val (16#E2#) & Character'Val (16#94#) & Character'Val (16#AC#);
+   UC_BOX_B  : constant String :=  --  ┴  U+2534  (bottom T-junction)
+     Character'Val (16#E2#) & Character'Val (16#94#) & Character'Val (16#B4#);
+   UC_BOX_L  : constant String :=  --  ├  U+251C  (left T-junction)
+     Character'Val (16#E2#) & Character'Val (16#94#) & Character'Val (16#9C#);
+   UC_BOX_R  : constant String :=  --  ┤  U+2524  (right T-junction)
+     Character'Val (16#E2#) & Character'Val (16#94#) & Character'Val (16#A4#);
+   UC_BOX_X  : constant String :=  --  ┼  U+253C  (cross junction)
+     Character'Val (16#E2#) & Character'Val (16#94#) & Character'Val (16#BC#);
    UC_GEAR   : constant String :=  --  ⚙  U+2699
      Character'Val (16#E2#) & Character'Val (16#9A#) & Character'Val (16#99#);
    UC_CHECK  : constant String :=  --  ✓  U+2713
