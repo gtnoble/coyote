@@ -275,4 +275,5 @@ package Coyote_App.Utils is
    function Format_Session_List
      (Sessions : Session_Lister.Session_Vectors.Vector) return String;
 
+
 end Coyote_App.Utils;

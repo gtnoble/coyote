@@ -19,7 +19,7 @@ package Coyote_App.History is
    --  be located or read.
    --
    --  PID is embedded in plumb tokens inside tool-call boxes (acme path
-   --  passes My_PID; TUI / plain callers omit it or pass "" to suppress
+   --  passes My_PID; plain / GUI callers omit it or pass "" to suppress
    --  the token).
    procedure Render_Session_History
      (UUID     : String;

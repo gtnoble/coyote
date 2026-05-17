@@ -3,7 +3,7 @@
 --  Usage: coyote [--session UUID] [--model PROVIDER/ID]
 --                 [--agent TEXT|@PATH]
 --                 [--no-tools] [--no-session]
---                 [--prompt TEXT|-] [--one-shot] [--name LABEL]
+--                 [--prompt TEXT|-] [--one-shot] [--subagent] [--name LABEL]
 --                 [--prompt-filter CMD]
 --
 --  --agent TEXT|@PATH
@@ -12,8 +12,11 @@
 --  --prompt TEXT|-
 --                 Send TEXT as the first prompt immediately after startup.
 --  --one-shot     Exit automatically after the first complete agent turn,
---                 printing a JSON result line to stdout.  Intended for use
---                 by spawn_subagent callers (see "shell" tool guidelines).
+--                 printing a JSON result line to stdout.  Always selects
+--                 the Plain (non-windowed) frontend.
+--  --subagent     Like --one-shot but does NOT force Plain: the child
+--                 inherits COYOTE_FRONTEND=gui / $winid and opens its own
+--                 window.  Use for spawning headful subagents.
 --  --name LABEL   Short label appended to the window name as ":LABEL" so
 --                 the acme tagline reads "CWD/+coyote:LABEL | …".
 --  --prompt-filter CMD
@@ -35,11 +38,11 @@ with Ada.Text_IO;
 with Coyote_App;
 with Coyote_Utils;
 with LLM.Session_Store;
-with Coyote_TUI_Terminal;
 
 procedure Coyote is
    Opts : Coyote_App.Options;
    I    : Positive := 1;
+
 begin
    while I <= Ada.Command_Line.Argument_Count loop
       declare
@@ -97,6 +100,10 @@ begin
             end;
          elsif Arg = "--one-shot" then
             Opts.One_Shot   := True;
+            Opts.No_Compact := True;
+         elsif Arg = "--subagent" then
+            Opts.One_Shot   := True;
+            Opts.Subagent   := True;
             Opts.No_Compact := True;
          elsif Arg = "--name"
            and then I < Ada.Command_Line.Argument_Count
@@ -158,26 +165,45 @@ begin
    end if;
 
    --  ── Frontend detection ────────────────────────────────────────────────
-   --  Priority: --one-shot always → Plain; $ACME set → Acme; TTY → TUI.
-   if Opts.One_Shot then
+   --  Priority:
+   --    1. --one-shot (non-subagent)          → Plain
+   --    2. $winid non-zero (set by acme per exec.c:1584) → Acme
+   --    3. $DISPLAY or $WAYLAND_DISPLAY set   → GUI
+   --    4. COYOTE_FRONTEND=gui                → GUI
+   --    5. otherwise                          → Plain
+   if Opts.One_Shot and then not Opts.Subagent then
       Opts.Frontend := Coyote_App.Plain_Frontend;
-   elsif Ada.Environment_Variables.Exists ("ACME")
-     and then Ada.Environment_Variables.Value ("ACME", "")'Length > 0
+   elsif Ada.Environment_Variables.Value ("winid", "0") /= "0"
    then
       Opts.Frontend := Coyote_App.Acme_Frontend;
-   elsif Coyote_TUI_Terminal.Is_TTY then
-      Opts.Frontend := Coyote_App.TUI_Frontend;
+   elsif (Ada.Environment_Variables.Exists ("DISPLAY")
+            and then
+              Ada.Environment_Variables.Value ("DISPLAY", "")'Length > 0)
+     or else (Ada.Environment_Variables.Exists ("WAYLAND_DISPLAY")
+                and then
+                  Ada.Environment_Variables.Value
+                    ("WAYLAND_DISPLAY", "")'Length > 0)
+     or else Ada.Environment_Variables.Value ("COYOTE_FRONTEND", "") = "gui"
+   then
+      Opts.Frontend := Coyote_App.GUI_Frontend;
    else
       Opts.Frontend := Coyote_App.Plain_Frontend;
    end if;
 
+   --  Propagate GUI context to child processes (subagents inherit this
+   --  and open their own GTK windows automatically).
+   case Opts.Frontend is
+      when Coyote_App.GUI_Frontend =>
+         Ada.Environment_Variables.Set ("COYOTE_FRONTEND", "gui");
+      when others => null;
+   end case;
+
    case Opts.Frontend is
       when Coyote_App.Acme_Frontend | Coyote_App.Plain_Frontend =>
          Coyote_App.Run (Opts);
-      when Coyote_App.TUI_Frontend =>
-         Coyote_App.Run_TUI (Opts);
+      when Coyote_App.GUI_Frontend =>
+         Coyote_App.Run_GUI (Opts);
    end case;
-   Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Success);
 exception
    when E : Coyote_Utils.Bad_Arg_Error =>
       Ada.Text_IO.Put_Line

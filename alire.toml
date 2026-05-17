@@ -12,3 +12,5 @@ tags = []
 [[depends-on]]
 gnatcoll = "^25.0.0"
 
+[[depends-on]]
+gtkada = "^26.0.0"

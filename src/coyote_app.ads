@@ -181,13 +181,13 @@ package Coyote_App is
    --  ── Frontend_Kind ────────────────────────────────────────────────────
    --
    --  Which display frontend to use.  Set by coyote.adb at startup based
-   --  on the $ACME environment variable and stdout TTY detection.
+   --  on the $winid environment variable and stdout TTY detection.
    --
-   --    Acme_Frontend  — acme window via 9P  (default when $ACME is set)
-   --    TUI_Frontend   — ANSI terminal UI    (default in a plain TTY)
+   --    Acme_Frontend  — acme window via 9P  (default when $winid is set)
+   --    GUI_Frontend   — GTK3 window        (default when $DISPLAY is set)
    --    Plain_Frontend — line-oriented text  (--one-shot / piped output)
 
-   type Frontend_Kind is (Acme_Frontend, TUI_Frontend, Plain_Frontend);
+   type Frontend_Kind is (Acme_Frontend, GUI_Frontend, Plain_Frontend);
 
    type Options is record
       Session_Id     : Ada.Strings.Unbounded.Unbounded_String;
@@ -202,6 +202,10 @@ package Coyote_App is
       --  When True, the window closes and the process exits after the first
       --  complete agent turn, printing a JSON result line to stdout.
       One_Shot       : Boolean := False;
+      --  When True, the agent was spawned as a headful subagent
+      --  (--subagent flag): exits after one turn like One_Shot but
+      --  does not force the Plain frontend.
+      Subagent       : Boolean := False;
       --  Optional short label appended to the window name as ":Name" so the
       --  acme tagline reads "CWD/+coyote:Name | …".  Empty means no suffix.
       Name           : Ada.Strings.Unbounded.Unbounded_String;
@@ -227,12 +231,11 @@ package Coyote_App is
      (No_Section, Thinking_Section, Text_Section, Tool_Section);
 
    --  ── Entry point ──────────────────────────────────────────────────────
-   --  TUI variant of Run: uses Coyote_App.Frontend.TUI instead of
-   --  Coyote_App.Frontend.Acme_Win.  Called by coyote.adb when
-   --  Frontend_Kind = TUI_Frontend.
-   procedure Run_TUI (Opts : Options);
 
 
+   --  GUI variant of Run: uses Coyote_App.Frontend.GUI instead of the
+   --  acme window frontend.
    procedure Run (Opts : Options);
 
+   procedure Run_GUI (Opts : Options);
 end Coyote_App;

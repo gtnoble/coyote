@@ -6,11 +6,11 @@ The project is a multi-frontend Ada coding-agent harness.  Three frontends are
 available and selected automatically at startup:
 
 - **Acme frontend** — opens a `+coyote` acme window and renders streaming
-  output there (selected when `$ACME` is set, i.e. when running inside acme).
-- **TUI frontend** — ANSI/VT100 terminal UI with a typed conversation buffer,
+  output there (selected when `$winid` is set, i.e. when running inside acme).
+- **GUI frontend — GTK3 graphical window with conversation view,
   vi-style scroll navigation, and `$EDITOR`/`$PAGER` integration (selected
-  when stdout is a TTY and `$ACME` is not set).
-- **Plain frontend** — line-oriented text output with no ANSI (selected for
+  when stdout is a TTY and `$winid` is not set).
+- **Plain frontend — line-oriented text output with no ANSI (selected for text output with no ANSI (selected for
   `--one-shot` mode and when stdout is not a TTY, e.g. piped output).
 
 All frontends implement the abstract `Coyote_App.Frontend.Instance` interface
@@ -22,8 +22,8 @@ binaries such as `acmeevent` live in `/usr/local/plan9/bin/`.
 
 Three executables are built:
 - `bin/coyote` — the main entry point; selects the appropriate frontend
-  (`Acme_Frontend`, `TUI_Frontend`, or `Plain_Frontend`) based on `$ACME` and
-  TTY detection, then calls `Coyote_App.Run` or `Coyote_App.Run_TUI`
+  (`Acme_Frontend`, `GUI_Frontend`, or `Plain_Frontend`) based on `$winid` and
+  display detection, then calls `Coyote_App.Run` or `Coyote_App.Run_GUI`
 - `bin/coyote_list_sessions` — lists saved sessions for the current directory
 - `bin/coyote_open` — opens a tool-call detail window; launched by the plumber
   for `coyote-session+UUID/tool/TOKEN` links
@@ -48,7 +48,7 @@ the `coyote-skill-author` skill for a condensed quick-reference.
     Ubuntu) for the native HTTP/SSE client
   - system `libcmark-gfm` development headers (`libcmark-gfm-dev` and
     `libcmark-gfm-extensions-dev` on Debian / Ubuntu) for GFM Markdown
-    rendering in the TUI frontend
+    rendering in the GUI frontend
 
 ### Build commands
 
@@ -80,16 +80,17 @@ src/
   coyote.adb            -- Entry point; parses --session / --model / --agent /
                         --   --no-tools / --no-session /
                         --   --prompt / --one-shot / --name / --prompt-filter flags;
-                        --   detects frontend (Acme/TUI/Plain) and dispatches
-                        --   to Coyote_App.Run or Coyote_App.Run_TUI
+                        --   detects frontend (Acme/GUI/Plain) and dispatches
+                        --   to Coyote_App.Run or Coyote_App.Run_GUI
   coyote_app.ads/.adb   -- App_State, Options (including Frontend_Kind),
-                        --   Run (acme path) and Run_TUI (TUI path) procedures;
+                        --   Run (acme path) and Run_GUI (GUI path) procedures;
                         --   inner tasks: Agent_Task, Acme_Event_Task, Plumb_*
   coyote_app-dispatch.ads/.adb -- Dispatch_Event: native LLM event → Frontend'Class
   coyote_app-history.ads/.adb  -- Session JSONL replay via Frontend'Class;
   coyote_app-utils.ads/.adb    -- Pure utility functions (formatting, token
                         --   helpers, turn footer builders, JSON helpers,
-                        --   Apply_Prompt_Filter); UC_* Unicode glyph constants
+                        --   Apply_Prompt_Filter);
+                        --   UC_* Unicode glyph constants
   coyote_app-frontend.ads      -- Abstract Frontend interface (Instance tagged
                         --   limited type): Append_Text, Begin/End_Thinking,
                         --   Begin/End_Tool, Append_Notice, Set_Status,
@@ -97,42 +98,24 @@ src/
   coyote_app-frontend-acme_win.ads/.adb
                         -- Concrete acme window frontend; routes all calls to
                         --   Acme.Window.Win via a per-instance Nine_P.Client.Fs
-  coyote_app-frontend-tui.ads/.adb
-                        -- Concrete TUI frontend; thin adapter over the
-                        --   Coyote_TUI subsystem; holds Conv/PQ/Nav state
-                        --   and a heap-allocated Task_T; $EDITOR/$PAGER/$fzf
-                        --   integration; Set_Stats_Summary (TUI-specific)
-  coyote_tui/           -- Layered TUI subsystem (pure logic → concurrency → I/O)
-    coyote_tui.ads             -- Root package; layer overview in comments
-    coyote_tui-segments.ads    -- Pure data: Segment, Segment_Kind, Segment_Vector
-    coyote_tui-viewport.ads    -- Cursor, Height_Array_Access types
-    coyote_tui-segment_ops.ads/.adb -- Pure vector mutations (append, update,
-                        --   set-complete, end-tool)
-    coyote_tui-scroll.ads/.adb -- Pure scroll arithmetic
-    coyote_tui-search.ads/.adb -- Pure search: Compute_Matches, Advance; no I/O
-    coyote_tui-commands.ads/.adb -- Pure ":verb arg" parser → Command record
-    coyote_tui-sink.ads        -- Abstract output-sink interface (Put, New_Line,
-                        --   Attr_On/Off, Color_On, Reset_Attrs, Move, Erase,
-                        --   Refresh)
-    coyote_tui-sink-ncurses_sink.ads/.adb -- Production sink wrapping ncurses
-    coyote_tui-sink-string_sink.ads/.adb  -- Test sink accumulating to String
-    coyote_tui-render.ads/.adb -- Measure_Segment, Render_Segment (libcmark for
-                        --   complete blocks; raw text for streaming); Render_Frame
-                        --   (full screen frame + status bar); works over
-                        --   Sink'Class — testable without ncurses
-    coyote_tui-store.ads/.adb  -- Protected Conversation: Append_*, Set_*, End_Tool,
-                        --   Snapshot, Count, Clear
-    coyote_tui-prompt_queue.ads/.adb -- Protected FIFO (depth 64): Enqueue,
-                        --   Dequeue (blocking), Shutdown
-    coyote_tui-nav_state.ads/.adb -- Protected viewport/search/render-flag/
-                        --   lifecycle/display-metadata state
-    coyote_tui-ui.ads/.adb     -- Task_T (discriminant: Conv/PQ/Nav access);
-                        --   entry Start; main ncurses poll+dispatch+render loop
-  coyote_tui_terminal.ads/.adb -- Ada bindings to C terminal primitives
-                        --   (termios save/restore/raw, TIOCGWINSZ, wcwidth,
-                        --   mkstemp, isatty, close fd)
-  coyote_tui_terminal_c.c      -- C implementations of all tui_* functions;
-                        --   no Ada-accessible symbols; linked into libcoyote.a
+  coyote_app-frontend-acme_win.ads/.adb
+                        -- Concrete acme window frontend; routes all calls to
+                        --   Acme.Window.Win via a per-instance Nine_P.Client.Fs
+  coyote_app-frontend-gui.ads/.adb
+                        -- Concrete GTK3 GUI frontend; owns the GtkWindow,
+                        --   GtkTextBuffer, GtkMenuBar, prompt GtkTextView,
+                        --   and GtkLabel status bar; enqueues agent events to
+                        --   Coyote_GUI.Updates; reads prompts from
+                        --   Coyote_GUI.Prompt_Queue; Set_Stats_Summary
+                        --   (GUI-specific, shown by Agent > Session Stats menu)
+  coyote_gui/           -- GTK3 GUI subsystem
+    coyote_gui.ads             -- Root; Update_Kind enum, Update record
+    coyote_gui-updates.ads/.adb -- Protected bounded queue (8192): agent → GTK idle
+    coyote_gui-prompt_queue.ads/.adb -- Protected FIFO (64): GTK callbacks → agent
+    coyote_gui-buffer.ads/.adb -- GtkTextBuffer wrapper; markdown via Pango
+                        --   Insert_Markup (libcmark-gfm AST → markup string);
+                        --   tool-call frames embedded via GtkTextChildAnchor;
+                        --   text tags for thinking, notices, footers
   coyote_cmark_c.c     -- C shim for libcmark-gfm: one getter per enum
                         --   constant (`cmark_shim_node_*`, `cmark_shim_list_*`,
                         --   `cmark_shim_event_*`) plus `cmark_shim_get_literal`
@@ -212,18 +195,31 @@ test/src/                -- AUnit-based test suite
 
 ## Frontend Selection
 
-`coyote.adb` selects the frontend before calling `Run` or `Run_TUI`:
+`coyote.adb` selects the frontend before calling `Run` or `Run_GUI`:
 
 ```
---one-shot flag set           → Plain_Frontend  (Coyote_App.Run)
-$ACME env var non-empty       → Acme_Frontend   (Coyote_App.Run)
-stdout is a TTY               → TUI_Frontend    (Coyote_App.Run_TUI)
-otherwise (piped / no TTY)    → Plain_Frontend  (Coyote_App.Run)
+1. --one-shot flag set (non-subagent)          → Plain_Frontend  (Coyote_App.Run)
+2. $winid non-zero (set by acme exec.c per window launch) → Acme_Frontend   (Coyote_App.Run)
+3. $DISPLAY or $WAYLAND_DISPLAY set            → GUI_Frontend    (Coyote_App.Run_GUI)
+4. COYOTE_FRONTEND=gui                         → GUI_Frontend    (Coyote_App.Run_GUI)
+5. otherwise (piped / no display)              → Plain_Frontend  (Coyote_App.Run)
 ```
 
 The selected kind is stored in `Options.Frontend : Frontend_Kind`.
-TTY detection is provided by `Coyote_TUI_Terminal.Is_TTY` (calls POSIX
-`isatty(STDOUT_FILENO)` via `coyote_tui_terminal_c.c`).
+
+### `COYOTE_FRONTEND` environment variable
+
+When the GUI frontend is selected, `coyote.adb` immediately sets
+`COYOTE_FRONTEND=gui` in the process environment.  All child processes
+(shell tool subprocesses, `:new` spawns, subagent invocations) inherit this
+and trigger step 4, selecting the GUI frontend automatically.  This mirrors
+how the acme frontend propagates via `$winid`: in both cases the "headful
+context" is ambient and inherited.
+
+Unlike the old TUI approach, there is no PTY relay or `openpty` machinery.
+The GUI frontend calls `Gtk.Main.Init` directly on the main Ada task and
+opens a `GtkApplicationWindow` in-process.  No separate terminal emulator
+process is needed.
 
 ## Architecture
 
@@ -243,105 +239,67 @@ All shared mutable state lives in `App_State`, a protected object. Each task
 opens its own `Nine_P.Client.Fs` connection to avoid cross-task 9P contention.
 The `Addr_Mutex` inside `Acme.Window.Win` serialises the addr→data write pair.
 
-### TUI path — `Coyote_App.Run_TUI`
+### GUI path — `Coyote_App.Run_GUI`
 
-A simpler task structure — no acme window, no 9P, no plumb tasks:
+A two-task structure — no acme window, no 9P, no plumb tasks:
 
 | Task | Responsibility |
 |---|---|
-| `Agent_Task` | Owns `LLM.Agent.Session`, drives prompts via `My_Frontend.Read_Prompt` (blocks on `Coyote_TUI.Prompt_Queue.Queue.Dequeue`); dispatches `:command` strings forwarded from `UI_Task_T` to `Execute_TUI_Command`; dispatches LLM events via `Dispatch_Event`; calls `My_Frontend.Set_Stats_Summary` on `Session_Stats_Event` |
-| `Task_T` (inside `Coyote_TUI.UI`) | ncurses input + render task, allocated on the heap via `Coyote_TUI.UI.Task_Access`; polls `Wget_Wch`, dispatches vi-style key events, runs UI-side commands, launches `$EDITOR`/`$PAGER`/`fzf`, re-renders when `Nav_State.Take_Render_Request` returns True |
+| Main Ada task | Calls `Gtk.Main.Init`, `Coyote_App.Frontend.GUI.Create` (builds the GTK window), then `Gtk.Main.Main` (blocks on the GTK event loop until the window is closed or `Gtk.Main.Main_Quit` is called) |
+| `Agent_Task` | Owns `LLM.Agent.Session`, drives prompts via `My_Frontend.Read_Prompt` (blocks on `Coyote_GUI.Prompt_Queue.Queue.Dequeue`); dispatches `:command` strings to `Execute_GUI_Command`; dispatches LLM events via `Dispatch_Event`; calls `My_Frontend.Set_Stats_Summary` on `Session_Stats_Event` |
 
-`Coyote_TUI.UI.Task_T` is a **task type** (not a singleton).  It receives
-its shared state (`Conv`, `PQ`, `Nav`) through discriminants.
-`Coyote_App.Frontend.TUI.Create` allocates one instance (`new Task_T (...)`)
-and calls `The_Task.Start`.  The `select accept Start; or terminate; end select;`
-guard before the main loop means that if `Create` is never called (e.g. in
-unit tests), the task terminates cleanly when the program exits.
+The GTK window contains a `GtkTextView` (conversation), a `GtkTextView`
+(prompt input), a `GtkMenuBar`, and a `GtkLabel` status bar.  GTK signal
+callbacks (Send button, menu item activations) enqueue prompt strings and
+`:command` strings to `Coyote_GUI.Prompt_Queue`.  Agent events flow through a
+`Coyote_GUI.Updates` protected queue; a GLib idle callback drains it on the
+GTK main loop thread and applies updates to the `GtkTextBuffer` via
+`Coyote_GUI.Buffer`.
 
-### TUI subsystem layers (`Coyote_TUI`)
+### GUI subsystem (`Coyote_GUI`)
 
-The TUI logic is decomposed into pure and concurrent layers under `src/coyote_tui/`:
+The GUI logic lives under `src/coyote_gui/`:
 
-| Layer | Packages | Notes |
-|---|---|---|
-| 0 — data | `Coyote_TUI.Segments`, `Coyote_TUI.Viewport` | Pure types; no body |
-| 1 — pure logic | `Coyote_TUI.Segment_Ops`, `Coyote_TUI.Scroll`, `Coyote_TUI.Search`, `Coyote_TUI.Commands` | No I/O; fully AUnit-testable |
-| 2 — sink abstraction | `Coyote_TUI.Sink`, `Coyote_TUI.Sink.Ncurses_Sink`, `Coyote_TUI.Sink.String_Sink` | `Instance` interface; renderer never imports ncurses directly |
-| 3 — renderer | `Coyote_TUI.Render` | `Render_Segment`, `Render_Frame`; testable with `String_Sink` |
-| 4 — concurrency | `Coyote_TUI.Store`, `Coyote_TUI.Prompt_Queue`, `Coyote_TUI.Nav_State` | Protected types wrapping pure logic |
-| 5 — terminal I/O | `Coyote_TUI.UI` | Task type; only layer that calls ncurses |
-
-### TUI command protocol
-
-When the user types `:verb [args]` in the TUI, `Coyote_TUI.Commands.Parse`
-classifies it.  `Task_T` (layer 5) handles UI-side commands directly; agent-side
-commands are forwarded via `Prompt_Queue` (prefixed with `:`) and handled by
-`Execute_TUI_Command` in `Run_TUI`'s `Agent_Task`.
-
-Commands handled directly by `Task_T` (UI side):
-
-| Command | Behaviour |
+| Package | Role |
 |---|---|
-| `:send [text]` | Send text as prompt (no arg → `$EDITOR`); steers if agent is running |
-| `:help` | Open keybinding reference in `$PAGER` |
-| `:stats` | Format session stats from the last `Session_Stats_Event` and open in `$PAGER` |
-| `:models` | List available models via `LLM.Model_Registry.Available_Models`, pipe through `fzf`; selection enqueues `:model provider/id` |
-| `:sessions` | List sessions via `Session_Lister.List_Sessions`, pipe through `fzf`; selection enqueues `:session UUID` |
-| `:clear` | Signal re-render |
-| `:q` | Shut down |
-
-Commands forwarded to `Prompt_Queue` (handled by `Run_TUI`'s `Agent_Task`):
-`:stop`, `:pause`, `:resume`, `:compact`, `:model`, `:thinking`, `:new`, `:session`.
-
-`Run_TUI`'s `Agent_Task` also watches for `Session_Stats_Event` in its
-`Track_Event` hook and calls `My_Frontend.Set_Stats_Summary(formatted_text)` —
-a TUI-specific (non-overriding) method — so that `:stats` always reflects the
-most recent session totals.
+| `Coyote_GUI` | Root; defines `Update_Kind`, `Update` record, and shared enumerations |
+| `Coyote_GUI.Updates` | Protected bounded queue (8 192 items): agent task → GTK idle drain |
+| `Coyote_GUI.Prompt_Queue` | Protected bounded FIFO (64 items): GTK callbacks → agent task |
+| `Coyote_GUI.Buffer` | Wraps `GtkTextBuffer`; renders markdown via `libcmark-gfm` + Pango markup (`Insert_Markup`); embeds tool-call frames as `GtkTextChildAnchor` widgets; manages text tags for notices and footers |
 
 ### Dispatch
 
 `Dispatch_Event` in `Coyote_App.Dispatch` is the rendering core: it maps each
 incoming `LLM.Events.Agent_Event'Class` value to the appropriate
 `Frontend'Class` calls (Append_Text, Begin/End_Tool, Append_Notice,
-Append_Turn_Footer, etc.).  Both the acme and TUI paths share the same
+Append_Turn_Footer, etc.).  Both the acme and GUI paths share the same
 dispatcher.
 
-**Markdown rendering** is performed by `Coyote_TUI.Render.Render_Segment`
-(for complete `Assistant_Text` segments) via `libcmark-gfm` with the GFM
-`table`, `strikethrough`, and `autolink` extensions enabled.  The renderer
-walks the AST with `cmark_iter` and writes through a `Coyote_TUI.Sink.Instance'Class`,
-emitting ncurses attributes:
+**Markdown rendering** in the GUI frontend is performed by `Coyote_GUI.Buffer`
+via `libcmark-gfm` with the GFM `table`, `strikethrough`, and `autolink`
+extensions enabled.  For each completed `Assistant_Text` block the raw
+streamed text is deleted and re-inserted as Pango markup via
+`Gtk.Text_Buffer.Insert_Markup`:
 
-- `A_Bold` for `**strong**` and headings (with `#`×level prefix)
-- `A_Dim` for `*emphasis*`, fenced code blocks, block quotes, and
-  `~~strikethrough~~`
-- `A_Reverse` for `` `inline code` ``
-- `UC_BULLET / N.` prefixes for unordered / ordered lists
-- `UC_HORIZ`×cols for thematic breaks (`---`)
-- GFM pipe tables rendered as box-drawn ASCII tables (bold header row,
-  `┌─┬─┐` / `├─┼─┤` / `└─┴─┘` borders, column-width auto-fit capped to
-  terminal width with `UC_ELLIP` truncation)
+- `<b>...</b>` for `**strong**` and headings
+- `<i>...</i>` for `*emphasis*`
+- `<tt>...</tt>` for `` `inline code` `` and fenced code blocks
+- `<u>...</u>` for links
+- `<s>...</s>` for `~~strikethrough~~` (GFM)
+- `UC_BULLET` prefix for bullet lists; `N.` for ordered lists
+- `<span alpha="50%">` for block quotes and thematic breaks
 
-Streaming segments (`Complete = False`) are rendered as raw text without
-markdown parsing, preserving live output.
+Streaming chunks (before `End_Text_Block`) are inserted as raw plain text;
+when the block completes they are deleted and re-inserted with markup applied.
+
+Tool calls are embedded as `GtkFrame` widgets via `GtkTextChildAnchor`;
+`Begin_Tool` creates the frame, `End_Tool` updates its label.
 
 `Coyote_Cmark` is a thin Ada binding backed by a C shim
 (`src/coyote_cmark_c.c`) whose getter functions resolve all
 `cmark_node_type`, `cmark_list_type`, and `cmark_event_type` enum values at
 package elaboration time — ensuring the values always agree with the installed
-`<cmark-gfm.h>` regardless of library version.  Extension node types (table,
-table_row, table_cell, strikethrough) are identified by the string returned
-by `cmark_node_get_type_string` since their integer IDs are allocated
-dynamically.
-
-**Search** is implemented in `Coyote_TUI.Search` (pure, testable without ncurses).
-`/` search, `n`/`N` navigation, viewport jumping, and inline `A_Reverse`
-highlighting of the matched substring are all implemented.  `Match_Record`
-stores `Seg_Index`, `Byte_Offset`, and `Match_Len`.  `Compute_Matches` performs
-a case-insensitive scan; `Advance` moves the match cursor with wrapping.
-Highlighting is applied inside `Render_Segment` when `Match_Start`/`Match_Len`
-are non-zero.
+`<cmark-gfm.h>` regardless of library version.
 
 ## Plumb Token Schema
 
@@ -365,8 +323,21 @@ Coyote uses its own family of plumb tokens. All token strings begin with a
 - Model, thinking, and fork tokens are PID-tagged because they must target a
   specific running window.
 - `bin/coyote_open` is a native Ada binary, not a shell script.
-- Plumb tokens are only meaningful in the acme frontend path; the TUI frontend
+- Plumb tokens are only meaningful in the acme frontend path; the GUI frontend
   does not read plumb ports.
+
+
+## Environment Variables
+
+Coyote uses the following `COYOTE_*` environment variables for inter-process
+communication and context propagation:
+
+| Variable | Set by | Consumed by | Purpose |
+|---|---|---|---|
+| `COYOTE_SESSION_ID` | `coyote.adb` after session creation | child processes | Session lineage: child coyotes promote this to `COYOTE_PARENT_SESSION` so their sessions record a parent link |
+| `COYOTE_PARENT_SESSION` | child coyote at startup | `LLM.Session_Store` | Written into the new session's JSONL header as `parentSession` |
+| `COYOTE_NO_SESSION` | `coyote.adb` when `--no-session` is active | child coyote at startup | Propagates `--no-session` to all descendant coyote processes |
+| `COYOTE_FRONTEND` | GUI `coyote.adb` after selecting GUI frontend | child coyote at startup | When set to `gui`, a child selects the GUI frontend and opens its own GTK window. Mirrors how `$winid` propagates the acme context. |
 
 ## Subagent invocation (shell-based)
 
@@ -374,28 +345,41 @@ The dedicated built-in spawn_subagent tool has been removed. Instead, subagents 
 
 Key points:
 
-- Canonical invocation: pipe the prompt to stdin and call coyote with --one-shot and --prompt -
+- Canonical invocation: pipe the prompt to stdin and use `--subagent --prompt -`:
 
-  Example:
+  ```
+  printf 'Review the following code...\n' | coyote --subagent --prompt -
+  ```
 
-  printf 'Review the following code...\n' | coyote --one-shot --prompt -
+  `--subagent` opens a new terminal/acme window (inheriting `COYOTE_FRONTEND=gui`
+  or `$winid`) and exits after one turn.  The shell tool call returns quickly with
+  empty output; the work happens in the new window.
 
-  You may also pass --model PROVIDER/ID, --agent NAME, and --name LABEL to control the spawned instance.
+  You may also pass `--model PROVIDER/ID`, `--agent TEXT|@PATH`, and `--name LABEL`
+  to control the spawned instance.
 
-- Prompt preprocessing: use standard filters or macro preprocessors before piping to coyote. For example, with m4:
+- Prompt preprocessing: use standard filters or macro preprocessors before piping
+  to coyote. For example, with m4:
 
-  printf 'include(tmpl.m4)' | m4 | coyote --one-shot --prompt -
+  ```
+  printf 'include(tmpl.m4)' | m4 | coyote --subagent --prompt -
+  ```
 
   Or with environment substitution:
 
-  envsubst < tmpl.txt | coyote --one-shot --prompt -
+  ```
+  envsubst < tmpl.txt | coyote --subagent --prompt -
+  ```
 
-- Session lineage: on startup coyote will auto-promote an inherited COYOTE_SESSION_ID to COYOTE_PARENT_SESSION when COYOTE_PARENT_SESSION is not already set. This ensures child sessions record their parentSession automatically when launched from a parent coyote process.
+- Session lineage: on startup coyote will auto-promote an inherited
+  `COYOTE_SESSION_ID` to `COYOTE_PARENT_SESSION` when `COYOTE_PARENT_SESSION` is
+  not already set.  This ensures child sessions record their `parentSession`
+  automatically when launched from a parent coyote process.
 
-- Abort semantics: the shell tool implementation kills the child process group on abort (uses a negative PID kill), so spawned coyotes and their descendants are terminated cleanly if an abort is requested.
-
-- Subagent invocations always select the **Plain** frontend because stdout is a
-  pipe, not a TTY, and `--one-shot` is set.
+- Abort semantics: the shell tool implementation sends SIGTERM (signal 15) to the
+  child process group on abort (via `kill(-pid, SIGTERM)`), so spawned coyotes and
+  their descendants are given a chance to terminate gracefully.  Note: SIGTERM can
+  be caught or ignored; it is not SIGKILL.
 
 ## 9P / Acme VFS Conventions
 
@@ -500,7 +484,7 @@ conform to the guidelines it defines.
   singletons) so they can be tested in isolation.
 - Never share a `Nine_P.Client.Fs` or `Nine_P.Client.File` between tasks.
 - Error handling: catch exceptions at task boundaries; in the acme path append
-  a `[!] ...` line to the window, in the TUI path call
+  a `[!] ...` line to the window, in the GUI path call
   `My_Frontend.Append_Notice (Error, ...)`.  Always signal shutdown.
 - `GNATCOLL.JSON` is the JSON library; use `Read` / `Get_Str` / `Get_Int`
   helpers.
@@ -510,12 +494,10 @@ conform to the guidelines it defines.
   values (Ada's `Character` type is Latin-1; code points > 255 require UTF-8
   multi-byte encoding via `Character'Val` sequences, which is what the `UC_*`
   constants provide).
-- **Task types used as frontends** (e.g. `Coyote_TUI.UI.Task_T` inside
-  `Coyote_App.Frontend.TUI`) must declare `entry Start` and use
-  `select accept Start; or terminate; end select;` before their main loop.
-  This allows Ada's tasking runtime to terminate them cleanly when `Start` is
-  never called — for example in the test suite, which does not call
-  `Coyote_App.Frontend.TUI.Create`.
+- **GUI frontend** uses `Coyote_App.Frontend.GUI.Instance` which is initialised
+  by calling `Coyote_App.Frontend.GUI.Create` from the GTK main task.  The GTK
+  main loop (`Gtk.Main.Main`) blocks the main Ada task; the agent runs in
+  `Agent_Task`.  No `entry Start` / select-terminate pattern is needed.
 
 ## Shell Tool Usage
 
@@ -546,13 +528,10 @@ When adding new functionality, add unit tests first (TDD preferred).
 Integration tests that require live external services should be guarded and
 clearly marked.
 
-**TUI-specific test note:** `Coyote_App.Frontend.TUI.Instance` holds a
-`Task_Access` pointer (`Coyote_TUI.UI.Task_T` allocated on the heap).
-The task type declares `entry Start` and uses
-`select accept Start; or terminate; end select;` before its main loop, so
-if `Create` is never called (e.g. in the test suite) the task terminates
-cleanly without hanging.
-
+**GUI frontend test note:** `Coyote_App.Frontend.GUI.Instance` has no
+background task; it is driven entirely by the GTK main loop.  Unit tests that
+exercise `Coyote_GUI.Buffer` can create a `GtkTextBuffer` directly (or mock
+it) without starting a GTK window.
 ## Definition of Done
 
 A feature is **not complete** until all of the following are satisfied:

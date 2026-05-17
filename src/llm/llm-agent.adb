@@ -892,6 +892,13 @@ package body LLM.Agent is
 
       procedure Provider_Event_Handler (E : LLM.Events.Agent_Event'Class) is
       begin
+         --  If the user clicked Stop, abort the HTTP stream immediately.
+         --  Raising here causes Ada_Write_Callback to return 0 bytes to
+         --  libcurl, which terminates curl_easy_perform right now rather
+         --  than waiting for the full model response to arrive.
+         if S.Abort_State.Requested then
+            raise LLM.HTTP.Curl_Error with "aborted";
+         end if;
          if E in LLM.Events.Agent_Start_Event
            or else E in LLM.Events.Agent_End_Event
          then
@@ -1562,6 +1569,9 @@ package body LLM.Agent is
             end if;
 
             Finish_Open_Block (Builder);
+            --  Do not start tool execution if stop was requested after
+            --  streaming completed.
+            exit Agentic_Loop when S.Abort_State.Requested;
 
             if not Pending_Tools.Is_Empty then
                declare

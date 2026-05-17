@@ -456,7 +456,9 @@ package body Nine_P.Client is
    begin
       if Object.Socket /= No_Socket then
          begin
-            Clunk_Fid (Object'Unchecked_Access, Object.Root_Fid);
+            if Object.Stream /= null then
+               Clunk_Fid (Object'Unchecked_Access, Object.Root_Fid);
+            end if;
          exception
             when Ex : others =>
                Ada.Text_IO.Put_Line

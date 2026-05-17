@@ -1,1 +1,3 @@
 Continue sessions with same model used in session
+Keep parent model when forking, if practical
+Stop should be executed immediately when thinking or outputting text

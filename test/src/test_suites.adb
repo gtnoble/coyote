@@ -9,7 +9,6 @@ with Acme_Window_Tests;
 with Acme_Integration_Tests;
 with Dispatch_Tests;
 with Session_Lister_Tests;
-with Coyote_TUI_Tests;
 with Coyote_App_Tests;
 with Coyote_Utils_Tests;
 with Coyote_Cmark_Tests;
@@ -60,8 +59,6 @@ package body Test_Suites is
      new AUnit.Test_Caller (Dispatch_Tests.Test);
    package Session_Lister_Caller is
      new AUnit.Test_Caller (Session_Lister_Tests.Test);
-   package Coyote_TUI_Caller is
-     new AUnit.Test_Caller (Coyote_TUI_Tests.Test);
    package App_State_Caller is
      new AUnit.Test_Caller (Coyote_App_Tests.Test);
    package Session_History_Caller is
@@ -874,55 +871,6 @@ package body Test_Suites is
       Result.Add_Test (App_State_Caller.Create
         ("App_State Tag_Suffix round-trip via Set_Tag_Suffix",
          Coyote_App_Tests.Test_State_Tag_Suffix_Round_Trip'Access));
-
-      --  Utf8_Display_Width unit tests
-      Result.Add_Test (App_State_Caller.Create
-        ("Utf8_Display_Width: ASCII string width equals length",
-         Coyote_App_Tests.Test_Utf8_Display_Width_Ascii'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("Utf8_Display_Width: UC_BULLET (3 bytes) has display width 1",
-         Coyote_App_Tests.Test_Utf8_Display_Width_UC_Bullet'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("Utf8_Display_Width: mixed ASCII+glyph string counts columns",
-         Coyote_App_Tests.Test_Utf8_Display_Width_Mixed'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("Utf8_Display_Width: empty string returns 0",
-         Coyote_App_Tests.Test_Utf8_Display_Width_Empty'Access));
-
-      --  TUI search: Compute_Matches / Advance_Search
-      Result.Add_Test (App_State_Caller.Create
-        ("TUI search: empty term returns zero matches",
-         Coyote_App_Tests.Test_Compute_Matches_Empty_Term'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("TUI search: absent term returns zero matches",
-         Coyote_App_Tests.Test_Compute_Matches_No_Match'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("TUI search: matching is case-insensitive",
-         Coyote_App_Tests.Test_Compute_Matches_Case_Insens'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("TUI search: two of five segments match",
-         Coyote_App_Tests.Test_Compute_Matches_Multi_Seg'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("TUI search: Advance_Search wraps forward past last match",
-         Coyote_App_Tests.Test_Advance_Search_Forward_Wrap'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("TUI search: Advance_Search wraps backward from first match",
-         Coyote_App_Tests.Test_Advance_Search_Backward_Wrap'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("TUI search: Match_Record carries correct byte offset",
-         Coyote_App_Tests.Test_Search_Match_Byte_Offset'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("TUI search: Match_Record carries correct match length",
-         Coyote_App_Tests.Test_Search_Match_Len'Access));
-
-      --  TUI stats summary
-      Result.Add_Test (App_State_Caller.Create
-        ("TUI stats: placeholder text before first stats event",
-         Coyote_App_Tests.Test_Stats_Summary_Placeholder'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("TUI stats: Set_Stats_Summary round-trip",
-         Coyote_App_Tests.Test_Stats_Summary_Round_Trip'Access));
-
       --  GFM (libcmark-gfm) table parsing
       Result.Add_Test (App_State_Caller.Create
         ("GFM cmark: table input produces node with type_string 'table'",
@@ -1884,148 +1832,6 @@ package body Test_Suites is
         ("LLM.Agent Request_Abort while paused exits with Was_Aborted",
          LLM_Agent_Tests.Test_Stop_While_Paused'Access));
 
-      --  ── Coyote_TUI pure subsystem tests ──────────────────────────────
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Segment_Ops.Append_New stores segment",
-         Coyote_TUI_Tests.Test_Append_New'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Segment_Ops.Update_Last_Content appends to last segment",
-         Coyote_TUI_Tests.Test_Update_Last_Content'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Segment_Ops.Update_Last_Content: no-op on empty vector",
-         Coyote_TUI_Tests.Test_Update_Last_Empty'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Segment_Ops.Set_Last_Complete marks segment complete",
-         Coyote_TUI_Tests.Test_Set_Last_Complete'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Segment_Ops.Find_Tool locates by Tool_Id",
-         Coyote_TUI_Tests.Test_Find_Tool'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Segment_Ops.End_Tool updates status and result",
-         Coyote_TUI_Tests.Test_End_Tool'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Segment_Ops.Last_Kind returns last segment kind",
-         Coyote_TUI_Tests.Test_Last_Kind'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Scroll.Total_Lines sums all segment heights",
-         Coyote_TUI_Tests.Test_Total_Lines'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Scroll.Total_Lines returns 0 for empty vector",
-         Coyote_TUI_Tests.Test_Total_Lines_Empty'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Scroll.Advance moves cursor forward across boundary",
-         Coyote_TUI_Tests.Test_Advance_Forward'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Scroll.Advance moves cursor backward across boundary",
-         Coyote_TUI_Tests.Test_Advance_Backward'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Scroll.Advance clamps at beginning of document",
-         Coyote_TUI_Tests.Test_Advance_Clamp_Begin'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Scroll.Follow_Start anchors frame to tail",
-         Coyote_TUI_Tests.Test_Follow_Start'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Scroll.Follow_Start when all content fits returns seg 1",
-         Coyote_TUI_Tests.Test_Follow_Start_All_Fit'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Scroll.Next_Of_Kind finds next segment of kind",
-         Coyote_TUI_Tests.Test_Next_Of_Kind'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Scroll.Prev_Of_Kind finds previous segment of kind",
-         Coyote_TUI_Tests.Test_Prev_Of_Kind'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Search.Compute_Matches: empty term yields no matches",
-         Coyote_TUI_Tests.Test_Matches_Empty_Term'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Search.Compute_Matches: non-matching term yields no matches",
-         Coyote_TUI_Tests.Test_Matches_No_Match'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Search.Compute_Matches: case-insensitive",
-         Coyote_TUI_Tests.Test_Matches_Case_Insensitive'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Search.Compute_Matches: byte offset and match length",
-         Coyote_TUI_Tests.Test_Matches_Byte_Offset'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Search.Compute_Matches: multiple matching segments",
-         Coyote_TUI_Tests.Test_Matches_Multi_Segment'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Search.Advance: forward with wrap",
-         Coyote_TUI_Tests.Test_Search_Advance_Forward'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Search.Advance: backward with wrap",
-         Coyote_TUI_Tests.Test_Search_Advance_Backward'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Search.Advance: empty match list returns 0",
-         Coyote_TUI_Tests.Test_Search_Advance_Empty'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Commands.Parse :q -> Quit",
-         Coyote_TUI_Tests.Test_Cmd_Quit'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Commands.Parse :stop -> Stop",
-         Coyote_TUI_Tests.Test_Cmd_Stop'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Commands.Parse :model with argument",
-         Coyote_TUI_Tests.Test_Cmd_Model_With_Arg'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Commands.Parse :send with multi-word argument",
-         Coyote_TUI_Tests.Test_Cmd_Send_With_Text'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Commands.Parse :session with UUID",
-         Coyote_TUI_Tests.Test_Cmd_Session_With_Uuid'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Commands.Parse: unknown and empty -> Unknown",
-         Coyote_TUI_Tests.Test_Cmd_Unknown'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Commands.Parse :help -> Help",
-         Coyote_TUI_Tests.Test_Cmd_Help'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Commands.Parse :compact -> Compact",
-         Coyote_TUI_Tests.Test_Cmd_Compact'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Commands.Agent_Prefix for Set_Model includes arg",
-         Coyote_TUI_Tests.Test_Cmd_Agent_Prefix_Model'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Commands.Agent_Prefix for UI-side command is empty",
-         Coyote_TUI_Tests.Test_Cmd_Agent_Prefix_UI_Side'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Render.Measure_Segment: single-line segment",
-         Coyote_TUI_Tests.Test_Measure_Single_Line'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Render.Measure_Segment: multi-line segment",
-         Coyote_TUI_Tests.Test_Measure_Multi_Line'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Render.Measure_Segment: tool segment with LF in args",
-         Coyote_TUI_Tests.Test_Measure_Tool_Segment'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Render.Render_Segment: user turn produces content",
-         Coyote_TUI_Tests.Test_Render_User_Turn'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Render.Render_Segment: info system notice",
-         Coyote_TUI_Tests.Test_Render_Notice_Info'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Render.Render_Segment: running tool segment",
-         Coyote_TUI_Tests.Test_Render_Tool_Running'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Render.Render_Segment: error tool shows preview",
-         Coyote_TUI_Tests.Test_Render_Tool_Error_Preview'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Render.Render_Segment: thinking block",
-         Coyote_TUI_Tests.Test_Render_Thinking_Block'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Render.Render_Segment: turn footer",
-         Coyote_TUI_Tests.Test_Render_Turn_Footer'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Render.Render_Segment: skip_lines suppresses first lines",
-         Coyote_TUI_Tests.Test_Render_Skip_Lines'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Render.Render_Segment: warning notice attrs balanced",
-         Coyote_TUI_Tests.Test_Render_Attrs_Balanced'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Nav_State.Mark_Height_Stale stores and returns stale index",
-         Coyote_TUI_Tests.Test_Mark_Height_Stale'Access));
-      Result.Add_Test (Coyote_TUI_Caller.Create
-        ("Nav_State.Take_Stale_Seg clears after first read",
-         Coyote_TUI_Tests.Test_Take_Stale_Seg_Clears'Access));
       return Result;
    end Suite;
 

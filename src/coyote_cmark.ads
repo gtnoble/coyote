@@ -1,6 +1,6 @@
 --  Coyote_Cmark — thin Ada binding to libcmark (CommonMark parser).
 --
---  Exposes the subset of the libcmark C API used by the TUI Markdown
+--  Exposes the subset of the libcmark C API used by the GUI Markdown
 --  renderer.  All enum / macro constants are resolved at package
 --  elaboration time by calling C shim functions (coyote_cmark_c.c),
 --  so the values always agree with the installed <cmark.h> regardless
@@ -10,7 +10,7 @@
 --  wrapper guarantees Node_Get_Literal never returns a null chars_ptr.
 --
 --  Thread safety: libcmark parse and iteration are not thread-safe.
---  All calls must originate from the same task (UI_Task in the TUI path).
+--  All calls must originate from the same task (the GTK idle callback in the GUI path).
 --
 --  Project: coyote
 --  For revision history, see the project version-control log.

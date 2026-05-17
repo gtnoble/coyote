@@ -29,7 +29,9 @@ with Acme.Event_Parser;
 with Acme.Raw_Events;
 with Acme.Window;
 with Coyote_App.Frontend.Acme_Win;
-with Coyote_App.Frontend.TUI;
+with Coyote_App.Frontend.GUI;
+with Coyote_GUI.Prompt_Queue;
+with Gtk.Main;
 with Coyote_App.History;    use Coyote_App.History;
 with Coyote_App.Dispatch;   use Coyote_App.Dispatch;
 with Coyote_App.Utils;      use Coyote_App.Utils;
@@ -1839,15 +1841,21 @@ package body Coyote_App is
       end;
    end Run;
 
-
-   --  ── Run_TUI ───────────────────────────────────────────────────────────
+   --  ── Run_GUI ───────────────────────────────────────────────────────────
    --
-   --  TUI variant of Run.  Uses Coyote_App.Frontend.TUI instead of the
+   --  GTK3 variant of Run.  Uses Coyote_App.Frontend.GUI instead of the
    --  acme window frontend.  No Win, no Acme_Event_Task, no Plumb_* tasks.
-   --  The TUI frontend's internal Input_Task drives all user interaction;
-   --  Agent_Task reads prompts via My_Frontend.Read_Prompt.
+   --  The GUI frontend has no Input_Task; the GTK main loop runs on the main Ada task.
+   --  Agent_Task reads typed items via My_Frontend.Read_Item.
 
-   procedure Run_TUI (Opts : Options) is
+   --  ── Run_GUI ───────────────────────────────────────────────────────────
+   --
+   --  GTK3 variant of Run.  Uses Coyote_App.Frontend.GUI.
+   --  The GTK main loop runs on the main Ada task (the begin section).
+   --  Agent_Task runs concurrently and communicates with GTK via the
+   --  Frontend's protected Update queue.
+
+   procedure Run_GUI (Opts : Options) is
       use type LLM.Events.Message_Update_Kind;
 
       My_PID   : constant String := Natural_Image (Natural (Getpid));
@@ -1860,7 +1868,7 @@ package body Coyote_App is
       --  Shared objects closed over by Agent_Task:
       State         : App_State;
       Agent_Session : LLM.Agent.Session;
-      My_Frontend   : Coyote_App.Frontend.TUI.Instance;
+      My_Frontend   : Coyote_App.Frontend.GUI.Instance;
 
       function Status_Label return String is
       begin
@@ -1896,7 +1904,6 @@ package body Coyote_App is
          Current_Text     : Unbounded_String := Null_Unbounded_String;
          Final_Text       : Unbounded_String := Null_Unbounded_String;
          Final_Error      : Unbounded_String := Null_Unbounded_String;
-         pragma Unreferenced (Final_Text, Final_Error);
       begin
          declare
 
@@ -2067,7 +2074,6 @@ package body Coyote_App is
                   then UUID (UUID'First .. UUID'First + 7)
                   else UUID);
             begin
-               My_Frontend.Clear_Buffer;
                My_Frontend.Append_Notice
                  (Coyote_App.Frontend.Info,
                   "Loading session " & Short_Id & UC_ELLIP);
@@ -2076,6 +2082,39 @@ package body Coyote_App is
                   Frontend => My_Frontend,
                   State    => State);
             end Render_Loaded_Session;
+
+            procedure Store_One_Shot_Result is
+               Result : constant JSON_Value := Create_Object;
+            begin
+               if State.Was_Aborted then
+                  Result.Set_Field ("error", Create ("aborted"));
+                  Result.Set_Field
+                    ("session_id",
+                     Create (LLM.Agent.Session_Id (Agent_Session)));
+                  State.Set_One_Shot_Result (Write (Result));
+               elsif Length (Final_Text) > 0 then
+                  Result.Set_Field
+                    ("session_id",
+                     Create (LLM.Agent.Session_Id (Agent_Session)));
+                  Result.Set_Field
+                    ("output", Create (To_String (Final_Text)));
+                  State.Set_One_Shot_Result (Write (Result));
+               elsif Length (Final_Error) > 0 then
+                  Result.Set_Field
+                    ("error", Create (To_String (Final_Error)));
+                  Result.Set_Field
+                    ("session_id",
+                     Create (LLM.Agent.Session_Id (Agent_Session)));
+                  State.Set_One_Shot_Result (Write (Result));
+               else
+                  Result.Set_Field
+                    ("error", Create ("No response from agent"));
+                  Result.Set_Field
+                    ("session_id",
+                     Create (LLM.Agent.Session_Id (Agent_Session)));
+                  State.Set_One_Shot_Result (Write (Result));
+               end if;
+            end Store_One_Shot_Result;
 
             procedure Run_Queued_Prompt
               (Prompt   : String;
@@ -2087,137 +2126,31 @@ package body Coyote_App is
                  (S        => Agent_Session,
                   Prompt   => Prompt,
                   On_Event => Dispatch_Event'Access);
+               if Opts.One_Shot then
+                  Store_One_Shot_Result;
+                  Initiate_Shutdown;
+               end if;
             exception
                when Ex : others =>
                   Append_Task_Warning
                     ("prompt failed: "
                      & Ada.Exceptions.Exception_Message (Ex));
+                  if Opts.One_Shot then
+                     declare
+                        Err : constant JSON_Value := Create_Object;
+                     begin
+                        Err.Set_Field
+                          ("error",
+                           "prompt failed: "
+                           & Ada.Exceptions.Exception_Message (Ex));
+                        Err.Set_Field
+                          ("session_id",
+                           Create (LLM.Agent.Session_Id (Agent_Session)));
+                        State.Set_One_Shot_Result (Write (Err));
+                     end;
+                     Initiate_Shutdown;
+                  end if;
             end Run_Queued_Prompt;
-
-            --  Handle a command string received from the TUI input task
-            --  (prefixed with ':' in the prompt queue).
-            procedure Execute_TUI_Command (Cmd : String) is
-            begin
-               if Cmd = "stop" then
-                  State.Set_Aborted (True);
-                  LLM.Agent.Request_Abort (Agent_Session);
-
-               elsif Cmd = "pause" then
-                  if State.Is_Streaming
-                    and then not State.Is_Paused
-                    and then not State.Is_Pause_Armed
-                  then
-                     State.Set_Pause_Armed (True);
-                     LLM.Agent.Request_Pause (Agent_Session);
-                  end if;
-
-               elsif Cmd = "resume" then
-                  if State.Is_Paused then
-                     State.Set_Paused (False);
-                     LLM.Agent.Resume (Agent_Session);
-                  end if;
-
-               elsif Cmd = "compact" then
-                  if not State.Is_Streaming
-                    and then not State.Is_Compacting
-                  then
-                     declare
-                        Compact_OK : Boolean;
-                     begin
-                        LLM.Agent.Compact
-                          (Agent_Session,
-                           Dispatch_Agent_Event'Unrestricted_Access,
-                           "manual",
-                           Compact_OK);
-                     end;
-                  end if;
-
-               elsif Cmd'Length > 6
-                 and then Cmd (Cmd'First .. Cmd'First + 5) = "model "
-               then
-                  begin
-                     LLM.Agent.Set_Model
-                       (S    => Agent_Session,
-                        Spec => Cmd (Cmd'First + 6 .. Cmd'Last));
-                     Emit_Model_Select;
-                  exception
-                     when Ex : others =>
-                        Append_Task_Warning
-                          ("model change failed: "
-                           & Ada.Exceptions.Exception_Message (Ex));
-                  end;
-
-               elsif Cmd'Length > 9
-                 and then Cmd (Cmd'First .. Cmd'First + 8) = "thinking "
-               then
-                  begin
-                     declare
-                        Level_Str : constant String :=
-                          Cmd (Cmd'First + 9 .. Cmd'Last);
-                     begin
-                        Current_Thinking :=
-                          To_Unbounded_String (Level_Str);
-                        LLM.Agent.Set_Thinking
-                          (S     => Agent_Session,
-                           Level => Thinking_Level_Of (Level_Str));
-                        My_Frontend.Set_Status
-                          (Format_Status (State, Status_Label));
-                     end;
-                  exception
-                     when Ex : others =>
-                        Append_Task_Warning
-                          ("thinking change failed: "
-                           & Ada.Exceptions.Exception_Message (Ex));
-                  end;
-
-               elsif Cmd = "new" then
-                  declare
-                     use GNATCOLL.OS.FS;
-                     use GNATCOLL.OS.Process;
-                     Model   : constant String :=
-                       LLM.Agent.Current_Model_Spec (Agent_Session);
-                     Null_FD : File_Descriptor;
-                     Args    : Argument_List;
-                     Handle  : Process_Handle;
-                     pragma Unreferenced (Handle);
-                  begin
-                     Null_FD := Open (Null_File, Read_Mode);
-                     Args.Append (Ada.Command_Line.Command_Name);
-                     if Model'Length > 0 then
-                        Args.Append ("--model");
-                        Args.Append (Model);
-                     end if;
-                     Handle := Start
-                       (Args   => Args,
-                        Stdin  => Null_FD,
-                        Stdout => Null_FD,
-                        Stderr => Null_FD,
-                        Cwd    => Ada.Directories.Current_Directory);
-                     Close (Null_FD);
-                  end;
-
-               elsif Cmd'Length > 8
-                 and then Cmd (Cmd'First .. Cmd'First + 7) = "session "
-               then
-                  declare
-                     UUID : constant String :=
-                       Cmd (Cmd'First + 8 .. Cmd'Last);
-                  begin
-                     LLM.Agent.Switch_Session
-                       (S    => Agent_Session,
-                        UUID => UUID);
-                     Reset_Session_State;
-                     Render_Loaded_Session (UUID);
-                     Emit_Bootstrap;
-                  exception
-                     when Ex : others =>
-                        Append_Task_Warning
-                          ("session switch failed: "
-                           & Ada.Exceptions.Exception_Message (Ex));
-                  end;
-
-               end if;
-            end Execute_TUI_Command;
 
          begin
             --  Load settings.
@@ -2234,6 +2167,8 @@ package body Coyote_App is
                     (To_String (Settings_Value.Prompt_Filter));
                end if;
             end;
+
+            My_Frontend.Set_Status ("Initializing" & UC_ELLIP);
 
             --  Promote inherited session ID for subagent lineage.
             declare
@@ -2281,9 +2216,6 @@ package body Coyote_App is
                end if;
             end;
 
-            --  Initialise TUI frontend.
-            Coyote_App.Frontend.TUI.Create (My_Frontend, Win_Name);
-
             if Length (Opts.Session_Id) > 0 then
                Render_Loaded_Session (To_String (Opts.Session_Id));
             end if;
@@ -2295,34 +2227,149 @@ package body Coyote_App is
             --  Main input loop.
             Prompt_Loop : loop
                declare
-                  Prompt   : constant String :=
-                    My_Frontend.Read_Prompt;
+                  It       : constant Coyote_GUI.Prompt_Queue.Item :=
+                    My_Frontend.Read_Item;
                   Is_Steer : constant Boolean :=
                     State.Is_Streaming or else State.Is_Retrying;
                begin
-                  exit Prompt_Loop when Prompt = "";
+                  case It.Kind is
 
-                  if Prompt'Length > 0
-                    and then Prompt (Prompt'First) = ':'
-                  then
-                     Execute_TUI_Command
-                       (Ada.Strings.Fixed.Trim
-                          (Prompt
-                             (Prompt'First + 1 .. Prompt'Last),
-                           Ada.Strings.Both));
-                  elsif Is_Steer then
-                     My_Frontend.Append_Notice
-                       (Coyote_App.Frontend.Info,
-                        ASCII.LF & UC_HOOK_L & " Steer: "
-                        & Prompt & ASCII.LF);
-                     Run_Queued_Prompt (Prompt, True);
-                  else
-                     My_Frontend.Append_Notice
-                       (Coyote_App.Frontend.Info,
-                        ASCII.LF & UC_TRI_R & " "
-                        & Prompt & ASCII.LF);
-                     Run_Queued_Prompt (Prompt, False);
-                  end if;
+                     when Coyote_GUI.Prompt_Queue.Shutdown_Item =>
+                        exit Prompt_Loop;
+
+                     when Coyote_GUI.Prompt_Queue.User_Prompt =>
+                        declare
+                           Prompt : constant String :=
+                             Ada.Strings.Unbounded.To_String (It.Text);
+                        begin
+                           if Is_Steer then
+                              My_Frontend.Append_Notice
+                                (Coyote_App.Frontend.Info,
+                                 ASCII.LF & UC_HOOK_L & " Steer: "
+                                 & Prompt & ASCII.LF);
+                              Run_Queued_Prompt (Prompt, True);
+                           else
+                              My_Frontend.Append_Notice
+                                (Coyote_App.Frontend.Info,
+                                 ASCII.LF & UC_TRI_R & " "
+                                 & Prompt & ASCII.LF);
+                              Run_Queued_Prompt (Prompt, False);
+                           end if;
+                        end;
+
+                     when Coyote_GUI.Prompt_Queue.Stop =>
+                        State.Set_Aborted (True);
+                        LLM.Agent.Request_Abort (Agent_Session);
+
+                     when Coyote_GUI.Prompt_Queue.Pause =>
+                        if State.Is_Streaming
+                          and then not State.Is_Paused
+                          and then not State.Is_Pause_Armed
+                        then
+                           State.Set_Pause_Armed (True);
+                           LLM.Agent.Request_Pause (Agent_Session);
+                        end if;
+
+                     when Coyote_GUI.Prompt_Queue.Resume =>
+                        if State.Is_Paused then
+                           State.Set_Paused (False);
+                           LLM.Agent.Resume (Agent_Session);
+                        end if;
+
+                     when Coyote_GUI.Prompt_Queue.Compact =>
+                        if not State.Is_Streaming
+                          and then not State.Is_Compacting
+                        then
+                           declare
+                              Compact_OK : Boolean;
+                           begin
+                              LLM.Agent.Compact
+                                (Agent_Session,
+                                 Dispatch_Agent_Event'Unrestricted_Access,
+                                 "manual",
+                                 Compact_OK);
+                           end;
+                        end if;
+
+                     when Coyote_GUI.Prompt_Queue.New_Window =>
+                        declare
+                           use GNATCOLL.OS.FS;
+                           use GNATCOLL.OS.Process;
+                           Model   : constant String :=
+                             LLM.Agent.Current_Model_Spec (Agent_Session);
+                           Null_FD : File_Descriptor;
+                           Args    : Argument_List;
+                           Handle  : Process_Handle;
+                           pragma Unreferenced (Handle);
+                        begin
+                           Null_FD := Open (Null_File, Read_Mode);
+                           Args.Append (Ada.Command_Line.Command_Name);
+                           if Model'Length > 0 then
+                              Args.Append ("--model");
+                              Args.Append (Model);
+                           end if;
+                           Handle := Start
+                             (Args   => Args,
+                              Stdin  => Null_FD,
+                              Stdout => Null_FD,
+                              Stderr => Null_FD,
+                              Cwd    =>
+                                Ada.Directories.Current_Directory);
+                           Close (Null_FD);
+                        end;
+
+                     when Coyote_GUI.Prompt_Queue.Set_Model =>
+                        begin
+                           LLM.Agent.Set_Model
+                             (S    => Agent_Session,
+                              Spec => Ada.Strings.Unbounded.To_String
+                                        (It.Model_Spec));
+                           Emit_Model_Select;
+                        exception
+                           when Ex : others =>
+                              Append_Task_Warning
+                                ("model change failed: "
+                                 & Ada.Exceptions.Exception_Message (Ex));
+                        end;
+
+                     when Coyote_GUI.Prompt_Queue.Set_Thinking =>
+                        begin
+                           Current_Thinking :=
+                             Ada.Strings.Unbounded.To_Unbounded_String
+                               (Ada.Characters.Handling.To_Lower
+                                  (LLM.Providers.Thinking_Level'Image
+                                     (It.Level)));
+                           LLM.Agent.Set_Thinking
+                             (S     => Agent_Session,
+                              Level => It.Level);
+                           My_Frontend.Set_Status
+                             (Format_Status (State, Status_Label));
+                        exception
+                           when Ex : others =>
+                              Append_Task_Warning
+                                ("thinking change failed: "
+                                 & Ada.Exceptions.Exception_Message (Ex));
+                        end;
+
+                     when Coyote_GUI.Prompt_Queue.Switch_Session =>
+                        begin
+                           LLM.Agent.Switch_Session
+                             (S    => Agent_Session,
+                              UUID => Ada.Strings.Unbounded.To_String
+                                        (It.Session_UUID));
+                           Reset_Session_State;
+                           Render_Loaded_Session
+                             (Ada.Strings.Unbounded.To_String
+                                (It.Session_UUID));
+                           Emit_Bootstrap;
+                        exception
+                           when Ex : others =>
+                              Append_Task_Warning
+                                ("session switch failed: "
+                                 & Ada.Exceptions.Exception_Message (Ex));
+                        end;
+
+                  end case;
                end;
             end loop Prompt_Loop;
             My_Frontend.Shutdown;
@@ -2344,7 +2391,38 @@ package body Coyote_App is
       end Agent_Task;
 
    begin
-      State.Wait_Shutdown;
+      --  Initialise GTK on the main task and create the window.
+      --  The idle callback registered inside Create will drain the
+      --  Updates queue once Gtk.Main.Main is running.
+      Gtk.Main.Init;
+      Coyote_App.Frontend.GUI.Create (My_Frontend, Win_Name);
+
+      --  Enter the GTK event loop; returns when Main_Quit is called
+      --  (either from the window close handler or the Shutdown update).
+      Gtk.Main.Main;
+
+      --  For one-shot mode, wait for Agent_Task to store the result
+      --  before we return (Agent_Task calls State.Signal_Shutdown just
+      --  before enqueueing the Shutdown update).
+      if Opts.One_Shot then
+         State.Wait_Shutdown;
+         declare
+            Json : constant String := State.One_Shot_Result;
+         begin
+            if Json'Length > 0 then
+               Ada.Text_IO.Put_Line (Json);
+            else
+               declare
+                  Err : constant JSON_Value := Create_Object;
+               begin
+                  Err.Set_Field
+                    ("error",
+                     "subagent closed before producing output");
+                  Ada.Text_IO.Put_Line (Write (Err));
+               end;
+            end if;
+         end;
+      end if;
 
       --  Delete empty sessions (not resumed, no prompts submitted).
       if not Opts.No_Session
@@ -2363,6 +2441,6 @@ package body Coyote_App is
                null;
          end;
       end if;
-   end Run_TUI;
+   end Run_GUI;
 
 end Coyote_App;
