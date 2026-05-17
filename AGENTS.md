@@ -98,11 +98,36 @@ src/
                         -- Concrete acme window frontend; routes all calls to
                         --   Acme.Window.Win via a per-instance Nine_P.Client.Fs
   coyote_app-frontend-tui.ads/.adb
-                        -- Concrete TUI frontend; maintains a typed Segment
-                        --   buffer, drives a single ncurses UI_Task for all
-                        --   rendering and input; $EDITOR/$PAGER/$fzf integration;
-                        --   vi-style navigation; `/` search with `n`/`N` cycling;
-                        --   `NO_COLOR` support; Set_Stats_Summary (TUI-specific)
+                        -- Concrete TUI frontend; thin adapter over the
+                        --   Coyote_TUI subsystem; holds Conv/PQ/Nav state
+                        --   and a heap-allocated Task_T; $EDITOR/$PAGER/$fzf
+                        --   integration; Set_Stats_Summary (TUI-specific)
+  coyote_tui/           -- Layered TUI subsystem (pure logic → concurrency → I/O)
+    coyote_tui.ads             -- Root package; layer overview in comments
+    coyote_tui-segments.ads    -- Pure data: Segment, Segment_Kind, Segment_Vector
+    coyote_tui-viewport.ads    -- Cursor, Height_Array_Access types
+    coyote_tui-segment_ops.ads/.adb -- Pure vector mutations (append, update,
+                        --   set-complete, end-tool)
+    coyote_tui-scroll.ads/.adb -- Pure scroll arithmetic
+    coyote_tui-search.ads/.adb -- Pure search: Compute_Matches, Advance; no I/O
+    coyote_tui-commands.ads/.adb -- Pure ":verb arg" parser → Command record
+    coyote_tui-sink.ads        -- Abstract output-sink interface (Put, New_Line,
+                        --   Attr_On/Off, Color_On, Reset_Attrs, Move, Erase,
+                        --   Refresh)
+    coyote_tui-sink-ncurses_sink.ads/.adb -- Production sink wrapping ncurses
+    coyote_tui-sink-string_sink.ads/.adb  -- Test sink accumulating to String
+    coyote_tui-render.ads/.adb -- Measure_Segment, Render_Segment (libcmark for
+                        --   complete blocks; raw text for streaming); Render_Frame
+                        --   (full screen frame + status bar); works over
+                        --   Sink'Class — testable without ncurses
+    coyote_tui-store.ads/.adb  -- Protected Conversation: Append_*, Set_*, End_Tool,
+                        --   Snapshot, Count, Clear
+    coyote_tui-prompt_queue.ads/.adb -- Protected FIFO (depth 64): Enqueue,
+                        --   Dequeue (blocking), Shutdown
+    coyote_tui-nav_state.ads/.adb -- Protected viewport/search/render-flag/
+                        --   lifecycle/display-metadata state
+    coyote_tui-ui.ads/.adb     -- Task_T (discriminant: Conv/PQ/Nav access);
+                        --   entry Start; main ncurses poll+dispatch+render loop
   coyote_tui_terminal.ads/.adb -- Ada bindings to C terminal primitives
                         --   (termios save/restore/raw, TIOCGWINSZ, wcwidth,
                         --   mkstemp, isatty, close fd)
@@ -224,20 +249,37 @@ A simpler task structure — no acme window, no 9P, no plumb tasks:
 
 | Task | Responsibility |
 |---|---|
-| `Agent_Task` | Same agent loop as the acme path, but reads prompts via `My_Frontend.Read_Prompt` (blocking on `Prompt_Queue`) instead of `Commands.Dequeue`; receives `:command` strings forwarded from `UI_Task` via `Prompt_Queue`; dispatches them to `LLM.Agent` operations; calls `My_Frontend.Set_Stats_Summary` on `Session_Stats_Event` |
-| `UI_Task` (inside `Frontend.TUI`) | Single ncurses task owning all terminal I/O: polls `Wget_Wch`, dispatches vi-style key events, runs `Execute_Command`, launches `$EDITOR`/`$PAGER`/`fzf`, re-renders the segment buffer when `TUI_State.Render_Needed` is set |
+| `Agent_Task` | Owns `LLM.Agent.Session`, drives prompts via `My_Frontend.Read_Prompt` (blocks on `Coyote_TUI.Prompt_Queue.Queue.Dequeue`); dispatches `:command` strings forwarded from `UI_Task_T` to `Execute_TUI_Command`; dispatches LLM events via `Dispatch_Event`; calls `My_Frontend.Set_Stats_Summary` on `Session_Stats_Event` |
+| `Task_T` (inside `Coyote_TUI.UI`) | ncurses input + render task, allocated on the heap via `Coyote_TUI.UI.Task_Access`; polls `Wget_Wch`, dispatches vi-style key events, runs UI-side commands, launches `$EDITOR`/`$PAGER`/`fzf`, re-renders when `Nav_State.Take_Render_Request` returns True |
 
-`UI_Task` is a package-level task object in `Coyote_App.Frontend.TUI`.  It
-declares `entry Start` and uses `select accept Start; or terminate; end select;`
-before its main loop so it terminates cleanly when `Create` is never called
-(e.g. in the test suite).  `Create` calls `UI_Task.Start` after ncurses init.
+`Coyote_TUI.UI.Task_T` is a **task type** (not a singleton).  It receives
+its shared state (`Conv`, `PQ`, `Nav`) through discriminants.
+`Coyote_App.Frontend.TUI.Create` allocates one instance (`new Task_T (...)`)
+and calls `The_Task.Start`.  The `select accept Start; or terminate; end select;`
+guard before the main loop means that if `Create` is never called (e.g. in
+unit tests), the task terminates cleanly when the program exits.
+
+### TUI subsystem layers (`Coyote_TUI`)
+
+The TUI logic is decomposed into pure and concurrent layers under `src/coyote_tui/`:
+
+| Layer | Packages | Notes |
+|---|---|---|
+| 0 — data | `Coyote_TUI.Segments`, `Coyote_TUI.Viewport` | Pure types; no body |
+| 1 — pure logic | `Coyote_TUI.Segment_Ops`, `Coyote_TUI.Scroll`, `Coyote_TUI.Search`, `Coyote_TUI.Commands` | No I/O; fully AUnit-testable |
+| 2 — sink abstraction | `Coyote_TUI.Sink`, `Coyote_TUI.Sink.Ncurses_Sink`, `Coyote_TUI.Sink.String_Sink` | `Instance` interface; renderer never imports ncurses directly |
+| 3 — renderer | `Coyote_TUI.Render` | `Render_Segment`, `Render_Frame`; testable with `String_Sink` |
+| 4 — concurrency | `Coyote_TUI.Store`, `Coyote_TUI.Prompt_Queue`, `Coyote_TUI.Nav_State` | Protected types wrapping pure logic |
+| 5 — terminal I/O | `Coyote_TUI.UI` | Task type; only layer that calls ncurses |
 
 ### TUI command protocol
 
-When the user types `:verb [args]` in the TUI, `Execute_Command` either handles
-the command directly or forwards it to `Prompt_Queue` prefixed with `:`.
+When the user types `:verb [args]` in the TUI, `Coyote_TUI.Commands.Parse`
+classifies it.  `Task_T` (layer 5) handles UI-side commands directly; agent-side
+commands are forwarded via `Prompt_Queue` (prefixed with `:`) and handled by
+`Execute_TUI_Command` in `Run_TUI`'s `Agent_Task`.
 
-Commands handled directly by `Execute_Command`:
+Commands handled directly by `Task_T` (UI side):
 
 | Command | Behaviour |
 |---|---|
@@ -261,12 +303,15 @@ most recent session totals.
 
 `Dispatch_Event` in `Coyote_App.Dispatch` is the rendering core: it maps each
 incoming `LLM.Events.Agent_Event'Class` value to the appropriate
-**1. Markdown rendering via `libcmark-gfm`** *(implemented)*
-turn footers, notices, etc.).  Both the acme and TUI paths share the same
-`Render_Markdown` in `coyote_app-frontend-tui.adb`.  The renderer calls
-`Coyote_Cmark.Parse_Document` (which uses `libcmark-gfm` with the GFM
-`table`, `strikethrough`, and `autolink` extensions enabled), walks the AST
-with `cmark_iter`, and emits ncurses attributes:
+`Frontend'Class` calls (Append_Text, Begin/End_Tool, Append_Notice,
+Append_Turn_Footer, etc.).  Both the acme and TUI paths share the same
+dispatcher.
+
+**Markdown rendering** is performed by `Coyote_TUI.Render.Render_Segment`
+(for complete `Assistant_Text` segments) via `libcmark-gfm` with the GFM
+`table`, `strikethrough`, and `autolink` extensions enabled.  The renderer
+walks the AST with `cmark_iter` and writes through a `Coyote_TUI.Sink.Instance'Class`,
+emitting ncurses attributes:
 
 - `A_Bold` for `**strong**` and headings (with `#`×level prefix)
 - `A_Dim` for `*emphasis*`, fenced code blocks, block quotes, and
@@ -277,7 +322,10 @@ with `cmark_iter`, and emits ncurses attributes:
 - GFM pipe tables rendered as box-drawn ASCII tables (bold header row,
   `┌─┬─┐` / `├─┼─┤` / `└─┴─┘` borders, column-width auto-fit capped to
   terminal width with `UC_ELLIP` truncation)
-- `A_Dim` for `*emphasis*`, fenced code blocks, and block quotes
+
+Streaming segments (`Complete = False`) are rendered as raw text without
+markdown parsing, preserving live output.
+
 `Coyote_Cmark` is a thin Ada binding backed by a C shim
 (`src/coyote_cmark_c.c`) whose getter functions resolve all
 `cmark_node_type`, `cmark_list_type`, and `cmark_event_type` enum values at
@@ -286,22 +334,14 @@ package elaboration time — ensuring the values always agree with the installed
 table_row, table_cell, strikethrough) are identified by the string returned
 by `cmark_node_get_type_string` since their integer IDs are allocated
 dynamically.
-Streaming segments (`Complete = False`) continue to render via `Wrap_And_Put`
-(raw text), preserving live output.
 
-`Coyote_Cmark` is a thin Ada binding backed by a C shim
-(`src/coyote_cmark_c.c`) whose trivial getter functions resolve all
-`cmark_node_type`, `cmark_list_type`, and `cmark_event_type` enum values at
-package elaboration time — ensuring the values always agree with the installed
-`<cmark.h>` regardless of library version.
-
-**2. Search — inline character-level match highlighting** *(implemented)*
-
+**Search** is implemented in `Coyote_TUI.Search` (pure, testable without ncurses).
 `/` search, `n`/`N` navigation, viewport jumping, and inline `A_Reverse`
 highlighting of the matched substring are all implemented.  `Match_Record`
-stores `Byte_Offset` and `Match_Len`; `Wrap_And_Put` accepts `Match_Start`
-and `Match_Len` optional parameters and brackets the matching bytes with
-`Wattron`/`Wattroff (A_Reverse)`.
+stores `Seg_Index`, `Byte_Offset`, and `Match_Len`.  `Compute_Matches` performs
+a case-insensitive scan; `Advance` moves the match cursor with wrapping.
+Highlighting is applied inside `Render_Segment` when `Match_Start`/`Match_Len`
+are non-zero.
 
 ## Plumb Token Schema
 
@@ -470,13 +510,12 @@ conform to the guidelines it defines.
   values (Ada's `Character` type is Latin-1; code points > 255 require UTF-8
   multi-byte encoding via `Character'Val` sequences, which is what the `UC_*`
   constants provide).
-- **Package-level task objects** that may not be started in every execution
-  context (e.g. `UI_Task` in `Coyote_App.Frontend.TUI`)
-  must declare `entry Start` and use
+- **Task types used as frontends** (e.g. `Coyote_TUI.UI.Task_T` inside
+  `Coyote_App.Frontend.TUI`) must declare `entry Start` and use
   `select accept Start; or terminate; end select;` before their main loop.
   This allows Ada's tasking runtime to terminate them cleanly when `Start` is
-  never called — for example in the test suite, which does not instantiate the
-  TUI frontend.
+  never called — for example in the test suite, which does not call
+  `Coyote_App.Frontend.TUI.Create`.
 
 ## Shell Tool Usage
 
@@ -507,10 +546,12 @@ When adding new functionality, add unit tests first (TDD preferred).
 Integration tests that require live external services should be guarded and
 clearly marked.
 
-**TUI-specific test note:** The `Coyote_App.Frontend.TUI` package contains
-package-level task object (`UI_Task`).  It must not block the test process.
-The `select accept Start; or terminate; end select;` pattern (see Coding
-Conventions above) is required to keep the test suite from hanging.
+**TUI-specific test note:** `Coyote_App.Frontend.TUI.Instance` holds a
+`Task_Access` pointer (`Coyote_TUI.UI.Task_T` allocated on the heap).
+The task type declares `entry Start` and uses
+`select accept Start; or terminate; end select;` before its main loop, so
+if `Create` is never called (e.g. in the test suite) the task terminates
+cleanly without hanging.
 
 ## Definition of Done
 
