@@ -2410,7 +2410,8 @@ package body Coyote_App is
       --  The idle callback registered inside Create will drain the
       --  Updates queue once Gtk.Main.Main is running.
       Gtk.Main.Init;
-      Coyote_App.Frontend.GUI.Create (My_Frontend, Win_Name);
+      Coyote_App.Frontend.GUI.Create
+        (My_Frontend, Win_Name, Pop_Under => Opts.Subagent);
 
       --  Enter the GTK event loop; returns when Main_Quit is called
       --  (either from the window close handler or the Shutdown update).

@@ -749,7 +749,11 @@ package body Coyote_App.Frontend.GUI is
 
    --  ── Create ────────────────────────────────────────────────────────────
 
-   procedure Create (F : in out Instance; Win_Name : String) is
+   procedure Create
+     (F         : in out Instance;
+      Win_Name  : String;
+      Pop_Under : Boolean := False)
+   is
       use Gtk.Box;
       use Gtk.Button;
       use Gtk.Enums;
@@ -947,6 +951,7 @@ package body Coyote_App.Frontend.GUI is
 
       --  ── Show and register idle drain ──────────────────────────────────
 
+      F.Win.Set_Focus_On_Map (not Pop_Under);
       F.Win.Show_All;
 
    end Create;

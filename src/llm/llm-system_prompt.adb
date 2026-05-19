@@ -265,17 +265,17 @@ package body LLM.System_Prompt is
             & " command=""cat > path"","
             & " stdin=""<file content>"""
             & ASCII.LF
-            & "- Edit files precisely with oed, sed, or perl"
+            & "- Edit files precisely with hed, sed, or perl"
             & " (pass the script via the stdin field;"
             & " use perl -0777 -i -pe for multi-line patterns)"
             & ASCII.LF
-            & "- Always invoke oed as `oed -M` (machine/agent mode):"
+            & "- Always invoke hed as `hed -M` (machine/agent mode):"
             & " provides deferred writes with transactional rollback,"
             & " OK/? per-command signalling, and verbose error output"
             & ASCII.LF
-            & "- To insert a block containing a lone . line via oed, write"
+            & "- To insert a block containing a lone . line via hed, write"
             & " the block to a temp file first (cat > /tmp/block via stdin),"
-            & " then use oed's r command to read it into the buffer"
+            & " then use hed's r command to read it into the buffer"
             & " (e.g. 42r /tmp/block) -- input mode has no escape for"
             & " a lone . terminator"
             & ASCII.LF

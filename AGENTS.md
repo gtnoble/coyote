@@ -509,7 +509,7 @@ conform to the guidelines it defines.
 - The same principle applies to any other interpreter or tool that accepts
   code via standard input (e.g. `python`, `awk`, `sed` scripts): prefer
   `stdin` over embedding code in the command string.
-- **Always load the `oed` skill before editing or writing any file.** The skill is at `/home/gtnoble/.coyote/skills/oed/SKILL.md`. `oed` is a portable `ed(1)` with agent-oriented extensions; always invoke it as `oed -M` for deferred-write, transactional, machine-mode edits.
+- **Always load the `hed` skill before editing or writing any file.** The skill is at `/home/gtnoble/.coyote/skills/hed-tools/SKILL.md`. `hed` is a portable `ed(1)` with agent-oriented extensions; always invoke it as `hed -M` for deferred-write, transactional, machine-mode edits.
 
 ## Testing
 
@@ -551,7 +551,7 @@ A feature is **not complete** until all of the following are satisfied:
 ## Editing Discipline
 
 Before making any code edits:
-**Before making any edits, load the `oed` skill** (`/home/gtnoble/.coyote/skills/oed/SKILL.md`) to ensure the correct file-editing tool is selected. Always invoke `oed` with `-M` (machine/agent mode) for safe, transactional edits.
+**Before making any edits, load the `hed` skill** (`/home/gtnoble/.coyote/skills/hed-tools/SKILL.md`) to ensure the correct file-editing tool is selected. Always invoke `hed` with `-M` (machine/agent mode) for safe, transactional edits.
 
 
 1. **Map every affected site first.** Identify all call sites, declaration

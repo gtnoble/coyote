@@ -41,7 +41,10 @@ package Coyote_App.Frontend.GUI is
 
    --  Initialise the GTK window and register the idle drain callback.
    --  Must be called from the GTK main loop thread.
-   procedure Create (F : in out Instance; Win_Name : String);
+   procedure Create
+     (F          : in out Instance;
+      Win_Name   : String;
+      Pop_Under  : Boolean := False);
 
    --  ── Frontend.Instance overrides ───────────────────────────────────────
 
