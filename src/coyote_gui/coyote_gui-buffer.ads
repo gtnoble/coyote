@@ -25,6 +25,7 @@ with Ada.Strings.Hash;
 with Ada.Strings.Unbounded;        use Ada.Strings.Unbounded;
 with Gtk.Frame;
 with Gtk.Box;
+with Gtk.Expander;
 with Gtk.Label;
 with Gtk.Text_Buffer;
 with Gtk.Text_Mark;
@@ -79,6 +80,10 @@ package Coyote_GUI.Buffer is
    --  ── Scroll ───────────────────────────────────────────────────────────
 
    procedure Scroll_To_End (B : in out Instance);
+   procedure Collapse_All_Tools (B : in out Instance);
+   --  Collapse all tool call expanders in the conversation buffer.
+   procedure Expand_All_Tools   (B : in out Instance);
+   --  Expand all tool call expanders in the conversation buffer.
    --  ── Markdown rendering toggle ─────────────────────────────────────────
 
    procedure Set_Render_Markdown (B : in out Instance; Enabled : Boolean);
@@ -95,6 +100,7 @@ private
       Summary_Label  : Gtk.Label.Gtk_Label;
       Summary_Prefix : Ada.Strings.Unbounded.Unbounded_String;
       Detail_Box     : Gtk.Box.Gtk_Box;
+      Expander       : Gtk.Expander.Gtk_Expander;
       Name           : Ada.Strings.Unbounded.Unbounded_String;
    end record;
 

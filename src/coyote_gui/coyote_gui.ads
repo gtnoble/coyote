@@ -52,6 +52,8 @@ package Coyote_GUI is
    --    Set_Mode           Mode = new mode
    --    Show_Detail        Text = window title; Text2 = content
    --    Shutdown           (no extra fields)
+   --    Collapse_All_Tools (no extra fields)
+   --    Expand_All_Tools   (no extra fields)
 
    type Update_Kind is
      (Append_Text,
@@ -66,7 +68,9 @@ package Coyote_GUI is
       Set_Status,
       Set_Mode,
       Show_Detail,
-      Shutdown);
+      Shutdown,
+      Collapse_All_Tools,
+      Expand_All_Tools);
 
    type Update is record
       Kind     : Update_Kind := Append_Text;

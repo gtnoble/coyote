@@ -411,6 +411,7 @@ package body Coyote_GUI.Buffer is
       B.Tag_Thinking := Buf.Create_Tag ("thinking");
       Set_Property (B.Tag_Thinking, Foreground_Property, "#888888");
       Set_Property (B.Tag_Thinking, Left_Margin_Property, Gint (24));
+      Set_Property (B.Tag_Thinking, Background_Property, "#fffce8");
 
       B.Tag_Notice_Info := Buf.Create_Tag ("notice_info");
       Set_Property (B.Tag_Notice_Info, Foreground_Property, "#4488cc");
@@ -580,6 +581,7 @@ package body Coyote_GUI.Buffer is
       end Format_Value_Full;
       Summary_Prefix_S : Unbounded_String;
       Summary_Full_S   : Unbounded_String;
+      Frame_Label      : Unbounded_String;
    begin
       --  Close any open streaming text block before inserting the tool
       --  widget anchor.  The Stream_Mark must not span the child anchor,
@@ -609,13 +611,42 @@ package body Coyote_GUI.Buffer is
       --  Full pending summary = prefix + ellipsis footer.
       Summary_Full_S := Summary_Prefix_S;
       Append (Summary_Full_S, ASCII.LF & UC_BOX_BL & " " & UC_ELLIP);
+      --  Derive a short frame title: tool name + first meaningful arg.
+      declare
+         Best_Val : Unbounded_String;
+         Found    : Boolean := False;
+         procedure Pick
+           (FN : GNATCOLL.JSON.UTF8_String;
+            FV : GNATCOLL.JSON.JSON_Value)
+         is
+            Raw   : constant String  := JSON_Scalar_Image (FV);
+            Clip  : constant Natural := Natural'Min (Raw'Length, 60);
+            Short : constant String  :=
+              Raw (Raw'First .. Raw'First + Clip - 1)
+              & (if Clip < Raw'Length then "..." else "");
+         begin
+            if not Found or else FN = "command" then
+               Best_Val := To_Unbounded_String (Short);
+               Found    := True;
+            end if;
+         end Pick;
+      begin
+         if Args_Val.Kind = GNATCOLL.JSON.JSON_Object_Type then
+            Args_Val.Map_JSON_Object (Pick'Access);
+         end if;
+         Frame_Label :=
+           To_Unbounded_String (UC_GEAR & " " & Name)
+           & (if Found
+              then To_Unbounded_String (": " & To_String (Best_Val))
+              else Null_Unbounded_String);
+      end;
 
       --  ── Build GTK widget tree ──────────────────────────────────────────
-      Insert_Plain (B, "" & ASCII.LF);
       B.The_Buf.Get_End_Iter (Iter);
       Anchor := B.The_Buf.Create_Child_Anchor (Iter);
 
-      Gtk.Frame.Gtk_New (Frame, UC_GEAR & " " & Name);
+      Gtk.Frame.Gtk_New (Frame, To_String (Frame_Label));
+      Frame.Set_Size_Request (700, -1);
       Gtk.Box.Gtk_New_Vbox
         (Outer_Vbox, Homogeneous => False, Spacing => 2);
 
@@ -626,7 +657,8 @@ package body Coyote_GUI.Buffer is
          & Xml_Escape (To_String (Summary_Full_S))
          & "</small></tt>");
       Summary_Lab.Set_Xalign (0.0);
-      Summary_Lab.Set_Line_Wrap (False);
+      Summary_Lab.Set_Line_Wrap (True);
+      Summary_Lab.Set_Max_Width_Chars (100);
 
       --  Expander for the coyote-open-style detail view.
       --  GtkExpander manages its own toggle; no custom callbacks needed.
@@ -711,6 +743,7 @@ package body Coyote_GUI.Buffer is
           Summary_Label  => Summary_Lab,
           Summary_Prefix => Summary_Prefix_S,
           Detail_Box     => Detail_Vbox,
+          Expander       => Expander,
           Name           => To_Unbounded_String (Name)));
 
       Insert_Plain (B, "" & ASCII.LF);
@@ -836,6 +869,37 @@ package body Coyote_GUI.Buffer is
    begin
       B.The_View.Scroll_Mark_Onscreen (B.The_Buf.Get_Insert);
    end Scroll_To_End;
+
+   procedure Collapse_All_Tools (B : in out Instance) is
+      use Tool_Maps;
+      use Gtk.Expander;
+   begin
+      for Pos in B.Tools.Iterate loop
+         declare
+            Info : constant Tool_Frame_Info := Element (Pos);
+         begin
+            if Info.Expander /= null then
+               Info.Expander.Set_Expanded (False);
+            end if;
+         end;
+      end loop;
+   end Collapse_All_Tools;
+
+   procedure Expand_All_Tools (B : in out Instance) is
+      use Tool_Maps;
+      use Gtk.Expander;
+   begin
+      for Pos in B.Tools.Iterate loop
+         declare
+            Info : constant Tool_Frame_Info := Element (Pos);
+         begin
+            if Info.Expander /= null then
+               Info.Expander.Set_Expanded (True);
+            end if;
+         end;
+      end loop;
+   end Expand_All_Tools;
+
 
    procedure Set_Render_Markdown (B : in out Instance; Enabled : Boolean) is
    begin

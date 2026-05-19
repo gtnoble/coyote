@@ -153,6 +153,7 @@ private
       Prompt_Buf  : Gtk.Text_Buffer.Gtk_Text_Buffer;
       Prompt_Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
       Send_Btn    : Gtk.Button.Gtk_Button;
+      Scroll_Down_Btn : Gtk.Button.Gtk_Button;
       Status_Bar  : Gtk.Label.Gtk_Label;
       Outer_Box   : Gtk.Box.Gtk_Box;
       --  State
@@ -161,6 +162,11 @@ private
       Current_Mode : Coyote_App.Frontend.Run_Mode :=
         Coyote_App.Frontend.Idle;
       Agent_Sess  : access LLM.Agent.Session := null;
+      --  Follow mode: auto-scroll to bottom when new content arrives.
+      Follow_Mode         : Boolean := True;
+      --  True while we are programmatically adjusting the vadjustment so
+      --  the value-changed handler does not misinterpret it as a user scroll.
+      Programmatic_Scroll : Boolean := False;
    end record;
 
 end Coyote_App.Frontend.GUI;

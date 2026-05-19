@@ -63,6 +63,8 @@ package body Coyote_App is
       function Is_Retrying        return Boolean is (P_Is_Retrying);
       function Text_Emitted       return Boolean is (P_Text_Emitted);
       function Has_Tool_In_Turn return Boolean is (P_Has_Tool_In_Turn);
+      function Tools_Running return Natural is (P_Tools_Running);
+      function Tools_Done    return Natural is (P_Tools_Done);
       function Pending_Stats      return Boolean is (P_Pending_Stats);
       function Models_Pending     return Boolean is (P_Models_Pending);
       function Context_Window     return Natural is (P_Ctx_Win);
@@ -142,6 +144,25 @@ package body Coyote_App is
       begin
          P_Has_Tool_In_Turn := Value;
       end Set_Has_Tool_In_Turn;
+
+      procedure Increment_Tools_Running is
+      begin
+         P_Tools_Running := P_Tools_Running + 1;
+      end Increment_Tools_Running;
+
+      procedure Increment_Tools_Done is
+      begin
+         P_Tools_Done    := P_Tools_Done + 1;
+         if P_Tools_Running > 0 then
+            P_Tools_Running := P_Tools_Running - 1;
+         end if;
+      end Increment_Tools_Done;
+
+      procedure Reset_Tool_Counts is
+      begin
+         P_Tools_Running := 0;
+         P_Tools_Done    := 0;
+      end Reset_Tool_Counts;
 
       function Last_Stop_Reason return String is
         (To_String (P_Last_Stop_Reason));

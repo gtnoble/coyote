@@ -110,34 +110,71 @@ package body Coyote_App.Frontend.GUI is
       return Adj.Get_Value + Adj.Get_Page_Size >= Adj.Get_Upper - Threshold;
    end At_Bottom;
 
+   --  ── Signal handlers for conversation-scroll follow mode ───────────────
+
+   --  Called after GTK recomputes the text-view layout and updates the
+   --  vadjustment upper bound.  When follow mode is active, snap the
+   --  viewport to the new bottom so streaming text stays in view.
+   procedure On_Conv_Adj_Changed
+     (Self : access Gtk.Adjustment.Gtk_Adjustment_Record'Class)
+   is
+      pragma Unreferenced (Self);
+   begin
+      if Current_Frontend = null
+        or else not Current_Frontend.Follow_Mode
+      then
+         return;
+      end if;
+      declare
+         Adj    : constant Gtk.Adjustment.Gtk_Adjustment :=
+           Current_Frontend.Conv_Scroll.Get_Vadjustment;
+         Target : constant Gdouble :=
+           Gdouble'Max (Adj.Get_Upper - Adj.Get_Page_Size, 0.0);
+      begin
+         Current_Frontend.Programmatic_Scroll := True;
+         Adj.Set_Value (Target);
+         Current_Frontend.Programmatic_Scroll := False;
+      end;
+   end On_Conv_Adj_Changed;
+
+   --  Called whenever the scroll position changes.  When the change is not
+   --  our own programmatic update, recalculate follow mode: True iff the
+   --  viewport is at (or very near) the bottom.
+   procedure On_Conv_Adj_Value_Changed
+     (Self : access Gtk.Adjustment.Gtk_Adjustment_Record'Class)
+   is
+      pragma Unreferenced (Self);
+   begin
+      if Current_Frontend /= null
+        and then not Current_Frontend.Programmatic_Scroll
+      then
+         Current_Frontend.Follow_Mode := At_Bottom (Current_Frontend.all);
+         if Current_Frontend.Follow_Mode then
+            Current_Frontend.Scroll_Down_Btn.Hide;
+         else
+            Current_Frontend.Scroll_Down_Btn.Show;
+         end if;
+      end if;
+   end On_Conv_Adj_Value_Changed;
+
    --  ── Apply_Update — called on the GTK main thread by Drain_Idle ────────
 
    procedure Apply_Update (F : in out Instance; U : Coyote_GUI.Update) is
       use Coyote_GUI;
-      Follow : constant Boolean := At_Bottom (F);
    begin
       case U.Kind is
 
          when Append_Text =>
             F.Buf.Append_Text (To_String (U.Text));
-            if Follow then
-               F.Buf.Scroll_To_End;
-            end if;
 
          when End_Text_Block =>
             F.Buf.End_Text_Block;
-            if Follow then
-               F.Buf.Scroll_To_End;
-            end if;
 
          when Begin_Thinking =>
             F.Buf.Begin_Thinking;
 
          when Append_Thinking =>
             F.Buf.Append_Thinking (To_String (U.Text));
-            if Follow then
-               F.Buf.Scroll_To_End;
-            end if;
 
          when End_Thinking =>
             F.Buf.End_Thinking;
@@ -148,9 +185,6 @@ package body Coyote_App.Frontend.GUI is
                Args       => To_String (U.Text2),
                Session_Id => To_String (U.Text3),
                Tool_Id    => To_String (U.Text4));
-            if Follow then
-               F.Buf.Scroll_To_End;
-            end if;
 
          when End_Tool =>
             F.Buf.End_Tool
@@ -169,15 +203,9 @@ package body Coyote_App.Frontend.GUI is
                             (Coyote_App.Frontend.Notice_Kind'Val
                                (Coyote_GUI.Notice_Kind'Pos (U.N_Kind)))),
                Text => To_String (U.Text));
-            if Follow then
-               F.Buf.Scroll_To_End;
-            end if;
 
          when Append_Turn_Footer =>
             F.Buf.Append_Turn_Footer (To_String (U.Text));
-            if Follow then
-               F.Buf.Scroll_To_End;
-            end if;
 
          when Set_Status =>
             F.Status_Bar.Set_Text (To_String (U.Text));
@@ -201,6 +229,13 @@ package body Coyote_App.Frontend.GUI is
          when Shutdown =>
             F.PQ.Shutdown;
             Gtk.Main.Main_Quit;
+
+
+         when Coyote_GUI.Collapse_All_Tools =>
+            F.Buf.Collapse_All_Tools;
+
+         when Coyote_GUI.Expand_All_Tools =>
+            F.Buf.Expand_All_Tools;
 
       end case;
    end Apply_Update;
@@ -725,6 +760,47 @@ package body Coyote_App.Frontend.GUI is
       end if;
    end On_Render_Markdown_Toggled;
 
+   procedure On_Scroll_Down_Clicked
+     (Self : access Gtk.Button.Gtk_Button_Record'Class)
+   is
+      pragma Unreferenced (Self);
+      use Gtk.Adjustment;
+   begin
+      if Current_Frontend /= null then
+         Current_Frontend.Follow_Mode := True;
+         Current_Frontend.Scroll_Down_Btn.Hide;
+         declare
+            Adj    : constant Gtk_Adjustment :=
+              Current_Frontend.Conv_Scroll.Get_Vadjustment;
+            Target : constant Gdouble :=
+              Gdouble'Max (Adj.Get_Upper - Adj.Get_Page_Size, 0.0);
+         begin
+            Current_Frontend.Programmatic_Scroll := True;
+            Adj.Set_Value (Target);
+            Current_Frontend.Programmatic_Scroll := False;
+         end;
+      end if;
+   end On_Scroll_Down_Clicked;
+
+   procedure On_Collapse_All_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class) is
+      pragma Unreferenced (Self);
+   begin
+      if Current_Frontend /= null then
+         Current_Frontend.Buf.Collapse_All_Tools;
+      end if;
+   end On_Collapse_All_Activate;
+
+   procedure On_Expand_All_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class) is
+      pragma Unreferenced (Self);
+   begin
+      if Current_Frontend /= null then
+         Current_Frontend.Buf.Expand_All_Tools;
+      end if;
+   end On_Expand_All_Activate;
+
+
    --  ── Menu construction helper ──────────────────────────────────────────
 
    function Make_Item
@@ -877,12 +953,24 @@ package body Coyote_App.Frontend.GUI is
          Gtk.Menu_Shell.Append
            (Gtk.Menu_Shell.Gtk_Menu_Shell (View_Menu),
             F.Render_Markdown_Item);
+         Add_Sep (View_Menu);
+         Item := Make_Item ("_Collapse All Tool Calls", View_Menu);
+         Item.On_Activate (On_Collapse_All_Activate'Access);
+         Item := Make_Item ("_Expand All Tool Calls",   View_Menu);
+         Item.On_Activate (On_Expand_All_Activate'Access);
       end;
 
       --  ── Conversation view ─────────────────────────────────────────────
 
       Gtk.Scrolled_Window.Gtk_New (F.Conv_Scroll);
       F.Conv_Scroll.Set_Policy (Policy_Never, Policy_Automatic);
+      declare
+         Adj : constant Gtk.Adjustment.Gtk_Adjustment :=
+           F.Conv_Scroll.Get_Vadjustment;
+      begin
+         Adj.On_Changed       (On_Conv_Adj_Changed'Access);
+         Adj.On_Value_Changed (On_Conv_Adj_Value_Changed'Access);
+      end;
 
       Gtk.Text_View.Gtk_New (F.Conv_View);
       F.Conv_View.Set_Editable (False);
@@ -894,11 +982,20 @@ package body Coyote_App.Frontend.GUI is
       F.Conv_View.Set_Bottom_Margin (6);
 
       F.Conv_Buf := F.Conv_View.Get_Buffer;
+
+      --  ── Scroll-to-bottom button (visible when follow mode is off) ─────
+
+      Gtk.Button.Gtk_New (F.Scroll_Down_Btn,
+                          "" & Coyote_App.Utils.UC_ARROW_D & " New output");
+      F.Scroll_Down_Btn.On_Clicked (On_Scroll_Down_Clicked'Access);
+      F.Scroll_Down_Btn.Set_No_Show_All (True);
       F.Buf.Attach (F.Conv_View, F.Conv_Buf);
 
       F.Conv_Scroll.Add (F.Conv_View);
       F.Outer_Box.Pack_Start (F.Conv_Scroll, Expand => True, Fill => True,
                               Padding => 0);
+      F.Outer_Box.Pack_Start (F.Scroll_Down_Btn, Expand => False,
+                              Fill => False, Padding => 0);
 
       --  ── Prompt area ───────────────────────────────────────────────────
 
@@ -906,8 +1003,8 @@ package body Coyote_App.Frontend.GUI is
 
       Gtk.Scrolled_Window.Gtk_New (F.Prompt_Scroll);
       F.Prompt_Scroll.Set_Policy (Policy_Never, Policy_Automatic);
-      F.Prompt_Scroll.Set_Min_Content_Height (24);
-      F.Prompt_Scroll.Set_Max_Content_Height (120);
+      F.Prompt_Scroll.Set_Min_Content_Height (36);
+      F.Prompt_Scroll.Set_Max_Content_Height (96);
 
       Gtk.Text_View.Gtk_New (F.Prompt_View);
       F.Prompt_View.Set_Wrap_Mode (Wrap_Word_Char);
@@ -925,6 +1022,8 @@ package body Coyote_App.Frontend.GUI is
 
       Gtk.Button.Gtk_New (F.Send_Btn, "Send");
       F.Send_Btn.On_Clicked (On_Send_Clicked'Access);
+      F.Send_Btn.Set_Tooltip_Text
+        ("Send prompt (Enter; Shift+Enter for new line)");
       Bottom_Box.Pack_Start (F.Send_Btn, Expand => False, Fill => False,
                              Padding => 2);
 

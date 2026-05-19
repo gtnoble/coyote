@@ -43,6 +43,8 @@ package body Coyote_App.Dispatch is
       Think_Text   : constant String  := State.Current_Thinking;
       Input_Tokens : constant Natural := State.Turn_Input_Tokens;
       Ctx_Window   : constant Natural := State.Context_Window;
+      Tools_Running_N : constant Natural := State.Tools_Running;
+      Tools_Done_N    : constant Natural := State.Tools_Done;
 
       Model_Part   : constant String :=
         (if Model_Text'Length > 0
@@ -63,10 +65,18 @@ package body Coyote_App.Dispatch is
               & " (" & Natural_Image (Input_Tokens * 100 / Ctx_Window)
               & "%)"
          else "");
+      Tool_Part    : constant String :=
+        (if Tools_Running_N > 0
+         then " " & Natural_Image (Tools_Done_N)
+              & "+" & Natural_Image (Tools_Running_N)
+              & " tools"
+         elsif Tools_Done_N > 0
+         then " " & Natural_Image (Tools_Done_N) & " tools done"
+         else "");
    begin
       return UC_BULLET & " " & Extra
              & Model_Part & Think_Part
-             & Context_Part & Session_Part;
+             & Context_Part & Tool_Part & Session_Part;
    end Format_Status;
 
    --  Append a live turn footer and advance the turn counter.
@@ -152,6 +162,7 @@ package body Coyote_App.Dispatch is
          State.Set_Text_Emitted (False);
          State.Set_Has_Text_Delta (False);
          State.Set_Has_Tool_In_Turn (False);
+         State.Reset_Tool_Counts;
          State.Set_Last_Stop_Reason ("");
          State.Set_Last_Error_Message ("");
          Section := No_Section;
@@ -231,6 +242,8 @@ package body Coyote_App.Dispatch is
       elsif Event in LLM.Events.Tool_Execution_Start_Event then
          State.Set_Text_Emitted (True);
          State.Set_Has_Tool_In_Turn (True);
+         State.Increment_Tools_Running;
+         Frontend.Set_Status (Format_Status (State, "running"));
          declare
             Ev      : constant LLM.Events.Tool_Execution_Start_Event :=
               LLM.Events.Tool_Execution_Start_Event (Event);
@@ -238,11 +251,6 @@ package body Coyote_App.Dispatch is
             Tool_Id : constant String := To_String (Ev.Tool_Call_Id);
             Sess    : constant String := State.Session_Id;
          begin
-            if Section /= No_Section then
-               Frontend.Append_Text ("" & ASCII.LF & ASCII.LF);
-            else
-               Frontend.Append_Text ("" & ASCII.LF);
-            end if;
             Frontend.Begin_Tool
               (Name       => Tool,
                Args_Json  => To_String (Ev.Args_Json),
@@ -274,6 +282,8 @@ package body Coyote_App.Dispatch is
          end;
 
       --  ── message_end ───────────────────────────────────────────────────
+            State.Increment_Tools_Done;
+            Frontend.Set_Status (Format_Status (State, "running"));
       elsif Event in LLM.Events.Message_End_Event then
          declare
             Ev           : constant LLM.Events.Message_End_Event :=

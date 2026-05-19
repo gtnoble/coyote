@@ -61,6 +61,8 @@ package Coyote_App.Utils is
      Character'Val (16#E2#) & Character'Val (16#86#) & Character'Val (16#A9#);
    UC_MICRO  : constant String :=  --  µ  U+00B5
      Character'Val (16#C2#) & Character'Val (16#B5#);
+   UC_ARROW_D : constant String :=  --  ↓  U+2193
+     Character'Val (16#E2#) & Character'Val (16#86#) & Character'Val (16#93#);
 
    --  ── String utilities ─────────────────────────────────────────────────
 

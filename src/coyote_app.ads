@@ -45,6 +45,8 @@ package Coyote_App is
       --  True when tool_execution_start fired in the current agent turn.
       --  Reset at agent_start alongside Has_Text_Delta.
       function Has_Tool_In_Turn   return Boolean;
+      function Tools_Running        return Natural;
+      function Tools_Done           return Natural;
       --  stopReason from the last assistant message_end event in the
       --  current agent run.  Reset to "" at agent_start.  Possible values:
       --  "stop" (normal completion), "length" (max tokens),
@@ -96,6 +98,9 @@ package Coyote_App is
       procedure Set_Text_Emitted   (Value : Boolean);
       procedure Set_Has_Text_Delta   (Value : Boolean);
       procedure Set_Has_Tool_In_Turn (Value : Boolean);
+      procedure Increment_Tools_Running;
+      procedure Increment_Tools_Done;
+      procedure Reset_Tool_Counts;
       procedure Set_Last_Stop_Reason  (Value : String);
       procedure Set_Last_Error_Message (Value : String);
       procedure Set_Pending_Stats  (Value : Boolean);
@@ -151,6 +156,8 @@ package Coyote_App is
       P_Text_Emitted  : Boolean := False;
       P_Has_Text_Delta   : Boolean := False;
       P_Has_Tool_In_Turn : Boolean := False;
+      P_Tools_Running : Natural := 0;
+      P_Tools_Done    : Natural := 0;
       P_Last_Stop_Reason  : Ada.Strings.Unbounded.Unbounded_String;
       P_Last_Error_Message : Ada.Strings.Unbounded.Unbounded_String;
       P_Pending_Stats : Boolean := False;
