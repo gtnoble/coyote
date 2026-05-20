@@ -457,7 +457,7 @@ package body Nine_P.Client is
       if Object.Socket /= No_Socket then
          begin
             if Object.Stream /= null then
-               Clunk_Fid (Object'Unchecked_Access, Object.Root_Fid);
+               Clunk_Fid (Object'Access, Object.Root_Fid);
             end if;
          exception
             when Ex : others =>

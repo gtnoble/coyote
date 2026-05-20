@@ -36,6 +36,7 @@ with Gtk.Tree_Model;
 with Gtk.Tree_Selection;
 with Gtk.Tree_View;
 with Gtk.Tree_View_Column;
+with Gtk.Tree_Store;
 with Session_Lister;
 with LLM.Agent;
 with LLM.Providers;
@@ -398,7 +399,6 @@ package body Coyote_App.Frontend.GUI is
                            To_String (Current_Frontend.Stats_Text));
       end if;
    end On_Stats_Activate;
-
    --  ── Open Session dialog ───────────────────────────────────────────────
 
    procedure On_Open_Session_Activate
@@ -406,12 +406,30 @@ package body Coyote_App.Frontend.GUI is
    is
       pragma Unreferenced (Self);
       use Gtk.Dialog;
-      use Gtk.List_Store;
+      use Gtk.Tree_Store;
       use Gtk.Tree_Model;
       use Gtk.Tree_View;
 
+      --  ↳  U+21B3 DOWNWARDS ARROW WITH TIP RIGHTWARDS (subagent)
+      UC_Hook_R : constant String :=
+        Character'Val (16#E2#) & Character'Val (16#86#)
+        & Character'Val (16#B3#);
+
+      --  ⎇  U+2387 ALTERNATIVE KEY SYMBOL (fork)
+      UC_Fork_R : constant String :=
+        Character'Val (16#E2#) & Character'Val (16#8E#)
+        & Character'Val (16#87#);
+
+      --  Column indices (Guint for GType_Array / Set_Tooltip_Column;
+      --  cast to Gint at Store.Set / Add_Text_Column / Get_Value call sites).
+      Col_Kind    : constant Glib.Guint := 0;
+      Col_Name    : constant Glib.Guint := 1;
+      Col_Date    : constant Glib.Guint := 2;
+      Col_Snippet : constant Glib.Guint := 3;
+      Col_UUID    : constant Glib.Guint := 4;
+
       Sessions : Session_Lister.Session_Vectors.Vector;
-      Store    : Gtk_List_Store;
+      Store    : Gtk_Tree_Store;
       View     : Gtk_Tree_View;
       Scroll   : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
       Content  : Gtk.Box.Gtk_Box;
@@ -423,11 +441,11 @@ package body Coyote_App.Frontend.GUI is
       Val      : Glib.Values.GValue;
       Dummy    : Glib.Gint;
       pragma Unreferenced (Dummy);
-      Btn     : Gtk.Widget.Gtk_Widget;
+      Btn      : Gtk.Widget.Gtk_Widget;
       pragma Unreferenced (Btn);
 
       --  ── Column helpers ──────────────────────────────────────────────
-      procedure Add_Text_Column (Title : String; Col_Num : Glib.Gint) is
+      procedure Add_Text_Column (Title : String; Col_Num : Glib.Guint) is
          Col      : Gtk.Tree_View_Column.Gtk_Tree_View_Column;
          Renderer : Gtk.Cell_Renderer_Text.Gtk_Cell_Renderer_Text;
       begin
@@ -435,9 +453,75 @@ package body Coyote_App.Frontend.GUI is
          Gtk.Tree_View_Column.Gtk_New (Col);
          Col.Set_Title (Title);
          Col.Pack_Start (Renderer, Expand => True);
-         Col.Add_Attribute (Renderer, "text", Col_Num);
+         Col.Add_Attribute (Renderer, "text", Glib.Gint (Col_Num));
          Dummy := View.Append_Column (Col);
       end Add_Text_Column;
+
+      --  ── Recursive tree population ────────────────────────────────────
+      --  Mirrors the Render_Session logic in Coyote_App.Utils.Format_Session_List.
+      --  Escape Pango markup special characters so raw text can be used
+      --  as a tooltip string rendered by Set_Tooltip_Column.
+      function Escape_Markup (S : String) return String is
+         use Ada.Strings.Unbounded;
+         Result : Unbounded_String;
+      begin
+         for C of S loop
+            case C is
+               when '&' => Append (Result, "&amp;");
+               when '<' => Append (Result, "&lt;");
+               when '>' => Append (Result, "&gt;");
+               when others => Append (Result, C);
+            end case;
+         end loop;
+         return To_String (Result);
+      end Escape_Markup;
+
+      procedure Render_Session
+        (Info   : Session_Lister.Session_Info;
+         Parent : Gtk_Tree_Iter)
+      is
+         use Ada.Strings.Unbounded;
+         Row        : Gtk_Tree_Iter;
+         Kind_Glyph : constant String :=
+           (if Ada.Strings.Unbounded.Length (Info.Parent_Id) = 0
+            then ""
+            elsif Info.Is_Fork
+            then UC_Fork_R
+            else UC_Hook_R);
+      begin
+         Store.Append (Row, Parent);
+         Store.Set (Row, Glib.Gint (Col_Kind),    Kind_Glyph);
+         Store.Set (Row, Glib.Gint (Col_Name),    To_String (Info.Name));
+         Store.Set (Row, Glib.Gint (Col_Date),    To_String (Info.Date));
+         Store.Set (Row, Glib.Gint (Col_Snippet), Escape_Markup (To_String (Info.Snippet)));
+         Store.Set (Row, Glib.Gint (Col_UUID),    To_String (Info.UUID));
+
+         --  Recurse: attach direct children under this row.
+         for Child of Sessions loop
+            if To_String (Child.Parent_Id) = To_String (Info.UUID) then
+               Render_Session (Child, Row);
+            end if;
+         end loop;
+      end Render_Session;
+
+      --  Return True when the session's parent UUID appears in Sessions.
+      function Parent_In_List
+        (Info : Session_Lister.Session_Info) return Boolean
+      is
+         use Ada.Strings.Unbounded;
+      begin
+         if Length (Info.Parent_Id) = 0 then
+            return False;
+         end if;
+
+         for Other of Sessions loop
+            if To_String (Other.UUID) = To_String (Info.Parent_Id) then
+               return True;
+            end if;
+         end loop;
+
+         return False;
+      end Parent_In_List;
 
    begin
       if Current_Frontend = null then
@@ -447,30 +531,28 @@ package body Coyote_App.Frontend.GUI is
       Sessions := Session_Lister.List_Sessions
         (Ada.Directories.Current_Directory);
 
-      --  Build the list store (col 0 = Name, 1 = Date, 2 = UUID hidden).
-      Gtk.List_Store.Gtk_New
+      --  Build the tree store (Kind, Name, Date, Snippet, UUID).
+      Gtk.Tree_Store.Gtk_New
         (Store,
-         (0 => Glib.GType_String,
-          1 => Glib.GType_String,
-          2 => Glib.GType_String));
+         (Col_Kind    => Glib.GType_String,
+          Col_Name    => Glib.GType_String,
+          Col_Date    => Glib.GType_String,
+          Col_Snippet => Glib.GType_String,
+          Col_UUID    => Glib.GType_String));
 
+      --  Populate: render roots; children are added recursively.
       for S of Sessions loop
-         declare
-            Row : Gtk_Tree_Iter;
-         begin
-            Store.Append (Row);
-            Store.Set (Row, 0,
-                       Ada.Strings.Unbounded.To_String (S.Name));
-            Store.Set (Row, 1,
-                       Ada.Strings.Unbounded.To_String (S.Date));
-            Store.Set (Row, 2,
-                       Ada.Strings.Unbounded.To_String (S.UUID));
-         end;
+         if not Parent_In_List (S) then
+            Render_Session (S, Null_Iter);
+         end if;
       end loop;
 
       Gtk.Tree_View.Gtk_New (View, +Store);
-      Add_Text_Column ("Name", 0);
-      Add_Text_Column ("Date", 1);
+      View.Set_Tooltip_Column (Glib.Gint (Col_Snippet));
+      Add_Text_Column ("",     Col_Kind);
+      Add_Text_Column ("Name", Col_Name);
+      Add_Text_Column ("Date", Col_Date);
+      View.Expand_All;
 
       Gtk.Scrolled_Window.Gtk_New (Scroll);
       Scroll.Set_Policy (Gtk.Enums.Policy_Automatic,
@@ -479,7 +561,7 @@ package body Coyote_App.Frontend.GUI is
 
       Gtk.Dialog.Gtk_New (Dialog);
       Dialog.Set_Title ("Open Session");
-      Dialog.Set_Default_Size (620, 400);
+      Dialog.Set_Default_Size (660, 440);
       Dialog.Set_Transient_For (Current_Frontend.Win);
       Btn := Dialog.Add_Button ("_Cancel", Gtk_Response_Cancel);
       Btn := Dialog.Add_Button ("_Open",   Gtk_Response_OK);
@@ -494,7 +576,7 @@ package body Coyote_App.Frontend.GUI is
          Sel := View.Get_Selection;
          Sel.Get_Selected (Model, Iter);
          if Iter /= Null_Iter then
-            Gtk.Tree_Model.Get_Value (Model, Iter, 2, Val);
+            Gtk.Tree_Model.Get_Value (Model, Iter, Glib.Gint (Col_UUID), Val);
             declare
                UUID : constant String := Glib.Values.Get_String (Val);
             begin
@@ -509,6 +591,9 @@ package body Coyote_App.Frontend.GUI is
       end if;
       Dialog.Destroy;
    end On_Open_Session_Activate;
+   --  ── Open Session dialog ───────────────────────────────────────────────
+
+
 
    --  ── Change Model dialog ───────────────────────────────────────────────
 

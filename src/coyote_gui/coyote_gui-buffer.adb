@@ -587,9 +587,10 @@ package body Coyote_GUI.Buffer is
       --  widget anchor.  The Stream_Mark must not span the child anchor,
       --  otherwise a later End_Text_Block will delete the tool frame.
       End_Text_Block (B);
+      Insert_Plain (B, "" & ASCII.LF);
       --  Build summary prefix: header line + per-field arg lines.
       Append (Summary_Prefix_S,
-              UC_BOX_TL & " " & UC_GEAR & " " & Name);
+              "<b>" & Xml_Escape (UC_GEAR & " " & Name) & "</b>");
       if Args_Val.Kind = GNATCOLL.JSON.JSON_Object_Type then
          declare
             procedure Add_Summary_Field
@@ -598,11 +599,13 @@ package body Coyote_GUI.Buffer is
             is
             begin
                Append (Summary_Prefix_S,
-                       ASCII.LF
-                       & Format_Tool_Field
-                           (Field_Name,
-                            JSON_Scalar_Image (Field_Value),
-                            Max_Len => 80));
+                       ASCII.LF & "  <tt>"
+                       & Xml_Escape
+                           (Format_Tool_Field
+                              (Field_Name,
+                               JSON_Scalar_Image (Field_Value),
+                               Max_Len => 80))
+                       & "</tt>");
             end Add_Summary_Field;
          begin
             Args_Val.Map_JSON_Object (Add_Summary_Field'Access);
@@ -610,36 +613,10 @@ package body Coyote_GUI.Buffer is
       end if;
       --  Full pending summary = prefix + ellipsis footer.
       Summary_Full_S := Summary_Prefix_S;
-      Append (Summary_Full_S, ASCII.LF & UC_BOX_BL & " " & UC_ELLIP);
-      --  Derive a short frame title: tool name + first meaningful arg.
-      declare
-         Best_Val : Unbounded_String;
-         Found    : Boolean := False;
-         procedure Pick
-           (FN : GNATCOLL.JSON.UTF8_String;
-            FV : GNATCOLL.JSON.JSON_Value)
-         is
-            Raw   : constant String  := JSON_Scalar_Image (FV);
-            Clip  : constant Natural := Natural'Min (Raw'Length, 60);
-            Short : constant String  :=
-              Raw (Raw'First .. Raw'First + Clip - 1)
-              & (if Clip < Raw'Length then "..." else "");
-         begin
-            if not Found or else FN = "command" then
-               Best_Val := To_Unbounded_String (Short);
-               Found    := True;
-            end if;
-         end Pick;
-      begin
-         if Args_Val.Kind = GNATCOLL.JSON.JSON_Object_Type then
-            Args_Val.Map_JSON_Object (Pick'Access);
-         end if;
-         Frame_Label :=
-           To_Unbounded_String (UC_GEAR & " " & Name)
-           & (if Found
-              then To_Unbounded_String (": " & To_String (Best_Val))
-              else Null_Unbounded_String);
-      end;
+      Append (Summary_Full_S,
+              ASCII.LF & "  <span foreground=""#888888"">"
+              & Xml_Escape (UC_ELLIP) & " running...</span>");
+      Frame_Label := To_Unbounded_String (UC_GEAR & " " & Name);
 
       --  ── Build GTK widget tree ──────────────────────────────────────────
       B.The_Buf.Get_End_Iter (Iter);
@@ -650,15 +627,14 @@ package body Coyote_GUI.Buffer is
       Gtk.Box.Gtk_New_Vbox
         (Outer_Vbox, Homogeneous => False, Spacing => 2);
 
-      --  Summary label: always visible, monospace, acme-style box drawing.
+      --  Summary label: always visible, Pango markup.
       Gtk.Label.Gtk_New (Summary_Lab);
       Summary_Lab.Set_Markup
-        ("<tt><small>"
-         & Xml_Escape (To_String (Summary_Full_S))
-         & "</small></tt>");
+        ("<small>" & To_String (Summary_Full_S) & "</small>");
       Summary_Lab.Set_Xalign (0.0);
       Summary_Lab.Set_Line_Wrap (True);
       Summary_Lab.Set_Max_Width_Chars (100);
+      Summary_Lab.Set_Selectable (True);
 
       --  Expander for the coyote-open-style detail view.
       --  GtkExpander manages its own toggle; no custom callbacks needed.
@@ -688,6 +664,7 @@ package body Coyote_GUI.Buffer is
                Section_Lab.Set_Xalign (0.0);
                Section_Lab.Set_Line_Wrap (True);
                Section_Lab.Set_Max_Width_Chars (80);
+               Section_Lab.Set_Selectable (True);
                Detail_Vbox.Pack_Start
                  (Section_Lab,
                   Expand  => False,
@@ -712,6 +689,7 @@ package body Coyote_GUI.Buffer is
             Raw_Lab.Set_Xalign (0.0);
             Raw_Lab.Set_Line_Wrap (True);
             Raw_Lab.Set_Max_Width_Chars (80);
+            Raw_Lab.Set_Selectable (True);
             Detail_Vbox.Pack_Start
               (Raw_Lab,
                Expand  => False,
@@ -789,7 +767,11 @@ package body Coyote_GUI.Buffer is
          --  Rebuild the summary label with the resolved footer line.
          case Status is
             when Success =>
-               Append (New_Footer, UC_BOX_BL & " " & UC_CHECK);
+               Append (New_Footer,
+                       ASCII.LF
+                       & "  <span foreground=""#4a7c59""><b>"
+                       & Xml_Escape (UC_CHECK & " done")
+                       & "</b></span>");
             when Error =>
                declare
                   Clip_End : constant Natural :=
@@ -799,20 +781,24 @@ package body Coyote_GUI.Buffer is
                begin
                   Append
                     (New_Footer,
-                     UC_BOX_BL & " " & UC_CROSS & " "
-                     & Result (Result'First .. Clip_End));
+                     ASCII.LF
+                     & "  <span foreground=""#cc3333""><b>"
+                     & Xml_Escape
+                         (UC_CROSS & " "
+                          & Result (Result'First .. Clip_End))
+                     & "</b></span>");
                end;
             when Cancelled =>
                Append
-                 (New_Footer, UC_BOX_BL & " " & UC_CROSS & " cancelled");
+                 (New_Footer,
+                  ASCII.LF
+                  & "  <span foreground=""#888888"">- cancelled</span>");
          end case;
          Info.Summary_Label.Set_Markup
-           ("<tt><small>"
-            & Xml_Escape
-                (To_String (Info.Summary_Prefix)
-                 & ASCII.LF & To_String (New_Footer))
-            & "</small></tt>");
-
+           ("<small>"
+            & To_String (Info.Summary_Prefix)
+            & To_String (New_Footer)
+            & "</small>");
          --  Append separator + result section to Detail_Box.
          Gtk.Separator.Gtk_New_Hseparator (Sep);
          Info.Detail_Box.Pack_Start
@@ -832,6 +818,7 @@ package body Coyote_GUI.Buffer is
          Result_Lab.Set_Xalign (0.0);
          Result_Lab.Set_Line_Wrap (True);
          Result_Lab.Set_Max_Width_Chars (80);
+         Result_Lab.Set_Selectable (True);
          Info.Detail_Box.Pack_Start
            (Result_Lab,
             Expand  => False,
@@ -899,7 +886,6 @@ package body Coyote_GUI.Buffer is
          end;
       end loop;
    end Expand_All_Tools;
-
 
    procedure Set_Render_Markdown (B : in out Instance; Enabled : Boolean) is
    begin
