@@ -153,6 +153,7 @@ private
       Prompt_Buf  : Gtk.Text_Buffer.Gtk_Text_Buffer;
       Prompt_Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
       Send_Btn    : Gtk.Button.Gtk_Button;
+      Stop_Btn    : Gtk.Button.Gtk_Button;
       Scroll_Down_Btn : Gtk.Button.Gtk_Button;
       Status_Bar  : Gtk.Label.Gtk_Label;
       Outer_Box   : Gtk.Box.Gtk_Box;
@@ -167,6 +168,7 @@ private
       --  True while we are programmatically adjusting the vadjustment so
       --  the value-changed handler does not misinterpret it as a user scroll.
       Programmatic_Scroll : Boolean := False;
+      Zoom_Level          : Integer := 0;
    end record;
 
 end Coyote_App.Frontend.GUI;

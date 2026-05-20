@@ -583,6 +583,10 @@ package body Coyote_GUI.Buffer is
       Summary_Full_S   : Unbounded_String;
       Frame_Label      : Unbounded_String;
    begin
+      --  Guard: ignore duplicate tool IDs (e.g. from history replay).
+      if B.Tools.Contains (Tool_Id) then
+         return;
+      end if;
       --  Close any open streaming text block before inserting the tool
       --  widget anchor.  The Stream_Mark must not span the child anchor,
       --  otherwise a later End_Text_Block will delete the tool frame.

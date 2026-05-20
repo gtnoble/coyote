@@ -222,6 +222,7 @@ package body Coyote_App.Frontend.GUI is
                     when Coyote_GUI.Paused  => Base & " -- paused");
             begin
                F.Win.Set_Title (Title);
+               F.Stop_Btn.Set_Sensitive (U.Mode /= Coyote_GUI.Idle);
             end;
 
          when Show_Detail =>
@@ -362,6 +363,19 @@ package body Coyote_App.Frontend.GUI is
          Current_Frontend.PQ.Enqueue ((Kind => Stop));
       end if;
    end On_Stop_Activate;
+
+   procedure On_Stop_Btn_Clicked
+     (Self : access Gtk.Button.Gtk_Button_Record'Class)
+   is
+      pragma Unreferenced (Self);
+   begin
+      if Current_Frontend /= null then
+         if Current_Frontend.Agent_Sess /= null then
+            LLM.Agent.Request_Abort (Current_Frontend.Agent_Sess.all);
+         end if;
+         Current_Frontend.PQ.Enqueue ((Kind => Stop));
+      end if;
+   end On_Stop_Btn_Clicked;
 
    procedure On_Pause_Activate
      (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class) is
@@ -885,6 +899,96 @@ package body Coyote_App.Frontend.GUI is
       end if;
    end On_Expand_All_Activate;
 
+   --  Base font size in Pango points (used by Apply_Zoom).
+   Zoom_Base_Pt : constant := 11;
+   --  Point-size increment per zoom step.
+   Zoom_Step_Pt : constant := 1;
+
+   --  Apply_Zoom — recompute the font size from Zoom_Level and push it to
+   --  both the conversation and prompt text views.
+   procedure Apply_Zoom (F : in out Instance) is
+      use Pango.Font;
+      use type Gtk.Text_View.Gtk_Text_View;
+      Size_Pt  : constant Integer :=
+        Zoom_Base_Pt + F.Zoom_Level * Zoom_Step_Pt;
+      Clamped  : constant Integer :=
+        (if Size_Pt < 6 then 6 elsif Size_Pt > 32 then 32 else Size_Pt);
+      Font_Str : constant String  :=
+        "sans " & Integer'Image (Clamped) (2 .. Integer'Image (Clamped)'Last);
+      FD       : Pango_Font_Description := From_String (Font_Str);
+   begin
+      if F.Conv_View /= null then
+         F.Conv_View.Override_Font (FD);
+      end if;
+      if F.Prompt_View /= null then
+         F.Prompt_View.Override_Font (FD);
+      end if;
+      Free (FD);
+   end Apply_Zoom;
+
+   procedure On_Zoom_In_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
+   is
+      pragma Unreferenced (Self);
+   begin
+      if Current_Frontend /= null then
+         Current_Frontend.Zoom_Level := Current_Frontend.Zoom_Level + 1;
+         Apply_Zoom (Current_Frontend.all);
+      end if;
+   end On_Zoom_In_Activate;
+
+   procedure On_Zoom_Out_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
+   is
+      pragma Unreferenced (Self);
+   begin
+      if Current_Frontend /= null then
+         Current_Frontend.Zoom_Level := Current_Frontend.Zoom_Level - 1;
+         Apply_Zoom (Current_Frontend.all);
+      end if;
+   end On_Zoom_Out_Activate;
+
+   procedure On_Zoom_Reset_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
+   is
+      pragma Unreferenced (Self);
+   begin
+      if Current_Frontend /= null then
+         Current_Frontend.Zoom_Level := 0;
+         Apply_Zoom (Current_Frontend.all);
+      end if;
+   end On_Zoom_Reset_Activate;
+
+   function On_Window_Key_Press
+     (Self  : access Gtk.Widget.Gtk_Widget_Record'Class;
+      Event : Gdk.Event.Gdk_Event_Key) return Boolean
+   is
+      pragma Unreferenced (Self);
+      use type Gdk.Types.Gdk_Key_Type;
+      use type Gdk.Types.Gdk_Modifier_Type;
+   begin
+      if (Event.State and Gdk.Types.Control_Mask) /= 0
+        and then Current_Frontend /= null
+      then
+         if Event.Keyval = Gdk.Types.Keysyms.GDK_plus
+           or else Event.Keyval = Gdk.Types.Keysyms.GDK_equal
+         then
+            Current_Frontend.Zoom_Level := Current_Frontend.Zoom_Level + 1;
+            Apply_Zoom (Current_Frontend.all);
+            return True;
+         elsif Event.Keyval = Gdk.Types.Keysyms.GDK_minus then
+            Current_Frontend.Zoom_Level := Current_Frontend.Zoom_Level - 1;
+            Apply_Zoom (Current_Frontend.all);
+            return True;
+         elsif Event.Keyval = Gdk.Types.Keysyms.GDK_0 then
+            Current_Frontend.Zoom_Level := 0;
+            Apply_Zoom (Current_Frontend.all);
+            return True;
+         end if;
+      end if;
+      return False;
+   end On_Window_Key_Press;
+
 
    --  ── Menu construction helper ──────────────────────────────────────────
 
@@ -949,6 +1053,7 @@ package body Coyote_App.Frontend.GUI is
       F.Win.Set_Title (Win_Name);
       F.Win.Set_Default_Size (900, 700);
       F.Win.On_Delete_Event (On_Window_Delete'Access);
+      F.Win.On_Key_Press_Event (On_Window_Key_Press'Access);
 
       --  Outer vertical box
       Gtk.Box.Gtk_New_Vbox (F.Outer_Box, Homogeneous => False, Spacing => 0);
@@ -1043,6 +1148,13 @@ package body Coyote_App.Frontend.GUI is
          Item.On_Activate (On_Collapse_All_Activate'Access);
          Item := Make_Item ("_Expand All Tool Calls",   View_Menu);
          Item.On_Activate (On_Expand_All_Activate'Access);
+         Add_Sep (View_Menu);
+         Item := Make_Item ("Zoom _In",    View_Menu);
+         Item.On_Activate (On_Zoom_In_Activate'Access);
+         Item := Make_Item ("Zoom _Out",   View_Menu);
+         Item.On_Activate (On_Zoom_Out_Activate'Access);
+         Item := Make_Item ("_Reset Zoom", View_Menu);
+         Item.On_Activate (On_Zoom_Reset_Activate'Access);
       end;
 
       --  ── Conversation view ─────────────────────────────────────────────
@@ -1096,6 +1208,7 @@ package body Coyote_App.Frontend.GUI is
       F.Prompt_View.Set_Left_Margin (4);
       F.Prompt_View.Set_Right_Margin (4);
       F.Prompt_View.On_Key_Press_Event (On_Prompt_Key_Press'Access);
+      Apply_Zoom (F);
 
       F.Prompt_Buf := F.Prompt_View.Get_Buffer;
 
@@ -1105,11 +1218,22 @@ package body Coyote_App.Frontend.GUI is
       Bottom_Box.Pack_Start (F.Prompt_Scroll, Expand => True, Fill => True,
                              Padding => 2);
 
-      Gtk.Button.Gtk_New (F.Send_Btn, "Send");
+      Gtk.Button.Gtk_New_From_Icon_Name
+         (F.Send_Btn, "mail-send", Gtk.Enums.Icon_Size_Button);
+      F.Send_Btn.Set_Always_Show_Image (True);
       F.Send_Btn.On_Clicked (On_Send_Clicked'Access);
       F.Send_Btn.Set_Tooltip_Text
         ("Send prompt (Enter; Shift+Enter for new line)");
       Bottom_Box.Pack_Start (F.Send_Btn, Expand => False, Fill => False,
+                             Padding => 2);
+
+      Gtk.Button.Gtk_New_From_Icon_Name
+         (F.Stop_Btn, "process-stop", Gtk.Enums.Icon_Size_Button);
+      F.Stop_Btn.Set_Always_Show_Image (True);
+      F.Stop_Btn.On_Clicked (On_Stop_Btn_Clicked'Access);
+      F.Stop_Btn.Set_Tooltip_Text ("Stop agent (Agent > Stop)");
+      F.Stop_Btn.Set_Sensitive (False);
+      Bottom_Box.Pack_Start (F.Stop_Btn, Expand => False, Fill => False,
                              Padding => 2);
 
       Prompt_Box.Pack_Start (Bottom_Box, Expand => True, Fill => True,
