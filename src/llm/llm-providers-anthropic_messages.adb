@@ -385,7 +385,8 @@ package body LLM.Providers.Anthropic_Messages is
 
    procedure Append_Message
       (Messages : in out GNATCOLL.JSON.JSON_Array;
-     Msg      :        LLM.Types.Message)
+     Msg               :        LLM.Types.Message;
+     Include_Thinking  :        Boolean := True)
    is
       Message : constant GNATCOLL.JSON.JSON_Value :=
         GNATCOLL.JSON.Create_Object;
@@ -415,7 +416,9 @@ package body LLM.Providers.Anthropic_Messages is
                         Append_Text_Content (Content, To_String (Block.Text));
                      end if;
                   when LLM.Types.Thinking_Block =>
-                     Append_Thinking_Content (Content, Block);
+                     if Include_Thinking then
+                        Append_Thinking_Content (Content, Block);
+                     end if;
                   when LLM.Types.Tool_Call_Block =>
                      Append_Tool_Use_Content (Content, Block);
                   when others =>
@@ -483,7 +486,8 @@ package body LLM.Providers.Anthropic_Messages is
       end if;
 
       for Msg of Messages loop
-         Append_Message (Request_Msgs, Msg);
+         Append_Message (Request_Msgs, Msg,
+            Include_Thinking => Budget > 0);
       end loop;
 
       --  Add a cache breakpoint on the last user-role message's
