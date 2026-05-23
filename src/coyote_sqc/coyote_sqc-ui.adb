@@ -591,10 +591,10 @@ package body Coyote_SQC.UI is
 
       --  File menu.
       Gtk.Menu.Gtk_New (File_M);
-      Add_Item (File_M, "_New Workspace...",   On_New'Access);
-      Add_Item (File_M, "_Open Workspace...",  On_Open'Access);
+      Add_Item (File_M, "New Workspace...",   On_New'Access);
+      Add_Item (File_M, "Open Workspace...",  On_Open'Access);
       --  Recent Workspaces submenu.
-      Gtk.Menu_Item.Gtk_New (Recent_MI, "Recent _Workspaces");
+      Gtk.Menu_Item.Gtk_New (Recent_MI, "Recent Workspaces");
       declare
          Recent_Sub : Gtk.Menu.Gtk_Menu;
       begin
@@ -608,7 +608,7 @@ package body Coyote_SQC.UI is
       end;
       Add_Sep (File_M);
       --  Save (Ctrl+S).
-      Gtk.Menu_Item.Gtk_New (Save_Item, "_Save Workspace");
+      Gtk.Menu_Item.Gtk_New (Save_Item, "Save Workspace");
       Save_Item.On_Activate (On_Save'Access);
       Save_Item.Add_Accelerator
         ("activate", AG,
@@ -616,10 +616,10 @@ package body Coyote_SQC.UI is
          Gdk.Types.Control_Mask,
          Gtk.Accel_Group.Accel_Visible);
       File_M.Append (Save_Item);
-      Add_Item (File_M, "Save Workspace _As...", On_Save_As'Access);
+      Add_Item (File_M, "Save Workspace As...", On_Save_As'Access);
       Add_Sep (File_M);
       --  Quit (Ctrl+Q).
-      Gtk.Menu_Item.Gtk_New (Quit_Item, "_Quit");
+      Gtk.Menu_Item.Gtk_New (Quit_Item, "Quit");
       Quit_Item.On_Activate (On_Quit'Access);
       Quit_Item.Add_Accelerator
         ("activate", AG,
@@ -627,28 +627,28 @@ package body Coyote_SQC.UI is
          Gdk.Types.Control_Mask,
          Gtk.Accel_Group.Accel_Visible);
       File_M.Append (Quit_Item);
-      Gtk.Menu_Item.Gtk_New (Item, "_File");
+      Gtk.Menu_Item.Gtk_New (Item, "File");
       Item.Set_Submenu (File_M);
       MB.Append (Item);
 
       --  Workspace menu.
       Gtk.Menu.Gtk_New (WS_M);
-      Add_Item (WS_M, "Workspace _Settings...", On_Workspace_Settings'Access);
-      Add_Item (WS_M, "_Reload Sessions",      On_Reload'Access);
-      Gtk.Menu_Item.Gtk_New (Item, "_Workspace");
+      Add_Item (WS_M, "Workspace Settings...", On_Workspace_Settings'Access);
+      Add_Item (WS_M, "Reload Sessions",      On_Reload'Access);
+      Gtk.Menu_Item.Gtk_New (Item, "Workspace");
       Item.Set_Submenu (WS_M);
       MB.Append (Item);
 
       --  View menu.
       Gtk.Menu.Gtk_New (View_M);
-      Add_Item (View_M, "Show _All",         On_Show_All'Access);
-      Add_Item (View_M, "_Y-Fit",            On_Y_Fit'Access);
+      Add_Item (View_M, "Show All",         On_Show_All'Access);
+      Add_Item (View_M, "Y-Fit",            On_Y_Fit'Access);
       Add_Sep (View_M);
-      Add_Item (View_M, "Clear _Selection",  On_Clear_Selection'Access);
+      Add_Item (View_M, "Clear Selection",  On_Clear_Selection'Access);
       declare
          CSI : Gtk.Menu_Item.Gtk_Menu_Item;
       begin
-         Gtk.Menu_Item.Gtk_New (CSI, "Clear Setup _Interval");
+         Gtk.Menu_Item.Gtk_New (CSI, "Clear Setup Interval");
          CSI.On_Activate (On_Clear_Setup'Access);
          View_M.Append (CSI);
          Coyote_SQC.App.State.Clear_Setup_Item := CSI;
@@ -660,12 +660,12 @@ package body Coyote_SQC.UI is
       declare
          RSI : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
       begin
-         Gtk.Check_Menu_Item.Gtk_New (RSI, "X-_Axis: Run Sequence");
+         Gtk.Check_Menu_Item.Gtk_New (RSI, "X-Axis: Run Sequence");
          RSI.On_Toggled (On_Run_Sequence_Activated'Access);
          View_M.Append (RSI);
          Coyote_SQC.App.State.Run_Sequence_Item := RSI;
       end;
-      Gtk.Menu_Item.Gtk_New (Item, "_View");
+      Gtk.Menu_Item.Gtk_New (Item, "View");
       Item.Set_Submenu (View_M);
       MB.Append (Item);
 

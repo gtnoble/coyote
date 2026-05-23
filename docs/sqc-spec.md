@@ -1440,6 +1440,7 @@ The `On_Draw` callback executes these steps in order:
 | Condition | Fill | Stroke | Hollow? |
 |---|---|---|---|
 | In-control, no comment | `(0, 0, 0)` | `(0, 0, 0)` | No |
+| In-control, comment present | `(0.1, 0.7, 0.2)` | `(0.05, 0.5, 0.1)` | No |
 | Out-of-control, no comment | `(0.9, 0.1, 0.1)` | `(0.9, 0.1, 0.1)` | No |
 | In setup interval | `(1.0, 0.85, 0.0)` | `(0.7, 0.6, 0.0)` | No |
 | Out-of-control, comment present | `(0.95, 0.5, 0.0)` | `(0.7, 0.35, 0.0)` | No |
@@ -1448,7 +1449,8 @@ The `On_Draw` callback executes these steps in order:
 | Selected halo | — | `(0.1, 0.3, 0.9)` 2px ring | Additive |
 
 Yellow (setup interval) takes precedence over all fill colors when a session is in
-the setup interval.
+the setup interval. Green (in-control with comment) takes precedence over black but
+not over yellow.
 
 ---
 

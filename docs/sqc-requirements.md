@@ -475,6 +475,7 @@ The following elements are rendered in this z-order (bottom to top):
 | Condition | Marker |
 |---|---|
 | In-control, no comment | Filled black circle |
+| In-control, comment present | Filled green circle |
 | Out-of-control, no comment | Filled red circle |
 | In setup interval (any control status) | Filled yellow circle |
 | Out-of-control, comment present | Filled orange circle |
@@ -776,9 +777,13 @@ chronologically. There is no cap on the number of comments per session.
 
 ### 12.3 Effect on Point Color
 
-A point that is out-of-control and has at least one comment is rendered orange rather
-than red. This allows annotated anomalies to be visually distinguished from
-uninvestigated anomalies.
+A point that has at least one comment is colored to distinguish annotated sessions:
+
+- **In-control, comment present:** rendered green rather than black.
+- **Out-of-control, comment present:** rendered orange rather than red.
+
+This allows annotated sessions to be visually distinguished from unannotated ones,
+and annotated anomalies from uninvestigated anomalies.
 
 ### 12.4 Comment Visibility in Hover Tooltip
 

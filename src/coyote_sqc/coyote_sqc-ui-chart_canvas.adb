@@ -543,6 +543,10 @@ package body Coyote_SQC.UI.Chart_Canvas is
                         --  Red; same stroke.
                         Draw_Filled (0.9, 0.1, 0.1,
                                      0.9, 0.1, 0.1);
+                     elsif In_Ctrl and then P.Has_Comment then
+                        --  Green; darker green stroke.
+                        Draw_Filled (0.1, 0.7, 0.2,
+                                     0.05, 0.5, 0.1);
                      else
                         --  In-control black; same stroke.
                         Draw_Filled (0.0, 0.0, 0.0,

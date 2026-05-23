@@ -420,11 +420,19 @@ package body Coyote_SQC.Session_Parser is
 
       Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Path);
       while not Ada.Text_IO.End_Of_File (File) loop
-         Ada.Text_IO.Get_Line (File, Line, Last);
+         declare
+            Full_Line : Unbounded_String;
          begin
-            Process_Line (Line (1 .. Last));
-         exception
-            when others => null;
+            loop
+               Ada.Text_IO.Get_Line (File, Line, Last);
+               Append (Full_Line, Line (1 .. Last));
+               exit when Last < Line'Last;
+            end loop;
+            begin
+               Process_Line (To_String (Full_Line));
+            exception
+               when others => null;
+            end;
          end;
       end loop;
       Ada.Text_IO.Close (File);
