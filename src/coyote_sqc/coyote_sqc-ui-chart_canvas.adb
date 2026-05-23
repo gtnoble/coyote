@@ -306,12 +306,6 @@ package body Coyote_SQC.UI.Chart_Canvas is
          and then Time_To_LF (P.Session_Time) >= Date_From_LF
          and then Time_To_LF (P.Session_Time) <= Date_To_LF);
 
-      --  Vis_Line: point should be included in the connecting polyline.
-      --  Hollow_Gray and Excluded points both create gaps.
-      function Vis_Line (P : Coyote_SQC.App.Chart_Point) return Boolean is
-        (not P.Excluded and then not P.Hollow_Gray
-         and then Time_To_LF (P.Session_Time) >= Date_From_LF
-         and then Time_To_LF (P.Session_Time) <= Date_To_LF);
 
       function SX (P : Coyote_SQC.App.Chart_Point) return Gdouble is
         (Gdouble (Data_To_Screen_X (Point_X (P))));
@@ -381,16 +375,26 @@ package body Coyote_SQC.UI.Chart_Canvas is
          Need_Move : Boolean := True;  --  True = use Move_To for next point
       begin
          for P of CD.Points loop
-            if Vis_Line (P) then
-               if Need_Move then
-                  Cairo.Move_To (Cr, SX (P), SY (P));
-                  Need_Move := False;
-               else
-                  Cairo.Line_To (Cr, SX (P), SY (P));
+            declare
+               In_Rng : constant Boolean :=
+                 Time_To_LF (P.Session_Time) >= Date_From_LF
+                 and then Time_To_LF (P.Session_Time) <= Date_To_LF;
+            begin
+               if In_Rng
+                 and then not P.Excluded
+                 and then not P.Hollow_Gray
+               then
+                  if Need_Move then
+                     Cairo.Move_To (Cr, SX (P), SY (P));
+                     Need_Move := False;
+                  else
+                     Cairo.Line_To (Cr, SX (P), SY (P));
+                  end if;
+               elsif not In_Rng then
+                  Need_Move := True;  --  out of date range: break line
                end if;
-            else
-               Need_Move := True;  --  gap: next visible point needs Move_To
-            end if;
+               --  Excluded or hollow-gray but in range: skip without gap.
+            end;
          end loop;
       end;
       Cairo.Stroke (Cr);
@@ -413,7 +417,7 @@ package body Coyote_SQC.UI.Chart_Canvas is
          declare Need_Move : Boolean := True; begin
             for P of CD.Points loop
                if Vis (P) and then not P.Excluded
-                 and then P.UCL < Long_Float'Last / 2.0
+                 and then P.Has_UCL
                then
                   if Need_Move then
                      Cairo.Move_To (Cr, SX (P),
@@ -429,11 +433,11 @@ package body Coyote_SQC.UI.Chart_Canvas is
             end loop;
          end;
          Cairo.Stroke (Cr);
-         --  LCL (only where positive)
+         --  LCL (only when Has_LCL is True)
          declare Need_Move : Boolean := True; begin
             for P of CD.Points loop
                if Vis (P) and then not P.Excluded
-                 and then P.LCL > 0.0
+                 and then P.Has_LCL
                then
                   if Need_Move then
                      Cairo.Move_To (Cr, SX (P),
@@ -522,10 +526,11 @@ package body Coyote_SQC.UI.Chart_Canvas is
                   declare
                      In_Ctrl : Boolean := True;
                   begin
-                     if not P.Excluded then
+                     if not P.Excluded and then P.Has_UCL then
                         In_Ctrl :=
                           P.Stat_Value <= P.UCL
-                          and then P.Stat_Value >= P.LCL;
+                          and then (not P.Has_LCL
+                             or else P.Stat_Value >= P.LCL);
                      end if;
 
                      if P.In_Setup then

@@ -164,6 +164,66 @@ into a new package `Coyote_Renderer.Markup` (see §10). The existing
 `Coyote_GUI.Buffer` package is updated to call `Coyote_Renderer.Markup.To_Pango_Markup`
 rather than providing its own copy. No change in external behaviour.
 
+### 2.6 Persist Model Information in Session JSONL
+
+**Files affected:** `src/llm/llm-session_store.ads`, `src/llm/llm-session_store.adb`,
+`src/llm/llm-agent.adb`.
+
+Currently `coyote` writes `"model": ""` and `"provider": ""` as empty strings in
+every assistant message and never writes a `model_change` record to the session JSONL.
+As a result `Coyote_SQC.Session_Parser` finds no `model_change` record and leaves
+`Session_Record.Model` empty for all sessions created by the current `coyote` build.
+
+**`src/llm/llm-session_store.ads`** — add a new procedure:
+
+```ada
+--  Append a model-change record to the session JSONL.
+--  Writes: {"type":"model_change","provider":Provider,"modelId":Model_Id}
+--  Should be called once per Run_Prompt invocation, before the first
+--  assistant message, whenever the active model is known.
+procedure Append_Model_Change
+  (Session_Id : String;
+   Provider   : String;
+   Model_Id   : String);
+```
+
+**`src/llm/llm-session_store.adb`** — implement `Append_Model_Change`:
+
+```ada
+procedure Append_Model_Change
+  (Session_Id : String;
+   Provider   : String;
+   Model_Id   : String)
+is
+   Obj : GNATCOLL.JSON.JSON_Value := GNATCOLL.JSON.Create_Object;
+begin
+   Obj.Set_Field ("type",    "model_change");
+   Obj.Set_Field ("provider", Provider);
+   Obj.Set_Field ("modelId",  Model_Id);
+   Write_Raw_Line
+     (Path => Session_File_Path (Session_Id),
+      Line => GNATCOLL.JSON.Write (Obj),
+      Mode => Ada.Streams.Stream_IO.Append_File);
+end Append_Model_Change;
+```
+
+**`src/llm/llm-agent.adb`** — in `Run_Prompt`, at the point where
+`Model_Select_Event` is emitted (immediately after `Append_Message` for the
+prompt message), add:
+
+```ada
+LLM.Session_Store.Append_Model_Change
+  (Session_Id => To_String (S.Session_UUID),
+   Provider   => To_String (S.Model_Info.Provider),
+   Model_Id   => To_String (S.Model_Info.Model_Id));
+```
+
+This writes the `model_change` record once per prompt, before any assistant
+message, matching the format that `Coyote_SQC.Session_Parser` already reads in
+both the v1 and v3 code paths.  Sessions recorded before this fix will continue
+to show an empty model string in `coyote_sqc`; no migration of existing files
+is required.
+
 ---
 
 ## 3. Build System
@@ -580,8 +640,9 @@ CL  = Grand_Mean
 LCL = Grand_Mean - 3 * Pooled_S / (C4(N) * sqrt(N))
 ```
 
-Single-turn sessions (`N = 1`) are plotted with `CL = session_mean`, `UCL = +∞`,
-`LCL = -∞` (i.e., no limits drawn). `C4` is never called for `N = 1`.
+Single-turn sessions (`N = 1`) are plotted with `CL = session_mean` and no
+control limits (`Has_UCL = False`, `Has_LCL = False`). `C4` is never called
+for `N = 1`.
 
 ### 7.3 s Chart — `Coyote_SQC.Statistics.S_Chart`
 
@@ -652,7 +713,7 @@ Retrospective limit series are drawn in gray (RGB `0.5, 0.5, 0.5`) rather than r
 ### 7.7 Out-of-Control Detection
 
 A point is out-of-control if its statistic is strictly greater than `UCL` or strictly
-less than `LCL` (excluding clamped `LCL = 0` cases where `LCL` was computed
+less than `LCL` (only when `Has_LCL = True`). Only the 3-sigma rule is
 negative). Only the 3-sigma rule is applied; no runs rules.
 
 ---
@@ -820,6 +881,11 @@ raw arguments JSON string, result text, image flag (`Is_Image`), resolved status
 1-based turn index within the session, 1-based call position within the turn,
 and the full `Session_Record`.  No re-parsing of the session file occurs when a
 button is clicked.
+The label of each `GtkButton` shall be prefixed with a status-dependent icon
+using the same substitution rule as the detail window title: `✓` for `Success`,
+`✗` for `Error`, and `-` for `Cancelled`.  A tool call for which no matching
+tool result record is found in the session file (e.g. the session was truncated
+before the tool completed) shall be assigned `Cancelled` status.
 
 `Tool_End_Status` is declared in this package so that both
 `Coyote_SQC.UI.Tool_Detail_Window` and `Coyote_GUI.Buffer` can reference it
@@ -1335,8 +1401,9 @@ The `On_Draw` callback executes these steps in order:
    sessions (x-coordinates are run indices). In both modes the band is clipped to
    the current `X_Min`/`X_Max` viewport.
 3. **Connecting line:** thin black polyline through all visible in-range points in
-   chronological order. Skip gaps for excluded points (n=1 on s chart,
-   zero-thinking on thinking chart).
+   chronological order. Excluded points (n=1 on s chart, zero-thinking on
+   thinking chart) are skipped silently — the line connects across them without
+   a gap.
 4. **Control limit series:** red dashed polyline for UCL; second for LCL (omit where
    LCL is clamped to 0). Under retrospective limits, use gray instead of red and
    draw the "retrospective limits" label.
@@ -1481,6 +1548,15 @@ existing AUnit test suite. Fixture files live in `test/fixtures/sqc/`.
 - **Image result path:** call `Show` with `Is_Image => True` and a small
   base64-encoded PNG; verify the result section contains a `GtkImage` widget
   rather than a `GtkTextView`.
+
+- **Replay button icon — all statuses:** render a fixture session whose tool
+  calls include at least one `Success`, one `Error`, and one with no matching
+  result record (`Cancelled`); verify that the `GtkButton` labels for those
+  tool calls begin with `✓`, `✗`, and `-` respectively.
+- **Cancelled status for missing result:** render a fixture session containing
+  a tool call whose `id` has no corresponding `toolResult` record in the file;
+  verify that the closure captured for that button has `Status = Cancelled`
+  and that the button label prefix is `-`.
 
 
 ---
