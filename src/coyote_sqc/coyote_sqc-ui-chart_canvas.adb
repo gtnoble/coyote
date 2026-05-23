@@ -367,6 +367,9 @@ package body Coyote_SQC.UI.Chart_Canvas is
          end;
       end if;
 
+      Cairo.Save (Cr);
+      Cairo.Rectangle (Cr, ML, MT, PW, PH);
+      Cairo.Clip (Cr);
       --  ── 3. Connecting line ────────────────────────────────────────────
       Set_Color (Cr, 0.0, 0.0, 0.0, 0.7);
       Cairo.Set_Line_Width (Cr, 1.0);
@@ -375,26 +378,16 @@ package body Coyote_SQC.UI.Chart_Canvas is
          Need_Move : Boolean := True;  --  True = use Move_To for next point
       begin
          for P of CD.Points loop
-            declare
-               In_Rng : constant Boolean :=
-                 Time_To_LF (P.Session_Time) >= Date_From_LF
-                 and then Time_To_LF (P.Session_Time) <= Date_To_LF;
-            begin
-               if In_Rng
-                 and then not P.Excluded
-                 and then not P.Hollow_Gray
-               then
-                  if Need_Move then
-                     Cairo.Move_To (Cr, SX (P), SY (P));
-                     Need_Move := False;
-                  else
-                     Cairo.Line_To (Cr, SX (P), SY (P));
-                  end if;
-               elsif not In_Rng then
-                  Need_Move := True;  --  out of date range: break line
+            if not P.Excluded and then not P.Hollow_Gray and then not P.Single_Turn then
+               if Need_Move then
+                  Cairo.Move_To (Cr, SX (P), SY (P));
+                  Need_Move := False;
+               else
+                  Cairo.Line_To (Cr, SX (P), SY (P));
                end if;
-               --  Excluded or hollow-gray but in range: skip without gap.
-            end;
+            else
+               Need_Move := True;  --  Excluded or hollow-gray: break line
+            end if;
          end loop;
       end;
       Cairo.Stroke (Cr);
@@ -416,7 +409,9 @@ package body Coyote_SQC.UI.Chart_Canvas is
          --  UCL
          declare Need_Move : Boolean := True; begin
             for P of CD.Points loop
-               if Vis (P) and then not P.Excluded
+               if not P.Excluded
+                 and then not P.Hollow_Gray
+                 and then not P.Single_Turn
                  and then P.Has_UCL
                then
                   if Need_Move then
@@ -436,7 +431,9 @@ package body Coyote_SQC.UI.Chart_Canvas is
          --  LCL (only when Has_LCL is True)
          declare Need_Move : Boolean := True; begin
             for P of CD.Points loop
-               if Vis (P) and then not P.Excluded
+               if not P.Excluded
+                 and then not P.Hollow_Gray
+                 and then not P.Single_Turn
                  and then P.Has_LCL
                then
                   if Need_Move then
@@ -472,7 +469,7 @@ package body Coyote_SQC.UI.Chart_Canvas is
       end if;
       declare Need_Move : Boolean := True; begin
          for P of CD.Points loop
-            if Vis (P) and then not P.Excluded then
+            if not P.Excluded and then not P.Hollow_Gray and then not P.Single_Turn then
                if Need_Move then
                   Cairo.Move_To (Cr, SX (P),
                     Gdouble (Data_To_Screen_Y (P.CL)));
@@ -488,6 +485,7 @@ package body Coyote_SQC.UI.Chart_Canvas is
       end;
       Cairo.Stroke (Cr);
 
+      Cairo.Restore (Cr);
       --  ── 6. Point markers ─────────────────────────────────────────────
       --  Colors per §12.7. Separate fill/stroke where spec differs.
       Cairo.Set_Line_Width (Cr, 1.5);

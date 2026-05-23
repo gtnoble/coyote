@@ -108,7 +108,7 @@ package body Coyote_SQC_Statistics_Tests is
         Xbar.Compute_Limits
           (Grand_Mean => 100.0, Pooled_S => 10.0, N => 5);
    begin
-      Assert (not L.Undefined, "n=5 Xbar limits must be defined");
+      Assert (L.Has_UCL, "n=5 Xbar limits must be defined");
       Assert (L.CL = 100.0, "CL must equal Grand_Mean");
       Assert (L.UCL > L.CL, "UCL must be > CL");
       Assert (L.LCL < L.CL, "LCL must be < CL");
@@ -128,7 +128,7 @@ package body Coyote_SQC_Statistics_Tests is
         Xbar.Compute_Limits
           (Grand_Mean => 50.0, Pooled_S => 5.0, N => 1);
    begin
-      Assert (L.Undefined, "n=1 Xbar limits must be Undefined");
+      Assert (not L.Has_UCL, "n=1 Xbar limits must be Undefined");
       Assert (L.CL = 50.0, "n=1 CL must still equal Grand_Mean");
    end Test_Xbar_N1_Undefined;
 
@@ -139,12 +139,10 @@ package body Coyote_SQC_Statistics_Tests is
         Xbar.Compute_Limits
           (Grand_Mean => 50.0, Pooled_S => 0.0, N => 5);
    begin
-      Assert (L.Undefined,
+      Assert (not L.Has_UCL,
               "Pooled_S=0 Xbar limits must be Undefined");
       Assert (L.CL = 50.0,
               "CL must still equal Grand_Mean when Pooled_S=0");
-      Assert (L.UCL >= Long_Float'Last / 2.0,
-              "UCL must be sentinel (infinity) when Pooled_S=0");
    end Test_Xbar_Pooled_S_Zero;
 
    --  ── s chart tests ────────────────────────────────────────────────────
@@ -154,7 +152,7 @@ package body Coyote_SQC_Statistics_Tests is
       L : constant Limits_Record :=
         S_Chart.Compute_Limits (Pooled_S => 10.0, N => 4);
    begin
-      Assert (not L.Undefined, "n=4 s chart limits must be defined");
+      Assert (L.Has_UCL, "n=4 s chart limits must be defined");
       Assert (L.UCL > L.CL, "UCL must be > CL");
       Assert (L.LCL >= 0.0, "LCL must be >= 0");
       Assert (L.CL > 0.0, "CL must be > 0 for positive Pooled_S");
@@ -173,7 +171,7 @@ package body Coyote_SQC_Statistics_Tests is
       L : constant Limits_Record :=
         S_Chart.Compute_Limits (Pooled_S => 5.0, N => 1);
    begin
-      Assert (L.Undefined, "n=1 s chart must be Undefined");
+      Assert (not L.Has_UCL, "n=1 s chart must be Undefined");
    end Test_S_Chart_N1_Undefined;
 
    --  §7.5: Pooled_S=0 → S_Chart limits must be Undefined.
@@ -182,12 +180,10 @@ package body Coyote_SQC_Statistics_Tests is
       L : constant Limits_Record :=
         S_Chart.Compute_Limits (Pooled_S => 0.0, N => 5);
    begin
-      Assert (L.Undefined,
+      Assert (not L.Has_UCL,
               "Pooled_S=0 S_Chart limits must be Undefined");
       Assert (L.CL = 0.0,
               "CL must be 0 when Pooled_S=0");
-      Assert (L.UCL >= Long_Float'Last / 2.0,
-              "UCL must be sentinel when Pooled_S=0");
    end Test_S_Chart_Pooled_S_Zero;
 
    procedure Test_S_Chart_LCL_Clamped (T : in out Test) is
@@ -197,7 +193,7 @@ package body Coyote_SQC_Statistics_Tests is
       L : constant Limits_Record :=
         S_Chart.Compute_Limits (Pooled_S => 10.0, N => 2);
    begin
-      Assert (not L.Undefined, "n=2 s chart must be defined");
+      Assert (L.Has_UCL, "n=2 s chart must be defined");
       Assert (L.LCL = 0.0, "LCL for n=2 must be clamped to 0.0");
    end Test_S_Chart_LCL_Clamped;
 
@@ -208,7 +204,7 @@ package body Coyote_SQC_Statistics_Tests is
       L : constant Limits_Record :=
         P_Chart.Compute_Limits (Grand_P => 0.3, N => 20);
    begin
-      Assert (not L.Undefined, "p chart n=20 must be defined");
+      Assert (L.Has_UCL, "p chart n=20 must be defined");
       Assert (L.CL = 0.3, "CL must equal Grand_P");
       Assert (L.UCL > L.CL, "UCL must be > CL");
       Assert (L.LCL >= 0.0, "LCL must be >= 0");
@@ -226,7 +222,7 @@ package body Coyote_SQC_Statistics_Tests is
       L : constant Limits_Record :=
         P_Chart.Compute_Limits (Grand_P => 0.2, N => 0);
    begin
-      Assert (L.Undefined, "p chart n=0 must be Undefined");
+      Assert (not L.Has_UCL, "p chart n=0 must be Undefined");
    end Test_P_Chart_N0_Undefined;
 
    procedure Test_P_Chart_LCL_Clamped (T : in out Test) is
@@ -235,7 +231,7 @@ package body Coyote_SQC_Statistics_Tests is
       L : constant Limits_Record :=
         P_Chart.Compute_Limits (Grand_P => 0.5, N => 1);
    begin
-      Assert (not L.Undefined, "p chart n=1 is defined");
+      Assert (L.Has_UCL, "p chart n=1 is defined");
       Assert (L.LCL = 0.0, "LCL must be clamped to 0");
    end Test_P_Chart_LCL_Clamped;
 

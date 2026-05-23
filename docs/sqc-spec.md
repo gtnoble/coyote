@@ -1400,14 +1400,23 @@ The `On_Draw` callback executes these steps in order:
    **Run Sequence** mode the rectangle spans the run-index extent of the setup
    sessions (x-coordinates are run indices). In both modes the band is clipped to
    the current `X_Min`/`X_Max` viewport.
-3. **Connecting line:** thin black polyline through all visible in-range points in
-   chronological order. Excluded points (n=1 on s chart, zero-thinking on
-   thinking chart) are skipped silently — the line connects across them without
-   a gap.
-4. **Control limit series:** red dashed polyline for UCL; second for LCL (omit where
-   LCL is clamped to 0). Under retrospective limits, use gray instead of red and
-   draw the "retrospective limits" label.
-5. **Center line:** solid blue polyline.
+3. **Connecting line:** thin black polyline through all non-excluded,
+   non-hollow-gray points in chronological order, clipped to the plot area by
+   a Cairo `cairo_clip` region. Because the clip is used rather than skipping
+   off-screen points, lines that connect an in-viewport point to an
+   out-of-viewport neighbour extend continuously to the viewport boundary
+   instead of terminating at the last visible point. Hollow-gray points (n=1 on
+   s chart, zero-thinking on thinking chart) are omitted and break the line.
+   Excluded (non-hollow-gray) points are skipped silently — the line connects
+   across them without a gap.
+4. **Control limit series:** red dashed polyline for UCL through all
+   non-excluded points that have a `Has_UCL` value; second polyline for LCL
+   through all non-excluded points that have `Has_LCL = True` (omit where LCL
+   is clamped to 0). Both series are also clipped to the plot area. Under
+   retrospective limits, use gray instead of red and draw the "retrospective
+   limits" label.
+5. **Center line:** solid blue polyline through all non-excluded points,
+   clipped to the plot area.
 6. **Point markers:** filled/hollow circles per §7.3.3 of the requirements.
    Radius: 5px.
 7. **Rubber-band rectangle:** if `Rubberband_Active`, draw a dashed rectangle

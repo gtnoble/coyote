@@ -889,6 +889,10 @@ where `tool_name` is the tool's name, `N` is the 1-based turn index within
 the session, and the datetime is the session start time in local time. If the
 tool call's status is resolved at render time, the gear icon is replaced with
 ✓ (success), ✗ (error), or `-` (cancelled).
+The same icon rule applies to the clickable GtkButton embedded in the session
+replay view: the button's label prefix shall use the same ✓, ✗, or `-` symbol
+rather than ⚙, so the outcome of each tool call is visible at a glance without
+opening the detail window.
 
 #### 14.4.3 Header section
 
@@ -943,6 +947,10 @@ The data required to populate the detail window (tool name, arguments, result
 text, status, turn index, call position within the turn, and session metadata)
 shall be captured in the clickable widget's callback closure at session render
 time. No re-parsing of the session file shall occur when the window is opened.
+A tool call for which no result record is found in the session file (e.g. the
+session was truncated before the tool completed) shall be assigned `Cancelled`
+status and displayed with the `-` icon on both the session replay button and the
+detail window title.
 
 ## 15. Non-Functional Requirements
 

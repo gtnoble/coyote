@@ -16,7 +16,10 @@ package Coyote_SQC.Statistics is
       CL     : Long_Float;
       LCL    : Long_Float;
       --  True when limits could not be computed (e.g. n=1, p denominator=0).
-      Undefined : Boolean := False;
+      --  True when the UCL can be drawn (limits were successfully computed).
+      Has_UCL : Boolean := False;
+      --  True when the LCL can be drawn (limits computed and LCL > 0).
+      Has_LCL : Boolean := False;
    end record;
 
    --  Parameter estimates derived from the setup interval.

@@ -18,19 +18,21 @@ package body Coyote_SQC.Statistics.Xbar is
       if N = 1 then
          --  No variance estimate available for a single-turn session.
          return
-           (UCL       => Long_Float'Last,
-            CL        => Grand_Mean,
-            LCL       => Long_Float'First,
-            Undefined => True);
+           (UCL     => 0.0,
+            CL      => Grand_Mean,
+            LCL     => 0.0,
+            Has_UCL => False,
+            Has_LCL => False);
       end if;
 
       if Pooled_S = 0.0 then
          --  §7.5: all setup sessions have n=1 → Pooled_S=0; no limits drawn.
          return
-           (UCL       => Long_Float'Last,
-            CL        => Grand_Mean,
-            LCL       => Long_Float'First,
-            Undefined => True);
+           (UCL     => 0.0,
+            CL      => Grand_Mean,
+            LCL     => 0.0,
+            Has_UCL => False,
+            Has_LCL => False);
       end if;
 
       declare
@@ -39,11 +41,13 @@ package body Coyote_SQC.Statistics.Xbar is
          Spread : constant Long_Float :=
            3.0 * Pooled_S / (C4_N * Sqrt (NF));
       begin
+         --  Xbar LCL can be negative; it is always drawn when limits exist.
          return
-           (UCL       => Grand_Mean + Spread,
-            CL        => Grand_Mean,
-            LCL       => Grand_Mean - Spread,
-            Undefined => False);
+           (UCL     => Grand_Mean + Spread,
+            CL      => Grand_Mean,
+            LCL     => Grand_Mean - Spread,
+            Has_UCL => True,
+            Has_LCL => True);
       end;
    end Compute_Limits;
 

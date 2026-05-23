@@ -1446,6 +1446,10 @@ package body LLM.Agent is
       S.Has_Submitted_Prompts := True;
       LLM.Session_Store.Append_Message
         (To_String (S.Session_UUID), Prompt_Msg);
+      LLM.Session_Store.Append_Model_Change
+        (Session_Id => To_String (S.Session_UUID),
+         Provider   => To_String (S.Model_Info.Provider),
+         Model_Id   => To_String (S.Model_Info.Model_Id));
 
       declare
          Model_Event : constant LLM.Events.Model_Select_Event :=

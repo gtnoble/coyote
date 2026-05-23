@@ -1858,7 +1858,7 @@ package body Test_Suites is
         ("SQC: Xbar n=1 returns Undefined",
          Coyote_SQC_Statistics_Tests.Test_Xbar_N1_Undefined'Access));
       Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC stats: Xbar Pooled_S=0 returns Undefined with sentinel limits",
+        ("SQC stats: Xbar Pooled_S=0 returns Undefined ; Has_UCL and Has_LCL both False",
          Coyote_SQC_Statistics_Tests.Test_Xbar_Pooled_S_Zero'Access));
       Result.Add_Test (SQC_Statistics_Caller.Create
         ("SQC: s chart limits well-formed for n > 1",

@@ -37,6 +37,8 @@ package Coyote_SQC.App is
       Single_Turn   : Boolean := False;  --  n=1 on Xbar chart
       In_Setup      : Boolean := False;  --  session is in setup interval
       Has_Comment   : Boolean := False;  --  session has a comment
+      Has_UCL       : Boolean := False;  --  UCL line should be drawn
+      Has_LCL       : Boolean := False;  --  LCL line should be drawn
    end record;
 
    package Chart_Point_Vectors is new Ada.Containers.Vectors

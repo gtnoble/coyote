@@ -799,6 +799,37 @@ package body LLM.Session_Store is
            & Ada.Exceptions.Exception_Message (Ex);
    end Append_Compaction;
 
+   procedure Append_Model_Change
+     (Session_Id : String;
+      Provider   : String;
+      Model_Id   : String)
+   is
+      Path         : constant String := Session_File_Path (Session_Id);
+      Record_Value : constant GNATCOLL.JSON.JSON_Value :=
+        GNATCOLL.JSON.Create_Object;
+   begin
+      if Path'Length = 0 then
+         raise Session_Error with
+           "Append_Model_Change: session file not found for " & Session_Id;
+      end if;
+
+      Record_Value.Set_Field ("type",     "model_change");
+      Record_Value.Set_Field ("provider", Provider);
+      Record_Value.Set_Field ("modelId",  Model_Id);
+
+      Write_Raw_Line
+        (Path  => Path,
+         Line  => GNATCOLL.JSON.Write (Record_Value),
+         Mode  => Ada.Streams.Stream_IO.Append_File);
+   exception
+      when Session_Error =>
+         raise;
+      when Ex : others =>
+         raise Session_Error with
+           "Append_Model_Change failed: "
+           & Ada.Exceptions.Exception_Message (Ex);
+   end Append_Model_Change;
+
    function Session_Work_Dir (Session_Id : String) return String is
       Path : constant String := Session_File_Path (Session_Id);
       File : Ada.Text_IO.File_Type;

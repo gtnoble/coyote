@@ -50,6 +50,20 @@ package LLM.Session_Store is
       First_Kept_Index : Natural;
       Tokens_Before    : Natural);
 
+   --  Append a model-change record to the session JSONL.
+   --
+   --  Writes a {"type":"model_change","provider":Provider,"modelId":Model_Id}
+   --  line.  Should be called once per Run_Prompt invocation, before the
+   --  first assistant message, so that Coyote_SQC.Session_Parser can
+   --  identify the model used for the session.
+   --
+   --  Raises Session_Error when the session file cannot be found or
+   --  written.
+   procedure Append_Model_Change
+     (Session_Id : String;
+      Provider   : String;
+      Model_Id   : String);
+
    --  Return the working directory recorded in the header of the session
    --  file for Session_Id.
    --

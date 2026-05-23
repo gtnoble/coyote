@@ -7,8 +7,9 @@ package Coyote_SQC.Statistics.Xbar is
    --  Compute the Xbar control limits for a single point whose session has
    --  N turns.  Grand_Mean and Pooled_S come from the setup interval.
    --
-   --  When N = 1 the returned record has Undefined = True and UCL/LCL are
-   --  set to Long_Float'Last / Long_Float'First respectively (no limits).
+   --  When N = 1 or Pooled_S = 0 the returned record has Has_UCL and
+   --  Has_LCL both False (no limits drawn).  When limits are defined the
+   --  LCL may be negative; Has_LCL is always True in that case.
    function Compute_Limits
      (Grand_Mean : Long_Float;
       Pooled_S   : Long_Float;

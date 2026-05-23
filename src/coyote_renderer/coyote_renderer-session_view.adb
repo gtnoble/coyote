@@ -404,7 +404,14 @@ package body Coyote_Renderer.Session_View is
                      declare
                         TC_Id   : constant String := Get_Str (B, "id");
                         TC_Name : constant String := Get_Str (B, "name");
-                        TC_Args : constant String := Get_Str (B, "arguments");
+                        TC_Args : constant String :=
+                          (if B.Has_Field ("arguments")
+                           then
+                             (if B.Get ("arguments").Kind =
+                                GNATCOLL.JSON.JSON_String_Type
+                              then B.Get ("arguments").Get
+                              else B.Get ("arguments").Write)
+                           else "");
                         Res     : constant Tool_Result :=
                           Find_Result (Results, TC_Id);
                         Status  : constant Tool_End_Status :=

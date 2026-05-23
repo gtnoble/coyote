@@ -187,7 +187,8 @@ package body Coyote_SQC.App is
 
             if Excl then
                Limits := (UCL => 0.0, CL => 0.0, LCL => 0.0,
-                          Undefined => True);
+                          Has_UCL => False,
+                          Has_LCL => False);
             else
                case Kind is
                   when Turn_Tokens_Xbar
@@ -220,6 +221,8 @@ package body Coyote_SQC.App is
                 UCL           => Limits.UCL,
                 CL            => (if Single then Value else Limits.CL),
                 LCL           => Limits.LCL,
+                Has_UCL       => Limits.Has_UCL,
+                Has_LCL       => Limits.Has_LCL,
                 Excluded      => Excl,
                 Single_Turn   => Single,
                 In_Setup      => In_Setup,
@@ -292,7 +295,7 @@ package body Coyote_SQC.App is
             if P.Stat_Value < Y1 then Y1 := P.Stat_Value; end if;
             if P.Stat_Value > Y2 then Y2 := P.Stat_Value; end if;
             if not P.Excluded and then not P.Single_Turn then
-               if P.UCL < Long_Float'Last / 2.0 then
+               if P.Has_UCL then
                   if P.UCL > Y2 then Y2 := P.UCL; end if;
                   if P.LCL < Y1 then Y1 := P.LCL; end if;
                end if;
