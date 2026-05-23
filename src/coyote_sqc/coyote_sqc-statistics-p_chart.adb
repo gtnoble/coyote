@@ -29,14 +29,14 @@ package body Coyote_SQC.Statistics.P_Chart is
          LCL_Val : constant Long_Float :=
            Long_Float'Max (0.0, Grand_P - Spread);
       begin
-         --  LCL is drawn only when the formula yields a positive value;
-         --  a clamped LCL = 0 means there is no meaningful lower bound.
+         --  LCL is always drawn: when the formula is negative it is clamped to 0.0.
+         --  Drawing at y = 0 shows the natural lower boundary for proportions.
          return
            (UCL     => Grand_P + Spread,
             CL      => Grand_P,
             LCL     => LCL_Val,
             Has_UCL => True,
-            Has_LCL => LCL_Val > 0.0);
+            Has_LCL => True);
       end;
    end Compute_Limits;
 

@@ -1411,8 +1411,9 @@ The `On_Draw` callback executes these steps in order:
    across them without a gap.
 4. **Control limit series:** red dashed polyline for UCL through all
    non-excluded points that have a `Has_UCL` value; second polyline for LCL
-   through all non-excluded points that have `Has_LCL = True` (omit where LCL
-   is clamped to 0). Both series are also clipped to the plot area. Under
+   through all non-excluded points that have `Has_LCL = True`. When the formula
+   yields a negative LCL it is clamped to 0.0 (`Has_LCL` remains `True`); the
+   line is drawn at y = 0. Both series are also clipped to the plot area. Under
    retrospective limits, use gray instead of red and draw the "retrospective
    limits" label.
 5. **Center line:** solid blue polyline through all non-excluded points,

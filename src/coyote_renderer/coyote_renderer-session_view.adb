@@ -147,11 +147,17 @@ package body Coyote_Renderer.Session_View is
    begin
       Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Path);
       while not Ada.Text_IO.End_Of_File (File) loop
-         Ada.Text_IO.Get_Line (File, Line, Last);
+         declare
+            Full_Line : Unbounded_String;
          begin
-            declare
-               Root : constant GNATCOLL.JSON.JSON_Value :=
-                 GNATCOLL.JSON.Read (Line (1 .. Last));
+            loop
+               Ada.Text_IO.Get_Line (File, Line, Last);
+               Append (Full_Line, Line (1 .. Last));
+               exit when Last < Line'Last;
+            end loop;
+               declare
+                  Root : constant GNATCOLL.JSON.JSON_Value :=
+                    GNATCOLL.JSON.Read (To_String (Full_Line));
                Msg  : GNATCOLL.JSON.JSON_Value;
             begin
                if Root.Kind = GNATCOLL.JSON.JSON_Object_Type then
@@ -415,7 +421,9 @@ package body Coyote_Renderer.Session_View is
                         Res     : constant Tool_Result :=
                           Find_Result (Results, TC_Id);
                         Status  : constant Tool_End_Status :=
-                          (if Res.Is_Err then Error else Success);
+                          (if To_String (Res.Id) = "" then Cancelled
+                           elsif Res.Is_Err             then Error
+                           else                              Success);
                      begin
                         Call_In_Turn := Call_In_Turn + 1;
 
@@ -431,7 +439,12 @@ package body Coyote_Renderer.Session_View is
                               Buffer.Get_End_Iter (Iter);
                               Anchor := Buffer.Create_Child_Anchor (Iter);
                               Gtk.Button.Gtk_New
-                                (Btn, UC_GEAR & " " & TC_Name);
+                                (Btn,
+                                 (case Status is
+                                    when Success   => UC_CHECK,
+                                    when Error     => UC_CROSS,
+                                    when Cancelled => "-")
+                                 & " " & TC_Name);
                               View.Add_Child_At_Anchor (Btn, Anchor);
                               Btn.Show;
                               --  Register closure keyed by GObject address.
@@ -456,7 +469,11 @@ package body Coyote_Renderer.Session_View is
                            --  Non-interactive plain-text fallback.
                            Append_Tagged
                              (Buffer,
-                              UC_GEAR & " " & TC_Name & ASCII.LF
+                              (case Status is
+                                 when Success   => UC_CHECK,
+                                 when Error     => UC_CROSS,
+                                 when Cancelled => "-")
+                              & " " & TC_Name & ASCII.LF
                               & (if TC_Args'Length > 0
                                  then TC_Args & ASCII.LF
                                  else ""),
@@ -474,6 +491,10 @@ package body Coyote_Renderer.Session_View is
                                     UC_CHECK & " done" & ASCII.LF,
                                     Tags.Dim);
                               end if;
+                           else
+                              Append_Tagged
+                                (Buffer, "- cancelled" & ASCII.LF,
+                                 Tags.Dim);
                            end if;
                            Append_Text (Buffer, "" & ASCII.LF);
                         end if;
@@ -488,11 +509,17 @@ package body Coyote_Renderer.Session_View is
    begin
       Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Path);
       while not Ada.Text_IO.End_Of_File (File) loop
-         Ada.Text_IO.Get_Line (File, Line, Last);
+         declare
+            Full_Line : Unbounded_String;
          begin
-            declare
-               Root : constant GNATCOLL.JSON.JSON_Value :=
-                 GNATCOLL.JSON.Read (Line (1 .. Last));
+            loop
+               Ada.Text_IO.Get_Line (File, Line, Last);
+               Append (Full_Line, Line (1 .. Last));
+               exit when Last < Line'Last;
+            end loop;
+               declare
+                  Root : constant GNATCOLL.JSON.JSON_Value :=
+                    GNATCOLL.JSON.Read (To_String (Full_Line));
                Msg  : GNATCOLL.JSON.JSON_Value;
             begin
                if Root.Kind = GNATCOLL.JSON.JSON_Object_Type then

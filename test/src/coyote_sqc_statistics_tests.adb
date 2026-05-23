@@ -195,6 +195,8 @@ package body Coyote_SQC_Statistics_Tests is
    begin
       Assert (L.Has_UCL, "n=2 s chart must be defined");
       Assert (L.LCL = 0.0, "LCL for n=2 must be clamped to 0.0");
+      Assert (L.Has_LCL,
+              "clamped s chart LCL must still be drawn (Has_LCL = True)");
    end Test_S_Chart_LCL_Clamped;
 
    --  ── p chart tests ────────────────────────────────────────────────────
@@ -215,6 +217,8 @@ package body Coyote_SQC_Statistics_Tests is
       Assert (L.LCL = 0.0,
               "p LCL should be 0 (clamped from negative); got "
               & Long_Float'Image (L.LCL));
+      Assert (L.Has_LCL,
+              "p chart LCL drawn even when clamped to 0 (Has_LCL = True)");
    end Test_P_Chart_Limits_Basic;
 
    procedure Test_P_Chart_N0_Undefined (T : in out Test) is
@@ -233,6 +237,8 @@ package body Coyote_SQC_Statistics_Tests is
    begin
       Assert (L.Has_UCL, "p chart n=1 is defined");
       Assert (L.LCL = 0.0, "LCL must be clamped to 0");
+      Assert (L.Has_LCL,
+              "clamped p chart LCL must still be drawn (Has_LCL = True)");
    end Test_P_Chart_LCL_Clamped;
 
    --  ── Estimate_Parameters tests ─────────────────────────────────────────

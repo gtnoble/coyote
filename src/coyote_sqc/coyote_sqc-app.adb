@@ -313,14 +313,6 @@ package body Coyote_SQC.App is
       begin
          CS.Y_Min := Y1 - M;
          CS.Y_Max := Y2 + M;
-         if CS.Y_Min < 0.0
-           and then State.Active_Chart in
-             Tool_Call_Failure_Rate
-             | Fraction_Tool_Call_Turns
-             | Fraction_Thinking_Turns
-         then
-            CS.Y_Min := 0.0;
-         end if;
       end;
    end Y_Fit;
 

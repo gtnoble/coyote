@@ -463,8 +463,8 @@ The following elements are rendered in this z-order (bottom to top):
 2. **Connecting line:** a thin black polyline threading through all plotted points in
    chronological order.
 3. **Control limit series:** red dashed line segments connecting the per-point UCL
-   values; a second series for LCL. Where the LCL is zero (clamped), the lower limit
-   line is omitted.
+   values; a second series for LCL. Where the formula yields a negative value,
+   the LCL is clamped to zero and drawn at y = 0.
 4. **Center line series:** a solid blue polyline connecting the per-point center line
    values.
 5. **Point markers:** filled or hollow circles (see Section 7.3.3).
