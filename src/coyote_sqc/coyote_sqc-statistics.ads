@@ -27,6 +27,7 @@ package Coyote_SQC.Statistics is
       Grand_Mean : Long_Float := 0.0;
       Pooled_S   : Long_Float := 0.0;
       Grand_P    : Long_Float := 0.0;
+      Mean_MR    : Long_Float := 0.0;
    end record;
 
    --  Estimate grand mean / pooled s (Xbar/s charts) or grand p (p charts)

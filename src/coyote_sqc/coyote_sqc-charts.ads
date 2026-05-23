@@ -6,8 +6,8 @@ with Ada.Strings.Unbounded;
 
 package Coyote_SQC.Charts is
 
-   --  The nine charts available in every workspace.  The declaration order
-   --  matches the left-panel display order.
+   --  The thirteen charts available in every workspace.  The declaration
+   --  order matches the left-panel display order.
    type Chart_Kind is
      (Turn_Tokens_Xbar,
       Turn_Tokens_S,
@@ -17,7 +17,11 @@ package Coyote_SQC.Charts is
       Thinking_Tokens_S,
       Tool_Call_Failure_Rate,
       Fraction_Tool_Call_Turns,
-      Fraction_Thinking_Turns);
+      Fraction_Thinking_Turns,
+      Session_Input_Tokens_I,
+      Session_Input_Tokens_MR,
+      Session_Output_Tokens_I,
+      Session_Output_Tokens_MR);
 
    --  Display metadata for one chart.
    type Chart_Properties is record
@@ -25,6 +29,7 @@ package Coyote_SQC.Charts is
       Group        : Ada.Strings.Unbounded.Unbounded_String;
       Y_Axis_Label : Ada.Strings.Unbounded.Unbounded_String;
       Is_P_Chart   : Boolean;
+      Is_I_Chart   : Boolean;
    end record;
 
    --  Return the display properties for Kind.

@@ -1902,6 +1902,36 @@ package body Test_Suites is
       Result.Add_Test (SQC_Statistics_Caller.Create
         ("SQC: Estimate_Parameters excludes zero-thinking sessions",
          Coyote_SQC_Statistics_Tests.Test_Estimate_Zero_Thinking'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC §14.3: Estimate_Parameters excludes zero-tool-call sessions",
+         Coyote_SQC_Statistics_Tests.Test_Estimate_Zero_Tool_Calls'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC §14.4: Per_Turn_Tool_Tokens records output tokens for tool-call turns",
+         Coyote_SQC_Statistics_Tests.Test_Tool_Call_Token_Values'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: I chart limits well-formed for Mean_MR > 0",
+         Coyote_SQC_Statistics_Tests.Test_I_Chart_Limits_Basic'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: I chart LCL positive when grand mean sufficiently large",
+         Coyote_SQC_Statistics_Tests.Test_I_Chart_LCL_Positive'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: I chart Mean_MR=0 returns Undefined",
+         Coyote_SQC_Statistics_Tests.Test_I_Chart_Mean_MR_Zero'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: I chart LCL clamped to 0 when formula yields negative",
+         Coyote_SQC_Statistics_Tests.Test_I_Chart_LCL_Clamped'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: MR chart limits well-formed for Mean_MR > 0",
+         Coyote_SQC_Statistics_Tests.Test_MR_Chart_Limits_Basic'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: MR chart Mean_MR=0 returns Undefined",
+         Coyote_SQC_Statistics_Tests.Test_MR_Chart_Mean_MR_Zero'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: Estimate_Parameters grand mean and Mean_MR (I chart, input tokens)",
+         Coyote_SQC_Statistics_Tests.Test_Estimate_I_Chart_Input'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: Estimate_Parameters single-session setup -> Mean_MR = 0",
+         Coyote_SQC_Statistics_Tests.Test_Estimate_I_Chart_Single'Access));
       --  Coyote_SQC parser tests
       Result.Add_Test (SQC_Parser_Caller.Create
         ("SQC: v3 session ID parsed correctly",
@@ -1957,6 +1987,12 @@ package body Test_Suites is
       Result.Add_Test (SQC_Parser_Caller.Create
         ("SQC: Thinking_Tokens=0 when field absent (backward compat)",
          Coyote_SQC_Parser_Tests.Test_Thinking_Absent'Access));
+      Result.Add_Test (SQC_Parser_Caller.Create
+        ("SQC: Thinking_Tokens estimated from text length when usage field absent",
+         Coyote_SQC_Parser_Tests.Test_Thinking_Text_Estimate'Access));
+      Result.Add_Test (SQC_Parser_Caller.Create
+        ("SQC: tool-call Input_Tokens and Output_Tokens estimated from args and result text",
+         Coyote_SQC_Parser_Tests.Test_Tool_Call_Token_Estimates'Access));
       Result.Add_Test (SQC_Parser_Caller.Create
         ("SQC: both pre- and post-compaction turns counted",
          Coyote_SQC_Parser_Tests.Test_Compaction_All_Turns'Access));

@@ -32,6 +32,8 @@ package Coyote_SQC_Parser_Tests is
    procedure Test_Thinking_Tokens        (T : in out Test);
    procedure Test_Thinking_Enabled       (T : in out Test);
    procedure Test_Thinking_Absent        (T : in out Test);
+   procedure Test_Thinking_Text_Estimate (T : in out Test);
+   procedure Test_Tool_Call_Token_Estimates (T : in out Test);
 
    --  Fixture: test/fixtures/sqc/compaction_session.jsonl
    procedure Test_Compaction_All_Turns   (T : in out Test);

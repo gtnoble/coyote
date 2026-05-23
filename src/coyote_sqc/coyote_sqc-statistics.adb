@@ -1,5 +1,8 @@
 --  Coyote_SQC.Statistics body.
 --
+--  All computation operates on Long_Float to match
+--  Ada.Numerics.Long_Elementary_Functions.
+--
 --  Project: coyote
 
 with Ada.Numerics.Long_Elementary_Functions;
@@ -69,17 +72,23 @@ package body Coyote_SQC.Statistics is
    is
       use Coyote_SQC.Charts;
 
-      --  Totals for grand mean / grand p computation.
-      Total_N         : Long_Float := 0.0;
+      --  Totals for grand mean / grand p computation (Xbar/s and I charts).
+      Total_N             : Long_Float := 0.0;
       Total_Weighted_Mean : Long_Float := 0.0;
 
-      --  Totals for pooled s computation.
+      --  Totals for pooled s computation (Xbar/s charts).
       Sum_Numerator   : Long_Float := 0.0;
       Sum_Denominator : Long_Float := 0.0;
 
       --  For p charts.
-      Total_Events    : Long_Float := 0.0;
-      Total_Trials    : Long_Float := 0.0;
+      Total_Events : Long_Float := 0.0;
+      Total_Trials : Long_Float := 0.0;
+
+      --  For I/MR charts — moving range accumulators.
+      MR_Sum       : Long_Float := 0.0;
+      MR_Count     : Natural    := 0;
+      Prev_I_Value : Long_Float := 0.0;
+      Has_Prev     : Boolean    := False;
 
       function In_Setup (M : Session_Metrics_Record) return Boolean is
       begin
@@ -112,6 +121,19 @@ package body Coyote_SQC.Statistics is
          end;
       end Accumulate_Xbar_S;
 
+      --  Accumulate a single I-chart observation (session total).
+      procedure Accumulate_I (Val : Long_Float) is
+      begin
+         Total_N             := Total_N + 1.0;
+         Total_Weighted_Mean := Total_Weighted_Mean + Val;
+         if Has_Prev then
+            MR_Sum   := MR_Sum + abs (Val - Prev_I_Value);
+            MR_Count := MR_Count + 1;
+         end if;
+         Prev_I_Value := Val;
+         Has_Prev     := True;
+      end Accumulate_I;
+
    begin
       Parameters := (others => 0.0);
 
@@ -126,7 +148,9 @@ package body Coyote_SQC.Statistics is
                Accumulate_Xbar_S (M.Per_Turn_Output_Tokens);
 
             when Tool_Call_Tokens_Xbar | Tool_Call_Tokens_S =>
-               Accumulate_Xbar_S (M.Per_Turn_Tool_Tokens);
+               if M.N_Tool_Call_Turns_For_Chart > 0 then
+                  Accumulate_Xbar_S (M.Per_Turn_Tool_Tokens);
+               end if;
 
             when Thinking_Tokens_Xbar | Thinking_Tokens_S =>
                if M.Any_Thinking then
@@ -153,6 +177,12 @@ package body Coyote_SQC.Statistics is
                Total_Trials :=
                  Total_Trials + Long_Float (M.N_Turns);
 
+            when Session_Input_Tokens_I | Session_Input_Tokens_MR =>
+               Accumulate_I (Long_Float (M.Total_Input_Tokens));
+
+            when Session_Output_Tokens_I | Session_Output_Tokens_MR =>
+               Accumulate_I (Long_Float (M.Total_Output_Tokens));
+
          end case;
 
          <<Next_Metric>>
@@ -176,6 +206,15 @@ package body Coyote_SQC.Statistics is
             | Fraction_Thinking_Turns =>
             if Total_Trials > 0.0 then
                Parameters.Grand_P := Total_Events / Total_Trials;
+            end if;
+
+         when Session_Input_Tokens_I  | Session_Input_Tokens_MR
+            | Session_Output_Tokens_I | Session_Output_Tokens_MR =>
+            if Total_N > 0.0 then
+               Parameters.Grand_Mean := Total_Weighted_Mean / Total_N;
+            end if;
+            if MR_Count > 0 then
+               Parameters.Mean_MR := MR_Sum / Long_Float (MR_Count);
             end if;
 
       end case;

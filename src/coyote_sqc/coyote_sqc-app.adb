@@ -12,6 +12,7 @@ with Coyote_SQC.Statistics.C4;
 with Coyote_SQC.Statistics.P_Chart;
 with Coyote_SQC.Statistics.S_Chart;
 with Coyote_SQC.Statistics.Xbar;
+with Coyote_SQC.Statistics.I_Chart;
 with Gtk.Main;
 with Gtk.Widget;
 
@@ -96,15 +97,23 @@ package body Coyote_SQC.App is
             end if;
 
          when Tool_Call_Tokens_Xbar =>
-            N := Metrics.N_Turns;
-            Value  := Mean_LF (Metrics.Per_Turn_Tool_Tokens);
-            Single := (N = 1);
+            if Metrics.N_Tool_Call_Turns_For_Chart = 0 then
+               Excluded    := True;
+               Hollow_Gray := True;
+            else
+               N      := Metrics.N_Tool_Call_Turns_For_Chart;
+               Value  := Mean_LF (Metrics.Per_Turn_Tool_Tokens);
+               Single := (N = 1);
+            end if;
 
          when Tool_Call_Tokens_S =>
-            N := Metrics.N_Turns;
-            if N = 1 then
+            if Metrics.N_Tool_Call_Turns_For_Chart = 0 then
+               Excluded    := True;
+               Hollow_Gray := True;
+            elsif Metrics.N_Tool_Call_Turns_For_Chart <= 1 then
                Excluded := True;
             else
+               N     := Metrics.N_Tool_Call_Turns_For_Chart;
                Value := StdDev_LF (Metrics.Per_Turn_Tool_Tokens);
             end if;
 
@@ -147,6 +156,19 @@ package body Coyote_SQC.App is
             N     := Metrics.N_Turns;
             Value := Long_Float (Metrics.N_Thinking_Turns)
                      / Long_Float (N);
+         when Session_Input_Tokens_I =>
+            Value := Long_Float (Metrics.Total_Input_Tokens);
+            N     := 1;
+
+         when Session_Output_Tokens_I =>
+            Value := Long_Float (Metrics.Total_Output_Tokens);
+            N     := 1;
+
+         when Session_Input_Tokens_MR | Session_Output_Tokens_MR =>
+            --  Moving range requires the previous session value; the caller
+            --  (Recompute_Chart) overrides Excluded and Value after this
+            --  call for non-first sessions.
+            Excluded := True;
       end case;
    end Compute_Session_Stat;
 
@@ -158,6 +180,9 @@ package body Coyote_SQC.App is
       pragma Unreferenced (Props);
 
       CD : Chart_Data;
+      --  State for moving-range (MR) chart kinds.
+      Prev_Total     : Long_Float := 0.0;
+      Has_Prev_Total : Boolean    := False;
    begin
       --  Estimate setup parameters.
       CD.Is_Retro := State.Workspace.Setup_Session_Ids.Is_Empty;
@@ -184,6 +209,22 @@ package body Coyote_SQC.App is
               State.Workspace.Setup_Session_Ids.Contains (Sess.Session_Id);
          begin
             Compute_Session_Stat (M, Kind, Value, N, Excl, Single, HGray);
+            --  MR chart override: compute moving range from previous session.
+            if Kind in Session_Input_Tokens_MR | Session_Output_Tokens_MR then
+               declare
+                  Cur : constant Long_Float :=
+                    (if Kind = Session_Input_Tokens_MR
+                     then Long_Float (M.Total_Input_Tokens)
+                     else Long_Float (M.Total_Output_Tokens));
+               begin
+                  if Has_Prev_Total then
+                     Value := abs (Cur - Prev_Total);
+                     Excl  := False;
+                  end if;
+                  Prev_Total     := Cur;
+                  Has_Prev_Total := True;
+               end;
+            end if;
 
             if Excl then
                Limits := (UCL => 0.0, CL => 0.0, LCL => 0.0,
@@ -210,6 +251,15 @@ package body Coyote_SQC.App is
                      Limits := Statistics.P_Chart.Compute_Limits
                        (Grand_P => CD.Params.Grand_P,
                         N       => N);
+                  when Session_Input_Tokens_I
+                     | Session_Output_Tokens_I =>
+                     Limits := Statistics.I_Chart.Compute_I_Limits
+                       (Grand_Mean => CD.Params.Grand_Mean,
+                        Mean_MR    => CD.Params.Mean_MR);
+                  when Session_Input_Tokens_MR
+                     | Session_Output_Tokens_MR =>
+                     Limits := Statistics.I_Chart.Compute_MR_Limits
+                       (Mean_MR => CD.Params.Mean_MR);
                end case;
             end if;
 

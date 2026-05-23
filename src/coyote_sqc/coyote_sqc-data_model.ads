@@ -71,6 +71,7 @@ package Coyote_SQC.Data_Model is
       Session_Id                 : Ada.Strings.Unbounded.Unbounded_String;
       N_Turns                    : Positive := 1;
       N_Tool_Call_Turns          : Natural  := 0;
+      N_Tool_Call_Turns_For_Chart : Natural  := 0;
       N_Thinking_Turns           : Natural  := 0;
       N_Tool_Calls               : Natural  := 0;
       N_Failed_Tool_Calls        : Natural  := 0;
@@ -80,6 +81,8 @@ package Coyote_SQC.Data_Model is
       Per_Turn_Tool_Tokens       : Natural_Vectors.Vector;
       Per_Turn_Thinking_Tokens   : Natural_Vectors.Vector;
       N_Thinking_Turns_For_Chart : Natural  := 0;
+      Total_Input_Tokens         : Natural  := 0;
+      Total_Output_Tokens        : Natural  := 0;
    end record;
 
    package Metrics_Vectors is new Ada.Containers.Vectors

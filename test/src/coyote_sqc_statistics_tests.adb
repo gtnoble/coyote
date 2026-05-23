@@ -12,6 +12,7 @@ with Coyote_SQC.Statistics.C4;
 with Coyote_SQC.Statistics.P_Chart;
 with Coyote_SQC.Statistics.S_Chart;
 with Coyote_SQC.Statistics.Xbar;
+with Coyote_SQC.Statistics.I_Chart;
 
 package body Coyote_SQC_Statistics_Tests is
 
@@ -580,5 +581,293 @@ package body Coyote_SQC_Statistics_Tests is
          "Grand_Mean for thinking chart should be 500; got "
          & Long_Float'Image (Params.Grand_Mean));
    end Test_Estimate_Zero_Thinking;
+
+
+   --  §14.3 Tool_Call_Tokens charts skip sessions without tool calls.
+   procedure Test_Estimate_Zero_Tool_Calls (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Data_Model;
+      use Coyote_SQC.Charts;
+
+      --  One session with a tool-call turn:
+      --    TC.Input_Tokens = 120, TC.Output_Tokens = 80 → Tool_Sum = 200.
+      --  One session with no tool calls at all (output = 100 tokens).
+      --  Estimate_Parameters for Tool_Call_Tokens_Xbar should only see the
+      --  first session → Grand_Mean = 200.
+      S_Tool, S_No_Tool : Session_Record;
+      Turn_T, Turn_N    : Turn_Record;
+      TC                : Tool_Call_Record;
+      Metrics           : Metrics_Vectors.Vector;
+      Setup             : UUID_Set;
+      Params            : Setup_Parameters;
+   begin
+      S_Tool.Session_Id    := To_Unbounded_String ("tool");
+      Turn_T.Turn_Index    := 1;
+      Turn_T.Output_Tokens := 200;
+      TC.Tool_Name         := To_Unbounded_String ("shell");
+      TC.Input_Tokens      := 120;
+      TC.Output_Tokens     := 80;
+      Turn_T.Tool_Calls.Append (TC);
+      S_Tool.Turns.Append (Turn_T);
+
+      S_No_Tool.Session_Id   := To_Unbounded_String ("no-tool");
+      Turn_N.Turn_Index      := 1;
+      Turn_N.Output_Tokens   := 100;
+      S_No_Tool.Turns.Append (Turn_N);
+
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S_Tool));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S_No_Tool));
+
+      Estimate_Parameters (Metrics, Setup, Tool_Call_Tokens_Xbar, Params);
+
+      --  Only the tool-call session contributes; Grand_Mean = 200.
+      Assert
+        (abs (Params.Grand_Mean - 200.0) < 1.0e-6,
+         "Grand_Mean for tool-call chart should be 200; got "
+         & Long_Float'Image (Params.Grand_Mean));
+   end Test_Estimate_Zero_Tool_Calls;
+
+   --  §14.4 Per_Turn_Tool_Tokens is the sum of estimated per-TC token
+   --  costs (Input_Tokens + Output_Tokens), not the whole-turn output.
+   --  Session with two turns:
+   --    Turn 1: 1 tool call, TC.Input=100, TC.Output=200 → Tool_Sum=300.
+   --             Turn1.Output_Tokens=999 (intentionally different).
+   --    Turn 2: no tool calls, output = 50 tokens.
+   --  Per_Turn_Tool_Tokens should have length 1 (only turn 1), value 300.
+   --  Grand_Mean = 300.
+   procedure Test_Tool_Call_Token_Values (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Data_Model;
+      use Coyote_SQC.Charts;
+
+      S       : Session_Record;
+      Turn1, Turn2 : Turn_Record;
+      TC      : Tool_Call_Record;
+      Metrics : Metrics_Vectors.Vector;
+      Setup   : UUID_Set;
+      Params  : Setup_Parameters;
+   begin
+      S.Session_Id := To_Unbounded_String ("tc-vals");
+
+      Turn1.Turn_Index    := 1;
+      Turn1.Output_Tokens := 999;
+      TC.Tool_Name        := To_Unbounded_String ("shell");
+      TC.Input_Tokens     := 100;
+      TC.Output_Tokens    := 200;
+      Turn1.Tool_Calls.Append (TC);
+      S.Turns.Append (Turn1);
+
+      Turn2.Turn_Index    := 2;
+      Turn2.Output_Tokens := 50;
+      S.Turns.Append (Turn2);
+
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S));
+
+      --  Check computed metrics directly.
+      declare
+         M : constant Session_Metrics_Record := Metrics.First_Element;
+      begin
+         Assert
+           (Natural (M.Per_Turn_Tool_Tokens.Length) = 1,
+            "Per_Turn_Tool_Tokens should have 1 entry; got "
+            & Natural'Image (Natural (M.Per_Turn_Tool_Tokens.Length)));
+         Assert
+           (M.Per_Turn_Tool_Tokens.First_Element = 300,
+            "Per_Turn_Tool_Tokens(1) should be 300; got "
+            & Natural'Image (M.Per_Turn_Tool_Tokens.First_Element));
+         Assert
+           (M.N_Tool_Call_Turns_For_Chart = 1,
+            "N_Tool_Call_Turns_For_Chart should be 1; got "
+            & Natural'Image (M.N_Tool_Call_Turns_For_Chart));
+      end;
+
+      Estimate_Parameters (Metrics, Setup, Tool_Call_Tokens_Xbar, Params);
+
+      Assert
+        (abs (Params.Grand_Mean - 300.0) < 1.0e-6,
+         "Grand_Mean should be 300; got "
+         & Long_Float'Image (Params.Grand_Mean));
+   end Test_Tool_Call_Token_Values;
+
+
+   --  ── I chart and MR chart tests ────────────────────────────────────────
+
+   --  Three-session dataset: values 10, 20, 30.
+   --    MR̄ = 10, x̄ = 20, d2 = 1.128
+   --    Spread = 3 * 10 / 1.128 ≈ 26.5957...
+   --    UCL ≈ 46.5957, LCL = max(0, -6.5957) = 0 → Has_LCL = False.
+   procedure Test_I_Chart_Limits_Basic (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.I_Chart;
+      Grand_Mean : constant Long_Float := 20.0;
+      Mean_MR    : constant Long_Float := 10.0;
+      D2         : constant Long_Float := 1.128;
+      Spread     : constant Long_Float := 3.0 * Mean_MR / D2;
+      Lim        : constant Limits_Record :=
+        Compute_I_Limits (Grand_Mean, Mean_MR);
+      Tol        : constant Long_Float := 1.0e-6;
+   begin
+      Assert (Lim.Has_UCL, "I chart basic: Has_UCL should be True");
+      Assert (abs (Lim.UCL - (Grand_Mean + Spread)) <= Tol,
+              "I chart basic: UCL mismatch; got "
+              & Long_Float'Image (Lim.UCL));
+      Assert (abs (Lim.CL - Grand_Mean) <= Tol,
+              "I chart basic: CL mismatch");
+      Assert (Lim.LCL = 0.0,
+              "I chart basic: LCL should be clamped to 0; got "
+              & Long_Float'Image (Lim.LCL));
+      Assert (not Lim.Has_LCL,
+              "I chart basic: Has_LCL should be False (clamped)");
+   end Test_I_Chart_Limits_Basic;
+
+   --  Dataset where LCL is positive: grand_mean = 1000, Mean_MR = 10.
+   --    Spread ≈ 26.5957; LCL = 1000 - 26.5957 ≈ 973.4 > 0 → Has_LCL = True.
+   procedure Test_I_Chart_LCL_Positive (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.I_Chart;
+      Grand_Mean : constant Long_Float := 1000.0;
+      Mean_MR    : constant Long_Float := 10.0;
+      D2         : constant Long_Float := 1.128;
+      Spread     : constant Long_Float := 3.0 * Mean_MR / D2;
+      Lim        : constant Limits_Record :=
+        Compute_I_Limits (Grand_Mean, Mean_MR);
+      Tol        : constant Long_Float := 1.0e-6;
+   begin
+      Assert (Lim.Has_UCL, "I chart LCL+: Has_UCL should be True");
+      Assert (Lim.Has_LCL, "I chart LCL+: Has_LCL should be True");
+      Assert (abs (Lim.UCL - (Grand_Mean + Spread)) <= Tol,
+              "I chart LCL+: UCL mismatch");
+      Assert (abs (Lim.LCL - (Grand_Mean - Spread)) <= Tol,
+              "I chart LCL+: LCL mismatch; got "
+              & Long_Float'Image (Lim.LCL));
+   end Test_I_Chart_LCL_Positive;
+
+   --  Mean_MR = 0 → Has_UCL and Has_LCL both False; CL = Grand_Mean.
+   procedure Test_I_Chart_Mean_MR_Zero (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.I_Chart;
+      Lim : constant Limits_Record := Compute_I_Limits (50.0, 0.0);
+   begin
+      Assert (not Lim.Has_UCL,
+              "I chart MR=0: Has_UCL should be False");
+      Assert (not Lim.Has_LCL,
+              "I chart MR=0: Has_LCL should be False");
+      Assert (Lim.CL = 50.0,
+              "I chart MR=0: CL should equal Grand_Mean");
+   end Test_I_Chart_Mean_MR_Zero;
+
+   --  Verify LCL clamped when formula produces negative value.
+   procedure Test_I_Chart_LCL_Clamped (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.I_Chart;
+      --  Grand_Mean = 1, Mean_MR = 10 → Spread ≈ 26.6 → LCL < 0 → clamped.
+      Lim : constant Limits_Record := Compute_I_Limits (1.0, 10.0);
+   begin
+      Assert (Lim.LCL = 0.0,
+              "I chart clamped: LCL should be 0; got "
+              & Long_Float'Image (Lim.LCL));
+      Assert (not Lim.Has_LCL,
+              "I chart clamped: Has_LCL should be False");
+   end Test_I_Chart_LCL_Clamped;
+
+   --  MR chart: Mean_MR = 10, UCL = 3.267 * 10 = 32.67.
+   procedure Test_MR_Chart_Limits_Basic (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.I_Chart;
+      Mean_MR : constant Long_Float := 10.0;
+      D4      : constant Long_Float := 3.267;
+      Lim     : constant Limits_Record := Compute_MR_Limits (Mean_MR);
+      Tol     : constant Long_Float := 1.0e-6;
+   begin
+      Assert (Lim.Has_UCL, "MR chart basic: Has_UCL should be True");
+      Assert (abs (Lim.UCL - D4 * Mean_MR) <= Tol,
+              "MR chart basic: UCL mismatch; got "
+              & Long_Float'Image (Lim.UCL));
+      Assert (abs (Lim.CL - Mean_MR) <= Tol,
+              "MR chart basic: CL mismatch");
+      Assert (Lim.LCL = 0.0,
+              "MR chart basic: LCL should always be 0");
+      Assert (not Lim.Has_LCL,
+              "MR chart basic: Has_LCL should always be False");
+   end Test_MR_Chart_Limits_Basic;
+
+   --  MR chart: Mean_MR = 0 → Has_UCL = False.
+   procedure Test_MR_Chart_Mean_MR_Zero (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.I_Chart;
+      Lim : constant Limits_Record := Compute_MR_Limits (0.0);
+   begin
+      Assert (not Lim.Has_UCL,
+              "MR chart MR=0: Has_UCL should be False");
+   end Test_MR_Chart_Mean_MR_Zero;
+
+   --  Estimate_Parameters for Session_Input_Tokens_I:
+   --  Three sessions with Total_Input_Tokens = 100, 200, 300.
+   --    Grand_Mean = 200, MR1 = 100, MR2 = 100 → Mean_MR = 100.
+   procedure Test_Estimate_I_Chart_Input (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Data_Model;
+      use Coyote_SQC.Charts;
+      S1, S2, S3 : Session_Record;
+      Turn1, Turn2, Turn3 : Turn_Record;
+      Metrics    : Metrics_Vectors.Vector;
+      Setup      : UUID_Set;
+      Params     : Setup_Parameters;
+      Tol        : constant Long_Float := 1.0e-6;
+   begin
+      S1.Session_Id         := To_Unbounded_String ("s1");
+      S1.Total_Input_Tokens := 100;
+      Turn1.Turn_Index      := 1;
+      S1.Turns.Append (Turn1);
+
+      S2.Session_Id         := To_Unbounded_String ("s2");
+      S2.Total_Input_Tokens := 200;
+      Turn2.Turn_Index      := 1;
+      S2.Turns.Append (Turn2);
+
+      S3.Session_Id         := To_Unbounded_String ("s3");
+      S3.Total_Input_Tokens := 300;
+      Turn3.Turn_Index      := 1;
+      S3.Turns.Append (Turn3);
+
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S1));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S2));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S3));
+
+      Estimate_Parameters (Metrics, Setup, Session_Input_Tokens_I, Params);
+
+      Assert (abs (Params.Grand_Mean - 200.0) <= Tol,
+              "I chart estimate: Grand_Mean should be 200; got "
+              & Long_Float'Image (Params.Grand_Mean));
+      Assert (abs (Params.Mean_MR - 100.0) <= Tol,
+              "I chart estimate: Mean_MR should be 100; got "
+              & Long_Float'Image (Params.Mean_MR));
+   end Test_Estimate_I_Chart_Input;
+
+   --  Single-session setup interval → only one session → no moving ranges
+   --  → Mean_MR = 0.
+   procedure Test_Estimate_I_Chart_Single (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Data_Model;
+      use Coyote_SQC.Charts;
+      S      : Session_Record;
+      Turn1  : Turn_Record;
+      Metrics : Metrics_Vectors.Vector;
+      Setup  : UUID_Set;
+      Params : Setup_Parameters;
+   begin
+      S.Session_Id         := To_Unbounded_String ("only");
+      S.Total_Input_Tokens := 500;
+      Turn1.Turn_Index     := 1;
+      S.Turns.Append (Turn1);
+
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S));
+
+      Estimate_Parameters (Metrics, Setup, Session_Input_Tokens_I, Params);
+
+      Assert (Params.Mean_MR = 0.0,
+              "I chart single-session: Mean_MR should be 0; got "
+              & Long_Float'Image (Params.Mean_MR));
+   end Test_Estimate_I_Chart_Single;
 
 end Coyote_SQC_Statistics_Tests;

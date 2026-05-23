@@ -192,6 +192,7 @@ package body Coyote_SQC.Session_Parser is
       procedure Process_Assistant_Msg (Msg : JSON_Value) is
          Turn      : Turn_Record;
          Usage_Obj : JSON_Value;
+         Thinking_Char_Sum : Natural := 0;
       begin
          if Msg.Kind /= JSON_Object_Type then
             return;
@@ -219,6 +220,9 @@ package body Coyote_SQC.Session_Parser is
                   begin
                      if Block_Type = "thinking" then
                         Turn.Thinking_Enabled := True;
+                        Thinking_Char_Sum     :=
+                          Thinking_Char_Sum
+                          + Get_String_Field (Block, "thinking")'Length;
                      elsif Block_Type = "toolCall" then
                         declare
                            TC_Id : constant String :=
@@ -228,6 +232,20 @@ package body Coyote_SQC.Session_Parser is
                            TC.Tool_Name :=
                              To_Unbounded_String
                                (Get_String_Field (Block, "name"));
+                           declare
+                              Arguments : constant JSON_Value :=
+                                (if Block.Has_Field ("arguments")
+                                 then Block.Get ("arguments")
+                                 else JSON_Null);
+                              Args_Str  : constant String :=
+                                (if Arguments.Kind = JSON_Object_Type
+                                 then Write (Arguments)
+                                 elsif Arguments.Kind = JSON_String_Type
+                                 then String'(Arguments.Get)
+                                 else "{}");
+                           begin
+                              TC.Input_Tokens := Args_Str'Length / 4;
+                           end;
                            Turn.Tool_Calls.Append (TC);
                            if TC_Id'Length > 0 then
                               TC_Map.Include
@@ -239,6 +257,14 @@ package body Coyote_SQC.Session_Parser is
                   end;
                end loop;
             end;
+         end if;
+
+         --  If the usage object had no thinking-token count (e.g. sessions
+         --  from the pi agent), estimate from the accumulated thinking-text
+         --  length using the same 4-chars-per-token heuristic as the
+         --  Anthropic streaming provider.
+         if Turn.Thinking_Tokens = 0 and then Thinking_Char_Sum > 0 then
+            Turn.Thinking_Tokens := Natural'Max (1, Thinking_Char_Sum / 4);
          end if;
 
          Session.Total_Input_Tokens  :=
@@ -254,24 +280,55 @@ package body Coyote_SQC.Session_Parser is
          Is_Error : constant Boolean := Get_Bool_Field (Msg, "isError");
          Cursor   : TC_Index_Maps.Cursor;
       begin
-         if not Is_Error or else Session.Turns.Is_Empty then
+         if Session.Turns.Is_Empty then
             return;
          end if;
-         Cursor := TC_Map.Find (TC_Id);
-         if TC_Index_Maps.Has_Element (Cursor) then
-            declare
-               Last_Idx  : constant Positive := Session.Turns.Last_Index;
-               Last_Turn : Turn_Record := Session.Turns.Element (Last_Idx);
-               TC_Idx    : constant Positive :=
-                 TC_Index_Maps.Element (Cursor);
-               TC        : Tool_Call_Record :=
-                 Last_Turn.Tool_Calls.Element (TC_Idx);
-            begin
-               TC.Failed := True;
-               Last_Turn.Tool_Calls.Replace_Element (TC_Idx, TC);
-               Session.Turns.Replace_Element (Last_Idx, Last_Turn);
-            end;
-         end if;
+
+         --  Estimate output tokens from the total length of text content.
+         declare
+            Result_Char_Sum : Natural := 0;
+         begin
+            if Msg.Has_Field ("content")
+              and then Msg.Get ("content").Kind = JSON_Array_Type
+            then
+               declare
+                  Content : constant JSON_Array := Msg.Get ("content");
+               begin
+                  for I in 1 .. GNATCOLL.JSON.Length (Content) loop
+                     declare
+                        Block : constant JSON_Value :=
+                          GNATCOLL.JSON.Get (Content, I);
+                     begin
+                        if Get_String_Field (Block, "type") = "text" then
+                           Result_Char_Sum :=
+                             Result_Char_Sum
+                             + Get_String_Field (Block, "text")'Length;
+                        end if;
+                     end;
+                  end loop;
+               end;
+            end if;
+
+            Cursor := TC_Map.Find (TC_Id);
+            if TC_Index_Maps.Has_Element (Cursor) then
+               declare
+                  Last_Idx  : constant Positive := Session.Turns.Last_Index;
+                  Last_Turn : Turn_Record :=
+                    Session.Turns.Element (Last_Idx);
+                  TC_Idx    : constant Positive :=
+                    TC_Index_Maps.Element (Cursor);
+                  TC        : Tool_Call_Record :=
+                    Last_Turn.Tool_Calls.Element (TC_Idx);
+               begin
+                  TC.Output_Tokens := Result_Char_Sum / 4;
+                  if Is_Error then
+                     TC.Failed := True;
+                  end if;
+                  Last_Turn.Tool_Calls.Replace_Element (TC_Idx, TC);
+                  Session.Turns.Replace_Element (Last_Idx, Last_Turn);
+               end;
+            end if;
+         end;
       end Process_Tool_Result;
 
       procedure Process_User_Msg (Msg : JSON_Value) is

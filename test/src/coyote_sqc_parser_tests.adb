@@ -320,6 +320,67 @@ package body Coyote_SQC_Parser_Tests is
          "Thinking_Enabled must be False when no thinking block present");
    end Test_Thinking_Absent;
 
+   --  When usage.thinking is absent (pi-agent sessions), Thinking_Tokens
+   --  should be estimated from the length of the thinking text block
+   --  using the 4-chars-per-token heuristic.
+   --  Fixture: 40-char thinking text → 40 / 4 = 10 estimated tokens.
+   procedure Test_Thinking_Text_Estimate (T : in out Test) is
+      pragma Unreferenced (T);
+      Session : Session_Record;
+      Ok      : Boolean;
+   begin
+      Coyote_SQC.Session_Parser.Parse_File
+        (Fixture ("thinking_text_estimate_session.jsonl"), Session, Ok);
+      Assert (Ok, "Parse_File must succeed");
+      Assert
+        (Session.Turns.Length = 1, "Expected 1 turn");
+      Assert
+        (Session.Turns.Element (1).Thinking_Enabled,
+         "Thinking_Enabled must be True");
+      Assert
+        (Session.Turns.Element (1).Thinking_Tokens = 10,
+         "Thinking_Tokens should be 10 (40 chars / 4); got "
+         & Natural'Image (Session.Turns.Element (1).Thinking_Tokens));
+   end Test_Thinking_Text_Estimate;
+
+   --  Tool call token estimation: Input_Tokens estimated from serialised
+   --  arguments (4 chars/token), Output_Tokens from result text length.
+   --  Fixture: arguments = {"command":"<40 As>"} → serialised 54 chars
+   --           → Input_Tokens = 54/4 = 13.
+   --           Tool result text = 40 Bs → Output_Tokens = 40/4 = 10.
+   procedure Test_Tool_Call_Token_Estimates (T : in out Test) is
+      pragma Unreferenced (T);
+      Session : Session_Record;
+      Ok      : Boolean;
+   begin
+      Coyote_SQC.Session_Parser.Parse_File
+        (Fixture ("tool_call_token_estimate_session.jsonl"), Session, Ok);
+      Assert (Ok, "Parse_File must succeed");
+      Assert
+        (Session.Turns.Length = 2,
+         "Expected 2 turns; got "
+         & Ada.Containers.Count_Type'Image (Session.Turns.Length));
+
+      declare
+         TC : constant Tool_Call_Record :=
+           Session.Turns.Element (1).Tool_Calls.Element (1);
+      begin
+         Assert
+           (TC.Input_Tokens = 13,
+            "Input_Tokens should be 13 (54 chars / 4); got "
+            & Natural'Image (TC.Input_Tokens));
+         Assert
+           (TC.Output_Tokens = 10,
+            "Output_Tokens should be 10 (40 chars / 4); got "
+            & Natural'Image (TC.Output_Tokens));
+         Assert
+           (not TC.Failed,
+            "TC.Failed should be False for a successful result");
+      end;
+   end Test_Tool_Call_Token_Estimates;
+
+
+
    --  ── compaction session tests ──────────────────────────────────────────
 
    procedure Test_Compaction_All_Turns (T : in out Test) is

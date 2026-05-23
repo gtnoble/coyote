@@ -265,6 +265,7 @@ Coyote_SQC.Statistics.C4             -- c4(n) lookup table and approximation
 Coyote_SQC.Statistics.Xbar           -- Xbar chart center line and limit formulas
 Coyote_SQC.Statistics.S_Chart        -- s chart center line and limit formulas
 Coyote_SQC.Statistics.P_Chart        -- p chart center line and limit formulas
+Coyote_SQC.Statistics.I_Chart        -- I chart and MR chart limit formulas
 Coyote_SQC.Charts                    -- Chart_Kind enum; Chart_State per chart
 Coyote_SQC.Workspace                 -- Workspace_Record; load/save .sqcw files
 Coyote_SQC.Workspace.Integrity       -- setup interval integrity checks on filter change
@@ -371,7 +372,7 @@ For each `role: "assistant"` message:
 |---|---|
 | `Input_Tokens` | `usage.input` (integer) |
 | `Output_Tokens` | `usage.output` (integer) |
-| `Thinking_Tokens` | `usage.thinking` (integer, default 0) |
+| `Thinking_Tokens` | `usage.thinking` (integer); when absent or zero and the turn contains one or more `"thinking"` content blocks, estimated as total thinking-block character count ÷ 4 |
 | `Thinking_Enabled` | True if any content block has `"type": "thinking"` |
 | `Tool_Calls` | Content blocks with `"type": "toolCall"` (see §5.7) |
 
@@ -382,13 +383,15 @@ For each `"type": "toolCall"` content block in an assistant message:
 | Record field | JSONL source |
 |---|---|
 | `Tool_Name` | `name` string |
-| `Input_Tokens` | Not available at call time; set to 0 |
-| `Output_Tokens` | Not available at call time; set to 0 |
+| `Input_Tokens` | Estimated from the serialised `arguments` JSON string length ÷ 4; set during assistant message parsing (0 if arguments are absent) |
+| `Output_Tokens` | Estimated from the result text length ÷ 4; set when the matching `toolResult` record is processed (see §5.8) |
 | `Failed` | See §5.8 |
 
-Tool call token counts at the individual-call level are not recorded in the session
-file. `Input_Tokens` and `Output_Tokens` on `Tool_Call_Record` are reserved for a
-future format revision and are always 0.
+Token counts for individual tool calls are not present in the session file; both
+`Input_Tokens` and `Output_Tokens` on `Tool_Call_Record` are text-length estimates
+using the 4-characters-per-token heuristic. `Input_Tokens` is set during assistant
+message parsing; `Output_Tokens` is set when the matching `toolResult` record is
+processed in §5.8.
 
 ### 5.8 Tool Call Failure Detection
 
@@ -398,6 +401,10 @@ A tool call with ID `id` is marked `Failed = True` if the corresponding
 Failure cases not recorded in `isError` (e.g. parsing errors on the model-generated
 input) cannot be detected from the session file. The `Failed` field reflects only
 what the JSONL records.
+
+In addition to recording the failure flag, every `toolResult` record is consumed
+to populate `Output_Tokens` on the matching `Tool_Call_Record`: the result text
+length is divided by 4 using the 4-characters-per-token heuristic.
 
 ### 5.9 First User Message Extraction
 
@@ -517,12 +524,15 @@ type Session_Metrics_Record is record
    Per_Turn_Tool_Tokens     : Natural_Vectors.Vector;
    Per_Turn_Thinking_Tokens : Natural_Vectors.Vector;
    N_Thinking_Turns_For_Chart : Natural := 0;
+   N_Tool_Call_Turns_For_Chart : Natural := 0;
+   Total_Input_Tokens         : Natural := 0;
+   Total_Output_Tokens        : Natural := 0;
 end record;
 ```
 
-`Per_Turn_Tool_Tokens(i)` = sum of `Input_Tokens + Output_Tokens` over all tool calls
-in turn `i`. Currently always 0 (see §5.7); the field is populated for when a future
-format revision adds per-call token counts.
+`Per_Turn_Tool_Tokens(i)` = sum of estimated `Input_Tokens + Output_Tokens` over all
+tool calls in turn `i`. Only tool-call turns contribute an entry; the vector length
+equals `N_Tool_Call_Turns_For_Chart`.
 
 `Per_Turn_Thinking_Tokens` has one entry per thinking-enabled turn (not per total
 turn). Its length equals `N_Thinking_Turns_For_Chart`.
@@ -554,7 +564,11 @@ type Chart_Kind is
    Thinking_Tokens_S,
    Tool_Call_Failure_Rate,
    Fraction_Tool_Call_Turns,
-   Fraction_Thinking_Turns);
+   Fraction_Thinking_Turns,
+   Session_Input_Tokens_I,
+   Session_Input_Tokens_MR,
+   Session_Output_Tokens_I,
+   Session_Output_Tokens_MR);
 
 type Chart_Definition_Record is record
    Chart  : Chart_Kind;
@@ -701,6 +715,20 @@ For the **Thinking Tokens charts**, sessions where `Any_Thinking = False` are ex
 from parameter estimation. The subgroup is `Per_Turn_Thinking_Tokens`; subgroup size
 `n_i = N_Thinking_Turns_For_Chart`.
 
+For the **Tool Call Token charts**, sessions where `N_Tool_Call_Turns_For_Chart = 0`
+(no tool-call turns) are excluded from parameter estimation. The subgroup is
+`Per_Turn_Tool_Tokens`; subgroup size `n_i = N_Tool_Call_Turns_For_Chart`.
+
+For the **Session Input/Output Token charts** (I and MR kinds), the observation is the
+session-level scalar (`Total_Input_Tokens` or `Total_Output_Tokens` from
+`Session_Metrics_Record`). `Estimate_Parameters` computes:
+- `Grand_Mean` : Long_Float -- mean of setup-interval session totals
+- `Mean_MR`    : Long_Float -- mean moving range between consecutive setup sessions
+
+The metrics vector is iterated in chronological session order (the sort order
+guaranteed by `Reload_Sessions`). A setup interval of one session produces
+`Mean_MR = 0.0` (no limits drawn).
+
 ### 7.6 Retrospective Limits
 
 When `Setup_Session_Ids` is empty, retrospective limits are computed from **all
@@ -718,6 +746,45 @@ negative). Only the 3-sigma rule is applied; no runs rules.
 
 ---
 
+
+### 7.8 I Chart and MR Chart — `Coyote_SQC.Statistics.I_Chart`
+
+Session-level totals (`Total_Input_Tokens`, `Total_Output_Tokens`) are single
+scalar observations; there is no within-session subgroup. An Individuals (I) chart
+plots each value directly; its companion Moving-Range (MR) chart monitors process
+variation through consecutive differences.
+
+```ada
+--  Compute I-chart (Individuals) control limits.
+--  Grand_Mean = x̄ of setup-interval session totals.
+--  Mean_MR    = MR̄ (mean moving range between consecutive setup sessions).
+--  When Mean_MR = 0.0, Has_UCL and Has_LCL are both False.
+--  The LCL is clamped to 0 when the formula yields a negative value.
+function Compute_I_Limits
+  (Grand_Mean : Long_Float;
+   Mean_MR    : Long_Float) return Limits_Record;
+
+--  Compute MR-chart (Moving Range) control limits.
+--  UCL = D4 * Mean_MR = 3.267 * Mean_MR.
+--  LCL = 0 always; Has_LCL is always False.
+--  When Mean_MR = 0.0, Has_UCL is False.
+function Compute_MR_Limits (Mean_MR : Long_Float) return Limits_Record;
+```
+
+Constants: `d2 = 1.128`, `D4 = 3.267` (span-2 moving range).
+
+Formulas:
+
+```
+I-chart: UCL/LCL = Grand_Mean ± 3 × Mean_MR / d2
+MR-chart: UCL    = D4 × Mean_MR;  LCL = 0 always
+```
+
+The first session in the visible range has no predecessor and is excluded from the
+MR chart (no marker, gap in connecting line). This is handled in
+`Coyote_SQC.App.Recompute_Chart` using a `Prev_Total` / `Has_Prev_Total` state
+variable that tracks the previous session's total across loop iterations.
+
 ## 8. Chart Definitions
 
 `Coyote_SQC.Charts` declares the `Chart_Kind` enumeration (§6.7) and a
@@ -729,12 +796,13 @@ type Chart_Properties is record
    Group       : Ada.Strings.Unbounded.Unbounded_String;
    Y_Axis_Label: Ada.Strings.Unbounded.Unbounded_String;
    Is_P_Chart  : Boolean;
+   Is_I_Chart  : Boolean;
 end record;
 
 function Properties (Kind : Chart_Kind) return Chart_Properties;
 ```
 
-The nine charts and their properties:
+The thirteen charts and their properties:
 
 | `Chart_Kind` | Label | Group | Y-Axis Label |
 |---|---|---|---|
@@ -747,6 +815,10 @@ The nine charts and their properties:
 | `Tool_Call_Failure_Rate` | `Tool Call Failure Rate` | `Rates` | `Failure proportion` |
 | `Fraction_Tool_Call_Turns` | `Fraction: Tool-Call Turns` | `Rates` | `Fraction of turns` |
 | `Fraction_Thinking_Turns` | `Fraction: Thinking Turns` | `Rates` | `Fraction of turns` |
+| `Session_Input_Tokens_I`   | `Session Input Tokens -- I`   | `Session Totals` | `Total input tokens` |
+| `Session_Input_Tokens_MR`  | `Session Input Tokens -- MR`  | `Session Totals` | `Moving range (input tokens)` |
+| `Session_Output_Tokens_I`  | `Session Output Tokens -- I`  | `Session Totals` | `Total output tokens` |
+| `Session_Output_Tokens_MR` | `Session Output Tokens -- MR` | `Session Totals` | `Moving range (output tokens)` |
 
 The `Chart_Kind` iteration order matches the left-panel display order.
 
@@ -933,7 +1005,7 @@ The three panels are separated by `GtkPaned` splitters. Default widths: left pan
 ### 11.2 Left Panel — `Coyote_SQC.UI.Left_Panel`
 
 A `GtkListBox` with visual group separators. Each row is a `GtkListBoxRow`
-containing a `GtkLabel`. The two groups ("Token Consumption", "Rates") are separated
+containing a `GtkLabel`. The three groups ("Token Consumption", "Rates", "Session Totals") are separated
 by a `GtkSeparator` row styled with a group label above it.
 
 Clicking a row:
@@ -1501,6 +1573,11 @@ AUnit test suite covering:
   - n=0 session on p-chart produces no limits and no point.
   - All setup sessions have n=1 → Pooled_S = 0, only grand mean line drawn.
   - Zero-thinking sessions excluded from thinking chart estimation.
+  - Single-session setup interval produces `Mean_MR = 0.0`; no limits drawn.
+  - `Mean_MR = 0.0` (all session totals equal) produces no limits.
+  - I-chart LCL clamped to 0 when formula yields negative.
+  - I-chart LCL positive when grand mean is large relative to `Mean_MR`.
+  - MR-chart `Has_LCL` always False.
 
 ### 14.2 Parser Tests — `Coyote_SQC.Tests.Parser`
 

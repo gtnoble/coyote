@@ -1,0 +1,3 @@
+{"type":"session","version":3,"id":"00000000-0000-4000-8000-000000000009","timestamp":"2025-06-01T10:00:00.000Z","cwd":"/home/user/project"}
+{"type":"message","message":{"role":"user","content":[{"type":"text","text":"Test."}]}}
+{"type":"message","message":{"role":"assistant","content":[{"type":"thinking","thinking":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"},{"type":"text","text":"Done."}],"usage":{"input":10,"output":5,"cacheRead":0,"cacheWrite":0},"stopReason":"stop"}}

@@ -38,5 +38,21 @@ package Coyote_SQC_Statistics_Tests is
    procedure Test_Estimate_N1_Only       (T : in out Test);
    procedure Test_N1_Excluded_From_Pooled_S (T : in out Test);
    procedure Test_Estimate_Zero_Thinking (T : in out Test);
+   procedure Test_Estimate_Zero_Tool_Calls (T : in out Test);
+   procedure Test_Tool_Call_Token_Values   (T : in out Test);
+
+   --  I chart limit tests.
+   procedure Test_I_Chart_Limits_Basic    (T : in out Test);
+   procedure Test_I_Chart_LCL_Positive    (T : in out Test);
+   procedure Test_I_Chart_Mean_MR_Zero    (T : in out Test);
+   procedure Test_I_Chart_LCL_Clamped     (T : in out Test);
+
+   --  MR chart limit tests.
+   procedure Test_MR_Chart_Limits_Basic   (T : in out Test);
+   procedure Test_MR_Chart_Mean_MR_Zero   (T : in out Test);
+
+   --  Estimate_Parameters for I/MR chart kinds.
+   procedure Test_Estimate_I_Chart_Input  (T : in out Test);
+   procedure Test_Estimate_I_Chart_Single (T : in out Test);
 
 end Coyote_SQC_Statistics_Tests;

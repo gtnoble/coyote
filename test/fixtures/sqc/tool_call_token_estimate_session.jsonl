@@ -1,0 +1,5 @@
+{"type":"session","version":3,"id":"00000000-0000-4000-8000-00000000000a","timestamp":"2025-07-01T10:00:00.000Z","cwd":"/home/user/project"}
+{"type":"message","message":{"role":"user","content":[{"type":"text","text":"Run a command."}]}}
+{"type":"message","message":{"role":"assistant","content":[{"type":"toolCall","id":"tc-est-001","name":"shell","arguments":{"command":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}}],"usage":{"input":10,"output":5,"cacheRead":0,"cacheWrite":0},"stopReason":"toolUse"}}
+{"type":"message","message":{"role":"toolResult","toolCallId":"tc-est-001","toolName":"shell","content":[{"type":"text","text":"BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"}],"isError":false}}
+{"type":"message","message":{"role":"assistant","content":[{"type":"text","text":"Done."}],"usage":{"input":20,"output":3,"cacheRead":0,"cacheWrite":0},"stopReason":"stop"}}

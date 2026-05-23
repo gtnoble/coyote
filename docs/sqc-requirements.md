@@ -166,8 +166,8 @@ One record per tool call within a turn.
 | Field | Type | Description |
 |---|---|---|
 | `Tool_Name` | String | Name of the tool invoked |
-| `Input_Tokens` | Natural | Tokens consumed in the tool call input |
-| `Output_Tokens` | Natural | Tokens consumed in the tool result |
+| `Input_Tokens` | Natural | Estimated tokens consumed in the tool call input; derived from the serialised `arguments` JSON string length ÷ 4 (0 if arguments are absent) |
+| `Output_Tokens` | Natural | Estimated tokens consumed in the tool result; derived from the result text length ÷ 4 (0 if no matching tool result has been recorded) |
 | `Failed` | Boolean | True if the tool call resulted in any failure (see Glossary) |
 
 ### 4.4 Session Metrics Record
@@ -188,6 +188,7 @@ Derived from a Session_Record. Computed once at load time and cached.
 | `Per_Turn_Tool_Tokens` | Vector of Natural | Tool call token total per turn |
 | `Per_Turn_Thinking_Tokens` | Vector of Natural | Thinking token count per thinking-enabled turn only |
 | `N_Thinking_Turns_For_Chart` | Natural | Count of thinking-enabled turns (denominator for thinking chart) |
+| `N_Tool_Call_Turns_For_Chart` | Natural | Count of tool-call turns (denominator for tool-call token chart) |
 
 ### 4.5 Comment Record
 
@@ -213,7 +214,7 @@ Derived from a Session_Record. Computed once at load time and cached.
 
 | Field | Type | Description |
 |---|---|---|
-| `Chart_Type` | Chart_Type enum | Identifies which of the nine charts this defines |
+| `Chart_Type` | Chart_Type enum | Identifies which of the thirteen charts this defines |
 
 ---
 
@@ -332,9 +333,62 @@ of thinking-enabled turns in the session, not the total turn count.
 
 ---
 
+### 5.6 Individuals (I) and Moving-Range (MR) Chart Formulas
+
+Session-level totals (`Total_Input_Tokens`, `Total_Output_Tokens`) are single
+scalar observations per session; there is no within-session subgroup to average.
+An Individuals (I) chart plots each value directly, and its companion Moving-Range
+(MR) chart tracks the absolute difference between consecutive session values.
+
+Let the setup interval contain `k` sessions ordered chronologically. Let `x_i` be
+the session-level value (total input or output tokens) for session `i`.
+
+**Moving ranges:**
+
+    MR_i = |x_i − x_{i-1}|   for i = 2, 3, …, k
+
+The first session in the setup interval contributes no moving range.
+
+**Mean moving range:**
+
+    MR̄ = (1/(k−1)) Σ_{i=2}^{k} MR_i
+
+**I-chart center line:**
+
+    x̄ = (1/k) Σ_{i=1}^{k} x_i
+
+**I-chart control limits (same for every point):**
+
+    UCL_I = x̄ + 3 × MR̄ / d2
+    LCL_I = max(0, x̄ − 3 × MR̄ / d2)
+
+where `d2 = 1.128` (the standard factor for a moving range of span 2).
+
+**MR-chart center line:**
+
+    CL_MR = MR̄
+
+**MR-chart control limits:**
+
+    UCL_MR = D4 × MR̄   (D4 = 3.267 for span 2)
+    LCL_MR = 0 always   (Has_LCL is always False)
+
+**Special cases:**
+
+- A setup interval of exactly one session cannot produce any moving ranges
+  (`k = 1 → MR̄` undefined). In this case no limits are drawn; the chart
+  displays retrospective limits computed from all visible sessions instead.
+- When `MR̄ = 0` (all setup-interval sessions have the same token total),
+  no limits are drawn.
+- The first session in the visible range has no predecessor; it is excluded
+  from the MR chart (no marker, gap in the connecting line), exactly as
+  single-turn sessions are excluded from the s chart.
+- Sessions are always ordered chronologically for moving-range computation,
+  regardless of the x-axis scale mode (Time Scale or Run Sequence).
+
 ## 6. Charts
 
-Nine charts are available in every workspace. They are pre-instantiated; the user does
+Thirteen charts are available in every workspace. They are pre-instantiated; the user does
 not create or delete charts. All charts share a single workspace-level setup interval
 (see Section 11).
 
@@ -354,20 +408,19 @@ not create or delete charts. All charts share a single workspace-level setup int
 
 ### 6.3 Tool Call Token Consumption — Xbar Chart
 
-**Measured quantity:** total tokens consumed per turn by tool calls (input + output
-of all tool calls within that turn).  
-**Subgroup:** turns within a session.  
-**Subgroup size n:** total turns in the session.  
-**Statistic:** mean tool call token consumption per turn (x̄).  
-**Note:** Turns with no tool calls contribute a value of 0 to the subgroup.
+**Measured quantity:** estimated tokens consumed per tool-call turn by tool calls (input + output of all tool calls within that turn).  
+**Subgroup:** tool-call turns within a session.  
+**Subgroup size n:** count of tool-call turns in the session.  
+**Statistic:** mean tool call token consumption per tool-call turn (x̄).  
+**Zero-tool-call sessions:** sessions where no turn contained a tool call are excluded from limit estimation and shown as hollow gray markers.
 
 ### 6.4 Tool Call Token Consumption — s Chart
 
-**Measured quantity:** total tokens consumed per turn by tool calls.  
-**Subgroup:** turns within a session.  
-**Subgroup size n:** total turns in the session.  
-**Statistic:** sample standard deviation of tool call token consumption across turns (s).  
-**Note:** Turns with no tool calls contribute a value of 0 to the subgroup.
+**Measured quantity:** estimated tokens consumed per tool-call turn by tool calls (input + output of all tool calls within that turn).  
+**Subgroup:** tool-call turns within a session.  
+**Subgroup size n:** count of tool-call turns in the session.  
+**Statistic:** sample standard deviation of tool call token consumption across tool-call turns (s).  
+**Zero-tool-call sessions:** sessions where no turn contained a tool call are excluded from limit estimation and shown as hollow gray markers.
 
 ### 6.5 Thinking Token Consumption — Xbar Chart
 
@@ -404,6 +457,37 @@ of all tool calls within that turn).
 **Subgroup size n:** total turns in the session.  
 **Proportion p:** thinking-enabled turns / total turns.
 
+### 6.10 Session Input Tokens — I Chart
+
+**Measured quantity:** total input tokens for the session (`Total_Input_Tokens`).  
+**Observation:** one scalar value per session; no within-session subgroup.  
+**Statistic:** the session total (x).  
+**Limits:** derived from the mean moving range of the setup interval (§5.6).
+
+### 6.11 Session Input Tokens — MR Chart
+
+**Measured quantity:** absolute difference in total input tokens between consecutive
+sessions in chronological order.  
+**Statistic:** `MR_i = |Total_Input_Tokens_i − Total_Input_Tokens_{i-1}|`.  
+**First session:** no marker is plotted; a gap is left in the connecting line.  
+**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6).
+
+### 6.12 Session Output Tokens — I Chart
+
+**Measured quantity:** total output tokens for the session (`Total_Output_Tokens`).  
+**Observation:** one scalar value per session; no within-session subgroup.  
+**Statistic:** the session total (x).  
+**Limits:** derived from the mean moving range of the setup interval (§5.6).
+
+### 6.13 Session Output Tokens — MR Chart
+
+**Measured quantity:** absolute difference in total output tokens between consecutive
+sessions in chronological order.  
+**Statistic:** `MR_i = |Total_Output_Tokens_i − Total_Output_Tokens_{i-1}|`.  
+**First session:** no marker is plotted; a gap is left in the connecting line.  
+**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6).
+
+
 ---
 
 ## 7. UI Layout and Navigation
@@ -419,7 +503,7 @@ The main window contains, from top to bottom:
 
 ### 7.2 Left Panel
 
-A GtkListBox (~180px default width, user-resizable) listing the nine charts in two
+A GtkListBox (~180px default width, user-resizable) listing the thirteen charts in three
 visually separated groups:
 
 ```
@@ -437,6 +521,13 @@ Rates
 Tool Call Failure Rate
 Fraction: Tool-Call Turns
 Fraction: Thinking Turns
+
+Session Totals
+─────────────────
+Session Input Tokens — I
+Session Input Tokens — MR
+Session Output Tokens — I
+Session Output Tokens — MR
 ```
 
 Clicking a row switches the chart displayed in the chart area. The active chart is
@@ -699,7 +790,7 @@ Displayed when two or more points are selected.
 
 **Set as Setup Interval button:**
 - Clicking this button sets the workspace setup interval to exactly the selected
-  sessions, applying to all nine charts simultaneously.
+  sessions, applying to all thirteen charts simultaneously.
 - If a setup interval is already established, a confirmation dialog is shown:
   "Replace existing setup interval for this workspace?"
 - On confirmation, all charts recompute their limits and recolor the setup interval
@@ -725,7 +816,7 @@ Displayed when two or more points are selected.
 ### 11.1 Establishing a Setup Interval
 
 A setup interval is a single workspace-level set of sessions used to estimate the
-center line and control limits for all nine charts simultaneously. It is established
+center line and control limits for all thirteen charts simultaneously. It is established
 by selecting one or more sessions (Section 9) and clicking "Set as Setup Interval"
 in the multi-select detail panel (Section 10.2). There is no requirement for the
 setup sessions to be contiguous in time.
@@ -734,11 +825,11 @@ setup sessions to be contiguous in time.
 
 The setup interval is stored as a set of session UUIDs in the `Setup_Session_Ids`
 field of the `Workspace_Record`. It is workspace-level: a single setup interval
-applies to all nine charts. The set is stored within the workspace file.
+applies to all thirteen charts. The set is stored within the workspace file.
 
 ### 11.3 Visual Representation
 
-Setup interval sessions are rendered with filled yellow markers on all nine charts.
+Setup interval sessions are rendered with filled yellow markers on all thirteen charts.
 A faint yellow vertical band spans the x-extent of the setup interval sessions on
 every chart.
 
@@ -995,6 +1086,10 @@ All statistical formula implementations shall have AUnit unit tests covering:
 - Correct p-chart limit computation for known datasets.
 - Special cases: n=1 sessions, n=0 sessions, zero-thinking sessions.
 - c4 constant accuracy against a reference table for n = 2..25.
+- Correct I-chart and MR-chart limit computation for known datasets (grand mean,
+  mean moving range, UCL/LCL to 4 decimal places).
+- Special cases for I/MR charts: single-session setup interval (MR̄ undefined →
+  no limits drawn); MR̄ = 0 → no limits drawn; first session excluded from MR chart.
 
 ---
 
