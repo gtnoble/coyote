@@ -51,6 +51,7 @@ package LLM.Types is
       Output      : Natural := 0;
       Cache_Read  : Natural := 0;
       Cache_Write : Natural := 0;
+      Thinking    : Natural := 0;  --  Thinking/reasoning tokens (estimated for Anthropic)
    end record;
 
    --  Add two usage values field-by-field.

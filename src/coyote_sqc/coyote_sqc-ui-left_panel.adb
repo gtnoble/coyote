@@ -1,0 +1,152 @@
+--  Coyote_SQC.UI.Left_Panel body.
+--
+--  Project: coyote
+
+with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
+with Coyote_SQC.App;
+with Coyote_SQC.Charts;
+with Coyote_SQC.UI.Chart_Canvas;
+with Glib;                   use Glib;
+with Gtk.Enums;
+with Gtk.Label;
+with Gtk.List_Box;
+with Gtk.List_Box_Row;
+with Gtk.Scrolled_Window;
+with Gtk.Widget;
+
+package body Coyote_SQC.UI.Left_Panel is
+   use type Gtk.List_Box.Gtk_List_Box;
+
+   use Coyote_SQC.Charts;
+
+   --  Module-level reference to the ListBox.
+   The_List_Box : Gtk.List_Box.Gtk_List_Box := null;
+
+   --  Maximum GtkListBox rows (9 charts + separators; 20 is generous).
+   Max_LB_Rows : constant := 20;
+
+   --  Mapping: GtkListBox row index -> Chart_Kind (only valid when
+   --  Row_Is_Chart(I) = True).  Separator rows are not chart rows.
+   type Row_Map_Array   is array (0 .. Max_LB_Rows - 1) of Chart_Kind;
+   type Row_Valid_Array is array (0 .. Max_LB_Rows - 1) of Boolean;
+
+   Row_Map      : Row_Map_Array   := (others => Chart_Kind'First);
+   Row_Is_Chart : Row_Valid_Array := (others => False);
+   LB_Row_Count : Natural := 0;   --  total LB rows (charts + separators)
+
+   --  ── Signal handler ────────────────────────────────────────────────────
+
+   procedure On_Row_Activated
+     (List_Box : access Gtk.List_Box.Gtk_List_Box_Record'Class;
+      Row      : not null access Gtk.List_Box_Row.Gtk_List_Box_Row_Record'Class)
+   is
+      pragma Unreferenced (List_Box);
+      Idx : constant Integer := Integer (Row.Get_Index);
+   begin
+      if Idx >= 0 and then Idx < LB_Row_Count
+        and then Row_Is_Chart (Idx)
+      then
+         Coyote_SQC.App.State.Active_Chart := Row_Map (Idx);
+         --  Recompute y-fit for the new chart.
+         Coyote_SQC.App.Y_Fit;
+         Coyote_SQC.UI.Chart_Canvas.Queue_Redraw;
+      end if;
+   end On_Row_Activated;
+
+   --  ── Build ─────────────────────────────────────────────────────────────
+
+   function Build return Gtk.Scrolled_Window.Gtk_Scrolled_Window is
+      use Gtk.List_Box;
+      use Gtk.List_Box_Row;
+      use Gtk.Label;
+      use Gtk.Scrolled_Window;
+      use Gtk.Enums;
+
+      Scroll     : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      LB         : Gtk.List_Box.Gtk_List_Box;
+      Last_Group : Unbounded_String;
+   begin
+      Gtk.Scrolled_Window.Gtk_New (Scroll);
+      Scroll.Set_Policy (Policy_Never, Policy_Automatic);
+      Scroll.Set_Size_Request (180, -1);
+
+      Gtk.List_Box.Gtk_New (LB);
+      LB.Set_Selection_Mode (Selection_Single);
+      LB.On_Row_Activated (On_Row_Activated'Access);
+
+      --  Reset state.
+      Row_Map      := (others => Chart_Kind'First);
+      Row_Is_Chart := (others => False);
+      LB_Row_Count := 0;
+
+      for K in Chart_Kind loop
+         declare
+            Props : constant Coyote_SQC.Charts.Chart_Properties :=
+              Coyote_SQC.Charts.Properties (K);
+            Group : constant String := To_String (Props.Group);
+         begin
+            --  Add group separator label when the group changes.
+            if To_String (Last_Group) /= Group then
+               declare
+                  Sep_Row : Gtk.List_Box_Row.Gtk_List_Box_Row;
+                  Sep_Lbl : Gtk.Label.Gtk_Label;
+               begin
+                  Gtk.List_Box_Row.Gtk_New (Sep_Row);
+                  Sep_Row.Set_Activatable (False);
+                  Sep_Row.Set_Selectable (False);
+                  Gtk.Label.Gtk_New (Sep_Lbl, "<b>" & Group & "</b>");
+                  Sep_Lbl.Set_Use_Markup (True);
+                  Sep_Lbl.Set_Halign (Gtk.Widget.Align_Start);
+                  Sep_Row.Add (Sep_Lbl);
+                  LB.Add (Sep_Row);
+                  --  Separator occupies a LB row index but is NOT a chart.
+                  if LB_Row_Count < Max_LB_Rows then
+                     Row_Is_Chart (LB_Row_Count) := False;
+                     LB_Row_Count := LB_Row_Count + 1;
+                  end if;
+                  Last_Group := To_Unbounded_String (Group);
+               end;
+            end if;
+
+            --  Add chart row.
+            declare
+               Row : Gtk.List_Box_Row.Gtk_List_Box_Row;
+               Lbl : Gtk.Label.Gtk_Label;
+            begin
+               Gtk.List_Box_Row.Gtk_New (Row);
+               Gtk.Label.Gtk_New (Lbl, To_String (Props.Label));
+               Lbl.Set_Halign (Gtk.Widget.Align_Start);
+               Lbl.Set_Margin_Start (8);
+               Row.Add (Lbl);
+               LB.Add (Row);
+               if LB_Row_Count < Max_LB_Rows then
+                  Row_Map (LB_Row_Count)      := K;
+                  Row_Is_Chart (LB_Row_Count) := True;
+                  LB_Row_Count := LB_Row_Count + 1;
+               end if;
+            end;
+         end;
+      end loop;
+
+      Scroll.Add (LB);
+      The_List_Box := LB;
+      return Scroll;
+   end Build;
+
+   --  ── Refresh_Selection ─────────────────────────────────────────────────
+
+   procedure Refresh_Selection is
+   begin
+      if The_List_Box = null then return; end if;
+      for I in 0 .. LB_Row_Count - 1 loop
+         if Row_Is_Chart (I)
+           and then Row_Map (I) = Coyote_SQC.App.State.Active_Chart
+         then
+            The_List_Box.Select_Row
+              (The_List_Box.Get_Row_At_Index (Glib.Gint (I)));
+            return;
+         end if;
+      end loop;
+   end Refresh_Selection;
+
+end Coyote_SQC.UI.Left_Panel;

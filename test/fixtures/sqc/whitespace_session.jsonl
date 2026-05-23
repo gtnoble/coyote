@@ -1,0 +1,4 @@
+{"type":"session","version":3,"id":"00000000-0000-4000-8000-000000000006","timestamp":"2025-06-01T09:00:00.000Z","cwd":"/home/user/testproject"}
+{"type":"model_change","provider":"anthropic","modelId":"claude-sonnet-4-5"}
+{"type":"message","message":{"role":"user","content":[{"type":"text","text":"Fix  the\n\nbug  in\tmain.adb"}]}}
+{"type":"message","message":{"role":"assistant","content":[{"type":"text","text":"Done."}],"usage":{"input":50,"output":10,"cacheRead":0,"cacheWrite":0,"thinking":0},"stopReason":"stop"}}

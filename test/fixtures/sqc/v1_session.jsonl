@@ -1,0 +1,3 @@
+{"createdAt":1744469520000,"id":"00000000-0000-4000-8000-000000000002","workDir":"/home/user/legacyproject"}
+{"role":"user","content":[{"type":"text","text":"[Model → anthropic/claude-opus-4-5]\nFix the bug in main.adb"}]}
+{"role":"assistant","content":[{"type":"text","text":"I will fix that bug."}],"usage":{"input":80,"output":40,"cacheRead":0,"cacheWrite":0},"stopReason":"stop"}

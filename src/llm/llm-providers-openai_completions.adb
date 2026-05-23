@@ -270,12 +270,15 @@ package body LLM.Providers.OpenAI_Completions is
       --  caching.
       Details : constant GNATCOLL.JSON.JSON_Value :=
          Get_Object_Field (Value, "prompt_tokens_details");
+      Comp_Det : constant GNATCOLL.JSON.JSON_Value :=
+         Get_Object_Field (Value, "completion_tokens_details");
    begin
       return
          (Input       => Get_Natural_Field (Value, "prompt_tokens"),
        Output      => Get_Natural_Field (Value, "completion_tokens"),
        Cache_Read  => Get_Natural_Field (Details, "cached_tokens"),
-       Cache_Write => 0);
+      Cache_Write => 0,
+      Thinking    => Get_Natural_Field (Comp_Det, "reasoning_tokens"));
    end Parse_Usage;
 
    procedure Emit

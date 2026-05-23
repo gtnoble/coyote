@@ -165,7 +165,8 @@ package body LLM_Compaction_Tests is
         (Make_Assistant_Text_Message
            (Text  => "reply",
             Usage =>
-              (Input => 11, Output => 7, Cache_Read => 3, Cache_Write => 2)));
+              (Input => 11, Output => 7, Cache_Read => 3, Cache_Write => 2,
+               Thinking => 0)));
       Assert
         (LLM.Compaction.Estimate_Context_Tokens (Usage_History) = 23,
          "non-zero assistant usage should override heuristic estimates");

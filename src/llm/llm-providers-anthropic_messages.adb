@@ -629,6 +629,8 @@ package body LLM.Providers.Anthropic_Messages is
                   (Handler   => Handler,
                    Kind      => LLM.Events.Thinking_End,
                    Signature => To_String (Block.Thinking_Sig));
+               State.Tok_Usage.Thinking := State.Tok_Usage.Thinking
+                  + Length (Block.Thinking_Text) / 4;
             when Text_Block =>
                Emit_Update (Handler, LLM.Events.Text_End);
             when Tool_Use_Block =>

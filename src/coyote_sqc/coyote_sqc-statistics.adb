@@ -1,0 +1,184 @@
+--  Coyote_SQC.Statistics body.
+--
+--  Project: coyote
+
+with Ada.Numerics.Long_Elementary_Functions;
+with Ada.Strings.Unbounded;
+
+package body Coyote_SQC.Statistics is
+
+   use Ada.Numerics.Long_Elementary_Functions;
+   use Ada.Strings.Unbounded;
+   use Coyote_SQC.Data_Model;
+
+   --  Return the unbiased sample variance of a Natural vector.
+   --  Returns 0.0 when the vector has fewer than 2 elements.
+   function Sample_Variance
+     (Values : Natural_Vectors.Vector) return Long_Float
+   is
+      N : constant Natural := Natural (Values.Length);
+   begin
+      if N < 2 then
+         return 0.0;
+      end if;
+      declare
+         Sum   : Long_Float := 0.0;
+         Mean  : Long_Float := 0.0;
+         Sumsq : Long_Float := 0.0;
+      begin
+         for V of Values loop
+            Sum := Sum + Long_Float (V);
+         end loop;
+         Mean := Sum / Long_Float (N);
+         for V of Values loop
+            declare
+               D : constant Long_Float := Long_Float (V) - Mean;
+            begin
+               Sumsq := Sumsq + D * D;
+            end;
+         end loop;
+         return Sumsq / Long_Float (N - 1);
+      end;
+   end Sample_Variance;
+
+   --  Return the sum of a Natural vector as a Long_Float.
+   function Sum_Of (Values : Natural_Vectors.Vector) return Long_Float is
+      S : Long_Float := 0.0;
+   begin
+      for V of Values loop
+         S := S + Long_Float (V);
+      end loop;
+      return S;
+   end Sum_Of;
+
+   --  Return the arithmetic mean of a Natural vector, or 0.0 if empty.
+   function Mean_Of (Values : Natural_Vectors.Vector) return Long_Float is
+      N : constant Natural := Natural (Values.Length);
+   begin
+      if N = 0 then
+         return 0.0;
+      end if;
+      return Sum_Of (Values) / Long_Float (N);
+   end Mean_Of;
+
+   procedure Estimate_Parameters
+     (Metrics    :     Metrics_Vectors.Vector;
+      Setup_Ids  :     UUID_Set;
+      Kind       :     Coyote_SQC.Charts.Chart_Kind;
+      Parameters : out Setup_Parameters)
+   is
+      use Coyote_SQC.Charts;
+
+      --  Totals for grand mean / grand p computation.
+      Total_N         : Long_Float := 0.0;
+      Total_Weighted_Mean : Long_Float := 0.0;
+
+      --  Totals for pooled s computation.
+      Sum_Numerator   : Long_Float := 0.0;
+      Sum_Denominator : Long_Float := 0.0;
+
+      --  For p charts.
+      Total_Events    : Long_Float := 0.0;
+      Total_Trials    : Long_Float := 0.0;
+
+      function In_Setup (M : Session_Metrics_Record) return Boolean is
+      begin
+         if Setup_Ids.Is_Empty then
+            return True;  --  Retrospective: use all sessions
+         end if;
+         return Setup_Ids.Contains (M.Session_Id);
+      end In_Setup;
+
+      --  Estimate grand mean and pooled s from per-turn value vectors.
+      procedure Accumulate_Xbar_S
+        (Values : Natural_Vectors.Vector)
+      is
+         N : constant Natural := Natural (Values.Length);
+      begin
+         if N = 0 then
+            return;
+         end if;
+         declare
+            Mean : constant Long_Float := Mean_Of (Values);
+         begin
+            Total_N             := Total_N + Long_Float (N);
+            Total_Weighted_Mean := Total_Weighted_Mean + Long_Float (N) * Mean;
+            if N >= 2 then
+               Sum_Numerator   :=
+                 Sum_Numerator + Long_Float (N - 1) * Sample_Variance (Values);
+               Sum_Denominator :=
+                 Sum_Denominator + Long_Float (N - 1);
+            end if;
+         end;
+      end Accumulate_Xbar_S;
+
+   begin
+      Parameters := (others => 0.0);
+
+      for M of Metrics loop
+         if not In_Setup (M) then
+            goto Next_Metric;
+         end if;
+
+         case Kind is
+
+            when Turn_Tokens_Xbar | Turn_Tokens_S =>
+               Accumulate_Xbar_S (M.Per_Turn_Output_Tokens);
+
+            when Tool_Call_Tokens_Xbar | Tool_Call_Tokens_S =>
+               Accumulate_Xbar_S (M.Per_Turn_Tool_Tokens);
+
+            when Thinking_Tokens_Xbar | Thinking_Tokens_S =>
+               if M.Any_Thinking then
+                  Accumulate_Xbar_S (M.Per_Turn_Thinking_Tokens);
+               end if;
+
+            when Tool_Call_Failure_Rate =>
+               if M.N_Tool_Calls > 0 then
+                  Total_Events :=
+                    Total_Events + Long_Float (M.N_Failed_Tool_Calls);
+                  Total_Trials :=
+                    Total_Trials + Long_Float (M.N_Tool_Calls);
+               end if;
+
+            when Fraction_Tool_Call_Turns =>
+               Total_Events :=
+                 Total_Events + Long_Float (M.N_Tool_Call_Turns);
+               Total_Trials :=
+                 Total_Trials + Long_Float (M.N_Turns);
+
+            when Fraction_Thinking_Turns =>
+               Total_Events :=
+                 Total_Events + Long_Float (M.N_Thinking_Turns);
+               Total_Trials :=
+                 Total_Trials + Long_Float (M.N_Turns);
+
+         end case;
+
+         <<Next_Metric>>
+      end loop;
+
+      case Kind is
+
+         when Turn_Tokens_Xbar | Turn_Tokens_S
+            | Tool_Call_Tokens_Xbar | Tool_Call_Tokens_S
+            | Thinking_Tokens_Xbar | Thinking_Tokens_S =>
+            if Total_N > 0.0 then
+               Parameters.Grand_Mean := Total_Weighted_Mean / Total_N;
+            end if;
+            if Sum_Denominator > 0.0 then
+               Parameters.Pooled_S :=
+                 Sqrt (Sum_Numerator / Sum_Denominator);
+            end if;
+
+         when Tool_Call_Failure_Rate
+            | Fraction_Tool_Call_Turns
+            | Fraction_Thinking_Turns =>
+            if Total_Trials > 0.0 then
+               Parameters.Grand_P := Total_Events / Total_Trials;
+            end if;
+
+      end case;
+   end Estimate_Parameters;
+
+end Coyote_SQC.Statistics;

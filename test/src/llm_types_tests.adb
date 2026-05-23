@@ -100,9 +100,11 @@ package body LLM_Types_Tests is
       pragma Unreferenced (T);
 
       Left  : constant Usage :=
-        (Input => 10, Output => 20, Cache_Read => 3, Cache_Write => 4);
+        (Input => 10, Output => 20, Cache_Read => 3, Cache_Write => 4,
+         Thinking => 0);
       Right : constant Usage :=
-        (Input => 1, Output => 2, Cache_Read => 30, Cache_Write => 40);
+        (Input => 1, Output => 2, Cache_Read => 30, Cache_Write => 40,
+         Thinking => 0);
       Sum   : constant Usage := Left + Right;
    begin
       Assert (Sum.Input = 11, "Input counts should add");
@@ -131,17 +133,16 @@ package body LLM_Types_Tests is
         (Role      => User,
          Content   => User_Content,
          Tok_Usage => (Input => 1, Output => 0, Cache_Read => 0,
-                       Cache_Write => 0),
+                       Cache_Write => 0, Thinking => 0),
          Stop      => Stop,
          Timestamp => To_Unbounded_String ("2026-05-02T12:00:00Z"));
       Second :=
         (Role      => Assistant,
          Content   => Assistant_Content,
          Tok_Usage => (Input => 4, Output => 7, Cache_Read => 0,
-                       Cache_Write => 0),
+                       Cache_Write => 0, Thinking => 0),
          Stop      => Length,
          Timestamp => To_Unbounded_String ("2026-05-02T12:00:01Z"));
-
       Messages.Append (First);
       Messages.Append (Second);
 

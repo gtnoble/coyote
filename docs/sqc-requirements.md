@@ -449,9 +449,9 @@ chart area height.
 
 #### 7.3.1 Axes
 
-- **X-axis:** absolute datetime. Tick labels are formatted as `YYYY-MM-DD HH:MM`.
-  Tick density decreases gracefully as the x-range is compressed.
-- **Y-axis:** the chart statistic. Label shows the quantity and units. The Xbar and s
+- **X-axis:** tick labels are formatted as `YYYY-MM-DD HH:MM` in both scale modes
+  (see Section 7.3.5). Tick density decreases gracefully as the visible range is
+  compressed.
 - **Y-axis:** the chart statistic. Label shows the quantity and units.
 
 #### 7.3.2 Chart Elements
@@ -492,20 +492,55 @@ limit series is rendered in gray (rather than red) and a small text label
 "retrospective limits" is displayed near the upper control limit line. The center line
 is also gray. This state is purely visual; no setup interval is stored.
 
+#### 7.3.5 X-Axis Scale Modes
+
+Two x-axis scale modes are available and toggled via **View → X-Axis: Run Sequence**
+(a checkable menu item):
+
+**Time Scale** (default)
+Each session's x-position is proportional to its absolute `Start_Time`. Horizontal
+spacing reflects actual elapsed wall-clock time between sessions; a cluster of
+sessions run on the same afternoon appears bunched together while a gap spanning
+weeks appears as wide blank space.
+
+**Run Sequence**
+Each session is assigned a 1-based integer run index in chronological order; that
+integer is used as its x-coordinate. All plotted points are spaced equally regardless
+of the actual time gaps between them. Tick labels on the x-axis continue to display
+datetimes: each tick is labeled with the `Start_Time` of the session at (or nearest
+to) that index position, formatted as `YYYY-MM-DD HH:MM`.
+
+*Run index assignment:* indices are global — assigned once across all sessions in the
+workspace, sorted by `Start_Time`. Sessions excluded by the date filter are hidden but
+retain their index numbers; visible sessions may therefore be non-consecutively
+numbered. This prevents jarring index renumbering when the date range changes.
+
+*Toolbar pickers in run-sequence mode:* the From/To datetime pickers continue to
+filter by calendar time. Changing a picker hides or reveals sessions based on their
+`Start_Time`; their run indices are unchanged. The pickers are updated to show the
+`Start_Time` of the first and last *visible* sessions when the view is panned or
+zoomed.
+
+*Setup interval band:* in run-sequence mode the faint yellow rectangle spans the
+run-index extent of the setup interval sessions rather than their time extent.
+
+*Persistence:* the selected scale mode is not stored in the workspace file; it resets
+to **Time Scale** each time the application starts.
+
 ### 7.4 Toolbar
 
 ```
-[From: YYYY-MM-DD HH:MM ▼]  [To: YYYY-MM-DD HH:MM ▼]  [Show All]  [Y-Fit]
+[From: YYYY-MM-DD HH:MM ▼]  [To: YYYY-MM-DD HH:MM ▼]  [Show All]  [Y-Fit]  [Run Sequence ☐]
 ```
 
 - **From / To pickers:** GtkEntry with a GtkCalendar popover and time spinners.
   Changing either end adjusts the visible x-range of the chart without discarding
-  data. The pickers update live during pan operations.
+  data. The pickers update live during pan operations. In Run Sequence mode the
+  pickers show the `Start_Time` of the first and last visible sessions.
 - **Show All:** resets the x-range to the full extent of all sessions in the
   workspace (subject to model filter).
 - **Y-Fit:** rescales the y-axis to fit all points currently visible in the x-range,
   with a 10% margin above and below.
-  currently visible in the x-range, with a 10% margin above and below.
 
 ### 7.5 Menu Bar
 
@@ -528,6 +563,8 @@ is also gray. This state is purely visual; no setup interval is stored.
 - ─
 - Clear Selection
 - Clear Setup Interval  (grayed out if not established)
+- ─
+- X-Axis: Run Sequence  (checkable; toggles between Time Scale and Run Sequence modes; see Section 7.3.5)
 
 ---
 
@@ -537,14 +574,19 @@ is also gray. This state is purely visual; no setup interval is stored.
 
 - **Mouse wheel on chart area:** zooms the x-axis, centered on the cursor position.
   The From/To toolbar pickers update to reflect the new range.
+  In Run Sequence mode, mouse-wheel zoom operates in index units (one "zoom step"
+  expands or contracts the visible index range, keeping equal spacing between points).
+  The From/To toolbar pickers update to show the datetimes of the new boundary
+  sessions.
 - **Mouse wheel on y-axis area of a sub-chart:** zooms that sub-chart's y-axis
   independently, centered on the cursor y position.
 
 ### 8.2 Pan
 
 - **Click-and-drag on chart background** (no point within selection radius):
-  pans both axes simultaneously. The From/To pickers update live during drag.
-  live during drag.
+  pans both axes simultaneously. The From/To pickers update live during drag. In Run
+  Sequence mode, pan operates in index units; the pickers update to show the datetimes
+  of the boundary sessions.
 
 ### 8.3 Point Hover
 
@@ -819,6 +861,88 @@ threading issues with GtkTextBuffer.
 main Coyote application.
 
 ---
+
+
+### 14.4 Tool Call Detail Window
+
+Each tool call frame rendered in the session replay (§10.1) shall be an
+interactive widget. Clicking the widget once opens a **tool call detail
+window** for that tool call.
+
+#### 14.4.1 Window type and multiplicity
+
+The detail window is a non-modal `GtkWindow` declared transient for the main
+application window. Multiple detail windows may be open simultaneously; each
+is independent. A detail window closes only when the user clicks its close
+button; it is not closed automatically when the point selection changes or
+the main window is navigated.
+
+#### 14.4.2 Window title
+
+The window title shall be formatted as:
+
+```
+⚙ tool_name — Turn N — YYYY-MM-DD HH:MM
+```
+
+where `tool_name` is the tool's name, `N` is the 1-based turn index within
+the session, and the datetime is the session start time in local time. If the
+tool call's status is resolved at render time, the gear icon is replaced with
+✓ (success), ✗ (error), or `-` (cancelled).
+
+#### 14.4.3 Header section
+
+Below the window title bar, a non-editable header section displays:
+
+- Session datetime (local time, `YYYY-MM-DD HH:MM:SS`)
+- Model identifier
+- Source directory (home directory abbreviated to `~`)
+- Turn number and position of this tool call within the turn
+  (e.g. `Turn 3, call 2 of 4`)
+
+#### 14.4.4 Arguments section
+
+The arguments section renders one labelled subsection per top-level field of
+the tool call's arguments JSON object, in the order the fields appear in the
+JSON. Each subsection consists of a bold field-name header followed by a
+read-only, selectable, scrollable `GtkTextView` containing the decoded string
+value of the field. All text uses a monospace font. If the arguments value is
+not a JSON object, the raw argument string is shown in a single unlabelled
+`GtkTextView`.
+
+#### 14.4.5 Result section
+
+The result section is headed by a coloured status banner:
+
+- Green background: `✓ success`
+- Red background: `✗ error`
+- Gray background: `- cancelled`
+
+Below the banner, a read-only, selectable, scrollable `GtkTextView` displays
+the full result text with no truncation, in a monospace font.
+
+If the tool call result is an image (i.e. the tool was invoked with a
+`media_type` argument), the result section displays an embedded `GtkImage`
+widget decoded from the base64 result rather than a `GtkTextView`.
+
+#### 14.4.6 Layout
+
+The window contains, from top to bottom: header section, arguments section,
+result section. Each `GtkTextView` is wrapped in a `GtkScrolledWindow`. The
+overall window is itself scrollable if the content exceeds the window height.
+A minimum window size of 600 × 400 px is enforced.
+
+#### 14.4.7 Selectability
+
+All text in the window — header fields, argument values, result text — shall
+be selectable and copyable by the user.
+
+#### 14.4.8 Render-time data capture
+
+The data required to populate the detail window (tool name, arguments, result
+text, status, turn index, call position within the turn, and session metadata)
+shall be captured in the clickable widget's callback closure at session render
+time. No re-parsing of the session file shall occur when the window is opened.
 
 ## 15. Non-Functional Requirements
 

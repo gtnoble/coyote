@@ -218,6 +218,7 @@ Coyote_SQC.UI.Datetime_Picker        -- composite GtkEntry + GtkPopover datetime
 Coyote_SQC.UI.Workspace_Settings     -- Workspace Settings dialog
 Coyote_SQC.UI.Hover_Tooltip          -- GtkPopover point hover tooltip
 Coyote_SQC.UI.Dialogs                -- confirmation dialogs, unsaved-changes prompt
+Coyote_SQC.UI.Tool_Detail_Window     -- non-modal tool call detail window
 
 Coyote_Renderer                      -- shared root
 Coyote_Renderer.Markup               -- To_Pango_Markup (extracted from Coyote_GUI.Buffer)
@@ -777,22 +778,62 @@ Populates a `Gtk.Text_Buffer.Gtk_Text_Buffer` with a rendered session. Public
 interface:
 
 ```ada
+type Tool_End_Status is (Success, Error, Cancelled);
+
+--  Callback invoked when the user clicks a tool call widget in the session
+--  replay.  All parameters are captured in the widget closure at render time;
+--  no re-parsing of the session file occurs at click time.
+type Tool_Click_Callback is access procedure
+  (Tool_Name    : String;
+   Arguments    : String;
+   Result_Text  : String;
+   Is_Image     : Boolean;
+   Status       : Tool_End_Status;
+   Turn_Index   : Positive;
+   Call_In_Turn : Positive;
+   Session      : Coyote_SQC.Data_Model.Session_Record);
+
 --  Render a session into Buffer in read-only mode.
 --  Buffer is cleared before rendering.
---  All GtkTextChildAnchor widgets (tool call frames) are attached to the
---  supplied parent GtkTextView so they are sized correctly.
+--  When On_Tool_Click is non-null, each tool call is rendered as a GtkButton
+--  widget embedded via GtkTextChildAnchor; clicking it invokes the callback
+--  with the closure data captured at render time.
+--  When On_Tool_Click is null, tool calls are rendered as plain tagged text
+--  (non-interactive); View may be null in this case.
 procedure Render_Session
-  (Session : Coyote_SQC.Data_Model.Session_Record;
-   Buffer  : not null access Gtk.Text_Buffer.Gtk_Text_Buffer_Record'Class;
-   View    : not null access Gtk.Text_View.Gtk_Text_View_Record'Class);
+  (Session       : Coyote_SQC.Data_Model.Session_Record;
+   Buffer        : not null access Gtk.Text_Buffer.Gtk_Text_Buffer_Record'Class;
+   View          : not null access Gtk.Text_View.Gtk_Text_View_Record'Class;
+   On_Tool_Click : Tool_Click_Callback := null);
+
+--  Return the JSONL file path for the given session UUID and source
+--  directory, or empty string if not found.
+function Find_Session_File
+  (Session_Id       : String;
+   Source_Directory : String) return String;
 ```
 
-The procedure reads the raw session JSONL to obtain the full message content needed
-for rendering (assistant text, thinking blocks, tool call frames), using
+The `View` parameter is used to attach `GtkButton` widgets via
+`Gtk.Text_View.Add_Child_At_Anchor` when `On_Tool_Click` is non-null.  Each
+button captures the following data in its `clicked` signal closure: tool name,
+raw arguments JSON string, result text, image flag (`Is_Image`), resolved status,
+1-based turn index within the session, 1-based call position within the turn,
+and the full `Session_Record`.  No re-parsing of the session file occurs when a
+button is clicked.
+
+`Tool_End_Status` is declared in this package so that both
+`Coyote_SQC.UI.Tool_Detail_Window` and `Coyote_GUI.Buffer` can reference it
+without a circular dependency.  `Coyote_GUI.Buffer` retains its own
+`Tool_End_Status` declaration for backward compatibility; the two types have
+identical enumerators.
+
+The procedure reads the raw session JSONL to obtain the full message content
+needed for rendering (assistant text, thinking blocks, tool call frames), using
 `Coyote_SQC.Session_Parser` to locate and parse the file by session UUID.
 
-Scroll position is preserved across re-renders of the same session UUID. It is reset
-to the top when a new (different) session UUID is rendered.
+Scroll position is preserved across re-renders of the same session UUID. It is
+reset to the top when a new (different) session UUID is rendered.
+
 
 ---
 
@@ -848,6 +889,10 @@ type App_State is limited record
    Selection        : UUID_Set;   -- selected session UUIDs
    Date_From        : Ada.Calendar.Time;
    Date_To          : Ada.Calendar.Time;
+   Run_Sequence_Mode : Boolean := False;  -- True = equal-spacing run-sequence x-axis
+   --  Global run indices: Sessions(I).Run_Index = I (1-based, chronological order).
+   --  Populated by Reload_Sessions; never renumbered when the date filter changes.
+   Run_Index_Map    : Coyote_SQC.Data_Model.Natural_Vectors.Vector;
    --  GTK widget handles
    Canvas           : Gtk.Drawing_Area.Gtk_Drawing_Area;
    Detail_Panel_Box : Gtk.Box.Gtk_Box;
@@ -862,13 +907,17 @@ GTK's single-threaded callback model.
 ### 11.4 Toolbar — `Coyote_SQC.UI.Toolbar`
 
 ```
-[From: YYYY-MM-DD HH:MM ▼]  [To: YYYY-MM-DD HH:MM ▼]  [Show All]  [Y-Fit]
+[From: YYYY-MM-DD HH:MM ▼]  [To: YYYY-MM-DD HH:MM ▼]  [Show All]  [Y-Fit]  [Run Sequence ☐]
 ```
 
 - **From / To:** `Coyote_SQC.UI.Datetime_Picker` instances (§11.7).
 - **Show All:** sets `Date_From` / `Date_To` to the minimum and maximum session start
   times; triggers canvas redraw.
 - **Y-Fit:** calls `Canvas.Y_Fit` (§12.5).
+- **Run Sequence ☐:** a `GtkCheckButton` (or `GtkToggleButton`) that toggles
+  `App_State.Run_Sequence_Mode`. On toggle, calls `Switch_X_Scale_Mode` (§12.2.1),
+  which re-maps `X_Min`/`X_Max` to the new coordinate space and redraws the canvas.
+  The corresponding View menu item is kept in sync.
 
 The toolbar pickers update live as the chart is panned (§12.3).
 
@@ -902,6 +951,8 @@ The toolbar pickers update live as the chart is panned (§12.3).
 | *(separator)* | |
 | Clear Selection | `App_State.Selection.Clear`; hide detail panel |
 | Clear Setup Interval | `Workspace.Clear_Setup_Interval` with confirmation; grayed out if `Setup_Session_Ids` is empty |
+| *(separator)* | |
+| X-Axis: Run Sequence | Toggle `App_State.Run_Sequence_Mode`; checkmark shown when active; triggers `Switch_X_Scale_Mode` (§12.2.1) and canvas redraw; kept in sync with the toolbar checkbox |
 
 ### 11.6 Detail Panel — `Coyote_SQC.UI.Detail_Panel`
 
@@ -987,6 +1038,124 @@ moves beyond 12 pixels.
 The popover contains a `GtkLabel` with markup-formatted content (see requirements
 §8.3). Content is rebuilt each time a different point is hovered.
 
+### 11.9 Tool Call Detail Window — `Coyote_SQC.UI.Tool_Detail_Window`
+
+The tool call detail window is opened when the user clicks a tool call button
+in the Session Replay `GtkTextView` of the single-session detail panel.
+`Coyote_SQC.UI.Detail_Panel` registers a `Tool_Click_Callback` with
+`Render_Session` that invokes `Tool_Detail_Window.Show`, forwarding the closure
+parameters and the main `GtkWindow`.
+
+#### Public Interface
+
+```ada
+--  Open a new non-modal tool call detail window transient for Main_Window.
+--  Multiple windows may be open simultaneously; each is independent.
+procedure Show
+  (Tool_Name    : String;
+   Arguments    : String;
+   Result_Text  : String;
+   Is_Image     : Boolean;
+   Status       : Coyote_Renderer.Session_View.Tool_End_Status;
+   Turn_Index   : Positive;
+   Call_In_Turn : Positive;
+   Session      : Coyote_SQC.Data_Model.Session_Record;
+   Main_Window  : not null access Gtk.Window.Gtk_Window_Record'Class);
+```
+
+#### Widget Tree
+
+```
+GtkWindow (non-modal, transient for main window; min size 600 × 400 px)
+└── GtkBox (vertical, spacing 6, border 8)
+    ├── GtkGrid (header section, 4 rows × 2 columns)
+    │   ├── [row 0] GtkLabel "Datetime:"  GtkLabel <datetime>
+    │   ├── [row 1] GtkLabel "Model:"     GtkLabel <model>
+    │   ├── [row 2] GtkLabel "Directory:" GtkLabel <source_dir>
+    │   └── [row 3] GtkLabel "Turn:"      GtkLabel "Turn N, call M"
+    ├── GtkFrame "Arguments"
+    │   └── GtkBox (vertical, spacing 4)
+    │       └── [per field, repeated]
+    │           ├── GtkLabel (bold field name)
+    │           └── GtkScrolledWindow
+    │               └── GtkTextView (read-only, monospace, selectable)
+    └── GtkFrame "Result"
+        ├── GtkLabel (status banner, CSS-coloured background)
+        └── GtkScrolledWindow
+            └── GtkTextView (read-only, monospace, selectable)
+                or GtkImage (when Is_Image = True)
+```
+
+#### Window Title
+
+```
+⚙ tool_name — Turn N — YYYY-MM-DD HH:MM
+```
+
+where `tool_name` is the name of the tool, `N` is `Turn_Index`, and the datetime
+is `Session.Start_Time` formatted as `YYYY-MM-DD HH:MM` in local time.  The
+leading gear icon `⚙` is replaced by `✓` (Success), `✗` (Error), or `-`
+(Cancelled) according to `Status`.
+
+#### Header Section
+
+A `GtkGrid` (4 rows × 2 columns) with bold-key `GtkLabel`s in column 0 and
+plain-text value `GtkLabel`s in column 1:
+
+- **Datetime:** `Session.Start_Time` in local time, formatted `YYYY-MM-DD HH:MM:SS`
+- **Model:** `Session.Model`
+- **Directory:** `Session.Source_Directory` with leading `$HOME` replaced by `~`
+- **Turn:** `"Turn N, call M"` where N = `Turn_Index`, M = `Call_In_Turn`
+
+#### Arguments Section
+
+`Arguments` is the raw JSON string captured at render time.  The section is
+built as follows:
+
+1. Attempt to parse `Arguments` as a JSON object (`GNATCOLL.JSON.Read`).
+2. If parsing succeeds and the value is a JSON object: iterate its top-level keys
+   in JSON-source order (the order they appear in the string, as returned by
+   `GNATCOLL.JSON.JSON_Value.Map_JSON_Object`).  For each key, append:
+   - A `GtkLabel` with `<b>key</b>` markup.
+   - A `GtkScrolledWindow` wrapping a read-only, selectable, monospace
+     `GtkTextView` containing the field value: raw string content for JSON
+     strings; `JSON_Value.Write` output for all other JSON types.
+3. If parsing fails or the value is not a JSON object: render a single unlabelled
+   `GtkTextView` containing the raw `Arguments` string.
+
+All `GtkTextView` widgets in the arguments section use a monospace font
+(`Pango.Font_Description` set to `"Monospace"`).
+
+#### Result Section
+
+The result section opens with a `GtkLabel` status banner whose background is set
+via a CSS provider applied to that label's `GtkStyleContext`:
+
+| `Status` | Background colour | Text |
+|---|---|---|
+| `Success` | `#d4edda` (green) | `✓ success` |
+| `Error` | `#f8d7da` (red) | `✗ error` |
+| `Cancelled` | `#e2e3e5` (gray) | `- cancelled` |
+
+**Text result** (`Is_Image = False`): a `GtkScrolledWindow` wrapping a
+read-only, selectable, monospace `GtkTextView` populated with the full
+`Result_Text` string.  No truncation is applied.
+
+**Image result** (`Is_Image = True`): `Result_Text` is a base64-encoded image.
+A `GdkPixbuf` is constructed by decoding the base64 data into a byte buffer and
+loading it via `Gdk.Pixbuf.Gdk_New_From_Data`.  A `GtkImage` is constructed from
+the pixbuf and placed inside a `GtkScrolledWindow`.
+
+#### Lifecycle
+
+`Show` creates a new `GtkWindow` on each call.  The window is set transient for
+`Main_Window` and destroyed when the user clicks the window manager close button
+(the GTK `"destroy"` signal).  No reference to the window is retained by the
+application after `Show` returns; GTK reference counting manages the window
+lifetime.  Multiple detail windows for different tool calls may be open
+simultaneously.
+
+
 ---
 
 ## 12. Chart Canvas Implementation
@@ -998,7 +1167,7 @@ The chart is rendered on a `GtkDrawingArea`. All drawing uses Cairo.
 ```ada
 type Canvas_State is limited record
    --  Coordinate transform
-   X_Min, X_Max : Long_Float;  -- data-space x range (Unix seconds)
+   X_Min, X_Max : Long_Float;  -- x range: Unix seconds in Time Scale mode; 1-based run index in Run Sequence mode
    Y_Min, Y_Max : Long_Float;  -- data-space y range
    Width, Height: Glib.Gint;   -- widget size in pixels
    --  Interaction state
@@ -1016,8 +1185,15 @@ end record;
 
 ### 12.2 Coordinate System
 
-**Data space:** x is `Ada.Calendar.Time` expressed as `Long_Float` seconds since the
-Unix epoch. y is the chart statistic (Long_Float).
+**Data space — Time Scale mode:** x is `Ada.Calendar.Time` expressed as `Long_Float`
+seconds since the Unix epoch (produced by `Time_To_LF`). y is the chart statistic
+(Long_Float).
+
+**Data space — Run Sequence mode:** x is the 1-based integer run index of the session
+(stored as `Long_Float`). Run index 1.0 is the chronologically first session in the
+workspace; each subsequent session in time order receives the next integer. y is
+unchanged. The `X_Min`/`X_Max` in `Canvas_State` hold index values (e.g. `1.0` to
+`47.0`) rather than Unix timestamps.
 
 **Screen space:** `(0, 0)` is the top-left of the `GtkDrawingArea` widget; `(Width, Height)`
 is the bottom-right. A fixed margin of 60px on the left (for y-axis labels), 40px on
@@ -1034,6 +1210,53 @@ function Screen_To_Data (CS : Canvas_State; SP : Screen_Point)
    return Data_Point;
 ```
 
+#### 12.2.1 Run-Sequence Index Mapping
+
+`Session_Run_Index` assigns global, non-renumbering run indices to every session in
+`App_State.Sessions` (sorted chronologically). It is computed once by `Reload_Sessions`
+and stored in `App_State.Run_Index_Map` (`Natural_Vectors.Vector`), which is a
+parallel vector to `App_State.Sessions`
+mapping each session's vector position to its 1-based run index.
+
+Because sessions are always stored in chronological order, `Run_Index_Map(I) = I`
+for all `I`. The indirection is kept explicit so that a future revision can assign
+non-contiguous indices without touching the rendering code.
+
+Two helper functions are provided in `Coyote_SQC.UI.Chart_Canvas`:
+
+```ada
+--  Return the Ada.Calendar.Time of the session whose run index is nearest to Idx.
+--  For non-integer Idx, rounds to the nearest integer index.
+--  Returns the epoch if Sessions is empty.
+function Run_Index_To_Time
+  (Sessions : Coyote_SQC.Data_Model.Session_Vectors.Vector;
+   Idx      : Long_Float) return Ada.Calendar.Time;
+
+--  Return the run index (1-based Long_Float) of the session in Sessions
+--  whose Start_Time is nearest to T.  Returns 1.0 if Sessions is empty.
+function Time_To_Run_Index
+  (Sessions : Coyote_SQC.Data_Model.Session_Vectors.Vector;
+   T        : Ada.Calendar.Time) return Long_Float;
+```
+
+**Mode-switch coordinate translation (`Switch_X_Scale_Mode`):**  
+When the user toggles between Time Scale and Run Sequence mode, the current
+`X_Min`/`X_Max` viewport must be re-expressed in the new coordinate space so the
+same sessions remain visible:
+
+- *Time Scale → Run Sequence:* call `Time_To_Run_Index` on both `X_Min` and `X_Max`
+  (treated as Unix-second times via `LF_To_Time`) to obtain the new index bounds.
+- *Run Sequence → Time Scale:* call `Run_Index_To_Time` on both `X_Min` and `X_Max`
+  and convert the resulting times to Unix seconds via `Time_To_LF`.
+
+`Sync_Pickers` (the procedure that copies the current viewport to the From/To toolbar
+pickers) always works in datetimes. In Time Scale mode it calls `LF_To_Time(X_Min/X_Max)`;
+in Run Sequence mode it calls `Run_Index_To_Time(X_Min/X_Max)`.
+
+`Point_X` (the helper that computes the x-coordinate for a session when building the
+draw list) returns `Time_To_LF(Session.Start_Time)` in Time Scale mode and
+`Long_Float(Session_Run_Index)` in Run Sequence mode.
+
 ### 12.3 Zoom and Pan
 
 **X-zoom (mouse wheel on plot area):**
@@ -1045,12 +1268,14 @@ X_Min' = cursor_data_x + (X_Min - cursor_data_x) / factor
 X_Max' = cursor_data_x + (X_Max - cursor_data_x) / factor
 ```
 
-The toolbar From/To pickers are updated after every zoom.
+The toolbar From/To pickers are updated after every zoom via `Sync_Pickers`. In Run
+Sequence mode, `Sync_Pickers` calls `Run_Index_To_Time` to convert `X_Min`/`X_Max`
+to datetimes before setting the picker values.
 
 **Y-zoom (mouse wheel on y-axis margin):**  
 Same formula applied to `Y_Min` / `Y_Max`, centered on `cursor_data_y`.
 
-**Pan (click-drag on plot background):**  
+**Pan (click-drag on plot background, no modifier):**  
 On button-press: record `Drag_Start` in screen coordinates and snapshot
 `X_Min/X_Max/Y_Min/Y_Max` into `Drag_*_At_Start`.  
 On motion:
@@ -1066,7 +1291,16 @@ Y_Min = Y_Min_At_Start + dy_data   -- y screen is inverted
 Y_Max = Y_Max_At_Start + dy_data
 ```
 
-Both x and y move together in one drag (rigid canvas). Toolbar pickers update live.
+Both x and y move together in one drag (rigid canvas). Toolbar pickers update live
+via `Sync_Pickers` (Run Sequence mode: `Run_Index_To_Time` used as above).
+
+**Rubber-band selection (Shift + click-drag on plot background):**  
+Holding Shift while clicking and dragging on an empty plot area activates the
+rubber-band rectangle instead of panning. On mouse-button release, all points whose
+screen coordinates fall within the rectangle are added to the current selection.
+The modifier state is read directly from the GDK button event (`Event.State and
+Shift_Mask`), not from keyboard focus tracking, so Shift does not need to be pressed
+while the canvas already holds keyboard focus.
 
 ### 12.4 Y-Fit
 
@@ -1084,14 +1318,22 @@ For rubber-band selection: all points whose screen coordinates fall within the
 rubber-band rectangle (after normalising the rectangle to have positive width/height)
 are added to the selection.
 
+Individual points can be added to or removed from the current selection with
+Shift+click; a plain click on a point replaces the selection with that single point.
+Both interactions read `Shift_Mask` from the GDK button event, mirroring the
+rubber-band activation described in §12.3.
+
 ### 12.6 Rendering Pipeline
 
 The `On_Draw` callback executes these steps in order:
 
 1. **Clear:** fill plot area with white; fill margins with the window background.
 2. **Setup interval band:** if `Setup_Session_Ids` non-empty, fill a faint yellow
-   rectangle (`RGBA(1.0, 0.97, 0.6, 0.4)`) spanning the x-extent of setup sessions
-   within the current x-range.
+   rectangle (`RGBA(1.0, 0.97, 0.6, 0.4)`). In **Time Scale** mode the rectangle
+   spans the time extent of the setup sessions (x-coordinates are Unix seconds). In
+   **Run Sequence** mode the rectangle spans the run-index extent of the setup
+   sessions (x-coordinates are run indices). In both modes the band is clipped to
+   the current `X_Min`/`X_Max` viewport.
 3. **Connecting line:** thin black polyline through all visible in-range points in
    chronological order. Skip gaps for excluded points (n=1 on s chart,
    zero-thinking on thinking chart).
@@ -1106,8 +1348,15 @@ The `On_Draw` callback executes these steps in order:
    (`RGBA(0.7, 0.7, 1.0, 0.15)`).
 8. **Selection halos:** for each selected point, draw a 2px blue ring 3px outside
    the marker radius.
-9. **Axis tick marks and labels:** x-axis ticks with datetime labels, y-axis ticks
-   with numeric labels. Tick density scales with available pixel space.
+9. **Axis tick marks and labels:** y-axis ticks with numeric labels. X-axis tick
+   label generation depends on the scale mode:
+   - *Time Scale:* tick values are Unix-second Long_Floats; labels are produced by
+     `Format_Tick_Label` which calls `LF_To_Time` and formats as `YYYY-MM-DD HH:MM`.
+     Tick density scales with available pixel space.
+   - *Run Sequence:* tick values are run-index Long_Floats; labels are produced by
+     calling `Run_Index_To_Time` on the tick value and formatting the result as
+     `YYYY-MM-DD HH:MM`. Tick positions are placed at integer run indices within the
+     visible range, with density thinned when the visible index span is large.
 10. **Axis labels:** y-axis label rotated 90° on the left margin; x-axis label below.
 
 ### 12.7 Point Marker Colors (Cairo RGB)
@@ -1207,6 +1456,32 @@ Using fixture JSONL files committed to `test/fixtures/sqc/`:
 
 Tests live in `test/src/` alongside existing Coyote tests, registered in the
 existing AUnit test suite. Fixture files live in `test/fixtures/sqc/`.
+
+### 14.5 Tool Call Detail Window Tests — `Coyote_SQC.Tests.Tool_Detail`
+
+- **Widget embedding:** call `Render_Session` with a non-null `On_Tool_Click`
+  callback on a fixture session containing at least one tool call; verify that
+  the `GtkTextBuffer` contains at least one `GtkTextChildAnchor` rather than a
+  plain text entry for the tool call.
+- **Closure data:** using a fixture session with known tool call content, verify
+  that the callback receives the correct `Tool_Name`, `Arguments`, `Result_Text`,
+  `Status`, `Turn_Index`, and `Call_In_Turn` values.
+- **Null callback fallback:** call `Render_Session` with `On_Tool_Click => null`;
+  verify that no `GtkTextChildAnchor` is created and the tool call name appears
+  as plain text in the buffer.
+- **Window title — all statuses:** call `Show` with each `Tool_End_Status` value
+  (`Success`, `Error`, `Cancelled`); verify the window title begins with `✓`, `✗`,
+  and `-` respectively and contains `"Turn N"` and the session datetime.
+- **Arguments JSON key order:** call `Show` with a multi-field JSON arguments
+  string whose keys are in a known non-alphabetical order; verify the argument
+  field labels in the widget tree appear in the same order as the source JSON.
+- **Non-object arguments fallback:** call `Show` with an `Arguments` string that
+  is not a valid JSON object; verify that a single unlabelled `GtkTextView` is
+  present in the Arguments frame rather than per-field sections.
+- **Image result path:** call `Show` with `Is_Image => True` and a small
+  base64-encoded PNG; verify the result section contains a `GtkImage` widget
+  rather than a `GtkTextView`.
+
 
 ---
 

@@ -26,6 +26,7 @@ Three executables are built:
   display detection, then calls `Coyote_App.Run` or `Coyote_App.Run_GUI`
 - `bin/coyote_list_sessions` — lists saved sessions for the current directory
 - `bin/coyote_open` — opens a tool-call detail window; launched by the plumber
+- `bin/coyote_sqc` — Statistical Quality Control application; reads Coyote session JSONL files and displays SPC control charts in a GTK3 GUI
   for `coyote-session+UUID/tool/TOKEN` links
 
 ## Documentation
@@ -190,6 +191,62 @@ src/
 tools/
   coyote_list_sessions.adb   -- Entry point for the session listing utility
   coyote_open.adb            -- Entry point for the tool-call detail window utility
+src/coyote_sqc/              -- coyote_sqc application packages
+  coyote_sqc.ads                   -- Root package (pragma Pure)
+  coyote_sqc-app.ads/.adb          -- App_State, Chart_Point (incl. Hollow_Gray flag),
+                          --   Canvas_State, Chart_Data_Array, Run,
+                          --   Reload_Sessions (also calls Reset_View + Sync_Pickers),
+                          --   Recompute_Charts/Recompute_Chart, Y_Fit,
+                          --   Update_Title, Update_Menu_States, Has_Comment;
+                          --   Sync_X_From_Dates exposed via Chart_Canvas
+  coyote_sqc-charts.ads/.adb       -- Chart_Kind enum; Properties function
+  coyote_sqc-config.ads/.adb       -- ~/.config/coyote_sqc/ recent_workspaces.json
+  coyote_sqc-data_model.ads        -- All internal types: Tool_Call_Record,
+                          --   Turn_Record, Session_Record, Session_Metrics_Record,
+                          --   Comment_Record, Workspace_Record, UUID_Sets,
+                          --   Natural_Vectors, Chart_Definition_Record
+  coyote_sqc-metrics.ads/.adb      -- Compute: Session_Record -> Session_Metrics_Record
+  coyote_sqc-session_parser.ads/.adb -- JSONL parser (v1 and v3 wire formats);
+                          --   Encode_Cwd; Load_Sessions (with model filter + sort);
+                          --   Parse_ISO8601 and Ms_To_Time use
+                          --   Ada.Calendar.Formatting.Value with Time_Zone=>0
+                          --   for correct UTC → local time conversion
+                          --   Encode_Cwd; Load_Sessions (with model filter + sort)
+  coyote_sqc-statistics.ads/.adb   -- Estimate_Parameters (grand mean, pooled s,
+                          --   grand p) for all 9 chart kinds
+  coyote_sqc-statistics-c4.ads/.adb -- c4(n) lookup table n=2..100; approximation n>100
+  coyote_sqc-statistics-xbar.ads/.adb -- Xbar chart Compute_Limits
+  coyote_sqc-statistics-s_chart.ads/.adb -- s chart Compute_Limits
+  coyote_sqc-statistics-p_chart.ads/.adb -- p chart Compute_Limits
+  coyote_sqc-workspace.ads/.adb    -- Load/Save .sqcw JSON (version 1); New_UUID;
+                          --   Load takes Version_Found : out Natural for
+                          --   missing-version warning; Workspace_Error for
+                          --   version > 1
+  coyote_sqc-workspace-integrity.ads/.adb -- Check/Remove_Missing for setup interval
+  coyote_sqc-ui.ads/.adb           -- Build_Main_Window; all File/Workspace/View menu
+                          --   callbacks; three-panel GTK layout
+  coyote_sqc-ui-chart_canvas.ads/.adb -- Cairo chart renderer; pan/zoom/rubber-band
+                          --   selection; hit testing; hover dispatch
+  coyote_sqc-ui-datetime_picker.ads/.adb -- GtkEntry date-time display composite widget
+  coyote_sqc-ui-detail_panel.ads/.adb -- Single-session and multi-select detail views;
+                          --   session replay; comment entry
+  coyote_sqc-ui-dialogs.ads/.adb   -- Confirm, Unsaved_Changes, Info, Error dialogs
+  coyote_sqc-ui-hover_tooltip.ads/.adb -- GtkPopover hover tooltip for chart points
+  coyote_sqc-ui-left_panel.ads/.adb -- GtkListBox chart selector with group separators
+  coyote_sqc-ui-toolbar.ads/.adb   -- From/To datetime pickers + Show All + Y-Fit
+  coyote_sqc-ui-workspace_settings.ads/.adb -- Workspace Settings dialog
+src/coyote_renderer/         -- shared rendering utilities
+  coyote_renderer.ads              -- Root package (pragma Pure)
+  coyote_renderer-markup.ads/.adb  -- To_Pango_Markup / Xml_Escape extracted from
+                          --   Coyote_GUI.Buffer; used by both coyote and coyote_sqc
+  coyote_renderer-session_view.ads/.adb -- Render_Session: Session_Record ->
+                          --   GtkTextBuffer; Find_Session_File
+src/coyote_sqc_main.adb      -- Entry point for coyote_sqc; calls Coyote_SQC.App.Run
+test/fixtures/sqc/           -- JSONL test fixtures for SQC parser tests
+  v3_session.jsonl               -- Current (v3) format session
+  v1_session.jsonl               -- Legacy (v1) format session
+  thinking_session.jsonl         -- Session with thinking tokens
+  compaction_session.jsonl       -- Session spanning a compaction boundary
 test/src/                -- AUnit-based test suite
 ```
 

@@ -1,0 +1,10 @@
+{"type":"session","version":3,"id":"00000000-0000-4000-8000-000000000001","timestamp":"2025-04-12T14:32:00.000Z","cwd":"/home/user/testproject"}
+{"type":"model_change","provider":"anthropic","modelId":"claude-opus-4-5"}
+{"type":"model_change","provider":"anthropic","modelId":"claude-sonnet-4-5"}
+{"type":"message","message":{"role":"user","content":[{"type":"text","text":"Hello, help me write a test."}]}}
+{"type":"message","message":{"role":"assistant","content":[{"type":"text","text":"Sure, I can help with that."}],"usage":{"input":100,"output":50,"cacheRead":0,"cacheWrite":0,"thinking":0},"stopReason":"stop"}}
+{"type":"message","message":{"role":"user","content":[{"type":"text","text":"Use the shell tool please."}]}}
+{"type":"message","message":{"role":"assistant","content":[{"type":"toolCall","id":"tc-001","name":"shell","arguments":{"command":"echo hello"}},{"type":"toolCall","id":"tc-002","name":"shell","arguments":{"command":"cat missing.txt"}}],"usage":{"input":120,"output":30,"cacheRead":0,"cacheWrite":0,"thinking":0},"stopReason":"tool_use"}}
+{"type":"message","message":{"role":"toolResult","toolCallId":"tc-001","toolName":"shell","content":[{"type":"text","text":"hello\n"}],"isError":false}}
+{"type":"message","message":{"role":"toolResult","toolCallId":"tc-002","toolName":"shell","content":[{"type":"text","text":"error: file not found"}],"isError":true}}
+{"type":"message","message":{"role":"assistant","content":[{"type":"text","text":"Done!"}],"usage":{"input":150,"output":20,"cacheRead":0,"cacheWrite":0,"thinking":0},"stopReason":"stop"}}

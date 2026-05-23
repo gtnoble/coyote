@@ -3,12 +3,19 @@ with "config/coyote_config.gpr";
 project Coyote is
 
    for Languages use ("Ada", "C");
-   for Source_Dirs use ("src/", "src/llm/", "src/coyote_gui/", "config/", "tools/");
+   for Source_Dirs use ("src/", "src/llm/", "src/coyote_gui/",
+                        "src/coyote_sqc/", "src/coyote_renderer/",
+                        "config/", "tools/");
    for Object_Dir use "obj/" & Coyote_Config.Build_Profile;
    for Create_Missing_Dirs use "True";
    for Exec_Dir use "bin";
-   for Main use ("coyote.adb", "coyote_list_sessions.adb", "coyote_open.adb");
+   for Main use ("coyote.adb", "coyote_list_sessions.adb",
+                 "coyote_open.adb", "coyote_sqc_main.adb");
 
+
+   package Builder is
+      for Executable ("coyote_sqc_main.adb") use "coyote_sqc";
+   end Builder;
 
    package Compiler is
       for Default_Switches ("Ada") use Coyote_Config.Ada_Compiler_Switches;

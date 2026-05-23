@@ -321,7 +321,8 @@ package body LLM_Session_Store_Tests is
         (Role      => LLM.Types.Assistant,
          Content   => Content,
          Tok_Usage =>
-           (Input => 11, Output => 7, Cache_Read => 3, Cache_Write => 2),
+           (Input => 11, Output => 7, Cache_Read => 3, Cache_Write => 2,
+            Thinking => 0),
          Stop      => LLM.Types.Stop,
          Timestamp => Null_Unbounded_String);
    end Make_Assistant_Text;
@@ -359,7 +360,8 @@ package body LLM_Session_Store_Tests is
         (Role      => LLM.Types.Assistant,
          Content   => Content,
          Tok_Usage =>
-           (Input => 20, Output => 5, Cache_Read => 0, Cache_Write => 0),
+           (Input => 20, Output => 5, Cache_Read => 0, Cache_Write => 0,
+            Thinking => 0),
          Stop      => LLM.Types.Tool_Use,
          Timestamp => Null_Unbounded_String);
    end Make_Assistant_Tool_Call;
@@ -379,7 +381,8 @@ package body LLM_Session_Store_Tests is
         (Role      => LLM.Types.Assistant,
          Content   => Content,
          Tok_Usage =>
-           (Input => 6, Output => 4, Cache_Read => 1, Cache_Write => 0),
+           (Input => 6, Output => 4, Cache_Read => 1, Cache_Write => 0,
+            Thinking => 0),
          Stop      => LLM.Types.Stop,
          Timestamp => Null_Unbounded_String);
    end Make_Assistant_Thinking_Text;
@@ -921,7 +924,8 @@ package body LLM_Session_Store_Tests is
                  (Input       => 31,
                   Output      => 17,
                   Cache_Read  => 5,
-                  Cache_Write => 2)));
+                  Cache_Write => 2,
+                  Thinking    => 0)));
 
          Messages := LLM.Session_Store.Load_Messages (Session_Id);
 

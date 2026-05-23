@@ -1134,7 +1134,8 @@ package body LLM_Agent_Tests is
          (Role      => LLM.Types.Assistant,
           Content   => Reply_Content,
           Tok_Usage => (Input => 3, Output => 2, Cache_Read => 0,
-                        Cache_Write => 0),
+                        Cache_Write => 0,
+                        Thinking    => 0),
           Stop      => LLM.Types.Stop,
           Timestamp => Null_Unbounded_String));
 
