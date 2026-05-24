@@ -1635,6 +1635,24 @@ package body Test_Suites is
       Result.Add_Test (SQC_Statistics_Caller.Create
         ("Box-Cox MR: differences of transformed values",
          Coyote_SQC_Statistics_Tests.Test_Box_Cox_MR_Transformed'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("EWMA: Compute_Z single step",
+         Coyote_SQC_Statistics_Tests.Test_EWMA_Compute_Z_Single_Step'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("EWMA: Compute_Z multi step",
+         Coyote_SQC_Statistics_Tests.Test_EWMA_Compute_Z_Multi_Step'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("EWMA: time-varying limits at T=1",
+         Coyote_SQC_Statistics_Tests.Test_EWMA_Limits_T1'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("EWMA: limits converge toward steady state",
+         Coyote_SQC_Statistics_Tests.Test_EWMA_Limits_Steady_State'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("EWMA: zero sigma gives no limits",
+         Coyote_SQC_Statistics_Tests.Test_EWMA_Limits_Zero_Sigma'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("EWMA: LCL clamped to 0 when formula yields negative",
+         Coyote_SQC_Statistics_Tests.Test_EWMA_Limits_LCL_Clamped'Access));
       --  Coyote_SQC parser tests
       Result.Add_Test (SQC_Parser_Caller.Create
         ("SQC: v3 session ID parsed correctly",
@@ -1733,6 +1751,12 @@ package body Test_Suites is
       Result.Add_Test (SQC_Workspace_Caller.Create
         ("v1 workspace loads with Box-Cox disabled",
          Coyote_SQC_Workspace_Tests.Test_V1_Loads_Box_Cox_Disabled'Access));
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("EWMA: weight and L round-trip through workspace",
+         Coyote_SQC_Workspace_Tests.Test_EWMA_Round_Trip'Access));
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("EWMA: v3 workspace loads default weight=0.2, L=3.0",
+         Coyote_SQC_Workspace_Tests.Test_V3_Loads_EWMA_Defaults'Access));
       --  Coyote_SQC histogram bin computation tests
       Result.Add_Test (SQC_Histogram_Caller.Create
         ("SQC histogram: n=2 uniform: FD gives 2 bins",

@@ -13,6 +13,7 @@ with Coyote_SQC.Statistics.P_Chart;
 with Coyote_SQC.Statistics.S_Chart;
 with Coyote_SQC.Statistics.Xbar;
 with Coyote_SQC.Statistics.I_Chart;
+with Coyote_SQC.Statistics.EWMA_Chart;
 with Ada.Numerics.Long_Elementary_Functions;
 
 package body Coyote_SQC_Statistics_Tests is
@@ -1048,5 +1049,135 @@ package body Coyote_SQC_Statistics_Tests is
          & Long_Float'Image (Got)
          & " expected " & Long_Float'Image (Expected));
    end Test_Box_Cox_MR_Transformed;
+
+
+   --  ── EWMA chart tests ──────────────────────────────────────────────────
+
+   procedure Test_EWMA_Compute_Z_Single_Step (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.EWMA_Chart;
+      Tol      : constant Long_Float := 1.0e-10;
+      Weight   : constant Long_Float := 0.2;
+      Z0       : constant Long_Float := 80.0;
+      X1       : constant Long_Float := 100.0;
+      Expected : constant Long_Float := 0.2 * 100.0 + 0.8 * 80.0;  --  84.0
+      Got      : constant Long_Float := Compute_Z (X1, Z0, Weight);
+   begin
+      Assert (abs (Got - Expected) <= Tol,
+              "EWMA Z_1 wrong; got " & Long_Float'Image (Got)
+              & " expected " & Long_Float'Image (Expected));
+   end Test_EWMA_Compute_Z_Single_Step;
+
+   procedure Test_EWMA_Compute_Z_Multi_Step (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.EWMA_Chart;
+      Tol    : constant Long_Float := 1.0e-10;
+      Weight : constant Long_Float := 0.2;
+      Z0     : constant Long_Float := 100.0;
+      Z1     : constant Long_Float := Compute_Z (110.0, Z0, Weight);
+      --  Z1 = 0.2*110 + 0.8*100 = 102.0
+      Z2     : constant Long_Float := Compute_Z (90.0, Z1, Weight);
+      --  Z2 = 0.2*90  + 0.8*102 = 18 + 81.6 = 99.6
+   begin
+      Assert (abs (Z1 - 102.0) <= Tol,
+              "EWMA Z_1 wrong; got " & Long_Float'Image (Z1));
+      Assert (abs (Z2 - 99.6) <= Tol,
+              "EWMA Z_2 wrong; got " & Long_Float'Image (Z2));
+   end Test_EWMA_Compute_Z_Multi_Step;
+
+   procedure Test_EWMA_Limits_T1 (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.EWMA_Chart;
+      --  Grand_Mean=100, Sigma=10, Weight=0.2, L=3, T=1.
+      --  Scale = sqrt(0.2/1.8 * (1 - 0.8^2)) = sqrt(0.04) = 0.2
+      --  Half  = 3*10*0.2 = 6
+      Lim  : constant Limits_Record :=
+        Compute_EWMA_Limits
+          (Grand_Mean => 100.0,
+           Sigma      => 10.0,
+           Weight     => 0.2,
+           L          => 3.0,
+           T          => 1);
+      Tol  : constant Long_Float := 1.0e-8;
+   begin
+      Assert (Lim.Has_UCL,
+              "EWMA T=1 should have UCL");
+      Assert (abs (Lim.UCL - 106.0) <= Tol,
+              "UCL wrong; got " & Long_Float'Image (Lim.UCL));
+      Assert (abs (Lim.CL - 100.0) <= Tol,
+              "CL wrong; got " & Long_Float'Image (Lim.CL));
+      Assert (Lim.Has_LCL,
+              "LCL should be positive at T=1 (100-6=94)");
+      Assert (abs (Lim.LCL - 94.0) <= Tol,
+              "LCL wrong; got " & Long_Float'Image (Lim.LCL));
+   end Test_EWMA_Limits_T1;
+
+   procedure Test_EWMA_Limits_Steady_State (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.EWMA_Chart;
+      use Ada.Numerics.Long_Elementary_Functions;
+      --  Grand_Mean=100, Sigma=10, Weight=0.2, L=3, T=1000 (near steady state).
+      --  Steady-state half-width = 3*10*sqrt(0.2/1.8) = 30/3 = 10.0
+      Lim           : constant Limits_Record :=
+        Compute_EWMA_Limits
+          (Grand_Mean => 100.0,
+           Sigma      => 10.0,
+           Weight     => 0.2,
+           L          => 3.0,
+           T          => 1000);
+      Steady_HW     : constant Long_Float :=
+        3.0 * 10.0 * Sqrt (0.2 / (2.0 - 0.2));
+      Tol           : constant Long_Float := 0.001;
+   begin
+      Assert (Lim.Has_UCL,
+              "Steady-state EWMA should have UCL");
+      Assert (abs (Lim.UCL - (100.0 + Steady_HW)) <= Tol,
+              "UCL near steady-state wrong; got " & Long_Float'Image (Lim.UCL));
+      Assert (abs (Lim.LCL - (100.0 - Steady_HW)) <= Tol,
+              "LCL near steady-state wrong; got " & Long_Float'Image (Lim.LCL));
+   end Test_EWMA_Limits_Steady_State;
+
+   procedure Test_EWMA_Limits_Zero_Sigma (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.EWMA_Chart;
+      Lim : constant Limits_Record :=
+        Compute_EWMA_Limits
+          (Grand_Mean => 100.0,
+           Sigma      => 0.0,
+           Weight     => 0.2,
+           L          => 3.0,
+           T          => 5);
+   begin
+      Assert (not Lim.Has_UCL,
+              "Zero sigma should give Has_UCL = False");
+      Assert (not Lim.Has_LCL,
+              "Zero sigma should give Has_LCL = False");
+   end Test_EWMA_Limits_Zero_Sigma;
+
+   procedure Test_EWMA_Limits_LCL_Clamped (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.EWMA_Chart;
+      --  Grand_Mean=1, Sigma=5, Weight=0.5, L=3, T=1.
+      --  Scale = sqrt(0.5/1.5 * (1 - 0.25)) = sqrt(0.25) = 0.5
+      --  Half  = 3*5*0.5 = 7.5
+      --  Raw LCL = 1 - 7.5 = -6.5 -> clamped to 0, Has_LCL = False.
+      Lim : constant Limits_Record :=
+        Compute_EWMA_Limits
+          (Grand_Mean => 1.0,
+           Sigma      => 5.0,
+           Weight     => 0.5,
+           L          => 3.0,
+           T          => 1);
+      Tol : constant Long_Float := 1.0e-8;
+   begin
+      Assert (Lim.Has_UCL,
+              "UCL should be present");
+      Assert (abs (Lim.UCL - 8.5) <= Tol,
+              "UCL wrong; got " & Long_Float'Image (Lim.UCL));
+      Assert (not Lim.Has_LCL,
+              "Has_LCL should be False when raw LCL < 0");
+      Assert (abs (Lim.LCL - 0.0) <= Tol,
+              "Clamped LCL should be 0; got " & Long_Float'Image (Lim.LCL));
+   end Test_EWMA_Limits_LCL_Clamped;
 
 end Coyote_SQC_Statistics_Tests;

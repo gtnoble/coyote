@@ -218,7 +218,7 @@ Derived from a Session_Record. Computed once at load time and cached.
 
 | Field | Type | Description |
 |---|---|---|
-| `Chart_Type` | Chart_Type enum | Identifies which of the seventeen charts this defines |
+| `Chart_Type` | Chart_Type enum | Identifies which of the twenty-one charts this defines |
 
 ---
 
@@ -449,9 +449,117 @@ fixed-λ value) is stored in the workspace file. The estimated λ (when using au
 mode) is a transient runtime value — it is recomputed whenever the setup interval
 changes and is not persisted.
 
+
+### 5.8 Box-Cox Transformation for Xbar/S Charts
+
+Per-turn token counts are strictly positive and typically right-skewed. A Box-Cox
+transformation may be applied before computing Xbar and s chart limits to improve
+normality and reduce false out-of-control signals. The same Box-Cox family as §5.7
+is used (parameterised by λ).
+
+The transformation applies to all six per-turn Xbar/S charts:
+`Turn_Tokens_Xbar`, `Turn_Tokens_S`, `Tool_Call_Tokens_Xbar`,
+`Tool_Call_Tokens_S`, `Thinking_Tokens_Xbar`, `Thinking_Tokens_S`.
+
+**Per-pair lambda in auto mode:** in auto mode, λ is estimated independently for
+each chart pair (Turn, Tool Call, Thinking) from that pair's flattened
+setup-interval per-turn values using the same MLE algorithm as §5.7. This means
+Turn, Tool Call, and Thinking tokens can have different estimated λ values. Fewer
+than three eligible turn values falls back to λ = 0.
+
+**Shared lambda in fixed mode:** in fixed mode, a single user-specified λ applies
+to all three chart pairs.
+
+**Lambda source and configuration:** a separate `Xbar_S_Box_Cox` workspace field
+stores the configuration (enabled flag, lambda source, fixed λ). It is distinct
+from the `I_Chart_Box_Cox` field used for Session Token I/MR charts.
+
+**Xbar chart display:** the per-turn values for each session are transformed to
+z-space; the session mean `z̄_i = mean(z_{i,j})` is computed and
+back-transformed: `x̄_i_BC = Box_Cox_Inverse(z̄_i, λ)`. This back-transformed
+value is plotted on the Xbar chart and compared against back-transformed limits,
+so the y-axis remains in original (token) units.
+
+**s chart display:** the sample standard deviation of the transformed values,
+`s_i_Z = StdDev(z_{i,j})`, is plotted. This value is not back-transformable to
+token units; the y-axis is in transformed units when Box-Cox is active.
+
+**Grand mean and pooled s in transformed space:** `Grand_Mean_Z` is the
+size-weighted grand mean of the per-session `z̄_i` values estimated from the
+setup interval; `Pooled_S_Z` is the pooled standard deviation of the `z_{i,j}`
+values. These override the standard grand mean and pooled s used by the Xbar and
+s chart limit formulas (§5.2), which then operate entirely in z-space.
+
+**Xbar limit back-transformation:** UCL_Z, CL_Z, and LCL_Z from the z-space
+Xbar formula are each back-transformed to original units. If a limit's back-
+transformation fails (domain violation for the given λ), it is suppressed
+(`Has_UCL = False` etc.) while the remaining limits are still drawn. CL back-
+transform failure excludes the session point entirely.
+
+**s chart limits:** computed from `Pooled_S_Z` using the standard s chart formula
+(§5.2); stored and displayed in transformed units without back-transformation.
+
+**Turns with zero values:** any turn value of 0 cannot be transformed. Such turns
+are excluded from lambda estimation. Sessions containing any zero-valued turn are
+excluded from both Xbar/S Box-Cox chart display and λ estimation; a status-bar
+notice reports the count of excluded turns.
+
+**Storage:** the transformation configuration is stored in the workspace
+`xbarSBoxCox` JSON field. Estimated λ values are transient runtime values
+recomputed from the setup interval and not persisted.
+
 ## 6. Charts
 
-Thirteen charts are available in every workspace. They are pre-instantiated; the user does
+### 5.9 EWMA Chart for Session Totals
+
+An Exponentially Weighted Moving Average (EWMA) chart complements each of the four
+Session Token I charts by providing more sensitive detection of small, sustained
+shifts in session-level token totals.
+
+**Statistic.** The EWMA statistic at step _t_ is:
+
+```
+Z_t = λ · x_t + (1 − λ) · Z_{t−1},   Z_0 = Grand_Mean
+```
+
+where `x_t` is the session-level observation, `λ` is the smoothing weight
+(default 0.2, range 0.01–1.00), and `Z_0` is the process target (the grand mean
+estimated from the setup interval by the paired I chart).  Smaller `λ` weights
+recent observations less and gives more smoothing; `λ = 1` reduces to the raw I
+chart.
+
+**Control limits.** The limits at step _t_ are time-varying:
+
+```
+UCL_t / LCL_t = Grand_Mean ± L · σ · √( λ/(2−λ) · [1 − (1−λ)^{2t}] )
+```
+
+where `σ = MR̄ / d2` (`d2 = 1.128`) is the same process-sigma estimate used by
+the paired I chart, and `L` is the sigma multiplier (default 3.0, range 1.00–4.00).
+The limits converge asymptotically to the steady-state values
+`Grand_Mean ± L · σ · √(λ/(2−λ))`.  The LCL is clamped to 0.
+
+**No new parameter estimation required.** The EWMA chart uses the same `Grand_Mean`
+and `Mean_MR` (hence σ) as the paired I chart.  Changing the setup interval updates
+both charts automatically.
+
+**Step counter.** The step counter _t_ advances only for non-excluded sessions.
+When Box-Cox is active, sessions with a zero token total are excluded and do not
+advance _t_.
+
+**Box-Cox (Option B).** When `I_Chart_Box_Cox.Enabled` is `True`, the EWMA
+recursion is performed in z-space (transformed values) and the plotted statistic and
+each limit are back-transformed individually to original (token) units for display.
+If back-transformation of the plotted value fails, the session is excluded.  If
+back-transformation of `UCL_z` fails, `Has_UCL` is set to `False`; `CL` and `LCL`
+are still drawn.  The y-axis is in original (token) units.
+
+**Configuration.** The smoothing weight `λ` and sigma multiplier `L` are workspace
+fields (`ewmaWeight` and `ewmaL`) configurable in the Workspace Settings dialog.
+They are stored in the workspace JSON file (version 4).
+
+
+Twenty-one charts are available in every workspace. They are pre-instantiated; the user does
 not create or delete charts. All charts share a single workspace-level setup interval
 (see Section 11).
 
@@ -461,6 +569,7 @@ not create or delete charts. All charts share a single workspace-level setup int
 **Subgroup:** turns within a session.  
 **Subgroup size n:** total turns in the session.  
 **Statistic:** mean output tokens per turn (x̄).
+**Limits:** derived from the grand mean and pooled standard deviation of the setup interval (§5.2). When Box-Cox transformation is enabled (§5.8), limits are computed in the transformed space and back-transformed to original (token) units for display.
 
 ### 6.2 Turn Token Consumption — s Chart
 
@@ -468,6 +577,7 @@ not create or delete charts. All charts share a single workspace-level setup int
 **Subgroup:** turns within a session.  
 **Subgroup size n:** total turns in the session.  
 **Statistic:** sample standard deviation of output tokens across turns (s).
+**Limits:** derived from the pooled standard deviation of the setup interval (§5.2). When Box-Cox transformation is enabled (§5.8), limits and the s statistic are displayed in transformed units.
 
 ### 6.3 Tool Call Token Consumption — Xbar Chart
 
@@ -476,6 +586,7 @@ not create or delete charts. All charts share a single workspace-level setup int
 **Subgroup size n:** count of tool-call turns in the session.  
 **Statistic:** mean tool call token consumption per tool-call turn (x̄).  
 **Zero-tool-call sessions:** sessions where no turn contained a tool call are excluded from limit estimation and shown as hollow gray markers.
+**Limits:** derived from the grand mean and pooled standard deviation of the setup interval (§5.2). When Box-Cox transformation is enabled (§5.8), limits are computed in the transformed space and back-transformed to original (token) units for display.
 
 ### 6.4 Tool Call Token Consumption — s Chart
 
@@ -484,6 +595,7 @@ not create or delete charts. All charts share a single workspace-level setup int
 **Subgroup size n:** count of tool-call turns in the session.  
 **Statistic:** sample standard deviation of tool call token consumption across tool-call turns (s).  
 **Zero-tool-call sessions:** sessions where no turn contained a tool call are excluded from limit estimation and shown as hollow gray markers.
+**Limits:** derived from the pooled standard deviation of the setup interval (§5.2). When Box-Cox transformation is enabled (§5.8), limits and the s statistic are displayed in transformed units.
 
 ### 6.5 Thinking Token Consumption — Xbar Chart
 
@@ -492,6 +604,7 @@ not create or delete charts. All charts share a single workspace-level setup int
 **Subgroup size n:** count of thinking-enabled turns in the session.  
 **Statistic:** mean thinking tokens per thinking-enabled turn (x̄).  
 **Zero-thinking sessions:** excluded from limits; shown as hollow gray markers.
+**Limits:** derived from the grand mean and pooled standard deviation of the setup interval (§5.2). When Box-Cox transformation is enabled (§5.8), limits are computed in the transformed space and back-transformed to original (token) units for display.
 
 ### 6.6 Thinking Token Consumption — s Chart
 
@@ -500,6 +613,7 @@ not create or delete charts. All charts share a single workspace-level setup int
 **Subgroup size n:** count of thinking-enabled turns in the session.  
 **Statistic:** sample standard deviation of thinking tokens across thinking-enabled turns (s).  
 **Zero-thinking sessions:** excluded from limits; shown as hollow gray markers.
+**Limits:** derived from the pooled standard deviation of the setup interval (§5.2). When Box-Cox transformation is enabled (§5.8), limits and the s statistic are displayed in transformed units.
 
 ### 6.7 Tool Call Failure Rate — p-Chart
 
@@ -580,6 +694,39 @@ sessions in chronological order.
 **First session:** no marker is plotted; a gap is left in the connecting line.
 **Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6). When Box-Cox transformation is enabled (§5.7), moving ranges are differences of transformed values and the y-axis is labelled in transformed units.
 
+### 6.18 Session Input Tokens — EWMA Chart
+
+**Measured quantity:** total input tokens for the session (`Total_Input_Tokens`).
+**Statistic:** the EWMA value `Z_t = λ · x_t + (1−λ) · Z_{t−1}` (§5.9).
+**Limits:** time-varying UCL and LCL at step _t_ (§5.9). When Box-Cox is active,
+the EWMA and limits are computed in z-space and back-transformed (§5.9).
+**Paired with:** Session Input Tokens — I chart (shares Grand_Mean and σ).
+
+### 6.19 Session Output Tokens — EWMA Chart
+
+**Measured quantity:** total output tokens for the session (`Total_Output_Tokens`).
+**Statistic:** the EWMA value `Z_t = λ · x_t + (1−λ) · Z_{t−1}` (§5.9).
+**Limits:** time-varying UCL and LCL at step _t_ (§5.9). When Box-Cox is active,
+the EWMA and limits are computed in z-space and back-transformed (§5.9).
+**Paired with:** Session Output Tokens — I chart (shares Grand_Mean and σ).
+
+### 6.20 Session Cache Read Tokens — EWMA Chart
+
+**Measured quantity:** total cache-read tokens for the session (`Total_Cache_Read_Tokens`).
+**Statistic:** the EWMA value `Z_t = λ · x_t + (1−λ) · Z_{t−1}` (§5.9).
+**Limits:** time-varying UCL and LCL at step _t_ (§5.9). When Box-Cox is active,
+the EWMA and limits are computed in z-space and back-transformed (§5.9).
+**Paired with:** Session Cache Read Tokens — I chart (shares Grand_Mean and σ).
+
+### 6.21 Session Cache Write Tokens — EWMA Chart
+
+**Measured quantity:** total cache-write tokens for the session (`Total_Cache_Write_Tokens`).
+**Statistic:** the EWMA value `Z_t = λ · x_t + (1−λ) · Z_{t−1}` (§5.9).
+**Limits:** time-varying UCL and LCL at step _t_ (§5.9). When Box-Cox is active,
+the EWMA and limits are computed in z-space and back-transformed (§5.9).
+**Paired with:** Session Cache Write Tokens — I chart (shares Grand_Mean and σ).
+
+
 ---
 
 ## 7. UI Layout and Navigation
@@ -595,7 +742,7 @@ The main window contains, from top to bottom:
 
 ### 7.2 Left Panel
 
-A GtkListBox (~180px default width, user-resizable) listing the seventeen charts in three
+A GtkListBox (~180px default width, user-resizable) listing the twenty-one charts in three
 visually separated groups:
 
 ```
@@ -624,6 +771,10 @@ Session Cache Read Tokens — I
 Session Cache Read Tokens — MR
 Session Cache Write Tokens — I
 Session Cache Write Tokens — MR
+Session Input Tokens — EWMA
+Session Output Tokens — EWMA
+Session Cache Read Tokens — EWMA
+Session Cache Write Tokens — EWMA
 ```
 
 Clicking a row switches the chart displayed in the chart area. The active chart is
@@ -922,7 +1073,7 @@ Displayed when two or more points are selected.
 
 **Set as Setup Interval button:**
 - Clicking this button sets the workspace setup interval to exactly the selected
-  sessions, applying to all seventeen charts simultaneously.
+  sessions, applying to all twenty-one charts simultaneously.
 - If a setup interval is already established, a confirmation dialog is shown:
   "Replace existing setup interval for this workspace?"
 - On confirmation, all charts recompute their limits and recolor the setup interval
@@ -948,7 +1099,7 @@ Displayed when two or more points are selected.
 ### 11.1 Establishing a Setup Interval
 
 A setup interval is a single workspace-level set of sessions used to estimate the
-center line and control limits for all seventeen charts simultaneously. It is established
+center line and control limits for all twenty-one charts simultaneously. It is established
 by selecting one or more sessions (Section 9) and clicking "Set as Setup Interval"
 in the multi-select detail panel (Section 10.2). There is no requirement for the
 setup sessions to be contiguous in time.
@@ -957,11 +1108,11 @@ setup sessions to be contiguous in time.
 
 The setup interval is stored as a set of session UUIDs in the `Setup_Session_Ids`
 field of the `Workspace_Record`. It is workspace-level: a single setup interval
-applies to all seventeen charts. The set is stored within the workspace file.
+applies to all twenty-one charts. The set is stored within the workspace file.
 
 ### 11.3 Visual Representation
 
-Setup interval sessions are rendered with filled yellow markers on all seventeen charts.
+Setup interval sessions are rendered with filled yellow markers on all twenty-one charts.
 A faint yellow vertical band spans the x-extent of the setup interval sessions on
 every chart.
 
@@ -1023,6 +1174,21 @@ text is visible in the detail panel.
 Workspace files are stored as JSON. The file format is versioned with a top-level
 `"version"` field. The application shall refuse to open workspace files with a version
 higher than it supports, and shall display an appropriate error message.
+
+The current workspace format is **version 4**. The `"version"` field increments
+whenever new fields are added that cannot safely be ignored by an older reader.
+Version history:
+
+| Version | When introduced | Notable additions |
+|---------|-----------------|-------------------|
+| 1 | Initial release | Core workspace fields |
+| 2 | — | `xbarSBoxCox` Xbar/S Box-Cox config |
+| 3 | — | `iChartBoxCox` I/MR Box-Cox config |
+| 4 | EWMA charts | `ewmaWeight`, `ewmaL` smoothing parameters |
+
+Workspace files with `"version" < 4` that are missing the `ewmaWeight` and
+`ewmaL` fields shall be loaded with the defaults (`ewmaWeight = 0.2`,
+`ewmaL = 3.0`).
 
 ### 13.2 Workspace File Location
 
@@ -1222,6 +1388,14 @@ All statistical formula implementations shall have AUnit unit tests covering:
   mean moving range, UCL/LCL to 4 decimal places).
 - Special cases for I/MR charts: single-session setup interval (MR̄ undefined →
   no limits drawn); MR̄ = 0 → no limits drawn; first session excluded from MR chart.
+- EWMA chart `Compute_Z` formula: single-step and multi-step sequences agree with
+  hand-computed values to 1 × 10⁻¹⁰.
+- EWMA time-varying limits at T=1 and convergence toward steady-state at large T.
+- EWMA: zero sigma → Has_UCL = False, Has_LCL = False.
+- EWMA: LCL clamped to 0 when the formula yields a negative value.
+- EWMA workspace round-trip: `ewmaWeight` and `ewmaL` survive save/load unchanged.
+- EWMA version migration: workspace files at version ≤ 3 load with default
+  `ewmaWeight = 0.2` and `ewmaL = 3.0`.
 
 ---
 

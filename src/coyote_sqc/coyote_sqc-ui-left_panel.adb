@@ -23,8 +23,8 @@ package body Coyote_SQC.UI.Left_Panel is
    --  Module-level reference to the ListBox.
    The_List_Box : Gtk.List_Box.Gtk_List_Box := null;
 
-   --  Maximum GtkListBox rows (9 charts + separators; 20 is generous).
-   Max_LB_Rows : constant := 20;
+   --  Maximum GtkListBox rows (21 charts + 3 separators = 24; 30 is generous).
+   Max_LB_Rows : constant := 30;
 
    --  Mapping: GtkListBox row index -> Chart_Kind (only valid when
    --  Row_Is_Chart(I) = True).  Separator rows are not chart rows.

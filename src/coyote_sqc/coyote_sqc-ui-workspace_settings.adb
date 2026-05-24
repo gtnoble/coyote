@@ -82,6 +82,21 @@ package body Coyote_SQC.UI.Workspace_Settings is
    --  Suppress spin->combo feedback while combo is programmatically updated.
    BC_Combo_Updating : Boolean := False;
 
+   --  Xbar/S Box-Cox section widget handles (reset per dialog open).
+   XS_Enabled_CB    : Gtk.Check_Button.Gtk_Check_Button := null;
+   XS_Sub_VBox      : Gtk.Box.Gtk_Box := null;
+   XS_Auto_RB       : Gtk.Radio_Button.Gtk_Radio_Button := null;
+   XS_Fixed_RB      : Gtk.Radio_Button.Gtk_Radio_Button := null;
+   XS_Lambda_Combo  : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text := null;
+   XS_Lambda_Spin   : Gtk.Spin_Button.Gtk_Spin_Button := null;
+   XS_Lambda_Lbl    : Gtk.Label.Gtk_Label := null;
+   --  EWMA parameter spinners.
+   EWMA_Weight_Spin : Gtk.Spin_Button.Gtk_Spin_Button := null;
+   EWMA_L_Spin      : Gtk.Spin_Button.Gtk_Spin_Button := null;
+   --  Suppress spin->combo feedback while combo is programmatically updated.
+   XS_Combo_Updating : Boolean := False;
+
+
    --  ── Helpers ────────────────────────────────────────────────────────────
 
    --  Return the current auto-estimated lambda from the I-chart data,
@@ -232,6 +247,142 @@ package body Coyote_SQC.UI.Workspace_Settings is
    --  Cb_Gtk_Toggle_Button_Void, Cb_Gtk_Combo_Box_Void, and
    --  Cb_Gtk_Spin_Button_Void access types.
 
+   --  ── Xbar/S Box-Cox helpers ────────────────────────────────────────────
+
+   --  Return auto-estimated lambdas for the three Xbar/S chart pairs as a
+   --  formatted string, or "(not yet computed)" if none are active.
+   function Current_Auto_XS_Lambda_Text return String is
+      use Coyote_SQC.Charts;
+      use Ada.Strings.Fixed;
+
+      function Fmt (V : Long_Float) return String is
+         IV : constant Long_Long_Integer :=
+           Long_Long_Integer
+             (Long_Float'Rounding (abs V * 100.0));
+      begin
+         return (if V < 0.0 then "-" else "")
+           & Trim (Long_Long_Integer'Image (IV / 100), Ada.Strings.Left)
+           & "."
+           & (if IV mod 100 < 10 then "0" else "")
+           & Trim (Long_Long_Integer'Image (IV mod 100), Ada.Strings.Left);
+      end Fmt;
+
+      Turn_Lam  : constant Coyote_SQC.App.Chart_Data :=
+        Coyote_SQC.App.State.Charts (Turn_Tokens_Xbar);
+      Tool_Lam  : constant Coyote_SQC.App.Chart_Data :=
+        Coyote_SQC.App.State.Charts (Tool_Call_Tokens_Xbar);
+      Think_Lam : constant Coyote_SQC.App.Chart_Data :=
+        Coyote_SQC.App.State.Charts (Thinking_Tokens_Xbar);
+   begin
+      if Turn_Lam.Box_Cox_Active
+        or else Tool_Lam.Box_Cox_Active
+        or else Think_Lam.Box_Cox_Active
+      then
+         return
+           "Turn: "    & Lambda_Sym & "=" & Fmt (Turn_Lam.Box_Cox_Lambda)
+           & "  Tool: " & Lambda_Sym & "=" & Fmt (Tool_Lam.Box_Cox_Lambda)
+           & "  Think: " & Lambda_Sym & "="
+           & Fmt (Think_Lam.Box_Cox_Lambda);
+      else
+         return "(not yet computed)";
+      end if;
+   end Current_Auto_XS_Lambda_Text;
+
+   procedure Update_XS_Lambda_Readout is
+      use Gtk.Toggle_Button;
+   begin
+      if XS_Lambda_Lbl = null or XS_Auto_RB = null then return; end if;
+      if Get_Active (Gtk_Toggle_Button (XS_Auto_RB)) then
+         XS_Lambda_Lbl.Set_Text
+           ("Estimated " & Lambda_Sym & ":  "
+            & Current_Auto_XS_Lambda_Text);
+         XS_Lambda_Lbl.Set_Sensitive (True);
+      else
+         XS_Lambda_Lbl.Set_Text
+           ("Estimated " & Lambda_Sym & ":  " & Dash_Sym);
+         XS_Lambda_Lbl.Set_Sensitive (False);
+      end if;
+   end Update_XS_Lambda_Readout;
+
+   procedure Update_XS_Fixed_Sensitivity is
+      use Gtk.Toggle_Button;
+      Fixed : constant Boolean :=
+        Get_Active (Gtk_Toggle_Button (XS_Fixed_RB));
+   begin
+      if XS_Lambda_Combo /= null then
+         XS_Lambda_Combo.Set_Sensitive (Fixed);
+      end if;
+      if XS_Lambda_Spin /= null then
+         XS_Lambda_Spin.Set_Sensitive (Fixed);
+      end if;
+   end Update_XS_Fixed_Sensitivity;
+
+   --  ── Xbar/S Box-Cox callbacks ──────────────────────────────────────────
+
+   procedure On_XS_Enabled_Toggled
+     (CB : access Gtk.Toggle_Button.Gtk_Toggle_Button_Record'Class)
+   is
+      pragma Unreferenced (CB);
+      use Gtk.Toggle_Button;
+   begin
+      if XS_Enabled_CB = null or XS_Sub_VBox = null then return; end if;
+      XS_Sub_VBox.Set_Sensitive
+        (Get_Active (Gtk_Toggle_Button (XS_Enabled_CB)));
+   end On_XS_Enabled_Toggled;
+
+   procedure On_XS_Source_Toggled
+     (RB : access Gtk.Toggle_Button.Gtk_Toggle_Button_Record'Class)
+   is
+      pragma Unreferenced (RB);
+   begin
+      Update_XS_Fixed_Sensitivity;
+      Update_XS_Lambda_Readout;
+   end On_XS_Source_Toggled;
+
+   procedure On_XS_Combo_Changed
+     (CB : access Gtk.Combo_Box.Gtk_Combo_Box_Record'Class)
+   is
+      pragma Unreferenced (CB);
+      Idx : constant Glib.Gint :=
+        Gtk.Combo_Box.Get_Active
+          (Gtk.Combo_Box.Gtk_Combo_Box (XS_Lambda_Combo));
+   begin
+      if XS_Lambda_Spin = null or XS_Combo_Updating then return; end if;
+      XS_Combo_Updating := True;
+      case Idx is
+         when 0 => XS_Lambda_Spin.Set_Value (0.0);
+         when 1 => XS_Lambda_Spin.Set_Value (0.5);
+         when 2 => XS_Lambda_Spin.Set_Value (1.0);
+         when others => null;
+      end case;
+      XS_Combo_Updating := False;
+   end On_XS_Combo_Changed;
+
+   procedure On_XS_Spin_Value_Changed
+     (SB : access Gtk.Spin_Button.Gtk_Spin_Button_Record'Class)
+   is
+      pragma Unreferenced (SB);
+      Val : constant Gdouble :=
+        Gtk.Spin_Button.Get_Value (XS_Lambda_Spin);
+   begin
+      if XS_Lambda_Combo = null or XS_Combo_Updating then return; end if;
+      XS_Combo_Updating := True;
+      if abs (Val - 0.0) < 0.005 then
+         Gtk.Combo_Box.Set_Active
+           (Gtk.Combo_Box.Gtk_Combo_Box (XS_Lambda_Combo), 0);
+      elsif abs (Val - 0.5) < 0.005 then
+         Gtk.Combo_Box.Set_Active
+           (Gtk.Combo_Box.Gtk_Combo_Box (XS_Lambda_Combo), 1);
+      elsif abs (Val - 1.0) < 0.005 then
+         Gtk.Combo_Box.Set_Active
+           (Gtk.Combo_Box.Gtk_Combo_Box (XS_Lambda_Combo), 2);
+      else
+         Gtk.Combo_Box.Set_Active
+           (Gtk.Combo_Box.Gtk_Combo_Box (XS_Lambda_Combo), 3);
+      end if;
+      XS_Combo_Updating := False;
+   end On_XS_Spin_Value_Changed;
+
    procedure On_BC_Enabled_Toggled
      (CB : access Gtk.Toggle_Button.Gtk_Toggle_Button_Record'Class)
    is
@@ -328,6 +479,16 @@ package body Coyote_SQC.UI.Workspace_Settings is
       BC_Lambda_Spin  := null;
       BC_Lambda_Lbl   := null;
       BC_Combo_Updating := False;
+
+      --  Reset Xbar/S Box-Cox handles.
+      XS_Enabled_CB    := null;
+      XS_Sub_VBox      := null;
+      XS_Auto_RB       := null;
+      XS_Fixed_RB      := null;
+      XS_Lambda_Combo  := null;
+      XS_Lambda_Spin   := null;
+      XS_Lambda_Lbl    := null;
+      XS_Combo_Updating := False;
 
       Gtk.Dialog.Gtk_New
         (D, "Workspace Settings", Coyote_SQC.App.State.Main_Window,
@@ -570,6 +731,221 @@ package body Coyote_SQC.UI.Workspace_Settings is
          Update_Lambda_Readout;
       end;
 
+
+      --  ── Xbar/S Chart Transformation (Box-Cox) ─────────────────────────
+      declare
+         XS_Frame    : Gtk.Frame.Gtk_Frame;
+         XS_Sub_VB   : Gtk.Box.Gtk_Box;
+         XS_Inner_VB : Gtk.Box.Gtk_Box;
+         XS_Sub_HB   : Gtk.Box.Gtk_Box;
+         XS_CB_EN    : Gtk.Check_Button.Gtk_Check_Button;
+         XS_RB_Auto  : Gtk.Radio_Button.Gtk_Radio_Button;
+         XS_RB_Fixed : Gtk.Radio_Button.Gtk_Radio_Button;
+         XS_Combo    : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
+         XS_Spin     : Gtk.Spin_Button.Gtk_Spin_Button;
+         XS_Lbl_Est  : Gtk.Label.Gtk_Label;
+         XS_Lbl_Note : Gtk.Label.Gtk_Label;
+         XS_Lbl_Lam  : Gtk.Label.Gtk_Label;
+
+         XS_Cfg : constant Box_Cox_Config :=
+           Coyote_SQC.App.State.Workspace.Xbar_S_Box_Cox;
+      begin
+         Gtk.Frame.Gtk_New
+           (XS_Frame, "Xbar/S Chart Transformation");
+         Gtk.Box.Gtk_New_Vbox (XS_Sub_VB);
+         XS_Sub_VB.Set_Spacing (4);
+         XS_Sub_VB.Set_Border_Width (6);
+
+         --  Enable checkbox.
+         Gtk.Check_Button.Gtk_New
+           (XS_CB_EN,
+            "Apply Box-Cox transformation to per-turn Xbar/S charts");
+         Set_Active
+           (Gtk_Toggle_Button (XS_CB_EN), XS_Cfg.Enabled);
+         Gtk.Toggle_Button.On_Toggled
+           (Gtk_Toggle_Button (XS_CB_EN), On_XS_Enabled_Toggled'Access);
+         XS_Sub_VB.Pack_Start (XS_CB_EN, False, False, 0);
+
+         --  Inner sub-section (sensitive only when checkbox is on).
+         Gtk.Box.Gtk_New_Vbox (XS_Inner_VB);
+         XS_Inner_VB.Set_Spacing (3);
+         XS_Inner_VB.Set_Sensitive (XS_Cfg.Enabled);
+
+         --  Auto radio button.
+         Gtk.Radio_Button.Gtk_New
+           (XS_RB_Auto,
+            Label => "Estimate from setup interval (per-pair)");
+         Set_Active
+           (Gtk_Toggle_Button (XS_RB_Auto),
+            XS_Cfg.Lambda_Source = Auto);
+         Gtk.Toggle_Button.On_Toggled
+           (Gtk_Toggle_Button (XS_RB_Auto), On_XS_Source_Toggled'Access);
+         XS_Inner_VB.Pack_Start (XS_RB_Auto, False, False, 0);
+
+         --  Fixed radio + combo + spin on one row.
+         Gtk.Box.Gtk_New_Hbox (XS_Sub_HB);
+         Gtk.Radio_Button.Gtk_New
+           (XS_RB_Fixed, Group => XS_RB_Auto, Label => "Fixed:");
+         Set_Active
+           (Gtk_Toggle_Button (XS_RB_Fixed),
+            XS_Cfg.Lambda_Source = Fixed);
+         Gtk.Toggle_Button.On_Toggled
+           (Gtk_Toggle_Button (XS_RB_Fixed), On_XS_Source_Toggled'Access);
+         XS_Sub_HB.Pack_Start (XS_RB_Fixed, False, False, 0);
+
+         --  Combo for named presets.
+         Gtk.Combo_Box_Text.Gtk_New (XS_Combo);
+         XS_Combo.Append_Text ("ln (" & Lambda_Sym & "=0)");
+         XS_Combo.Append_Text (Sqrt_Sym & " (" & Lambda_Sym & "=0.5)");
+         XS_Combo.Append_Text ("no transform (" & Lambda_Sym & "=1)");
+         XS_Combo.Append_Text ("custom");
+         if XS_Cfg.Lambda_Source = Fixed then
+            if abs (XS_Cfg.Fixed_Lambda - 0.0) < 0.005 then
+               Gtk.Combo_Box.Set_Active
+                 (Gtk.Combo_Box.Gtk_Combo_Box (XS_Combo), 0);
+            elsif abs (XS_Cfg.Fixed_Lambda - 0.5) < 0.005 then
+               Gtk.Combo_Box.Set_Active
+                 (Gtk.Combo_Box.Gtk_Combo_Box (XS_Combo), 1);
+            elsif abs (XS_Cfg.Fixed_Lambda - 1.0) < 0.005 then
+               Gtk.Combo_Box.Set_Active
+                 (Gtk.Combo_Box.Gtk_Combo_Box (XS_Combo), 2);
+            else
+               Gtk.Combo_Box.Set_Active
+                 (Gtk.Combo_Box.Gtk_Combo_Box (XS_Combo), 3);
+            end if;
+         else
+            Gtk.Combo_Box.Set_Active
+              (Gtk.Combo_Box.Gtk_Combo_Box (XS_Combo), 0);
+         end if;
+         Gtk.Combo_Box.On_Changed
+           (Gtk.Combo_Box.Gtk_Combo_Box (XS_Combo),
+            On_XS_Combo_Changed'Access);
+         XS_Combo.Set_Sensitive (XS_Cfg.Lambda_Source = Fixed);
+         XS_Sub_HB.Pack_Start (XS_Combo, False, False, 4);
+
+         --  Spin button for custom lambda value.
+         Gtk.Spin_Button.Gtk_New
+           (XS_Spin,
+            Min  => -2.0,
+            Max  =>  2.0,
+            Step =>  0.01);
+         XS_Spin.Set_Digits (2);
+         XS_Spin.Set_Value (Gdouble (XS_Cfg.Fixed_Lambda));
+         Gtk.Spin_Button.On_Value_Changed
+           (XS_Spin, On_XS_Spin_Value_Changed'Access);
+         XS_Spin.Set_Sensitive (XS_Cfg.Lambda_Source = Fixed);
+
+         Gtk.Label.Gtk_New (XS_Lbl_Lam, Lambda_Sym & " =");
+         XS_Sub_HB.Pack_Start (XS_Lbl_Lam, False, False, 4);
+         XS_Sub_HB.Pack_Start (XS_Spin, False, False, 0);
+         XS_Inner_VB.Pack_Start (XS_Sub_HB, False, False, 0);
+
+         --  Estimated lambda readout (shows per-pair lambdas for Auto).
+         Gtk.Label.Gtk_New
+           (XS_Lbl_Est,
+            "Estimated " & Lambda_Sym & ":  (not yet computed)");
+         XS_Lbl_Est.Set_Halign (Gtk.Widget.Align_Start);
+         XS_Inner_VB.Pack_Start (XS_Lbl_Est, False, False, 2);
+
+         --  Note label.
+         Gtk.Label.Gtk_New
+           (XS_Lbl_Note,
+            "Note: Xbar chart limits are shown in original (token)"
+            & " units." & ASCII.LF
+            & "      s chart y-axis shows values in transformed"
+            & " units.");
+         XS_Lbl_Note.Set_Halign (Gtk.Widget.Align_Start);
+         XS_Inner_VB.Pack_Start (XS_Lbl_Note, False, False, 2);
+
+         XS_Sub_VB.Pack_Start (XS_Inner_VB, False, False, 0);
+         XS_Frame.Add (XS_Sub_VB);
+         VBox.Pack_Start (XS_Frame, False, False, 4);
+
+         --  ── EWMA parameters frame ─────────────────────────────────────
+         declare
+            EWMA_Frame  : Gtk.Frame.Gtk_Frame;
+            EWMA_VBox   : Gtk.Box.Gtk_Box;
+            EWMA_W_Row  : Gtk.Box.Gtk_Box;
+            EWMA_L_Row  : Gtk.Box.Gtk_Box;
+            EWMA_W_Lbl  : Gtk.Label.Gtk_Label;
+            EWMA_L_Lbl  : Gtk.Label.Gtk_Label;
+            EWMA_W_Sp   : Gtk.Spin_Button.Gtk_Spin_Button;
+            EWMA_L_Sp   : Gtk.Spin_Button.Gtk_Spin_Button;
+            Note_Lbl    : Gtk.Label.Gtk_Label;
+         begin
+            Gtk.Frame.Gtk_New (EWMA_Frame, "EWMA Chart Parameters");
+            Gtk.Box.Gtk_New_Vbox (EWMA_VBox);
+            EWMA_VBox.Set_Spacing (4);
+            EWMA_VBox.Set_Border_Width (6);
+
+            --  Smoothing weight (lambda) row.
+            Gtk.Box.Gtk_New_Hbox (EWMA_W_Row);
+            EWMA_W_Row.Set_Spacing (8);
+            Gtk.Label.Gtk_New
+              (EWMA_W_Lbl,
+               "Smoothing weight (" & Lambda_Sym & "):  "
+               & "(range 0.01 - 1.00)");
+            EWMA_W_Row.Pack_Start (EWMA_W_Lbl, False, False, 0);
+            Gtk.Spin_Button.Gtk_New
+              (EWMA_W_Sp,
+               Min  => Glib.Gdouble (0.01),
+               Max  => Glib.Gdouble (1.00),
+               Step => Glib.Gdouble (0.01));
+            EWMA_W_Sp.Set_Digits (2);
+            EWMA_W_Sp.Set_Value
+              (Glib.Gdouble
+                 (Coyote_SQC.App.State.Workspace.EWMA_Weight));
+            EWMA_W_Row.Pack_Start (EWMA_W_Sp, False, False, 0);
+            EWMA_VBox.Pack_Start (EWMA_W_Row, False, False, 4);
+
+            --  Sigma multiplier (L) row.
+            Gtk.Box.Gtk_New_Hbox (EWMA_L_Row);
+            EWMA_L_Row.Set_Spacing (8);
+            Gtk.Label.Gtk_New
+              (EWMA_L_Lbl,
+               "Sigma multiplier (L):        "
+               & "(range 1.00 - 4.00)");
+            EWMA_L_Row.Pack_Start (EWMA_L_Lbl, False, False, 0);
+            Gtk.Spin_Button.Gtk_New
+              (EWMA_L_Sp,
+               Min  => Glib.Gdouble (1.00),
+               Max  => Glib.Gdouble (4.00),
+               Step => Glib.Gdouble (0.25));
+            EWMA_L_Sp.Set_Digits (2);
+            EWMA_L_Sp.Set_Value
+              (Glib.Gdouble (Coyote_SQC.App.State.Workspace.EWMA_L));
+            EWMA_L_Row.Pack_Start (EWMA_L_Sp, False, False, 0);
+            EWMA_VBox.Pack_Start (EWMA_L_Row, False, False, 4);
+
+            --  Explanatory note.
+            Gtk.Label.Gtk_New
+              (Note_Lbl,
+               "Smaller " & Lambda_Sym & " gives more smoothing and better"
+               & " detection of small sustained shifts.");
+            Note_Lbl.Set_Alignment (0.0, 0.5);
+            EWMA_VBox.Pack_Start (Note_Lbl, False, False, 2);
+
+            EWMA_Frame.Add (EWMA_VBox);
+            VBox.Pack_Start (EWMA_Frame, False, False, 4);
+
+            --  Capture module-level handles.
+            EWMA_Weight_Spin := EWMA_W_Sp;
+            EWMA_L_Spin      := EWMA_L_Sp;
+         end;
+
+         --  Capture module-level handles.
+         XS_Sub_VBox     := XS_Inner_VB;
+         XS_Enabled_CB   := XS_CB_EN;
+         XS_Auto_RB      := XS_RB_Auto;
+         XS_Fixed_RB     := XS_RB_Fixed;
+         XS_Lambda_Combo := XS_Combo;
+         XS_Lambda_Spin  := XS_Spin;
+         XS_Lambda_Lbl   := XS_Lbl_Est;
+
+         --  Initialise readout after all handles are captured.
+         Update_XS_Lambda_Readout;
+      end;
+
       D.Get_Content_Area.Pack_Start (VBox, True, True, 0);
       declare
          Dummy : Gtk.Widget.Gtk_Widget;
@@ -646,6 +1022,34 @@ package body Coyote_SQC.UI.Workspace_Settings is
             end;
          end if;
 
+         --  Apply Xbar/S Box-Cox configuration.
+         if XS_Enabled_CB /= null then
+            declare
+               New_XS : Coyote_SQC.Data_Model.Box_Cox_Config;
+            begin
+               New_XS.Enabled :=
+                 Get_Active (Gtk_Toggle_Button (XS_Enabled_CB));
+               New_XS.Lambda_Source :=
+                 (if Get_Active (Gtk_Toggle_Button (XS_Auto_RB))
+                  then Coyote_SQC.Data_Model.Auto
+                  else Coyote_SQC.Data_Model.Fixed);
+               New_XS.Fixed_Lambda :=
+                 Long_Float
+                   (Gtk.Spin_Button.Get_Value (XS_Lambda_Spin));
+               Coyote_SQC.App.State.Workspace.Xbar_S_Box_Cox := New_XS;
+            end;
+         end if;
+         --  Apply EWMA parameters.
+         if EWMA_Weight_Spin /= null then
+            Coyote_SQC.App.State.Workspace.EWMA_Weight :=
+              Long_Float (Gtk.Spin_Button.Get_Value (EWMA_Weight_Spin));
+         end if;
+         if EWMA_L_Spin /= null then
+            Coyote_SQC.App.State.Workspace.EWMA_L :=
+              Long_Float (Gtk.Spin_Button.Get_Value (EWMA_L_Spin));
+         end if;
+
+
          Coyote_SQC.App.State.Modified := True;
          Coyote_SQC.App.Update_Title;
          Coyote_SQC.App.Reload_Sessions;
@@ -684,6 +1088,15 @@ package body Coyote_SQC.UI.Workspace_Settings is
       BC_Lambda_Combo := null;
       BC_Lambda_Spin  := null;
       BC_Lambda_Lbl   := null;
+      XS_Enabled_CB   := null;
+      XS_Sub_VBox     := null;
+      XS_Auto_RB      := null;
+      XS_Fixed_RB     := null;
+      XS_Lambda_Combo := null;
+      XS_Lambda_Spin  := null;
+      XS_Lambda_Lbl   := null;
+      EWMA_Weight_Spin := null;
+      EWMA_L_Spin      := null;
       D.Destroy;
    end Show_Dialog;
 

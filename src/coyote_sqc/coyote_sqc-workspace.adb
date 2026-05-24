@@ -126,7 +126,7 @@ package body Coyote_SQC.Workspace is
       Root := GNATCOLL.JSON.Read (To_String (Content));
 
       Version := Get_Int_Field (Root, "version", -1);
-      if Version > 2 then
+      if Version > 4 then
          raise Workspace_Error with
            "This workspace was created by a newer version of coyote_sqc "
            & "and cannot be opened.";
@@ -264,6 +264,55 @@ package body Coyote_SQC.Workspace is
             end if;
          end;
       end if;
+      --  xbarSBoxCox (optional; absent = disabled).
+      if Root.Kind = GNATCOLL.JSON.JSON_Object_Type
+        and then Root.Has_Field ("xbarSBoxCox")
+      then
+         declare
+            BC  : constant GNATCOLL.JSON.JSON_Value :=
+              Root.Get ("xbarSBoxCox");
+            Src : constant String :=
+              Get_String_Field (BC, "lambdaSource");
+         begin
+            if BC.Kind = GNATCOLL.JSON.JSON_Object_Type then
+               if BC.Has_Field ("enabled")
+                 and then BC.Get ("enabled").Kind =
+                   GNATCOLL.JSON.JSON_Boolean_Type
+               then
+                  Workspace.Xbar_S_Box_Cox.Enabled :=
+                    Boolean'(BC.Get ("enabled").Get);
+               end if;
+               Workspace.Xbar_S_Box_Cox.Lambda_Source :=
+                 (if Src = "fixed"
+                  then Coyote_SQC.Data_Model.Fixed
+                  else Coyote_SQC.Data_Model.Auto);
+               if BC.Has_Field ("fixedLambda")
+                 and then BC.Get ("fixedLambda").Kind =
+                   GNATCOLL.JSON.JSON_Float_Type
+               then
+                  Workspace.Xbar_S_Box_Cox.Fixed_Lambda :=
+                    GNATCOLL.JSON.Get_Long_Float (BC, "fixedLambda");
+               end if;
+            end if;
+         end;
+      end if;
+      --  EWMA parameters (optional; absent = defaults 0.2 / 3.0).
+      if Root.Kind = GNATCOLL.JSON.JSON_Object_Type
+        and then Root.Has_Field ("ewmaWeight")
+        and then Root.Get ("ewmaWeight").Kind =
+          GNATCOLL.JSON.JSON_Float_Type
+      then
+         Workspace.EWMA_Weight :=
+           GNATCOLL.JSON.Get_Long_Float (Root, "ewmaWeight");
+      end if;
+      if Root.Kind = GNATCOLL.JSON.JSON_Object_Type
+        and then Root.Has_Field ("ewmaL")
+        and then Root.Get ("ewmaL").Kind =
+          GNATCOLL.JSON.JSON_Float_Type
+      then
+         Workspace.EWMA_L :=
+           GNATCOLL.JSON.Get_Long_Float (Root, "ewmaL");
+      end if;
    end Load;
 
    --  ── Save ──────────────────────────────────────────────────────────────
@@ -282,7 +331,7 @@ package body Coyote_SQC.Workspace is
 
       File : Ada.Text_IO.File_Type;
    begin
-      Root.Set_Field ("version", Integer (2));
+      Root.Set_Field ("version", Integer (4));
       Root.Set_Field ("workspaceId", To_String (Workspace.Workspace_Id));
       Root.Set_Field ("name", To_String (Workspace.Name));
 
@@ -338,6 +387,27 @@ package body Coyote_SQC.Workspace is
            GNATCOLL.JSON.Create
              (Workspace.I_Chart_Box_Cox.Fixed_Lambda));
          Root.Set_Field ("iChartBoxCox", BC_Obj);
+      end;
+      --  xbarSBoxCox.
+      declare
+         XS_Obj : GNATCOLL.JSON.JSON_Value := GNATCOLL.JSON.Create_Object;
+      begin
+         XS_Obj.Set_Field ("enabled",
+           Workspace.Xbar_S_Box_Cox.Enabled);
+         XS_Obj.Set_Field ("lambdaSource",
+           (if Workspace.Xbar_S_Box_Cox.Lambda_Source =
+                 Coyote_SQC.Data_Model.Auto
+            then "auto"
+            else "fixed"));
+         XS_Obj.Set_Field ("fixedLambda",
+           GNATCOLL.JSON.Create
+             (Workspace.Xbar_S_Box_Cox.Fixed_Lambda));
+         Root.Set_Field ("xbarSBoxCox", XS_Obj);
+      --  EWMA parameters.
+      Root.Set_Field ("ewmaWeight",
+        GNATCOLL.JSON.Create (Workspace.EWMA_Weight));
+      Root.Set_Field ("ewmaL",
+        GNATCOLL.JSON.Create (Workspace.EWMA_L));
       end;
       declare
          Tmp : constant String := Path & ".tmp";

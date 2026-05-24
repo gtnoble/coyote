@@ -177,14 +177,18 @@ package body Coyote_SQC.Statistics is
                Total_Trials :=
                  Total_Trials + Long_Float (M.N_Turns);
 
-            when Session_Input_Tokens_I | Session_Input_Tokens_MR =>
+            when Session_Input_Tokens_I | Session_Input_Tokens_MR
+               | Session_Input_Tokens_EWMA =>
                Accumulate_I (Long_Float (M.Total_Input_Tokens));
 
-            when Session_Output_Tokens_I | Session_Output_Tokens_MR =>
+            when Session_Output_Tokens_I | Session_Output_Tokens_MR
+               | Session_Output_Tokens_EWMA =>
                Accumulate_I (Long_Float (M.Total_Output_Tokens));
-            when Session_Cache_Read_Tokens_I | Session_Cache_Read_Tokens_MR =>
+            when Session_Cache_Read_Tokens_I | Session_Cache_Read_Tokens_MR
+               | Session_Cache_Read_Tokens_EWMA =>
                Accumulate_I (Long_Float (M.Total_Cache_Read_Tokens));
-            when Session_Cache_Write_Tokens_I | Session_Cache_Write_Tokens_MR =>
+            when Session_Cache_Write_Tokens_I | Session_Cache_Write_Tokens_MR
+               | Session_Cache_Write_Tokens_EWMA =>
                Accumulate_I (Long_Float (M.Total_Cache_Write_Tokens));
 
          end case;
@@ -213,9 +217,13 @@ package body Coyote_SQC.Statistics is
             end if;
 
          when Session_Input_Tokens_I  | Session_Input_Tokens_MR
+            | Session_Input_Tokens_EWMA
             | Session_Output_Tokens_I | Session_Output_Tokens_MR
+            | Session_Output_Tokens_EWMA
             | Session_Cache_Read_Tokens_I  | Session_Cache_Read_Tokens_MR
-            | Session_Cache_Write_Tokens_I | Session_Cache_Write_Tokens_MR =>
+            | Session_Cache_Read_Tokens_EWMA
+            | Session_Cache_Write_Tokens_I | Session_Cache_Write_Tokens_MR
+            | Session_Cache_Write_Tokens_EWMA =>
             if Total_N > 0.0 then
                Parameters.Grand_Mean := Total_Weighted_Mean / Total_N;
             end if;

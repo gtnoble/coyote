@@ -150,7 +150,22 @@ package Coyote_SQC.Data_Model is
       Comments           : Comment_Vectors.Vector;
       --  Box-Cox transformation config for Session Token I/MR charts.
       --  Shared across all four I/MR chart kinds.
+      --  Box-Cox transformation config for Session Token I/MR charts.
+      --  One shared config applies to all eight I/MR chart kinds.
       I_Chart_Box_Cox    : Box_Cox_Config;
+      --  Box-Cox transformation config for per-turn Xbar/S charts
+      --  (Turn, Tool Call, and Thinking token charts).  When Lambda_Source
+      --  is Auto, each chart pair (Turn/Tool/Thinking) estimates its own
+      --  lambda independently from setup-interval per-turn values.
+      Xbar_S_Box_Cox     : Box_Cox_Config;
+      --  EWMA chart smoothing parameter and sigma multiplier.
+      --  EWMA_Weight (lambda): controls how much weight is given to the most
+      --  recent observation vs the running average.  Smaller values detect
+      --  smaller sustained shifts; larger values make the chart more like
+      --  the raw I chart.  Typical value: 0.2.  Range: (0.0, 1.0].
+      --  EWMA_L: sigma multiplier for the control limits (typically 3.0).
+      EWMA_Weight        : Long_Float := 0.2;
+      EWMA_L             : Long_Float := 3.0;
    end record;
 
 end Coyote_SQC.Data_Model;

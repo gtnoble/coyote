@@ -25,7 +25,11 @@ package Coyote_SQC.Charts is
       Session_Cache_Read_Tokens_I,
       Session_Cache_Read_Tokens_MR,
       Session_Cache_Write_Tokens_I,
-      Session_Cache_Write_Tokens_MR);
+      Session_Cache_Write_Tokens_MR,
+      Session_Input_Tokens_EWMA,
+      Session_Output_Tokens_EWMA,
+      Session_Cache_Read_Tokens_EWMA,
+      Session_Cache_Write_Tokens_EWMA);
 
    --  Display metadata for one chart.
    type Chart_Properties is record
@@ -33,7 +37,9 @@ package Coyote_SQC.Charts is
       Group        : Ada.Strings.Unbounded.Unbounded_String;
       Y_Axis_Label : Ada.Strings.Unbounded.Unbounded_String;
       Is_P_Chart   : Boolean;
-      Is_I_Chart   : Boolean;
+      Is_I_Chart      : Boolean;
+      Is_Xbar_S_Chart : Boolean;
+      Is_EWMA_Chart   : Boolean;
    end record;
 
    --  Return the display properties for Kind.

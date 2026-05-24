@@ -224,6 +224,10 @@ package body Coyote_SQC_Workspace_Tests is
         (Enabled       => True,
          Lambda_Source => Coyote_SQC.Data_Model.Fixed,
          Fixed_Lambda  => 0.31);
+      W_Out.Xbar_S_Box_Cox :=
+        (Enabled       => True,
+         Lambda_Source => Coyote_SQC.Data_Model.Auto,
+         Fixed_Lambda  => 0.0);
 
       Coyote_SQC.Workspace.Save (Path, W_Out);
       declare VF_Unused : Natural;
@@ -243,6 +247,13 @@ package body Coyote_SQC_Workspace_Tests is
         (abs (W_In.I_Chart_Box_Cox.Fixed_Lambda - 0.31) < 0.001,
          "Fixed_Lambda should be 0.31 after round-trip; got "
          & Long_Float'Image (W_In.I_Chart_Box_Cox.Fixed_Lambda));
+      Assert
+        (W_In.Xbar_S_Box_Cox.Enabled,
+         "Xbar_S_Box_Cox.Enabled should be True after round-trip");
+      Assert
+        (W_In.Xbar_S_Box_Cox.Lambda_Source =
+           Coyote_SQC.Data_Model.Auto,
+         "Xbar_S_Box_Cox.Lambda_Source should be Auto after round-trip");
    end Test_Box_Cox_Round_Trip;
 
    --  Loading a v1 workspace (no iChartBoxCox field) should give
@@ -273,5 +284,68 @@ package body Coyote_SQC_Workspace_Tests is
         (not W.I_Chart_Box_Cox.Enabled,
          "Box-Cox should default to disabled when loading a v1 workspace");
    end Test_V1_Loads_Box_Cox_Disabled;
+
+
+   --  Round-trip: EWMA_Weight and EWMA_L survive save/load.
+   procedure Test_EWMA_Round_Trip (T : in out Test) is
+      pragma Unreferenced (T);
+      Path  : constant String :=
+        Ada.Directories.Current_Directory
+        & "/fixtures/sqc/tmp_ewma_roundtrip.sqcw";
+      W_Out : Workspace_Record;
+      W_In  : Workspace_Record;
+      VF    : Natural;
+   begin
+      W_Out.Workspace_Id := To_Unbounded_String ("ewma-ws-id");
+      W_Out.Name         := To_Unbounded_String ("EWMA Test");
+      W_Out.EWMA_Weight  := 0.15;
+      W_Out.EWMA_L       := 2.75;
+
+      Coyote_SQC.Workspace.Save (Path, W_Out);
+      Coyote_SQC.Workspace.Load (Path, W_In, VF);
+      Ada.Directories.Delete_File (Path);
+
+      Assert
+        (abs (W_In.EWMA_Weight - 0.15) < 0.001,
+         "EWMA_Weight wrong after round-trip; got "
+         & Long_Float'Image (W_In.EWMA_Weight));
+      Assert
+        (abs (W_In.EWMA_L - 2.75) < 0.001,
+         "EWMA_L wrong after round-trip; got "
+         & Long_Float'Image (W_In.EWMA_L));
+      Assert (VF = 4, "Version should be 4; got " & Natural'Image (VF));
+   end Test_EWMA_Round_Trip;
+
+   --  Loading a v3 workspace (no ewmaWeight/ewmaL fields) should give
+   --  default values (0.2 and 3.0).
+   procedure Test_V3_Loads_EWMA_Defaults (T : in out Test) is
+      pragma Unreferenced (T);
+      Path : constant String :=
+        Ada.Directories.Current_Directory
+        & "/fixtures/sqc/tmp_v3_ewma_default.sqcw";
+      W    : Workspace_Record;
+      File : Ada.Text_IO.File_Type;
+      VF   : Natural;
+   begin
+      Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, Path);
+      Ada.Text_IO.Put_Line
+        (File,
+         "{""version"":3,""workspaceId"":""x"",""name"":""y"","
+         & """sourceDirectories"":[],""modelFilter"":[],"
+         & """setupSessionIds"":[],""comments"":[]}");
+      Ada.Text_IO.Close (File);
+
+      Coyote_SQC.Workspace.Load (Path, W, VF);
+      Ada.Directories.Delete_File (Path);
+
+      Assert
+        (abs (W.EWMA_Weight - 0.2) < 0.001,
+         "EWMA_Weight should default to 0.2 for v3 workspace; got "
+         & Long_Float'Image (W.EWMA_Weight));
+      Assert
+        (abs (W.EWMA_L - 3.0) < 0.001,
+         "EWMA_L should default to 3.0 for v3 workspace; got "
+         & Long_Float'Image (W.EWMA_L));
+   end Test_V3_Loads_EWMA_Defaults;
 
 end Coyote_SQC_Workspace_Tests;

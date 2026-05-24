@@ -19,6 +19,7 @@ with Gtk.Widget;
 --  Forward declaration — UI builder lives in Coyote_SQC.UI.
 with Coyote_SQC.Config;
 with Coyote_SQC.Statistics;
+with Coyote_SQC.Statistics.EWMA_Chart;
 with Coyote_SQC.Workspace;
 with Coyote_SQC.UI;
 with Coyote_SQC.UI.Dialogs;
@@ -172,6 +173,13 @@ package body Coyote_SQC.App is
             Value := Long_Float (Metrics.Total_Cache_Write_Tokens);
             N     := 1;
 
+         when Session_Input_Tokens_EWMA
+            | Session_Output_Tokens_EWMA
+            | Session_Cache_Read_Tokens_EWMA
+            | Session_Cache_Write_Tokens_EWMA =>
+            --  EWMA requires previous Z value; caller overrides in the
+            --  per-session loop after calling Compute_Session_Stat.
+            Excluded := True;
          when Session_Input_Tokens_MR | Session_Output_Tokens_MR
             | Session_Cache_Read_Tokens_MR | Session_Cache_Write_Tokens_MR =>
             --  Moving range requires the previous session value; the caller
@@ -194,6 +202,9 @@ package body Coyote_SQC.App is
       --  Box-Cox transformed tracking for MR chart kinds.
       BC_Prev_Z     : Long_Float := 0.0;
       Has_BC_Prev_Z : Boolean    := False;
+      --  State for EWMA chart kinds.
+      Z_Ewma_Prev : Long_Float := 0.0;  --  Z_{t-1}; reset to Grand_Mean before loop
+      T_Ewma      : Natural    := 0;    --  step counter (1-based)
    begin
       --  Estimate setup parameters.
       CD.Is_Retro := State.Workspace.Setup_Session_Ids.Is_Empty;
@@ -205,7 +216,7 @@ package body Coyote_SQC.App is
 
       --  Box-Cox: when enabled for I/MR chart kinds, override the
       --  Grand_Mean and Mean_MR in CD.Params with transformed-space values.
-      if Props.Is_I_Chart
+      if (Props.Is_I_Chart or else Props.Is_EWMA_Chart)
         and then State.Workspace.I_Chart_Box_Cox.Enabled
       then
          declare
@@ -225,15 +236,18 @@ package body Coyote_SQC.App is
                      Val : constant Long_Float :=
                        (case Kind is
                            when Session_Input_Tokens_I
-                              | Session_Input_Tokens_MR      =>
+                              | Session_Input_Tokens_MR
+                              | Session_Input_Tokens_EWMA      =>
                               Long_Float (M.Total_Input_Tokens),
                            when Session_Cache_Read_Tokens_I
-                              | Session_Cache_Read_Tokens_MR =>
+                              | Session_Cache_Read_Tokens_MR
+                              | Session_Cache_Read_Tokens_EWMA  =>
                               Long_Float (M.Total_Cache_Read_Tokens),
                            when Session_Cache_Write_Tokens_I
-                              | Session_Cache_Write_Tokens_MR =>
+                              | Session_Cache_Write_Tokens_MR
+                              | Session_Cache_Write_Tokens_EWMA =>
                               Long_Float (M.Total_Cache_Write_Tokens),
-                           when others                        =>
+                           when others                          =>
                               Long_Float (M.Total_Output_Tokens));
                   begin
                      if Val > 0.0 then
@@ -300,7 +314,180 @@ package body Coyote_SQC.App is
          end;
       end if;
 
+      --  ── Box-Cox for Xbar/S chart kinds ─────────────────────────────────
+      --  When Xbar_S_Box_Cox is enabled, estimate lambda independently for
+      --  each chart pair (Turn/Tool/Thinking) from the setup-interval
+      --  per-turn values, then override CD.Params.Grand_Mean and
+      --  CD.Params.Pooled_S with their transformed-space equivalents so
+      --  that the standard Xbar/S limit formulas operate in z-space.
+      --  For Xbar charts, limits are back-transformed to original units.
+      --  For S charts, limits remain in transformed units.
+      if Props.Is_Xbar_S_Chart
+        and then State.Workspace.Xbar_S_Box_Cox.Enabled
+      then
+         declare
+            --  Collect all setup-interval per-turn values for this pair.
+            --  Upper bound: sum of relevant turn counts across all sessions.
+            Max_Vals : Natural := 0;
+            N_Zero   : Natural := 0;
+            Lambda   : Long_Float;
 
+            function Is_Setup_M
+              (M : Session_Metrics_Record) return Boolean is
+            begin
+               if State.Workspace.Setup_Session_Ids.Is_Empty then
+                  return True;
+               end if;
+               return State.Workspace.Setup_Session_Ids.Contains
+                        (M.Session_Id);
+            end Is_Setup_M;
+
+            --  Return the relevant per-turn token vector for this kind.
+            function Get_Turn_Tokens
+              (M : Session_Metrics_Record)
+               return Natural_Vectors.Vector is
+            begin
+               case Kind is
+                  when Turn_Tokens_Xbar | Turn_Tokens_S =>
+                     return M.Per_Turn_Output_Tokens;
+                  when Tool_Call_Tokens_Xbar | Tool_Call_Tokens_S =>
+                     return M.Per_Turn_Tool_Tokens;
+                  when others =>
+                     return M.Per_Turn_Thinking_Tokens;
+               end case;
+            end Get_Turn_Tokens;
+         begin
+            --  Pass 1: count eligible values.
+            for M of State.All_Metrics loop
+               if Is_Setup_M (M) then
+                  for V of Get_Turn_Tokens (M) loop
+                     if V = 0 then
+                        N_Zero := N_Zero + 1;
+                     else
+                        Max_Vals := Max_Vals + 1;
+                     end if;
+                  end loop;
+               end if;
+            end loop;
+
+            if N_Zero > 0 then
+               State.Status_Bar.Set_Text
+                 (Natural'Image (N_Zero)
+                  & " turn(s) with zero tokens excluded from Xbar/S"
+                  & " chart Box-Cox estimation.");
+            end if;
+
+            --  Resolve lambda (fixed or auto-estimate).
+            if State.Workspace.Xbar_S_Box_Cox.Lambda_Source =
+                  Data_Model.Fixed
+            then
+               Lambda := State.Workspace.Xbar_S_Box_Cox.Fixed_Lambda;
+            else
+               --  Pass 2: fill array for Estimate_Lambda.
+               declare
+                  Raw   : Statistics.I_Chart.Long_Float_Array
+                            (1 .. Max_Vals);
+                  N_Raw : Natural := 0;
+               begin
+                  for M of State.All_Metrics loop
+                     if Is_Setup_M (M) then
+                        for V of Get_Turn_Tokens (M) loop
+                           if V > 0 then
+                              N_Raw := N_Raw + 1;
+                              Raw (N_Raw) := Long_Float (V);
+                           end if;
+                        end loop;
+                     end if;
+                  end loop;
+                  Lambda :=
+                    (if N_Raw >= 3
+                     then Statistics.I_Chart.Estimate_Lambda
+                            (Raw (1 .. N_Raw))
+                     else 0.0);
+               end;
+            end if;
+
+            CD.Box_Cox_Lambda := Lambda;
+            CD.Box_Cox_Active := True;
+
+            --  Pass 3: compute Grand_Mean_Z and Pooled_S_Z by session.
+            --  Each session contributes N_Z transformed values; we weight
+            --  by session size for the grand mean and use pooled variance.
+            if Max_Vals > 0 then
+               declare
+                  Total_N  : Long_Float := 0.0;
+                  Total_WM : Long_Float := 0.0;
+                  Sum_Num  : Long_Float := 0.0;
+                  Sum_Den  : Long_Float := 0.0;
+               begin
+                  for M of State.All_Metrics loop
+                     if Is_Setup_M (M) then
+                        declare
+                           Tokens : constant Natural_Vectors.Vector :=
+                             Get_Turn_Tokens (M);
+                           Z_Sum  : Long_Float := 0.0;
+                           Z_Sq   : Long_Float := 0.0;
+                           N_Z    : Natural    := 0;
+                        begin
+                           for V of Tokens loop
+                              if V > 0 then
+                                 declare
+                                    Z : constant Long_Float :=
+                                      Statistics.I_Chart.Box_Cox
+                                        (Long_Float (V), Lambda);
+                                 begin
+                                    Z_Sum := Z_Sum + Z;
+                                    Z_Sq  := Z_Sq  + Z * Z;
+                                    N_Z   := N_Z + 1;
+                                 end;
+                              end if;
+                           end loop;
+                           if N_Z > 0 then
+                              declare
+                                 Mean_Z : constant Long_Float :=
+                                   Z_Sum / Long_Float (N_Z);
+                              begin
+                                 Total_N  := Total_N  + Long_Float (N_Z);
+                                 Total_WM :=
+                                   Total_WM + Long_Float (N_Z) * Mean_Z;
+                                 if N_Z >= 2 then
+                                    declare
+                                       Var_Z : constant Long_Float :=
+                                         (Z_Sq
+                                          - Z_Sum * Z_Sum
+                                            / Long_Float (N_Z))
+                                         / Long_Float (N_Z - 1);
+                                    begin
+                                       Sum_Num :=
+                                         Sum_Num
+                                         + Long_Float (N_Z - 1) * Var_Z;
+                                       Sum_Den :=
+                                         Sum_Den + Long_Float (N_Z - 1);
+                                    end;
+                                 end if;
+                              end;
+                           end if;
+                        end;
+                     end if;
+                  end loop;
+                  if Total_N > 0.0 then
+                     CD.Params.Grand_Mean := Total_WM / Total_N;
+                  end if;
+                  if Sum_Den > 0.0 then
+                     CD.Params.Pooled_S :=
+                       Sqrt (Sum_Num / Sum_Den);
+                  end if;
+               end;
+            end if;
+         end;
+      end if;
+
+
+
+      --  Initialise EWMA state: Z_0 = Grand_Mean (in original or z-space).
+      if Props.Is_EWMA_Chart then
+         Z_Ewma_Prev := CD.Params.Grand_Mean;
+      end if;
       --  Compute one point per session.
       for I in 1 .. Natural (State.Sessions.Length) loop
          declare
@@ -360,6 +547,220 @@ package body Coyote_SQC.App is
                end;
             end if;
 
+            --  ── EWMA chart override ────────────────────────────────────────
+            --  Compute the exponentially weighted moving average and
+            --  time-varying control limits.  When Box-Cox is active the EWMA
+            --  is computed in z-space and back-transformed (Option B), so
+            --  the plotted statistic and limits are in original token units.
+            if Props.Is_EWMA_Chart then
+               declare
+                  Raw_X : constant Long_Float :=
+                    (case Kind is
+                        when Session_Input_Tokens_EWMA      =>
+                           Long_Float (M.Total_Input_Tokens),
+                        when Session_Output_Tokens_EWMA     =>
+                           Long_Float (M.Total_Output_Tokens),
+                        when Session_Cache_Read_Tokens_EWMA =>
+                           Long_Float (M.Total_Cache_Read_Tokens),
+                        when others                         =>
+                           Long_Float (M.Total_Cache_Write_Tokens));
+               begin
+                  if CD.Box_Cox_Active and then Raw_X > 0.0 then
+                     declare
+                        Z_X     : constant Long_Float :=
+                          Statistics.I_Chart.Box_Cox
+                            (Raw_X, CD.Box_Cox_Lambda);
+                        Sigma_Z : constant Long_Float :=
+                          (if CD.Params.Mean_MR > 0.0
+                           then CD.Params.Mean_MR / 1.128
+                           else 0.0);
+                     begin
+                        Z_Ewma_Prev :=
+                          Statistics.EWMA_Chart.Compute_Z
+                            (X      => Z_X,
+                             Z_Prev => Z_Ewma_Prev,
+                             Weight => State.Workspace.EWMA_Weight);
+                        T_Ewma := T_Ewma + 1;
+                        --  Assume success; back-transform failures below
+                        --  will reset Excl to True.
+                        Excl := False;
+                        declare
+                           Lim_Z       : constant Statistics.Limits_Record :=
+                             Statistics.EWMA_Chart.Compute_EWMA_Limits
+                               (Grand_Mean => CD.Params.Grand_Mean,
+                                Sigma      => Sigma_Z,
+                                Weight     => State.Workspace.EWMA_Weight,
+                                L          => State.Workspace.EWMA_L,
+                                T          => T_Ewma);
+                           Inv_UCL     : Long_Float := 0.0;
+                           Has_Inv_UCL : Boolean    := False;
+                           Inv_CL      : Long_Float := 0.0;
+                           Inv_LCL     : Long_Float := 0.0;
+                           Has_Inv_LCL : Boolean    := False;
+                        begin
+                           begin
+                              Inv_UCL :=
+                                Statistics.I_Chart.Box_Cox_Inverse
+                                  (Lim_Z.UCL, CD.Box_Cox_Lambda);
+                              Has_Inv_UCL := Lim_Z.Has_UCL;
+                           exception
+                              when Constraint_Error => null;
+                           end;
+                           begin
+                              Inv_CL :=
+                                Statistics.I_Chart.Box_Cox_Inverse
+                                  (Lim_Z.CL, CD.Box_Cox_Lambda);
+                           exception
+                              when Constraint_Error => Excl := True;
+                           end;
+                           if not Excl and then Lim_Z.Has_LCL then
+                              begin
+                                 Inv_LCL :=
+                                   Statistics.I_Chart.Box_Cox_Inverse
+                                     (Lim_Z.LCL, CD.Box_Cox_Lambda);
+                                 Has_Inv_LCL := True;
+                              exception
+                                 when Constraint_Error => null;
+                              end;
+                           end if;
+                           if not Excl then
+                              begin
+                                 Value :=
+                                   Statistics.I_Chart.Box_Cox_Inverse
+                                     (Z_Ewma_Prev, CD.Box_Cox_Lambda);
+                                 Excl := False;
+                              exception
+                                 when Constraint_Error => Excl := True;
+                              end;
+                           end if;
+                           if not Excl then
+                              Limits :=
+                                (UCL     => Inv_UCL,
+                                 CL      => Inv_CL,
+                                 LCL     => Inv_LCL,
+                                 Has_UCL => Has_Inv_UCL,
+                                 Has_LCL => Has_Inv_LCL);
+                           end if;
+                        end;
+                     end;
+                  elsif not CD.Box_Cox_Active then
+                     --  No transformation: EWMA in original (token) space.
+                     declare
+                        Sigma : constant Long_Float :=
+                          (if CD.Params.Mean_MR > 0.0
+                           then CD.Params.Mean_MR / 1.128
+                           else 0.0);
+                     begin
+                        Z_Ewma_Prev :=
+                          Statistics.EWMA_Chart.Compute_Z
+                            (X      => Raw_X,
+                             Z_Prev => Z_Ewma_Prev,
+                             Weight => State.Workspace.EWMA_Weight);
+                        T_Ewma := T_Ewma + 1;
+                        Limits :=
+                          Statistics.EWMA_Chart.Compute_EWMA_Limits
+                            (Grand_Mean => CD.Params.Grand_Mean,
+                             Sigma      => Sigma,
+                             Weight     => State.Workspace.EWMA_Weight,
+                             L          => State.Workspace.EWMA_L,
+                             T          => T_Ewma);
+                        Value := Z_Ewma_Prev;
+                        Excl  := False;
+                     end;
+                  end if;
+                  --  Box-Cox active with Raw_X = 0: Excl stays True.
+               end;
+            end if;
+
+
+            --  Xbar/S Box-Cox: transform per-turn values and recompute the
+            --  session statistic in z-space.  For Xbar charts the mean is
+            --  back-transformed to original token units; for S charts the
+            --  standard deviation remains in transformed units.
+            if CD.Box_Cox_Active
+              and then not Excl
+              and then Kind in
+                Turn_Tokens_Xbar   | Turn_Tokens_S
+                | Tool_Call_Tokens_Xbar | Tool_Call_Tokens_S
+                | Thinking_Tokens_Xbar  | Thinking_Tokens_S
+            then
+               declare
+                  Tokens : constant Natural_Vectors.Vector :=
+                    (case Kind is
+                        when Turn_Tokens_Xbar | Turn_Tokens_S =>
+                           M.Per_Turn_Output_Tokens,
+                        when Tool_Call_Tokens_Xbar | Tool_Call_Tokens_S =>
+                           M.Per_Turn_Tool_Tokens,
+                        when others =>
+                           M.Per_Turn_Thinking_Tokens);
+                  Z_Sum  : Long_Float := 0.0;
+                  Z_Sq   : Long_Float := 0.0;
+                  N_Z    : Natural    := 0;
+               begin
+                  for V of Tokens loop
+                     if V = 0 then
+                        --  Any zero turn value → exclude this session from
+                        --  the Box-Cox chart (cannot transform zero).
+                        Excl := True;
+                     elsif not Excl then
+                        declare
+                           Z : constant Long_Float :=
+                             Statistics.I_Chart.Box_Cox
+                               (Long_Float (V), CD.Box_Cox_Lambda);
+                        begin
+                           Z_Sum := Z_Sum + Z;
+                           Z_Sq  := Z_Sq  + Z * Z;
+                           N_Z   := N_Z + 1;
+                        end;
+                     end if;
+                  end loop;
+
+                  if not Excl then
+                     if N_Z = 0 then
+                        Excl := True;
+                     else
+                        declare
+                           Mean_Z : constant Long_Float :=
+                             Z_Sum / Long_Float (N_Z);
+                        begin
+                           case Kind is
+                              when Turn_Tokens_Xbar
+                                 | Tool_Call_Tokens_Xbar
+                                 | Thinking_Tokens_Xbar =>
+                                 --  Back-transform session mean to original
+                                 --  token units for display.
+                                 begin
+                                    Value :=
+                                      Statistics.I_Chart.Box_Cox_Inverse
+                                        (Mean_Z, CD.Box_Cox_Lambda);
+                                 exception
+                                    when Constraint_Error => Excl := True;
+                                 end;
+                              when Turn_Tokens_S
+                                 | Tool_Call_Tokens_S
+                                 | Thinking_Tokens_S =>
+                                 --  Std dev stays in transformed units.
+                                 if N_Z >= 2 then
+                                    Value :=
+                                      Sqrt
+                                        ((Z_Sq
+                                          - Z_Sum * Z_Sum
+                                            / Long_Float (N_Z))
+                                         / Long_Float (N_Z - 1));
+                                    --  Single = False: n>=2 always here.
+                                    Single := False;
+                                 else
+                                    --  n=1: no s statistic in z-space.
+                                    Excl := True;
+                                 end if;
+                              when others => null;
+                           end case;
+                        end;
+                     end if;
+                  end if;
+               end;
+            end if;
+
             if Excl then
                Limits := (UCL => 0.0, CL => 0.0, LCL => 0.0,
                           Has_UCL => False,
@@ -369,10 +770,62 @@ package body Coyote_SQC.App is
                   when Turn_Tokens_Xbar
                      | Tool_Call_Tokens_Xbar
                      | Thinking_Tokens_Xbar =>
-                     Limits := Statistics.Xbar.Compute_Limits
-                       (Grand_Mean => CD.Params.Grand_Mean,
-                        Pooled_S   => CD.Params.Pooled_S,
-                        N          => N);
+                     declare
+                        L_Z : constant Statistics.Limits_Record :=
+                          Statistics.Xbar.Compute_Limits
+                            (Grand_Mean => CD.Params.Grand_Mean,
+                             Pooled_S   => CD.Params.Pooled_S,
+                             N          => N);
+                     begin
+                        if CD.Box_Cox_Active and then L_Z.Has_UCL then
+                           --  Back-transform limits from z-space to original
+                           --  token units.  UCL back-transform may fail when
+                           --  UCL_z approaches the domain asymptote (negative
+                           --  lambda); that case sets Has_UCL = False.
+                           --  Each limit is in its own exception scope.
+                           declare
+                              Inv_UCL     : Long_Float := 0.0;
+                              Has_Inv_UCL : Boolean    := False;
+                              Inv_CL      : Long_Float := 0.0;
+                              Inv_LCL     : Long_Float := 0.0;
+                              Has_Inv_LCL : Boolean    := False;
+                           begin
+                              begin
+                                 Inv_UCL :=
+                                   Statistics.I_Chart.Box_Cox_Inverse
+                                     (L_Z.UCL, CD.Box_Cox_Lambda);
+                                 Has_Inv_UCL := True;
+                              exception
+                                 when Constraint_Error => null;
+                              end;
+                              begin
+                                 Inv_CL :=
+                                   Statistics.I_Chart.Box_Cox_Inverse
+                                     (L_Z.CL, CD.Box_Cox_Lambda);
+                              exception
+                                 when Constraint_Error => Excl := True;
+                              end;
+                              if L_Z.Has_LCL then
+                                 begin
+                                    Inv_LCL :=
+                                      Statistics.I_Chart.Box_Cox_Inverse
+                                        (L_Z.LCL, CD.Box_Cox_Lambda);
+                                    Has_Inv_LCL := True;
+                                 exception
+                                    when Constraint_Error => null;
+                                 end;
+                              end if;
+                              Limits :=
+                                (UCL     => Inv_UCL,
+                                 CL      => Inv_CL,
+                                 LCL     => Inv_LCL,
+                                 Has_UCL => Has_Inv_UCL,
+                                 Has_LCL => Has_Inv_LCL);
+                           end;
+                        else
+                           Limits := L_Z;
+                        end if;
+                     end;
                   when Turn_Tokens_S
                      | Tool_Call_Tokens_S
                      | Thinking_Tokens_S =>
@@ -446,6 +899,11 @@ package body Coyote_SQC.App is
                      | Session_Cache_Write_Tokens_MR =>
                      Limits := Statistics.I_Chart.Compute_MR_Limits
                        (Mean_MR => CD.Params.Mean_MR);
+                  when Session_Input_Tokens_EWMA
+                     | Session_Output_Tokens_EWMA
+                     | Session_Cache_Read_Tokens_EWMA
+                     | Session_Cache_Write_Tokens_EWMA =>
+                     null;
                end case;
             end if;
 

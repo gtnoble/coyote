@@ -575,7 +575,12 @@ type Chart_Kind is
    Session_Cache_Read_Tokens_I,
    Session_Cache_Read_Tokens_MR,
    Session_Cache_Write_Tokens_I,
-   Session_Cache_Write_Tokens_MR);
+   Session_Cache_Write_Tokens_MR,
+   --  EWMA charts for session totals (one paired with each I chart):
+   Session_Input_Tokens_EWMA,
+   Session_Output_Tokens_EWMA,
+   Session_Cache_Read_Tokens_EWMA,
+   Session_Cache_Write_Tokens_EWMA);
 
 type Chart_Definition_Record is record
    Chart  : Chart_Kind;
@@ -601,7 +606,9 @@ subtype UUID_Set is UUID_Sets.Set;
 
 ```ada
 --  Box-Cox transformation configuration for Session Token I/MR charts.
---  One shared config applies to all eight I/MR charts in the workspace.
+--  Box-Cox transformation configuration record.  Used for both Session
+--  Token I/MR charts (stored as `I_Chart_Box_Cox` in Workspace_Record)
+--  and per-turn Xbar/S charts (stored as `Xbar_S_Box_Cox`).
 type Box_Cox_Lambda_Source is (Auto, Fixed);
 
 type Box_Cox_Config is record
@@ -632,7 +639,18 @@ type Workspace_Record is record
    Comments          : Comment_Vectors.Vector;
    --  Box-Cox transformation config for Session Token I/MR charts.
    --  Shared across all eight I/MR chart kinds.
+   --  Box-Cox transformation config for Session Token I/MR charts.
+   --  One shared config applies to all eight I/MR chart kinds.
    I_Chart_Box_Cox   : Box_Cox_Config;
+   --  Box-Cox transformation config for per-turn Xbar/S charts
+   --  (Turn, Tool Call, Thinking).  In Auto mode, lambda is estimated
+   --  independently per chart pair from setup-interval per-turn values.
+   Xbar_S_Box_Cox    : Box_Cox_Config;
+   --  EWMA chart smoothing parameter and sigma multiplier.
+   --  EWMA_Weight (λ): smoothing weight in (0.0, 1.0]. Default 0.2.
+   --  EWMA_L:          sigma multiplier for control limits. Default 3.0.
+   EWMA_Weight        : Long_Float := 0.2;
+   EWMA_L             : Long_Float := 3.0;
 end record;
 ```
 
@@ -874,10 +892,140 @@ When Box-Cox is active, `Recompute_Chart` in `Coyote_SQC.App`:
    is updated to reflect the transformed units (see §12.6).
 
 The resolved lambda (whether auto-estimated or fixed) is stored in
-`App_State.Active_Box_Cox_Lambda` and reset to `Long_Float'Last` (sentinel)
-when Box-Cox is disabled or the active chart is not an I/MR chart.
+
+The resolved lambda (whether auto-estimated or fixed) for I/MR charts is stored in
+`Chart_Data.Box_Cox_Lambda` for each I/MR chart kind and is recomputed by
+`Recompute_Chart` whenever `Reload_Sessions` or a setup-interval change occurs.
+
+### 7.10 Box-Cox Transformation for Xbar/S Charts
+
+When `Workspace.Xbar_S_Box_Cox.Enabled` is `True`, `Recompute_Chart` applies the
+same `Box_Cox`, `Box_Cox_Inverse`, and `Estimate_Lambda` functions from
+`Coyote_SQC.Statistics.I_Chart` to per-turn Xbar/S chart data.
+
+**Per-pair lambda estimation (Auto mode):** for each chart pair (Turn, Tool Call,
+Thinking), all setup-interval per-turn values for that pair are collected and
+passed to `Estimate_Lambda`. Lambda estimates are independent across pairs. Fewer
+than three eligible values falls back to λ = 0.
+
+**Fixed mode:** a single `Fixed_Lambda` from `Workspace.Xbar_S_Box_Cox` applies
+to all three chart pairs.
+
+**Transformed-space parameters:** the resulting λ is stored in
+`Chart_Data.Box_Cox_Lambda`. `CD.Params.Grand_Mean` and `CD.Params.Pooled_S`
+are then replaced with `Grand_Mean_Z` and `Pooled_S_Z` (weighted grand mean and
+pooled standard deviation of the z-transformed per-turn values across setup
+sessions), so the standard `Xbar.Compute_Limits` and `S_Chart.Compute_Limits`
+formulas (§7.2, §7.3) operate entirely in z-space.
+
+**Xbar chart:** for each session, the per-turn values are transformed and their
+mean `z̄_i` is computed. `Box_Cox_Inverse(z̄_i, λ)` is stored as the chart point
+value in original token units. The z-space limits from `Xbar.Compute_Limits` are
+each back-transformed independently; domain failures set `Has_UCL = False` /
+`Has_LCL = False` for that limit only.
+
+**S chart:** the sample standard deviation of the z-transformed per-turn values,
+`s_i_Z = StdDev(z_{i,j})`, is stored directly. Limits from `S_Chart.Compute_Limits`
+are stored in z-space without back-transformation.
+
+**Turn zero-value exclusion:** any session whose relevant per-turn vector contains
+a zero-valued turn is excluded from Box-Cox chart display and λ estimation. A
+status-bar notice counts excluded turns.
 
 ## 8. Chart Definitions
+
+### 7.11 EWMA Chart — `Coyote_SQC.Statistics.EWMA_Chart`
+
+An Exponentially Weighted Moving Average (EWMA) chart provides a sensitive monitor
+for small, sustained shifts in a session-level total that a standard I chart would
+miss.  One EWMA chart is paired with each of the four Session Token I charts:
+input tokens, output tokens, cache-read tokens, and cache-write tokens.
+
+The EWMA statistic at step _t_ (where _t_ counts only non-excluded sessions) is:
+
+```
+Z_t = λ · x_t + (1 − λ) · Z_{t−1},   Z_0 = Grand_Mean
+```
+
+where `x_t` is the session observation, `λ` is the smoothing weight (`EWMA_Weight`
+in `Workspace_Record`, default 0.2), and `Z_0` is the process target (Grand_Mean
+from the paired I chart's setup interval).
+
+The time-varying control limits at step _t_ are:
+
+```
+UCL_t / LCL_t = Grand_Mean ± L · σ · √( λ/(2−λ) · [1 − (1−λ)^{2t}] )
+```
+
+where `σ = Mean_MR / d2` (`d2 = 1.128`, the span-2 moving range constant) and `L` is
+the sigma multiplier (`EWMA_L` in `Workspace_Record`, default 3.0).
+
+As _t_ → ∞ the limits converge to the steady-state values:
+
+```
+Grand_Mean ± L · σ · √( λ / (2 − λ) )
+```
+
+The same `Grand_Mean` and `Mean_MR` are used as for the paired I chart; no new
+setup parameter estimation is required for EWMA charts.
+
+#### Exclusion rule
+
+When Box-Cox is **not** active, all sessions are included in the EWMA sequence.
+When Box-Cox **is** active, any session whose raw token total is zero cannot be
+transformed; such sessions are excluded and the step counter _T_ is **not**
+advanced.  The sequence resumes with the next eligible session.
+
+#### Box-Cox behaviour (Option B)
+
+When `Workspace.I_Chart_Box_Cox.Enabled` is `True`, the EWMA recursion operates
+in z-space (transformed values) so that the control limits are symmetric in
+transformed units.  The final plotted value and each limit are then individually
+back-transformed to original (token) units for display, matching the back-transform
+treatment applied to I chart points and limits.
+
+Concretely, for each eligible session:
+
+1. Compute `z_t = Box_Cox(x_t, λ_BC)`.
+2. Advance: `Z_t = λ · z_t + (1 − λ) · Z_{t−1}`, `Z_0 = Grand_Mean_Z`.
+3. Compute time-varying limits in z-space.
+4. Back-transform `Z_t` and each limit independently:
+   - If back-transform of the plotted value `Z_t` fails (domain violation),
+     the session is excluded from the EWMA chart.
+   - If back-transform of `UCL_z` fails, `Has_UCL` is set to `False` while
+     `CL` and `LCL` are still plotted.
+   - `LCL` is clamped to 0.0 in original-unit space; `Has_LCL` is `False`
+     when the formula yields a non-positive value.
+
+The EWMA chart y-axis label is in original (token) units regardless of whether
+Box-Cox is active.
+
+#### Implementation
+
+```ada
+package Coyote_SQC.Statistics.EWMA_Chart is
+
+   --  Compute one EWMA step.  Z_Prev is Z_{t-1}; pass Grand_Mean as Z_Prev
+   --  for the first step (Z_0 = Grand_Mean).  Weight must be in (0.0, 1.0].
+   function Compute_Z
+     (X      : Long_Float;
+      Z_Prev : Long_Float;
+      Weight : Long_Float) return Long_Float;
+
+   --  Compute time-varying EWMA control limits at step T (1-based).
+   --  Sigma = Mean_MR / d2 (the caller computes the division).
+   --  When Sigma = 0.0, Has_UCL and Has_LCL are both False.
+   --  LCL is clamped to 0.0; Has_LCL = False when the formula yields LCL ≤ 0.
+   function Compute_EWMA_Limits
+     (Grand_Mean : Long_Float;
+      Sigma      : Long_Float;
+      Weight     : Long_Float;
+      L          : Long_Float;
+      T          : Positive) return Limits_Record;
+
+end Coyote_SQC.Statistics.EWMA_Chart;
+```
+
 
 `Coyote_SQC.Charts` declares the `Chart_Kind` enumeration (§6.7) and a
 `Chart_Properties` record providing display metadata:
@@ -888,13 +1036,15 @@ type Chart_Properties is record
    Group       : Ada.Strings.Unbounded.Unbounded_String;
    Y_Axis_Label: Ada.Strings.Unbounded.Unbounded_String;
    Is_P_Chart  : Boolean;
-   Is_I_Chart  : Boolean;
+   Is_I_Chart      : Boolean;
+   Is_Xbar_S_Chart : Boolean;
+   Is_EWMA_Chart   : Boolean;
 end record;
 
 function Properties (Kind : Chart_Kind) return Chart_Properties;
 ```
 
-The seventeen charts and their properties:
+The twenty-one charts and their properties:
 
 | `Chart_Kind` | Label | Group | Y-Axis Label |
 |---|---|---|---|
@@ -915,6 +1065,10 @@ The seventeen charts and their properties:
 | `Session_Cache_Read_Tokens_MR`  | `Session Cache Read Tokens -- MR`  | `Session Totals` | `Moving range (cache-read tokens)` |
 | `Session_Cache_Write_Tokens_I`  | `Session Cache Write Tokens -- I`  | `Session Totals` | `Total cache-write tokens` |
 | `Session_Cache_Write_Tokens_MR` | `Session Cache Write Tokens -- MR` | `Session Totals` | `Moving range (cache-write tokens)` |
+| `Session_Input_Tokens_EWMA`       | `Session Input Tokens -- EWMA`       | `Session Totals` | `EWMA (input tokens)` |
+| `Session_Output_Tokens_EWMA`      | `Session Output Tokens -- EWMA`      | `Session Totals` | `EWMA (output tokens)` |
+| `Session_Cache_Read_Tokens_EWMA`  | `Session Cache Read Tokens -- EWMA`  | `Session Totals` | `EWMA (cache-read tokens)` |
+| `Session_Cache_Write_Tokens_EWMA` | `Session Cache Write Tokens -- EWMA` | `Session Totals` | `EWMA (cache-write tokens)` |
 
 The `Chart_Kind` iteration order matches the left-panel display order.
 
@@ -926,11 +1080,11 @@ The `Chart_Kind` iteration order matches the left-panel display order.
 
 Workspace files use the `.sqcw` extension. Location is user-chosen via file chooser.
 
-### 9.2 JSON Schema (version 2)
+### 9.2 JSON Schema ((version 4))
 
 ```json
 {
-  "version": 2,
+  "version": 4,
   "workspaceId": "uuid-string",
   "name": "string",
   "sourceDirectories": ["string", ...],
@@ -941,6 +1095,13 @@ Workspace files use the `.sqcw` extension. Location is user-chosen via file choo
     "lambdaSource": "auto",
     "fixedLambda": 0.0
   },
+  "xbarSBoxCox": {
+    "enabled": false,
+    "lambdaSource": "auto",
+    "fixedLambda": 0.0
+  },
+  "ewmaWeight": 0.2,
+  "ewmaL": 3.0,
   "comments": [
     {
       "commentId": "uuid-string",
@@ -957,17 +1118,23 @@ All field names use `camelCase`. The `comments` array is ordered by ascending
 `timestamp`. The `setupSessionIds` array is unordered; duplicate UUIDs are ignored
 on load.
 
-The `iChartBoxCox` object is optional; when absent it is treated as
-`{"enabled": false, "lambdaSource": "auto", "fixedLambda": 0.0}`. The
-`lambdaSource` field is either `"auto"` or `"fixed"`.
+Both `iChartBoxCox` and `xbarSBoxCox` objects are optional; when absent each
+The `ewmaWeight` and `ewmaL` fields are optional scalars; when absent they default
+to `0.2` and `3.0` respectively.  Workspace files written by version ≤ 3 of
+`coyote_sqc` load normally with these defaults applied.
+defaults to `{"enabled": false, "lambdaSource": "auto", "fixedLambda": 0.0}`.
+The `lambdaSource` field is either `"auto"` or `"fixed"`.
 
 ### 9.3 Version Migration
 
 The application reads the `"version"` field first:
 
 - `version = 1`: load as a legacy workspace; `iChartBoxCox` defaults to disabled.
-- `version = 2`: load normally using the schema above.
-- `version > 2`: refuse to open; show a dialog: "This workspace was created by a
+- `version = 2`: load with the version 2 schema; `xbarSBoxCox` defaults to
+  disabled.
+- `version = 3`: load normally using the current schema above.
+- `version = 4`: load normally using the current schema above.
+- `version > 4`: refuse to open; show a dialog: "This workspace was created by a
   newer version of coyote_sqc and cannot be opened."
 - `version < 1` or absent: attempt load with best-effort field mapping; show a
   warning: "Workspace file has no version field; some data may be missing."
@@ -1141,9 +1308,8 @@ type App_State is limited record
    Canvas           : Gtk.Drawing_Area.Gtk_Drawing_Area;
    Detail_Panel_Box : Gtk.Box.Gtk_Box;
    ...
-   --  Resolved Box-Cox lambda for the active I/MR chart.  Set to Long_Float'Last
-   --  (sentinel) when Box-Cox is disabled or the active chart is not an I/MR kind.
-   Active_Box_Cox_Lambda : Long_Float := Long_Float'Last;
+   --  Resolved Box-Cox lambda values are stored per chart kind in
+   --  Chart_Data.Box_Cox_Lambda (not in App_State directly).
 end record;
 ```
 
@@ -1534,8 +1700,8 @@ the model filter section:
   places. Changing the spin value switches the combo to `"custom…"`.
 - **Estimated λ readout** (`GtkLabel`): always visible; shows the currently
   estimated lambda when `Lambda_Source = Auto`, or is greyed out with `"—"` when
-  `Lambda_Source = Fixed`. The label reads the value from
-  `App_State.Active_Box_Cox_Lambda`; it updates immediately when the lambda source
+  `Lambda_Source = Fixed`. The label reads the estimated λ from the first active
+  I/MR `Chart_Data.Box_Cox_Lambda`; it updates immediately when the lambda source
   radio button is switched to Auto.
 
 **Lambda re-estimation triggers:** the estimated lambda (and the readout) is
@@ -1547,9 +1713,66 @@ recomputed whenever:
 - Sessions are reloaded (`Reload_Sessions`).
 
 **Dialog lifecycle:** changes take effect only when the user clicks **OK**. Cancel
+**Dialog lifecycle:** changes take effect only when the user clicks **OK**. Cancel
 discards all pending changes. Clicking OK with a changed `Box_Cox_Config` triggers
-`Recompute_Charts` for all eight I/MR chart kinds, updates
-`App_State.Active_Box_Cox_Lambda`, and queues a canvas redraw.
+`Recompute_Charts` for all I/MR chart kinds and queues a canvas redraw.
+
+
+#### Xbar/S Chart Transformation Section
+
+Below the I/MR Chart Transformation frame, `Show_Dialog` presents a second frame:
+
+```
+┌─ Xbar/S Chart Transformation ───────────────────────────────────────────┐
+│                                                                          │
+│  [✓] Apply Box-Cox transformation to per-turn Xbar/S charts             │
+│                                                                          │
+│  Lambda (λ):  (●) Estimate from setup interval (per-pair)               │
+│              ( ) Fixed:  [▼ ln (λ=0) ▼]                                 │
+│                           custom: [____0.00____]                         │
+│                                                                          │
+│  Estimated λ:  Turn: λ=0.31  Tool: λ=0.47  Think: λ=0.00               │
+│                (recomputed when setup interval changes)                  │
+│                                                                          │
+│  Note: Xbar chart limits are shown in original (token) units.           │
+│        s chart y-axis shows values in transformed units.                │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+Widget structure is identical to the I/MR section, with the following differences:
+- The estimated λ readout shows three values (one per chart pair: Turn, Tool Call,
+  Thinking), read from `Charts(Turn_Tokens_Xbar).Box_Cox_Lambda`,
+  `Charts(Tool_Call_Tokens_Xbar).Box_Cox_Lambda`, and
+  `Charts(Thinking_Tokens_Xbar).Box_Cox_Lambda`.
+- The auto radio button label is "Estimate from setup interval (per-pair)".
+- Changes on OK update `Workspace.Xbar_S_Box_Cox` and trigger `Recompute_Charts`.
+
+#### EWMA Chart Parameters Section
+
+Below the Xbar/S Chart Transformation frame, `Show_Dialog` presents a third frame:
+
+```
+┌─ EWMA Chart Parameters ─────────────────────────────────────────────────┐
+│                                                                          │
+│  Smoothing weight (λ):        (range 0.01 - 1.00)  [__0.20__]          │
+│  Sigma multiplier (L):        (range 1.00 - 4.00)  [__3.00__]          │
+│                                                                          │
+│  Smaller λ gives more smoothing and better detection of small           │
+│  sustained shifts.                                                       │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+**Widget details:**
+
+- **Smoothing weight spinner** (`GtkSpinButton`): range 0.01–1.00, step 0.01,
+  2 decimal places.  Initial value from `Workspace.EWMA_Weight` (default 0.2).
+- **Sigma multiplier spinner** (`GtkSpinButton`): range 1.00–4.00, step 0.25,
+  2 decimal places.  Initial value from `Workspace.EWMA_L` (default 3.0).
+- An explanatory label below the spinners.
+
+Changes on OK update `Workspace.EWMA_Weight` and `Workspace.EWMA_L` and trigger
+`Recompute_Charts` for all four EWMA chart kinds.
+
 
 ## 12. Chart Canvas Implementation
 
@@ -1762,14 +1985,25 @@ The `On_Draw` callback executes these steps in order:
      `YYYY-MM-DD HH:MM`. Tick positions are placed at integer run indices within the
      visible range, with density thinned when the visible index span is large.
 10. **Axis labels:** y-axis label rotated 90° on the left margin; x-axis label below.
-11. **Box-Cox subtitle (I/MR charts only):** when `Workspace.I_Chart_Box_Cox.Enabled`
-    is `True` and the active chart is one of the eight Session Token I/MR kinds,
-    render a small italic annotation in the top-right corner of the plot area
-    (9pt, Cairo `select_font_face` ITALIC, right-aligned 4px from the right margin,
-    4px below the top margin): `"Box-Cox λ = 0.31"` (numeric value from
-    `App_State.Active_Box_Cox_Lambda`, formatted to two decimal places). For the
-    MR chart, append `" (transformed units)"` to the y-axis label in addition to
-    the subtitle. Both annotations are omitted when Box-Cox is disabled.
+11. **Box-Cox subtitle (I/MR and Xbar/S charts):** when Box-Cox is active for the
+    currently displayed chart (`Chart_Data.Box_Cox_Active = True`), render a small
+    italic annotation in the top-right corner of the plot area (9pt, Cairo
+    `select_font_face` ITALIC, right-aligned 4px from the right margin, 4px below
+    the top margin): `"Box-Cox λ = 0.31"` (numeric value from
+    `Chart_Data.Box_Cox_Lambda`, formatted to two decimal places). The condition
+    is `Props.Is_I_Chart or else Props.Is_Xbar_S_Chart or else Props.Is_EWMA_Chart`. For MR charts, append
+    `" (transformed units)"` to the y-axis label; for s charts with Box-Cox active,
+    the y-axis label similarly reflects transformed units. Annotations are omitted
+    when Box-Cox is disabled for the active chart.
+
+12. **EWMA weight annotation (EWMA charts only):** when the active chart is one of
+    the four EWMA chart kinds, render a small italic annotation in the **top-left**
+    corner of the plot area (9pt, Cairo ITALIC, left-aligned 4px from the left margin
+    edge of the plot area, 4px below the top margin): `"EWMA λ = 0.20, L = 3.00"`,
+    showing the current `Workspace.EWMA_Weight` and `Workspace.EWMA_L` values each
+    formatted to two decimal places.  The annotation is drawn regardless of whether
+    Box-Cox is active; the two annotations (Box-Cox subtitle at top-right, EWMA
+    annotation at top-left) can coexist on the same chart.
 
 ### 12.7 Point Marker Colors (Cairo RGB)
 
@@ -1870,6 +2104,24 @@ AUnit test suite covering:
   equal to `Box_Cox_Inverse (Grand_Mean_z, −0.5)` and
   `Box_Cox_Inverse (LCL_z, −0.5)` respectively to 4 decimal places.
 - MR-chart with Box-Cox: limits are in transformed space; `Has_LCL = False` always.
+
+**EWMA chart tests (`Coyote_SQC.Statistics.EWMA_Chart`):**
+
+- `Compute_Z` single step: `Z_0 = 80.0`, `x_1 = 100.0`, `λ = 0.2` →
+  `Z_1 = 84.0` to 1 × 10⁻¹⁰.
+- `Compute_Z` multi-step: verify a two-step sequence (Z_0=100, x_1=110, x_2=90,
+  λ=0.2) produces Z_1=102.0 and Z_2=99.6 to 1 × 10⁻¹⁰.
+- `Compute_EWMA_Limits` at T=1: Grand_Mean=100, σ=10, λ=0.2, L=3.0 →
+  UCL=106.0, CL=100.0, LCL=94.0, Has_UCL=True, Has_LCL=True, to 1 × 10⁻⁸.
+- `Compute_EWMA_Limits` near steady state (T=1000): verify UCL and LCL converge
+  to `Grand_Mean ± L·σ·√(λ/(2−λ))` within 0.001.
+- Zero sigma: `Compute_EWMA_Limits` with σ=0.0 → Has_UCL=False, Has_LCL=False.
+- LCL clamping: Grand_Mean=1, σ=5, λ=0.5, L=3.0, T=1 → raw LCL = -6.5;
+  verify LCL is clamped to 0.0 and Has_LCL=False, UCL=8.5, Has_UCL=True.
+- Workspace round-trip: `EWMA_Weight=0.15` and `EWMA_L=2.75` survive save/load
+  to within 0.001.
+- Version migration: a workspace JSON file with `"version": 3` and no
+  `ewmaWeight`/`ewmaL` fields loads with defaults 0.2 and 3.0 respectively.
 - Zero-session exclusion: a value array containing 0.0 passed to `Box_Cox`
   raises `Constraint_Error`; `Recompute_Chart` with a session having zero tokens
   excludes that session and posts a notice without raising.

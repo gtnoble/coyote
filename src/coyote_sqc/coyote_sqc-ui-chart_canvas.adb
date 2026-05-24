@@ -677,9 +677,9 @@ package body Coyote_SQC.UI.Chart_Canvas is
                  MB + 35.0,
                  "Date");
 
-      --  ── 11. Box-Cox subtitle (I/MR charts only) ─────────────────────
+      --  ── 11. Box-Cox subtitle (I/MR, Xbar/S, and EWMA charts)) ─────────────────────
       --  Lambda symbol UTF-8: U+03BB = 0xCE 0xBB.
-      if Props.Is_I_Chart
+      if (Props.Is_I_Chart or else Props.Is_Xbar_S_Chart or else Props.Is_EWMA_Chart)
         and then CD.Box_Cox_Active
       then
          declare
@@ -714,6 +714,46 @@ package body Coyote_SQC.UI.Chart_Canvas is
             Set_Color (Cr, 0.3, 0.3, 0.3, 1.0);
             --  Right-align in top-right corner; fixed offset.
             Draw_Text (Cr, MR - 110.0, MT + 13.0, Subtitle);
+            Cairo.Restore (Cr);
+         end;
+      end if;
+
+      --  ── 12. EWMA weight annotation (EWMA charts only) ────────────────
+      --  Lambda symbol UTF-8: U+03BB = 0xCE 0xBB.
+      if Props.Is_EWMA_Chart then
+         declare
+            Lambda_Sym : constant String :=
+              (1 => Character'Val (16#CE#),
+               2 => Character'Val (16#BB#));
+            function Format_2dp (V : Long_Float) return String is
+               use Ada.Strings.Fixed;
+               IV : constant Long_Long_Integer :=
+                 Long_Long_Integer
+                   (Long_Float'Rounding (abs V * 100.0));
+            begin
+               return (if V < 0.0 then "-" else "")
+                 & Trim (Long_Long_Integer'Image (IV / 100),
+                         Ada.Strings.Left)
+                 & "."
+                 & (if IV mod 100 < 10 then "0" else "")
+                 & Trim (Long_Long_Integer'Image (IV mod 100),
+                         Ada.Strings.Left);
+            end Format_2dp;
+            Annotation : constant String :=
+              "EWMA " & Lambda_Sym & " = "
+              & Format_2dp (State.Workspace.EWMA_Weight)
+              & ",  L = "
+              & Format_2dp (State.Workspace.EWMA_L);
+         begin
+            Cairo.Save (Cr);
+            Cairo.Select_Font_Face
+              (Cr, "Sans",
+               Cairo.Cairo_Font_Slant_Italic,
+               Cairo.Cairo_Font_Weight_Normal);
+            Cairo.Set_Font_Size (Cr, 9.0);
+            Set_Color (Cr, 0.3, 0.3, 0.3, 1.0);
+            --  Top-left corner of the plot area.
+            Draw_Text (Cr, ML + 4.0, MT + 13.0, Annotation);
             Cairo.Restore (Cr);
          end;
       end if;

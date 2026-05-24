@@ -64,4 +64,12 @@ package Coyote_SQC_Statistics_Tests is
    procedure Test_I_Limits_Box_Cox_Ln     (T : in out Test);
    procedure Test_Box_Cox_MR_Transformed  (T : in out Test);
 
+   --  EWMA chart tests.
+   procedure Test_EWMA_Compute_Z_Single_Step (T : in out Test);
+   procedure Test_EWMA_Compute_Z_Multi_Step  (T : in out Test);
+   procedure Test_EWMA_Limits_T1             (T : in out Test);
+   procedure Test_EWMA_Limits_Steady_State   (T : in out Test);
+   procedure Test_EWMA_Limits_Zero_Sigma     (T : in out Test);
+   procedure Test_EWMA_Limits_LCL_Clamped    (T : in out Test);
+
 end Coyote_SQC_Statistics_Tests;
