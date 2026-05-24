@@ -204,7 +204,8 @@ src/coyote_sqc/              -- coyote_sqc application packages
   coyote_sqc-data_model.ads        -- All internal types: Tool_Call_Record,
                           --   Turn_Record, Session_Record, Session_Metrics_Record,
                           --   Comment_Record, Workspace_Record, UUID_Sets,
-                          --   Natural_Vectors, Chart_Definition_Record
+                          --   Natural_Vectors, Chart_Definition_Record,
+                          --   Box_Cox_Config, Box_Cox_Lambda_Source
   coyote_sqc-metrics.ads/.adb      -- Compute: Session_Record -> Session_Metrics_Record
   coyote_sqc-session_parser.ads/.adb -- JSONL parser (v1 and v3 wire formats);
                           --   Encode_Cwd; Load_Sessions (with model filter + sort);
@@ -218,10 +219,13 @@ src/coyote_sqc/              -- coyote_sqc application packages
   coyote_sqc-statistics-xbar.ads/.adb -- Xbar chart Compute_Limits
   coyote_sqc-statistics-s_chart.ads/.adb -- s chart Compute_Limits
   coyote_sqc-statistics-p_chart.ads/.adb -- p chart Compute_Limits
-  coyote_sqc-workspace.ads/.adb    -- Load/Save .sqcw JSON (version 1); New_UUID;
+  coyote_sqc-statistics-i_chart.ads/.adb -- I chart and MR chart: Compute_I_Limits,
+                          --   Compute_MR_Limits; Box_Cox, Box_Cox_Inverse,
+                          --   Estimate_Lambda (Box-Cox MLE for I/MR charts)
+  coyote_sqc-workspace.ads/.adb    -- Load/Save .sqcw JSON (version 2); New_UUID;
                           --   Load takes Version_Found : out Natural for
                           --   missing-version warning; Workspace_Error for
-                          --   version > 1
+                          --   version > 2; Box_Cox_Config round-trip
   coyote_sqc-workspace-integrity.ads/.adb -- Check/Remove_Missing for setup interval
   coyote_sqc-ui.ads/.adb           -- Build_Main_Window; all File/Workspace/View menu
                           --   callbacks; three-panel GTK layout
@@ -234,7 +238,7 @@ src/coyote_sqc/              -- coyote_sqc application packages
   coyote_sqc-ui-hover_tooltip.ads/.adb -- GtkPopover hover tooltip for chart points
   coyote_sqc-ui-left_panel.ads/.adb -- GtkListBox chart selector with group separators
   coyote_sqc-ui-toolbar.ads/.adb   -- From/To datetime pickers + Show All + Y-Fit
-  coyote_sqc-ui-workspace_settings.ads/.adb -- Workspace Settings dialog
+  coyote_sqc-ui-workspace_settings.ads/.adb -- Workspace Settings dialog; Box-Cox transformation config section (§11.11)
 src/coyote_renderer/         -- shared rendering utilities
   coyote_renderer.ads              -- Root package (pragma Pure)
   coyote_renderer-markup.ads/.adb  -- To_Pango_Markup / Xml_Escape extracted from

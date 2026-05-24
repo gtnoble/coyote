@@ -14,6 +14,8 @@ package body Coyote_SQC.Metrics is
       M.Session_Id := Session.Session_Id;
       M.Total_Input_Tokens  := Session.Total_Input_Tokens;
       M.Total_Output_Tokens := Session.Total_Output_Tokens;
+      M.Total_Cache_Read_Tokens  := Session.Total_Cache_Read_Tokens;
+      M.Total_Cache_Write_Tokens := Session.Total_Cache_Write_Tokens;
       M.N_Turns    := (if Session.Turns.Is_Empty then 1
                        else Positive (Session.Turns.Length));
 

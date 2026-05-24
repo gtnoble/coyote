@@ -13,6 +13,7 @@ with Coyote_SQC.Statistics.P_Chart;
 with Coyote_SQC.Statistics.S_Chart;
 with Coyote_SQC.Statistics.Xbar;
 with Coyote_SQC.Statistics.I_Chart;
+with Ada.Numerics.Long_Elementary_Functions;
 
 package body Coyote_SQC_Statistics_Tests is
 
@@ -869,5 +870,183 @@ package body Coyote_SQC_Statistics_Tests is
               "I chart single-session: Mean_MR should be 0; got "
               & Long_Float'Image (Params.Mean_MR));
    end Test_Estimate_I_Chart_Single;
+
+
+   --  ── Box-Cox transformation tests ─────────────────────────────────────
+
+   --  BC(x, 0) should equal ln(x).
+   procedure Test_Box_Cox_Ln_Identity (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.I_Chart;
+      use Ada.Numerics.Long_Elementary_Functions;
+      Tol : constant Long_Float := 1.0e-10;
+   begin
+      for X of Long_Float_Array'(1 => 0.01, 2 => 1.0, 3 => 100.0, 4 => 10000.0)
+      loop
+         Assert
+           (abs (Box_Cox (X, 0.0) - Log (X)) <= Tol,
+            "Box_Cox(x,0) should equal ln(x) for x = "
+            & Long_Float'Image (X));
+      end loop;
+   end Test_Box_Cox_Ln_Identity;
+
+   --  BC(x, 1) should equal x - 1.
+   procedure Test_Box_Cox_Lambda_One (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.I_Chart;
+      Tol : constant Long_Float := 1.0e-10;
+   begin
+      for X of Long_Float_Array'(1 => 0.01, 2 => 1.0, 3 => 100.0, 4 => 10000.0)
+      loop
+         Assert
+           (abs (Box_Cox (X, 1.0) - (X - 1.0)) <= Tol,
+            "Box_Cox(x,1) should equal x-1 for x = "
+            & Long_Float'Image (X));
+      end loop;
+   end Test_Box_Cox_Lambda_One;
+
+   --  Inverse(BC(x, lambda), lambda) should recover x to high precision.
+   procedure Test_Box_Cox_Round_Trip (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.I_Chart;
+      Tol : constant Long_Float := 1.0e-8;
+      Xs  : constant Long_Float_Array :=
+        (1.0, 10.0, 100.0, 1000.0, 10000.0);
+      Ls  : constant Long_Float_Array :=
+        (-1.0, 0.0, 0.5, 1.0, 2.0);
+   begin
+      for X of Xs loop
+         for Lam of Ls loop
+            declare
+               Z   : constant Long_Float := Box_Cox (X, Lam);
+               X2  : constant Long_Float := Box_Cox_Inverse (Z, Lam);
+            begin
+               Assert
+                 (abs (X2 - X) <= Tol * (1.0 + abs X),
+                  "Round-trip failed for x="
+                  & Long_Float'Image (X)
+                  & " lambda=" & Long_Float'Image (Lam)
+                  & "; got " & Long_Float'Image (X2));
+            end;
+         end loop;
+      end loop;
+   end Test_Box_Cox_Round_Trip;
+
+   --  Box_Cox(0.0, ...) should raise Constraint_Error.
+   procedure Test_Box_Cox_Zero_Raises (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.I_Chart;
+      Raised : Boolean := False;
+   begin
+      begin
+         declare
+            Dummy : constant Long_Float := Box_Cox (0.0, 0.0);
+            pragma Unreferenced (Dummy);
+         begin
+            null;
+         end;
+      exception
+         when Constraint_Error => Raised := True;
+      end;
+      Assert (Raised, "Box_Cox(0.0, 0.0) should raise Constraint_Error");
+   end Test_Box_Cox_Zero_Raises;
+
+   --  Estimate_Lambda with fewer than 3 observations returns 0.0.
+   procedure Test_Estimate_Lambda_Few_Obs (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.I_Chart;
+      Tol : constant Long_Float := 1.0e-12;
+      L1  : constant Long_Float :=
+        Estimate_Lambda (Long_Float_Array'(1 => 1000.0));
+      L2  : constant Long_Float :=
+        Estimate_Lambda (Long_Float_Array'(1 => 100.0, 2 => 200.0));
+   begin
+      Assert
+        (abs L1 <= Tol,
+         "Estimate_Lambda with 1 obs should return 0.0; got "
+         & Long_Float'Image (L1));
+      Assert
+        (abs L2 <= Tol,
+         "Estimate_Lambda with 2 obs should return 0.0; got "
+         & Long_Float'Image (L2));
+   end Test_Estimate_Lambda_Few_Obs;
+
+   --  I chart with Box-Cox (lambda=0): back-transformed UCL should equal
+   --  exp(mean_z + 3*mean_mr_z/d2) for a known 3-value dataset.
+   --  Values: 10, 100, 1000.
+   --  z_i = ln(x_i): ln(10) ~ 2.3026, ln(100) ~ 4.6052, ln(1000) ~ 6.9078.
+   --  mean_z = (2.3026 + 4.6052 + 6.9078)/3 = 4.6052.
+   --  MR_1 = |4.6052 - 2.3026| = 2.3026.
+   --  MR_2 = |6.9078 - 4.6052| = 2.3026.
+   --  mean_mr_z = 2.3026.
+   --  spread_z = 3 * 2.3026 / 1.128 ~ 6.1275.
+   --  UCL_z = 4.6052 + 6.1275 = 10.7327 (approx).
+   --  UCL_raw = exp(10.7327) ~ 45787.0 (approx).
+   procedure Test_I_Limits_Box_Cox_Ln (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.I_Chart;
+      use Ada.Numerics.Long_Elementary_Functions;
+      --  Known data.
+      V1        : constant Long_Float := 10.0;
+      V2        : constant Long_Float := 100.0;
+      V3        : constant Long_Float := 1000.0;
+      Z1        : constant Long_Float := Log (V1);
+      Z2        : constant Long_Float := Log (V2);
+      Z3        : constant Long_Float := Log (V3);
+      Mean_Z    : constant Long_Float := (Z1 + Z2 + Z3) / 3.0;
+      MR1       : constant Long_Float := abs (Z2 - Z1);
+      MR2       : constant Long_Float := abs (Z3 - Z2);
+      Mean_MR_Z : constant Long_Float := (MR1 + MR2) / 2.0;
+      D2        : constant Long_Float := 1.128;
+      Spread    : constant Long_Float := 3.0 * Mean_MR_Z / D2;
+      UCL_Z     : constant Long_Float := Mean_Z + Spread;
+      UCL_Raw   : constant Long_Float := Exp (UCL_Z);
+      --  Compute via Compute_I_Limits + Box_Cox_Inverse.
+      Lim_Z     : constant Limits_Record :=
+        Compute_I_Limits (Mean_Z, Mean_MR_Z);
+      UCL_BT    : constant Long_Float :=
+        Box_Cox_Inverse (Lim_Z.UCL, 0.0);
+      CL_BT     : constant Long_Float :=
+        Box_Cox_Inverse (Lim_Z.CL, 0.0);
+      CL_Raw    : constant Long_Float := Exp (Mean_Z);
+      Tol       : constant Long_Float := 1.0e-4;
+   begin
+      Assert
+        (Lim_Z.Has_UCL,
+         "I chart Box-Cox ln: limits should be computable");
+      Assert
+        (abs (UCL_BT - UCL_Raw) <= Tol * UCL_Raw,
+         "Back-transformed UCL should match exp(UCL_z); got "
+         & Long_Float'Image (UCL_BT)
+         & " expected " & Long_Float'Image (UCL_Raw));
+      Assert
+        (abs (CL_BT - CL_Raw) <= Tol * CL_Raw,
+         "Back-transformed CL should match exp(mean_z); got "
+         & Long_Float'Image (CL_BT)
+         & " expected " & Long_Float'Image (CL_Raw));
+   end Test_I_Limits_Box_Cox_Ln;
+
+   --  MR chart with Box-Cox: MR values should be differences of
+   --  transformed values, not raw differences.
+   --  Values: 10, 100, 1000 with lambda=0.
+   --  MR_1 = |ln(100) - ln(10)| = ln(10) ~ 2.3026.
+   procedure Test_Box_Cox_MR_Transformed (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.I_Chart;
+      use Ada.Numerics.Long_Elementary_Functions;
+      V1       : constant Long_Float := 10.0;
+      V2       : constant Long_Float := 100.0;
+      Expected : constant Long_Float :=
+        abs (Log (V2) - Log (V1));
+      Got      : constant Long_Float :=
+        abs (Box_Cox (V2, 0.0) - Box_Cox (V1, 0.0));
+      Tol      : constant Long_Float := 1.0e-10;
+   begin
+      Assert
+        (abs (Got - Expected) <= Tol,
+         "BC MR value should be |ln(100)-ln(10)|; got "
+         & Long_Float'Image (Got)
+         & " expected " & Long_Float'Image (Expected));
+   end Test_Box_Cox_MR_Transformed;
 
 end Coyote_SQC_Statistics_Tests;

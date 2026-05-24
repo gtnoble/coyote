@@ -16,6 +16,7 @@ with Coyote_SQC.Workspace;
 with Glib;                   use Glib;
 with Glib.Properties;        use Glib.Properties;
 with Gtk.Box;
+with Gtk.Drawing_Area;
 with Gtk.Button;
 with Gtk.Enums;
 with Gtk.Frame;
@@ -35,6 +36,9 @@ with Gtk.Paned;
 with Coyote_Renderer.Session_View;
 with Gtk.Window;
 with Coyote_SQC.UI.Tool_Detail_Window;
+with Coyote_SQC.Charts;
+with Coyote_SQC.Statistics.I_Chart;
+with Coyote_SQC.UI.Histogram_Canvas;
 
 package body Coyote_SQC.UI.Detail_Panel is
    use type Gtk.Paned.Gtk_Paned;
@@ -557,6 +561,16 @@ package body Coyote_SQC.UI.Detail_Panel is
             end;
          end if;
       end;
+      --  Distribution histogram.
+      declare
+         Hist_Frame : Gtk.Frame.Gtk_Frame;
+         Hist_DA    : constant Gtk.Drawing_Area.Gtk_Drawing_Area :=
+           Coyote_SQC.UI.Histogram_Canvas.Build;
+      begin
+         Gtk.Frame.Gtk_New (Hist_Frame, "Distribution");
+         Hist_Frame.Add (Hist_DA);
+         VBox.Pack_Start (Hist_Frame, False, False, 0);
+      end;
       --  Set as Setup Interval button.
       Gtk.Button.Gtk_New (Btn, "Set as Setup Interval");
       Btn.On_Clicked (On_Set_Setup_Interval_Clicked'Access);
@@ -639,11 +653,138 @@ package body Coyote_SQC.UI.Detail_Panel is
          Sel_Frame.Add (Sel_Scroll);
          VBox.Pack_Start (Sel_Frame, True, True, 0);
       end;
+      Refresh_Histogram_If_Multi;
 
       Inner_Box := VBox;
       Panel_Box.Pack_Start (VBox, True, True, 0);
       Panel_Box.Show_All;
    end Build_Multi_View;
+
+   --  ── Histogram ─────────────────────────────────────────────────────────
+
+   procedure Refresh_Histogram_If_Multi is
+      use Ada.Strings.Unbounded;
+      use Coyote_SQC.Charts;
+   begin
+      if Coyote_SQC.App.State = null
+        or else Natural (Coyote_SQC.App.State.Selection.Length) < 2
+      then
+         return;
+      end if;
+
+      declare
+         Active    : constant Chart_Kind :=
+           Coyote_SQC.App.State.Active_Chart;
+         CD        : constant Coyote_SQC.App.Chart_Data :=
+           Coyote_SQC.App.State.Charts (Active);
+         Max_Pts   : constant Natural :=
+           Natural (CD.Points.Length);
+         Vals      : Coyote_SQC.UI.Histogram_Canvas.Long_Float_Array
+                       (1 .. Max_Pts);
+         N_Vals    : Natural := 0;
+         CL        : Long_Float := 0.0;
+         UCL       : Long_Float := 0.0;
+         Has_UCL   : Boolean    := False;
+         LCL       : Long_Float := 0.0;
+         Has_LCL   : Boolean    := False;
+         Got_Lims  : Boolean    := False;
+         Props     : constant Coyote_SQC.Charts.Chart_Properties :=
+           Coyote_SQC.Charts.Properties (Active);
+      begin
+         for P of CD.Points loop
+            if not P.Excluded
+              and then Coyote_SQC.App.State.Selection.Contains (P.Session_Id)
+            then
+               N_Vals := N_Vals + 1;
+               Vals (N_Vals) := P.Stat_Value;
+               if not Got_Lims then
+                  CL       := P.CL;
+                  UCL      := P.UCL;
+                  Has_UCL  := P.Has_UCL;
+                  LCL      := P.LCL;
+                  Has_LCL  := P.Has_LCL;
+                  Got_Lims := True;
+               end if;
+            end if;
+         end loop;
+
+
+         --  Box-Cox: for I/MR charts with active transformation, convert
+         --  values and limits to the transformed space for the histogram.
+         declare
+            --  Lambda symbol UTF-8: U+03BB = 0xCE 0xBB.
+            Lambda_Sym : constant String :=
+              (1 => Character'Val (16#CE#),
+               2 => Character'Val (16#BB#));
+            X_Lbl_Str  : Ada.Strings.Unbounded.Unbounded_String :=
+              Props.Y_Axis_Label;
+         begin
+            if CD.Box_Cox_Active
+              and then Active in Session_Input_Tokens_I
+                               | Session_Output_Tokens_I
+                               | Session_Cache_Read_Tokens_I
+                               | Session_Cache_Write_Tokens_I
+            then
+               --  I-chart: Stat_Value is raw; transform to matched space.
+               for K in 1 .. N_Vals loop
+                  if Vals (K) > 0.0 then
+                     Vals (K) := Coyote_SQC.Statistics.I_Chart.Box_Cox
+                       (Vals (K), CD.Box_Cox_Lambda);
+                  end if;
+               end loop;
+               --  Re-transform back-transformed limits to transformed space.
+               if Got_Lims then
+                  if CL > 0.0 then
+                     CL := Coyote_SQC.Statistics.I_Chart.Box_Cox
+                       (CL, CD.Box_Cox_Lambda);
+                  end if;
+                  if Has_UCL and then UCL > 0.0 then
+                     UCL := Coyote_SQC.Statistics.I_Chart.Box_Cox
+                       (UCL, CD.Box_Cox_Lambda);
+                  end if;
+                  if Has_LCL and then LCL > 0.0 then
+                     LCL := Coyote_SQC.Statistics.I_Chart.Box_Cox
+                       (LCL, CD.Box_Cox_Lambda);
+                  end if;
+               end if;
+            end if;
+            --  Append lambda annotation to x-axis label when BC active.
+            if CD.Box_Cox_Active then
+               declare
+                  function Format_Lambda (V : Long_Float) return String is
+                     use Ada.Strings.Fixed;
+                     IV : constant Long_Long_Integer :=
+                       Long_Long_Integer
+                         (Long_Float'Rounding (abs V * 100.0));
+                  begin
+                     return (if V < 0.0 then "-" else "")
+                       & Trim (Long_Long_Integer'Image (IV / 100),
+                               Ada.Strings.Left)
+                       & "."
+                       & (if IV mod 100 < 10 then "0" else "")
+                       & Trim (Long_Long_Integer'Image (IV mod 100),
+                               Ada.Strings.Left);
+                  end Format_Lambda;
+                  Lam_Str : constant String :=
+                    Format_Lambda (CD.Box_Cox_Lambda);
+               begin
+                  Ada.Strings.Unbounded.Append
+                    (X_Lbl_Str, " (" & Lambda_Sym & "=" & Lam_Str & ")");
+               end;
+            end if;
+
+            Coyote_SQC.UI.Histogram_Canvas.Refresh
+              (Values   => Vals (1 .. N_Vals),
+               CL       => CL,
+               UCL      => UCL,
+               Has_UCL  => Has_UCL,
+               LCL      => LCL,
+               Has_LCL  => Has_LCL,
+               X_Label  => Ada.Strings.Unbounded.To_String (X_Lbl_Str),
+               Has_Data => N_Vals > 0);
+         end;
+      end;
+   end Refresh_Histogram_If_Multi;
 
    --  ── Public ────────────────────────────────────────────────────────────
 

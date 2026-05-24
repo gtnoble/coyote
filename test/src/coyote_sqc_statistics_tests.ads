@@ -55,4 +55,13 @@ package Coyote_SQC_Statistics_Tests is
    procedure Test_Estimate_I_Chart_Input  (T : in out Test);
    procedure Test_Estimate_I_Chart_Single (T : in out Test);
 
+   --  Box-Cox transformation tests.
+   procedure Test_Box_Cox_Ln_Identity     (T : in out Test);
+   procedure Test_Box_Cox_Lambda_One      (T : in out Test);
+   procedure Test_Box_Cox_Round_Trip      (T : in out Test);
+   procedure Test_Box_Cox_Zero_Raises     (T : in out Test);
+   procedure Test_Estimate_Lambda_Few_Obs (T : in out Test);
+   procedure Test_I_Limits_Box_Cox_Ln     (T : in out Test);
+   procedure Test_Box_Cox_MR_Transformed  (T : in out Test);
+
 end Coyote_SQC_Statistics_Tests;

@@ -126,7 +126,7 @@ package body Coyote_SQC.Workspace is
       Root := GNATCOLL.JSON.Read (To_String (Content));
 
       Version := Get_Int_Field (Root, "version", -1);
-      if Version > 1 then
+      if Version > 2 then
          raise Workspace_Error with
            "This workspace was created by a newer version of coyote_sqc "
            & "and cannot be opened.";
@@ -232,6 +232,38 @@ package body Coyote_SQC.Workspace is
             end loop;
          end;
       end if;
+      --  iChartBoxCox (optional; absent = disabled).
+      if Root.Kind = GNATCOLL.JSON.JSON_Object_Type
+        and then Root.Has_Field ("iChartBoxCox")
+      then
+         declare
+            BC  : constant GNATCOLL.JSON.JSON_Value :=
+              Root.Get ("iChartBoxCox");
+            Src : constant String :=
+              Get_String_Field (BC, "lambdaSource");
+         begin
+            if BC.Kind = GNATCOLL.JSON.JSON_Object_Type then
+               if BC.Has_Field ("enabled")
+                 and then BC.Get ("enabled").Kind =
+                   GNATCOLL.JSON.JSON_Boolean_Type
+               then
+                  Workspace.I_Chart_Box_Cox.Enabled :=
+                    Boolean'(BC.Get ("enabled").Get);
+               end if;
+               Workspace.I_Chart_Box_Cox.Lambda_Source :=
+                 (if Src = "fixed"
+                  then Coyote_SQC.Data_Model.Fixed
+                  else Coyote_SQC.Data_Model.Auto);
+               if BC.Has_Field ("fixedLambda")
+                 and then BC.Get ("fixedLambda").Kind =
+                   GNATCOLL.JSON.JSON_Float_Type
+               then
+                  Workspace.I_Chart_Box_Cox.Fixed_Lambda :=
+                    GNATCOLL.JSON.Get_Long_Float (BC, "fixedLambda");
+               end if;
+            end if;
+         end;
+      end if;
    end Load;
 
    --  ── Save ──────────────────────────────────────────────────────────────
@@ -250,7 +282,7 @@ package body Coyote_SQC.Workspace is
 
       File : Ada.Text_IO.File_Type;
    begin
-      Root.Set_Field ("version", Integer (1));
+      Root.Set_Field ("version", Integer (2));
       Root.Set_Field ("workspaceId", To_String (Workspace.Workspace_Id));
       Root.Set_Field ("name", To_String (Workspace.Name));
 
@@ -291,6 +323,22 @@ package body Coyote_SQC.Workspace is
       end loop;
       end;
       Root.Set_Field ("comments", Cmt_Arr);
+      --  iChartBoxCox.
+      declare
+         BC_Obj : GNATCOLL.JSON.JSON_Value := GNATCOLL.JSON.Create_Object;
+      begin
+         BC_Obj.Set_Field ("enabled",
+           Workspace.I_Chart_Box_Cox.Enabled);
+         BC_Obj.Set_Field ("lambdaSource",
+           (if Workspace.I_Chart_Box_Cox.Lambda_Source =
+                 Coyote_SQC.Data_Model.Auto
+            then "auto"
+            else "fixed"));
+         BC_Obj.Set_Field ("fixedLambda",
+           GNATCOLL.JSON.Create
+             (Workspace.I_Chart_Box_Cox.Fixed_Lambda));
+         Root.Set_Field ("iChartBoxCox", BC_Obj);
+      end;
       declare
          Tmp : constant String := Path & ".tmp";
       begin

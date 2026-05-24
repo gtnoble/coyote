@@ -278,6 +278,9 @@ Coyote_SQC.UI.Toolbar                -- date range pickers, Show All, Y-Fit
 Coyote_SQC.UI.Datetime_Picker        -- composite GtkEntry + GtkPopover datetime widget
 Coyote_SQC.UI.Workspace_Settings     -- Workspace Settings dialog
 Coyote_SQC.UI.Hover_Tooltip          -- GtkPopover point hover tooltip
+Coyote_SQC.UI.Histogram_Canvas      -- Cairo histogram for multi-select detail panel;
+                        --   Compute_Bins (exposed for unit testing), Build,
+                        --   Refresh; fixed 160px GtkDrawingArea
 Coyote_SQC.UI.Dialogs                -- confirmation dialogs, unsaved-changes prompt
 Coyote_SQC.UI.Tool_Detail_Window     -- non-modal tool call detail window
 
@@ -568,7 +571,11 @@ type Chart_Kind is
    Session_Input_Tokens_I,
    Session_Input_Tokens_MR,
    Session_Output_Tokens_I,
-   Session_Output_Tokens_MR);
+   Session_Output_Tokens_MR,
+   Session_Cache_Read_Tokens_I,
+   Session_Cache_Read_Tokens_MR,
+   Session_Cache_Write_Tokens_I,
+   Session_Cache_Write_Tokens_MR);
 
 type Chart_Definition_Record is record
    Chart  : Chart_Kind;
@@ -590,6 +597,24 @@ package UUID_Sets is new Ada.Containers.Hashed_Sets
 subtype UUID_Set is UUID_Sets.Set;
 ```
 
+### 6.8a Box_Cox_Config
+
+```ada
+--  Box-Cox transformation configuration for Session Token I/MR charts.
+--  One shared config applies to all eight I/MR charts in the workspace.
+type Box_Cox_Lambda_Source is (Auto, Fixed);
+
+type Box_Cox_Config is record
+   Enabled       : Boolean                := False;
+   Lambda_Source : Box_Cox_Lambda_Source  := Auto;
+   Fixed_Lambda  : Long_Float             := 0.0;
+   --  Lambda_Source = Auto: lambda is estimated at runtime from the
+   --  setup interval by MLE; the estimated value is not persisted.
+   --  Lambda_Source = Fixed: Fixed_Lambda is used directly.
+   --  Common Fixed_Lambda values: 0.0 (ln), 0.5 (sqrt), 1.0 (identity).
+end record;
+```
+
 ### 6.9 Workspace_Record
 
 ```ada
@@ -605,6 +630,9 @@ type Workspace_Record is record
    Model_Filter      : String_Vectors.Vector;
    Setup_Session_Ids : UUID_Set;
    Comments          : Comment_Vectors.Vector;
+   --  Box-Cox transformation config for Session Token I/MR charts.
+   --  Shared across all eight I/MR chart kinds.
+   I_Chart_Box_Cox   : Box_Cox_Config;
 end record;
 ```
 
@@ -785,6 +813,70 @@ MR chart (no marker, gap in connecting line). This is handled in
 `Coyote_SQC.App.Recompute_Chart` using a `Prev_Total` / `Has_Prev_Total` state
 variable that tracks the previous session's total across loop iterations.
 
+
+### 7.9 Box-Cox Transformation — `Coyote_SQC.Statistics.I_Chart`
+
+The Box-Cox transformation and its inverse are applied to I/MR chart data when
+`Workspace.I_Chart_Box_Cox.Enabled` is `True`.
+
+#### Transform and inverse
+
+```ada
+--  Apply the Box-Cox transform to a single positive observation.
+--  Raises Constraint_Error if X <= 0.0.
+--  For Lambda = 0.0 returns Ada.Numerics.Long_Elementary_Functions.Log (X).
+--  For Lambda /= 0.0 returns (X ** Lambda - 1.0) / Lambda.
+function Box_Cox (X : Long_Float; Lambda : Long_Float) return Long_Float;
+
+--  Recover the original value from a transformed value Z.
+--  For Lambda = 0.0 returns Ada.Numerics.Long_Elementary_Functions.Exp (Z).
+--  For Lambda /= 0.0 returns (Z * Lambda + 1.0) ** (1.0 / Lambda).
+function Box_Cox_Inverse (Z : Long_Float; Lambda : Long_Float) return Long_Float;
+```
+
+#### MLE lambda estimation
+
+```ada
+--  Estimate the Box-Cox lambda that maximises the log-likelihood under
+--  the normality assumption for the given observations.
+--  Requires Values'Length >= 3; returns 0.0 for fewer observations.
+--  All values must be strictly positive; a Constraint_Error is raised
+--  if any value is <= 0.0.
+--
+--  Algorithm: grid search over Lambda in [-2.0, 2.0] at step 0.01,
+--  followed by Brent refinement within the best grid interval, to a
+--  tolerance of 1e-4.
+function Estimate_Lambda (Values : Long_Float_Array) return Long_Float;
+```
+
+#### Transformed limit computation
+
+When Box-Cox is active, `Recompute_Chart` in `Coyote_SQC.App`:
+
+1. Transforms all setup-interval values: `Z_i = Box_Cox (X_i, Lambda)`.
+2. Computes `Grand_Mean_Z` and `Mean_MR_Z` in the transformed space using
+   the standard formulae from §7.5.
+3. Calls `Compute_I_Limits` with `Grand_Mean_Z` and `Mean_MR_Z` to obtain
+   limits in the **transformed** space.
+4. For the **I chart**: back-transforms each limit value independently via
+   `Box_Cox_Inverse` before storing in `Chart_State`.  The plotted points and
+   limits are then all in original (token) units.  `CL_z` and `LCL_z` are
+   always within the valid domain `(−∞, 1/|λ|)` since all data values mapped
+   there.  `UCL_z` may reach or exceed the asymptote `1/|λ|` for negative λ
+   (because `Box_Cox(x, λ) → 1/|λ|` as `x → +∞`), meaning no finite original
+   value maps to `UCL_z`; in this case `Has_UCL` is set to `False` (the upper
+   limit is effectively +∞) while `CL` and `LCL` are still drawn.  Each limit
+   is back-transformed in its own exception scope so a domain failure on
+   `UCL_z` does not suppress `CL` or `LCL`.
+   in original (token) units.
+5. For the **MR chart**: stores the transformed-space limits directly; no
+   back-transform is applied. Points are `|Z_i − Z_{i-1}|`; the y-axis label
+   is updated to reflect the transformed units (see §12.6).
+
+The resolved lambda (whether auto-estimated or fixed) is stored in
+`App_State.Active_Box_Cox_Lambda` and reset to `Long_Float'Last` (sentinel)
+when Box-Cox is disabled or the active chart is not an I/MR chart.
+
 ## 8. Chart Definitions
 
 `Coyote_SQC.Charts` declares the `Chart_Kind` enumeration (§6.7) and a
@@ -802,7 +894,7 @@ end record;
 function Properties (Kind : Chart_Kind) return Chart_Properties;
 ```
 
-The thirteen charts and their properties:
+The seventeen charts and their properties:
 
 | `Chart_Kind` | Label | Group | Y-Axis Label |
 |---|---|---|---|
@@ -819,6 +911,10 @@ The thirteen charts and their properties:
 | `Session_Input_Tokens_MR`  | `Session Input Tokens -- MR`  | `Session Totals` | `Moving range (input tokens)` |
 | `Session_Output_Tokens_I`  | `Session Output Tokens -- I`  | `Session Totals` | `Total output tokens` |
 | `Session_Output_Tokens_MR` | `Session Output Tokens -- MR` | `Session Totals` | `Moving range (output tokens)` |
+| `Session_Cache_Read_Tokens_I`   | `Session Cache Read Tokens -- I`   | `Session Totals` | `Total cache-read tokens` |
+| `Session_Cache_Read_Tokens_MR`  | `Session Cache Read Tokens -- MR`  | `Session Totals` | `Moving range (cache-read tokens)` |
+| `Session_Cache_Write_Tokens_I`  | `Session Cache Write Tokens -- I`  | `Session Totals` | `Total cache-write tokens` |
+| `Session_Cache_Write_Tokens_MR` | `Session Cache Write Tokens -- MR` | `Session Totals` | `Moving range (cache-write tokens)` |
 
 The `Chart_Kind` iteration order matches the left-panel display order.
 
@@ -830,16 +926,21 @@ The `Chart_Kind` iteration order matches the left-panel display order.
 
 Workspace files use the `.sqcw` extension. Location is user-chosen via file chooser.
 
-### 9.2 JSON Schema (version 1)
+### 9.2 JSON Schema (version 2)
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "workspaceId": "uuid-string",
   "name": "string",
   "sourceDirectories": ["string", ...],
   "modelFilter": ["string", ...],
   "setupSessionIds": ["uuid-string", ...],
+  "iChartBoxCox": {
+    "enabled": false,
+    "lambdaSource": "auto",
+    "fixedLambda": 0.0
+  },
   "comments": [
     {
       "commentId": "uuid-string",
@@ -856,12 +957,17 @@ All field names use `camelCase`. The `comments` array is ordered by ascending
 `timestamp`. The `setupSessionIds` array is unordered; duplicate UUIDs are ignored
 on load.
 
+The `iChartBoxCox` object is optional; when absent it is treated as
+`{"enabled": false, "lambdaSource": "auto", "fixedLambda": 0.0}`. The
+`lambdaSource` field is either `"auto"` or `"fixed"`.
+
 ### 9.3 Version Migration
 
 The application reads the `"version"` field first:
 
-- `version = 1`: load normally using the schema above.
-- `version > 1`: refuse to open; show a dialog: "This workspace was created by a
+- `version = 1`: load as a legacy workspace; `iChartBoxCox` defaults to disabled.
+- `version = 2`: load normally using the schema above.
+- `version > 2`: refuse to open; show a dialog: "This workspace was created by a
   newer version of coyote_sqc and cannot be opened."
 - `version < 1` or absent: attempt load with best-effort field mapping; show a
   warning: "Workspace file has no version field; some data may be missing."
@@ -1035,6 +1141,9 @@ type App_State is limited record
    Canvas           : Gtk.Drawing_Area.Gtk_Drawing_Area;
    Detail_Panel_Box : Gtk.Box.Gtk_Box;
    ...
+   --  Resolved Box-Cox lambda for the active I/MR chart.  Set to Long_Float'Last
+   --  (sentinel) when Box-Cox is disabled or the active chart is not an I/MR kind.
+   Active_Box_Cox_Lambda : Long_Float := Long_Float'Last;
 end record;
 ```
 
@@ -1127,6 +1236,8 @@ is re-selected.
 GtkBox (vertical)
 ├── GtkLabel "N sessions selected"
 ├── GtkLabel "YYYY-MM-DD – YYYY-MM-DD"
+├── GtkFrame "Distribution"
+│   └── GtkDrawingArea (Histogram_Canvas, 160 px fixed height)
 ├── GtkButton "Set as Setup Interval"
 ├── GtkFrame "Add Comment to All Selected"
 │   ├── GtkTextView (entry)
@@ -1176,7 +1287,96 @@ moves beyond 12 pixels.
 The popover contains a `GtkLabel` with markup-formatted content (see requirements
 §8.3). Content is rebuilt each time a different point is hovered.
 
-### 11.9 Tool Call Detail Window — `Coyote_SQC.UI.Tool_Detail_Window`
+### 11.9 Histogram Canvas — `Coyote_SQC.UI.Histogram_Canvas`
+
+The histogram canvas is a `GtkDrawingArea` with a fixed height request of
+160 px, embedded inside a `GtkFrame "Distribution"` in the multi-select detail
+panel (§11.6).  All drawing uses Cairo.
+
+#### Public interface
+
+```ada
+--  Build the GtkDrawingArea.  Must be called once per multi-select refresh;
+--  the widget handle is stored internally and replaced on each call.
+function Build return Gtk.Drawing_Area.Gtk_Drawing_Area;
+
+--  Store new histogram data and queue a redraw.
+procedure Refresh
+  (Values   : Long_Float_Array;   --  eligible selected sessions' statistics
+   CL       : Long_Float;         --  center-line overlay (solid blue)
+   UCL      : Long_Float;         --  UCL overlay (red dashed); drawn when Has_UCL
+   Has_UCL  : Boolean;
+   LCL      : Long_Float;         --  LCL overlay (red dashed); when Has_LCL and LCL > 0
+   Has_LCL  : Boolean;
+   X_Label  : String;             --  active chart's Y_Axis_Label (x-axis label)
+   Has_Data : Boolean);           --  False -> show "No data for active chart"
+
+--  Bin computation -- exposed for unit testing.
+--  N_Bins uses Freedman-Diaconis: h = 2*IQR/n^(1/3), k = ceil(range/h), capped at 32.
+--  When IQR = 0 falls back to 1 bin.
+--  When all values are equal: N_Bins = 1, Bin_Width = 1.0, Counts(1) = n.
+procedure Compute_Bins
+  (Values    :     Long_Float_Array;
+   N_Bins    : out Positive;
+   Bin_Min   : out Long_Float;
+   Bin_Width : out Long_Float;
+   Counts    : out Bin_Count_Array);
+```
+
+#### Rendering
+
+The `On_Histogram_Draw` callback (connected to the `"draw"` signal) performs
+the following steps in order:
+
+1. **Clear** -- fill background white; fill margin areas light gray
+   (ML=38 px, MR=8 px, MT=8 px, MB=28 px).
+2. **No-data guard** -- if `Has_Data = False` or the value list is empty,
+   render "No data for active chart" centred in the widget and return.
+3. **Compute bins** -- call `Compute_Bins` on the stored value vector.
+4. **Horizontal grid lines** -- light gray dashed lines at y-positions
+   corresponding to counts 0, `max_count/2`, and `max_count`.  Count labels
+   are drawn in the left margin.
+5. **Bars** -- steel blue (`RGB 0.27, 0.51, 0.71`) filled rectangles, one per
+   bin, with a 1 px gap between adjacent bars.
+6. **Axes** -- black y-axis and x-axis lines.
+7. **X-axis ticks** -- three tick marks and labels at `Bin_Min`,
+   `Bin_Min + N_Bins/2 * Bin_Width`, and `Bin_Min + N_Bins * Bin_Width`.
+8. **X-axis label** -- `X_Label` string centred below the tick labels.
+9. **Overlay lines** (drawn last so they overlie the bars):
+   - LCL: red dashed (`4.0, 3.0` dash pattern), 1 px wide.
+   - UCL: red dashed, 1 px wide.
+   - CL: solid blue, 1.5 px wide.
+   - A line is suppressed if its data value falls outside
+     `[Bin_Min - 0.5*Bin_Width, Bin_Min + N_Bins*Bin_Width + 0.5*Bin_Width]`.
+
+#### Refresh triggering
+
+`Refresh_Histogram_If_Multi` (in `Coyote_SQC.UI.Detail_Panel`) is called:
+
+- At the end of `Build_Multi_View`, after the histogram `GtkFrame` is
+  added to the panel.
+- From `Coyote_SQC.UI.Left_Panel.On_Row_Activated`, immediately after
+  `Chart_Canvas.Queue_Redraw`, so that switching charts updates the histogram
+  without rebuilding the detail panel.
+
+
+#### Box-Cox transformation and the histogram
+
+When `Workspace.I_Chart_Box_Cox.Enabled` is `True` and the active chart is one
+of the eight Session Token I/MR kinds, `Refresh_Histogram_If_Multi` passes
+**transformed** values to `Refresh`:
+
+- For I charts: pass `Box_Cox (X_i, Lambda)` for each selected session's total.
+  Pass the transformed-space CL and limits (before back-transform); these are
+  the same values used to compute the chart's limit lines.
+- For MR charts: pass the already-transformed MR values `|Z_i − Z_{i-1}|`
+  directly; limits are already in transformed space.
+- The `X_Label` string gains a suffix: `" (λ=0.31)"` (numeric lambda, always
+  shown as a decimal, even for exact values like 0.0 or 0.5).
+
+For all other chart kinds the `Refresh` call is unchanged.
+
+### 11.10 Tool Call Detail Window — `Coyote_SQC.UI.Tool_Detail_Window`
 
 The tool call detail window is opened when the user clicks a tool call button
 in the Session Replay `GtkTextView` of the single-session detail panel.
@@ -1295,6 +1495,61 @@ simultaneously.
 
 
 ---
+
+
+### 11.11 Workspace Settings Dialog — Box-Cox Section
+
+`Coyote_SQC.UI.Workspace_Settings.Show_Dialog` presents a Box-Cox section below
+the model filter section:
+
+```
+┌─ I/MR Chart Transformation ─────────────────────────────────────────────┐
+│                                                                          │
+│  [✓] Apply Box-Cox transformation to Session Token I/MR charts          │
+│                                                                          │
+│  Lambda (λ):  (●) Estimate from setup interval                          │
+│              ( ) Fixed:  [▼ ln (λ=0) ▼]                                 │
+│                           custom: [____0.00____]                         │
+│                                                                          │
+│  Estimated λ:  0.31  (recomputed when setup interval changes)           │
+│                                                                          │
+│  Note: I chart limits are shown in original (token) units.              │
+│        MR chart y-axis shows values in transformed units.               │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+**Widget details:**
+
+- Top `GtkCheckButton`: enables/disables the transformation. All sub-widgets below
+  are insensitive (`gtk_widget_set_sensitive (widget, False)`) when unchecked.
+- **Auto radio button** (`GtkRadioButton`): "Estimate from setup interval". When
+  selected, `Lambda_Source = Auto`; the fixed-value controls are insensitive.
+- **Fixed radio button** (`GtkRadioButton`): "Fixed". When selected,
+  `Lambda_Source = Fixed`; the combo and spin are sensitive.
+- **Lambda combo** (`GtkComboBoxText`): entries are `"ln (λ=0)"`, `"√ (λ=0.5)"`,
+  `"no transform (λ=1)"`, and `"custom…"`. Selecting a named entry sets
+  `Fixed_Lambda` to 0.0, 0.5, or 1.0 respectively and makes the spin insensitive.
+  Selecting `"custom…"` makes the spin sensitive for direct entry.
+- **Lambda spin** (`GtkSpinButton`): range −2.0 to 2.0, step 0.01, 2 decimal
+  places. Changing the spin value switches the combo to `"custom…"`.
+- **Estimated λ readout** (`GtkLabel`): always visible; shows the currently
+  estimated lambda when `Lambda_Source = Auto`, or is greyed out with `"—"` when
+  `Lambda_Source = Fixed`. The label reads the value from
+  `App_State.Active_Box_Cox_Lambda`; it updates immediately when the lambda source
+  radio button is switched to Auto.
+
+**Lambda re-estimation triggers:** the estimated lambda (and the readout) is
+recomputed whenever:
+- The dialog is opened and `Lambda_Source = Auto`.
+- The user switches the lambda-source radio from Fixed → Auto.
+- The setup interval changes (`Set_as_Setup_Interval` or `Clear_Setup_Interval`)
+  — recomputed silently in `Recompute_Charts` without opening the dialog.
+- Sessions are reloaded (`Reload_Sessions`).
+
+**Dialog lifecycle:** changes take effect only when the user clicks **OK**. Cancel
+discards all pending changes. Clicking OK with a changed `Box_Cox_Config` triggers
+`Recompute_Charts` for all eight I/MR chart kinds, updates
+`App_State.Active_Box_Cox_Lambda`, and queues a canvas redraw.
 
 ## 12. Chart Canvas Implementation
 
@@ -1507,6 +1762,14 @@ The `On_Draw` callback executes these steps in order:
      `YYYY-MM-DD HH:MM`. Tick positions are placed at integer run indices within the
      visible range, with density thinned when the visible index span is large.
 10. **Axis labels:** y-axis label rotated 90° on the left margin; x-axis label below.
+11. **Box-Cox subtitle (I/MR charts only):** when `Workspace.I_Chart_Box_Cox.Enabled`
+    is `True` and the active chart is one of the eight Session Token I/MR kinds,
+    render a small italic annotation in the top-right corner of the plot area
+    (9pt, Cairo `select_font_face` ITALIC, right-aligned 4px from the right margin,
+    4px below the top margin): `"Box-Cox λ = 0.31"` (numeric value from
+    `App_State.Active_Box_Cox_Lambda`, formatted to two decimal places). For the
+    MR chart, append `" (transformed units)"` to the y-axis label in addition to
+    the subtitle. Both annotations are omitted when Box-Cox is disabled.
 
 ### 12.7 Point Marker Colors (Cairo RGB)
 
@@ -1578,6 +1841,38 @@ AUnit test suite covering:
   - I-chart LCL clamped to 0 when formula yields negative.
   - I-chart LCL positive when grand mean is large relative to `Mean_MR`.
   - MR-chart `Has_LCL` always False.
+
+
+**Box-Cox transformation tests (`Coyote_SQC.Tests.Statistics.Box_Cox`):**
+
+- `Box_Cox (x, 0.0)` agrees with `Log (x)` to 1 × 10⁻¹⁰ for `x` in {0.01, 1.0, 100.0, 10000.0}.
+- `Box_Cox (x, 1.0) = x − 1.0` to 1 × 10⁻¹⁰ for the same `x` values.
+- `Box_Cox (x, 0.5) = (Sqrt (x) − 1.0) / 0.5` to 1 × 10⁻¹⁰.
+- Round-trip: `Box_Cox_Inverse (Box_Cox (x, λ), λ) = x` to 1 × 10⁻⁸ for a
+  5 × 5 grid of `x` ∈ {1, 10, 100, 1000, 10000} and `λ` ∈ {−1.0, 0.0, 0.5, 1.0, 2.0}.
+- `Box_Cox (0.0, 0.0)` raises `Constraint_Error`.
+- `Estimate_Lambda` on a 20-sample log-normal dataset (generated by
+  `Exp (Normal_Sample)` for a known normal sequence) returns λ within 0.2 of 0.0.
+- `Estimate_Lambda` on a 20-sample normal dataset (x > 0, already normal) returns
+  λ within 0.2 of 1.0.
+- `Estimate_Lambda` with fewer than 3 values returns 0.0 without raising.
+- I-chart limits with Box-Cox (λ = 0): for a 5-session setup interval with known
+  log-normal token totals, verify that back-transformed UCL and LCL match
+  hand-computed values (`exp(mean_z ± 3*MR_bar_z/d2)`) to 4 decimal places.
+- I-chart with Box-Cox (λ = 0): `Has_LCL` is `False` when the back-transformed
+  LCL formula yields a value ≤ 0 (i.e. when the exponent is negative — which
+  cannot happen for ln-transform since back-transform is `exp(z) > 0`; verify
+  `Has_LCL = True` for the ln case).
+- I-chart with Box-Cox, negative λ asymptote: construct a 5-session setup
+  interval whose token totals, when transformed with λ = −0.5, yield a
+  `UCL_z ≥ 2.0` (the domain ceiling `1/0.5`).  Verify `Has_UCL = False` and
+  that `CL` and `LCL` (when `Has_LCL = True`) are finite positive values
+  equal to `Box_Cox_Inverse (Grand_Mean_z, −0.5)` and
+  `Box_Cox_Inverse (LCL_z, −0.5)` respectively to 4 decimal places.
+- MR-chart with Box-Cox: limits are in transformed space; `Has_LCL = False` always.
+- Zero-session exclusion: a value array containing 0.0 passed to `Box_Cox`
+  raises `Constraint_Error`; `Recompute_Chart` with a session having zero tokens
+  excludes that session and posts a notice without raising.
 
 ### 14.2 Parser Tests — `Coyote_SQC.Tests.Parser`
 
@@ -1651,3 +1946,4 @@ existing AUnit test suite. Fixture files live in `test/fixtures/sqc/`.
 ---
 
 *End of document.*
+Note: Box_Cox_Inverse requires (for λ ≠ 0) that Z*λ + 1 > 0 for any transformed value Z being inverted. If this condition is not met the inverse raises Constraint_Error. When back-transform of UCL or CL fails the implementation must provide a visible explanation (status bar or popup) and one of the documented fallback behaviours: choose an alternate valid lambda, fall back to λ = 0 (log), or render limits in transformed units with a clear label. The application MUST NOT silently omit control limits without notifying the user.

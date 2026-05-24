@@ -144,6 +144,8 @@ One record per Coyote session.
 | `First_User_Message` | Unbounded_String | Full text of the first user message |
 | `Total_Input_Tokens` | Natural | Sum of input tokens across all turns |
 | `Total_Output_Tokens` | Natural | Sum of output tokens across all turns |
+| `Total_Cache_Read_Tokens` | Natural | Sum of cache-read tokens across all turns |
+| `Total_Cache_Write_Tokens` | Natural | Sum of cache-write tokens across all turns |
 | `Turns` | Vector of Turn_Record | Ordered sequence of turns in the session |
 
 ### 4.2 Turn Record
@@ -189,6 +191,8 @@ Derived from a Session_Record. Computed once at load time and cached.
 | `Per_Turn_Thinking_Tokens` | Vector of Natural | Thinking token count per thinking-enabled turn only |
 | `N_Thinking_Turns_For_Chart` | Natural | Count of thinking-enabled turns (denominator for thinking chart) |
 | `N_Tool_Call_Turns_For_Chart` | Natural | Count of tool-call turns (denominator for tool-call token chart) |
+| `Total_Cache_Read_Tokens` | Natural | Total cache-read tokens for the session |
+| `Total_Cache_Write_Tokens` | Natural | Total cache-write tokens for the session |
 
 ### 4.5 Comment Record
 
@@ -214,11 +218,21 @@ Derived from a Session_Record. Computed once at load time and cached.
 
 | Field | Type | Description |
 |---|---|---|
-| `Chart_Type` | Chart_Type enum | Identifies which of the thirteen charts this defines |
+| `Chart_Type` | Chart_Type enum | Identifies which of the seventeen charts this defines |
 
 ---
 
 ## 5. Statistical Methods
+
+### Box-Cox back‑transform safety and UI notification
+
+When Box‑Cox is enabled for an I/MR chart the implementation shall ensure back‑transformability of computed control limits. In particular:
+
+- The lambda estimator shall prefer lambdas that permit valid back‑transformation of the CL and UCL (i.e. Z*λ + 1 > 0 for CL and UCL), or
+- If no such lambda exists the application shall employ a documented deterministic fallback (for example: try the next-best grid lambda that yields invertible limits, or fall back to λ = 0.0) and recompute limits, and in all cases display a clear UI notice describing the fallback, or
+- Render the limits in transformed units (labelled accordingly) and display a clear notice that limits in original units could not be computed.
+
+The application shall never silently omit control limits without notifying the user. A unit/integration test must exercise a dataset that would otherwise disable limits and verify a visible notice or that a deterministic fallback strategy is used.
 
 ### 5.1 General Principles
 
@@ -386,6 +400,55 @@ where `d2 = 1.128` (the standard factor for a moving range of span 2).
 - Sessions are always ordered chronologically for moving-range computation,
   regardless of the x-axis scale mode (Time Scale or Run Sequence).
 
+
+### 5.7 Box-Cox Transformation for I/MR Charts
+
+Token count observations (session input and output totals) are strictly positive
+and typically right-skewed. Applying a Box-Cox transformation before computing I
+and MR chart limits corrects skewness, produces limits that better reflect the
+true process distribution, and reduces false out-of-control signals.
+
+The Box-Cox family is parameterised by λ:
+
+    y(x, λ) = (x^λ − 1) / λ   for λ ≠ 0
+    y(x, 0) = ln(x)            for λ = 0
+
+The transformation applies to all four Session Token charts
+(`Session_Input_Tokens_I`, `Session_Input_Tokens_MR`,
+`Session_Output_Tokens_I`, `Session_Output_Tokens_MR`).
+A single λ is shared across all four charts; it is configured in
+Workspace Settings.
+
+**Lambda source:** λ may be estimated by maximum-likelihood from the
+setup-interval data (auto mode) or specified as a fixed value (fixed mode).
+Common fixed values are 0 (ln), 0.5 (square root), and 1 (identity, no
+transform). Auto-estimation requires at least three setup-interval sessions;
+fewer falls back to λ = 0.
+
+**I chart display:** limits are computed in the transformed space and
+back-transformed to original (token) units for display. The resulting UCL and
+LCL are asymmetric around the center line, reflecting the skewness correction.
+
+**MR chart display:** moving ranges are the absolute differences of
+consecutively transformed values: `MR_i = |y(x_i, λ) − y(x_{i-1}, λ)|`. These
+differences are not meaningfully back-transformable to token units. The MR chart
+y-axis is therefore labelled in transformed units (e.g. "Moving range (ln tokens)")
+when the transformation is active.
+
+**Histogram display:** when Box-Cox is active and an I or MR chart is selected,
+the multi-select distribution histogram shows the transformed value distribution.
+The overlay lines (CL, UCL, LCL) are in the same transformed space.
+
+**Sessions with zero tokens:** any session with a zero total-token count cannot
+be transformed (ln(0) is undefined). Such sessions are excluded from the I and
+MR charts and from λ estimation when transformation is enabled; a status-bar
+notice reports the count of excluded sessions.
+
+**Storage:** the transformation configuration (enabled flag, lambda source, and
+fixed-λ value) is stored in the workspace file. The estimated λ (when using auto
+mode) is a transient runtime value — it is recomputed whenever the setup interval
+changes and is not persisted.
+
 ## 6. Charts
 
 Thirteen charts are available in every workspace. They are pre-instantiated; the user does
@@ -462,7 +525,7 @@ not create or delete charts. All charts share a single workspace-level setup int
 **Measured quantity:** total input tokens for the session (`Total_Input_Tokens`).  
 **Observation:** one scalar value per session; no within-session subgroup.  
 **Statistic:** the session total (x).  
-**Limits:** derived from the mean moving range of the setup interval (§5.6).
+**Limits:** derived from the mean moving range of the setup interval (§5.6). When Box-Cox transformation is enabled (§5.7), limits are computed in the transformed space and back-transformed to original (token) units for display.
 
 ### 6.11 Session Input Tokens — MR Chart
 
@@ -470,14 +533,14 @@ not create or delete charts. All charts share a single workspace-level setup int
 sessions in chronological order.  
 **Statistic:** `MR_i = |Total_Input_Tokens_i − Total_Input_Tokens_{i-1}|`.  
 **First session:** no marker is plotted; a gap is left in the connecting line.  
-**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6).
+**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6). When Box-Cox transformation is enabled (§5.7), moving ranges are differences of transformed values and the y-axis is labelled in transformed units.
 
 ### 6.12 Session Output Tokens — I Chart
 
 **Measured quantity:** total output tokens for the session (`Total_Output_Tokens`).  
 **Observation:** one scalar value per session; no within-session subgroup.  
 **Statistic:** the session total (x).  
-**Limits:** derived from the mean moving range of the setup interval (§5.6).
+**Limits:** derived from the mean moving range of the setup interval (§5.6). When Box-Cox transformation is enabled (§5.7), limits are computed in the transformed space and back-transformed to original (token) units for display.
 
 ### 6.13 Session Output Tokens — MR Chart
 
@@ -485,8 +548,37 @@ sessions in chronological order.
 sessions in chronological order.  
 **Statistic:** `MR_i = |Total_Output_Tokens_i − Total_Output_Tokens_{i-1}|`.  
 **First session:** no marker is plotted; a gap is left in the connecting line.  
-**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6).
+**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6). When Box-Cox transformation is enabled (§5.7), moving ranges are differences of transformed values and the y-axis is labelled in transformed units.
 
+
+
+### 6.14 Session Cache Read Tokens — I Chart
+
+**Measured quantity:** total cache-read tokens for the session (`Total_Cache_Read_Tokens`).
+**Observation:** one scalar value per session; no within-session subgroup.
+**Statistic:** the session total (x).
+**Limits:** derived from the mean moving range of the setup interval (§5.6). When Box-Cox transformation is enabled (§5.7), limits are computed in the transformed space and back-transformed to original (token) units for display.
+
+### 6.15 Session Cache Read Tokens — MR Chart
+
+**Measured quantity:** absolute difference in total cache-read tokens between consecutive sessions in chronological order.
+**Statistic:** `MR_i = |Total_Cache_Read_Tokens_i − Total_Cache_Read_Tokens_{i-1}|`.
+**First session:** no marker is plotted; a gap is left in the connecting line.
+**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6). When Box-Cox transformation is enabled (§5.7), moving ranges are differences of transformed values and the y-axis is labelled in transformed units.
+
+### 6.16 Session Cache Write Tokens — I Chart
+
+**Measured quantity:** total cache-write tokens for the session (`Total_Cache_Write_Tokens`).
+**Observation:** one scalar value per session; no within-session subgroup.
+**Statistic:** the session total (x).
+**Limits:** derived from the mean moving range of the setup interval (§5.6). When Box-Cox transformation is enabled (§5.7), limits are computed in the transformed space and back-transformed to original (token) units for display.
+
+### 6.17 Session Cache Write Tokens — MR Chart
+
+**Measured quantity:** absolute difference in total cache-write tokens between consecutive sessions in chronological order.
+**Statistic:** `MR_i = |Total_Cache_Write_Tokens_i − Total_Cache_Write_Tokens_{i-1}|`.
+**First session:** no marker is plotted; a gap is left in the connecting line.
+**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6). When Box-Cox transformation is enabled (§5.7), moving ranges are differences of transformed values and the y-axis is labelled in transformed units.
 
 ---
 
@@ -503,7 +595,7 @@ The main window contains, from top to bottom:
 
 ### 7.2 Left Panel
 
-A GtkListBox (~180px default width, user-resizable) listing the thirteen charts in three
+A GtkListBox (~180px default width, user-resizable) listing the seventeen charts in three
 visually separated groups:
 
 ```
@@ -528,6 +620,10 @@ Session Input Tokens — I
 Session Input Tokens — MR
 Session Output Tokens — I
 Session Output Tokens — MR
+Session Cache Read Tokens — I
+Session Cache Read Tokens — MR
+Session Cache Write Tokens — I
+Session Cache Write Tokens — MR
 ```
 
 Clicking a row switches the chart displayed in the chart area. The active chart is
@@ -788,9 +884,45 @@ Displayed when two or more points are selected.
 - Count of selected sessions (e.g., "12 sessions selected").
 - Date range of selected sessions (earliest to latest, `YYYY-MM-DD`).
 
+
+**Distribution histogram:**
+- A Cairo-rendered histogram of the active chart's statistic for the selected
+  sessions, placed between the date-range summary and the "Set as Setup
+  Interval" button.
+- Only sessions that are not excluded from the active chart contribute to the
+  histogram (e.g. zero-tool-call sessions on the failure-rate chart are
+  omitted; hollow-gray sessions on thinking charts are omitted).
+- The number of bins is determined by the Freedman-Diaconis rule:
+  `h = 2 × IQR / n^(1/3)`, `k = max(1, ceil(range / h))`, capped at 32,
+  where `n` is the number of contributing selected sessions, IQR is their
+  interquartile range (computed by linear interpolation on the sorted values),
+  and `range = max − min`. When IQR = 0 (all values in the middle 50% are
+  identical), the rule is undefined; the implementation falls back to a single
+  bin covering the full range.
+- Bin width is uniform: `(max_value − min_value) / k`. When all contributing
+  sessions have the same statistic value, a single centred bar is rendered with
+  `Bin_Width = 1.0`.
+- Three vertical overlay lines are drawn:
+  - Center line: solid blue, using the CL value of the first contributing
+    selected point.
+  - UCL: red dashed, drawn only when the chart has a finite UCL for the
+    selected point.
+  - LCL: red dashed, drawn only when the chart has a finite, positive LCL for
+    the selected point.
+  - Overlay lines outside the histogram x-range (± half a bin width) are
+    suppressed.
+- The x-axis is labelled with the active chart's statistic name (the same
+  string used as the y-axis label on the main chart canvas). The y-axis shows
+  "Count" tick labels at 0, max/2, and max.
+- The histogram area height is fixed at 160 px and is not user-resizable.
+- When no contributing session exists for the active chart, the histogram area
+  displays the text "No data for active chart" centred in the widget.
+- The histogram updates automatically whenever the active chart changes (via
+  the left-panel chart selector) or the selection changes.
+
 **Set as Setup Interval button:**
 - Clicking this button sets the workspace setup interval to exactly the selected
-  sessions, applying to all thirteen charts simultaneously.
+  sessions, applying to all seventeen charts simultaneously.
 - If a setup interval is already established, a confirmation dialog is shown:
   "Replace existing setup interval for this workspace?"
 - On confirmation, all charts recompute their limits and recolor the setup interval
@@ -816,7 +948,7 @@ Displayed when two or more points are selected.
 ### 11.1 Establishing a Setup Interval
 
 A setup interval is a single workspace-level set of sessions used to estimate the
-center line and control limits for all thirteen charts simultaneously. It is established
+center line and control limits for all seventeen charts simultaneously. It is established
 by selecting one or more sessions (Section 9) and clicking "Set as Setup Interval"
 in the multi-select detail panel (Section 10.2). There is no requirement for the
 setup sessions to be contiguous in time.
@@ -825,11 +957,11 @@ setup sessions to be contiguous in time.
 
 The setup interval is stored as a set of session UUIDs in the `Setup_Session_Ids`
 field of the `Workspace_Record`. It is workspace-level: a single setup interval
-applies to all thirteen charts. The set is stored within the workspace file.
+applies to all seventeen charts. The set is stored within the workspace file.
 
 ### 11.3 Visual Representation
 
-Setup interval sessions are rendered with filled yellow markers on all thirteen charts.
+Setup interval sessions are rendered with filled yellow markers on all seventeen charts.
 A faint yellow vertical band spans the x-extent of the setup interval sessions on
 every chart.
 

@@ -25,6 +25,7 @@ with LLM_Compaction_Tests;
 with Coyote_SQC_Statistics_Tests;
 with Coyote_SQC_Parser_Tests;
 with Coyote_SQC_Workspace_Tests;
+with Coyote_SQC_Histogram_Tests;
 with LLM_SSE_Tests;
 with LLM_Tools_Tests;
 with LLM_OpenAI_Completions_Tests;
@@ -122,6 +123,8 @@ package body Test_Suites is
      new AUnit.Test_Caller (Coyote_SQC_Parser_Tests.Test);
    package SQC_Workspace_Caller is
      new AUnit.Test_Caller (Coyote_SQC_Workspace_Tests.Test);
+   package SQC_Histogram_Caller is
+     new AUnit.Test_Caller (Coyote_SQC_Histogram_Tests.Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
@@ -1520,6 +1523,244 @@ package body Test_Suites is
          LLM_Auth_Tests
            .Test_Refresh_Token_Missing_Expires_At_Field_Raises'Access));
 
+      --  Coyote_SQC statistics tests
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: c4(n) matches ASTM E2587 Table 1 reference values",
+         Coyote_SQC_Statistics_Tests.Test_C4_Known_Values'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: c4(101) approximation within 0.1% of exact value",
+         Coyote_SQC_Statistics_Tests.Test_C4_Approximation'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: c4(1) raises Constraint_Error",
+         Coyote_SQC_Statistics_Tests.Test_C4_N1_Raises'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: Xbar limits well-formed for n > 1",
+         Coyote_SQC_Statistics_Tests.Test_Xbar_Limits_Basic'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: Xbar n=1 returns Undefined",
+         Coyote_SQC_Statistics_Tests.Test_Xbar_N1_Undefined'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC stats: Xbar Pooled_S=0 returns Undefined ; Has_UCL and Has_LCL both False",
+         Coyote_SQC_Statistics_Tests.Test_Xbar_Pooled_S_Zero'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: s chart limits well-formed for n > 1",
+         Coyote_SQC_Statistics_Tests.Test_S_Chart_Limits_Basic'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: s chart n=1 returns Undefined",
+         Coyote_SQC_Statistics_Tests.Test_S_Chart_N1_Undefined'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC stats: S_Chart Pooled_S=0 returns Undefined",
+         Coyote_SQC_Statistics_Tests.Test_S_Chart_Pooled_S_Zero'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: s chart LCL clamped to 0 for n=2",
+         Coyote_SQC_Statistics_Tests.Test_S_Chart_LCL_Clamped'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: p chart limits well-formed for N > 0",
+         Coyote_SQC_Statistics_Tests.Test_P_Chart_Limits_Basic'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: p chart N=0 returns Undefined",
+         Coyote_SQC_Statistics_Tests.Test_P_Chart_N0_Undefined'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: p chart LCL clamped to 0 when formula yields negative",
+         Coyote_SQC_Statistics_Tests.Test_P_Chart_LCL_Clamped'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: Estimate_Parameters grand mean and pooled s (Xbar/s)",
+         Coyote_SQC_Statistics_Tests.Test_Estimate_Xbar_S'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC §14.1: 5-session varying-n dataset UCL/CL/LCL to 4 dp",
+         Coyote_SQC_Statistics_Tests.Test_Xbar_Known_Dataset'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC §14.1: 4-session p-chart dataset UCL/CL/LCL to 4 dp",
+         Coyote_SQC_Statistics_Tests.Test_P_Chart_Known_Dataset'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: Estimate_Parameters grand p (p chart)",
+         Coyote_SQC_Statistics_Tests.Test_Estimate_P_Chart'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: Estimate_Parameters all n=1 sessions -> Pooled_S = 0",
+         Coyote_SQC_Statistics_Tests.Test_Estimate_N1_Only'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC §14.1 special: n=1 contributes to grand mean, not pooled s",
+         Coyote_SQC_Statistics_Tests.Test_N1_Excluded_From_Pooled_S'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: Estimate_Parameters excludes zero-thinking sessions",
+         Coyote_SQC_Statistics_Tests.Test_Estimate_Zero_Thinking'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC §14.3: Estimate_Parameters excludes zero-tool-call sessions",
+         Coyote_SQC_Statistics_Tests.Test_Estimate_Zero_Tool_Calls'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC §14.4: Per_Turn_Tool_Tokens records output tokens for tool-call turns",
+         Coyote_SQC_Statistics_Tests.Test_Tool_Call_Token_Values'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: I chart limits well-formed for Mean_MR > 0",
+         Coyote_SQC_Statistics_Tests.Test_I_Chart_Limits_Basic'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: I chart LCL positive when grand mean sufficiently large",
+         Coyote_SQC_Statistics_Tests.Test_I_Chart_LCL_Positive'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: I chart Mean_MR=0 returns Undefined",
+         Coyote_SQC_Statistics_Tests.Test_I_Chart_Mean_MR_Zero'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: I chart LCL clamped to 0 when formula yields negative",
+         Coyote_SQC_Statistics_Tests.Test_I_Chart_LCL_Clamped'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: MR chart limits well-formed for Mean_MR > 0",
+         Coyote_SQC_Statistics_Tests.Test_MR_Chart_Limits_Basic'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: MR chart Mean_MR=0 returns Undefined",
+         Coyote_SQC_Statistics_Tests.Test_MR_Chart_Mean_MR_Zero'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: Estimate_Parameters grand mean and Mean_MR (I chart, input tokens)",
+         Coyote_SQC_Statistics_Tests.Test_Estimate_I_Chart_Input'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: Estimate_Parameters single-session setup -> Mean_MR = 0",
+         Coyote_SQC_Statistics_Tests.Test_Estimate_I_Chart_Single'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Box_Cox ln identity",
+         Coyote_SQC_Statistics_Tests.Test_Box_Cox_Ln_Identity'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Box_Cox lambda=1 identity",
+         Coyote_SQC_Statistics_Tests.Test_Box_Cox_Lambda_One'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Box_Cox round-trip",
+         Coyote_SQC_Statistics_Tests.Test_Box_Cox_Round_Trip'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Box_Cox zero raises Constraint_Error",
+         Coyote_SQC_Statistics_Tests.Test_Box_Cox_Zero_Raises'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Estimate_Lambda with few observations returns 0",
+         Coyote_SQC_Statistics_Tests.Test_Estimate_Lambda_Few_Obs'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("I chart Box-Cox ln: back-transformed limits",
+         Coyote_SQC_Statistics_Tests.Test_I_Limits_Box_Cox_Ln'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Box-Cox MR: differences of transformed values",
+         Coyote_SQC_Statistics_Tests.Test_Box_Cox_MR_Transformed'Access));
+      --  Coyote_SQC parser tests
+      Result.Add_Test (SQC_Parser_Caller.Create
+        ("SQC: v3 session ID parsed correctly",
+         Coyote_SQC_Parser_Tests.Test_V3_Session_Id'Access));
+      Result.Add_Test (SQC_Parser_Caller.Create
+        ("SQC: v3 turn count correct",
+         Coyote_SQC_Parser_Tests.Test_V3_Turn_Count'Access));
+      Result.Add_Test (SQC_Parser_Caller.Create
+        ("SQC: v3 model is last model_change",
+         Coyote_SQC_Parser_Tests.Test_V3_Model'Access));
+      Result.Add_Test (SQC_Parser_Caller.Create
+        ("SQC: v3 first user message extracted",
+         Coyote_SQC_Parser_Tests.Test_V3_First_User_Message'Access));
+      Result.Add_Test (SQC_Parser_Caller.Create
+        ("SQC: v3 tool failure flags set correctly",
+         Coyote_SQC_Parser_Tests.Test_V3_Tool_Failure_Flags'Access));
+      Result.Add_Test (SQC_Parser_Caller.Create
+        ("SQC §14.2: multi-tool turn N_Tool_Calls=2, N_Failed_Tool_Calls=1",
+         Coyote_SQC_Parser_Tests.Test_Multi_Tool_Metrics'Access));
+      Result.Add_Test (SQC_Parser_Caller.Create
+        ("SQC: v3 source directory parsed from cwd",
+         Coyote_SQC_Parser_Tests.Test_V3_Source_Directory'Access));
+      Result.Add_Test (SQC_Parser_Caller.Create
+        ("SQC: v1 legacy session ID parsed correctly",
+         Coyote_SQC_Parser_Tests.Test_V1_Session_Id'Access));
+      Result.Add_Test (SQC_Parser_Caller.Create
+        ("SQC: v1 source directory parsed from workDir",
+         Coyote_SQC_Parser_Tests.Test_V1_Source_Directory'Access));
+      Result.Add_Test (SQC_Parser_Caller.Create
+        ("SQC: v1 [Model -> ...] prefix stripped from first user message",
+         Coyote_SQC_Parser_Tests.Test_V1_Prompt_Prefix_Strip'Access));
+      Result.Add_Test (SQC_Parser_Caller.Create
+        ("SQC: v1 session turn count is 1",
+         Coyote_SQC_Parser_Tests.Test_V1_Turn_Count'Access));
+      Result.Add_Test (SQC_Parser_Caller.Create
+        ("SQC: v1 start time year is 2025 (createdAt ms -> UTC conversion)",
+         Coyote_SQC_Parser_Tests.Test_V1_Start_Time'Access));
+      Result.Add_Test (SQC_Parser_Caller.Create
+        ("SQC: v1 session model is empty when no model_change present",
+         Coyote_SQC_Parser_Tests.Test_V1_Model'Access));
+      Result.Add_Test (SQC_Parser_Caller.Create
+        ("SQC: v1 session has no tool calls (failure flags empty)",
+         Coyote_SQC_Parser_Tests.Test_V1_Tool_Call_Flags'Access));
+      Result.Add_Test (SQC_Parser_Caller.Create
+        ("SQC: v3 start time year parsed correctly (UTC conversion)",
+         Coyote_SQC_Parser_Tests.Test_V3_Start_Time'Access));
+      Result.Add_Test (SQC_Parser_Caller.Create
+        ("SQC: thinking_tokens field parsed correctly",
+         Coyote_SQC_Parser_Tests.Test_Thinking_Tokens'Access));
+      Result.Add_Test (SQC_Parser_Caller.Create
+        ("SQC: Thinking_Enabled set for thinking block",
+         Coyote_SQC_Parser_Tests.Test_Thinking_Enabled'Access));
+      Result.Add_Test (SQC_Parser_Caller.Create
+        ("SQC: Thinking_Tokens=0 when field absent (backward compat)",
+         Coyote_SQC_Parser_Tests.Test_Thinking_Absent'Access));
+      Result.Add_Test (SQC_Parser_Caller.Create
+        ("SQC: Thinking_Tokens estimated from text length when usage field absent",
+         Coyote_SQC_Parser_Tests.Test_Thinking_Text_Estimate'Access));
+      Result.Add_Test (SQC_Parser_Caller.Create
+        ("SQC: tool-call Input_Tokens and Output_Tokens estimated from args and result text",
+         Coyote_SQC_Parser_Tests.Test_Tool_Call_Token_Estimates'Access));
+      Result.Add_Test (SQC_Parser_Caller.Create
+        ("SQC: both pre- and post-compaction turns counted",
+         Coyote_SQC_Parser_Tests.Test_Compaction_All_Turns'Access));
+      Result.Add_Test (SQC_Parser_Caller.Create
+        ("SQC: Encode_Cwd absolute path",
+         Coyote_SQC_Parser_Tests.Test_Encode_Cwd_Absolute'Access));
+      Result.Add_Test (SQC_Parser_Caller.Create
+        ("SQC: Encode_Cwd relative path",
+         Coyote_SQC_Parser_Tests.Test_Encode_Cwd_Relative'Access));
+      Result.Add_Test (SQC_Parser_Caller.Create
+        ("SQC §5.9: interior whitespace collapsed to single space",
+         Coyote_SQC_Parser_Tests.Test_Whitespace_Collapse'Access));
+      --  Coyote_SQC workspace tests
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("SQC: workspace round-trip serialisation",
+         Coyote_SQC_Workspace_Tests.Test_Round_Trip'Access));
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("SQC: workspace version > 2 raises Workspace_Error",
+         Coyote_SQC_Workspace_Tests.Test_Version_Too_High'Access));
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("SQC: workspace missing version loads without error",
+         Coyote_SQC_Workspace_Tests.Test_Missing_Version'Access));
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("SQC: duplicate setup session IDs are deduplicated on load",
+         Coyote_SQC_Workspace_Tests.Test_UUID_Deduplication'Access));
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("SQC: New_UUID returns valid RFC 4122 v4 format",
+         Coyote_SQC_Workspace_Tests.Test_New_UUID_Format'Access));
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("SQC: New_UUID returns unique values",
+         Coyote_SQC_Workspace_Tests.Test_New_UUID_Unique'Access));
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("Box-Cox config round-trip",
+         Coyote_SQC_Workspace_Tests.Test_Box_Cox_Round_Trip'Access));
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("v1 workspace loads with Box-Cox disabled",
+         Coyote_SQC_Workspace_Tests.Test_V1_Loads_Box_Cox_Disabled'Access));
+      --  Coyote_SQC histogram bin computation tests
+      Result.Add_Test (SQC_Histogram_Caller.Create
+        ("SQC histogram: n=2 uniform: FD gives 2 bins",
+         Coyote_SQC_Histogram_Tests.Test_Bins_N2'Access));
+      Result.Add_Test (SQC_Histogram_Caller.Create
+        ("SQC histogram: n=8 uniform: FD gives 2 bins",
+         Coyote_SQC_Histogram_Tests.Test_Bins_N8'Access));
+      Result.Add_Test (SQC_Histogram_Caller.Create
+        ("SQC histogram: n=100 uniform: FD gives 5 bins",
+         Coyote_SQC_Histogram_Tests.Test_Bins_N100'Access));
+      Result.Add_Test (SQC_Histogram_Caller.Create
+        ("SQC histogram: IQR=0 falls back to single bin",
+         Coyote_SQC_Histogram_Tests.Test_FD_IQR_Zero'Access));
+      Result.Add_Test (SQC_Histogram_Caller.Create
+        ("SQC histogram: bin totals equal input length",
+         Coyote_SQC_Histogram_Tests.Test_Bins_Uniform'Access));
+      Result.Add_Test (SQC_Histogram_Caller.Create
+        ("SQC histogram: minimum value in bin 1",
+         Coyote_SQC_Histogram_Tests.Test_Bins_All_In_First'Access));
+      Result.Add_Test (SQC_Histogram_Caller.Create
+        ("SQC histogram: maximum value clamped to last bin",
+         Coyote_SQC_Histogram_Tests.Test_Bins_All_In_Last'Access));
+      Result.Add_Test (SQC_Histogram_Caller.Create
+        ("SQC histogram: all-equal values -> N_Bins=1, Bin_Width=1.0",
+         Coyote_SQC_Histogram_Tests.Test_Bins_All_Equal'Access));
+      Result.Add_Test (SQC_Histogram_Caller.Create
+        ("SQC histogram: n=1 -> N_Bins=1, Bin_Min=value",
+         Coyote_SQC_Histogram_Tests.Test_Bins_N1'Access));
       --  LLM.Providers.GitHub_Copilot.Catalogue tests
       Result.Add_Test (LLM_Catalogue_Caller.Create
         ("LLM.Catalogue loads and parses a fresh cached Copilot model list",
@@ -1841,189 +2082,6 @@ package body Test_Suites is
         ("LLM.Agent Request_Abort while paused exits with Was_Aborted",
          LLM_Agent_Tests.Test_Stop_While_Paused'Access));
 
-      --  Coyote_SQC statistics tests
-      Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC: c4(n) matches ASTM E2587 Table 1 reference values",
-         Coyote_SQC_Statistics_Tests.Test_C4_Known_Values'Access));
-      Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC: c4(101) approximation within 0.1% of exact value",
-         Coyote_SQC_Statistics_Tests.Test_C4_Approximation'Access));
-      Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC: c4(1) raises Constraint_Error",
-         Coyote_SQC_Statistics_Tests.Test_C4_N1_Raises'Access));
-      Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC: Xbar limits well-formed for n > 1",
-         Coyote_SQC_Statistics_Tests.Test_Xbar_Limits_Basic'Access));
-      Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC: Xbar n=1 returns Undefined",
-         Coyote_SQC_Statistics_Tests.Test_Xbar_N1_Undefined'Access));
-      Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC stats: Xbar Pooled_S=0 returns Undefined ; Has_UCL and Has_LCL both False",
-         Coyote_SQC_Statistics_Tests.Test_Xbar_Pooled_S_Zero'Access));
-      Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC: s chart limits well-formed for n > 1",
-         Coyote_SQC_Statistics_Tests.Test_S_Chart_Limits_Basic'Access));
-      Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC: s chart n=1 returns Undefined",
-         Coyote_SQC_Statistics_Tests.Test_S_Chart_N1_Undefined'Access));
-      Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC stats: S_Chart Pooled_S=0 returns Undefined",
-         Coyote_SQC_Statistics_Tests.Test_S_Chart_Pooled_S_Zero'Access));
-      Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC: s chart LCL clamped to 0 for n=2",
-         Coyote_SQC_Statistics_Tests.Test_S_Chart_LCL_Clamped'Access));
-      Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC: p chart limits well-formed for N > 0",
-         Coyote_SQC_Statistics_Tests.Test_P_Chart_Limits_Basic'Access));
-      Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC: p chart N=0 returns Undefined",
-         Coyote_SQC_Statistics_Tests.Test_P_Chart_N0_Undefined'Access));
-      Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC: p chart LCL clamped to 0 when formula yields negative",
-         Coyote_SQC_Statistics_Tests.Test_P_Chart_LCL_Clamped'Access));
-      Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC: Estimate_Parameters grand mean and pooled s (Xbar/s)",
-         Coyote_SQC_Statistics_Tests.Test_Estimate_Xbar_S'Access));
-      Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC §14.1: 5-session varying-n dataset UCL/CL/LCL to 4 dp",
-         Coyote_SQC_Statistics_Tests.Test_Xbar_Known_Dataset'Access));
-      Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC §14.1: 4-session p-chart dataset UCL/CL/LCL to 4 dp",
-         Coyote_SQC_Statistics_Tests.Test_P_Chart_Known_Dataset'Access));
-      Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC: Estimate_Parameters grand p (p chart)",
-         Coyote_SQC_Statistics_Tests.Test_Estimate_P_Chart'Access));
-      Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC: Estimate_Parameters all n=1 sessions -> Pooled_S = 0",
-         Coyote_SQC_Statistics_Tests.Test_Estimate_N1_Only'Access));
-      Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC §14.1 special: n=1 contributes to grand mean, not pooled s",
-         Coyote_SQC_Statistics_Tests.Test_N1_Excluded_From_Pooled_S'Access));
-      Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC: Estimate_Parameters excludes zero-thinking sessions",
-         Coyote_SQC_Statistics_Tests.Test_Estimate_Zero_Thinking'Access));
-      Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC §14.3: Estimate_Parameters excludes zero-tool-call sessions",
-         Coyote_SQC_Statistics_Tests.Test_Estimate_Zero_Tool_Calls'Access));
-      Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC §14.4: Per_Turn_Tool_Tokens records output tokens for tool-call turns",
-         Coyote_SQC_Statistics_Tests.Test_Tool_Call_Token_Values'Access));
-      Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC: I chart limits well-formed for Mean_MR > 0",
-         Coyote_SQC_Statistics_Tests.Test_I_Chart_Limits_Basic'Access));
-      Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC: I chart LCL positive when grand mean sufficiently large",
-         Coyote_SQC_Statistics_Tests.Test_I_Chart_LCL_Positive'Access));
-      Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC: I chart Mean_MR=0 returns Undefined",
-         Coyote_SQC_Statistics_Tests.Test_I_Chart_Mean_MR_Zero'Access));
-      Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC: I chart LCL clamped to 0 when formula yields negative",
-         Coyote_SQC_Statistics_Tests.Test_I_Chart_LCL_Clamped'Access));
-      Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC: MR chart limits well-formed for Mean_MR > 0",
-         Coyote_SQC_Statistics_Tests.Test_MR_Chart_Limits_Basic'Access));
-      Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC: MR chart Mean_MR=0 returns Undefined",
-         Coyote_SQC_Statistics_Tests.Test_MR_Chart_Mean_MR_Zero'Access));
-      Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC: Estimate_Parameters grand mean and Mean_MR (I chart, input tokens)",
-         Coyote_SQC_Statistics_Tests.Test_Estimate_I_Chart_Input'Access));
-      Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC: Estimate_Parameters single-session setup -> Mean_MR = 0",
-         Coyote_SQC_Statistics_Tests.Test_Estimate_I_Chart_Single'Access));
-      --  Coyote_SQC parser tests
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: v3 session ID parsed correctly",
-         Coyote_SQC_Parser_Tests.Test_V3_Session_Id'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: v3 turn count correct",
-         Coyote_SQC_Parser_Tests.Test_V3_Turn_Count'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: v3 model is last model_change",
-         Coyote_SQC_Parser_Tests.Test_V3_Model'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: v3 first user message extracted",
-         Coyote_SQC_Parser_Tests.Test_V3_First_User_Message'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: v3 tool failure flags set correctly",
-         Coyote_SQC_Parser_Tests.Test_V3_Tool_Failure_Flags'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC §14.2: multi-tool turn N_Tool_Calls=2, N_Failed_Tool_Calls=1",
-         Coyote_SQC_Parser_Tests.Test_Multi_Tool_Metrics'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: v3 source directory parsed from cwd",
-         Coyote_SQC_Parser_Tests.Test_V3_Source_Directory'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: v1 legacy session ID parsed correctly",
-         Coyote_SQC_Parser_Tests.Test_V1_Session_Id'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: v1 source directory parsed from workDir",
-         Coyote_SQC_Parser_Tests.Test_V1_Source_Directory'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: v1 [Model -> ...] prefix stripped from first user message",
-         Coyote_SQC_Parser_Tests.Test_V1_Prompt_Prefix_Strip'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: v1 session turn count is 1",
-         Coyote_SQC_Parser_Tests.Test_V1_Turn_Count'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: v1 start time year is 2025 (createdAt ms -> UTC conversion)",
-         Coyote_SQC_Parser_Tests.Test_V1_Start_Time'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: v1 session model is empty when no model_change present",
-         Coyote_SQC_Parser_Tests.Test_V1_Model'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: v1 session has no tool calls (failure flags empty)",
-         Coyote_SQC_Parser_Tests.Test_V1_Tool_Call_Flags'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: v3 start time year parsed correctly (UTC conversion)",
-         Coyote_SQC_Parser_Tests.Test_V3_Start_Time'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: thinking_tokens field parsed correctly",
-         Coyote_SQC_Parser_Tests.Test_Thinking_Tokens'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: Thinking_Enabled set for thinking block",
-         Coyote_SQC_Parser_Tests.Test_Thinking_Enabled'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: Thinking_Tokens=0 when field absent (backward compat)",
-         Coyote_SQC_Parser_Tests.Test_Thinking_Absent'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: Thinking_Tokens estimated from text length when usage field absent",
-         Coyote_SQC_Parser_Tests.Test_Thinking_Text_Estimate'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: tool-call Input_Tokens and Output_Tokens estimated from args and result text",
-         Coyote_SQC_Parser_Tests.Test_Tool_Call_Token_Estimates'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: both pre- and post-compaction turns counted",
-         Coyote_SQC_Parser_Tests.Test_Compaction_All_Turns'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: Encode_Cwd absolute path",
-         Coyote_SQC_Parser_Tests.Test_Encode_Cwd_Absolute'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC: Encode_Cwd relative path",
-         Coyote_SQC_Parser_Tests.Test_Encode_Cwd_Relative'Access));
-      Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC §5.9: interior whitespace collapsed to single space",
-         Coyote_SQC_Parser_Tests.Test_Whitespace_Collapse'Access));
-      --  Coyote_SQC workspace tests
-      Result.Add_Test (SQC_Workspace_Caller.Create
-        ("SQC: workspace round-trip serialisation",
-         Coyote_SQC_Workspace_Tests.Test_Round_Trip'Access));
-      Result.Add_Test (SQC_Workspace_Caller.Create
-        ("SQC: workspace version > 1 raises Workspace_Error",
-         Coyote_SQC_Workspace_Tests.Test_Version_Too_High'Access));
-      Result.Add_Test (SQC_Workspace_Caller.Create
-        ("SQC: workspace missing version loads without error",
-         Coyote_SQC_Workspace_Tests.Test_Missing_Version'Access));
-      Result.Add_Test (SQC_Workspace_Caller.Create
-        ("SQC: duplicate setup session IDs are deduplicated on load",
-         Coyote_SQC_Workspace_Tests.Test_UUID_Deduplication'Access));
-      Result.Add_Test (SQC_Workspace_Caller.Create
-        ("SQC: New_UUID returns valid RFC 4122 v4 format",
-         Coyote_SQC_Workspace_Tests.Test_New_UUID_Format'Access));
-      Result.Add_Test (SQC_Workspace_Caller.Create
-        ("SQC: New_UUID returns unique values",
-         Coyote_SQC_Workspace_Tests.Test_New_UUID_Unique'Access));
       return Result;
    end Suite;
 

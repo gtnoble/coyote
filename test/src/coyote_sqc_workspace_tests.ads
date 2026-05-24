@@ -16,4 +16,7 @@ package Coyote_SQC_Workspace_Tests is
    procedure Test_New_UUID_Format     (T : in out Test);
    procedure Test_New_UUID_Unique     (T : in out Test);
 
+   procedure Test_Box_Cox_Round_Trip         (T : in out Test);
+   procedure Test_V1_Loads_Box_Cox_Disabled  (T : in out Test);
+
 end Coyote_SQC_Workspace_Tests;

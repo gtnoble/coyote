@@ -103,6 +103,34 @@ package body Coyote_SQC.Charts is
                Y_Axis_Label => U ("Moving range (output tokens)"),
                Is_P_Chart   => False,
                Is_I_Chart   => True);
+         when Session_Cache_Read_Tokens_I =>
+            return
+              (Label        => U ("Session Cache Read Tokens -- I"),
+               Group        => U ("Session Totals"),
+               Y_Axis_Label => U ("Total cache-read tokens"),
+               Is_P_Chart   => False,
+               Is_I_Chart   => True);
+         when Session_Cache_Read_Tokens_MR =>
+            return
+              (Label        => U ("Session Cache Read Tokens -- MR"),
+               Group        => U ("Session Totals"),
+               Y_Axis_Label => U ("Moving range (cache-read tokens)"),
+               Is_P_Chart   => False,
+               Is_I_Chart   => True);
+         when Session_Cache_Write_Tokens_I =>
+            return
+              (Label        => U ("Session Cache Write Tokens -- I"),
+               Group        => U ("Session Totals"),
+               Y_Axis_Label => U ("Total cache-write tokens"),
+               Is_P_Chart   => False,
+               Is_I_Chart   => True);
+         when Session_Cache_Write_Tokens_MR =>
+            return
+              (Label        => U ("Session Cache Write Tokens -- MR"),
+               Group        => U ("Session Totals"),
+               Y_Axis_Label => U ("Moving range (cache-write tokens)"),
+               Is_P_Chart   => False,
+               Is_I_Chart   => True);
       end case;
    end Properties;
 

@@ -6,6 +6,7 @@ with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
 with Coyote_SQC.App;
 with Coyote_SQC.Charts;
 with Coyote_SQC.UI.Chart_Canvas;
+with Coyote_SQC.UI.Detail_Panel;
 with Glib;                   use Glib;
 with Gtk.Enums;
 with Gtk.Label;
@@ -50,6 +51,7 @@ package body Coyote_SQC.UI.Left_Panel is
          --  Recompute y-fit for the new chart.
          Coyote_SQC.App.Y_Fit;
          Coyote_SQC.UI.Chart_Canvas.Queue_Redraw;
+         Coyote_SQC.UI.Detail_Panel.Refresh_Histogram_If_Multi;
       end if;
    end On_Row_Activated;
 

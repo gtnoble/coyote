@@ -9,7 +9,7 @@ package Coyote_SQC.Workspace is
    Workspace_Error : exception;
 
    --  Load a workspace from a .sqcw JSON file.
-   --  Raises Workspace_Error on version > 1 or file I/O failure.
+   --  Raises Workspace_Error on version > 2 or file I/O failure.
    procedure Load
      (Path      :     String;
       Workspace     : out Coyote_SQC.Data_Model.Workspace_Record;

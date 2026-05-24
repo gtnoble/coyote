@@ -676,6 +676,50 @@ package body Coyote_SQC.UI.Chart_Canvas is
                  ML + PW / 2.0 - 12.0,
                  MB + 35.0,
                  "Date");
+
+      --  ── 11. Box-Cox subtitle (I/MR charts only) ─────────────────────
+      --  Lambda symbol UTF-8: U+03BB = 0xCE 0xBB.
+      if Props.Is_I_Chart
+        and then CD.Box_Cox_Active
+      then
+         declare
+            Lambda_Sym : constant String :=
+              (1 => Character'Val (16#CE#),
+               2 => Character'Val (16#BB#));
+            function Format_Lambda (V : Long_Float) return String is
+               use Ada.Strings.Fixed;
+               IV : constant Long_Long_Integer :=
+                 Long_Long_Integer
+                   (Long_Float'Rounding (abs V * 100.0));
+            begin
+               return (if V < 0.0 then "-" else "")
+                 & Trim (Long_Long_Integer'Image (IV / 100),
+                         Ada.Strings.Left)
+                 & "."
+                 & (if IV mod 100 < 10 then "0" else "")
+                 & Trim (Long_Long_Integer'Image (IV mod 100),
+                         Ada.Strings.Left);
+            end Format_Lambda;
+            Lam_Str  : constant String :=
+              Format_Lambda (CD.Box_Cox_Lambda);
+            Subtitle : constant String :=
+              "Box-Cox " & Lambda_Sym & " = " & Lam_Str;
+         begin
+            Cairo.Save (Cr);
+            Cairo.Select_Font_Face
+              (Cr, "Sans",
+               Cairo.Cairo_Font_Slant_Italic,
+               Cairo.Cairo_Font_Weight_Normal);
+            Cairo.Set_Font_Size (Cr, 9.0);
+            Set_Color (Cr, 0.3, 0.3, 0.3, 1.0);
+            --  Right-align in top-right corner; fixed offset.
+            Draw_Text (Cr, MR - 110.0, MT + 13.0, Subtitle);
+            Cairo.Restore (Cr);
+         end;
+      end if;
+
+
+
       return False;
    end On_Draw;
 

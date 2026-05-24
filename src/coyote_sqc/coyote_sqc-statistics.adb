@@ -182,6 +182,10 @@ package body Coyote_SQC.Statistics is
 
             when Session_Output_Tokens_I | Session_Output_Tokens_MR =>
                Accumulate_I (Long_Float (M.Total_Output_Tokens));
+            when Session_Cache_Read_Tokens_I | Session_Cache_Read_Tokens_MR =>
+               Accumulate_I (Long_Float (M.Total_Cache_Read_Tokens));
+            when Session_Cache_Write_Tokens_I | Session_Cache_Write_Tokens_MR =>
+               Accumulate_I (Long_Float (M.Total_Cache_Write_Tokens));
 
          end case;
 
@@ -209,7 +213,9 @@ package body Coyote_SQC.Statistics is
             end if;
 
          when Session_Input_Tokens_I  | Session_Input_Tokens_MR
-            | Session_Output_Tokens_I | Session_Output_Tokens_MR =>
+            | Session_Output_Tokens_I | Session_Output_Tokens_MR
+            | Session_Cache_Read_Tokens_I  | Session_Cache_Read_Tokens_MR
+            | Session_Cache_Write_Tokens_I | Session_Cache_Write_Tokens_MR =>
             if Total_N > 0.0 then
                Parameters.Grand_Mean := Total_Weighted_Mean / Total_N;
             end if;

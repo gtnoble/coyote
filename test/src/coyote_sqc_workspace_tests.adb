@@ -114,7 +114,7 @@ package body Coyote_SQC_Workspace_Tests is
       end;
 
       Ada.Directories.Delete_File (Path);
-      Assert (Raised, "Load should raise Workspace_Error for version > 1");
+      Assert (Raised, "Load should raise Workspace_Error for version > 2");
    end Test_Version_Too_High;
 
    --  ── Missing version ───────────────────────────────────────────────────
@@ -204,5 +204,74 @@ package body Coyote_SQC_Workspace_Tests is
    begin
       Assert (ID1 /= ID2, "Two New_UUID calls should not return the same value");
    end Test_New_UUID_Unique;
+
+
+   --  ── Box-Cox configuration round-trip ──────────────────────────────────
+
+   --  Saving a workspace with Box-Cox enabled (auto) and loading it back
+   --  should preserve all fields exactly.
+   procedure Test_Box_Cox_Round_Trip (T : in out Test) is
+      pragma Unreferenced (T);
+      Path  : constant String :=
+        Ada.Directories.Current_Directory
+        & "/fixtures/sqc/tmp_bc_roundtrip.sqcw";
+      W_Out : Workspace_Record;
+      W_In  : Workspace_Record;
+   begin
+      W_Out.Workspace_Id := To_Unbounded_String ("bc-ws-001");
+      W_Out.Name         := To_Unbounded_String ("BC Test Workspace");
+      W_Out.I_Chart_Box_Cox :=
+        (Enabled       => True,
+         Lambda_Source => Coyote_SQC.Data_Model.Fixed,
+         Fixed_Lambda  => 0.31);
+
+      Coyote_SQC.Workspace.Save (Path, W_Out);
+      declare VF_Unused : Natural;
+      begin
+         Coyote_SQC.Workspace.Load (Path, W_In, VF_Unused);
+      end;
+      Ada.Directories.Delete_File (Path);
+
+      Assert
+        (W_In.I_Chart_Box_Cox.Enabled,
+         "Box_Cox.Enabled should be True after round-trip");
+      Assert
+        (W_In.I_Chart_Box_Cox.Lambda_Source =
+           Coyote_SQC.Data_Model.Fixed,
+         "Lambda_Source should be Fixed after round-trip");
+      Assert
+        (abs (W_In.I_Chart_Box_Cox.Fixed_Lambda - 0.31) < 0.001,
+         "Fixed_Lambda should be 0.31 after round-trip; got "
+         & Long_Float'Image (W_In.I_Chart_Box_Cox.Fixed_Lambda));
+   end Test_Box_Cox_Round_Trip;
+
+   --  Loading a v1 workspace (no iChartBoxCox field) should give
+   --  Box-Cox disabled by default.
+   procedure Test_V1_Loads_Box_Cox_Disabled (T : in out Test) is
+      pragma Unreferenced (T);
+      Path  : constant String :=
+        Ada.Directories.Current_Directory
+        & "/fixtures/sqc/tmp_v1_bc_default.sqcw";
+      W     : Workspace_Record;
+      File  : Ada.Text_IO.File_Type;
+   begin
+      Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, Path);
+      Ada.Text_IO.Put_Line
+        (File,
+         "{""version"":1,""workspaceId"":""x"",""name"":""y"","
+         & """sourceDirectories"":[],""modelFilter"":[],"
+         & """setupSessionIds"":[],""comments"":[]}");
+      Ada.Text_IO.Close (File);
+
+      declare VF_Unused : Natural;
+      begin
+         Coyote_SQC.Workspace.Load (Path, W, VF_Unused);
+      end;
+      Ada.Directories.Delete_File (Path);
+
+      Assert
+        (not W.I_Chart_Box_Cox.Enabled,
+         "Box-Cox should default to disabled when loading a v1 workspace");
+   end Test_V1_Loads_Box_Cox_Disabled;
 
 end Coyote_SQC_Workspace_Tests;

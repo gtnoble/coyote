@@ -164,7 +164,16 @@ package body Coyote_SQC.App is
             Value := Long_Float (Metrics.Total_Output_Tokens);
             N     := 1;
 
-         when Session_Input_Tokens_MR | Session_Output_Tokens_MR =>
+         when Session_Cache_Read_Tokens_I =>
+            Value := Long_Float (Metrics.Total_Cache_Read_Tokens);
+            N     := 1;
+
+         when Session_Cache_Write_Tokens_I =>
+            Value := Long_Float (Metrics.Total_Cache_Write_Tokens);
+            N     := 1;
+
+         when Session_Input_Tokens_MR | Session_Output_Tokens_MR
+            | Session_Cache_Read_Tokens_MR | Session_Cache_Write_Tokens_MR =>
             --  Moving range requires the previous session value; the caller
             --  (Recompute_Chart) overrides Excluded and Value after this
             --  call for non-first sessions.
@@ -177,12 +186,14 @@ package body Coyote_SQC.App is
    procedure Recompute_Chart (Kind : Chart_Kind) is
       Props   : constant Coyote_SQC.Charts.Chart_Properties :=
         Coyote_SQC.Charts.Properties (Kind);
-      pragma Unreferenced (Props);
 
       CD : Chart_Data;
       --  State for moving-range (MR) chart kinds.
       Prev_Total     : Long_Float := 0.0;
       Has_Prev_Total : Boolean    := False;
+      --  Box-Cox transformed tracking for MR chart kinds.
+      BC_Prev_Z     : Long_Float := 0.0;
+      Has_BC_Prev_Z : Boolean    := False;
    begin
       --  Estimate setup parameters.
       CD.Is_Retro := State.Workspace.Setup_Session_Ids.Is_Empty;
@@ -191,6 +202,104 @@ package body Coyote_SQC.App is
          Setup_Ids => State.Workspace.Setup_Session_Ids,
          Kind      => Kind,
          Parameters => CD.Params);
+
+      --  Box-Cox: when enabled for I/MR chart kinds, override the
+      --  Grand_Mean and Mean_MR in CD.Params with transformed-space values.
+      if Props.Is_I_Chart
+        and then State.Workspace.I_Chart_Box_Cox.Enabled
+      then
+         declare
+            --  Collect setup-interval raw values in chronological order.
+            Raw   : Statistics.I_Chart.Long_Float_Array
+                      (1 .. Natural (State.All_Metrics.Length));
+            N_Raw  : Natural := 0;
+            N_Zero : Natural := 0;
+            Lambda : Long_Float;
+         begin
+            for M of State.All_Metrics loop
+               if State.Workspace.Setup_Session_Ids.Is_Empty
+                 or else State.Workspace.Setup_Session_Ids.Contains
+                           (M.Session_Id)
+               then
+                  declare
+                     Val : constant Long_Float :=
+                       (case Kind is
+                           when Session_Input_Tokens_I
+                              | Session_Input_Tokens_MR      =>
+                              Long_Float (M.Total_Input_Tokens),
+                           when Session_Cache_Read_Tokens_I
+                              | Session_Cache_Read_Tokens_MR =>
+                              Long_Float (M.Total_Cache_Read_Tokens),
+                           when Session_Cache_Write_Tokens_I
+                              | Session_Cache_Write_Tokens_MR =>
+                              Long_Float (M.Total_Cache_Write_Tokens),
+                           when others                        =>
+                              Long_Float (M.Total_Output_Tokens));
+                  begin
+                     if Val > 0.0 then
+                        N_Raw := N_Raw + 1;
+                        Raw (N_Raw) := Val;
+                     else
+                        N_Zero := N_Zero + 1;
+                     end if;
+                  end;
+               end if;
+            end loop;
+
+            if N_Zero > 0 then
+               State.Status_Bar.Set_Text
+                 (Natural'Image (N_Zero)
+                  & " session(s) with zero tokens excluded from"
+                  & " I/MR chart (Box-Cox requires x > 0).");
+            end if;
+
+            --  Resolve lambda.
+            if State.Workspace.I_Chart_Box_Cox.Lambda_Source =
+                  Data_Model.Fixed
+            then
+               Lambda := State.Workspace.I_Chart_Box_Cox.Fixed_Lambda;
+            else
+               Lambda :=
+                 (if N_Raw >= 3
+                  then Statistics.I_Chart.Estimate_Lambda (Raw (1 .. N_Raw))
+                  else 0.0);
+            end if;
+            CD.Box_Cox_Lambda := Lambda;
+            CD.Box_Cox_Active := True;
+
+            --  Recompute Grand_Mean and Mean_MR in the transformed space.
+            if N_Raw > 0 then
+               declare
+                  Sum_Z    : Long_Float := 0.0;
+                  Prev_Z   : Long_Float := 0.0;
+                  Has_PZ   : Boolean    := False;
+                  MR_Z_Sum : Long_Float := 0.0;
+                  MR_Z_Cnt : Natural    := 0;
+               begin
+                  for Idx in 1 .. N_Raw loop
+                     declare
+                        Z : constant Long_Float :=
+                          Statistics.I_Chart.Box_Cox (Raw (Idx), Lambda);
+                     begin
+                        Sum_Z := Sum_Z + Z;
+                        if Has_PZ then
+                           MR_Z_Sum := MR_Z_Sum + abs (Z - Prev_Z);
+                           MR_Z_Cnt := MR_Z_Cnt + 1;
+                        end if;
+                        Prev_Z := Z;
+                        Has_PZ := True;
+                     end;
+                  end loop;
+                  CD.Params.Grand_Mean := Sum_Z / Long_Float (N_Raw);
+                  CD.Params.Mean_MR    :=
+                    (if MR_Z_Cnt > 0
+                     then MR_Z_Sum / Long_Float (MR_Z_Cnt)
+                     else 0.0);
+               end;
+            end if;
+         end;
+      end if;
+
 
       --  Compute one point per session.
       for I in 1 .. Natural (State.Sessions.Length) loop
@@ -210,16 +319,41 @@ package body Coyote_SQC.App is
          begin
             Compute_Session_Stat (M, Kind, Value, N, Excl, Single, HGray);
             --  MR chart override: compute moving range from previous session.
-            if Kind in Session_Input_Tokens_MR | Session_Output_Tokens_MR then
+            if Kind in Session_Input_Tokens_MR
+                      | Session_Output_Tokens_MR
+                      | Session_Cache_Read_Tokens_MR
+                      | Session_Cache_Write_Tokens_MR
+            then
                declare
                   Cur : constant Long_Float :=
-                    (if Kind = Session_Input_Tokens_MR
-                     then Long_Float (M.Total_Input_Tokens)
-                     else Long_Float (M.Total_Output_Tokens));
+                    (case Kind is
+                        when Session_Input_Tokens_MR        =>
+                           Long_Float (M.Total_Input_Tokens),
+                        when Session_Cache_Read_Tokens_MR   =>
+                           Long_Float (M.Total_Cache_Read_Tokens),
+                        when Session_Cache_Write_Tokens_MR  =>
+                           Long_Float (M.Total_Cache_Write_Tokens),
+                        when others                         =>
+                           Long_Float (M.Total_Output_Tokens));
                begin
-                  if Has_Prev_Total then
-                     Value := abs (Cur - Prev_Total);
-                     Excl  := False;
+                  if CD.Box_Cox_Active and then Cur > 0.0 then
+                     --  Box-Cox MR: differences of transformed values.
+                     declare
+                        Z_Cur : constant Long_Float :=
+                          Statistics.I_Chart.Box_Cox (Cur, CD.Box_Cox_Lambda);
+                     begin
+                        if Has_BC_Prev_Z then
+                           Value := abs (Z_Cur - BC_Prev_Z);
+                           Excl  := False;
+                        end if;
+                        BC_Prev_Z     := Z_Cur;
+                        Has_BC_Prev_Z := True;
+                     end;
+                  elsif not CD.Box_Cox_Active then
+                     if Has_Prev_Total then
+                        Value := abs (Cur - Prev_Total);
+                        Excl  := False;
+                     end if;
                   end if;
                   Prev_Total     := Cur;
                   Has_Prev_Total := True;
@@ -252,12 +386,64 @@ package body Coyote_SQC.App is
                        (Grand_P => CD.Params.Grand_P,
                         N       => N);
                   when Session_Input_Tokens_I
-                     | Session_Output_Tokens_I =>
-                     Limits := Statistics.I_Chart.Compute_I_Limits
-                       (Grand_Mean => CD.Params.Grand_Mean,
-                        Mean_MR    => CD.Params.Mean_MR);
+                     | Session_Output_Tokens_I
+                     | Session_Cache_Read_Tokens_I
+                     | Session_Cache_Write_Tokens_I =>
+                     declare
+                        L_Z : constant Statistics.Limits_Record :=
+                          Statistics.I_Chart.Compute_I_Limits
+                            (Grand_Mean => CD.Params.Grand_Mean,
+                             Mean_MR    => CD.Params.Mean_MR);
+                     begin
+                        if CD.Box_Cox_Active and then L_Z.Has_UCL then
+                           --  Back-transform limits to original units.
+                           --  CL_z and LCL_z are always within the valid
+                           --  domain of Box_Cox_Inverse: all observed data
+                           --  values mapped into (-inf, 1/|lambda|), so
+                           --  Grand_Mean_z and any value below it are valid
+                           --  inputs.  UCL_z may reach or exceed the
+                           --  asymptote 1/|lambda| for negative lambda,
+                           --  meaning no finite x maps to that z; the
+                           --  original-space UCL is effectively +inf.
+                           --  Each limit is back-transformed independently
+                           --  so that a domain failure on UCL_z does not
+                           --  suppress the CL and LCL.
+                           declare
+                              Inv_UCL     : Long_Float := 0.0;
+                              Has_Inv_UCL : Boolean    := False;
+                              Inv_CL      : Long_Float;
+                              Inv_LCL     : Long_Float;
+                           begin
+                              begin
+                                 Inv_UCL     :=
+                                   Statistics.I_Chart.Box_Cox_Inverse
+                                     (L_Z.UCL, CD.Box_Cox_Lambda);
+                                 Has_Inv_UCL := True;
+                              exception
+                                 when Constraint_Error => null;
+                              end;
+                              Inv_CL  := Statistics.I_Chart.Box_Cox_Inverse
+                                           (L_Z.CL, CD.Box_Cox_Lambda);
+                              Inv_LCL :=
+                                (if L_Z.Has_LCL
+                                 then Statistics.I_Chart.Box_Cox_Inverse
+                                        (L_Z.LCL, CD.Box_Cox_Lambda)
+                                 else 0.0);
+                              Limits :=
+                                (UCL     => Inv_UCL,
+                                 CL      => Inv_CL,
+                                 LCL     => Inv_LCL,
+                                 Has_UCL => Has_Inv_UCL,
+                                 Has_LCL => L_Z.Has_LCL);
+                           end;
+                        else
+                           Limits := L_Z;
+                        end if;
+                     end;
                   when Session_Input_Tokens_MR
-                     | Session_Output_Tokens_MR =>
+                     | Session_Output_Tokens_MR
+                     | Session_Cache_Read_Tokens_MR
+                     | Session_Cache_Write_Tokens_MR =>
                      Limits := Statistics.I_Chart.Compute_MR_Limits
                        (Mean_MR => CD.Params.Mean_MR);
                end case;

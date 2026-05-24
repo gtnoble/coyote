@@ -54,6 +54,8 @@ package Coyote_SQC.Data_Model is
       First_User_Message  : Ada.Strings.Unbounded.Unbounded_String;
       Total_Input_Tokens  : Natural := 0;
       Total_Output_Tokens : Natural := 0;
+      Total_Cache_Read_Tokens  : Natural := 0;
+      Total_Cache_Write_Tokens : Natural := 0;
       Turns               : Turn_Vectors.Vector;
    end record;
 
@@ -83,6 +85,8 @@ package Coyote_SQC.Data_Model is
       N_Thinking_Turns_For_Chart : Natural  := 0;
       Total_Input_Tokens         : Natural  := 0;
       Total_Output_Tokens        : Natural  := 0;
+      Total_Cache_Read_Tokens  : Natural  := 0;
+      Total_Cache_Write_Tokens : Natural  := 0;
    end record;
 
    package Metrics_Vectors is new Ada.Containers.Vectors
@@ -111,6 +115,25 @@ package Coyote_SQC.Data_Model is
 
    subtype UUID_Set is UUID_Sets.Set;
 
+   --  ── Box-Cox configuration ──────────────────────────────────────────────
+
+   --  Identifies how the Box-Cox lambda parameter is determined.
+   type Box_Cox_Lambda_Source is (Auto, Fixed);
+
+   --  Box-Cox transformation configuration for Session Token I/MR charts.
+   --  One shared config applies to all four I/MR charts in the workspace.
+   --  The estimated lambda (when Lambda_Source = Auto) is a transient runtime
+   --  value stored in Chart_Data; it is not persisted.
+   type Box_Cox_Config is record
+      Enabled       : Boolean                := False;
+      Lambda_Source : Box_Cox_Lambda_Source  := Auto;
+      Fixed_Lambda  : Long_Float             := 0.0;
+      --  Lambda_Source = Auto: estimate lambda at runtime from the
+      --  setup interval by MLE; the estimate is not persisted.
+      --  Lambda_Source = Fixed: use Fixed_Lambda directly.
+      --  Common fixed values: 0.0 (ln), 0.5 (sqrt), 1.0 (identity).
+   end record;
+
    --  ── Workspace ──────────────────────────────────────────────────────────
 
    package String_Vectors is new Ada.Containers.Vectors
@@ -125,6 +148,9 @@ package Coyote_SQC.Data_Model is
       Model_Filter       : String_Vectors.Vector;
       Setup_Session_Ids  : UUID_Set;
       Comments           : Comment_Vectors.Vector;
+      --  Box-Cox transformation config for Session Token I/MR charts.
+      --  Shared across all four I/MR chart kinds.
+      I_Chart_Box_Cox    : Box_Cox_Config;
    end record;
 
 end Coyote_SQC.Data_Model;

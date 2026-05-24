@@ -1,14 +1,14 @@
 --  Coyote_SQC.UI.Workspace_Settings body.
 --
+--  Accessible via Workspace -> Workspace Settings...
+--
 --  Project: coyote
 
 with Ada.Strings;
 with Ada.Strings.Fixed;
-with Gtk.Text_Buffer;
-with Gtk.Text_Iter;
-with Gtk.Text_View;
 with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
 with Coyote_SQC.App;
+with Coyote_SQC.Charts;
 with Coyote_SQC.Data_Model;
 with Coyote_SQC.UI.Chart_Canvas;
 with Coyote_SQC.Workspace.Integrity;
@@ -16,31 +16,138 @@ with Coyote_SQC.UI.Dialogs;
 with Glib;                   use Glib;
 with Gtk.Box;
 with Gtk.Button;
+with Gtk.Check_Button;
+with Gtk.Combo_Box;
+with Gtk.Combo_Box_Text;
 with Gtk.Dialog;             use Gtk.Dialog;
 with Gtk.Enums;
+with Gtk.Frame;
 with Gtk.GEntry;
 with Gtk.Label;
 with Gtk.List_Box;
 with Gtk.List_Box_Row;
+with Gtk.Radio_Button;
 with Gtk.Scrolled_Window;
+with Gtk.Spin_Button;
+with Gtk.Text_Buffer;
+with Gtk.Text_Iter;
+with Gtk.Text_View;
+with Gtk.Toggle_Button;
 with Gtk.Widget;
 with Gtk.File_Chooser;
 with Gtk.File_Chooser_Dialog;
-with Gtk.List_Box_Row;
 
 package body Coyote_SQC.UI.Workspace_Settings is
    use type Coyote_SQC.App.App_State_Access;
    use type Gtk.Text_Buffer.Gtk_Text_Buffer;
    use type Gtk.List_Box.Gtk_List_Box;
    use type Gtk.List_Box_Row.Gtk_List_Box_Row;
+   use type Gtk.Dialog.Gtk_Dialog;
+   use type Gtk.Check_Button.Gtk_Check_Button;
+   use type Gtk.Radio_Button.Gtk_Radio_Button;
+   use type Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
+   use type Gtk.Spin_Button.Gtk_Spin_Button;
+   use type Gtk.Label.Gtk_Label;
+   use type Gtk.Box.Gtk_Box;
+
+   --  UTF-8 multi-byte sequences for symbols used in UI labels.
+   --  Lambda: U+03BB = 0xCE 0xBB
+   Lambda_Sym : constant String :=
+     (1 => Character'Val (16#CE#),
+      2 => Character'Val (16#BB#));
+   --  Square root: U+221A = 0xE2 0x88 0x9A
+   Sqrt_Sym : constant String :=
+     (1 => Character'Val (16#E2#),
+      2 => Character'Val (16#88#),
+      3 => Character'Val (16#9A#));
+   --  En-dash: U+2013 = 0xE2 0x80 0x93
+   Dash_Sym : constant String :=
+     (1 => Character'Val (16#E2#),
+      2 => Character'Val (16#80#),
+      3 => Character'Val (16#93#));
 
    --  Module-level state for the currently-open settings dialog.
    WS_Dir_LB   : Gtk.List_Box.Gtk_List_Box := null;
    WS_New_Dirs : Coyote_SQC.Data_Model.String_Vectors.Vector;
    WS_Dialog   : Gtk.Dialog.Gtk_Dialog := null;
-   use type Gtk.Dialog.Gtk_Dialog;
 
-   --  ── Callbacks for directory management ────────────────────────────────
+   --  Box-Cox section widget handles (reset per dialog open).
+   BC_Enabled_CB    : Gtk.Check_Button.Gtk_Check_Button := null;
+   BC_Sub_VBox      : Gtk.Box.Gtk_Box := null;
+   BC_Auto_RB       : Gtk.Radio_Button.Gtk_Radio_Button := null;
+   BC_Fixed_RB      : Gtk.Radio_Button.Gtk_Radio_Button := null;
+   BC_Lambda_Combo  : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text := null;
+   BC_Lambda_Spin   : Gtk.Spin_Button.Gtk_Spin_Button := null;
+   BC_Lambda_Lbl    : Gtk.Label.Gtk_Label := null;
+   --  Suppress spin->combo feedback while combo is programmatically updated.
+   BC_Combo_Updating : Boolean := False;
+
+   --  ── Helpers ────────────────────────────────────────────────────────────
+
+   --  Return the current auto-estimated lambda from the I-chart data,
+   --  or Long_Float'Last if not yet computed.
+   function Current_Auto_Lambda return Long_Float is
+      use Coyote_SQC.Charts;
+   begin
+      if Coyote_SQC.App.State = null then
+         return Long_Float'Last;
+      end if;
+      declare
+         CD : constant Coyote_SQC.App.Chart_Data :=
+           Coyote_SQC.App.State.Charts (Session_Input_Tokens_I);
+      begin
+         if CD.Box_Cox_Active then
+            return CD.Box_Cox_Lambda;
+         end if;
+         return Long_Float'Last;
+      end;
+   end Current_Auto_Lambda;
+
+   --  Update the "Estimated lambda:" readout label.
+   procedure Update_Lambda_Readout is
+      use Gtk.Toggle_Button;
+   begin
+      if BC_Lambda_Lbl = null or BC_Auto_RB = null then return; end if;
+      if Get_Active (Gtk_Toggle_Button (BC_Auto_RB)) then
+         declare
+            L : constant Long_Float := Current_Auto_Lambda;
+         begin
+            if L = Long_Float'Last then
+               BC_Lambda_Lbl.Set_Text
+                 ("Estimated " & Lambda_Sym
+                  & ":  (not yet computed)");
+            else
+               declare
+                  Img : constant String := Long_Float'Image (L);
+               begin
+                  BC_Lambda_Lbl.Set_Text
+                    ("Estimated " & Lambda_Sym & ":  " & Img);
+               end;
+            end if;
+         end;
+         BC_Lambda_Lbl.Set_Sensitive (True);
+      else
+         BC_Lambda_Lbl.Set_Text
+           ("Estimated " & Lambda_Sym & ":  " & Dash_Sym);
+         BC_Lambda_Lbl.Set_Sensitive (False);
+      end if;
+   end Update_Lambda_Readout;
+
+   --  Synchronise fixed-value sub-widgets sensitivity.
+   procedure Update_Fixed_Sensitivity is
+      use Gtk.Toggle_Button;
+      Fixed : constant Boolean :=
+        Get_Active (Gtk_Toggle_Button (BC_Fixed_RB));
+   begin
+      if BC_Lambda_Combo /= null then
+         BC_Lambda_Combo.Set_Sensitive (Fixed);
+      end if;
+      if BC_Lambda_Spin /= null then
+         BC_Lambda_Spin.Set_Sensitive (Fixed);
+      end if;
+   end Update_Fixed_Sensitivity;
+
+   --  ── Directory management callbacks ────────────────────────────────────
 
    procedure On_Add_Dir_Clicked
      (Button : access Gtk.Button.Gtk_Button_Record'Class)
@@ -77,7 +184,6 @@ package body Coyote_SQC.UI.Workspace_Settings is
             PUS  : constant Ada.Strings.Unbounded.Unbounded_String :=
               Ada.Strings.Unbounded.To_Unbounded_String (Path);
          begin
-            --  Check for duplicates.
             declare
                Is_Dup : Boolean := False;
             begin
@@ -121,10 +227,82 @@ package body Coyote_SQC.UI.Workspace_Settings is
       end;
    end On_Remove_Dir_Clicked;
 
+   --  ── Box-Cox callbacks ─────────────────────────────────────────────────
+   --  Note: callback parameter types must exactly match GtkAda's required
+   --  Cb_Gtk_Toggle_Button_Void, Cb_Gtk_Combo_Box_Void, and
+   --  Cb_Gtk_Spin_Button_Void access types.
+
+   procedure On_BC_Enabled_Toggled
+     (CB : access Gtk.Toggle_Button.Gtk_Toggle_Button_Record'Class)
+   is
+      pragma Unreferenced (CB);
+      use Gtk.Toggle_Button;
+   begin
+      if BC_Enabled_CB = null or BC_Sub_VBox = null then return; end if;
+      BC_Sub_VBox.Set_Sensitive
+        (Get_Active (Gtk_Toggle_Button (BC_Enabled_CB)));
+   end On_BC_Enabled_Toggled;
+
+   procedure On_BC_Source_Toggled
+     (RB : access Gtk.Toggle_Button.Gtk_Toggle_Button_Record'Class)
+   is
+      pragma Unreferenced (RB);
+   begin
+      Update_Fixed_Sensitivity;
+      Update_Lambda_Readout;
+   end On_BC_Source_Toggled;
+
+   procedure On_BC_Combo_Changed
+     (CB : access Gtk.Combo_Box.Gtk_Combo_Box_Record'Class)
+   is
+      pragma Unreferenced (CB);
+      Idx : constant Glib.Gint :=
+        Gtk.Combo_Box.Get_Active
+          (Gtk.Combo_Box.Gtk_Combo_Box (BC_Lambda_Combo));
+   begin
+      if BC_Lambda_Spin = null or BC_Combo_Updating then return; end if;
+      BC_Combo_Updating := True;
+      case Idx is
+         when 0 => BC_Lambda_Spin.Set_Value (0.0);
+         when 1 => BC_Lambda_Spin.Set_Value (0.5);
+         when 2 => BC_Lambda_Spin.Set_Value (1.0);
+         when others => null;  --  custom: leave spin unchanged
+      end case;
+      BC_Combo_Updating := False;
+   end On_BC_Combo_Changed;
+
+   procedure On_BC_Spin_Value_Changed
+     (SB : access Gtk.Spin_Button.Gtk_Spin_Button_Record'Class)
+   is
+      pragma Unreferenced (SB);
+      Val : constant Gdouble :=
+        Gtk.Spin_Button.Get_Value (BC_Lambda_Spin);
+   begin
+      if BC_Lambda_Combo = null or BC_Combo_Updating then return; end if;
+      BC_Combo_Updating := True;
+      if abs (Val - 0.0) < 0.005 then
+         Gtk.Combo_Box.Set_Active
+           (Gtk.Combo_Box.Gtk_Combo_Box (BC_Lambda_Combo), 0);
+      elsif abs (Val - 0.5) < 0.005 then
+         Gtk.Combo_Box.Set_Active
+           (Gtk.Combo_Box.Gtk_Combo_Box (BC_Lambda_Combo), 1);
+      elsif abs (Val - 1.0) < 0.005 then
+         Gtk.Combo_Box.Set_Active
+           (Gtk.Combo_Box.Gtk_Combo_Box (BC_Lambda_Combo), 2);
+      else
+         Gtk.Combo_Box.Set_Active
+           (Gtk.Combo_Box.Gtk_Combo_Box (BC_Lambda_Combo), 3);
+      end if;
+      BC_Combo_Updating := False;
+   end On_BC_Spin_Value_Changed;
+
+   --  ── Show_Dialog ────────────────────────────────────────────────────────
 
    procedure Show_Dialog is
       use Coyote_SQC.Data_Model;
+      use Coyote_SQC.Charts;
       use Gtk.Dialog;
+      use Gtk.Toggle_Button;
 
       D        : Gtk_Dialog;
       VBox     : Gtk.Box.Gtk_Box;
@@ -133,27 +311,35 @@ package body Coyote_SQC.UI.Workspace_Settings is
       Filter_Buf : Gtk.Text_Buffer.Gtk_Text_Buffer := null;
       Res      : Gtk_Response_Type;
 
-      --  Snapshot current values.
-      Old_Dirs   : String_Vectors.Vector :=
-        Coyote_SQC.App.State.Workspace.Source_Directories;
       New_Name   : Unbounded_String :=
         Coyote_SQC.App.State.Workspace.Name;
-      New_Dirs   : String_Vectors.Vector := Old_Dirs;
+      New_Dirs   : String_Vectors.Vector :=
+        Coyote_SQC.App.State.Workspace.Source_Directories;
 
    begin
       if Coyote_SQC.App.State = null then return; end if;
 
+      --  Reset module-level BC widget handles.
+      BC_Enabled_CB   := null;
+      BC_Sub_VBox     := null;
+      BC_Auto_RB      := null;
+      BC_Fixed_RB     := null;
+      BC_Lambda_Combo := null;
+      BC_Lambda_Spin  := null;
+      BC_Lambda_Lbl   := null;
+      BC_Combo_Updating := False;
+
       Gtk.Dialog.Gtk_New
         (D, "Workspace Settings", Coyote_SQC.App.State.Main_Window,
          Gtk.Dialog.Modal);
-      D.Set_Default_Size (500, 400);
+      D.Set_Default_Size (500, 540);
       WS_Dialog := D;
 
       Gtk.Box.Gtk_New_Vbox (VBox);
       VBox.Set_Spacing (6);
       VBox.Set_Border_Width (8);
 
-      --  Name field.
+      --  ── Name field ─────────────────────────────────────────────────────
       declare
          HBox : Gtk.Box.Gtk_Box;
          Lbl  : Gtk.Label.Gtk_Label;
@@ -168,7 +354,7 @@ package body Coyote_SQC.UI.Workspace_Settings is
          VBox.Pack_Start (HBox, False, False, 0);
       end;
 
-      --  Source directories.
+      --  ── Source directories ─────────────────────────────────────────────
       declare
          Lbl    : Gtk.Label.Gtk_Label;
          HBox   : Gtk.Box.Gtk_Box;
@@ -183,7 +369,7 @@ package body Coyote_SQC.UI.Workspace_Settings is
          Gtk.List_Box.Gtk_New (Dir_LB);
          for Dir of New_Dirs loop
             declare
-               Row : Gtk.List_Box_Row.Gtk_List_Box_Row;
+               Row  : Gtk.List_Box_Row.Gtk_List_Box_Row;
                DLbl : Gtk.Label.Gtk_Label;
             begin
                Gtk.List_Box_Row.Gtk_New (Row);
@@ -194,8 +380,9 @@ package body Coyote_SQC.UI.Workspace_Settings is
             end;
          end loop;
          Gtk.Scrolled_Window.Gtk_New (Scroll);
-         Scroll.Set_Policy (Gtk.Enums.Policy_Never, Gtk.Enums.Policy_Automatic);
-         Scroll.Set_Size_Request (-1, 120);
+         Scroll.Set_Policy
+           (Gtk.Enums.Policy_Never, Gtk.Enums.Policy_Automatic);
+         Scroll.Set_Size_Request (-1, 100);
          Scroll.Add (Dir_LB);
          VBox.Pack_Start (Scroll, True, True, 0);
 
@@ -211,7 +398,7 @@ package body Coyote_SQC.UI.Workspace_Settings is
          WS_New_Dirs := New_Dirs;
       end;
 
-      --  Model filter (one model per line; empty = all models).
+      --  ── Model filter ───────────────────────────────────────────────────
       declare
          Filter_Lbl    : Gtk.Label.Gtk_Label;
          Filter_TV     : Gtk.Text_View.Gtk_Text_View;
@@ -223,10 +410,8 @@ package body Coyote_SQC.UI.Workspace_Settings is
          Filter_Lbl.Set_Halign (Gtk.Widget.Align_Start);
          VBox.Pack_Start (Filter_Lbl, False, False, 0);
          Gtk.Text_Buffer.Gtk_New (Filter_Buf);
-         --  Populate with existing filter.
          for F of Coyote_SQC.App.State.Workspace.Model_Filter loop
-            Ada.Strings.Unbounded.Append
-              (Filter_Text, F);
+            Ada.Strings.Unbounded.Append (Filter_Text, F);
             Ada.Strings.Unbounded.Append
               (Filter_Text,
                Ada.Strings.Unbounded.To_Unbounded_String ("" & ASCII.LF));
@@ -235,18 +420,156 @@ package body Coyote_SQC.UI.Workspace_Settings is
             Iter : Gtk.Text_Iter.Gtk_Text_Iter;
          begin
             Filter_Buf.Get_End_Iter (Iter);
-            Filter_Buf.Insert (Iter,
-              Ada.Strings.Unbounded.To_String (Filter_Text));
+            Filter_Buf.Insert
+              (Iter, Ada.Strings.Unbounded.To_String (Filter_Text));
          end;
          Gtk.Text_View.Gtk_New (Filter_TV, Filter_Buf);
          Filter_TV.Set_Wrap_Mode (Gtk.Enums.Wrap_None);
          Gtk.Scrolled_Window.Gtk_New (Filter_Scroll);
          Filter_Scroll.Set_Policy
            (Gtk.Enums.Policy_Automatic, Gtk.Enums.Policy_Automatic);
-         Filter_Scroll.Set_Size_Request (-1, 80);
+         Filter_Scroll.Set_Size_Request (-1, 70);
          Filter_Scroll.Add (Filter_TV);
          VBox.Pack_Start (Filter_Scroll, False, False, 0);
       end;
+
+      --  ── I/MR Chart Transformation (Box-Cox) ───────────────────────────
+      declare
+         Frame    : Gtk.Frame.Gtk_Frame;
+         Sub_VBox : Gtk.Box.Gtk_Box;
+         Inner_VBox : Gtk.Box.Gtk_Box;
+         Sub_HBox : Gtk.Box.Gtk_Box;
+         CB_EN    : Gtk.Check_Button.Gtk_Check_Button;
+         RB_Auto  : Gtk.Radio_Button.Gtk_Radio_Button;
+         RB_Fixed : Gtk.Radio_Button.Gtk_Radio_Button;
+         Combo    : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
+         Spin     : Gtk.Spin_Button.Gtk_Spin_Button;
+         Lbl_Est  : Gtk.Label.Gtk_Label;
+         Lbl_Note : Gtk.Label.Gtk_Label;
+         Lbl_Lam  : Gtk.Label.Gtk_Label;
+
+         BC_Cfg : constant Box_Cox_Config :=
+           Coyote_SQC.App.State.Workspace.I_Chart_Box_Cox;
+      begin
+         Gtk.Frame.Gtk_New (Frame, "I/MR Chart Transformation");
+         Gtk.Box.Gtk_New_Vbox (Sub_VBox);
+         Sub_VBox.Set_Spacing (4);
+         Sub_VBox.Set_Border_Width (6);
+
+         --  Enable checkbox.
+         Gtk.Check_Button.Gtk_New
+           (CB_EN,
+            "Apply Box-Cox transformation to Session Token I/MR charts");
+         Set_Active (Gtk_Toggle_Button (CB_EN), BC_Cfg.Enabled);
+         Gtk.Toggle_Button.On_Toggled
+           (Gtk_Toggle_Button (CB_EN), On_BC_Enabled_Toggled'Access);
+         Sub_VBox.Pack_Start (CB_EN, False, False, 0);
+
+         --  Inner sub-section (enabled only when checkbox is on).
+         Gtk.Box.Gtk_New_Vbox (Inner_VBox);
+         Inner_VBox.Set_Spacing (3);
+         Inner_VBox.Set_Sensitive (BC_Cfg.Enabled);
+
+         --  Auto radio button.
+         Gtk.Radio_Button.Gtk_New
+           (RB_Auto, Label => "Estimate from setup interval");
+         Set_Active
+           (Gtk_Toggle_Button (RB_Auto), BC_Cfg.Lambda_Source = Auto);
+         Gtk.Toggle_Button.On_Toggled
+           (Gtk_Toggle_Button (RB_Auto), On_BC_Source_Toggled'Access);
+         Inner_VBox.Pack_Start (RB_Auto, False, False, 0);
+
+         --  Fixed radio + combo + spin on one row.
+         Gtk.Box.Gtk_New_Hbox (Sub_HBox);
+         Gtk.Radio_Button.Gtk_New
+           (RB_Fixed, Group => RB_Auto, Label => "Fixed:");
+         Set_Active
+           (Gtk_Toggle_Button (RB_Fixed), BC_Cfg.Lambda_Source = Fixed);
+         Gtk.Toggle_Button.On_Toggled
+           (Gtk_Toggle_Button (RB_Fixed), On_BC_Source_Toggled'Access);
+         Sub_HBox.Pack_Start (RB_Fixed, False, False, 0);
+
+         --  Combo for named presets.
+         Gtk.Combo_Box_Text.Gtk_New (Combo);
+         Combo.Append_Text ("ln (" & Lambda_Sym & "=0)");
+         Combo.Append_Text (Sqrt_Sym & " (" & Lambda_Sym & "=0.5)");
+         Combo.Append_Text ("no transform (" & Lambda_Sym & "=1)");
+         Combo.Append_Text ("custom");
+         --  Select matching entry or custom.
+         if BC_Cfg.Lambda_Source = Fixed then
+            if abs (BC_Cfg.Fixed_Lambda - 0.0) < 0.005 then
+               Gtk.Combo_Box.Set_Active
+                 (Gtk.Combo_Box.Gtk_Combo_Box (Combo), 0);
+            elsif abs (BC_Cfg.Fixed_Lambda - 0.5) < 0.005 then
+               Gtk.Combo_Box.Set_Active
+                 (Gtk.Combo_Box.Gtk_Combo_Box (Combo), 1);
+            elsif abs (BC_Cfg.Fixed_Lambda - 1.0) < 0.005 then
+               Gtk.Combo_Box.Set_Active
+                 (Gtk.Combo_Box.Gtk_Combo_Box (Combo), 2);
+            else
+               Gtk.Combo_Box.Set_Active
+                 (Gtk.Combo_Box.Gtk_Combo_Box (Combo), 3);
+            end if;
+         else
+            Gtk.Combo_Box.Set_Active
+              (Gtk.Combo_Box.Gtk_Combo_Box (Combo), 0);
+         end if;
+         Gtk.Combo_Box.On_Changed
+           (Gtk.Combo_Box.Gtk_Combo_Box (Combo),
+            On_BC_Combo_Changed'Access);
+         Combo.Set_Sensitive (BC_Cfg.Lambda_Source = Fixed);
+         Sub_HBox.Pack_Start (Combo, False, False, 4);
+
+         --  Spin button for custom lambda value.
+         Gtk.Spin_Button.Gtk_New
+           (Spin,
+            Min  => -2.0,
+            Max  =>  2.0,
+            Step =>  0.01);
+         Spin.Set_Digits (2);
+         Spin.Set_Value (Gdouble (BC_Cfg.Fixed_Lambda));
+         Gtk.Spin_Button.On_Value_Changed
+           (Spin, On_BC_Spin_Value_Changed'Access);
+         Spin.Set_Sensitive (BC_Cfg.Lambda_Source = Fixed);
+
+         Gtk.Label.Gtk_New (Lbl_Lam, Lambda_Sym & " =");
+         Sub_HBox.Pack_Start (Lbl_Lam, False, False, 4);
+         Sub_HBox.Pack_Start (Spin, False, False, 0);
+         Inner_VBox.Pack_Start (Sub_HBox, False, False, 0);
+
+         --  Estimated lambda readout.
+         Gtk.Label.Gtk_New
+           (Lbl_Est,
+            "Estimated " & Lambda_Sym & ":  (not yet computed)");
+         Lbl_Est.Set_Halign (Gtk.Widget.Align_Start);
+         Inner_VBox.Pack_Start (Lbl_Est, False, False, 2);
+
+         --  Note label.
+         Gtk.Label.Gtk_New
+           (Lbl_Note,
+            "Note: I chart limits are shown in original (token) units."
+            & ASCII.LF
+            & "      MR chart y-axis shows values in transformed units.");
+         Lbl_Note.Set_Halign (Gtk.Widget.Align_Start);
+         Inner_VBox.Pack_Start (Lbl_Note, False, False, 2);
+
+         Sub_VBox.Pack_Start (Inner_VBox, False, False, 0);
+         Frame.Add (Sub_VBox);
+         VBox.Pack_Start (Frame, False, False, 4);
+
+         --  Capture module-level handles.
+         BC_Sub_VBox     := Inner_VBox;
+         BC_Enabled_CB   := CB_EN;
+         BC_Auto_RB      := RB_Auto;
+         BC_Fixed_RB     := RB_Fixed;
+         BC_Lambda_Combo := Combo;
+         BC_Lambda_Spin  := Spin;
+         BC_Lambda_Lbl   := Lbl_Est;
+
+         --  Initialise readout after all handles are captured.
+         Update_Lambda_Readout;
+      end;
+
       D.Get_Content_Area.Pack_Start (VBox, True, True, 0);
       declare
          Dummy : Gtk.Widget.Gtk_Widget;
@@ -261,16 +584,18 @@ package body Coyote_SQC.UI.Workspace_Settings is
          --  Apply name change.
          Coyote_SQC.App.State.Workspace.Name :=
            To_Unbounded_String (Name_E.Get_Text);
-         --  Apply source directories change.
+
+         --  Apply source directories.
          Coyote_SQC.App.State.Workspace.Source_Directories := WS_New_Dirs;
-         --  Parse model filter from text view (one model per line).
+
+         --  Parse model filter from text view.
          if Filter_Buf /= null then
             declare
                use Ada.Strings.Fixed;
                use Ada.Strings;
-               SI    : Gtk.Text_Iter.Gtk_Text_Iter;
-               EI    : Gtk.Text_Iter.Gtk_Text_Iter;
-               Text  : Ada.Strings.Unbounded.Unbounded_String;
+               SI   : Gtk.Text_Iter.Gtk_Text_Iter;
+               EI   : Gtk.Text_Iter.Gtk_Text_Iter;
+               Text : Ada.Strings.Unbounded.Unbounded_String;
             begin
                Filter_Buf.Get_Start_Iter (SI);
                Filter_Buf.Get_End_Iter (EI);
@@ -302,9 +627,29 @@ package body Coyote_SQC.UI.Workspace_Settings is
                end;
             end;
          end if;
+
+         --  Apply Box-Cox configuration.
+         if BC_Enabled_CB /= null then
+            declare
+               New_BC : Coyote_SQC.Data_Model.Box_Cox_Config;
+            begin
+               New_BC.Enabled :=
+                 Get_Active (Gtk_Toggle_Button (BC_Enabled_CB));
+               New_BC.Lambda_Source :=
+                 (if Get_Active (Gtk_Toggle_Button (BC_Auto_RB))
+                  then Coyote_SQC.Data_Model.Auto
+                  else Coyote_SQC.Data_Model.Fixed);
+               New_BC.Fixed_Lambda :=
+                 Long_Float
+                   (Gtk.Spin_Button.Get_Value (BC_Lambda_Spin));
+               Coyote_SQC.App.State.Workspace.I_Chart_Box_Cox := New_BC;
+            end;
+         end if;
+
          Coyote_SQC.App.State.Modified := True;
          Coyote_SQC.App.Update_Title;
          Coyote_SQC.App.Reload_Sessions;
+
          --  Check setup interval integrity.
          declare
             Chk : constant Coyote_SQC.Workspace.Integrity.Check_Result :=
@@ -328,8 +673,17 @@ package body Coyote_SQC.UI.Workspace_Settings is
          end;
          Coyote_SQC.UI.Chart_Canvas.Queue_Redraw;
       end if;
-      WS_Dir_LB := null;
-      WS_Dialog := null;
+
+      --  Clean up module-level handles.
+      WS_Dir_LB       := null;
+      WS_Dialog       := null;
+      BC_Enabled_CB   := null;
+      BC_Sub_VBox     := null;
+      BC_Auto_RB      := null;
+      BC_Fixed_RB     := null;
+      BC_Lambda_Combo := null;
+      BC_Lambda_Spin  := null;
+      BC_Lambda_Lbl   := null;
       D.Destroy;
    end Show_Dialog;
 

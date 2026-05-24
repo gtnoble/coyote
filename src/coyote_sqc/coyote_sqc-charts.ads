@@ -21,7 +21,11 @@ package Coyote_SQC.Charts is
       Session_Input_Tokens_I,
       Session_Input_Tokens_MR,
       Session_Output_Tokens_I,
-      Session_Output_Tokens_MR);
+      Session_Output_Tokens_MR,
+      Session_Cache_Read_Tokens_I,
+      Session_Cache_Read_Tokens_MR,
+      Session_Cache_Write_Tokens_I,
+      Session_Cache_Write_Tokens_MR);
 
    --  Display metadata for one chart.
    type Chart_Properties is record

@@ -271,6 +271,12 @@ package body Coyote_SQC.Session_Parser is
            Session.Total_Input_Tokens  + Turn.Input_Tokens;
          Session.Total_Output_Tokens :=
            Session.Total_Output_Tokens + Turn.Output_Tokens;
+         Session.Total_Cache_Read_Tokens  :=
+           Session.Total_Cache_Read_Tokens
+           + Get_Natural_Field (Usage_Obj, "cacheRead");
+         Session.Total_Cache_Write_Tokens :=
+           Session.Total_Cache_Write_Tokens
+           + Get_Natural_Field (Usage_Obj, "cacheWrite");
          Session.Turns.Append (Turn);
       end Process_Assistant_Msg;
 
@@ -472,7 +478,9 @@ package body Coyote_SQC.Session_Parser is
          Model               => Null_Unbounded_String,
          First_User_Message  => Null_Unbounded_String,
          Total_Input_Tokens  => 0,
-         Total_Output_Tokens => 0,
+         Total_Output_Tokens      => 0,
+         Total_Cache_Read_Tokens  => 0,
+         Total_Cache_Write_Tokens => 0,
          Turns               => Turn_Vectors.Empty_Vector);
 
       Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Path);

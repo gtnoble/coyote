@@ -50,6 +50,8 @@ package Coyote_SQC.App is
       Points  : Chart_Point_Vectors.Vector;
       Params  : Coyote_SQC.Statistics.Setup_Parameters;
       Is_Retro : Boolean := True;  --  using retrospective limits
+      Box_Cox_Active : Boolean    := False;   --  Box-Cox is active for this chart
+      Box_Cox_Lambda : Long_Float := 0.0;    --  resolved lambda (valid when Box_Cox_Active)
    end record;
 
    type Chart_Data_Array is

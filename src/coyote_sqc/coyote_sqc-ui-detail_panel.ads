@@ -15,5 +15,10 @@ package Coyote_SQC.UI.Detail_Panel is
 
    --  Show or hide the detail panel via the Paned divider position.
    procedure Set_Visible (Visible : Boolean);
+   --  When the current selection contains two or more sessions, collect the
+   --  active chart's statistic values for the selected sessions and refresh
+   --  the histogram canvas.  No-op when the selection has fewer than two
+   --  entries or App_State is null.
+   procedure Refresh_Histogram_If_Multi;
 
 end Coyote_SQC.UI.Detail_Panel;

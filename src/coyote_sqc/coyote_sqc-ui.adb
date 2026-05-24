@@ -690,6 +690,7 @@ package body Coyote_SQC.UI is
       Canvas_W     : Gtk.Drawing_Area.Gtk_Drawing_Area;
       Detail_W     : Gtk.Box.Gtk_Box;
       Detail_Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Status_Bar_Lbl : Gtk.Label.Gtk_Label;
 
    begin
       --  Main window.
@@ -748,6 +749,13 @@ package body Coyote_SQC.UI is
       H_Paned.Pack2 (R_Paned, True, True);
 
       VBox.Pack_Start (H_Paned, True, True, 0);
+      --  Status bar.
+      Gtk.Label.Gtk_New (Status_Bar_Lbl, "");
+      Status_Bar_Lbl.Set_Xalign (0.0);
+      Status_Bar_Lbl.Set_Margin_Start (4);
+      Status_Bar_Lbl.Set_Margin_Bottom (2);
+      VBox.Pack_Start (Status_Bar_Lbl, False, False, 0);
+      State.Status_Bar := Status_Bar_Lbl;
       Win.Add (VBox);
       Win.Show_All;
 
