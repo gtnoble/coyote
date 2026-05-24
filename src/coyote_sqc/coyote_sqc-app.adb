@@ -172,16 +172,39 @@ package body Coyote_SQC.App is
          when Session_Cache_Write_Tokens_I =>
             Value := Long_Float (Metrics.Total_Cache_Write_Tokens);
             N     := 1;
+         when Session_Thinking_Tokens_I =>
+            Value := Long_Float (Metrics.Total_Thinking_Tokens);
+            N     := 1;
+
+         when Session_Tool_Call_Tokens_I =>
+            Value := Long_Float (Metrics.Total_Tool_Call_Input_Tokens);
+            N     := 1;
+
+         when Session_Tool_Call_Result_Tokens_I =>
+            Value := Long_Float (Metrics.Total_Tool_Call_Result_Tokens);
+            N     := 1;
+
+         when Session_Turn_Count_I =>
+            Value := Long_Float (Metrics.N_Turns);
+            N     := 1;
 
          when Session_Input_Tokens_EWMA
             | Session_Output_Tokens_EWMA
             | Session_Cache_Read_Tokens_EWMA
-            | Session_Cache_Write_Tokens_EWMA =>
+            | Session_Cache_Write_Tokens_EWMA
+            | Session_Thinking_Tokens_EWMA
+            | Session_Tool_Call_Tokens_EWMA
+            | Session_Tool_Call_Result_Tokens_EWMA
+            | Session_Turn_Count_EWMA =>
             --  EWMA requires previous Z value; caller overrides in the
             --  per-session loop after calling Compute_Session_Stat.
             Excluded := True;
          when Session_Input_Tokens_MR | Session_Output_Tokens_MR
-            | Session_Cache_Read_Tokens_MR | Session_Cache_Write_Tokens_MR =>
+            | Session_Cache_Read_Tokens_MR | Session_Cache_Write_Tokens_MR
+            | Session_Thinking_Tokens_MR
+            | Session_Tool_Call_Tokens_MR
+            | Session_Tool_Call_Result_Tokens_MR
+            | Session_Turn_Count_MR =>
             --  Moving range requires the previous session value; the caller
             --  (Recompute_Chart) overrides Excluded and Value after this
             --  call for non-first sessions.
@@ -212,11 +235,15 @@ package body Coyote_SQC.App is
         (Metrics   => State.All_Metrics,
          Setup_Ids => State.Workspace.Setup_Session_Ids,
          Kind      => Kind,
+         Method    => State.Workspace.Estimation_Method,
          Parameters => CD.Params);
 
       --  Box-Cox: when enabled for I/MR chart kinds, override the
       --  Grand_Mean and Mean_MR in CD.Params with transformed-space values.
       if (Props.Is_I_Chart or else Props.Is_EWMA_Chart)
+        and then Kind not in Session_Turn_Count_I
+                              | Session_Turn_Count_MR
+                              | Session_Turn_Count_EWMA
         and then State.Workspace.I_Chart_Box_Cox.Enabled
       then
          declare
@@ -247,6 +274,18 @@ package body Coyote_SQC.App is
                               | Session_Cache_Write_Tokens_MR
                               | Session_Cache_Write_Tokens_EWMA =>
                               Long_Float (M.Total_Cache_Write_Tokens),
+                           when Session_Thinking_Tokens_I
+                              | Session_Thinking_Tokens_MR
+                              | Session_Thinking_Tokens_EWMA        =>
+                              Long_Float (M.Total_Thinking_Tokens),
+                           when Session_Tool_Call_Tokens_I
+                              | Session_Tool_Call_Tokens_MR
+                              | Session_Tool_Call_Tokens_EWMA        =>
+                              Long_Float (M.Total_Tool_Call_Input_Tokens),
+                           when Session_Tool_Call_Result_Tokens_I
+                              | Session_Tool_Call_Result_Tokens_MR
+                              | Session_Tool_Call_Result_Tokens_EWMA =>
+                              Long_Float (M.Total_Tool_Call_Result_Tokens),
                            when others                          =>
                               Long_Float (M.Total_Output_Tokens));
                   begin
@@ -273,10 +312,116 @@ package body Coyote_SQC.App is
             then
                Lambda := State.Workspace.I_Chart_Box_Cox.Fixed_Lambda;
             else
-               Lambda :=
-                 (if N_Raw >= 3
-                  then Statistics.I_Chart.Estimate_Lambda (Raw (1 .. N_Raw))
-                  else 0.0);
+               if N_Raw >= 3 then
+                  declare
+                     Fallback : Boolean;
+                  begin
+                     Lambda := Statistics.I_Chart.Estimate_Lambda
+                                 (Raw (1 .. N_Raw),
+                                  Use_Robust    =>
+                                    State.Workspace.I_Chart_Box_Cox
+                                      .Lambda_Source =
+                                      Data_Model.Robust_Auto,
+                                  Fallback_Used => Fallback);
+                     if Fallback then
+                        State.Status_Bar.Set_Text
+                          ("Box-Cox: lambda fell back to 0.0 (log)"
+                           & " -- MLE optimum was non-invertible or"
+                           & " data was degenerate.");
+                     end if;
+                  end;
+               else
+                  Lambda := 0.0;
+               end if;
+            end if;
+            CD.Box_Cox_Lambda := Lambda;
+            CD.Box_Cox_Active := True;
+
+            --  Recompute Grand_Mean and Mean_MR in the transformed space.
+            if N_Raw > 0 then
+               declare
+                  Sum_Z    : Long_Float := 0.0;
+                  Prev_Z   : Long_Float := 0.0;
+                  Has_PZ   : Boolean    := False;
+                  MR_Z_Sum : Long_Float := 0.0;
+                  MR_Z_Cnt : Natural    := 0;
+               begin
+                  for Idx in 1 .. N_Raw loop
+                     declare
+                        Z : constant Long_Float :=
+                          Statistics.I_Chart.Box_Cox (Raw (Idx), Lambda);
+                     begin
+                        Sum_Z := Sum_Z + Z;
+                        if Has_PZ then
+                           MR_Z_Sum := MR_Z_Sum + abs (Z - Prev_Z);
+                           MR_Z_Cnt := MR_Z_Cnt + 1;
+                        end if;
+                        Prev_Z := Z;
+                        Has_PZ := True;
+                     end;
+                  end loop;
+                  CD.Params.Grand_Mean := Sum_Z / Long_Float (N_Raw);
+                  CD.Params.Mean_MR    :=
+                    (if MR_Z_Cnt > 0
+                     then MR_Z_Sum / Long_Float (MR_Z_Cnt)
+                     else 0.0);
+               end;
+            end if;
+         end;
+      end if;
+
+      --  ── Box-Cox for Session Turn Count I/MR/EWMA chart kinds ────────────
+      --  When Turn_Count_Box_Cox is enabled, estimate lambda from setup-
+      --  interval N_Turns values and override CD.Params with z-space
+      --  equivalents.  N_Turns is always >= 1, so no zero-value exclusion.
+      if Kind in Session_Turn_Count_I
+                 | Session_Turn_Count_MR
+                 | Session_Turn_Count_EWMA
+        and then State.Workspace.Turn_Count_Box_Cox.Enabled
+      then
+         declare
+            Raw   : Statistics.I_Chart.Long_Float_Array
+                      (1 .. Natural (State.All_Metrics.Length));
+            N_Raw : Natural := 0;
+            Lambda : Long_Float;
+         begin
+            for M of State.All_Metrics loop
+               if State.Workspace.Setup_Session_Ids.Is_Empty
+                 or else State.Workspace.Setup_Session_Ids.Contains
+                           (M.Session_Id)
+               then
+                  N_Raw := N_Raw + 1;
+                  Raw (N_Raw) := Long_Float (M.N_Turns);
+               end if;
+            end loop;
+
+            --  Resolve lambda.
+            if State.Workspace.Turn_Count_Box_Cox.Lambda_Source =
+                  Data_Model.Fixed
+            then
+               Lambda := State.Workspace.Turn_Count_Box_Cox.Fixed_Lambda;
+            else
+               if N_Raw >= 3 then
+                  declare
+                     Fallback : Boolean;
+                  begin
+                     Lambda := Statistics.I_Chart.Estimate_Lambda
+                                 (Raw (1 .. N_Raw),
+                                  Use_Robust    =>
+                                    State.Workspace.Turn_Count_Box_Cox
+                                      .Lambda_Source =
+                                      Data_Model.Robust_Auto,
+                                  Fallback_Used => Fallback);
+                     if Fallback then
+                        State.Status_Bar.Set_Text
+                          ("Box-Cox: lambda fell back to 0.0 (log)"
+                           & " -- MLE optimum was non-invertible or"
+                           & " data was degenerate.");
+                     end if;
+                  end;
+               else
+                  Lambda := 0.0;
+               end if;
             end if;
             CD.Box_Cox_Lambda := Lambda;
             CD.Box_Cox_Active := True;
@@ -399,11 +544,27 @@ package body Coyote_SQC.App is
                         end loop;
                      end if;
                   end loop;
-                  Lambda :=
-                    (if N_Raw >= 3
-                     then Statistics.I_Chart.Estimate_Lambda
-                            (Raw (1 .. N_Raw))
-                     else 0.0);
+                  if N_Raw >= 3 then
+                     declare
+                        Fallback : Boolean;
+                     begin
+                        Lambda := Statistics.I_Chart.Estimate_Lambda
+                                    (Raw (1 .. N_Raw),
+                                     Use_Robust    =>
+                                       State.Workspace.Xbar_S_Box_Cox
+                                         .Lambda_Source =
+                                         Data_Model.Robust_Auto,
+                                     Fallback_Used => Fallback);
+                        if Fallback then
+                           State.Status_Bar.Set_Text
+                             ("Box-Cox: lambda fell back to 0.0 (log)"
+                              & " -- MLE optimum was non-invertible or"
+                              & " data was degenerate.");
+                        end if;
+                     end;
+                  else
+                     Lambda := 0.0;
+                  end if;
                end;
             end if;
 
@@ -510,6 +671,10 @@ package body Coyote_SQC.App is
                       | Session_Output_Tokens_MR
                       | Session_Cache_Read_Tokens_MR
                       | Session_Cache_Write_Tokens_MR
+                      | Session_Thinking_Tokens_MR
+                      | Session_Tool_Call_Tokens_MR
+                      | Session_Tool_Call_Result_Tokens_MR
+                      | Session_Turn_Count_MR
             then
                declare
                   Cur : constant Long_Float :=
@@ -520,6 +685,14 @@ package body Coyote_SQC.App is
                            Long_Float (M.Total_Cache_Read_Tokens),
                         when Session_Cache_Write_Tokens_MR  =>
                            Long_Float (M.Total_Cache_Write_Tokens),
+                        when Session_Thinking_Tokens_MR         =>
+                           Long_Float (M.Total_Thinking_Tokens),
+                        when Session_Tool_Call_Tokens_MR        =>
+                           Long_Float (M.Total_Tool_Call_Input_Tokens),
+                        when Session_Tool_Call_Result_Tokens_MR =>
+                           Long_Float (M.Total_Tool_Call_Result_Tokens),
+                        when Session_Turn_Count_MR          =>
+                           Long_Float (M.N_Turns),
                         when others                         =>
                            Long_Float (M.Total_Output_Tokens));
                begin
@@ -562,6 +735,14 @@ package body Coyote_SQC.App is
                            Long_Float (M.Total_Output_Tokens),
                         when Session_Cache_Read_Tokens_EWMA =>
                            Long_Float (M.Total_Cache_Read_Tokens),
+                        when Session_Thinking_Tokens_EWMA           =>
+                           Long_Float (M.Total_Thinking_Tokens),
+                        when Session_Tool_Call_Tokens_EWMA          =>
+                           Long_Float (M.Total_Tool_Call_Input_Tokens),
+                        when Session_Tool_Call_Result_Tokens_EWMA   =>
+                           Long_Float (M.Total_Tool_Call_Result_Tokens),
+                        when Session_Turn_Count_EWMA        =>
+                           Long_Float (M.N_Turns),
                         when others                         =>
                            Long_Float (M.Total_Cache_Write_Tokens));
                begin
@@ -841,12 +1022,19 @@ package body Coyote_SQC.App is
                   when Session_Input_Tokens_I
                      | Session_Output_Tokens_I
                      | Session_Cache_Read_Tokens_I
-                     | Session_Cache_Write_Tokens_I =>
+                     | Session_Cache_Write_Tokens_I
+                     | Session_Thinking_Tokens_I
+                     | Session_Tool_Call_Tokens_I
+                     | Session_Tool_Call_Result_Tokens_I
+                     | Session_Turn_Count_I =>
                      declare
                         L_Z : constant Statistics.Limits_Record :=
                           Statistics.I_Chart.Compute_I_Limits
                             (Grand_Mean => CD.Params.Grand_Mean,
-                             Mean_MR    => CD.Params.Mean_MR);
+                             Mean_MR    => CD.Params.Mean_MR,
+                             Robust     =>
+                               State.Workspace.Estimation_Method
+                               = Coyote_SQC.Data_Model.Robust_Median);
                      begin
                         if CD.Box_Cox_Active and then L_Z.Has_UCL then
                            --  Back-transform limits to original units.
@@ -896,13 +1084,21 @@ package body Coyote_SQC.App is
                   when Session_Input_Tokens_MR
                      | Session_Output_Tokens_MR
                      | Session_Cache_Read_Tokens_MR
-                     | Session_Cache_Write_Tokens_MR =>
+                     | Session_Cache_Write_Tokens_MR
+                     | Session_Thinking_Tokens_MR
+                     | Session_Tool_Call_Tokens_MR
+                     | Session_Tool_Call_Result_Tokens_MR
+                     | Session_Turn_Count_MR =>
                      Limits := Statistics.I_Chart.Compute_MR_Limits
                        (Mean_MR => CD.Params.Mean_MR);
                   when Session_Input_Tokens_EWMA
                      | Session_Output_Tokens_EWMA
                      | Session_Cache_Read_Tokens_EWMA
-                     | Session_Cache_Write_Tokens_EWMA =>
+                     | Session_Cache_Write_Tokens_EWMA
+                     | Session_Thinking_Tokens_EWMA
+                     | Session_Tool_Call_Tokens_EWMA
+                     | Session_Tool_Call_Result_Tokens_EWMA
+                     | Session_Turn_Count_EWMA =>
                      null;
                end case;
             end if;

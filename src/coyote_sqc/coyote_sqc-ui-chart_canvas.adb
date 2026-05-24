@@ -231,6 +231,9 @@ package body Coyote_SQC.UI.Chart_Canvas is
    function Format_Y (V : Long_Float) return String is
       use Ada.Strings.Fixed;
    begin
+      if not V'Valid then
+         return "?";
+      end if;
       if abs V >= 10000.0 then
          return Trim (Long_Long_Integer'Image (Long_Long_Integer (V)),
                       Ada.Strings.Left);
@@ -259,6 +262,9 @@ package body Coyote_SQC.UI.Chart_Canvas is
               & Trim (Long_Long_Integer'Image (abs IV), Ada.Strings.Left);
          end;
       end if;
+   exception
+      when Constraint_Error =>
+         return "?";
    end Format_Y;
 
    procedure Draw_Text (Cr    : Cairo_Context;

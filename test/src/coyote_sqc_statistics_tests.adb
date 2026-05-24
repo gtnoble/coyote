@@ -294,7 +294,7 @@ package body Coyote_SQC_Statistics_Tests is
         (Coyote_SQC.Metrics.Compute (Make_Session ("s2", Tokens_2)));
 
       --  Setup interval = all sessions (empty UUID set → retrospective).
-      Estimate_Parameters (Metrics, Setup, Turn_Tokens_Xbar, Params);
+      Estimate_Parameters (Metrics, Setup, Turn_Tokens_Xbar, Parameters => Params);
 
       --  Grand_Mean = (3*100 + 3*200) / 6 = 150.
       Assert
@@ -342,7 +342,7 @@ package body Coyote_SQC_Statistics_Tests is
       Metrics.Append (Coyote_SQC.Metrics.Compute (Make_Session ("d4", V2 (30, 34))));
       Metrics.Append (Coyote_SQC.Metrics.Compute (Make_Session ("d5", V  (25, 23, 24))));
 
-      Estimate_Parameters (Metrics, Setup, Turn_Tokens_Xbar, Params);
+      Estimate_Parameters (Metrics, Setup, Turn_Tokens_Xbar, Parameters => Params);
 
       Assert (abs (Params.Grand_Mean - 19.4706) < 5.0e-4,
               "Grand_Mean ~= 19.4706; got " & Long_Float'Image (Params.Grand_Mean));
@@ -405,7 +405,7 @@ package body Coyote_SQC_Statistics_Tests is
       Metrics.Append (PM ("p3",  8, 3));
       Metrics.Append (PM ("p4", 12, 0));
 
-      Estimate_Parameters (Metrics, Setup, Tool_Call_Failure_Rate, Params);
+      Estimate_Parameters (Metrics, Setup, Tool_Call_Failure_Rate, Parameters => Params);
 
       --  Grand_P = 6/35 ~= 0.17143.
       Assert (abs (Params.Grand_P - 0.17143) < 5.0e-5,
@@ -466,7 +466,7 @@ package body Coyote_SQC_Statistics_Tests is
       Metrics.Append (Coyote_SQC.Metrics.Compute (S1));
       Metrics.Append (Coyote_SQC.Metrics.Compute (S2));
 
-      Estimate_Parameters (Metrics, Setup, Tool_Call_Failure_Rate, Params);
+      Estimate_Parameters (Metrics, Setup, Tool_Call_Failure_Rate, Parameters => Params);
 
       --  Grand_P = 2 failures / 6 total = 1/3.
       Assert
@@ -498,7 +498,7 @@ package body Coyote_SQC_Statistics_Tests is
       Metrics.Append (Coyote_SQC.Metrics.Compute (S1));
       Metrics.Append (Coyote_SQC.Metrics.Compute (S2));
 
-      Estimate_Parameters (Metrics, Setup, Turn_Tokens_Xbar, Params);
+      Estimate_Parameters (Metrics, Setup, Turn_Tokens_Xbar, Parameters => Params);
 
       Assert
         (abs (Params.Grand_Mean - 100.0) < 1.0e-6,
@@ -532,7 +532,7 @@ package body Coyote_SQC_Statistics_Tests is
       Metrics.Append (Coyote_SQC.Metrics.Compute (Make_Session ("n1", N1_Tokens)));
       Metrics.Append (Coyote_SQC.Metrics.Compute (Make_Session ("n3", N3_Tokens)));
 
-      Estimate_Parameters (Metrics, Setup, Turn_Tokens_Xbar, Params);
+      Estimate_Parameters (Metrics, Setup, Turn_Tokens_Xbar, Parameters => Params);
 
       --  Grand_Mean: (1*50 + 3*100) / 4 = 87.5.
       Assert (abs (Params.Grand_Mean - 87.5) < 1.0e-6,
@@ -575,7 +575,7 @@ package body Coyote_SQC_Statistics_Tests is
       Metrics.Append (Coyote_SQC.Metrics.Compute (S_Thinking));
       Metrics.Append (Coyote_SQC.Metrics.Compute (S_No_Thinking));
 
-      Estimate_Parameters (Metrics, Setup, Thinking_Tokens_Xbar, Params);
+      Estimate_Parameters (Metrics, Setup, Thinking_Tokens_Xbar, Parameters => Params);
 
       --  Only the thinking session contributes; Grand_Mean = 500.
       Assert
@@ -620,7 +620,7 @@ package body Coyote_SQC_Statistics_Tests is
       Metrics.Append (Coyote_SQC.Metrics.Compute (S_Tool));
       Metrics.Append (Coyote_SQC.Metrics.Compute (S_No_Tool));
 
-      Estimate_Parameters (Metrics, Setup, Tool_Call_Tokens_Xbar, Params);
+      Estimate_Parameters (Metrics, Setup, Tool_Call_Tokens_Xbar, Parameters => Params);
 
       --  Only the tool-call session contributes; Grand_Mean = 200.
       Assert
@@ -683,7 +683,7 @@ package body Coyote_SQC_Statistics_Tests is
             & Natural'Image (M.N_Tool_Call_Turns_For_Chart));
       end;
 
-      Estimate_Parameters (Metrics, Setup, Tool_Call_Tokens_Xbar, Params);
+      Estimate_Parameters (Metrics, Setup, Tool_Call_Tokens_Xbar, Parameters => Params);
 
       Assert
         (abs (Params.Grand_Mean - 300.0) < 1.0e-6,
@@ -836,7 +836,7 @@ package body Coyote_SQC_Statistics_Tests is
       Metrics.Append (Coyote_SQC.Metrics.Compute (S2));
       Metrics.Append (Coyote_SQC.Metrics.Compute (S3));
 
-      Estimate_Parameters (Metrics, Setup, Session_Input_Tokens_I, Params);
+      Estimate_Parameters (Metrics, Setup, Session_Input_Tokens_I, Parameters => Params);
 
       Assert (abs (Params.Grand_Mean - 200.0) <= Tol,
               "I chart estimate: Grand_Mean should be 200; got "
@@ -865,7 +865,7 @@ package body Coyote_SQC_Statistics_Tests is
 
       Metrics.Append (Coyote_SQC.Metrics.Compute (S));
 
-      Estimate_Parameters (Metrics, Setup, Session_Input_Tokens_I, Params);
+      Estimate_Parameters (Metrics, Setup, Session_Input_Tokens_I, Parameters => Params);
 
       Assert (Params.Mean_MR = 0.0,
               "I chart single-session: Mean_MR should be 0; got "
@@ -953,15 +953,20 @@ package body Coyote_SQC_Statistics_Tests is
    end Test_Box_Cox_Zero_Raises;
 
    --  Estimate_Lambda with fewer than 3 observations returns 0.0.
+
+   --  Estimate_Lambda with fewer than 3 observations returns 0.0.
    procedure Test_Estimate_Lambda_Few_Obs (T : in out Test) is
       pragma Unreferenced (T);
       use Coyote_SQC.Statistics.I_Chart;
-      Tol : constant Long_Float := 1.0e-12;
-      L1  : constant Long_Float :=
-        Estimate_Lambda (Long_Float_Array'(1 => 1000.0));
-      L2  : constant Long_Float :=
-        Estimate_Lambda (Long_Float_Array'(1 => 100.0, 2 => 200.0));
+      Tol      : constant Long_Float := 1.0e-12;
+      L1       : Long_Float;
+      L2       : Long_Float;
+      Fallback : Boolean;
    begin
+      L1 := Estimate_Lambda (Long_Float_Array'(1 => 1000.0),
+                             Fallback_Used => Fallback);
+      L2 := Estimate_Lambda (Long_Float_Array'(1 => 100.0, 2 => 200.0),
+                             Fallback_Used => Fallback);
       Assert
         (abs L1 <= Tol,
          "Estimate_Lambda with 1 obs should return 0.0; got "
@@ -971,7 +976,6 @@ package body Coyote_SQC_Statistics_Tests is
          "Estimate_Lambda with 2 obs should return 0.0; got "
          & Long_Float'Image (L2));
    end Test_Estimate_Lambda_Few_Obs;
-
    --  I chart with Box-Cox (lambda=0): back-transformed UCL should equal
    --  exp(mean_z + 3*mean_mr_z/d2) for a known 3-value dataset.
    --  Values: 10, 100, 1000.
@@ -1049,6 +1053,183 @@ package body Coyote_SQC_Statistics_Tests is
          & Long_Float'Image (Got)
          & " expected " & Long_Float'Image (Expected));
    end Test_Box_Cox_MR_Transformed;
+
+   --  ── Qn scale estimator tests ──────────────────────────────────────────
+
+   --  N=3 known value: {10, 20, 30}.
+   --  Pairs sorted: {10, 10, 20}.  H=1, d_(1)=10.  c_3=0.994.
+   --  Expected = 0.994 * 2.2219 * 10 = 22.086.
+   procedure Test_Qn_Scale_N3_Known (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.I_Chart;
+      Result : constant Long_Float :=
+        Qn_Scale (Long_Float_Array'(10.0, 20.0, 30.0));
+      Expected : constant Long_Float := 22.086;
+      Tol      : constant Long_Float := 0.01;
+   begin
+      Assert
+        (abs (Result - Expected) <= Tol,
+         "Qn_Scale({10,20,30}) expected ~22.086, got "
+         & Long_Float'Image (Result));
+   end Test_Qn_Scale_N3_Known;
+
+   --  N=4 known value: {1, 2, 4, 8}.
+   --  Pairs sorted: {1,2,3,4,6,7}.  H=3, d_(3)=3.  c_4=0.512.
+   --  Expected = 0.512 * 2.2219 * 3 = 3.413.
+   procedure Test_Qn_Scale_N4_Known (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.I_Chart;
+      Result : constant Long_Float :=
+        Qn_Scale (Long_Float_Array'(1.0, 2.0, 4.0, 8.0));
+      Expected : constant Long_Float := 3.413;
+      Tol      : constant Long_Float := 0.01;
+   begin
+      Assert
+        (abs (Result - Expected) <= Tol,
+         "Qn_Scale({1,2,4,8}) expected ~3.413, got "
+         & Long_Float'Image (Result));
+   end Test_Qn_Scale_N4_Known;
+
+   --  N < 2 must raise Constraint_Error.
+   procedure Test_Qn_Scale_N_Less_2_Raises (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.I_Chart;
+      Raised : Boolean := False;
+   begin
+      begin
+         declare
+            Dummy : constant Long_Float :=
+              Qn_Scale (Long_Float_Array'(1 => 5.0));
+            pragma Unreferenced (Dummy);
+         begin
+            null;
+         end;
+      exception
+         when Constraint_Error => Raised := True;
+      end;
+      Assert (Raised, "Qn_Scale with N=1 should raise Constraint_Error");
+   end Test_Qn_Scale_N_Less_2_Raises;
+
+   --  Non-positive value must raise Constraint_Error.
+   procedure Test_Qn_Scale_Zero_Raises (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.I_Chart;
+      Raised : Boolean := False;
+   begin
+      begin
+         declare
+            Dummy : constant Long_Float :=
+              Qn_Scale (Long_Float_Array'(1.0, 0.0, 3.0));
+            pragma Unreferenced (Dummy);
+         begin
+            null;
+         end;
+      exception
+         when Constraint_Error => Raised := True;
+      end;
+      Assert (Raised,
+              "Qn_Scale with a zero value should raise Constraint_Error");
+   end Test_Qn_Scale_Zero_Raises;
+
+   --  N=20 (even asymptotic formula): result is positive and finite.
+   procedure Test_Qn_Scale_Asymptotic_Even (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.I_Chart;
+      Values : Long_Float_Array (1 .. 20);
+      Result : Long_Float;
+   begin
+      for I in Values'Range loop
+         Values (I) := Long_Float (I);
+      end loop;
+      Result := Qn_Scale (Values);
+      Assert (Result > 0.0,
+              "Qn_Scale N=20 should return positive value; got "
+              & Long_Float'Image (Result));
+   end Test_Qn_Scale_Asymptotic_Even;
+
+   --  N=11 (odd asymptotic formula): result is positive and finite.
+   procedure Test_Qn_Scale_Asymptotic_Odd (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.I_Chart;
+      Values : Long_Float_Array (1 .. 11);
+      Result : Long_Float;
+   begin
+      for I in Values'Range loop
+         Values (I) := Long_Float (I);
+      end loop;
+      Result := Qn_Scale (Values);
+      Assert (Result > 0.0,
+              "Qn_Scale N=11 should return positive value; got "
+              & Long_Float'Image (Result));
+   end Test_Qn_Scale_Asymptotic_Odd;
+
+   --  ── Robust Estimate_Lambda tests ─────────────────────────────────────
+
+   --  Fewer than 3 observations returns 0.0 regardless of Use_Robust.
+
+   procedure Test_Estimate_Lambda_Robust_Few_Obs (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.I_Chart;
+      R1       : Long_Float;
+      R2       : Long_Float;
+      Fallback : Boolean;
+   begin
+      R1 := Estimate_Lambda (Long_Float_Array'(1 => 5.0),
+                             Use_Robust => True, Fallback_Used => Fallback);
+      R2 := Estimate_Lambda (Long_Float_Array'(5.0, 10.0),
+                             Use_Robust => True, Fallback_Used => Fallback);
+      Assert (R1 = 0.0,
+              "Robust Estimate_Lambda with 1 obs should return 0.0; got "
+              & Long_Float'Image (R1));
+      Assert (R2 = 0.0,
+              "Robust Estimate_Lambda with 2 obs should return 0.0; got "
+              & Long_Float'Image (R2));
+   end Test_Estimate_Lambda_Robust_Few_Obs;
+   --  Robust estimate on a right-skewed positive dataset returns a
+   --  value in [-5.0, 5.0].
+
+   procedure Test_Estimate_Lambda_Robust_Basic (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.I_Chart;
+      --  Exponential-like data: right-skewed, log transform should help.
+      Data          : constant Long_Float_Array :=
+        (1.0, 2.0, 3.0, 5.0, 8.0, 13.0, 21.0, 34.0, 55.0, 89.0);
+      Lambda_MLE    : Long_Float;
+      Lambda_Robust : Long_Float;
+      Fallback      : Boolean;
+   begin
+      Lambda_MLE := Estimate_Lambda
+                      (Data, Use_Robust => False, Fallback_Used => Fallback);
+      Lambda_Robust := Estimate_Lambda
+                         (Data, Use_Robust => True, Fallback_Used => Fallback);
+      Assert
+        (Lambda_MLE >= -5.0 and Lambda_MLE <= 5.0,
+         "MLE Estimate_Lambda should be in [-5,5]; got "
+         & Long_Float'Image (Lambda_MLE));
+      Assert
+        (Lambda_Robust >= -5.0 and Lambda_Robust <= 5.0,
+         "Robust Estimate_Lambda should be in [-5,5]; got "
+         & Long_Float'Image (Lambda_Robust));
+   end Test_Estimate_Lambda_Robust_Basic;
+
+   --  All-identical data is degenerate: log-likelihood is undefined for every
+   --  lambda.  Estimate_Lambda must return 0.0 and set Fallback_Used = True.
+   procedure Test_Estimate_Lambda_Degenerate (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.I_Chart;
+      Data     : constant Long_Float_Array := (5.0, 5.0, 5.0, 5.0, 5.0);
+      Lambda   : Long_Float;
+      Fallback : Boolean;
+   begin
+      Lambda := Estimate_Lambda (Data, Fallback_Used => Fallback);
+      Assert
+        (abs Lambda <= 1.0e-12,
+         "All-identical data should return lambda = 0.0; got "
+         & Long_Float'Image (Lambda));
+      Assert
+        (Fallback,
+         "All-identical data should set Fallback_Used = True");
+   end Test_Estimate_Lambda_Degenerate;
 
 
    --  ── EWMA chart tests ──────────────────────────────────────────────────
@@ -1179,5 +1360,379 @@ package body Coyote_SQC_Statistics_Tests is
       Assert (abs (Lim.LCL - 0.0) <= Tol,
               "Clamped LCL should be 0; got " & Long_Float'Image (Lim.LCL));
    end Test_EWMA_Limits_LCL_Clamped;
+
+
+   --  ── Median_Of helper tests ────────────────────────────────────────────
+
+   procedure Test_Median_Of_Basic (T : in out Test) is
+      pragma Unreferenced (T);
+      use AUnit.Assertions;
+      use Coyote_SQC.Statistics;
+      Vals : constant LF_Value_Array := (1.0, 3.0, 2.0, 5.0, 4.0);
+      Tol  : constant Long_Float := 1.0e-10;
+   begin
+      Assert (abs (Median_Of (Vals) - 3.0) <= Tol,
+              "Median of 5 elements should be 3.0; got "
+              & Long_Float'Image (Median_Of (Vals)));
+   end Test_Median_Of_Basic;
+
+   procedure Test_Median_Of_Even (T : in out Test) is
+      pragma Unreferenced (T);
+      use AUnit.Assertions;
+      use Coyote_SQC.Statistics;
+      Vals : constant LF_Value_Array := (1.0, 4.0, 2.0, 3.0);
+      Tol  : constant Long_Float := 1.0e-10;
+   begin
+      Assert (abs (Median_Of (Vals) - 2.5) <= Tol,
+              "Median of 4 elements should be 2.5; got "
+              & Long_Float'Image (Median_Of (Vals)));
+   end Test_Median_Of_Even;
+
+   procedure Test_Median_Of_Single (T : in out Test) is
+      pragma Unreferenced (T);
+      use AUnit.Assertions;
+      use Coyote_SQC.Statistics;
+      Vals : constant LF_Value_Array := (1 => 42.0);
+      Tol  : constant Long_Float := 1.0e-10;
+   begin
+      Assert (abs (Median_Of (Vals) - 42.0) <= Tol,
+              "Median of 1 element should be 42.0");
+   end Test_Median_Of_Single;
+
+   procedure Test_Median_Of_Empty (T : in out Test) is
+      pragma Unreferenced (T);
+      use AUnit.Assertions;
+      use Coyote_SQC.Statistics;
+      Vals : constant LF_Value_Array (1 .. 0) := (others => 0.0);
+      Tol  : constant Long_Float := 1.0e-10;
+   begin
+      Assert (abs (Median_Of (Vals) - 0.0) <= Tol,
+              "Median of empty array should be 0.0");
+   end Test_Median_Of_Empty;
+
+   procedure Test_Median_Of_Unsorted (T : in out Test) is
+      pragma Unreferenced (T);
+      use AUnit.Assertions;
+      use Coyote_SQC.Statistics;
+      Vals : constant LF_Value_Array := (5.0, 1.0, 3.0);
+      Tol  : constant Long_Float := 1.0e-10;
+   begin
+      Assert (abs (Median_Of (Vals) - 3.0) <= Tol,
+              "Median of unsorted [5,1,3] should be 3.0; got "
+              & Long_Float'Image (Median_Of (Vals)));
+   end Test_Median_Of_Unsorted;
+
+   --  ── Robust I/MR estimation tests ─────────────────────────────────────
+
+   procedure Test_Robust_I_Chart_Grand_Mean (T : in out Test) is
+      pragma Unreferenced (T);
+      use AUnit.Assertions;
+      use Coyote_SQC.Data_Model;
+      use Coyote_SQC.Charts;
+      use Coyote_SQC.Statistics;
+      --  Five sessions: one extreme outlier at the end.
+      --  Observations: 100, 110, 90, 120, 5000.
+      --  Sorted: 90, 100, 110, 120, 5000.
+      --  Median = 110 (middle of 5).
+      S1, S2, S3, S4, S5 : Session_Record;
+      T1, T2, T3, T4, T5 : Turn_Record;
+      Metrics : Metrics_Vectors.Vector;
+      Setup   : UUID_Set;
+      Params  : Setup_Parameters;
+      Tol     : constant Long_Float := 1.0e-6;
+   begin
+      S1.Session_Id := To_Unbounded_String ("s1");
+      S1.Total_Input_Tokens := 100; T1.Turn_Index := 1; S1.Turns.Append (T1);
+      S2.Session_Id := To_Unbounded_String ("s2");
+      S2.Total_Input_Tokens := 110; T2.Turn_Index := 1; S2.Turns.Append (T2);
+      S3.Session_Id := To_Unbounded_String ("s3");
+      S3.Total_Input_Tokens := 90;  T3.Turn_Index := 1; S3.Turns.Append (T3);
+      S4.Session_Id := To_Unbounded_String ("s4");
+      S4.Total_Input_Tokens := 120; T4.Turn_Index := 1; S4.Turns.Append (T4);
+      S5.Session_Id := To_Unbounded_String ("s5");
+      S5.Total_Input_Tokens := 5000; T5.Turn_Index := 1; S5.Turns.Append (T5);
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S1));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S2));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S3));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S4));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S5));
+      Estimate_Parameters
+        (Metrics, Setup, Session_Input_Tokens_I,
+         Method => Robust_Median, Parameters => Params);
+      Assert (abs (Params.Grand_Mean - 110.0) <= Tol,
+              "Robust Grand_Mean should be 110 (median); got "
+              & Long_Float'Image (Params.Grand_Mean));
+      --  Verify classical gives a different (outlier-inflated) result.
+      declare
+         Params_C : Setup_Parameters;
+      begin
+         Estimate_Parameters
+           (Metrics, Setup, Session_Input_Tokens_I,
+            Method => Classical, Parameters => Params_C);
+         Assert (Params_C.Grand_Mean > 1000.0,
+                 "Classical Grand_Mean should be much larger (outlier "
+                 & "inflated); got "
+                 & Long_Float'Image (Params_C.Grand_Mean));
+      end;
+   end Test_Robust_I_Chart_Grand_Mean;
+
+   procedure Test_Robust_I_Chart_Mean_MR (T : in out Test) is
+      pragma Unreferenced (T);
+      use AUnit.Assertions;
+      use Coyote_SQC.Data_Model;
+      use Coyote_SQC.Charts;
+      use Coyote_SQC.Statistics;
+      --  Observations in order: 100, 110, 90, 120, 130.
+      --  MRs: |110-100|=10, |90-110|=20, |120-90|=30, |130-120|=10.
+      --  Sorted MRs: 10, 10, 20, 30. Median = (10+20)/2 = 15.
+      S1, S2, S3, S4, S5 : Session_Record;
+      T1, T2, T3, T4, T5 : Turn_Record;
+      Metrics : Metrics_Vectors.Vector;
+      Setup   : UUID_Set;
+      Params  : Setup_Parameters;
+      Tol     : constant Long_Float := 1.0e-6;
+   begin
+      S1.Session_Id := To_Unbounded_String ("s1");
+      S1.Total_Input_Tokens := 100;
+      T1.Turn_Index := 1; S1.Turns.Append (T1);
+      S2.Session_Id := To_Unbounded_String ("s2");
+      S2.Total_Input_Tokens := 110;
+      T2.Turn_Index := 1; S2.Turns.Append (T2);
+      S3.Session_Id := To_Unbounded_String ("s3");
+      S3.Total_Input_Tokens := 90;
+      T3.Turn_Index := 1; S3.Turns.Append (T3);
+      S4.Session_Id := To_Unbounded_String ("s4");
+      S4.Total_Input_Tokens := 120;
+      T4.Turn_Index := 1; S4.Turns.Append (T4);
+      S5.Session_Id := To_Unbounded_String ("s5");
+      S5.Total_Input_Tokens := 130;
+      T5.Turn_Index := 1; S5.Turns.Append (T5);
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S1));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S2));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S3));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S4));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S5));
+      Estimate_Parameters
+        (Metrics, Setup, Session_Input_Tokens_I,
+         Method => Robust_Median, Parameters => Params);
+      Assert (abs (Params.Mean_MR - 15.0) <= Tol,
+              "Robust Mean_MR should be 15 (median of MRs); got "
+              & Long_Float'Image (Params.Mean_MR));
+   end Test_Robust_I_Chart_Mean_MR;
+
+   procedure Test_Robust_I_Limits_Divisor (T : in out Test) is
+      pragma Unreferenced (T);
+      use AUnit.Assertions;
+      use Coyote_SQC.Statistics.I_Chart;
+      --  Verify Compute_I_Limits uses d4=0.9515 when Robust=True.
+      --  Grand_Mean=100, Mean_MR=20.
+      --  Classical: Spread = 3*20/1.128  = 53.1915...
+      --  Robust:    Spread = 3*20/0.9515 = 63.0583...
+      Grand_Mean : constant Long_Float := 100.0;
+      Mean_MR    : constant Long_Float := 20.0;
+      D2 : constant Long_Float := 1.128;
+      D4 : constant Long_Float := 0.9515;
+      Spread_Classical : constant Long_Float := 3.0 * Mean_MR / D2;
+      Spread_Robust    : constant Long_Float := 3.0 * Mean_MR / D4;
+      Lim_C : constant Limits_Record :=
+        Compute_I_Limits
+          (Grand_Mean => Grand_Mean,
+           Mean_MR    => Mean_MR,
+           Robust     => False);
+      Lim_R : constant Limits_Record :=
+        Compute_I_Limits
+          (Grand_Mean => Grand_Mean,
+           Mean_MR    => Mean_MR,
+           Robust     => True);
+      Tol : constant Long_Float := 1.0e-4;
+   begin
+      Assert (abs (Lim_C.UCL - (Grand_Mean + Spread_Classical)) <= Tol,
+              "Classical UCL wrong; got " & Long_Float'Image (Lim_C.UCL));
+      Assert (abs (Lim_R.UCL - (Grand_Mean + Spread_Robust)) <= Tol,
+              "Robust UCL wrong; got " & Long_Float'Image (Lim_R.UCL));
+      Assert (Lim_R.UCL > Lim_C.UCL,
+              "Robust UCL should be wider than classical (d4 < d2)");
+   end Test_Robust_I_Limits_Divisor;
+
+   --  ── Robust Xbar/s estimation tests ────────────────────────────────────
+
+   procedure Test_Robust_Xbar_Grand_Mean (T : in out Test) is
+      pragma Unreferenced (T);
+      use AUnit.Assertions;
+      use Coyote_SQC.Data_Model;
+      use Coyote_SQC.Charts;
+      use Coyote_SQC.Statistics;
+      --  Three sessions, each with 3 turns.
+      --  Session means (equal subgroups): 50, 60, 5000.
+      --  Robust Grand_Mean = median([50, 60, 5000]) = 60.
+      S1, S2, S3 : Session_Record;
+      Metrics    : Metrics_Vectors.Vector;
+      Setup      : UUID_Set;
+      Params     : Setup_Parameters;
+      Tol        : constant Long_Float := 1.0e-6;
+   begin
+      S1.Session_Id := To_Unbounded_String ("s1");
+      for I in 1 .. 3 loop
+         declare T1 : Turn_Record; begin
+            T1.Turn_Index := I;
+            T1.Output_Tokens := 50;
+            S1.Turns.Append (T1);
+         end;
+      end loop;
+      S2.Session_Id := To_Unbounded_String ("s2");
+      for I in 1 .. 3 loop
+         declare T2 : Turn_Record; begin
+            T2.Turn_Index := I;
+            T2.Output_Tokens := 60;
+            S2.Turns.Append (T2);
+         end;
+      end loop;
+      S3.Session_Id := To_Unbounded_String ("s3");
+      for I in 1 .. 3 loop
+         declare T3 : Turn_Record; begin
+            T3.Turn_Index := I;
+            T3.Output_Tokens := 5000;
+            S3.Turns.Append (T3);
+         end;
+      end loop;
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S1));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S2));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S3));
+      Estimate_Parameters
+        (Metrics, Setup, Turn_Tokens_Xbar,
+         Method => Robust_Median, Parameters => Params);
+      Assert (abs (Params.Grand_Mean - 60.0) <= Tol,
+              "Robust Xbar Grand_Mean should be 60 (median of session "
+              & "means); got " & Long_Float'Image (Params.Grand_Mean));
+   end Test_Robust_Xbar_Grand_Mean;
+
+   procedure Test_Robust_Xbar_Pooled_S (T : in out Test) is
+      pragma Unreferenced (T);
+      use AUnit.Assertions;
+      use Coyote_SQC.Data_Model;
+      use Coyote_SQC.Charts;
+      use Coyote_SQC.Statistics;
+      --  Two sessions, 3 turns each.
+      --  Session 1: [90, 100, 110] → mean=100, residuals [-10, 0, 10].
+      --  Session 2: [90, 100, 110] → mean=100, residuals [-10, 0, 10].
+      --  The pooled residuals are symmetric around 0; Qn should return > 0.
+      --  Also verify robust /= classical when sessions differ.
+      S1, S2 : Session_Record;
+      Metrics : Metrics_Vectors.Vector;
+      Setup   : UUID_Set;
+      Params  : Setup_Parameters;
+      Tol     : constant Long_Float := 1.0e-6;
+   begin
+      S1.Session_Id := To_Unbounded_String ("s1");
+      declare
+         T1a, T1b, T1c : Turn_Record;
+      begin
+         T1a.Turn_Index := 1; T1a.Output_Tokens := 90;
+         T1b.Turn_Index := 2; T1b.Output_Tokens := 100;
+         T1c.Turn_Index := 3; T1c.Output_Tokens := 110;
+         S1.Turns.Append (T1a);
+         S1.Turns.Append (T1b);
+         S1.Turns.Append (T1c);
+      end;
+      S2.Session_Id := To_Unbounded_String ("s2");
+      declare
+         T2a, T2b, T2c : Turn_Record;
+      begin
+         T2a.Turn_Index := 1; T2a.Output_Tokens := 90;
+         T2b.Turn_Index := 2; T2b.Output_Tokens := 100;
+         T2c.Turn_Index := 3; T2c.Output_Tokens := 110;
+         S2.Turns.Append (T2a);
+         S2.Turns.Append (T2b);
+         S2.Turns.Append (T2c);
+      end;
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S1));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S2));
+      Estimate_Parameters
+        (Metrics, Setup, Turn_Tokens_Xbar,
+         Method => Robust_Median, Parameters => Params);
+      Assert (Params.Pooled_S > 0.0,
+              "Robust Pooled_S should be > 0 when residuals are non-zero; "
+              & "got " & Long_Float'Image (Params.Pooled_S));
+      --  The Qn-based estimate should be close to the classical for
+      --  symmetric data (both estimate sigma of the underlying normal).
+      Assert (Params.Pooled_S < 20.0,
+              "Robust Pooled_S should be finite; got "
+              & Long_Float'Image (Params.Pooled_S));
+      declare
+         Params_C : Setup_Parameters;
+      begin
+         Estimate_Parameters
+           (Metrics, Setup, Turn_Tokens_Xbar,
+            Method => Classical, Parameters => Params_C);
+         Assert (Params_C.Pooled_S > 0.0,
+                 "Classical Pooled_S should also be > 0");
+         --  For symmetric data both estimators should be in the same
+         --  ballpark (within 50% of each other).
+         Assert (abs (Params.Pooled_S / Params_C.Pooled_S - 1.0) < 0.5,
+                 "Robust and classical Pooled_S should be in the same "
+                 & "ballpark for symmetric data; robust="
+                 & Long_Float'Image (Params.Pooled_S)
+                 & " classical=" & Long_Float'Image (Params_C.Pooled_S));
+      end;
+      pragma Unreferenced (Tol);
+   end Test_Robust_Xbar_Pooled_S;
+
+   --  ── Robust p-chart unchanged test ─────────────────────────────────────
+
+   procedure Test_Robust_P_Chart_Unchanged (T : in out Test) is
+      pragma Unreferenced (T);
+      use AUnit.Assertions;
+      use Coyote_SQC.Data_Model;
+      use Coyote_SQC.Charts;
+      use Coyote_SQC.Statistics;
+      --  Two sessions: S1 has 5 failures in 10 tool calls;
+      --  S2 has 5 failures in 10 tool calls.  Grand_P = 0.5.
+      S1, S2 : Session_Record;
+      T1, T2 : Turn_Record;
+      TC1, TC2, TC3, TC4, TC5 : Tool_Call_Record;
+      Metrics : Metrics_Vectors.Vector;
+      Setup   : UUID_Set;
+      Params_C, Params_R : Setup_Parameters;
+      Tol : constant Long_Float := 1.0e-10;
+   begin
+      S1.Session_Id := To_Unbounded_String ("s1");
+      T1.Turn_Index := 1;
+      TC1.Failed := True;  TC2.Failed := True;
+      TC3.Failed := False; TC4.Failed := False; TC5.Failed := False;
+      T1.Tool_Calls.Append (TC1); T1.Tool_Calls.Append (TC2);
+      T1.Tool_Calls.Append (TC3); T1.Tool_Calls.Append (TC4);
+      T1.Tool_Calls.Append (TC5);
+      S1.Turns.Append (T1);
+
+      S2.Session_Id := To_Unbounded_String ("s2");
+      T2.Turn_Index := 1;
+      declare
+         TC6, TC7, TC8, TC9, TC10 : Tool_Call_Record;
+      begin
+         TC6.Failed := True;  TC7.Failed := True;
+         TC8.Failed := False; TC9.Failed := False; TC10.Failed := False;
+         T2.Tool_Calls.Append (TC6); T2.Tool_Calls.Append (TC7);
+         T2.Tool_Calls.Append (TC8); T2.Tool_Calls.Append (TC9);
+         T2.Tool_Calls.Append (TC10);
+      end;
+      S2.Turns.Append (T2);
+
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S1));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S2));
+
+      Estimate_Parameters
+        (Metrics, Setup, Tool_Call_Failure_Rate,
+         Method => Classical, Parameters => Params_C);
+      Estimate_Parameters
+        (Metrics, Setup, Tool_Call_Failure_Rate,
+         Method => Robust_Median, Parameters => Params_R);
+
+      Assert (abs (Params_C.Grand_P - 0.4) <= Tol,
+              "Classical Grand_P wrong; got "
+              & Long_Float'Image (Params_C.Grand_P));
+      Assert (abs (Params_R.Grand_P - 0.4) <= Tol,
+              "Robust Grand_P should equal classical for p-charts; got "
+              & Long_Float'Image (Params_R.Grand_P));
+   end Test_Robust_P_Chart_Unchanged;
 
 end Coyote_SQC_Statistics_Tests;

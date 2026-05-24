@@ -5,14 +5,22 @@
 --
 --  Project: coyote
 
+with Ada.Containers.Vectors;
 with Ada.Numerics.Long_Elementary_Functions;
 with Ada.Strings.Unbounded;
+with Coyote_SQC.Statistics.I_Chart;
 
 package body Coyote_SQC.Statistics is
 
    use Ada.Numerics.Long_Elementary_Functions;
    use Ada.Strings.Unbounded;
    use Coyote_SQC.Data_Model;
+   use type Coyote_SQC.Data_Model.Estimation_Method_Kind;
+
+   --  Internal Long_Float vector used for robust estimation accumulation.
+   package LF_Vectors is new Ada.Containers.Vectors
+     (Index_Type   => Positive,
+      Element_Type => Long_Float);
 
    --  Return the unbiased sample variance of a Natural vector.
    --  Returns 0.0 when the vector has fewer than 2 elements.
@@ -64,13 +72,61 @@ package body Coyote_SQC.Statistics is
       return Sum_Of (Values) / Long_Float (N);
    end Mean_Of;
 
+   --  Sort a slice of a LF_Value_Array in-place (insertion sort).
+   procedure Sort_Slice
+     (A : in out LF_Value_Array;
+      Lo : Positive;
+      Hi : Natural)
+   is
+   begin
+      for I in Lo + 1 .. Hi loop
+         declare
+            Key : constant Long_Float := A (I);
+            J   : Integer := I - 1;
+         begin
+            while J >= Lo and then A (J) > Key loop
+               A (J + 1) := A (J);
+               J := J - 1;
+            end loop;
+            A (J + 1) := Key;
+         end;
+      end loop;
+   end Sort_Slice;
+
+   function Median_Of (Values : LF_Value_Array) return Long_Float is
+      N : constant Natural := Values'Length;
+   begin
+      if N = 0 then
+         return 0.0;
+      end if;
+      if N = 1 then
+         return Values (Values'First);
+      end if;
+      declare
+         --  Work on a copy so we do not modify the caller's array.
+         Copy : LF_Value_Array := Values;
+         Mid  : constant Positive := Copy'First + (N - 1) / 2;
+      begin
+         Sort_Slice (Copy, Copy'First, Copy'Last);
+         if N mod 2 = 1 then
+            return Copy (Mid);
+         else
+            return (Copy (Mid) + Copy (Mid + 1)) / 2.0;
+         end if;
+      end;
+   end Median_Of;
+
    procedure Estimate_Parameters
      (Metrics    :     Metrics_Vectors.Vector;
       Setup_Ids  :     UUID_Set;
       Kind       :     Coyote_SQC.Charts.Chart_Kind;
+      Method     :     Coyote_SQC.Data_Model.Estimation_Method_Kind
+      := Coyote_SQC.Data_Model.Classical;
       Parameters : out Setup_Parameters)
    is
       use Coyote_SQC.Charts;
+
+      --  ── Classical accumulators ─────────────────────────────────────────
 
       --  Totals for grand mean / grand p computation (Xbar/s and I charts).
       Total_N             : Long_Float := 0.0;
@@ -84,11 +140,25 @@ package body Coyote_SQC.Statistics is
       Total_Events : Long_Float := 0.0;
       Total_Trials : Long_Float := 0.0;
 
-      --  For I/MR charts — moving range accumulators.
+      --  For classical I/MR charts — moving range accumulators.
       MR_Sum       : Long_Float := 0.0;
       MR_Count     : Natural    := 0;
       Prev_I_Value : Long_Float := 0.0;
       Has_Prev     : Boolean    := False;
+
+      --  ── Robust accumulators ────────────────────────────────────────────
+
+      --  I/MR robust: collect all observation values and MR values.
+      Robust_I_Obs  : LF_Vectors.Vector;  --  one per eligible session
+      Robust_I_MR   : LF_Vectors.Vector;  --  consecutive |obs_i - obs_{i-1}|
+      Robust_I_Prev : Long_Float := 0.0;
+      Robust_I_HasP : Boolean    := False;
+
+      --  Xbar/s robust: session means and pooled within-session residuals.
+      Robust_XS_Means     : LF_Vectors.Vector;  --  one per eligible session
+      Robust_XS_Residuals : LF_Vectors.Vector;  --  x_{i,j} - x̄_i
+
+      --  ────────────────────────────────────────────────────────────────────
 
       function In_Setup (M : Session_Metrics_Record) return Boolean is
       begin
@@ -98,7 +168,8 @@ package body Coyote_SQC.Statistics is
          return Setup_Ids.Contains (M.Session_Id);
       end In_Setup;
 
-      --  Estimate grand mean and pooled s from per-turn value vectors.
+      --  Accumulate per-turn values for Xbar/s charts (both classical and
+      --  robust; the correct output is selected at finalization).
       procedure Accumulate_Xbar_S
         (Values : Natural_Vectors.Vector)
       is
@@ -108,22 +179,33 @@ package body Coyote_SQC.Statistics is
             return;
          end if;
          declare
-            Mean : constant Long_Float := Mean_Of (Values);
+            Session_Mean : constant Long_Float := Mean_Of (Values);
          begin
+            --  Classical accumulators.
             Total_N             := Total_N + Long_Float (N);
-            Total_Weighted_Mean := Total_Weighted_Mean + Long_Float (N) * Mean;
+            Total_Weighted_Mean :=
+              Total_Weighted_Mean + Long_Float (N) * Session_Mean;
             if N >= 2 then
                Sum_Numerator   :=
                  Sum_Numerator + Long_Float (N - 1) * Sample_Variance (Values);
                Sum_Denominator :=
                  Sum_Denominator + Long_Float (N - 1);
             end if;
+
+            --  Robust accumulators (session mean for Grand_Mean median;
+            --  residuals for Qₙ Pooled_S).
+            Robust_XS_Means.Append (Session_Mean);
+            for V of Values loop
+               Robust_XS_Residuals.Append
+                 (Long_Float (V) - Session_Mean);
+            end loop;
          end;
       end Accumulate_Xbar_S;
 
-      --  Accumulate a single I-chart observation (session total).
+      --  Accumulate a single I-chart observation (session total or turn count).
       procedure Accumulate_I (Val : Long_Float) is
       begin
+         --  Classical.
          Total_N             := Total_N + 1.0;
          Total_Weighted_Mean := Total_Weighted_Mean + Val;
          if Has_Prev then
@@ -132,6 +214,14 @@ package body Coyote_SQC.Statistics is
          end if;
          Prev_I_Value := Val;
          Has_Prev     := True;
+
+         --  Robust.
+         Robust_I_Obs.Append (Val);
+         if Robust_I_HasP then
+            Robust_I_MR.Append (abs (Val - Robust_I_Prev));
+         end if;
+         Robust_I_Prev := Val;
+         Robust_I_HasP := True;
       end Accumulate_I;
 
    begin
@@ -190,28 +280,115 @@ package body Coyote_SQC.Statistics is
             when Session_Cache_Write_Tokens_I | Session_Cache_Write_Tokens_MR
                | Session_Cache_Write_Tokens_EWMA =>
                Accumulate_I (Long_Float (M.Total_Cache_Write_Tokens));
+            when Session_Thinking_Tokens_I
+               | Session_Thinking_Tokens_MR
+               | Session_Thinking_Tokens_EWMA =>
+               Accumulate_I (Long_Float (M.Total_Thinking_Tokens));
+            when Session_Tool_Call_Tokens_I
+               | Session_Tool_Call_Tokens_MR
+               | Session_Tool_Call_Tokens_EWMA =>
+               Accumulate_I (Long_Float (M.Total_Tool_Call_Input_Tokens));
+            when Session_Tool_Call_Result_Tokens_I
+               | Session_Tool_Call_Result_Tokens_MR
+               | Session_Tool_Call_Result_Tokens_EWMA =>
+               Accumulate_I (Long_Float (M.Total_Tool_Call_Result_Tokens));
+
+            when Session_Turn_Count_I
+               | Session_Turn_Count_MR
+               | Session_Turn_Count_EWMA =>
+               Accumulate_I (Long_Float (M.N_Turns));
 
          end case;
 
          <<Next_Metric>>
       end loop;
 
+      --  ── Finalize parameters ─────────────────────────────────────────────
+
       case Kind is
 
          when Turn_Tokens_Xbar | Turn_Tokens_S
             | Tool_Call_Tokens_Xbar | Tool_Call_Tokens_S
             | Thinking_Tokens_Xbar | Thinking_Tokens_S =>
-            if Total_N > 0.0 then
-               Parameters.Grand_Mean := Total_Weighted_Mean / Total_N;
-            end if;
-            if Sum_Denominator > 0.0 then
-               Parameters.Pooled_S :=
-                 Sqrt (Sum_Numerator / Sum_Denominator);
+
+            if Method = Robust_Median then
+               --  Grand_Mean: unweighted median of session arithmetic means.
+               declare
+                  N_Sess : constant Natural :=
+                    Natural (Robust_XS_Means.Length);
+               begin
+                  if N_Sess > 0 then
+                     declare
+                        Means_Arr : LF_Value_Array (1 .. N_Sess);
+                        I         : Positive := 1;
+                     begin
+                        for V of Robust_XS_Means loop
+                           Means_Arr (I) := V;
+                           I := I + 1;
+                        end loop;
+                        Parameters.Grand_Mean := Median_Of (Means_Arr);
+                     end;
+                  end if;
+               end;
+
+               --  Pooled_S: Qₙ scale of pooled within-session residuals.
+               declare
+                  N_Res : constant Natural :=
+                    Natural (Robust_XS_Residuals.Length);
+               begin
+                  if N_Res >= 2 then
+                     declare
+                        Res_Arr : I_Chart.Long_Float_Array (1 .. N_Res);
+                        I       : Positive := 1;
+                     begin
+                        for V of Robust_XS_Residuals loop
+                           Res_Arr (I) := V;
+                           I := I + 1;
+                        end loop;
+                        --  Qn_Scale requires strictly positive values;
+                        --  residuals can be negative.  We shift all values
+                        --  by max(0, -min) + 1 to ensure positivity.
+                        declare
+                           Min_Val : Long_Float := Res_Arr (Res_Arr'First);
+                        begin
+                           for V of Res_Arr loop
+                              if V < Min_Val then
+                                 Min_Val := V;
+                              end if;
+                           end loop;
+                           if Min_Val <= 0.0 then
+                              declare
+                                 Shift : constant Long_Float :=
+                                   -Min_Val + 1.0;
+                              begin
+                                 for K in Res_Arr'Range loop
+                                    Res_Arr (K) := Res_Arr (K) + Shift;
+                                 end loop;
+                              end;
+                           end if;
+                           --  Qn_Scale is shift-equivariant: Qn(x + c) = Qn(x).
+                           Parameters.Pooled_S :=
+                             I_Chart.Qn_Scale (Res_Arr);
+                        end;
+                     end;
+                  end if;
+               end;
+
+            else
+               --  Classical path.
+               if Total_N > 0.0 then
+                  Parameters.Grand_Mean := Total_Weighted_Mean / Total_N;
+               end if;
+               if Sum_Denominator > 0.0 then
+                  Parameters.Pooled_S :=
+                    Sqrt (Sum_Numerator / Sum_Denominator);
+               end if;
             end if;
 
          when Tool_Call_Failure_Rate
             | Fraction_Tool_Call_Turns
             | Fraction_Thinking_Turns =>
+            --  p-charts always use classical grand proportion.
             if Total_Trials > 0.0 then
                Parameters.Grand_P := Total_Events / Total_Trials;
             end if;
@@ -223,12 +400,66 @@ package body Coyote_SQC.Statistics is
             | Session_Cache_Read_Tokens_I  | Session_Cache_Read_Tokens_MR
             | Session_Cache_Read_Tokens_EWMA
             | Session_Cache_Write_Tokens_I | Session_Cache_Write_Tokens_MR
-            | Session_Cache_Write_Tokens_EWMA =>
-            if Total_N > 0.0 then
-               Parameters.Grand_Mean := Total_Weighted_Mean / Total_N;
-            end if;
-            if MR_Count > 0 then
-               Parameters.Mean_MR := MR_Sum / Long_Float (MR_Count);
+            | Session_Cache_Write_Tokens_EWMA
+            | Session_Thinking_Tokens_I  | Session_Thinking_Tokens_MR
+            | Session_Thinking_Tokens_EWMA
+            | Session_Tool_Call_Tokens_I | Session_Tool_Call_Tokens_MR
+            | Session_Tool_Call_Tokens_EWMA
+            | Session_Tool_Call_Result_Tokens_I
+            | Session_Tool_Call_Result_Tokens_MR
+            | Session_Tool_Call_Result_Tokens_EWMA
+            | Session_Turn_Count_I
+            | Session_Turn_Count_MR
+            | Session_Turn_Count_EWMA =>
+
+            if Method = Robust_Median then
+               --  Grand_Mean: median of all setup-interval observations.
+               declare
+                  N_Obs : constant Natural :=
+                    Natural (Robust_I_Obs.Length);
+               begin
+                  if N_Obs > 0 then
+                     declare
+                        Obs_Arr : LF_Value_Array (1 .. N_Obs);
+                        I       : Positive := 1;
+                     begin
+                        for V of Robust_I_Obs loop
+                           Obs_Arr (I) := V;
+                           I := I + 1;
+                        end loop;
+                        Parameters.Grand_Mean := Median_Of (Obs_Arr);
+                     end;
+                  end if;
+               end;
+
+               --  Mean_MR: median of consecutive moving ranges (raw;
+               --  Compute_I_Limits divides by d₄ when Robust = True).
+               declare
+                  N_MR : constant Natural :=
+                    Natural (Robust_I_MR.Length);
+               begin
+                  if N_MR > 0 then
+                     declare
+                        MR_Arr : LF_Value_Array (1 .. N_MR);
+                        I      : Positive := 1;
+                     begin
+                        for V of Robust_I_MR loop
+                           MR_Arr (I) := V;
+                           I := I + 1;
+                        end loop;
+                        Parameters.Mean_MR := Median_Of (MR_Arr);
+                     end;
+                  end if;
+               end;
+
+            else
+               --  Classical path.
+               if Total_N > 0.0 then
+                  Parameters.Grand_Mean := Total_Weighted_Mean / Total_N;
+               end if;
+               if MR_Count > 0 then
+                  Parameters.Mean_MR := MR_Sum / Long_Float (MR_Count);
+               end if;
             end if;
 
       end case;

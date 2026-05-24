@@ -34,10 +34,20 @@ package Coyote_SQC.Statistics is
    --  from the setup-interval session metrics.  Only metrics whose
    --  Session_Id is in Setup_Ids are used; when Setup_Ids is empty, all
    --  metrics in the vector are used (retrospective mode).
+   --  Long_Float array type for Median_Of helper and robust estimation.
+   type LF_Value_Array is array (Positive range <>) of Long_Float;
+
+   --  Return the median of an LF_Value_Array.
+   --  For even N, returns the mean of the two middle values.
+   --  Returns 0.0 for an empty array.
+   function Median_Of (Values : LF_Value_Array) return Long_Float;
+
    procedure Estimate_Parameters
      (Metrics    :     Coyote_SQC.Data_Model.Metrics_Vectors.Vector;
       Setup_Ids  :     Coyote_SQC.Data_Model.UUID_Set;
       Kind       :     Coyote_SQC.Charts.Chart_Kind;
+      Method     :     Coyote_SQC.Data_Model.Estimation_Method_Kind
+      := Coyote_SQC.Data_Model.Classical;
       Parameters : out Setup_Parameters);
 
 end Coyote_SQC.Statistics;

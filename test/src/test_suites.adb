@@ -1636,6 +1636,36 @@ package body Test_Suites is
         ("Box-Cox MR: differences of transformed values",
          Coyote_SQC_Statistics_Tests.Test_Box_Cox_MR_Transformed'Access));
       Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Qn_Scale: N=3 known value",
+         Coyote_SQC_Statistics_Tests.Test_Qn_Scale_N3_Known'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Qn_Scale: N=4 known value",
+         Coyote_SQC_Statistics_Tests.Test_Qn_Scale_N4_Known'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Qn_Scale: N<2 raises Constraint_Error",
+         Coyote_SQC_Statistics_Tests.Test_Qn_Scale_N_Less_2_Raises'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Qn_Scale: zero value raises Constraint_Error",
+         Coyote_SQC_Statistics_Tests.Test_Qn_Scale_Zero_Raises'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Qn_Scale: N=20 (even asymptotic) is positive",
+         Coyote_SQC_Statistics_Tests.Test_Qn_Scale_Asymptotic_Even'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Qn_Scale: N=11 (odd asymptotic) is positive",
+         Coyote_SQC_Statistics_Tests.Test_Qn_Scale_Asymptotic_Odd'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Robust Estimate_Lambda: fewer than 3 obs returns 0.0",
+         Coyote_SQC_Statistics_Tests.
+           Test_Estimate_Lambda_Robust_Few_Obs'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Robust Estimate_Lambda: result in [-2.0, 2.0] on skewed data",
+         Coyote_SQC_Statistics_Tests.
+           Test_Estimate_Lambda_Robust_Basic'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Estimate_Lambda: all-identical data returns 0.0 with fallback",
+         Coyote_SQC_Statistics_Tests.
+           Test_Estimate_Lambda_Degenerate'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
         ("EWMA: Compute_Z single step",
          Coyote_SQC_Statistics_Tests.Test_EWMA_Compute_Z_Single_Step'Access));
       Result.Add_Test (SQC_Statistics_Caller.Create
@@ -1653,6 +1683,39 @@ package body Test_Suites is
       Result.Add_Test (SQC_Statistics_Caller.Create
         ("EWMA: LCL clamped to 0 when formula yields negative",
          Coyote_SQC_Statistics_Tests.Test_EWMA_Limits_LCL_Clamped'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Robust: Median_Of basic (odd size)",
+         Coyote_SQC_Statistics_Tests.Test_Median_Of_Basic'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Robust: Median_Of even size",
+         Coyote_SQC_Statistics_Tests.Test_Median_Of_Even'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Robust: Median_Of single element",
+         Coyote_SQC_Statistics_Tests.Test_Median_Of_Single'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Robust: Median_Of empty array returns 0",
+         Coyote_SQC_Statistics_Tests.Test_Median_Of_Empty'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Robust: Median_Of unsorted input",
+         Coyote_SQC_Statistics_Tests.Test_Median_Of_Unsorted'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Robust: I chart Grand_Mean = median when outlier present",
+         Coyote_SQC_Statistics_Tests.Test_Robust_I_Chart_Grand_Mean'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Robust: I chart Mean_MR = median of MRs",
+         Coyote_SQC_Statistics_Tests.Test_Robust_I_Chart_Mean_MR'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Robust: Compute_I_Limits uses d4=0.9515 when Robust=True",
+         Coyote_SQC_Statistics_Tests.Test_Robust_I_Limits_Divisor'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Robust: Xbar Grand_Mean = unweighted median of session means",
+         Coyote_SQC_Statistics_Tests.Test_Robust_Xbar_Grand_Mean'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Robust: Xbar Pooled_S = Qn of pooled residuals (> 0)",
+         Coyote_SQC_Statistics_Tests.Test_Robust_Xbar_Pooled_S'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Robust: p-chart Grand_P unchanged by estimation method",
+         Coyote_SQC_Statistics_Tests.Test_Robust_P_Chart_Unchanged'Access));
       --  Coyote_SQC parser tests
       Result.Add_Test (SQC_Parser_Caller.Create
         ("SQC: v3 session ID parsed correctly",
@@ -1749,6 +1812,9 @@ package body Test_Suites is
         ("Box-Cox config round-trip",
          Coyote_SQC_Workspace_Tests.Test_Box_Cox_Round_Trip'Access));
       Result.Add_Test (SQC_Workspace_Caller.Create
+        ("Robust_Auto lambda source round-trip",
+         Coyote_SQC_Workspace_Tests.Test_Robust_Auto_Round_Trip'Access));
+      Result.Add_Test (SQC_Workspace_Caller.Create
         ("v1 workspace loads with Box-Cox disabled",
          Coyote_SQC_Workspace_Tests.Test_V1_Loads_Box_Cox_Disabled'Access));
       Result.Add_Test (SQC_Workspace_Caller.Create
@@ -1757,6 +1823,18 @@ package body Test_Suites is
       Result.Add_Test (SQC_Workspace_Caller.Create
         ("EWMA: v3 workspace loads default weight=0.2, L=3.0",
          Coyote_SQC_Workspace_Tests.Test_V3_Loads_EWMA_Defaults'Access));
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("Turn Count Box-Cox: config round-trips through workspace",
+         Coyote_SQC_Workspace_Tests.Test_Turn_Count_Box_Cox_Round_Trip'Access));
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("Turn Count Box-Cox: v4 workspace loads default (disabled)",
+         Coyote_SQC_Workspace_Tests.Test_V4_Loads_Turn_Count_Defaults'Access));
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("Robust estimation: Robust_Median survives workspace round-trip",
+         Coyote_SQC_Workspace_Tests.Test_Estimation_Method_Round_Trip'Access));
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("Robust estimation: v5 workspace loads Classical default",
+         Coyote_SQC_Workspace_Tests.Test_V5_Loads_Classical_Default'Access));
       --  Coyote_SQC histogram bin computation tests
       Result.Add_Test (SQC_Histogram_Caller.Create
         ("SQC histogram: n=2 uniform: FD gives 2 bins",

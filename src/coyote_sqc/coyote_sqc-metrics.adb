@@ -23,6 +23,8 @@ package body Coyote_SQC.Metrics is
          --  Per-turn output and input token vectors.
          M.Per_Turn_Output_Tokens.Append (Turn.Output_Tokens);
          M.Per_Turn_Input_Tokens.Append  (Turn.Input_Tokens);
+         M.Total_Thinking_Tokens :=
+           M.Total_Thinking_Tokens + Turn.Thinking_Tokens;
 
          --  Tool calls: sum estimated per-TC token costs, count calls and
          --  failures, and accumulate for tool-call turns only.
@@ -32,6 +34,10 @@ package body Coyote_SQC.Metrics is
             for TC of Turn.Tool_Calls loop
                Tool_Sum :=
                  Tool_Sum + TC.Input_Tokens + TC.Output_Tokens;
+               M.Total_Tool_Call_Input_Tokens  :=
+                 M.Total_Tool_Call_Input_Tokens + TC.Input_Tokens;
+               M.Total_Tool_Call_Result_Tokens :=
+                 M.Total_Tool_Call_Result_Tokens + TC.Output_Tokens;
                M.N_Tool_Calls := M.N_Tool_Calls + 1;
                if TC.Failed then
                   M.N_Failed_Tool_Calls := M.N_Failed_Tool_Calls + 1;

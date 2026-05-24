@@ -14,6 +14,7 @@ with Ada.Strings.Fixed;
 with GNAT.OS_Lib;
 with Coyote_SQC.Workspace;
 with Glib;                   use Glib;
+with Glib.Object;
 with Glib.Properties;        use Glib.Properties;
 with Gtk.Box;
 with Gtk.Drawing_Area;
@@ -489,8 +490,10 @@ package body Coyote_SQC.UI.Detail_Panel is
       --  Inner_Box into Outer.
       Build_Single_View (Sid);
       if Inner_Box /= null then
+         Glib.Object.Ref (Glib.Object.GObject (Inner_Box));
          Panel_Box.Remove (Inner_Box);
          Outer.Pack_Start (Inner_Box, True, True, 0);
+         Glib.Object.Unref (Glib.Object.GObject (Inner_Box));
       end if;
 
       Inner_Box := Outer;

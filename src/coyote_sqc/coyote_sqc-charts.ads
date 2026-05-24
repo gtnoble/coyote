@@ -26,10 +26,23 @@ package Coyote_SQC.Charts is
       Session_Cache_Read_Tokens_MR,
       Session_Cache_Write_Tokens_I,
       Session_Cache_Write_Tokens_MR,
+      Session_Thinking_Tokens_I,
+      Session_Thinking_Tokens_MR,
+      Session_Tool_Call_Tokens_I,
+      Session_Tool_Call_Tokens_MR,
+      Session_Tool_Call_Result_Tokens_I,
+      Session_Tool_Call_Result_Tokens_MR,
       Session_Input_Tokens_EWMA,
       Session_Output_Tokens_EWMA,
       Session_Cache_Read_Tokens_EWMA,
-      Session_Cache_Write_Tokens_EWMA);
+      Session_Cache_Write_Tokens_EWMA,
+      Session_Thinking_Tokens_EWMA,
+      Session_Tool_Call_Tokens_EWMA,
+      Session_Tool_Call_Result_Tokens_EWMA,
+      --  Session Turn Count I/MR/EWMA charts:
+      Session_Turn_Count_I,
+      Session_Turn_Count_MR,
+      Session_Turn_Count_EWMA);
 
    --  Display metadata for one chart.
    type Chart_Properties is record

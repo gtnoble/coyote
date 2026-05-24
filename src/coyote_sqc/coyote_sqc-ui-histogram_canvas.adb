@@ -52,31 +52,43 @@ package body Coyote_SQC.UI.Histogram_Canvas is
 
    --  Format a Long_Float value for an axis tick label.
    --  Values with |V| >= 10 are rounded to integers; smaller values are
-   --  shown with one decimal place.
+   --  shown with one or three decimal places.  Non-finite or out-of-range
+   --  values are rendered via Long_Float'Image as a safe fallback.
+   --
+   --  Safe_Max is a conservative ceiling well below Long_Long_Integer'Last
+   --  to avoid IEEE 754 rounding issues (Long_Float (Long_Long_Integer'Last)
+   --  rounds up to 2**63, which itself overflows Long_Long_Integer).
    function Format_Value (V : Long_Float) return String is
       use Ada.Strings.Fixed;
       use Ada.Strings;
-      IV : constant Long_Long_Integer := Long_Long_Integer (V);
+      Safe_Max : constant Long_Float := 1.0e15;
    begin
-      if abs V >= 10.0 then
-         return Trim (Long_Long_Integer'Image (IV), Left);
-      elsif abs V >= 0.1 then
-         declare
-            Frac : constant Long_Long_Integer :=
-              Long_Long_Integer (abs (V - Long_Float (IV)) * 10.0);
-         begin
-            return Trim (Long_Long_Integer'Image (IV), Left)
-              & "." & Trim (Long_Long_Integer'Image (abs Frac), Left);
-         end;
-      else
-         declare
-            Frac : constant Long_Long_Integer :=
-              Long_Long_Integer (abs (V - Long_Float (IV)) * 1000.0);
-         begin
-            return Trim (Long_Long_Integer'Image (IV), Left)
-              & "." & Trim (Long_Long_Integer'Image (abs Frac), Left);
-         end;
+      if not V'Valid or else abs V > Safe_Max then
+         return Trim (Long_Float'Image (V), Left);
       end if;
+      declare
+         IV : constant Long_Long_Integer := Long_Long_Integer (V);
+      begin
+         if abs V >= 10.0 then
+            return Trim (Long_Long_Integer'Image (IV), Left);
+         elsif abs V >= 0.1 then
+            declare
+               Frac : constant Long_Long_Integer :=
+                 Long_Long_Integer (abs (V - Long_Float (IV)) * 10.0);
+            begin
+               return Trim (Long_Long_Integer'Image (IV), Left)
+                 & "." & Trim (Long_Long_Integer'Image (abs Frac), Left);
+            end;
+         else
+            declare
+               Frac : constant Long_Long_Integer :=
+                 Long_Long_Integer (abs (V - Long_Float (IV)) * 1000.0);
+            begin
+               return Trim (Long_Long_Integer'Image (IV), Left)
+                 & "." & Trim (Long_Long_Integer'Image (abs Frac), Left);
+            end;
+         end if;
+      end;
    end Format_Value;
 
    --  ── Draw callback ─────────────────────────────────────────────────────
@@ -436,16 +448,20 @@ package body Coyote_SQC.UI.Histogram_Canvas is
                   Counts (1) := N;
                else
                   --  Freedman-Diaconis: h = 2 * IQR / n^(1/3).
-                  declare
-                     H     : constant Long_Float :=
-                       2.0 * IQR / Exp (Log (Long_Float (N)) / 3.0);
-                     Raw_K : constant Long_Float :=
-                       Long_Float'Ceiling (Range_V / H);
-                     K     : constant Positive   :=
-                       Positive'Min
-                         (Max_Bins,
-                          Positive'Max (1, Positive (Raw_K)));
-                  begin
+                   declare
+                      H     : constant Long_Float :=
+                        2.0 * IQR / Exp (Log (Long_Float (N)) / 3.0);
+                      Ratio   : constant Long_Float :=
+                        Long_Float'Ceiling (Range_V / H);
+                      Raw_K_N : constant Natural :=
+                        (if Ratio >= Long_Float (Max_Bins)
+                         then Natural (Max_Bins)
+                         else Natural (Ratio));
+                      K_Val   : constant Natural := Natural'Max (1, Raw_K_N);
+                      Max_Bins_N : constant Natural := Natural (Max_Bins);
+                      K_N     : constant Natural := Natural'Min (Max_Bins_N, K_Val);
+                      K       : constant Positive := Positive (K_N);
+                   begin
                      N_Bins    := K;
                      Bin_Width := Range_V / Long_Float (K);
                      for V of Values loop

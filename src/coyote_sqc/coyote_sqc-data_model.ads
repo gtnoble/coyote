@@ -87,6 +87,9 @@ package Coyote_SQC.Data_Model is
       Total_Output_Tokens        : Natural  := 0;
       Total_Cache_Read_Tokens  : Natural  := 0;
       Total_Cache_Write_Tokens : Natural  := 0;
+      Total_Thinking_Tokens         : Natural  := 0;
+      Total_Tool_Call_Input_Tokens  : Natural  := 0;
+      Total_Tool_Call_Result_Tokens : Natural  := 0;
    end record;
 
    package Metrics_Vectors is new Ada.Containers.Vectors
@@ -118,7 +121,7 @@ package Coyote_SQC.Data_Model is
    --  ── Box-Cox configuration ──────────────────────────────────────────────
 
    --  Identifies how the Box-Cox lambda parameter is determined.
-   type Box_Cox_Lambda_Source is (Auto, Fixed);
+   type Box_Cox_Lambda_Source is (Auto, Robust_Auto, Fixed);
 
    --  Box-Cox transformation configuration for Session Token I/MR charts.
    --  One shared config applies to all four I/MR charts in the workspace.
@@ -129,10 +132,22 @@ package Coyote_SQC.Data_Model is
       Lambda_Source : Box_Cox_Lambda_Source  := Auto;
       Fixed_Lambda  : Long_Float             := 0.0;
       --  Lambda_Source = Auto: estimate lambda at runtime from the
-      --  setup interval by MLE; the estimate is not persisted.
+      --  setup interval by MLE (profile log-likelihood); not persisted.
+      --  Lambda_Source = Robust_Auto: estimate lambda at runtime using
+      --  the Qn robust scale estimator (Rousseeuw & Croux 1993) instead
+      --  of the sample variance; 50% breakdown point, 82% Gaussian
+      --  efficiency; not persisted.
       --  Lambda_Source = Fixed: use Fixed_Lambda directly.
       --  Common fixed values: 0.0 (ln), 0.5 (sqrt), 1.0 (identity).
    end record;
+
+   --  ── Estimation method ──────────────────────────────────────────────────
+
+   --  Selects the statistical estimators used for I/MR and Xbar/s control
+   --  limits.  Classical uses arithmetic mean / pooled s / mean MR.
+   --  Robust_Median uses median / Qₙ residuals / median MR with d₄
+   --  consistency correction.  p-charts are unaffected.  See §7.13.
+   type Estimation_Method_Kind is (Classical, Robust_Median);
 
    --  ── Workspace ──────────────────────────────────────────────────────────
 
@@ -166,6 +181,14 @@ package Coyote_SQC.Data_Model is
       --  EWMA_L: sigma multiplier for the control limits (typically 3.0).
       EWMA_Weight        : Long_Float := 0.2;
       EWMA_L             : Long_Float := 3.0;
+      --  Box-Cox transformation config for Session Turn Count I/MR/EWMA
+      --  charts.  Independent of I_Chart_Box_Cox and Xbar_S_Box_Cox.
+      Turn_Count_Box_Cox : Box_Cox_Config;
+      --  Control limit estimation method for I/MR and Xbar/s charts.
+      --  Classical (default): arithmetic mean, pooled s, mean MR.
+      --  Robust_Median: median center line, Qₙ pooled residuals (Xbar/s),
+      --  median MR / d₄ scale (I/MR).  p-charts always use grand proportion.
+      Estimation_Method  : Estimation_Method_Kind := Classical;
    end record;
 
 end Coyote_SQC.Data_Model;

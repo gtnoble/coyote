@@ -201,6 +201,114 @@ package body Coyote_SQC.Charts is
                Is_I_Chart      => False,
                Is_Xbar_S_Chart => False,
                Is_EWMA_Chart   => True);
+         when Session_Thinking_Tokens_I =>
+            return
+              (Label           => U ("Session Thinking Tokens -- I"),
+               Group           => U ("Session Totals"),
+               Y_Axis_Label    => U ("Total thinking tokens"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => True,
+               Is_Xbar_S_Chart => False,
+               Is_EWMA_Chart   => False);
+         when Session_Thinking_Tokens_MR =>
+            return
+              (Label           => U ("Session Thinking Tokens -- MR"),
+               Group           => U ("Session Totals"),
+               Y_Axis_Label    => U ("Moving range (thinking tokens)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => True,
+               Is_Xbar_S_Chart => False,
+               Is_EWMA_Chart   => False);
+         when Session_Thinking_Tokens_EWMA =>
+            return
+              (Label           => U ("Session Thinking Tokens -- EWMA"),
+               Group           => U ("Session Totals"),
+               Y_Axis_Label    => U ("EWMA (thinking tokens)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_Xbar_S_Chart => False,
+               Is_EWMA_Chart   => True);
+         when Session_Tool_Call_Tokens_I =>
+            return
+              (Label           => U ("Session Tool-Call Tokens -- I"),
+               Group           => U ("Session Totals"),
+               Y_Axis_Label    => U ("Total tool-call input tokens"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => True,
+               Is_Xbar_S_Chart => False,
+               Is_EWMA_Chart   => False);
+         when Session_Tool_Call_Tokens_MR =>
+            return
+              (Label           => U ("Session Tool-Call Tokens -- MR"),
+               Group           => U ("Session Totals"),
+               Y_Axis_Label    => U ("Moving range (tool-call input tokens)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => True,
+               Is_Xbar_S_Chart => False,
+               Is_EWMA_Chart   => False);
+         when Session_Tool_Call_Tokens_EWMA =>
+            return
+              (Label           => U ("Session Tool-Call Tokens -- EWMA"),
+               Group           => U ("Session Totals"),
+               Y_Axis_Label    => U ("EWMA (tool-call input tokens)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_Xbar_S_Chart => False,
+               Is_EWMA_Chart   => True);
+         when Session_Tool_Call_Result_Tokens_I =>
+            return
+              (Label           => U ("Session Tool-Call Result Tokens -- I"),
+               Group           => U ("Session Totals"),
+               Y_Axis_Label    => U ("Total tool-call result tokens"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => True,
+               Is_Xbar_S_Chart => False,
+               Is_EWMA_Chart   => False);
+         when Session_Tool_Call_Result_Tokens_MR =>
+            return
+              (Label           => U ("Session Tool-Call Result Tokens -- MR"),
+               Group           => U ("Session Totals"),
+               Y_Axis_Label    => U ("Moving range (tool-call result tokens)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => True,
+               Is_Xbar_S_Chart => False,
+               Is_EWMA_Chart   => False);
+         when Session_Tool_Call_Result_Tokens_EWMA =>
+            return
+              (Label           => U ("Session Tool-Call Result Tokens -- EWMA"),
+               Group           => U ("Session Totals"),
+               Y_Axis_Label    => U ("EWMA (tool-call result tokens)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_Xbar_S_Chart => False,
+               Is_EWMA_Chart   => True);
+         when Session_Turn_Count_I =>
+            return
+              (Label           => U ("Session Turn Count -- I"),
+               Group           => U ("Session Totals"),
+               Y_Axis_Label    => U ("Turn count"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => True,
+               Is_Xbar_S_Chart => False,
+               Is_EWMA_Chart   => False);
+         when Session_Turn_Count_MR =>
+            return
+              (Label           => U ("Session Turn Count -- MR"),
+               Group           => U ("Session Totals"),
+               Y_Axis_Label    => U ("Moving range (turn count)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => True,
+               Is_Xbar_S_Chart => False,
+               Is_EWMA_Chart   => False);
+         when Session_Turn_Count_EWMA =>
+            return
+              (Label           => U ("Session Turn Count -- EWMA"),
+               Group           => U ("Session Totals"),
+               Y_Axis_Label    => U ("EWMA (turn count)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_Xbar_S_Chart => False,
+               Is_EWMA_Chart   => True);
       end case;
    end Properties;
 

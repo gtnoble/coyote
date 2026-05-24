@@ -193,6 +193,9 @@ Derived from a Session_Record. Computed once at load time and cached.
 | `N_Tool_Call_Turns_For_Chart` | Natural | Count of tool-call turns (denominator for tool-call token chart) |
 | `Total_Cache_Read_Tokens` | Natural | Total cache-read tokens for the session |
 | `Total_Cache_Write_Tokens` | Natural | Total cache-write tokens for the session |
+| `Total_Thinking_Tokens` | Natural | Sum of thinking tokens across all turns |
+| `Total_Tool_Call_Input_Tokens` | Natural | Sum of tool call input-token estimates across all tool calls in all turns |
+| `Total_Tool_Call_Result_Tokens` | Natural | Sum of tool call result-token estimates across all tool calls in all turns |
 
 ### 4.5 Comment Record
 
@@ -213,12 +216,13 @@ Derived from a Session_Record. Computed once at load time and cached.
 | `Model_Filter` | Vector of String | Included model identifiers; empty means all models |
 | `Setup_Session_Ids` | Set of UUID string | Sessions comprising the workspace setup interval; empty if not yet established |
 | `Comments` | Vector of Comment_Record | All comments for this workspace |
+| `Estimation_Method` | Estimation_Method_Kind | Whether to use classical or robust location/scale estimators for control limits; see §5.11. Values: `Classical` (default), `Robust_Median`. |
 
 ### 4.7 Chart Definition Record
 
 | Field | Type | Description |
 |---|---|---|
-| `Chart_Type` | Chart_Type enum | Identifies which of the twenty-one charts this defines |
+| `Chart_Type` | Chart_Type enum | Identifies which of the thirty-three charts this defines |
 
 ---
 
@@ -413,17 +417,37 @@ The Box-Cox family is parameterised by λ:
     y(x, λ) = (x^λ − 1) / λ   for λ ≠ 0
     y(x, 0) = ln(x)            for λ = 0
 
-The transformation applies to all four Session Token charts
+The transformation applies to all seven Session Token I/MR chart pairs
 (`Session_Input_Tokens_I`, `Session_Input_Tokens_MR`,
-`Session_Output_Tokens_I`, `Session_Output_Tokens_MR`).
-A single λ is shared across all four charts; it is configured in
+`Session_Output_Tokens_I`, `Session_Output_Tokens_MR`,
+`Session_Cache_Read_Tokens_I`, `Session_Cache_Read_Tokens_MR`,
+`Session_Cache_Write_Tokens_I`, `Session_Cache_Write_Tokens_MR`,
+`Session_Thinking_Tokens_I`, `Session_Thinking_Tokens_MR`,
+`Session_Tool_Call_Tokens_I`, `Session_Tool_Call_Tokens_MR`,
+`Session_Tool_Call_Result_Tokens_I`, `Session_Tool_Call_Result_Tokens_MR`).
+A single λ is shared across all seven I/MR chart pairs; it is configured in
 Workspace Settings.
 
-**Lambda source:** λ may be estimated by maximum-likelihood from the
-setup-interval data (auto mode) or specified as a fixed value (fixed mode).
-Common fixed values are 0 (ln), 0.5 (square root), and 1 (identity, no
-transform). Auto-estimation requires at least three setup-interval sessions;
-fewer falls back to λ = 0.
+**Lambda source:** λ may be estimated automatically from the setup-interval
+data or specified as a fixed value. Three modes are available, selected via a
+drop-down in Workspace Settings:
+
+- **Auto-estimate (MLE)** — estimates λ by maximising the Box-Cox profile
+  log-likelihood, equivalent to minimising log(Var[y(λ)]) after the Jacobian
+  correction. Optimal when the setup-interval data is free of outliers.
+- **Auto-estimate (robust)** — estimates λ by replacing the variance in the
+  profile log-likelihood with the Qₙ scale estimator (Rousseeuw & Croux 1993):
+  `Ŝ_Qₙ = c · d_{(h)}`, where `d_{(h)}` is the `h`-th order statistic of all
+  `C(N, 2)` pairwise absolute differences `|y_i − y_j|`,
+  `h = C(⌊N/2⌋ + 1, 2)`, and the consistency constant `c = 2.2219`
+  (asymptotic); finite-sample corrections from Rousseeuw & Croux (1993) Table 1
+  are applied for N ≤ 9. Qₙ has a 50% breakdown point and 82% Gaussian
+  efficiency — robust to outliers while well-calibrated on clean data.
+- **Fixed** — uses a user-specified λ directly. Common values: 0 (ln),
+  0.5 (square root), 1 (identity, no transform).
+
+Both auto modes require at least three setup-interval sessions; fewer falls
+back to λ = 0.
 
 **I chart display:** limits are computed in the transformed space and
 back-transformed to original (token) units for display. The resulting UCL and
@@ -445,9 +469,10 @@ MR charts and from λ estimation when transformation is enabled; a status-bar
 notice reports the count of excluded sessions.
 
 **Storage:** the transformation configuration (enabled flag, lambda source, and
-fixed-λ value) is stored in the workspace file. The estimated λ (when using auto
-mode) is a transient runtime value — it is recomputed whenever the setup interval
-changes and is not persisted.
+fixed-λ value) is stored in the workspace file. The `lambdaSource` field is
+serialised as `"auto"`, `"robust_auto"`, or `"fixed"`. The estimated λ (when
+using an auto mode) is a transient runtime value — it is recomputed whenever
+the setup interval changes and is not persisted.
 
 
 ### 5.8 Box-Cox Transformation for Xbar/S Charts
@@ -461,11 +486,12 @@ The transformation applies to all six per-turn Xbar/S charts:
 `Turn_Tokens_Xbar`, `Turn_Tokens_S`, `Tool_Call_Tokens_Xbar`,
 `Tool_Call_Tokens_S`, `Thinking_Tokens_Xbar`, `Thinking_Tokens_S`.
 
-**Per-pair lambda in auto mode:** in auto mode, λ is estimated independently for
-each chart pair (Turn, Tool Call, Thinking) from that pair's flattened
-setup-interval per-turn values using the same MLE algorithm as §5.7. This means
-Turn, Tool Call, and Thinking tokens can have different estimated λ values. Fewer
-than three eligible turn values falls back to λ = 0.
+**Per-pair lambda in auto mode:** when the lambda source is Auto-estimate (MLE)
+or Auto-estimate (robust), λ is estimated independently for each chart pair
+(Turn, Tool Call, Thinking) from that pair's flattened setup-interval per-turn
+values using the same algorithm as §5.7 (MLE or Qₙ robust, respectively). Turn,
+Tool Call, and Thinking tokens can therefore have different estimated λ values.
+Fewer than three eligible turn values falls back to λ = 0.
 
 **Shared lambda in fixed mode:** in fixed mode, a single user-specified λ applies
 to all three chart pairs.
@@ -558,8 +584,151 @@ are still drawn.  The y-axis is in original (token) units.
 fields (`ewmaWeight` and `ewmaL`) configurable in the Workspace Settings dialog.
 They are stored in the workspace JSON file (version 4).
 
+### 5.10 Box-Cox Transformation for Turn Count I/MR/EWMA Charts
 
-Twenty-one charts are available in every workspace. They are pre-instantiated; the user does
+Session turn count (`N_Turns`) is a positive integer that can be right-skewed
+across sessions — short, focused sessions and long, exploratory sessions
+co-exist in a typical workspace. A Box-Cox transformation may be applied before
+computing I, MR, and EWMA chart limits to improve normality and reduce false
+out-of-control signals.
+
+**Separate configuration.** Turn count Box-Cox uses its own independent
+workspace field `Turn_Count_Box_Cox : Box_Cox_Config`, distinct from
+`I_Chart_Box_Cox` (which governs token I/MR charts) and `Xbar_S_Box_Cox`.
+This separation allows turn count to be transformed with a different λ and
+independently toggled.
+
+**Lambda source.** The same three lambda-source modes as §5.7 are available
+(Auto-estimate (MLE), Auto-estimate (robust), Fixed), selected via a drop-down
+in Workspace Settings. Auto modes require at least three setup-interval sessions
+with `N_Turns ≥ 1`; fewer falls back to λ = 0.
+
+**Sessions with N_Turns = 1.** A session with exactly one turn has a
+positive value of 1, which is transformable (ln(1) = 0; (1^λ − 1)/λ = 0 for
+all λ ≠ 0). Such sessions are **not** excluded from the Turn Count I/MR/EWMA
+charts even when Box-Cox is active, because N_Turns is always ≥ 1 (i.e., no
+zero-value exclusion applies). However, because the transformed value is
+identically 0 regardless of λ, such sessions can still degenerate to MR̄ = 0
+if all setup sessions happen to have one turn; the `MR̄ = 0` special case
+(§5.6) applies.
+
+**I chart display.** Limits are computed in the transformed space and
+back-transformed to original (turn count) units for display. The resulting UCL
+and LCL are asymmetric around the center line.
+
+**MR chart display.** Moving ranges are the absolute differences of
+consecutively transformed values: `MR_i = |y(x_i, λ) − y(x_{i-1}, λ)|`.
+These differences are not meaningfully back-transformable to turn-count units;
+the MR chart y-axis is labelled in transformed units (e.g. "Moving range (ln
+turns)") when the transformation is active.
+
+**EWMA chart display.** When `Turn_Count_Box_Cox.Enabled` is `True`, the
+EWMA recursion is performed in z-space (transformed values) and the plotted
+statistic and each limit are back-transformed individually to original
+(turn-count) units for display, following the same Option B logic as §5.9.
+
+**Storage.** The transformation configuration (enabled flag, lambda source,
+and fixed-λ value) is stored in the workspace file as `turnCountBoxCox`.
+The `lambdaSource` field is serialised as `"auto"`, `"robust_auto"`, or
+`"fixed"`. This field is introduced in workspace format version 5. Workspace
+files at version ≤ 4 that are missing this field shall be loaded with the
+default (disabled, auto mode, fixed λ = 0.0).
+
+
+### 5.11 Robust Control Limit Estimation
+
+All chart families normally estimate their center lines and process scale using
+classical arithmetic estimators (grand mean, pooled standard deviation, mean
+moving range). These estimators can be materially distorted by a small number
+of unusual sessions in the setup interval. A workspace-level **Estimation
+Method** option switches to robust alternatives.
+
+Two methods are available, selected via a drop-down in Workspace Settings:
+
+- **Classical** (default) — all estimators as defined in §5.2–§5.6:
+  size-weighted arithmetic grand mean, pooled sample standard deviation,
+  arithmetic mean moving range. This matches traditional SPC practice and is
+  recommended when the setup interval is known to be clean.
+- **Robust (median/Qₙ)** — resistant estimators with a 50% breakdown point.
+  Recommended when the setup interval may contain outlying sessions not
+  representative of the process at its best.
+
+The choice applies uniformly to all chart families. Behaviour by chart type is
+described below.
+
+**I/MR charts (§5.6):**
+
+- **Center line** → **median** of the N setup-interval observations replaces
+  the arithmetic mean. The median has a 50% breakdown point; the mean breaks
+  down at 1/N.
+- **Scale** → **median(MR) / d₄** replaces MR̄ / d₂. Here d₄ = 0.9515 is
+  the consistency constant for the median of consecutive span-2 absolute
+  differences under normality (Croux & Rousseeuw 1992); d₂ = 1.128 is the
+  classical constant. Both are consistent estimates of σ under normality. The
+  median-MR approach is preferred over applying Qₙ directly to the
+  observations: the moving-range framework intentionally estimates only *local*,
+  short-term variation, making it resistant to slow process mean drift.
+  Applying Qₙ to the observations themselves would inflate σ when a gradual
+  trend is present, potentially masking real signals.
+
+**Xbar/s charts (§5.2):**
+
+- **Grand mean (center line)** → **unweighted median of the per-session means**
+  x̄_i replaces the size-weighted arithmetic grand mean. The unweighted median
+  avoids the classical estimator being dominated by sessions with unusually many
+  turns.
+- **Scale** → **Qₙ of pooled within-session residuals** replaces pooled_s.
+  The residuals are x_{i,j} − x̄_i (deviation from each session's own mean),
+  pooled across all setup-interval sessions. Qₙ is applied to this pooled
+  vector and the result used in place of pooled_s in the Xbar and s chart
+  limit formulas (§5.2). The Qₙ consistency constant 2.2219 is calibrated for
+  normally distributed inputs; within-session residuals are approximately
+  normal, making this appropriate. Qₙ has 82% Gaussian efficiency —
+  substantially higher than MAD (36.7%) — and is already implemented for
+  robust Box-Cox lambda estimation (§5.7).
+
+**p-charts (§5.3):**
+
+p-chart parameter estimation is unchanged regardless of the estimation method
+setting. The grand proportion p̄ = Σd / Σn is the standard estimator; robust
+alternatives for proportions are not well-standardised in SPC practice and are
+deferred.
+
+**EWMA charts (§5.9):**
+
+EWMA charts have no independent parameter estimation — they consume
+Grand_Mean and σ from the paired I chart (§5.9). When robust estimation is
+enabled, both Grand_Mean (→ median) and σ (→ median(MR) / d₄) are computed
+robustly, and the EWMA chart inherits those values automatically. No
+additional logic is required in the EWMA recursion. When Box-Cox is also
+active, robust estimation is applied to the transformed values (as for the
+I chart), with no further special handling needed.
+
+**Interaction with Box-Cox:**
+
+The estimation method is orthogonal to Box-Cox transformation. When both are
+active, the chosen estimator (classical or robust) operates on the
+*transformed* values produced by the Box-Cox step. This is correct: the
+transformation is designed to normalise the data before limit computation, so
+the estimator always receives approximately normal inputs regardless of which
+estimation method is selected.
+
+**Minimum setup interval:**
+
+The median and Qₙ estimators are well-defined for as few as 2 observations.
+No additional minimum setup interval size is imposed beyond the minima already
+specified for each chart type (§5.5, §5.6).
+
+**Storage:** the estimation method is stored in the workspace file as
+`"estimationMethod"`, serialised as `"classical"` or `"robust_median"`. This
+field is introduced in workspace format version 6. Workspace files at
+version ≤ 5 that are missing this field shall be loaded with the default
+(`"classical"`).
+
+
+
+
+Thirty-three charts are available in every workspace. They are pre-instantiated; the user does
 not create or delete charts. All charts share a single workspace-level setup interval
 (see Section 11).
 
@@ -726,6 +895,98 @@ the EWMA and limits are computed in z-space and back-transformed (§5.9).
 the EWMA and limits are computed in z-space and back-transformed (§5.9).
 **Paired with:** Session Cache Write Tokens — I chart (shares Grand_Mean and σ).
 
+### 6.22 Session Thinking Tokens — I Chart
+
+**Measured quantity:** total thinking tokens for the session (`Total_Thinking_Tokens`).
+**Observation:** one scalar value per session; no within-session subgroup.
+**Statistic:** the session total (x).
+**Zero-thinking sessions:** sessions where no turn produced thinking tokens are valid zero observations. When Box-Cox transformation is enabled (§5.7), sessions with a zero thinking-token total are excluded from the I chart and from λ estimation; a status-bar notice reports the count of excluded sessions.
+**Limits:** derived from the mean moving range of the setup interval (§5.6). When Box-Cox transformation is enabled (§5.7), limits are computed in the transformed space and back-transformed to original (token) units for display.
+
+### 6.23 Session Thinking Tokens — MR Chart
+
+**Measured quantity:** absolute difference in total thinking tokens between consecutive sessions in chronological order.
+**Statistic:** `MR_i = |Total_Thinking_Tokens_i − Total_Thinking_Tokens_{i-1}|`.
+**First session:** no marker is plotted; a gap is left in the connecting line.
+**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6). When Box-Cox transformation is enabled (§5.7), moving ranges are differences of transformed values and the y-axis is labelled in transformed units.
+
+### 6.24 Session Thinking Tokens — EWMA Chart
+
+**Measured quantity:** total thinking tokens for the session (`Total_Thinking_Tokens`).
+**Statistic:** the EWMA value `Z_t = λ · x_t + (1−λ) · Z_{t−1}` (§5.9).
+**Limits:** time-varying UCL and LCL at step _t_ (§5.9). When Box-Cox is active,
+the EWMA and limits are computed in z-space and back-transformed (§5.9).
+**Paired with:** Session Thinking Tokens — I chart (shares Grand_Mean and σ).
+
+### 6.25 Session Tool-Call Tokens — I Chart
+
+**Measured quantity:** total estimated tool call input tokens for the session (`Total_Tool_Call_Input_Tokens`).
+**Observation:** one scalar value per session; no within-session subgroup.
+**Statistic:** the session total (x).
+**Zero-tool-call sessions:** sessions with no tool calls have a zero total and are valid zero observations. When Box-Cox transformation is enabled (§5.7), such sessions are excluded from the I chart and from λ estimation; a status-bar notice reports the count of excluded sessions.
+**Limits:** derived from the mean moving range of the setup interval (§5.6). When Box-Cox transformation is enabled (§5.7), limits are computed in the transformed space and back-transformed to original (token) units for display.
+
+### 6.26 Session Tool-Call Tokens — MR Chart
+
+**Measured quantity:** absolute difference in total tool call input tokens between consecutive sessions in chronological order.
+**Statistic:** `MR_i = |Total_Tool_Call_Input_Tokens_i − Total_Tool_Call_Input_Tokens_{i-1}|`.
+**First session:** no marker is plotted; a gap is left in the connecting line.
+**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6). When Box-Cox transformation is enabled (§5.7), moving ranges are differences of transformed values and the y-axis is labelled in transformed units.
+
+### 6.27 Session Tool-Call Tokens — EWMA Chart
+
+**Measured quantity:** total estimated tool call input tokens for the session (`Total_Tool_Call_Input_Tokens`).
+**Statistic:** the EWMA value `Z_t = λ · x_t + (1−λ) · Z_{t−1}` (§5.9).
+**Limits:** time-varying UCL and LCL at step _t_ (§5.9). When Box-Cox is active,
+the EWMA and limits are computed in z-space and back-transformed (§5.9).
+**Paired with:** Session Tool-Call Tokens — I chart (shares Grand_Mean and σ).
+
+### 6.28 Session Tool-Call Result Tokens — I Chart
+
+**Measured quantity:** total estimated tool call result tokens for the session (`Total_Tool_Call_Result_Tokens`).
+**Observation:** one scalar value per session; no within-session subgroup.
+**Statistic:** the session total (x).
+**Zero-tool-call sessions:** sessions with no tool calls have a zero total and are valid zero observations. When Box-Cox transformation is enabled (§5.7), such sessions are excluded from the I chart and from λ estimation; a status-bar notice reports the count of excluded sessions.
+**Limits:** derived from the mean moving range of the setup interval (§5.6). When Box-Cox transformation is enabled (§5.7), limits are computed in the transformed space and back-transformed to original (token) units for display.
+
+### 6.29 Session Tool-Call Result Tokens — MR Chart
+
+**Measured quantity:** absolute difference in total tool call result tokens between consecutive sessions in chronological order.
+**Statistic:** `MR_i = |Total_Tool_Call_Result_Tokens_i − Total_Tool_Call_Result_Tokens_{i-1}|`.
+**First session:** no marker is plotted; a gap is left in the connecting line.
+**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6). When Box-Cox transformation is enabled (§5.7), moving ranges are differences of transformed values and the y-axis is labelled in transformed units.
+
+### 6.30 Session Tool-Call Result Tokens — EWMA Chart
+
+**Measured quantity:** total estimated tool call result tokens for the session (`Total_Tool_Call_Result_Tokens`).
+**Statistic:** the EWMA value `Z_t = λ · x_t + (1−λ) · Z_{t−1}` (§5.9).
+**Limits:** time-varying UCL and LCL at step _t_ (§5.9). When Box-Cox is active,
+the EWMA and limits are computed in z-space and back-transformed (§5.9).
+**Paired with:** Session Tool-Call Result Tokens — I chart (shares Grand_Mean and σ).
+
+### 6.31 Session Turn Count — I Chart
+
+**Measured quantity:** number of turns in the session (`N_Turns`).
+**Observation:** one scalar value per session; no within-session subgroup.
+**Statistic:** the session turn count (x).
+**Limits:** derived from the mean moving range of the setup interval (§5.6). When Box-Cox transformation is enabled (§5.10), limits are computed in the transformed space and back-transformed to original (turn count) units for display.
+
+### 6.32 Session Turn Count — MR Chart
+
+**Measured quantity:** absolute difference in turn count between consecutive sessions in chronological order.
+**Statistic:** `MR_i = |N_Turns_i − N_Turns_{i-1}|`.
+**First session:** no marker is plotted; a gap is left in the connecting line.
+**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6). When Box-Cox transformation is enabled (§5.10), moving ranges are differences of transformed values and the y-axis is labelled in transformed units.
+
+### 6.33 Session Turn Count — EWMA Chart
+
+**Measured quantity:** number of turns in the session (`N_Turns`).
+**Statistic:** the EWMA value `Z_t = λ · x_t + (1−λ) · Z_{t−1}` (§5.9).
+**Limits:** time-varying UCL and LCL at step _t_ (§5.9). When Box-Cox is active (§5.10), the EWMA and limits are computed in z-space and back-transformed to original (turn count) units for display.
+**Paired with:** Session Turn Count — I chart (shares Grand_Mean and σ).
+
+
+
 
 ---
 
@@ -742,7 +1003,7 @@ The main window contains, from top to bottom:
 
 ### 7.2 Left Panel
 
-A GtkListBox (~180px default width, user-resizable) listing the twenty-one charts in three
+A GtkListBox (~180px default width, user-resizable) listing the thirty-three charts in three
 visually separated groups:
 
 ```
@@ -771,10 +1032,22 @@ Session Cache Read Tokens — I
 Session Cache Read Tokens — MR
 Session Cache Write Tokens — I
 Session Cache Write Tokens — MR
+Session Thinking Tokens — I
+Session Thinking Tokens — MR
+Session Tool-Call Tokens — I
+Session Tool-Call Tokens — MR
+Session Tool-Call Result Tokens — I
+Session Tool-Call Result Tokens — MR
 Session Input Tokens — EWMA
 Session Output Tokens — EWMA
 Session Cache Read Tokens — EWMA
 Session Cache Write Tokens — EWMA
+Session Thinking Tokens — EWMA
+Session Tool-Call Tokens — EWMA
+Session Tool-Call Result Tokens — EWMA
+Session Turn Count — I
+Session Turn Count — MR
+Session Turn Count — EWMA
 ```
 
 Clicking a row switches the chart displayed in the chart area. The active chart is
@@ -1073,7 +1346,7 @@ Displayed when two or more points are selected.
 
 **Set as Setup Interval button:**
 - Clicking this button sets the workspace setup interval to exactly the selected
-  sessions, applying to all twenty-one charts simultaneously.
+  sessions, applying to all thirty-three charts simultaneously.
 - If a setup interval is already established, a confirmation dialog is shown:
   "Replace existing setup interval for this workspace?"
 - On confirmation, all charts recompute their limits and recolor the setup interval
@@ -1099,7 +1372,7 @@ Displayed when two or more points are selected.
 ### 11.1 Establishing a Setup Interval
 
 A setup interval is a single workspace-level set of sessions used to estimate the
-center line and control limits for all twenty-one charts simultaneously. It is established
+center line and control limits for all thirty-three charts simultaneously. It is established
 by selecting one or more sessions (Section 9) and clicking "Set as Setup Interval"
 in the multi-select detail panel (Section 10.2). There is no requirement for the
 setup sessions to be contiguous in time.
@@ -1108,11 +1381,11 @@ setup sessions to be contiguous in time.
 
 The setup interval is stored as a set of session UUIDs in the `Setup_Session_Ids`
 field of the `Workspace_Record`. It is workspace-level: a single setup interval
-applies to all twenty-one charts. The set is stored within the workspace file.
+applies to all thirty-three charts. The set is stored within the workspace file.
 
 ### 11.3 Visual Representation
 
-Setup interval sessions are rendered with filled yellow markers on all twenty-one charts.
+Setup interval sessions are rendered with filled yellow markers on all thirty-three charts.
 A faint yellow vertical band spans the x-extent of the setup interval sessions on
 every chart.
 
@@ -1175,7 +1448,7 @@ Workspace files are stored as JSON. The file format is versioned with a top-leve
 `"version"` field. The application shall refuse to open workspace files with a version
 higher than it supports, and shall display an appropriate error message.
 
-The current workspace format is **version 4**. The `"version"` field increments
+The current workspace format is **version 6**. The `"version"` field increments
 whenever new fields are added that cannot safely be ignored by an older reader.
 Version history:
 
@@ -1185,10 +1458,24 @@ Version history:
 | 2 | — | `xbarSBoxCox` Xbar/S Box-Cox config |
 | 3 | — | `iChartBoxCox` I/MR Box-Cox config |
 | 4 | EWMA charts | `ewmaWeight`, `ewmaL` smoothing parameters |
+| 5 | Session Turn Count charts | `turnCountBoxCox` Turn Count Box-Cox config |
+| 6 | Robust control limit estimation | `estimationMethod` control limit estimation method |
 
 Workspace files with `"version" < 4` that are missing the `ewmaWeight` and
 `ewmaL` fields shall be loaded with the defaults (`ewmaWeight = 0.2`,
 `ewmaL = 3.0`).
+
+The `iChartBoxCox` configuration field introduced in version 3 governs all seven Session Token I/MR chart pairs, including the three new pairs added in this revision (Session Thinking Tokens, Session Tool-Call Tokens, Session Tool-Call Result Tokens). No workspace version increment is required for this addition; existing version-4 workspace files load without migration.
+
+The `turnCountBoxCox` configuration field introduced in version 5 governs the
+Session Turn Count I/MR/EWMA charts (§5.10, §6.31–6.33). Workspace files at
+version ≤ 4 that are missing this field shall be loaded with the default
+(disabled, auto mode, fixed λ = 0.0).
+
+The `estimationMethod` field introduced in version 6 governs the control limit
+estimation method for all I/MR and Xbar/s charts (§5.11). Workspace files at
+version ≤ 5 that are missing this field shall be loaded with the default
+(`"classical"`).
 
 ### 13.2 Workspace File Location
 
@@ -1221,6 +1508,37 @@ Accessible via Workspace → Workspace Settings…. Contains:
   directory chooser dialog.
 - Model filter section: a list of model identifiers with Add (text entry) and Remove
   buttons, plus a "Include all models" checkbox that clears and disables the list.
+
+- Control Limit Estimation section: a drop-down with two choices:
+  **Classical** (arithmetic mean / pooled s / mean MR; default) and
+  **Robust (median/Qₙ)** (median center line / Qₙ-based pooled scale /
+  median MR). When Robust is selected, a brief inline note reads: *"p-charts
+  use the classical grand proportion regardless of this setting."*
+  Governed by the `estimationMethod` workspace field (§5.11).
+
+
+- I/MR Box-Cox section: an "Enable Box-Cox transformation" checkbox for the
+  Session Token I/MR charts. When enabled, a lambda-source drop-down offers
+  three choices: **Auto-estimate (MLE)** (default), **Auto-estimate (robust)**,
+  and **Fixed**. When Fixed is selected, a λ spin-button is enabled. An
+  "Estimated λ:" readout shows the current auto-estimated value (greyed out
+  when Fixed is selected or fewer than three setup sessions are available).
+  Governed by the `iChartBoxCox` workspace field (§5.7).
+
+- Xbar/S Box-Cox section: an "Enable Box-Cox transformation" checkbox for the
+  per-turn Xbar/S charts. When enabled, the same lambda-source drop-down
+  (Auto-estimate (MLE) / Auto-estimate (robust) / Fixed) and fixed-λ spin-button
+  appear as in the I/MR Box-Cox section. An "Estimated λ:" readout shows the
+  auto-estimated values for each chart pair (Turn, Tool Call, Thinking) separated
+  by slashes; greyed out when Fixed is selected or insufficient data is available.
+  Governed by the `xbarSBoxCox` workspace field (§5.8).
+
+- Turn Count Box-Cox section: an "Enable Box-Cox transformation" checkbox for
+  the Session Turn Count I/MR/EWMA charts. When enabled, the same lambda-source
+  drop-down (Auto-estimate (MLE) / Auto-estimate (robust) / Fixed) and fixed-λ
+  spin-button appear as in the I/MR Box-Cox section. An "Estimated λ:" readout
+  shows the current auto-estimated value.
+  Governed by the `turnCountBoxCox` workspace field (§5.10).
 
 Changes take effect on clicking OK, at which point sessions are reloaded and the
 setup interval integrity check (Section 11.4) is performed.
@@ -1396,6 +1714,38 @@ All statistical formula implementations shall have AUnit unit tests covering:
 - EWMA workspace round-trip: `ewmaWeight` and `ewmaL` survive save/load unchanged.
 - EWMA version migration: workspace files at version ≤ 3 load with default
   `ewmaWeight = 0.2` and `ewmaL = 3.0`.
+- Correct `Total_Thinking_Tokens`, `Total_Tool_Call_Input_Tokens`, and `Total_Tool_Call_Result_Tokens` metric computation: given a session with three turns where two have thinking tokens (12 and 24) and two turns each have one tool call with estimated input/output tokens (5/8 and 3/12), verify `Total_Thinking_Tokens = 36`, `Total_Tool_Call_Input_Tokens = 8`, `Total_Tool_Call_Result_Tokens = 20`.
+- I/MR limit computation for the three new session-total chart kinds (Thinking Tokens, Tool-Call Tokens, Tool-Call Result Tokens): for a known five-session dataset, verify UCL, CL, and LCL match hand-computed §5.6 formula values to 4 decimal places.
+- EWMA computation for the three new EWMA chart kinds (Thinking, Tool-Call, Tool-Call Result): verify `Z_t` and time-varying limits use the Grand_Mean and σ from the corresponding paired I chart.
+- Zero-value session exclusion for new I/MR charts: sessions with zero `Total_Thinking_Tokens`, zero `Total_Tool_Call_Input_Tokens`, or zero `Total_Tool_Call_Result_Tokens` are excluded from the respective I/MR chart when Box-Cox is enabled, and a status-bar notice is posted.
+- Session Turn Count I/MR limit computation: for a known five-session dataset, verify UCL, CL, and LCL match hand-computed §5.6 formula values to 4 decimal places.
+- Session Turn Count EWMA computation: verify `Z_t` and time-varying limits use the Grand_Mean and σ from the paired I chart.
+- Session Turn Count Box-Cox round-trip: `turnCountBoxCox` configuration (enabled, lambda source, fixed λ) survives workspace save/load unchanged.
+- Session Turn Count Box-Cox version migration: workspace files at version ≤ 4 load with `turnCountBoxCox` disabled (default).
+- Robust I/MR estimation: for a five-session dataset containing one outlier
+  session, verify that the robust Grand_Mean equals the median of the
+  setup-interval observations, and that σ_robust = median(MR) / 0.9515;
+  confirm that both diverge from the corresponding classical estimates.
+- Robust Xbar/s estimation: for a known dataset with one outlier session,
+  verify that Grand_Mean equals the unweighted median of per-session means,
+  and that Pooled_S equals Qₙ(pooled residuals) with consistency constant
+  2.2219; confirm divergence from classical pooled_s.
+- Robust estimation with Box-Cox active: verify that the median and
+  Qₙ/median-MR estimators are applied to the Box-Cox-transformed values,
+  not the original observations.
+- p-charts unaffected by estimation method: Grand_P equals Σd / Σn
+  regardless of whether Classical or Robust_Median is selected.
+- EWMA with robust estimation: verify that Z_0 = median(observations) and
+  σ = median(MR) / 0.9515 are used in the EWMA limit formula when robust
+  estimation is enabled; the time-varying limit values should match
+  hand-computed values using those robust parameters.
+- Robust estimation workspace round-trip: the `estimationMethod` field
+  (`"classical"` or `"robust_median"`) survives workspace save/load
+  unchanged.
+- Robust estimation version migration: workspace files at version ≤ 5
+  that are missing `estimationMethod` load with the default `"classical"`.
+- Session Turn Count Box-Cox: sessions with N_Turns = 1 are not excluded from I/MR/EWMA charts when Box-Cox is active (since ln(1) = 0 is valid); verify no exclusion occurs and no status-bar notice is posted for such sessions.
+- Session Turn Count Box-Cox: MR̄ = 0 when all setup-interval sessions have N_Turns = 1 after transformation (y = 0 for all); verify no limits are drawn and no exception is raised.
 
 ---
 
