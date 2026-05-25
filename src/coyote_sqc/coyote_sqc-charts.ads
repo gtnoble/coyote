@@ -51,6 +51,7 @@ package Coyote_SQC.Charts is
       Y_Axis_Label : Ada.Strings.Unbounded.Unbounded_String;
       Is_P_Chart   : Boolean;
       Is_I_Chart      : Boolean;
+      Is_MR_Chart     : Boolean;
       Is_Xbar_S_Chart : Boolean;
       Is_EWMA_Chart   : Boolean;
    end record;

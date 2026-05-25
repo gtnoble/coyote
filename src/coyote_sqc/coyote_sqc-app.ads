@@ -52,6 +52,13 @@ package Coyote_SQC.App is
       Is_Retro : Boolean := True;  --  using retrospective limits
       Box_Cox_Active : Boolean    := False;   --  Box-Cox is active for this chart
       Box_Cox_Lambda : Long_Float := 0.0;    --  resolved lambda (valid when Box_Cox_Active)
+      --  MR chart independent Box-Cox transformation (λ_MR estimated from
+      --  the setup-interval MR series; independent of λ_I).
+      MR_BC_Active : Boolean    := False;
+      MR_BC_Lambda : Long_Float := 0.0;
+      MR_BC_Limits : Coyote_SQC.Statistics.Limits_Record :=
+        (UCL => 0.0, CL => 0.0, LCL => 0.0,
+         Has_UCL => False, Has_LCL => False);
    end record;
 
    type Chart_Data_Array is

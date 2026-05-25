@@ -17,19 +17,16 @@ package body Coyote_SQC.Statistics.I_Chart is
 
    --  D4 for MR chart UCL factor, span 2.
    D4 : constant Long_Float := 3.267;
-   --  d4 consistency constant for median of span-2 absolute differences
-   --  under normality (Croux & Rousseeuw 1992). Used when Robust = True.
-   D4_Robust : constant Long_Float := 0.9515;
 
    --  ── Standard I/MR limit computation ───────────────────────────────────
 
+
    function Compute_I_Limits
      (Grand_Mean : Long_Float;
-      Mean_MR    : Long_Float;
-      Robust     : Boolean    := False) return Limits_Record
+      Sigma      : Long_Float) return Limits_Record
    is
    begin
-      if Mean_MR = 0.0 then
+      if Sigma = 0.0 then
          --  Cannot derive spread estimate; no limits drawn.
          return
            (UCL     => 0.0,
@@ -40,8 +37,7 @@ package body Coyote_SQC.Statistics.I_Chart is
       end if;
 
       declare
-         Divisor : constant Long_Float := (if Robust then D4_Robust else D2);
-         Spread  : constant Long_Float := 3.0 * Mean_MR / Divisor;
+         Spread  : constant Long_Float := 3.0 * Sigma;
          Raw_LCL : constant Long_Float := Grand_Mean - Spread;
          Eff_LCL : constant Long_Float :=
            (if Raw_LCL < 0.0 then 0.0 else Raw_LCL);
@@ -54,7 +50,6 @@ package body Coyote_SQC.Statistics.I_Chart is
             Has_LCL => Eff_LCL > 0.0);
       end;
    end Compute_I_Limits;
-
    function Compute_MR_Limits (Mean_MR : Long_Float) return Limits_Record is
    begin
       if Mean_MR = 0.0 then
@@ -185,58 +180,39 @@ package body Coyote_SQC.Statistics.I_Chart is
       return Qn_Scale_Core (Values);
    end Qn_Scale;
 
+   function Qn_Scale_Any (Values : Long_Float_Array) return Long_Float is
+   begin
+      return Qn_Scale_Core (Values);
+   end Qn_Scale_Any;
+
+   function Median_Of (Values : Long_Float_Array) return Long_Float is
+      N : constant Natural := Values'Length;
+   begin
+      if N = 0 then
+         return 0.0;
+      end if;
+      if N = 1 then
+         return Values (Values'First);
+      end if;
+      declare
+         package LF_Sorting is new LF_Vectors.Generic_Sorting;
+         Copy : LF_Vectors.Vector;
+         Mid  : constant Positive := (N - 1) / 2 + 1;  --  1-based middle index
+      begin
+         for V of Values loop
+            Copy.Append (V);
+         end loop;
+         LF_Sorting.Sort (Copy);
+         if N mod 2 = 1 then
+            return Copy (Mid);
+         else
+            return (Copy (Mid) + Copy (Mid + 1)) / 2.0;
+         end if;
+      end;
+   end Median_Of;
+
 
    --  ── Lambda estimation ─────────────────────────────────────────────────
-
-   --  Return True when Box_Cox_Inverse is well-defined for the UCL of an
-   --  I chart built from Values transformed at Lambda.
-   --
-   --  The I-chart UCL in z-space is Grand_Mean_Z + 3 * Mean_MR_Z / D2.
-   --  For Lambda >= 0.0 the inverse is always defined (exp is always > 0;
-   --  positive-lambda power is always > 0 when the base is > 0 and we have
-   --  positive token counts).  For Lambda < 0.0 the inverse requires
-   --  UCL_Z * Lambda + 1 > 0, i.e. UCL_Z < -1.0 / Lambda (the asymptote).
-   function UCL_Z_Invertible
-     (Values : Long_Float_Array; Lambda : Long_Float) return Boolean
-   is
-      N        : constant Long_Float := Long_Float (Values'Length);
-      Sum_Z    : Long_Float := 0.0;
-      Prev_Z   : Long_Float := 0.0;
-      Has_Prev : Boolean    := False;
-      MR_Sum   : Long_Float := 0.0;
-      MR_Cnt   : Natural    := 0;
-      Mean_Z   : Long_Float;
-      Mean_MR  : Long_Float;
-      UCL_Z    : Long_Float;
-   begin
-      --  For Lambda >= 0, Box_Cox_Inverse is always defined on positive reals.
-      if Lambda >= 0.0 then
-         return True;
-      end if;
-
-      --  Compute Grand_Mean_Z and Mean_MR_Z in the transformed space.
-      for X of Values loop
-         declare
-            Z : constant Long_Float := Box_Cox (X, Lambda);
-         begin
-            Sum_Z := Sum_Z + Z;
-            if Has_Prev then
-               MR_Sum := MR_Sum + abs (Z - Prev_Z);
-               MR_Cnt := MR_Cnt + 1;
-            end if;
-            Prev_Z   := Z;
-            Has_Prev := True;
-         end;
-      end loop;
-
-      Mean_Z  := Sum_Z / N;
-      Mean_MR := (if MR_Cnt > 0 then MR_Sum / Long_Float (MR_Cnt) else 0.0);
-      UCL_Z   := Mean_Z + 3.0 * Mean_MR / D2;
-
-      --  Safe iff UCL_Z * Lambda + 1 > 0  (Lambda < 0 here).
-      return UCL_Z * Lambda + 1.0 > 0.0;
-   end UCL_Z_Invertible;
-
    --  Evaluate the Box-Cox MLE profile log-likelihood for a given lambda.
    --  L(lambda) = -(n/2) * ln(var_z) + (lambda-1) * sum ln(x_i)
    --  Returns Long_Float'First when the variance is zero (degenerate).
@@ -332,38 +308,34 @@ package body Coyote_SQC.Statistics.I_Chart is
             end if;
             Sum_Log_X := Sum_Log_X + Log (X);
          end loop;
-
-         --  Coarse grid search: step 0.1 over [-5.0, 5.0] (101 evaluations).
-         --  Track the global best (Best_Lambda) and the best lambda whose I-chart
-         --  UCL is back-transform-safe (Best_Safe_Lambda).
+         --  Coarse grid search: step 0.5 over [0.0, 30.0] (61 evaluations).
+         --  Identifies the basin containing the global maximum before Brent
+         --  refinement.  Lambda is restricted to [0.0, 30.0]: for positive
+         --  token-count data negative lambdas are not meaningful and the UCL
+         --  back-transform is always well-defined for lambda >= 0.
          declare
-            Best_Lambda      : Long_Float := -5.0;
-            Best_LL          : Long_Float := Long_Float'First;
-            Best_Safe_Lambda : Long_Float := 0.0;
-            Best_Safe_LL     : Long_Float := Long_Float'First;
-            Lambda           : Long_Float := -5.0;
+            --  Objective: profile log-likelihood (MLE or robust) at lambda L.
+            function Objective (L : Long_Float) return Long_Float is
+            begin
+               return (if Use_Robust
+                       then Robust_Log_Likelihood (Values, L, Sum_Log_X)
+                       else Log_Likelihood        (Values, L, Sum_Log_X));
+            end Objective;
+
+            Best_Lambda : Long_Float := 0.0;
+            Best_LL     : Long_Float := Long_Float'First;
+            Lambda      : Long_Float := 0.0;
          begin
-            while Lambda <= 5.0 + 1.0e-9 loop
+            while Lambda <= 30.0 + 1.0e-9 loop
                declare
-                  LL : constant Long_Float :=
-                    (if Use_Robust
-                     then Robust_Log_Likelihood
-                            (Values, Lambda, Sum_Log_X)
-                     else Log_Likelihood
-                            (Values, Lambda, Sum_Log_X));
+                  LL : constant Long_Float := Objective (Lambda);
                begin
                   if LL > Best_LL then
                      Best_LL     := LL;
                      Best_Lambda := Lambda;
                   end if;
-                  if LL > Best_Safe_LL
-                    and then UCL_Z_Invertible (Values, Lambda)
-                  then
-                     Best_Safe_LL     := LL;
-                     Best_Safe_Lambda := Lambda;
-                  end if;
                end;
-               Lambda := Lambda + 0.1;
+               Lambda := Lambda + 0.5;
             end loop;
 
             --  Degenerate data: every log-likelihood evaluation returned
@@ -374,58 +346,97 @@ package body Coyote_SQC.Statistics.I_Chart is
                return 0.0;
             end if;
 
-            --  Fine search: step 0.01 within +-0.15 of the coarse best.
-            --  Track both the global fine winner and the best safe fine winner.
+            --  Brent's method: refine within +-0.5 of the coarse best,
+            --  clamped to [0.0, 30.0], to tolerance 1.0e-6 on lambda.
+            --  Implements Brent (1973) Chapter 5 adapted for maximisation
+            --  by negating the objective (the algorithm minimises internally).
             declare
-               Fine_Lo        : constant Long_Float :=
-                 Long_Float'Max (-5.0, Best_Lambda - 0.15);
-               Fine_Hi        : constant Long_Float :=
-                 Long_Float'Min (5.0,   Best_Lambda + 0.15);
-               Fine_Best      : Long_Float := Best_Lambda;
-               Fine_LL        : Long_Float := Best_LL;
-               Fine_Safe_Best : Long_Float := Best_Safe_Lambda;
-               Fine_Safe_LL   : Long_Float := Best_Safe_LL;
-               FL             : Long_Float := Fine_Lo;
+               GR         : constant Long_Float := 0.381_966_011_250_105;
+               --  (3 - sqrt(5)) / 2 — golden-section ratio, used for the
+               --  fallback step when parabolic interpolation is rejected.
+               Brent_A    : Long_Float :=
+                 Long_Float'Max (0.0,  Best_Lambda - 0.5);
+               Brent_B    : Long_Float :=
+                 Long_Float'Min (30.0, Best_Lambda + 0.5);
+               X_Min      : Long_Float := Brent_A + GR * (Brent_B - Brent_A);
+               W, V       : Long_Float := X_Min;
+               FX         : Long_Float := -Objective (X_Min);
+               FW, FV     : Long_Float := FX;
+               D, E       : Long_Float := 0.0;
+               Tol1, Tol2 : Long_Float;
+               Mid        : Long_Float;
+               R, Q, P    : Long_Float;
+               U, FU      : Long_Float;
             begin
-               while FL <= Fine_Hi + 1.0e-9 loop
-                  declare
-                     LL : constant Long_Float :=
-                       (if Use_Robust
-                        then Robust_Log_Likelihood
-                               (Values, FL, Sum_Log_X)
-                        else Log_Likelihood
-                               (Values, FL, Sum_Log_X));
-                  begin
-                     if LL > Fine_LL then
-                        Fine_LL   := LL;
-                        Fine_Best := FL;
-                     end if;
-                     if LL > Fine_Safe_LL
-                       and then UCL_Z_Invertible (Values, FL)
+               for Iter in 1 .. 100 loop
+                  Mid  := 0.5 * (Brent_A + Brent_B);
+                  Tol1 := 1.0e-6 * abs X_Min + 1.0e-10;
+                  Tol2 := 2.0 * Tol1;
+                  exit when abs (X_Min - Mid) <=
+                              Tol2 - 0.5 * (Brent_B - Brent_A);
+
+                  R := 0.0;  Q := 0.0;  P := 0.0;
+
+                  --  Attempt parabolic interpolation from X_Min, W, V.
+                  if abs E > Tol1 then
+                     R := (X_Min - W) * (FX - FV);
+                     Q := (X_Min - V) * (FX - FW);
+                     P := (X_Min - V) * Q - (X_Min - W) * R;
+                     Q := 2.0 * (Q - R);
+                     if Q > 0.0 then P := -P;  else Q := -Q;  end if;
+                     R := E;
+                     E := D;
+                  end if;
+
+                  --  Accept parabolic step when within bounds and small enough.
+                  if abs P < abs (0.5 * Q * R)         and then
+                     P > Q * (Brent_A - X_Min)         and then
+                     P < Q * (Brent_B - X_Min)
+                  then
+                     D := P / Q;
+                     U := X_Min + D;
+                     --  U must not land within Tol2 of either bracket end.
+                     if (U - Brent_A) < Tol2 or else (Brent_B - U) < Tol2
                      then
-                        Fine_Safe_LL   := LL;
-                        Fine_Safe_Best := FL;
+                        D := (if X_Min < Mid then Tol1 else -Tol1);
                      end if;
-                  end;
-                  FL := FL + 0.01;
+                  else
+                     --  Golden-section fallback: step into the larger half.
+                     E := (if X_Min >= Mid then Brent_A - X_Min
+                                           else Brent_B - X_Min);
+                     D := GR * E;
+                  end if;
+
+                  --  U must be at least Tol1 away from X_Min.
+                  U  := X_Min + (if abs D >= Tol1 then D
+                                 else (if D > 0.0 then Tol1 else -Tol1));
+                  FU := -Objective (U);
+
+                  --  Update bracket and best point (Brent 1973, pp. 79–80).
+                  if FU <= FX then
+                     if U < X_Min then Brent_B := X_Min;
+                     else              Brent_A := X_Min;
+                     end if;
+                     V := W;      FV := FW;
+                     W := X_Min;  FW := FX;
+                     X_Min := U;  FX  := FU;
+                  else
+                     if U < X_Min then Brent_A := U;
+                     else              Brent_B := U;
+                     end if;
+                     if FU <= FW or else W = X_Min then
+                        V := W;   FV := FW;
+                        W := U;   FW := FU;
+                     elsif FU <= FV or else V = X_Min or else V = W then
+                        V := U;   FV := FU;
+                     end if;
+                  end if;
                end loop;
 
-               --  Prefer the MLE optimum if it is back-transform-safe.
-               if UCL_Z_Invertible (Values, Fine_Best) then
-                  return Fine_Best;
-               end if;
-
-               --  Otherwise use the best safe lambda.  If none was found
-               --  (all grid candidates unsafe — extremely unlikely for
-               --  reasonable data), fall back to lambda = 0.0.
-               Fallback_Used := True;
-               if Fine_Safe_LL > Long_Float'First then
-                  return Fine_Safe_Best;
-               else
-                  return 0.0;
-               end if;
+               return X_Min;
             end;
          end;
+
       end;
    end Estimate_Lambda;
 end Coyote_SQC.Statistics.I_Chart;

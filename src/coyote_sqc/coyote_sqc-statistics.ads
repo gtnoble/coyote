@@ -27,7 +27,13 @@ package Coyote_SQC.Statistics is
       Grand_Mean : Long_Float := 0.0;
       Pooled_S   : Long_Float := 0.0;
       Grand_P    : Long_Float := 0.0;
+      --  MR chart scale: classical = mean(MR_i); robust = median(MR_i).
+      --  Used by Compute_MR_Limits; NOT used for I chart sigma.
       Mean_MR    : Long_Float := 0.0;
+      --  I chart process sigma: classical = Mean_MR / d2 (1.128);
+      --  robust = Qn_Scale_Any (setup-interval observations) / 2.2219.
+      --  Overridden with z-space value by Box-Cox blocks in Recompute_Chart.
+      I_Sigma    : Long_Float := 0.0;
    end record;
 
    --  Estimate grand mean / pooled s (Xbar/s charts) or grand p (p charts)

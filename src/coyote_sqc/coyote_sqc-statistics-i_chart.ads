@@ -17,23 +17,20 @@ package Coyote_SQC.Statistics.I_Chart is
    type Long_Float_Array is array (Positive range <>) of Long_Float;
 
    --  ── Standard I/MR limit computation ───────────────────────────────────
-
    --  Compute the I-chart (Individuals) control limits.
    --
-   --  Grand_Mean is the mean of all setup-interval session values.
-   --  Mean_MR    is the mean of consecutive moving ranges (MR̄).
+   --  Grand_Mean is the mean (or robust median) of setup-interval session values.
+   --  Sigma      is the pre-computed process sigma:
+   --               Classical mode: Mean_MR / d2  (d2 = 1.128)
+   --               Robust mode:    Qn_Scale_Any (observations) / 2.2219
    --
-   --  When Mean_MR = 0.0 (all setup sessions have the same value, or only
-   --  one setup session exists) Has_UCL and Has_LCL are both False.
+   --  When Sigma = 0.0, Has_UCL and Has_LCL are both False.
    --  The LCL is clamped to 0 when the formula yields a negative value;
    --  Has_LCL is True only when the clamped LCL value would be > 0.
-   --  When Robust = True, Mean_MR is divided by d₄ = 0.9515 (the
-   --  consistency constant for the median of span-2 absolute differences
-   --  under normality) instead of d₂ = 1.128 (classical mean MR constant).
    function Compute_I_Limits
      (Grand_Mean : Long_Float;
-      Mean_MR    : Long_Float;
-      Robust     : Boolean    := False) return Limits_Record;
+      Sigma      : Long_Float) return Limits_Record;
+
 
    --  Compute the MR-chart (Moving Range) control limits.
    --
@@ -73,6 +70,16 @@ package Coyote_SQC.Statistics.I_Chart is
    --  raises Constraint_Error if any value is <= 0.0.
    function Qn_Scale (Values : Long_Float_Array) return Long_Float;
 
+   --  Like Qn_Scale but accepts non-positive values (no positivity guard).
+   --  Use when computing sigma directly from token counts (which may include
+   --  zero values) rather than from strictly-positive Box-Cox inputs.
+   --  Requires Values'Length >= 2; raises Constraint_Error if N < 2.
+   function Qn_Scale_Any (Values : Long_Float_Array) return Long_Float;
+   --  Return the median of a Long_Float_Array.
+   --  For even N, returns the mean of the two middle values.
+   --  Returns 0.0 for an empty array; returns the single value for N = 1.
+   function Median_Of (Values : Long_Float_Array) return Long_Float;
+
    --  Estimate the Box-Cox lambda by maximising the profile log-likelihood
    --  under the normality assumption (Box and Cox, 1964), or a robust
    --  variant that substitutes the Qn scale estimator for the variance.
@@ -86,14 +93,18 @@ package Coyote_SQC.Statistics.I_Chart is
    --
    --  Returns 0.0 (ln transform) when Values'Length < 3.
    --
-   --  Fallback_Used is set to True when the MLE optimum was discarded because
-   --  it produced a non-invertible I-chart UCL (only possible for lambda < 0),
-   --  or when the data were degenerate (all identical observations).  In both
-   --  cases the function returns 0.0 (log transform) or the best safe lambda
-   --  found during the grid search, whichever has the higher log-likelihood.
+   --  Fallback_Used is set to True when the data are degenerate (all values
+   --  identical or fewer than three observations).  In this case the function
+   --  returns 0.0 (log transform).
    --
-   --  Algorithm: coarse grid search over Lambda in [-5.0, 5.0] at step 0.1,
-   --  followed by a fine search at step 0.01 within the best +-0.15 interval.
+   --  Lambda is restricted to [0.0, 30.0]; negative values are excluded
+   --  because they are not meaningful for positive token-count data and the
+   --  UCL back-transform is always well-defined for lambda >= 0.
+   --
+   --  Algorithm: coarse grid search over [0.0, 30.0] at step 0.5 (61
+   --  evaluations) locates the global maximum basin; Brent's method
+   --  (Brent 1973) then refines within +-0.5 of the coarse best, clamped to
+   --  [0.0, 30.0], converging to tolerance 1.0e-6 on lambda.
    function Estimate_Lambda
      (Values        : Long_Float_Array;
       Use_Robust    : Boolean := False;

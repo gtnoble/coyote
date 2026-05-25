@@ -1702,11 +1702,14 @@ package body Test_Suites is
         ("Robust: I chart Grand_Mean = median when outlier present",
          Coyote_SQC_Statistics_Tests.Test_Robust_I_Chart_Grand_Mean'Access));
       Result.Add_Test (SQC_Statistics_Caller.Create
-        ("Robust: I chart Mean_MR = median of MRs",
+        ("Robust: I chart Mean_MR = median of MRs, I_Sigma = Qn/2.2219",
          Coyote_SQC_Statistics_Tests.Test_Robust_I_Chart_Mean_MR'Access));
       Result.Add_Test (SQC_Statistics_Caller.Create
-        ("Robust: Compute_I_Limits uses d4=0.9515 when Robust=True",
+        ("Robust: Compute_I_Limits uses Sigma parameter directly (no internal divisor)",
          Coyote_SQC_Statistics_Tests.Test_Robust_I_Limits_Divisor'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Robust: MR chart UCL = D4 * median(MR_i)",
+         Coyote_SQC_Statistics_Tests.Test_Robust_MR_UCL'Access));
       Result.Add_Test (SQC_Statistics_Caller.Create
         ("Robust: Xbar Grand_Mean = unweighted median of session means",
          Coyote_SQC_Statistics_Tests.Test_Robust_Xbar_Grand_Mean'Access));

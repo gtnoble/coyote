@@ -228,15 +228,16 @@ Derived from a Session_Record. Computed once at load time and cached.
 
 ## 5. Statistical Methods
 
-### Box-Cox back‑transform safety and UI notification
+### Box-Cox back‑transform safety
 
-When Box‑Cox is enabled for an I/MR chart the implementation shall ensure back‑transformability of computed control limits. In particular:
-
-- The lambda estimator shall prefer lambdas that permit valid back‑transformation of the CL and UCL (i.e. Z*λ + 1 > 0 for CL and UCL), or
-- If no such lambda exists the application shall employ a documented deterministic fallback (for example: try the next-best grid lambda that yields invertible limits, or fall back to λ = 0.0) and recompute limits, and in all cases display a clear UI notice describing the fallback, or
-- Render the limits in transformed units (labelled accordingly) and display a clear notice that limits in original units could not be computed.
-
-The application shall never silently omit control limits without notifying the user. A unit/integration test must exercise a dataset that would otherwise disable limits and verify a visible notice or that a deterministic fallback strategy is used.
+Because the lambda search is restricted to [0.0, 30.0], the UCL
+back-transform condition (Z·λ + 1 > 0) is structurally guaranteed for
+all λ ≥ 0 when data are strictly positive: no runtime fallback or UI
+notice is required for invertibility failures.  The only case where
+limits are omitted is degenerate data (all setup-interval values
+identical), which sets `Fallback_Used = True` and returns λ = 0.0; a
+unit test must exercise this case and verify that no limits are drawn
+and no exception is raised.
 
 ### 5.1 General Principles
 
@@ -446,22 +447,28 @@ drop-down in Workspace Settings:
 - **Fixed** — uses a user-specified λ directly. Common values: 0 (ln),
   0.5 (square root), 1 (identity, no transform).
 
-Both auto modes require at least three setup-interval sessions; fewer falls
-back to λ = 0.
+Both auto modes require at least three setup-interval sessions; fewer
+falls back to λ = 0.  Lambda is searched in [0.0, 30.0] (negative
+values are not meaningful for positive token-count data); a coarse
+grid at step 0.5 locates the global maximum basin, then Brent's method
+(Brent 1973) refines to tolerance 1e-6 within ±0.5 of the coarse best.
 
 **I chart display:** limits are computed in the transformed space and
 back-transformed to original (token) units for display. The resulting UCL and
 LCL are asymmetric around the center line, reflecting the skewness correction.
 
-**MR chart display:** moving ranges are the absolute differences of
-consecutively transformed values: `MR_i = |y(x_i, λ) − y(x_{i-1}, λ)|`. These
-differences are not meaningfully back-transformable to token units. The MR chart
-y-axis is therefore labelled in transformed units (e.g. "Moving range (ln tokens)")
-when the transformation is active.
+**MR chart display:** moving range values are the original-space absolute
+differences `MR_i = |x_i − x_{i-1}|`, plotted without transformation. Each
+MR chart has its own independent Box-Cox transformation: `λ_MR` is estimated
+from the setup-interval `MR_i` series (excluding zero-valued entries); CL and
+UCL are computed in the transformed MR space and back-transformed exactly to
+original (token) units via `Box_Cox_Inverse`. The y-axis is labelled in
+original (token) units. A status-bar notice reports the count of zero MR
+values excluded from `λ_MR` estimation when transformation is active.
 
 **Histogram display:** when Box-Cox is active and an I or MR chart is selected,
-the multi-select distribution histogram shows the transformed value distribution.
-The overlay lines (CL, UCL, LCL) are in the same transformed space.
+the multi-select distribution histogram shows the original-space value distribution.
+The overlay lines (CL, UCL, LCL) are the back-transformed limits, also in original-space units.
 
 **Sessions with zero tokens:** any session with a zero total-token count cannot
 be transformed (ln(0) is undefined). Such sessions are excluded from the I and
@@ -616,11 +623,12 @@ if all setup sessions happen to have one turn; the `MR̄ = 0` special case
 back-transformed to original (turn count) units for display. The resulting UCL
 and LCL are asymmetric around the center line.
 
-**MR chart display.** Moving ranges are the absolute differences of
-consecutively transformed values: `MR_i = |y(x_i, λ) − y(x_{i-1}, λ)|`.
-These differences are not meaningfully back-transformable to turn-count units;
-the MR chart y-axis is labelled in transformed units (e.g. "Moving range (ln
-turns)") when the transformation is active.
+**MR chart display.** Moving range values are the original-space absolute
+differences `MR_i = |N_i − N_{i-1}|`, plotted without transformation. The
+Turn Count MR chart has its own independent Box-Cox transformation: `λ_MR` is
+estimated from the setup-interval `MR_i` series (excluding zero-valued
+entries); CL and UCL are computed in the transformed MR space and
+back-transformed exactly to original (turn count) units via `Box_Cox_Inverse`.
 
 **EWMA chart display.** When `Turn_Count_Box_Cox.Enabled` is `True`, the
 EWMA recursion is performed in z-space (transformed values) and the plotted
@@ -661,15 +669,18 @@ described below.
 - **Center line** → **median** of the N setup-interval observations replaces
   the arithmetic mean. The median has a 50% breakdown point; the mean breaks
   down at 1/N.
-- **Scale** → **median(MR) / d₄** replaces MR̄ / d₂. Here d₄ = 0.9515 is
-  the consistency constant for the median of consecutive span-2 absolute
-  differences under normality (Croux & Rousseeuw 1992); d₂ = 1.128 is the
-  classical constant. Both are consistent estimates of σ under normality. The
-  median-MR approach is preferred over applying Qₙ directly to the
-  observations: the moving-range framework intentionally estimates only *local*,
-  short-term variation, making it resistant to slow process mean drift.
-  Applying Qₙ to the observations themselves would inflate σ when a gradual
-  trend is present, potentially masking real signals.
+- **I chart scale (σ)** → **Q_n(x_i) / 2.2219** replaces MR̄ / d₂. Q_n is
+  applied to the N setup-interval observations (or their Box-Cox transforms
+  when Box-Cox is active). Q_n has a 50% breakdown point and 82% Gaussian
+  efficiency — consistent with the Qₙ estimator used for Xbar/s scale
+  estimation and Box-Cox lambda estimation (§5.7). The classical motivation
+  for deriving the I chart sigma from moving ranges (consistency with the
+  paired MR chart) no longer applies since the I and MR charts now use
+  independent Box-Cox transformations and sigma estimates.
+
+- **MR chart UCL** → **D4 × median(w_i)** replaces D4 × MR̄_w in robust
+  mode, where w_i = Box_Cox(MR_i, λ_MR) are the transformed MR values.
+  Has_UCL = False when median(w_i) = 0.
 
 **Xbar/s charts (§5.2):**
 
@@ -698,7 +709,7 @@ deferred.
 
 EWMA charts have no independent parameter estimation — they consume
 Grand_Mean and σ from the paired I chart (§5.9). When robust estimation is
-enabled, both Grand_Mean (→ median) and σ (→ median(MR) / d₄) are computed
+enabled, both Grand_Mean (→ median) and σ (→ Q_n(observations) / 2.2219) are computed
 robustly, and the EWMA chart inherits those values automatically. No
 additional logic is required in the EWMA recursion. When Box-Cox is also
 active, robust estimation is applied to the transformed values (as for the
@@ -816,7 +827,7 @@ not create or delete charts. All charts share a single workspace-level setup int
 sessions in chronological order.  
 **Statistic:** `MR_i = |Total_Input_Tokens_i − Total_Input_Tokens_{i-1}|`.  
 **First session:** no marker is plotted; a gap is left in the connecting line.  
-**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6). When Box-Cox transformation is enabled (§5.7), moving ranges are differences of transformed values and the y-axis is labelled in transformed units.
+**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6). When Box-Cox transformation is enabled (§5.7), the MR chart uses its own independent Box-Cox transformation (λ_MR estimated from the setup-interval MR series); points are original-space absolute differences and limits are back-transformed to original (token) units.
 
 ### 6.12 Session Output Tokens — I Chart
 
@@ -831,7 +842,7 @@ sessions in chronological order.
 sessions in chronological order.  
 **Statistic:** `MR_i = |Total_Output_Tokens_i − Total_Output_Tokens_{i-1}|`.  
 **First session:** no marker is plotted; a gap is left in the connecting line.  
-**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6). When Box-Cox transformation is enabled (§5.7), moving ranges are differences of transformed values and the y-axis is labelled in transformed units.
+**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6). When Box-Cox transformation is enabled (§5.7), the MR chart uses its own independent Box-Cox transformation (λ_MR estimated from the setup-interval MR series); points are original-space absolute differences and limits are back-transformed to original (token) units.
 
 
 
@@ -847,7 +858,7 @@ sessions in chronological order.
 **Measured quantity:** absolute difference in total cache-read tokens between consecutive sessions in chronological order.
 **Statistic:** `MR_i = |Total_Cache_Read_Tokens_i − Total_Cache_Read_Tokens_{i-1}|`.
 **First session:** no marker is plotted; a gap is left in the connecting line.
-**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6). When Box-Cox transformation is enabled (§5.7), moving ranges are differences of transformed values and the y-axis is labelled in transformed units.
+**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6). When Box-Cox transformation is enabled (§5.7), the MR chart uses its own independent Box-Cox transformation (λ_MR estimated from the setup-interval MR series); points are original-space absolute differences and limits are back-transformed to original (token) units.
 
 ### 6.16 Session Cache Write Tokens — I Chart
 
@@ -861,7 +872,7 @@ sessions in chronological order.
 **Measured quantity:** absolute difference in total cache-write tokens between consecutive sessions in chronological order.
 **Statistic:** `MR_i = |Total_Cache_Write_Tokens_i − Total_Cache_Write_Tokens_{i-1}|`.
 **First session:** no marker is plotted; a gap is left in the connecting line.
-**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6). When Box-Cox transformation is enabled (§5.7), moving ranges are differences of transformed values and the y-axis is labelled in transformed units.
+**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6). When Box-Cox transformation is enabled (§5.7), the MR chart uses its own independent Box-Cox transformation (λ_MR estimated from the setup-interval MR series); points are original-space absolute differences and limits are back-transformed to original (token) units.
 
 ### 6.18 Session Input Tokens — EWMA Chart
 
@@ -908,7 +919,7 @@ the EWMA and limits are computed in z-space and back-transformed (§5.9).
 **Measured quantity:** absolute difference in total thinking tokens between consecutive sessions in chronological order.
 **Statistic:** `MR_i = |Total_Thinking_Tokens_i − Total_Thinking_Tokens_{i-1}|`.
 **First session:** no marker is plotted; a gap is left in the connecting line.
-**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6). When Box-Cox transformation is enabled (§5.7), moving ranges are differences of transformed values and the y-axis is labelled in transformed units.
+**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6). When Box-Cox transformation is enabled (§5.7), the MR chart uses its own independent Box-Cox transformation (λ_MR estimated from the setup-interval MR series); points are original-space absolute differences and limits are back-transformed to original (token) units.
 
 ### 6.24 Session Thinking Tokens — EWMA Chart
 
@@ -931,7 +942,7 @@ the EWMA and limits are computed in z-space and back-transformed (§5.9).
 **Measured quantity:** absolute difference in total tool call input tokens between consecutive sessions in chronological order.
 **Statistic:** `MR_i = |Total_Tool_Call_Input_Tokens_i − Total_Tool_Call_Input_Tokens_{i-1}|`.
 **First session:** no marker is plotted; a gap is left in the connecting line.
-**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6). When Box-Cox transformation is enabled (§5.7), moving ranges are differences of transformed values and the y-axis is labelled in transformed units.
+**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6). When Box-Cox transformation is enabled (§5.7), the MR chart uses its own independent Box-Cox transformation (λ_MR estimated from the setup-interval MR series); points are original-space absolute differences and limits are back-transformed to original (token) units.
 
 ### 6.27 Session Tool-Call Tokens — EWMA Chart
 
@@ -954,7 +965,7 @@ the EWMA and limits are computed in z-space and back-transformed (§5.9).
 **Measured quantity:** absolute difference in total tool call result tokens between consecutive sessions in chronological order.
 **Statistic:** `MR_i = |Total_Tool_Call_Result_Tokens_i − Total_Tool_Call_Result_Tokens_{i-1}|`.
 **First session:** no marker is plotted; a gap is left in the connecting line.
-**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6). When Box-Cox transformation is enabled (§5.7), moving ranges are differences of transformed values and the y-axis is labelled in transformed units.
+**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6). When Box-Cox transformation is enabled (§5.7), the MR chart uses its own independent Box-Cox transformation (λ_MR estimated from the setup-interval MR series); points are original-space absolute differences and limits are back-transformed to original (token) units.
 
 ### 6.30 Session Tool-Call Result Tokens — EWMA Chart
 
@@ -976,7 +987,7 @@ the EWMA and limits are computed in z-space and back-transformed (§5.9).
 **Measured quantity:** absolute difference in turn count between consecutive sessions in chronological order.
 **Statistic:** `MR_i = |N_Turns_i − N_Turns_{i-1}|`.
 **First session:** no marker is plotted; a gap is left in the connecting line.
-**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6). When Box-Cox transformation is enabled (§5.10), moving ranges are differences of transformed values and the y-axis is labelled in transformed units.
+**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6). When Box-Cox transformation is enabled (§5.10), the MR chart uses its own independent Box-Cox transformation (λ_MR estimated from the setup-interval MR series); points are original-space absolute differences and limits are back-transformed to original (turn count) units.
 
 ### 6.33 Session Turn Count — EWMA Chart
 
@@ -1722,22 +1733,24 @@ All statistical formula implementations shall have AUnit unit tests covering:
 - Session Turn Count EWMA computation: verify `Z_t` and time-varying limits use the Grand_Mean and σ from the paired I chart.
 - Session Turn Count Box-Cox round-trip: `turnCountBoxCox` configuration (enabled, lambda source, fixed λ) survives workspace save/load unchanged.
 - Session Turn Count Box-Cox version migration: workspace files at version ≤ 4 load with `turnCountBoxCox` disabled (default).
-- Robust I/MR estimation: for a five-session dataset containing one outlier
+- Robust I chart estimation: for a five-session dataset containing one outlier
   session, verify that the robust Grand_Mean equals the median of the
-  setup-interval observations, and that σ_robust = median(MR) / 0.9515;
+  setup-interval observations, and that σ_robust = Q_n(observations) / 2.2219;
   confirm that both diverge from the corresponding classical estimates.
+- Robust MR chart UCL: in robust mode, verify UCL = D4 × median(w_i) where
+  w_i are the transformed MR values; confirm this differs from D4 × MR̄_w.
 - Robust Xbar/s estimation: for a known dataset with one outlier session,
   verify that Grand_Mean equals the unweighted median of per-session means,
   and that Pooled_S equals Qₙ(pooled residuals) with consistency constant
   2.2219; confirm divergence from classical pooled_s.
 - Robust estimation with Box-Cox active: verify that the median and
-  Qₙ/median-MR estimators are applied to the Box-Cox-transformed values,
+  Qₙ estimators (Q_n for I chart, Qₙ-based for Xbar/s) are applied to the Box-Cox-transformed values,
   not the original observations.
 - p-charts unaffected by estimation method: Grand_P equals Σd / Σn
   regardless of whether Classical or Robust_Median is selected.
 - EWMA with robust estimation: verify that Z_0 = median(observations) and
-  σ = median(MR) / 0.9515 are used in the EWMA limit formula when robust
-  estimation is enabled; the time-varying limit values should match
+  σ = Q_n(observations) / 2.2219 are used in the EWMA limit formula when
+  robust estimation is enabled; the time-varying limit values should match
   hand-computed values using those robust parameters.
 - Robust estimation workspace round-trip: the `estimationMethod` field
   (`"classical"` or `"robust_median"`) survives workspace save/load

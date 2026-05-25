@@ -96,6 +96,7 @@ package Coyote_SQC_Statistics_Tests is
    procedure Test_Robust_I_Chart_Grand_Mean (T : in out Test);
    procedure Test_Robust_I_Chart_Mean_MR    (T : in out Test);
    procedure Test_Robust_I_Limits_Divisor   (T : in out Test);
+   procedure Test_Robust_MR_UCL             (T : in out Test);
 
    --  Robust Xbar/s estimation tests.
    procedure Test_Robust_Xbar_Grand_Mean   (T : in out Test);

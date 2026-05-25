@@ -428,12 +428,27 @@ package body Coyote_SQC.Statistics is
                            I := I + 1;
                         end loop;
                         Parameters.Grand_Mean := Median_Of (Obs_Arr);
+                        --  I_Sigma: Qn of observations / 2.2219
+                        --  (replaces median(MR) / d₄ per spec §7.13).
+                        if Obs_Arr'Length >= 2 then
+                           declare
+                              IC_Arr : I_Chart.Long_Float_Array
+                                (1 .. Obs_Arr'Length);
+                              J : Positive := 1;
+                           begin
+                              for K in Obs_Arr'Range loop
+                                 IC_Arr (J) := Obs_Arr (K); J := J + 1;
+                              end loop;
+                              Parameters.I_Sigma :=
+                                I_Chart.Qn_Scale_Any (IC_Arr) / 2.2219;
+                           end;
+                        end if;
                      end;
                   end if;
                end;
 
-               --  Mean_MR: median of consecutive moving ranges (raw;
-               --  Compute_I_Limits divides by d₄ when Robust = True).
+               --  Mean_MR: median of consecutive moving ranges.
+               --  Used for MR chart UCL (D4 × median in robust mode).
                declare
                   N_MR : constant Natural :=
                     Natural (Robust_I_MR.Length);
@@ -459,6 +474,10 @@ package body Coyote_SQC.Statistics is
                end if;
                if MR_Count > 0 then
                   Parameters.Mean_MR := MR_Sum / Long_Float (MR_Count);
+               if Total_N > 0.0 and then MR_Count > 0 then
+                  Parameters.I_Sigma :=
+                    Parameters.Mean_MR / 1.128;
+               end if;
                end if;
             end if;
 

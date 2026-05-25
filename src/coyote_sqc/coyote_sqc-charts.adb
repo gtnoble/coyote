@@ -19,6 +19,7 @@ package body Coyote_SQC.Charts is
                Y_Axis_Label    => U ("Mean output tokens/turn"),
                Is_P_Chart      => False,
                Is_I_Chart      => False,
+               Is_MR_Chart     => False,
                Is_Xbar_S_Chart => True,
                Is_EWMA_Chart   => False);
          when Turn_Tokens_S =>
@@ -28,6 +29,7 @@ package body Coyote_SQC.Charts is
                Y_Axis_Label    => U ("Std dev output tokens/turn"),
                Is_P_Chart      => False,
                Is_I_Chart      => False,
+               Is_MR_Chart     => False,
                Is_Xbar_S_Chart => True,
                Is_EWMA_Chart   => False);
          when Tool_Call_Tokens_Xbar =>
@@ -37,6 +39,7 @@ package body Coyote_SQC.Charts is
                Y_Axis_Label    => U ("Mean output tokens/tool-call turn"),
                Is_P_Chart      => False,
                Is_I_Chart      => False,
+               Is_MR_Chart     => False,
                Is_Xbar_S_Chart => True,
                Is_EWMA_Chart   => False);
          when Tool_Call_Tokens_S =>
@@ -46,6 +49,7 @@ package body Coyote_SQC.Charts is
                Y_Axis_Label    => U ("Std dev output tokens/tool-call turn"),
                Is_P_Chart      => False,
                Is_I_Chart      => False,
+               Is_MR_Chart     => False,
                Is_Xbar_S_Chart => True,
                Is_EWMA_Chart   => False);
          when Thinking_Tokens_Xbar =>
@@ -55,6 +59,7 @@ package body Coyote_SQC.Charts is
                Y_Axis_Label    => U ("Mean thinking tokens/turn"),
                Is_P_Chart      => False,
                Is_I_Chart      => False,
+               Is_MR_Chart     => False,
                Is_Xbar_S_Chart => True,
                Is_EWMA_Chart   => False);
          when Thinking_Tokens_S =>
@@ -64,6 +69,7 @@ package body Coyote_SQC.Charts is
                Y_Axis_Label    => U ("Std dev thinking tokens/turn"),
                Is_P_Chart      => False,
                Is_I_Chart      => False,
+               Is_MR_Chart     => False,
                Is_Xbar_S_Chart => True,
                Is_EWMA_Chart   => False);
          when Tool_Call_Failure_Rate =>
@@ -73,6 +79,7 @@ package body Coyote_SQC.Charts is
                Y_Axis_Label    => U ("Failure proportion"),
                Is_P_Chart      => True,
                Is_I_Chart      => False,
+               Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_EWMA_Chart   => False);
          when Fraction_Tool_Call_Turns =>
@@ -82,6 +89,7 @@ package body Coyote_SQC.Charts is
                Y_Axis_Label    => U ("Fraction of turns"),
                Is_P_Chart      => True,
                Is_I_Chart      => False,
+               Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_EWMA_Chart   => False);
          when Fraction_Thinking_Turns =>
@@ -91,6 +99,7 @@ package body Coyote_SQC.Charts is
                Y_Axis_Label    => U ("Fraction of turns"),
                Is_P_Chart      => True,
                Is_I_Chart      => False,
+               Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_EWMA_Chart   => False);
          when Session_Input_Tokens_I =>
@@ -100,6 +109,7 @@ package body Coyote_SQC.Charts is
                Y_Axis_Label    => U ("Total input tokens"),
                Is_P_Chart      => False,
                Is_I_Chart      => True,
+               Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_EWMA_Chart   => False);
          when Session_Input_Tokens_MR =>
@@ -108,7 +118,8 @@ package body Coyote_SQC.Charts is
                Group           => U ("Session Totals"),
                Y_Axis_Label    => U ("Moving range (input tokens)"),
                Is_P_Chart      => False,
-               Is_I_Chart      => True,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => True,
                Is_Xbar_S_Chart => False,
                Is_EWMA_Chart   => False);
          when Session_Output_Tokens_I =>
@@ -118,6 +129,7 @@ package body Coyote_SQC.Charts is
                Y_Axis_Label    => U ("Total output tokens"),
                Is_P_Chart      => False,
                Is_I_Chart      => True,
+               Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_EWMA_Chart   => False);
          when Session_Output_Tokens_MR =>
@@ -126,7 +138,8 @@ package body Coyote_SQC.Charts is
                Group           => U ("Session Totals"),
                Y_Axis_Label    => U ("Moving range (output tokens)"),
                Is_P_Chart      => False,
-               Is_I_Chart      => True,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => True,
                Is_Xbar_S_Chart => False,
                Is_EWMA_Chart   => False);
          when Session_Cache_Read_Tokens_I =>
@@ -136,6 +149,7 @@ package body Coyote_SQC.Charts is
                Y_Axis_Label    => U ("Total cache-read tokens"),
                Is_P_Chart      => False,
                Is_I_Chart      => True,
+               Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_EWMA_Chart   => False);
          when Session_Cache_Read_Tokens_MR =>
@@ -144,7 +158,8 @@ package body Coyote_SQC.Charts is
                Group           => U ("Session Totals"),
                Y_Axis_Label    => U ("Moving range (cache-read tokens)"),
                Is_P_Chart      => False,
-               Is_I_Chart      => True,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => True,
                Is_Xbar_S_Chart => False,
                Is_EWMA_Chart   => False);
          when Session_Cache_Write_Tokens_I =>
@@ -154,6 +169,7 @@ package body Coyote_SQC.Charts is
                Y_Axis_Label    => U ("Total cache-write tokens"),
                Is_P_Chart      => False,
                Is_I_Chart      => True,
+               Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_EWMA_Chart   => False);
          when Session_Cache_Write_Tokens_MR =>
@@ -162,7 +178,8 @@ package body Coyote_SQC.Charts is
                Group           => U ("Session Totals"),
                Y_Axis_Label    => U ("Moving range (cache-write tokens)"),
                Is_P_Chart      => False,
-               Is_I_Chart      => True,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => True,
                Is_Xbar_S_Chart => False,
                Is_EWMA_Chart   => False);
          when Session_Input_Tokens_EWMA =>
@@ -172,6 +189,7 @@ package body Coyote_SQC.Charts is
                Y_Axis_Label    => U ("EWMA (input tokens)"),
                Is_P_Chart      => False,
                Is_I_Chart      => False,
+               Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_EWMA_Chart   => True);
          when Session_Output_Tokens_EWMA =>
@@ -181,6 +199,7 @@ package body Coyote_SQC.Charts is
                Y_Axis_Label    => U ("EWMA (output tokens)"),
                Is_P_Chart      => False,
                Is_I_Chart      => False,
+               Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_EWMA_Chart   => True);
          when Session_Cache_Read_Tokens_EWMA =>
@@ -190,6 +209,7 @@ package body Coyote_SQC.Charts is
                Y_Axis_Label    => U ("EWMA (cache-read tokens)"),
                Is_P_Chart      => False,
                Is_I_Chart      => False,
+               Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_EWMA_Chart   => True);
          when Session_Cache_Write_Tokens_EWMA =>
@@ -199,6 +219,7 @@ package body Coyote_SQC.Charts is
                Y_Axis_Label    => U ("EWMA (cache-write tokens)"),
                Is_P_Chart      => False,
                Is_I_Chart      => False,
+               Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_EWMA_Chart   => True);
          when Session_Thinking_Tokens_I =>
@@ -208,6 +229,7 @@ package body Coyote_SQC.Charts is
                Y_Axis_Label    => U ("Total thinking tokens"),
                Is_P_Chart      => False,
                Is_I_Chart      => True,
+               Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_EWMA_Chart   => False);
          when Session_Thinking_Tokens_MR =>
@@ -216,7 +238,8 @@ package body Coyote_SQC.Charts is
                Group           => U ("Session Totals"),
                Y_Axis_Label    => U ("Moving range (thinking tokens)"),
                Is_P_Chart      => False,
-               Is_I_Chart      => True,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => True,
                Is_Xbar_S_Chart => False,
                Is_EWMA_Chart   => False);
          when Session_Thinking_Tokens_EWMA =>
@@ -226,6 +249,7 @@ package body Coyote_SQC.Charts is
                Y_Axis_Label    => U ("EWMA (thinking tokens)"),
                Is_P_Chart      => False,
                Is_I_Chart      => False,
+               Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_EWMA_Chart   => True);
          when Session_Tool_Call_Tokens_I =>
@@ -235,6 +259,7 @@ package body Coyote_SQC.Charts is
                Y_Axis_Label    => U ("Total tool-call input tokens"),
                Is_P_Chart      => False,
                Is_I_Chart      => True,
+               Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_EWMA_Chart   => False);
          when Session_Tool_Call_Tokens_MR =>
@@ -243,7 +268,8 @@ package body Coyote_SQC.Charts is
                Group           => U ("Session Totals"),
                Y_Axis_Label    => U ("Moving range (tool-call input tokens)"),
                Is_P_Chart      => False,
-               Is_I_Chart      => True,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => True,
                Is_Xbar_S_Chart => False,
                Is_EWMA_Chart   => False);
          when Session_Tool_Call_Tokens_EWMA =>
@@ -253,6 +279,7 @@ package body Coyote_SQC.Charts is
                Y_Axis_Label    => U ("EWMA (tool-call input tokens)"),
                Is_P_Chart      => False,
                Is_I_Chart      => False,
+               Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_EWMA_Chart   => True);
          when Session_Tool_Call_Result_Tokens_I =>
@@ -262,6 +289,7 @@ package body Coyote_SQC.Charts is
                Y_Axis_Label    => U ("Total tool-call result tokens"),
                Is_P_Chart      => False,
                Is_I_Chart      => True,
+               Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_EWMA_Chart   => False);
          when Session_Tool_Call_Result_Tokens_MR =>
@@ -270,7 +298,8 @@ package body Coyote_SQC.Charts is
                Group           => U ("Session Totals"),
                Y_Axis_Label    => U ("Moving range (tool-call result tokens)"),
                Is_P_Chart      => False,
-               Is_I_Chart      => True,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => True,
                Is_Xbar_S_Chart => False,
                Is_EWMA_Chart   => False);
          when Session_Tool_Call_Result_Tokens_EWMA =>
@@ -280,6 +309,7 @@ package body Coyote_SQC.Charts is
                Y_Axis_Label    => U ("EWMA (tool-call result tokens)"),
                Is_P_Chart      => False,
                Is_I_Chart      => False,
+               Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_EWMA_Chart   => True);
          when Session_Turn_Count_I =>
@@ -289,6 +319,7 @@ package body Coyote_SQC.Charts is
                Y_Axis_Label    => U ("Turn count"),
                Is_P_Chart      => False,
                Is_I_Chart      => True,
+               Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_EWMA_Chart   => False);
          when Session_Turn_Count_MR =>
@@ -297,7 +328,8 @@ package body Coyote_SQC.Charts is
                Group           => U ("Session Totals"),
                Y_Axis_Label    => U ("Moving range (turn count)"),
                Is_P_Chart      => False,
-               Is_I_Chart      => True,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => True,
                Is_Xbar_S_Chart => False,
                Is_EWMA_Chart   => False);
          when Session_Turn_Count_EWMA =>
@@ -307,6 +339,7 @@ package body Coyote_SQC.Charts is
                Y_Axis_Label    => U ("EWMA (turn count)"),
                Is_P_Chart      => False,
                Is_I_Chart      => False,
+               Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_EWMA_Chart   => True);
       end case;

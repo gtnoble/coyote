@@ -649,8 +649,9 @@ type Box_Cox_Config is record
 --  center lines and process sigma for I/MR and Xbar/s charts.
 --  Classical uses the arithmetic mean and pooled sample standard
 --  deviation (traditional SPC).  Robust_Median uses the median
---  for location and resistant scale estimators (median MR / d₄ for
---  I/MR charts; Qₙ of pooled residuals for Xbar/s charts).
+--  for location and resistant scale estimators (Q_n / 2.2219 for I chart
+--  sigma; D4 × median(w_i) UCL for MR charts; Qₙ of pooled residuals for
+--  Xbar/s charts).
 --  See §7.13 for the full specification.
 type Estimation_Method_Kind is (Classical, Robust_Median);
 ```
@@ -924,8 +925,13 @@ function Qn_Scale (Values : Long_Float_Array) return Long_Float;
 --  Requires Values'Length >= 3; returns 0.0 for fewer observations.
 --  All values must be strictly positive; Constraint_Error if any ≤ 0.0.
 --
---  Algorithm: coarse grid search over Lambda in [−5.0, 5.0] at step 0.1,
---  then fine grid search within ±0.15 of the coarse best at step 0.01.
+--  Algorithm: coarse grid search over Lambda in [0.0, 30.0] at step 0.5
+--  (21 evaluations) locates the global maximum basin; Brent's method
+--  (Brent 1973) then refines within +-0.5 of the coarse best, clamped to
+--  [0.0, 30.0], converging to tolerance 1.0e-6 on lambda.  Lambda is
+--  restricted to [0.0, 30.0]: negative values are not meaningful for
+--  positive token-count data and the UCL back-transform is always
+--  well-defined for lambda >= 0.
 function Estimate_Lambda
   (Values : Long_Float_Array;
    Source : Box_Cox_Lambda_Source := Auto) return Long_Float;
@@ -950,13 +956,21 @@ When Box-Cox is active, `Recompute_Chart` in `Coyote_SQC.App`:
    limit is effectively +∞) while `CL` and `LCL` are still drawn.  Each limit
    is back-transformed in its own exception scope so a domain failure on
    `UCL_z` does not suppress `CL` or `LCL`.
-5. For the **MR chart**: stores the transformed-space limits directly; no
-   back-transform is applied. Points are `|Z_i − Z_{i-1}|`; the y-axis label
-   is updated to reflect the transformed units (see §12.6).
+5. For the **MR chart**: each MR chart has its own independent Box-Cox
+   transformation with a separately estimated `λ_MR`.  `Recompute_Chart`
+   estimates `λ_MR` from the setup-interval `MR_i = |x_i − x_{i-1}|` series
+   (excluding zero-valued entries, exactly as the I chart excludes zero-token
+   sessions).  CL and UCL are computed in the transformed MR space
+   (`w_i = Box_Cox(MR_i, λ_MR)`) and back-transformed exactly via
+   `Box_Cox_Inverse(·, λ_MR)`.  Points plotted are the original-space
+   `MR_i = |x_i − x_{i-1}|`; the y-axis label is in original (token) units.
+   A status-bar notice counts zero MR values excluded from `λ_MR` estimation.
 
-The resolved lambda (whether auto-estimated or fixed) for I/MR charts is stored in
-`Chart_Data.Box_Cox_Lambda` for each I/MR chart kind and is recomputed by
-`Recompute_Chart` whenever `Reload_Sessions` or a setup-interval change occurs.
+The resolved lambdas are stored per chart kind in `Chart_Data.Box_Cox_Lambda`:
+each I chart stores `λ_I` (estimated from the session-total series) and each
+MR chart stores `λ_MR` (estimated from the MR series); these are independent
+values recomputed by `Recompute_Chart` whenever `Reload_Sessions` or a
+setup-interval change occurs.
 
 ### 7.10 Box-Cox Transformation for Xbar/S Charts
 
@@ -1109,9 +1123,12 @@ Fewer than three setup sessions falls back to λ = 0.
 **I chart display.** Limits are back-transformed to original (turn count) units.
 `UCL_z` domain failure sets `Has_UCL = False`; `CL` and `LCL` are still drawn.
 
-**MR chart display.** Moving ranges are `|Box_Cox(N_i, λ) − Box_Cox(N_{i-1}, λ)|`.
-Limits are in transformed units; the y-axis label gains a suffix such as
-`" (ln turns)"` when λ = 0 or `" (√turns)"` when λ = 0.5.
+**MR chart display.** Moving range values are the original-space absolute
+differences `MR_i = |N_i − N_{i-1}|`, plotted without transformation. The
+Turn Count MR chart has its own independent Box-Cox transformation with a
+separately estimated `λ_MR` from the setup-interval `MR_i` series; CL and UCL
+are back-transformed exactly to original (turn count) units via
+`Box_Cox_Inverse(·, λ_MR)`.
 
 **EWMA chart display.** The EWMA recursion runs in z-space; the plotted value and
 limits are individually back-transformed to original (turn count) units, following
@@ -1146,37 +1163,26 @@ reused here without modification.
   setup-interval observations.  Has a 50% breakdown point; the
   arithmetic mean breaks down at 1/N.
 
-- **Scale (Mean_MR):** `Median_Of` applied to the (N−1) consecutive
-  absolute differences (moving ranges), then divided by `d₄ = 0.9515`.
-  `d₄` is the consistency constant for the median of span-2 absolute
-  differences under normality (Croux & Rousseeuw 1992); it replaces the
-  classical `d₂ = 1.128` used with the mean MR.  Both are consistent
-  estimates of σ under normality.
+- **I chart scale (σ):** `Qn_Scale` applied to the N setup-interval
+  observations (or their Box-Cox transforms `z_i` when Box-Cox is active),
+  divided by 2.2219.  `Qn_Scale` is already implemented for robust Box-Cox
+  lambda estimation (§7.9).  This replaces `Median_Of(MR_values) / d₄`; the
+  classical motivation for MR-based sigma (consistency with the paired MR
+  chart) no longer applies since the I and MR charts now use independent
+  Box-Cox transformations and sigma estimates.
 
-  The median-MR approach is chosen over applying `Qn_Scale` directly to
-  the observations because the moving-range framework specifically
-  estimates *local*, short-term variation, making it resistant to slow
-  process mean drift.  Applying `Qn_Scale` to the observations themselves
-  would inflate σ when a gradual trend is present, potentially masking
-  real signals.
+  `Compute_I_Limits` gains a `Sigma : Long_Float` parameter replacing the
+  previous `Mean_MR` parameter; the caller passes the pre-computed σ
+  regardless of whether it came from MR or Q_n.  The `Robust : Boolean`
+  divisor-selection parameter is removed.
 
-  When there is only one setup session (no moving ranges), `Mean_MR`
-  is 0.0 and no limits are drawn (same as the classical path).
+- **MR chart UCL:** `D4 × Median_Of(w_i)` replaces `D4 × Mean_Of(w_i)` in
+  robust mode, where `w_i = Box_Cox(MR_i, λ_MR)` are the transformed MR
+  values.  `Has_UCL = False` when `Median_Of(w_i) = 0.0`.
 
-- **EWMA charts** inherit these robust values automatically: `Z_0 =
-  Grand_Mean (robust)` and `σ = Mean_MR (robust) / d₂` (the EWMA limit
-  formula still divides by `d₂`, but `Mean_MR` is now the median-MR-based
-  value which is already a consistent σ estimate — the `/d₂` division in
-  the EWMA formula is correct because `Compute_I_Limits` already bakes in
-  `d₂`; `Mean_MR` passed to EWMA is the pre-divided σ from
-  `Compute_I_Limits`, so no extra division is needed).
-
-  **Clarification:** `Estimate_Parameters` populates `Mean_MR` with
-  the raw median of moving ranges (not yet divided by `d₄`).  The
-  caller (`Compute_I_Limits`) divides by the appropriate constant:
-  `d₂ = 1.128` in classical mode; `d₄ = 0.9515` in robust mode.
-  `Compute_I_Limits` therefore gains a `Robust : Boolean := False`
-  parameter that selects the divisor.
+- **EWMA charts** inherit the robust values automatically: `Z_0 =
+  Grand_Mean (robust)` and `σ = Qn_Scale(z_i) / 2.2219` from the paired I
+  chart.  No additional logic is required in the EWMA recursion.
 
 #### Xbar/s charts (replaces §7.5 classical accumulators)
 
@@ -1926,7 +1932,7 @@ Changes on OK update `Workspace.Estimation_Method` and trigger
 │  Estimated λ:  0.31  (recomputed when setup interval changes)           │
 │                                                                          │
 │  Note: I chart limits are shown in original (token) units.              │
-│        MR chart y-axis shows values in transformed units.               │
+│        MR chart limits and points are shown in original units.                  │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -1943,7 +1949,7 @@ Changes on OK update `Workspace.Estimation_Method` and trigger
   `"√ (λ=0.5)"`, `"no transform (λ=1)"`, and `"custom…"`. Selecting a named
   entry sets `Fixed_Lambda` to 0.0, 0.5, or 1.0 respectively and makes the
   spin insensitive. Selecting `"custom…"` makes the spin sensitive.
-- **Lambda spin** (`GtkSpinButton`): range −5.0 to 5.0, step 0.01, 2 decimal
+- **Lambda spin** (`GtkSpinButton`): range 0.0 to 30.0, step 0.01, 2 decimal
   places. Changing the spin value switches the fixed value combo to `"custom…"`.
 - **Estimated λ readout** (`GtkLabel`): always visible; shows the currently
   estimated lambda when `Lambda_Source` is `Auto` or `Robust_Auto`, or is
@@ -2038,7 +2044,7 @@ Below the EWMA Chart Parameters frame, `Show_Dialog` presents a fourth frame:
 │  Estimated λ:  0.42  (recomputed when setup interval changes)           │
 │                                                                          │
 │  Note: I chart limits are shown in original (turn count) units.         │
-│        MR chart y-axis shows values in transformed units.               │
+│        MR chart limits and points are shown in original units.                  │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -2267,8 +2273,12 @@ The `On_Draw` callback executes these steps in order:
     `select_font_face` ITALIC, right-aligned 4px from the right margin, 4px below
     the top margin): `"Box-Cox λ = 0.31"` (numeric value from
     `Chart_Data.Box_Cox_Lambda`, formatted to two decimal places). The condition
-    is `Props.Is_I_Chart or else Props.Is_Xbar_S_Chart or else Props.Is_EWMA_Chart`. For MR charts, append
-    `" (transformed units)"` to the y-axis label; for s charts with Box-Cox active,
+    is `Props.Is_I_Chart or else Props.Is_MR_Chart or else Props.Is_Xbar_S_Chart
+    or else Props.Is_EWMA_Chart` (add `Is_MR_Chart : Boolean` to `Chart_Properties`).
+    The annotation reads `"Box-Cox λ = N.NN"` for I/Xbar_S/EWMA charts and
+    `"Box-Cox λ_MR = N.NN"` for MR charts (reflecting the independently estimated
+    MR lambda).  MR chart y-axis labels remain in original units; no `" (transformed
+    units)"` suffix is appended.  For s charts with Box-Cox active,
     the y-axis label similarly reflects transformed units. Annotations are omitted
     when Box-Cox is disabled for the active chart.
 
@@ -2421,14 +2431,15 @@ AUnit test suite covering:
   elements to 1 × 10⁻¹⁰.
 - `Median_Of` on a one-element array returns that element.
 - `Median_Of` on an empty array returns 0.0 without raising.
-- Robust I/MR estimation: for a five-session dataset containing one
-  outlier session, verify `Grand_Mean = Median_Of(observations)` and
-  `Mean_MR = Median_Of(MR_values)` (before division); confirm both
-  diverge from the corresponding classical estimates.
-- Robust I/MR scale divisor: `Compute_I_Limits` with `Robust => True`
-  uses `d₄ = 0.9515` to divide `Mean_MR`; verify UCL and LCL match
-  hand-computed values `Median ± 3 × Median_MR / 0.9515` to 4 decimal
-  places.
+- Robust I chart sigma: for a five-session dataset containing one outlier
+  session, verify `Grand_Mean = Median_Of(observations)` and
+  `σ = Qn_Scale(observations) / 2.2219`; confirm both diverge from the
+  corresponding classical estimates.  Verify `Compute_I_Limits` uses this σ
+  to produce UCL and LCL matching hand-computed `Median ± 3 × σ` to 4
+  decimal places.
+- Robust MR chart UCL: for the same five-session dataset, verify
+  `UCL_MR = D4 × Median_Of(w_i)` where `w_i = Box_Cox(MR_i, λ_MR)`; confirm
+  this differs from `D4 × Mean_Of(w_i)` (classical path).
 - Robust Xbar/s Grand_Mean: for a four-session dataset with one outlier
   session, verify `Grand_Mean = Median_Of(session_means)` and that this
   differs from the size-weighted classical grand mean.
@@ -2442,11 +2453,9 @@ AUnit test suite covering:
   Robust_Median` and a p-chart `Chart_Kind` returns `Grand_P = Σd / Σn`
   (identical to classical mode).
 - EWMA with robust I chart parameters: verify that the EWMA chart uses
-  `Grand_Mean (robust)` as `Z_0` and `σ = Median_MR / 0.9515 / d₂`...
-  (clarification: `Compute_I_Limits` uses `Mean_MR / d₄` internally;
-  `Mean_MR` stored in `Setup_Parameters` is the raw median of moving
-  ranges; verify that EWMA `σ` and I-chart UCL/LCL both agree with
-  hand-computed values using the robust parameters).
+  `Grand_Mean (robust)` as `Z_0` and `σ = Qn_Scale(z_i) / 2.2219` in the
+  limit formula; verify that time-varying limit values match hand-computed
+  values using those robust parameters to 1 × 10⁻¹⁰.
 - `Estimation_Method` workspace round-trip: `Estimation_Method =
   Robust_Median` survives save/load unchanged (`"estimationMethod":
   "robust_median"` in JSON).

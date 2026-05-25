@@ -706,7 +706,7 @@ package body Coyote_SQC_Statistics_Tests is
       D2         : constant Long_Float := 1.128;
       Spread     : constant Long_Float := 3.0 * Mean_MR / D2;
       Lim        : constant Limits_Record :=
-        Compute_I_Limits (Grand_Mean, Mean_MR);
+        Compute_I_Limits (Grand_Mean, Mean_MR / D2);
       Tol        : constant Long_Float := 1.0e-6;
    begin
       Assert (Lim.Has_UCL, "I chart basic: Has_UCL should be True");
@@ -732,7 +732,7 @@ package body Coyote_SQC_Statistics_Tests is
       D2         : constant Long_Float := 1.128;
       Spread     : constant Long_Float := 3.0 * Mean_MR / D2;
       Lim        : constant Limits_Record :=
-        Compute_I_Limits (Grand_Mean, Mean_MR);
+        Compute_I_Limits (Grand_Mean, Mean_MR / D2);
       Tol        : constant Long_Float := 1.0e-6;
    begin
       Assert (Lim.Has_UCL, "I chart LCL+: Has_UCL should be True");
@@ -763,7 +763,7 @@ package body Coyote_SQC_Statistics_Tests is
       pragma Unreferenced (T);
       use Coyote_SQC.Statistics.I_Chart;
       --  Grand_Mean = 1, Mean_MR = 10 → Spread ≈ 26.6 → LCL < 0 → clamped.
-      Lim : constant Limits_Record := Compute_I_Limits (1.0, 10.0);
+      Lim : constant Limits_Record := Compute_I_Limits (1.0, 10.0 / 1.128);
    begin
       Assert (Lim.LCL = 0.0,
               "I chart clamped: LCL should be 0; got "
@@ -1008,7 +1008,7 @@ package body Coyote_SQC_Statistics_Tests is
       UCL_Raw   : constant Long_Float := Exp (UCL_Z);
       --  Compute via Compute_I_Limits + Box_Cox_Inverse.
       Lim_Z     : constant Limits_Record :=
-        Compute_I_Limits (Mean_Z, Mean_MR_Z);
+        Compute_I_Limits (Mean_Z, Mean_MR_Z / D2);
       UCL_BT    : constant Long_Float :=
         Box_Cox_Inverse (Lim_Z.UCL, 0.0);
       CL_BT     : constant Long_Float :=
@@ -1518,41 +1518,105 @@ package body Coyote_SQC_Statistics_Tests is
       Assert (abs (Params.Mean_MR - 15.0) <= Tol,
               "Robust Mean_MR should be 15 (median of MRs); got "
               & Long_Float'Image (Params.Mean_MR));
+      --  I_Sigma: Qn(obs) / 2.2219 (robust mode)
+      declare
+         use Coyote_SQC.Statistics.I_Chart;
+         Obs : constant Long_Float_Array :=
+           (100.0, 110.0, 90.0, 120.0, 130.0);
+         Expected_Sigma : constant Long_Float :=
+           Qn_Scale_Any (Obs) / 2.2219;
+      begin
+         Assert (abs (Params.I_Sigma - Expected_Sigma) <= Tol,
+                 "Robust I_Sigma should equal Qn(obs)/2.2219; got "
+                 & Long_Float'Image (Params.I_Sigma)
+                 & ", expected " & Long_Float'Image (Expected_Sigma));
+      end;
    end Test_Robust_I_Chart_Mean_MR;
 
    procedure Test_Robust_I_Limits_Divisor (T : in out Test) is
       pragma Unreferenced (T);
       use AUnit.Assertions;
       use Coyote_SQC.Statistics.I_Chart;
-      --  Verify Compute_I_Limits uses d4=0.9515 when Robust=True.
-      --  Grand_Mean=100, Mean_MR=20.
-      --  Classical: Spread = 3*20/1.128  = 53.1915...
-      --  Robust:    Spread = 3*20/0.9515 = 63.0583...
+      --  Verify Compute_I_Limits uses Sigma directly (no internal divisor).
+      --  With Grand_Mean=100, Sigma=15 (pre-computed by caller):
+      --    UCL = 100 + 3*15 = 145, LCL = 100 - 3*15 = 55.
       Grand_Mean : constant Long_Float := 100.0;
-      Mean_MR    : constant Long_Float := 20.0;
-      D2 : constant Long_Float := 1.128;
-      D4 : constant Long_Float := 0.9515;
-      Spread_Classical : constant Long_Float := 3.0 * Mean_MR / D2;
-      Spread_Robust    : constant Long_Float := 3.0 * Mean_MR / D4;
-      Lim_C : constant Limits_Record :=
+      Sigma      : constant Long_Float := 15.0;
+      Lim        : constant Limits_Record :=
         Compute_I_Limits
           (Grand_Mean => Grand_Mean,
-           Mean_MR    => Mean_MR,
-           Robust     => False);
-      Lim_R : constant Limits_Record :=
-        Compute_I_Limits
-          (Grand_Mean => Grand_Mean,
-           Mean_MR    => Mean_MR,
-           Robust     => True);
-      Tol : constant Long_Float := 1.0e-4;
+           Sigma      => Sigma);
+      Tol : constant Long_Float := 1.0e-6;
    begin
-      Assert (abs (Lim_C.UCL - (Grand_Mean + Spread_Classical)) <= Tol,
-              "Classical UCL wrong; got " & Long_Float'Image (Lim_C.UCL));
-      Assert (abs (Lim_R.UCL - (Grand_Mean + Spread_Robust)) <= Tol,
-              "Robust UCL wrong; got " & Long_Float'Image (Lim_R.UCL));
-      Assert (Lim_R.UCL > Lim_C.UCL,
-              "Robust UCL should be wider than classical (d4 < d2)");
+      Assert (abs (Lim.UCL - (Grand_Mean + 3.0 * Sigma)) <= Tol,
+              "Compute_I_Limits: UCL should be Grand_Mean + 3*Sigma; got "
+              & Long_Float'Image (Lim.UCL));
+      Assert (abs (Lim.LCL - (Grand_Mean - 3.0 * Sigma)) <= Tol,
+              "Compute_I_Limits: LCL should be Grand_Mean - 3*Sigma; got "
+              & Long_Float'Image (Lim.LCL));
+      Assert (Lim.Has_UCL, "Compute_I_Limits: Has_UCL should be True");
+      Assert (Lim.Has_LCL, "Compute_I_Limits: Has_LCL should be True");
    end Test_Robust_I_Limits_Divisor;
+
+   procedure Test_Robust_MR_UCL (T : in out Test) is
+      pragma Unreferenced (T);
+      use AUnit.Assertions;
+      use Coyote_SQC.Data_Model;
+      use Coyote_SQC.Charts;
+      use Coyote_SQC.Statistics;
+      use Coyote_SQC.Statistics.I_Chart;
+      --  Observations: 100, 110, 90, 120, 130.
+      --  MRs: 10, 20, 30, 10.  median = 15; mean = 17.5.
+      --  Robust UCL = D4 * median = 3.267 * 15 = 49.005.
+      --  Classical UCL = D4 * mean  = 3.267 * 17.5 = 57.1725.
+      D4  : constant Long_Float := 3.267;
+      S1, S2, S3, S4, S5 : Session_Record;
+      T1  : Turn_Record;
+      Metrics : Metrics_Vectors.Vector;
+      Setup   : UUID_Set;
+      Params_R, Params_C : Setup_Parameters;
+      Tol : constant Long_Float := 1.0e-3;
+   begin
+      S1.Session_Id := To_Unbounded_String ("s1");
+      S1.Total_Input_Tokens := 100; T1.Turn_Index := 1;
+      S1.Turns.Append (T1);
+      S2.Session_Id := To_Unbounded_String ("s2");
+      S2.Total_Input_Tokens := 110; S2.Turns.Append (T1);
+      S3.Session_Id := To_Unbounded_String ("s3");
+      S3.Total_Input_Tokens := 90;  S3.Turns.Append (T1);
+      S4.Session_Id := To_Unbounded_String ("s4");
+      S4.Total_Input_Tokens := 120; S4.Turns.Append (T1);
+      S5.Session_Id := To_Unbounded_String ("s5");
+      S5.Total_Input_Tokens := 130; S5.Turns.Append (T1);
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S1));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S2));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S3));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S4));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S5));
+      Estimate_Parameters
+        (Metrics, Setup, Session_Input_Tokens_MR,
+         Method => Robust_Median, Parameters => Params_R);
+      Estimate_Parameters
+        (Metrics, Setup, Session_Input_Tokens_MR,
+         Method => Classical, Parameters => Params_C);
+      declare
+         UCL_R : constant Long_Float :=
+           Compute_MR_Limits (Params_R.Mean_MR).UCL;
+         UCL_C : constant Long_Float :=
+           Compute_MR_Limits (Params_C.Mean_MR).UCL;
+      begin
+         Assert (abs (UCL_R - D4 * 15.0) <= Tol,
+                 "Robust MR UCL should be D4 * median(MR) = "
+                 & Long_Float'Image (D4 * 15.0)
+                 & "; got " & Long_Float'Image (UCL_R));
+         Assert (abs (UCL_C - D4 * 17.5) <= Tol,
+                 "Classical MR UCL should be D4 * mean(MR) = "
+                 & Long_Float'Image (D4 * 17.5)
+                 & "; got " & Long_Float'Image (UCL_C));
+         Assert (UCL_R < UCL_C,
+                 "Robust MR UCL should be less than classical (median < mean)");
+      end;
+   end Test_Robust_MR_UCL;
 
    --  ── Robust Xbar/s estimation tests ────────────────────────────────────
 
