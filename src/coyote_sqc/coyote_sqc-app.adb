@@ -192,6 +192,24 @@ package body Coyote_SQC.App is
             Value := Long_Float (Metrics.N_Turns);
             N     := 1;
 
+         when Fraction_Thinking_Tokens_I =>
+            if Metrics.Total_Output_Tokens = 0 then
+               Excluded := True;
+            else
+               N     := 1;
+               Value := Long_Float (Metrics.Total_Thinking_Tokens)
+                        / Long_Float (Metrics.Total_Output_Tokens);
+            end if;
+
+         when Fraction_Tool_Call_Tokens_I =>
+            if Metrics.Total_Output_Tokens = 0 then
+               Excluded := True;
+            else
+               N     := 1;
+               Value := Long_Float (Metrics.Total_Tool_Call_Input_Tokens)
+                        / Long_Float (Metrics.Total_Output_Tokens);
+            end if;
+
          when Session_Input_Tokens_EWMA
             | Session_Output_Tokens_EWMA
             | Session_Cache_Read_Tokens_EWMA
@@ -200,7 +218,7 @@ package body Coyote_SQC.App is
             | Session_Tool_Call_Tokens_EWMA
             | Session_Tool_Call_Result_Tokens_EWMA
             | Session_Uncached_Input_Tokens_EWMA
-            | Session_Turn_Count_EWMA =>
+            | Session_Turn_Count_EWMA | Fraction_Thinking_Tokens_EWMA | Fraction_Tool_Call_Tokens_EWMA =>
             --  EWMA requires previous Z value; caller overrides in the
             --  per-session loop after calling Compute_Session_Stat.
             Excluded := True;
@@ -210,7 +228,7 @@ package body Coyote_SQC.App is
             | Session_Tool_Call_Tokens_MR
             | Session_Tool_Call_Result_Tokens_MR
             | Session_Uncached_Input_Tokens_MR
-            | Session_Turn_Count_MR =>
+            | Session_Turn_Count_MR | Fraction_Thinking_Tokens_MR | Fraction_Tool_Call_Tokens_MR =>
             --  Moving range requires the previous session value; the caller
             --  (Recompute_Chart) overrides Excluded and Value after this
             --  call for non-first sessions.
@@ -246,7 +264,7 @@ package body Coyote_SQC.App is
       --  Grand_Mean and I_Sigma in CD.Params with transformed-space values.
       if (Props.Is_I_Chart or else Props.Is_EWMA_Chart)
         and then Kind not in Session_Turn_Count_I
-                              | Session_Turn_Count_EWMA
+                              | Session_Turn_Count_EWMA | Fraction_Thinking_Tokens_I | Fraction_Thinking_Tokens_EWMA | Fraction_Tool_Call_Tokens_I | Fraction_Tool_Call_Tokens_EWMA
         and then State.Workspace.I_Chart_Box_Cox.Enabled
       then
          declare
@@ -393,7 +411,7 @@ package body Coyote_SQC.App is
       --  Each MR chart has its own λ_MR estimated from the setup-interval
       --  MR series.  Points are always original-space |x_i − x_{i-1}|.
       if Props.Is_MR_Chart
-        and then Kind not in Session_Turn_Count_MR
+        and then Kind not in Session_Turn_Count_MR | Fraction_Thinking_Tokens_MR | Fraction_Tool_Call_Tokens_MR
         and then State.Workspace.I_Chart_Box_Cox.Enabled
       then
          declare
@@ -991,6 +1009,27 @@ package body Coyote_SQC.App is
                end;
             end if;
 
+            --  Fraction I/MR: skip zero-output sessions; ratio-based MR.
+            if Kind in Fraction_Thinking_Tokens_MR | Fraction_Tool_Call_Tokens_MR
+              and then M.Total_Output_Tokens > 0
+            then
+               declare
+                  Cur : constant Long_Float :=
+                    (if Kind = Fraction_Thinking_Tokens_MR
+                     then Long_Float (M.Total_Thinking_Tokens)
+                          / Long_Float (M.Total_Output_Tokens)
+                     else Long_Float (M.Total_Tool_Call_Input_Tokens)
+                          / Long_Float (M.Total_Output_Tokens));
+               begin
+                  if Has_Prev_Total then
+                     Value := abs (Cur - Prev_Total);
+                     Excl  := False;
+                  end if;
+                  Prev_Total     := Cur;
+                  Has_Prev_Total := True;
+               end;
+            end if;
+
             --  ── EWMA chart override ────────────────────────────────────────
             --  Compute the exponentially weighted moving average and
             --  time-varying control limits.  When Box-Cox is active the EWMA
@@ -1016,6 +1055,16 @@ package body Coyote_SQC.App is
                            Long_Float (M.N_Turns),
                         when Session_Uncached_Input_Tokens_EWMA =>
                            Long_Float (M.Total_Uncached_Input_Tokens),
+                        when Fraction_Thinking_Tokens_EWMA =>
+                           (if M.Total_Output_Tokens > 0
+                            then Long_Float (M.Total_Thinking_Tokens)
+                                 / Long_Float (M.Total_Output_Tokens)
+                            else 0.0),
+                        when Fraction_Tool_Call_Tokens_EWMA =>
+                           (if M.Total_Output_Tokens > 0
+                            then Long_Float (M.Total_Tool_Call_Input_Tokens)
+                                 / Long_Float (M.Total_Output_Tokens)
+                            else 0.0),
                         when others                         =>
                            Long_Float (M.Total_Cache_Write_Tokens));
                begin
@@ -1094,7 +1143,11 @@ package body Coyote_SQC.App is
                            end if;
                         end;
                      end;
-                  elsif not CD.Box_Cox_Active then
+                  elsif not CD.Box_Cox_Active
+                    and then (Kind not in Fraction_Thinking_Tokens_EWMA
+                                        | Fraction_Tool_Call_Tokens_EWMA
+                              or else M.Total_Output_Tokens > 0)
+                  then
                      --  No transformation: EWMA in original (token) space.
                      declare
                         Sigma : constant Long_Float := CD.Params.I_Sigma;
@@ -1294,7 +1347,7 @@ package body Coyote_SQC.App is
                      | Session_Tool_Call_Tokens_I
                      | Session_Tool_Call_Result_Tokens_I
                      | Session_Uncached_Input_Tokens_I
-                     | Session_Turn_Count_I =>
+                     | Session_Turn_Count_I | Fraction_Thinking_Tokens_I | Fraction_Tool_Call_Tokens_I =>
                      declare
                         L_Z : constant Statistics.Limits_Record :=
                           Statistics.I_Chart.Compute_I_Limits
@@ -1354,7 +1407,7 @@ package body Coyote_SQC.App is
                      | Session_Tool_Call_Tokens_MR
                      | Session_Tool_Call_Result_Tokens_MR
                      | Session_Uncached_Input_Tokens_MR
-                     | Session_Turn_Count_MR =>
+                     | Session_Turn_Count_MR | Fraction_Thinking_Tokens_MR | Fraction_Tool_Call_Tokens_MR =>
                      if CD.MR_BC_Active then
                         Limits := CD.MR_BC_Limits;
                      else
@@ -1369,7 +1422,7 @@ package body Coyote_SQC.App is
                      | Session_Tool_Call_Tokens_EWMA
                      | Session_Tool_Call_Result_Tokens_EWMA
                      | Session_Uncached_Input_Tokens_EWMA
-                     | Session_Turn_Count_EWMA =>
+                     | Session_Turn_Count_EWMA | Fraction_Thinking_Tokens_EWMA | Fraction_Tool_Call_Tokens_EWMA =>
                      null;
                end case;
             end if;
@@ -1485,6 +1538,14 @@ package body Coyote_SQC.App is
       if State = null then return; end if;
       if State.Clear_Setup_Item /= null then
          State.Clear_Setup_Item.Set_Sensitive
+           (not State.Workspace.Setup_Session_Ids.Is_Empty);
+      end if;
+      if State.Set_Selection_As_Setup_Item /= null then
+         State.Set_Selection_As_Setup_Item.Set_Sensitive
+           (not State.Selection.Is_Empty);
+      end if;
+      if State.Select_Setup_Interval_Item /= null then
+         State.Select_Setup_Interval_Item.Set_Sensitive
            (not State.Workspace.Setup_Session_Ids.Is_Empty);
       end if;
    end Update_Menu_States;

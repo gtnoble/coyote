@@ -267,6 +267,24 @@ package body Coyote_SQC.Statistics is
                Total_Trials :=
                  Total_Trials + Long_Float (M.N_Turns);
 
+            when Fraction_Thinking_Tokens_I
+               | Fraction_Thinking_Tokens_MR
+               | Fraction_Thinking_Tokens_EWMA =>
+               if M.Total_Output_Tokens > 0 then
+                  Accumulate_I
+                    (Long_Float (M.Total_Thinking_Tokens)
+                     / Long_Float (M.Total_Output_Tokens));
+               end if;
+
+            when Fraction_Tool_Call_Tokens_I
+               | Fraction_Tool_Call_Tokens_MR
+               | Fraction_Tool_Call_Tokens_EWMA =>
+               if M.Total_Output_Tokens > 0 then
+                  Accumulate_I
+                    (Long_Float (M.Total_Tool_Call_Input_Tokens)
+                     / Long_Float (M.Total_Output_Tokens));
+               end if;
+
             when Session_Input_Tokens_I | Session_Input_Tokens_MR
                | Session_Input_Tokens_EWMA =>
                Accumulate_I (Long_Float (M.Total_Input_Tokens));
@@ -414,7 +432,11 @@ package body Coyote_SQC.Statistics is
             | Session_Tool_Call_Result_Tokens_EWMA
             | Session_Turn_Count_I
             | Session_Turn_Count_MR
-            | Session_Turn_Count_EWMA | Session_Uncached_Input_Tokens_I | Session_Uncached_Input_Tokens_MR | Session_Uncached_Input_Tokens_EWMA =>
+            | Session_Turn_Count_EWMA | Session_Uncached_Input_Tokens_I | Session_Uncached_Input_Tokens_MR | Session_Uncached_Input_Tokens_EWMA
+            | Fraction_Thinking_Tokens_I  | Fraction_Thinking_Tokens_MR
+            | Fraction_Thinking_Tokens_EWMA
+            | Fraction_Tool_Call_Tokens_I | Fraction_Tool_Call_Tokens_MR
+            | Fraction_Tool_Call_Tokens_EWMA =>
 
             if Method = Robust_Median then
                --  Grand_Mean: median of all setup-interval observations.

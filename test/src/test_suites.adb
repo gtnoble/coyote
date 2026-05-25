@@ -1719,6 +1719,15 @@ package body Test_Suites is
       Result.Add_Test (SQC_Statistics_Caller.Create
         ("Robust: p-chart Grand_P unchanged by estimation method",
          Coyote_SQC_Statistics_Tests.Test_Robust_P_Chart_Unchanged'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: Fraction_Thinking_Tokens Grand_Mean estimated correctly",
+         Coyote_SQC_Statistics_Tests.Test_Fraction_Thinking_Tokens_Grand_Mean'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: Fraction_Tool_Call_Tokens Grand_Mean estimated correctly",
+         Coyote_SQC_Statistics_Tests.Test_Fraction_Tool_Call_Tokens_Grand_Mean'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: token fraction charts exclude zero-output sessions",
+         Coyote_SQC_Statistics_Tests.Test_Fraction_Token_Charts_Zero_Output'Access));
       --  Coyote_SQC parser tests
       Result.Add_Test (SQC_Parser_Caller.Create
         ("SQC: v3 session ID parsed correctly",

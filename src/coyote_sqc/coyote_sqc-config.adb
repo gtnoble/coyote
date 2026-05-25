@@ -149,6 +149,9 @@ package body Coyote_SQC.Config is
          Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, Tmp);
          Ada.Text_IO.Put_Line (File, Write (Root));
          Ada.Text_IO.Close (File);
+         if Ada.Directories.Exists (Dest) then
+            Ada.Directories.Delete_File (Dest);
+         end if;
          Ada.Directories.Rename (Tmp, Dest);
       end Write;
 

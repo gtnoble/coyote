@@ -120,6 +120,8 @@ package Coyote_SQC.App is
       Status_Bar       : Gtk.Label.Gtk_Label;
       Recent_Menu      : Gtk.Menu_Item.Gtk_Menu_Item;
       Clear_Setup_Item : Gtk.Menu_Item.Gtk_Menu_Item;
+      Set_Selection_As_Setup_Item : Gtk.Menu_Item.Gtk_Menu_Item;
+      Select_Setup_Interval_Item  : Gtk.Menu_Item.Gtk_Menu_Item;
       Run_Sequence_Item : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
       Run_Sequence_Mode : Boolean := False;
       Content_Paned    : Gtk.Paned.Gtk_Paned;

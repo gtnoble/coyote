@@ -102,6 +102,66 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_EWMA_Chart   => False);
+         when Fraction_Thinking_Tokens_I =>
+            return
+              (Label           => U ("Fraction: Thinking Tokens -- I"),
+               Group           => U ("Rates"),
+               Y_Axis_Label    => U ("Thinking tokens / output tokens"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => True,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => False,
+               Is_EWMA_Chart   => False);
+         when Fraction_Thinking_Tokens_MR =>
+            return
+              (Label           => U ("Fraction: Thinking Tokens -- MR"),
+               Group           => U ("Rates"),
+               Y_Axis_Label    => U ("MR (thinking / output tokens)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => True,
+               Is_Xbar_S_Chart => False,
+               Is_EWMA_Chart   => False);
+         when Fraction_Thinking_Tokens_EWMA =>
+            return
+              (Label           => U ("Fraction: Thinking Tokens -- EWMA"),
+               Group           => U ("Rates"),
+               Y_Axis_Label    => U ("EWMA (thinking / output tokens)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => False,
+               Is_EWMA_Chart   => True);
+         when Fraction_Tool_Call_Tokens_I =>
+            return
+              (Label           => U ("Fraction: Tool-Call Tokens -- I"),
+               Group           => U ("Rates"),
+               Y_Axis_Label    => U ("Tool-call tokens / output tokens"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => True,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => False,
+               Is_EWMA_Chart   => False);
+         when Fraction_Tool_Call_Tokens_MR =>
+            return
+              (Label           => U ("Fraction: Tool-Call Tokens -- MR"),
+               Group           => U ("Rates"),
+               Y_Axis_Label    => U ("MR (tool-call / output tokens)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => True,
+               Is_Xbar_S_Chart => False,
+               Is_EWMA_Chart   => False);
+         when Fraction_Tool_Call_Tokens_EWMA =>
+            return
+              (Label           => U ("Fraction: Tool-Call Tokens -- EWMA"),
+               Group           => U ("Rates"),
+               Y_Axis_Label    => U ("EWMA (tool-call / output tokens)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => False,
+               Is_EWMA_Chart   => True);
          when Session_Input_Tokens_I =>
             return
               (Label           => U ("Session Input Tokens -- I"),

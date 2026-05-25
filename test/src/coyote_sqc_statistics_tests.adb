@@ -1799,4 +1799,122 @@ package body Coyote_SQC_Statistics_Tests is
               & Long_Float'Image (Params_R.Grand_P));
    end Test_Robust_P_Chart_Unchanged;
 
+   --  ── Fraction thinking / tool-call tokens p-chart tests ─────────────────
+
+   --  Two sessions with known thinking and output token totals;
+   --  Grand_P = total_thinking / total_output.
+   procedure Test_Fraction_Thinking_Tokens_Grand_Mean (T : in out Test) is
+      pragma Unreferenced (T);
+      use AUnit.Assertions;
+      use Coyote_SQC.Data_Model;
+      use Coyote_SQC.Charts;
+      use Coyote_SQC.Statistics;
+      --  Session 1: 200 thinking tokens, 800 output tokens → p1 = 0.25
+      --  Session 2: 100 thinking tokens, 400 output tokens → p2 = 0.25
+      --  Grand_Mean = 300 / 1200 = 0.25
+      Metrics : Metrics_Vectors.Vector;
+      Setup   : UUID_Set;
+      Params  : Setup_Parameters;
+
+      function MK (Id : String; Think, Output : Natural)
+                   return Session_Metrics_Record is
+         M : Session_Metrics_Record;
+      begin
+         M.Session_Id            := To_Unbounded_String (Id);
+         M.N_Turns               := 1;
+         M.Total_Thinking_Tokens := Think;
+         M.Total_Output_Tokens   := Output;
+         return M;
+      end MK;
+   begin
+      Metrics.Append (MK ("t1", 200, 800));
+      Metrics.Append (MK ("t2", 100, 400));
+
+      Estimate_Parameters
+        (Metrics, Setup, Fraction_Thinking_Tokens_I, Parameters => Params);
+
+      Assert (abs (Params.Grand_Mean - 0.25) < 1.0e-9,
+              "Grand_Mean should be 0.25; got " & Long_Float'Image (Params.Grand_Mean));
+   end Test_Fraction_Thinking_Tokens_Grand_Mean;
+
+   --  Two sessions with known tool-call and output token totals;
+   --  Grand_Mean = total_tool_call_input / total_output.
+   procedure Test_Fraction_Tool_Call_Tokens_Grand_Mean (T : in out Test) is
+      pragma Unreferenced (T);
+      use AUnit.Assertions;
+      use Coyote_SQC.Data_Model;
+      use Coyote_SQC.Charts;
+      use Coyote_SQC.Statistics;
+      --  Session 1: 60 tool-call input tokens, 300 output tokens → p1 = 0.2
+      --  Session 2: 40 tool-call input tokens, 200 output tokens → p2 = 0.2
+      --  Grand_Mean = 100 / 500 = 0.2
+      Metrics : Metrics_Vectors.Vector;
+      Setup   : UUID_Set;
+      Params  : Setup_Parameters;
+
+      function MK (Id : String; TC_Input, Output : Natural)
+                   return Session_Metrics_Record is
+         M : Session_Metrics_Record;
+      begin
+         M.Session_Id                  := To_Unbounded_String (Id);
+         M.N_Turns                     := 1;
+         M.Total_Tool_Call_Input_Tokens := TC_Input;
+         M.Total_Output_Tokens          := Output;
+         return M;
+      end MK;
+   begin
+      Metrics.Append (MK ("tc1", 60, 300));
+      Metrics.Append (MK ("tc2", 40, 200));
+
+      Estimate_Parameters
+        (Metrics, Setup, Fraction_Tool_Call_Tokens_I, Parameters => Params);
+
+      Assert (abs (Params.Grand_Mean - 0.2) < 1.0e-9,
+              "Grand_Mean should be 0.2; got " & Long_Float'Image (Params.Grand_Mean));
+   end Test_Fraction_Tool_Call_Tokens_Grand_Mean;
+
+   --  Sessions with zero output tokens are excluded from both new p-charts.
+   procedure Test_Fraction_Token_Charts_Zero_Output (T : in out Test) is
+      pragma Unreferenced (T);
+      use AUnit.Assertions;
+      use Coyote_SQC.Data_Model;
+      use Coyote_SQC.Charts;
+      use Coyote_SQC.Statistics;
+      --  Session 1: 0 output tokens → excluded
+      --  Session 2: 100 thinking tokens, 500 output tokens → Grand_Mean = 0.2
+      Metrics : Metrics_Vectors.Vector;
+      Setup   : UUID_Set;
+      Params_Think, Params_TC : Setup_Parameters;
+
+      function MK (Id : String; Think, TC_In, Output : Natural)
+                   return Session_Metrics_Record is
+         M : Session_Metrics_Record;
+      begin
+         M.Session_Id                  := To_Unbounded_String (Id);
+         M.N_Turns                     := 1;
+         M.Total_Thinking_Tokens       := Think;
+         M.Total_Tool_Call_Input_Tokens := TC_In;
+         M.Total_Output_Tokens          := Output;
+         return M;
+      end MK;
+   begin
+      Metrics.Append (MK ("z1",   0,   0,   0));  --  excluded
+      Metrics.Append (MK ("z2", 100,  50, 500));
+
+      Estimate_Parameters
+        (Metrics, Setup, Fraction_Thinking_Tokens_I, Parameters => Params_Think);
+      Estimate_Parameters
+        (Metrics, Setup, Fraction_Tool_Call_Tokens_I, Parameters => Params_TC);
+
+      --  Grand_Mean computed from session z2 only: 100/500 = 0.2 for thinking.
+      Assert (abs (Params_Think.Grand_Mean - 0.2) < 1.0e-9,
+              "Thinking Grand_Mean should exclude zero-output session; got "
+              & Long_Float'Image (Params_Think.Grand_Mean));
+
+      --  Tool-call: 50/500 = 0.1.
+      Assert (abs (Params_TC.Grand_Mean - 0.1) < 1.0e-9,
+              "Tool-call Grand_Mean should exclude zero-output session; got "
+              & Long_Float'Image (Params_TC.Grand_Mean));
+   end Test_Fraction_Token_Charts_Zero_Output;
+
 end Coyote_SQC_Statistics_Tests;

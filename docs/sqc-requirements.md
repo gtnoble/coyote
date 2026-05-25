@@ -224,7 +224,7 @@ Derived from a Session_Record. Computed once at load time and cached.
 
 | Field | Type | Description |
 |---|---|---|
-| `Chart_Type` | Chart_Type enum | Identifies which of the thirty-six charts this defines |
+| `Chart_Type` | Chart_Type enum | Identifies which of the forty-two charts this defines |
 
 ---
 
@@ -772,7 +772,7 @@ version ≤ 5 that are missing this field shall be loaded with the default
 
 
 
-Thirty-six charts are available in every workspace. They are pre-instantiated; the user does
+Thirty-eight charts are available in every workspace. They are pre-instantiated; the user does
 not create or delete charts. All charts share a single workspace-level setup interval
 (see Section 11).
 
@@ -846,6 +846,28 @@ not create or delete charts. All charts share a single workspace-level setup int
 **Event:** a turn had Thinking_Enabled = True.  
 **Subgroup size n:** total turns in the session.  
 **Proportion p:** thinking-enabled turns / total turns.
+
+### 6.10a Fraction of Thinking Tokens — I/MR/EWMA Charts
+
+**Measured quantity:** ratio of thinking tokens to output tokens per session (`Total_Thinking_Tokens / Total_Output_Tokens`).
+**Observation:** one scalar value per session; no within-session subgroup.
+**Statistic (I chart):** the per-session ratio.
+**Sessions with `Total_Output_Tokens = 0`:** excluded (ratio undefined; no marker plotted).
+**Rationale:** thinking tokens arrive in correlated bursts, not as independent Bernoulli trials per output token; the ratio is right-skewed and overdispersed relative to the binomial distribution. An I chart is appropriate.
+**Limits (I chart):** derived from the mean moving range of the setup interval (§5.6). Box-Cox transformation is not applied (ratio data is bounded and different from token count totals).
+**MR chart:** `MR_i = |ratio_i − ratio_{i-1}|`; sessions with zero output tokens are skipped and do not contribute to the MR sequence.
+**EWMA chart:** paired with the I chart; uses the same Grand_Mean and σ.
+
+### 6.10b Fraction of Tool-Call Tokens — I/MR/EWMA Charts
+
+**Measured quantity:** ratio of tool-call input tokens to output tokens per session (`Total_Tool_Call_Input_Tokens / Total_Output_Tokens`).
+**Observation:** one scalar value per session; no within-session subgroup.
+**Statistic (I chart):** the per-session ratio.
+**Sessions with `Total_Output_Tokens = 0`:** excluded (ratio undefined; no marker plotted).
+**Rationale:** tool-call tokens are generated in discrete, correlated invocations; the binomial model does not apply. An I chart is appropriate.
+**Limits (I chart):** derived from the mean moving range of the setup interval (§5.6). Box-Cox transformation is not applied.
+**MR chart:** `MR_i = |ratio_i − ratio_{i-1}|`; sessions with zero output tokens are skipped.
+**EWMA chart:** paired with the I chart; uses the same Grand_Mean and σ.
 
 ### 6.10 Session Input Tokens — I Chart
 
@@ -1074,7 +1096,7 @@ The main window contains, from top to bottom:
 
 ### 7.2 Left Panel
 
-A GtkListBox (~180px default width, user-resizable) listing the thirty-six charts in three
+A GtkListBox (~180px default width, user-resizable) listing the forty-two charts in three
 visually separated groups:
 
 ```
@@ -1092,6 +1114,12 @@ Rates
 Tool Call Failure Rate
 Fraction: Tool-Call Turns
 Fraction: Thinking Turns
+Fraction: Thinking Tokens -- I
+Fraction: Thinking Tokens -- MR
+Fraction: Thinking Tokens -- EWMA
+Fraction: Tool-Call Tokens -- I
+Fraction: Tool-Call Tokens -- MR
+Fraction: Tool-Call Tokens -- EWMA
 
 Session Totals
 ─────────────────
@@ -1249,6 +1277,8 @@ to **Time Scale** each time the application starts.
 - ─
 - Clear Selection
 - Clear Setup Interval  (grayed out if not established)
+- Set Selection as Setup Interval  (grayed out if selection is empty)
+- Select Setup Interval  (grayed out if not established; selects all current setup interval points)
 - ─
 - X-Axis: Run Sequence  (checkable; toggles between Time Scale and Run Sequence modes; see Section 7.3.5)
 
@@ -1420,7 +1450,7 @@ Displayed when two or more points are selected.
 
 **Set as Setup Interval button:**
 - Clicking this button sets the workspace setup interval to exactly the selected
-  sessions, applying to all thirty-six charts simultaneously.
+  sessions, applying to all forty-two charts simultaneously.
 - If a setup interval is already established, a confirmation dialog is shown:
   "Replace existing setup interval for this workspace?"
 - On confirmation, all charts recompute their limits and recolor the setup interval
@@ -1446,20 +1476,21 @@ Displayed when two or more points are selected.
 ### 11.1 Establishing a Setup Interval
 
 A setup interval is a single workspace-level set of sessions used to estimate the
-center line and control limits for all thirty-six charts simultaneously. It is established
-by selecting one or more sessions (Section 9) and clicking "Set as Setup Interval"
-in the multi-select detail panel (Section 10.2). There is no requirement for the
+center line and control limits for all forty-two charts simultaneously. It is established
+by selecting one or more sessions (Section 9) and either clicking "Set as Setup Interval"
+in the multi-select detail panel (Section 10.2) or choosing **View → Set Selection as
+Setup Interval** from the menu bar. There is no requirement for the
 setup sessions to be contiguous in time.
 
 ### 11.2 Setup Interval Storage
 
 The setup interval is stored as a set of session UUIDs in the `Setup_Session_Ids`
 field of the `Workspace_Record`. It is workspace-level: a single setup interval
-applies to all thirty-six charts. The set is stored within the workspace file.
+applies to all forty-two charts. The set is stored within the workspace file.
 
 ### 11.3 Visual Representation
 
-Setup interval sessions are rendered with filled yellow markers on all thirty-six charts.
+Setup interval sessions are rendered with filled yellow markers on all forty-two charts.
 A faint yellow vertical band spans the x-extent of the setup interval sessions on
 every chart.
 
@@ -1826,6 +1857,9 @@ All statistical formula implementations shall have AUnit unit tests covering:
 - Uncached input token I/MR limit computation: for a known five-session dataset, verify UCL, CL, and LCL match hand-computed §5.6 formula values to 4 decimal places.
 - Uncached input token EWMA computation: verify `Z_t` and time-varying limits use the Grand_Mean and σ from the paired I chart.
 - Uncached input token zero-value exclusion: sessions where `Total_Uncached_Input_Tokens = 0` are excluded from the I/MR chart when Box-Cox is enabled, and a status-bar notice is posted.
+- `Fraction_Thinking_Tokens_I` I chart `Estimate_Parameters`: for two sessions with known `Total_Thinking_Tokens` and `Total_Output_Tokens`, verify `Grand_Mean = mean(thinking_i / output_i)` to 1×10⁻⁹.
+- `Fraction_Tool_Call_Tokens_I` I chart `Estimate_Parameters`: for two sessions with known `Total_Tool_Call_Input_Tokens` and `Total_Output_Tokens`, verify `Grand_Mean = mean(tool_call_i / output_i)` to 1×10⁻⁹.
+- Token fraction chart zero-output exclusion: sessions with `Total_Output_Tokens = 0` are excluded from both `Fraction_Thinking_Tokens_I` and `Fraction_Tool_Call_Tokens_I` charts; `Grand_Mean` is computed from eligible sessions only.
 
 ---
 

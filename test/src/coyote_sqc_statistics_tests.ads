@@ -105,4 +105,9 @@ package Coyote_SQC_Statistics_Tests is
    --  Robust p-chart unchanged test.
    procedure Test_Robust_P_Chart_Unchanged (T : in out Test);
 
+   --  Fraction thinking/tool-call tokens p-chart tests.
+   procedure Test_Fraction_Thinking_Tokens_Grand_Mean  (T : in out Test);
+   procedure Test_Fraction_Tool_Call_Tokens_Grand_Mean (T : in out Test);
+   procedure Test_Fraction_Token_Charts_Zero_Output  (T : in out Test);
+
 end Coyote_SQC_Statistics_Tests;

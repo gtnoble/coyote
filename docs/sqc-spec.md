@@ -604,6 +604,12 @@ type Chart_Kind is
    Tool_Call_Failure_Rate,
    Fraction_Tool_Call_Turns,
    Fraction_Thinking_Turns,
+   Fraction_Thinking_Tokens_I,
+   Fraction_Thinking_Tokens_MR,
+   Fraction_Thinking_Tokens_EWMA,
+   Fraction_Tool_Call_Tokens_I,
+   Fraction_Tool_Call_Tokens_MR,
+   Fraction_Tool_Call_Tokens_EWMA,
    Session_Input_Tokens_I,
    Session_Input_Tokens_MR,
    Session_Output_Tokens_I,
@@ -630,11 +636,11 @@ type Chart_Kind is
    --  Session Turn Count I/MR/EWMA charts:
    Session_Turn_Count_I,
    Session_Turn_Count_MR,
-   Session_Turn_Count_EWMA);
+   Session_Turn_Count_EWMA,
    --  Uncached Session Input Token I/MR/EWMA charts:
    Session_Uncached_Input_Tokens_I,
    Session_Uncached_Input_Tokens_MR,
-   Session_Uncached_Input_Tokens_EWMA,
+   Session_Uncached_Input_Tokens_EWMA);
 
 type Chart_Definition_Record is record
    Chart  : Chart_Kind;
@@ -1273,7 +1279,7 @@ end record;
 function Properties (Kind : Chart_Kind) return Chart_Properties;
 ```
 
-The thirty-six charts and their properties:
+The forty-two charts and their properties:
 
 | `Chart_Kind` | Label | Group | Y-Axis Label |
 |---|---|---|---|
@@ -1286,6 +1292,12 @@ The thirty-six charts and their properties:
 | `Tool_Call_Failure_Rate` | `Tool Call Failure Rate` | `Rates` | `Failure proportion` |
 | `Fraction_Tool_Call_Turns` | `Fraction: Tool-Call Turns` | `Rates` | `Fraction of turns` |
 | `Fraction_Thinking_Turns` | `Fraction: Thinking Turns` | `Rates` | `Fraction of turns` |
+| `Fraction_Thinking_Tokens_I` | `Fraction: Thinking Tokens -- I` | `Rates` | `Thinking tokens / output tokens` |
+| `Fraction_Thinking_Tokens_MR` | `Fraction: Thinking Tokens -- MR` | `Rates` | `MR (thinking / output tokens)` |
+| `Fraction_Thinking_Tokens_EWMA` | `Fraction: Thinking Tokens -- EWMA` | `Rates` | `EWMA (thinking / output tokens)` |
+| `Fraction_Tool_Call_Tokens_I` | `Fraction: Tool-Call Tokens -- I` | `Rates` | `Tool-call tokens / output tokens` |
+| `Fraction_Tool_Call_Tokens_MR` | `Fraction: Tool-Call Tokens -- MR` | `Rates` | `MR (tool-call / output tokens)` |
+| `Fraction_Tool_Call_Tokens_EWMA` | `Fraction: Tool-Call Tokens -- EWMA` | `Rates` | `EWMA (tool-call / output tokens)` |
 | `Session_Input_Tokens_I`   | `Session Input Tokens -- I`   | `Session Totals` | `Total input tokens` |
 | `Session_Input_Tokens_MR`  | `Session Input Tokens -- MR`  | `Session Totals` | `Moving range (input tokens)` |
 | `Session_Output_Tokens_I`  | `Session Output Tokens -- I`  | `Session Totals` | `Total output tokens` |
@@ -1569,7 +1581,11 @@ type App_State is limited record
    --  GTK widget handles
    Canvas           : Gtk.Drawing_Area.Gtk_Drawing_Area;
    Detail_Panel_Box : Gtk.Box.Gtk_Box;
-   ...
+   --  Menu item handles for View menu (sensitivity managed by Update_Menu_States)
+   Clear_Setup_Item            : Gtk.Menu_Item.Gtk_Menu_Item;
+   Set_Selection_As_Setup_Item : Gtk.Menu_Item.Gtk_Menu_Item;
+   Select_Setup_Interval_Item  : Gtk.Menu_Item.Gtk_Menu_Item;
+   Run_Sequence_Item           : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
    --  Resolved Box-Cox lambda values are stored per chart kind in
    --  Chart_Data.Box_Cox_Lambda (not in App_State directly).
 end record;
@@ -1626,6 +1642,8 @@ The toolbar pickers update live as the chart is panned (§12.3).
 | *(separator)* | |
 | Clear Selection | `App_State.Selection.Clear`; hide detail panel |
 | Clear Setup Interval | `Workspace.Clear_Setup_Interval` with confirmation; grayed out if `Setup_Session_Ids` is empty |
+| Set Selection as Setup Interval | Assign `App_State.Selection` to `Workspace.Setup_Session_Ids`; shows confirmation dialog if a setup interval is already established; sets `Modified := True`, calls `Recompute_Charts` and `Queue_Redraw`; grayed out when `Selection` is empty — handle stored in `App_State.Set_Selection_As_Setup_Item` |
+| Select Setup Interval | Copy `Workspace.Setup_Session_Ids` into `App_State.Selection`; calls `Update_Menu_States` and `Queue_Redraw` so newly selected points receive halos; grayed out when `Setup_Session_Ids` is empty — handle stored in `App_State.Select_Setup_Interval_Item` |
 | *(separator)* | |
 | X-Axis: Run Sequence | Toggle `App_State.Run_Sequence_Mode`; checkmark shown when active; triggers `Switch_X_Scale_Mode` (§12.2.1) and canvas redraw; kept in sync with the toolbar checkbox |
 

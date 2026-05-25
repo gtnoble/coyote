@@ -86,6 +86,11 @@ package body Coyote_SQC.UI is
      (Win   : access Gtk.Widget.Gtk_Widget_Record'Class;
       Event : Gdk.Event.Gdk_Event) return Boolean;
 
+   procedure On_Set_Selection_As_Setup
+     (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
+   procedure On_Select_Setup_Interval
+     (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
+
    --  ── Window delete ─────────────────────────────────────────────────────
 
    function On_Window_Delete
@@ -511,6 +516,7 @@ package body Coyote_SQC.UI is
       if Coyote_SQC.App.State /= null then
          Coyote_SQC.App.State.Selection.Clear;
          Coyote_SQC.UI.Chart_Canvas.Queue_Redraw;
+         Coyote_SQC.App.Update_Menu_States;
       end if;
    end On_Clear_Selection;
 
@@ -533,6 +539,46 @@ package body Coyote_SQC.UI is
       Coyote_SQC.App.Recompute_Charts;
       Coyote_SQC.UI.Chart_Canvas.Queue_Redraw;
    end On_Clear_Setup;
+   procedure On_Set_Selection_As_Setup
+     (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
+   is
+      pragma Unreferenced (Item);
+   begin
+      if Coyote_SQC.App.State = null then return; end if;
+      if Coyote_SQC.App.State.Selection.Is_Empty then return; end if;
+      --  Confirm if setup interval already set.
+      if not Coyote_SQC.App.State.Workspace.Setup_Session_Ids.Is_Empty then
+         if not Coyote_SQC.UI.Dialogs.Confirm
+           (Coyote_SQC.App.State.Main_Window,
+            "Replace Setup Interval",
+            "Replace existing setup interval for this workspace?")
+         then
+            return;
+         end if;
+      end if;
+      Coyote_SQC.App.State.Workspace.Setup_Session_Ids :=
+        Coyote_SQC.App.State.Selection;
+      Coyote_SQC.App.State.Modified := True;
+      Coyote_SQC.App.Update_Title;
+      Coyote_SQC.App.Recompute_Charts;
+      Coyote_SQC.UI.Chart_Canvas.Queue_Redraw;
+   end On_Set_Selection_As_Setup;
+
+   procedure On_Select_Setup_Interval
+     (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
+   is
+      pragma Unreferenced (Item);
+   begin
+      if Coyote_SQC.App.State = null then return; end if;
+      if Coyote_SQC.App.State.Workspace.Setup_Session_Ids.Is_Empty then
+         return;
+      end if;
+      Coyote_SQC.App.State.Selection :=
+        Coyote_SQC.App.State.Workspace.Setup_Session_Ids;
+      Coyote_SQC.App.Update_Menu_States;
+      Coyote_SQC.UI.Chart_Canvas.Queue_Redraw;
+   end On_Select_Setup_Interval;
+
 
    procedure On_Run_Sequence_Activated
      (Item : access Gtk.Check_Menu_Item.Gtk_Check_Menu_Item_Record'Class)
@@ -654,6 +700,26 @@ package body Coyote_SQC.UI is
          Coyote_SQC.App.State.Clear_Setup_Item := CSI;
          CSI.Set_Sensitive (not Coyote_SQC.App.State.Workspace
                                   .Setup_Session_Ids.Is_Empty);
+      end;
+      declare
+         SASI : Gtk.Menu_Item.Gtk_Menu_Item;
+      begin
+         Gtk.Menu_Item.Gtk_New
+           (SASI, "Set Selection as Setup Interval");
+         SASI.On_Activate (On_Set_Selection_As_Setup'Access);
+         View_M.Append (SASI);
+         Coyote_SQC.App.State.Set_Selection_As_Setup_Item := SASI;
+         SASI.Set_Sensitive (False);
+      end;
+      declare
+         SSI : Gtk.Menu_Item.Gtk_Menu_Item;
+      begin
+         Gtk.Menu_Item.Gtk_New (SSI, "Select Setup Interval");
+         SSI.On_Activate (On_Select_Setup_Interval'Access);
+         View_M.Append (SSI);
+         Coyote_SQC.App.State.Select_Setup_Interval_Item := SSI;
+         SSI.Set_Sensitive
+           (not Coyote_SQC.App.State.Workspace.Setup_Session_Ids.Is_Empty);
       end;
       --  X-Axis: Run Sequence checkable item.
       Add_Sep (View_M);
