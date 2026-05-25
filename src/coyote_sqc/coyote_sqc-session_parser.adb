@@ -7,6 +7,7 @@ with Ada.Calendar.Formatting;
 with Ada.Calendar.Time_Zones;
 with Ada.Containers.Hashed_Maps;
 with Ada.Directories;
+with Ada.Exceptions;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
 with Ada.Strings.Unbounded.Hash;
@@ -520,7 +521,12 @@ package body Coyote_SQC.Session_Parser is
             begin
                Process_Line (To_String (Full_Line));
             exception
-               when others => null;
+               when E : others =>
+                  Ada.Text_IO.Put_Line
+                    (Ada.Text_IO.Standard_Error,
+                     "coyote_sqc: skipping malformed JSONL line in "
+                     & Path & ": "
+                     & Ada.Exceptions.Exception_Information (E));
             end;
          end;
       end loop;
@@ -582,7 +588,12 @@ package body Coyote_SQC.Session_Parser is
                end;
             end if;
          exception
-            when others => null;
+            when E : others =>
+               Ada.Text_IO.Put_Line
+                 (Ada.Text_IO.Standard_Error,
+                  "coyote_sqc: error scanning session directory "
+                  & Dir & ": "
+                  & Ada.Exceptions.Exception_Information (E));
          end;
       end loop;
 

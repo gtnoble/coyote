@@ -3,8 +3,10 @@
 --  Project: coyote
 
 with Ada.Calendar.Formatting;
+with Ada.Exceptions;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
+with Ada.Text_IO;
 with Coyote_App.Utils;       use Coyote_App.Utils;
 with Gdk.Pixbuf;
 with Glib;                   use Glib;
@@ -103,10 +105,14 @@ package body Coyote_SQC.UI.Tool_Detail_Window is
          return Path;
       end;
    exception
-      when others =>
+      when E : others =>
          if Name /= null then
             GNAT.OS_Lib.Free (Name);
          end if;
+         Ada.Text_IO.Put_Line
+           (Ada.Text_IO.Standard_Error,
+            "coyote_sqc: Write_Temp_Image failed: "
+            & Ada.Exceptions.Exception_Information (E));
          return "";
    end Write_Temp_Image;
 

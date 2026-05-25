@@ -1542,7 +1542,10 @@ package body Coyote_SQC.App is
             when E : Coyote_SQC.Workspace.Workspace_Error =>
                WS_Load_Error := Ada.Strings.Unbounded.To_Unbounded_String
                  (Ada.Exceptions.Exception_Message (E));
-            when others => null;
+            when E : others =>
+               WS_Load_Error := Ada.Strings.Unbounded.To_Unbounded_String
+                 (Ada.Exceptions.Exception_Name (E)
+                  & ": " & Ada.Exceptions.Exception_Message (E));
          end;
       end if;
 

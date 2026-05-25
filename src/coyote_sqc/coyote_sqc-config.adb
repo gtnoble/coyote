@@ -4,6 +4,7 @@
 
 with Ada.Calendar;
 with Ada.Directories;
+with Ada.Exceptions;
 with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with GNAT.OS_Lib;
@@ -97,7 +98,12 @@ package body Coyote_SQC.Config is
       end;
       return Result;
    exception
-      when others => return Result;
+      when E : others =>
+         Ada.Text_IO.Put_Line
+           (Ada.Text_IO.Standard_Error,
+            "coyote_sqc: failed to load recent workspaces: "
+            & Ada.Exceptions.Exception_Information (E));
+         return Result;
    end Load_Recent;
 
    --  ── Record_Open ───────────────────────────────────────────────────────
@@ -162,7 +168,11 @@ package body Coyote_SQC.Config is
 
       Write;
    exception
-      when others => null;
+      when E : others =>
+         Ada.Text_IO.Put_Line
+           (Ada.Text_IO.Standard_Error,
+            "coyote_sqc: failed to update recent workspaces list: "
+            & Ada.Exceptions.Exception_Information (E));
    end Record_Open;
 
 end Coyote_SQC.Config;
