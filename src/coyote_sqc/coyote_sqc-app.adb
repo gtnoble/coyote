@@ -184,6 +184,10 @@ package body Coyote_SQC.App is
             Value := Long_Float (Metrics.Total_Tool_Call_Result_Tokens);
             N     := 1;
 
+         when Session_Uncached_Input_Tokens_I =>
+            Value := Long_Float (Metrics.Total_Uncached_Input_Tokens);
+            N     := 1;
+
          when Session_Turn_Count_I =>
             Value := Long_Float (Metrics.N_Turns);
             N     := 1;
@@ -195,6 +199,7 @@ package body Coyote_SQC.App is
             | Session_Thinking_Tokens_EWMA
             | Session_Tool_Call_Tokens_EWMA
             | Session_Tool_Call_Result_Tokens_EWMA
+            | Session_Uncached_Input_Tokens_EWMA
             | Session_Turn_Count_EWMA =>
             --  EWMA requires previous Z value; caller overrides in the
             --  per-session loop after calling Compute_Session_Stat.
@@ -204,6 +209,7 @@ package body Coyote_SQC.App is
             | Session_Thinking_Tokens_MR
             | Session_Tool_Call_Tokens_MR
             | Session_Tool_Call_Result_Tokens_MR
+            | Session_Uncached_Input_Tokens_MR
             | Session_Turn_Count_MR =>
             --  Moving range requires the previous session value; the caller
             --  (Recompute_Chart) overrides Excluded and Value after this
@@ -283,6 +289,10 @@ package body Coyote_SQC.App is
                               | Session_Tool_Call_Result_Tokens_MR
                               | Session_Tool_Call_Result_Tokens_EWMA =>
                               Long_Float (M.Total_Tool_Call_Result_Tokens),
+                           when Session_Uncached_Input_Tokens_I
+                              | Session_Uncached_Input_Tokens_MR
+                              | Session_Uncached_Input_Tokens_EWMA =>
+                              Long_Float (M.Total_Uncached_Input_Tokens),
                            when others                          =>
                               Long_Float (M.Total_Output_Tokens));
                   begin
@@ -411,6 +421,8 @@ package body Coyote_SQC.App is
                            M.Total_Thinking_Tokens,
                         when Session_Tool_Call_Tokens_MR    =>
                            M.Total_Tool_Call_Input_Tokens,
+                        when Session_Uncached_Input_Tokens_MR =>
+                           M.Total_Uncached_Input_Tokens,
                         when others                         =>
                            M.Total_Tool_Call_Result_Tokens);
                end if;
@@ -944,6 +956,7 @@ package body Coyote_SQC.App is
                       | Session_Thinking_Tokens_MR
                       | Session_Tool_Call_Tokens_MR
                       | Session_Tool_Call_Result_Tokens_MR
+                      | Session_Uncached_Input_Tokens_MR
                       | Session_Turn_Count_MR
             then
                declare
@@ -963,6 +976,8 @@ package body Coyote_SQC.App is
                            Long_Float (M.Total_Tool_Call_Result_Tokens),
                         when Session_Turn_Count_MR          =>
                            Long_Float (M.N_Turns),
+                        when Session_Uncached_Input_Tokens_MR   =>
+                           Long_Float (M.Total_Uncached_Input_Tokens),
                         when others                         =>
                            Long_Float (M.Total_Output_Tokens));
                begin
@@ -999,6 +1014,8 @@ package body Coyote_SQC.App is
                            Long_Float (M.Total_Tool_Call_Result_Tokens),
                         when Session_Turn_Count_EWMA        =>
                            Long_Float (M.N_Turns),
+                        when Session_Uncached_Input_Tokens_EWMA =>
+                           Long_Float (M.Total_Uncached_Input_Tokens),
                         when others                         =>
                            Long_Float (M.Total_Cache_Write_Tokens));
                begin
@@ -1276,6 +1293,7 @@ package body Coyote_SQC.App is
                      | Session_Thinking_Tokens_I
                      | Session_Tool_Call_Tokens_I
                      | Session_Tool_Call_Result_Tokens_I
+                     | Session_Uncached_Input_Tokens_I
                      | Session_Turn_Count_I =>
                      declare
                         L_Z : constant Statistics.Limits_Record :=
@@ -1335,6 +1353,7 @@ package body Coyote_SQC.App is
                      | Session_Thinking_Tokens_MR
                      | Session_Tool_Call_Tokens_MR
                      | Session_Tool_Call_Result_Tokens_MR
+                     | Session_Uncached_Input_Tokens_MR
                      | Session_Turn_Count_MR =>
                      if CD.MR_BC_Active then
                         Limits := CD.MR_BC_Limits;
@@ -1349,6 +1368,7 @@ package body Coyote_SQC.App is
                      | Session_Thinking_Tokens_EWMA
                      | Session_Tool_Call_Tokens_EWMA
                      | Session_Tool_Call_Result_Tokens_EWMA
+                     | Session_Uncached_Input_Tokens_EWMA
                      | Session_Turn_Count_EWMA =>
                      null;
                end case;

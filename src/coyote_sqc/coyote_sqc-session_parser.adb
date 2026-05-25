@@ -267,16 +267,39 @@ package body Coyote_SQC.Session_Parser is
             Turn.Thinking_Tokens := Natural'Max (1, Thinking_Char_Sum / 4);
          end if;
 
-         Session.Total_Input_Tokens  :=
-           Session.Total_Input_Tokens  + Turn.Input_Tokens;
-         Session.Total_Output_Tokens :=
-           Session.Total_Output_Tokens + Turn.Output_Tokens;
-         Session.Total_Cache_Read_Tokens  :=
-           Session.Total_Cache_Read_Tokens
-           + Get_Natural_Field (Usage_Obj, "cacheRead");
-         Session.Total_Cache_Write_Tokens :=
-           Session.Total_Cache_Write_Tokens
-           + Get_Natural_Field (Usage_Obj, "cacheWrite");
+         declare
+            Turn_Cache_Read  : constant Natural :=
+              Get_Natural_Field (Usage_Obj, "cacheRead");
+            Turn_Cache_Write : constant Natural :=
+              Get_Natural_Field (Usage_Obj, "cacheWrite");
+         begin
+            --  Normalise Input_Tokens to total context window tokens.
+            --  Anthropic reports input_tokens as the non-cached fraction
+            --  only; OpenAI's prompt_tokens already includes cached tokens.
+            --  Adding cacheRead + cacheWrite for Anthropic makes both
+            --  providers use the same definition: total tokens submitted to
+            --  the model's context window.
+            if Index (Last_Model, "anthropic/") = 1
+               or else Turn_Cache_Read > Turn.Input_Tokens
+            then
+               Turn.Input_Tokens :=
+                 Turn.Input_Tokens + Turn_Cache_Read + Turn_Cache_Write;
+            end if;
+            Session.Total_Input_Tokens  :=
+              Session.Total_Input_Tokens  + Turn.Input_Tokens;
+            Session.Total_Output_Tokens :=
+              Session.Total_Output_Tokens + Turn.Output_Tokens;
+            Session.Total_Cache_Read_Tokens  :=
+              Session.Total_Cache_Read_Tokens + Turn_Cache_Read;
+            Session.Total_Cache_Write_Tokens :=
+              Session.Total_Cache_Write_Tokens + Turn_Cache_Write;
+            --  Uncached input = total context - cache hits - cache fills.
+            Session.Total_Uncached_Input_Tokens :=
+              Session.Total_Uncached_Input_Tokens
+              + (if Turn.Input_Tokens >= Turn_Cache_Read + Turn_Cache_Write
+                 then Turn.Input_Tokens - Turn_Cache_Read - Turn_Cache_Write
+                 else 0);
+         end;
          Session.Turns.Append (Turn);
       end Process_Assistant_Msg;
 
@@ -481,6 +504,7 @@ package body Coyote_SQC.Session_Parser is
          Total_Output_Tokens      => 0,
          Total_Cache_Read_Tokens  => 0,
          Total_Cache_Write_Tokens => 0,
+         Total_Uncached_Input_Tokens => 0,
          Turns               => Turn_Vectors.Empty_Vector);
 
       Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Path);

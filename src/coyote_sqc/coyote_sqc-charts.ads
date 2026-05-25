@@ -42,7 +42,11 @@ package Coyote_SQC.Charts is
       --  Session Turn Count I/MR/EWMA charts:
       Session_Turn_Count_I,
       Session_Turn_Count_MR,
-      Session_Turn_Count_EWMA);
+      Session_Turn_Count_EWMA,
+      --  Uncached session input token I/MR/EWMA charts:
+      Session_Uncached_Input_Tokens_I,
+      Session_Uncached_Input_Tokens_MR,
+      Session_Uncached_Input_Tokens_EWMA);
 
    --  Display metadata for one chart.
    type Chart_Properties is record

@@ -342,6 +342,36 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_EWMA_Chart   => True);
+         when Session_Uncached_Input_Tokens_I =>
+            return
+              (Label           => U ("Session Uncached Input Tokens -- I"),
+               Group           => U ("Session Totals"),
+               Y_Axis_Label    => U ("Total uncached input tokens"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => True,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => False,
+               Is_EWMA_Chart   => False);
+         when Session_Uncached_Input_Tokens_MR =>
+            return
+              (Label           => U ("Session Uncached Input Tokens -- MR"),
+               Group           => U ("Session Totals"),
+               Y_Axis_Label    => U ("Moving range (uncached input tokens)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => True,
+               Is_Xbar_S_Chart => False,
+               Is_EWMA_Chart   => False);
+         when Session_Uncached_Input_Tokens_EWMA =>
+            return
+              (Label           => U ("Session Uncached Input Tokens -- EWMA"),
+               Group           => U ("Session Totals"),
+               Y_Axis_Label    => U ("EWMA (uncached input tokens)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => False,
+               Is_EWMA_Chart   => True);
       end case;
    end Properties;
 

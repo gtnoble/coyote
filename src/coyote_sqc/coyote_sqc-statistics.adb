@@ -292,6 +292,10 @@ package body Coyote_SQC.Statistics is
                | Session_Tool_Call_Result_Tokens_MR
                | Session_Tool_Call_Result_Tokens_EWMA =>
                Accumulate_I (Long_Float (M.Total_Tool_Call_Result_Tokens));
+            when Session_Uncached_Input_Tokens_I
+               | Session_Uncached_Input_Tokens_MR
+               | Session_Uncached_Input_Tokens_EWMA =>
+               Accumulate_I (Long_Float (M.Total_Uncached_Input_Tokens));
 
             when Session_Turn_Count_I
                | Session_Turn_Count_MR
@@ -410,7 +414,7 @@ package body Coyote_SQC.Statistics is
             | Session_Tool_Call_Result_Tokens_EWMA
             | Session_Turn_Count_I
             | Session_Turn_Count_MR
-            | Session_Turn_Count_EWMA =>
+            | Session_Turn_Count_EWMA | Session_Uncached_Input_Tokens_I | Session_Uncached_Input_Tokens_MR | Session_Uncached_Input_Tokens_EWMA =>
 
             if Method = Robust_Median then
                --  Grand_Mean: median of all setup-interval observations.

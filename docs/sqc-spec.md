@@ -373,7 +373,7 @@ For each `role: "assistant"` message:
 
 | Session field | JSONL source |
 |---|---|
-| `Input_Tokens` | `usage.input` (integer) |
+| `Input_Tokens` | `usage.input` (integer; normalized to total context window tokens — see §5.11) |
 | `Output_Tokens` | `usage.output` (integer) |
 | `Thinking_Tokens` | `usage.thinking` (integer); when absent or zero and the turn contains one or more `"thinking"` content blocks, estimated as total thinking-block character count ÷ 4 |
 | `Thinking_Enabled` | True if any content block has `"type": "thinking"` |
@@ -444,6 +444,33 @@ scanned.
 
 ---
 
+### 5.11 Token Accounting Normalization
+
+Different LLM providers use incompatible conventions for the `input_tokens`
+field in their usage records:
+
+- **Anthropic:** `input_tokens` is the *non-cached* portion of the prompt only.
+  Cache-hit tokens (`cache_read_input_tokens`) and cache-fill tokens
+  (`cache_creation_input_tokens`) are reported separately.
+- **OpenAI:** `prompt_tokens` is the *total* prompt token count, which already
+  includes any cached subset (`prompt_tokens_details.cached_tokens`).
+
+The parser normalises all sessions to a common `Input_Tokens` definition:
+**total tokens submitted to the model's context window**.
+
+| Provider (detected from `Last_Model` prefix) | `Input_Tokens` stored |
+|---|---|
+| `"anthropic/"` | `usage.input + usage.cacheRead + usage.cacheWrite` |
+| All others (OpenAI, etc.) | `usage.input` unchanged |
+
+`cacheRead` and `cacheWrite` values in the JSONL are **not** altered.
+`Total_Uncached_Input_Tokens` for the session is accumulated as the sum over
+turns of `(normalized_input − turn_cache_read − turn_cache_write)`, which
+equals the raw `usage.input` for Anthropic turns and
+`prompt_tokens − cached_tokens` for OpenAI turns.
+
+---
+
 ## 6. Data Model
 
 All types below are declared in `Coyote_SQC.Data_Model`. Ada 2022 style; two-space
@@ -492,6 +519,9 @@ type Session_Record is record
    First_User_Message  : Ada.Strings.Unbounded.Unbounded_String;
    Total_Input_Tokens  : Natural := 0;
    Total_Output_Tokens : Natural := 0;
+   Total_Cache_Read_Tokens  : Natural := 0;
+   Total_Cache_Write_Tokens : Natural := 0;
+   Total_Uncached_Input_Tokens : Natural := 0;
    Turns               : Turn_Vectors.Vector;
 end record;
 
@@ -530,9 +560,12 @@ type Session_Metrics_Record is record
    N_Tool_Call_Turns_For_Chart : Natural := 0;
    Total_Input_Tokens         : Natural := 0;
    Total_Output_Tokens        : Natural := 0;
+   Total_Cache_Read_Tokens    : Natural := 0;
+   Total_Cache_Write_Tokens   : Natural := 0;
    Total_Thinking_Tokens        : Natural := 0;
    Total_Tool_Call_Input_Tokens  : Natural := 0;
    Total_Tool_Call_Result_Tokens : Natural := 0;
+   Total_Uncached_Input_Tokens   : Natural := 0;
 end record;
 ```
 
@@ -598,6 +631,10 @@ type Chart_Kind is
    Session_Turn_Count_I,
    Session_Turn_Count_MR,
    Session_Turn_Count_EWMA);
+   --  Uncached Session Input Token I/MR/EWMA charts:
+   Session_Uncached_Input_Tokens_I,
+   Session_Uncached_Input_Tokens_MR,
+   Session_Uncached_Input_Tokens_EWMA,
 
 type Chart_Definition_Record is record
    Chart  : Chart_Kind;
@@ -672,7 +709,7 @@ type Workspace_Record is record
    Setup_Session_Ids : UUID_Set;
    Comments          : Comment_Vectors.Vector;
    --  Box-Cox transformation config for Session Token I/MR charts.
-   --  One shared config applies to all seven Session Token I/MR chart pairs
+   --  One shared config applies to all eight Session Token I/MR chart pairs
    --  (fourteen I/MR charts total, including Thinking, Tool-Call, and
    --   Tool-Call-Result charts added alongside the original four pairs).
    I_Chart_Box_Cox   : Box_Cox_Config;
@@ -808,7 +845,7 @@ For the **Tool Call Token charts**, sessions where `N_Tool_Call_Turns_For_Chart 
 (no tool-call turns) are excluded from parameter estimation. The subgroup is
 `Per_Turn_Tool_Tokens`; subgroup size `n_i = N_Tool_Call_Turns_For_Chart`.
 
-For the **Session Token I/MR charts** (all seven I/MR chart pairs), the observation is the session-level scalar from `Session_Metrics_Record`: `Total_Input_Tokens`, `Total_Output_Tokens`, `Total_Cache_Read_Tokens`, `Total_Cache_Write_Tokens`, `Total_Thinking_Tokens`, `Total_Tool_Call_Input_Tokens`, or `Total_Tool_Call_Result_Tokens`, as appropriate for the chart kind. `Estimate_Parameters` computes:
+For the **Session Token I/MR charts** (all eight I/MR chart pairs), the observation is the session-level scalar from `Session_Metrics_Record`: `Total_Input_Tokens`, `Total_Output_Tokens`, `Total_Cache_Read_Tokens`, `Total_Cache_Write_Tokens`, `Total_Thinking_Tokens`, `Total_Tool_Call_Input_Tokens`, `Total_Uncached_Input_Tokens`, or `Total_Tool_Call_Result_Tokens`, as appropriate for the chart kind. `Estimate_Parameters` computes:
 - `Grand_Mean` : Long_Float -- mean of setup-interval session totals
 - `Mean_MR`    : Long_Float -- mean moving range between consecutive setup sessions
 
@@ -1014,7 +1051,7 @@ status-bar notice counts excluded turns.
 
 An Exponentially Weighted Moving Average (EWMA) chart provides a sensitive monitor
 for small, sustained shifts in a session-level total that a standard I chart would
-miss.  One EWMA chart is paired with each of the seven Session Token I charts and the Session Turn Count I chart:
+miss.  One EWMA chart is paired with each of the eight Session Token I charts and the Session Turn Count I chart:
 input tokens, output tokens, cache-read tokens, cache-write tokens,
 thinking tokens, tool-call input tokens, and tool-call result tokens.
 
@@ -1236,7 +1273,7 @@ end record;
 function Properties (Kind : Chart_Kind) return Chart_Properties;
 ```
 
-The thirty-three charts and their properties:
+The thirty-six charts and their properties:
 
 | `Chart_Kind` | Label | Group | Y-Axis Label |
 |---|---|---|---|
@@ -1273,6 +1310,9 @@ The thirty-three charts and their properties:
 | `Session_Turn_Count_I` | `Session Turn Count -- I` | `Session Totals` | `Turn count` |
 | `Session_Turn_Count_MR` | `Session Turn Count -- MR` | `Session Totals` | `Moving range (turn count)` |
 | `Session_Turn_Count_EWMA` | `Session Turn Count -- EWMA` | `Session Totals` | `EWMA (turn count)` |
+| `Session_Uncached_Input_Tokens_I` | `Session Uncached Input Tokens -- I` | `Session Totals` | `Total uncached input tokens` |
+| `Session_Uncached_Input_Tokens_MR` | `Session Uncached Input Tokens -- MR` | `Session Totals` | `Moving range (uncached input tokens)` |
+| `Session_Uncached_Input_Tokens_EWMA` | `Session Uncached Input Tokens -- EWMA` | `Session Totals` | `EWMA (uncached input tokens)` |
 
 The `Chart_Kind` iteration order matches the left-panel display order.
 
@@ -1335,7 +1375,7 @@ to `0.2` and `3.0` respectively.  Workspace files written by version ≤ 3 of
 defaults to `{"enabled": false, "lambdaSource": "auto", "fixedLambda": 0.0}`.
 The `lambdaSource` field is one of `"auto"`, `"robust_auto"`, or `"fixed"`.
 
-The `iChartBoxCox` field governs all seven Session Token I/MR chart pairs. Workspace files from before the three new chart pairs (Session Thinking Tokens, Session Tool-Call Tokens, Session Tool-Call Result Tokens) were added load without migration: the new charts simply reuse the existing field, and no version increment is required.
+The `iChartBoxCox` field governs all eight Session Token I/MR chart pairs. Workspace files from before the three new chart pairs (Session Thinking Tokens, Session Tool-Call Tokens, Session Tool-Call Result Tokens, Session Uncached Input Tokens) were added load without migration: the new charts simply reuse the existing field, and no version increment is required.
 The `turnCountBoxCox` field introduced in version 5 governs the Session Turn Count
 I/MR/EWMA charts (§7.12). When absent (workspace files at version ≤ 4), the default
 is `{"enabled": false, "lambdaSource": "auto", "fixedLambda": 0.0}`.
@@ -1751,7 +1791,7 @@ the following steps in order:
 #### Box-Cox transformation and the histogram
 
 When `Workspace.I_Chart_Box_Cox.Enabled` is `True` and the active chart is one
-of the seventeen I/MR charts (the seven Session Token I/MR pairs plus the Turn Count I/MR pair), `Refresh_Histogram_If_Multi` passes
+of the eighteen I/MR charts (the eight Session Token I/MR pairs plus the Turn Count I/MR pair), `Refresh_Histogram_If_Multi` passes
 **transformed** values to `Refresh`:
 
 - For I charts: pass `Box_Cox (X_i, Lambda)` for each selected session's total.

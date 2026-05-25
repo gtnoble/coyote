@@ -56,6 +56,7 @@ package Coyote_SQC.Data_Model is
       Total_Output_Tokens : Natural := 0;
       Total_Cache_Read_Tokens  : Natural := 0;
       Total_Cache_Write_Tokens : Natural := 0;
+      Total_Uncached_Input_Tokens : Natural := 0;
       Turns               : Turn_Vectors.Vector;
    end record;
 
@@ -90,6 +91,7 @@ package Coyote_SQC.Data_Model is
       Total_Thinking_Tokens         : Natural  := 0;
       Total_Tool_Call_Input_Tokens  : Natural  := 0;
       Total_Tool_Call_Result_Tokens : Natural  := 0;
+      Total_Uncached_Input_Tokens    : Natural  := 0;
    end record;
 
    package Metrics_Vectors is new Ada.Containers.Vectors

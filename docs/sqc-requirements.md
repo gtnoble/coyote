@@ -142,10 +142,11 @@ One record per Coyote session.
 | `Source_Directory` | String | Working directory when session was recorded |
 | `Model` | String | Model identifier used for the session |
 | `First_User_Message` | Unbounded_String | Full text of the first user message |
-| `Total_Input_Tokens` | Natural | Sum of input tokens across all turns |
+| `Total_Input_Tokens` | Natural | Total context window tokens for the session, normalized across providers (see §4.8) |
 | `Total_Output_Tokens` | Natural | Sum of output tokens across all turns |
 | `Total_Cache_Read_Tokens` | Natural | Sum of cache-read tokens across all turns |
 | `Total_Cache_Write_Tokens` | Natural | Sum of cache-write tokens across all turns |
+| `Total_Uncached_Input_Tokens` | Natural | Input tokens neither served from cache nor written to cache; equal to `Total_Input_Tokens − Total_Cache_Read_Tokens − Total_Cache_Write_Tokens` |
 | `Turns` | Vector of Turn_Record | Ordered sequence of turns in the session |
 
 ### 4.2 Turn Record
@@ -196,6 +197,7 @@ Derived from a Session_Record. Computed once at load time and cached.
 | `Total_Thinking_Tokens` | Natural | Sum of thinking tokens across all turns |
 | `Total_Tool_Call_Input_Tokens` | Natural | Sum of tool call input-token estimates across all tool calls in all turns |
 | `Total_Tool_Call_Result_Tokens` | Natural | Sum of tool call result-token estimates across all tool calls in all turns |
+| `Total_Uncached_Input_Tokens` | Natural | Uncached input tokens for the session (`Total_Input_Tokens − Total_Cache_Read_Tokens − Total_Cache_Write_Tokens`) |
 
 ### 4.5 Comment Record
 
@@ -222,12 +224,42 @@ Derived from a Session_Record. Computed once at load time and cached.
 
 | Field | Type | Description |
 |---|---|---|
-| `Chart_Type` | Chart_Type enum | Identifies which of the thirty-three charts this defines |
+| `Chart_Type` | Chart_Type enum | Identifies which of the thirty-six charts this defines |
 
 ---
 
-## 5. Statistical Methods
+### 4.8 Token Accounting Normalization
 
+Different LLM providers use incompatible conventions for the `input_tokens`
+field in their usage records:
+
+- **Anthropic:** `input_tokens` reports only the *non-cached* fraction of the
+  prompt. Cache-hit tokens (`cache_read_input_tokens`) and cache-fill tokens
+  (`cache_creation_input_tokens`) are reported separately and are **not** included
+  in `input_tokens`.
+- **OpenAI:** `prompt_tokens` reports the *total* prompt token count, which
+  **includes** any cached subset (`prompt_tokens_details.cached_tokens`).
+
+To make `Total_Input_Tokens` comparable across providers, the application
+normalises it to a common definition: **total tokens submitted to the model's
+context window**, regardless of whether they were served from cache.
+
+| Provider | Stored value of `Total_Input_Tokens` |
+|---|---|
+| Anthropic | `input_tokens + cache_read_input_tokens + cache_creation_input_tokens` |
+| OpenAI | `prompt_tokens` (already the total; no change needed) |
+
+`Total_Cache_Read_Tokens` and `Total_Cache_Write_Tokens` are stored with their
+original provider semantics and are **not** altered by this normalization.
+
+`Total_Uncached_Input_Tokens` is derived as
+`Total_Input_Tokens − Total_Cache_Read_Tokens − Total_Cache_Write_Tokens` and
+represents the tokens billed at full price (not served from, and not written
+to, the cache). For Anthropic this equals the raw `input_tokens`; for OpenAI
+this equals `prompt_tokens − cached_tokens`.
+
+
+## 5. Statistical Methods
 ### Box-Cox back‑transform safety
 
 Because the lambda search is restricted to [0.0, 30.0], the UCL
@@ -418,15 +450,16 @@ The Box-Cox family is parameterised by λ:
     y(x, λ) = (x^λ − 1) / λ   for λ ≠ 0
     y(x, 0) = ln(x)            for λ = 0
 
-The transformation applies to all seven Session Token I/MR chart pairs
+The transformation applies to all eight Session Token I/MR chart pairs
 (`Session_Input_Tokens_I`, `Session_Input_Tokens_MR`,
 `Session_Output_Tokens_I`, `Session_Output_Tokens_MR`,
 `Session_Cache_Read_Tokens_I`, `Session_Cache_Read_Tokens_MR`,
 `Session_Cache_Write_Tokens_I`, `Session_Cache_Write_Tokens_MR`,
 `Session_Thinking_Tokens_I`, `Session_Thinking_Tokens_MR`,
 `Session_Tool_Call_Tokens_I`, `Session_Tool_Call_Tokens_MR`,
-`Session_Tool_Call_Result_Tokens_I`, `Session_Tool_Call_Result_Tokens_MR`).
-A single λ is shared across all seven I/MR chart pairs; it is configured in
+`Session_Tool_Call_Result_Tokens_I`, `Session_Tool_Call_Result_Tokens_MR`,
+`Session_Uncached_Input_Tokens_I`, `Session_Uncached_Input_Tokens_MR`).
+A single λ is shared across all eight I/MR chart pairs; it is configured in
 Workspace Settings.
 
 **Lambda source:** λ may be estimated automatically from the setup-interval
@@ -739,7 +772,7 @@ version ≤ 5 that are missing this field shall be loaded with the default
 
 
 
-Thirty-three charts are available in every workspace. They are pre-instantiated; the user does
+Thirty-six charts are available in every workspace. They are pre-instantiated; the user does
 not create or delete charts. All charts share a single workspace-level setup interval
 (see Section 11).
 
@@ -995,6 +1028,33 @@ the EWMA and limits are computed in z-space and back-transformed (§5.9).
 **Statistic:** the EWMA value `Z_t = λ · x_t + (1−λ) · Z_{t−1}` (§5.9).
 **Limits:** time-varying UCL and LCL at step _t_ (§5.9). When Box-Cox is active (§5.10), the EWMA and limits are computed in z-space and back-transformed to original (turn count) units for display.
 **Paired with:** Session Turn Count — I chart (shares Grand_Mean and σ).
+### 6.34 Session Uncached Input Tokens — I Chart
+
+**Measured quantity:** total uncached input tokens for the session
+(`Total_Uncached_Input_Tokens = Total_Input_Tokens − Total_Cache_Read_Tokens − Total_Cache_Write_Tokens`).
+This represents tokens submitted to the model at full price, serving as a direct
+proxy for prompt-cache effectiveness across sessions.
+**Observation:** one scalar value per session; no within-session subgroup.
+**Statistic:** the session total (x).
+**Limits:** derived from the mean moving range of the setup interval (§5.6). When Box-Cox transformation is enabled (§5.7), limits are computed in the transformed space and back-transformed to original (token) units for display.
+
+### 6.35 Session Uncached Input Tokens — MR Chart
+
+**Measured quantity:** absolute difference in total uncached input tokens between
+consecutive sessions in chronological order.
+**Statistic:** `MR_i = |Total_Uncached_Input_Tokens_i − Total_Uncached_Input_Tokens_{i-1}|`.
+**First session:** no marker is plotted; a gap is left in the connecting line.
+**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6). When Box-Cox transformation is enabled (§5.7), the MR chart uses its own independent Box-Cox transformation (λ_MR estimated from the setup-interval MR series); points are original-space absolute differences and limits are back-transformed to original (token) units.
+
+### 6.36 Session Uncached Input Tokens — EWMA Chart
+
+**Measured quantity:** total uncached input tokens for the session
+(`Total_Uncached_Input_Tokens`).
+**Statistic:** the EWMA value `Z_t = λ · x_t + (1−λ) · Z_{t−1}` (§5.9).
+**Limits:** time-varying UCL and LCL at step _t_ (§5.9). When Box-Cox is active,
+the EWMA and limits are computed in z-space and back-transformed (§5.9).
+**Paired with:** Session Uncached Input Tokens — I chart (shares Grand_Mean and σ).
+
 
 
 
@@ -1014,7 +1074,7 @@ The main window contains, from top to bottom:
 
 ### 7.2 Left Panel
 
-A GtkListBox (~180px default width, user-resizable) listing the thirty-three charts in three
+A GtkListBox (~180px default width, user-resizable) listing the thirty-six charts in three
 visually separated groups:
 
 ```
@@ -1059,6 +1119,9 @@ Session Tool-Call Result Tokens — EWMA
 Session Turn Count — I
 Session Turn Count — MR
 Session Turn Count — EWMA
+Session Uncached Input Tokens — I
+Session Uncached Input Tokens — MR
+Session Uncached Input Tokens — EWMA
 ```
 
 Clicking a row switches the chart displayed in the chart area. The active chart is
@@ -1357,7 +1420,7 @@ Displayed when two or more points are selected.
 
 **Set as Setup Interval button:**
 - Clicking this button sets the workspace setup interval to exactly the selected
-  sessions, applying to all thirty-three charts simultaneously.
+  sessions, applying to all thirty-six charts simultaneously.
 - If a setup interval is already established, a confirmation dialog is shown:
   "Replace existing setup interval for this workspace?"
 - On confirmation, all charts recompute their limits and recolor the setup interval
@@ -1383,7 +1446,7 @@ Displayed when two or more points are selected.
 ### 11.1 Establishing a Setup Interval
 
 A setup interval is a single workspace-level set of sessions used to estimate the
-center line and control limits for all thirty-three charts simultaneously. It is established
+center line and control limits for all thirty-six charts simultaneously. It is established
 by selecting one or more sessions (Section 9) and clicking "Set as Setup Interval"
 in the multi-select detail panel (Section 10.2). There is no requirement for the
 setup sessions to be contiguous in time.
@@ -1392,11 +1455,11 @@ setup sessions to be contiguous in time.
 
 The setup interval is stored as a set of session UUIDs in the `Setup_Session_Ids`
 field of the `Workspace_Record`. It is workspace-level: a single setup interval
-applies to all thirty-three charts. The set is stored within the workspace file.
+applies to all thirty-six charts. The set is stored within the workspace file.
 
 ### 11.3 Visual Representation
 
-Setup interval sessions are rendered with filled yellow markers on all thirty-three charts.
+Setup interval sessions are rendered with filled yellow markers on all thirty-six charts.
 A faint yellow vertical band spans the x-extent of the setup interval sessions on
 every chart.
 
@@ -1476,7 +1539,7 @@ Workspace files with `"version" < 4` that are missing the `ewmaWeight` and
 `ewmaL` fields shall be loaded with the defaults (`ewmaWeight = 0.2`,
 `ewmaL = 3.0`).
 
-The `iChartBoxCox` configuration field introduced in version 3 governs all seven Session Token I/MR chart pairs, including the three new pairs added in this revision (Session Thinking Tokens, Session Tool-Call Tokens, Session Tool-Call Result Tokens). No workspace version increment is required for this addition; existing version-4 workspace files load without migration.
+The `iChartBoxCox` configuration field introduced in version 3 governs all eight Session Token I/MR chart pairs, including the three new pairs added in this revision (Session Thinking Tokens, Session Tool-Call Tokens, Session Tool-Call Result Tokens). No workspace version increment is required for this addition; existing version-4 workspace files load without migration.
 
 The `turnCountBoxCox` configuration field introduced in version 5 governs the
 Session Turn Count I/MR/EWMA charts (§5.10, §6.31–6.33). Workspace files at
@@ -1759,6 +1822,10 @@ All statistical formula implementations shall have AUnit unit tests covering:
   that are missing `estimationMethod` load with the default `"classical"`.
 - Session Turn Count Box-Cox: sessions with N_Turns = 1 are not excluded from I/MR/EWMA charts when Box-Cox is active (since ln(1) = 0 is valid); verify no exclusion occurs and no status-bar notice is posted for such sessions.
 - Session Turn Count Box-Cox: MR̄ = 0 when all setup-interval sessions have N_Turns = 1 after transformation (y = 0 for all); verify no limits are drawn and no exception is raised.
+- Token normalization: for an Anthropic session with `input_tokens=100`, `cache_read_input_tokens=200`, `cache_creation_input_tokens=50`, verify `Total_Input_Tokens=350`, `Total_Cache_Read_Tokens=200`, `Total_Cache_Write_Tokens=50`, and `Total_Uncached_Input_Tokens=100`. For an OpenAI session with `prompt_tokens=350`, `cached_tokens=250`, verify `Total_Input_Tokens=350`, `Total_Cache_Read_Tokens=250`, `Total_Cache_Write_Tokens=0`, and `Total_Uncached_Input_Tokens=100`.
+- Uncached input token I/MR limit computation: for a known five-session dataset, verify UCL, CL, and LCL match hand-computed §5.6 formula values to 4 decimal places.
+- Uncached input token EWMA computation: verify `Z_t` and time-varying limits use the Grand_Mean and σ from the paired I chart.
+- Uncached input token zero-value exclusion: sessions where `Total_Uncached_Input_Tokens = 0` are excluded from the I/MR chart when Box-Cox is enabled, and a status-bar notice is posted.
 
 ---
 
