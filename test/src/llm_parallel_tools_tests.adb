@@ -587,8 +587,8 @@ package body LLM_Parallel_Tools_Tests is
         (State.Saw_Aborted_End,
          "Agent_End_Event should report Was_Aborted=True");
       Assert
-        (Messages.Length = 1,
-         "Abort should preserve only the user prompt");
+        (Messages.Length = 0,
+         "Abort should not persist any messages");
 
       Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
       Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);

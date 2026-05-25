@@ -1444,8 +1444,7 @@ package body LLM.Agent is
       S.Abort_State.Clear;
       S.History.Append (Prompt_Msg);
       S.Has_Submitted_Prompts := True;
-      LLM.Session_Store.Append_Message
-        (To_String (S.Session_UUID), Prompt_Msg);
+      Messages_To_Persist.Append (Prompt_Msg);
       LLM.Session_Store.Append_Model_Change
         (Session_Id => To_String (S.Session_UUID),
          Provider   => To_String (S.Model_Info.Provider),
