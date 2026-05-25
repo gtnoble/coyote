@@ -215,7 +215,7 @@ package body Coyote_SQC.Statistics.I_Chart is
    --  ── Lambda estimation ─────────────────────────────────────────────────
    --  Evaluate the Box-Cox MLE profile log-likelihood for a given lambda.
    --  L(lambda) = -(n/2) * ln(var_z) + (lambda-1) * sum ln(x_i)
-   --  Returns Long_Float'First when the variance is zero (degenerate).
+   --  Returns Long_Float'First when variance is zero or computation overflows.
    function Log_Likelihood
      (Values      : Long_Float_Array;
       Lambda      : Long_Float;
@@ -241,12 +241,15 @@ package body Coyote_SQC.Statistics.I_Chart is
          return Long_Float'First;
       end if;
       return -(N / 2.0) * Log (Var_Z) + (Lambda - 1.0) * Sum_Log_X;
+   exception
+      when Constraint_Error | Program_Error =>
+         return Long_Float'First;
    end Log_Likelihood;
 
    --  Evaluate the robust profile log-likelihood for a given lambda.
    --  Substitutes the Qn scale estimator for the sample standard deviation.
    --  L_robust(lambda) = -N * ln(Qn(z)) + (lambda-1) * sum ln(x_i)
-   --  Returns Long_Float'First when Qn_Scale returns zero (degenerate).
+   --  Returns Long_Float'First when Qn_Scale is zero or overflows.
    function Robust_Log_Likelihood
      (Values      : Long_Float_Array;
       Lambda      : Long_Float;
@@ -264,6 +267,9 @@ package body Coyote_SQC.Statistics.I_Chart is
          return Long_Float'First;
       end if;
       return -N * Log (S) + (Lambda - 1.0) * Sum_Log_X;
+   exception
+      when Constraint_Error | Program_Error =>
+         return Long_Float'First;
    end Robust_Log_Likelihood;
 
    function Estimate_Lambda
