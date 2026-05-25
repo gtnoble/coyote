@@ -52,7 +52,15 @@ package Coyote_SQC.Charts is
       --  Uncached session input token I/MR/EWMA charts:
       Session_Uncached_Input_Tokens_I,
       Session_Uncached_Input_Tokens_MR,
-      Session_Uncached_Input_Tokens_EWMA);
+      Session_Uncached_Input_Tokens_EWMA,
+      --  Thinking tokens per tool-call token I/MR/EWMA rate charts:
+      Fraction_Thinking_Per_Tool_Call_I,
+      Fraction_Thinking_Per_Tool_Call_MR,
+      Fraction_Thinking_Per_Tool_Call_EWMA,
+      --  Uncached input tokens per total input token I/MR/EWMA rate charts:
+      Fraction_Uncached_Input_I,
+      Fraction_Uncached_Input_MR,
+      Fraction_Uncached_Input_EWMA);
 
    --  Display metadata for one chart.
    type Chart_Properties is record

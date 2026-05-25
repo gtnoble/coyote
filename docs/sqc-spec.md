@@ -640,7 +640,15 @@ type Chart_Kind is
    --  Uncached Session Input Token I/MR/EWMA charts:
    Session_Uncached_Input_Tokens_I,
    Session_Uncached_Input_Tokens_MR,
-   Session_Uncached_Input_Tokens_EWMA);
+   Session_Uncached_Input_Tokens_EWMA,
+   --  Thinking tokens per tool-call token I/MR/EWMA rate charts:
+   Fraction_Thinking_Per_Tool_Call_I,
+   Fraction_Thinking_Per_Tool_Call_MR,
+   Fraction_Thinking_Per_Tool_Call_EWMA,
+   --  Uncached input tokens per total input token I/MR/EWMA rate charts:
+   Fraction_Uncached_Input_I,
+   Fraction_Uncached_Input_MR,
+   Fraction_Uncached_Input_EWMA);
 
 type Chart_Definition_Record is record
    Chart  : Chart_Kind;
@@ -1279,7 +1287,7 @@ end record;
 function Properties (Kind : Chart_Kind) return Chart_Properties;
 ```
 
-The forty-two charts and their properties:
+The forty-eight charts and their properties:
 
 | `Chart_Kind` | Label | Group | Y-Axis Label |
 |---|---|---|---|
@@ -1325,6 +1333,12 @@ The forty-two charts and their properties:
 | `Session_Uncached_Input_Tokens_I` | `Session Uncached Input Tokens -- I` | `Session Totals` | `Total uncached input tokens` |
 | `Session_Uncached_Input_Tokens_MR` | `Session Uncached Input Tokens -- MR` | `Session Totals` | `Moving range (uncached input tokens)` |
 | `Session_Uncached_Input_Tokens_EWMA` | `Session Uncached Input Tokens -- EWMA` | `Session Totals` | `EWMA (uncached input tokens)` |
+| `Fraction_Thinking_Per_Tool_Call_I` | `Fraction: Thinking/Tool-Call Tokens -- I` | `Rates` | `Thinking tokens / tool-call tokens` |
+| `Fraction_Thinking_Per_Tool_Call_MR` | `Fraction: Thinking/Tool-Call Tokens -- MR` | `Rates` | `MR (thinking / tool-call tokens)` |
+| `Fraction_Thinking_Per_Tool_Call_EWMA` | `Fraction: Thinking/Tool-Call Tokens -- EWMA` | `Rates` | `EWMA (thinking / tool-call tokens)` |
+| `Fraction_Uncached_Input_I` | `Fraction: Uncached/Total Input -- I` | `Rates` | `Uncached input tokens / input tokens` |
+| `Fraction_Uncached_Input_MR` | `Fraction: Uncached/Total Input -- MR` | `Rates` | `MR (uncached / input tokens)` |
+| `Fraction_Uncached_Input_EWMA` | `Fraction: Uncached/Total Input -- EWMA` | `Rates` | `EWMA (uncached / input tokens)` |
 
 The `Chart_Kind` iteration order matches the left-panel display order.
 

@@ -224,7 +224,7 @@ Derived from a Session_Record. Computed once at load time and cached.
 
 | Field | Type | Description |
 |---|---|---|
-| `Chart_Type` | Chart_Type enum | Identifies which of the forty-two charts this defines |
+| `Chart_Type` | Chart_Type enum | Identifies which of the forty-eight charts this defines |
 
 ---
 
@@ -772,7 +772,7 @@ version ≤ 5 that are missing this field shall be loaded with the default
 
 
 
-Thirty-eight charts are available in every workspace. They are pre-instantiated; the user does
+Forty-eight charts are available in every workspace. They are pre-instantiated; the user does
 not create or delete charts. All charts share a single workspace-level setup interval
 (see Section 11).
 
@@ -867,6 +867,28 @@ not create or delete charts. All charts share a single workspace-level setup int
 **Rationale:** tool-call tokens are generated in discrete, correlated invocations; the binomial model does not apply. An I chart is appropriate.
 **Limits (I chart):** derived from the mean moving range of the setup interval (§5.6). Box-Cox transformation is not applied.
 **MR chart:** `MR_i = |ratio_i − ratio_{i-1}|`; sessions with zero output tokens are skipped.
+**EWMA chart:** paired with the I chart; uses the same Grand_Mean and σ.
+
+### 6.10c Fraction: Thinking/Tool-Call Tokens — I/MR/EWMA Charts
+
+**Measured quantity:** ratio of thinking tokens to tool-call input tokens per session (`Total_Thinking_Tokens / Total_Tool_Call_Input_Tokens`).
+**Observation:** one scalar value per session; no within-session subgroup.
+**Statistic (I chart):** the per-session ratio.
+**Sessions with `Total_Tool_Call_Input_Tokens = 0`:** excluded (ratio undefined; no marker plotted).
+**Rationale:** thinking tokens and tool-call tokens are both session-level scalars; their ratio is a continuous positive-valued quantity unsuitable for the binomial model. An I chart is appropriate.
+**Limits (I chart):** derived from the mean moving range of the setup interval (§5.6). Box-Cox transformation is not applied (ratio data).
+**MR chart:** `MR_i = |ratio_i − ratio_{i-1}|`; sessions with zero tool-call input tokens are skipped and do not advance the MR sequence.
+**EWMA chart:** paired with the I chart; uses the same Grand_Mean and σ.
+
+### 6.10d Fraction: Uncached/Total Input Tokens — I/MR/EWMA Charts
+
+**Measured quantity:** ratio of uncached input tokens to total input tokens per session (`Total_Uncached_Input_Tokens / Total_Input_Tokens`).
+**Observation:** one scalar value per session; no within-session subgroup.
+**Statistic (I chart):** the per-session ratio (a value in [0, 1] representing the fraction of context tokens billed at full price).
+**Sessions with `Total_Input_Tokens = 0`:** excluded (ratio undefined; no marker plotted). In practice this only occurs for pathological sessions with no turns.
+**Rationale:** the uncached fraction is a continuous rate that summarises prompt-cache effectiveness across sessions. An I chart detects sustained shifts in caching efficiency. Box-Cox transformation is not applied.
+**Limits (I chart):** derived from the mean moving range of the setup interval (§5.6).
+**MR chart:** `MR_i = |ratio_i − ratio_{i-1}|`; sessions with zero total input tokens are skipped.
 **EWMA chart:** paired with the I chart; uses the same Grand_Mean and σ.
 
 ### 6.10 Session Input Tokens — I Chart
@@ -1096,7 +1118,7 @@ The main window contains, from top to bottom:
 
 ### 7.2 Left Panel
 
-A GtkListBox (~180px default width, user-resizable) listing the forty-two charts in three
+A GtkListBox (~180px default width, user-resizable) listing the forty-eight charts in three
 visually separated groups:
 
 ```
@@ -1120,6 +1142,12 @@ Fraction: Thinking Tokens -- EWMA
 Fraction: Tool-Call Tokens -- I
 Fraction: Tool-Call Tokens -- MR
 Fraction: Tool-Call Tokens -- EWMA
+Fraction: Thinking/Tool-Call Tokens -- I
+Fraction: Thinking/Tool-Call Tokens -- MR
+Fraction: Thinking/Tool-Call Tokens -- EWMA
+Fraction: Uncached/Total Input -- I
+Fraction: Uncached/Total Input -- MR
+Fraction: Uncached/Total Input -- EWMA
 
 Session Totals
 ─────────────────
@@ -1450,7 +1478,7 @@ Displayed when two or more points are selected.
 
 **Set as Setup Interval button:**
 - Clicking this button sets the workspace setup interval to exactly the selected
-  sessions, applying to all forty-two charts simultaneously.
+  sessions, applying to all forty-eight charts simultaneously.
 - If a setup interval is already established, a confirmation dialog is shown:
   "Replace existing setup interval for this workspace?"
 - On confirmation, all charts recompute their limits and recolor the setup interval
@@ -1476,7 +1504,7 @@ Displayed when two or more points are selected.
 ### 11.1 Establishing a Setup Interval
 
 A setup interval is a single workspace-level set of sessions used to estimate the
-center line and control limits for all forty-two charts simultaneously. It is established
+center line and control limits for all forty-eight charts simultaneously. It is established
 by selecting one or more sessions (Section 9) and either clicking "Set as Setup Interval"
 in the multi-select detail panel (Section 10.2) or choosing **View → Set Selection as
 Setup Interval** from the menu bar. There is no requirement for the
@@ -1860,6 +1888,9 @@ All statistical formula implementations shall have AUnit unit tests covering:
 - `Fraction_Thinking_Tokens_I` I chart `Estimate_Parameters`: for two sessions with known `Total_Thinking_Tokens` and `Total_Output_Tokens`, verify `Grand_Mean = mean(thinking_i / output_i)` to 1×10⁻⁹.
 - `Fraction_Tool_Call_Tokens_I` I chart `Estimate_Parameters`: for two sessions with known `Total_Tool_Call_Input_Tokens` and `Total_Output_Tokens`, verify `Grand_Mean = mean(tool_call_i / output_i)` to 1×10⁻⁹.
 - Token fraction chart zero-output exclusion: sessions with `Total_Output_Tokens = 0` are excluded from both `Fraction_Thinking_Tokens_I` and `Fraction_Tool_Call_Tokens_I` charts; `Grand_Mean` is computed from eligible sessions only.
+- `Fraction_Thinking_Per_Tool_Call_I` I chart `Estimate_Parameters`: for two sessions with known `Total_Thinking_Tokens` and `Total_Tool_Call_Input_Tokens`, verify `Grand_Mean = mean(thinking_i / tool_call_i)` to 1×10⁻⁹.
+- `Fraction_Uncached_Input_I` I chart `Estimate_Parameters`: for two sessions with known `Total_Uncached_Input_Tokens` and `Total_Input_Tokens`, verify `Grand_Mean = mean(uncached_i / input_i)` to 1×10⁻⁹.
+- New rate chart zero-denominator exclusion: sessions with `Total_Tool_Call_Input_Tokens = 0` are excluded from `Fraction_Thinking_Per_Tool_Call_I`; sessions with `Total_Input_Tokens = 0` are excluded from `Fraction_Uncached_Input_I`; `Grand_Mean` is computed from eligible sessions only.
 
 ---
 

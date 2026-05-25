@@ -1917,4 +1917,148 @@ package body Coyote_SQC_Statistics_Tests is
               & Long_Float'Image (Params_TC.Grand_Mean));
    end Test_Fraction_Token_Charts_Zero_Output;
 
+   --  Two sessions with known thinking and tool-call-input token totals;
+   --  Grand_Mean should be the mean of (thinking / tool_call_input) ratios.
+   procedure Test_Fraction_Thinking_Per_Tool_Call_Grand_Mean
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+      use AUnit.Assertions;
+      use Coyote_SQC.Data_Model;
+      use Coyote_SQC.Charts;
+      use Coyote_SQC.Statistics;
+      --  Session 1: 300 thinking tokens, 1500 tool-call tokens → ratio = 0.2
+      --  Session 2: 100 thinking tokens,  500 tool-call tokens → ratio = 0.2
+      --  Grand_Mean = mean(0.2, 0.2) = 0.2
+      Metrics : Metrics_Vectors.Vector;
+      Setup   : UUID_Set;
+      Params  : Setup_Parameters;
+
+      function MK (Id : String; Think, TC_Input : Natural)
+                   return Session_Metrics_Record is
+         M : Session_Metrics_Record;
+      begin
+         M.Session_Id                  := To_Unbounded_String (Id);
+         M.N_Turns                     := 1;
+         M.Total_Thinking_Tokens       := Think;
+         M.Total_Tool_Call_Input_Tokens := TC_Input;
+         return M;
+      end MK;
+   begin
+      Metrics.Append (MK ("pt1", 300, 1500));
+      Metrics.Append (MK ("pt2", 100,  500));
+
+      Estimate_Parameters
+        (Metrics, Setup, Fraction_Thinking_Per_Tool_Call_I,
+         Parameters => Params);
+
+      Assert (abs (Params.Grand_Mean - 0.2) < 1.0e-9,
+              "Grand_Mean should be 0.2; got "
+              & Long_Float'Image (Params.Grand_Mean));
+   end Test_Fraction_Thinking_Per_Tool_Call_Grand_Mean;
+
+   --  Two sessions with known uncached and total input token totals;
+   --  Grand_Mean should be the mean of (uncached / total_input) ratios.
+   procedure Test_Fraction_Uncached_Input_Grand_Mean (T : in out Test) is
+      pragma Unreferenced (T);
+      use AUnit.Assertions;
+      use Coyote_SQC.Data_Model;
+      use Coyote_SQC.Charts;
+      use Coyote_SQC.Statistics;
+      --  Session 1: 300 uncached / 1000 total → ratio = 0.3
+      --  Session 2: 200 uncached /  500 total → ratio = 0.4
+      --  Grand_Mean = mean(0.3, 0.4) = 0.35
+      Metrics : Metrics_Vectors.Vector;
+      Setup   : UUID_Set;
+      Params  : Setup_Parameters;
+
+      function MK (Id : String; Uncached, Total_In : Natural)
+                   return Session_Metrics_Record is
+         M : Session_Metrics_Record;
+      begin
+         M.Session_Id                    := To_Unbounded_String (Id);
+         M.N_Turns                       := 1;
+         M.Total_Uncached_Input_Tokens   := Uncached;
+         M.Total_Input_Tokens            := Total_In;
+         return M;
+      end MK;
+   begin
+      Metrics.Append (MK ("ui1", 300, 1000));
+      Metrics.Append (MK ("ui2", 200,  500));
+
+      Estimate_Parameters
+        (Metrics, Setup, Fraction_Uncached_Input_I, Parameters => Params);
+
+      Assert (abs (Params.Grand_Mean - 0.35) < 1.0e-9,
+              "Grand_Mean should be 0.35; got "
+              & Long_Float'Image (Params.Grand_Mean));
+   end Test_Fraction_Uncached_Input_Grand_Mean;
+
+   --  Sessions with zero denominators are excluded from the new charts.
+   --  Sessions with zero denominators are excluded from the new rate charts.
+   --  Tests PTTC (zero tool-call tokens excluded) and UI (zero total-input excluded).
+   procedure Test_Fraction_New_Charts_Zero_Denominator (T : in out Test) is
+      pragma Unreferenced (T);
+      use AUnit.Assertions;
+      use Coyote_SQC.Data_Model;
+      use Coyote_SQC.Charts;
+      use Coyote_SQC.Statistics;
+      Metrics     : Metrics_Vectors.Vector;
+      Setup       : UUID_Set;
+      Params_PTTC : Setup_Parameters;  --  Fraction_Thinking_Per_Tool_Call_I
+      Params_UI   : Setup_Parameters;  --  Fraction_Uncached_Input_I
+
+      function MK
+        (Id        : String;
+         Think     : Natural;
+         TC_Input  : Natural;
+         Uncached  : Natural;
+         Total_In  : Natural) return Session_Metrics_Record
+      is
+         M : Session_Metrics_Record;
+      begin
+         M.Session_Id                   := To_Unbounded_String (Id);
+         M.N_Turns                      := 1;
+         M.Total_Thinking_Tokens        := Think;
+         M.Total_Tool_Call_Input_Tokens := TC_Input;
+         M.Total_Uncached_Input_Tokens  := Uncached;
+         M.Total_Input_Tokens           := Total_In;
+         return M;
+      end MK;
+   begin
+      --  PTTC chart sessions (Total_In=0 → also excluded from UI):
+      --    pttc_zero: TC=0 → excluded from PTTC
+      --    pttc_a:    Think=100, TC=200 → ratio 0.5
+      --    pttc_b:    Think=20,  TC=100 → ratio 0.2
+      --    Expected PTTC Grand_Mean = (0.5 + 0.2) / 2 = 0.35
+      Metrics.Append (MK ("pttc_zero",  50,   0,   0,   0));
+      Metrics.Append (MK ("pttc_a",    100, 200,   0,   0));
+      Metrics.Append (MK ("pttc_b",     20, 100,   0,   0));
+
+      --  UI chart sessions (TC_Input=0 → also excluded from PTTC):
+      --    ui_zero: Total=0 → excluded from UI
+      --    ui_a:    Uncached=300, Total=1000 → ratio 0.3
+      --    ui_b:    Uncached=100, Total=500  → ratio 0.2
+      --    Expected UI Grand_Mean = (0.3 + 0.2) / 2 = 0.25
+      Metrics.Append (MK ("ui_zero",    0,   0,   0,   0));
+      Metrics.Append (MK ("ui_a",       0,   0, 300, 1000));
+      Metrics.Append (MK ("ui_b",       0,   0, 100,  500));
+
+      Estimate_Parameters
+        (Metrics, Setup, Fraction_Thinking_Per_Tool_Call_I,
+         Parameters => Params_PTTC);
+      Estimate_Parameters
+        (Metrics, Setup, Fraction_Uncached_Input_I,
+         Parameters => Params_UI);
+
+      Assert (abs (Params_PTTC.Grand_Mean - 0.35) < 1.0e-9,
+              "PTTC Grand_Mean should be 0.35 (zero-TC session excluded); got "
+              & Long_Float'Image (Params_PTTC.Grand_Mean));
+
+      Assert (abs (Params_UI.Grand_Mean - 0.25) < 1.0e-9,
+              "UI Grand_Mean should be 0.25 (zero-total session excluded); got "
+              & Long_Float'Image (Params_UI.Grand_Mean));
+   end Test_Fraction_New_Charts_Zero_Denominator;
+
+
 end Coyote_SQC_Statistics_Tests;

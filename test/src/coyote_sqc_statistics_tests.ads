@@ -109,5 +109,8 @@ package Coyote_SQC_Statistics_Tests is
    procedure Test_Fraction_Thinking_Tokens_Grand_Mean  (T : in out Test);
    procedure Test_Fraction_Tool_Call_Tokens_Grand_Mean (T : in out Test);
    procedure Test_Fraction_Token_Charts_Zero_Output  (T : in out Test);
+   procedure Test_Fraction_Thinking_Per_Tool_Call_Grand_Mean (T : in out Test);
+   procedure Test_Fraction_Uncached_Input_Grand_Mean          (T : in out Test);
+   procedure Test_Fraction_New_Charts_Zero_Denominator        (T : in out Test);
 
 end Coyote_SQC_Statistics_Tests;

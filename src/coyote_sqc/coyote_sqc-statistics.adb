@@ -285,6 +285,25 @@ package body Coyote_SQC.Statistics is
                      / Long_Float (M.Total_Output_Tokens));
                end if;
 
+            when Fraction_Thinking_Per_Tool_Call_I
+               | Fraction_Thinking_Per_Tool_Call_MR
+               | Fraction_Thinking_Per_Tool_Call_EWMA =>
+               if M.Total_Tool_Call_Input_Tokens > 0 then
+                  Accumulate_I
+                    (Long_Float (M.Total_Thinking_Tokens)
+                     / Long_Float (M.Total_Tool_Call_Input_Tokens));
+               end if;
+
+            when Fraction_Uncached_Input_I
+               | Fraction_Uncached_Input_MR
+               | Fraction_Uncached_Input_EWMA =>
+               if M.Total_Input_Tokens > 0 then
+                  Accumulate_I
+                    (Long_Float (M.Total_Uncached_Input_Tokens)
+                     / Long_Float (M.Total_Input_Tokens));
+               end if;
+
+
             when Session_Input_Tokens_I | Session_Input_Tokens_MR
                | Session_Input_Tokens_EWMA =>
                Accumulate_I (Long_Float (M.Total_Input_Tokens));
@@ -436,7 +455,11 @@ package body Coyote_SQC.Statistics is
             | Fraction_Thinking_Tokens_I  | Fraction_Thinking_Tokens_MR
             | Fraction_Thinking_Tokens_EWMA
             | Fraction_Tool_Call_Tokens_I | Fraction_Tool_Call_Tokens_MR
-            | Fraction_Tool_Call_Tokens_EWMA =>
+            | Fraction_Tool_Call_Tokens_EWMA
+            | Fraction_Thinking_Per_Tool_Call_I  | Fraction_Thinking_Per_Tool_Call_MR
+            | Fraction_Thinking_Per_Tool_Call_EWMA
+            | Fraction_Uncached_Input_I | Fraction_Uncached_Input_MR
+            | Fraction_Uncached_Input_EWMA =>
 
             if Method = Robust_Median then
                --  Grand_Mean: median of all setup-interval observations.

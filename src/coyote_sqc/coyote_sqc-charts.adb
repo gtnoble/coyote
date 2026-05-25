@@ -162,6 +162,66 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_EWMA_Chart   => True);
+         when Fraction_Thinking_Per_Tool_Call_I =>
+            return
+              (Label           => U ("Fraction: Thinking/Tool-Call Tokens -- I"),
+               Group           => U ("Rates"),
+               Y_Axis_Label    => U ("Thinking tokens / tool-call tokens"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => True,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => False,
+               Is_EWMA_Chart   => False);
+         when Fraction_Thinking_Per_Tool_Call_MR =>
+            return
+              (Label           => U ("Fraction: Thinking/Tool-Call Tokens -- MR"),
+               Group           => U ("Rates"),
+               Y_Axis_Label    => U ("MR (thinking / tool-call tokens)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => True,
+               Is_Xbar_S_Chart => False,
+               Is_EWMA_Chart   => False);
+         when Fraction_Thinking_Per_Tool_Call_EWMA =>
+            return
+              (Label           => U ("Fraction: Thinking/Tool-Call Tokens -- EWMA"),
+               Group           => U ("Rates"),
+               Y_Axis_Label    => U ("EWMA (thinking / tool-call tokens)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => False,
+               Is_EWMA_Chart   => True);
+         when Fraction_Uncached_Input_I =>
+            return
+              (Label           => U ("Fraction: Uncached/Total Input -- I"),
+               Group           => U ("Rates"),
+               Y_Axis_Label    => U ("Uncached input tokens / input tokens"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => True,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => False,
+               Is_EWMA_Chart   => False);
+         when Fraction_Uncached_Input_MR =>
+            return
+              (Label           => U ("Fraction: Uncached/Total Input -- MR"),
+               Group           => U ("Rates"),
+               Y_Axis_Label    => U ("MR (uncached / input tokens)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => True,
+               Is_Xbar_S_Chart => False,
+               Is_EWMA_Chart   => False);
+         when Fraction_Uncached_Input_EWMA =>
+            return
+              (Label           => U ("Fraction: Uncached/Total Input -- EWMA"),
+               Group           => U ("Rates"),
+               Y_Axis_Label    => U ("EWMA (uncached / input tokens)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => False,
+               Is_EWMA_Chart   => True);
          when Session_Input_Tokens_I =>
             return
               (Label           => U ("Session Input Tokens -- I"),
