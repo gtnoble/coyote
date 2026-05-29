@@ -301,6 +301,13 @@ All packages under `Coyote_Renderer.*` reside in `src/coyote_renderer/`.
 - **`Coyote_SQC.UI.*`** packages may depend on `Coyote_SQC.Data_Model`,
   `Coyote_SQC.Charts`, and `Coyote_SQC.Workspace`, but not on
   `Coyote_SQC.Session_Parser` directly.
+- **Self-contained chart computation:** `Recompute_Chart (Kind)` looks up a
+  `Chart_Descriptor` (§6.7a) and extracts all required setup-interval
+  observations using the chart's `Get_Observation` or `Get_Subgroup` accessor,
+  then estimates parameters and computes limits without reading cached state
+  from any other chart's `Chart_Data` slot.  I, MR, and EWMA charts for the
+  same session metric each independently extract the same observation series
+  and arrive at identical parameter values through deterministic computation.
 
 ---
 
@@ -625,7 +632,7 @@ type Chart_Kind is
    Session_Tool_Call_Tokens_MR,
    Session_Tool_Call_Result_Tokens_I,
    Session_Tool_Call_Result_Tokens_MR,
-   --  EWMA charts for session totals (one paired with each I chart):
+   --  EWMA charts for session totals:
    Session_Input_Tokens_EWMA,
    Session_Output_Tokens_EWMA,
    Session_Cache_Read_Tokens_EWMA,
@@ -658,6 +665,64 @@ end record;
 `Chart_Definition_Record` is minimal by design: chart-level state that changes at
 runtime (computed limits, filtered point sets) is held in `Coyote_SQC.Charts.Chart_State`,
 not in the persistent workspace record.
+
+### 6.7a Chart_Descriptor
+
+A `Chart_Descriptor` fully specifies how to compute one chart kind at runtime.
+It is a compile-time constant indexed by `Chart_Kind` that drives
+`Recompute_Chart` without any chart-kind case dispatch beyond the initial
+`Descriptor (Kind)` lookup.  Adding a new chart kind requires only:
+(1) adding an enum value to `Chart_Kind`,
+(2) registering a new `Chart_Descriptor` in the `Descriptor` function, and
+optionally (3) adding a field to `Session_Metrics_Record` and updating
+`Coyote_SQC.Metrics.Compute`.  No other package needs to change.
+
+```ada
+--  Identifies which workspace Box-Cox configuration governs a chart.
+type Box_Cox_Config_Kind is
+  (I_Chart_Box_Cox,      --  Session Token I/MR/EWMA charts
+   Xbar_S_Box_Cox,       --  Per-turn Xbar/S charts
+   Turn_Count_Box_Cox,   --  Session Turn Count I/MR/EWMA charts
+   No_Box_Cox);          --  Ratio charts, p-charts (no transformation)
+
+--  Per-session exclusion rules for parameter estimation and chart display.
+type Exclusion_Kind is
+  (No_Exclusion,            --  All sessions contribute
+   Zero_Observation,        --  Exclude when the scalar observation = 0.0
+   Zero_Output_Tokens,      --  Exclude when Total_Output_Tokens = 0
+   Zero_Tool_Call_Tokens,   --  Exclude when Total_Tool_Call_Input_Tokens = 0
+   Zero_Input_Tokens,       --  Exclude when Total_Input_Tokens = 0
+   Zero_Thinking,           --  Exclude when Any_Thinking = False (Xbar/s)
+   Zero_Tool_Call_Turns);   --  Exclude when N_Tool_Call_Turns_For_Chart = 0
+
+--  Extracts a single Long_Float scalar observation from a
+--  Session_Metrics_Record.  Returns Long_Float'First to signal that the
+--  session must be excluded (e.g. zero denominator for a ratio chart).
+type Metric_Accessor is access function
+  (M : Coyote_SQC.Data_Model.Session_Metrics_Record) return Long_Float;
+
+--  Extracts the per-turn subgroup vector from a Session_Metrics_Record.
+--  Returns an empty vector for sessions excluded from the chart
+--  (e.g. zero tool-call turns for tool-call token charts).
+type Subgroup_Accessor is access function
+  (M : Coyote_SQC.Data_Model.Session_Metrics_Record)
+   return Coyote_SQC.Data_Model.Natural_Vectors.Vector;
+
+--  A self-contained runtime chart descriptor.  Recompute_Chart (Kind)
+--  looks up the descriptor once via Descriptor (Kind) and then proceeds
+--  without any further chart-kind case dispatch.
+type Chart_Descriptor is record
+   Kind           : Chart_Kind;
+   Properties     : Chart_Properties;      --  label, group, axis label
+   Get_Observation: Metric_Accessor;       --  scalar; null for Xbar/s charts
+   Get_Subgroup   : Subgroup_Accessor;     --  per-turn vector; null otherwise
+   Box_Cox_Kind   : Box_Cox_Config_Kind;   --  which workspace config applies
+   Exclusion_Rule : Exclusion_Kind;        --  when to skip a session
+end record;
+
+--  Return the self-contained descriptor for Kind.
+function Descriptor (Kind : Chart_Kind) return Chart_Descriptor;
+```
 
 ### 6.8 UUID_Sets
 
@@ -881,6 +946,15 @@ and exclusion rules (single-turn sessions, zero-thinking sessions, etc.)
 are unchanged. The `Grand_P` estimator for p-charts is always the
 classical grand proportion regardless of this parameter.
 
+Each chart independently estimates its parameters from the setup interval
+using its own `Get_Observation` or `Get_Subgroup` accessor and `Exclusion_Rule`
+(§6.7a). No chart reads cached parameter values from another chart's
+`Chart_Data` slot.  For families of charts sharing the same underlying metric
+(e.g. `Session_Input_Tokens_I`, `Session_Input_Tokens_MR`, and
+`Session_Input_Tokens_EWMA`), all three independently extract the same
+observation series and arrive at identical estimates through deterministic
+computation.
+
 ### 7.6 Retrospective Limits
 
 When `Setup_Session_Ids` is empty, retrospective limits are computed from **all
@@ -1065,7 +1139,7 @@ status-bar notice counts excluded turns.
 
 An Exponentially Weighted Moving Average (EWMA) chart provides a sensitive monitor
 for small, sustained shifts in a session-level total that a standard I chart would
-miss.  One EWMA chart is paired with each of the eight Session Token I charts and the Session Turn Count I chart:
+miss.  One EWMA chart corresponds to each of the eight Session Token I charts and the Session Turn Count I chart:
 input tokens, output tokens, cache-read tokens, cache-write tokens,
 thinking tokens, tool-call input tokens, and tool-call result tokens.
 
@@ -1077,7 +1151,7 @@ Z_t = λ · x_t + (1 − λ) · Z_{t−1},   Z_0 = Grand_Mean
 
 where `x_t` is the session observation, `λ` is the smoothing weight (`EWMA_Weight`
 in `Workspace_Record`, default 0.2), and `Z_0` is the process target (Grand_Mean
-from the paired I chart's setup interval).
+computed from this chart kind's own setup-interval observations).
 
 The time-varying control limits at step _t_ are:
 
@@ -1094,8 +1168,12 @@ As _t_ → ∞ the limits converge to the steady-state values:
 Grand_Mean ± L · σ · √( λ / (2 − λ) )
 ```
 
-The same `Grand_Mean` and `Mean_MR` are used as for the paired I chart; no new
-setup parameter estimation is required for EWMA charts.
+Each EWMA chart independently extracts its setup-interval observation series and
+computes `Grand_Mean` and `Mean_MR` from first principles using the same formulas
+(§7.5).  For a given session metric, the corresponding I and EWMA chart kinds share
+the same `Get_Observation` accessor and `Exclusion_Rule`, so their parameter
+estimates are always identical.  `Recompute_Chart` for an EWMA chart kind does not
+read from any other chart's `Chart_Data` slot.
 
 #### Exclusion rule
 
@@ -1276,7 +1354,7 @@ choice of estimation method does not affect the Box-Cox path.
 ```ada
 type Chart_Properties is record
    Label       : Ada.Strings.Unbounded.Unbounded_String;
-   Group       : Ada.Strings.Unbounded.Unbounded_String;
+   Group_Path  : Ada.Strings.Unbounded.Unbounded_String;
    Y_Axis_Label: Ada.Strings.Unbounded.Unbounded_String;
    Is_P_Chart  : Boolean;
    Is_I_Chart      : Boolean;
@@ -1289,58 +1367,60 @@ function Properties (Kind : Chart_Kind) return Chart_Properties;
 
 The forty-eight charts and their properties:
 
-| `Chart_Kind` | Label | Group | Y-Axis Label |
+| `Chart_Kind` | Label | Group_Path | Y-Axis Label |
 |---|---|---|---|
-| `Turn_Tokens_Xbar` | `Turn Tokens — Xbar` | `Token Consumption` | `Mean output tokens/turn` |
-| `Turn_Tokens_S` | `Turn Tokens — s` | `Token Consumption` | `Std dev output tokens/turn` |
-| `Tool_Call_Tokens_Xbar` | `Tool Call Tokens — Xbar` | `Token Consumption` | `Mean tool-call tokens/turn` |
-| `Tool_Call_Tokens_S` | `Tool Call Tokens — s` | `Token Consumption` | `Std dev tool-call tokens/turn` |
-| `Thinking_Tokens_Xbar` | `Thinking Tokens — Xbar` | `Token Consumption` | `Mean thinking tokens/turn` |
-| `Thinking_Tokens_S` | `Thinking Tokens — s` | `Token Consumption` | `Std dev thinking tokens/turn` |
-| `Tool_Call_Failure_Rate` | `Tool Call Failure Rate` | `Rates` | `Failure proportion` |
-| `Fraction_Tool_Call_Turns` | `Fraction: Tool-Call Turns` | `Rates` | `Fraction of turns` |
-| `Fraction_Thinking_Turns` | `Fraction: Thinking Turns` | `Rates` | `Fraction of turns` |
-| `Fraction_Thinking_Tokens_I` | `Fraction: Thinking Tokens -- I` | `Rates` | `Thinking tokens / output tokens` |
-| `Fraction_Thinking_Tokens_MR` | `Fraction: Thinking Tokens -- MR` | `Rates` | `MR (thinking / output tokens)` |
-| `Fraction_Thinking_Tokens_EWMA` | `Fraction: Thinking Tokens -- EWMA` | `Rates` | `EWMA (thinking / output tokens)` |
-| `Fraction_Tool_Call_Tokens_I` | `Fraction: Tool-Call Tokens -- I` | `Rates` | `Tool-call tokens / output tokens` |
-| `Fraction_Tool_Call_Tokens_MR` | `Fraction: Tool-Call Tokens -- MR` | `Rates` | `MR (tool-call / output tokens)` |
-| `Fraction_Tool_Call_Tokens_EWMA` | `Fraction: Tool-Call Tokens -- EWMA` | `Rates` | `EWMA (tool-call / output tokens)` |
-| `Session_Input_Tokens_I`   | `Session Input Tokens -- I`   | `Session Totals` | `Total input tokens` |
-| `Session_Input_Tokens_MR`  | `Session Input Tokens -- MR`  | `Session Totals` | `Moving range (input tokens)` |
-| `Session_Output_Tokens_I`  | `Session Output Tokens -- I`  | `Session Totals` | `Total output tokens` |
-| `Session_Output_Tokens_MR` | `Session Output Tokens -- MR` | `Session Totals` | `Moving range (output tokens)` |
-| `Session_Cache_Read_Tokens_I`   | `Session Cache Read Tokens -- I`   | `Session Totals` | `Total cache-read tokens` |
-| `Session_Cache_Read_Tokens_MR`  | `Session Cache Read Tokens -- MR`  | `Session Totals` | `Moving range (cache-read tokens)` |
-| `Session_Cache_Write_Tokens_I`  | `Session Cache Write Tokens -- I`  | `Session Totals` | `Total cache-write tokens` |
-| `Session_Cache_Write_Tokens_MR` | `Session Cache Write Tokens -- MR` | `Session Totals` | `Moving range (cache-write tokens)` |
-| `Session_Input_Tokens_EWMA`       | `Session Input Tokens -- EWMA`       | `Session Totals` | `EWMA (input tokens)` |
-| `Session_Output_Tokens_EWMA`      | `Session Output Tokens -- EWMA`      | `Session Totals` | `EWMA (output tokens)` |
-| `Session_Cache_Read_Tokens_EWMA`  | `Session Cache Read Tokens -- EWMA`  | `Session Totals` | `EWMA (cache-read tokens)` |
-| `Session_Cache_Write_Tokens_EWMA` | `Session Cache Write Tokens -- EWMA` | `Session Totals` | `EWMA (cache-write tokens)` |
-| `Session_Thinking_Tokens_I` | `Session Thinking Tokens -- I` | `Session Totals` | `Total thinking tokens` |
-| `Session_Thinking_Tokens_MR` | `Session Thinking Tokens -- MR` | `Session Totals` | `Moving range (thinking tokens)` |
-| `Session_Tool_Call_Tokens_I` | `Session Tool-Call Tokens -- I` | `Session Totals` | `Total tool-call input tokens` |
-| `Session_Tool_Call_Tokens_MR` | `Session Tool-Call Tokens -- MR` | `Session Totals` | `Moving range (tool-call input tokens)` |
-| `Session_Tool_Call_Result_Tokens_I` | `Session Tool-Call Result Tokens -- I` | `Session Totals` | `Total tool-call result tokens` |
-| `Session_Tool_Call_Result_Tokens_MR` | `Session Tool-Call Result Tokens -- MR` | `Session Totals` | `Moving range (tool-call result tokens)` |
-| `Session_Thinking_Tokens_EWMA` | `Session Thinking Tokens -- EWMA` | `Session Totals` | `EWMA (thinking tokens)` |
-| `Session_Tool_Call_Tokens_EWMA` | `Session Tool-Call Tokens -- EWMA` | `Session Totals` | `EWMA (tool-call input tokens)` |
-| `Session_Tool_Call_Result_Tokens_EWMA` | `Session Tool-Call Result Tokens -- EWMA` | `Session Totals` | `EWMA (tool-call result tokens)` |
-| `Session_Turn_Count_I` | `Session Turn Count -- I` | `Session Totals` | `Turn count` |
-| `Session_Turn_Count_MR` | `Session Turn Count -- MR` | `Session Totals` | `Moving range (turn count)` |
-| `Session_Turn_Count_EWMA` | `Session Turn Count -- EWMA` | `Session Totals` | `EWMA (turn count)` |
-| `Session_Uncached_Input_Tokens_I` | `Session Uncached Input Tokens -- I` | `Session Totals` | `Total uncached input tokens` |
-| `Session_Uncached_Input_Tokens_MR` | `Session Uncached Input Tokens -- MR` | `Session Totals` | `Moving range (uncached input tokens)` |
-| `Session_Uncached_Input_Tokens_EWMA` | `Session Uncached Input Tokens -- EWMA` | `Session Totals` | `EWMA (uncached input tokens)` |
-| `Fraction_Thinking_Per_Tool_Call_I` | `Fraction: Thinking/Tool-Call Tokens -- I` | `Rates` | `Thinking tokens / tool-call tokens` |
-| `Fraction_Thinking_Per_Tool_Call_MR` | `Fraction: Thinking/Tool-Call Tokens -- MR` | `Rates` | `MR (thinking / tool-call tokens)` |
-| `Fraction_Thinking_Per_Tool_Call_EWMA` | `Fraction: Thinking/Tool-Call Tokens -- EWMA` | `Rates` | `EWMA (thinking / tool-call tokens)` |
-| `Fraction_Uncached_Input_I` | `Fraction: Uncached/Total Input -- I` | `Rates` | `Uncached input tokens / input tokens` |
-| `Fraction_Uncached_Input_MR` | `Fraction: Uncached/Total Input -- MR` | `Rates` | `MR (uncached / input tokens)` |
-| `Fraction_Uncached_Input_EWMA` | `Fraction: Uncached/Total Input -- EWMA` | `Rates` | `EWMA (uncached / input tokens)` |
+| `Turn_Tokens_Xbar` | `Turn Tokens -- Xbar` | `Token Consumption/Turn Tokens` | `Mean output tokens/turn` |
+| `Turn_Tokens_S` | `Turn Tokens -- s` | `Token Consumption/Turn Tokens` | `Std dev output tokens/turn` |
+| `Tool_Call_Tokens_Xbar` | `Tool Call Tokens -- Xbar` | `Token Consumption/Tool Call Tokens` | `Mean tool-call tokens/turn` |
+| `Tool_Call_Tokens_S` | `Tool Call Tokens -- s` | `Token Consumption/Tool Call Tokens` | `Std dev tool-call tokens/turn` |
+| `Thinking_Tokens_Xbar` | `Thinking Tokens -- Xbar` | `Token Consumption/Thinking Tokens` | `Mean thinking tokens/turn` |
+| `Thinking_Tokens_S` | `Thinking Tokens -- s` | `Token Consumption/Thinking Tokens` | `Std dev thinking tokens/turn` |
+| `Tool_Call_Failure_Rate` | `Tool Call Failure Rate` | `Rates/Tool Call Failure Rate` | `Failure proportion` |
+| `Fraction_Tool_Call_Turns` | `Fraction: Tool-Call Turns` | `Rates/Tool-Call Turns` | `Fraction of turns` |
+| `Fraction_Thinking_Turns` | `Fraction: Thinking Turns` | `Rates/Thinking Turns` | `Fraction of turns` |
+| `Fraction_Thinking_Tokens_I` | `Fraction: Thinking Tokens -- I` | `Rates/Thinking Tokens` | `Thinking tokens / output tokens` |
+| `Fraction_Thinking_Tokens_MR` | `Fraction: Thinking Tokens -- MR` | `Rates/Thinking Tokens` | `MR (thinking / output tokens)` |
+| `Fraction_Thinking_Tokens_EWMA` | `Fraction: Thinking Tokens -- EWMA` | `Rates/Thinking Tokens` | `EWMA (thinking / output tokens)` |
+| `Fraction_Tool_Call_Tokens_I` | `Fraction: Tool-Call Tokens -- I` | `Rates/Tool-Call Tokens` | `Tool-call tokens / output tokens` |
+| `Fraction_Tool_Call_Tokens_MR` | `Fraction: Tool-Call Tokens -- MR` | `Rates/Tool-Call Tokens` | `MR (tool-call / output tokens)` |
+| `Fraction_Tool_Call_Tokens_EWMA` | `Fraction: Tool-Call Tokens -- EWMA` | `Rates/Tool-Call Tokens` | `EWMA (tool-call / output tokens)` |
+| `Session_Input_Tokens_I` | `Session Input Tokens -- I` | `Session Totals/Input Tokens` | `Total input tokens` |
+| `Session_Input_Tokens_MR` | `Session Input Tokens -- MR` | `Session Totals/Input Tokens` | `Moving range (input tokens)` |
+| `Session_Output_Tokens_I` | `Session Output Tokens -- I` | `Session Totals/Output Tokens` | `Total output tokens` |
+| `Session_Output_Tokens_MR` | `Session Output Tokens -- MR` | `Session Totals/Output Tokens` | `Moving range (output tokens)` |
+| `Session_Cache_Read_Tokens_I` | `Session Cache Read Tokens -- I` | `Session Totals/Cache Read Tokens` | `Total cache-read tokens` |
+| `Session_Cache_Read_Tokens_MR` | `Session Cache Read Tokens -- MR` | `Session Totals/Cache Read Tokens` | `Moving range (cache-read tokens)` |
+| `Session_Cache_Write_Tokens_I` | `Session Cache Write Tokens -- I` | `Session Totals/Cache Write Tokens` | `Total cache-write tokens` |
+| `Session_Cache_Write_Tokens_MR` | `Session Cache Write Tokens -- MR` | `Session Totals/Cache Write Tokens` | `Moving range (cache-write tokens)` |
+| `Session_Thinking_Tokens_I` | `Session Thinking Tokens -- I` | `Session Totals/Thinking Tokens` | `Total thinking tokens` |
+| `Session_Thinking_Tokens_MR` | `Session Thinking Tokens -- MR` | `Session Totals/Thinking Tokens` | `Moving range (thinking tokens)` |
+| `Session_Tool_Call_Tokens_I` | `Session Tool-Call Tokens -- I` | `Session Totals/Tool-Call Tokens` | `Total tool-call input tokens` |
+| `Session_Tool_Call_Tokens_MR` | `Session Tool-Call Tokens -- MR` | `Session Totals/Tool-Call Tokens` | `Moving range (tool-call input tokens)` |
+| `Session_Tool_Call_Result_Tokens_I` | `Session Tool-Call Result Tokens -- I` | `Session Totals/Tool-Call Result Tokens` | `Total tool-call result tokens` |
+| `Session_Tool_Call_Result_Tokens_MR` | `Session Tool-Call Result Tokens -- MR` | `Session Totals/Tool-Call Result Tokens` | `Moving range (tool-call result tokens)` |
+| `Session_Input_Tokens_EWMA` | `Session Input Tokens -- EWMA` | `Session Totals/Input Tokens` | `EWMA (input tokens)` |
+| `Session_Output_Tokens_EWMA` | `Session Output Tokens -- EWMA` | `Session Totals/Output Tokens` | `EWMA (output tokens)` |
+| `Session_Cache_Read_Tokens_EWMA` | `Session Cache Read Tokens -- EWMA` | `Session Totals/Cache Read Tokens` | `EWMA (cache-read tokens)` |
+| `Session_Cache_Write_Tokens_EWMA` | `Session Cache Write Tokens -- EWMA` | `Session Totals/Cache Write Tokens` | `EWMA (cache-write tokens)` |
+| `Session_Thinking_Tokens_EWMA` | `Session Thinking Tokens -- EWMA` | `Session Totals/Thinking Tokens` | `EWMA (thinking tokens)` |
+| `Session_Tool_Call_Tokens_EWMA` | `Session Tool-Call Tokens -- EWMA` | `Session Totals/Tool-Call Tokens` | `EWMA (tool-call input tokens)` |
+| `Session_Tool_Call_Result_Tokens_EWMA` | `Session Tool-Call Result Tokens -- EWMA` | `Session Totals/Tool-Call Result Tokens` | `EWMA (tool-call result tokens)` |
+| `Session_Turn_Count_I` | `Session Turn Count -- I` | `Session Totals/Turn Count` | `Turn count` |
+| `Session_Turn_Count_MR` | `Session Turn Count -- MR` | `Session Totals/Turn Count` | `Moving range (turn count)` |
+| `Session_Turn_Count_EWMA` | `Session Turn Count -- EWMA` | `Session Totals/Turn Count` | `EWMA (turn count)` |
+| `Session_Uncached_Input_Tokens_I` | `Session Uncached Input Tokens -- I` | `Session Totals/Uncached Input Tokens` | `Total uncached input tokens` |
+| `Session_Uncached_Input_Tokens_MR` | `Session Uncached Input Tokens -- MR` | `Session Totals/Uncached Input Tokens` | `Moving range (uncached input tokens)` |
+| `Session_Uncached_Input_Tokens_EWMA` | `Session Uncached Input Tokens -- EWMA` | `Session Totals/Uncached Input Tokens` | `EWMA (uncached input tokens)` |
+| `Fraction_Thinking_Per_Tool_Call_I` | `Fraction: Thinking/Tool-Call Tokens -- I` | `Rates/Thinking per Tool-Call` | `Thinking tokens / tool-call tokens` |
+| `Fraction_Thinking_Per_Tool_Call_MR` | `Fraction: Thinking/Tool-Call Tokens -- MR` | `Rates/Thinking per Tool-Call` | `MR (thinking / tool-call tokens)` |
+| `Fraction_Thinking_Per_Tool_Call_EWMA` | `Fraction: Thinking/Tool-Call Tokens -- EWMA` | `Rates/Thinking per Tool-Call` | `EWMA (thinking / tool-call tokens)` |
+| `Fraction_Uncached_Input_I` | `Fraction: Uncached/Total Input -- I` | `Rates/Uncached Input` | `Uncached input tokens / input tokens` |
+| `Fraction_Uncached_Input_MR` | `Fraction: Uncached/Total Input -- MR` | `Rates/Uncached Input` | `MR (uncached / input tokens)` |
+| `Fraction_Uncached_Input_EWMA` | `Fraction: Uncached/Total Input -- EWMA` | `Rates/Uncached Input` | `EWMA (uncached / input tokens)` |
 
-The `Chart_Kind` iteration order matches the left-panel display order.
+The left-panel display order is derived from each chart's `Group_Path`:
+groups and sub-groups are sorted alphabetically, with enum declaration
+order preserved within each sub-group.
 
 ---
 
@@ -2486,10 +2566,10 @@ AUnit test suite covering:
 - Correct `Total_Thinking_Tokens`, `Total_Tool_Call_Input_Tokens`, and `Total_Tool_Call_Result_Tokens` metric computation: `Coyote_SQC.Metrics.Compute` applied to a session with three turns — where two turns have thinking tokens (12 and 24), and two turns each contain one tool call with estimated input/output token counts (5/8 and 3/12) — returns `Total_Thinking_Tokens = 36`, `Total_Tool_Call_Input_Tokens = 8`, `Total_Tool_Call_Result_Tokens = 20`.
 - I chart limits for new session-total charts: for each of the three new I chart kinds (`Session_Thinking_Tokens_I`, `Session_Tool_Call_Tokens_I`, `Session_Tool_Call_Result_Tokens_I`), apply `Compute_I_Limits` to a five-session setup interval with known totals; verify UCL, CL, and LCL match hand-computed §5.6 formula values to 4 decimal places.
 - MR chart limits for new session-total charts: verify `Compute_MR_Limits` output for the three new MR chart kinds against the same five-session dataset.
-- EWMA pairing for new EWMA charts: verify that `Recompute_Chart` for `Session_Thinking_Tokens_EWMA`, `Session_Tool_Call_Tokens_EWMA`, and `Session_Tool_Call_Result_Tokens_EWMA` uses the same `Grand_Mean` and `Mean_MR` as their respective paired I charts.
+- EWMA independence for new EWMA charts: verify that `Recompute_Chart` for `Session_Thinking_Tokens_EWMA`, `Session_Tool_Call_Tokens_EWMA`, and `Session_Tool_Call_Result_Tokens_EWMA` independently computes the same `Grand_Mean` and `Mean_MR` as the corresponding I chart, derived from the same setup-interval observations.
 - Zero-value exclusion for new I/MR charts: with Box-Cox enabled, sessions having zero `Total_Thinking_Tokens`, `Total_Tool_Call_Input_Tokens`, or `Total_Tool_Call_Result_Tokens` are excluded from the respective I chart and EWMA step counter, and a status-bar notice is posted.
 - Session Turn Count I/MR limit computation: apply `Compute_I_Limits` and `Compute_MR_Limits` to a five-session setup interval with known `N_Turns` values; verify UCL, CL, and LCL match hand-computed §5.6 formula values to 4 decimal places.
-- Session Turn Count EWMA pairing: verify that `Recompute_Chart` for `Session_Turn_Count_EWMA` uses the same `Grand_Mean` and `Mean_MR` as the paired `Session_Turn_Count_I` chart.
+- Session Turn Count EWMA independence: verify that `Recompute_Chart` for `Session_Turn_Count_EWMA` independently computes the same `Grand_Mean` and `Mean_MR` as `Session_Turn_Count_I`, derived from the same setup-interval observations.
 - Session Turn Count Box-Cox round-trip: `turnCountBoxCox` configuration (enabled, lambda source, fixed λ) survives workspace save/load unchanged.
 - Session Turn Count Box-Cox version migration: a workspace file with `"version": 4` and no `turnCountBoxCox` field loads with the default (disabled, auto, λ=0.0).
 - Session Turn Count Box-Cox — N_Turns=1 non-exclusion: with `Turn_Count_Box_Cox.Enabled = True` and a setup interval containing sessions with `N_Turns = 1`, verify no session is excluded and no status-bar notice is posted (since `Box_Cox(1.0, λ) = 0.0` is valid for all λ).

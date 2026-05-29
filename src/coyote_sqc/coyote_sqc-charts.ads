@@ -6,7 +6,7 @@ with Ada.Strings.Unbounded;
 
 package Coyote_SQC.Charts is
 
-   --  The thirteen charts available in every workspace.  The declaration
+   --  The forty-eight charts available in every workspace.
    --  order matches the left-panel display order.
    type Chart_Kind is
      (Turn_Tokens_Xbar,
@@ -65,13 +65,14 @@ package Coyote_SQC.Charts is
    --  Display metadata for one chart.
    type Chart_Properties is record
       Label        : Ada.Strings.Unbounded.Unbounded_String;
-      Group        : Ada.Strings.Unbounded.Unbounded_String;
+      Group_Path        : Ada.Strings.Unbounded.Unbounded_String;
       Y_Axis_Label : Ada.Strings.Unbounded.Unbounded_String;
       Is_P_Chart   : Boolean;
       Is_I_Chart      : Boolean;
       Is_MR_Chart     : Boolean;
       Is_Xbar_S_Chart : Boolean;
       Is_EWMA_Chart   : Boolean;
+      Is_S_Chart      : Boolean;  --  True for s charts (stays in z-space when Box-Cox active)
    end record;
 
    --  Return the display properties for Kind.

@@ -256,11 +256,256 @@ package body Coyote_SQC.App is
       end case;
    end Compute_Session_Stat;
 
+
+   --  ── Metric accessor functions ─────────────────────────────────────────
+   --
+   --  Each function extracts one Long_Float scalar from a metrics record.
+   --  Returns Long_Float'First to signal that the session must be excluded
+   --  (e.g. zero denominator for ratio charts).  Used via Metric_Accessor
+   --  function pointers stored in Chart_Descriptor.
+
+   function Obs_Input_Tokens (M : Session_Metrics_Record) return Long_Float is
+   begin
+      return Long_Float (M.Total_Input_Tokens);
+   end Obs_Input_Tokens;
+
+   function Obs_Output_Tokens (M : Session_Metrics_Record) return Long_Float is
+   begin
+      return Long_Float (M.Total_Output_Tokens);
+   end Obs_Output_Tokens;
+
+   function Obs_Cache_Read (M : Session_Metrics_Record) return Long_Float is
+   begin
+      return Long_Float (M.Total_Cache_Read_Tokens);
+   end Obs_Cache_Read;
+
+   function Obs_Cache_Write (M : Session_Metrics_Record) return Long_Float is
+   begin
+      return Long_Float (M.Total_Cache_Write_Tokens);
+   end Obs_Cache_Write;
+
+   function Obs_Thinking_Tokens (M : Session_Metrics_Record) return Long_Float is
+   begin
+      return Long_Float (M.Total_Thinking_Tokens);
+   end Obs_Thinking_Tokens;
+
+   function Obs_Tool_Call_Tokens (M : Session_Metrics_Record) return Long_Float is
+   begin
+      return Long_Float (M.Total_Tool_Call_Input_Tokens);
+   end Obs_Tool_Call_Tokens;
+
+   function Obs_Tool_Result_Tokens
+     (M : Session_Metrics_Record) return Long_Float is
+   begin
+      return Long_Float (M.Total_Tool_Call_Result_Tokens);
+   end Obs_Tool_Result_Tokens;
+
+   function Obs_Uncached_Input (M : Session_Metrics_Record) return Long_Float is
+   begin
+      return Long_Float (M.Total_Uncached_Input_Tokens);
+   end Obs_Uncached_Input;
+
+   function Obs_Turn_Count (M : Session_Metrics_Record) return Long_Float is
+   begin
+      return Long_Float (M.N_Turns);
+   end Obs_Turn_Count;
+
+   --  Ratio accessor: thinking tokens / output tokens.
+   --  Returns Long_Float'First when Total_Output_Tokens = 0 (excluded).
+   function Obs_Frac_Thinking
+     (M : Session_Metrics_Record) return Long_Float is
+   begin
+      if M.Total_Output_Tokens = 0 then
+         return Long_Float'First;
+      end if;
+      return Long_Float (M.Total_Thinking_Tokens)
+             / Long_Float (M.Total_Output_Tokens);
+   end Obs_Frac_Thinking;
+
+   --  Ratio accessor: tool-call input tokens / output tokens.
+   function Obs_Frac_Tool_Call
+     (M : Session_Metrics_Record) return Long_Float is
+   begin
+      if M.Total_Output_Tokens = 0 then
+         return Long_Float'First;
+      end if;
+      return Long_Float (M.Total_Tool_Call_Input_Tokens)
+             / Long_Float (M.Total_Output_Tokens);
+   end Obs_Frac_Tool_Call;
+
+   --  Ratio accessor: thinking tokens / tool-call input tokens.
+   function Obs_Frac_Thinking_Per_Tool
+     (M : Session_Metrics_Record) return Long_Float is
+   begin
+      if M.Total_Tool_Call_Input_Tokens = 0 then
+         return Long_Float'First;
+      end if;
+      return Long_Float (M.Total_Thinking_Tokens)
+             / Long_Float (M.Total_Tool_Call_Input_Tokens);
+   end Obs_Frac_Thinking_Per_Tool;
+
+   --  Ratio accessor: uncached input tokens / total input tokens.
+   function Obs_Frac_Uncached_Input
+     (M : Session_Metrics_Record) return Long_Float is
+   begin
+      if M.Total_Input_Tokens = 0 then
+         return Long_Float'First;
+      end if;
+      return Long_Float (M.Total_Uncached_Input_Tokens)
+             / Long_Float (M.Total_Input_Tokens);
+   end Obs_Frac_Uncached_Input;
+
+   --  ── Subgroup accessor functions ───────────────────────────────────────
+
+   function Sub_Output_Tokens
+     (M : Session_Metrics_Record) return Natural_Vectors.Vector is
+   begin
+      return M.Per_Turn_Output_Tokens;
+   end Sub_Output_Tokens;
+
+   function Sub_Tool_Tokens
+     (M : Session_Metrics_Record) return Natural_Vectors.Vector is
+   begin
+      return M.Per_Turn_Tool_Tokens;
+   end Sub_Tool_Tokens;
+
+   function Sub_Thinking_Tokens
+     (M : Session_Metrics_Record) return Natural_Vectors.Vector is
+   begin
+      return M.Per_Turn_Thinking_Tokens;
+   end Sub_Thinking_Tokens;
+   --  Descriptor — return a self-contained descriptor for Kind.
+
+   function Descriptor (Kind : Coyote_SQC.Charts.Chart_Kind)
+     return Chart_Descriptor
+   is
+      D : Chart_Descriptor;
+   begin
+      D.Kind       := Kind;
+      D.Properties := Coyote_SQC.Charts.Properties (Kind);
+      case Kind is
+         when Turn_Tokens_Xbar | Turn_Tokens_S =>
+            D.Get_Subgroup   := Sub_Output_Tokens'Access;
+            D.Box_Cox_Kind   := Xbar_S_Box_Cox;
+            D.Exclusion_Rule := No_Exclusion;
+         when Thinking_Tokens_Xbar | Thinking_Tokens_S =>
+            D.Get_Subgroup   := Sub_Thinking_Tokens'Access;
+            D.Box_Cox_Kind   := Xbar_S_Box_Cox;
+            D.Exclusion_Rule := Zero_Thinking;
+         when Tool_Call_Tokens_Xbar | Tool_Call_Tokens_S =>
+            D.Get_Subgroup   := Sub_Tool_Tokens'Access;
+            D.Box_Cox_Kind   := Xbar_S_Box_Cox;
+            D.Exclusion_Rule := Zero_Tool_Call_Turns;
+         when Tool_Call_Failure_Rate | Fraction_Tool_Call_Turns
+            | Fraction_Thinking_Turns =>
+            D.Box_Cox_Kind   := No_Box_Cox;
+            D.Exclusion_Rule := No_Exclusion;
+         when Fraction_Thinking_Tokens_I
+            | Fraction_Thinking_Tokens_MR
+            | Fraction_Thinking_Tokens_EWMA =>
+            D.Get_Observation := Obs_Frac_Thinking'Access;
+            D.Box_Cox_Kind    := No_Box_Cox;
+            D.Exclusion_Rule  := Zero_Output_Tokens;
+         when Fraction_Tool_Call_Tokens_I
+            | Fraction_Tool_Call_Tokens_MR
+            | Fraction_Tool_Call_Tokens_EWMA =>
+            D.Get_Observation := Obs_Frac_Tool_Call'Access;
+            D.Box_Cox_Kind    := No_Box_Cox;
+            D.Exclusion_Rule  := Zero_Output_Tokens;
+         when Fraction_Thinking_Per_Tool_Call_I
+            | Fraction_Thinking_Per_Tool_Call_MR
+            | Fraction_Thinking_Per_Tool_Call_EWMA =>
+            D.Get_Observation := Obs_Frac_Thinking_Per_Tool'Access;
+            D.Box_Cox_Kind    := No_Box_Cox;
+            D.Exclusion_Rule  := Zero_Tool_Call_Tokens;
+         when Fraction_Uncached_Input_I
+            | Fraction_Uncached_Input_MR
+            | Fraction_Uncached_Input_EWMA =>
+            D.Get_Observation := Obs_Frac_Uncached_Input'Access;
+            D.Box_Cox_Kind    := No_Box_Cox;
+            D.Exclusion_Rule  := Zero_Input_Tokens;
+         when Session_Input_Tokens_I
+            | Session_Input_Tokens_MR
+            | Session_Input_Tokens_EWMA =>
+            D.Get_Observation := Obs_Input_Tokens'Access;
+            D.Box_Cox_Kind    := I_Chart_Box_Cox;
+            D.Exclusion_Rule  := Zero_Observation;
+         when Session_Output_Tokens_I
+            | Session_Output_Tokens_MR
+            | Session_Output_Tokens_EWMA =>
+            D.Get_Observation := Obs_Output_Tokens'Access;
+            D.Box_Cox_Kind    := I_Chart_Box_Cox;
+            D.Exclusion_Rule  := Zero_Observation;
+         when Session_Cache_Read_Tokens_I
+            | Session_Cache_Read_Tokens_MR
+            | Session_Cache_Read_Tokens_EWMA =>
+            D.Get_Observation := Obs_Cache_Read'Access;
+            D.Box_Cox_Kind    := I_Chart_Box_Cox;
+            D.Exclusion_Rule  := Zero_Observation;
+         when Session_Cache_Write_Tokens_I
+            | Session_Cache_Write_Tokens_MR
+            | Session_Cache_Write_Tokens_EWMA =>
+            D.Get_Observation := Obs_Cache_Write'Access;
+            D.Box_Cox_Kind    := I_Chart_Box_Cox;
+            D.Exclusion_Rule  := Zero_Observation;
+         when Session_Thinking_Tokens_I
+            | Session_Thinking_Tokens_MR
+            | Session_Thinking_Tokens_EWMA =>
+            D.Get_Observation := Obs_Thinking_Tokens'Access;
+            D.Box_Cox_Kind    := I_Chart_Box_Cox;
+            D.Exclusion_Rule  := Zero_Observation;
+         when Session_Tool_Call_Tokens_I
+            | Session_Tool_Call_Tokens_MR
+            | Session_Tool_Call_Tokens_EWMA =>
+            D.Get_Observation := Obs_Tool_Call_Tokens'Access;
+            D.Box_Cox_Kind    := I_Chart_Box_Cox;
+            D.Exclusion_Rule  := Zero_Observation;
+         when Session_Tool_Call_Result_Tokens_I
+            | Session_Tool_Call_Result_Tokens_MR
+            | Session_Tool_Call_Result_Tokens_EWMA =>
+            D.Get_Observation := Obs_Tool_Result_Tokens'Access;
+            D.Box_Cox_Kind    := I_Chart_Box_Cox;
+            D.Exclusion_Rule  := Zero_Observation;
+         when Session_Uncached_Input_Tokens_I
+            | Session_Uncached_Input_Tokens_MR
+            | Session_Uncached_Input_Tokens_EWMA =>
+            D.Get_Observation := Obs_Uncached_Input'Access;
+            D.Box_Cox_Kind    := I_Chart_Box_Cox;
+            D.Exclusion_Rule  := Zero_Observation;
+         when Session_Turn_Count_I
+            | Session_Turn_Count_MR
+            | Session_Turn_Count_EWMA =>
+            D.Get_Observation := Obs_Turn_Count'Access;
+            D.Box_Cox_Kind    := Turn_Count_Box_Cox;
+            D.Exclusion_Rule  := No_Exclusion;
+      end case;
+      return D;
+   end Descriptor;
+
    --  ── Recompute_Chart ──────────────────────────────────────────────────
+
+   --  Return the workspace Box-Cox configuration for the given descriptor kind.
+   --  Requires State /= null.
+   function WS_BC_Config
+     (BCK : Box_Cox_Config_Kind)
+      return Data_Model.Box_Cox_Config
+   is
+   begin
+      case BCK is
+         when I_Chart_Box_Cox    => return State.Workspace.I_Chart_Box_Cox;
+         when Turn_Count_Box_Cox => return State.Workspace.Turn_Count_Box_Cox;
+         when Xbar_S_Box_Cox     => return State.Workspace.Xbar_S_Box_Cox;
+         when No_Box_Cox         =>
+            return (Enabled       => False,
+                    Lambda_Source => Data_Model.Auto,
+                    Fixed_Lambda  => 0.0);
+      end case;
+   end WS_BC_Config;
 
    procedure Recompute_Chart (Kind : Chart_Kind) is
       Props   : constant Coyote_SQC.Charts.Chart_Properties :=
         Coyote_SQC.Charts.Properties (Kind);
+      Dsc     : constant Chart_Descriptor := Descriptor (Kind);
 
       CD : Chart_Data;
       --  State for moving-range (MR) chart kinds.
@@ -282,11 +527,8 @@ package body Coyote_SQC.App is
 
       --  Box-Cox: when enabled for I/EWMA chart kinds, override the
       --  Grand_Mean and I_Sigma in CD.Params with transformed-space values.
-      if (Props.Is_I_Chart or else Props.Is_EWMA_Chart)
-        and then Kind not in Session_Turn_Count_I
-                              | Session_Turn_Count_EWMA | Fraction_Thinking_Tokens_I | Fraction_Thinking_Tokens_EWMA | Fraction_Tool_Call_Tokens_I | Fraction_Tool_Call_Tokens_EWMA
-                              | Fraction_Thinking_Per_Tool_Call_I | Fraction_Thinking_Per_Tool_Call_EWMA
-                              | Fraction_Uncached_Input_I | Fraction_Uncached_Input_EWMA
+      if Dsc.Box_Cox_Kind = I_Chart_Box_Cox
+        and then Dsc.Get_Observation /= null
         and then State.Workspace.I_Chart_Box_Cox.Enabled
       then
          declare
@@ -304,37 +546,7 @@ package body Coyote_SQC.App is
                then
                   declare
                      Val : constant Long_Float :=
-                       (case Kind is
-                           when Session_Input_Tokens_I
-                              | Session_Input_Tokens_MR
-                              | Session_Input_Tokens_EWMA      =>
-                              Long_Float (M.Total_Input_Tokens),
-                           when Session_Cache_Read_Tokens_I
-                              | Session_Cache_Read_Tokens_MR
-                              | Session_Cache_Read_Tokens_EWMA  =>
-                              Long_Float (M.Total_Cache_Read_Tokens),
-                           when Session_Cache_Write_Tokens_I
-                              | Session_Cache_Write_Tokens_MR
-                              | Session_Cache_Write_Tokens_EWMA =>
-                              Long_Float (M.Total_Cache_Write_Tokens),
-                           when Session_Thinking_Tokens_I
-                              | Session_Thinking_Tokens_MR
-                              | Session_Thinking_Tokens_EWMA        =>
-                              Long_Float (M.Total_Thinking_Tokens),
-                           when Session_Tool_Call_Tokens_I
-                              | Session_Tool_Call_Tokens_MR
-                              | Session_Tool_Call_Tokens_EWMA        =>
-                              Long_Float (M.Total_Tool_Call_Input_Tokens),
-                           when Session_Tool_Call_Result_Tokens_I
-                              | Session_Tool_Call_Result_Tokens_MR
-                              | Session_Tool_Call_Result_Tokens_EWMA =>
-                              Long_Float (M.Total_Tool_Call_Result_Tokens),
-                           when Session_Uncached_Input_Tokens_I
-                              | Session_Uncached_Input_Tokens_MR
-                              | Session_Uncached_Input_Tokens_EWMA =>
-                              Long_Float (M.Total_Uncached_Input_Tokens),
-                           when others                          =>
-                              Long_Float (M.Total_Output_Tokens));
+                       Dsc.Get_Observation (M);
                   begin
                      if Val > 0.0 then
                         N_Raw := N_Raw + 1;
@@ -448,24 +660,7 @@ package body Coyote_SQC.App is
                            (M.Session_Id)
                then
                   N_R := N_R + 1;
-                  Raws (N_R) := Long_Float
-                    (case Kind is
-                        when Session_Input_Tokens_MR        =>
-                           M.Total_Input_Tokens,
-                        when Session_Output_Tokens_MR       =>
-                           M.Total_Output_Tokens,
-                        when Session_Cache_Read_Tokens_MR   =>
-                           M.Total_Cache_Read_Tokens,
-                        when Session_Cache_Write_Tokens_MR  =>
-                           M.Total_Cache_Write_Tokens,
-                        when Session_Thinking_Tokens_MR     =>
-                           M.Total_Thinking_Tokens,
-                        when Session_Tool_Call_Tokens_MR    =>
-                           M.Total_Tool_Call_Input_Tokens,
-                        when Session_Uncached_Input_Tokens_MR =>
-                           M.Total_Uncached_Input_Tokens,
-                        when others                         =>
-                           M.Total_Tool_Call_Result_Tokens);
+                  Raws (N_R) := Dsc.Get_Observation (M);
                end if;
             end loop;
 
@@ -569,8 +764,8 @@ package body Coyote_SQC.App is
       --  When Turn_Count_Box_Cox is enabled, estimate lambda from setup-
       --  interval N_Turns values and override CD.Params with z-space
       --  equivalents.  N_Turns is always >= 1, so no zero-value exclusion.
-      if Kind in Session_Turn_Count_I
-                 | Session_Turn_Count_EWMA
+      if Dsc.Box_Cox_Kind = Turn_Count_Box_Cox
+        and then Dsc.Get_Observation /= null
         and then State.Workspace.Turn_Count_Box_Cox.Enabled
       then
          declare
@@ -585,7 +780,7 @@ package body Coyote_SQC.App is
                            (M.Session_Id)
                then
                   N_Raw := N_Raw + 1;
-                  Raw (N_Raw) := Long_Float (M.N_Turns);
+                  Raw (N_Raw) := Dsc.Get_Observation (M);
                end if;
             end loop;
 
@@ -668,7 +863,8 @@ package body Coyote_SQC.App is
       --  ── Box-Cox for Turn Count MR chart (independent λ_MR) ─────────────
       --  λ_MR is estimated from the setup-interval MR series of N_Turns.
       --  Points are always original-space |N_i − N_{i-1}|.
-      if Kind = Session_Turn_Count_MR
+      if Dsc.Box_Cox_Kind = Turn_Count_Box_Cox
+        and then Dsc.Properties.Is_MR_Chart
         and then State.Workspace.Turn_Count_Box_Cox.Enabled
       then
          declare
@@ -789,8 +985,8 @@ package body Coyote_SQC.App is
       --  CD.Params.Pooled_S with their transformed-space equivalents so
       --  that the standard Xbar/S limit formulas operate in z-space.
       --  For Xbar charts, limits are back-transformed to original units.
-      --  For S charts, limits remain in transformed units.
-      if Props.Is_Xbar_S_Chart
+      if Dsc.Box_Cox_Kind = Xbar_S_Box_Cox
+        and then State.Workspace.Xbar_S_Box_Cox.Enabled
         and then State.Workspace.Xbar_S_Box_Cox.Enabled
       then
          declare
@@ -811,24 +1007,11 @@ package body Coyote_SQC.App is
             end Is_Setup_M;
 
             --  Return the relevant per-turn token vector for this kind.
-            function Get_Turn_Tokens
-              (M : Session_Metrics_Record)
-               return Natural_Vectors.Vector is
-            begin
-               case Kind is
-                  when Turn_Tokens_Xbar | Turn_Tokens_S =>
-                     return M.Per_Turn_Output_Tokens;
-                  when Tool_Call_Tokens_Xbar | Tool_Call_Tokens_S =>
-                     return M.Per_Turn_Tool_Tokens;
-                  when others =>
-                     return M.Per_Turn_Thinking_Tokens;
-               end case;
-            end Get_Turn_Tokens;
          begin
             --  Pass 1: count eligible values.
             for M of State.All_Metrics loop
                if Is_Setup_M (M) then
-                  for V of Get_Turn_Tokens (M) loop
+                  for V of Dsc.Get_Subgroup (M) loop
                      if V = 0 then
                         N_Zero := N_Zero + 1;
                      else
@@ -859,7 +1042,7 @@ package body Coyote_SQC.App is
                begin
                   for M of State.All_Metrics loop
                      if Is_Setup_M (M) then
-                        for V of Get_Turn_Tokens (M) loop
+                        for V of Dsc.Get_Subgroup (M) loop
                            if V > 0 then
                               N_Raw := N_Raw + 1;
                               Raw (N_Raw) := Long_Float (V);
@@ -908,7 +1091,7 @@ package body Coyote_SQC.App is
                      if Is_Setup_M (M) then
                         declare
                            Tokens : constant Natural_Vectors.Vector :=
-                             Get_Turn_Tokens (M);
+                             Dsc.Get_Subgroup (M);
                            Z_Sum  : Long_Float := 0.0;
                            Z_Sq   : Long_Float := 0.0;
                            N_Z    : Natural    := 0;
@@ -1002,25 +1185,7 @@ package body Coyote_SQC.App is
             then
                declare
                   Cur : constant Long_Float :=
-                    (case Kind is
-                        when Session_Input_Tokens_MR        =>
-                           Long_Float (M.Total_Input_Tokens),
-                        when Session_Cache_Read_Tokens_MR   =>
-                           Long_Float (M.Total_Cache_Read_Tokens),
-                        when Session_Cache_Write_Tokens_MR  =>
-                           Long_Float (M.Total_Cache_Write_Tokens),
-                        when Session_Thinking_Tokens_MR         =>
-                           Long_Float (M.Total_Thinking_Tokens),
-                        when Session_Tool_Call_Tokens_MR        =>
-                           Long_Float (M.Total_Tool_Call_Input_Tokens),
-                        when Session_Tool_Call_Result_Tokens_MR =>
-                           Long_Float (M.Total_Tool_Call_Result_Tokens),
-                        when Session_Turn_Count_MR          =>
-                           Long_Float (M.N_Turns),
-                        when Session_Uncached_Input_Tokens_MR   =>
-                           Long_Float (M.Total_Uncached_Input_Tokens),
-                        when others                         =>
-                           Long_Float (M.Total_Output_Tokens));
+                    Dsc.Get_Observation (M);
                begin
                   --  MR points are always original-space absolute differences.
                   if Has_Prev_Total then
@@ -1037,46 +1202,21 @@ package body Coyote_SQC.App is
                      | Fraction_Thinking_Per_Tool_Call_MR | Fraction_Uncached_Input_MR
             then
                declare
-                  Denom_OK : constant Boolean :=
-                    (case Kind is
-                        when Fraction_Thinking_Tokens_MR
-                           | Fraction_Tool_Call_Tokens_MR  =>
-                              M.Total_Output_Tokens > 0,
-                        when Fraction_Thinking_Per_Tool_Call_MR =>
-                              M.Total_Tool_Call_Input_Tokens > 0,
-                        when Fraction_Uncached_Input_MR         =>
-                              M.Total_Input_Tokens > 0,
-                        when others                             => False);
+                  Cur : constant Long_Float :=
+                    Dsc.Get_Observation (M);
                begin
-                  if Denom_OK then
-                     declare
-                        Cur : constant Long_Float :=
-                          (case Kind is
-                              when Fraction_Thinking_Tokens_MR =>
-                                 Long_Float (M.Total_Thinking_Tokens)
-                                 / Long_Float (M.Total_Output_Tokens),
-                              when Fraction_Tool_Call_Tokens_MR =>
-                                 Long_Float (M.Total_Tool_Call_Input_Tokens)
-                                 / Long_Float (M.Total_Output_Tokens),
-                              when Fraction_Thinking_Per_Tool_Call_MR =>
-                                 Long_Float (M.Total_Thinking_Tokens)
-                                 / Long_Float (M.Total_Tool_Call_Input_Tokens),
-                              when Fraction_Uncached_Input_MR =>
-                                 Long_Float (M.Total_Uncached_Input_Tokens)
-                                 / Long_Float (M.Total_Input_Tokens),
-                              when others => 0.0);
-                     begin
-                        if Has_Prev_Total then
-                           Value := abs (Cur - Prev_Total);
-                           Excl  := False;
-                        end if;
-                        Prev_Total     := Cur;
-                        Has_Prev_Total := True;
-                     end;
+                  --  Ratio accessor returns Long_Float'First for excluded sessions
+                  --  (zero denominator); skip those for MR purposes.
+                  if Cur /= Long_Float'First then
+                     if Has_Prev_Total then
+                        Value := abs (Cur - Prev_Total);
+                        Excl  := False;
+                     end if;
+                     Prev_Total     := Cur;
+                     Has_Prev_Total := True;
                   end if;
                end;
             end if;
-
             --  ── EWMA chart override ────────────────────────────────────────
             --  Compute the exponentially weighted moving average and
             --  time-varying control limits.  When Box-Cox is active the EWMA
@@ -1085,49 +1225,14 @@ package body Coyote_SQC.App is
             if Props.Is_EWMA_Chart then
                declare
                   Raw_X : constant Long_Float :=
-                    (case Kind is
-                        when Session_Input_Tokens_EWMA      =>
-                           Long_Float (M.Total_Input_Tokens),
-                        when Session_Output_Tokens_EWMA     =>
-                           Long_Float (M.Total_Output_Tokens),
-                        when Session_Cache_Read_Tokens_EWMA =>
-                           Long_Float (M.Total_Cache_Read_Tokens),
-                        when Session_Thinking_Tokens_EWMA           =>
-                           Long_Float (M.Total_Thinking_Tokens),
-                        when Session_Tool_Call_Tokens_EWMA          =>
-                           Long_Float (M.Total_Tool_Call_Input_Tokens),
-                        when Session_Tool_Call_Result_Tokens_EWMA   =>
-                           Long_Float (M.Total_Tool_Call_Result_Tokens),
-                        when Session_Turn_Count_EWMA        =>
-                           Long_Float (M.N_Turns),
-                        when Session_Uncached_Input_Tokens_EWMA =>
-                           Long_Float (M.Total_Uncached_Input_Tokens),
-                        when Fraction_Thinking_Tokens_EWMA =>
-                           (if M.Total_Output_Tokens > 0
-                            then Long_Float (M.Total_Thinking_Tokens)
-                                 / Long_Float (M.Total_Output_Tokens)
-                            else 0.0),
-                        when Fraction_Tool_Call_Tokens_EWMA =>
-                           (if M.Total_Output_Tokens > 0
-                            then Long_Float (M.Total_Tool_Call_Input_Tokens)
-                                 / Long_Float (M.Total_Output_Tokens)
-                            else 0.0),
-                        when Fraction_Thinking_Per_Tool_Call_EWMA =>
-                           (if M.Total_Tool_Call_Input_Tokens > 0
-                            then Long_Float (M.Total_Thinking_Tokens)
-                                 / Long_Float (M.Total_Tool_Call_Input_Tokens)
-                            else 0.0),
-                        when Fraction_Uncached_Input_EWMA =>
-                           (if M.Total_Input_Tokens > 0
-                            then Long_Float (M.Total_Uncached_Input_Tokens)
-                                 / Long_Float (M.Total_Input_Tokens)
-                            else 0.0),
-                        when others                         =>
-                           Long_Float (M.Total_Cache_Write_Tokens));
+                    Dsc.Get_Observation (M);
                begin
-                  if CD.Box_Cox_Active and then Raw_X > 0.0 then
+                  if CD.Box_Cox_Active
+                    and then Raw_X > 0.0
+                    and then Raw_X /= Long_Float'First
+                  then
                      declare
-                        Z_X     : constant Long_Float :=
+                        Z_X : constant Long_Float :=
                           Statistics.I_Chart.Box_Cox
                             (Raw_X, CD.Box_Cox_Lambda);
                         Sigma_Z : constant Long_Float := CD.Params.I_Sigma;
@@ -1201,20 +1306,7 @@ package body Coyote_SQC.App is
                         end;
                      end;
                   elsif not CD.Box_Cox_Active
-                    and then (Kind not in Fraction_Thinking_Tokens_EWMA
-                                        | Fraction_Tool_Call_Tokens_EWMA
-                                        | Fraction_Thinking_Per_Tool_Call_EWMA
-                                        | Fraction_Uncached_Input_EWMA
-                              or else
-                                (case Kind is
-                                    when Fraction_Thinking_Tokens_EWMA
-                                       | Fraction_Tool_Call_Tokens_EWMA =>
-                                          M.Total_Output_Tokens > 0,
-                                    when Fraction_Thinking_Per_Tool_Call_EWMA =>
-                                          M.Total_Tool_Call_Input_Tokens > 0,
-                                    when Fraction_Uncached_Input_EWMA =>
-                                          M.Total_Input_Tokens > 0,
-                                    when others => True))
+                    and then Raw_X /= Long_Float'First
                   then
                      --  No transformation: EWMA in original (token) space.
                      declare
@@ -1255,13 +1347,7 @@ package body Coyote_SQC.App is
             then
                declare
                   Tokens : constant Natural_Vectors.Vector :=
-                    (case Kind is
-                        when Turn_Tokens_Xbar | Turn_Tokens_S =>
-                           M.Per_Turn_Output_Tokens,
-                        when Tool_Call_Tokens_Xbar | Tool_Call_Tokens_S =>
-                           M.Per_Turn_Tool_Tokens,
-                        when others =>
-                           M.Per_Turn_Thinking_Tokens);
+                    Dsc.Get_Subgroup (M);
                   Z_Sum  : Long_Float := 0.0;
                   Z_Sq   : Long_Float := 0.0;
                   N_Z    : Natural    := 0;
@@ -1292,38 +1378,30 @@ package body Coyote_SQC.App is
                            Mean_Z : constant Long_Float :=
                              Z_Sum / Long_Float (N_Z);
                         begin
-                           case Kind is
-                              when Turn_Tokens_Xbar
-                                 | Tool_Call_Tokens_Xbar
-                                 | Thinking_Tokens_Xbar =>
-                                 --  Back-transform session mean to original
-                                 --  token units for display.
-                                 begin
-                                    Value :=
-                                      Statistics.I_Chart.Box_Cox_Inverse
-                                        (Mean_Z, CD.Box_Cox_Lambda);
-                                 exception
-                                    when Constraint_Error => Excl := True;
-                                 end;
-                              when Turn_Tokens_S
-                                 | Tool_Call_Tokens_S
-                                 | Thinking_Tokens_S =>
-                                 --  Std dev stays in transformed units.
-                                 if N_Z >= 2 then
-                                    Value :=
-                                      Sqrt
-                                        ((Z_Sq
-                                          - Z_Sum * Z_Sum
-                                            / Long_Float (N_Z))
-                                         / Long_Float (N_Z - 1));
-                                    --  Single = False: n>=2 always here.
-                                    Single := False;
-                                 else
-                                    --  n=1: no s statistic in z-space.
-                                    Excl := True;
-                                 end if;
-                              when others => null;
-                           end case;
+                           if not Dsc.Properties.Is_S_Chart then
+                              --  Back-transform session mean to original
+                              --  token units for display.
+                              begin
+                                 Value :=
+                                   Statistics.I_Chart.Box_Cox_Inverse
+                                     (Mean_Z, CD.Box_Cox_Lambda);
+                              exception
+                                 when Constraint_Error => Excl := True;
+                              end;
+                           else
+                              --  Std dev stays in transformed units.
+                              if N_Z >= 2 then
+                                 Value :=
+                                   Sqrt
+                                     ((Z_Sq
+                                       - Z_Sum * Z_Sum
+                                         / Long_Float (N_Z))
+                                        / Long_Float (N_Z - 1));
+                                 Single := False;
+                              else
+                                 Excl := True;
+                              end if;
+                           end if;
                         end;
                      end if;
                   end if;
@@ -1335,10 +1413,16 @@ package body Coyote_SQC.App is
                           Has_UCL => False,
                           Has_LCL => False);
             else
-               case Kind is
-                  when Turn_Tokens_Xbar
-                     | Tool_Call_Tokens_Xbar
-                     | Thinking_Tokens_Xbar =>
+               if Dsc.Properties.Is_P_Chart then
+                  Limits := Statistics.P_Chart.Compute_Limits
+                    (Grand_P => CD.Params.Grand_P,
+                     N       => N);
+               elsif Dsc.Properties.Is_Xbar_S_Chart then
+                  if Dsc.Properties.Is_S_Chart then
+                     Limits := Statistics.S_Chart.Compute_Limits
+                       (Pooled_S => CD.Params.Pooled_S,
+                        N        => N);
+                  else
                      declare
                         L_Z : constant Statistics.Limits_Record :=
                           Statistics.Xbar.Compute_Limits
@@ -1395,107 +1479,69 @@ package body Coyote_SQC.App is
                            Limits := L_Z;
                         end if;
                      end;
-                  when Turn_Tokens_S
-                     | Tool_Call_Tokens_S
-                     | Thinking_Tokens_S =>
-                     Limits := Statistics.S_Chart.Compute_Limits
-                       (Pooled_S => CD.Params.Pooled_S,
-                        N        => N);
-                  when Tool_Call_Failure_Rate
-                     | Fraction_Tool_Call_Turns
-                     | Fraction_Thinking_Turns =>
-                     Limits := Statistics.P_Chart.Compute_Limits
-                       (Grand_P => CD.Params.Grand_P,
-                        N       => N);
-                  when Session_Input_Tokens_I
-                     | Session_Output_Tokens_I
-                     | Session_Cache_Read_Tokens_I
-                     | Session_Cache_Write_Tokens_I
-                     | Session_Thinking_Tokens_I
-                     | Session_Tool_Call_Tokens_I
-                     | Session_Tool_Call_Result_Tokens_I
-                     | Session_Uncached_Input_Tokens_I
-                     | Session_Turn_Count_I | Fraction_Thinking_Tokens_I | Fraction_Tool_Call_Tokens_I
-                     | Fraction_Thinking_Per_Tool_Call_I | Fraction_Uncached_Input_I =>
-                     declare
-                        L_Z : constant Statistics.Limits_Record :=
-                          Statistics.I_Chart.Compute_I_Limits
-                            (Grand_Mean => CD.Params.Grand_Mean,
-                             Sigma      => CD.Params.I_Sigma);
-                     begin
-                        if CD.Box_Cox_Active and then L_Z.Has_UCL then
-                           --  Back-transform limits to original units.
-                           --  CL_z and LCL_z are always within the valid
-                           --  domain of Box_Cox_Inverse: all observed data
-                           --  values mapped into (-inf, 1/|lambda|), so
-                           --  Grand_Mean_z and any value below it are valid
-                           --  inputs.  UCL_z may reach or exceed the
-                           --  asymptote 1/|lambda| for negative lambda,
-                           --  meaning no finite x maps to that z; the
-                           --  original-space UCL is effectively +inf.
-                           --  Each limit is back-transformed independently
-                           --  so that a domain failure on UCL_z does not
-                           --  suppress the CL and LCL.
-                           declare
-                              Inv_UCL     : Long_Float := 0.0;
-                              Has_Inv_UCL : Boolean    := False;
-                              Inv_CL      : Long_Float;
-                              Inv_LCL     : Long_Float;
+                  end if;
+               elsif Dsc.Properties.Is_I_Chart then
+                  declare
+                     L_Z : constant Statistics.Limits_Record :=
+                       Statistics.I_Chart.Compute_I_Limits
+                         (Grand_Mean => CD.Params.Grand_Mean,
+                          Sigma      => CD.Params.I_Sigma);
+                  begin
+                     if CD.Box_Cox_Active and then L_Z.Has_UCL then
+                        --  Back-transform limits to original units.
+                        --  CL_z and LCL_z are always within the valid
+                        --  domain of Box_Cox_Inverse: all observed data
+                        --  values mapped into (-inf, 1/|lambda|), so
+                        --  Grand_Mean_z and any value below it are valid
+                        --  inputs.  UCL_z may reach or exceed the
+                        --  asymptote 1/|lambda| for negative lambda,
+                        --  meaning no finite x maps to that z; the
+                        --  original-space UCL is effectively +inf.
+                        --  Each limit is back-transformed independently
+                        --  so that a domain failure on UCL_z does not
+                        --  suppress the CL and LCL.
+                        declare
+                           Inv_UCL     : Long_Float := 0.0;
+                           Has_Inv_UCL : Boolean    := False;
+                           Inv_CL      : Long_Float;
+                           Inv_LCL     : Long_Float;
+                        begin
                            begin
-                              begin
-                                 Inv_UCL     :=
-                                   Statistics.I_Chart.Box_Cox_Inverse
-                                     (L_Z.UCL, CD.Box_Cox_Lambda);
-                                 Has_Inv_UCL := True;
-                              exception
-                                 when Constraint_Error => null;
-                              end;
-                              Inv_CL  := Statistics.I_Chart.Box_Cox_Inverse
-                                           (L_Z.CL, CD.Box_Cox_Lambda);
-                              Inv_LCL :=
-                                (if L_Z.Has_LCL
-                                 then Statistics.I_Chart.Box_Cox_Inverse
-                                        (L_Z.LCL, CD.Box_Cox_Lambda)
-                                 else 0.0);
-                              Limits :=
-                                (UCL     => Inv_UCL,
-                                 CL      => Inv_CL,
-                                 LCL     => Inv_LCL,
-                                 Has_UCL => Has_Inv_UCL,
-                                 Has_LCL => L_Z.Has_LCL);
+                              Inv_UCL     :=
+                                Statistics.I_Chart.Box_Cox_Inverse
+                                  (L_Z.UCL, CD.Box_Cox_Lambda);
+                              Has_Inv_UCL := True;
+                           exception
+                              when Constraint_Error => null;
                            end;
-                        else
-                           Limits := L_Z;
-                        end if;
-                     end;
-                  when Session_Input_Tokens_MR
-                     | Session_Output_Tokens_MR
-                     | Session_Cache_Read_Tokens_MR
-                     | Session_Cache_Write_Tokens_MR
-                     | Session_Thinking_Tokens_MR
-                     | Session_Tool_Call_Tokens_MR
-                     | Session_Tool_Call_Result_Tokens_MR
-                     | Session_Uncached_Input_Tokens_MR
-                     | Session_Turn_Count_MR | Fraction_Thinking_Tokens_MR | Fraction_Tool_Call_Tokens_MR
-                     | Fraction_Thinking_Per_Tool_Call_MR | Fraction_Uncached_Input_MR =>
-                     if CD.MR_BC_Active then
-                        Limits := CD.MR_BC_Limits;
+                           Inv_CL  := Statistics.I_Chart.Box_Cox_Inverse
+                                        (L_Z.CL, CD.Box_Cox_Lambda);
+                           Inv_LCL :=
+                             (if L_Z.Has_LCL
+                              then Statistics.I_Chart.Box_Cox_Inverse
+                                     (L_Z.LCL, CD.Box_Cox_Lambda)
+                              else 0.0);
+                           Limits :=
+                             (UCL     => Inv_UCL,
+                              CL      => Inv_CL,
+                              LCL     => Inv_LCL,
+                              Has_UCL => Has_Inv_UCL,
+                              Has_LCL => L_Z.Has_LCL);
+                        end;
                      else
-                        Limits := Statistics.I_Chart.Compute_MR_Limits
-                          (Mean_MR => CD.Params.Mean_MR);
+                        Limits := L_Z;
                      end if;
-                  when Session_Input_Tokens_EWMA
-                     | Session_Output_Tokens_EWMA
-                     | Session_Cache_Read_Tokens_EWMA
-                     | Session_Cache_Write_Tokens_EWMA
-                     | Session_Thinking_Tokens_EWMA
-                     | Session_Tool_Call_Tokens_EWMA
-                     | Session_Tool_Call_Result_Tokens_EWMA
-                     | Session_Uncached_Input_Tokens_EWMA
-                     | Session_Turn_Count_EWMA | Fraction_Thinking_Tokens_EWMA | Fraction_Tool_Call_Tokens_EWMA
-                     | Fraction_Thinking_Per_Tool_Call_EWMA | Fraction_Uncached_Input_EWMA =>
-                     null;
-               end case;
+                  end;
+               elsif Dsc.Properties.Is_MR_Chart then
+                  if CD.MR_BC_Active then
+                     Limits := CD.MR_BC_Limits;
+                  else
+                     Limits := Statistics.I_Chart.Compute_MR_Limits
+                       (Mean_MR => CD.Params.Mean_MR);
+                  end if;
+               else
+                  null;  --  EWMA: limits were computed in the EWMA section
+               end if;
             end if;
 
             CD.Points.Append

@@ -64,6 +64,54 @@ package Coyote_SQC.App is
    type Chart_Data_Array is
      array (Coyote_SQC.Charts.Chart_Kind) of Chart_Data;
 
+   --  ── Chart descriptor and accessors (self-contained chart computation)
+   --
+   --  A Chart_Descriptor fully specifies how to compute one chart kind.
+   --  Recompute_Chart looks it up and proceeds without further case dispatch
+   --  Recompute_Chart looks up Descriptor (Kind) and then proceeds without
+   --  further case dispatch on Kind.
+
+   --  Identifies which workspace Box-Cox configuration governs a chart.
+   type Box_Cox_Config_Kind is
+     (I_Chart_Box_Cox,
+      Xbar_S_Box_Cox,
+      Turn_Count_Box_Cox,
+      No_Box_Cox);
+
+   --  Per-session exclusion rules for parameter estimation and chart display.
+   type Exclusion_Kind is
+     (No_Exclusion,
+      Zero_Observation,
+      Zero_Output_Tokens,
+      Zero_Tool_Call_Tokens,
+      Zero_Input_Tokens,
+      Zero_Thinking,
+      Zero_Tool_Call_Turns);
+
+   --  Extracts a single Long_Float scalar observation from a
+   --  Session_Metrics_Record.  Returns Long_Float'First to signal exclusion.
+   type Metric_Accessor is access function
+     (M : Coyote_SQC.Data_Model.Session_Metrics_Record) return Long_Float;
+
+   --  Extracts the per-turn subgroup vector from a Session_Metrics_Record.
+   type Subgroup_Accessor is access function
+     (M : Coyote_SQC.Data_Model.Session_Metrics_Record) return
+     Coyote_SQC.Data_Model.Natural_Vectors.Vector;
+
+   --  A self-contained runtime chart descriptor.
+   type Chart_Descriptor is record
+      Kind           : Coyote_SQC.Charts.Chart_Kind;
+      Properties     : Coyote_SQC.Charts.Chart_Properties;
+      Get_Observation : Metric_Accessor;
+      Get_Subgroup   : Subgroup_Accessor;
+      Box_Cox_Kind   : Box_Cox_Config_Kind;
+      Exclusion_Rule : Exclusion_Kind;
+   end record;
+
+   --  Return the descriptor for Kind.
+   function Descriptor (Kind : Coyote_SQC.Charts.Chart_Kind)
+     return Chart_Descriptor;
+
    --  ── Canvas interaction state ──────────────────────────────────────────
 
    type Screen_Point is record

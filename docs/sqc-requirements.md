@@ -590,7 +590,7 @@ Z_t = λ · x_t + (1 − λ) · Z_{t−1},   Z_0 = Grand_Mean
 
 where `x_t` is the session-level observation, `λ` is the smoothing weight
 (default 0.2, range 0.01–1.00), and `Z_0` is the process target (the grand mean
-estimated from the setup interval by the paired I chart).  Smaller `λ` weights
+estimated from the setup interval for this chart kind).  Smaller `λ` weights
 recent observations less and gives more smoothing; `λ = 1` reduces to the raw I
 chart.
 
@@ -600,14 +600,16 @@ chart.
 UCL_t / LCL_t = Grand_Mean ± L · σ · √( λ/(2−λ) · [1 − (1−λ)^{2t}] )
 ```
 
-where `σ = MR̄ / d2` (`d2 = 1.128`) is the same process-sigma estimate used by
-the paired I chart, and `L` is the sigma multiplier (default 3.0, range 1.00–4.00).
+where `σ = MR̄ / d2` (`d2 = 1.128`) is the process-sigma estimate for this chart kind,
+and `L` is the sigma multiplier (default 3.0, range 1.00–4.00).
 The limits converge asymptotically to the steady-state values
 `Grand_Mean ± L · σ · √(λ/(2−λ))`.  The LCL is clamped to 0.
 
-**No new parameter estimation required.** The EWMA chart uses the same `Grand_Mean`
-and `Mean_MR` (hence σ) as the paired I chart.  Changing the setup interval updates
-both charts automatically.
+**Parameter estimation.** Each EWMA chart independently computes `Grand_Mean` and
+`Mean_MR` (hence σ) from the same setup-interval observations as the corresponding
+I chart, using identical formulas (§5.6). Because the computation is deterministic,
+the results are always equal. No cached state is read from another chart's computed
+results.
 
 **Step counter.** The step counter _t_ advances only for non-excluded sessions.
 When Box-Cox is active, sessions with a zero token total are excluded and do not
@@ -740,11 +742,12 @@ deferred.
 
 **EWMA charts (§5.9):**
 
-EWMA charts have no independent parameter estimation — they consume
-Grand_Mean and σ from the paired I chart (§5.9). When robust estimation is
-enabled, both Grand_Mean (→ median) and σ (→ Q_n(observations) / 2.2219) are computed
-robustly, and the EWMA chart inherits those values automatically. No
-additional logic is required in the EWMA recursion. When Box-Cox is also
+EWMA charts independently recompute `Grand_Mean` and σ from the same
+setup-interval observations as the corresponding I chart (§5.9). When robust
+estimation is enabled, `Grand_Mean` (→ median) and σ (→ Q_n(observations) / 2.2219)
+are computed robustly from those same observations. Because the computation is
+identical to the I chart and deterministic, the resulting values are always equal.
+No cached state is read from another chart's computed results. When Box-Cox is also
 active, robust estimation is applied to the transformed values (as for the
 I chart), with no further special handling needed.
 
@@ -856,7 +859,7 @@ not create or delete charts. All charts share a single workspace-level setup int
 **Rationale:** thinking tokens arrive in correlated bursts, not as independent Bernoulli trials per output token; the ratio is right-skewed and overdispersed relative to the binomial distribution. An I chart is appropriate.
 **Limits (I chart):** derived from the mean moving range of the setup interval (§5.6). Box-Cox transformation is not applied (ratio data is bounded and different from token count totals).
 **MR chart:** `MR_i = |ratio_i − ratio_{i-1}|`; sessions with zero output tokens are skipped and do not contribute to the MR sequence.
-**EWMA chart:** paired with the I chart; uses the same Grand_Mean and σ.
+**EWMA chart:** independently computes Grand_Mean and σ from the same setup-interval observations as the corresponding I chart.
 
 ### 6.10b Fraction of Tool-Call Tokens — I/MR/EWMA Charts
 
@@ -867,7 +870,7 @@ not create or delete charts. All charts share a single workspace-level setup int
 **Rationale:** tool-call tokens are generated in discrete, correlated invocations; the binomial model does not apply. An I chart is appropriate.
 **Limits (I chart):** derived from the mean moving range of the setup interval (§5.6). Box-Cox transformation is not applied.
 **MR chart:** `MR_i = |ratio_i − ratio_{i-1}|`; sessions with zero output tokens are skipped.
-**EWMA chart:** paired with the I chart; uses the same Grand_Mean and σ.
+**EWMA chart:** independently computes Grand_Mean and σ from the same setup-interval observations as the corresponding I chart.
 
 ### 6.10c Fraction: Thinking/Tool-Call Tokens — I/MR/EWMA Charts
 
@@ -878,7 +881,7 @@ not create or delete charts. All charts share a single workspace-level setup int
 **Rationale:** thinking tokens and tool-call tokens are both session-level scalars; their ratio is a continuous positive-valued quantity unsuitable for the binomial model. An I chart is appropriate.
 **Limits (I chart):** derived from the mean moving range of the setup interval (§5.6). Box-Cox transformation is not applied (ratio data).
 **MR chart:** `MR_i = |ratio_i − ratio_{i-1}|`; sessions with zero tool-call input tokens are skipped and do not advance the MR sequence.
-**EWMA chart:** paired with the I chart; uses the same Grand_Mean and σ.
+**EWMA chart:** independently computes Grand_Mean and σ from the same setup-interval observations as the corresponding I chart.
 
 ### 6.10d Fraction: Uncached/Total Input Tokens — I/MR/EWMA Charts
 
@@ -889,7 +892,7 @@ not create or delete charts. All charts share a single workspace-level setup int
 **Rationale:** the uncached fraction is a continuous rate that summarises prompt-cache effectiveness across sessions. An I chart detects sustained shifts in caching efficiency. Box-Cox transformation is not applied.
 **Limits (I chart):** derived from the mean moving range of the setup interval (§5.6).
 **MR chart:** `MR_i = |ratio_i − ratio_{i-1}|`; sessions with zero total input tokens are skipped.
-**EWMA chart:** paired with the I chart; uses the same Grand_Mean and σ.
+**EWMA chart:** independently computes Grand_Mean and σ from the same setup-interval observations as the corresponding I chart.
 
 ### 6.10 Session Input Tokens — I Chart
 
@@ -957,7 +960,7 @@ sessions in chronological order.
 **Statistic:** the EWMA value `Z_t = λ · x_t + (1−λ) · Z_{t−1}` (§5.9).
 **Limits:** time-varying UCL and LCL at step _t_ (§5.9). When Box-Cox is active,
 the EWMA and limits are computed in z-space and back-transformed (§5.9).
-**Paired with:** Session Input Tokens — I chart (shares Grand_Mean and σ).
+**Parameters:** Grand_Mean and σ are independently computed from the same setup-interval observations as the Session Input Tokens — I chart.
 
 ### 6.19 Session Output Tokens — EWMA Chart
 
@@ -965,7 +968,7 @@ the EWMA and limits are computed in z-space and back-transformed (§5.9).
 **Statistic:** the EWMA value `Z_t = λ · x_t + (1−λ) · Z_{t−1}` (§5.9).
 **Limits:** time-varying UCL and LCL at step _t_ (§5.9). When Box-Cox is active,
 the EWMA and limits are computed in z-space and back-transformed (§5.9).
-**Paired with:** Session Output Tokens — I chart (shares Grand_Mean and σ).
+**Parameters:** Grand_Mean and σ are independently computed from the same setup-interval observations as the Session Output Tokens — I chart.
 
 ### 6.20 Session Cache Read Tokens — EWMA Chart
 
@@ -973,7 +976,7 @@ the EWMA and limits are computed in z-space and back-transformed (§5.9).
 **Statistic:** the EWMA value `Z_t = λ · x_t + (1−λ) · Z_{t−1}` (§5.9).
 **Limits:** time-varying UCL and LCL at step _t_ (§5.9). When Box-Cox is active,
 the EWMA and limits are computed in z-space and back-transformed (§5.9).
-**Paired with:** Session Cache Read Tokens — I chart (shares Grand_Mean and σ).
+**Parameters:** Grand_Mean and σ are independently computed from the same setup-interval observations as the Session Cache Read Tokens — I chart.
 
 ### 6.21 Session Cache Write Tokens — EWMA Chart
 
@@ -981,7 +984,7 @@ the EWMA and limits are computed in z-space and back-transformed (§5.9).
 **Statistic:** the EWMA value `Z_t = λ · x_t + (1−λ) · Z_{t−1}` (§5.9).
 **Limits:** time-varying UCL and LCL at step _t_ (§5.9). When Box-Cox is active,
 the EWMA and limits are computed in z-space and back-transformed (§5.9).
-**Paired with:** Session Cache Write Tokens — I chart (shares Grand_Mean and σ).
+**Parameters:** Grand_Mean and σ are independently computed from the same setup-interval observations as the Session Cache Write Tokens — I chart.
 
 ### 6.22 Session Thinking Tokens — I Chart
 
@@ -1004,7 +1007,7 @@ the EWMA and limits are computed in z-space and back-transformed (§5.9).
 **Statistic:** the EWMA value `Z_t = λ · x_t + (1−λ) · Z_{t−1}` (§5.9).
 **Limits:** time-varying UCL and LCL at step _t_ (§5.9). When Box-Cox is active,
 the EWMA and limits are computed in z-space and back-transformed (§5.9).
-**Paired with:** Session Thinking Tokens — I chart (shares Grand_Mean and σ).
+**Parameters:** Grand_Mean and σ are independently computed from the same setup-interval observations as the Session Thinking Tokens — I chart.
 
 ### 6.25 Session Tool-Call Tokens — I Chart
 
@@ -1027,7 +1030,7 @@ the EWMA and limits are computed in z-space and back-transformed (§5.9).
 **Statistic:** the EWMA value `Z_t = λ · x_t + (1−λ) · Z_{t−1}` (§5.9).
 **Limits:** time-varying UCL and LCL at step _t_ (§5.9). When Box-Cox is active,
 the EWMA and limits are computed in z-space and back-transformed (§5.9).
-**Paired with:** Session Tool-Call Tokens — I chart (shares Grand_Mean and σ).
+**Parameters:** Grand_Mean and σ are independently computed from the same setup-interval observations as the Session Tool-Call Tokens — I chart.
 
 ### 6.28 Session Tool-Call Result Tokens — I Chart
 
@@ -1050,7 +1053,7 @@ the EWMA and limits are computed in z-space and back-transformed (§5.9).
 **Statistic:** the EWMA value `Z_t = λ · x_t + (1−λ) · Z_{t−1}` (§5.9).
 **Limits:** time-varying UCL and LCL at step _t_ (§5.9). When Box-Cox is active,
 the EWMA and limits are computed in z-space and back-transformed (§5.9).
-**Paired with:** Session Tool-Call Result Tokens — I chart (shares Grand_Mean and σ).
+**Parameters:** Grand_Mean and σ are independently computed from the same setup-interval observations as the Session Tool-Call Result Tokens — I chart.
 
 ### 6.31 Session Turn Count — I Chart
 
@@ -1071,7 +1074,7 @@ the EWMA and limits are computed in z-space and back-transformed (§5.9).
 **Measured quantity:** number of turns in the session (`N_Turns`).
 **Statistic:** the EWMA value `Z_t = λ · x_t + (1−λ) · Z_{t−1}` (§5.9).
 **Limits:** time-varying UCL and LCL at step _t_ (§5.9). When Box-Cox is active (§5.10), the EWMA and limits are computed in z-space and back-transformed to original (turn count) units for display.
-**Paired with:** Session Turn Count — I chart (shares Grand_Mean and σ).
+**Parameters:** Grand_Mean and σ are independently computed from the same setup-interval observations as the Session Turn Count — I chart.
 ### 6.34 Session Uncached Input Tokens — I Chart
 
 **Measured quantity:** total uncached input tokens for the session
@@ -1097,7 +1100,7 @@ consecutive sessions in chronological order.
 **Statistic:** the EWMA value `Z_t = λ · x_t + (1−λ) · Z_{t−1}` (§5.9).
 **Limits:** time-varying UCL and LCL at step _t_ (§5.9). When Box-Cox is active,
 the EWMA and limits are computed in z-space and back-transformed (§5.9).
-**Paired with:** Session Uncached Input Tokens — I chart (shares Grand_Mean and σ).
+**Parameters:** Grand_Mean and σ are independently computed from the same setup-interval observations as the Session Uncached Input Tokens — I chart.
 
 
 
@@ -1118,66 +1121,85 @@ The main window contains, from top to bottom:
 
 ### 7.2 Left Panel
 
-A GtkListBox (~180px default width, user-resizable) listing the forty-eight charts in three
-visually separated groups:
+A GtkListBox (~180px default width, user-resizable) listing the forty-eight charts in
+three visually separated groups with indented sub-group labels. Top-level groups are
+bold; sub-group labels are italic and indented 8 px; chart rows are indented 16 px.
+Groups and sub-groups are ordered alphabetically (case-sensitive). Enum declaration
+order is preserved within each sub-group.
 
 ```
 Token Consumption
-─────────────────
-Turn Tokens — Xbar
-Turn Tokens — s
-Tool Call Tokens — Xbar
-Tool Call Tokens — s
-Thinking Tokens — Xbar
-Thinking Tokens — s
+  Thinking Tokens
+    Thinking Tokens -- Xbar
+    Thinking Tokens -- s
+  Tool Call Tokens
+    Tool Call Tokens -- Xbar
+    Tool Call Tokens -- s
+  Turn Tokens
+    Turn Tokens -- Xbar
+    Turn Tokens -- s
 
 Rates
-─────────────────
-Tool Call Failure Rate
-Fraction: Tool-Call Turns
-Fraction: Thinking Turns
-Fraction: Thinking Tokens -- I
-Fraction: Thinking Tokens -- MR
-Fraction: Thinking Tokens -- EWMA
-Fraction: Tool-Call Tokens -- I
-Fraction: Tool-Call Tokens -- MR
-Fraction: Tool-Call Tokens -- EWMA
-Fraction: Thinking/Tool-Call Tokens -- I
-Fraction: Thinking/Tool-Call Tokens -- MR
-Fraction: Thinking/Tool-Call Tokens -- EWMA
-Fraction: Uncached/Total Input -- I
-Fraction: Uncached/Total Input -- MR
-Fraction: Uncached/Total Input -- EWMA
+  Thinking Tokens
+    Fraction: Thinking Tokens -- I
+    Fraction: Thinking Tokens -- MR
+    Fraction: Thinking Tokens -- EWMA
+  Thinking Turns
+    Fraction: Thinking Turns
+  Thinking per Tool-Call
+    Fraction: Thinking/Tool-Call Tokens -- I
+    Fraction: Thinking/Tool-Call Tokens -- MR
+    Fraction: Thinking/Tool-Call Tokens -- EWMA
+  Tool Call Failure Rate
+    Tool Call Failure Rate
+  Tool-Call Tokens
+    Fraction: Tool-Call Tokens -- I
+    Fraction: Tool-Call Tokens -- MR
+    Fraction: Tool-Call Tokens -- EWMA
+  Tool-Call Turns
+    Fraction: Tool-Call Turns
+  Uncached Input
+    Fraction: Uncached/Total Input -- I
+    Fraction: Uncached/Total Input -- MR
+    Fraction: Uncached/Total Input -- EWMA
 
 Session Totals
-─────────────────
-Session Input Tokens — I
-Session Input Tokens — MR
-Session Output Tokens — I
-Session Output Tokens — MR
-Session Cache Read Tokens — I
-Session Cache Read Tokens — MR
-Session Cache Write Tokens — I
-Session Cache Write Tokens — MR
-Session Thinking Tokens — I
-Session Thinking Tokens — MR
-Session Tool-Call Tokens — I
-Session Tool-Call Tokens — MR
-Session Tool-Call Result Tokens — I
-Session Tool-Call Result Tokens — MR
-Session Input Tokens — EWMA
-Session Output Tokens — EWMA
-Session Cache Read Tokens — EWMA
-Session Cache Write Tokens — EWMA
-Session Thinking Tokens — EWMA
-Session Tool-Call Tokens — EWMA
-Session Tool-Call Result Tokens — EWMA
-Session Turn Count — I
-Session Turn Count — MR
-Session Turn Count — EWMA
-Session Uncached Input Tokens — I
-Session Uncached Input Tokens — MR
-Session Uncached Input Tokens — EWMA
+  Cache Read Tokens
+    Session Cache Read Tokens -- I
+    Session Cache Read Tokens -- MR
+    Session Cache Read Tokens -- EWMA
+  Cache Write Tokens
+    Session Cache Write Tokens -- I
+    Session Cache Write Tokens -- MR
+    Session Cache Write Tokens -- EWMA
+  Input Tokens
+    Session Input Tokens -- I
+    Session Input Tokens -- MR
+    Session Input Tokens -- EWMA
+  Output Tokens
+    Session Output Tokens -- I
+    Session Output Tokens -- MR
+    Session Output Tokens -- EWMA
+  Thinking Tokens
+    Session Thinking Tokens -- I
+    Session Thinking Tokens -- MR
+    Session Thinking Tokens -- EWMA
+  Tool-Call Result Tokens
+    Session Tool-Call Result Tokens -- I
+    Session Tool-Call Result Tokens -- MR
+    Session Tool-Call Result Tokens -- EWMA
+  Tool-Call Tokens
+    Session Tool-Call Tokens -- I
+    Session Tool-Call Tokens -- MR
+    Session Tool-Call Tokens -- EWMA
+  Turn Count
+    Session Turn Count -- I
+    Session Turn Count -- MR
+    Session Turn Count -- EWMA
+  Uncached Input Tokens
+    Session Uncached Input Tokens -- I
+    Session Uncached Input Tokens -- MR
+    Session Uncached Input Tokens -- EWMA
 ```
 
 Clicking a row switches the chart displayed in the chart area. The active chart is
@@ -1849,10 +1871,10 @@ All statistical formula implementations shall have AUnit unit tests covering:
   `ewmaWeight = 0.2` and `ewmaL = 3.0`.
 - Correct `Total_Thinking_Tokens`, `Total_Tool_Call_Input_Tokens`, and `Total_Tool_Call_Result_Tokens` metric computation: given a session with three turns where two have thinking tokens (12 and 24) and two turns each have one tool call with estimated input/output tokens (5/8 and 3/12), verify `Total_Thinking_Tokens = 36`, `Total_Tool_Call_Input_Tokens = 8`, `Total_Tool_Call_Result_Tokens = 20`.
 - I/MR limit computation for the three new session-total chart kinds (Thinking Tokens, Tool-Call Tokens, Tool-Call Result Tokens): for a known five-session dataset, verify UCL, CL, and LCL match hand-computed §5.6 formula values to 4 decimal places.
-- EWMA computation for the three new EWMA chart kinds (Thinking, Tool-Call, Tool-Call Result): verify `Z_t` and time-varying limits use the Grand_Mean and σ from the corresponding paired I chart.
+- EWMA computation for the three new EWMA chart kinds (Thinking, Tool-Call, Tool-Call Result): verify `Z_t` and time-varying limits independently compute Grand_Mean and σ from the same setup-interval observations as the corresponding I chart.
 - Zero-value session exclusion for new I/MR charts: sessions with zero `Total_Thinking_Tokens`, zero `Total_Tool_Call_Input_Tokens`, or zero `Total_Tool_Call_Result_Tokens` are excluded from the respective I/MR chart when Box-Cox is enabled, and a status-bar notice is posted.
 - Session Turn Count I/MR limit computation: for a known five-session dataset, verify UCL, CL, and LCL match hand-computed §5.6 formula values to 4 decimal places.
-- Session Turn Count EWMA computation: verify `Z_t` and time-varying limits use the Grand_Mean and σ from the paired I chart.
+- Session Turn Count EWMA computation: verify `Z_t` and time-varying limits independently compute Grand_Mean and σ from the same setup-interval observations as the corresponding I chart.
 - Session Turn Count Box-Cox round-trip: `turnCountBoxCox` configuration (enabled, lambda source, fixed λ) survives workspace save/load unchanged.
 - Session Turn Count Box-Cox version migration: workspace files at version ≤ 4 load with `turnCountBoxCox` disabled (default).
 - Robust I chart estimation: for a five-session dataset containing one outlier
@@ -1883,7 +1905,7 @@ All statistical formula implementations shall have AUnit unit tests covering:
 - Session Turn Count Box-Cox: MR̄ = 0 when all setup-interval sessions have N_Turns = 1 after transformation (y = 0 for all); verify no limits are drawn and no exception is raised.
 - Token normalization: for an Anthropic session with `input_tokens=100`, `cache_read_input_tokens=200`, `cache_creation_input_tokens=50`, verify `Total_Input_Tokens=350`, `Total_Cache_Read_Tokens=200`, `Total_Cache_Write_Tokens=50`, and `Total_Uncached_Input_Tokens=100`. For an OpenAI session with `prompt_tokens=350`, `cached_tokens=250`, verify `Total_Input_Tokens=350`, `Total_Cache_Read_Tokens=250`, `Total_Cache_Write_Tokens=0`, and `Total_Uncached_Input_Tokens=100`.
 - Uncached input token I/MR limit computation: for a known five-session dataset, verify UCL, CL, and LCL match hand-computed §5.6 formula values to 4 decimal places.
-- Uncached input token EWMA computation: verify `Z_t` and time-varying limits use the Grand_Mean and σ from the paired I chart.
+- Uncached input token EWMA computation: verify `Z_t` and time-varying limits independently compute Grand_Mean and σ from the same setup-interval observations as the corresponding I chart.
 - Uncached input token zero-value exclusion: sessions where `Total_Uncached_Input_Tokens = 0` are excluded from the I/MR chart when Box-Cox is enabled, and a status-bar notice is posted.
 - `Fraction_Thinking_Tokens_I` I chart `Estimate_Parameters`: for two sessions with known `Total_Thinking_Tokens` and `Total_Output_Tokens`, verify `Grand_Mean = mean(thinking_i / output_i)` to 1×10⁻⁹.
 - `Fraction_Tool_Call_Tokens_I` I chart `Estimate_Parameters`: for two sessions with known `Total_Tool_Call_Input_Tokens` and `Total_Output_Tokens`, verify `Grand_Mean = mean(tool_call_i / output_i)` to 1×10⁻⁹.
