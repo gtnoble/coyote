@@ -225,7 +225,12 @@ package body Coyote_Renderer.Session_View is
                end if;
             end;
          exception
-            when others => null;
+            when E : others =>
+               Ada.Text_IO.Put_Line
+                 (Ada.Text_IO.Standard_Error,
+                  "coyote_renderer: session_view: "
+                  & "Collect_Tool_Results: "
+                  & Ada.Exceptions.Exception_Information (E));
          end;
       end loop;
       Ada.Text_IO.Close (File);
@@ -561,13 +566,22 @@ package body Coyote_Renderer.Session_View is
                end if;
             end;
          exception
-            when others => null;
+            when E : others =>
+               Ada.Text_IO.Put_Line
+                 (Ada.Text_IO.Standard_Error,
+                  "coyote_renderer: session_view: "
+                  & "Render_Pass line: "
+                  & Ada.Exceptions.Exception_Information (E));
          end;
          <<Next_Line>>
       end loop;
       Ada.Text_IO.Close (File);
    exception
-      when others => null;
+      when E : others =>
+         Ada.Text_IO.Put_Line
+           (Ada.Text_IO.Standard_Error,
+            "coyote_renderer: session_view: Render_Pass: "
+            & Ada.Exceptions.Exception_Information (E));
    end Render_Pass;
 
    --  ── Public interface ──────────────────────────────────────────────────
