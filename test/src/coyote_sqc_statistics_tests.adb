@@ -2191,4 +2191,155 @@ package body Coyote_SQC_Statistics_Tests is
               & "setup interval contains an outlier");
    end Test_Robust_EWMA_Outlier_Grand_Mean;
 
+
+   --  ── Additional variance-stabilization transform tests ─────────────────
+
+   --  Sqrt_VS: f(x)=sqrt(x), f^-1(z)=z^2; zero is valid.
+   procedure Test_Sqrt_VS_Round_Trip (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.I_Chart;
+      Tol : constant Long_Float := 1.0e-10;
+   begin
+      --  x=4: forward=2, inverse=4.
+      Assert (abs (Sqrt_VS (4.0) - 2.0) <= Tol,
+              "Sqrt_VS (4.0) should be 2.0");
+      Assert (abs (Sqrt_VS_Inverse (2.0) - 4.0) <= Tol,
+              "Sqrt_VS_Inverse (2.0) should be 4.0");
+      --  x=0: forward=0, inverse=0.
+      Assert (abs (Sqrt_VS (0.0)) <= Tol,
+              "Sqrt_VS (0.0) should be 0.0");
+      Assert (abs (Sqrt_VS_Inverse (0.0)) <= Tol,
+              "Sqrt_VS_Inverse (0.0) should be 0.0");
+      --  Round-trip for x=9.
+      Assert (abs (Sqrt_VS_Inverse (Sqrt_VS (9.0)) - 9.0) <= Tol,
+              "Sqrt_VS round-trip should recover 9.0");
+   end Test_Sqrt_VS_Round_Trip;
+
+   --  Anscombe: f(x)=2*sqrt(x+0.375), f^-1(z)=(z/2)^2-0.375.
+   procedure Test_Anscombe_Round_Trip (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.I_Chart;
+      Tol : constant Long_Float := 1.0e-10;
+   begin
+      --  x=0: f(0)=2*sqrt(0.375).
+      declare
+         use Ada.Numerics.Long_Elementary_Functions;
+         Expected : constant Long_Float := 2.0 * Sqrt (0.375);
+      begin
+         Assert (abs (Anscombe (0.0) - Expected) <= Tol,
+                 "Anscombe (0.0) should be 2*sqrt(3/8)");
+      end;
+      --  Round-trip for x=10.
+      Assert (abs (Anscombe_Inverse (Anscombe (10.0)) - 10.0) <= 1.0e-9,
+              "Anscombe round-trip should recover 10.0");
+      --  Inverse may give slightly negative result for z near 0 (expected).
+      declare
+         Z_0 : constant Long_Float := Anscombe (0.0);
+         Inv : constant Long_Float := Anscombe_Inverse (Z_0);
+      begin
+         Assert (abs (Inv - 0.0) <= 1.0e-9,
+                 "Anscombe round-trip for x=0 should recover ~0; got "
+                 & Long_Float'Image (Inv));
+      end;
+   end Test_Anscombe_Round_Trip;
+
+   --  Arcsinh_VS: accepts zero and negative values.
+   procedure Test_Arcsinh_VS_Round_Trip (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.I_Chart;
+      Tol : constant Long_Float := 1.0e-10;
+   begin
+      --  x=0: f(0)=0, f^-1(0)=0.
+      Assert (abs (Arcsinh_VS (0.0)) <= Tol,
+              "Arcsinh_VS (0.0) should be 0.0");
+      Assert (abs (Arcsinh_VS_Inverse (0.0)) <= Tol,
+              "Arcsinh_VS_Inverse (0.0) should be 0.0");
+      --  Round-trip for x=5.
+      Assert (abs (Arcsinh_VS_Inverse (Arcsinh_VS (5.0)) - 5.0) <= Tol,
+              "Arcsinh_VS round-trip should recover 5.0");
+      --  Negative input is valid: round-trip for x=-3.
+      Assert (abs (Arcsinh_VS_Inverse (Arcsinh_VS (-3.0)) - (-3.0)) <= Tol,
+              "Arcsinh_VS round-trip for x=-3 should recover -3.0");
+      --  Antisymmetry: f(-x) = -f(x).
+      Assert (abs (Arcsinh_VS (-2.0) + Arcsinh_VS (2.0)) <= Tol,
+              "Arcsinh_VS should be antisymmetric: f(-x)=-f(x)");
+   end Test_Arcsinh_VS_Round_Trip;
+
+   --  Freeman-Tukey: f(x)=sqrt(x)+sqrt(x+1); approximate inverse.
+   procedure Test_Freeman_Tukey_Round_Trip (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.I_Chart;
+      Tol : constant Long_Float := 1.0e-6;   --  approx inverse
+   begin
+      --  x=0: f(0)=0+1=1, f^-1(1)=0.
+      declare
+         use Ada.Numerics.Long_Elementary_Functions;
+         FT_0 : constant Long_Float := Freeman_Tukey (0.0);
+      begin
+         Assert (abs (FT_0 - 1.0) <= 1.0e-10,
+                 "Freeman_Tukey (0.0) should be 1.0; got "
+                 & Long_Float'Image (FT_0));
+         Assert (abs (Freeman_Tukey_Inverse (FT_0)) <= Tol,
+                 "Freeman_Tukey round-trip for x=0 should recover ~0; got "
+                 & Long_Float'Image (Freeman_Tukey_Inverse (FT_0)));
+      end;
+      --  Round-trip for x=4 (large x: approximate inverse is accurate).
+      Assert (abs (Freeman_Tukey_Inverse (Freeman_Tukey (4.0)) - 4.0) <= Tol,
+              "Freeman_Tukey round-trip should recover 4.0");
+      --  Round-trip for x=100.
+      Assert (abs (Freeman_Tukey_Inverse (Freeman_Tukey (100.0)) - 100.0) <= Tol,
+              "Freeman_Tukey round-trip should recover 100.0");
+   end Test_Freeman_Tukey_Round_Trip;
+
+   --  Apply_Transform / Invert_Transform dispatchers.
+   procedure Test_Apply_Invert_Dispatch (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.I_Chart;
+      use Coyote_SQC.Data_Model;
+      Tol : constant Long_Float := 1.0e-9;
+      X   : constant Long_Float := 9.0;
+   begin
+      --  None: identity.
+      Assert (abs (Apply_Transform (X, None) - X) <= Tol,
+              "Apply_Transform Kind=None should return X unchanged");
+      Assert (abs (Invert_Transform (X, None) - X) <= Tol,
+              "Invert_Transform Kind=None should return Z unchanged");
+      --  Box_Cox (ln): Apply_Transform = ln(9), Invert_Transform = exp(ln(9)).
+      declare
+         Z_BC : constant Long_Float :=
+           Apply_Transform (X, Box_Cox, 0.0);
+      begin
+         Assert (abs (Invert_Transform (Z_BC, Box_Cox, 0.0) - X) <= Tol,
+                 "Box_Cox round-trip via dispatchers should recover X");
+      end;
+      --  Sqrt_VS.
+      declare
+         Z_Sqrt : constant Long_Float := Apply_Transform (X, Sqrt_VS);
+      begin
+         Assert (abs (Invert_Transform (Z_Sqrt, Sqrt_VS) - X) <= Tol,
+                 "Sqrt_VS round-trip via dispatchers should recover X");
+      end;
+      --  Anscombe.
+      declare
+         Z_A : constant Long_Float := Apply_Transform (X, Anscombe);
+      begin
+         Assert (abs (Invert_Transform (Z_A, Anscombe) - X) <= 1.0e-9,
+                 "Anscombe round-trip via dispatchers should recover X");
+      end;
+      --  Arcsinh_VS.
+      declare
+         Z_AS : constant Long_Float := Apply_Transform (X, Arcsinh_VS);
+      begin
+         Assert (abs (Invert_Transform (Z_AS, Arcsinh_VS) - X) <= Tol,
+                 "Arcsinh_VS round-trip via dispatchers should recover X");
+      end;
+      --  Freeman_Tukey.
+      declare
+         Z_FT : constant Long_Float := Apply_Transform (X, Freeman_Tukey);
+      begin
+         Assert (abs (Invert_Transform (Z_FT, Freeman_Tukey) - X) <= 1.0e-6,
+                 "Freeman_Tukey round-trip via dispatchers should recover X");
+      end;
+   end Test_Apply_Invert_Dispatch;
+
 end Coyote_SQC_Statistics_Tests;

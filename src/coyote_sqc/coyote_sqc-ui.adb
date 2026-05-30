@@ -17,6 +17,7 @@ with Coyote_SQC.Config;
 with Coyote_SQC.UI.Chart_Canvas;
 with Coyote_SQC.UI.Detail_Panel;
 with Coyote_SQC.UI.Dialogs;
+with Coyote_SQC.UI.Chart_Settings_Dialog;
 with Coyote_SQC.UI.Left_Panel;
 with Coyote_SQC.UI.Toolbar;
 with Coyote_SQC.UI.Workspace_Settings;
@@ -248,6 +249,7 @@ package body Coyote_SQC.UI is
       if Res = Gtk_Response_OK then
          declare
             Path : constant String := D.Get_Filename;
+            WS_Migrated_1 : Boolean := False;
          begin
             D.Destroy;
             begin
@@ -255,7 +257,7 @@ package body Coyote_SQC.UI is
                   VF : Natural;
                begin
                   Coyote_SQC.Workspace.Load
-                    (Path, Coyote_SQC.App.State.Workspace, VF);
+                    (Path, Coyote_SQC.App.State.Workspace, VF, WS_Migrated_1);
                   if VF = 0 then
                      Coyote_SQC.UI.Dialogs.Info
                        (Coyote_SQC.App.State.Main_Window,
@@ -263,9 +265,9 @@ package body Coyote_SQC.UI is
                         "Workspace file has no version field; "
                         & "some data may be missing.");
                   end if;
+               Coyote_SQC.App.State.Modified := WS_Migrated_1;
                end;
                Coyote_SQC.App.State.Workspace_Path := To_Unbounded_String (Path);
-               Coyote_SQC.App.State.Modified := False;
                Coyote_SQC.Config.Record_Open
                  (To_String (Coyote_SQC.App.State.Workspace.Name), Path);
                Coyote_SQC.App.Reload_Sessions;
@@ -382,9 +384,10 @@ package body Coyote_SQC.UI is
       begin
          declare
             VF : Natural;
+            WS_Migrated : Boolean;
          begin
             Coyote_SQC.Workspace.Load
-              (To_String (Found_Path), Coyote_SQC.App.State.Workspace, VF);
+              (To_String (Found_Path), Coyote_SQC.App.State.Workspace, VF, WS_Migrated);
             if VF = 0 then
                Coyote_SQC.UI.Dialogs.Info
                  (Coyote_SQC.App.State.Main_Window,
@@ -392,9 +395,9 @@ package body Coyote_SQC.UI is
                   "Workspace file has no version field; "
                   & "some data may be missing.");
             end if;
+            Coyote_SQC.App.State.Modified := WS_Migrated;
          end;
          Coyote_SQC.App.State.Workspace_Path := Found_Path;
-         Coyote_SQC.App.State.Modified := False;
          Coyote_SQC.Config.Record_Open
            (To_String (Coyote_SQC.App.State.Workspace.Name),
             To_String (Found_Path));
@@ -507,6 +510,18 @@ package body Coyote_SQC.UI is
          Coyote_SQC.UI.Chart_Canvas.Queue_Redraw;
       end if;
    end On_Y_Fit;
+
+   procedure On_Chart_Settings
+     (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
+   is
+      pragma Unreferenced (Item);
+   begin
+      if Coyote_SQC.App.State /= null then
+         Coyote_SQC.UI.Chart_Settings_Dialog.Show
+           (Coyote_SQC.App.State.Active_Chart);
+      end if;
+   end On_Chart_Settings;
+
 
    procedure On_Clear_Selection
      (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
@@ -689,6 +704,19 @@ package body Coyote_SQC.UI is
       Gtk.Menu.Gtk_New (View_M);
       Add_Item (View_M, "Show All",         On_Show_All'Access);
       Add_Item (View_M, "Y-Fit",            On_Y_Fit'Access);
+      --  Chart Settings... (Ctrl+,)
+      declare
+         CS_Item : Gtk.Menu_Item.Gtk_Menu_Item;
+      begin
+         Gtk.Menu_Item.Gtk_New (CS_Item, "Chart Settings...");
+         CS_Item.On_Activate (On_Chart_Settings'Access);
+         CS_Item.Add_Accelerator
+           ("activate", AG,
+            Gdk.Types.Keysyms.GDK_comma,
+            Gdk.Types.Control_Mask,
+            Gtk.Accel_Group.Accel_Visible);
+         View_M.Append (CS_Item);
+      end;
       Add_Sep (View_M);
       Add_Item (View_M, "Clear Selection",  On_Clear_Selection'Access);
       declare

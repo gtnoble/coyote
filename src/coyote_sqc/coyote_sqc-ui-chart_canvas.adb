@@ -9,9 +9,16 @@ with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
 with Cairo;                  use Cairo;
 with Coyote_SQC.App;         use Coyote_SQC.App;
+with Coyote_SQC.Workspace;
 with Coyote_SQC.UI.Detail_Panel;
 with Coyote_SQC.Charts;
+with Coyote_SQC.Data_Model;
 with Coyote_SQC.UI.Hover_Tooltip;
+with Coyote_SQC.UI.Chart_Settings_Dialog;
+with Coyote_SQC.UI.Dialogs;
+with Gtk.Menu;
+with Gtk.Menu_Item;
+with Gtk.Separator_Menu_Item;
 with Coyote_SQC.UI.Toolbar;
 with Gdk.Event;
 with Gdk.Types;              use Gdk.Types;
@@ -26,6 +33,7 @@ package body Coyote_SQC.UI.Chart_Canvas is
    use type Gtk.Drawing_Area.Gtk_Drawing_Area;
 
    use Coyote_SQC.Charts;
+   use Coyote_SQC.Data_Model;
 
    The_Canvas : Gtk.Drawing_Area.Gtk_Drawing_Area := null;
 
@@ -688,7 +696,7 @@ package body Coyote_SQC.UI.Chart_Canvas is
       --  Lambda symbol UTF-8: U+03BB = 0xCE 0xBB.
       if (Props.Is_I_Chart or else Props.Is_Xbar_S_Chart
              or else Props.Is_EWMA_Chart)
-        and then CD.Box_Cox_Active
+        and then CD.Transform_Active /= Coyote_SQC.Data_Model.None
       then
          declare
             Lambda_Sym : constant String :=
@@ -708,10 +716,16 @@ package body Coyote_SQC.UI.Chart_Canvas is
                  & Trim (Long_Long_Integer'Image (IV mod 100),
                          Ada.Strings.Left);
             end Format_Lambda;
-            Lam_Str  : constant String :=
-              Format_Lambda (CD.Box_Cox_Lambda);
             Subtitle : constant String :=
-              "Box-Cox " & Lambda_Sym & " = " & Lam_Str;
+              (case CD.Transform_Active is
+                 when Box_Cox       =>
+                   "Box-Cox " & Lambda_Sym
+                   & " = " & Format_Lambda (CD.Transform_Lambda),
+                 when Sqrt_VS       => "sqrt transform",
+                 when Anscombe      => "Anscombe transform",
+                 when Arcsinh_VS    => "arcsinh transform",
+                 when Freeman_Tukey => "Freeman-Tukey transform",
+                 when None          => "");
          begin
             Cairo.Save (Cr);
             Cairo.Select_Font_Face
@@ -724,7 +738,7 @@ package body Coyote_SQC.UI.Chart_Canvas is
             Draw_Text (Cr, MR - 110.0, MT + 13.0, Subtitle);
             Cairo.Restore (Cr);
          end;
-      elsif Props.Is_MR_Chart and then CD.MR_BC_Active then
+      elsif Props.Is_MR_Chart and then CD.MR_Transform_Active /= Coyote_SQC.Data_Model.None then
          --  MR chart: show λ_MR annotation.
          declare
             Lambda_Sym : constant String :=
@@ -744,10 +758,16 @@ package body Coyote_SQC.UI.Chart_Canvas is
                  & Trim (Long_Long_Integer'Image (IV mod 100),
                          Ada.Strings.Left);
             end Format_Lambda;
-            Lam_Str  : constant String :=
-              Format_Lambda (CD.MR_BC_Lambda);
             Subtitle : constant String :=
-              "Box-Cox " & Lambda_Sym & "_MR = " & Lam_Str;
+              (case CD.MR_Transform_Active is
+                 when Box_Cox       =>
+                   "Box-Cox " & Lambda_Sym
+                   & "_MR = " & Format_Lambda (CD.MR_Transform_Lambda),
+                 when Sqrt_VS       => "sqrt transform (MR)",
+                 when Anscombe      => "Anscombe transform (MR)",
+                 when Arcsinh_VS    => "arcsinh transform (MR)",
+                 when Freeman_Tukey => "Freeman-Tukey transform (MR)",
+                 when None          => "");
          begin
             Cairo.Save (Cr);
             Cairo.Select_Font_Face
@@ -784,9 +804,9 @@ package body Coyote_SQC.UI.Chart_Canvas is
             end Format_2dp;
             Annotation : constant String :=
               "EWMA " & Lambda_Sym & " = "
-              & Format_2dp (State.Workspace.EWMA_Weight)
+              & Format_2dp (Coyote_SQC.Workspace.Chart_Settings (State.Workspace, State.Active_Chart).EWMA_Weight)
               & ",  L = "
-              & Format_2dp (State.Workspace.EWMA_L);
+              & Format_2dp (Coyote_SQC.Workspace.Chart_Settings (State.Workspace, State.Active_Chart).EWMA_L);
          begin
             Cairo.Save (Cr);
             Cairo.Select_Font_Face
@@ -807,6 +827,139 @@ package body Coyote_SQC.UI.Chart_Canvas is
    end On_Draw;
 
    --  ── Mouse events ──────────────────────────────────────────────────────
+
+   --  ── Right-click context menu ────────────────────────────────────────────
+
+   --  Context-menu action callbacks (package-level so they can be passed as
+   --  On_Activate access values).
+
+   procedure On_Ctx_Chart_Settings
+     (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
+   is
+      pragma Unreferenced (Item);
+   begin
+      if State /= null then
+         Coyote_SQC.UI.Chart_Settings_Dialog.Show (State.Active_Chart);
+      end if;
+   end On_Ctx_Chart_Settings;
+
+   procedure On_Ctx_Y_Fit
+     (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
+   is
+      pragma Unreferenced (Item);
+   begin
+      if State /= null then
+         Coyote_SQC.App.Y_Fit;
+         Queue_Redraw;
+      end if;
+   end On_Ctx_Y_Fit;
+
+   procedure On_Ctx_Show_All
+     (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
+   is
+      pragma Unreferenced (Item);
+   begin
+      if State = null or else State.Sessions.Is_Empty then return; end if;
+      State.Date_From := State.Sessions.First_Element.Start_Time;
+      State.Date_To   := State.Sessions.Last_Element.Start_Time;
+      Sync_X_From_Dates;
+      Coyote_SQC.UI.Toolbar.Sync_Pickers;
+      Queue_Redraw;
+   end On_Ctx_Show_All;
+
+   procedure On_Ctx_Set_Setup
+     (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
+   is
+      pragma Unreferenced (Item);
+   begin
+      if State = null or else State.Selection.Is_Empty then return; end if;
+      declare
+         use Coyote_SQC.UI.Dialogs;
+         Already : constant Boolean :=
+           not State.Workspace.Setup_Session_Ids.Is_Empty;
+      begin
+         if Already then
+            if not Confirm
+              (State.Main_Window,
+               "Replace Setup Interval?",
+               "Replace the existing setup interval for this workspace?")
+            then
+               return;
+            end if;
+         end if;
+         State.Workspace.Setup_Session_Ids.Clear;
+         for ID of State.Selection loop
+            State.Workspace.Setup_Session_Ids.Include (ID);
+         end loop;
+         State.Modified := True;
+         Coyote_SQC.App.Recompute_Charts;
+         Coyote_SQC.App.Update_Menu_States;
+         Queue_Redraw;
+      end;
+   end On_Ctx_Set_Setup;
+
+   procedure On_Ctx_Clear_Setup
+     (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
+   is
+      pragma Unreferenced (Item);
+   begin
+      if State = null
+        or else State.Workspace.Setup_Session_Ids.Is_Empty
+      then return; end if;
+      if Coyote_SQC.UI.Dialogs.Confirm
+        (State.Main_Window,
+         "Clear Setup Interval?",
+         "Clear the setup interval for this workspace?")
+      then
+         State.Workspace.Setup_Session_Ids.Clear;
+         State.Modified := True;
+         Coyote_SQC.App.Recompute_Charts;
+         Coyote_SQC.App.Update_Menu_States;
+         Queue_Redraw;
+      end if;
+   end On_Ctx_Clear_Setup;
+
+   --  Show a right-click context menu anchored at the cursor position.
+   --  Event_Time is the GDK event timestamp for the popup.
+   procedure Show_Context_Menu is
+      use Gtk.Menu_Item;
+      Menu : Gtk.Menu.Gtk_Menu;
+      Sep  : Gtk.Separator_Menu_Item.Gtk_Separator_Menu_Item;
+
+      procedure Append_Item
+        (Label : String;
+         CB    : access procedure
+                   (I : access Gtk_Menu_Item_Record'Class);
+         Sens  : Boolean := True)
+      is
+         I : Gtk.Menu_Item.Gtk_Menu_Item;
+      begin
+         Gtk.Menu_Item.Gtk_New (I, Label);
+         I.On_Activate (CB);
+         I.Set_Sensitive (Sens);
+         Menu.Append (I);
+      end Append_Item;
+
+   begin
+      Gtk.Menu.Gtk_New (Menu);
+
+      Append_Item ("Chart Settings...", On_Ctx_Chart_Settings'Access);
+      Append_Item ("Y-Fit",             On_Ctx_Y_Fit'Access);
+      Append_Item ("Show All",          On_Ctx_Show_All'Access);
+      Gtk.Separator_Menu_Item.Gtk_New (Sep);
+      Menu.Append (Sep);
+      Append_Item
+        ("Set Selection as Setup Interval",
+         On_Ctx_Set_Setup'Access,
+         Sens => not State.Selection.Is_Empty);
+      Append_Item
+        ("Clear Setup Interval",
+         On_Ctx_Clear_Setup'Access,
+         Sens => not State.Workspace.Setup_Session_Ids.Is_Empty);
+
+      Menu.Show_All;
+      Menu.Popup_At_Pointer (null);
+   end Show_Context_Menu;
 
    function On_Button_Press
      (Widget : access Gtk.Widget.Gtk_Widget_Record'Class;
@@ -870,6 +1023,10 @@ package body Coyote_SQC.UI.Chart_Canvas is
                Queue_Redraw;
             end if;
          end;
+      end if;
+      if Event.Button = 3 then
+         Show_Context_Menu;
+         return True;  --  Suppress further processing of button 3.
       end if;
       return False;
    end On_Button_Press;

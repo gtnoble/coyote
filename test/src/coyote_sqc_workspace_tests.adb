@@ -8,6 +8,7 @@ with Ada.Directories;
 with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with AUnit.Assertions;
+with Coyote_SQC.Charts;
 with Coyote_SQC.Data_Model;
 with Coyote_SQC.Workspace;
 
@@ -16,6 +17,27 @@ package body Coyote_SQC_Workspace_Tests is
    use AUnit.Assertions;
    use type Ada.Containers.Count_Type;
    use Coyote_SQC.Data_Model;
+
+   --  Helper: discard the Migrated flag when we don't care.
+   procedure Load_Ignoring_Migrated
+     (Path      :     String;
+      Workspace : out Workspace_Record;
+      VF        : out Natural)
+   is
+      Migrated : Boolean;
+   begin
+      Coyote_SQC.Workspace.Load (Path, Workspace, VF, Migrated);
+   end Load_Ignoring_Migrated;
+
+   procedure Load_All_Ignored
+     (Path      :     String;
+      Workspace : out Workspace_Record)
+   is
+      VF       : Natural;
+      Migrated : Boolean;
+   begin
+      Coyote_SQC.Workspace.Load (Path, Workspace, VF, Migrated);
+   end Load_All_Ignored;
 
    --  ── Round-trip test ───────────────────────────────────────────────────
 
@@ -44,7 +66,7 @@ package body Coyote_SQC_Workspace_Tests is
           Text       => To_Unbounded_String ("Test comment text")));
 
       Coyote_SQC.Workspace.Save (Path, W_Out);
-      declare VF_Unused : Natural; begin Coyote_SQC.Workspace.Load (Path, W_In, VF_Unused); end;
+      Load_All_Ignored (Path, W_In);
 
       Assert
         (To_String (W_In.Workspace_Id) = "test-ws-001",
@@ -97,6 +119,8 @@ package body Coyote_SQC_Workspace_Tests is
         & "/fixtures/sqc/tmp_version_high.sqcw";
       W       : Workspace_Record;
       Raised  : Boolean := False;
+      Migrated : Boolean;
+      VF       : Natural;
 
       File : Ada.Text_IO.File_Type;
    begin
@@ -108,13 +132,13 @@ package body Coyote_SQC_Workspace_Tests is
       Ada.Text_IO.Close (File);
 
       begin
-         declare VF_Unused : Natural; begin Coyote_SQC.Workspace.Load (Path, W, VF_Unused); end;
+         Coyote_SQC.Workspace.Load (Path, W, VF, Migrated);
       exception
          when Coyote_SQC.Workspace.Workspace_Error => Raised := True;
       end;
 
       Ada.Directories.Delete_File (Path);
-      Assert (Raised, "Load should raise Workspace_Error for version > 2");
+      Assert (Raised, "Load should raise Workspace_Error for version > 7");
    end Test_Version_Too_High;
 
    --  ── Missing version ───────────────────────────────────────────────────
@@ -138,7 +162,7 @@ package body Coyote_SQC_Workspace_Tests is
 
       --  Missing version: should load without raising (best-effort).
       begin
-         declare VF_Unused : Natural; begin Coyote_SQC.Workspace.Load (Path, W, VF_Unused); end;
+         Load_All_Ignored (Path, W);
       exception
          when Coyote_SQC.Workspace.Workspace_Error => Raised := True;
       end;
@@ -170,7 +194,7 @@ package body Coyote_SQC_Workspace_Tests is
          & """comments"":[]}");
       Ada.Text_IO.Close (File);
 
-      declare VF_Unused : Natural; begin Coyote_SQC.Workspace.Load (Path, W, VF_Unused); end;
+      Load_All_Ignored (Path, W);
       Ada.Directories.Delete_File (Path);
 
       Assert
@@ -206,109 +230,115 @@ package body Coyote_SQC_Workspace_Tests is
    end Test_New_UUID_Unique;
 
 
-   --  ── Box-Cox configuration round-trip ──────────────────────────────────
+   --  ── Per-chart Box-Cox configuration round-trip ────────────────────────
+   --
+   --  Saving a workspace with Box-Cox enabled on Session_Input_Tokens_I and
+   --  loading it back should preserve all fields exactly.
 
-   --  Saving a workspace with Box-Cox enabled (auto) and loading it back
-   --  should preserve all fields exactly.
    procedure Test_Box_Cox_Round_Trip (T : in out Test) is
       pragma Unreferenced (T);
+      use Coyote_SQC.Charts;
       Path  : constant String :=
         Ada.Directories.Current_Directory
         & "/fixtures/sqc/tmp_bc_roundtrip.sqcw";
       W_Out : Workspace_Record;
       W_In  : Workspace_Record;
+      Cfg   : Chart_Settings_Record;
    begin
       W_Out.Workspace_Id := To_Unbounded_String ("bc-ws-001");
       W_Out.Name         := To_Unbounded_String ("BC Test Workspace");
-      W_Out.I_Chart_Box_Cox :=
-        (Enabled       => True,
-         Lambda_Source => Coyote_SQC.Data_Model.Fixed,
+
+      --  Enable Box-Cox (Fixed, λ=0.31) on Session_Input_Tokens_I.
+      Cfg.Transform :=
+        (Kind          => Box_Cox,
+         Lambda_Source => Fixed,
          Fixed_Lambda  => 0.31);
-      W_Out.Xbar_S_Box_Cox :=
-        (Enabled       => True,
-         Lambda_Source => Coyote_SQC.Data_Model.Auto,
+      W_Out.Chart_Settings.Include (Session_Input_Tokens_I, Cfg);
+
+      --  Enable Box-Cox (Auto) on Turn_Tokens_Xbar.
+      Cfg := (others => <>);
+      Cfg.Transform :=
+        (Kind          => Box_Cox,
+         Lambda_Source => Auto,
          Fixed_Lambda  => 0.0);
+      W_Out.Chart_Settings.Include (Turn_Tokens_Xbar, Cfg);
 
       Coyote_SQC.Workspace.Save (Path, W_Out);
-      declare VF_Unused : Natural;
-      begin
-         Coyote_SQC.Workspace.Load (Path, W_In, VF_Unused);
-      end;
+      Load_All_Ignored (Path, W_In);
       Ada.Directories.Delete_File (Path);
 
-      Assert
-        (W_In.I_Chart_Box_Cox.Enabled,
-         "Box_Cox.Enabled should be True after round-trip");
-      Assert
-        (W_In.I_Chart_Box_Cox.Lambda_Source =
-           Coyote_SQC.Data_Model.Fixed,
-         "Lambda_Source should be Fixed after round-trip");
-      Assert
-        (abs (W_In.I_Chart_Box_Cox.Fixed_Lambda - 0.31) < 0.001,
-         "Fixed_Lambda should be 0.31 after round-trip; got "
-         & Long_Float'Image (W_In.I_Chart_Box_Cox.Fixed_Lambda));
-      Assert
-        (W_In.Xbar_S_Box_Cox.Enabled,
-         "Xbar_S_Box_Cox.Enabled should be True after round-trip");
-      Assert
-        (W_In.Xbar_S_Box_Cox.Lambda_Source =
-           Coyote_SQC.Data_Model.Auto,
-         "Xbar_S_Box_Cox.Lambda_Source should be Auto after round-trip");
+      declare
+         I_Cfg : constant Chart_Settings_Record :=
+           Coyote_SQC.Workspace.Chart_Settings (W_In, Session_Input_Tokens_I);
+         X_Cfg : constant Chart_Settings_Record :=
+           Coyote_SQC.Workspace.Chart_Settings (W_In, Turn_Tokens_Xbar);
+      begin
+         Assert
+           (I_Cfg.Transform.Kind /= None,
+            "Session_Input_Tokens_I Transform.Kind should be Box_Cox");
+         Assert
+           (I_Cfg.Transform.Lambda_Source = Fixed,
+            "Session_Input_Tokens_I Lambda_Source should be Fixed");
+         Assert
+           (abs (I_Cfg.Transform.Fixed_Lambda - 0.31) < 0.001,
+            "Session_Input_Tokens_I Fixed_Lambda should be 0.31; got "
+            & Long_Float'Image (I_Cfg.Transform.Fixed_Lambda));
+         Assert
+           (X_Cfg.Transform.Kind /= None,
+            "Turn_Tokens_Xbar Transform.Kind should be Box_Cox");
+         Assert
+           (X_Cfg.Transform.Lambda_Source = Auto,
+            "Turn_Tokens_Xbar Lambda_Source should be Auto");
+      end;
    end Test_Box_Cox_Round_Trip;
 
    --  Robust_Auto lambda source survives a save/load round-trip.
    procedure Test_Robust_Auto_Round_Trip (T : in out Test) is
       pragma Unreferenced (T);
+      use Coyote_SQC.Charts;
       Path  : constant String :=
         Ada.Directories.Current_Directory
         & "/fixtures/sqc/tmp_robust_auto_roundtrip.sqcw";
       W_Out : Workspace_Record;
       W_In  : Workspace_Record;
+      Cfg   : Chart_Settings_Record;
    begin
       W_Out.Workspace_Id := To_Unbounded_String ("robust-ws-001");
       W_Out.Name         := To_Unbounded_String ("Robust Auto Test");
-      W_Out.I_Chart_Box_Cox :=
-        (Enabled       => True,
-         Lambda_Source => Coyote_SQC.Data_Model.Robust_Auto,
+
+      Cfg.Transform :=
+        (Kind          => Box_Cox,
+         Lambda_Source => Robust_Auto,
          Fixed_Lambda  => 0.0);
-      W_Out.Xbar_S_Box_Cox :=
-        (Enabled       => True,
-         Lambda_Source => Coyote_SQC.Data_Model.Robust_Auto,
-         Fixed_Lambda  => 0.0);
-      W_Out.Turn_Count_Box_Cox :=
-        (Enabled       => True,
-         Lambda_Source => Coyote_SQC.Data_Model.Robust_Auto,
-         Fixed_Lambda  => 0.0);
+      W_Out.Chart_Settings.Include (Session_Input_Tokens_I, Cfg);
+      W_Out.Chart_Settings.Include (Turn_Tokens_Xbar, Cfg);
+      W_Out.Chart_Settings.Include (Session_Turn_Count_I, Cfg);
 
       Coyote_SQC.Workspace.Save (Path, W_Out);
-      declare VF_Unused : Natural;
-      begin
-         Coyote_SQC.Workspace.Load (Path, W_In, VF_Unused);
-      end;
+      Load_All_Ignored (Path, W_In);
       Ada.Directories.Delete_File (Path);
 
       Assert
-        (W_In.I_Chart_Box_Cox.Lambda_Source =
-           Coyote_SQC.Data_Model.Robust_Auto,
-         "I_Chart_Box_Cox.Lambda_Source should be Robust_Auto after "
-         & "round-trip");
+        (Coyote_SQC.Workspace.Chart_Settings
+           (W_In, Session_Input_Tokens_I).Transform.Lambda_Source =
+           Robust_Auto,
+         "Session_Input_Tokens_I.Lambda_Source should be Robust_Auto");
       Assert
-        (W_In.Xbar_S_Box_Cox.Lambda_Source =
-           Coyote_SQC.Data_Model.Robust_Auto,
-         "Xbar_S_Box_Cox.Lambda_Source should be Robust_Auto after "
-         & "round-trip");
+        (Coyote_SQC.Workspace.Chart_Settings
+           (W_In, Turn_Tokens_Xbar).Transform.Lambda_Source = Robust_Auto,
+         "Turn_Tokens_Xbar.Lambda_Source should be Robust_Auto");
       Assert
-        (W_In.Turn_Count_Box_Cox.Lambda_Source =
-           Coyote_SQC.Data_Model.Robust_Auto,
-         "Turn_Count_Box_Cox.Lambda_Source should be Robust_Auto after "
-         & "round-trip");
+        (Coyote_SQC.Workspace.Chart_Settings
+           (W_In, Session_Turn_Count_I).Transform.Lambda_Source = Robust_Auto,
+         "Session_Turn_Count_I.Lambda_Source should be Robust_Auto");
    end Test_Robust_Auto_Round_Trip;
 
 
    --  Loading a v1 workspace (no iChartBoxCox field) should give
-   --  Box-Cox disabled by default.
+   --  Box-Cox disabled for all charts by default (empty chart settings map).
    procedure Test_V1_Loads_Box_Cox_Disabled (T : in out Test) is
       pragma Unreferenced (T);
+      use Coyote_SQC.Charts;
       Path  : constant String :=
         Ada.Directories.Current_Directory
         & "/fixtures/sqc/tmp_v1_bc_default.sqcw";
@@ -323,58 +353,72 @@ package body Coyote_SQC_Workspace_Tests is
          & """setupSessionIds"":[],""comments"":[]}");
       Ada.Text_IO.Close (File);
 
-      declare VF_Unused : Natural;
-      begin
-         Coyote_SQC.Workspace.Load (Path, W, VF_Unused);
-      end;
+      Load_All_Ignored (Path, W);
       Ada.Directories.Delete_File (Path);
 
+      --  Migration from v1: no iChartBoxCox → chart settings map empty
+      --  (disabled Box-Cox is the default, not written).
       Assert
-        (not W.I_Chart_Box_Cox.Enabled,
-         "Box-Cox should default to disabled when loading a v1 workspace");
+        (Coyote_SQC.Workspace.Chart_Settings
+           (W, Session_Input_Tokens_I).Transform.Kind = None,
+         "Transform should default to None when loading a v1 workspace");
    end Test_V1_Loads_Box_Cox_Disabled;
 
 
-   --  Round-trip: EWMA_Weight and EWMA_L survive save/load.
+   --  Round-trip: per-chart EWMA_Weight and EWMA_L survive save/load.
    procedure Test_EWMA_Round_Trip (T : in out Test) is
       pragma Unreferenced (T);
+      use Coyote_SQC.Charts;
       Path  : constant String :=
         Ada.Directories.Current_Directory
         & "/fixtures/sqc/tmp_ewma_roundtrip.sqcw";
       W_Out : Workspace_Record;
       W_In  : Workspace_Record;
       VF    : Natural;
+      Migrated : Boolean;
+      Cfg   : Chart_Settings_Record;
    begin
       W_Out.Workspace_Id := To_Unbounded_String ("ewma-ws-id");
       W_Out.Name         := To_Unbounded_String ("EWMA Test");
-      W_Out.EWMA_Weight  := 0.15;
-      W_Out.EWMA_L       := 2.75;
+
+      --  Set non-default EWMA params on Session_Input_Tokens_EWMA.
+      Cfg.EWMA_Weight := 0.15;
+      Cfg.EWMA_L      := 2.75;
+      W_Out.Chart_Settings.Include (Session_Input_Tokens_EWMA, Cfg);
 
       Coyote_SQC.Workspace.Save (Path, W_Out);
-      Coyote_SQC.Workspace.Load (Path, W_In, VF);
+      Coyote_SQC.Workspace.Load (Path, W_In, VF, Migrated);
       Ada.Directories.Delete_File (Path);
 
-      Assert
-        (abs (W_In.EWMA_Weight - 0.15) < 0.001,
-         "EWMA_Weight wrong after round-trip; got "
-         & Long_Float'Image (W_In.EWMA_Weight));
-      Assert
-        (abs (W_In.EWMA_L - 2.75) < 0.001,
-         "EWMA_L wrong after round-trip; got "
-         & Long_Float'Image (W_In.EWMA_L));
-      Assert (VF = 6, "Version should be 6; got " & Natural'Image (VF));
+      declare
+         E_Cfg : constant Chart_Settings_Record :=
+           Coyote_SQC.Workspace.Chart_Settings
+             (W_In, Session_Input_Tokens_EWMA);
+      begin
+         Assert
+           (abs (E_Cfg.EWMA_Weight - 0.15) < 0.001,
+            "EWMA_Weight wrong after round-trip; got "
+            & Long_Float'Image (E_Cfg.EWMA_Weight));
+         Assert
+           (abs (E_Cfg.EWMA_L - 2.75) < 0.001,
+            "EWMA_L wrong after round-trip; got "
+            & Long_Float'Image (E_Cfg.EWMA_L));
+      end;
+      Assert (VF = 8, "Version should be 8; got " & Natural'Image (VF));
    end Test_EWMA_Round_Trip;
 
    --  Loading a v3 workspace (no ewmaWeight/ewmaL fields) should give
-   --  default values (0.2 and 3.0).
+   --  default EWMA_Weight=0.2 and EWMA_L=3.0 for all EWMA charts.
    procedure Test_V3_Loads_EWMA_Defaults (T : in out Test) is
       pragma Unreferenced (T);
+      use Coyote_SQC.Charts;
       Path : constant String :=
         Ada.Directories.Current_Directory
         & "/fixtures/sqc/tmp_v3_ewma_default.sqcw";
       W    : Workspace_Record;
       File : Ada.Text_IO.File_Type;
       VF   : Natural;
+      Migrated : Boolean;
    begin
       Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, Path);
       Ada.Text_IO.Put_Line
@@ -384,64 +428,83 @@ package body Coyote_SQC_Workspace_Tests is
          & """setupSessionIds"":[],""comments"":[]}");
       Ada.Text_IO.Close (File);
 
-      Coyote_SQC.Workspace.Load (Path, W, VF);
+      Coyote_SQC.Workspace.Load (Path, W, VF, Migrated);
       Ada.Directories.Delete_File (Path);
 
-      Assert
-        (abs (W.EWMA_Weight - 0.2) < 0.001,
-         "EWMA_Weight should default to 0.2 for v3 workspace; got "
-         & Long_Float'Image (W.EWMA_Weight));
-      Assert
-        (abs (W.EWMA_L - 3.0) < 0.001,
-         "EWMA_L should default to 3.0 for v3 workspace; got "
-         & Long_Float'Image (W.EWMA_L));
+      --  v3 had no ewmaWeight/ewmaL: defaults are 0.2 and 3.0.
+      --  After migration, no entries are written (defaults don't get entries).
+      declare
+         E_Cfg : constant Chart_Settings_Record :=
+           Coyote_SQC.Workspace.Chart_Settings
+             (W, Session_Input_Tokens_EWMA);
+      begin
+         Assert
+           (abs (E_Cfg.EWMA_Weight - 0.2) < 0.001,
+            "EWMA_Weight should default to 0.2 for v3 workspace; got "
+            & Long_Float'Image (E_Cfg.EWMA_Weight));
+         Assert
+           (abs (E_Cfg.EWMA_L - 3.0) < 0.001,
+            "EWMA_L should default to 3.0 for v3 workspace; got "
+            & Long_Float'Image (E_Cfg.EWMA_L));
+      end;
    end Test_V3_Loads_EWMA_Defaults;
 
-   --  Round-trip: Turn_Count_Box_Cox config survives save/load.
+   --  Round-trip: per-chart Turn Count Box-Cox config survives save/load.
    procedure Test_Turn_Count_Box_Cox_Round_Trip (T : in out Test) is
       pragma Unreferenced (T);
+      use Coyote_SQC.Charts;
       Path  : constant String :=
         Ada.Directories.Current_Directory
         & "/fixtures/sqc/tmp_tc_roundtrip.sqcw";
       W_Out : Workspace_Record;
       W_In  : Workspace_Record;
       VF    : Natural;
+      Migrated : Boolean;
+      Cfg   : Chart_Settings_Record;
    begin
       W_Out.Workspace_Id := To_Unbounded_String ("tc-ws-id");
       W_Out.Name         := To_Unbounded_String ("TC Test");
-      W_Out.Turn_Count_Box_Cox :=
-        (Enabled       => True,
+
+      Cfg.Transform :=
+        (Kind          => Box_Cox,
          Lambda_Source => Fixed,
          Fixed_Lambda  => 0.5);
+      W_Out.Chart_Settings.Include (Session_Turn_Count_I, Cfg);
 
       Coyote_SQC.Workspace.Save (Path, W_Out);
-      Coyote_SQC.Workspace.Load (Path, W_In, VF);
+      Coyote_SQC.Workspace.Load (Path, W_In, VF, Migrated);
       Ada.Directories.Delete_File (Path);
 
-      Assert
-        (W_In.Turn_Count_Box_Cox.Enabled,
-         "Turn_Count_Box_Cox.Enabled should be True after round-trip");
-      Assert
-        (W_In.Turn_Count_Box_Cox.Lambda_Source = Fixed,
-         "Turn_Count_Box_Cox.Lambda_Source should be Fixed after round-trip");
-      Assert
-        (abs (W_In.Turn_Count_Box_Cox.Fixed_Lambda - 0.5) < 0.001,
-         "Turn_Count_Box_Cox.Fixed_Lambda should be 0.5; got "
-         & Long_Float'Image (W_In.Turn_Count_Box_Cox.Fixed_Lambda));
-      Assert
-        (VF = 6, "Version should be 6; got " & Natural'Image (VF));
+      declare
+         TC_Cfg : constant Chart_Settings_Record :=
+           Coyote_SQC.Workspace.Chart_Settings (W_In, Session_Turn_Count_I);
+      begin
+         Assert
+           (TC_Cfg.Transform.Kind /= None,
+            "Session_Turn_Count_I Transform.Kind should be Box_Cox");
+         Assert
+           (TC_Cfg.Transform.Lambda_Source = Fixed,
+            "Session_Turn_Count_I Lambda_Source should be Fixed");
+         Assert
+           (abs (TC_Cfg.Transform.Fixed_Lambda - 0.5) < 0.001,
+            "Session_Turn_Count_I Fixed_Lambda should be 0.5; got "
+            & Long_Float'Image (TC_Cfg.Transform.Fixed_Lambda));
+      end;
+      Assert (VF = 8, "Version should be 8; got " & Natural'Image (VF));
    end Test_Turn_Count_Box_Cox_Round_Trip;
 
    --  Loading a v4 workspace (no turnCountBoxCox field) should give
-   --  default (disabled, auto, fixed_lambda=0.0).
+   --  per-chart default (disabled, auto, fixed_lambda=0.0).
    procedure Test_V4_Loads_Turn_Count_Defaults (T : in out Test) is
       pragma Unreferenced (T);
+      use Coyote_SQC.Charts;
       Path : constant String :=
         Ada.Directories.Current_Directory
         & "/fixtures/sqc/tmp_v4_tc_default.sqcw";
       W    : Workspace_Record;
       File : Ada.Text_IO.File_Type;
       VF   : Natural;
+      Migrated : Boolean;
    begin
       Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, Path);
       Ada.Text_IO.Put_Line
@@ -452,63 +515,74 @@ package body Coyote_SQC_Workspace_Tests is
          & """ewmaWeight"":0.2,""ewmaL"":3.0}");
       Ada.Text_IO.Close (File);
 
-      Coyote_SQC.Workspace.Load (Path, W, VF);
+      Coyote_SQC.Workspace.Load (Path, W, VF, Migrated);
       Ada.Directories.Delete_File (Path);
 
-      Assert
-        (not W.Turn_Count_Box_Cox.Enabled,
-         "Turn_Count_Box_Cox.Enabled should default to False "
-         & "for v4 workspace");
-      Assert
-        (W.Turn_Count_Box_Cox.Lambda_Source = Auto,
-         "Turn_Count_Box_Cox.Lambda_Source should default to Auto "
-         & "for v4 workspace");
-      Assert
-        (abs (W.Turn_Count_Box_Cox.Fixed_Lambda - 0.0) < 0.001,
-         "Turn_Count_Box_Cox.Fixed_Lambda should default to 0.0 "
-         & "for v4 workspace; got "
-         & Long_Float'Image (W.Turn_Count_Box_Cox.Fixed_Lambda));
+      --  v4 had no turnCountBoxCox → migration leaves Turn Count charts
+      --  at default (disabled = not in map).
+      declare
+         TC_Cfg : constant Chart_Settings_Record :=
+           Coyote_SQC.Workspace.Chart_Settings (W, Session_Turn_Count_I);
+      begin
+         Assert
+           (TC_Cfg.Transform.Kind = None,
+            "Session_Turn_Count_I Transform.Kind should default to False "
+            & "for v4 workspace");
+         Assert
+           (TC_Cfg.Transform.Lambda_Source = Auto,
+            "Session_Turn_Count_I Lambda_Source should default to Auto "
+            & "for v4 workspace");
+         Assert
+           (abs (TC_Cfg.Transform.Fixed_Lambda - 0.0) < 0.001,
+            "Session_Turn_Count_I Fixed_Lambda should default to 0.0; got "
+            & Long_Float'Image (TC_Cfg.Transform.Fixed_Lambda));
+      end;
    end Test_V4_Loads_Turn_Count_Defaults;
 
 
 
-   --  Round-trip: Estimation_Method = Robust_Median survives save/load.
+   --  Round-trip: per-chart Estimation_Method = Robust_Median survives
+   --  save/load.
    procedure Test_Estimation_Method_Round_Trip (T : in out Test) is
       pragma Unreferenced (T);
-      use Coyote_SQC.Data_Model;
+      use Coyote_SQC.Charts;
       Path : constant String :=
         Ada.Directories.Current_Directory
         & "/fixtures/sqc/tmp_estimation_rt.sqcw";
       W_Out, W_In : Workspace_Record;
       VF          : Natural;
+      Migrated    : Boolean;
+      Cfg         : Chart_Settings_Record;
    begin
-      W_Out.Workspace_Id :=
-        Ada.Strings.Unbounded.To_Unbounded_String ("test-est-rt");
-      W_Out.Name := Ada.Strings.Unbounded.To_Unbounded_String ("est-test");
-      W_Out.Estimation_Method := Robust_Median;
+      W_Out.Workspace_Id := To_Unbounded_String ("test-est-rt");
+      W_Out.Name         := To_Unbounded_String ("est-test");
+
+      Cfg.Estimation_Method := Robust_Median;
+      W_Out.Chart_Settings.Include (Session_Input_Tokens_I, Cfg);
 
       Coyote_SQC.Workspace.Save (Path, W_Out);
-      Coyote_SQC.Workspace.Load (Path, W_In, VF);
+      Coyote_SQC.Workspace.Load (Path, W_In, VF, Migrated);
       Ada.Directories.Delete_File (Path);
 
       Assert
-        (W_In.Estimation_Method = Robust_Median,
+        (Coyote_SQC.Workspace.Chart_Settings
+           (W_In, Session_Input_Tokens_I).Estimation_Method = Robust_Median,
          "Estimation_Method should survive save/load as Robust_Median");
-      Assert
-        (VF = 6, "Version should be 6; got " & Natural'Image (VF));
+      Assert (VF = 8, "Version should be 8; got " & Natural'Image (VF));
    end Test_Estimation_Method_Round_Trip;
 
    --  Loading a v5 workspace (no estimationMethod field) should give
-   --  default Classical.
+   --  default Classical for all charts (empty chart settings map).
    procedure Test_V5_Loads_Classical_Default (T : in out Test) is
       pragma Unreferenced (T);
-      use Coyote_SQC.Data_Model;
+      use Coyote_SQC.Charts;
       Path : constant String :=
         Ada.Directories.Current_Directory
         & "/fixtures/sqc/tmp_v5_est_default.sqcw";
       W    : Workspace_Record;
       File : Ada.Text_IO.File_Type;
       VF   : Natural;
+      Migrated : Boolean;
    begin
       Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, Path);
       Ada.Text_IO.Put_Line
@@ -525,13 +599,56 @@ package body Coyote_SQC_Workspace_Tests is
          & """lambdaSource"":""auto"",""fixedLambda"":0.0}}");
       Ada.Text_IO.Close (File);
 
-      Coyote_SQC.Workspace.Load (Path, W, VF);
+      Coyote_SQC.Workspace.Load (Path, W, VF, Migrated);
       Ada.Directories.Delete_File (Path);
 
+      --  v5 with no estimationMethod field → Classical default →
+      --  empty chart settings map after migration.
       Assert
-        (W.Estimation_Method = Classical,
+        (Coyote_SQC.Workspace.Chart_Settings
+           (W, Session_Input_Tokens_I).Estimation_Method = Classical,
          "Estimation_Method should default to Classical "
          & "for v5 workspace (missing field)");
    end Test_V5_Loads_Classical_Default;
+
+
+   --  Anscombe transform config round-trips through workspace save/load.
+   procedure Test_Anscombe_Transform_Round_Trip (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Charts;
+      Path  : constant String :=
+        Ada.Directories.Current_Directory
+        & "/fixtures/sqc/tmp_anscombe_roundtrip.sqcw";
+      W_Out : Workspace_Record;
+      W_In  : Workspace_Record;
+      Cfg   : Chart_Settings_Record;
+      VF    : Natural;
+      Migrated : Boolean;
+   begin
+      W_Out.Workspace_Id := To_Unbounded_String ("anscombe-ws-001");
+      W_Out.Name         := To_Unbounded_String ("Anscombe Test");
+
+      Cfg.Transform := (Kind => Anscombe, others => <>);
+      W_Out.Chart_Settings.Include (Session_Input_Tokens_I, Cfg);
+
+      Coyote_SQC.Workspace.Save (Path, W_Out);
+      Coyote_SQC.Workspace.Load (Path, W_In, VF, Migrated);
+      Ada.Directories.Delete_File (Path);
+
+      Assert (VF = 8, "Version should be 8; got " & Natural'Image (VF));
+      Assert
+        (not Migrated,
+         "No migration expected for a v8 workspace");
+      declare
+         I_Cfg : constant Chart_Settings_Record :=
+           Coyote_SQC.Workspace.Chart_Settings (W_In, Session_Input_Tokens_I);
+      begin
+         Assert
+           (I_Cfg.Transform.Kind = Anscombe,
+            "Session_Input_Tokens_I Transform.Kind should be Anscombe; got "
+            & Coyote_SQC.Data_Model.Transform_Kind'Image
+                (I_Cfg.Transform.Kind));
+      end;
+   end Test_Anscombe_Transform_Round_Trip;
 
 end Coyote_SQC_Workspace_Tests;

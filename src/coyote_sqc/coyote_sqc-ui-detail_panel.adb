@@ -808,7 +808,7 @@ package body Coyote_SQC.UI.Detail_Panel is
             X_Lbl_Str  : Ada.Strings.Unbounded.Unbounded_String :=
               Props.Y_Axis_Label;
          begin
-            if CD.Box_Cox_Active
+            if CD.Transform_Active /= Coyote_SQC.Data_Model.None
               and then Active in Session_Input_Tokens_I
                                | Session_Output_Tokens_I
                                | Session_Cache_Read_Tokens_I
@@ -816,30 +816,37 @@ package body Coyote_SQC.UI.Detail_Panel is
             then
                --  I-chart: Stat_Value is raw; transform to matched space.
                for K in 1 .. N_Vals loop
-                  if Vals (K) > 0.0 then
-                     Vals (K) := Coyote_SQC.Statistics.I_Chart.Box_Cox
-                       (Vals (K), CD.Box_Cox_Lambda);
+                  if Vals (K) > 0.0
+                     or else (CD.Transform_Active /=
+                                Coyote_SQC.Data_Model.Box_Cox
+                              and then Vals (K) >= 0.0)
+                     or else CD.Transform_Active =
+                               Coyote_SQC.Data_Model.Arcsinh_VS
+                  then
+                     Vals (K) := Coyote_SQC.Statistics.I_Chart.Apply_Transform
+                       (Vals (K), CD.Transform_Active, CD.Transform_Lambda);
                   end if;
                end loop;
                --  Re-transform back-transformed limits to transformed space.
                if Got_Lims then
                   if CL > 0.0 then
-                     CL := Coyote_SQC.Statistics.I_Chart.Box_Cox
-                       (CL, CD.Box_Cox_Lambda);
+                     CL := Coyote_SQC.Statistics.I_Chart.Apply_Transform
+                       (CL, CD.Transform_Active, CD.Transform_Lambda);
                   end if;
                   if Has_UCL and then UCL > 0.0 then
-                     UCL := Coyote_SQC.Statistics.I_Chart.Box_Cox
-                       (UCL, CD.Box_Cox_Lambda);
+                     UCL := Coyote_SQC.Statistics.I_Chart.Apply_Transform
+                       (UCL, CD.Transform_Active, CD.Transform_Lambda);
                   end if;
                   if Has_LCL and then LCL > 0.0 then
-                     LCL := Coyote_SQC.Statistics.I_Chart.Box_Cox
-                       (LCL, CD.Box_Cox_Lambda);
+                     LCL := Coyote_SQC.Statistics.I_Chart.Apply_Transform
+                       (LCL, CD.Transform_Active, CD.Transform_Lambda);
                   end if;
                end if;
             end if;
-            --  Append lambda annotation to x-axis label when BC active.
-            if CD.Box_Cox_Active then
+            --  Append transform annotation to x-axis label.
+            if CD.Transform_Active /= Coyote_SQC.Data_Model.None then
                declare
+                  use Coyote_SQC.Data_Model;
                   function Format_Lambda (V : Long_Float) return String is
                      use Ada.Strings.Fixed;
                      IV : constant Long_Long_Integer :=
@@ -854,11 +861,20 @@ package body Coyote_SQC.UI.Detail_Panel is
                        & Trim (Long_Long_Integer'Image (IV mod 100),
                                Ada.Strings.Left);
                   end Format_Lambda;
-                  Lam_Str : constant String :=
-                    Format_Lambda (CD.Box_Cox_Lambda);
+                  Suffix : constant String :=
+                    (case CD.Transform_Active is
+                       when Box_Cox =>
+                         Lambda_Sym & "=" & Format_Lambda (CD.Transform_Lambda),
+                       when Sqrt_VS       => (1 => Character'Val (16#E2#),
+                                              2 => Character'Val (16#88#),
+                                              3 => Character'Val (16#9A#)),
+                       when Anscombe      => "Anscombe",
+                       when Arcsinh_VS    => "arcsinh",
+                       when Freeman_Tukey => "F-T",
+                       when None          => "");
                begin
                   Ada.Strings.Unbounded.Append
-                    (X_Lbl_Str, " (" & Lambda_Sym & "=" & Lam_Str & ")");
+                    (X_Lbl_Str, " (" & Suffix & ")");
                end;
             end if;
 

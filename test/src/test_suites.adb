@@ -1862,6 +1862,10 @@ package body Test_Suites is
       Result.Add_Test (SQC_Workspace_Caller.Create
         ("Robust estimation: v5 workspace loads Classical default",
          Coyote_SQC_Workspace_Tests.Test_V5_Loads_Classical_Default'Access));
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("SQC workspace: Anscombe transform round-trips through save/load",
+         Coyote_SQC_Workspace_Tests
+           .Test_Anscombe_Transform_Round_Trip'Access));
       --  Coyote_SQC histogram bin computation tests
       Result.Add_Test (SQC_Histogram_Caller.Create
         ("SQC histogram: n=2 uniform: FD gives 2 bins",
@@ -1903,6 +1907,26 @@ package body Test_Suites is
         ("SQC stats: Robust Grand_Mean gives different EWMA Z0 than Classical",
          Coyote_SQC_Statistics_Tests
            .Test_Robust_EWMA_Outlier_Grand_Mean'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC stats: Sqrt_VS forward/inverse round-trip",
+         Coyote_SQC_Statistics_Tests
+           .Test_Sqrt_VS_Round_Trip'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC stats: Anscombe forward/inverse round-trip",
+         Coyote_SQC_Statistics_Tests
+           .Test_Anscombe_Round_Trip'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC stats: Arcsinh_VS forward/inverse round-trip (incl. negatives)",
+         Coyote_SQC_Statistics_Tests
+           .Test_Arcsinh_VS_Round_Trip'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC stats: Freeman-Tukey forward/inverse round-trip",
+         Coyote_SQC_Statistics_Tests
+           .Test_Freeman_Tukey_Round_Trip'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC stats: Apply_Transform / Invert_Transform dispatch for all kinds",
+         Coyote_SQC_Statistics_Tests
+           .Test_Apply_Invert_Dispatch'Access));
 
       --  Coyote_SQC parser: Anthropic token normalization
       Result.Add_Test (SQC_Parser_Caller.Create

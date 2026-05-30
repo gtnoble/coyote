@@ -17,6 +17,7 @@ with Gtk.Check_Menu_Item;
 with Gtk.Paned;
 with Gtk.Scrolled_Window;
 with Gtk.Window;
+with Coyote_SQC.Workspace;
 
 package Coyote_SQC.App is
 
@@ -50,13 +51,16 @@ package Coyote_SQC.App is
       Points  : Chart_Point_Vectors.Vector;
       Params  : Coyote_SQC.Statistics.Setup_Parameters;
       Is_Retro : Boolean := True;  --  using retrospective limits
-      Box_Cox_Active : Boolean    := False;   --  Box-Cox is active for this chart
-      Box_Cox_Lambda : Long_Float := 0.0;    --  resolved lambda (valid when Box_Cox_Active)
-      --  MR chart independent Box-Cox transformation (λ_MR estimated from
-      --  the setup-interval MR series; independent of λ_I).
-      MR_BC_Active : Boolean    := False;
-      MR_BC_Lambda : Long_Float := 0.0;
-      MR_BC_Limits : Coyote_SQC.Statistics.Limits_Record :=
+      Transform_Active : Coyote_SQC.Data_Model.Transform_Kind :=
+        Coyote_SQC.Data_Model.None;  --  active transform (None = untransformed)
+      Transform_Lambda : Long_Float := 0.0;
+      --  resolved Box-Cox lambda (valid when Transform_Active = Box_Cox)
+      --  MR chart independent transform (λ_MR estimated independently from
+      --  the setup-interval MR series).
+      MR_Transform_Active : Coyote_SQC.Data_Model.Transform_Kind :=
+        Coyote_SQC.Data_Model.None;
+      MR_Transform_Lambda : Long_Float := 0.0;
+      MR_Transform_Limits : Coyote_SQC.Statistics.Limits_Record :=
         (UCL => 0.0, CL => 0.0, LCL => 0.0,
          Has_UCL => False, Has_LCL => False);
    end record;
@@ -71,12 +75,6 @@ package Coyote_SQC.App is
    --  Recompute_Chart looks up Descriptor (Kind) and then proceeds without
    --  further case dispatch on Kind.
 
-   --  Identifies which workspace Box-Cox configuration governs a chart.
-   type Box_Cox_Config_Kind is
-     (I_Chart_Box_Cox,
-      Xbar_S_Box_Cox,
-      Turn_Count_Box_Cox,
-      No_Box_Cox);
 
    --  Per-session exclusion rules for parameter estimation and chart display.
    type Exclusion_Kind is
@@ -113,7 +111,6 @@ package Coyote_SQC.App is
       LF_Get_Subgroup : LF_Subgroup_Accessor := null;
       --  When non-null, used in place of Get_Subgroup for charts whose
       --  subgroup values are Long_Float (e.g. JSD similarity charts).
-      Box_Cox_Kind   : Box_Cox_Config_Kind;
       Exclusion_Rule : Exclusion_Kind;
    end record;
 

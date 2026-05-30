@@ -119,4 +119,12 @@ package Coyote_SQC_Statistics_Tests is
    --  Robust estimation + EWMA interaction tests.
    procedure Test_Robust_EWMA_Outlier_Grand_Mean     (T : in out Test);
 
+
+   --  New variance-stabilization transform tests.
+   procedure Test_Sqrt_VS_Round_Trip      (T : in out Test);
+   procedure Test_Anscombe_Round_Trip     (T : in out Test);
+   procedure Test_Arcsinh_VS_Round_Trip   (T : in out Test);
+   procedure Test_Freeman_Tukey_Round_Trip (T : in out Test);
+   procedure Test_Apply_Invert_Dispatch   (T : in out Test);
+
 end Coyote_SQC_Statistics_Tests;

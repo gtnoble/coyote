@@ -11,6 +11,7 @@
 --
 --  Project: coyote
 
+with Coyote_SQC.Data_Model;
 package Coyote_SQC.Statistics.I_Chart is
 
    --  Array of Long_Float observations used by Box-Cox functions.
@@ -109,4 +110,54 @@ package Coyote_SQC.Statistics.I_Chart is
      (Values        : Long_Float_Array;
       Use_Robust    : Boolean := False;
       Fallback_Used : out Boolean) return Long_Float;
+
+   --  ── Additional variance-stabilization transforms ───────────────────────
+   --
+   --  Each transform has a forward function and an exact (or best-available)
+   --  inverse.  All forward functions accept X >= 0 except Arcsinh_VS, which
+   --  also accepts negative inputs.
+
+   --  Square-root transform.  f(x) = √x; f⁻¹(z) = z².
+   --  Raises Constraint_Error if X < 0.0.
+   function Sqrt_VS (X : Long_Float) return Long_Float;
+   function Sqrt_VS_Inverse (Z : Long_Float) return Long_Float;
+
+   --  Anscombe transform (variance-stabilizing for Poisson counts).
+   --  f(x) = 2·√(x + 3/8); f⁻¹(z) = (z/2)² − 3/8.
+   --  Raises Constraint_Error if X < 0.0.
+   function Anscombe (X : Long_Float) return Long_Float;
+   function Anscombe_Inverse (Z : Long_Float) return Long_Float;
+
+   --  Inverse-hyperbolic-sine (arcsinh) transform.
+   --  f(x) = ln(x + √(x²+1)); f⁻¹(z) = sinh(z) = (eᶻ − e⁻ᶻ)/2.
+   --  Defined for all real X (including zero and negatives).
+   function Arcsinh_VS (X : Long_Float) return Long_Float;
+   function Arcsinh_VS_Inverse (Z : Long_Float) return Long_Float;
+
+   --  Freeman-Tukey transform (variance-stabilizing for Poisson counts).
+   --  f(x) = √x + √(x+1); f⁻¹(z) = (z² − 1)²/(4·z²) for z > 0.
+   --  Raises Constraint_Error if X < 0.0.
+   --  Inverse is approximate (algebraic closed form); exact for large x.
+   function Freeman_Tukey (X : Long_Float) return Long_Float;
+   function Freeman_Tukey_Inverse (Z : Long_Float) return Long_Float;
+
+   --  ── Transform dispatchers ─────────────────────────────────────────────
+
+   --  Apply the transform selected by Kind to a single observation.
+   --  Lambda is only used when Kind = Box_Cox.
+   --  For Kind = None, returns X unchanged.
+   --  May raise Constraint_Error on domain violations (see individual specs).
+   function Apply_Transform
+     (X      : Long_Float;
+      Kind   : Coyote_SQC.Data_Model.Transform_Kind;
+      Lambda : Long_Float := 0.0) return Long_Float;
+
+   --  Invert the transform selected by Kind.
+   --  Lambda is only used when Kind = Box_Cox.
+   --  For Kind = None, returns Z unchanged.
+   function Invert_Transform
+     (Z      : Long_Float;
+      Kind   : Coyote_SQC.Data_Model.Transform_Kind;
+      Lambda : Long_Float := 0.0) return Long_Float;
+
 end Coyote_SQC.Statistics.I_Chart;

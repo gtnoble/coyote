@@ -8,9 +8,11 @@
 
 with Ada.Calendar;
 with Ada.Containers.Hashed_Sets;
+with Ada.Containers.Ordered_Maps;
 with Ada.Containers.Vectors;
 with Ada.Strings.Unbounded;
 with Ada.Strings.Unbounded.Hash;
+with Coyote_SQC.Charts;
 
 package Coyote_SQC.Data_Model is
    use type Ada.Strings.Unbounded.Unbounded_String;
@@ -134,17 +136,28 @@ package Coyote_SQC.Data_Model is
 
    subtype UUID_Set is UUID_Sets.Set;
 
-   --  ── Box-Cox configuration ──────────────────────────────────────────────
+   --  ── Variance-stabilization transform configuration ─────────────────────
+
+   --  Selects which variance-stabilization transform is applied to a chart.
+   --  None          — no transformation; raw data used directly.
+   --  Box_Cox       — Box-Cox family (x**λ − 1)/λ; λ estimated or fixed.
+   --  Sqrt_VS       — square root: f(x) = √x; inverse f⁻¹(z) = z².
+   --  Anscombe      — Anscombe: f(x) = 2√(x + 3/8); for Poisson counts.
+   --  Arcsinh_VS    — inverse hyperbolic sine: f(x) = ln(x + √(x²+1));
+   --                  tolerates zero and negative inputs.
+   --  Freeman_Tukey — Freeman-Tukey: f(x) = √x + √(x+1); for Poisson counts.
+   type Transform_Kind is
+     (None, Box_Cox, Sqrt_VS, Anscombe, Arcsinh_VS, Freeman_Tukey);
 
    --  Identifies how the Box-Cox lambda parameter is determined.
+   --  Only consulted when Transform_Config.Kind = Box_Cox.
    type Box_Cox_Lambda_Source is (Auto, Robust_Auto, Fixed);
 
-   --  Box-Cox transformation configuration for Session Token I/MR charts.
-   --  One shared config applies to all four I/MR charts in the workspace.
-   --  The estimated lambda (when Lambda_Source = Auto) is a transient runtime
-   --  value stored in Chart_Data; it is not persisted.
-   type Box_Cox_Config is record
-      Enabled       : Boolean                := False;
+   --  Variance-stabilization transform configuration for a single chart.
+   --  Stored per-chart in Workspace_Record.Chart_Settings; see below.
+   --  Lambda_Source and Fixed_Lambda are only meaningful when Kind = Box_Cox.
+   type Transform_Config is record
+      Kind          : Transform_Kind         := None;
       Lambda_Source : Box_Cox_Lambda_Source  := Auto;
       Fixed_Lambda  : Long_Float             := 0.0;
       --  Lambda_Source = Auto: estimate lambda at runtime from the
@@ -157,13 +170,39 @@ package Coyote_SQC.Data_Model is
       --  Common fixed values: 0.0 (ln), 0.5 (sqrt), 1.0 (identity).
    end record;
 
+
    --  ── Estimation method ──────────────────────────────────────────────────
 
-   --  Selects the statistical estimators used for I/MR and Xbar/s control
-   --  limits.  Classical uses arithmetic mean / pooled s / mean MR.
-   --  Robust_Median uses median / Qₙ residuals / median MR with d₄
-   --  consistency correction.  p-charts are unaffected.  See §7.13.
+   --  Selects the statistical estimators for a single chart's control limits.
+   --  Classical uses arithmetic mean / pooled s / mean MR.
+   --  Robust_Median uses median / Qₙ residuals / median MR.
+   --  p-charts always use the classical grand proportion regardless.
+   --  See §7.13 of the spec.
    type Estimation_Method_Kind is (Classical, Robust_Median);
+
+   --  ── Per-chart settings ────────────────────────────────────────────────
+
+   --  Per-chart configuration: Box-Cox transformation, estimation method,
+   --  and (for EWMA charts) smoothing weight and sigma multiplier.
+   --  Charts at all-default settings are omitted from the workspace map to
+   --  keep the file compact.  Absent entries are treated as all-default.
+   type Chart_Settings_Record is record
+      Transform         : Transform_Config;
+      Estimation_Method : Estimation_Method_Kind := Classical;
+      --  EWMA_Weight and EWMA_L are consulted only for EWMA chart kinds;
+      --  they are ignored for all other chart kinds.
+      EWMA_Weight       : Long_Float := 0.2;
+      EWMA_L            : Long_Float := 3.0;
+   end record;
+
+   --  Map from Chart_Kind to per-chart settings.
+   --  Ada.Containers.Ordered_Maps is used because Chart_Kind is an
+   --  enumeration type — the implicit "<" from the enumeration definition
+   --  is well-defined and strict.
+   package Chart_Settings_Maps is new Ada.Containers.Ordered_Maps
+     (Key_Type     => Coyote_SQC.Charts.Chart_Kind,
+      Element_Type => Chart_Settings_Record,
+      "<"          => Coyote_SQC.Charts."<");
 
    --  ── Workspace ──────────────────────────────────────────────────────────
 
@@ -179,32 +218,11 @@ package Coyote_SQC.Data_Model is
       Model_Filter       : String_Vectors.Vector;
       Setup_Session_Ids  : UUID_Set;
       Comments           : Comment_Vectors.Vector;
-      --  Box-Cox transformation config for Session Token I/MR charts.
-      --  Shared across all four I/MR chart kinds.
-      --  Box-Cox transformation config for Session Token I/MR charts.
-      --  One shared config applies to all eight I/MR chart kinds.
-      I_Chart_Box_Cox    : Box_Cox_Config;
-      --  Box-Cox transformation config for per-turn Xbar/S charts
-      --  (Turn, Tool Call, and Thinking token charts).  When Lambda_Source
-      --  is Auto, each chart pair (Turn/Tool/Thinking) estimates its own
-      --  lambda independently from setup-interval per-turn values.
-      Xbar_S_Box_Cox     : Box_Cox_Config;
-      --  EWMA chart smoothing parameter and sigma multiplier.
-      --  EWMA_Weight (lambda): controls how much weight is given to the most
-      --  recent observation vs the running average.  Smaller values detect
-      --  smaller sustained shifts; larger values make the chart more like
-      --  the raw I chart.  Typical value: 0.2.  Range: (0.0, 1.0].
-      --  EWMA_L: sigma multiplier for the control limits (typically 3.0).
-      EWMA_Weight        : Long_Float := 0.2;
-      EWMA_L             : Long_Float := 3.0;
-      --  Box-Cox transformation config for Session Turn Count I/MR/EWMA
-      --  charts.  Independent of I_Chart_Box_Cox and Xbar_S_Box_Cox.
-      Turn_Count_Box_Cox : Box_Cox_Config;
-      --  Control limit estimation method for I/MR and Xbar/s charts.
-      --  Classical (default): arithmetic mean, pooled s, mean MR.
-      --  Robust_Median: median center line, Qₙ pooled residuals (Xbar/s),
-      --  median MR / d₄ scale (I/MR).  p-charts always use grand proportion.
-      Estimation_Method  : Estimation_Method_Kind := Classical;
+      --  Per-chart Box-Cox, estimation method, and EWMA parameter settings.
+      --  Charts at default settings (Box-Cox disabled, Classical estimation,
+      --  EWMA_Weight = 0.2, EWMA_L = 3.0) are omitted from the map to keep
+      --  the workspace file compact.
+      Chart_Settings     : Chart_Settings_Maps.Map;
    end record;
 
 end Coyote_SQC.Data_Model;

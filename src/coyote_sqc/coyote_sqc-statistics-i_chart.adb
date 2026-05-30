@@ -3,6 +3,7 @@
 --  Project: coyote
 
 with Ada.Numerics.Long_Elementary_Functions;
+with Coyote_SQC.Data_Model;
 with Ada.Containers.Vectors;
 
 package body Coyote_SQC.Statistics.I_Chart is
@@ -445,4 +446,107 @@ package body Coyote_SQC.Statistics.I_Chart is
 
       end;
    end Estimate_Lambda;
+
+   --  ── Sqrt_VS ───────────────────────────────────────────────────────────
+
+   function Sqrt_VS (X : Long_Float) return Long_Float is
+   begin
+      if X < 0.0 then
+         raise Constraint_Error with "Sqrt_VS: X must be >= 0";
+      end if;
+      return Sqrt (X);
+   end Sqrt_VS;
+
+   function Sqrt_VS_Inverse (Z : Long_Float) return Long_Float is
+   begin
+      return Z * Z;
+   end Sqrt_VS_Inverse;
+
+   --  ── Anscombe ──────────────────────────────────────────────────────────
+
+   function Anscombe (X : Long_Float) return Long_Float is
+   begin
+      if X < 0.0 then
+         raise Constraint_Error with "Anscombe: X must be >= 0";
+      end if;
+      return 2.0 * Sqrt (X + 0.375);
+   end Anscombe;
+
+   function Anscombe_Inverse (Z : Long_Float) return Long_Float is
+   begin
+      return (Z / 2.0) * (Z / 2.0) - 0.375;
+   end Anscombe_Inverse;
+
+   --  ── Arcsinh_VS ────────────────────────────────────────────────────────
+
+   function Arcsinh_VS (X : Long_Float) return Long_Float is
+   begin
+      return Log (X + Sqrt (X * X + 1.0));
+   end Arcsinh_VS;
+
+   function Arcsinh_VS_Inverse (Z : Long_Float) return Long_Float is
+   begin
+      return (Exp (Z) - Exp (-Z)) / 2.0;
+   end Arcsinh_VS_Inverse;
+
+   --  ── Freeman_Tukey ─────────────────────────────────────────────────────
+
+   function Freeman_Tukey (X : Long_Float) return Long_Float is
+   begin
+      if X < 0.0 then
+         raise Constraint_Error with "Freeman_Tukey: X must be >= 0";
+      end if;
+      return Sqrt (X) + Sqrt (X + 1.0);
+   end Freeman_Tukey;
+
+   function Freeman_Tukey_Inverse (Z : Long_Float) return Long_Float is
+      --  Algebraic inverse: x = (z² − 1)² / (4·z²) for z > 0.
+      --  For z = 0 the inverse is 0; for z < 0 return 0 (domain guard).
+   begin
+      if Z <= 0.0 then
+         return 0.0;
+      end if;
+      declare
+         Z2 : constant Long_Float := Z * Z;
+      begin
+         return (Z2 - 1.0) * (Z2 - 1.0) / (4.0 * Z2);
+      end;
+   end Freeman_Tukey_Inverse;
+
+   --  ── Apply_Transform / Invert_Transform ────────────────────────────────
+
+   function Apply_Transform
+     (X      : Long_Float;
+      Kind   : Coyote_SQC.Data_Model.Transform_Kind;
+      Lambda : Long_Float := 0.0) return Long_Float
+   is
+      use Coyote_SQC.Data_Model;
+   begin
+      case Kind is
+         when None          => return X;
+         when Box_Cox       => return Box_Cox (X, Lambda);
+         when Sqrt_VS       => return Sqrt_VS (X);
+         when Anscombe      => return Anscombe (X);
+         when Arcsinh_VS    => return Arcsinh_VS (X);
+         when Freeman_Tukey => return Freeman_Tukey (X);
+      end case;
+   end Apply_Transform;
+
+   function Invert_Transform
+     (Z      : Long_Float;
+      Kind   : Coyote_SQC.Data_Model.Transform_Kind;
+      Lambda : Long_Float := 0.0) return Long_Float
+   is
+      use Coyote_SQC.Data_Model;
+   begin
+      case Kind is
+         when None          => return Z;
+         when Box_Cox       => return Box_Cox_Inverse (Z, Lambda);
+         when Sqrt_VS       => return Sqrt_VS_Inverse (Z);
+         when Anscombe      => return Anscombe_Inverse (Z);
+         when Arcsinh_VS    => return Arcsinh_VS_Inverse (Z);
+         when Freeman_Tukey => return Freeman_Tukey_Inverse (Z);
+      end case;
+   end Invert_Transform;
+
 end Coyote_SQC.Statistics.I_Chart;
