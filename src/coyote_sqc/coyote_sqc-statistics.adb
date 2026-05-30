@@ -202,6 +202,47 @@ package body Coyote_SQC.Statistics is
          end;
       end Accumulate_Xbar_S;
 
+      --  Accumulate per-pair Long_Float Sᵢ values for JSD Xbar/s charts.
+      --  Mirrors Accumulate_Xbar_S but operates on Long_Float_Vectors.
+      procedure Accumulate_Xbar_S_LF
+        (Values : Long_Float_Vectors.Vector)
+      is
+         N : constant Natural := Natural (Values.Length);
+      begin
+         if N = 0 then
+            return;
+         end if;
+         declare
+            Sum  : Long_Float := 0.0;
+            Sq   : Long_Float := 0.0;
+            Mean : Long_Float;
+         begin
+            for V of Values loop
+               Sum := Sum + V;
+            end loop;
+            Mean := Sum / Long_Float (N);
+            --  Classical accumulators.
+            Total_N             := Total_N + Long_Float (N);
+            Total_Weighted_Mean :=
+              Total_Weighted_Mean + Long_Float (N) * Mean;
+            if N >= 2 then
+               for V of Values loop
+                  declare D : constant Long_Float := V - Mean;
+                  begin Sq := Sq + D * D; end;
+               end loop;
+               Sum_Numerator   :=
+                 Sum_Numerator + Sq;
+               Sum_Denominator :=
+                 Sum_Denominator + Long_Float (N - 1);
+            end if;
+            --  Robust accumulators.
+            Robust_XS_Means.Append (Mean);
+            for V of Values loop
+               Robust_XS_Residuals.Append (V - Mean);
+            end loop;
+         end;
+      end Accumulate_Xbar_S_LF;
+
       --  Accumulate a single I-chart observation (session total or turn count).
       procedure Accumulate_I (Val : Long_Float) is
       begin
@@ -245,6 +286,11 @@ package body Coyote_SQC.Statistics is
             when Thinking_Tokens_Xbar | Thinking_Tokens_S =>
                if M.Any_Thinking then
                   Accumulate_Xbar_S (M.Per_Turn_Thinking_Tokens);
+               end if;
+
+            when Tool_Call_JSD_Xbar | Tool_Call_JSD_S =>
+               if M.N_Consecutive_Tool_Pairs >= 1 then
+                  Accumulate_Xbar_S_LF (M.Per_Consecutive_Tool_S);
                end if;
 
             when Tool_Call_Failure_Rate =>
@@ -338,6 +384,13 @@ package body Coyote_SQC.Statistics is
                | Session_Turn_Count_MR
                | Session_Turn_Count_EWMA =>
                Accumulate_I (Long_Float (M.N_Turns));
+            when Session_Tool_Call_JSD_Sum_I
+               | Session_Tool_Call_JSD_Sum_MR
+               | Session_Tool_Call_JSD_Sum_EWMA =>
+               if M.N_Consecutive_Tool_Pairs > 0 then
+                  Accumulate_I (M.Total_Tool_Call_JSD_S);
+               end if;
+
 
          end case;
 
@@ -350,7 +403,8 @@ package body Coyote_SQC.Statistics is
 
          when Turn_Tokens_Xbar | Turn_Tokens_S
             | Tool_Call_Tokens_Xbar | Tool_Call_Tokens_S
-            | Thinking_Tokens_Xbar | Thinking_Tokens_S =>
+            | Thinking_Tokens_Xbar | Thinking_Tokens_S
+            | Tool_Call_JSD_Xbar | Tool_Call_JSD_S =>
 
             if Method = Robust_Median then
                --  Grand_Mean: unweighted median of session arithmetic means.
@@ -459,7 +513,10 @@ package body Coyote_SQC.Statistics is
             | Fraction_Thinking_Per_Tool_Call_I  | Fraction_Thinking_Per_Tool_Call_MR
             | Fraction_Thinking_Per_Tool_Call_EWMA
             | Fraction_Uncached_Input_I | Fraction_Uncached_Input_MR
-            | Fraction_Uncached_Input_EWMA =>
+            | Fraction_Uncached_Input_EWMA
+            | Session_Tool_Call_JSD_Sum_I
+            | Session_Tool_Call_JSD_Sum_MR
+            | Session_Tool_Call_JSD_Sum_EWMA =>
 
             if Method = Robust_Median then
                --  Grand_Mean: median of all setup-interval observations.

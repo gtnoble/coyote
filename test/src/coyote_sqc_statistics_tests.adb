@@ -2061,4 +2061,134 @@ package body Coyote_SQC_Statistics_Tests is
    end Test_Fraction_New_Charts_Zero_Denominator;
 
 
+   --  ── EWMA + Box-Cox (Option B) tests ──────────────────────────────────
+
+   --  When Box-Cox (ln) is applied before EWMA limit computation, back-
+   --  transforming via exp() produces asymmetric limits in original space:
+   --  UCL − CL > CL − LCL.  This verifies the Option B workflow without
+   --  the GTK app layer.
+   procedure Test_EWMA_Box_Cox_Asymmetric_Limits (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.I_Chart;
+      use Coyote_SQC.Statistics.EWMA_Chart;
+      use Ada.Numerics.Long_Elementary_Functions;
+
+      --  Geometric series: each value is 4× the previous.
+      --  ln(x_i) = [0.693, 2.079, 3.466, 4.852]
+      X1    : constant Long_Float := 2.0;
+      X2    : constant Long_Float := 8.0;
+      X3    : constant Long_Float := 32.0;
+      X4    : constant Long_Float := 128.0;
+      Z1    : constant Long_Float := Box_Cox (X1, 0.0);
+      Z2    : constant Long_Float := Box_Cox (X2, 0.0);
+      Z3    : constant Long_Float := Box_Cox (X3, 0.0);
+      Z4    : constant Long_Float := Box_Cox (X4, 0.0);
+
+      Grand_Mean_Z : constant Long_Float := (Z1 + Z2 + Z3 + Z4) / 4.0;
+      Mean_MR_Z    : constant Long_Float :=
+        (abs (Z2 - Z1) + abs (Z3 - Z2) + abs (Z4 - Z3)) / 3.0;
+      Sigma_Z      : constant Long_Float := Mean_MR_Z / 1.128;
+
+      Lim_Z : constant Limits_Record :=
+        Compute_EWMA_Limits (Grand_Mean_Z, Sigma_Z, 0.2, 3.0, 1);
+
+      UCL_Orig : constant Long_Float := Box_Cox_Inverse (Lim_Z.UCL, 0.0);
+      CL_Orig  : constant Long_Float := Box_Cox_Inverse (Lim_Z.CL,  0.0);
+      LCL_Orig : constant Long_Float := Box_Cox_Inverse (Lim_Z.LCL, 0.0);
+   begin
+      Assert (Lim_Z.Has_UCL, "EWMA ln-space limits must be defined");
+      Assert (UCL_Orig > CL_Orig,
+              "Back-transformed UCL must be > CL");
+      Assert (LCL_Orig < CL_Orig,
+              "Back-transformed LCL must be < CL");
+      Assert (LCL_Orig > 0.0,
+              "Back-transformed LCL must be positive (ln preserves positivity)");
+      --  Key assertion: limits are asymmetric in original space.
+      --  For [2,8,32,128]: UCL≈33.4, CL≈16.0, LCL≈7.6.
+      --  (UCL−CL)≈17.4 >> (CL−LCL)≈8.4.
+      Assert ((UCL_Orig - CL_Orig) > (CL_Orig - LCL_Orig) + 3.0,
+              "Back-transformed limits must be asymmetric around CL; "
+              & "UCL-CL=" & Long_Float'Image (UCL_Orig - CL_Orig)
+              & " CL-LCL=" & Long_Float'Image (CL_Orig - LCL_Orig));
+   end Test_EWMA_Box_Cox_Asymmetric_Limits;
+
+   --  ── Robust Estimation + EWMA interaction ─────────────────────────────
+
+   --  With a skewed setup interval containing an outlier, the robust Grand_Mean
+   --  (median) gives a different EWMA Z_0 than the classical mean, producing
+   --  a more resistant first EWMA step when a new observation arrives.
+   procedure Test_Robust_EWMA_Outlier_Grand_Mean (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Data_Model;
+      use Coyote_SQC.Charts;
+      use Coyote_SQC.Statistics.EWMA_Chart;
+
+      --  Setup interval: four sessions at 10 input tokens, one outlier at 100.
+      --  Classical mean = 28; robust median = 10.
+      function MK (Id : String; Tok : Natural)
+                   return Session_Metrics_Record is
+         M : Session_Metrics_Record;
+      begin
+         M.Session_Id           := To_Unbounded_String (Id);
+         M.N_Turns              := 1;
+         M.Total_Input_Tokens   := Tok;
+         return M;
+      end MK;
+
+      Metrics  : Metrics_Vectors.Vector;
+      Setup    : UUID_Set;
+      Classical_Params : Setup_Parameters;
+      Robust_Params    : Setup_Parameters;
+      Tol      : constant Long_Float := 1.0e-6;
+
+      --  A new observation at 10 tokens.
+      X_New    : constant Long_Float := 10.0;
+      Weight   : constant Long_Float := 0.2;
+
+      Classical_Z1 : Long_Float;
+      Robust_Z1    : Long_Float;
+   begin
+      Metrics.Append (MK ("r1", 10));
+      Metrics.Append (MK ("r2", 10));
+      Metrics.Append (MK ("r3", 10));
+      Metrics.Append (MK ("r4", 10));
+      Metrics.Append (MK ("r5", 100));
+
+      Coyote_SQC.Statistics.Estimate_Parameters
+        (Metrics, Setup, Session_Input_Tokens_I,
+         Method     => Coyote_SQC.Data_Model.Classical,
+         Parameters => Classical_Params);
+
+      Coyote_SQC.Statistics.Estimate_Parameters
+        (Metrics, Setup, Session_Input_Tokens_I,
+         Method     => Coyote_SQC.Data_Model.Robust_Median,
+         Parameters => Robust_Params);
+
+      --  Classical Grand_Mean = (4*10+100)/5 = 28.0.
+      Assert (abs (Classical_Params.Grand_Mean - 28.0) <= Tol,
+              "Classical Grand_Mean should be 28.0; got "
+              & Long_Float'Image (Classical_Params.Grand_Mean));
+      --  Robust Grand_Mean = median = 10.0.
+      Assert (abs (Robust_Params.Grand_Mean - 10.0) <= Tol,
+              "Robust Grand_Mean (median) should be 10.0; got "
+              & Long_Float'Image (Robust_Params.Grand_Mean));
+
+      --  EWMA first step with Z_0 = Grand_Mean, new observation = 10.
+      Classical_Z1 := Compute_Z (X_New, Classical_Params.Grand_Mean, Weight);
+      Robust_Z1    := Compute_Z (X_New, Robust_Params.Grand_Mean, Weight);
+
+      --  Classical: Z_1 = 0.2*10 + 0.8*28 = 24.4.
+      Assert (abs (Classical_Z1 - 24.4) <= Tol,
+              "Classical EWMA Z1 should be 24.4; got "
+              & Long_Float'Image (Classical_Z1));
+      --  Robust: Z_1 = 0.2*10 + 0.8*10 = 10.0.
+      Assert (abs (Robust_Z1 - 10.0) <= Tol,
+              "Robust EWMA Z1 should be 10.0; got "
+              & Long_Float'Image (Robust_Z1));
+      --  Robust Z_1 is much smaller (closer to the true process level).
+      Assert (Robust_Z1 < Classical_Z1,
+              "Robust EWMA Z1 must be less than Classical EWMA Z1 when "
+              & "setup interval contains an outlier");
+   end Test_Robust_EWMA_Outlier_Grand_Mean;
+
 end Coyote_SQC_Statistics_Tests;

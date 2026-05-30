@@ -60,7 +60,15 @@ package Coyote_SQC.Charts is
       --  Uncached input tokens per total input token I/MR/EWMA rate charts:
       Fraction_Uncached_Input_I,
       Fraction_Uncached_Input_MR,
-      Fraction_Uncached_Input_EWMA);
+      Fraction_Uncached_Input_EWMA,
+      --  Tool call consecutive diversity charts (Xbar/s):
+      Tool_Call_JSD_Xbar,
+      Tool_Call_JSD_S,
+      --  Session-level I/MR/EWMA charts for total consecutive tool-call
+      --  similarity per session (sum of all Per_Consecutive_Tool_S values).
+      Session_Tool_Call_JSD_Sum_I,
+      Session_Tool_Call_JSD_Sum_MR,
+      Session_Tool_Call_JSD_Sum_EWMA);
 
    --  Display metadata for one chart.
    type Chart_Properties is record

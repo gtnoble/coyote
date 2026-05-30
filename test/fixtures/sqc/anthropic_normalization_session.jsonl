@@ -1,0 +1,4 @@
+{"type":"session","version":3,"id":"00000000-0000-4000-8000-00000000000b","timestamp":"2025-06-01T09:00:00.000Z","cwd":"/home/user/anthropic_project"}
+{"type":"model_change","provider":"anthropic","modelId":"claude-sonnet-4-5"}
+{"type":"message","message":{"role":"user","content":[{"type":"text","text":"Test Anthropic token normalization."}]}}
+{"type":"message","message":{"role":"assistant","content":[{"type":"text","text":"Understood."}],"usage":{"input":100,"output":50,"cacheRead":200,"cacheWrite":50,"thinking":0},"stopReason":"stop"}}

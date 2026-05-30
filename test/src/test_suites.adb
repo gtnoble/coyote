@@ -26,6 +26,8 @@ with Coyote_SQC_Statistics_Tests;
 with Coyote_SQC_Parser_Tests;
 with Coyote_SQC_Workspace_Tests;
 with Coyote_SQC_Histogram_Tests;
+with Coyote_SQC_JSD_Tests;
+with Coyote_SQC_Integrity_Tests;
 with LLM_SSE_Tests;
 with LLM_Tools_Tests;
 with LLM_OpenAI_Completions_Tests;
@@ -125,6 +127,10 @@ package body Test_Suites is
      new AUnit.Test_Caller (Coyote_SQC_Workspace_Tests.Test);
    package SQC_Histogram_Caller is
      new AUnit.Test_Caller (Coyote_SQC_Histogram_Tests.Test);
+   package SQC_JSD_Caller is
+     new AUnit.Test_Caller (Coyote_SQC_JSD_Tests.Test);
+   package SQC_Integrity_Caller is
+     new AUnit.Test_Caller (Coyote_SQC_Integrity_Tests.Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
@@ -1884,6 +1890,116 @@ package body Test_Suites is
       Result.Add_Test (SQC_Histogram_Caller.Create
         ("SQC histogram: n=1 -> N_Bins=1, Bin_Min=value",
          Coyote_SQC_Histogram_Tests.Test_Bins_N1'Access));
+      Result.Add_Test (SQC_Histogram_Caller.Create
+        ("SQC histogram: bimodal FD bin count capped at 32",
+         Coyote_SQC_Histogram_Tests.Test_Bins_Cap_At_32'Access));
+
+      --  Coyote_SQC statistics: EWMA + Box-Cox and Robust+EWMA tests
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC stats: EWMA + ln Box-Cox back-transforms to asymmetric limits",
+         Coyote_SQC_Statistics_Tests
+           .Test_EWMA_Box_Cox_Asymmetric_Limits'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC stats: Robust Grand_Mean gives different EWMA Z0 than Classical",
+         Coyote_SQC_Statistics_Tests
+           .Test_Robust_EWMA_Outlier_Grand_Mean'Access));
+
+      --  Coyote_SQC parser: Anthropic token normalization
+      Result.Add_Test (SQC_Parser_Caller.Create
+        ("SQC parser: Anthropic input_tokens normalized to total context window",
+         Coyote_SQC_Parser_Tests
+           .Test_Anthropic_Input_Token_Normalization'Access));
+
+      --  Coyote_SQC JSD statistics tests
+      Result.Add_Test (SQC_JSD_Caller.Create
+        ("SQC JSD: Token_Count single tool name only",
+         Coyote_SQC_JSD_Tests.Test_Token_Count_Tool_Name_Only'Access));
+      Result.Add_Test (SQC_JSD_Caller.Create
+        ("SQC JSD: Token_Count multi-word tool name",
+         Coyote_SQC_JSD_Tests
+           .Test_Token_Count_Multi_Word_Tool_Name'Access));
+      Result.Add_Test (SQC_JSD_Caller.Create
+        ("SQC JSD: Token_Count empty tool name and args yields 0",
+         Coyote_SQC_JSD_Tests.Test_Token_Count_Empty'Access));
+      Result.Add_Test (SQC_JSD_Caller.Create
+        ("SQC JSD: Compute_S_Values identical calls produce 2 elements",
+         Coyote_SQC_JSD_Tests
+           .Test_S_Values_Identical_Calls_Length'Access));
+      Result.Add_Test (SQC_JSD_Caller.Create
+        ("SQC JSD: Compute_S_Values identical calls sum = 4.0",
+         Coyote_SQC_JSD_Tests
+           .Test_S_Values_Identical_Calls_Sum'Access));
+      Result.Add_Test (SQC_JSD_Caller.Create
+        ("SQC JSD: Compute_S_Values one-side absent key gives S_k = 0",
+         Coyote_SQC_JSD_Tests
+           .Test_S_Values_One_Side_Absent_Zero'Access));
+      Result.Add_Test (SQC_JSD_Caller.Create
+        ("SQC JSD: Compute_S_Values one-side absent key still appears in Result",
+         Coyote_SQC_JSD_Tests
+           .Test_S_Values_One_Side_Absent_Length'Access));
+      Result.Add_Test (SQC_JSD_Caller.Create
+        ("SQC JSD: Compute_S_Values integer-valued key skipped (N_k = 0)",
+         Coyote_SQC_JSD_Tests
+           .Test_S_Values_Integer_Key_Skipped'Access));
+      Result.Add_Test (SQC_JSD_Caller.Create
+        ("SQC JSD: Compute_S_Values different tool names give lower S_k",
+         Coyote_SQC_JSD_Tests
+           .Test_S_Values_Different_Tool_Names'Access));
+      Result.Add_Test (SQC_JSD_Caller.Create
+        ("SQC JSD: Compute_S_Values appends to Result, does not clear",
+         Coyote_SQC_JSD_Tests.Test_S_Values_Appends_Not_Clears'Access));
+      Result.Add_Test (SQC_JSD_Caller.Create
+        ("SQC JSD: Metrics.Compute N_Consecutive_Tool_Pairs=1 for two calls",
+         Coyote_SQC_JSD_Tests
+           .Test_Metrics_JSD_Two_Identical_Calls'Access));
+      Result.Add_Test (SQC_JSD_Caller.Create
+        ("SQC JSD: Metrics.Compute N_Consecutive_Tool_Pairs=0 for one call",
+         Coyote_SQC_JSD_Tests
+           .Test_Metrics_JSD_Single_Tool_Call'Access));
+      Result.Add_Test (SQC_JSD_Caller.Create
+        ("SQC JSD: Metrics.Compute N_Consecutive_Tool_Pairs=0 with no tools",
+         Coyote_SQC_JSD_Tests.Test_Metrics_JSD_No_Tool_Calls'Access));
+      Result.Add_Test (SQC_JSD_Caller.Create
+        ("SQC JSD: Total_Tool_Call_JSD_S equals sum of Per_Consecutive_Tool_S",
+         Coyote_SQC_JSD_Tests.Test_Metrics_JSD_Total_S_Sum'Access));
+      Result.Add_Test (SQC_JSD_Caller.Create
+        ("SQC JSD: Tool calls across turns form consecutive pairs",
+         Coyote_SQC_JSD_Tests.Test_Metrics_JSD_Cross_Turn_Pairs'Access));
+      Result.Add_Test (SQC_JSD_Caller.Create
+        ("SQC JSD: Estimate_Parameters JSD Sum I Grand_Mean",
+         Coyote_SQC_JSD_Tests
+           .Test_Estimate_JSD_Sum_I_Grand_Mean'Access));
+      Result.Add_Test (SQC_JSD_Caller.Create
+        ("SQC JSD: Estimate_Parameters JSD Sum I Mean_MR",
+         Coyote_SQC_JSD_Tests
+           .Test_Estimate_JSD_Sum_I_Mean_MR'Access));
+      Result.Add_Test (SQC_JSD_Caller.Create
+        ("SQC JSD: Estimate_Parameters JSD Sum excludes sessions with 0 pairs",
+         Coyote_SQC_JSD_Tests
+           .Test_Estimate_JSD_Sum_Excludes_No_Pairs'Access));
+
+      --  Coyote_SQC workspace integrity tests
+      Result.Add_Test (SQC_Integrity_Caller.Create
+        ("SQC integrity: Check all present returns Missing_Count = 0",
+         Coyote_SQC_Integrity_Tests.Test_Check_All_Present'Access));
+      Result.Add_Test (SQC_Integrity_Caller.Create
+        ("SQC integrity: Check one missing returns Missing_Count = 1",
+         Coyote_SQC_Integrity_Tests.Test_Check_Some_Missing'Access));
+      Result.Add_Test (SQC_Integrity_Caller.Create
+        ("SQC integrity: Check all missing returns Missing_Count = N",
+         Coyote_SQC_Integrity_Tests.Test_Check_All_Missing'Access));
+      Result.Add_Test (SQC_Integrity_Caller.Create
+        ("SQC integrity: Check empty setup interval returns Missing_Count = 0",
+         Coyote_SQC_Integrity_Tests.Test_Check_Empty_Setup'Access));
+      Result.Add_Test (SQC_Integrity_Caller.Create
+        ("SQC integrity: Remove_Missing removes absent, retains present",
+         Coyote_SQC_Integrity_Tests.Test_Remove_Missing_Partial'Access));
+      Result.Add_Test (SQC_Integrity_Caller.Create
+        ("SQC integrity: Remove_Missing clears all when all absent",
+         Coyote_SQC_Integrity_Tests.Test_Remove_Missing_All'Access));
+      Result.Add_Test (SQC_Integrity_Caller.Create
+        ("SQC integrity: Remove_Missing no-op when all present",
+         Coyote_SQC_Integrity_Tests.Test_Remove_Missing_None'Access));
       --  LLM.Providers.GitHub_Copilot.Catalogue tests
       Result.Add_Test (LLM_Catalogue_Caller.Create
         ("LLM.Catalogue loads and parses a fresh cached Copilot model list",

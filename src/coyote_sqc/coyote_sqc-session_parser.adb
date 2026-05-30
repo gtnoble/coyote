@@ -246,6 +246,7 @@ package body Coyote_SQC.Session_Parser is
                                  else "{}");
                            begin
                               TC.Input_Tokens := Args_Str'Length / 4;
+                              TC.Arguments := To_Unbounded_String (Args_Str);
                            end;
                            Turn.Tool_Calls.Append (TC);
                            if TC_Id'Length > 0 then

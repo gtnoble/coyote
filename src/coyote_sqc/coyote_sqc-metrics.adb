@@ -1,3 +1,5 @@
+with Ada.Strings.Unbounded;
+with Coyote_SQC.Statistics.JSD;
 --  Coyote_SQC.Metrics body.
 --
 --  Project: coyote
@@ -63,6 +65,40 @@ package body Coyote_SQC.Metrics is
          if Turn.Thinking_Tokens > 0 then
             M.N_Thinking_Turns := M.N_Thinking_Turns + 1;
          end if;
+      end loop;
+
+      --  Compute consecutive JSD tool-call similarity pairs.
+      --  Iterate all tool calls in session order (across turn boundaries),
+      --  appending per-argument S_k values for each adjacent pair via
+      --  Compute_S_Values.
+      declare
+         use Ada.Strings.Unbounded;
+         Prev_Name : Unbounded_String;
+         Prev_Args : Unbounded_String;
+         Has_Prev  : Boolean := False;
+      begin
+         for Turn of Session.Turns loop
+            for TC of Turn.Tool_Calls loop
+               if Has_Prev then
+                  Coyote_SQC.Statistics.JSD.Compute_S_Values
+                    (Tool_Name_1 => To_String (Prev_Name),
+                     Arguments_1 => To_String (Prev_Args),
+                     Tool_Name_2 => To_String (TC.Tool_Name),
+                     Arguments_2 => To_String (TC.Arguments),
+                     Result      => M.Per_Consecutive_Tool_S);
+                  M.N_Consecutive_Tool_Pairs :=
+                    M.N_Consecutive_Tool_Pairs + 1;
+               end if;
+               Prev_Name := TC.Tool_Name;
+               Prev_Args := TC.Arguments;
+               Has_Prev  := True;
+            end loop;
+         end loop;
+      end;
+
+      --  Sum Per_Consecutive_Tool_S into the session-level scalar.
+      for V of M.Per_Consecutive_Tool_S loop
+         M.Total_Tool_Call_JSD_S := M.Total_Tool_Call_JSD_S + V;
       end loop;
 
       return M;

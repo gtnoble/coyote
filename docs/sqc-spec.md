@@ -491,6 +491,8 @@ type Tool_Call_Record is record
    Input_Tokens : Natural := 0;
    Output_Tokens: Natural := 0;
    Failed       : Boolean := False;
+   Arguments    : Ada.Strings.Unbounded.Unbounded_String;
+   --  Raw JSON argument string; populated at parse time for JSD computation.
 end record;
 
 package Tool_Call_Vectors is new Ada.Containers.Vectors
@@ -545,6 +547,12 @@ package Natural_Vectors is new Ada.Containers.Vectors
    Element_Type => Natural);
 ```
 
+```ada
+package Long_Float_Vectors is new Ada.Containers.Vectors
+  (Index_Type   => Positive,
+   Element_Type => Long_Float);
+```
+
 ### 6.5 Session_Metrics_Record
 
 Derived from `Session_Record` by `Coyote_SQC.Metrics.Compute`. Computed once at
@@ -573,6 +581,16 @@ type Session_Metrics_Record is record
    Total_Tool_Call_Input_Tokens  : Natural := 0;
    Total_Tool_Call_Result_Tokens : Natural := 0;
    Total_Uncached_Input_Tokens   : Natural := 0;
+   --  JSD consecutive tool-call similarity.
+   --  Per_Consecutive_Tool_S holds one Sᵢ value per eligible consecutive
+   --  pair in session order.  N_Consecutive_Tool_Pairs = T−1 for a
+   --  session with T non-empty tool calls (0 when T ≤ 1).
+   Per_Consecutive_Tool_S  : Long_Float_Vectors.Vector;
+   N_Consecutive_Tool_Pairs : Natural := 0;
+   Total_Tool_Call_JSD_S    : Long_Float := 0.0;
+   --  Sum of all Per_Consecutive_Tool_S values across every consecutive
+   --  tool call pair in the session.  0.0 when N_Consecutive_Tool_Pairs = 0.
+   --  Used as the scalar observation for I/MR/EWMA charts (§7.14a).
 end record;
 ```
 
@@ -655,7 +673,15 @@ type Chart_Kind is
    --  Uncached input tokens per total input token I/MR/EWMA rate charts:
    Fraction_Uncached_Input_I,
    Fraction_Uncached_Input_MR,
-   Fraction_Uncached_Input_EWMA);
+   Fraction_Uncached_Input_EWMA,
+   --  Tool call consecutive diversity Xbar/s charts:
+   Tool_Call_JSD_Xbar,
+   Tool_Call_JSD_S,
+   --  Session-level I/MR/EWMA charts for total consecutive tool-call
+   --  similarity per session (sum of all Per_Consecutive_Tool_S values).
+   Session_Tool_Call_JSD_Sum_I,
+   Session_Tool_Call_JSD_Sum_MR,
+   Session_Tool_Call_JSD_Sum_EWMA);
 
 type Chart_Definition_Record is record
    Chart  : Chart_Kind;
@@ -1133,6 +1159,154 @@ are stored in z-space without back-transformation.
 a zero-valued turn is excluded from Box-Cox chart display and λ estimation. A
 status-bar notice counts excluded turns.
 
+
+### 7.14 Jensen-Shannon Divergence Similarity — `Coyote_SQC.Statistics.JSD`
+
+The JSD-based consecutive tool-call similarity statistic quantifies how similar
+each pair of adjacent tool calls is within a session.  A high value means the
+two calls are nearly identical (potential looping); a low value means they are
+compositionally different.
+
+#### Tokenization
+
+For a consecutive pair (call_i, call_{i+1}), argument fields are compared
+**independently** rather than pooled into a single token sequence.  For each
+key in the **union** of both calls' top-level JSON argument fields (plus a
+synthetic `tool_name` key), a token sequence is produced as follows:
+
+1. For the `tool_name` key: tokens are the whitespace-split, lowercased words
+   of the tool name.
+2. For each JSON argument key present in either call: parse the `Arguments`
+   JSON object; extract all string-valued leaf content for that key
+   (recursively for nested objects and arrays); whitespace-split and lowercase.
+3. A key absent from one call is treated as having an empty token sequence
+   (zero tokens) on that side.
+
+A call with no string-valued arguments contributes only the `tool_name`
+comparison; this is identical in treatment to a call where every argument key
+is absent — no special boundary exclusion applies.
+
+#### Per-Argument Similarity (S_k)
+
+For each key _k_ in the union of both calls' argument sets (including
+`tool_name`), with token frequency vectors f^(1)_k and f^(2)_k:
+
+```
+n₁_k = token count for key k in call_i
+n₂_k = token count for key k in call_{i+1}
+N_k  = n₁_k + n₂_k
+```
+
+- **N_k = 0** (key has no string content in either call): no observation is
+  produced; the key is skipped entirely.
+- **Exactly one side zero** (key present in one call but absent or empty in
+  the other): S_k = 0.0 is appended to the subgroup vector.
+- **Both sides non-zero**: S_k is computed via the full JSD formula:
+
+```
+π^(1)_k = n₁_k/N_k,   π^(2)_k = n₂_k/N_k   (length-proportional weights)
+k_eff_k = |vocab_k(call_i) ∪ vocab_k(call_{i+1})|
+
+D_k    = H[π^(1)_k·f^(1)_k + π^(2)_k·f^(2)_k]
+         − π^(1)_k·H[f^(1)_k] − π^(2)_k·H[f^(2)_k]
+D_bc_k = D_k − (k_eff_k − 1) / (2·N_k·ln2)   (bias-corrected divergence)
+S_k    = N_k·(1 − D_bc_k) = N_k·(1 − D_k) + (k_eff_k − 1)/(2·ln2)
+```
+
+where H[p] = −Σᵢ pᵢ·log₂(pᵢ) is the Shannon entropy (base-2, bits).
+
+Each S_k satisfies σ²(S_k) = O(1) independent of N_k (Grosse et al., 2002,
+§IV.B), because length-proportional weights are used within each per-argument
+comparison.  Comparing arguments independently preserves this O(1) variance
+property for every individual observation; pooling all argument tokens into a
+single value per pair would inflate variance to O(K) where K is the number of
+keys, invalidating the poolability justification for the Xbar/s chart.
+
+**Interpretation:** S_k ≈ N_k means the argument value is identical in both
+calls; S_k ≈ 0 means the two values are maximally different on that argument.
+
+#### Subgroup
+
+For a consecutive pair (call_i, call_{i+1}), all computed S_k values are
+appended in order (`tool_name` first, then JSON argument keys in source order)
+to the session's `Per_Consecutive_Tool_S` vector.
+
+For a session with T non-empty tool calls, the subgroup vector
+`Per_Consecutive_Tool_S` has length n = Σᵢ Kᵢ, where Kᵢ is the number of
+non-skipped keys for pair i.  `N_Consecutive_Tool_Pairs` = T − 1.
+
+**Exclusion rules:**
+- Sessions with T ≤ 1 non-empty tool calls (n = 0): excluded entirely from
+  both charts; no marker plotted.
+- Sessions with subgroup size n = 1 (single per-argument observation): plotted
+  as a hollow circle on the Xbar chart; no s marker (same convention as
+  single-turn sessions on existing s charts).
+
+Box-Cox transformation is not applied to JSD charts; each S_k is already
+well-behaved (O(1) variance regardless of N_k) and bounded below by zero.
+
+#### Ada Package
+
+```ada
+with Coyote_SQC.Data_Model;
+
+package Coyote_SQC.Statistics.JSD is
+
+   --  Compute per-argument JSD similarity values for a consecutive tool call
+   --  pair and append them to Result.
+   --
+   --  One S_k value is appended for each key in the union of:
+   --    - a synthetic "tool_name" key (always processed; tool name tokens)
+   --    - every top-level JSON argument key in Arguments_1 or Arguments_2
+   --
+   --  Keys with N_k = 0 (no string content on either side) are skipped.
+   --  Keys present in one call but absent (or non-string) in the other
+   --  contribute S_k = 0.0.  σ²(S_k) = O(1) for every appended value
+   --  (Grosse et al. 2002, §IV.B), preserving Xbar/s poolability.
+   --
+   --  Result is not cleared before appending; the caller is responsible
+   --  for initialising it.
+   procedure Compute_S_Values
+     (Tool_Name_1 : String;
+      Arguments_1 : String;
+      Tool_Name_2 : String;
+      Arguments_2 : String;
+      Result      : in out Coyote_SQC.Data_Model.Long_Float_Vectors.Vector);
+
+   --  Return the total token count for a single tool call: prepend tool name,
+   --  extract all JSON string values from the whole Arguments blob,
+   --  whitespace-split, lowercase.  Exposed for unit testing.
+   function Token_Count
+     (Tool_Name : String;
+      Arguments : String) return Natural;
+
+end Coyote_SQC.Statistics.JSD;
+```
+
+### 7.14a Session Total JSD Similarity Scalar
+
+`Total_Tool_Call_JSD_S` is the session-level sum of all per-argument JSD
+similarity values computed by `Coyote_SQC.Statistics.JSD.Compute_S_Values`
+across every consecutive tool call pair in the session:
+
+```
+Total_Tool_Call_JSD_S = Σ{ S_k : k ∈ Per_Consecutive_Tool_S }
+```
+
+Computed by `Coyote_SQC.Metrics.Compute` after the JSD loop that populates
+`Per_Consecutive_Tool_S`.
+
+**I/MR/EWMA chart kinds:** `Session_Tool_Call_JSD_Sum_I`,
+`Session_Tool_Call_JSD_Sum_MR`, and `Session_Tool_Call_JSD_Sum_EWMA` use this
+scalar as their observation.  Exclusion, limit formulas, and EWMA recursion
+follow §7.8 and §7.11 exactly.  Box-Cox transformation is not applied; the
+S_k values have O(1) variance by construction (Grosse et al. 2002, §IV.B),
+so transformation provides no normality benefit here.
+
+**Descriptor:** `Get_Observation = Obs_Tool_JSD_Sum`, `Box_Cox_Kind = No_Box_Cox`,
+`Exclusion_Rule = Zero_Tool_Call_Turns` (sessions with `N_Consecutive_Tool_Pairs = 0`
+are excluded).
+
 ## 8. Chart Definitions
 
 ### 7.11 EWMA Chart — `Coyote_SQC.Statistics.EWMA_Chart`
@@ -1365,7 +1539,7 @@ end record;
 function Properties (Kind : Chart_Kind) return Chart_Properties;
 ```
 
-The forty-eight charts and their properties:
+The fifty-one charts and their properties:
 
 | `Chart_Kind` | Label | Group_Path | Y-Axis Label |
 |---|---|---|---|
@@ -1417,6 +1591,11 @@ The forty-eight charts and their properties:
 | `Fraction_Uncached_Input_I` | `Fraction: Uncached/Total Input -- I` | `Rates/Uncached Input` | `Uncached input tokens / input tokens` |
 | `Fraction_Uncached_Input_MR` | `Fraction: Uncached/Total Input -- MR` | `Rates/Uncached Input` | `MR (uncached / input tokens)` |
 | `Fraction_Uncached_Input_EWMA` | `Fraction: Uncached/Total Input -- EWMA` | `Rates/Uncached Input` | `EWMA (uncached / input tokens)` |
+| `Tool_Call_JSD_Xbar` | `Consecutive Tool Diversity -- Xbar` | `Tool Call Behavior/Consecutive Diversity` | `Mean consecutive tool-call similarity` |
+| `Tool_Call_JSD_S` | `Consecutive Tool Diversity -- s` | `Tool Call Behavior/Consecutive Diversity` | `Std dev consecutive tool-call similarity` |
+| `Session_Tool_Call_JSD_Sum_I` | `Consecutive Tool Diversity Sum -- I` | `Tool Call Behavior/Consecutive Diversity` | `Sum of tool-call similarity scores` |
+| `Session_Tool_Call_JSD_Sum_MR` | `Consecutive Tool Diversity Sum -- MR` | `Tool Call Behavior/Consecutive Diversity` | `MR (sum of tool-call similarity scores)` |
+| `Session_Tool_Call_JSD_Sum_EWMA` | `Consecutive Tool Diversity Sum -- EWMA` | `Tool Call Behavior/Consecutive Diversity` | `EWMA (sum of tool-call similarity scores)` |
 
 The left-panel display order is derived from each chart's `Group_Path`:
 groups and sub-groups are sorted alphabetically, with enum declaration
@@ -1646,7 +1825,7 @@ The three panels are separated by `GtkPaned` splitters. Default widths: left pan
 ### 11.2 Left Panel — `Coyote_SQC.UI.Left_Panel`
 
 A `GtkListBox` with visual group separators. Each row is a `GtkListBoxRow`
-containing a `GtkLabel`. The three groups ("Token Consumption", "Rates", "Session Totals") are separated
+containing a `GtkLabel`. The four groups ("Token Consumption", "Rates", "Session Totals", "Tool Call Behavior") are separated
 by a `GtkSeparator` row styled with a group label above it.
 
 Clicking a row:
@@ -1754,7 +1933,8 @@ GtkBox (vertical)
 │   └── GtkGrid
 │       ├── [datetime]  [model]
 │       ├── [source dir]
-│       └── [input tokens / output tokens]
+│       ├── [input tokens / output tokens]
+│       └── [session id]
 ├── GtkFrame "Prompt"
 │   └── GtkTextView (read-only, word-wrap, non-editable)
 ├── GtkFrame "Session Replay"
@@ -1765,6 +1945,11 @@ GtkBox (vertical)
     ├── GtkTextView (new comment entry)
     └── GtkButton "Add Comment"
 ```
+
+The Session frame content is implemented as a selectable `GtkLabel`
+(`Set_Selectable (True)`).  This
+allows the user to click-and-drag to copy the session ID, datetime, model,
+or any other field without opening a text editor.
 
 Scroll position in the Session Replay `GtkTextView` is saved in a
 `Hash_Map<UUID → Gtk.Adjustment.Gtk_Adjustment>` and restored when the same session

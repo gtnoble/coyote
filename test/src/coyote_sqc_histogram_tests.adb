@@ -184,4 +184,44 @@ package body Coyote_SQC_Histogram_Tests is
       Assert (BMin = 42.0, "n=1: Bin_Min should equal the single value");
    end Test_Bins_N1;
 
+   --  ── 32-bin cap ────────────────────────────────────────────────────────
+
+   --  A bimodal distribution (10 values in [1..10], 90 values in
+   --  [1001..1090]) has a small IQR relative to its range, so the
+   --  Freedman-Diaconis formula yields > 32 bins.  The implementation must
+   --  clamp the result to 32.
+   --
+   --  Calculation:
+   --    Q1 = 1015.75, Q3 = 1065.25, IQR = 49.5
+   --    h  = 2*49.5 / 100^(1/3) = 99 / 4.6416 ≈ 21.33
+   --    k  = ceil(1089 / 21.33) = ceil(51.05) = 52 → capped at 32.
+   procedure Test_Bins_Cap_At_32 (T : in out Test) is
+      pragma Unreferenced (T);
+      Vals  : Long_Float_Array (1 .. 100);
+      N     : Positive;
+      BMin  : Long_Float;
+      BWid  : Long_Float;
+      Cnts  : Bin_Count_Array;
+      Total : Natural := 0;
+   begin
+      for I in 1 .. 10 loop
+         Vals (I) := Long_Float (I);          --  1.0, 2.0, ..., 10.0
+      end loop;
+      for I in 11 .. 100 loop
+         Vals (I) := Long_Float (990 + I);    --  1001.0, ..., 1090.0
+      end loop;
+
+      Compute_Bins (Vals, N, BMin, BWid, Cnts);
+
+      Assert (N = 32,
+              "Bimodal data: FD gives 52 bins, must be capped at 32; got "
+              & N'Image);
+      --  All 100 values must be binned.
+      for I in 1 .. N loop
+         Total := Total + Cnts (I);
+      end loop;
+      Assert (Total = 100,
+              "Cap at 32: total count must still equal 100; got " & Total'Image);
+   end Test_Bins_Cap_At_32;
+
 end Coyote_SQC_Histogram_Tests;

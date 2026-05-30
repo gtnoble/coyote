@@ -540,6 +540,61 @@ package body Coyote_SQC.Charts is
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
                Is_EWMA_Chart   => True);
+         when Tool_Call_JSD_Xbar =>
+            return
+              (Label           => U ("Consecutive Tool Diversity -- Xbar"),
+               Group_Path      => U ("Tool Call Behavior/Consecutive Diversity"),
+               Y_Axis_Label    => U ("Mean consecutive tool-call similarity"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => True,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => False);
+         when Tool_Call_JSD_S =>
+            return
+              (Label           => U ("Consecutive Tool Diversity -- s"),
+               Group_Path      => U ("Tool Call Behavior/Consecutive Diversity"),
+               Y_Axis_Label    => U ("Std dev consecutive tool-call similarity"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => True,
+               Is_S_Chart      => True,
+               Is_EWMA_Chart   => False);
+         when Session_Tool_Call_JSD_Sum_I =>
+            return
+              (Label           => U ("Consecutive Tool Diversity Sum -- I"),
+               Group_Path      => U ("Tool Call Behavior/Consecutive Diversity"),
+               Y_Axis_Label    => U ("Sum of tool-call similarity scores"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => True,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => False,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => False);
+         when Session_Tool_Call_JSD_Sum_MR =>
+            return
+              (Label           => U ("Consecutive Tool Diversity Sum -- MR"),
+               Group_Path      => U ("Tool Call Behavior/Consecutive Diversity"),
+               Y_Axis_Label    => U ("MR (sum of tool-call similarity scores)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => True,
+               Is_Xbar_S_Chart => False,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => False);
+         when Session_Tool_Call_JSD_Sum_EWMA =>
+            return
+              (Label           => U ("Consecutive Tool Diversity Sum -- EWMA"),
+               Group_Path      => U ("Tool Call Behavior/Consecutive Diversity"),
+               Y_Axis_Label    => U ("EWMA (sum of tool-call similarity scores)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => False,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => True);
       end case;
    end Properties;
 

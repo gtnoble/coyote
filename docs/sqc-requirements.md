@@ -172,6 +172,7 @@ One record per tool call within a turn.
 | `Input_Tokens` | Natural | Estimated tokens consumed in the tool call input; derived from the serialised `arguments` JSON string length ÷ 4 (0 if arguments are absent) |
 | `Output_Tokens` | Natural | Estimated tokens consumed in the tool result; derived from the result text length ÷ 4 (0 if no matching tool result has been recorded) |
 | `Failed` | Boolean | True if the tool call resulted in any failure (see Glossary) |
+| `Arguments` | Unbounded_String | Raw JSON argument string; stored at parse time for JSD similarity computation (§5.12) |
 
 ### 4.4 Session Metrics Record
 
@@ -198,6 +199,8 @@ Derived from a Session_Record. Computed once at load time and cached.
 | `Total_Tool_Call_Input_Tokens` | Natural | Sum of tool call input-token estimates across all tool calls in all turns |
 | `Total_Tool_Call_Result_Tokens` | Natural | Sum of tool call result-token estimates across all tool calls in all turns |
 | `Total_Uncached_Input_Tokens` | Natural | Uncached input tokens for the session (`Total_Input_Tokens − Total_Cache_Read_Tokens − Total_Cache_Write_Tokens`) |
+| `Per_Consecutive_Tool_S` | Vector of Long_Float | Per-argument JSD similarity values across all consecutive tool-call pairs; see §5.12 |
+| `N_Consecutive_Tool_Pairs` | Natural | Number of eligible consecutive pairs (T−1 for T non-empty tool calls; 0 when T ≤ 1) |
 
 ### 4.5 Comment Record
 
@@ -224,7 +227,7 @@ Derived from a Session_Record. Computed once at load time and cached.
 
 | Field | Type | Description |
 |---|---|---|
-| `Chart_Type` | Chart_Type enum | Identifies which of the forty-eight charts this defines |
+| `Chart_Type` | Chart_Type enum | Identifies which of the fifty-one charts this defines |
 
 ---
 
@@ -574,6 +577,123 @@ notice reports the count of excluded turns.
 `xbarSBoxCox` JSON field. Estimated λ values are transient runtime values
 recomputed from the setup interval and not persisted.
 
+### 5.12 Consecutive Tool Call Similarity — JSD Statistic
+
+The JSD-based similarity statistic quantifies the compositional similarity
+between pairs of adjacent tool calls within a session.  High values indicate
+the two calls are nearly identical (potential looping); low values indicate
+diversity.  The statistic uses the Jensen-Shannon divergence (Grosse et al.,
+Phys. Rev. E 65, 041905, 2002) with length-proportional weights, which is the
+unique weighting that simultaneously minimises estimator variance and makes the
+finite-sample bias independent of string length.
+
+#### Tokenization
+
+For a consecutive pair (call_i, call_{i+1}), argument fields are compared
+independently rather than pooled into a single token sequence.  For each key
+in the **union** of both calls' top-level JSON argument fields (plus a
+synthetic `tool_name` key), a token sequence is produced as follows:
+
+1. For the `tool_name` key: tokens are the whitespace-split, lowercased words
+   of the tool name string.
+2. For each JSON argument key: parse the `Arguments` JSON object; extract all
+   string-valued leaf content for that key (recursively for nested objects and
+   arrays); whitespace-split and lowercase to produce the token sequence.
+3. A key absent from one call is treated as having an empty token sequence
+   (zero tokens) on that side.
+
+A call with no string-valued arguments contributes only the `tool_name`
+comparison; this is treated identically to a call where every argument key is
+absent — no special boundary exclusion applies.
+
+#### Per-Argument Similarity S_k
+
+For each key _k_ in the union of both calls' argument sets (including
+`tool_name`), with token frequency vectors f^(1)_k and f^(2)_k:
+
+```
+n₁_k = token count for key k in call_i
+n₂_k = token count for key k in call_{i+1}
+N_k  = n₁_k + n₂_k
+```
+
+- If N_k = 0 (key has no string content in either call): no observation is
+  produced for key k; the key is skipped.
+- If exactly one side has zero tokens (key present in one call but absent or
+  empty in the other): S_k = 0.0 is appended.
+- If both sides have tokens: S_k is computed via the full JSD formula:
+
+```
+π^(1)_k = n₁_k/N_k,   π^(2)_k = n₂_k/N_k
+k_eff_k = |vocab_k(call_i) ∪ vocab_k(call_{i+1})|
+
+D_k    = H[π^(1)_k·f^(1)_k + π^(2)_k·f^(2)_k]
+         − π^(1)_k·H[f^(1)_k] − π^(2)_k·H[f^(2)_k]
+D_bc_k = D_k − (k_eff_k − 1)/(2·N_k·ln2)
+S_k    = N_k·(1 − D_bc_k) = N_k·(1 − D_k) + (k_eff_k − 1)/(2·ln2)
+```
+
+where H[p] = −Σ pᵢ log₂ pᵢ (Shannon entropy in bits).
+
+Each S_k satisfies σ²(S_k) = O(1) independent of N_k (Grosse et al. 2002,
+§IV.B) because length-proportional weights are used within each per-argument
+comparison.  Comparing arguments independently preserves the O(1) variance
+property for every observation; pooling all argument tokens into one value
+would inflate variance to O(K) where K is the number of keys, breaking the
+poolability justification for the Xbar/s chart.
+
+#### Session Subgroup and Chart Types
+
+For a consecutive pair (call_i, call_{i+1}), all computed S_k values are
+appended in order (`tool_name` first, then JSON argument keys in source order)
+to the session's `Per_Consecutive_Tool_S` vector.
+
+For a session with T non-empty tool calls (calls that contribute at least one
+S_k observation), the subgroup vector `Per_Consecutive_Tool_S` has length
+n = Σᵢ Kᵢ, where Kᵢ is the number of non-skipped keys for pair i.
+`N_Consecutive_Tool_Pairs` = T − 1.
+
+This subgroup drives the Xbar/s chart pair (§6.37–6.38) using the standard
+Xbar and s chart formulas (§5.2) with per-point variable-n control limits,
+where n is the length of `Per_Consecutive_Tool_S` for that session.
+
+**Exclusion rules:**
+- Sessions with T ≤ 1 non-empty tool calls: `N_Consecutive_Tool_Pairs` = 0;
+  excluded entirely from both charts; no marker plotted.
+- Sessions with subgroup size n = 1 (single per-argument observation): plotted
+  as a hollow circle on the Xbar chart; no s marker.
+
+Box-Cox transformation is not applied to JSD charts.
+
+### 5.13 Session Total JSD Similarity — I/MR/EWMA Scalar
+
+The session-level **total JSD similarity** is defined as the sum of all
+per-argument S_k values accumulated across every consecutive tool call pair
+in the session:
+
+```
+Total_Tool_Call_JSD_S = Σ Per_Consecutive_Tool_S
+```
+
+This collapses the subgroup vector used by the Xbar/s charts (§5.12) into a
+single scalar per session, suitable for an Individuals (I) chart, its
+companion Moving-Range (MR) chart, and an EWMA chart — the same triplet used
+for all other session-level totals.
+
+**Observation:** one positive-real scalar per session.  
+**Exclusion:** sessions with `N_Consecutive_Tool_Pairs = 0` (≤ 1 non-empty
+tool calls) are excluded; no marker is plotted.  
+**Limits (I chart):** derived from the mean moving range of the setup
+interval (§5.6).  Box-Cox transformation is not applied (S_k values are
+already well-behaved with O(1) variance by construction — Grosse et al. 2002,
+§IV.B — so the transformation provides no benefit here).  
+**MR chart:** `MR_i = |Total_Tool_Call_JSD_S_i − Total_Tool_Call_JSD_S_{i-1}|`;
+sessions without consecutive pairs are skipped and do not advance the MR
+sequence.  
+**EWMA chart:** independently computes Grand_Mean and σ from the same
+setup-interval observations as the corresponding I chart.
+
+
 ## 6. Charts
 
 ### 5.9 EWMA Chart for Session Totals
@@ -775,7 +895,7 @@ version ≤ 5 that are missing this field shall be loaded with the default
 
 
 
-Forty-eight charts are available in every workspace. They are pre-instantiated; the user does
+Fifty-one charts are available in every workspace. They are pre-instantiated; the user does
 not create or delete charts. All charts share a single workspace-level setup interval
 (see Section 11).
 
@@ -1108,6 +1228,65 @@ the EWMA and limits are computed in z-space and back-transformed (§5.9).
 
 ---
 
+### 6.37 Consecutive Tool Call Diversity — Xbar Chart
+
+**Measured quantity:** mean JSD-based similarity Sᵢ across consecutive tool
+call pairs within a session (see §5.12).
+**Subgroup:** the vector of Sᵢ values for consecutive pairs within the session.
+**Subgroup size n:** total non-empty tool calls minus one (T−1).
+**Statistic:** mean Sᵢ (x̄).
+**Exclusion:** sessions with T ≤ 1 non-empty tool calls excluded entirely (no
+marker).  Sessions with T = 2 (n = 1) plotted as hollow circles on the Xbar
+chart; no s marker.
+**Limits:** derived from the grand mean and pooled standard deviation of the
+setup interval (§5.2), using the standard Xbar formulas.  Box-Cox
+transformation is not applied.
+
+### 6.38 Consecutive Tool Call Diversity — s Chart
+
+**Measured quantity:** standard deviation of Sᵢ values across consecutive
+tool call pairs within a session (see §5.12).
+**Subgroup:** the vector of Sᵢ values for consecutive pairs within the session.
+**Subgroup size n:** total non-empty tool calls minus one (T−1).
+**Statistic:** sample standard deviation of Sᵢ (s).
+**Exclusion:** sessions with T ≤ 2 (n ≤ 1) have no s statistic; no marker
+plotted on the s chart for these sessions.
+**Limits:** derived from the pooled standard deviation of the setup interval
+(§5.2), using the standard s chart formulas.  Box-Cox transformation is not
+applied.
+
+### 6.39 Consecutive Tool Diversity Sum — I Chart
+
+**Measured quantity:** total consecutive tool-call JSD similarity for the
+session (`Total_Tool_Call_JSD_S` = Σ S_k across all consecutive pairs; see §5.13).
+**Observation:** one scalar value per session; no within-session subgroup.
+**Statistic:** the session total (x).
+**Exclusion:** sessions with `N_Consecutive_Tool_Pairs = 0` (≤ 1 non-empty
+tool calls) are excluded; no marker plotted.
+**Limits:** derived from the mean moving range of the setup interval (§5.6).
+Box-Cox transformation is not applied.
+
+### 6.40 Consecutive Tool Diversity Sum — MR Chart
+
+**Measured quantity:** absolute difference in `Total_Tool_Call_JSD_S` between
+consecutive sessions in chronological order.
+**Statistic:** `MR_i = |Total_Tool_Call_JSD_S_i − Total_Tool_Call_JSD_S_{i-1}|`.
+**First session:** no marker is plotted; a gap is left in the connecting line.
+**Exclusion:** sessions with `N_Consecutive_Tool_Pairs = 0` do not contribute
+to the MR sequence (they are skipped as if absent from the time series).
+**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6).  Box-Cox transformation
+is not applied.
+
+### 6.41 Consecutive Tool Diversity Sum — EWMA Chart
+
+**Measured quantity:** total consecutive tool-call JSD similarity for the
+session (`Total_Tool_Call_JSD_S`).
+**Statistic:** the EWMA value `Z_t = λ · x_t + (1−λ) · Z_{t−1}` (§5.9).
+**Limits:** time-varying UCL and LCL at step _t_ (§5.9).
+**Parameters:** Grand_Mean and σ are independently computed from the same
+setup-interval observations as the Session Consecutive Tool Diversity Sum — I
+chart (§6.39).
+
 ## 7. UI Layout and Navigation
 
 ### 7.1 Window Structure
@@ -1121,8 +1300,8 @@ The main window contains, from top to bottom:
 
 ### 7.2 Left Panel
 
-A GtkListBox (~180px default width, user-resizable) listing the forty-eight charts in
-three visually separated groups with indented sub-group labels. Top-level groups are
+A GtkListBox (~180px default width, user-resizable) listing the fifty-one charts in
+four visually separated groups with indented sub-group labels. Top-level groups are
 bold; sub-group labels are italic and indented 8 px; chart rows are indented 16 px.
 Groups and sub-groups are ordered alphabetically (case-sensitive). Enum declaration
 order is preserved within each sub-group.
@@ -1200,6 +1379,14 @@ Session Totals
     Session Uncached Input Tokens -- I
     Session Uncached Input Tokens -- MR
     Session Uncached Input Tokens -- EWMA
+
+Tool Call Behavior
+  Consecutive Diversity
+    Consecutive Tool Diversity -- Xbar
+    Consecutive Tool Diversity -- s
+    Consecutive Tool Diversity Sum -- I
+    Consecutive Tool Diversity Sum -- MR
+    Consecutive Tool Diversity Sum -- EWMA
 ```
 
 Clicking a row switches the chart displayed in the chart area. The active chart is
@@ -1434,6 +1621,10 @@ Displayed when exactly one point is selected.
 - Model identifier
 - Source directory
 - Total input tokens / total output tokens
+- Session ID (UUID)
+
+All text in the Session section shall be selectable: the user can click and drag
+to copy the session ID or any other displayed field.
 
 **Prompt section:**
 - Label: "Prompt"
@@ -1500,7 +1691,7 @@ Displayed when two or more points are selected.
 
 **Set as Setup Interval button:**
 - Clicking this button sets the workspace setup interval to exactly the selected
-  sessions, applying to all forty-eight charts simultaneously.
+  sessions, applying to all fifty-one charts simultaneously.
 - If a setup interval is already established, a confirmation dialog is shown:
   "Replace existing setup interval for this workspace?"
 - On confirmation, all charts recompute their limits and recolor the setup interval
@@ -1526,7 +1717,7 @@ Displayed when two or more points are selected.
 ### 11.1 Establishing a Setup Interval
 
 A setup interval is a single workspace-level set of sessions used to estimate the
-center line and control limits for all forty-eight charts simultaneously. It is established
+center line and control limits for all fifty-one charts simultaneously. It is established
 by selecting one or more sessions (Section 9) and either clicking "Set as Setup Interval"
 in the multi-select detail panel (Section 10.2) or choosing **View → Set Selection as
 Setup Interval** from the menu bar. There is no requirement for the
@@ -1536,11 +1727,11 @@ setup sessions to be contiguous in time.
 
 The setup interval is stored as a set of session UUIDs in the `Setup_Session_Ids`
 field of the `Workspace_Record`. It is workspace-level: a single setup interval
-applies to all forty-two charts. The set is stored within the workspace file.
+applies to all fifty-one charts. The set is stored within the workspace file.
 
 ### 11.3 Visual Representation
 
-Setup interval sessions are rendered with filled yellow markers on all forty-two charts.
+Setup interval sessions are rendered with filled yellow markers on all fifty-one charts.
 A faint yellow vertical band spans the x-extent of the setup interval sessions on
 every chart.
 
@@ -1916,4 +2107,32 @@ All statistical formula implementations shall have AUnit unit tests covering:
 
 ---
 
+- JSD `Compute_S` function: for two known token sequences, verify D, D_bc,
+  and Sᵢ against hand-computed values (use simple 2–3 token examples with
+  known union vocabulary size k_eff and total N).
+- JSD identical calls: when Tool_Name and Arguments are identical, verify
+  D = 0 and Sᵢ = N + (k_eff−1)/(2·ln2) (maximum similarity).
+- JSD completely different calls: when vocabularies are disjoint, verify
+  D = H[π^(1), π^(2)] and Sᵢ is at its minimum for those lengths.
+- JSD no-argument call: for a call with tool name but no string-valued
+  arguments, verify that only the tool-name S_k is appended and the call
+  participates normally in consecutive pairs (no boundary exclusion).
+- JSD missing argument: for a pair where key "stdin" is present in call 1
+  but absent from call 2, verify S_stdin = 0.0 is appended to
+  Per_Consecutive_Tool_S.
+- JSD tokenisation: for a known JSON argument string, verify Token_Count
+  returns the expected count after tool-name prepend, JSON string extraction,
+  whitespace split, and lowercasing.
+- JSD session metrics: for a session with T = 4 non-empty tool calls each
+  having K = 2 non-skipped argument keys per pair, verify
+  N_Consecutive_Tool_Pairs = 3 and Per_Consecutive_Tool_S has 6 elements
+  (3 pairs × 2 keys each), with values matching independently hand-computed
+  S_k values.
+- JSD subgroup exclusion: sessions with T ≤ 1 produce
+  N_Consecutive_Tool_Pairs = 0 and are excluded from both Xbar and s charts.
+- JSD hollow circle: a session whose Per_Consecutive_Tool_S has exactly
+  1 element is plotted as a hollow circle on the Xbar chart.
+- JSD Xbar/s parameter estimation: for a known setup interval of three
+  sessions with known per-argument S_k vectors, verify grand mean and pooled s
+  match §5.2 formulas applied to the pooled Long_Float S_k values.
 *End of document.*

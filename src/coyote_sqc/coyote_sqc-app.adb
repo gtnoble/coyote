@@ -66,6 +66,35 @@ package body Coyote_SQC.App is
       end;
    end StdDev_LF;
 
+   --  Mean and standard deviation for Long_Float subgroup vectors (JSD).
+   function Mean_LF_F (V : Long_Float_Vectors.Vector) return Long_Float is
+      N : constant Natural := Natural (V.Length);
+   begin
+      if N = 0 then return 0.0; end if;
+      declare
+         S : Long_Float := 0.0;
+      begin
+         for X of V loop S := S + X; end loop;
+         return S / Long_Float (N);
+      end;
+   end Mean_LF_F;
+
+   function StdDev_LF_F (V : Long_Float_Vectors.Vector) return Long_Float is
+      N : constant Natural := Natural (V.Length);
+   begin
+      if N < 2 then return 0.0; end if;
+      declare
+         M    : constant Long_Float := Mean_LF_F (V);
+         Sum2 : Long_Float := 0.0;
+      begin
+         for X of V loop
+            declare D : constant Long_Float := X - M;
+            begin Sum2 := Sum2 + D * D; end;
+         end loop;
+         return Sqrt (Sum2 / Long_Float (N - 1));
+      end;
+   end StdDev_LF_F;
+
    --  ── Compute_Session_Stat ─────────────────────────────────────────────
 
    procedure Compute_Session_Stat
@@ -192,6 +221,14 @@ package body Coyote_SQC.App is
             Value := Long_Float (Metrics.N_Turns);
             N     := 1;
 
+         when Session_Tool_Call_JSD_Sum_I =>
+            if Metrics.N_Consecutive_Tool_Pairs = 0 then
+               Excluded := True;
+            else
+               Value := Metrics.Total_Tool_Call_JSD_S;
+               N     := 1;
+            end if;
+
          when Fraction_Thinking_Tokens_I =>
             if Metrics.Total_Output_Tokens = 0 then
                Excluded := True;
@@ -237,7 +274,8 @@ package body Coyote_SQC.App is
             | Session_Tool_Call_Result_Tokens_EWMA
             | Session_Uncached_Input_Tokens_EWMA
             | Session_Turn_Count_EWMA | Fraction_Thinking_Tokens_EWMA | Fraction_Tool_Call_Tokens_EWMA
-            | Fraction_Thinking_Per_Tool_Call_EWMA | Fraction_Uncached_Input_EWMA =>
+            | Fraction_Thinking_Per_Tool_Call_EWMA | Fraction_Uncached_Input_EWMA
+            | Session_Tool_Call_JSD_Sum_EWMA =>
             --  EWMA requires previous Z value; caller overrides in the
             --  per-session loop after calling Compute_Session_Stat.
             Excluded := True;
@@ -248,11 +286,32 @@ package body Coyote_SQC.App is
             | Session_Tool_Call_Result_Tokens_MR
             | Session_Uncached_Input_Tokens_MR
             | Session_Turn_Count_MR | Fraction_Thinking_Tokens_MR | Fraction_Tool_Call_Tokens_MR
-            | Fraction_Thinking_Per_Tool_Call_MR | Fraction_Uncached_Input_MR =>
+            | Fraction_Thinking_Per_Tool_Call_MR | Fraction_Uncached_Input_MR
+            | Session_Tool_Call_JSD_Sum_MR =>
             --  Moving range requires the previous session value; the caller
             --  (Recompute_Chart) overrides Excluded and Value after this
             --  call for non-first sessions.
             Excluded := True;
+         when Tool_Call_JSD_Xbar =>
+            if Metrics.N_Consecutive_Tool_Pairs = 0 then
+               Excluded    := True;
+            elsif Metrics.N_Consecutive_Tool_Pairs = 1 then
+               N      := Metrics.N_Consecutive_Tool_Pairs;
+               Value  := Mean_LF_F (Metrics.Per_Consecutive_Tool_S);
+               Single := True;  --  Hollow circle: no variance estimate
+            else
+               N     := Metrics.N_Consecutive_Tool_Pairs;
+               Value := Mean_LF_F (Metrics.Per_Consecutive_Tool_S);
+            end if;
+
+         when Tool_Call_JSD_S =>
+            if Metrics.N_Consecutive_Tool_Pairs <= 1 then
+               Excluded := True;
+            else
+               N     := Metrics.N_Consecutive_Tool_Pairs;
+               Value := StdDev_LF_F (Metrics.Per_Consecutive_Tool_S);
+            end if;
+
       end case;
    end Compute_Session_Stat;
 
@@ -374,6 +433,23 @@ package body Coyote_SQC.App is
    begin
       return M.Per_Turn_Thinking_Tokens;
    end Sub_Thinking_Tokens;
+
+   function Sub_JSD_S
+     (M : Session_Metrics_Record) return Long_Float_Vectors.Vector is
+   begin
+      return M.Per_Consecutive_Tool_S;
+   end Sub_JSD_S;
+   --  Obs_Tool_JSD_Sum: session-total JSD similarity score.
+   --  Returns Long_Float'First when there are no consecutive tool-call pairs
+   --  (< 2 non-empty tool calls in the session), signalling exclusion.
+   function Obs_Tool_JSD_Sum (M : Session_Metrics_Record) return Long_Float is
+   begin
+      if M.N_Consecutive_Tool_Pairs = 0 then
+         return Long_Float'First;
+      end if;
+      return M.Total_Tool_Call_JSD_S;
+   end Obs_Tool_JSD_Sum;
+
    --  Descriptor — return a self-contained descriptor for Kind.
 
    function Descriptor (Kind : Coyote_SQC.Charts.Chart_Kind)
@@ -478,6 +554,16 @@ package body Coyote_SQC.App is
             D.Get_Observation := Obs_Turn_Count'Access;
             D.Box_Cox_Kind    := Turn_Count_Box_Cox;
             D.Exclusion_Rule  := No_Exclusion;
+         when Tool_Call_JSD_Xbar | Tool_Call_JSD_S =>
+            D.LF_Get_Subgroup := Sub_JSD_S'Access;
+            D.Box_Cox_Kind    := No_Box_Cox;
+            D.Exclusion_Rule  := Zero_Tool_Call_Turns;
+         when Session_Tool_Call_JSD_Sum_I
+            | Session_Tool_Call_JSD_Sum_MR
+            | Session_Tool_Call_JSD_Sum_EWMA =>
+            D.Get_Observation := Obs_Tool_JSD_Sum'Access;
+            D.Box_Cox_Kind    := No_Box_Cox;
+            D.Exclusion_Rule  := Zero_Tool_Call_Turns;
       end case;
       return D;
    end Descriptor;

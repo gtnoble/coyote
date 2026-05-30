@@ -435,4 +435,50 @@ package body Coyote_SQC_Parser_Tests is
          & To_String (Session.First_User_Message) & "'");
    end Test_Whitespace_Collapse;
 
+   --  ── Token accounting normalization tests ─────────────────────────────
+
+   --  Anthropic sessions report input_tokens as only the non-cached fraction.
+   --  The parser must normalize by adding cacheRead + cacheWrite to produce
+   --  a provider-agnostic Total_Input_Tokens (total context window tokens).
+   --
+   --  Fixture values:
+   --    provider = "anthropic/claude-sonnet-4-5"
+   --    usage.input = 100, cacheRead = 200, cacheWrite = 50, output = 50
+   --
+   --  Expected after normalization:
+   --    Total_Input_Tokens          = 100 + 200 + 50 = 350
+   --    Total_Cache_Read_Tokens     = 200
+   --    Total_Cache_Write_Tokens    = 50
+   --    Total_Uncached_Input_Tokens = 350 - 200 - 50 = 100
+   procedure Test_Anthropic_Input_Token_Normalization (T : in out Test) is
+      pragma Unreferenced (T);
+      Session : Session_Record;
+      Ok      : Boolean;
+   begin
+      Coyote_SQC.Session_Parser.Parse_File
+        (Fixture ("anthropic_normalization_session.jsonl"), Session, Ok);
+      Assert (Ok, "Parse_File must succeed for Anthropic normalization fixture");
+      Assert
+        (Session.Total_Input_Tokens = 350,
+         "Anthropic: Total_Input_Tokens must be 350 (100+200+50); got "
+         & Natural'Image (Session.Total_Input_Tokens));
+      Assert
+        (Session.Total_Output_Tokens = 50,
+         "Anthropic: Total_Output_Tokens must be 50; got "
+         & Natural'Image (Session.Total_Output_Tokens));
+      Assert
+        (Session.Total_Cache_Read_Tokens = 200,
+         "Anthropic: Total_Cache_Read_Tokens must be 200; got "
+         & Natural'Image (Session.Total_Cache_Read_Tokens));
+      Assert
+        (Session.Total_Cache_Write_Tokens = 50,
+         "Anthropic: Total_Cache_Write_Tokens must be 50; got "
+         & Natural'Image (Session.Total_Cache_Write_Tokens));
+      Assert
+        (Session.Total_Uncached_Input_Tokens = 100,
+         "Anthropic: Total_Uncached_Input_Tokens must be 100 "
+         & "(350-200-50); got "
+         & Natural'Image (Session.Total_Uncached_Input_Tokens));
+   end Test_Anthropic_Input_Token_Normalization;
+
 end Coyote_SQC_Parser_Tests;

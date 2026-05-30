@@ -43,4 +43,7 @@ package Coyote_SQC_Parser_Tests is
    procedure Test_Encode_Cwd_Relative    (T : in out Test);
    procedure Test_Whitespace_Collapse     (T : in out Test);
 
+   --  Token accounting normalization tests.
+   procedure Test_Anthropic_Input_Token_Normalization (T : in out Test);
+
 end Coyote_SQC_Parser_Tests;

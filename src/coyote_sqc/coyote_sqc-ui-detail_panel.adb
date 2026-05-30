@@ -349,9 +349,12 @@ package body Coyote_SQC.UI.Detail_Panel is
                 (Natural'Image (Sess.Total_Input_Tokens), Ada.Strings.Left)
             & "  Output: "
             & Ada.Strings.Fixed.Trim
-                (Natural'Image (Sess.Total_Output_Tokens), Ada.Strings.Left));
+                (Natural'Image (Sess.Total_Output_Tokens), Ada.Strings.Left)
+            & ASCII.LF
+            & To_String (Sess.Session_Id));
          Grid_Lbl.Set_Xalign (0.0);
          Grid_Lbl.Set_Line_Wrap (True);
+         Grid_Lbl.Set_Selectable (True);
          Frame.Add (Grid_Lbl);
       end;
       VBox.Pack_Start (Frame, False, False, 0);

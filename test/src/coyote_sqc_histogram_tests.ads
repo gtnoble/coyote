@@ -29,4 +29,7 @@ package Coyote_SQC_Histogram_Tests is
    procedure Test_Bins_All_Equal      (T : in out Test);
    procedure Test_Bins_N1             (T : in out Test);
 
+   --  32-bin cap test.
+   procedure Test_Bins_Cap_At_32          (T : in out Test);
+
 end Coyote_SQC_Histogram_Tests;

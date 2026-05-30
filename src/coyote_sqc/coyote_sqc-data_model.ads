@@ -23,6 +23,9 @@ package Coyote_SQC.Data_Model is
       Input_Tokens  : Natural := 0;
       Output_Tokens : Natural := 0;
       Failed        : Boolean := False;
+      Arguments     : Ada.Strings.Unbounded.Unbounded_String;
+      --  Raw JSON argument string; stored at parse time to support JSD
+      --  consecutive tool-call similarity computation (§7.14 of spec).
    end record;
 
    package Tool_Call_Vectors is new Ada.Containers.Vectors
@@ -70,6 +73,10 @@ package Coyote_SQC.Data_Model is
      (Index_Type   => Positive,
       Element_Type => Natural);
 
+   package Long_Float_Vectors is new Ada.Containers.Vectors
+     (Index_Type   => Positive,
+      Element_Type => Long_Float);
+
    type Session_Metrics_Record is record
       Session_Id                 : Ada.Strings.Unbounded.Unbounded_String;
       N_Turns                    : Positive := 1;
@@ -92,6 +99,13 @@ package Coyote_SQC.Data_Model is
       Total_Tool_Call_Input_Tokens  : Natural  := 0;
       Total_Tool_Call_Result_Tokens : Natural  := 0;
       Total_Uncached_Input_Tokens    : Natural  := 0;
+      --  JSD consecutive tool-call similarity (see §7.14 of spec).
+      --  One Sᵢ = Nᵢ·(1−D_bc) value per eligible consecutive pair.
+      Per_Consecutive_Tool_S   : Long_Float_Vectors.Vector;
+      N_Consecutive_Tool_Pairs : Natural := 0;
+      Total_Tool_Call_JSD_S    : Long_Float := 0.0;
+      --  Sum of all Per_Consecutive_Tool_S values across every consecutive
+      --  tool call pair in the session.  0.0 when N_Consecutive_Tool_Pairs = 0.
    end record;
 
    package Metrics_Vectors is new Ada.Containers.Vectors

@@ -98,12 +98,21 @@ package Coyote_SQC.App is
      (M : Coyote_SQC.Data_Model.Session_Metrics_Record) return
      Coyote_SQC.Data_Model.Natural_Vectors.Vector;
 
+   --  Extracts a Long_Float subgroup vector from a Session_Metrics_Record.
+   --  Used for charts whose observations are natively Long_Float (JSD).
+   type LF_Subgroup_Accessor is access function
+     (M : Coyote_SQC.Data_Model.Session_Metrics_Record) return
+     Coyote_SQC.Data_Model.Long_Float_Vectors.Vector;
+
    --  A self-contained runtime chart descriptor.
    type Chart_Descriptor is record
       Kind           : Coyote_SQC.Charts.Chart_Kind;
       Properties     : Coyote_SQC.Charts.Chart_Properties;
       Get_Observation : Metric_Accessor;
       Get_Subgroup   : Subgroup_Accessor;
+      LF_Get_Subgroup : LF_Subgroup_Accessor := null;
+      --  When non-null, used in place of Get_Subgroup for charts whose
+      --  subgroup values are Long_Float (e.g. JSD similarity charts).
       Box_Cox_Kind   : Box_Cox_Config_Kind;
       Exclusion_Rule : Exclusion_Kind;
    end record;

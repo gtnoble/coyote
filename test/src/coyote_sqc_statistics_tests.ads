@@ -113,4 +113,10 @@ package Coyote_SQC_Statistics_Tests is
    procedure Test_Fraction_Uncached_Input_Grand_Mean          (T : in out Test);
    procedure Test_Fraction_New_Charts_Zero_Denominator        (T : in out Test);
 
+   --  EWMA + Box-Cox combined tests.
+   procedure Test_EWMA_Box_Cox_Asymmetric_Limits     (T : in out Test);
+
+   --  Robust estimation + EWMA interaction tests.
+   procedure Test_Robust_EWMA_Outlier_Grand_Mean     (T : in out Test);
+
 end Coyote_SQC_Statistics_Tests;
