@@ -266,6 +266,10 @@ Coyote_SQC.Statistics.Xbar           -- Xbar chart center line and limit formula
 Coyote_SQC.Statistics.S_Chart        -- s chart center line and limit formulas
 Coyote_SQC.Statistics.P_Chart        -- p chart center line and limit formulas
 Coyote_SQC.Statistics.I_Chart        -- I chart and MR chart limit formulas
+Coyote_SQC.Statistics.Tests          -- descriptive statistics (Mean_Of,
+                        --   Std_Dev_Of) and goodness-of-fit tests
+                        --   (KS_Normality_P_Value, KS_Exponential_P_Value,
+                        --   Runs_Test_P_Value) for the multi-select panel
 Coyote_SQC.Charts                    -- Chart_Kind enum; Chart_State per chart
 Coyote_SQC.Workspace                 -- Workspace_Record; load/save .sqcw files
 Coyote_SQC.Workspace.Integrity       -- setup interval integrity checks on filter change
@@ -1306,6 +1310,54 @@ so transformation provides no normality benefit here.
 **Descriptor:** `Get_Observation = Obs_Tool_JSD_Sum`, `Box_Cox_Kind = No_Box_Cox`,
 `Exclusion_Rule = Zero_Tool_Call_Turns` (sessions with `N_Consecutive_Tool_Pairs = 0`
 are excluded).
+### 7.15 Kolmogorov-Smirnov Goodness-of-Fit Tests — `Coyote_SQC.Statistics.Tests`
+
+Two one-sample KS tests are computed for the contributing selected sessions in
+the multi-select detail panel (§11.6).
+
+#### 7.15.1 KS Normality Test — `KS_Normality_P_Value`
+
+Null hypothesis: the sample is drawn from Normal(μ, σ) with parameters
+estimated from the data.
+
+1. Sort the N values x₁ ≤ … ≤ xₙ.
+2. Estimate μ̂ = mean(xᵢ), σ̂ = sample standard deviation.
+3. D = max_i max(|i/N − Φ((xᵢ−μ̂)/σ̂)|, |(i−1)/N − Φ((xᵢ−μ̂)/σ̂)|).
+4. p-value = Q(D√N), where Q(z) = 2 Σ_{k=1}^∞ (−1)^{k−1} exp(−2k²z²)
+   (Kolmogorov distribution complement; series capped at 50 terms; Q(z)=1
+   for z ≤ 0.27).
+
+The normal CDF Φ is approximated via the Abramowitz & Stegun rational
+approximation 7.1.26 (max |error| < 1.5×10⁻⁷).
+
+Returns −1.0 (displayed as `"N/A"`) when N < 3 or σ̂ = 0.
+
+#### 7.15.2 KS Exponential Test — `KS_Exponential_P_Value`
+
+Null hypothesis: the sample is drawn from Exponential(λ) with
+λ̂ = 1/mean(xᵢ) estimated from the data.
+
+Same algorithm as §7.15.1, substituting the exponential CDF
+F(x) = 1 − exp(−λ̂x) for Φ.
+
+Returns −1.0 when N < 3 or mean ≤ 0.
+
+### 7.16 Wald-Wolfowitz Runs Test — `Coyote_SQC.Statistics.Tests.Runs_Test_P_Value`
+
+Tests whether the contributing sessions' statistics, in **chronological
+order**, form an independent sequence.
+
+1. Compute median M of all N values.
+2. Scan in chronological order; assign each value to `above` (> M) or
+   `below` (< M); skip ties (= M).
+3. Count: n₁ = above, n₂ = below, R = number of maximal same-group runs.
+4. Under independence:  
+   E[R] = 2n₁n₂/(n₁+n₂) + 1  
+   Var[R] = 2n₁n₂(2n₁n₂−n₁−n₂) / ((n₁+n₂)²(n₁+n₂−1))
+5. Z = (R − E[R]) / √Var[R]; two-sided p = 2·Φ(−|Z|).
+
+Returns −1.0 when N < 10, n₁ = 0, n₂ = 0, or Var[R] ≤ 0.
+
 
 ## 8. Chart Definitions
 
@@ -1963,6 +2015,9 @@ GtkBox (vertical)
 ├── GtkLabel "YYYY-MM-DD – YYYY-MM-DD"
 ├── GtkFrame "Distribution"
 │   └── GtkDrawingArea (Histogram_Canvas, 160 px fixed height)
+├── GtkFrame "Summary Statistics"
+│   └── GtkGrid (6 rows × 2 columns: Mean, Median, Std Dev,
+│             KS Normal p, KS Exp p, Runs Test p)
 ├── GtkButton "Set as Setup Interval"
 ├── GtkFrame "Add Comment to All Selected"
 │   ├── GtkTextView (entry)
@@ -1974,6 +2029,20 @@ GtkBox (vertical)
 
 Clicking a row in the Selected Sessions list switches the detail panel to the
 single-session view for that session without clearing the overall multi-selection.
+
+**Summary Statistics frame:** `GtkFrame "Summary Statistics"` containing a
+`GtkGrid` (6 rows × 2 columns) placed between the Distribution histogram
+and the Set as Setup Interval button.  The grid rows are: Mean, Median,
+Std Dev, KS Normal p, KS Exp p, Runs Test p.  Key labels are left-aligned
+(column 0); value labels are right-aligned (column 1).  Initial value for
+each label is `"-"`.  The frame is populated by
+`Refresh_Histogram_If_Multi` (§11.9) using the same contributing session
+set that feeds the histogram.  Values display as rounded integers for
+|v| ≥ 100, or with 2 decimal places otherwise.  P-values display as
+`"< 0.001"`, `"N/A"` (sample too small), or 3 decimal places.  The frame
+updates whenever the active chart or the selection changes.
+The statistical methods are specified in §7.15 (KS tests) and §7.16
+(Wald-Wolfowitz runs test).
 
 ### 11.7 Datetime Picker — `Coyote_SQC.UI.Datetime_Picker`
 

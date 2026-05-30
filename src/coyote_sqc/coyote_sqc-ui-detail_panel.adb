@@ -40,6 +40,8 @@ with Coyote_SQC.UI.Tool_Detail_Window;
 with Coyote_SQC.Charts;
 with Coyote_SQC.Statistics.I_Chart;
 with Coyote_SQC.UI.Histogram_Canvas;
+with Coyote_SQC.Statistics.Tests;
+with Gtk.Grid;
 
 package body Coyote_SQC.UI.Detail_Panel is
    use type Gtk.Paned.Gtk_Paned;
@@ -48,6 +50,7 @@ package body Coyote_SQC.UI.Detail_Panel is
    use type Gtk.Scrolled_Window.Gtk_Scrolled_Window;
    use type Gtk.Text_View.Gtk_Text_View;
    use type Gtk.Box.Gtk_Box;
+   use type Gtk.Label.Gtk_Label;
    use type Coyote_SQC.App.App_State_Access;
 
    use Coyote_SQC.Data_Model;
@@ -66,6 +69,14 @@ package body Coyote_SQC.UI.Detail_Panel is
 
    --  Multi-select comment entry.
    Multi_Comment_Entry : Gtk.Text_View.Gtk_Text_View := null;
+   --  Summary-statistics and test-result labels for the multi-select view.
+   --  Replaced on every Build_Multi_View call; null when not displayed.
+   Stats_Mean_Lbl      : Gtk.Label.Gtk_Label := null;
+   Stats_Median_Lbl    : Gtk.Label.Gtk_Label := null;
+   Stats_StdDev_Lbl    : Gtk.Label.Gtk_Label := null;
+   Stats_KS_Normal_Lbl : Gtk.Label.Gtk_Label := null;
+   Stats_KS_Exp_Lbl    : Gtk.Label.Gtk_Label := null;
+   Stats_Runs_Lbl      : Gtk.Label.Gtk_Label := null;
 
    --  Reference to the current session replay scrolled window (to save
    --  scroll position before rebuilding the detail panel).
@@ -576,6 +587,78 @@ package body Coyote_SQC.UI.Detail_Panel is
          Gtk.Frame.Gtk_New (Hist_Frame, "Distribution");
          Hist_Frame.Add (Hist_DA);
          VBox.Pack_Start (Hist_Frame, False, False, 0);
+      --  Summary statistics frame (mean, median, std dev, test p-values).
+      declare
+         use Gtk.Grid;
+         Stats_Frame  : Gtk.Frame.Gtk_Frame;
+         Grid         : Gtk.Grid.Gtk_Grid;
+         Key_Lbl      : Gtk.Label.Gtk_Label;
+      begin
+         --  Reset stale references from any previous multi-view build.
+         Stats_Mean_Lbl      := null;
+         Stats_Median_Lbl    := null;
+         Stats_StdDev_Lbl    := null;
+         Stats_KS_Normal_Lbl := null;
+         Stats_KS_Exp_Lbl    := null;
+         Stats_Runs_Lbl      := null;
+
+         Gtk.Frame.Gtk_New (Stats_Frame, "Summary Statistics");
+         Gtk.Grid.Gtk_New (Grid);
+         Grid.Set_Column_Spacing (12);
+         Grid.Set_Row_Spacing (3);
+         Grid.Set_Border_Width (4);
+
+         --  Row 0: Mean
+         Gtk.Label.Gtk_New (Key_Lbl, "Mean:");
+         Key_Lbl.Set_Xalign (0.0);
+         Grid.Attach (Key_Lbl, 0, 0);
+         Gtk.Label.Gtk_New (Stats_Mean_Lbl, "-");
+         Stats_Mean_Lbl.Set_Xalign (1.0);
+         Grid.Attach (Stats_Mean_Lbl, 1, 0);
+
+         --  Row 1: Median
+         Gtk.Label.Gtk_New (Key_Lbl, "Median:");
+         Key_Lbl.Set_Xalign (0.0);
+         Grid.Attach (Key_Lbl, 0, 1);
+         Gtk.Label.Gtk_New (Stats_Median_Lbl, "-");
+         Stats_Median_Lbl.Set_Xalign (1.0);
+         Grid.Attach (Stats_Median_Lbl, 1, 1);
+
+         --  Row 2: Std Dev
+         Gtk.Label.Gtk_New (Key_Lbl, "Std Dev:");
+         Key_Lbl.Set_Xalign (0.0);
+         Grid.Attach (Key_Lbl, 0, 2);
+         Gtk.Label.Gtk_New (Stats_StdDev_Lbl, "-");
+         Stats_StdDev_Lbl.Set_Xalign (1.0);
+         Grid.Attach (Stats_StdDev_Lbl, 1, 2);
+
+         --  Row 3: KS normality p-value
+         Gtk.Label.Gtk_New (Key_Lbl, "KS Normal p:");
+         Key_Lbl.Set_Xalign (0.0);
+         Grid.Attach (Key_Lbl, 0, 3);
+         Gtk.Label.Gtk_New (Stats_KS_Normal_Lbl, "-");
+         Stats_KS_Normal_Lbl.Set_Xalign (1.0);
+         Grid.Attach (Stats_KS_Normal_Lbl, 1, 3);
+
+         --  Row 4: KS exponential p-value
+         Gtk.Label.Gtk_New (Key_Lbl, "KS Exp p:");
+         Key_Lbl.Set_Xalign (0.0);
+         Grid.Attach (Key_Lbl, 0, 4);
+         Gtk.Label.Gtk_New (Stats_KS_Exp_Lbl, "-");
+         Stats_KS_Exp_Lbl.Set_Xalign (1.0);
+         Grid.Attach (Stats_KS_Exp_Lbl, 1, 4);
+
+         --  Row 5: Runs test p-value
+         Gtk.Label.Gtk_New (Key_Lbl, "Runs Test p:");
+         Key_Lbl.Set_Xalign (0.0);
+         Grid.Attach (Key_Lbl, 0, 5);
+         Gtk.Label.Gtk_New (Stats_Runs_Lbl, "-");
+         Stats_Runs_Lbl.Set_Xalign (1.0);
+         Grid.Attach (Stats_Runs_Lbl, 1, 5);
+
+         Stats_Frame.Add (Grid);
+         VBox.Pack_Start (Stats_Frame, False, False, 0);
+      end;
       end;
       --  Set as Setup Interval button.
       Gtk.Button.Gtk_New (Btn, "Set as Setup Interval");
@@ -788,6 +871,91 @@ package body Coyote_SQC.UI.Detail_Panel is
                Has_LCL  => Has_LCL,
                X_Label  => Ada.Strings.Unbounded.To_String (X_Lbl_Str),
                Has_Data => N_Vals > 0);
+         end;
+         --  ── Update summary-statistics labels ──────────────────────────
+         declare
+            use Coyote_SQC.Statistics.Tests;
+            use Ada.Strings.Fixed;
+            Test_Vals : constant Long_Float_Array :=
+              Long_Float_Array (Vals (1 .. N_Vals));
+
+            function Fmt_V (V : Long_Float) return String is
+               Av : constant Long_Float := abs V;
+            begin
+               if Av >= 100.0 then
+                  return (if V < 0.0 then "-" else "")
+                    & Trim (Long_Long_Integer'Image
+                        (Long_Long_Integer (Long_Float'Rounding (Av))),
+                        Ada.Strings.Left);
+               else
+                  declare
+                     IV : constant Long_Long_Integer :=
+                       Long_Long_Integer (Long_Float'Rounding (Av * 100.0));
+                  begin
+                     return (if V < 0.0 then "-" else "")
+                       & Trim (Long_Long_Integer'Image (IV / 100),
+                               Ada.Strings.Left)
+                       & "."
+                       & (if IV mod 100 < 10 then "0" else "")
+                       & Trim (Long_Long_Integer'Image (IV mod 100),
+                               Ada.Strings.Left);
+                  end;
+               end if;
+            end Fmt_V;
+
+            function Fmt_P (P : Long_Float) return String is
+               IV : Natural;
+            begin
+               if P < 0.0 then
+                  return "N/A";
+               elsif P < 0.001 then
+                  return "< 0.001";
+               else
+                  IV := Natural (Long_Float'Rounding (P * 1000.0));
+                  if IV >= 1000 then
+                     return "1.000";
+                  end if;
+                  return "0."
+                    & (if IV < 100 then "0" else "")
+                    & (if IV < 10 then "0" else "")
+                    & Trim (Natural'Image (IV), Ada.Strings.Left);
+               end if;
+            end Fmt_P;
+
+         begin
+            if Stats_Mean_Lbl /= null then
+               Stats_Mean_Lbl.Set_Text
+                 (if N_Vals > 0 then Fmt_V (Mean_Of (Test_Vals)) else "-");
+            end if;
+            if Stats_Median_Lbl /= null then
+               Stats_Median_Lbl.Set_Text
+                 (if N_Vals > 0
+                  then Fmt_V (Coyote_SQC.Statistics.I_Chart.Median_Of
+                                (Test_Vals))
+                  else "-");
+            end if;
+            if Stats_StdDev_Lbl /= null then
+               Stats_StdDev_Lbl.Set_Text
+                 (if N_Vals > 0 then Fmt_V (Std_Dev_Of (Test_Vals)) else "-");
+            end if;
+            if Stats_KS_Normal_Lbl /= null then
+               Stats_KS_Normal_Lbl.Set_Text
+                 (Fmt_P (if N_Vals > 0
+                         then KS_Normality_P_Value (Test_Vals)
+                         else -1.0));
+            end if;
+            if Stats_KS_Exp_Lbl /= null then
+               Stats_KS_Exp_Lbl.Set_Text
+                 (Fmt_P (if N_Vals > 0
+                         then KS_Exponential_P_Value (Test_Vals)
+                         else -1.0));
+            end if;
+            if Stats_Runs_Lbl /= null then
+               Stats_Runs_Lbl.Set_Text
+                 (Fmt_P (if N_Vals > 0
+                         then Runs_Test_P_Value (Test_Vals)
+                         else -1.0));
+            end if;
          end;
       end;
    end Refresh_Histogram_If_Multi;

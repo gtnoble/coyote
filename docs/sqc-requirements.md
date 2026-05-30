@@ -694,6 +694,64 @@ sequence.
 setup-interval observations as the corresponding I chart.
 
 
+
+### 5.14 Kolmogorov-Smirnov Goodness-of-Fit Tests
+
+The multi-select detail panel runs two one-sample KS tests against the
+contributing selected sessions' active-chart statistics.
+
+#### KS Normality Test
+
+Null hypothesis: the sample is drawn from a Normal(μ, σ) distribution where
+μ and σ are estimated from the data (composite hypothesis).
+
+1. Sort the N values: x₁ ≤ x₂ ≤ … ≤ xₙ.
+2. Compute μ̂ = mean(xᵢ) and σ̂ = sample standard deviation.
+3. KS statistic: D = max over i of max(|i/N − Φ((xᵢ − μ̂)/σ̂)|,
+   |(i−1)/N − Φ((xᵢ − μ̂)/σ̂)|), where Φ is the standard normal CDF.
+4. Asymptotic p-value: Q(D√N) using the Kolmogorov distribution complement
+   Q(z) = 2 Σ_{k=1}^∞ (−1)^{k−1} exp(−2k²z²).
+
+Returns `N/A` when N < 3 or σ̂ = 0 (degenerate sample).
+
+Note: because parameters are estimated from the data, the true critical
+values are closer to the Lilliefors distribution than the standard KS table;
+the asymptotic p-value is conservative (slightly high) in small samples.
+
+#### KS Exponential Test
+
+Null hypothesis: the sample is drawn from an Exponential(λ) distribution
+where λ = 1/mean(xᵢ) is estimated from the data.
+
+Same algorithm as the normality test, substituting the exponential CDF
+F(x) = 1 − exp(−λ̂·x) for Φ.
+
+Returns `N/A` when N < 3 or mean ≤ 0.
+
+### 5.15 Wald-Wolfowitz Runs Test for Randomness
+
+Tests whether the contributing selected sessions' statistics, in their
+**chronological order**, form an independent, random sequence.
+
+Algorithm:
+
+1. Compute the median M of all N values.
+2. Scan the values in chronological order; assign each to `above` (value > M)
+   or `below` (value < M); skip ties (values equal to M).
+3. Let n₁ = count of `above`, n₂ = count of `below`, R = number of runs
+   (maximal consecutive same-group subsequences).
+4. Under the null hypothesis of independence:
+   - E[R] = 2n₁n₂/(n₁+n₂) + 1
+   - Var[R] = 2n₁n₂(2n₁n₂ − n₁ − n₂) / ((n₁+n₂)²(n₁+n₂−1))
+5. Z = (R − E[R]) / √Var[R]; two-sided p = 2·Φ(−|Z|).
+
+Returns `N/A` when N < 10 or when n₁ = 0 or n₂ = 0 (all values on one
+side of the median, e.g. all identical).
+
+**Interpretation:** a low p-value (e.g. < 0.05) suggests the observations
+are not independent — either too few runs (trending or clustered pattern) or
+too many runs (oscillating pattern).
+
 ## 6. Charts
 
 ### 5.9 EWMA Chart for Session Totals
@@ -1688,6 +1746,31 @@ Displayed when two or more points are selected.
   displays the text "No data for active chart" centred in the widget.
 - The histogram updates automatically whenever the active chart changes (via
   the left-panel chart selector) or the selection changes.
+
+**Summary Statistics:**
+Immediately below the distribution histogram, a "Summary Statistics" frame
+shows descriptive statistics and goodness-of-fit test p-values for the
+contributing selected sessions — the same set that populates the histogram
+(sessions excluded from the active chart are omitted).  The frame contains a
+two-column grid:
+
+| Row label | Value shown |
+|---|---|
+| `Mean:` | Arithmetic mean of the contributing values |
+| `Median:` | Median (50th percentile) of the contributing values |
+| `Std Dev:` | Sample standard deviation (N−1 denominator) |
+| `KS Normal p:` | p-value for the one-sample KS normality test (§5.14) |
+| `KS Exp p:` | p-value for the one-sample KS exponential distribution test (§5.14) |
+| `Runs Test p:` | Two-sided Wald-Wolfowitz randomness test p-value (§5.15) |
+
+Display rules for numeric values: if |value| ≥ 100, display as a rounded
+integer; otherwise display with 2 decimal places.  Display rules for
+p-values: `"< 0.001"` when p < 0.001; `"N/A"` when the sample size is
+below the test's minimum; otherwise 3 decimal places (e.g. `"0.042"`).
+A value of exactly 1.000 is shown as `"1.000"`.
+
+The frame updates automatically whenever the active chart changes or the
+selection changes, using the same trigger as the histogram refresh.
 
 **Set as Setup Interval button:**
 - Clicking this button sets the workspace setup interval to exactly the selected
