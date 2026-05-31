@@ -7,6 +7,7 @@ with Ada.Calendar.Formatting;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
 with Coyote_SQC.App;
+with Coyote_SQC.Metrics;
 with Coyote_SQC.Data_Model;
 with Coyote_SQC.UI.Chart_Canvas;
 with Coyote_SQC.UI.Dialogs;
@@ -370,6 +371,90 @@ package body Coyote_SQC.UI.Detail_Panel is
       end;
       VBox.Pack_Start (Frame, False, False, 0);
 
+      --  Subgroup Distribution histogram and Summary Statistics.
+      --  Always built; Refresh_Histogram_If_Single populates them.
+      declare
+         Hist_Frame : Gtk.Frame.Gtk_Frame;
+         Hist_DA    : constant Gtk.Drawing_Area.Gtk_Drawing_Area :=
+           Coyote_SQC.UI.Histogram_Canvas.Build;
+      begin
+         Gtk.Frame.Gtk_New (Hist_Frame, "Distribution");
+         Hist_Frame.Add (Hist_DA);
+         VBox.Pack_Start (Hist_Frame, False, False, 0);
+      --  Summary statistics frame.
+      declare
+         use Gtk.Grid;
+         Stats_Frame  : Gtk.Frame.Gtk_Frame;
+         Grid         : Gtk.Grid.Gtk_Grid;
+         Key_Lbl      : Gtk.Label.Gtk_Label;
+      begin
+         --  Reset stale references from any previous view build.
+         Stats_Mean_Lbl      := null;
+         Stats_Median_Lbl    := null;
+         Stats_StdDev_Lbl    := null;
+         Stats_KS_Normal_Lbl := null;
+         Stats_KS_Exp_Lbl    := null;
+         Stats_Runs_Lbl      := null;
+
+         Gtk.Frame.Gtk_New (Stats_Frame, "Summary Statistics");
+         Gtk.Grid.Gtk_New (Grid);
+         Grid.Set_Column_Spacing (12);
+         Grid.Set_Row_Spacing (3);
+         Grid.Set_Border_Width (4);
+
+         --  Row 0: Mean
+         Gtk.Label.Gtk_New (Key_Lbl, "Mean:");
+         Key_Lbl.Set_Xalign (0.0);
+         Grid.Attach (Key_Lbl, 0, 0);
+         Gtk.Label.Gtk_New (Stats_Mean_Lbl, "-");
+         Stats_Mean_Lbl.Set_Xalign (1.0);
+         Grid.Attach (Stats_Mean_Lbl, 1, 0);
+
+         --  Row 1: Median
+         Gtk.Label.Gtk_New (Key_Lbl, "Median:");
+         Key_Lbl.Set_Xalign (0.0);
+         Grid.Attach (Key_Lbl, 0, 1);
+         Gtk.Label.Gtk_New (Stats_Median_Lbl, "-");
+         Stats_Median_Lbl.Set_Xalign (1.0);
+         Grid.Attach (Stats_Median_Lbl, 1, 1);
+
+         --  Row 2: Std Dev
+         Gtk.Label.Gtk_New (Key_Lbl, "Std Dev:");
+         Key_Lbl.Set_Xalign (0.0);
+         Grid.Attach (Key_Lbl, 0, 2);
+         Gtk.Label.Gtk_New (Stats_StdDev_Lbl, "-");
+         Stats_StdDev_Lbl.Set_Xalign (1.0);
+         Grid.Attach (Stats_StdDev_Lbl, 1, 2);
+
+         --  Row 3: KS normality p-value
+         Gtk.Label.Gtk_New (Key_Lbl, "KS Normal p:");
+         Key_Lbl.Set_Xalign (0.0);
+         Grid.Attach (Key_Lbl, 0, 3);
+         Gtk.Label.Gtk_New (Stats_KS_Normal_Lbl, "-");
+         Stats_KS_Normal_Lbl.Set_Xalign (1.0);
+         Grid.Attach (Stats_KS_Normal_Lbl, 1, 3);
+
+         --  Row 4: KS exponential p-value
+         Gtk.Label.Gtk_New (Key_Lbl, "KS Exp p:");
+         Key_Lbl.Set_Xalign (0.0);
+         Grid.Attach (Key_Lbl, 0, 4);
+         Gtk.Label.Gtk_New (Stats_KS_Exp_Lbl, "-");
+         Stats_KS_Exp_Lbl.Set_Xalign (1.0);
+         Grid.Attach (Stats_KS_Exp_Lbl, 1, 4);
+
+         --  Row 5: Runs test p-value
+         Gtk.Label.Gtk_New (Key_Lbl, "Runs Test p:");
+         Key_Lbl.Set_Xalign (0.0);
+         Grid.Attach (Key_Lbl, 0, 5);
+         Gtk.Label.Gtk_New (Stats_Runs_Lbl, "-");
+         Stats_Runs_Lbl.Set_Xalign (1.0);
+         Grid.Attach (Stats_Runs_Lbl, 1, 5);
+
+         Stats_Frame.Add (Grid);
+         VBox.Pack_Start (Stats_Frame, False, False, 0);
+      end;
+      end;
+
       --  Prompt.
       Gtk.Frame.Gtk_New (Frame, "Prompt");
       declare
@@ -458,6 +543,7 @@ package body Coyote_SQC.UI.Detail_Panel is
       end;
       VBox.Pack_Start (Frame, False, False, 0);
 
+      Refresh_Histogram_If_Single;
       Inner_Box := VBox;
       Panel_Box.Pack_Start (VBox, True, True, 0);
       Panel_Box.Show_All;
@@ -1021,6 +1107,264 @@ package body Coyote_SQC.UI.Detail_Panel is
          end;
       end;
    end Refresh_Histogram_If_Multi;
+   --  ── Subgroup histogram for single-session view ─────────────────────────
+
+   procedure Refresh_Histogram_If_Single is
+      use Ada.Strings.Unbounded;
+      use Coyote_SQC.Charts;
+      use Coyote_SQC.Statistics.Tests;
+      use type Coyote_SQC.App.Subgroup_Accessor;
+      use type Coyote_SQC.App.LF_Subgroup_Accessor;
+   begin
+      if Coyote_SQC.App.State = null
+        or else Natural (Coyote_SQC.App.State.Selection.Length) /= 1
+      then
+         return;
+      end if;
+
+      declare
+         Active  : constant Chart_Kind :=
+           Coyote_SQC.App.State.Active_Chart;
+         Props   : constant Chart_Properties :=
+           Coyote_SQC.Charts.Properties (Active);
+         Dsc     : constant Coyote_SQC.App.Chart_Descriptor :=
+           Coyote_SQC.App.Descriptor (Active);
+         CD      : constant Coyote_SQC.App.Chart_Data :=
+           Coyote_SQC.App.State.Charts (Active);
+         Sid     : constant Ada.Strings.Unbounded.Unbounded_String :=
+           Coyote_SQC.Data_Model.UUID_Sets.Element
+             (Coyote_SQC.App.State.Selection.First);
+         X_Lbl   : constant String :=
+           Ada.Strings.Unbounded.To_String (Props.Y_Axis_Label);
+
+         --  Formatting helpers shared with Refresh_Histogram_If_Multi.
+         function Fmt_V (V : Long_Float) return String is
+            use Ada.Strings.Fixed;
+            Av : constant Long_Float := abs V;
+         begin
+            if Av >= 100.0 then
+               return (if V < 0.0 then "-" else "")
+                 & Trim (Long_Long_Integer'Image
+                     (Long_Long_Integer (Long_Float'Rounding (Av))),
+                     Ada.Strings.Left);
+            else
+               declare
+                  IV : constant Long_Long_Integer :=
+                    Long_Long_Integer (Long_Float'Rounding (Av * 100.0));
+               begin
+                  return (if V < 0.0 then "-" else "")
+                    & Trim (Long_Long_Integer'Image (IV / 100),
+                            Ada.Strings.Left)
+                    & "."
+                    & (if IV mod 100 < 10 then "0" else "")
+                    & Trim (Long_Long_Integer'Image (IV mod 100),
+                            Ada.Strings.Left);
+               end;
+            end if;
+         end Fmt_V;
+
+         function Fmt_P (P : Long_Float) return String is
+            IV : Natural;
+         begin
+            if P < 0.0 then
+               return "N/A";
+            elsif P < 0.001 then
+               return "< 0.001";
+            else
+               IV := Natural (Long_Float'Rounding (P * 1000.0));
+               if IV >= 1000 then
+                  return "1.000";
+               end if;
+               return "0."
+                 & (if IV < 100 then "0" else "")
+                 & (if IV < 10 then "0" else "")
+                 & Ada.Strings.Fixed.Trim
+                     (Natural'Image (IV), Ada.Strings.Left);
+            end if;
+         end Fmt_P;
+
+         procedure Clear_Stats is
+         begin
+            if Stats_Mean_Lbl      /= null then
+               Stats_Mean_Lbl.Set_Text ("-");
+            end if;
+            if Stats_Median_Lbl    /= null then
+               Stats_Median_Lbl.Set_Text ("-");
+            end if;
+            if Stats_StdDev_Lbl    /= null then
+               Stats_StdDev_Lbl.Set_Text ("-");
+            end if;
+            if Stats_KS_Normal_Lbl /= null then
+               Stats_KS_Normal_Lbl.Set_Text ("-");
+            end if;
+            if Stats_KS_Exp_Lbl    /= null then
+               Stats_KS_Exp_Lbl.Set_Text ("-");
+            end if;
+            if Stats_Runs_Lbl      /= null then
+               Stats_Runs_Lbl.Set_Text ("-");
+            end if;
+         end Clear_Stats;
+
+      begin
+         if not Props.Is_Xbar_S_Chart
+           or else (Dsc.Get_Subgroup = null
+                    and then Dsc.LF_Get_Subgroup = null)
+         then
+            --  Not an Xbar/s chart or no subgroup accessor — no data.
+            Coyote_SQC.UI.Histogram_Canvas.Refresh
+              (Values   => Coyote_SQC.UI.Histogram_Canvas.Long_Float_Array'
+                             (1 .. 0 => 0.0),
+               CL       => 0.0,
+               UCL      => 0.0,
+               Has_UCL  => False,
+               LCL      => 0.0,
+               Has_LCL  => False,
+               X_Label  => X_Lbl,
+               Has_Data => False);
+            Clear_Stats;
+            return;
+         end if;
+
+         --  Locate the session and compute its metrics.
+         declare
+            use Coyote_SQC.Data_Model;
+            Found   : Boolean := False;
+            CL      : Long_Float := 0.0;
+            UCL     : Long_Float := 0.0;
+            Has_UCL : Boolean    := False;
+            LCL     : Long_Float := 0.0;
+            Has_LCL : Boolean    := False;
+            Got_Pt  : Boolean    := False;
+         begin
+            --  Find CL/UCL/LCL from the chart point for this session.
+            for P of CD.Points loop
+               if P.Session_Id = Sid and then not P.Excluded then
+                  CL      := P.CL;
+                  UCL     := P.UCL;
+                  Has_UCL := P.Has_UCL;
+                  LCL     := P.LCL;
+                  Has_LCL := P.Has_LCL;
+                  Got_Pt  := True;
+                  exit;
+               end if;
+            end loop;
+
+            --  Find the session record and collect subgroup values.
+            for Sess of Coyote_SQC.App.State.Sessions loop
+               if Sess.Session_Id = Sid then
+                  declare
+                     Metrics : constant Session_Metrics_Record :=
+                       Coyote_SQC.Metrics.Compute (Sess);
+                     Max_N   : constant Natural :=
+                       Natural (Metrics.Per_Turn_Output_Tokens.Length)
+                       + Natural (Metrics.Per_Consecutive_Tool_S.Length)
+                       + 1;
+                     Vals    : Coyote_SQC.UI.Histogram_Canvas.Long_Float_Array
+                                 (1 .. Max_N);
+                     N_Vals  : Natural := 0;
+                  begin
+                     --  Extract per-turn values via the chart's subgroup
+                     --  accessor.
+                     if Dsc.LF_Get_Subgroup /= null then
+                        declare
+                           V : constant Long_Float_Vectors.Vector :=
+                             Dsc.LF_Get_Subgroup (Metrics);
+                        begin
+                           for X of V loop
+                              N_Vals := N_Vals + 1;
+                              Vals (N_Vals) := X;
+                           end loop;
+                        end;
+                     elsif Dsc.Get_Subgroup /= null then
+                        declare
+                           V : constant Natural_Vectors.Vector :=
+                             Dsc.Get_Subgroup (Metrics);
+                        begin
+                           for X of V loop
+                              N_Vals := N_Vals + 1;
+                              Vals (N_Vals) := Long_Float (X);
+                           end loop;
+                        end;
+                     end if;
+
+                     Coyote_SQC.UI.Histogram_Canvas.Refresh
+                       (Values   => Vals (1 .. N_Vals),
+                        CL       => CL,
+                        UCL      => UCL,
+                        Has_UCL  => Has_UCL and Got_Pt,
+                        LCL      => LCL,
+                        Has_LCL  => Has_LCL and Got_Pt,
+                        X_Label  => X_Lbl,
+                        Has_Data => N_Vals > 0);
+
+                     --  Update summary-statistics labels.
+                     declare
+                        Test_Vals : constant Long_Float_Array :=
+                          Long_Float_Array (Vals (1 .. N_Vals));
+                     begin
+                        if Stats_Mean_Lbl /= null then
+                           Stats_Mean_Lbl.Set_Text
+                             (if N_Vals > 0
+                              then Fmt_V (Mean_Of (Test_Vals))
+                              else "-");
+                        end if;
+                        if Stats_Median_Lbl /= null then
+                           Stats_Median_Lbl.Set_Text
+                             (if N_Vals > 0
+                              then Fmt_V
+                                     (Coyote_SQC.Statistics.I_Chart.Median_Of
+                                        (Test_Vals))
+                              else "-");
+                        end if;
+                        if Stats_StdDev_Lbl /= null then
+                           Stats_StdDev_Lbl.Set_Text
+                             (if N_Vals > 0
+                              then Fmt_V (Std_Dev_Of (Test_Vals))
+                              else "-");
+                        end if;
+                        if Stats_KS_Normal_Lbl /= null then
+                           Stats_KS_Normal_Lbl.Set_Text
+                             (Fmt_P (if N_Vals > 0
+                                     then KS_Normality_P_Value (Test_Vals)
+                                     else -1.0));
+                        end if;
+                        if Stats_KS_Exp_Lbl /= null then
+                           Stats_KS_Exp_Lbl.Set_Text
+                             (Fmt_P (if N_Vals > 0
+                                     then KS_Exponential_P_Value (Test_Vals)
+                                     else -1.0));
+                        end if;
+                        if Stats_Runs_Lbl /= null then
+                           Stats_Runs_Lbl.Set_Text
+                             (Fmt_P (if N_Vals > 0
+                                     then Runs_Test_P_Value (Test_Vals)
+                                     else -1.0));
+                        end if;
+                     end;
+                  end;
+                  Found := True;
+                  exit;
+               end if;
+            end loop;
+
+            if not Found then
+               --  Session missing from workspace (unusual): clear all.
+               Coyote_SQC.UI.Histogram_Canvas.Refresh
+                 (Values   => Coyote_SQC.UI.Histogram_Canvas.Long_Float_Array'
+                                (1 .. 0 => 0.0),
+                  CL       => 0.0,
+                  UCL      => 0.0,
+                  Has_UCL  => False,
+                  LCL      => 0.0,
+                  Has_LCL  => False,
+                  X_Label  => X_Lbl,
+                  Has_Data => False);
+               Clear_Stats;
+            end if;
+         end;
+      end;
+   end Refresh_Histogram_If_Single;
+
 
    --  ── Public ────────────────────────────────────────────────────────────
 

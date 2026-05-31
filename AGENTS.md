@@ -528,6 +528,15 @@ must set this field; routing providers set it dynamically.
 the `Standard_Env_Name` fallback. Add the provider to `Standard_Env_Name` so
 step 3 works out of the box.
 
+## Throwaway Scripts
+
+**Always load the `throwaway-scripts` skill before issuing the first shell
+tool call on any data-exploration, scripting, or investigation task.** The
+skill is located at
+`/home/gtnoble/.coyote/skills/throwaway-scripts/SKILL.md`. Skipping it is
+the primary cause of repetitive exploratory call loops that waste 3–5 tool
+calls.
+
 ## Ada Style Guide
 
 **Always load the `ada-style-guide` skill before reading, writing, or reviewing

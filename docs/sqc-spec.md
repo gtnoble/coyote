@@ -2028,14 +2028,16 @@ The detail panel is hidden (zero width, `GtkPaned` position collapsed) when
 
 **Single-session view** (exactly one UUID in selection):
 
+
 ```
 GtkBox (vertical)
 ├── GtkFrame "Session"
-│   └── GtkGrid
-│       ├── [datetime]  [model]
-│       ├── [source dir]
-│       ├── [input tokens / output tokens]
-│       └── [session id]
+│   └── GtkLabel (selectable; datetime, model, source dir, tokens, UUID)
+├── GtkFrame "Distribution"          (always present; shows subgroup histogram
+│   └── GtkDrawingArea               when Is_Xbar_S_Chart; "No data for active
+│       (Histogram_Canvas, 160 px)   chart" otherwise)
+├── GtkFrame "Summary Statistics"    (always present; populated when
+│   └── GtkGrid (6 × 2)             Is_Xbar_S_Chart; shows "-" otherwise)
 ├── GtkFrame "Prompt"
 │   └── GtkTextView (read-only, word-wrap, non-editable)
 ├── GtkFrame "Session Replay"
@@ -2202,6 +2204,33 @@ the following steps in order:
   `Chart_Canvas.Queue_Redraw`, so that switching charts updates the histogram
   without rebuilding the detail panel.
 
+
+
+`Refresh_Histogram_If_Single` (in `Coyote_SQC.UI.Detail_Panel`) is called:
+
+- At the end of `Build_Single_View`, after the histogram and summary
+  statistics frames are added to the panel.
+- From `Coyote_SQC.UI.Left_Panel.On_Row_Activated`, immediately after
+  `Refresh_Histogram_If_Multi`, so that switching charts while a single
+  session is selected updates the subgroup histogram without rebuilding the
+  detail panel.
+
+`Refresh_Histogram_If_Single` is a no-op when the selection does not contain
+exactly one session.  When called with exactly one session selected, it:
+
+1. Retrieves the chart descriptor for the active chart and checks
+   `Props.Is_Xbar_S_Chart`.
+2. If `True`: collects the per-turn subgroup values for the selected session
+   via the descriptor's `Get_Subgroup` or `LF_Get_Subgroup` accessor (calling
+   `Coyote_SQC.Metrics.Compute` to obtain the `Session_Metrics_Record`);
+   looks up the matching `Chart_Point` in the active chart's `CD.Points` to
+   obtain `CL`, `UCL`/`Has_UCL`, and `LCL`/`Has_LCL`; then calls
+   `Histogram_Canvas.Refresh` with those values and the chart's `Y_Axis_Label`
+   as `X_Label`.
+3. If `False`: calls `Histogram_Canvas.Refresh` with `Has_Data => False`.
+4. Updates the six `Stats_*_Lbl` widgets using the same logic as
+   `Refresh_Histogram_If_Multi` (replacing the contributing-sessions set with
+   the subgroup values from step 2, or clearing them to `"-"` in step 3).
 
 #### Box-Cox transformation and the histogram
 
@@ -2805,15 +2834,15 @@ The `On_Draw` callback executes these steps in order:
 | In-control, no comment | `(0, 0, 0)` | `(0, 0, 0)` | No |
 | In-control, comment present | `(0.1, 0.7, 0.2)` | `(0.05, 0.5, 0.1)` | No |
 | Out-of-control, no comment | `(0.9, 0.1, 0.1)` | `(0.9, 0.1, 0.1)` | No |
-| In setup interval | `(1.0, 0.85, 0.0)` | `(0.7, 0.6, 0.0)` | No |
+| Setup interval halo | — | `(1.0, 0.80, 0.0)` 2px ring at radius+6 | Additive |
 | Out-of-control, comment present | `(0.95, 0.5, 0.0)` | `(0.7, 0.35, 0.0)` | No |
 | Zero-thinking excluded | `(0, 0, 0)` | `(0.6, 0.6, 0.6)` | Yes |
 | Single-turn on Xbar chart | `(0, 0, 0)` | `(0, 0, 0)` | Yes |
 | Selected halo | — | `(0.1, 0.3, 0.9)` 2px ring | Additive |
 
-Yellow (setup interval) takes precedence over all fill colors when a session is in
-the setup interval. Green (in-control with comment) takes precedence over black but
-not over yellow.
+Setup interval and selection halos are additive: a selected setup-interval point
+receives both a yellow ring (radius+6) and a blue ring (radius+3). Hollow-gray and
+single-turn markers do not receive a setup interval halo.
 
 ---
 

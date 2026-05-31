@@ -7,6 +7,7 @@ with Coyote_SQC.App;
 with Coyote_SQC.Data_Model;
 with Coyote_SQC.Workspace;
 with Coyote_SQC.UI.Chart_Canvas;
+with Coyote_SQC.UI.Detail_Panel;
 with Glib;                   use Glib;
 with Gtk.Box;
 with Gtk.Button;
@@ -557,6 +558,7 @@ package body Coyote_SQC.UI.Chart_Settings_Dialog is
             Coyote_SQC.App.State.Modified := True;
             Coyote_SQC.App.Recompute_Chart (Kind);
             Coyote_SQC.UI.Chart_Canvas.Queue_Redraw;
+            Coyote_SQC.UI.Detail_Panel.Refresh;
          end;
       end if;
 

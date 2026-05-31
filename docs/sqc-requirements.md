@@ -1484,12 +1484,11 @@ The following elements are rendered in this z-order (bottom to top):
 | In-control, no comment | Filled black circle |
 | In-control, comment present | Filled green circle |
 | Out-of-control, no comment | Filled red circle |
-| In setup interval (any control status) | Filled yellow circle |
+| In setup interval (any control status) | Yellow ring halo (2 px stroke, drawn at radius + 6 px outside the marker); fill colour reflects control status as above |
 | Out-of-control, comment present | Filled orange circle |
-| In setup interval, out-of-control | Filled yellow circle (yellow takes precedence) |
 | Selected | Blue halo ring drawn around the marker, regardless of fill |
-| Zero-thinking excluded (Section 5.5) | Hollow gray circle |
-| Single-turn session on Xbar chart (Section 5.5) | Hollow black circle |
+| Zero-thinking excluded (Section 5.5) | Hollow gray circle; no setup halo |
+| Single-turn session on Xbar chart (Section 5.5) | Hollow black circle; no setup halo |
 | Single-turn session on s chart | No marker; gap in connecting line |
 
 #### 7.3.4 Retrospective Limits
@@ -1748,6 +1747,44 @@ to copy the session ID or any other displayed field.
 - A GtkTextView entry field for a new comment.
 - An "Add Comment" button. On click, the comment is saved to the workspace with the
   current timestamp and the point marker color is updated immediately if applicable.
+
+
+**Subgroup Distribution section (Xbar and s charts only):**
+- Displayed between the Header section and the Prompt section when the active
+  chart is an Xbar or s chart (`Is_Xbar_S_Chart = True`).
+- A Cairo-rendered histogram of the per-turn subgroup values for the selected
+  session: the raw, original-space per-turn observations that comprise the
+  session's subgroup (e.g. output tokens per turn for Turn Tokens Xbar/s,
+  tool-call tokens per tool-call turn for Tool Call Tokens Xbar/s, thinking
+  tokens per thinking-enabled turn for Thinking Tokens Xbar/s, or JSD
+  similarity values for Tool Call JSD Xbar/s).
+- The histogram uses the same Freedman-Diaconis bin rule and rendering as the
+  multi-select distribution histogram (Section 10.2), with `n` equal to the
+  subgroup size for the selected session.
+- Three vertical overlay lines are drawn:
+  - Center line: solid blue, using the CL value of the selected chart point.
+  - UCL: red dashed, drawn only when the chart has a finite UCL for this point.
+  - LCL: red dashed, drawn only when the chart has a finite, positive LCL for
+    this point.
+  - Overlay lines outside the histogram x-range (± half a bin width) are
+    suppressed.
+- The x-axis is labelled with the per-turn quantity name (the same string used
+  as the y-axis label on the main chart canvas).
+- The histogram area height is fixed at 160 px and is not user-resizable.
+- When the active chart is not an Xbar or s chart, the histogram area displays
+  the text "No data for active chart" centred in the widget.
+- The histogram updates automatically whenever the active chart changes (via
+  the left-panel chart selector) while a single session remains selected.
+
+**Subgroup Summary Statistics (Xbar and s charts only):**
+- Displayed immediately below the Subgroup Distribution histogram using the
+  same conditional display logic.
+- A "Summary Statistics" frame showing the same six rows as the multi-select
+  Summary Statistics (Section 10.2): Mean, Median, Std Dev, KS Normal p,
+  KS Exp p, Runs Test p — applied to the per-turn subgroup values for the
+  selected session rather than cross-session statistics.
+- When the active chart is not an Xbar or s chart, all value cells show `"-"`.
+- Updates whenever the histogram updates.
 
 ### 10.2 Multi-Select View
 

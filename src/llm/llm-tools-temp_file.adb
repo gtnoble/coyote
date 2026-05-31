@@ -66,6 +66,30 @@ package body LLM.Tools.Temp_File is
       end if;
    end Result_Threshold;
 
+   --  Return the index of the last byte of the last complete UTF-8 character
+   --  that ends at or before Text (Pos).  Backs up past any trailing
+   --  continuation bytes (10xxxxxx pattern) to reach the start of the
+   --  truncated sequence, then returns the byte before that start.
+   function Utf8_Safe_Cut (Text : String; Pos : Natural) return Natural is
+      P : Natural := Pos;
+   begin
+      --  Continuation bytes: 16#80# .. 16#BF# (bit pattern 10xxxxxx)
+      while P >= Text'First
+        and then Character'Pos (Text (P)) >= 16#80#
+        and then Character'Pos (Text (P)) <= 16#BF#
+      loop
+         P := P - 1;
+      end loop;
+      --  P now points at the leading byte of a (possibly truncated) sequence.
+      --  Exclude it only if it is a multi-byte leading byte, i.e. >= 16#C0#.
+      if P >= Text'First
+        and then Character'Pos (Text (P)) >= 16#C0#
+      then
+         return P - 1;
+      end if;
+      return P;
+   end Utf8_Safe_Cut;
+
    function Truncated
      (Text      : String;
       Threshold : Positive;
@@ -79,7 +103,7 @@ package body LLM.Tools.Temp_File is
       declare
          Path    : constant String := Next_Temp_Path (Tool_Name);
          Excerpt : constant String :=
-           Text (Text'First .. Text'First + Threshold - 1);
+           Text (Text'First .. Utf8_Safe_Cut (Text, Text'First + Threshold - 1));
          File    : Ada.Streams.Stream_IO.File_Type;
       begin
          Ada.Streams.Stream_IO.Create

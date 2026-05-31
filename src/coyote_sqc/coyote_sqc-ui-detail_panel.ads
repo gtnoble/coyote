@@ -20,5 +20,12 @@ package Coyote_SQC.UI.Detail_Panel is
    --  the histogram canvas.  No-op when the selection has fewer than two
    --  entries or App_State is null.
    procedure Refresh_Histogram_If_Multi;
+   --  When the current selection contains exactly one session and the active
+   --  chart is an Xbar or s chart, collect the per-turn subgroup values for
+   --  that session and refresh the histogram canvas and summary statistics
+   --  labels.  When the active chart is not an Xbar or s chart, calls
+   --  Histogram_Canvas.Refresh with Has_Data => False and clears the labels.
+   --  No-op when selection size /= 1 or App_State is null.
+   procedure Refresh_Histogram_If_Single;
 
 end Coyote_SQC.UI.Detail_Panel;

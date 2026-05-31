@@ -603,11 +603,7 @@ package body Coyote_SQC.UI.Chart_Canvas is
                              or else P.Stat_Value >= P.LCL);
                      end if;
 
-                     if P.In_Setup then
-                        --  Yellow; darker yellow stroke.
-                        Draw_Filled (1.0, 0.85, 0.0,
-                                     0.7, 0.60, 0.0);
-                     elsif not In_Ctrl and then P.Has_Comment then
+                     if not In_Ctrl and then P.Has_Comment then
                         --  Orange; darker orange stroke.
                         Draw_Filled (0.95, 0.5, 0.0,
                                      0.7,  0.35, 0.0);
@@ -655,6 +651,24 @@ package body Coyote_SQC.UI.Chart_Canvas is
             Cairo.Set_Dash (Cr, No_Dashes, 0.0);
          end;
       end if;
+
+
+      --  ── 7b. Setup interval halos ──────────────────────────────────────
+      --  Draw a yellow ring at Pt_Radius + 6 around every setup-interval
+      --  point so that the setup status is visible regardless of the fill
+      --  colour (in-control, out-of-control, comment, etc.).
+      Set_Color (Cr, 1.0, 0.80, 0.0, 1.0);
+      Cairo.Set_Line_Width (Cr, 2.0);
+      for P of CD.Points loop
+         if Vis (P) and then P.In_Setup
+           and then not P.Hollow_Gray
+           and then not P.Single_Turn
+         then
+            Cairo.Arc (Cr, SX (P), SY (P), Pt_Radius + 6.0, 0.0,
+                       Gdouble (2.0 * Ada.Numerics.Pi));
+            Cairo.Stroke (Cr);
+         end if;
+      end loop;
 
       --  ── 8. Selection halos ────────────────────────────────────────────
       Set_Color (Cr, 0.1, 0.3, 0.9, 0.9);

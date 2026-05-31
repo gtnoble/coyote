@@ -55,6 +55,7 @@ package body Coyote_SQC.UI.Left_Panel is
          Coyote_SQC.App.Y_Fit;
          Coyote_SQC.UI.Chart_Canvas.Queue_Redraw;
          Coyote_SQC.UI.Detail_Panel.Refresh_Histogram_If_Multi;
+         Coyote_SQC.UI.Detail_Panel.Refresh_Histogram_If_Single;
       end if;
    end On_Row_Activated;
 
