@@ -40,6 +40,7 @@ with Gtk.Window;
 with Coyote_SQC.UI.Tool_Detail_Window;
 with Coyote_SQC.Charts;
 with Coyote_SQC.Statistics.I_Chart;
+with Coyote_SQC.Statistics.Xbar;
 with Coyote_SQC.UI.Histogram_Canvas;
 with Coyote_SQC.Statistics.Tests;
 with Gtk.Grid;
@@ -78,6 +79,10 @@ package body Coyote_SQC.UI.Detail_Panel is
    Stats_KS_Normal_Lbl : Gtk.Label.Gtk_Label := null;
    Stats_KS_Exp_Lbl    : Gtk.Label.Gtk_Label := null;
    Stats_Runs_Lbl      : Gtk.Label.Gtk_Label := null;
+   Stats_Dip_Lbl       : Gtk.Label.Gtk_Label := null;
+   Stats_Mean_Key_Lbl   : Gtk.Label.Gtk_Label := null;
+   Stats_Median_Key_Lbl : Gtk.Label.Gtk_Label := null;
+   Stats_StdDev_Key_Lbl : Gtk.Label.Gtk_Label := null;
 
    --  Reference to the current session replay scrolled window (to save
    --  scroll position before rebuilding the detail panel).
@@ -395,6 +400,10 @@ package body Coyote_SQC.UI.Detail_Panel is
          Stats_KS_Normal_Lbl := null;
          Stats_KS_Exp_Lbl    := null;
          Stats_Runs_Lbl      := null;
+         Stats_Dip_Lbl       := null;
+         Stats_Mean_Key_Lbl   := null;
+         Stats_Median_Key_Lbl := null;
+         Stats_StdDev_Key_Lbl := null;
 
          Gtk.Frame.Gtk_New (Stats_Frame, "Summary Statistics");
          Gtk.Grid.Gtk_New (Grid);
@@ -406,6 +415,7 @@ package body Coyote_SQC.UI.Detail_Panel is
          Gtk.Label.Gtk_New (Key_Lbl, "Mean:");
          Key_Lbl.Set_Xalign (0.0);
          Grid.Attach (Key_Lbl, 0, 0);
+         Stats_Mean_Key_Lbl := Key_Lbl;
          Gtk.Label.Gtk_New (Stats_Mean_Lbl, "-");
          Stats_Mean_Lbl.Set_Xalign (1.0);
          Grid.Attach (Stats_Mean_Lbl, 1, 0);
@@ -414,6 +424,7 @@ package body Coyote_SQC.UI.Detail_Panel is
          Gtk.Label.Gtk_New (Key_Lbl, "Median:");
          Key_Lbl.Set_Xalign (0.0);
          Grid.Attach (Key_Lbl, 0, 1);
+         Stats_Median_Key_Lbl := Key_Lbl;
          Gtk.Label.Gtk_New (Stats_Median_Lbl, "-");
          Stats_Median_Lbl.Set_Xalign (1.0);
          Grid.Attach (Stats_Median_Lbl, 1, 1);
@@ -422,6 +433,7 @@ package body Coyote_SQC.UI.Detail_Panel is
          Gtk.Label.Gtk_New (Key_Lbl, "Std Dev:");
          Key_Lbl.Set_Xalign (0.0);
          Grid.Attach (Key_Lbl, 0, 2);
+         Stats_StdDev_Key_Lbl := Key_Lbl;
          Gtk.Label.Gtk_New (Stats_StdDev_Lbl, "-");
          Stats_StdDev_Lbl.Set_Xalign (1.0);
          Grid.Attach (Stats_StdDev_Lbl, 1, 2);
@@ -449,6 +461,13 @@ package body Coyote_SQC.UI.Detail_Panel is
          Gtk.Label.Gtk_New (Stats_Runs_Lbl, "-");
          Stats_Runs_Lbl.Set_Xalign (1.0);
          Grid.Attach (Stats_Runs_Lbl, 1, 5);
+         --  Row 6: Dip test p-value
+         Gtk.Label.Gtk_New (Key_Lbl, "Dip Test p:");
+         Key_Lbl.Set_Xalign (0.0);
+         Grid.Attach (Key_Lbl, 0, 6);
+         Gtk.Label.Gtk_New (Stats_Dip_Lbl, "-");
+         Stats_Dip_Lbl.Set_Xalign (1.0);
+         Grid.Attach (Stats_Dip_Lbl, 1, 6);
 
          Stats_Frame.Add (Grid);
          VBox.Pack_Start (Stats_Frame, False, False, 0);
@@ -687,6 +706,10 @@ package body Coyote_SQC.UI.Detail_Panel is
          Stats_KS_Normal_Lbl := null;
          Stats_KS_Exp_Lbl    := null;
          Stats_Runs_Lbl      := null;
+         Stats_Dip_Lbl       := null;
+         Stats_Mean_Key_Lbl   := null;
+         Stats_Median_Key_Lbl := null;
+         Stats_StdDev_Key_Lbl := null;
 
          Gtk.Frame.Gtk_New (Stats_Frame, "Summary Statistics");
          Gtk.Grid.Gtk_New (Grid);
@@ -698,6 +721,7 @@ package body Coyote_SQC.UI.Detail_Panel is
          Gtk.Label.Gtk_New (Key_Lbl, "Mean:");
          Key_Lbl.Set_Xalign (0.0);
          Grid.Attach (Key_Lbl, 0, 0);
+         Stats_Mean_Key_Lbl := Key_Lbl;
          Gtk.Label.Gtk_New (Stats_Mean_Lbl, "-");
          Stats_Mean_Lbl.Set_Xalign (1.0);
          Grid.Attach (Stats_Mean_Lbl, 1, 0);
@@ -706,6 +730,7 @@ package body Coyote_SQC.UI.Detail_Panel is
          Gtk.Label.Gtk_New (Key_Lbl, "Median:");
          Key_Lbl.Set_Xalign (0.0);
          Grid.Attach (Key_Lbl, 0, 1);
+         Stats_Median_Key_Lbl := Key_Lbl;
          Gtk.Label.Gtk_New (Stats_Median_Lbl, "-");
          Stats_Median_Lbl.Set_Xalign (1.0);
          Grid.Attach (Stats_Median_Lbl, 1, 1);
@@ -714,6 +739,7 @@ package body Coyote_SQC.UI.Detail_Panel is
          Gtk.Label.Gtk_New (Key_Lbl, "Std Dev:");
          Key_Lbl.Set_Xalign (0.0);
          Grid.Attach (Key_Lbl, 0, 2);
+         Stats_StdDev_Key_Lbl := Key_Lbl;
          Gtk.Label.Gtk_New (Stats_StdDev_Lbl, "-");
          Stats_StdDev_Lbl.Set_Xalign (1.0);
          Grid.Attach (Stats_StdDev_Lbl, 1, 2);
@@ -741,6 +767,13 @@ package body Coyote_SQC.UI.Detail_Panel is
          Gtk.Label.Gtk_New (Stats_Runs_Lbl, "-");
          Stats_Runs_Lbl.Set_Xalign (1.0);
          Grid.Attach (Stats_Runs_Lbl, 1, 5);
+         --  Row 6: Dip test p-value
+         Gtk.Label.Gtk_New (Key_Lbl, "Dip Test p:");
+         Key_Lbl.Set_Xalign (0.0);
+         Grid.Attach (Key_Lbl, 0, 6);
+         Gtk.Label.Gtk_New (Stats_Dip_Lbl, "-");
+         Stats_Dip_Lbl.Set_Xalign (1.0);
+         Grid.Attach (Stats_Dip_Lbl, 1, 6);
 
          Stats_Frame.Add (Grid);
          VBox.Pack_Start (Stats_Frame, False, False, 0);
@@ -1071,6 +1104,23 @@ package body Coyote_SQC.UI.Detail_Panel is
             end Fmt_P;
 
          begin
+            --  Update summary-statistics key labels to indicate
+            --  z-space when a transform is active.
+            if Stats_Mean_Key_Lbl /= null then
+               Stats_Mean_Key_Lbl.Set_Text
+                 (if CD.Transform_Active /= None
+                  then "Mean (z):" else "Mean:");
+            end if;
+            if Stats_Median_Key_Lbl /= null then
+               Stats_Median_Key_Lbl.Set_Text
+                 (if CD.Transform_Active /= None
+                  then "Median (z):" else "Median:");
+            end if;
+            if Stats_StdDev_Key_Lbl /= null then
+               Stats_StdDev_Key_Lbl.Set_Text
+                 (if CD.Transform_Active /= None
+                  then "Std Dev (z):" else "Std Dev:");
+            end if;
             if Stats_Mean_Lbl /= null then
                Stats_Mean_Lbl.Set_Text
                  (if N_Vals > 0 then Fmt_V (Mean_Of (Test_Vals)) else "-");
@@ -1104,6 +1154,12 @@ package body Coyote_SQC.UI.Detail_Panel is
                          then Runs_Test_P_Value (Test_Vals)
                          else -1.0));
             end if;
+            if Stats_Dip_Lbl /= null then
+               Stats_Dip_Lbl.Set_Text
+                 (Fmt_P (if N_Vals > 0
+                         then Dip_Test_P_Value (Test_Vals)
+                         else -1.0));
+            end if;
          end;
       end;
    end Refresh_Histogram_If_Multi;
@@ -1134,8 +1190,8 @@ package body Coyote_SQC.UI.Detail_Panel is
          Sid     : constant Ada.Strings.Unbounded.Unbounded_String :=
            Coyote_SQC.Data_Model.UUID_Sets.Element
              (Coyote_SQC.App.State.Selection.First);
-         X_Lbl   : constant String :=
-           Ada.Strings.Unbounded.To_String (Props.Y_Axis_Label);
+         X_Lbl_Str : Ada.Strings.Unbounded.Unbounded_String :=
+           Props.Y_Axis_Label;
 
          --  Formatting helpers shared with Refresh_Histogram_If_Multi.
          function Fmt_V (V : Long_Float) return String is
@@ -1203,6 +1259,9 @@ package body Coyote_SQC.UI.Detail_Panel is
             if Stats_Runs_Lbl      /= null then
                Stats_Runs_Lbl.Set_Text ("-");
             end if;
+            if Stats_Dip_Lbl       /= null then
+               Stats_Dip_Lbl.Set_Text ("-");
+            end if;
          end Clear_Stats;
 
       begin
@@ -1219,7 +1278,7 @@ package body Coyote_SQC.UI.Detail_Panel is
                Has_UCL  => False,
                LCL      => 0.0,
                Has_LCL  => False,
-               X_Label  => X_Lbl,
+               X_Label  => To_String (X_Lbl_Str),
                Has_Data => False);
             Clear_Stats;
             return;
@@ -1287,6 +1346,86 @@ package body Coyote_SQC.UI.Detail_Panel is
                         end;
                      end if;
 
+                     --  Apply transform to per-turn values when active.
+                     if CD.Transform_Active /= None then
+                        declare
+                           K_Out      : Natural := 0;
+                           --  Lambda symbol UTF-8: U+03BB = 0xCE 0xBB.
+                           Lambda_Sym : constant String :=
+                             (1 => Character'Val (16#CE#),
+                              2 => Character'Val (16#BB#));
+                           function Format_Lambda
+                             (V : Long_Float) return String
+                           is
+                              use Ada.Strings.Fixed;
+                              IV : constant Long_Long_Integer :=
+                                Long_Long_Integer
+                                  (Long_Float'Rounding (abs V * 100.0));
+                           begin
+                              return (if V < 0.0 then "-" else "")
+                                & Trim (Long_Long_Integer'Image (IV / 100),
+                                        Ada.Strings.Left)
+                                & "."
+                                & (if IV mod 100 < 10 then "0" else "")
+                                & Trim
+                                    (Long_Long_Integer'Image (IV mod 100),
+                                     Ada.Strings.Left);
+                           end Format_Lambda;
+                           Suffix : constant String :=
+                             (case CD.Transform_Active is
+                                when Box_Cox =>
+                                  Lambda_Sym & "="
+                                  & Format_Lambda (CD.Transform_Lambda),
+                                when Sqrt_VS =>
+                                  (1 => Character'Val (16#E2#),
+                                   2 => Character'Val (16#88#),
+                                   3 => Character'Val (16#9A#)),
+                                when Anscombe      => "Anscombe",
+                                when Arcsinh_VS    => "arcsinh",
+                                when Freeman_Tukey => "F-T",
+                                when None          => "");
+                        begin
+                           for K in 1 .. N_Vals loop
+                              if Vals (K) > 0.0
+                                 or else (CD.Transform_Active /= Box_Cox
+                                          and then Vals (K) >= 0.0)
+                                 or else CD.Transform_Active = Arcsinh_VS
+                              then
+                                 K_Out := K_Out + 1;
+                                 Vals (K_Out) :=
+                                   Coyote_SQC.Statistics.I_Chart.Apply_Transform
+                                     (Vals (K), CD.Transform_Active,
+                                      CD.Transform_Lambda);
+                              end if;
+                           end loop;
+                           N_Vals := K_Out;
+                           --  For Xbar charts recompute limits in z-space;
+                           --  S chart limits in CD.Points are already in
+                           --  z-space (S chart never back-transforms).
+                           if Props.Is_Xbar_S_Chart
+                              and then not Props.Is_S_Chart
+                              and then N_Vals > 0
+                           then
+                              declare
+                                 Z_Lim : constant
+                                   Coyote_SQC.Statistics.Limits_Record :=
+                                     Coyote_SQC.Statistics.Xbar.Compute_Limits
+                                       (Grand_Mean => CD.Params.Grand_Mean,
+                                        Pooled_S   => CD.Params.Pooled_S,
+                                        N          => N_Vals);
+                              begin
+                                 CL      := Z_Lim.CL;
+                                 UCL     := Z_Lim.UCL;
+                                 Has_UCL := Z_Lim.Has_UCL;
+                                 LCL     := Z_Lim.LCL;
+                                 Has_LCL := Z_Lim.Has_LCL;
+                                 Got_Pt  := True;
+                              end;
+                           end if;
+                           Ada.Strings.Unbounded.Append
+                             (X_Lbl_Str, " (" & Suffix & ")");
+                        end;
+                     end if;
                      Coyote_SQC.UI.Histogram_Canvas.Refresh
                        (Values   => Vals (1 .. N_Vals),
                         CL       => CL,
@@ -1294,7 +1433,7 @@ package body Coyote_SQC.UI.Detail_Panel is
                         Has_UCL  => Has_UCL and Got_Pt,
                         LCL      => LCL,
                         Has_LCL  => Has_LCL and Got_Pt,
-                        X_Label  => X_Lbl,
+                        X_Label  => To_String (X_Lbl_Str),
                         Has_Data => N_Vals > 0);
 
                      --  Update summary-statistics labels.
@@ -1302,6 +1441,23 @@ package body Coyote_SQC.UI.Detail_Panel is
                         Test_Vals : constant Long_Float_Array :=
                           Long_Float_Array (Vals (1 .. N_Vals));
                      begin
+                        --  Update summary-statistics key labels to indicate
+                        --  z-space when a transform is active.
+                        if Stats_Mean_Key_Lbl /= null then
+                           Stats_Mean_Key_Lbl.Set_Text
+                             (if CD.Transform_Active /= None
+                              then "Mean (z):" else "Mean:");
+                        end if;
+                        if Stats_Median_Key_Lbl /= null then
+                           Stats_Median_Key_Lbl.Set_Text
+                             (if CD.Transform_Active /= None
+                              then "Median (z):" else "Median:");
+                        end if;
+                        if Stats_StdDev_Key_Lbl /= null then
+                           Stats_StdDev_Key_Lbl.Set_Text
+                             (if CD.Transform_Active /= None
+                              then "Std Dev (z):" else "Std Dev:");
+                        end if;
                         if Stats_Mean_Lbl /= null then
                            Stats_Mean_Lbl.Set_Text
                              (if N_Vals > 0
@@ -1340,6 +1496,12 @@ package body Coyote_SQC.UI.Detail_Panel is
                                      then Runs_Test_P_Value (Test_Vals)
                                      else -1.0));
                         end if;
+                        if Stats_Dip_Lbl /= null then
+                           Stats_Dip_Lbl.Set_Text
+                             (Fmt_P (if N_Vals > 0
+                                     then Dip_Test_P_Value (Test_Vals)
+                                     else -1.0));
+                        end if;
                      end;
                   end;
                   Found := True;
@@ -1357,7 +1519,7 @@ package body Coyote_SQC.UI.Detail_Panel is
                   Has_UCL  => False,
                   LCL      => 0.0,
                   Has_LCL  => False,
-                  X_Label  => X_Lbl,
+                  X_Label  => To_String (X_Lbl_Str),
                   Has_Data => False);
                Clear_Stats;
             end if;

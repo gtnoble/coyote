@@ -1931,6 +1931,18 @@ package body Test_Suites is
         ("SQC stats: Apply_Transform / Invert_Transform dispatch for all kinds",
          Coyote_SQC_Statistics_Tests
            .Test_Apply_Invert_Dispatch'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC stats: Dip_Test_P_Value returns N/A for N < 4",
+         Coyote_SQC_Statistics_Tests
+           .Test_Dip_NA_Too_Small'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC stats: Dip test flags strongly bimodal data (p < 0.05)",
+         Coyote_SQC_Statistics_Tests
+           .Test_Dip_Bimodal_Significant'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC stats: Dip test does not flag tightly unimodal data (p > 0.10)",
+         Coyote_SQC_Statistics_Tests
+           .Test_Dip_Unimodal_Not_Sig'Access));
 
       --  Coyote_SQC parser: Anthropic token normalization
       Result.Add_Test (SQC_Parser_Caller.Create

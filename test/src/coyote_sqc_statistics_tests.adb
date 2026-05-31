@@ -13,6 +13,7 @@ with Coyote_SQC.Statistics.P_Chart;
 with Coyote_SQC.Statistics.S_Chart;
 with Coyote_SQC.Statistics.Xbar;
 with Coyote_SQC.Statistics.I_Chart;
+with Coyote_SQC.Statistics.Tests;
 with Coyote_SQC.Statistics.EWMA_Chart;
 with Ada.Numerics.Long_Elementary_Functions;
 
@@ -2341,5 +2342,50 @@ package body Coyote_SQC_Statistics_Tests is
                  "Freeman_Tukey round-trip via dispatchers should recover X");
       end;
    end Test_Apply_Invert_Dispatch;
+
+   --  ── Dip test for unimodality ─────────────────────────────────────────
+
+   procedure Test_Dip_NA_Too_Small (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.Tests;
+      Small : constant Long_Float_Array (1 .. 3) := (0.1, 0.5, 0.9);
+   begin
+      Assert (Dip_Test_P_Value (Small) = -1.0,
+              "Dip_Test_P_Value should return -1.0 for N < 4");
+   end Test_Dip_NA_Too_Small;
+
+   procedure Test_Dip_Bimodal_Significant (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.Tests;
+      --  Ten values at 0.0 and ten at 1.0 — extreme bimodal; dip >> uniform.
+      Bimodal : Long_Float_Array (1 .. 20) :=
+        (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+         1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0);
+      P : Long_Float;
+   begin
+      P := Dip_Test_P_Value (Bimodal, K => 2_000);
+      Assert (P >= 0.0 and then P <= 1.0,
+              "Dip p-value must be in [0, 1]");
+      Assert (P < 0.05,
+              "Strongly bimodal data should yield p < 0.05");
+   end Test_Dip_Bimodal_Significant;
+
+   procedure Test_Dip_Unimodal_Not_Sig (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.Tests;
+      --  Twenty values tightly clustered: clearly unimodal.
+      Unimodal : Long_Float_Array (1 .. 20) :=
+        (0.48, 0.482, 0.484, 0.486, 0.488,
+         0.490, 0.492, 0.494, 0.496, 0.498,
+         0.500, 0.502, 0.504, 0.506, 0.508,
+         0.510, 0.512, 0.514, 0.516, 0.518);
+      P : Long_Float;
+   begin
+      P := Dip_Test_P_Value (Unimodal, K => 2_000);
+      Assert (P >= 0.0 and then P <= 1.0,
+              "Dip p-value must be in [0, 1]");
+      Assert (P > 0.10,
+              "Tightly unimodal data should not be flagged as multimodal");
+   end Test_Dip_Unimodal_Not_Sig;
 
 end Coyote_SQC_Statistics_Tests;

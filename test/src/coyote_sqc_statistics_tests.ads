@@ -127,4 +127,9 @@ package Coyote_SQC_Statistics_Tests is
    procedure Test_Freeman_Tukey_Round_Trip (T : in out Test);
    procedure Test_Apply_Invert_Dispatch   (T : in out Test);
 
+   --  Dip test for unimodality.
+   procedure Test_Dip_NA_Too_Small        (T : in out Test);
+   procedure Test_Dip_Bimodal_Significant (T : in out Test);
+   procedure Test_Dip_Unimodal_Not_Sig    (T : in out Test);
+
 end Coyote_SQC_Statistics_Tests;

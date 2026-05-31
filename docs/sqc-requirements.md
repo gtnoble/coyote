@@ -518,8 +518,14 @@ original (token) units. A status-bar notice reports the count of zero MR
 values excluded from `λ_MR` estimation when transformation is active.
 
 **Histogram display:** when Box-Cox is active and an I or MR chart is selected,
-the multi-select distribution histogram shows the original-space value distribution.
-The overlay lines (CL, UCL, LCL) are the back-transformed limits, also in original-space units.
+the multi-select distribution histogram shows values in the **transformed (z-space)**
+distribution. The histogram x-axis label gains a transform annotation suffix
+(e.g. `(λ=0.31)`, `(√)`, `(arcsinh)` etc.) matching the active transform. The
+overlay lines (CL, UCL, LCL) are the transformed-space limits (the same values
+used for control limit computation, before any back-transformation). Summary
+statistics labels (Mean, Median, Std Dev) gain a `(z)` suffix when transform is
+active. The same behaviour applies to all supported transforms (Box-Cox, √, Anscombe,
+arcsinh, Freeman-Tukey), not only Box-Cox.
 
 **Sessions with zero tokens:** any session with a zero total-token count cannot
 be transformed (ln(0) is undefined). Such sessions are excluded from the I and
@@ -583,6 +589,14 @@ transform failure excludes the session point entirely.
 side) cannot be transformed.  Such values are excluded from λ estimation.
 Sessions containing any such value are excluded from Box-Cox chart display and
 λ estimation; a status-bar notice reports the count of excluded values.
+
+**Single-session subgroup histogram:** when the single-session detail panel shows
+the per-turn subgroup histogram for an Xbar or s chart and a transform is active,
+the per-turn values are transformed to z-space before display. Domain violations
+(values outside the transform's domain) are excluded. Limits are shown in z-space:
+for Xbar charts, z-space limits are computed from `CD.Params.Grand_Mean` and
+`CD.Params.Pooled_S`; for s charts, limits are already stored in z-space in
+`CD.Points`. Summary statistics labels gain a `(z)` suffix.
 
 **Storage:** each chart's configuration is stored in the workspace `chartSettings` JSON map (see §13.1). Estimated λ values are transient runtime values recomputed from the setup interval and not persisted.
 
@@ -763,6 +777,29 @@ side of the median, e.g. all identical).
 **Interpretation:** a low p-value (e.g. < 0.05) suggests the observations
 are not independent — either too few runs (trending or clustered pattern) or
 too many runs (oscillating pattern).
+
+### 5.16 Hartigan Dip Test for Unimodality
+
+Tests whether the contributing selected sessions' active-chart statistics
+are consistent with a unimodal distribution.
+
+**Null hypothesis:** the sample is drawn from a unimodal distribution.
+
+**Method:** Monte Carlo simulation with K = 2 000 replicates.  For each
+replicate a sample of size N is drawn from Uniform[0, 1] (the distribution
+that maximises the expected dip among all unimodal CDFs) and the dip
+statistic is computed.  The p-value is the fraction of simulated dips ≥ the
+observed dip.  A fixed seed (12 345) ensures the same selection always yields
+the same p-value.
+
+**Statistic:** Hartigan's dip D_N — the maximum deviation of the empirical
+CDF from the closest unimodal CDF — computed via Algorithm AS 217 using the
+greatest convex minorant (GCM) and least concave majorant (LCM) of the ECDF.
+
+Returns `N/A` when N < 4.
+
+**Interpretation:** a small p-value (e.g. < 0.05) suggests multimodality —
+the chart metric may reflect two distinct process regimes.
 
 ## 6. Charts
 
@@ -1643,7 +1680,7 @@ anchored to that marker. The tooltip contains:
 Input: 24,831 tokens   Output: 6,204 tokens
 CL: 12,451   UCL: 18,092   LCL: 6,809
 
-Comments: 1
+Comments: 1  •  2025-04-11 09:14: "Need to revisit the token refresh..."
 ```
 
 Fields:
@@ -1653,7 +1690,7 @@ Fields:
 - Truncated first user message, max 80 characters, ellipsis appended if truncated.
 - Total input and output tokens for the session.
 - Control limits and center line for the active chart at this point. `CL` is always shown; `UCL` is shown only when `Has_UCL = True`; `LCL` is shown only when `Has_LCL = True`. Omitted entirely when the session is not present in the active chart's point set.
-- Comment count (omitted if zero).
+- Latest comment: when one or more comments exist, shows the count, the timestamp (`YYYY-MM-DD HH:MM`) of the most recent comment, and its truncated body (max 80 characters, ellipsis appended if truncated). Omitted entirely when there are no comments.
 
 The tooltip is dismissed when the cursor moves beyond 12 pixels from the point.
 
@@ -1779,9 +1816,9 @@ to copy the session ID or any other displayed field.
 **Subgroup Summary Statistics (Xbar and s charts only):**
 - Displayed immediately below the Subgroup Distribution histogram using the
   same conditional display logic.
-- A "Summary Statistics" frame showing the same six rows as the multi-select
+- A "Summary Statistics" frame showing the same seven rows as the multi-select
   Summary Statistics (Section 10.2): Mean, Median, Std Dev, KS Normal p,
-  KS Exp p, Runs Test p — applied to the per-turn subgroup values for the
+  KS Exp p, Runs Test p, Dip Test p — applied to the per-turn subgroup values for the
   selected session rather than cross-session statistics.
 - When the active chart is not an Xbar or s chart, all value cells show `"-"`.
 - Updates whenever the histogram updates.
@@ -1845,6 +1882,7 @@ two-column grid:
 | `KS Normal p:` | p-value for the one-sample KS normality test (§5.14) |
 | `KS Exp p:` | p-value for the one-sample KS exponential distribution test (§5.14) |
 | `Runs Test p:` | Two-sided Wald-Wolfowitz randomness test p-value (§5.15) |
+| `Dip Test p:` | p-value for Hartigan's dip test for unimodality (§5.16) |
 
 Display rules for numeric values: if |value| ≥ 100, display as a rounded
 integer; otherwise display with 2 decimal places.  Display rules for
@@ -1946,9 +1984,10 @@ and annotated anomalies from uninvestigated anomalies.
 
 ### 12.4 Comment Visibility in Hover Tooltip
 
-If a session has one or more comments, the hover tooltip (Section 8.3) shows a
-"Comments: N" line. The comment text itself is not shown in the tooltip; full comment
-text is visible in the detail panel.
+If a session has one or more comments, the hover tooltip (Section 8.3) shows the
+comment count, the timestamp (`YYYY-MM-DD HH:MM`) of the most recent comment, and
+its truncated body (max 80 characters, ellipsis appended if truncated). The full
+comment history is visible in the detail panel.
 
 ---
 

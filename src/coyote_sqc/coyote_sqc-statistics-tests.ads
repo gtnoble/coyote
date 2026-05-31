@@ -51,4 +51,17 @@ package Coyote_SQC.Statistics.Tests is
    function Runs_Test_P_Value
      (Values : Long_Float_Array) return Long_Float;
 
+   --  Hartigan dip test for unimodality.
+   --  Null hypothesis: the sample is drawn from a unimodal distribution.
+   --  P-value estimated via Monte Carlo simulation: K independent samples
+   --  of size N drawn from Uniform[0,1] are generated (the uniform
+   --  distribution maximises the expected dip among all unimodal CDFs),
+   --  the dip statistic is computed for each, and the p-value is the
+   --  fraction of simulated dips that are >= the observed dip.
+   --  Returns -1.0 (displayed as "N/A") when Values'Length < 4.
+   --  A small p-value (e.g. < 0.05) is evidence of multimodality.
+   function Dip_Test_P_Value
+     (Values : Long_Float_Array;
+      K      : Positive := 2_000) return Long_Float;
+
 end Coyote_SQC.Statistics.Tests;

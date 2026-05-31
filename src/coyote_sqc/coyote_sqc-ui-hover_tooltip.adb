@@ -135,12 +135,20 @@ package body Coyote_SQC.UI.Hover_Tooltip is
 
          --  Comment count
          N_Comments : Natural := 0;
+         Has_Latest  : Boolean                           := False;
+         Latest_Time : Ada.Calendar.Time                 := Ada.Calendar.Clock;
+         Latest_Text : Ada.Strings.Unbounded.Unbounded_String;
          Pt_Found   : Boolean := False;
          Pt         : Coyote_SQC.App.Chart_Point;
       begin
          for C of Coyote_SQC.App.State.Workspace.Comments loop
             if To_String (C.Session_Id) = Session_Id then
                N_Comments := N_Comments + 1;
+               if not Has_Latest or else C.Timestamp > Latest_Time then
+                  Has_Latest  := True;
+                  Latest_Time := C.Timestamp;
+                  Latest_Text := C.Text;
+               end if;
             end if;
          end loop;
          --  Look up the chart point for this session in the active chart.
@@ -165,6 +173,24 @@ package body Coyote_SQC.UI.Hover_Tooltip is
               Coyote_Renderer.Markup.Xml_Escape (Src_Str);
             Esc_Prompt : constant String :=
               Coyote_Renderer.Markup.Xml_Escape (P_Display);
+            --  Latest comment timestamp and truncated body (for tooltip).
+            Latest_Ts_Str   : constant String :=
+              (if Has_Latest
+               then Ada.Calendar.Formatting.Image
+                      (Latest_Time, Time_Zone => 0) (1 .. 16)
+               else "");
+            C_Text          : constant String :=
+              To_String (Latest_Text);
+            C_Len           : constant Natural :=
+              Natural'Min (C_Text'Length, 80);
+            C_Display       : constant String :=
+              (if C_Text'Length = 0 then ""
+               else C_Text (C_Text'First .. C_Text'First + C_Len - 1)
+                    & (if C_Text'Length > 80 then "..." else ""));
+            Esc_Latest_Ts   : constant String :=
+              Coyote_Renderer.Markup.Xml_Escape (Latest_Ts_Str);
+            Esc_Latest_Body : constant String :=
+              Coyote_Renderer.Markup.Xml_Escape (C_Display);
             --  Control limits line (empty when chart point not found).
             Limits_Line : constant String :=
               (if Pt_Found
@@ -191,6 +217,8 @@ package body Coyote_SQC.UI.Hover_Tooltip is
               & (if N_Comments > 0
                  then ASCII.LF & "Comments: "
                       & Trim (N_Comments'Image, Ada.Strings.Left)
+                      & "  " & Esc_Latest_Ts & ": &quot;"
+                      & Esc_Latest_Body & "&quot;"
                  else "");
          begin
             The_Label.Set_Markup (Markup);

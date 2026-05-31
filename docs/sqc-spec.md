@@ -1386,6 +1386,56 @@ order**, form an independent sequence.
 Returns −1.0 when N < 10, n₁ = 0, n₂ = 0, or Var[R] ≤ 0.
 
 
+### 7.17 Hartigan Dip Test for Unimodality — `Coyote_SQC.Statistics.Tests.Dip_Test_P_Value`
+
+Tests whether the contributing sessions' statistics are consistent with a
+unimodal distribution.  A multimodal distribution (e.g. two distinct process
+regimes) produces a larger dip statistic than unimodal data.
+
+**Algorithm.** Given a sorted sample x₁ ≤ … ≤ xₙ:
+
+1. Compute the dip statistic D_N using Hartigan's Algorithm AS 217:
+   - Precompute the greatest convex minorant (GCM) predecessor chain `mn[j]`
+     and the least concave majorant (LCM) successor chain `mj[k]` in O(N)
+     passes over the sorted data.
+   - Iterate over the modal interval [low, high], collecting GCM and LCM
+     change points, computing the maximum vertical gap d between the two
+     curves, and refining [low, high] until convergence (Maechler 1994
+     termination fix prevents infinite loops on unimodal data).
+   - The dip is the maximum deviation of the ECDF from its best-fitting
+     unimodal CDF, divided by 2N.  All intermediate values are maintained
+     in 2N units; the final division by 2N produces the reported statistic.
+
+2. Estimate the p-value by Monte Carlo simulation (`K = 2 000` replicates):
+   - Draw K independent samples of size N from Uniform[0, 1].  The uniform
+     distribution maximises the expected dip among all unimodal CDFs
+     (Hartigan & Hartigan 1985), so it is the correct null distribution.
+   - Sort each sample and compute its dip statistic.
+   - p-value = fraction of simulated dips ≥ D_N.
+   - A fixed seed (12 345) is used for reproducibility: the same selection
+     always shows the same p-value.
+
+Returns −1.0 when N < 4.
+
+**Interpretation.** A small p-value (e.g. < 0.05) is evidence of
+multimodality — the dip is larger than expected for unimodal data.  In an
+SQC context this suggests the chart metric may have two distinct process
+regimes (e.g. short and long sessions) rather than one stable mode.
+
+**Reference.** Hartigan, J.A. and Hartigan, P.M. (1985), "The Dip Test of
+Unimodality", _Ann. Statist._ **13**: 70–84.  C implementation by
+M. Maechler (ETH Zürich), in R package `diptest` (CRAN).
+
+package Coyote_SQC.Statistics.Tests is
+
+```ada
+--  Hartigan dip test for unimodality.
+--  Returns -1.0 when Values'Length < 4.
+function Dip_Test_P_Value
+  (Values : Long_Float_Array;
+   K      : Positive := 2_000) return Long_Float;
+```
+
 ## 8. Chart Definitions
 
 ### 7.11 EWMA Chart — `Coyote_SQC.Statistics.EWMA_Chart`
@@ -2067,8 +2117,8 @@ GtkBox (vertical)
 ├── GtkFrame "Distribution"
 │   └── GtkDrawingArea (Histogram_Canvas, 160 px fixed height)
 ├── GtkFrame "Summary Statistics"
-│   └── GtkGrid (6 rows × 2 columns: Mean, Median, Std Dev,
-│             KS Normal p, KS Exp p, Runs Test p)
+│   └── GtkGrid (7 rows × 2 columns: Mean, Median, Std Dev,
+│             KS Normal p, KS Exp p, Runs Test p, Dip Test p)
 ├── GtkButton "Set as Setup Interval"
 ├── GtkFrame "Add Comment to All Selected"
 │   ├── GtkTextView (entry)
@@ -2082,9 +2132,9 @@ Clicking a row in the Selected Sessions list switches the detail panel to the
 single-session view for that session without clearing the overall multi-selection.
 
 **Summary Statistics frame:** `GtkFrame "Summary Statistics"` containing a
-`GtkGrid` (6 rows × 2 columns) placed between the Distribution histogram
+`GtkGrid` (7 rows × 2 columns) placed between the Distribution histogram
 and the Set as Setup Interval button.  The grid rows are: Mean, Median,
-Std Dev, KS Normal p, KS Exp p, Runs Test p.  Key labels are left-aligned
+Std Dev, KS Normal p, KS Exp p, Runs Test p, Dip Test p.  Key labels are left-aligned
 (column 0); value labels are right-aligned (column 1).  Initial value for
 each label is `"-"`.  The frame is populated by
 `Refresh_Histogram_If_Multi` (§11.9) using the same contributing session
@@ -2131,6 +2181,9 @@ moves beyond 12 pixels.
 
 The popover contains a `GtkLabel` with markup-formatted content (see requirements
 §8.3). Content is rebuilt each time a different point is hovered.
+When shown, the latest comment line includes the timestamp (`YYYY-MM-DD HH:MM`) of
+the most recent comment and its truncated body (max 80 characters, ellipsis appended
+if truncated), separated by a colon and space.
 
 ### 11.9 Histogram Canvas — `Coyote_SQC.UI.Histogram_Canvas`
 
