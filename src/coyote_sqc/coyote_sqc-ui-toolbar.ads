@@ -16,5 +16,8 @@ package Coyote_SQC.UI.Toolbar is
    --  Update the Run Sequence checkbox to reflect State.Run_Sequence_Mode.
    --  Called after the mode is toggled via the View menu item.
    procedure Sync_Run_Sequence_Button;
+   --  Update the Log Y checkbox to reflect State.Workspace.Log_Y_Mode.
+   --  Called after the mode is toggled via the View menu item.
+   procedure Sync_Log_Y_Button;
 
 end Coyote_SQC.UI.Toolbar;

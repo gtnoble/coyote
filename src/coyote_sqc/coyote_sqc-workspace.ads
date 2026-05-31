@@ -10,8 +10,10 @@ package Coyote_SQC.Workspace is
    Workspace_Error : exception;
 
    --  Load a workspace from a .sqcw JSON file.
-   --  Raises Workspace_Error on version > 7 or file I/O failure.
-   --  Workspace files at version ≤ 6 are automatically migrated to version 7
+   --  Raises Workspace_Error on version > 9 or file I/O failure.
+   --  Workspace files at version ≤ 8 are automatically migrated to version 9
+   --  (v1–6: shared Box-Cox / estimation-method fields are broadcast to per-chart
+   --  entries; v7–8: logYMode defaulted to False) and the caller should re-save.
    --  (shared Box-Cox / estimation-method fields are broadcast to per-chart
    --  entries) and the caller should re-save.  Version_Found is set to the
    --  version stored in the file (0 if absent); Migrated is True when an
@@ -22,7 +24,7 @@ package Coyote_SQC.Workspace is
       Version_Found : out Natural;
       Migrated      : out Boolean);
 
-   --  Save a workspace to a .sqcw JSON file at version 7.
+   --  Save a workspace to a .sqcw JSON file at version 9.
    --  Raises Workspace_Error on file I/O failure.
    procedure Save
      (Path      : String;

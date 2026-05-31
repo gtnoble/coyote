@@ -223,6 +223,7 @@ package Coyote_SQC.Data_Model is
       --  EWMA_Weight = 0.2, EWMA_L = 3.0) are omitted from the map to keep
       --  the workspace file compact.
       Chart_Settings     : Chart_Settings_Maps.Map;
+      Log_Y_Mode         : Boolean := False;
    end record;
 
 end Coyote_SQC.Data_Model;

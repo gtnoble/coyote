@@ -9,6 +9,7 @@ with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
 with Coyote_SQC.Data_Model;
 with Gtk.Drawing_Area;
 with Coyote_SQC.App;
+with Coyote_SQC.Charts;
 with Glib;           use Glib;
 with Gdk.Rectangle;
 with Gtk.Label;
@@ -46,6 +47,44 @@ package body Coyote_SQC.UI.Hover_Tooltip is
    begin
       return Trim (N'Image, Ada.Strings.Left);
    end Format_Number;
+
+   --  Format a Long_Float for tooltip display (avoids scientific notation).
+   function Format_Float (V : Long_Float) return String is
+      use Ada.Strings.Fixed;
+   begin
+      if not V'Valid then
+         return "?";
+      end if;
+      if abs V >= 100.0 then
+         return Trim
+           (Long_Long_Integer'Image (Long_Long_Integer (V)),
+            Ada.Strings.Left);
+      elsif abs V >= 1.0 then
+         declare
+            IV : constant Long_Long_Integer :=
+              Long_Long_Integer (V * 10.0);
+         begin
+            return Trim (Long_Long_Integer'Image (IV / 10),
+                         Ada.Strings.Left)
+              & "." & Trim
+                       (Long_Long_Integer'Image (abs (IV mod 10)),
+                        Ada.Strings.Left);
+         end;
+      else
+         declare
+            IV : constant Long_Long_Integer :=
+              Long_Long_Integer (V * 1000.0);
+         begin
+            return "0."
+              & (if abs (IV) < 100 then "0" else "")
+              & (if abs (IV) < 10  then "0" else "")
+              & Trim (Long_Long_Integer'Image (abs IV),
+                      Ada.Strings.Left);
+         end;
+      end if;
+   exception
+      when Constraint_Error => return "?";
+   end Format_Float;
 
    procedure Show_For_Session
      (Session_Id : String;
@@ -96,12 +135,27 @@ package body Coyote_SQC.UI.Hover_Tooltip is
 
          --  Comment count
          N_Comments : Natural := 0;
+         Pt_Found   : Boolean := False;
+         Pt         : Coyote_SQC.App.Chart_Point;
       begin
          for C of Coyote_SQC.App.State.Workspace.Comments loop
             if To_String (C.Session_Id) = Session_Id then
                N_Comments := N_Comments + 1;
             end if;
          end loop;
+         --  Look up the chart point for this session in the active chart.
+         declare
+            Active : constant Coyote_SQC.Charts.Chart_Kind :=
+              Coyote_SQC.App.State.Active_Chart;
+         begin
+            for P of Coyote_SQC.App.State.Charts (Active).Points loop
+               if To_String (P.Session_Id) = Session_Id then
+                  Pt       := P;
+                  Pt_Found := True;
+                  exit;
+               end if;
+            end loop;
+         end;
 
          declare
             --  XML-escape variable strings to prevent Pango markup errors.
@@ -111,6 +165,18 @@ package body Coyote_SQC.UI.Hover_Tooltip is
               Coyote_Renderer.Markup.Xml_Escape (Src_Str);
             Esc_Prompt : constant String :=
               Coyote_Renderer.Markup.Xml_Escape (P_Display);
+            --  Control limits line (empty when chart point not found).
+            Limits_Line : constant String :=
+              (if Pt_Found
+               then ASCII.LF
+                    & "CL: " & Format_Float (Pt.CL)
+                    & (if Pt.Has_UCL
+                       then "   UCL: " & Format_Float (Pt.UCL)
+                       else "")
+                    & (if Pt.Has_LCL
+                       then "   LCL: " & Format_Float (Pt.LCL)
+                       else "")
+               else "");
             Markup : constant String :=
               "<b>" & TS14 & "</b>"
               & "  " & Esc_Model & ASCII.LF
@@ -121,6 +187,7 @@ package body Coyote_SQC.UI.Hover_Tooltip is
               & " tokens   Output: "
               & Format_Number (Long_Long_Integer (Sess.Total_Output_Tokens))
               & " tokens"
+              & Limits_Line
               & (if N_Comments > 0
                  then ASCII.LF & "Comments: "
                       & Trim (N_Comments'Image, Ada.Strings.Left)

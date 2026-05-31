@@ -29,4 +29,5 @@ package Coyote_SQC_Workspace_Tests is
    procedure Test_V5_Loads_Classical_Default     (T : in out Test);
 
    procedure Test_Anscombe_Transform_Round_Trip (T : in out Test);
+   procedure Test_Log_Y_Mode_Round_Trip (T : in out Test);
 end Coyote_SQC_Workspace_Tests;

@@ -1692,12 +1692,13 @@ Workspace files use the `.sqcw` extension. Location is user-chosen via file choo
 
 ```json
 {
-  "version": 7,
+  "version": 9,
   "workspaceId": "uuid-string",
   "name": "string",
   "sourceDirectories": ["string", ...],
   "modelFilter": ["string", ...],
   "setupSessionIds": ["uuid-string", ...],
+  "logYMode": false,
   "chartSettings": {
     "Session_Input_Tokens_I": {
       "boxCox": {
@@ -1750,9 +1751,11 @@ values **shall be omitted** from `chartSettings` to keep the file compact.
 
 The application reads the `"version"` field first:
 
-- `version = 7`: load normally using the schema above.
-- `version = 1` to `6`: load with automatic migration — see migration rules below.
-- `version > 7`: refuse to open; show a dialog:
+- `version = 9`: load normally using the schema above.
+- `version = 8`: load and migrate — `logYMode` key is absent; default `false`
+  is applied to `Workspace.Log_Y_Mode`.
+- `version = 1` to `7`: load with automatic migration — see migration rules below.
+- `version > 9`: refuse to open; show a dialog:
   *"This workspace was created by a newer version of coyote_sqc and cannot be opened."*
 - `version < 1` or absent: attempt load with best-effort field mapping; show a
   warning: *"Workspace file has no version field; some data may be missing."*
@@ -1760,7 +1763,7 @@ The application reads the `"version"` field first:
 **Migration from version ≤ 6:**
 
 The following top-level fields from versions 1–6 are migrated into `chartSettings`
-per-chart entries, then discarded. The workspace is resaved at version 7 immediately
+per-chart entries, then discarded. The workspace is resaved at version 9 immediately
 after loading (triggering an implicit unsaved-changes notification).
 
 | Old field | Charts receiving the migrated config |
@@ -1939,6 +1942,7 @@ type App_State is limited record
    Date_From        : Ada.Calendar.Time;
    Date_To          : Ada.Calendar.Time;
    Run_Sequence_Mode : Boolean := False;  -- True = equal-spacing run-sequence x-axis
+   --  Log_Y_Mode stored in Workspace_Record (persisted): State.Workspace.Log_Y_Mode
    --  Global run indices: Sessions(I).Run_Index = I (1-based, chronological order).
    --  Populated by Reload_Sessions; never renumbered when the date filter changes.
    Run_Index_Map    : Coyote_SQC.Data_Model.Natural_Vectors.Vector;
@@ -1950,6 +1954,7 @@ type App_State is limited record
    Set_Selection_As_Setup_Item : Gtk.Menu_Item.Gtk_Menu_Item;
    Select_Setup_Interval_Item  : Gtk.Menu_Item.Gtk_Menu_Item;
    Run_Sequence_Item           : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
+   Log_Y_Item              : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
    --  Resolved Box-Cox lambda values are stored per chart kind in
    --  Chart_Data.Box_Cox_Lambda (not in App_State directly).
 end record;
@@ -1962,7 +1967,7 @@ GTK's single-threaded callback model.
 ### 11.4 Toolbar — `Coyote_SQC.UI.Toolbar`
 
 ```
-[From: YYYY-MM-DD HH:MM ▼]  [To: YYYY-MM-DD HH:MM ▼]  [Show All]  [Y-Fit]  [Run Sequence ☐]
+[From: YYYY-MM-DD HH:MM ▼]  [To: YYYY-MM-DD HH:MM ▼]  [Show All]  [Y-Fit]  [Run Sequence ☐]  [Log Y ☐]
 ```
 
 - **From / To:** `Coyote_SQC.UI.Datetime_Picker` instances (§11.7).
@@ -1970,6 +1975,9 @@ GTK's single-threaded callback model.
   times; triggers canvas redraw.
 - **Y-Fit:** calls `Canvas.Y_Fit` (§12.5).
 - **Run Sequence ☐:** a `GtkCheckButton` (or `GtkToggleButton`) that toggles
+- **Log Y ☐:** a `GtkCheckButton` that toggles `App_State.Workspace.Log_Y_Mode`.
+  On toggle, calls `App.State.Modified := True`, updates `Log_Y_Item` in the View
+  menu, and redraws the canvas.  The corresponding View menu item is kept in sync.
   `App_State.Run_Sequence_Mode`. On toggle, calls `Switch_X_Scale_Mode` (§12.2.1),
   which re-maps `X_Min`/`X_Max` to the new coordinate space and redraws the canvas.
   The corresponding View menu item is kept in sync.
@@ -2011,6 +2019,7 @@ The toolbar pickers update live as the chart is panned (§12.3).
 | Select Setup Interval | Copy `Workspace.Setup_Session_Ids` into `App_State.Selection`; calls `Update_Menu_States` and `Queue_Redraw` so newly selected points receive halos; grayed out when `Setup_Session_Ids` is empty — handle stored in `App_State.Select_Setup_Interval_Item` |
 | *(separator)* | |
 | X-Axis: Run Sequence | Toggle `App_State.Run_Sequence_Mode`; checkmark shown when active; triggers `Switch_X_Scale_Mode` (§12.2.1) and canvas redraw; kept in sync with the toolbar checkbox |
+| Y-Axis: Log Scale | Toggle `App_State.Workspace.Log_Y_Mode`; checkmark shown when active; triggers a canvas redraw; kept in sync with the toolbar **Log Y** checkbox |
 
 ### 11.6 Detail Panel — `Coyote_SQC.UI.Detail_Panel`
 
@@ -2595,6 +2604,61 @@ in Run Sequence mode it calls `Run_Index_To_Time(X_Min/X_Max)`.
 draw list) returns `Time_To_LF(Session.Start_Time)` in Time Scale mode and
 `Long_Float(Session_Run_Index)` in Run Sequence mode.
 
+#### 12.2.2 Log Y Coordinate Mapping
+
+When `App_State.Workspace.Log_Y_Mode` is `True`, the y-axis renders in base-10
+logarithmic scale. The coordinate transforms operate in `log₁₀` space:
+
+**`Data_To_Screen_Y` (log mode):**
+```
+log_y_min = Log(Y_Min, 10)   -- Ada.Numerics.Long_Elementary_Functions.Log(Y_Min) / Log(10.0)
+log_y_max = Log(Y_Max, 10)
+log_dy    = Log(DY, 10)
+screen_y  = Margin_Top + (log_y_max - log_dy) / (log_y_max - log_y_min) * Plot_Height
+```
+Returns `Long_Float'Last` (off-screen) when `DY ≤ 0.0`.
+
+**`Screen_To_Data_Y` (log mode):**
+```
+log_y_min = Log(Y_Min, 10)
+log_y_max = Log(Y_Max, 10)
+log_data  = log_y_max - (SY - Margin_Top) / Plot_Height * (log_y_max - log_y_min)
+data_y    = 10.0 ** log_data
+```
+
+**Y tick generation (log mode):**  Tick marks are placed at decade boundaries:
+powers of 10 from `10.0 ** Floor(log₁₀(Y_Min))` up through
+`10.0 ** Ceil(log₁₀(Y_Max))`. Tick density adjusts gracefully: if more than
+`N_Ticks` decades would appear, only every-Nth decade is labelled; if fewer than
+2 decades are visible, sub-decade ticks (×2, ×5) are added.  Labels use the
+compact form: `"1"`, `"10"`, `"100"`, `"1K"`, `"10K"`, `"100K"`, `"1M"`, etc.
+
+**Y-zoom (log mode):**
+```
+log_y_min' = log(CY) + (log(Y_Min) - log(CY)) / factor
+log_y_max' = log(CY) + (log(Y_Max) - log(CY)) / factor
+Y_Min' = 10.0 ** log_y_min';  Y_Max' = 10.0 ** log_y_max'
+```
+A guard ensures `Y_Min' ≥ 1.0e-10` to prevent collapse near zero.
+
+**Y-pan (log mode):**
+The drag delta is computed in log space:
+```
+log_delta = (MY - Drag_Start.Y) / Plot_Height * (log(Drag_Y_Max) - log(Drag_Y_Min))
+Y_Min' = 10.0 ** (log(Drag_Y_Min) + log_delta)
+Y_Max' = 10.0 ** (log(Drag_Y_Max) + log_delta)
+```
+
+**Skipping non-positive values:**  When `Log_Y_Mode` is `True`, any chart point
+with `Stat_Value ≤ 0.0` is skipped (not plotted).  UCL, LCL, and CL lines at
+values ≤ 0.0 are not drawn.
+
+**Y-Fit (log mode):**  Collects all positive `Stat_Value`, UCL, and LCL values
+within the current x-range. Sets `Y_Min` and `Y_Max` to the minimum and maximum
+of those positive values, then applies a 10 % multiplicative margin:
+`Y_Min' = Y_Min / 1.1;  Y_Max' = Y_Max * 1.1`.  No-op if no positive values
+are in range.
+
 ### 12.3 Zoom and Pan
 
 **X-zoom (mouse wheel on plot area):**
@@ -2642,9 +2706,12 @@ while the canvas already holds keyboard focus.
 
 ### 12.4 Y-Fit
 
-Collects the y-values of all points within `[X_Min, X_Max]` (plus UCL/LCL series
-within that range). Sets `Y_Min` and `Y_Max` to the minimum and maximum of those
-values, expanded by 10% margin on each side. If no points are in range, no-op.
+In linear mode, collects the y-values of all points within `[X_Min, X_Max]` (plus
+UCL/LCL series within that range). Sets `Y_Min` and `Y_Max` to the minimum and
+maximum of those values, expanded by 10% margin on each side. In **Log Y mode**
+(§12.2.2), only positive values are collected and a multiplicative 10% margin is
+applied (`Y_Min / 1.1`, `Y_Max * 1.1`). If no eligible points are in range,
+no-op.
 
 ### 12.5 Hit Testing
 
@@ -2973,3 +3040,4 @@ existing AUnit test suite. Fixture files live in `test/fixtures/sqc/`.
 
 *End of document.*
 Note: Box_Cox_Inverse requires (for λ ≠ 0) that Z*λ + 1 > 0 for any transformed value Z being inverted. If this condition is not met the inverse raises Constraint_Error. When back-transform of UCL or CL fails the implementation must provide a visible explanation (status bar or popup) and one of the documented fallback behaviours: choose an alternate valid lambda, fall back to λ = 0 (log), or render limits in transformed units with a clear label. The application MUST NOT silently omit control limits without notifying the user.
+

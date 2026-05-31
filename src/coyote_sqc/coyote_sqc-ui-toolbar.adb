@@ -26,6 +26,7 @@ package body Coyote_SQC.UI.Toolbar is
    To_Picker   : Picker_Access := null;
    --  Module-level Run Sequence checkbox handle (set by Build).
    Run_Seq_Check : Gtk.Check_Button.Gtk_Check_Button := null;
+   Log_Y_Check : Gtk.Check_Button.Gtk_Check_Button := null;
    --  Guard to prevent recursive activation when syncing the checkbox
    --  programmatically (e.g. when the View menu item toggles the mode).
    Updating : Boolean := False;
@@ -94,6 +95,25 @@ package body Coyote_SQC.UI.Toolbar is
       end if;
    end On_Run_Sequence_Toggled;
 
+   procedure On_Log_Y_Toggled
+     (Self : access Gtk.Toggle_Button.Gtk_Toggle_Button_Record'Class)
+   is
+      New_Mode : constant Boolean := Self.Get_Active;
+   begin
+      if Coyote_SQC.App.State = null then return; end if;
+      --  No-op when value unchanged (prevents spurious side effects during
+      --  programmatic syncs from Sync_Log_Y_Button).
+      if New_Mode = Coyote_SQC.App.State.Workspace.Log_Y_Mode then return; end if;
+      Coyote_SQC.App.State.Workspace.Log_Y_Mode := New_Mode;
+      Coyote_SQC.App.State.Modified := True;
+      --  Keep the View menu check item in sync.
+      if Coyote_SQC.App.State.Log_Y_Item /= null then
+         Coyote_SQC.App.State.Log_Y_Item.Set_Active (New_Mode);
+      end if;
+      Coyote_SQC.UI.Chart_Canvas.Queue_Redraw;
+   end On_Log_Y_Toggled;
+
+
 
    --  ── Build ─────────────────────────────────────────────────────────────
 
@@ -152,6 +172,16 @@ package body Coyote_SQC.UI.Toolbar is
       Toolbar.Pack_Start (Run_Seq, False, False, 4);
       Run_Seq_Check := Run_Seq;
 
+      --  Log Y checkbox.
+      declare
+         Log_Y : Gtk.Check_Button.Gtk_Check_Button;
+      begin
+         Gtk.Check_Button.Gtk_New (Log_Y, "Log Y");
+         Log_Y.On_Toggled (On_Log_Y_Toggled'Access);
+         Toolbar.Pack_Start (Log_Y, False, False, 4);
+         Log_Y_Check := Log_Y;
+      end;
+
       Container.Pack_Start (Toolbar, False, False, 0);
    end Build;
 
@@ -175,6 +205,23 @@ package body Coyote_SQC.UI.Toolbar is
          Updating := False;
       end if;
    end Sync_Run_Sequence_Button;
+
+   procedure Sync_Log_Y_Button is
+   begin
+      if Log_Y_Check /= null and then Coyote_SQC.App.State /= null then
+         --  Set_Active triggers On_Log_Y_Toggled only when the value changes;
+         --  the same-value guard in On_Log_Y_Toggled prevents side effects.
+         Log_Y_Check.Set_Active (Coyote_SQC.App.State.Workspace.Log_Y_Mode);
+      end if;
+      --  Also sync the View menu item (same no-op guard in On_Log_Y_Activated).
+      if Coyote_SQC.App.State /= null
+        and then Coyote_SQC.App.State.Log_Y_Item /= null
+      then
+         Coyote_SQC.App.State.Log_Y_Item.Set_Active
+           (Coyote_SQC.App.State.Workspace.Log_Y_Mode);
+      end if;
+   end Sync_Log_Y_Button;
+
 
 
 end Coyote_SQC.UI.Toolbar;

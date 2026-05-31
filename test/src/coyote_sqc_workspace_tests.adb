@@ -404,7 +404,7 @@ package body Coyote_SQC_Workspace_Tests is
             "EWMA_L wrong after round-trip; got "
             & Long_Float'Image (E_Cfg.EWMA_L));
       end;
-      Assert (VF = 8, "Version should be 8; got " & Natural'Image (VF));
+      Assert (VF = 9, "Version should be 9; got " & Natural'Image (VF));
    end Test_EWMA_Round_Trip;
 
    --  Loading a v3 workspace (no ewmaWeight/ewmaL fields) should give
@@ -490,7 +490,7 @@ package body Coyote_SQC_Workspace_Tests is
             "Session_Turn_Count_I Fixed_Lambda should be 0.5; got "
             & Long_Float'Image (TC_Cfg.Transform.Fixed_Lambda));
       end;
-      Assert (VF = 8, "Version should be 8; got " & Natural'Image (VF));
+      Assert (VF = 9, "Version should be 9; got " & Natural'Image (VF));
    end Test_Turn_Count_Box_Cox_Round_Trip;
 
    --  Loading a v4 workspace (no turnCountBoxCox field) should give
@@ -568,7 +568,7 @@ package body Coyote_SQC_Workspace_Tests is
         (Coyote_SQC.Workspace.Chart_Settings
            (W_In, Session_Input_Tokens_I).Estimation_Method = Robust_Median,
          "Estimation_Method should survive save/load as Robust_Median");
-      Assert (VF = 8, "Version should be 8; got " & Natural'Image (VF));
+      Assert (VF = 9, "Version should be 9; got " & Natural'Image (VF));
    end Test_Estimation_Method_Round_Trip;
 
    --  Loading a v5 workspace (no estimationMethod field) should give
@@ -635,7 +635,7 @@ package body Coyote_SQC_Workspace_Tests is
       Coyote_SQC.Workspace.Load (Path, W_In, VF, Migrated);
       Ada.Directories.Delete_File (Path);
 
-      Assert (VF = 8, "Version should be 8; got " & Natural'Image (VF));
+      Assert (VF = 9, "Version should be 9; got " & Natural'Image (VF));
       Assert
         (not Migrated,
          "No migration expected for a v8 workspace");
@@ -650,5 +650,50 @@ package body Coyote_SQC_Workspace_Tests is
                 (I_Cfg.Transform.Kind));
       end;
    end Test_Anscombe_Transform_Round_Trip;
+
+   --  Log_Y_Mode boolean field round-trips through workspace save/load.
+   procedure Test_Log_Y_Mode_Round_Trip (T : in out Test) is
+      pragma Unreferenced (T);
+      Path  : constant String :=
+        Ada.Directories.Current_Directory
+        & "/fixtures/sqc/tmp_log_y_roundtrip.sqcw";
+      W_Out : Workspace_Record;
+      W_In  : Workspace_Record;
+      VF    : Natural;
+      Migrated : Boolean;
+   begin
+      W_Out.Workspace_Id := To_Unbounded_String ("log-y-ws-001");
+      W_Out.Name         := To_Unbounded_String ("Log Y Test");
+      W_Out.Log_Y_Mode   := True;
+
+      Coyote_SQC.Workspace.Save (Path, W_Out);
+      Coyote_SQC.Workspace.Load (Path, W_In, VF, Migrated);
+      Ada.Directories.Delete_File (Path);
+
+      Assert (VF = 9, "Version should be 9; got " & Natural'Image (VF));
+      Assert (not Migrated, "No migration expected for a v9 workspace");
+      Assert (W_In.Log_Y_Mode,
+              "Log_Y_Mode should be True after round-trip");
+
+      --  Also verify False round-trips (the default).
+      declare
+         W_Out2 : Workspace_Record;
+         W_In2  : Workspace_Record;
+         VF2    : Natural;
+         Mig2   : Boolean;
+      begin
+         W_Out2.Workspace_Id := To_Unbounded_String ("log-y-ws-002");
+         W_Out2.Name         := To_Unbounded_String ("Log Y False Test");
+         W_Out2.Log_Y_Mode   := False;
+
+         Coyote_SQC.Workspace.Save (Path, W_Out2);
+         Coyote_SQC.Workspace.Load (Path, W_In2, VF2, Mig2);
+         Ada.Directories.Delete_File (Path);
+
+         Assert (not W_In2.Log_Y_Mode,
+                 "Log_Y_Mode should be False after round-trip (default)");
+      end;
+   end Test_Log_Y_Mode_Round_Trip;
+
 
 end Coyote_SQC_Workspace_Tests;

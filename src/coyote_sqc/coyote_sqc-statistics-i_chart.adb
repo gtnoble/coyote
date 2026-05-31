@@ -481,7 +481,11 @@ package body Coyote_SQC.Statistics.I_Chart is
 
    function Arcsinh_VS (X : Long_Float) return Long_Float is
    begin
-      return Log (X + Sqrt (X * X + 1.0));
+      if X >= 0.0 then
+         return Log (X + Sqrt (X * X + 1.0));
+      else
+         return -Log (-X + Sqrt (X * X + 1.0));
+      end if;
    end Arcsinh_VS;
 
    function Arcsinh_VS_Inverse (Z : Long_Float) return Long_Float is

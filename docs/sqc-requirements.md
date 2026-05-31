@@ -1535,10 +1535,37 @@ run-index extent of the setup interval sessions rather than their time extent.
 *Persistence:* the selected scale mode is not stored in the workspace file; it resets
 to **Time Scale** each time the application starts.
 
+#### 7.3.6 Y-Axis Log Scale
+
+The y-axis may be rendered on a base-10 logarithmic scale, toggled via a
+**Log Y ☐** `GtkCheckButton` in the toolbar (to the right of **Run Sequence**)
+and via **View → Y-Axis: Log Scale** (a checkable menu item kept in sync with the
+toolbar checkbox).
+
+When Log Y mode is active:
+
+- The y-axis coordinate mapping uses `log₁₀` of each data value instead of the
+  raw value. All data-to-screen and screen-to-data conversions operate in log space.
+- Points whose `Stat_Value` is ≤ 0 are **skipped** (not plotted).
+- Control limit lines (UCL, CL, LCL) with a value ≤ 0 are **skipped** (not drawn).
+- Y-axis tick marks are placed at decade boundaries (1, 10, 100, 1 000, …) within
+  the visible y-range. Tick density adjusts to the plot height; intermediate decade
+  ticks are added or removed gracefully.
+- Mouse-wheel zoom on the y-axis margin operates in log space (multiplicative, not
+  additive).
+- Click-and-drag pan on the chart background pans the y-axis in log space
+  (multiplicative delta).
+- **Y-Fit** fits the y-range to all visible, positive-valued data points (and
+  positive UCL/LCL), with a 10 % multiplicative margin.
+
+*Persistence:* `Log_Y_Mode` is stored in the workspace file (JSON field
+`"logYMode"`, boolean, default `false`). It is loaded and applied when the
+workspace is opened and saved when the workspace is saved.
+
 ### 7.4 Toolbar
 
 ```
-[From: YYYY-MM-DD HH:MM ▼]  [To: YYYY-MM-DD HH:MM ▼]  [Show All]  [Y-Fit]  [Run Sequence ☐]
+[From: YYYY-MM-DD HH:MM ▼]  [To: YYYY-MM-DD HH:MM ▼]  [Show All]  [Y-Fit]  [Run Sequence ☐]  [Log Y ☐]
 ```
 
 - **From / To pickers:** GtkEntry with a GtkCalendar popover and time spinners.
@@ -1549,6 +1576,9 @@ to **Time Scale** each time the application starts.
   workspace (subject to model filter).
 - **Y-Fit:** rescales the y-axis to fit all points currently visible in the x-range,
   with a 10% margin above and below.
+- **Run Sequence ☐:** toggles between Time Scale and Run Sequence x-axis modes
+  (see Section 7.3.5).
+- **Log Y ☐:** enables y-axis logarithmic (base-10 decade) scaling (see Section 7.3.6).
 
 ### 7.5 Menu Bar
 
@@ -1576,6 +1606,7 @@ to **Time Scale** each time the application starts.
 - Select Setup Interval  (grayed out if not established; selects all current setup interval points)
 - ─
 - X-Axis: Run Sequence  (checkable; toggles between Time Scale and Run Sequence modes; see Section 7.3.5)
+- Y-Axis: Log Scale  (checkable; enables y-axis log scale; see Section 7.3.6; kept in sync with toolbar)
 
 ---
 
@@ -1611,6 +1642,7 @@ anchored to that marker. The tooltip contains:
 "Refactor the authentication module to use..."
 
 Input: 24,831 tokens   Output: 6,204 tokens
+CL: 12,451   UCL: 18,092   LCL: 6,809
 
 Comments: 1
 ```
@@ -1621,6 +1653,7 @@ Fields:
 - Source directory (home directory abbreviated to `~`).
 - Truncated first user message, max 80 characters, ellipsis appended if truncated.
 - Total input and output tokens for the session.
+- Control limits and center line for the active chart at this point. `CL` is always shown; `UCL` is shown only when `Has_UCL = True`; `LCL` is shown only when `Has_LCL = True`. Omitted entirely when the session is not present in the active chart's point set.
 - Comment count (omitted if zero).
 
 The tooltip is dismissed when the cursor moves beyond 12 pixels from the point.

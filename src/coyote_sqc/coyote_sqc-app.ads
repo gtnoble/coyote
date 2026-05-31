@@ -40,6 +40,7 @@ package Coyote_SQC.App is
       Has_Comment   : Boolean := False;  --  session has a comment
       Has_UCL       : Boolean := False;  --  UCL line should be drawn
       Has_LCL       : Boolean := False;  --  LCL line should be drawn
+      Has_CL        : Boolean := False;  --  CL line should be drawn
    end record;
 
    package Chart_Point_Vectors is new Ada.Containers.Vectors
@@ -86,10 +87,26 @@ package Coyote_SQC.App is
       Zero_Thinking,
       Zero_Tool_Call_Turns);
 
+   --  Result type for a single session observation.  The Valid discriminant
+   --  distinguishes "this session contributes an observation" (Valid = True)
+   --  from "this session must be excluded from this chart" (Valid = False,
+   --  e.g. zero denominator for a ratio chart).  Using a discriminated type
+   --  prevents callers from accidentally using an exclusion signal value
+   --  in arithmetic.
+   type Observation_Result (Valid : Boolean := False) is record
+      case Valid is
+         when True  => Value : Long_Float;
+         when False => null;
+      end case;
+   end record;
+
    --  Extracts a single Long_Float scalar observation from a
-   --  Session_Metrics_Record.  Returns Long_Float'First to signal exclusion.
+   --  Session_Metrics_Record.  Returns (Valid => False) when the session
+   --  must be excluded from this chart (e.g. zero denominator for a ratio
+   --  chart).
    type Metric_Accessor is access function
-     (M : Coyote_SQC.Data_Model.Session_Metrics_Record) return Long_Float;
+     (M : Coyote_SQC.Data_Model.Session_Metrics_Record)
+     return Observation_Result;
 
    --  Extracts the per-turn subgroup vector from a Session_Metrics_Record.
    type Subgroup_Accessor is access function
@@ -177,6 +194,7 @@ package Coyote_SQC.App is
       Set_Selection_As_Setup_Item : Gtk.Menu_Item.Gtk_Menu_Item;
       Select_Setup_Interval_Item  : Gtk.Menu_Item.Gtk_Menu_Item;
       Run_Sequence_Item : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
+      Log_Y_Item        : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
       Run_Sequence_Mode : Boolean := False;
       Content_Paned    : Gtk.Paned.Gtk_Paned;
       Left_Scroll      : Gtk.Scrolled_Window.Gtk_Scrolled_Window;

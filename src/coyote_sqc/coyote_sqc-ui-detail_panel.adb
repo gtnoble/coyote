@@ -809,12 +809,12 @@ package body Coyote_SQC.UI.Detail_Panel is
               Props.Y_Axis_Label;
          begin
             if CD.Transform_Active /= Coyote_SQC.Data_Model.None
-              and then Active in Session_Input_Tokens_I
-                               | Session_Output_Tokens_I
-                               | Session_Cache_Read_Tokens_I
-                               | Session_Cache_Write_Tokens_I
+              and then (Props.Is_I_Chart
+                        or else (Props.Is_Xbar_S_Chart
+                                 and then not Props.Is_S_Chart)
+                        or else Props.Is_EWMA_Chart)
             then
-               --  I-chart: Stat_Value is raw; transform to matched space.
+               --  I/Xbar/EWMA chart: Stat_Value is original space; transform to z-space.
                for K in 1 .. N_Vals loop
                   if Vals (K) > 0.0
                      or else (CD.Transform_Active /=
@@ -842,11 +842,57 @@ package body Coyote_SQC.UI.Detail_Panel is
                        (LCL, CD.Transform_Active, CD.Transform_Lambda);
                   end if;
                end if;
+            elsif CD.MR_Transform_Active /= Coyote_SQC.Data_Model.None
+              and then Props.Is_MR_Chart
+            then
+               --  MR-chart: Stat_Value is raw original-space |x_i - x_{i-1}|;
+               --  transform to the MR transformed space using MR lambda.
+               for K in 1 .. N_Vals loop
+                  if Vals (K) > 0.0
+                     or else (CD.MR_Transform_Active /=
+                                Coyote_SQC.Data_Model.Box_Cox
+                              and then Vals (K) >= 0.0)
+                     or else CD.MR_Transform_Active =
+                               Coyote_SQC.Data_Model.Arcsinh_VS
+                  then
+                     Vals (K) := Coyote_SQC.Statistics.I_Chart.Apply_Transform
+                       (Vals (K), CD.MR_Transform_Active,
+                        CD.MR_Transform_Lambda);
+                  end if;
+               end loop;
+               --  Re-transform back-transformed limits to transformed space.
+               if Got_Lims then
+                  if CL > 0.0 then
+                     CL := Coyote_SQC.Statistics.I_Chart.Apply_Transform
+                       (CL, CD.MR_Transform_Active, CD.MR_Transform_Lambda);
+                  end if;
+                  if Has_UCL and then UCL > 0.0 then
+                     UCL := Coyote_SQC.Statistics.I_Chart.Apply_Transform
+                       (UCL, CD.MR_Transform_Active, CD.MR_Transform_Lambda);
+                  end if;
+                  if Has_LCL and then LCL > 0.0 then
+                     LCL := Coyote_SQC.Statistics.I_Chart.Apply_Transform
+                       (LCL, CD.MR_Transform_Active, CD.MR_Transform_Lambda);
+                  end if;
+               end if;
             end if;
             --  Append transform annotation to x-axis label.
-            if CD.Transform_Active /= Coyote_SQC.Data_Model.None then
+            if (Props.Is_MR_Chart
+                and then CD.MR_Transform_Active /= Coyote_SQC.Data_Model.None)
+              or else (not Props.Is_MR_Chart
+                       and then CD.Transform_Active /=
+                                  Coyote_SQC.Data_Model.None)
+            then
                declare
                   use Coyote_SQC.Data_Model;
+                  Eff_Active : constant Coyote_SQC.Data_Model.Transform_Kind :=
+                    (if Props.Is_MR_Chart
+                     then CD.MR_Transform_Active
+                     else CD.Transform_Active);
+                  Eff_Lambda : constant Long_Float :=
+                    (if Props.Is_MR_Chart
+                     then CD.MR_Transform_Lambda
+                     else CD.Transform_Lambda);
                   function Format_Lambda (V : Long_Float) return String is
                      use Ada.Strings.Fixed;
                      IV : constant Long_Long_Integer :=
@@ -862,9 +908,9 @@ package body Coyote_SQC.UI.Detail_Panel is
                                Ada.Strings.Left);
                   end Format_Lambda;
                   Suffix : constant String :=
-                    (case CD.Transform_Active is
+                    (case Eff_Active is
                        when Box_Cox =>
-                         Lambda_Sym & "=" & Format_Lambda (CD.Transform_Lambda),
+                         Lambda_Sym & "=" & Format_Lambda (Eff_Lambda),
                        when Sqrt_VS       => (1 => Character'Val (16#E2#),
                                               2 => Character'Val (16#88#),
                                               3 => Character'Val (16#9A#)),

@@ -1866,6 +1866,10 @@ package body Test_Suites is
         ("SQC workspace: Anscombe transform round-trips through save/load",
          Coyote_SQC_Workspace_Tests
            .Test_Anscombe_Transform_Round_Trip'Access));
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("SQC workspace: logYMode round-trips through workspace save/load",
+         Coyote_SQC_Workspace_Tests
+           .Test_Log_Y_Mode_Round_Trip'Access));
       --  Coyote_SQC histogram bin computation tests
       Result.Add_Test (SQC_Histogram_Caller.Create
         ("SQC histogram: n=2 uniform: FD gives 2 bins",

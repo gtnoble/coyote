@@ -5,6 +5,7 @@
 with Ada.Calendar;
 with Ada.Calendar.Formatting;
 with Ada.Numerics;
+with Ada.Numerics.Long_Elementary_Functions;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
 with Cairo;                  use Cairo;
@@ -61,16 +62,43 @@ package body Coyote_SQC.UI.Chart_Canvas is
       return Long_Float (Margin_Left)
         + (DX - State.Canvas_St.X_Min) / R * W;
    end Data_To_Screen_X;
-
    function Data_To_Screen_Y (DY : Long_Float) return Long_Float is
+      use Ada.Numerics.Long_Elementary_Functions;
       H : constant Long_Float := Plot_Height;
-      R : constant Long_Float := State.Canvas_St.Y_Max - State.Canvas_St.Y_Min;
    begin
-      if R = 0.0 then return Long_Float (Margin_Top); end if;
-      --  Y screen is inverted.
-      return Long_Float (Margin_Top)
-        + (State.Canvas_St.Y_Max - DY) / R * H;
+      if State.Workspace.Log_Y_Mode then
+         if DY <= 0.0
+           or else State.Canvas_St.Y_Min <= 0.0
+           or else State.Canvas_St.Y_Max <= 0.0
+         then
+            --  Non-positive value in log mode: return off-screen sentinel.
+            return Long_Float (Margin_Top) - 1000.0;
+         end if;
+         declare
+            Log_Min : constant Long_Float :=
+              Log (State.Canvas_St.Y_Min);
+            Log_Max : constant Long_Float :=
+              Log (State.Canvas_St.Y_Max);
+            Log_DY  : constant Long_Float := Log (DY);
+            Log_R   : constant Long_Float := Log_Max - Log_Min;
+         begin
+            if Log_R = 0.0 then return Long_Float (Margin_Top); end if;
+            --  Y screen is inverted: higher data values → smaller screen Y.
+            return Long_Float (Margin_Top)
+              + (Log_Max - Log_DY) / Log_R * H;
+         end;
+      end if;
+      --  Linear mode.
+      declare
+         R : constant Long_Float :=
+           State.Canvas_St.Y_Max - State.Canvas_St.Y_Min;
+      begin
+         if R = 0.0 then return Long_Float (Margin_Top); end if;
+         return Long_Float (Margin_Top)
+           + (State.Canvas_St.Y_Max - DY) / R * H;
+      end;
    end Data_To_Screen_Y;
+
 
    function Screen_To_Data_X (SX : Long_Float) return Long_Float is
       W : constant Long_Float := Plot_Width;
@@ -80,15 +108,36 @@ package body Coyote_SQC.UI.Chart_Canvas is
         + (SX - Long_Float (Margin_Left)) / W
           * (State.Canvas_St.X_Max - State.Canvas_St.X_Min);
    end Screen_To_Data_X;
-
    function Screen_To_Data_Y (SY : Long_Float) return Long_Float is
+      use Ada.Numerics.Long_Elementary_Functions;
       H : constant Long_Float := Plot_Height;
    begin
+      if State.Workspace.Log_Y_Mode then
+         if State.Canvas_St.Y_Min <= 0.0
+           or else State.Canvas_St.Y_Max <= 0.0
+         then
+            return State.Canvas_St.Y_Min;
+         end if;
+         declare
+            Log_Min : constant Long_Float :=
+              Log (State.Canvas_St.Y_Min);
+            Log_Max : constant Long_Float :=
+              Log (State.Canvas_St.Y_Max);
+            Log_R   : constant Long_Float := Log_Max - Log_Min;
+         begin
+            if H = 0.0 then return State.Canvas_St.Y_Min; end if;
+            return Exp
+              (Log_Max
+               - (SY - Long_Float (Margin_Top)) / H * Log_R);
+         end;
+      end if;
+      --  Linear mode.
       if H = 0.0 then return State.Canvas_St.Y_Min; end if;
       return State.Canvas_St.Y_Max
         - (SY - Long_Float (Margin_Top)) / H
           * (State.Canvas_St.Y_Max - State.Canvas_St.Y_Min);
    end Screen_To_Data_Y;
+
 
    --  ── Time helpers ──────────────────────────────────────────────────────
 
@@ -318,7 +367,9 @@ package body Coyote_SQC.UI.Chart_Canvas is
       function Vis (P : Coyote_SQC.App.Chart_Point) return Boolean is
         ((not P.Excluded or else P.Hollow_Gray)
          and then Time_To_LF (P.Session_Time) >= Date_From_LF
-         and then Time_To_LF (P.Session_Time) <= Date_To_LF);
+         and then Time_To_LF (P.Session_Time) <= Date_To_LF
+         and then (not State.Workspace.Log_Y_Mode
+                   or else P.Stat_Value > 0.0));
 
 
       function SX (P : Coyote_SQC.App.Chart_Point) return Gdouble is
@@ -427,6 +478,7 @@ package body Coyote_SQC.UI.Chart_Canvas is
                  and then not P.Hollow_Gray
                  and then not P.Single_Turn
                  and then P.Has_UCL
+                 and then (not State.Workspace.Log_Y_Mode or else P.UCL > 0.0)
                then
                   if Need_Move then
                      Cairo.Move_To (Cr, SX (P),
@@ -449,6 +501,7 @@ package body Coyote_SQC.UI.Chart_Canvas is
                  and then not P.Hollow_Gray
                  and then not P.Single_Turn
                  and then P.Has_LCL
+                 and then (not State.Workspace.Log_Y_Mode or else P.LCL > 0.0)
                then
                   if Need_Move then
                      Cairo.Move_To (Cr, SX (P),
@@ -483,7 +536,12 @@ package body Coyote_SQC.UI.Chart_Canvas is
       end if;
       declare Need_Move : Boolean := True; begin
          for P of CD.Points loop
-            if not P.Excluded and then not P.Hollow_Gray and then not P.Single_Turn then
+            if not P.Excluded
+              and then not P.Hollow_Gray
+              and then not P.Single_Turn
+              and then P.Has_CL
+              and then (not State.Workspace.Log_Y_Mode or else P.CL > 0.0)
+            then
                if Need_Move then
                   Cairo.Move_To (Cr, SX (P),
                     Gdouble (Data_To_Screen_Y (P.CL)));
@@ -651,28 +709,56 @@ package body Coyote_SQC.UI.Chart_Canvas is
          end loop;
       end;
 
-      --  Y tick marks and value labels (density scaled to plot height).
-      declare
-         N_Ticks : constant Natural :=
-           Natural'Max (2, Natural'Min (10,
-             Natural (Plot_Height / 50.0)));
-         Step    : constant Long_Float :=
-           (CS.Y_Max - CS.Y_Min) / Long_Float (N_Ticks);
-      begin
-         for I in 0 .. N_Ticks loop
-            declare
-               V   : constant Long_Float := CS.Y_Min + Long_Float (I) * Step;
-               TY  : constant Gdouble    := Gdouble (Data_To_Screen_Y (V));
-               Lbl : constant String     := Format_Y (V);
-            begin
-               Set_Color (Cr, 0.0, 0.0, 0.0, 0.8);
-               Cairo.Move_To (Cr, ML, TY);
-               Cairo.Line_To (Cr, ML - 5.0, TY);
-               Cairo.Stroke (Cr);
-               Draw_Text (Cr, 2.0, TY + 4.0, Lbl);
-            end;
-         end loop;
-      end;
+      --  Y tick marks and value labels.
+      if State.Workspace.Log_Y_Mode
+        and then CS.Y_Min > 0.0 and then CS.Y_Max > 0.0
+      then
+         --  Log mode: decade ticks (powers of 10).
+         declare
+            Decade : Long_Float := 1.0e-15;
+         begin
+            --  Advance to the largest power of 10 that is ≤ Y_Min.
+            while Decade * 10.0 <= CS.Y_Min loop
+               Decade := Decade * 10.0;
+            end loop;
+            while Decade <= CS.Y_Max * 1.001 loop
+               declare
+                  TY  : constant Gdouble := Gdouble (Data_To_Screen_Y (Decade));
+                  Lbl : constant String  := Format_Y (Decade);
+               begin
+                  Set_Color (Cr, 0.0, 0.0, 0.0, 0.8);
+                  Cairo.Move_To (Cr, ML, TY);
+                  Cairo.Line_To (Cr, ML - 5.0, TY);
+                  Cairo.Stroke (Cr);
+                  Draw_Text (Cr, 2.0, TY + 4.0, Lbl);
+               end;
+               Decade := Decade * 10.0;
+            end loop;
+         end;
+      else
+         --  Linear mode: evenly-spaced ticks (density scaled to plot height).
+         declare
+            N_Ticks : constant Natural :=
+              Natural'Max (2, Natural'Min (10,
+                Natural (Plot_Height / 50.0)));
+            Step    : constant Long_Float :=
+              (CS.Y_Max - CS.Y_Min) / Long_Float (N_Ticks);
+         begin
+            for I in 0 .. N_Ticks loop
+               declare
+                  V   : constant Long_Float := CS.Y_Min + Long_Float (I) * Step;
+                  TY  : constant Gdouble    := Gdouble (Data_To_Screen_Y (V));
+                  Lbl : constant String     := Format_Y (V);
+               begin
+                  Set_Color (Cr, 0.0, 0.0, 0.0, 0.8);
+                  Cairo.Move_To (Cr, ML, TY);
+                  Cairo.Line_To (Cr, ML - 5.0, TY);
+                  Cairo.Stroke (Cr);
+                  Draw_Text (Cr, 2.0, TY + 4.0, Lbl);
+               end;
+            end loop;
+         end;
+      end if;
       --  Y-axis label (rotated).
       declare
          Y_Label : constant String := To_String (Props.Y_Axis_Label);
@@ -1066,19 +1152,40 @@ package body Coyote_SQC.UI.Chart_Canvas is
       if CS.Drag_Active then
          --  Pan: dx/dy in data space.
          declare
-            PW : constant Long_Float := Plot_Width;
-            PH : constant Long_Float := Plot_Height;
+            use Ada.Numerics.Long_Elementary_Functions;
+            PW   : constant Long_Float := Plot_Width;
+            PH   : constant Long_Float := Plot_Height;
             DX_D : constant Long_Float :=
               (MX - CS.Drag_Start.X) / PW
               * (CS.Drag_X_Max - CS.Drag_X_Min);
-            DY_D : constant Long_Float :=
-              (MY - CS.Drag_Start.Y) / PH
-              * (CS.Drag_Y_Max - CS.Drag_Y_Min);
          begin
+            if PW <= 0.0 or else PH <= 0.0 then return False; end if;
             CS.X_Min := CS.Drag_X_Min - DX_D;
             CS.X_Max := CS.Drag_X_Max - DX_D;
-            CS.Y_Min := CS.Drag_Y_Min + DY_D;
-            CS.Y_Max := CS.Drag_Y_Max + DY_D;
+            if State.Workspace.Log_Y_Mode
+              and then CS.Drag_Y_Min > 0.0
+              and then CS.Drag_Y_Max > 0.0
+            then
+               --  Log-space pan: multiplicative delta.
+               declare
+                  Log_DY_D : constant Long_Float :=
+                    (MY - CS.Drag_Start.Y) / PH
+                    * (Log (CS.Drag_Y_Max) - Log (CS.Drag_Y_Min));
+               begin
+                  CS.Y_Min := CS.Drag_Y_Min * Exp (Log_DY_D);
+                  CS.Y_Max := CS.Drag_Y_Max * Exp (Log_DY_D);
+               end;
+            else
+               --  Linear pan.
+               declare
+                  DY_D : constant Long_Float :=
+                    (MY - CS.Drag_Start.Y) / PH
+                    * (CS.Drag_Y_Max - CS.Drag_Y_Min);
+               begin
+                  CS.Y_Min := CS.Drag_Y_Min + DY_D;
+                  CS.Y_Max := CS.Drag_Y_Max + DY_D;
+               end;
+            end if;
             State.Date_From := LF_To_Time (CS.X_Min);
             Update_Dates_From_X;
             Queue_Redraw;
@@ -1143,8 +1250,25 @@ package body Coyote_SQC.UI.Chart_Canvas is
       if In_Y_Margin then
          --  Y-axis zoom.
          CY_Data := Screen_To_Data_Y (MY);
-         CS.Y_Min := CY_Data + (CS.Y_Min - CY_Data) / Factor;
-         CS.Y_Max := CY_Data + (CS.Y_Max - CY_Data) / Factor;
+         if State.Workspace.Log_Y_Mode
+           and then CY_Data > 0.0
+           and then CS.Y_Min > 0.0 and then CS.Y_Max > 0.0
+         then
+            declare
+               use Ada.Numerics.Long_Elementary_Functions;
+               Log_CY    : constant Long_Float := Log (CY_Data);
+               New_Log_Min : constant Long_Float :=
+                 Log_CY + (Log (CS.Y_Min) - Log_CY) / Factor;
+               New_Log_Max : constant Long_Float :=
+                 Log_CY + (Log (CS.Y_Max) - Log_CY) / Factor;
+            begin
+               CS.Y_Min := Long_Float'Max (1.0e-10, Exp (New_Log_Min));
+               CS.Y_Max := Exp (New_Log_Max);
+            end;
+         else
+            CS.Y_Min := CY_Data + (CS.Y_Min - CY_Data) / Factor;
+            CS.Y_Max := CY_Data + (CS.Y_Max - CY_Data) / Factor;
+         end if;
       else
          --  X-axis zoom.
          CX_Data := Screen_To_Data_X (MX);

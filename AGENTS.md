@@ -223,10 +223,10 @@ src/coyote_sqc/              -- coyote_sqc application packages
                           --   Compute_MR_Limits; Box_Cox, Box_Cox_Inverse, Apply_Transform, Invert_Transform,
                           --   Sqrt_VS, Anscombe, Arcsinh_VS, Freeman_Tukey (variance-stab. transforms);
                           --   Estimate_Lambda (Box-Cox MLE for I/MR charts)
-  coyote_sqc-workspace.ads/.adb    -- Load/Save .sqcw JSON (version 8); New_UUID;
+  coyote_sqc-workspace.ads/.adb    -- Load/Save .sqcw JSON (version 9); New_UUID;
                           --   Load takes Version_Found : out Natural for
                           --   missing-version warning; Workspace_Error for
-                          --   version > 8; Chart_Settings_Maps per-chart config round-trip
+                          --   version > 9; Chart_Settings_Maps per-chart config round-trip
   coyote_sqc-workspace-integrity.ads/.adb -- Check/Remove_Missing for setup interval
   coyote_sqc-ui.ads/.adb           -- Build_Main_Window; all File/Workspace/View menu
                           --   callbacks; three-panel GTK layout

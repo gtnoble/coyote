@@ -34,6 +34,13 @@ package Coyote_SQC.Statistics is
       --  robust = Qn_Scale_Any (setup-interval observations) / 2.2219.
       --  Overridden with z-space value by Box-Cox blocks in Recompute_Chart.
       I_Sigma    : Long_Float := 0.0;
+      --  True when at least one eligible session contributed to the
+      --  estimate; False when no setup-interval data was accumulated
+      --  (e.g. no sessions loaded, or all sessions excluded by the
+      --  chart's exclusion rule).  When False, callers must not use
+      --  Grand_Mean / Pooled_S / Grand_P / I_Sigma / Mean_MR as chart
+      --  parameters, because they retain their default value of 0.0.
+      Parameters_Valid : Boolean := False;
    end record;
 
    --  Estimate grand mean / pooled s (Xbar/s charts) or grand p (p charts)

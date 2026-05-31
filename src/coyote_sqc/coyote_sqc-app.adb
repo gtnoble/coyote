@@ -318,100 +318,127 @@ package body Coyote_SQC.App is
 
    --  ── Metric accessor functions ─────────────────────────────────────────
    --
-   --  Each function extracts one Long_Float scalar from a metrics record.
-   --  Returns Long_Float'First to signal that the session must be excluded
-   --  (e.g. zero denominator for ratio charts).  Used via Metric_Accessor
-   --  function pointers stored in Chart_Descriptor.
+   --  Each function extracts one scalar observation from a metrics record
+   --  and returns it as an Observation_Result.  When the session cannot
+   --  contribute a valid observation for this chart (e.g. zero denominator
+   --  for a ratio chart), the function returns (Valid => False).  Using a
+   --  discriminated result type prevents callers from accidentally using an
+   --  excluded-session signal value in arithmetic.
 
-   function Obs_Input_Tokens (M : Session_Metrics_Record) return Long_Float is
+   function Obs_Input_Tokens
+     (M : Session_Metrics_Record) return Observation_Result is
    begin
-      return Long_Float (M.Total_Input_Tokens);
+      return (Valid => True, Value => Long_Float (M.Total_Input_Tokens));
    end Obs_Input_Tokens;
 
-   function Obs_Output_Tokens (M : Session_Metrics_Record) return Long_Float is
+   function Obs_Output_Tokens
+     (M : Session_Metrics_Record) return Observation_Result is
    begin
-      return Long_Float (M.Total_Output_Tokens);
+      return (Valid => True, Value => Long_Float (M.Total_Output_Tokens));
    end Obs_Output_Tokens;
 
-   function Obs_Cache_Read (M : Session_Metrics_Record) return Long_Float is
+   function Obs_Cache_Read
+     (M : Session_Metrics_Record) return Observation_Result is
    begin
-      return Long_Float (M.Total_Cache_Read_Tokens);
+      return (Valid => True, Value => Long_Float (M.Total_Cache_Read_Tokens));
    end Obs_Cache_Read;
 
-   function Obs_Cache_Write (M : Session_Metrics_Record) return Long_Float is
+   function Obs_Cache_Write
+     (M : Session_Metrics_Record) return Observation_Result is
    begin
-      return Long_Float (M.Total_Cache_Write_Tokens);
+      return (Valid => True, Value => Long_Float (M.Total_Cache_Write_Tokens));
    end Obs_Cache_Write;
 
-   function Obs_Thinking_Tokens (M : Session_Metrics_Record) return Long_Float is
+   function Obs_Thinking_Tokens
+     (M : Session_Metrics_Record) return Observation_Result is
    begin
-      return Long_Float (M.Total_Thinking_Tokens);
+      return (Valid => True, Value => Long_Float (M.Total_Thinking_Tokens));
    end Obs_Thinking_Tokens;
 
-   function Obs_Tool_Call_Tokens (M : Session_Metrics_Record) return Long_Float is
+   function Obs_Tool_Call_Tokens
+     (M : Session_Metrics_Record) return Observation_Result is
    begin
-      return Long_Float (M.Total_Tool_Call_Input_Tokens);
+      return
+        (Valid => True, Value => Long_Float (M.Total_Tool_Call_Input_Tokens));
    end Obs_Tool_Call_Tokens;
 
    function Obs_Tool_Result_Tokens
-     (M : Session_Metrics_Record) return Long_Float is
+     (M : Session_Metrics_Record) return Observation_Result is
    begin
-      return Long_Float (M.Total_Tool_Call_Result_Tokens);
+      return
+        (Valid => True,
+         Value => Long_Float (M.Total_Tool_Call_Result_Tokens));
    end Obs_Tool_Result_Tokens;
 
-   function Obs_Uncached_Input (M : Session_Metrics_Record) return Long_Float is
+   function Obs_Uncached_Input
+     (M : Session_Metrics_Record) return Observation_Result is
    begin
-      return Long_Float (M.Total_Uncached_Input_Tokens);
+      return
+        (Valid => True,
+         Value => Long_Float (M.Total_Uncached_Input_Tokens));
    end Obs_Uncached_Input;
 
-   function Obs_Turn_Count (M : Session_Metrics_Record) return Long_Float is
+   function Obs_Turn_Count
+     (M : Session_Metrics_Record) return Observation_Result is
    begin
-      return Long_Float (M.N_Turns);
+      return (Valid => True, Value => Long_Float (M.N_Turns));
    end Obs_Turn_Count;
 
    --  Ratio accessor: thinking tokens / output tokens.
-   --  Returns Long_Float'First when Total_Output_Tokens = 0 (excluded).
+   --  Returns (Valid => False) when Total_Output_Tokens = 0 (session
+   --  excluded from this chart).
    function Obs_Frac_Thinking
-     (M : Session_Metrics_Record) return Long_Float is
+     (M : Session_Metrics_Record) return Observation_Result is
    begin
       if M.Total_Output_Tokens = 0 then
-         return Long_Float'First;
+         return (Valid => False);
       end if;
-      return Long_Float (M.Total_Thinking_Tokens)
-             / Long_Float (M.Total_Output_Tokens);
+      return
+        (Valid => True,
+         Value => Long_Float (M.Total_Thinking_Tokens)
+                  / Long_Float (M.Total_Output_Tokens));
    end Obs_Frac_Thinking;
 
    --  Ratio accessor: tool-call input tokens / output tokens.
+   --  Returns (Valid => False) when Total_Output_Tokens = 0.
    function Obs_Frac_Tool_Call
-     (M : Session_Metrics_Record) return Long_Float is
+     (M : Session_Metrics_Record) return Observation_Result is
    begin
       if M.Total_Output_Tokens = 0 then
-         return Long_Float'First;
+         return (Valid => False);
       end if;
-      return Long_Float (M.Total_Tool_Call_Input_Tokens)
-             / Long_Float (M.Total_Output_Tokens);
+      return
+        (Valid => True,
+         Value => Long_Float (M.Total_Tool_Call_Input_Tokens)
+                  / Long_Float (M.Total_Output_Tokens));
    end Obs_Frac_Tool_Call;
 
    --  Ratio accessor: thinking tokens / tool-call input tokens.
+   --  Returns (Valid => False) when Total_Tool_Call_Input_Tokens = 0.
    function Obs_Frac_Thinking_Per_Tool
-     (M : Session_Metrics_Record) return Long_Float is
+     (M : Session_Metrics_Record) return Observation_Result is
    begin
       if M.Total_Tool_Call_Input_Tokens = 0 then
-         return Long_Float'First;
+         return (Valid => False);
       end if;
-      return Long_Float (M.Total_Thinking_Tokens)
-             / Long_Float (M.Total_Tool_Call_Input_Tokens);
+      return
+        (Valid => True,
+         Value => Long_Float (M.Total_Thinking_Tokens)
+                  / Long_Float (M.Total_Tool_Call_Input_Tokens));
    end Obs_Frac_Thinking_Per_Tool;
 
    --  Ratio accessor: uncached input tokens / total input tokens.
+   --  Returns (Valid => False) when Total_Input_Tokens = 0.
    function Obs_Frac_Uncached_Input
-     (M : Session_Metrics_Record) return Long_Float is
+     (M : Session_Metrics_Record) return Observation_Result is
    begin
       if M.Total_Input_Tokens = 0 then
-         return Long_Float'First;
+         return (Valid => False);
       end if;
-      return Long_Float (M.Total_Uncached_Input_Tokens)
-             / Long_Float (M.Total_Input_Tokens);
+      return
+        (Valid => True,
+         Value => Long_Float (M.Total_Uncached_Input_Tokens)
+                  / Long_Float (M.Total_Input_Tokens));
    end Obs_Frac_Uncached_Input;
 
    --  ── Subgroup accessor functions ───────────────────────────────────────
@@ -440,14 +467,15 @@ package body Coyote_SQC.App is
       return M.Per_Consecutive_Tool_S;
    end Sub_JSD_S;
    --  Obs_Tool_JSD_Sum: session-total JSD similarity score.
-   --  Returns Long_Float'First when there are no consecutive tool-call pairs
-   --  (< 2 non-empty tool calls in the session), signalling exclusion.
-   function Obs_Tool_JSD_Sum (M : Session_Metrics_Record) return Long_Float is
+   --  Returns (Valid => False) when there are no consecutive tool-call pairs
+   --  (fewer than 2 non-empty tool calls in the session).
+   function Obs_Tool_JSD_Sum
+     (M : Session_Metrics_Record) return Observation_Result is
    begin
       if M.N_Consecutive_Tool_Pairs = 0 then
-         return Long_Float'First;
+         return (Valid => False);
       end if;
-      return M.Total_Tool_Call_JSD_S;
+      return (Valid => True, Value => M.Total_Tool_Call_JSD_S);
    end Obs_Tool_JSD_Sum;
 
    --  Descriptor — return a self-contained descriptor for Kind.
@@ -605,7 +633,7 @@ package body Coyote_SQC.App is
          use Data_Model;
       begin
          case Kind is
-            when Arcsinh_VS    => return True;
+            when Arcsinh_VS    => return V > Long_Float'First;
             when Box_Cox       => return V > 0.0;
             when None | Sqrt_VS | Anscombe | Freeman_Tukey =>
                return V >= 0.0;
@@ -641,12 +669,15 @@ package body Coyote_SQC.App is
                            (M.Session_Id)
                then
                   declare
-                     Val : constant Long_Float :=
+                     Obs_R : constant Observation_Result :=
                        Dsc.Get_Observation (M);
                   begin
-                     if Transform_Domain_OK (Val, Chart_Cfg.Transform.Kind) then
+                     if Obs_R.Valid
+                       and then Transform_Domain_OK
+                                  (Obs_R.Value, Chart_Cfg.Transform.Kind)
+                     then
                         N_Raw := N_Raw + 1;
-                        Raw (N_Raw) := Val;
+                        Raw (N_Raw) := Obs_R.Value;
                      else
                         N_Zero := N_Zero + 1;
                      end if;
@@ -667,7 +698,7 @@ package body Coyote_SQC.App is
             then
                Lambda := Chart_Cfg.Transform.Fixed_Lambda;
             else
-               if N_Raw >= 3 then
+               if Chart_Cfg.Transform.Kind = Data_Model.Box_Cox and then N_Raw >= 3 then
                   declare
                      Fallback : Boolean;
                   begin
@@ -754,8 +785,15 @@ package body Coyote_SQC.App is
                  or else State.Workspace.Setup_Session_Ids.Contains
                            (M.Session_Id)
                then
-                  N_R := N_R + 1;
-                  Raws (N_R) := Dsc.Get_Observation (M);
+                  declare
+                     Obs_R : constant Observation_Result :=
+                       Dsc.Get_Observation (M);
+                  begin
+                     if Obs_R.Valid then
+                        N_R := N_R + 1;
+                        Raws (N_R) := Obs_R.Value;
+                     end if;
+                  end;
                end if;
             end loop;
 
@@ -793,7 +831,7 @@ package body Coyote_SQC.App is
                   then
                      Lambda_MR :=
                        Chart_Cfg.Transform.Fixed_Lambda;
-                  elsif N_MR >= 3 then
+                  elsif Chart_Cfg.Transform.Kind = Data_Model.Box_Cox and then N_MR >= 3 then
                      declare
                         Fallback : Boolean;
                      begin
@@ -1062,35 +1100,37 @@ package body Coyote_SQC.App is
                       | Session_Turn_Count_MR
             then
                declare
-                  Cur : constant Long_Float :=
+                  Obs_R : constant Observation_Result :=
                     Dsc.Get_Observation (M);
                begin
                   --  MR points are always original-space absolute differences.
-                  if Has_Prev_Total then
-                     Value := abs (Cur - Prev_Total);
-                     Excl  := False;
+                  if Obs_R.Valid then
+                     if Has_Prev_Total then
+                        Value := abs (Obs_R.Value - Prev_Total);
+                        Excl  := False;
+                     end if;
+                     Prev_Total     := Obs_R.Value;
+                     Has_Prev_Total := True;
                   end if;
-                  Prev_Total     := Cur;
-                  Has_Prev_Total := True;
                end;
             end if;
 
-            --  Fraction I/MR: skip zero-output sessions; ratio-based MR.
+            --  Fraction & JSD-sum I/MR: ratio/JSD accessors return
+            --  (Valid => False) for excluded sessions (zero denominator);
+            --  skip those for MR purposes.
             if Kind in Fraction_Thinking_Tokens_MR | Fraction_Tool_Call_Tokens_MR
-                     | Fraction_Thinking_Per_Tool_Call_MR | Fraction_Uncached_Input_MR
+                     | Fraction_Thinking_Per_Tool_Call_MR | Fraction_Uncached_Input_MR | Session_Tool_Call_JSD_Sum_MR
             then
                declare
-                  Cur : constant Long_Float :=
+                  Obs_R : constant Observation_Result :=
                     Dsc.Get_Observation (M);
                begin
-                  --  Ratio accessor returns Long_Float'First for excluded sessions
-                  --  (zero denominator); skip those for MR purposes.
-                  if Cur /= Long_Float'First then
+                  if Obs_R.Valid then
                      if Has_Prev_Total then
-                        Value := abs (Cur - Prev_Total);
+                        Value := abs (Obs_R.Value - Prev_Total);
                         Excl  := False;
                      end if;
-                     Prev_Total     := Cur;
+                     Prev_Total     := Obs_R.Value;
                      Has_Prev_Total := True;
                   end if;
                end;
@@ -1102,112 +1142,123 @@ package body Coyote_SQC.App is
             --  the plotted statistic and limits are in original token units.
             if Props.Is_EWMA_Chart then
                declare
-                  Raw_X : constant Long_Float :=
+                  Obs_R : constant Observation_Result :=
                     Dsc.Get_Observation (M);
                begin
-                  if CD.Transform_Active /= Data_Model.None
-                    and then Raw_X > 0.0
-                    and then Raw_X /= Long_Float'First
-                  then
+                  if Obs_R.Valid then
                      declare
-                        Z_X : constant Long_Float :=
-                          Statistics.I_Chart.Apply_Transform
-                            (Raw_X, CD.Transform_Active, CD.Transform_Lambda);
-                        Sigma_Z : constant Long_Float := CD.Params.I_Sigma;
+                        Raw_X : constant Long_Float := Obs_R.Value;
                      begin
-                        Z_Ewma_Prev :=
-                          Statistics.EWMA_Chart.Compute_Z
-                            (X      => Z_X,
-                             Z_Prev => Z_Ewma_Prev,
-                             Weight => Chart_Cfg.EWMA_Weight);
-                        T_Ewma := T_Ewma + 1;
-                        --  Assume success; back-transform failures below
-                        --  will reset Excl to True.
-                        Excl := False;
-                        declare
-                           Lim_Z       : constant Statistics.Limits_Record :=
-                             Statistics.EWMA_Chart.Compute_EWMA_Limits
-                               (Grand_Mean => CD.Params.Grand_Mean,
-                                Sigma      => Sigma_Z,
-                                Weight     => Chart_Cfg.EWMA_Weight,
-                                L          => Chart_Cfg.EWMA_L,
-                                T          => T_Ewma);
-                           Inv_UCL     : Long_Float := 0.0;
-                           Has_Inv_UCL : Boolean    := False;
-                           Inv_CL      : Long_Float := 0.0;
-                           Inv_LCL     : Long_Float := 0.0;
-                           Has_Inv_LCL : Boolean    := False;
-                        begin
+                        if CD.Transform_Active /= Data_Model.None
+                          and then Raw_X > 0.0
+                        then
+                           declare
+                              Z_X : constant Long_Float :=
+                                Statistics.I_Chart.Apply_Transform
+                                  (Raw_X, CD.Transform_Active,
+                                   CD.Transform_Lambda);
+                              Sigma_Z : constant Long_Float :=
+                                CD.Params.I_Sigma;
                            begin
-                              Inv_UCL :=
-                                Statistics.I_Chart.Invert_Transform
-                                  (Lim_Z.UCL, CD.Transform_Active, CD.Transform_Lambda);
-                              Has_Inv_UCL := Lim_Z.Has_UCL;
-                           exception
-                              when Constraint_Error => null;
+                              Z_Ewma_Prev :=
+                                Statistics.EWMA_Chart.Compute_Z
+                                  (X      => Z_X,
+                                   Z_Prev => Z_Ewma_Prev,
+                                   Weight => Chart_Cfg.EWMA_Weight);
+                              T_Ewma := T_Ewma + 1;
+                              --  Assume success; back-transform failures below
+                              --  will reset Excl to True.
+                              Excl := False;
+                              declare
+                                 Lim_Z       : constant Statistics.Limits_Record :=
+                                   Statistics.EWMA_Chart.Compute_EWMA_Limits
+                                     (Grand_Mean => CD.Params.Grand_Mean,
+                                      Sigma      => Sigma_Z,
+                                      Weight     => Chart_Cfg.EWMA_Weight,
+                                      L          => Chart_Cfg.EWMA_L,
+                                      T          => T_Ewma);
+                                 Inv_UCL     : Long_Float := 0.0;
+                                 Has_Inv_UCL : Boolean    := False;
+                                 Inv_CL      : Long_Float := 0.0;
+                                 Inv_LCL     : Long_Float := 0.0;
+                                 Has_Inv_LCL : Boolean    := False;
+                              begin
+                                 begin
+                                    Inv_UCL :=
+                                      Statistics.I_Chart.Invert_Transform
+                                        (Lim_Z.UCL, CD.Transform_Active,
+                                         CD.Transform_Lambda);
+                                    Has_Inv_UCL := Lim_Z.Has_UCL;
+                                 exception
+                                    when Constraint_Error => null;
+                                 end;
+                                 begin
+                                    Inv_CL :=
+                                      Statistics.I_Chart.Invert_Transform
+                                        (Lim_Z.CL, CD.Transform_Active,
+                                         CD.Transform_Lambda);
+                                 exception
+                                    when Constraint_Error => Excl := True;
+                                 end;
+                                 if not Excl and then Lim_Z.Has_LCL then
+                                    begin
+                                       Inv_LCL :=
+                                         Statistics.I_Chart.Invert_Transform
+                                           (Lim_Z.LCL, CD.Transform_Active,
+                                            CD.Transform_Lambda);
+                                       Has_Inv_LCL := True;
+                                    exception
+                                       when Constraint_Error => null;
+                                    end;
+                                 end if;
+                                 if not Excl then
+                                    begin
+                                       Value :=
+                                         Statistics.I_Chart.Invert_Transform
+                                           (Z_Ewma_Prev, CD.Transform_Active,
+                                            CD.Transform_Lambda);
+                                       Excl := False;
+                                    exception
+                                       when Constraint_Error => Excl := True;
+                                    end;
+                                 end if;
+                                 if not Excl then
+                                    Limits :=
+                                      (UCL     => Inv_UCL,
+                                       CL      => Inv_CL,
+                                       LCL     => Inv_LCL,
+                                       Has_UCL => Has_Inv_UCL,
+                                       Has_LCL => Has_Inv_LCL);
+                                 end if;
+                              end;
                            end;
+                        elsif CD.Transform_Active = Data_Model.None then
+                           --  No transformation: EWMA in original (token) space.
+                           declare
+                              Sigma : constant Long_Float := CD.Params.I_Sigma;
                            begin
-                              Inv_CL :=
-                                Statistics.I_Chart.Invert_Transform
-                                  (Lim_Z.CL, CD.Transform_Active, CD.Transform_Lambda);
-                           exception
-                              when Constraint_Error => Excl := True;
-                           end;
-                           if not Excl and then Lim_Z.Has_LCL then
-                              begin
-                                 Inv_LCL :=
-                                   Statistics.I_Chart.Invert_Transform
-                                     (Lim_Z.LCL, CD.Transform_Active, CD.Transform_Lambda);
-                                 Has_Inv_LCL := True;
-                              exception
-                                 when Constraint_Error => null;
-                              end;
-                           end if;
-                           if not Excl then
-                              begin
-                                 Value :=
-                                   Statistics.I_Chart.Invert_Transform
-                                     (Z_Ewma_Prev, CD.Transform_Active, CD.Transform_Lambda);
-                                 Excl := False;
-                              exception
-                                 when Constraint_Error => Excl := True;
-                              end;
-                           end if;
-                           if not Excl then
+                              Z_Ewma_Prev :=
+                                Statistics.EWMA_Chart.Compute_Z
+                                  (X      => Raw_X,
+                                   Z_Prev => Z_Ewma_Prev,
+                                   Weight => Chart_Cfg.EWMA_Weight);
+                              T_Ewma := T_Ewma + 1;
                               Limits :=
-                                (UCL     => Inv_UCL,
-                                 CL      => Inv_CL,
-                                 LCL     => Inv_LCL,
-                                 Has_UCL => Has_Inv_UCL,
-                                 Has_LCL => Has_Inv_LCL);
-                           end if;
-                        end;
-                     end;
-                  elsif CD.Transform_Active = Data_Model.None
-                    and then Raw_X /= Long_Float'First
-                  then
-                     --  No transformation: EWMA in original (token) space.
-                     declare
-                        Sigma : constant Long_Float := CD.Params.I_Sigma;
-                     begin
-                        Z_Ewma_Prev :=
-                          Statistics.EWMA_Chart.Compute_Z
-                            (X      => Raw_X,
-                             Z_Prev => Z_Ewma_Prev,
-                             Weight => Chart_Cfg.EWMA_Weight);
-                        T_Ewma := T_Ewma + 1;
-                        Limits :=
-                          Statistics.EWMA_Chart.Compute_EWMA_Limits
-                            (Grand_Mean => CD.Params.Grand_Mean,
-                             Sigma      => Sigma,
-                             Weight     => Chart_Cfg.EWMA_Weight,
-                             L          => Chart_Cfg.EWMA_L,
-                             T          => T_Ewma);
-                        Value := Z_Ewma_Prev;
-                        Excl  := False;
+                                Statistics.EWMA_Chart.Compute_EWMA_Limits
+                                  (Grand_Mean => CD.Params.Grand_Mean,
+                                   Sigma      => Sigma,
+                                   Weight     => Chart_Cfg.EWMA_Weight,
+                                   L          => Chart_Cfg.EWMA_L,
+                                   T          => T_Ewma);
+                              Value := Z_Ewma_Prev;
+                              Excl  := False;
+                           end;
+                        end if;
+                        --  Box-Cox active with Raw_X = 0: Excl stays True.
                      end;
                   end if;
-                  --  Box-Cox active with Raw_X = 0: Excl stays True.
+                  --  Obs_R.Valid is False: session has no valid observation
+                  --  (zero denominator); Excl stays True.
                end;
             end if;
 
@@ -1433,6 +1484,7 @@ package body Coyote_SQC.App is
                 LCL           => Limits.LCL,
                 Has_UCL       => Limits.Has_UCL,
                 Has_LCL       => Limits.Has_LCL,
+                Has_CL        => CD.Params.Parameters_Valid and then not Excl,
                 Excluded      => Excl,
                 Single_Turn   => Single,
                 In_Setup      => In_Setup,
@@ -1491,39 +1543,55 @@ package body Coyote_SQC.App is
 
    procedure Y_Fit is
       use Ada.Calendar;
-      CS  : Canvas_State renames State.Canvas_St;
-      CD  : Chart_Data renames State.Charts (State.Active_Chart);
-      Y1  : Long_Float :=  Long_Float'Last;
-      Y2  : Long_Float := -Long_Float'Last;
-      Any : Boolean := False;
+      use Ada.Numerics.Long_Elementary_Functions;
+      CS      : Canvas_State renames State.Canvas_St;
+      CD      : Chart_Data renames State.Charts (State.Active_Chart);
+      Log_Y   : constant Boolean := State.Workspace.Log_Y_Mode;
+      Y1      : Long_Float :=  Long_Float'Last;
+      Y2      : Long_Float := -Long_Float'Last;
+      Any     : Boolean := False;
    begin
       for P of CD.Points loop
          if (not P.Excluded or else P.Hollow_Gray)
            and then P.Session_Time >= State.Date_From
            and then P.Session_Time <= State.Date_To
          then
-            if P.Stat_Value < Y1 then Y1 := P.Stat_Value; end if;
-            if P.Stat_Value > Y2 then Y2 := P.Stat_Value; end if;
+            --  In log mode skip non-positive stat values.
+            if not Log_Y or else P.Stat_Value > 0.0 then
+               if P.Stat_Value < Y1 then Y1 := P.Stat_Value; end if;
+               if P.Stat_Value > Y2 then Y2 := P.Stat_Value; end if;
+               Any := True;
+            end if;
             if not P.Excluded and then not P.Single_Turn then
                if P.Has_UCL then
-                  if P.UCL > Y2 then Y2 := P.UCL; end if;
-                  if P.LCL < Y1 then Y1 := P.LCL; end if;
+                  --  In log mode skip non-positive UCL/LCL.
+                  if not Log_Y or else P.UCL > 0.0 then
+                     if P.UCL > Y2 then Y2 := P.UCL; end if;
+                  end if;
+                  if not Log_Y or else P.LCL > 0.0 then
+                     if P.LCL < Y1 then Y1 := P.LCL; end if;
+                  end if;
                end if;
             end if;
-            Any := True;
          end if;
       end loop;
 
       if not Any then return; end if;
 
-      declare
-         Margin : constant Long_Float := (Y2 - Y1) * 0.1;
-         M      : constant Long_Float :=
-           (if Margin > 0.0 then Margin else 1.0);
-      begin
-         CS.Y_Min := Y1 - M;
-         CS.Y_Max := Y2 + M;
-      end;
+      if Log_Y and then Y1 > 0.0 then
+         --  Multiplicative 10 % margin in log space.
+         CS.Y_Min := Y1 / 1.1;
+         CS.Y_Max := Y2 * 1.1;
+      else
+         declare
+            Margin : constant Long_Float := (Y2 - Y1) * 0.1;
+            M      : constant Long_Float :=
+              (if Margin > 0.0 then Margin else 1.0);
+         begin
+            CS.Y_Min := Y1 - M;
+            CS.Y_Max := Y2 + M;
+         end;
+      end if;
    end Y_Fit;
 
    --  ── Update_Title ─────────────────────────────────────────────────────

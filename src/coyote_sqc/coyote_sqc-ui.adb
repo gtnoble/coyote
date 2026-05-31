@@ -207,6 +207,7 @@ package body Coyote_SQC.UI is
                Coyote_SQC.App.State.Workspace_Path := Null_Unbounded_String;
                Coyote_SQC.App.State.Modified       := False;
                Coyote_SQC.App.Reload_Sessions;
+               Coyote_SQC.UI.Toolbar.Sync_Log_Y_Button;
                Coyote_SQC.App.Update_Title;
                Rebuild_Recent_Submenu;
                Coyote_SQC.UI.Chart_Canvas.Queue_Redraw;
@@ -271,6 +272,7 @@ package body Coyote_SQC.UI is
                Coyote_SQC.Config.Record_Open
                  (To_String (Coyote_SQC.App.State.Workspace.Name), Path);
                Coyote_SQC.App.Reload_Sessions;
+               Coyote_SQC.UI.Toolbar.Sync_Log_Y_Button;
                Coyote_SQC.App.Update_Title;
                Coyote_SQC.UI.Chart_Canvas.Queue_Redraw;
                Rebuild_Recent_Submenu;
@@ -402,6 +404,7 @@ package body Coyote_SQC.UI is
            (To_String (Coyote_SQC.App.State.Workspace.Name),
             To_String (Found_Path));
          Coyote_SQC.App.Reload_Sessions;
+         Coyote_SQC.UI.Toolbar.Sync_Log_Y_Button;
          Coyote_SQC.App.Update_Title;
          Rebuild_Recent_Submenu;
          Coyote_SQC.UI.Chart_Canvas.Queue_Redraw;
@@ -591,6 +594,7 @@ package body Coyote_SQC.UI is
       Coyote_SQC.App.State.Selection :=
         Coyote_SQC.App.State.Workspace.Setup_Session_Ids;
       Coyote_SQC.App.Update_Menu_States;
+      Coyote_SQC.UI.Detail_Panel.Refresh;
       Coyote_SQC.UI.Chart_Canvas.Queue_Redraw;
    end On_Select_Setup_Interval;
 
@@ -605,6 +609,23 @@ package body Coyote_SQC.UI is
       --  Keep the toolbar checkbox in sync.
       Coyote_SQC.UI.Toolbar.Sync_Run_Sequence_Button;
    end On_Run_Sequence_Activated;
+
+   procedure On_Log_Y_Activated
+     (Item : access Gtk.Check_Menu_Item.Gtk_Check_Menu_Item_Record'Class)
+   is
+      New_Mode : constant Boolean := Item.Get_Active;
+   begin
+      if Coyote_SQC.App.State = null then return; end if;
+      --  No-op guard: prevents infinite callback loops when Sync_Log_Y_Button
+      --  sets the menu item programmatically.
+      if New_Mode = Coyote_SQC.App.State.Workspace.Log_Y_Mode then return; end if;
+      Coyote_SQC.App.State.Workspace.Log_Y_Mode := New_Mode;
+      Coyote_SQC.App.State.Modified := True;
+      --  Keep the toolbar checkbox in sync (same-value guard prevents recursion).
+      Coyote_SQC.UI.Toolbar.Sync_Log_Y_Button;
+      Coyote_SQC.UI.Chart_Canvas.Queue_Redraw;
+   end On_Log_Y_Activated;
+
 
 
    --  ── Build menu bar ────────────────────────────────────────────────────
@@ -758,6 +779,15 @@ package body Coyote_SQC.UI is
          RSI.On_Toggled (On_Run_Sequence_Activated'Access);
          View_M.Append (RSI);
          Coyote_SQC.App.State.Run_Sequence_Item := RSI;
+      --  Y-Axis: Log Scale checkable item.
+      declare
+         LYI : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
+      begin
+         Gtk.Check_Menu_Item.Gtk_New (LYI, "Y-Axis: Log Scale");
+         LYI.On_Toggled (On_Log_Y_Activated'Access);
+         View_M.Append (LYI);
+         Coyote_SQC.App.State.Log_Y_Item := LYI;
+      end;
       end;
       Gtk.Menu_Item.Gtk_New (Item, "View");
       Item.Set_Submenu (View_M);

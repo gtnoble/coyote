@@ -266,7 +266,7 @@ package body Coyote_SQC.Statistics is
       end Accumulate_I;
 
    begin
-      Parameters := (others => 0.0);
+      Parameters := (others => <>);
 
       for M of Metrics loop
          if not In_Setup (M) then
@@ -422,6 +422,7 @@ package body Coyote_SQC.Statistics is
                            I := I + 1;
                         end loop;
                         Parameters.Grand_Mean := Median_Of (Means_Arr);
+                        Parameters.Parameters_Valid := True;
                      end;
                   end if;
                end;
@@ -473,6 +474,7 @@ package body Coyote_SQC.Statistics is
                --  Classical path.
                if Total_N > 0.0 then
                   Parameters.Grand_Mean := Total_Weighted_Mean / Total_N;
+                  Parameters.Parameters_Valid := True;
                end if;
                if Sum_Denominator > 0.0 then
                   Parameters.Pooled_S :=
@@ -486,6 +488,7 @@ package body Coyote_SQC.Statistics is
             --  p-charts always use classical grand proportion.
             if Total_Trials > 0.0 then
                Parameters.Grand_P := Total_Events / Total_Trials;
+               Parameters.Parameters_Valid := True;
             end if;
 
          when Session_Input_Tokens_I  | Session_Input_Tokens_MR
@@ -534,6 +537,7 @@ package body Coyote_SQC.Statistics is
                            I := I + 1;
                         end loop;
                         Parameters.Grand_Mean := Median_Of (Obs_Arr);
+                        Parameters.Parameters_Valid := True;
                         --  I_Sigma: Qn of observations / 2.2219
                         --  (replaces median(MR) / d₄ per spec §7.13).
                         if Obs_Arr'Length >= 2 then
@@ -577,6 +581,7 @@ package body Coyote_SQC.Statistics is
                --  Classical path.
                if Total_N > 0.0 then
                   Parameters.Grand_Mean := Total_Weighted_Mean / Total_N;
+                  Parameters.Parameters_Valid := True;
                end if;
                if MR_Count > 0 then
                   Parameters.Mean_MR := MR_Sum / Long_Float (MR_Count);
