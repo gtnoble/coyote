@@ -16,6 +16,8 @@ with Coyote_SQC.UI.Chart_Canvas;
 with Glib;
 with Gtk.Box;
 with Gtk.Button;
+with Gtk.Check_Button;
+with Gtk.Toggle_Button;
 with Gtk.Dialog;             use Gtk.Dialog;
 with Gtk.Enums;
 with Gtk.GEntry;
@@ -36,6 +38,9 @@ package body Coyote_SQC.UI.Workspace_Settings is
    use type Gtk.List_Box.Gtk_List_Box;
    use type Gtk.List_Box_Row.Gtk_List_Box_Row;
    use type Gtk.Dialog.Gtk_Dialog;
+   use type Gtk.Check_Button.Gtk_Check_Button;
+   use type Gtk.Box.Gtk_Box;
+   use type Gtk.Scrolled_Window.Gtk_Scrolled_Window;
    use type Coyote_SQC.Data_Model.String_Vectors.Vector;
    use Glib;
 
@@ -43,6 +48,9 @@ package body Coyote_SQC.UI.Workspace_Settings is
    WS_Dir_LB   : Gtk.List_Box.Gtk_List_Box := null;
    WS_New_Dirs : Coyote_SQC.Data_Model.String_Vectors.Vector;
    WS_Dialog   : Gtk.Dialog.Gtk_Dialog     := null;
+   WS_Analyze_All_CB : Gtk.Check_Button.Gtk_Check_Button     := null;
+   WS_Dir_Scroll     : Gtk.Scrolled_Window.Gtk_Scrolled_Window := null;
+   WS_Dir_HBox       : Gtk.Box.Gtk_Box                         := null;
 
    --  ── Directory management callbacks ─────────────────────────────────────
 
@@ -124,6 +132,22 @@ package body Coyote_SQC.UI.Workspace_Settings is
       end;
    end On_Remove_Dir_Clicked;
 
+   --  ── Analyze-all toggle callback ─────────────────────────────────────────
+
+   procedure On_Analyze_All_Toggled
+     (Self : access Gtk.Toggle_Button.Gtk_Toggle_Button_Record'Class)
+   is
+      Active : constant Boolean := Self.Get_Active;
+   begin
+      if WS_Dir_Scroll /= null then
+         WS_Dir_Scroll.Set_Sensitive (not Active);
+      end if;
+      if WS_Dir_HBox /= null then
+         WS_Dir_HBox.Set_Sensitive (not Active);
+      end if;
+   end On_Analyze_All_Toggled;
+
+
    --  ── Show_Dialog ─────────────────────────────────────────────────────────
 
    procedure Show_Dialog is
@@ -176,10 +200,22 @@ package body Coyote_SQC.UI.Workspace_Settings is
          Add_B  : Gtk.Button.Gtk_Button;
          Rm_B   : Gtk.Button.Gtk_Button;
          Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+         Analyze_CB : Gtk.Check_Button.Gtk_Check_Button;
       begin
          Gtk.Label.Gtk_New (Lbl, "Source Directories:");
          Lbl.Set_Halign (Gtk.Widget.Align_Start);
          VBox.Pack_Start (Lbl, False, False, 0);
+
+         Gtk.Check_Button.Gtk_New
+           (Analyze_CB,
+            "Analyze all source directories");
+         Analyze_CB.Set_Tooltip_Text
+           ("Load sessions from every project directory, "
+            & "ignoring the list below.");
+         Analyze_CB.Set_Active
+           (Coyote_SQC.App.State.Workspace.Analyze_All_Directories);
+         Analyze_CB.On_Toggled (On_Analyze_All_Toggled'Access);
+         VBox.Pack_Start (Analyze_CB, False, False, 4);
 
          Gtk.List_Box.Gtk_New (Dir_LB);
          for Dir of New_Dirs loop
@@ -213,6 +249,14 @@ package body Coyote_SQC.UI.Workspace_Settings is
 
          WS_Dir_LB   := Dir_LB;
          WS_New_Dirs := New_Dirs;
+         WS_Analyze_All_CB := Analyze_CB;
+         WS_Dir_Scroll     := Scroll;
+         WS_Dir_HBox       := HBox;
+         --  Apply initial sensitivity based on current checkbox state.
+         if Coyote_SQC.App.State.Workspace.Analyze_All_Directories then
+            Scroll.Set_Sensitive (False);
+            HBox.Set_Sensitive   (False);
+         end if;
       end;
 
       --  ── Model filter ────────────────────────────────────────────────────
@@ -278,6 +322,22 @@ package body Coyote_SQC.UI.Workspace_Settings is
             Coyote_SQC.App.State.Modified := True;
          end if;
 
+         --  Apply Analyze_All_Directories.
+         if WS_Analyze_All_CB /= null then
+            declare
+               New_Val : constant Boolean :=
+                 WS_Analyze_All_CB.Get_Active;
+            begin
+               if New_Val /=
+                  Coyote_SQC.App.State.Workspace.Analyze_All_Directories
+               then
+                  Coyote_SQC.App.State.Workspace.Analyze_All_Directories :=
+                    New_Val;
+                  Coyote_SQC.App.State.Modified := True;
+               end if;
+            end;
+         end if;
+
          --  Apply model filter (read back from text buffer).
          if Filter_Buf /= null then
             declare
@@ -332,6 +392,9 @@ package body Coyote_SQC.UI.Workspace_Settings is
       WS_Dialog   := null;
       WS_Dir_LB   := null;
       WS_New_Dirs.Clear;
+      WS_Analyze_All_CB := null;
+      WS_Dir_Scroll     := null;
+      WS_Dir_HBox       := null;
       D.Destroy;
    end Show_Dialog;
 

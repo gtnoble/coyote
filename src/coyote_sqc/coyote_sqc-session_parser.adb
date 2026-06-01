@@ -543,60 +543,106 @@ package body Coyote_SQC.Session_Parser is
    --  ── Load_Sessions ─────────────────────────────────────────────────────
 
    procedure Load_Sessions
-     (Source_Directories : String_Vectors.Vector;
-      Model_Filter       : String_Vectors.Vector;
-      Sessions           : in out Session_Vectors.Vector)
+     (Source_Directories      : String_Vectors.Vector;
+      Model_Filter            : String_Vectors.Vector;
+      Sessions                : in out Session_Vectors.Vector;
+      Analyze_All_Directories : Boolean := False)
    is
       use Ada.Directories;
 
-      Home : constant String := GNAT.OS_Lib.Getenv ("HOME").all;
-   begin
-      for Cwd_US of Source_Directories loop
-         declare
-            Cwd  : constant String := To_String (Cwd_US);
-            Dir  : constant String :=
-              Home & "/.coyote/sessions/" & Encode_Cwd (Cwd) & "/";
-         begin
-            if Exists (Dir) and then Kind (Dir) = Directory then
-               declare
-                  Search : Search_Type;
-                  Dirent : Directory_Entry_Type;
-               begin
-                  Start_Search (Search, Dir, "*.jsonl",
-                                (Ordinary_File => True, others => False));
-                  while More_Entries (Search) loop
-                     Get_Next_Entry (Search, Dirent);
-                     declare
-                        Session : Session_Record;
-                        Ok      : Boolean;
-                     begin
-                        Parse_File (Full_Name (Dirent), Session, Ok);
-                        if Ok then
-                           if Model_Filter.Is_Empty then
-                              Sessions.Append (Session);
-                           else
-                              for F of Model_Filter loop
-                                 if To_String (F) = To_String (Session.Model) then
-                                    Sessions.Append (Session);
-                                    exit;
-                                 end if;
-                              end loop;
-                           end if;
+      Home        : constant String := GNAT.OS_Lib.Getenv ("HOME").all;
+      Sessions_Root : constant String := Home & "/.coyote/sessions/";
+
+      --  Scan all *.jsonl files in Dir, appending matching sessions.
+      procedure Scan_Dir (Dir : String) is
+      begin
+         if Exists (Dir) and then Kind (Dir) = Directory then
+            declare
+               Search : Search_Type;
+               Dirent : Directory_Entry_Type;
+            begin
+               Start_Search (Search, Dir, "*.jsonl",
+                             (Ordinary_File => True, others => False));
+               while More_Entries (Search) loop
+                  Get_Next_Entry (Search, Dirent);
+                  declare
+                     Session : Session_Record;
+                     Ok      : Boolean;
+                  begin
+                     Parse_File (Full_Name (Dirent), Session, Ok);
+                     if Ok then
+                        if Model_Filter.Is_Empty then
+                           Sessions.Append (Session);
+                        else
+                           for F of Model_Filter loop
+                              if To_String (F) =
+                                 To_String (Session.Model)
+                              then
+                                 Sessions.Append (Session);
+                                 exit;
+                              end if;
+                           end loop;
                         end if;
-                     end;
-                  end loop;
-                  End_Search (Search);
-               end;
-            end if;
-         exception
-            when E : others =>
-               Ada.Text_IO.Put_Line
-                 (Ada.Text_IO.Standard_Error,
-                  "coyote_sqc: error scanning session directory "
-                  & Dir & ": "
-                  & Ada.Exceptions.Exception_Information (E));
-         end;
-      end loop;
+                     end if;
+                  end;
+               end loop;
+               End_Search (Search);
+            end;
+         end if;
+      exception
+         when E : others =>
+            Ada.Text_IO.Put_Line
+              (Ada.Text_IO.Standard_Error,
+               "coyote_sqc: error scanning session directory "
+               & Dir & ": "
+               & Ada.Exceptions.Exception_Information (E));
+      end Scan_Dir;
+
+   begin
+      if Analyze_All_Directories then
+         --  Enumerate every slug subdirectory under ~/.coyote/sessions/.
+         if Exists (Sessions_Root)
+           and then Kind (Sessions_Root) = Directory
+         then
+            declare
+               Search : Search_Type;
+               Dirent : Directory_Entry_Type;
+            begin
+               Start_Search (Search, Sessions_Root, "",
+                             (Directory => True, others => False));
+               while More_Entries (Search) loop
+                  Get_Next_Entry (Search, Dirent);
+                  declare
+                     Sub : constant String := Simple_Name (Dirent);
+                  begin
+                     --  Skip the "." and ".." entries.
+                     if Sub /= "." and then Sub /= ".." then
+                        Scan_Dir (Full_Name (Dirent));
+                     end if;
+                  end;
+               end loop;
+               End_Search (Search);
+            exception
+               when E : others =>
+                  Ada.Text_IO.Put_Line
+                    (Ada.Text_IO.Standard_Error,
+                     "coyote_sqc: error enumerating session root "
+                     & Sessions_Root & ": "
+                     & Ada.Exceptions.Exception_Information (E));
+            end;
+         end if;
+      else
+         --  Scan only the explicitly listed source directories.
+         for Cwd_US of Source_Directories loop
+            declare
+               Cwd : constant String := To_String (Cwd_US);
+               Dir : constant String :=
+                 Sessions_Root & Encode_Cwd (Cwd) & "/";
+            begin
+               Scan_Dir (Dir);
+            end;
+         end loop;
+      end if;
 
       --  Sort sessions by Start_Time ascending.
       declare

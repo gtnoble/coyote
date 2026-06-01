@@ -1742,13 +1742,14 @@ Workspace files use the `.sqcw` extension. Location is user-chosen via file choo
 
 ```json
 {
-  "version": 9,
+  "version": 10,
   "workspaceId": "uuid-string",
   "name": "string",
   "sourceDirectories": ["string", ...],
   "modelFilter": ["string", ...],
   "setupSessionIds": ["uuid-string", ...],
   "logYMode": false,
+  "analyzeAllDirectories": false,
   "chartSettings": {
     "Session_Input_Tokens_I": {
       "boxCox": {
@@ -1801,11 +1802,13 @@ values **shall be omitted** from `chartSettings` to keep the file compact.
 
 The application reads the `"version"` field first:
 
-- `version = 9`: load normally using the schema above.
+- `version = 10`: load normally using the schema above.
+- `version = 9`: load and migrate — `analyzeAllDirectories` key is absent;
+  default `false` is applied to `Workspace.Analyze_All_Directories`.
 - `version = 8`: load and migrate — `logYMode` key is absent; default `false`
   is applied to `Workspace.Log_Y_Mode`.
 - `version = 1` to `7`: load with automatic migration — see migration rules below.
-- `version > 9`: refuse to open; show a dialog:
+- `version > 10`: refuse to open; show a dialog:
   *"This workspace was created by a newer version of coyote_sqc and cannot be opened."*
 - `version < 1` or absent: attempt load with best-effort field mapping; show a
   warning: *"Workspace file has no version field; some data may be missing."*
@@ -1813,7 +1816,7 @@ The application reads the `"version"` field first:
 **Migration from version ≤ 6:**
 
 The following top-level fields from versions 1–6 are migrated into `chartSettings`
-per-chart entries, then discarded. The workspace is resaved at version 9 immediately
+per-chart entries, then discarded. The workspace is resaved at version 10 immediately
 after loading (triggering an implicit unsaved-changes notification).
 
 | Old field | Charts receiving the migrated config |

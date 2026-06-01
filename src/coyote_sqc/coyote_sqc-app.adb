@@ -1517,7 +1517,8 @@ package body Coyote_SQC.App is
       Coyote_SQC.Session_Parser.Load_Sessions
         (Source_Directories => State.Workspace.Source_Directories,
          Model_Filter       => State.Workspace.Model_Filter,
-         Sessions           => State.Sessions);
+         Sessions                   => State.Sessions,
+         Analyze_All_Directories    => State.Workspace.Analyze_All_Directories);
 
       --  Compute metrics for each loaded session.
       for Sess of State.Sessions loop

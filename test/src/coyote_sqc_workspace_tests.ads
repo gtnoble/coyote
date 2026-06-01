@@ -30,4 +30,5 @@ package Coyote_SQC_Workspace_Tests is
 
    procedure Test_Anscombe_Transform_Round_Trip (T : in out Test);
    procedure Test_Log_Y_Mode_Round_Trip (T : in out Test);
+   procedure Test_Analyze_All_Directories_Round_Trip (T : in out Test);
 end Coyote_SQC_Workspace_Tests;

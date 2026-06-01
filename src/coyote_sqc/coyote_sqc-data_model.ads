@@ -224,6 +224,10 @@ package Coyote_SQC.Data_Model is
       --  the workspace file compact.
       Chart_Settings     : Chart_Settings_Maps.Map;
       Log_Y_Mode         : Boolean := False;
+      --  When True, sessions from every project directory are loaded,
+      --  ignoring Source_Directories.  Source_Directories is preserved so
+      --  the prior list is restored when the option is unchecked.
+      Analyze_All_Directories : Boolean := False;
    end record;
 
 end Coyote_SQC.Data_Model;

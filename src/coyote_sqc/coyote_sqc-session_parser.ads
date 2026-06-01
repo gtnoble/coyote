@@ -17,14 +17,15 @@ package Coyote_SQC.Session_Parser is
    function Encode_Cwd (Cwd : String) return String;
 
    --  Load all sessions whose Source_Directory matches any entry in
-   --  Source_Directories (or all sessions when Source_Directories is empty).
+   --  Source_Directories (or all sessions when Analyze_All_Directories is True).
    --
    --  Sessions are appended to the supplied vector and sorted by Start_Time
    --  ascending before returning.
    procedure Load_Sessions
      (Source_Directories : Coyote_SQC.Data_Model.String_Vectors.Vector;
       Model_Filter       : Coyote_SQC.Data_Model.String_Vectors.Vector;
-      Sessions           : in out Coyote_SQC.Data_Model.Session_Vectors.Vector);
+      Sessions                   : in out Coyote_SQC.Data_Model.Session_Vectors.Vector;
+      Analyze_All_Directories    : Boolean := False);
 
    --  Parse a single .jsonl session file.
    --  Raises Session_Parse_Error on unrecoverable format errors.

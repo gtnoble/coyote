@@ -474,7 +474,7 @@ package body Coyote_SQC.Workspace is
       Root := GNATCOLL.JSON.Read (To_String (Content));
 
       Version := Get_Int_Field (Root, "version", -1);
-      if Version > 9 then
+      if Version > 10 then
          raise Workspace_Error with
            "This workspace was created by a newer version of coyote_sqc "
            & "and cannot be opened.";
@@ -487,6 +487,8 @@ package body Coyote_SQC.Workspace is
         To_Unbounded_String (Get_String_Field (Root, "name"));
       Workspace.Log_Y_Mode :=
         Get_Bool_Field (Root, "logYMode", False);
+      Workspace.Analyze_All_Directories :=
+        Get_Bool_Field (Root, "analyzeAllDirectories", False);
 
       --  Source directories.
       if Root.Kind = GNATCOLL.JSON.JSON_Object_Type
@@ -693,7 +695,7 @@ package body Coyote_SQC.Workspace is
 
       File : Ada.Text_IO.File_Type;
    begin
-      Root.Set_Field ("version", Integer (9));
+      Root.Set_Field ("version", Integer (10));
       Root.Set_Field ("workspaceId", To_String (Workspace.Workspace_Id));
       Root.Set_Field ("name", To_String (Workspace.Name));
 
@@ -727,6 +729,8 @@ package body Coyote_SQC.Workspace is
       end loop;
       Root.Set_Field ("chartSettings", CS_Obj);
       Root.Set_Field ("logYMode", Workspace.Log_Y_Mode);
+      Root.Set_Field ("analyzeAllDirectories",
+                      Workspace.Analyze_All_Directories);
 
       --  Sort comments by ascending timestamp before serialising (§9.2).
       declare
