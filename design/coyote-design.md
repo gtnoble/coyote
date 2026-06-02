@@ -34,7 +34,7 @@ unit. It covers the `coyote` executable, `coyote_list_sessions`,
 `src/coyote_gui/`, `src/acme*`, and `src/nine_p*`.
 
 The `coyote_sqc` application and `coyote_renderer` shared library are covered
-by separate design documents (`docs/sqc-spec.md`).
+by separate design documents (`design/coyote-sqc-design.md`).
 
 ---
 
@@ -45,7 +45,7 @@ by separate design documents (`docs/sqc-spec.md`).
 | SRS-CORE | coyote Requirements Specification | `requirements/coyote-requirements.md` |
 | PLAN | Project Plan | `plan/project-plan.md` |
 | AGENTS | Agent Working Instructions | `AGENTS.md` |
-| SRS-SQC | coyote_sqc Requirements Specification | `docs/sqc-requirements.md` |
+| SRS-SQC | coyote_sqc Requirements Specification | `requirements/coyote-sqc-requirements.md` |
 
 ---
 
@@ -786,7 +786,7 @@ This design description was authored by the developer. The user (product
 owner) is invited to review it before it advances to client-control status.
 
 **Excluded scope:**
-- `coyote_sqc` design: see `docs/sqc-spec.md`.
-- `coyote_renderer` design: covered implicitly in `docs/sqc-spec.md §10`.
+- `coyote_sqc` design: see `design/coyote-sqc-design.md`.
+- `coyote_renderer` design: covered implicitly in `design/coyote-sqc-design.md §10`.
 - Detailed design for catalogue packages (`OpenRouter.Catalogue`, etc.):
   deferred; covered adequately by AGENTS.md §Adding a New LLM Provider.

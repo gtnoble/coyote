@@ -11,7 +11,7 @@ modify source files; they produce structured issue reports.
 
 ## Output Format
 
-Each review writes its report to `docs/review/R<N>-<slug>.md` using this
+Each review writes its report to `plan/reviews/R<N>-<slug>.md` using this
 template:
 
 ```markdown
@@ -51,7 +51,7 @@ Severity definitions:
 Before starting your assigned review, read:
 1. `/home/gtnoble/.pi/agent/skills/ada-style-guide/SKILL.md`
 2. `/home/gtnoble/Projects/pi_acme_dev/AGENTS.md`
-3. `/home/gtnoble/Projects/pi_acme_dev/docs/native-agent-plan.md`
+3. `plan/native-agent-migration.md`
    (the specification the implementation was built against)
 
 ---
@@ -64,7 +64,7 @@ All ten tracks are independent and can execute in parallel.
 
 ### R1 — libcurl Binding Safety
 
-**Report file:** `docs/review/R1-curl-binding.md`
+**Report file:** `plan/reviews/R1-curl-binding.md`
 
 **Primary files:**
 - `src/llm/thin_curl.c`
@@ -126,7 +126,7 @@ values and the write-callback signature).
 
 ### R2 — SSE Parser Correctness
 
-**Report file:** `docs/review/R2-sse-parser.md`
+**Report file:** `plan/reviews/R2-sse-parser.md`
 
 **Primary files:**
 - `src/llm/llm-sse.adb`
@@ -181,7 +181,7 @@ The space after the colon is optional but conventional.
 
 ### R3 — OpenAI Completions Wire Format
 
-**Report file:** `docs/review/R3-openai-completions.md`
+**Report file:** `plan/reviews/R3-openai-completions.md`
 
 **Primary files:**
 - `src/llm/llm-providers-openai_completions.adb`
@@ -250,7 +250,7 @@ documented in the plan §Phase 2.
 
 ### R4 — Anthropic Messages Wire Format
 
-**Report file:** `docs/review/R4-anthropic-messages.md`
+**Report file:** `plan/reviews/R4-anthropic-messages.md`
 
 **Primary files:**
 - `src/llm/llm-providers-anthropic_messages.adb`
@@ -325,7 +325,7 @@ tools use `input_schema` not `parameters`.
 
 ### R5 — GitHub Copilot Auth and Dispatch
 
-**Report file:** `docs/review/R5-github-copilot.md`
+**Report file:** `plan/reviews/R5-github-copilot.md`
 
 **Primary files:**
 - `src/llm/llm-auth-github_copilot.adb`
@@ -402,7 +402,7 @@ tools use `input_schema` not `parameters`.
 
 ### R6 — OpenRouter Provider and Catalogue
 
-**Report file:** `docs/review/R6-openrouter.md`
+**Report file:** `plan/reviews/R6-openrouter.md`
 
 **Primary files:**
 - `src/llm/llm-providers-openrouter.adb`
@@ -460,7 +460,7 @@ tools use `input_schema` not `parameters`.
 
 ### R7 — Pi Adapter JSON Mapping
 
-**Report file:** `docs/review/R7-pi-adapter.md`
+**Report file:** `plan/reviews/R7-pi-adapter.md`
 
 **Primary files:**
 - `src/llm/llm-agent-pi_adapter.adb`
@@ -529,7 +529,7 @@ produced JSON against the corresponding handler in `Dispatch_Pi_Event`.
 
 ### R8 — Session Store JSONL Format Compatibility
 
-**Report file:** `docs/review/R8-session-store.md`
+**Report file:** `plan/reviews/R8-session-store.md`
 
 **Primary files:**
 - `src/llm/llm-session_store.adb`
@@ -595,7 +595,7 @@ correctly read it back.
 
 ### R9 — Agentic Loop Correctness
 
-**Report file:** `docs/review/R9-agent-loop.md`
+**Report file:** `plan/reviews/R9-agent-loop.md`
 
 **Primary files:**
 - `src/llm/llm-agent.adb`
@@ -662,7 +662,7 @@ correctly read it back.
 
 ### R10 — Test Coverage Gaps
 
-**Report file:** `docs/review/R10-test-coverage.md`
+**Report file:** `plan/reviews/R10-test-coverage.md`
 
 **Primary files:**
 - All `test/src/llm_*_tests.adb` files
@@ -739,19 +739,19 @@ Or all ten at once if the orchestrator supports it.
 
 ## Post-review Action
 
-After all reviews complete, read all ten `docs/review/R*.md` files and:
+After all reviews complete, read all ten `plan/reviews/R*.md` files and:
 
 1. Triage issues by severity.
 2. For CRITICAL and HIGH issues, spawn fix subagents immediately.
 3. For MEDIUM issues, file them as follow-up work items.
-4. Update `docs/review-plan.md` with the final triage summary.
+4. Update `plan/review-plan.md` with the final triage summary.
 
 ---
 
 ## Output Directory
 
 ```
-docs/review/
+plan/reviews/
   R1-curl-binding.md
   R2-sse-parser.md
   R3-openai-completions.md

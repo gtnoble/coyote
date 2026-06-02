@@ -7,7 +7,7 @@
 2. Read the project instructions:
    `/home/gtnoble/Projects/pi_acme_dev/AGENTS.md`
 3. Read the full plan for background:
-   `/home/gtnoble/Projects/pi_acme_dev/docs/native-agent-plan.md`
+   `plan/native-agent-migration.md`
 
 Working directory: `/home/gtnoble/Projects/pi_acme_dev`
 

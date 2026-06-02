@@ -31,13 +31,41 @@ Three executables are built:
 
 ## Documentation
 
+The project uses a MIL-STD-498-based governance structure.  Engineering
+artifacts live in `plan/`, `requirements/`, `design/`, and `sdfs/`.
+
+### Structured Engineering Documents
+
+| ID | Title | Path |
+|---|---|---|
+| PLAN | Project Plan | `plan/project-plan.md` |
+| PCR-LOG | Problem/Change Log | `plan/problems.md` |
+| TEST-PLAN | Test Plan | `plan/test-plan.md` |
+| SRS-CORE | coyote Requirements Specification | `requirements/coyote-requirements.md` |
+| SDD-CORE | coyote Design Description | `design/coyote-design.md` |
+| SRS-SQC | coyote_sqc Requirements Specification | `requirements/coyote-sqc-requirements.md` |
+| SDD-SQC | coyote_sqc Design Specification | `design/coyote-sqc-design.md` |
+| REVIEW-PLAN | Native Agent Review Plan | `plan/review-plan.md` |
+
+### Component Development Logs
+
+| Log | Covers |
+|---|---|
+| `sdfs/core-agent.md` | LLM.Agent, Compaction, Session_Store, Skills, Types |
+| `sdfs/providers.md` | LLM.Providers.*, HTTP, SSE, Auth, Tools, Settings |
+| `sdfs/frontends.md` | Coyote_App.*, Coyote_GUI.*, Acme.*, Nine_P.* |
+| `sdfs/coyote-sqc.md` | Coyote_SQC.*, Coyote_Renderer.* |
+
+### Operational References
+
 - `docs/skills.md` — full reference for the `SKILL.md` file format
   (frontmatter fields, discovery roots, shadowing, writing effective
   descriptions and bodies)
+- `plan/integration-test-guide.md` — opt-in live-provider and acme
+  integration tests: guard variables, setup, and procedure
 
 When authoring or editing a `SKILL.md` for this project, load
 the `coyote-skill-author` skill for a condensed quick-reference.
-
 ## Language & Build System
 
 - **Language:** Ada 2022 (GNAT/GCC)
@@ -76,186 +104,55 @@ Object files go to `obj/<profile>/`, binaries to `bin/`.
 
 ## Source Layout
 
+The full software unit inventory (38 units with source files and descriptions)
+is in `design/coyote-design.md §4.1`.  Directory structure:
+
 ```
 src/
-  coyote.adb            -- Entry point; parses --session / --model / --agent /
-                        --   --no-tools / --no-session /
-                        --   --prompt / --one-shot / --name / --prompt-filter flags;
-                        --   detects frontend (Acme/GUI/Plain) and dispatches
-                        --   to Coyote_App.Run or Coyote_App.Run_GUI
-  coyote_app.ads/.adb   -- App_State, Options (including Frontend_Kind),
-                        --   Run (acme path) and Run_GUI (GUI path) procedures;
-                        --   inner tasks: Agent_Task, Acme_Event_Task, Plumb_*
-  coyote_app-dispatch.ads/.adb -- Dispatch_Event: native LLM event → Frontend'Class
-  coyote_app-history.ads/.adb  -- Session JSONL replay via Frontend'Class;
-  coyote_app-utils.ads/.adb    -- Pure utility functions (formatting, token
-                        --   helpers, turn footer builders, JSON helpers,
-                        --   Apply_Prompt_Filter);
-                        --   UC_* Unicode glyph constants
-  coyote_app-frontend.ads      -- Abstract Frontend interface (Instance tagged
-                        --   limited type): Append_Text, Begin/End_Thinking,
-                        --   Begin/End_Tool, Append_Notice, Set_Status,
-                        --   Read_Prompt, Shutdown, etc.
-  coyote_app-frontend-acme_win.ads/.adb
-                        -- Concrete acme window frontend; routes all calls to
-                        --   Acme.Window.Win via a per-instance Nine_P.Client.Fs
-  coyote_app-frontend-acme_win.ads/.adb
-                        -- Concrete acme window frontend; routes all calls to
-                        --   Acme.Window.Win via a per-instance Nine_P.Client.Fs
-  coyote_app-frontend-gui.ads/.adb
-                        -- Concrete GTK3 GUI frontend; owns the GtkWindow,
-                        --   GtkTextBuffer, GtkMenuBar, prompt GtkTextView,
-                        --   and GtkLabel status bar; enqueues agent events to
-                        --   Coyote_GUI.Updates; reads prompts from
-                        --   Coyote_GUI.Prompt_Queue; Set_Stats_Summary
-                        --   (GUI-specific, shown by Agent > Session Stats menu)
-  coyote_gui/           -- GTK3 GUI subsystem
-    coyote_gui.ads             -- Root; Update_Kind enum, Update record
-    coyote_gui-updates.ads/.adb -- Protected bounded queue (8192): agent → GTK idle
-    coyote_gui-prompt_queue.ads/.adb -- Protected FIFO (64): GTK callbacks → agent
-    coyote_gui-buffer.ads/.adb -- GtkTextBuffer wrapper; markdown via Pango
-                        --   Insert_Markup (libcmark-gfm AST → markup string);
-                        --   tool-call frames embedded via GtkTextChildAnchor;
-                        --   text tags for thinking, notices, footers
-  coyote_cmark_c.c     -- C shim for libcmark-gfm: one getter per enum
-                        --   constant (`cmark_shim_node_*`, `cmark_shim_list_*`,
-                        --   `cmark_shim_event_*`) plus `cmark_shim_get_literal`
-                        --   (null-safe literal accessor),
-                        --   `cmark_shim_parse_document_gfm` (creates a parser
-                        --   with the table / strikethrough / autolink extensions
-                        --   attached), `cmark_shim_node_get_type_string` (safe
-                        --   wrapper for cmark_node_get_type_string), and
-                        --   `cmark_shim_table_row_is_header`; all standard
-                        --   enum constants resolved at package elaboration time
-                        --   by `Coyote_Cmark`
-  coyote_cmark.ads/.adb -- Thin Ada binding to libcmark-gfm: opaque Node_Ptr /
-                        --   Iter_Ptr (System.Address), integer enum-constant
-                        --   variables initialised from C shim getters, and
-                        --   Import bindings to Parse_Document (GFM-extended),
-                        --   Node_Free, Node_Get_Type/Literal/Heading_Level/
-                        --   List_Type/List_Start, Node_Get_Type_String,
-                        --   Table_Row_Is_Header, Node_First_Child, Node_Next,
-                        --   Iter_New/Next/Get_Node/Free
-  coyote_utils.ads/.adb -- Small utilities shared across entry points
-                        --   (CLI arg resolution, session prefix stripping)
-  acme.ads/.adb          -- Root package; Win_File_Path helper
-  acme-window.ads/.adb   -- Acme window operations over Nine_P (Append, Ctl, etc.)
-  acme-event_parser.ads/.adb  -- Parses acme event-file records
-  acme-raw_events.ads/.adb    -- Low-level raw event byte feeding / Next_Event
-  nine_p.ads             -- 9P2000 constants, Qid, Byte_Array, Byte_Vectors
-  nine_p-proto.ads/.adb  -- 9P message encode/decode
-  nine_p-client.ads/.adb -- 9P client: Ns_Mount, Open, Read_Once, Write, Clunk
-  session_lister.ads/.adb -- Reads ~/.coyote/sessions/ for coyote_list_sessions
-  llm/
-    llm.ads                     -- Root package
-    llm-types.ads/.adb          -- Messages, content blocks, usage, model costs
-    llm-events.ads              -- Native event hierarchy (Agent_Event hierarchy)
-    llm-sse.ads/.adb            -- Server-Sent Events parser
-    llm-settings.ads/.adb       -- ~/.coyote/settings.json and models.json
-    llm-auth.ads/.adb           -- auth.json loading and saving
-    llm-auth-github_copilot.ads/.adb -- Copilot token refresh helpers
-    llm-model_registry.ads/.adb -- In-memory model catalogue registry
-    llm-providers.ads           -- Abstract provider interface
-    llm-http.ads/.adb           -- libcurl-backed streaming HTTP client
-    llm-http-curl_binding.ads/.adb -- thin libcurl binding + callback shim
-    llm-providers-openai_completions.ads/.adb -- OpenAI chat-completions wire
-                        --   image tool results are split: a plain-text stub
-                        --   in the tool message + a follow-up user message
-                        --   carrying the image_url (OpenAI does not support
-                        --   vision content inside role=tool messages)
-    llm-providers-anthropic_messages.ads/.adb -- Anthropic messages wire
-    llm-providers-openrouter.ads/.adb -- OpenRouter adapter
-    llm-providers-openrouter-catalogue.ads/.adb -- OpenRouter model cache
-    llm-providers-opencode_go.ads/.adb -- OpenCode Go provider adapter
-    llm-providers-opencode_go-catalogue.ads/.adb -- OpenCode Go model cache
-    llm-providers-github_copilot.ads/.adb -- Copilot provider adapter
-    llm-providers-github_copilot-catalogue.ads/.adb -- Copilot model cache
-    llm-tools.ads/.adb          -- Abort_Flag and Pause_Flag control
-                        --   primitives; Tool_Descriptor record type
-    llm-tools-shell.ads/.adb    -- The shell tool: Descriptor and Execute;
-                        --   optional "media_type" arg base64-encodes stdout
-                        --   and returns an image content block of that MIME
-                        --   type
-    llm-tools-temp_file.ads/.adb -- tool-result size cap and threshold policy;
-                        --   Truncated writes excess bytes to a temp file
-                        --   under /tmp/ and returns an excerpt with a path
-                        --   trailer; image results (Media_Type non-empty)
-                        --   bypass the cap entirely
-    llm-skills.ads/.adb         -- Skill discovery and system-prompt formatting
-    llm-system_prompt.ads/.adb  -- System prompt construction; context loading
-    llm-compaction.ads/.adb     -- Context compaction helpers (threshold,
-                        --   cut-point, serialisation)
-    llm-session_store.ads/.adb  -- JSONL session persistence
-    llm-agent.ads/.adb          -- Native agentic loop (Session, Run_Prompt,
-                        --   Request_Pause, Resume, Is_Paused)
+  coyote.adb            -- Entry point (CLI parsing, frontend selection)
+  coyote_app.ads/.adb   -- App_State (protected), Run, Run_GUI
+  coyote_app-dispatch.ads/.adb  -- Dispatch_Event: LLM event → Frontend'Class
+  coyote_app-frontend.ads       -- Abstract Frontend interface
+  coyote_app-frontend-*.ads/.adb -- Concrete frontends (Acme_Win, GUI, Plain)
+  coyote_app-history.ads/.adb   -- Session JSONL replay
+  coyote_app-utils.ads/.adb     -- Formatting helpers; UC_* Unicode constants
+  coyote_gui/           -- GTK3 GUI subsystem (Updates queue, Buffer, Prompt_Queue)
+  llm/                  -- LLM agent, providers, HTTP/SSE, settings, tools, skills
+  acme.ads/.adb         -- Acme window helpers
+  acme-window.ads/.adb  -- Acme window operations (9P)
+  acme-event_parser.ads/.adb  -- Acme event-file parser
+  nine_p*.ads/.adb      -- 9P2000 client
+  coyote_cmark.ads/.adb -- Ada binding to libcmark-gfm (+ coyote_cmark_c.c shim)
+  coyote_renderer/      -- Shared Pango markup + session-view rendering
+  coyote_sqc/           -- SQC companion application packages
+  coyote_sqc_main.adb   -- Entry point for coyote_sqc
+  session_lister.ads/.adb -- Session listing for coyote_list_sessions
+  coyote_utils.ads/.adb -- CLI arg resolution, session-prefix stripping
 tools/
-  coyote_list_sessions.adb   -- Entry point for the session listing utility
-  coyote_open.adb            -- Entry point for the tool-call detail window utility
-src/coyote_sqc/              -- coyote_sqc application packages
-  coyote_sqc.ads                   -- Root package (pragma Pure)
-  coyote_sqc-app.ads/.adb          -- App_State, Chart_Point (incl. Hollow_Gray flag),
-                          --   Canvas_State, Chart_Data_Array, Run,
-                          --   Reload_Sessions (also calls Reset_View + Sync_Pickers),
-                          --   Recompute_Charts/Recompute_Chart, Y_Fit,
-                          --   Update_Title, Update_Menu_States, Has_Comment;
-                          --   Sync_X_From_Dates exposed via Chart_Canvas
-  coyote_sqc-charts.ads/.adb       -- Chart_Kind enum; Properties function
-  coyote_sqc-config.ads/.adb       -- ~/.config/coyote_sqc/ recent_workspaces.json
-  coyote_sqc-data_model.ads        -- All internal types: Tool_Call_Record,
-                          --   Turn_Record, Session_Record, Session_Metrics_Record,
-                          --   Comment_Record, Workspace_Record, UUID_Sets,
-                          --   Natural_Vectors, Chart_Definition_Record,
-                          --   Transform_Config, Transform_Kind, Box_Cox_Lambda_Source, Chart_Settings_Record, Chart_Settings_Maps, Estimation_Method_Kind
-  coyote_sqc-metrics.ads/.adb      -- Compute: Session_Record -> Session_Metrics_Record
-  coyote_sqc-session_parser.ads/.adb -- JSONL parser (v1 and v3 wire formats);
-                          --   Encode_Cwd; Load_Sessions (with model filter + sort);
-                          --   Parse_ISO8601 and Ms_To_Time use
-                          --   Ada.Calendar.Formatting.Value with Time_Zone=>0
-                          --   for correct UTC → local time conversion
-                          --   Encode_Cwd; Load_Sessions (with model filter + sort)
-  coyote_sqc-statistics.ads/.adb   -- Estimate_Parameters (grand mean, pooled s,
-                          --   grand p) for all 9 chart kinds
-  coyote_sqc-statistics-c4.ads/.adb -- c4(n) lookup table n=2..100; approximation n>100
-  coyote_sqc-statistics-xbar.ads/.adb -- Xbar chart Compute_Limits
-  coyote_sqc-statistics-s_chart.ads/.adb -- s chart Compute_Limits
-  coyote_sqc-statistics-p_chart.ads/.adb -- p chart Compute_Limits
-  coyote_sqc-statistics-i_chart.ads/.adb -- I chart and MR chart: Compute_I_Limits,
-                          --   Compute_MR_Limits; Box_Cox, Box_Cox_Inverse, Apply_Transform, Invert_Transform,
-                          --   Sqrt_VS, Anscombe, Arcsinh_VS, Freeman_Tukey (variance-stab. transforms);
-                          --   Estimate_Lambda (Box-Cox MLE for I/MR charts)
-  coyote_sqc-workspace.ads/.adb    -- Load/Save .sqcw JSON (version 9); New_UUID;
-                          --   Load takes Version_Found : out Natural for
-                          --   missing-version warning; Workspace_Error for
-                          --   version > 9; Chart_Settings_Maps per-chart config round-trip
-  coyote_sqc-workspace-integrity.ads/.adb -- Check/Remove_Missing for setup interval
-  coyote_sqc-ui.ads/.adb           -- Build_Main_Window; all File/Workspace/View menu
-                          --   callbacks; three-panel GTK layout
-  coyote_sqc-ui-chart_canvas.ads/.adb -- Cairo chart renderer; pan/zoom/rubber-band
-                          --   selection; hit testing; hover dispatch
-  coyote_sqc-ui-datetime_picker.ads/.adb -- GtkEntry date-time display composite widget
-  coyote_sqc-ui-detail_panel.ads/.adb -- Single-session and multi-select detail views;
-                          --   session replay; comment entry
-  coyote_sqc-ui-dialogs.ads/.adb   -- Confirm, Unsaved_Changes, Info, Error dialogs
-  coyote_sqc-ui-hover_tooltip.ads/.adb -- GtkPopover hover tooltip for chart points
-  coyote_sqc-ui-left_panel.ads/.adb -- GtkListBox chart selector with group separators
-  coyote_sqc-ui-toolbar.ads/.adb   -- From/To datetime pickers + Show All + Y-Fit
-  coyote_sqc-ui-workspace_settings.ads/.adb -- Workspace Settings dialog; simplified (no Box-Cox sections; see §11.11 of spec)
-  coyote_sqc-ui-chart_settings_dialog.ads/.adb -- Per-chart Box-Cox, estimation method, and EWMA parameters dialog (§11.12 of spec)
-src/coyote_renderer/         -- shared rendering utilities
-  coyote_renderer.ads              -- Root package (pragma Pure)
-  coyote_renderer-markup.ads/.adb  -- To_Pango_Markup / Xml_Escape extracted from
-                          --   Coyote_GUI.Buffer; used by both coyote and coyote_sqc
-  coyote_renderer-session_view.ads/.adb -- Render_Session: Session_Record ->
-                          --   GtkTextBuffer; Find_Session_File
-src/coyote_sqc_main.adb      -- Entry point for coyote_sqc; calls Coyote_SQC.App.Run
-test/fixtures/sqc/           -- JSONL test fixtures for SQC parser tests
-  v3_session.jsonl               -- Current (v3) format session
-  v1_session.jsonl               -- Legacy (v1) format session
-  thinking_session.jsonl         -- Session with thinking tokens
-  compaction_session.jsonl       -- Session spanning a compaction boundary
-test/src/                -- AUnit-based test suite
+  coyote_list_sessions.adb  -- Entry point for session listing utility
+  coyote_open.adb           -- Entry point for tool-call detail window
+test/                   -- AUnit test suite (see plan/test-plan.md)
+plan/                   -- Project Plan, Test Plan, problem log, review records
+requirements/           -- SRS-CORE (coyote), SRS-SQC (coyote_sqc)
+design/                 -- SDD-CORE (coyote), SDD-SQC (coyote_sqc)
+sdfs/                   -- Component development logs
+docs/                   -- Operational references (skills.md)
 ```
 
+Key roles for the most-frequently-touched packages:
+
+- `src/llm/llm-agent.ads/.adb` — Agentic loop: `Create`, `Run_Prompt`,
+  `Compact`, `Request_Abort`, `Request_Pause`, `Resume`
+- `src/llm/llm-events.ads` — `Agent_Event'Class` hierarchy
+- `src/llm/llm-providers-*.ads/.adb` — Provider wire formats (OpenAI,
+  Anthropic, Copilot, OpenRouter, OpenCode Go)
+- `src/llm/llm-session_store.ads/.adb` — JSONL session persistence
+- `src/llm/llm-compaction.ads/.adb` — Token estimation and cut-point logic
+- `src/llm/llm-skills.ads/.adb` — Skill discovery and prompt formatting
+- `src/coyote_gui/coyote_gui-buffer.ads/.adb` — GtkTextBuffer + markdown
+
+**When adding new source files:** add them to `design/coyote-design.md §4.1`
+and record the key design decisions in the relevant `sdfs/` log.
 ## Frontend Selection
 
 `coyote.adb` selects the frontend before calling `Run` or `Run_GUI`:
@@ -286,84 +183,30 @@ process is needed.
 
 ## Architecture
 
-### Acme path — `Coyote_App.Run`
+The full architectural design — static dependencies, concepts of execution for
+the Acme and GUI paths, and the five key design decisions — is in
+`design/coyote-design.md §4`.
 
-Drives the application with five long-lived Ada tasks:
+### Summary: concurrency model
 
-| Task | Responsibility |
-|---|---|
-| `Agent_Task` | Owns `LLM.Agent.Session`, drives prompts, calls `Dispatch_Event` to render each `LLM.Events.Agent_Event'Class` value via `Frontend'Class` |
-| `Acme_Event_Task` | Reads the acme window event file via 9P; handles Send/Stop/New/Clear/Models/Sessions/Thinking/Stats/Pause/Resume tag commands |
-| `Plumb_Model_Task` | Reads the `/coyote-model` plumb port; updates the active model via `LLM.Agent.Set_Model` |
-| `Plumb_Thinking_Task` | Reads the `/coyote-thinking` plumb port; updates the reasoning level via `LLM.Agent.Set_Thinking` |
-| `Plumb_Fork_Task` | Reads the `/coyote-fork` plumb port; forks the session at the requested turn and spawns a new `coyote` window |
+**Acme path** (5 tasks): `Agent_Task`, `Acme_Event_Task`, `Plumb_Model_Task`,
+`Plumb_Thinking_Task`, `Plumb_Fork_Task`.  All shared mutable state lives in
+the `App_State` protected object.  Each task holds its own
+`Nine_P.Client.Fs`; connections are never shared between tasks.
 
-All shared mutable state lives in `App_State`, a protected object. Each task
-opens its own `Nine_P.Client.Fs` connection to avoid cross-task 9P contention.
-The `Addr_Mutex` inside `Acme.Window.Win` serialises the addr→data write pair.
+**GUI path** (2 tasks): Main Ada task (GTK event loop) + `Agent_Task`.  The
+agent communicates with GTK via the `Coyote_GUI.Updates` protected queue
+(8 192 items); GTK communicates back via `Coyote_GUI.Prompt_Queue` (64 items).
 
-### GUI path — `Coyote_App.Run_GUI`
-
-A two-task structure — no acme window, no 9P, no plumb tasks:
-
-| Task | Responsibility |
-|---|---|
-| Main Ada task | Calls `Gtk.Main.Init`, `Coyote_App.Frontend.GUI.Create` (builds the GTK window), then `Gtk.Main.Main` (blocks on the GTK event loop until the window is closed or `Gtk.Main.Main_Quit` is called) |
-| `Agent_Task` | Owns `LLM.Agent.Session`, drives prompts via `My_Frontend.Read_Prompt` (blocks on `Coyote_GUI.Prompt_Queue.Queue.Dequeue`); dispatches `:command` strings to `Execute_GUI_Command`; dispatches LLM events via `Dispatch_Event`; calls `My_Frontend.Set_Stats_Summary` on `Session_Stats_Event` |
-
-The GTK window contains a `GtkTextView` (conversation), a `GtkTextView`
-(prompt input), a `GtkMenuBar`, and a `GtkLabel` status bar.  GTK signal
-callbacks (Send button, menu item activations) enqueue prompt strings and
-`:command` strings to `Coyote_GUI.Prompt_Queue`.  Agent events flow through a
-`Coyote_GUI.Updates` protected queue; a GLib idle callback drains it on the
-GTK main loop thread and applies updates to the `GtkTextBuffer` via
-`Coyote_GUI.Buffer`.
-
-### GUI subsystem (`Coyote_GUI`)
-
-The GUI logic lives under `src/coyote_gui/`:
-
-| Package | Role |
-|---|---|
-| `Coyote_GUI` | Root; defines `Update_Kind`, `Update` record, and shared enumerations |
-| `Coyote_GUI.Updates` | Protected bounded queue (8 192 items): agent task → GTK idle drain |
-| `Coyote_GUI.Prompt_Queue` | Protected bounded FIFO (64 items): GTK callbacks → agent task |
-| `Coyote_GUI.Buffer` | Wraps `GtkTextBuffer`; renders markdown via `libcmark-gfm` + Pango markup (`Insert_Markup`); embeds tool-call frames as `GtkTextChildAnchor` widgets; manages text tags for notices and footers |
+**Critical rule:** Never share a `Nine_P.Client.Fs` or `Nine_P.Client.File`
+between tasks.  All GTK widget operations must execute on the main Ada task.
 
 ### Dispatch
 
-`Dispatch_Event` in `Coyote_App.Dispatch` is the rendering core: it maps each
-incoming `LLM.Events.Agent_Event'Class` value to the appropriate
-`Frontend'Class` calls (Append_Text, Begin/End_Tool, Append_Notice,
-Append_Turn_Footer, etc.).  Both the acme and GUI paths share the same
-dispatcher.
-
-**Markdown rendering** in the GUI frontend is performed by `Coyote_GUI.Buffer`
-via `libcmark-gfm` with the GFM `table`, `strikethrough`, and `autolink`
-extensions enabled.  For each completed `Assistant_Text` block the raw
-streamed text is deleted and re-inserted as Pango markup via
-`Gtk.Text_Buffer.Insert_Markup`:
-
-- `<b>...</b>` for `**strong**` and headings
-- `<i>...</i>` for `*emphasis*`
-- `<tt>...</tt>` for `` `inline code` `` and fenced code blocks
-- `<u>...</u>` for links
-- `<s>...</s>` for `~~strikethrough~~` (GFM)
-- `UC_BULLET` prefix for bullet lists; `N.` for ordered lists
-- `<span alpha="50%">` for block quotes and thematic breaks
-
-Streaming chunks (before `End_Text_Block`) are inserted as raw plain text;
-when the block completes they are deleted and re-inserted with markup applied.
-
-Tool calls are embedded as `GtkFrame` widgets via `GtkTextChildAnchor`;
-`Begin_Tool` creates the frame, `End_Tool` updates its label.
-
-`Coyote_Cmark` is a thin Ada binding backed by a C shim
-(`src/coyote_cmark_c.c`) whose getter functions resolve all
-`cmark_node_type`, `cmark_list_type`, and `cmark_event_type` enum values at
-package elaboration time — ensuring the values always agree with the installed
-`<cmark-gfm.h>` regardless of library version.
-
+`Dispatch_Event` in `Coyote_App.Dispatch` maps each incoming
+`LLM.Events.Agent_Event'Class` value to the appropriate `Frontend'Class`
+calls.  Both the Acme and GUI paths share the same dispatcher.  See
+`design/coyote-design.md §5.3` for the full dispatch table.
 ## Plumb Token Schema
 
 Coyote uses its own family of plumb tokens. All token strings begin with a
@@ -456,16 +299,13 @@ Key points:
 
 ## Native Agent Event Flow
 
-`LLM.Agent` drives the in-process agentic loop. As it runs, it emits
-`LLM.Events.Agent_Event'Class` values directly to a callback in `Agent_Task`,
-which calls `Dispatch_Event` to render them via the active `Frontend'Class`.
-The full event hierarchy is defined in `src/llm/llm-events.ads`; key types
-include `Agent_Start_Event`, `Agent_End_Event`, `Message_Update_Event`,
-`Tool_Execution_Start_Event`, `Tool_Execution_End_Event`, `Message_End_Event`,
-`Model_Select_Event`, `Auto_Retry_Start_Event`, `Auto_Compaction_Start_Event`,
-`Agent_Paused_Event`, `Agent_Resumed_Event`,
-and `Session_Stats_Event`.
+`LLM.Agent` drives the in-process agentic loop, emitting
+`LLM.Events.Agent_Event'Class` values synchronously to the `On_Event`
+callback (`Dispatch_Event` in `Coyote_App.Dispatch`), which maps them to
+`Frontend'Class` primitives.
 
+The full event hierarchy is in `src/llm/llm-events.ads`.  The dispatch table
+(event type → frontend calls) is in `design/coyote-design.md §5.3`.
 ## Adding a New LLM Provider
 
 To add a new provider (e.g. `my-provider`), touch these files in order:
@@ -585,25 +425,29 @@ conform to the guidelines it defines.
 
 ## Testing
 
-Tests live in `test/src/` and use AUnit. Integration tests that need a live
-acme/9P server are in `acme_integration_tests.adb` and
-`nine_p_integration_tests.adb`. Future live LLM-provider integration tests are
-documented in `docs/integration-test-guide.md` and must remain opt-in via
-explicit environment-variable guards.
+The Test Plan (`plan/test-plan.md`) is the governing document for test scope,
+environment, traceability, and the current test baseline (658 tests, all green).
 
-Run the full suite:
+Tests live in `test/src/` and use AUnit. Run the full suite:
 ```sh
 cd test && alr run coyote_test
 ```
 
+Integration tests that need a live acme/9P server or live LLM provider are
+opt-in via environment-variable guards. See `plan/integration-test-guide.md`
+for setup instructions.
+
 When adding new functionality, add unit tests first (TDD preferred).
-Integration tests that require live external services should be guarded and
+Integration tests that require live external services must be guarded and
 clearly marked.
 
 **GUI frontend test note:** `Coyote_App.Frontend.GUI.Instance` has no
 background task; it is driven entirely by the GTK main loop.  Unit tests that
 exercise `Coyote_GUI.Buffer` can create a `GtkTextBuffer` directly (or mock
 it) without starting a GTK window.
+
+When a test is added or changed, update the test-count baseline in
+`plan/test-plan.md §7`.
 ## Definition of Done
 
 A feature is **not complete** until all of the following are satisfied:
@@ -616,9 +460,10 @@ A feature is **not complete** until all of the following are satisfied:
    green after the change.
 3. **Documentation updated** — any user-visible behaviour, CLI flag, plumb
    token, event type, or public API change must be reflected in the relevant
-   `docs/` file(s) and, where appropriate, in this `AGENTS.md` (e.g. new
-   source files added to the Source Layout table, new tasks added to the
-   Architecture table).
+   structured documents: SRS-CORE for capability changes, SDD-CORE for design
+   changes, SDD-SQC/SRS-SQC for coyote_sqc changes, `plan/test-plan.md` for
+   test-scope changes, and `AGENTS.md` for agent operational guidance. New
+   source files must be added to `design/coyote-design.md §4.1`.
 
 ## Editing Discipline
 

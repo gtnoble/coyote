@@ -808,7 +808,7 @@ objectives stated in the Project Plan (PLAN §1 and §3):
 - UUID: Universally Unique Identifier
 
 **Excluded scope:**
-- coyote_sqc requirements are in `docs/sqc-requirements.md` (SRS-SQC).
+- coyote_sqc requirements are in `requirements/coyote-sqc-requirements.md` (SRS-SQC).
 - The shared `coyote_renderer` library requirements are covered implicitly
   under the GUI frontend and coyote_sqc requirements.
 - `coyote_open` (tool-call detail window) requirements are noted under

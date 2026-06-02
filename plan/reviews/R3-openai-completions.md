@@ -4,7 +4,7 @@
 PASS
 
 ## Summary
-I reviewed `src/llm/llm-providers-openai_completions.ads`, `src/llm/llm-providers-openai_completions.adb`, and `test/src/llm_openai_completions_tests.adb` against the R3 properties in `docs/review-plan.md`. The OpenAI chat-completions adapter is correctly serialising request messages for the scoped cases, correctly omitting empty tool arrays, correctly mapping `finish_reason` and usage fields, and correctly assembling streamed tool-call argument fragments by `index`. The targeted AUnit coverage for the text and tool-call happy paths also passed in the project test run.
+I reviewed `src/llm/llm-providers-openai_completions.ads`, `src/llm/llm-providers-openai_completions.adb`, and `test/src/llm_openai_completions_tests.adb` against the R3 properties in `plan/review-plan.md`. The OpenAI chat-completions adapter is correctly serialising request messages for the scoped cases, correctly omitting empty tool arrays, correctly mapping `finish_reason` and usage fields, and correctly assembling streamed tool-call argument fragments by `index`. The targeted AUnit coverage for the text and tool-call happy paths also passed in the project test run.
 
 ## Issues
 

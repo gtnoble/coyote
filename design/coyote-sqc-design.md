@@ -4,7 +4,7 @@
 **Version:** 0.1 (draft)  
 **Date:** 2026-05-21  
 **Status:** In progress  
-**Requirements:** `docs/sqc-requirements.md`
+**Requirements:** `requirements/coyote-sqc-requirements.md`
 
 ---
 

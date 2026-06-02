@@ -33,7 +33,7 @@ are verified by demonstration or inspection rather than automated tests.
 The coyote_sqc component has its own test suite and is partially covered by
 this plan where it exercises shared code (`coyote_renderer`,
 `coyote-session-format` parsing); its full acceptance criteria are governed
-by SRS-SQC (`docs/sqc-requirements.md`).
+by SRS-SQC (`requirements/coyote-sqc-requirements.md`).
 
 **Independence limitation:** The developer is evaluating their own work. This
 limitation is declared here and at each test results review. The user (product
@@ -48,7 +48,7 @@ owner) is invited to independently review test results before accepting them.
 | SRS-CORE | coyote Requirements Specification | `requirements/coyote-requirements.md` |
 | SDD-CORE | coyote Design Description | `design/coyote-design.md` |
 | PLAN | Project Plan | `plan/project-plan.md` |
-| TEST-GUIDE | Integration Test Guide | `docs/integration-test-guide.md` |
+| TEST-GUIDE | Integration Test Guide | `plan/integration-test-guide.md` |
 
 ---
 
@@ -89,7 +89,7 @@ and are **opt-in** (guarded by environment variable checks at test startup):
 | `llm_anthropic_messages_tests.adb` | `COYOTE_TEST_ANTHROPIC=1` | Valid Anthropic API key |
 | `llm_agent_tests.adb` (live tests) | `COYOTE_TEST_LIVE=1` | Any live provider |
 
-See `docs/integration-test-guide.md` for full setup instructions.
+See `plan/integration-test-guide.md` for full setup instructions.
 
 ### 3.4 Known Test Environment Constraints
 

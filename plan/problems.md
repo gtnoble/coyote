@@ -113,7 +113,7 @@ client-controlled work product gets an entry here.
 - **Category:** Test
 - **Priority:** 3-Moderate
 - **Description:** No formal Test Plan document exists. The test approach is
-  described only informally in AGENTS.md and in `docs/integration-test-guide.md`.
+  described only informally in AGENTS.md and in `plan/integration-test-guide.md`.
   There is no traceability from test cases to requirements, no documented test
   environment specification, and no acceptance criteria recorded.
 - **Affected work products:** Test Plan (`plan/test-plan.md` — not yet in

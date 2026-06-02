@@ -70,10 +70,10 @@ separate system-level stratum.
 |---|---|---|
 | SRS-CORE | coyote Requirements Specification | `requirements/coyote-requirements.md` |
 | SDD-CORE | coyote Design Description | `design/coyote-design.md` |
-| SRS-SQC | coyote_sqc Requirements Specification | `docs/sqc-requirements.md` |
-| SDD-SQC | coyote_sqc Design Specification | `docs/sqc-spec.md` |
+| SRS-SQC | coyote_sqc Requirements Specification | `requirements/coyote-sqc-requirements.md` |
+| SDD-SQC | coyote_sqc Design Specification | `design/coyote-sqc-design.md` |
 | PCR-LOG | Problem/Change Log | `plan/problems.md` |
-| TEST-GUIDE | Integration Test Guide | `docs/integration-test-guide.md` |
+| TEST-GUIDE | Integration Test Guide | `plan/integration-test-guide.md` |
 | AGENTS | Agent Working Instructions | `AGENTS.md` |
 
 ---
@@ -98,7 +98,7 @@ A standalone GTK3 executable that reads coyote session JSONL files, computes
 SPC/SQC control chart statistics, and presents an interactive analysis GUI.
 
 **Current state:** Implemented and in active development. Requirements documented
-in `docs/sqc-requirements.md`; design documented in `docs/sqc-spec.md`.
+in `requirements/coyote-sqc-requirements.md`; design documented in `design/coyote-sqc-design.md`.
 
 ### Shared libraries
 
@@ -146,7 +146,7 @@ Object files: `obj/development/`. Binaries: `bin/`.
 
 **Test environment:** AUnit test suite in `test/`. Run with
 `cd test && alr run coyote_test`. Integration tests (live providers) are
-opt-in via environment variable guards; see `docs/integration-test-guide.md`.
+opt-in via environment variable guards; see `plan/integration-test-guide.md`.
 
 **Project library:** The git repository at the project root. All source,
 documentation, and intermediate work products are version-controlled here.
@@ -170,7 +170,7 @@ AGENTS.md; state each as a testable capability requirement with a unique ID
 quality-factor, and constraint requirements. Produce traceability from each
 requirement to the project objective it serves.
 
-For coyote_sqc: SRS-SQC (`docs/sqc-requirements.md`) is the governing document.
+For coyote_sqc: SRS-SQC (`requirements/coyote-sqc-requirements.md`) is the governing document.
 It is maintained as requirements evolve.
 
 **Traceability strategy:** Each requirement ID appears in: the SRS, the SDD
@@ -188,7 +188,7 @@ For coyote core: SDD-CORE (`design/coyote-design.md`). The existing AGENTS.md
 architecture section is the primary source; SDD-CORE makes it a controlled
 artifact with explicit traceability to requirements.
 
-For coyote_sqc: SDD-SQC (`docs/sqc-spec.md`) is the governing document.
+For coyote_sqc: SDD-SQC (`design/coyote-sqc-design.md`) is the governing document.
 
 **Design methods:** Ada packages map directly to software units. Concurrency
 design uses Ada task types and protected objects as specified in AGENTS.md.
@@ -423,7 +423,7 @@ Subsequent builds will define their own milestone sets.
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
 | coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.0 (2026-06-01) | Author |
 | coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.0 (2026-06-01) | Author |
-| coyote_sqc Requirements Spec | SRS-SQC | `docs/sqc-requirements.md` | 0.1 draft (2026-05-21) | Project |
-| coyote_sqc Design Spec | SDD-SQC | `docs/sqc-spec.md` | 0.1 draft (2026-05-21) | Project |
+| coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.1 draft (2026-05-21) | Project |
+| coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.1 draft (2026-05-21) | Project |
 | Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.0 (2026-06-01) | Author |
 | Agent Working Instructions | AGENTS | `AGENTS.md` | active | Project |
