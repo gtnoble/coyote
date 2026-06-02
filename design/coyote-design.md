@@ -1,9 +1,9 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.0
-**Date:** 2026-06-01
-**Status:** Draft — awaiting design review
+**Version:** 1.1
+**Date:** 2026-06-02
+**Status:** Draft — design review in progress
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
 
@@ -175,6 +175,40 @@ replaced with Pango markup when the block completes (`End_Text_Block`).
   extension beyond the abstract interface.
 
 ---
+
+
+### 3.7 Memory and Processing Allocation
+
+**Queue bounds:**
+- `Coyote_GUI.Updates` — bounded at 8 192 items. Each item is a
+  `Coyote_GUI.Update` record (kind discriminant + one Unbounded_String payload).
+  The bound was chosen to allow several full streaming turns to be buffered
+  without back-pressure while keeping per-session RSS impact below ~1 MB.
+- `Coyote_GUI.Prompt_Queue` — bounded at 64 items. Commands are short strings;
+  a small bound is sufficient because prompt entry is rate-limited by human
+  interaction speed.
+
+**Task stacks:** All tasks use the default GNAT runtime stack size (8 MiB on
+Linux x86-64). No task has been observed to approach this limit; no explicit
+`Storage_Size` clause is needed.
+
+**9P connection per task:** Each task that accesses the acme or plumb 9P
+namespace holds one `Nine_P.Client.Fs` instance. On the Acme path, five tasks
+each hold one `Fs`; each `Fs` requires one UNIX socket file descriptor and an
+internal 8 KiB message buffer.
+
+**libcurl handle per request:** `LLM.HTTP.Post_Stream` creates and destroys
+one `CURL` handle per HTTP request. No handle pool is maintained. This avoids
+connection-reuse state across retries while keeping the implementation simple.
+
+**Session JSONL file:** Held open for append throughout the session lifetime.
+One file descriptor per running `coyote` process. File size is bounded only
+by conversation length; no rotation or size cap is applied.
+
+**In-memory history:** `LLM.Types.Message_Vectors.Vector` grows unboundedly
+until compaction. Compaction (`LLM.Compaction.Find_Cut_Point`) is triggered
+when the estimated token count of the history approaches the model's context
+window minus the `Reserve_Tokens` margin (default 16 384).
 
 ## 4. Architectural Design
 
@@ -737,6 +771,557 @@ Enabled by `cmark_shim_parse_document_gfm`, which creates a parser with all
 three extensions attached before parsing.
 
 ---
+
+
+### 5.16 `LLM.Types`
+
+**Purpose:** Defines the core data types shared across the agent, providers,
+session store, and tools.
+
+**Key types:**
+- `Role_Type` — enumeration: `User`, `Assistant`, `Tool_Result`.
+- `Content_Block` — discriminated record covering: `Text` (plain string),
+  `Thinking` (reasoning block with signature), `Tool_Call` (id, name, arguments
+  JSON string), `Tool_Result` (tool_call_id, content string, is_error flag,
+  media_type), `Image` (base64 data + media_type).
+- `Content_Block_Vectors.Vector` — ordered sequence of content blocks in one message.
+- `Message` — record: role, content blocks, optional stop_reason, optional usage
+  (input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens).
+- `Message_Vectors.Vector` — the conversation history type held by `LLM.Agent`.
+
+**No logic:** `LLM.Types` contains only type definitions and default-initialisation
+expressions. No subprograms are declared.
+
+---
+
+### 5.17 `LLM.Events`
+
+**Purpose:** Defines the `Agent_Event'Class` tagged-type hierarchy emitted
+by provider adapters and consumed by `Dispatch_Event`.
+
+**Event types:**
+
+| Type | Payload | Meaning |
+|---|---|---|
+| `Agent_Start_Event` | — | Agent turn beginning |
+| `Agent_End_Event` | `Was_Aborted : Boolean` | Agent turn ending |
+| `Message_Update_Event` | `Kind : Update_Kind`; `Text : String`; `Tool_Id : String` | Streaming token or tool delta |
+| `Message_End_Event` | usage fields | Provider message completed |
+| `Tool_Execution_Start_Event` | tool name, call_id, args JSON | Tool call started |
+| `Tool_Execution_End_Event` | call_id, result text, is_error, duration | Tool call completed |
+| `Session_Stats_Event` | turn count, cost, model info | Post-turn statistics |
+| `Session_Info_Event` | session_id, resuming flag | Session identity at startup |
+| `Model_Select_Event` | provider, model_id, context window | Model selected or changed |
+| `Auto_Retry_Start_Event` | attempt number, reason | Transient error retry |
+| `Auto_Compaction_Start_Event` | token count | Compaction beginning |
+| `Auto_Compaction_End_Event` | tokens saved | Compaction complete |
+| `Agent_Paused_Event` | — | Agent pause entered |
+| `Agent_Resumed_Event` | — | Agent resumed from pause |
+
+**Design constraint:** All event types are concrete; dispatching uses Ada
+classwide (`Agent_Event'Class`). Events are value types (not heap-allocated in
+normal use); the `On_Event` callback receives an `Agent_Event'Class` parameter.
+
+---
+
+### 5.18 `LLM.SSE`
+
+**Purpose:** Pure stateless server-sent event parser. Parses raw SSE bytes
+into discrete `data:` and `event:` lines.
+
+**Interface:** Single procedure `Feed (Bytes : String; On_Line : access procedure
+(Line : String))`. Buffers partial lines across calls using a package-level
+internal buffer (one instance per `LLM.HTTP` call context). Calls `On_Line`
+for each complete SSE `data:` line, stripping the `data:` prefix.
+
+**No external dependencies.** Pure Ada string processing.
+
+---
+
+### 5.19 `LLM.Settings`
+
+**Purpose:** Loads and exposes the user configuration from
+`~/.coyote/settings.json` and `~/.coyote/models.json`.
+
+**`Config` record fields:**
+- `Default_Model_Provider`, `Default_Model_Id` — from `settings.json`
+  `"model"` field.
+- `Thinking_Level` — `"auto"`, `"none"`, or a budget string; from settings.
+- `No_Tools` — boolean; from `--no-tools` flag or settings.
+- `Compact_Settings` — `LLM.Compaction.Compact_Settings`; from settings.
+- Raw model entries list from `models.json`.
+
+**`Load` procedure:** Reads and parses both JSON files. Missing files produce
+default values; malformed JSON is logged to stderr and defaults are used.
+
+**`Resolve_Api_Key (Provider : String) → String`:** Checks in order:
+(1) literal `apiKey` in models.json entry, (2) `${ENV_VAR}` interpolation,
+(3) `Standard_Env_Name` environment variable lookup.
+
+---
+
+### 5.20 `LLM.Auth`
+
+**Purpose:** Loads and caches provider authentication tokens.
+
+**`Auth_Store` record:** Maps provider name to token string. Populated by
+`Load` from `~/.coyote/auth.json`.
+
+**`Load` procedure:** Reads `~/.coyote/auth.json`; populates the store.
+Missing file is a no-op (not an error; provider may use API-key auth).
+
+**`Save` procedure:** Writes the current store back to `~/.coyote/auth.json`.
+Called after token refresh to persist the new token.
+
+---
+
+### 5.21 `LLM.Auth.GitHub_Copilot`
+
+**Purpose:** Manages GitHub Copilot OAuth token lifecycle.
+
+**`Ensure_Valid_Token (Store : in out Auth_Store; Token : out String)`:**
+1. Read current token and expiry from `Store`.
+2. If token is absent or within 60 seconds of expiry: call Copilot's
+   `/copilot_internal/v2/token` endpoint with the device-flow access token
+   from `Store`.
+3. Parse `token` and `expires_at` from the JSON response.
+4. Update `Store` and call `LLM.Auth.Save`.
+5. Return the valid token.
+
+**Error handling:** HTTP failure or JSON parse error raises
+`Auth_Error`; caught in `LLM.Providers.GitHub_Copilot.Send` and converted to
+a non-recoverable turn error.
+
+---
+
+### 5.22 `LLM.Model_Registry`
+
+**Purpose:** In-memory catalogue of known models, built at session start.
+
+**`Model_Info` record:** provider, model_id, display_name, context_window,
+wire_format (`"openai-completions"` or `"anthropic-messages"`), supports_thinking.
+
+**`Available_Models → Model_Info_Array`:** Returns all registered models from
+all providers for which an API key is present.
+
+**`Lookup (Provider, Model_Id) → Model_Info`:** Returns the `Model_Info` for
+the given pair, or a synthesised default entry if the model is not in any
+catalogue (wire_format inferred from provider name pattern).
+
+**`Refresh_*` procedures:** One per provider (Copilot, OpenRouter, OpenCode).
+Each fetches the provider's `/models` endpoint, parses the JSON catalogue,
+and registers entries. Network failures are silently ignored (stale or empty
+catalogue is used).
+
+---
+
+### 5.23 `LLM.Providers`
+
+**Purpose:** Defines the abstract `Provider` tagged type and the `Send`
+interface.
+
+**`Send` primitive:**
+```
+procedure Send
+  (P        : in out Provider;
+   History  : LLM.Types.Message_Vectors.Vector;
+   Tools    : LLM.Tools.Descriptor_Array;
+   Settings : LLM.Settings.Config;
+   On_Event : not null access procedure (E : LLM.Events.Agent_Event'Class));
+```
+
+All concrete providers override this primitive. No other primitives are
+defined in the abstract package.
+
+---
+
+### 5.24 `LLM.Providers.OpenRouter`
+
+**Purpose:** OpenRouter adapter. Extends `OpenAI_Completions.Provider` with
+OpenRouter-specific base URL and request customisation.
+
+**`Create` function:** Sets base URL to `https://openrouter.ai/api/v1` and
+sets the `HTTP-Referer` and `X-Title` headers required by OpenRouter.
+
+**`Customize_Request` override:** Adds `"provider"` routing hints if present
+in the model entry's metadata.
+
+**Catalogue package `OpenRouter.Catalogue`:** Fetches
+`https://openrouter.ai/api/v1/models`, caches to
+`~/.coyote/openrouter_models_cache.json`. Each entry is parsed into a
+`Catalogue_Entry` record (id, display_name, context_length, pricing).
+
+---
+
+### 5.25 `LLM.Providers.OpenCode_Go`
+
+**Purpose:** Routing provider for OpenCode Go. Selects wire format based on
+model ID, in the same pattern as GitHub Copilot.
+
+**`Send` procedure:**
+1. Inspect model ID: Claude patterns → `Anthropic_Messages.Provider`; all
+   others → `OpenAI_Completions.Provider`.
+2. Construct the delegate with OpenCode Go's base URL (read from settings or
+   default `http://localhost:2710`).
+3. Forward the call.
+
+**No authentication:** OpenCode Go is a local proxy; no token header is set.
+
+---
+
+### 5.26 `LLM.Tools`
+
+**Purpose:** Defines tool-control flags and the tool descriptor type.
+
+**`Abort_Flag` protected type:** Single boolean with `Set`, `Clear`, and
+`Is_Set` operations. One instance lives in `LLM.Agent.Session`; a pointer
+to it is passed into the shell tool executor. The libcurl write callback also
+holds this pointer and checks it on each chunk.
+
+**`Pause_Flag` protected type:** Similar to `Abort_Flag`; additionally
+provides a `Wait_If_Set` entry that blocks until the flag is cleared (used
+by `Agent_Task` to implement the pause/resume handshake).
+
+**`Tool_Descriptor` record:** name, description, parameters JSON schema string.
+Tools are described in JSON Schema; `LLM.Agent` serialises them into the
+request's `tools` array using the wire format appropriate for the active
+provider.
+
+**`Descriptor_Array`:** Unconstrained array of `Tool_Descriptor`. The built-in
+shell tool is assembled into a single-element array by `LLM.Agent.Create`
+unless `No_Tools` is true.
+
+---
+
+### 5.27 `LLM.Tools.Temp_File`
+
+**Purpose:** Manages tool-result size capping and spill to temporary files.
+
+**`Result_Threshold` constant:** 200 000 bytes. Tool results larger than this
+are truncated before being sent to the provider.
+
+**`Truncated (Result : String; Path : out String) → String`:** Writes the
+full result to a temp file under `/tmp/coyote_tool_<uuid>`, returns a
+truncated string with a notice appended indicating the path where the full
+result was written.
+
+**`Cleanup`:** Deletes all temp files created by the current process. Called
+at session end.
+
+---
+
+### 5.28 `LLM.System_Prompt`
+
+**Purpose:** Constructs the complete system prompt string from its parts.
+
+**`Build (Settings, Skills_Block, Agent_Text) → String`:** Concatenates:
+1. Static preamble (role description, tool usage instructions, date, CWD).
+2. `Skills_Block` — formatted `<available_skills>` XML block from
+   `LLM.Skills.Format_Skills_For_Prompt`.
+3. `Agent_Text` — content of `--agent` argument (raw text or file content).
+
+Returns the concatenated string. All parts are optional; absent parts contribute
+empty strings.
+
+---
+
+### 5.29 `Coyote_App.History`
+
+**Purpose:** Replays a saved session into the frontend for display.
+
+**`Replay (Store : LLM.Session_Store.Session_File;
+            Frontend : Coyote_App.Frontend.Instance'Class)`:**
+Reads each record from the JSONL file and calls the appropriate `Frontend`
+primitive to render it — text blocks, tool calls, turn footers, model-change
+notices — in the order they appear in the file. Skips compaction records
+(they have no displayable content).
+
+Used at startup when `--session UUID` is supplied: the user sees the prior
+conversation rendered before the first new prompt.
+
+---
+
+### 5.30 `Coyote_App.Utils`
+
+**Purpose:** Formatting helpers and Unicode glyph constants for all frontends.
+
+**`UC_*` constants:** Named constants for multi-byte UTF-8 glyphs used in
+the text UI (bullet `•`, gear `⚙`, check `✓`, cross `✗`, hourglass `⏳`,
+ellipsis `…`, box-drawing characters, etc.). Defined as `String` values using
+`Character'Val` for each byte, because Ada `Character` is Latin-1 and code
+points > 255 cannot appear as character literals.
+
+**Formatting helpers:**
+- `Format_Cost (Dmil : Natural) → String` — formats deci-millicent cost values
+  as `$0.0000` strings.
+- `Format_Duration (Seconds : Duration) → String` — humanises durations.
+- `Truncate_Middle (S : String; Max_Len : Natural) → String` — truncates long
+  strings with a middle ellipsis.
+
+---
+
+### 5.31 `Coyote_App.Frontend.Acme_Win`
+
+**Purpose:** Acme frontend implementation. Renders agent events as structured
+Unicode-glyph-prefixed text in the acme window body.
+
+**State:** Holds a `Nine_P.Client.Fs` connection (opened from `Agent_Task`).
+Tracks `Current_Tool_Name` for the `End_Tool` label.
+
+**Key rendering choices:**
+- `Append_Text` — writes tokens directly to `/winid/data` via 9P append.
+  Sets addr to `$` before each write so text lands at the end.
+- `Begin_Tool` — writes a tool-header line with the gear glyph, tool name,
+  and a plumb token (`coyote-session+UUID/tool/TOKEN`) for button-3 navigation.
+- `End_Tool` — appends check (✓) or cross (✗) and elapsed time.
+- `Append_Notice` — prefixes line with `[!]` (error), `[~]` (warning), or `[i]` (info).
+- `Read_Prompt` — blocks on `App_State.Wait_Prompt` (entry called by
+  `Acme_Event_Task` when the user sends a "Send" event).
+- `Shutdown` — writes a footer line; calls `App_State.Signal_Shutdown`.
+
+---
+
+### 5.32 `Coyote_App.Frontend.GUI`
+
+**Purpose:** GTK3 frontend implementation. Drives the conversation view via
+the `Coyote_GUI.Updates` queue.
+
+**State:** Holds an access to the `GtkApplicationWindow`, the
+`Coyote_GUI.Buffer.Instance`, and a reference to the `Prompt_Queue`. A
+menu-bar action map provides Compact, Pause, Resume, New Session, and model
+selection commands.
+
+**Key rendering choices:**
+- All `Append_Text`, `Begin_Tool`, `End_Tool`, etc. calls enqueue a
+  `Coyote_GUI.Update` record onto `Coyote_GUI.Updates`. A GLib idle handler
+  drains the queue on the GTK main-loop thread and calls the corresponding
+  `Coyote_GUI.Buffer` operations.
+- `Read_Prompt` — blocks on `Coyote_GUI.Prompt_Queue.Dequeue`.
+- `Set_Stats_Summary` — not part of the abstract interface; called directly
+  from `Dispatch_Event` via a classwide `if P in GUI.Instance'Class` check
+  to set the status-bar model/cost summary.
+- `Shutdown` — calls `Gtk.Main.Quit` from within the idle callback.
+
+---
+
+### 5.33 `Coyote_App.Frontend.Plain`
+
+**Purpose:** Plain-text frontend for `--one-shot` mode and non-TTY output.
+
+**Rendering:** All output goes to `Ada.Text_IO.Standard_Output`. No ANSI
+escape codes. Thinking blocks are suppressed (not printed). Tool calls are
+rendered as `[tool: <name>]` … `[/tool]` text markers. Notices are prefixed
+with `[ERROR]`, `[WARN]`, or `[INFO]`.
+
+**`Read_Prompt`:** In `--one-shot` mode, the prompt is pre-loaded from the
+`--prompt` argument or from stdin; `Read_Prompt` returns it on the first call
+and returns `""` (signalling shutdown) on all subsequent calls.
+
+---
+
+### 5.34 `Coyote_GUI`
+
+**Purpose:** Root package for the GUI subsystem. Defines the `Update_Kind`
+enumeration and the `Update` discriminated record.
+
+**`Update_Kind` values:** `Append_Text`, `End_Text_Block`, `Append_Thinking`,
+`Begin_Thinking`, `End_Thinking`, `Begin_Tool`, `End_Tool`, `Append_Notice`,
+`Append_Turn_Footer`, `Set_Mode`, `Shutdown`, `Set_Stats`.
+
+**`Update` record:** Discriminant is `Update_Kind`. Each variant carries the
+payload fields appropriate to that kind (e.g. `Append_Text` carries a
+`Text : Unbounded_String`; `Begin_Tool` carries `Tool_Id`, `Tool_Name`).
+
+---
+
+### 5.35 `Coyote_GUI.Updates`
+
+**Purpose:** Thread-safe bounded queue from `Agent_Task` to the GTK main loop.
+
+**Protected type `Queue`:** Bounded buffer of `Coyote_GUI.Update` records,
+capacity 8 192. Operations: `Enqueue (U : Update)` (blocks when full;
+`Agent_Task` may block briefly if GTK is slow), `Dequeue (U : out Update;
+Got : out Boolean)` (non-blocking; sets `Got := False` if empty), `Is_Empty`.
+
+**GLib idle handler:** Registered once by `Coyote_App.Frontend.GUI.Create`.
+On each idle callback, drains up to 64 items from the queue and calls the
+corresponding `Coyote_GUI.Buffer` operations, then returns `True` to remain
+registered (or `False` if a `Shutdown` item was dequeued).
+
+---
+
+### 5.36 `Coyote_GUI.Prompt_Queue`
+
+**Purpose:** Thread-safe bounded queue from the GTK main loop to `Agent_Task`.
+
+**Protected type `Queue`:** Bounded buffer of `Unbounded_String`, capacity 64.
+Operations: `Enqueue (S : String)` (non-blocking; drops if full, which is
+impossible under normal use), `Dequeue (S : out Unbounded_String)` (blocking
+entry; `Agent_Task` waits here between turns).
+
+---
+
+### 5.37 `Coyote_Utils`
+
+**Purpose:** CLI argument resolution and session prefix stripping utilities
+shared by the entry-point packages.
+
+**`Resolve_Prompt_Arg (Arg : String) → String`:** If `Arg` starts with `@`,
+reads and returns the content of the named file; otherwise returns `Arg`
+as-is.
+
+**`Strip_Session_Prefix (S : String) → String`:** Removes a
+`coyote-session+` prefix and any trailing path components from a plumb token,
+returning just the UUID.
+
+**`Bad_Arg_Error` exception:** Raised when a CLI argument is unrecognised or
+malformed; caught in `coyote.adb` and printed to stderr.
+
+---
+
+### 5.38 `Acme`
+
+**Purpose:** Root package for the acme subsystem. Defines the
+`Win_File_Path` helper.
+
+**`Win_File_Path (Win_Id : Natural; File : String) → String`:** Returns the
+9P path `"/<Win_Id>/<File>"` (e.g. `"/42/ctl"`, `"/42/data"`). Used by
+`Acme.Window` and `Acme.Event_Parser` to construct VFS paths.
+
+---
+
+### 5.39 `Acme.Window`
+
+**Purpose:** High-level acme window operations over 9P.
+
+**Key subprograms:**
+- `Write_Body (Fs; Win_Id; Text)` — sets addr to `$`, writes `Text` to
+  `/Win_Id/data`.
+- `Write_Ctl (Fs; Win_Id; Cmd)` — writes a control command string to
+  `/Win_Id/ctl`.
+- `Write_Tag (Fs; Win_Id; Text)` — appends `Text` to the window tag.
+- `Clear_Body (Fs; Win_Id)` — sets addr to `,`, writes empty string to data
+  (erases the entire body).
+- `Set_Name (Fs; Win_Id; Name)` — writes `"name <Name>"` to ctl.
+
+All subprograms take an explicit `Fs : not null access Nine_P.Client.Fs` so
+the caller's task-local connection is used; never shares an `Fs` across tasks.
+
+---
+
+### 5.40 `Acme.Event_Parser`
+
+**Purpose:** Parses acme event-file records into structured `Event` values.
+
+**`Event` record fields:** `C1`, `C2` (origin and type characters), `Q0`,
+`Q1` (character range), `Flag`, `Nr`, `Text` (event text).
+
+**`Parse_Event (Raw : String) → Event`:** Parses one line from the acme event
+file. Returns a zero-valued `Event` if the line is malformed.
+
+**`Is_Button2_Exec (E : Event) → Boolean`:** Returns `True` when `C1 = 'E'`
+and `C2 = 'x'` (button-2 execute in body).
+
+---
+
+### 5.41 `Acme.Raw_Events`
+
+**Purpose:** Low-level byte accumulator for the acme event file.
+
+**`Feed (Bytes : String; On_Record : access procedure (R : String))`:**
+Buffers bytes and calls `On_Record` for each complete newline-terminated
+event record. Handles partial reads that split a record across two `Feed`
+calls.
+
+---
+
+### 5.42 `Nine_P`
+
+**Purpose:** Root package for the 9P2000 protocol implementation. Defines
+`Qid`, `Byte_Array`, and protocol constants (`NOTAG`, `NOFID`, version
+string `"9P2000"`).
+
+**No subprograms:** All logic lives in child packages.
+
+---
+
+### 5.43 `Nine_P.Proto`
+
+**Purpose:** Encodes and decodes 9P2000 T-messages and R-messages.
+
+**Key subprograms:**
+- `Encode_Tversion`, `Encode_Tattach`, `Encode_Twalk`, `Encode_Topen`,
+  `Encode_Tread`, `Encode_Twrite`, `Encode_Tclunk` — build byte arrays for
+  each T-message type.
+- `Decode_Rversion`, `Decode_Rattach`, `Decode_Rwalk`, `Decode_Ropen`,
+  `Decode_Rread`, `Decode_Rwrite` — parse R-message byte arrays into record
+  fields.
+- `Encode_String (S : String) → Byte_Array` — length-prefixed UTF-8 string
+  per 9P2000 wire format.
+
+**Error handling:** `Proto_Error` exception raised on truncated or malformed
+R-message bytes.
+
+---
+
+### 5.44 `Nine_P.Client`
+
+**Purpose:** 9P2000 client; provides mount, open, read, write, and clunk
+over a UNIX socket.
+
+**`Fs` type:** Protected object wrapping a socket file descriptor and a fid
+allocator. Each public operation acquires the lock, performs the T/R exchange,
+and releases the lock.
+
+**Key operations:**
+- `Ns_Mount (Ns_Name : String) → Fs` — connects to the named namespace socket
+  (e.g. `"/tmp/ns.user.:0/acme"`), performs `Tversion`/`Rattach` handshake.
+- `Open (Fs; Path : String; Mode : Open_Mode) → File` — walks and opens a
+  9P file; returns a `File` handle.
+- `Read (File; Count : Natural) → String` — sends `Tread`; returns data.
+- `Write (File; Data : String)` — sends `Twrite`.
+- `Clunk (File)` — sends `Tclunk`; closes the fid.
+
+**Critical constraint:** `Fs` instances must never be shared across Ada tasks.
+Each task creates its own `Fs` via `Ns_Mount`.
+
+---
+
+### 5.45 `Session_Lister`
+
+**Purpose:** Enumerates saved sessions for the current directory and formats
+them for display.
+
+**`List_Sessions (CWD : String) → Session_Info_Array`:** Scans
+`~/.coyote/sessions/<cwd-slug>/` for `*.jsonl` files, reads the first record
+of each to extract the session header (timestamp, model, first user message
+preview), and returns the array sorted by creation time (newest first).
+
+**`Format_For_Display (Info : Session_Info) → String`:** Formats one entry
+as a human-readable line: `UUID  YYYY-MM-DD HH:MM  model  preview`.
+
+Used by `coyote_list_sessions` and by the GUI frontend's session-picker
+menu.
+
+---
+
+### 5.46 `LLM.Agent` — `Request_Abort`, `Request_Pause`, and `Resume`
+
+*(Supplement to §5.5, which covers `Create` and `Run_Prompt`.)*
+
+**`Request_Abort (S : in out Session)`:** Sets `S.Abort_Flg`. The libcurl
+write callback and the tool executor both poll this flag; the current
+operation terminates at the next check point. `Run_Prompt` detects the flag
+at the top of its outer loop and exits cleanly.
+
+**`Request_Pause (S : in out Session)`:** Sets `S.Pause_Flg`. After the
+current tool call completes (or immediately if no tool call is active),
+`Run_Prompt` enters a `S.Pause_Flg.Wait_If_Cleared` entry call that blocks
+`Agent_Task` until `Resume` is called. `Agent_Paused_Event` is emitted before
+blocking; `Agent_Resumed_Event` is emitted after unblocking.
+
+**`Resume (S : in out Session)`:** Clears `S.Pause_Flg`, unblocking the
+`Wait_If_Cleared` entry.
 
 ## 6. Requirements Traceability
 

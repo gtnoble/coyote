@@ -469,7 +469,7 @@ acknowledged the specification independently.
 | Project Plan | PLAN | `plan/project-plan.md` | 1.4 (2026-06-02) | Project |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
 | coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.1 (2026-06-02) | Client |
-| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.0 (2026-06-01) | Author |
+| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.1 (2026-06-02) | Author |
 | coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.1 draft (2026-05-21) | Project |
 | coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.1 draft (2026-05-21) | Project |
 | Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.0 (2026-06-01) | Author |
