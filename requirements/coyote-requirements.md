@@ -1,9 +1,9 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.0
-**Date:** 2026-06-01
-**Status:** Draft — awaiting requirements review
+**Version:** 1.1
+**Date:** 2026-06-02
+**Status:** Reviewed (2026-06-02)
 **Project Plan:** `plan/project-plan.md`
 
 ---
@@ -21,6 +21,10 @@
    - 3.6 Resource Requirements
    - 3.7 Software Quality Factors
    - 3.8 Design and Implementation Constraints
+   - 3.9 Adaptation Requirements
+   - 3.10 Safety Requirements
+   - 3.11 Security and Privacy Requirements
+   - 3.12 Personnel and Training Requirements
 4. [Qualification Provisions](#4-qualification-provisions)
 5. [Requirements Traceability](#5-requirements-traceability)
 6. [Notes](#6-notes)
@@ -658,9 +662,8 @@ shall not propagate to affect other components. Exceptions at task boundaries
 shall be caught and converted to error notices.
 
 **REQ-CORE-704** (I)
-**Maintainability:** New LLM providers shall be addable by following the
-recipe in AGENTS.md §Adding a New LLM Provider without modifying existing
-provider packages.
+**Maintainability:** New LLM providers shall be addable without modifying
+existing provider packages.
 
 ---
 
@@ -692,6 +695,35 @@ New packages shall follow the existing `.ads`/`.adb` split convention. Public
 APIs shall be fully commented in the `.ads` file.
 
 ---
+
+
+### 3.9 Adaptation Requirements
+
+Not applicable to this project. coyote has no installation-dependent or
+site-dependent parameters requiring separate specification; all configuration
+is user-managed via `~/.coyote/settings.json` and `~/.coyote/models.json`.
+
+---
+
+### 3.10 Safety Requirements
+
+Not applicable to this project. coyote is a developer tool; no
+safety-critical hazards have been identified.
+
+---
+
+### 3.11 Security and Privacy Requirements
+
+Deferred per the Project Plan (§5.19.3 waived). No sensitive user data is
+handled beyond API keys stored in user-controlled configuration files. This
+section will be activated if a relevant deployment scenario is identified.
+
+---
+
+### 3.12 Personnel and Training Requirements
+
+Not applicable to this project. No training programme or operator
+qualification requirements are identified.
 
 ## 4. Qualification Provisions
 

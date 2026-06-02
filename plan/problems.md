@@ -251,3 +251,47 @@ client-controlled work product gets an entry here.
   coyote session data" 2026-06-02.
 - **Status:** Resolved
 - **Date resolved:** 2026-06-02
+
+---
+
+## PCR-013
+
+- **Date reported:** 2026-06-02
+- **Category:** Requirements
+- **Priority:** 4-Minor
+- **Description:** SRS-CORE §3 silently omitted four DID-required sub-sections
+  (Adaptation Requirements, Safety Requirements, Security and Privacy
+  Requirements, Personnel and Training Requirements) without noting them as
+  not applicable. The general checklist instructions (documents.md Part 1)
+  require inapplicable sections to be explicitly noted rather than silently
+  omitted.
+- **Affected work products:** SRS-CORE `requirements/coyote-requirements.md` §3
+- **Corrective action required:** Add brief N/A stub sections 3.9–3.12 to
+  SRS-CORE §3 covering each omitted topic.
+- **Actions taken:** Sections 3.9–3.12 added to SRS-CORE v1.1 (2026-06-02)
+  with explicit not-applicable or deferred rationale for each.
+- **Status:** Resolved
+- **Date resolved:** 2026-06-02
+
+---
+
+## PCR-014
+
+- **Date reported:** 2026-06-02
+- **Category:** Requirements
+- **Priority:** 4-Minor
+- **Description:** REQ-CORE-704 (Maintainability) referenced AGENTS.md as the
+  normative "recipe" for adding LLM providers. After PCR-011, AGENTS.md is
+  classified as secondary operational guidance, not a design document.
+  Embedding a reference to it in a testable requirement creates a normative
+  dependency on a non-controlled artifact and conflates operational guidance
+  with capability requirements.
+- **Affected work products:** SRS-CORE `requirements/coyote-requirements.md`
+  REQ-CORE-704
+- **Corrective action required:** Revise REQ-CORE-704 to state the required
+  property directly without referencing AGENTS.md.
+- **Actions taken:** REQ-CORE-704 revised in SRS-CORE v1.1 (2026-06-02) to
+  read: "New LLM providers shall be addable without modifying existing
+  provider packages." The AGENTS.md reference removed.
+- **Status:** Resolved
+- **Date resolved:** 2026-06-02

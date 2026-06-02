@@ -1,6 +1,6 @@
 # Project Plan — coyote
 
-**Version:** 1.3
+**Version:** 1.4
 **Date:** 2026-06-02
 **Status:** Active
 
@@ -372,7 +372,7 @@ adopted.
 | Milestone | Description | Status |
 |---|---|---|
 | M1 | Project Plan acknowledged by user | Complete (2026-06-02) |
-| M2 | SRS-CORE (coyote requirements) complete and reviewed | Pending |
+| M2 | SRS-CORE (coyote requirements) complete and reviewed | Complete (2026-06-02) |
 | M3 | SDD-CORE (coyote design) complete and reviewed | Pending |
 | M4 | Test Plan complete and reviewed | Pending |
 | M5 | All SRS-CORE requirements have test coverage | Pending |
@@ -438,13 +438,37 @@ acknowledged the plan independently.
 
 ---
 
+
+### Review 2 — M2 Requirements Review (2026-06-02)
+
+**Review type:** Software requirements review
+**Trigger:** M2 — SRS-CORE v1.1 presented for review
+
+| Indicator | Value |
+|---|---|
+| Requirements volatility | SRS-CORE v1.1 (2026-06-02): 101 requirements. 1 requirement revised (REQ-CORE-704); 0 additions or deletions since v1.0. |
+| Component progress | coyote core: requirements complete, designed, implemented, unit-tested, integrated. coyote_sqc: same. |
+| Open problems | PCR-009 Open (4-Minor). PCR-013 and PCR-014 raised and resolved at this review. |
+| Milestone status | M1 Complete 2026-06-02. M2 Complete 2026-06-02. M3–M6 Pending. |
+| Scope changes | 0 agreed amendments since project start. |
+| Test results trend | 658 AUnit tests passing; 0 failures (no new test run since M1). |
+
+**Issues raised at review:** PCR-013 (missing N/A stubs in SRS §3),
+PCR-014 (REQ-CORE-704 referenced AGENTS.md normatively). Both resolved
+before acknowledgement.
+
+**Independence limitation:** Developer evaluated own work. User reviewed and
+acknowledged the specification independently.
+
+---
+
 ## 9. Artifact Version Table
 
 | Artifact | ID | Location | Current Version | Control Level |
 |---|---|---|---|---|
-| Project Plan | PLAN | `plan/project-plan.md` | 1.3 (2026-06-02) | Project |
+| Project Plan | PLAN | `plan/project-plan.md` | 1.4 (2026-06-02) | Project |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
-| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.0 (2026-06-01) | Author |
+| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.1 (2026-06-02) | Client |
 | coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.0 (2026-06-01) | Author |
 | coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.1 draft (2026-05-21) | Project |
 | coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.1 draft (2026-05-21) | Project |
