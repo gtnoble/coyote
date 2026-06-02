@@ -1,7 +1,7 @@
 # Project Plan — coyote
 
-**Version:** 1.0
-**Date:** 2026-06-01
+**Version:** 1.3
+**Date:** 2026-06-02
 **Status:** Active
 
 ---
@@ -41,8 +41,8 @@
 
 **Purpose:** Develop and maintain a self-contained multi-frontend LLM coding
 agent that operates inside the acme text editor and a GTK3 GUI. The agent
-streams thinking, tool output, and assistant responses in real time; persists
-sessions as JSONL; supports multiple LLM providers; and includes a companion
+streams thinking, tool output, and assistant responses in real time; supports
+multiple LLM providers; and includes a companion
 Statistical Quality Control application (coyote_sqc) for process monitoring.
 
 **Scope:** This plan covers all active development activities for the coyote
@@ -74,7 +74,7 @@ separate system-level stratum.
 | SDD-SQC | coyote_sqc Design Specification | `design/coyote-sqc-design.md` |
 | PCR-LOG | Problem/Change Log | `plan/problems.md` |
 | TEST-GUIDE | Integration Test Guide | `plan/integration-test-guide.md` |
-| AGENTS | Agent Working Instructions | `AGENTS.md` |
+| AGENTS | Agent Working Instructions (secondary) | `AGENTS.md` |
 
 ---
 
@@ -89,12 +89,11 @@ an in-process LLM agentic loop; streams events to the active frontend; persists
 sessions; executes the built-in shell tool; manages provider selection and
 context compaction.
 
-**Current state:** Implemented and in active development. Requirements are
-implicit in AGENTS.md; no formal SRS exists yet (PCR-002 open).
+**Current state:** Implemented and in active development. SRS-CORE (`requirements/coyote-requirements.md`) is the governing requirements document.
 
 ### Component: coyote_sqc (SQC companion)
 
-A standalone GTK3 executable that reads coyote session JSONL files, computes
+A standalone GTK3 executable that reads coyote session data, computes
 SPC/SQC control chart statistics, and presents an interactive analysis GUI.
 
 **Current state:** Implemented and in active development. Requirements documented
@@ -164,8 +163,10 @@ binaries does not depend on any of these tools at runtime except GTK3
 
 ### 4.3 Requirements Analysis
 
-**Approach:** For coyote core (SRS-CORE): extract implicit requirements from
-AGENTS.md; state each as a testable capability requirement with a unique ID
+**Approach:** For coyote core (SRS-CORE): governing document is
+`requirements/coyote-requirements.md`. Requirements are derived from observed
+system behaviour and user-agreed changes; each is stated as a testable
+capability requirement with a unique ID
 (`REQ-CORE-NNN`) and a verification method. Add interface, environment,
 quality-factor, and constraint requirements. Produce traceability from each
 requirement to the project objective it serves.
@@ -184,15 +185,15 @@ handling, concurrency model), then architectural design (package/task
 decomposition, interfaces, concept of execution), then detailed design
 (per-package descriptions sufficient to implement and maintain).
 
-For coyote core: SDD-CORE (`design/coyote-design.md`). The existing AGENTS.md
-architecture section is the primary source; SDD-CORE makes it a controlled
-artifact with explicit traceability to requirements.
+For coyote core: SDD-CORE (`design/coyote-design.md`) is the primary design
+artifact. AGENTS.md serves as secondary operational guidance for the agent;
+where they diverge, SDD-CORE takes precedence.
 
 For coyote_sqc: SDD-SQC (`design/coyote-sqc-design.md`) is the governing document.
 
 **Design methods:** Ada packages map directly to software units. Concurrency
-design uses Ada task types and protected objects as specified in AGENTS.md.
-Provider additions follow the recipe in AGENTS.md §Adding a New LLM Provider.
+design uses Ada task types and protected objects as described in SDD-CORE.
+Provider additions follow the approach described in SDD-CORE §5 (Detailed Design).
 
 ### 4.5 Implementation and Unit Testing
 
@@ -370,7 +371,7 @@ adopted.
 
 | Milestone | Description | Status |
 |---|---|---|
-| M1 | Project Plan acknowledged by user | Pending |
+| M1 | Project Plan acknowledged by user | Complete (2026-06-02) |
 | M2 | SRS-CORE (coyote requirements) complete and reviewed | Pending |
 | M3 | SDD-CORE (coyote design) complete and reviewed | Pending |
 | M4 | Test Plan complete and reviewed | Pending |
@@ -404,7 +405,7 @@ Subsequent builds will define their own milestone sets.
 |---|---|---|---|---|---|
 | R1 | Upstream library API changes (libcurl, GTK3, cmark-gfm) break the build | Low | Moderate | Pin Alire dependency versions; monitor library release notes | Open |
 | R2 | Provider wire-format changes (Anthropic, OpenAI, Copilot) break streaming | Medium | High | Opt-in provider integration tests (guarded by env vars); review R1–R10 review records after provider releases; isolate wire-format code in dedicated provider packages | Open |
-| R3 | AGENTS.md drifts from actual code, misleading future development | Medium | Moderate | Treat AGENTS.md as a controlled design artifact; include AGENTS.md review in the Definition of Done for each build; PCR raised when drift is detected | Open |
+| R3 | SDD-CORE drifts from actual implementation, misleading future development | Medium | Moderate | Treat SDD-CORE as the primary controlled design artifact; include SDD-CORE review in the Definition of Done for each build; update AGENTS.md to match SDD-CORE when it diverges; PCR raised when drift is detected | Open |
 | R4 | Process artifact maintenance overhead crowds out feature work | Low | Low | Keep all process artifacts in Markdown co-located with the code; lightweight tooling (no external tracking systems); tailor to minimum viable coverage | Open |
 
 ---
@@ -413,17 +414,39 @@ Subsequent builds will define their own milestone sets.
 
 *(Appended at each joint review.)*
 
+### Review 1 — M1 Plan Review (2026-06-02)
+
+**Review type:** Plan review
+**Trigger:** Project Plan presented for M1 acknowledgement
+
+| Indicator | Value |
+|---|---|
+| Requirements volatility | SRS-CORE v1.0 (2026-06-01): 101 requirements. No additions, changes, or deletions since creation. |
+| Component progress | coyote core: requirements complete, designed, implemented, unit-tested, integrated. coyote_sqc: requirements complete, designed, implemented, unit-tested, integrated. |
+| Open problems | 1 Open (PCR-009, priority 4-Minor); 1 In Progress (PCR-008, priority 4-Minor); 10 Resolved. |
+| Milestone status | M1 Complete 2026-06-02. M2–M6 Pending. |
+| Scope changes | 0 agreed amendments to project brief since project start. |
+| Test results trend | 658 AUnit tests passing; 0 failures; 6 requirements deferred to demonstration (PCR-009). |
+
+**Issues raised at review:** PCR-010 (purpose over-specifies session storage
+format), PCR-011 (AGENTS.md treated as primary design source), PCR-012
+(coyote_sqc overview over-specifies session storage format). All three resolved
+before acknowledgement.
+
+**Independence limitation:** Developer evaluated own work. User reviewed and
+acknowledged the plan independently.
+
 ---
 
 ## 9. Artifact Version Table
 
 | Artifact | ID | Location | Current Version | Control Level |
 |---|---|---|---|---|
-| Project Plan | PLAN | `plan/project-plan.md` | 1.0 (2026-06-01) | Project |
+| Project Plan | PLAN | `plan/project-plan.md` | 1.3 (2026-06-02) | Project |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
 | coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.0 (2026-06-01) | Author |
 | coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.0 (2026-06-01) | Author |
 | coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.1 draft (2026-05-21) | Project |
 | coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.1 draft (2026-05-21) | Project |
 | Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.0 (2026-06-01) | Author |
-| Agent Working Instructions | AGENTS | `AGENTS.md` | active | Project |
+| Agent Working Instructions (secondary) | AGENTS | `AGENTS.md` | active | Project |

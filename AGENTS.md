@@ -368,6 +368,16 @@ must set this field; routing providers set it dynamically.
 the `Standard_Env_Name` fallback. Add the provider to `Standard_Env_Name` so
 step 3 works out of the box.
 
+## Structured Software Developer
+
+**Always load the `structured-sw-developer` skill at the start of any software
+development engagement on this project.** The skill is located at
+`/home/gtnoble/.coyote/skills/structured-sw-developer/SKILL.md`. It defines
+the MIL-STD-498-based process framework used throughout this project — planning,
+requirements, design, implementation, testing, configuration management, and
+quality assurance obligations — and must be loaded before undertaking any
+non-trivial development task.
+
 ## Throwaway Scripts
 
 **Always load the `throwaway-scripts` skill before issuing the first shell

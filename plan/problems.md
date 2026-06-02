@@ -187,3 +187,67 @@ client-controlled work product gets an entry here.
 - **Status:** Open
 
 ---
+
+---
+
+## PCR-010
+
+- **Date reported:** 2026-06-02
+- **Category:** Plans
+- **Priority:** 4-Minor
+- **Description:** The Project Plan purpose statement (§1) included "persists
+  sessions as JSONL" — an implementation-level detail that does not belong in
+  a purpose statement. A purpose statement should describe what the system does
+  for users, not how it stores data internally.
+- **Affected work products:** Project Plan `plan/project-plan.md` §1
+- **Corrective action required:** Remove the JSONL storage detail from the
+  purpose statement; retain the functional description.
+- **Actions taken:** Removed "persists sessions as JSONL;" from §1 purpose
+  statement 2026-06-02.
+- **Status:** Resolved
+- **Date resolved:** 2026-06-02
+
+---
+
+## PCR-011
+
+- **Date reported:** 2026-06-02
+- **Category:** Plans
+- **Priority:** 3-Moderate
+- **Description:** The Project Plan treated AGENTS.md as the primary source
+  for requirements (§4.3) and design (§4.4), and as a controlled design
+  artifact to be kept in sync with the code (R3). This is incorrect: AGENTS.md
+  is operational working guidance for the agent, not a design document.
+  Design documentation belongs in the dedicated design artefacts in `design/`.
+  Using AGENTS.md as a primary source conflates design traceability with
+  operational instructions and makes controlled change harder.
+- **Affected work products:** Project Plan `plan/project-plan.md` §4.3, §4.4, §7 (R3)
+- **Corrective action required:** Update §4.3 to reference SRS-CORE as
+  governing requirements document; update §4.4 to designate SDD-CORE as the
+  primary design artifact with AGENTS.md as secondary; update R3 to track
+  SDD-CORE drift rather than AGENTS.md drift.
+- **Actions taken:** §4.3, §4.4, R3, and §9 updated 2026-06-02 to reflect
+  SDD-CORE as primary design source and AGENTS.md as secondary operational
+  guidance.
+- **Status:** Resolved
+- **Date resolved:** 2026-06-02
+
+---
+
+## PCR-012
+
+- **Date reported:** 2026-06-02
+- **Category:** Plans
+- **Priority:** 4-Minor
+- **Description:** The coyote_sqc required work overview (§3) described the
+  component as reading "coyote session JSONL files" — an implementation-level
+  storage format detail that does not belong in a purpose statement. The
+  overview should describe what the component does for users, not its internal
+  data format.
+- **Affected work products:** Project Plan `plan/project-plan.md` §3
+- **Corrective action required:** Remove the JSONL format reference; replace
+  with a format-neutral description.
+- **Actions taken:** Changed "reads coyote session JSONL files" to "reads
+  coyote session data" 2026-06-02.
+- **Status:** Resolved
+- **Date resolved:** 2026-06-02
