@@ -376,7 +376,7 @@ adopted.
 | M3 | SDD-CORE (coyote design) complete and reviewed | Complete (2026-06-02) |
 | M4 | Test Plan complete and reviewed | Complete (2026-06-03) |
 | M5 | All SRS-CORE requirements have test coverage | Complete (2026-06-03) |
-| M6 | First full acceptance test run with recorded results | Pending |
+| M6 | First full acceptance test run with recorded results | Complete (2026-06-03) |
 
 These milestones apply to the current build (process formalisation build).
 Subsequent builds will define their own milestone sets.
@@ -525,13 +525,35 @@ acknowledged the design without comment.
 
 **Independence limitation:** Developer evaluated own work. User invited to review traceability table independently.
 
+
+
+### Review 5 — M6 Acceptance Test Results Review (2026-06-03)
+
+**Review type:** Test results review
+**Trigger:** M6 — First full acceptance test run with recorded results
+
+| Indicator | Value |
+|---|---|
+| Requirements volatility | SRS-CORE v1.1: 118 requirements. No changes since M5. |
+| Component progress | coyote core: requirements complete, designed, implemented, unit-tested, integrated. coyote_sqc: same. |
+| Open problems | 1 Open (PCR-009, priority 4-Minor — 14 demonstration tests deferred to future build). All other PCRs resolved. |
+| Milestone status | M1–M6 Complete (M6: 2026-06-03). |
+| Scope changes | 0 agreed amendments since project start. |
+| Test results trend | 658 AUnit tests passing; 0 failures; 4 demonstrations PASS; 14 demonstrations deferred (PCR-009); 21 inspection/analysis items PASS. |
+
+**Test Report:** `plan/test-report-m6.md` v1.0 — 658/658 automated tests pass, zero failures. DEM-001, DEM-002, DEM-004, and DEM-018 executed and passed. DEM-003 and DEM-005–DEM-017 deferred under PCR-009.
+
+**Issues raised at review:** None new. PCR-009 remains open (accepted deferral for this build).
+
+**Independence limitation:** Developer evaluated own work. User invited to review test report and results independently before accepting M6.
+
 ---
 
 ## 9. Artifact Version Table
 
 | Artifact | ID | Location | Current Version | Control Level |
 |---|---|---|---|---|
-| Project Plan | PLAN | `plan/project-plan.md` | 1.5 (2026-06-03) | Project |
+| Project Plan | PLAN | `plan/project-plan.md` | 1.6 (2026-06-03) | Project |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
 | coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.1 (2026-06-02) | Client |
 | coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.1 (2026-06-02) | Project |
