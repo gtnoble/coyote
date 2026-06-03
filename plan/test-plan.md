@@ -1,8 +1,8 @@
 # Test Plan — coyote (STP)
 
-**Version:** 1.0
-**Date:** 2026-06-01
-**Status:** Draft — awaiting test readiness review
+**Version:** 1.1
+**Date:** 2026-06-03
+**Status:** Reviewed and acknowledged — M4 complete (2026-06-03)
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
 
