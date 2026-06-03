@@ -183,7 +183,7 @@ client-controlled work product gets an entry here.
   For REQ-CORE-142 (SIGTERM), add a shell-script test if feasible within the
   test suite.
 - **Actions taken:** Coverage gaps documented in Test Plan §4.5 (2026-06-01).
-  Deferred to milestone M6.
+  Deferred to milestone M6. M5 review (2026-06-03): traceability table confirmed complete — all 118 SRS-CORE requirements have an assigned verification method; 6 D-method gaps accepted per Test Plan §4.5.
 - **Status:** Open
 
 ---

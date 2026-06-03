@@ -1,7 +1,7 @@
 # Project Plan — coyote
 
-**Version:** 1.4
-**Date:** 2026-06-02
+**Version:** 1.5
+**Date:** 2026-06-03
 **Status:** Active
 
 ---
@@ -374,8 +374,8 @@ adopted.
 | M1 | Project Plan acknowledged by user | Complete (2026-06-02) |
 | M2 | SRS-CORE (coyote requirements) complete and reviewed | Complete (2026-06-02) |
 | M3 | SDD-CORE (coyote design) complete and reviewed | Complete (2026-06-02) |
-| M4 | Test Plan complete and reviewed | Pending |
-| M5 | All SRS-CORE requirements have test coverage | Pending |
+| M4 | Test Plan complete and reviewed | Complete (2026-06-03) |
+| M5 | All SRS-CORE requirements have test coverage | Complete (2026-06-03) |
 | M6 | First full acceptance test run with recorded results | Pending |
 
 These milestones apply to the current build (process formalisation build).
@@ -482,15 +482,60 @@ acknowledged the design without comment.
 
 ---
 
+
+
+### Review 3 — M4 Test Readiness Review (2026-06-03)
+
+**Review type:** Test readiness review
+**Trigger:** M4 — Test Plan v1.0 presented for acknowledgement
+
+| Indicator | Value |
+|---|---|
+| Requirements volatility | SRS-CORE v1.1: 101 requirements. No additions, changes, or deletions since M3. |
+| Component progress | coyote core: requirements complete, designed, implemented, unit-tested, integrated. coyote_sqc: same. |
+| Open problems | 1 Open (PCR-009, priority 4-Minor — coverage gaps accepted/deferred); all other PCRs resolved. |
+| Milestone status | M1–M3 Complete (2026-06-02). M4 Complete 2026-06-03. M5–M6 Pending. |
+| Scope changes | 0 agreed amendments since project start. |
+| Test results trend | 658 tests passing; 0 failures (confirmed pre-review dry run). |
+
+**Issues raised at review:** None.
+
+**Independence limitation:** Developer evaluated own work. User acknowledged the plan independently.
+
+---
+
+
+### Review 4 — M5 Requirements Coverage Review (2026-06-03)
+
+**Review type:** Requirements traceability review
+**Trigger:** M5 — All SRS-CORE requirements confirmed to have assigned verification methods
+
+| Indicator | Value |
+|---|---|
+| Requirements volatility | SRS-CORE v1.1: 118 requirements. No changes since M4. |
+| Component progress | coyote core: requirements complete, designed, implemented, unit-tested, integrated. coyote_sqc: same. |
+| Open problems | 1 Open (PCR-009, priority 4-Minor — demonstration tests pending M6); all other PCRs resolved. |
+| Milestone status | M1–M5 Complete (M5: 2026-06-03). M6 Pending. |
+| Scope changes | 0 agreed amendments since project start. |
+| Test results trend | 658 tests passing; 0 failures (confirmed pre-review dry run). |
+
+**Coverage verification:** All 118 SRS-CORE requirements (REQ-CORE-001 through REQ-CORE-805) appear in the Test Plan §6 traceability table with an assigned verification method (T, D, I, or A). Six requirements (REQ-CORE-011/012, 022, 074, 075/076, 107, 142) use Demonstration as their method; these are formally accepted per Test Plan §4.5 and PCR-009. Automated AUnit baseline: 658 tests, 0 failures.
+
+**Issues raised at review:** None.
+
+**Independence limitation:** Developer evaluated own work. User invited to review traceability table independently.
+
+---
+
 ## 9. Artifact Version Table
 
 | Artifact | ID | Location | Current Version | Control Level |
 |---|---|---|---|---|
-| Project Plan | PLAN | `plan/project-plan.md` | 1.4 (2026-06-02) | Project |
+| Project Plan | PLAN | `plan/project-plan.md` | 1.5 (2026-06-03) | Project |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
 | coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.1 (2026-06-02) | Client |
 | coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.1 (2026-06-02) | Project |
 | coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.1 draft (2026-05-21) | Project |
 | coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.1 draft (2026-05-21) | Project |
-| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.0 (2026-06-01) | Author |
+| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.1 (2026-06-03) | Project |
 | Agent Working Instructions (secondary) | AGENTS | `AGENTS.md` | active | Project |
