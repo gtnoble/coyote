@@ -3,7 +3,7 @@
 **Component:** coyote (core agent executable and shared libraries)
 **Version:** 1.1
 **Date:** 2026-06-02
-**Status:** Draft — design review in progress
+**Status:** Reviewed — project control (M3 complete 2026-06-02)
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
 

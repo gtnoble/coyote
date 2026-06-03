@@ -373,7 +373,7 @@ adopted.
 |---|---|---|
 | M1 | Project Plan acknowledged by user | Complete (2026-06-02) |
 | M2 | SRS-CORE (coyote requirements) complete and reviewed | Complete (2026-06-02) |
-| M3 | SDD-CORE (coyote design) complete and reviewed | Pending |
+| M3 | SDD-CORE (coyote design) complete and reviewed | Complete (2026-06-02) |
 | M4 | Test Plan complete and reviewed | Pending |
 | M5 | All SRS-CORE requirements have test coverage | Pending |
 | M6 | First full acceptance test run with recorded results | Pending |
@@ -460,6 +460,26 @@ before acknowledgement.
 **Independence limitation:** Developer evaluated own work. User reviewed and
 acknowledged the specification independently.
 
+
+### Review 2 — M3 Design Review (2026-06-02)
+
+**Review type:** Software design review
+**Trigger:** SDD-CORE v1.1 presented for M3 acknowledgement
+
+| Indicator | Value |
+|---|---|
+| Requirements volatility | SRS-CORE v1.1: 101 requirements. No additions, changes, or deletions since M2. |
+| Component progress | coyote core: requirements complete, designed, implemented, unit-tested, integrated. coyote_sqc: unchanged. |
+| Open problems | 1 Open (PCR-009, priority 4-Minor); 1 In Progress (PCR-008, priority 4-Minor); 12 Resolved. |
+| Milestone status | M1 Complete 2026-06-02. M2 Complete 2026-06-02. M3 Complete 2026-06-02. M4–M6 Pending. |
+| Scope changes | 0 agreed amendments since project start. |
+| Test results trend | 658 AUnit tests passing; 0 failures (no new test run since M2). |
+
+**Issues raised at review:** None.
+
+**Independence limitation:** Developer evaluated own work. User reviewed and
+acknowledged the design without comment.
+
 ---
 
 ## 9. Artifact Version Table
@@ -469,7 +489,7 @@ acknowledged the specification independently.
 | Project Plan | PLAN | `plan/project-plan.md` | 1.4 (2026-06-02) | Project |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
 | coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.1 (2026-06-02) | Client |
-| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.1 (2026-06-02) | Author |
+| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.1 (2026-06-02) | Project |
 | coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.1 draft (2026-05-21) | Project |
 | coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.1 draft (2026-05-21) | Project |
 | Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.0 (2026-06-01) | Author |
