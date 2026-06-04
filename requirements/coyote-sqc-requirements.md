@@ -2253,7 +2253,7 @@ session file format requires changes only in `Coyote_SQC.Session_Parser`.
 
 The application shall load and display charts for a workspace containing up to 10,000
 sessions within 5 seconds on a modern workstation, using the session cache
-(Section 13.6). Chart re-render on zoom/pan shall complete within 50ms.
+(Section 13.6). Chart re-render on zoom/pan shall complete within 50ms. After the initial load, each subsequent Reload Sessions operation shall complete within 1 second per added or modified session.
 
 ### 15.5 Coding Conventions
 

@@ -295,3 +295,45 @@ client-controlled work product gets an entry here.
   provider packages." The AGENTS.md reference removed.
 - **Status:** Resolved
 - **Date resolved:** 2026-06-02
+
+---
+
+## PCR-015
+
+- **Date reported:** 2026-06-03
+- **Category:** Requirements — performance requirement not met
+- **Priority:** 2-Significant
+- **Description:** REQ-SQC-2256 (SRS-SQC §13.6) states: "After the initial
+  load, each subsequent Reload Sessions operation shall complete within 1 second
+  per added or modified session."  The implementation in `Reload_Sessions`
+  (`coyote_sqc-app.adb`) always performed a full reload: `State.Sessions.Clear`
+  followed by `Load_Sessions` (which re-parsed every JSONL file) and a full
+  re-run of `Coyote_SQC.Metrics.Compute` for every session.  Cost was O(N)
+  regardless of how many files had changed, violating the O(K) budget implied
+  by the requirement (K = added or modified sessions).
+- **Root cause:** No mechanism existed to distinguish changed from unchanged
+  session files; `Session_Record` stored no file-system metadata.
+- **Affected work products:** `src/coyote_sqc/coyote_sqc-data_model.ads`,
+  `src/coyote_sqc/coyote_sqc-session_parser.ads/.adb`,
+  `src/coyote_sqc/coyote_sqc-app.adb`, `design/coyote-sqc-design.md`
+- **Corrective action required:** Add `File_Path` and `File_Mtime` fields to
+  `Session_Record`; pass `Previous_Sessions` to `Load_Sessions` so unchanged
+  files are skipped; reuse cached metrics in `Reload_Sessions`.
+- **Actions taken (2026-06-03):**
+  1. Added `File_Path : Unbounded_String` and `File_Mtime : Ada.Calendar.Time`
+     to `Session_Record` in `coyote_sqc-data_model.ads`.
+  2. `Parse_File` now sets both fields on success.
+  3. `Load_Sessions` (spec and body) gains a `Previous_Sessions` parameter
+     (default `Empty_Vector`).  `Scan_Dir` builds an O(1) hash-map from the
+     previous sessions and skips `Parse_File` for files whose modification time
+     is unchanged.
+  4. `Reload_Sessions` in `coyote_sqc-app.adb` now saves old sessions/metrics
+     before clearing, passes `Previous_Sessions => Old_Sessions` to
+     `Load_Sessions`, and reuses cached `Session_Metrics_Record` values for
+     sessions whose file is unchanged, computing fresh metrics only for new or
+     modified files.
+  5. Design description updated (§4.1 Session_Parser note and §6.3
+     Session_Record code block).
+  All 658 existing AUnit tests pass after the change.
+- **Status:** Resolved
+- **Date resolved:** 2026-06-03

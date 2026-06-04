@@ -507,7 +507,9 @@ package body Coyote_SQC.Session_Parser is
          Total_Cache_Read_Tokens  => 0,
          Total_Cache_Write_Tokens => 0,
          Total_Uncached_Input_Tokens => 0,
-         Turns               => Turn_Vectors.Empty_Vector);
+         Turns               => Turn_Vectors.Empty_Vector,
+         File_Path           => Null_Unbounded_String,
+         File_Mtime          => Epoch);
 
       Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Path);
       while not Ada.Text_IO.End_Of_File (File) loop
@@ -535,23 +537,36 @@ package body Coyote_SQC.Session_Parser is
 
       Session.Model := Last_Model;
       Ok            := not Session.Turns.Is_Empty;
+      if Ok then
+         Session.File_Path  := To_Unbounded_String (Path);
+         Session.File_Mtime := Ada.Directories.Modification_Time (Path);
+      end if;
    exception
       when Ada.Text_IO.Name_Error =>
          Ok := False;
    end Parse_File;
 
-   --  ── Load_Sessions ─────────────────────────────────────────────────────
-
    procedure Load_Sessions
      (Source_Directories      : String_Vectors.Vector;
       Model_Filter            : String_Vectors.Vector;
       Sessions                : in out Session_Vectors.Vector;
-      Analyze_All_Directories : Boolean := False)
+      Analyze_All_Directories : Boolean := False;
+      Previous_Sessions       : in Session_Vectors.Vector :=
+        Session_Vectors.Empty_Vector)
    is
       use Ada.Directories;
 
-      Home        : constant String := GNAT.OS_Lib.Getenv ("HOME").all;
+      Home          : constant String := GNAT.OS_Lib.Getenv ("HOME").all;
       Sessions_Root : constant String := Home & "/.coyote/sessions/";
+
+      --  Map from file path to index in Previous_Sessions for fast lookup.
+      package Path_Maps is new Ada.Containers.Hashed_Maps
+        (Key_Type        => Unbounded_String,
+         Element_Type    => Positive,
+         Hash            => Ada.Strings.Unbounded.Hash,
+         Equivalent_Keys => Ada.Strings.Unbounded."=");
+
+      Path_Map : Path_Maps.Map;
 
       --  Scan all *.jsonl files in Dir, appending matching sessions.
       procedure Scan_Dir (Dir : String) is
@@ -566,23 +581,63 @@ package body Coyote_SQC.Session_Parser is
                while More_Entries (Search) loop
                   Get_Next_Entry (Search, Dirent);
                   declare
-                     Session : Session_Record;
-                     Ok      : Boolean;
+                     File_Path_S  : constant String :=
+                       Full_Name (Dirent);
+                     File_Mtime_V : constant Ada.Calendar.Time :=
+                       Modification_Time (File_Path_S);
+                     Path_US      : constant Unbounded_String :=
+                       To_Unbounded_String (File_Path_S);
+                     Cursor       : constant Path_Maps.Cursor :=
+                       Path_Map.Find (Path_US);
+                     Appended     : Boolean := False;
                   begin
-                     Parse_File (Full_Name (Dirent), Session, Ok);
-                     if Ok then
-                        if Model_Filter.Is_Empty then
-                           Sessions.Append (Session);
-                        else
-                           for F of Model_Filter loop
-                              if To_String (F) =
-                                 To_String (Session.Model)
-                              then
-                                 Sessions.Append (Session);
-                                 exit;
+                     --  Reuse cached session when file is unchanged.
+                     if Path_Maps.Has_Element (Cursor) then
+                        declare
+                           Old : constant Session_Record :=
+                             Previous_Sessions
+                               (Path_Maps.Element (Cursor));
+                        begin
+                           if Old.File_Mtime = File_Mtime_V then
+                              if Model_Filter.Is_Empty then
+                                 Sessions.Append (Old);
+                                 Appended := True;
+                              else
+                                 for F of Model_Filter loop
+                                    if To_String (F) =
+                                       To_String (Old.Model)
+                                    then
+                                       Sessions.Append (Old);
+                                       Appended := True;
+                                       exit;
+                                    end if;
+                                 end loop;
                               end if;
-                           end loop;
-                        end if;
+                           end if;
+                        end;
+                     end if;
+                     --  Parse the file only when not reused from cache.
+                     if not Appended then
+                        declare
+                           Session : Session_Record;
+                           Ok      : Boolean;
+                        begin
+                           Parse_File (File_Path_S, Session, Ok);
+                           if Ok then
+                              if Model_Filter.Is_Empty then
+                                 Sessions.Append (Session);
+                              else
+                                 for F of Model_Filter loop
+                                    if To_String (F) =
+                                       To_String (Session.Model)
+                                    then
+                                       Sessions.Append (Session);
+                                       exit;
+                                    end if;
+                                 end loop;
+                              end if;
+                           end if;
+                        end;
                      end if;
                   end;
                end loop;
@@ -599,6 +654,12 @@ package body Coyote_SQC.Session_Parser is
       end Scan_Dir;
 
    begin
+      --  Build file-path → index map from Previous_Sessions for O(1) lookup.
+      for I in Previous_Sessions.First_Index .. Previous_Sessions.Last_Index loop
+         Path_Map.Include
+           (Previous_Sessions (I).File_Path, I);
+      end loop;
+
       if Analyze_All_Directories then
          --  Enumerate every slug subdirectory under ~/.coyote/sessions/.
          if Exists (Sessions_Root)

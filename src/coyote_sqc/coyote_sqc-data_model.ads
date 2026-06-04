@@ -63,6 +63,8 @@ package Coyote_SQC.Data_Model is
       Total_Cache_Write_Tokens : Natural := 0;
       Total_Uncached_Input_Tokens : Natural := 0;
       Turns               : Turn_Vectors.Vector;
+      File_Path           : Ada.Strings.Unbounded.Unbounded_String;
+      File_Mtime          : Ada.Calendar.Time;
    end record;
 
    package Session_Vectors is new Ada.Containers.Vectors

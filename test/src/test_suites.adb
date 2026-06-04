@@ -1953,6 +1953,15 @@ package body Test_Suites is
         ("SQC parser: Anthropic input_tokens normalized to total context window",
          Coyote_SQC_Parser_Tests
            .Test_Anthropic_Input_Token_Normalization'Access));
+      --  Incremental-reload: Parse_File must set File_Path and File_Mtime.
+      Result.Add_Test (SQC_Parser_Caller.Create
+        ("SQC parser: Parse_File sets File_Path on success",
+         Coyote_SQC_Parser_Tests
+           .Test_Parse_File_Sets_File_Path'Access));
+      Result.Add_Test (SQC_Parser_Caller.Create
+        ("SQC parser: Parse_File sets File_Mtime to non-epoch on success",
+         Coyote_SQC_Parser_Tests
+           .Test_Parse_File_Sets_File_Mtime'Access));
 
       --  Coyote_SQC JSD statistics tests
       Result.Add_Test (SQC_JSD_Caller.Create

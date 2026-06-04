@@ -171,7 +171,7 @@ SRS-CORE requirement groups.
 | `acme_event_parser_tests.adb` | REQ-CORE-100–108 | ~20 |
 | `acme_raw_events_tests.adb` | REQ-CORE-100 | ~10 |
 
-**Total automated tests (current):** 658
+**Total automated tests (current):** 660
 
 ### 4.3 Planned Tests — Demonstration
 
@@ -228,7 +228,7 @@ These are entered as open items in the problem log (PCR-009).
 
 | Activity | Milestone | Status |
 |---|---|---|
-| AUnit suite baseline recorded | M2 complete | Done — 658 tests, all pass |
+| AUnit suite baseline recorded | M2 complete | Done — 660 tests, all pass |
 | Test Plan reviewed and acknowledged | M4 | Pending |
 | Demonstration tests performed | After M4 | Pending |
 | Test Report produced | M6 | Pending |
@@ -290,6 +290,9 @@ full `cd test && alr run coyote_test` run is performed and the pass count
 and any failures are recorded here or in the Test Report.
 
 **Baseline as of 2026-06-01:** 658 tests, 0 failures, 0 unexpected errors.
+**Baseline as of 2026-06-03:** 660 tests, 0 failures, 0 unexpected errors.
+(+2 tests: Test_Parse_File_Sets_File_Path, Test_Parse_File_Sets_File_Mtime
+for PCR-015 incremental reload fix.)
 
 **Coverage gap PCR:** The gaps identified in §4.5 are logged in
 `plan/problems.md` as PCR-009. They are accepted as deferred for the current

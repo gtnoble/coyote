@@ -301,6 +301,15 @@ All packages under `Coyote_Renderer.*` reside in `src/coyote_renderer/`.
 
 - **`Coyote_SQC.Session_Parser`** is the only package that imports `GNATCOLL.JSON`
   to parse session JSONL. No other package references raw session file fields.
+  `Load_Sessions` accepts an optional `Previous_Sessions` vector.  When
+  provided, `Scan_Dir` checks each file's modification time against the
+  corresponding cached `Session_Record.File_Mtime`; unchanged files are
+  reused without re-parsing.  `Reload_Sessions` (in `Coyote_SQC.App`) passes
+  the current `App_State.Sessions` as `Previous_Sessions` and similarly
+  reuses cached `Session_Metrics_Record` values for unchanged sessions,
+  computing fresh metrics only for new or modified files.  This satisfies the
+  requirement that subsequent Reload Sessions operations complete within
+  1 second per added or modified session.
 - **`Coyote_SQC.Statistics.*`** packages operate on `Float` arrays and scalars.
   They have no dependencies on data model types or GTK.
 - **`Coyote_SQC.UI.*`** packages may depend on `Coyote_SQC.Data_Model`,
@@ -537,6 +546,8 @@ type Session_Record is record
    Total_Cache_Write_Tokens : Natural := 0;
    Total_Uncached_Input_Tokens : Natural := 0;
    Turns               : Turn_Vectors.Vector;
+   File_Path           : Ada.Strings.Unbounded.Unbounded_String;
+   File_Mtime          : Ada.Calendar.Time;
 end record;
 
 package Session_Vectors is new Ada.Containers.Vectors

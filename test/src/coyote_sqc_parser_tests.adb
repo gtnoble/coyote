@@ -15,6 +15,7 @@ with Coyote_SQC.Data_Model;
 package body Coyote_SQC_Parser_Tests is
 
    use AUnit.Assertions;
+   use type Ada.Calendar.Time;
    use Coyote_SQC.Data_Model;
    use type Ada.Containers.Count_Type;
 
@@ -480,5 +481,39 @@ package body Coyote_SQC_Parser_Tests is
          & "(350-200-50); got "
          & Natural'Image (Session.Total_Uncached_Input_Tokens));
    end Test_Anthropic_Input_Token_Normalization;
+
+
+   --  ── Incremental-reload tests ──────────────────────────────────────────
+
+   --  Parse_File must record the file path in Session_Record.File_Path.
+   procedure Test_Parse_File_Sets_File_Path (T : in out Test) is
+      pragma Unreferenced (T);
+      Session : Session_Record;
+      Ok      : Boolean;
+      Path    : constant String := Fixture ("v3_session.jsonl");
+   begin
+      Coyote_SQC.Session_Parser.Parse_File (Path, Session, Ok);
+      Assert (Ok, "Parse_File must succeed");
+      Assert
+        (To_String (Session.File_Path) = Path,
+         "File_Path mismatch: expected '" & Path
+         & "'; got '" & To_String (Session.File_Path) & "'");
+   end Test_Parse_File_Sets_File_Path;
+
+   --  Parse_File must set File_Mtime to the file's modification time (not epoch).
+   procedure Test_Parse_File_Sets_File_Mtime (T : in out Test) is
+      pragma Unreferenced (T);
+      Session : Session_Record;
+      Ok      : Boolean;
+      Epoch   : constant Ada.Calendar.Time :=
+        Ada.Calendar.Time_Of (1970, 1, 1, 0.0);
+   begin
+      Coyote_SQC.Session_Parser.Parse_File
+        (Fixture ("v3_session.jsonl"), Session, Ok);
+      Assert (Ok, "Parse_File must succeed");
+      Assert
+        (Session.File_Mtime /= Epoch,
+         "File_Mtime must not be the epoch after a successful parse");
+   end Test_Parse_File_Sets_File_Mtime;
 
 end Coyote_SQC_Parser_Tests;

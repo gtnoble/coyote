@@ -1508,22 +1508,50 @@ package body Coyote_SQC.App is
    --  ── Reload_Sessions ──────────────────────────────────────────────────
 
    procedure Reload_Sessions is
+      Old_Sessions : constant Session_Vectors.Vector :=
+        State.Sessions;
+      Old_Metrics  : constant Metrics_Vectors.Vector :=
+        State.All_Metrics;
+
       Epoch : constant Ada.Calendar.Time :=
         Ada.Calendar.Time_Of (1970, 1, 1, 0.0);
    begin
       State.Sessions.Clear;
       State.All_Metrics.Clear;
 
+      --  Pass Old_Sessions so Load_Sessions can skip parsing unchanged files.
       Coyote_SQC.Session_Parser.Load_Sessions
-        (Source_Directories => State.Workspace.Source_Directories,
-         Model_Filter       => State.Workspace.Model_Filter,
-         Sessions                   => State.Sessions,
-         Analyze_All_Directories    => State.Workspace.Analyze_All_Directories);
+        (Source_Directories      => State.Workspace.Source_Directories,
+         Model_Filter            => State.Workspace.Model_Filter,
+         Sessions                => State.Sessions,
+         Analyze_All_Directories => State.Workspace.Analyze_All_Directories,
+         Previous_Sessions       => Old_Sessions);
 
-      --  Compute metrics for each loaded session.
+      --  Reuse cached metrics for unchanged sessions; compute only for new
+      --  or modified ones.
       for Sess of State.Sessions loop
-         State.All_Metrics.Append
-           (Coyote_SQC.Metrics.Compute (Sess));
+         declare
+            Found : Boolean := False;
+         begin
+            for Old of Old_Sessions loop
+               if Old.Session_Id = Sess.Session_Id
+                 and then Old.File_Mtime = Sess.File_Mtime
+               then
+                  for M of Old_Metrics loop
+                     if M.Session_Id = Old.Session_Id then
+                        State.All_Metrics.Append (M);
+                        Found := True;
+                        exit;
+                     end if;
+                  end loop;
+                  exit;
+               end if;
+            end loop;
+            if not Found then
+               State.All_Metrics.Append
+                 (Coyote_SQC.Metrics.Compute (Sess));
+            end if;
+         end;
       end loop;
 
       --  Set initial date range.

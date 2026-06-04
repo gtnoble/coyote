@@ -46,4 +46,8 @@ package Coyote_SQC_Parser_Tests is
    --  Token accounting normalization tests.
    procedure Test_Anthropic_Input_Token_Normalization (T : in out Test);
 
+   --  Incremental-reload tests: Parse_File must populate File_Path / File_Mtime.
+   procedure Test_Parse_File_Sets_File_Path  (T : in out Test);
+   procedure Test_Parse_File_Sets_File_Mtime (T : in out Test);
+
 end Coyote_SQC_Parser_Tests;
