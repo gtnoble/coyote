@@ -1,4 +1,5 @@
 --  LLM.Settings — read native harness configuration from coyote settings.
+with GNATCOLL.JSON;
 --
 --  Loads default provider/model/thinking values and appendSystemPrompt
 --  from settings.json, and resolves provider API keys from models.json
