@@ -70,6 +70,7 @@ package LLM.Model_Registry is
   --  catalogue data is appended. When no OpenCode Go API key is configured,
   --  the OpenCode Go portion of the registry becomes empty.
   procedure Refresh_OpenCode_Go;
+  procedure Refresh_Ollama;
 
   --  Look up one model by provider and model identifier.
   --

@@ -182,6 +182,8 @@ package body LLM.Settings is
          return "HF_TOKEN";
       elsif Lower = "opencode" or else Lower = "opencode-go" then
          return "OPENCODE_API_KEY";
+      elsif Lower = "ollama" then
+         return "OLLAMA_API_KEY";
       elsif Lower = "kimi-coding" then
          return "KIMI_API_KEY";
       else

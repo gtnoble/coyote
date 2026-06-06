@@ -1,9 +1,9 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.1
-**Date:** 2026-06-02
-**Status:** Reviewed (2026-06-02)
+**Version:** 1.2
+**Date:** 2026-06-06
+**Status:** Reviewed (2026-06-06)
 **Project Plan:** `plan/project-plan.md`
 
 ---
@@ -294,7 +294,7 @@ select the first available model from the live model registry.
 
 **REQ-CORE-072** (D)
 The agent shall support the following LLM providers: OpenAI Chat Completions,
-Anthropic Messages, GitHub Copilot, OpenRouter, and OpenCode Go.
+Anthropic Messages, GitHub Copilot, OpenRouter, OpenCode Go, and Ollama Cloud.
 
 **REQ-CORE-073** (D)
 API keys for each provider shall be resolved in the following order: (1) a
@@ -473,6 +473,58 @@ shall exit cleanly.
 
 ---
 
+#### 3.1.15 Ollama Cloud Provider
+
+**REQ-CORE-150** (D)
+The agent shall support Ollama Cloud as an LLM provider, identified by the
+provider name `"ollama"`. When selected, the agent shall communicate with the
+Ollama API using the Ollama native chat wire format described in REQ-CORE-154.
+
+**REQ-CORE-151** (I)
+The Ollama provider base URL shall be configurable. The cloud default is
+`https://ollama.com`. When a `baseUrl` key is present in the
+`~/.coyote/models.json` entry for the `"ollama"` provider, that value shall
+be used instead, permitting use with a locally-running Ollama instance (e.g.
+`http://localhost:11434`).
+
+**REQ-CORE-152** (D)
+Ollama API authentication shall use a bearer token in the `Authorization:
+Bearer <token>` HTTP header. The token shall be resolved using the standard
+API key resolution order (REQ-CORE-073), with the provider-standard
+environment variable `OLLAMA_API_KEY`. When no API key is configured and
+the effective base URL is a localhost address, the `Authorization` header
+shall be omitted.
+
+**REQ-CORE-153** (D)
+The Ollama provider shall populate the model registry at startup by issuing
+`GET /api/tags` against the configured base URL and parsing the returned
+`models` array. Each entry's `name` field becomes the model identifier in
+the registry. When no API key is configured and the base URL is not a
+localhost address, registry population shall be skipped.
+
+**REQ-CORE-154** (I)
+Ollama requests shall be sent to `POST /api/chat`. The JSON request body
+shall include `model`, `messages`, `tools`, `stream` (set to `true`), and —
+for thinking-capable models when a non-zero thinking level is requested — a
+`think` field. The streaming response shall be parsed as newline-delimited
+JSON (NDJSON): each line is a complete JSON object containing a `done`
+boolean field.
+
+**REQ-CORE-155** (I)
+The Ollama wire format shall be designated `"ollama"` in the model registry
+`Wire_Format` field. Tool definitions sent to Ollama models shall use the
+Ollama-native function calling format as defined in the Ollama API
+specification for `POST /api/chat`.
+
+**REQ-CORE-156** (D)
+Token usage for Ollama responses shall be extracted from the final streaming
+chunk where `done` is `true`: the `prompt_eval_count` field provides the
+input token count and the `eval_count` field provides the output token count.
+Cache token counts are not reported by the Ollama API and shall be recorded
+as zero.
+
+---
+
 ### 3.2 External Interface Requirements
 
 #### 3.2.1 LLM Provider APIs
@@ -496,6 +548,14 @@ When an image tool result is being sent to a provider using the OpenAI
 wire format, the image content shall be split: a plain-text stub in the
 tool message and a follow-up user message carrying the `image_url`, because
 OpenAI does not support vision content inside `role=tool` messages.
+
+**REQ-CORE-204** (I)
+The Ollama native chat wire format (`"ollama"`) shall be used for Ollama
+Cloud and locally-configured Ollama models. This format is distinct from
+the OpenAI Chat Completions (`"openai-completions"`) and Anthropic Messages
+(`"anthropic-messages"`) wire formats. The chat endpoint is `POST /api/chat`;
+the response stream is newline-delimited JSON (NDJSON) rather than
+server-sent events (SSE).
 
 ---
 
@@ -774,7 +834,7 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-064 | --one-shot/--subagent disable auto-compact | I | TC-064 |
 | REQ-CORE-070 | Default model from settings.json | D | TC-070 |
 | REQ-CORE-071 | Fallback to first registry model | D | TC-071 |
-| REQ-CORE-072 | All five providers supported | D | TC-072 |
+| REQ-CORE-072 | All six providers supported | D | TC-072 |
 | REQ-CORE-073 | API key resolution order | T | TC-073 |
 | REQ-CORE-074 | Copilot token auto-refresh | D | TC-074 |
 | REQ-CORE-075 | Runtime model switch via plumb | D | TC-075 |
@@ -793,7 +853,8 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-120..121 | Plain frontend capabilities | D | TC-120..121 |
 | REQ-CORE-130..131 | Session history replay | D | TC-130..131 |
 | REQ-CORE-140..142 | Error handling | D | TC-140..142 |
-| REQ-CORE-200..203 | Provider API interfaces | I | TC-200..203 |
+| REQ-CORE-150..156 | Ollama Cloud provider | D/I | TC-150..156 |
+| REQ-CORE-200..204 | Provider API interfaces | I | TC-200..204 |
 | REQ-CORE-210..212 | acme 9P VFS interface | I | TC-210..212 |
 | REQ-CORE-220..221 | GTK3 interface | I | TC-220..221 |
 | REQ-CORE-230..233 | Configuration file interface | T | TC-230..233 |
@@ -820,7 +881,7 @@ objectives stated in the Project Plan (PLAN §1 and §3):
 | Tool execution | REQ-CORE-050–055 |
 | Session persistence and resume | REQ-CORE-080–084, REQ-CORE-701 |
 | Context compaction | REQ-CORE-060–064 |
-| Multi-provider LLM support | REQ-CORE-070–076, REQ-CORE-200–203 |
+| Multi-provider LLM support | REQ-CORE-070–076, REQ-CORE-150–156, REQ-CORE-200–204 |
 | Skill discovery and system prompt construction | REQ-CORE-090–093 |
 | Subagent spawning with session lineage | REQ-CORE-019–020, REQ-CORE-030–032 |
 | Error visibility and graceful shutdown | REQ-CORE-140–142, REQ-CORE-702–703 |

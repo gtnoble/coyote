@@ -2428,6 +2428,20 @@ exactly one session.  When called with exactly one session selected, it:
    `Refresh_Histogram_If_Multi` (replacing the contributing-sessions set with
    the subgroup values from step 2, or clearing them to `"-"` in step 3).
 
+#### Stats-label lifetime invariant
+
+`Refresh` nulls all ten `Stats_*_Lbl` / `Stats_*_Key_Lbl` package-body
+variables when removing `Inner_Box` (immediately after the
+`Panel_Box.Remove` call, alongside the existing nulls for `Comment_Entry`
+and `Multi_Comment_Entry`).  `Build_Single_View` and `Build_Multi_View`
+additionally null and reassign them inside their stats-grid construction
+blocks.  `Build_Two_Set_View` resets them at the top of its body.
+
+`Refresh_Histogram_If_Multi` and `Refresh_Histogram_If_Single` rely on
+this invariant: a non-null stats-label pointer is always a live GTK widget.
+Any future `Build_*_View` procedure that does not assign stats-label
+widgets must null them at its body entry so the invariant holds.
+
 #### Box-Cox transformation and the histogram
 
 When the active chart's Box-Cox is enabled (`Chart_Settings (Active_Chart).Box_Cox.Enabled = True`) and the active chart is one

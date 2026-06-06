@@ -549,13 +549,36 @@ acknowledged the design without comment.
 
 ---
 
+
+---
+
+### Review 6 — SRS-CORE v1.2 Requirements Review (2026-06-06)
+
+**Review type:** Software requirements review
+**Trigger:** User-requested Ollama Cloud provider requirements (PCR-020) — SRS-CORE v1.2 presented for acknowledgement
+
+| Indicator | Value |
+|---|---|
+| Requirements volatility | SRS-CORE v1.2 (2026-06-06): 126 requirements. 8 additions (REQ-CORE-150–156, REQ-CORE-204); 1 revision (REQ-CORE-072 extended provider list to six). No deletions since v1.1. |
+| Component progress | coyote core: requirements updated (Ollama Cloud); design and implementation pending for new provider. coyote_sqc: unchanged. |
+| Open problems | PCR-020 Open (priority 3-Moderate — Ollama Cloud requirements added; implementation pending). PCR-009 Open (priority 4-Minor — deferred demonstration tests). |
+| Milestone status | M1–M6 Complete. Ollama Cloud implementation not yet scheduled. |
+| Scope changes | 1 agreed amendment since project start: Ollama Cloud provider added to SRS-CORE. |
+| Test results trend | 665 AUnit tests passing; 0 failures. No test changes for this review. |
+
+**Issues raised at review:** None.
+
+**Independence limitation:** Developer evaluated own work. User acknowledged SRS-CORE v1.2 explicitly.
+
+---
+
 ## 9. Artifact Version Table
 
 | Artifact | ID | Location | Current Version | Control Level |
 |---|---|---|---|---|
-| Project Plan | PLAN | `plan/project-plan.md` | 1.6 (2026-06-03) | Project |
+| Project Plan | PLAN | `plan/project-plan.md` | 1.8 (2026-06-06) | Project |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
-| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.1 (2026-06-02) | Client |
+| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.2 (2026-06-06) | Client |
 | coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.1 (2026-06-02) | Project |
 | coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.1 draft (2026-05-21) | Project |
 | coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.1 draft (2026-05-21) | Project |

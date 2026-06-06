@@ -11,7 +11,9 @@ with LLM.Providers.GitHub_Copilot.Catalogue;
 with LLM.Providers.OpenCode_Go.Catalogue;
 use type LLM.Providers.OpenCode_Go.Catalogue.Wire_Kind;
 with LLM.Providers.OpenRouter.Catalogue;
+with LLM.Providers.Ollama.Catalogue;
 with LLM.Settings;
+with LLM.Providers.Ollama.Catalogue;
 
 package body LLM.Model_Registry is
 
@@ -49,6 +51,11 @@ package body LLM.Model_Registry is
   begin
     return LLM.Settings.Resolve_Api_Key ("opencode-go")'Length > 0;
   end Has_OpenCode_Go_Key;
+
+  function Has_Ollama_Key return Boolean is
+  begin
+    return LLM.Settings.Resolve_Api_Key ("ollama")'Length > 0;
+  end Has_Ollama_Key;
 
   function To_Model_Info
     (Item : LLM.Providers.OpenCode_Go.Catalogue.Model_Info)
@@ -159,6 +166,43 @@ package body LLM.Model_Registry is
           Cache_Write => Item.Cost_Cache_Write));
   end To_Model_Info;
 
+  function To_Model_Info
+    (Item : LLM.Providers.Ollama.Catalogue.Model_Info)
+    return Model_Info
+  is
+  begin
+    return
+      (Model_Id            => Item.Model_Id,
+       Name                => Item.Name,
+       Provider            => To_Unbounded_String ("ollama"),
+       Context_Window      => Item.Context_Window,
+       Max_Tokens          => Item.Max_Tokens,
+       Reasoning           => Item.Reasoning,
+       Supports_Tools      => Item.Supports_Tools,
+       Supports_Images     => Item.Supports_Images,
+       Max_Thinking_Budget => 0,
+       Min_Thinking_Budget => 0,
+       Wire_Format         => To_Unbounded_String ("ollama"),
+       Cost                => (others => 0.0));
+  end To_Model_Info;
+
+  function Default_Ollama_Model (Model_Id : String) return Model_Info is
+  begin
+    return
+      (Model_Id            => To_Unbounded_String (Model_Id),
+       Name                => To_Unbounded_String (Model_Id),
+       Provider            => To_Unbounded_String ("ollama"),
+       Context_Window      => 128_000,
+       Max_Tokens          => 16_384,
+       Reasoning           => False,
+       Supports_Tools      => True,
+       Supports_Images     => False,
+       Max_Thinking_Budget => 0,
+       Min_Thinking_Budget => 0,
+       Wire_Format         => To_Unbounded_String ("ollama"),
+       Cost                => (others => 0.0));
+  end Default_Ollama_Model;
+
   function Default_OpenRouter_Model (Model_Id : String) return Model_Info is
   begin
     return
@@ -198,7 +242,45 @@ package body LLM.Model_Registry is
         Cost                => (others => 0.0)));
   end Add_Anthropic_Model;
 
-  procedure Refresh_GitHub_Copilot is
+    procedure Refresh_Ollama is
+    Models : LLM.Providers.Ollama.Catalogue.Catalogue_Vectors.Vector;
+  begin
+    Remove_Provider_Entries ("ollama");
+
+    if not Has_Ollama_Key then
+      return;
+    end if;
+
+    -- use settings to allow local baseUrl and apiKey overrides
+    declare
+      Root : constant GNATCOLL.JSON.JSON_Value :=
+        LLM.Settings.Load_Json_File (LLM.Settings.Models_Path);
+      Prov : constant GNATCOLL.JSON.JSON_Value :=
+        LLM.Settings.Find_Provider_Config (Root, "ollama");
+      Base_Url : String := "";
+      Api_Key  : String := "";
+    begin
+      if Prov.Kind = GNATCOLL.JSON.JSON_Object_Type then
+        if Prov.Has_Field ("baseUrl") and then Prov.Get ("baseUrl").Kind = GNATCOLL.JSON.JSON_String_Type then
+          Base_Url := Prov.Get ("baseUrl").Get;
+        end if;
+        if Prov.Has_Field ("apiKey") and then Prov.Get ("apiKey").Kind = GNATCOLL.JSON.JSON_String_Type then
+          Api_Key := Prov.Get ("apiKey").Get;
+        end if;
+      end if;
+      if Api_Key = "" then
+        Api_Key := LLM.Settings.Resolve_Api_Key ("ollama");
+      end if;
+
+      LLM.Providers.Ollama.Catalogue.Load_Catalogue (Models, Base_Url, Api_Key);
+    end;
+
+    for Item of Models loop
+      Registry.Append (To_Model_Info (Item));
+    end loop;
+  end Refresh_Ollama;
+
+procedure Refresh_GitHub_Copilot is
     Creds  : LLM.Auth.Provider_Credentials :=
       LLM.Auth.Load_Credentials ("github-copilot");
     Models :
@@ -312,6 +394,8 @@ package body LLM.Model_Registry is
         "GitHub Copilot model not found: " & Model_Id;
     elsif Want_Provider = "anthropic" then
       raise Not_Found with "Anthropic model not found: " & Model_Id;
+    elsif Want_Provider = "ollama" then
+      return Default_Ollama_Model (Model_Id);
     else
       raise Not_Found with "Unknown provider: " & Provider;
     end if;
@@ -345,6 +429,7 @@ package body LLM.Model_Registry is
     Include_OpenRouter : constant Boolean := Has_OpenRouter_Key;
     Include_Anthropic  : constant Boolean := Has_Anthropic_Key;
     Include_OpenCode   : constant Boolean := Has_OpenCode_Go_Key;
+    Include_Ollama   : constant Boolean := Has_Ollama_Key;
   begin
     for Item of Registry loop
       declare
@@ -357,6 +442,8 @@ package body LLM.Model_Registry is
             (Provider_Name = "anthropic" and then Include_Anthropic)
           or else
             (Provider_Name = "opencode-go" and then Include_OpenCode)
+          or else
+            (Provider_Name = "ollama" and then Include_Ollama)
         then
           Result.Append (Item);
         end if;

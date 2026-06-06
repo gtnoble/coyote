@@ -163,3 +163,19 @@ defeat the purpose of the overlap.
   inside `Build`.  The existing `if The_Widget /= null` guards in both
   `Refresh` and `Refresh_Two_Set` then correctly suppress stale draws.
   No test changes (no new public API).  Build clean; 665 tests pass.
+- **PCR-019 (dangling stats-label fix, 2026-06-06):** `STORAGE_ERROR` (SIGSEGV)
+  in `Refresh_Histogram_If_Multi` at `Stats_Mean_Key_Lbl.Set_Text` when switching
+  charts while Set B is non-empty.  Root cause: `Refresh` nulls `Inner_Box`,
+  `Comment_Entry`, and `Multi_Comment_Entry` after `Panel_Box.Remove`, but the
+  ten `Stats_*_Lbl` / `Stats_*_Key_Lbl` package variables were not nulled.
+  `Build_Single_View` and `Build_Multi_View` reset them inside their stats-grid
+  blocks; `Build_Two_Set_View` did not.  After a two-set rebuild the labels held
+  freed GTK widget pointers; the `!= null` guard in `Refresh_Histogram_If_Multi`
+  passed and `Set_Text` dereferenced freed memory.  `Refresh_Histogram_If_Single`
+  was identically exposed.  Fix (two sites in
+  `coyote_sqc-ui-detail_panel.adb`): (1) in `Refresh`, null all ten stats-label
+  variables immediately after `Multi_Comment_Entry := null` — the primary fix,
+  correct architectural home; (2) at the top of `Build_Two_Set_View`'s body,
+  add the same ten null assignments — belt-and-suspenders, makes the three
+  view-builder procedures consistent.  No test changes (no new public API).
+  Build clean; 665 tests pass.

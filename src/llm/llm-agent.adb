@@ -18,6 +18,7 @@ with LLM.Providers.GitHub_Copilot;
 with LLM.Providers.OpenCode_Go;
 with LLM.Providers.OpenRouter;
 with LLM.Session_Store;
+with LLM.Providers.Ollama;
 with LLM.Settings;
 with LLM.System_Prompt;
 with LLM.Tools;
@@ -1135,6 +1136,7 @@ package body LLM.Agent is
       LLM.Model_Registry.Refresh_Anthropic;
       LLM.Model_Registry.Refresh_OpenCode_Go;
 
+   LLM.Model_Registry.Refresh_Ollama;
       Set_Model_Internal (S, Effective_Spec);
 
       if Session_Id'Length > 0 then

@@ -999,6 +999,17 @@ package body Coyote_SQC.UI.Detail_Panel is
       Found_B : Boolean := False;
 
    begin
+      --  Reset stale references from any previous view build.
+      Stats_Mean_Lbl      := null;
+      Stats_Median_Lbl    := null;
+      Stats_StdDev_Lbl    := null;
+      Stats_KS_Normal_Lbl := null;
+      Stats_KS_Exp_Lbl    := null;
+      Stats_Runs_Lbl      := null;
+      Stats_Dip_Lbl       := null;
+      Stats_Mean_Key_Lbl   := null;
+      Stats_Median_Key_Lbl := null;
+      Stats_StdDev_Key_Lbl := null;
       --  ── Collect Set A and Set B values from the active chart ──────────
       for P of CD.Points loop
          if not P.Excluded then
@@ -2030,6 +2041,19 @@ package body Coyote_SQC.UI.Detail_Panel is
          Inner_Box := null;
          Comment_Entry := null;
          Multi_Comment_Entry := null;
+         --  Null stats-label pointers so no dangling reference survives
+         --  across a widget-tree teardown (Build_Two_Set_View does not
+         --  reset these itself).
+         Stats_Mean_Lbl      := null;
+         Stats_Median_Lbl    := null;
+         Stats_StdDev_Lbl    := null;
+         Stats_KS_Normal_Lbl := null;
+         Stats_KS_Exp_Lbl    := null;
+         Stats_Runs_Lbl      := null;
+         Stats_Dip_Lbl       := null;
+         Stats_Mean_Key_Lbl   := null;
+         Stats_Median_Key_Lbl := null;
+         Stats_StdDev_Key_Lbl := null;
       end if;
 
       --  Rebuild based on selection size and pinned state.

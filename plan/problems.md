@@ -426,3 +426,89 @@ client-controlled work product gets an entry here.
 - **Actions taken (2026-06-06):** Both files rewritten; build clean (zero
   errors, zero warnings); 665 AUnit tests pass.
 - **Status:** Resolved
+
+## PCR-018
+
+- **Problem:** `STORAGE_ERROR` (SIGSEGV) in `coyote_sqc` when switching charts
+  after a two-set comparison has been displayed.  The crash occurs inside
+  `Histogram_Canvas.Refresh_Two_Set`, called from `Detail_Panel.Refresh`.
+- **Root cause:** `Histogram_Canvas.Build` creates a new `Gtk_Drawing_Area`
+  widget on every call and stores it in the package-level `The_Widget`; when
+  `Detail_Panel.Refresh` tears down the old widget container it destroys the
+  underlying GObject, but `The_Widget` remains Ada-non-null.
+  `Refresh_Two_Set` (called before `Build`) then passes the stale pointer to
+  `Queue_Draw`.
+- **Classification:** Defect — implementation error (stale widget pointer not
+  cleared on GObject finalisation).
+- **Corrective action:** Added a private `On_Widget_Destroy` callback in the
+  `Histogram_Canvas` package body that nulls `The_Widget` when the GObject is
+  finalised; connected via `The_Widget.On_Destroy` inside `Build`.  The
+  existing `if The_Widget /= null` guards in both `Refresh` and
+  `Refresh_Two_Set` then correctly suppress stale draws.
+- **Actions taken (2026-06-06):** Fix applied; build clean; 665 AUnit tests
+  pass.
+- **Status:** Resolved
+
+## PCR-019
+
+- **Problem:** `STORAGE_ERROR` (SIGSEGV) in `coyote_sqc` when switching charts
+  in the left panel while a two-set comparison is active (Set B non-empty).
+  The crash occurs in `Detail_Panel.Refresh_Histogram_If_Multi` at the
+  `Stats_Mean_Key_Lbl.Set_Text` call.
+- **Root cause:** `Detail_Panel.Refresh` tears down the old widget tree with
+  `Panel_Box.Remove (Inner_Box)`, which destroys all child widgets including
+  the ten `Stats_*_Lbl` / `Stats_*_Key_Lbl` package-level label pointers.
+  `Refresh` already nulls `Inner_Box`, `Comment_Entry`, and
+  `Multi_Comment_Entry` at that point, but it did not null the ten stats-label
+  variables.  `Build_Single_View` and `Build_Multi_View` null and reassign
+  those labels inside their stats-grid construction blocks, so they are safe.
+  `Build_Two_Set_View` — the path taken when `Set_B` is non-empty — never
+  nulled the stats-label variables.  Consequently, after a two-set rebuild the
+  labels held freed GTK widget pointers.  The next `On_Row_Activated` call
+  invoked `Refresh_Histogram_If_Multi`; the `!= null` guard passed (pointer
+  non-null but freed) and `Set_Text` dereferenced invalid memory, raising
+  SIGSEGV → `STORAGE_ERROR`.  `Refresh_Histogram_If_Single` was identically
+  exposed for the value-label variables.
+- **Classification:** Defect — implementation error (missing null-out on
+  widget-tree teardown for the `Build_Two_Set_View` path).
+- **Corrective action:** Two changes to
+  `src/coyote_sqc/coyote_sqc-ui-detail_panel.adb`:
+  1. In `Refresh`, immediately after `Multi_Comment_Entry := null`, added null
+     assignments for all ten stats-label package variables with a comment
+     explaining the invariant.  This is the primary fix and the correct
+     architectural home for these resets — it mirrors the existing pattern for
+     `Comment_Entry` and ensures no dangling stats-label pointer survives any
+     widget-tree teardown regardless of which `Build_*_View` path runs next.
+  2. At the top of `Build_Two_Set_View`'s body (belt-and-suspenders), added
+     the same ten null assignments with the comment "Reset stale references
+     from any previous view build", making the three view-builder procedures
+     consistent with each other.
+- **Actions taken (2026-06-06):** Both changes applied; build clean (zero new
+  errors or warnings); 665 AUnit tests pass.
+- **Status:** Resolved
+
+---
+
+## PCR-020
+
+- **Date reported:** 2026-06-06
+- **Category:** Requirements
+- **Priority:** 3-Moderate
+- **Description:** User requested Ollama Cloud provider support. No requirements
+  existed for Ollama Cloud (or local Ollama) in SRS-CORE. REQ-CORE-072 listed
+  only five providers; the Ollama wire format (NDJSON, `POST /api/chat`) had no
+  interface requirement; and neither the model registry population (`GET
+  /api/tags`) nor API key resolution via `OLLAMA_API_KEY` were specified.
+- **Affected work products:** SRS-CORE (`requirements/coyote-requirements.md`)
+- **Corrective action required:** Add Ollama Cloud capability requirements
+  (REQ-CORE-150–156), an Ollama wire format interface requirement
+  (REQ-CORE-204), update REQ-CORE-072 to include Ollama Cloud as a sixth
+  provider, and update the qualification provisions and traceability tables.
+- **Actions taken (2026-06-06):** SRS-CORE updated to v1.2 — added §3.1.15
+  (REQ-CORE-150 through REQ-CORE-156) covering provider selection, configurable
+  base URL, bearer-token authentication (`OLLAMA_API_KEY`), model registry
+  population via `GET /api/tags`, NDJSON streaming wire format, `"ollama"`
+  `Wire_Format` designation, and token usage extraction; added REQ-CORE-204 to
+  §3.2.1; updated REQ-CORE-072; updated qualification provisions and
+  traceability tables accordingly.
+- **Status:** In Progress
