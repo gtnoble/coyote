@@ -39,4 +39,10 @@ package LLM.Settings is
    --  Returns "" when no key is configured for that provider.
    function Resolve_Api_Key (Provider : String) return String;
 
+   --  Return the providers.<name> object from a loaded models.json root.
+   --  Returns JSON_Null when the field is missing or is not an object.
+   function Find_Provider_Config
+     (Root : GNATCOLL.JSON.JSON_Value; Provider : String)
+      return GNATCOLL.JSON.JSON_Value;
+
 end LLM.Settings;
