@@ -10,6 +10,8 @@ with LLM.Events;
 with LLM.HTTP;
 with LLM.Settings;
 
+with Ada.Exceptions;
+with Ada.Containers;
 package body LLM.Providers.Ollama is
 
    use type GNATCOLL.JSON.JSON_Value_Type;
@@ -89,7 +91,7 @@ package body LLM.Providers.Ollama is
 
          --  Check for final chunk
          if Root.Has_Field ("done")
-           and then Root.Get ("done").Kind = GNATCOLL.JSON.JSON_Bool_Type
+           and then Root.Get ("done).Kind = GNATCOLL.JSON.JSON_Boolean_Type
            and then Root.Get ("done").Get
          then
             Stop_Reason := LLM.Types.Stop;

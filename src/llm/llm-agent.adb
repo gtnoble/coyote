@@ -1321,6 +1321,20 @@ package body LLM.Agent is
                Max_Tokens    => Summary_Max_Tokens,
                Handler       => Summary_Event_Handler'Unrestricted_Access);
          end;
+      elsif Lowercase (To_String (S.Model_Info.Provider)) = "ollama" then
+         declare
+            Provider : LLM.Providers.Ollama.Provider :=
+              LLM.Providers.Ollama.Create;
+         begin
+            Provider.Send
+              (Model_Id      => To_String (S.Model_Info.Model_Id),
+               System_Prompt => LLM.Compaction.Summarization_System_Prompt,
+               Messages      => Summary_Request,
+               Tools_Json    => "",
+               Thinking      => LLM.Providers.Off,
+               Max_Tokens    => Summary_Max_Tokens,
+               Handler       => Summary_Event_Handler'Unrestricted_Access);
+         end;
       elsif Lowercase (To_String (S.Model_Info.Provider)) = "opencode-go" then
          declare
             Provider : LLM.Providers.OpenCode_Go.Provider :=
@@ -1555,6 +1569,19 @@ package body LLM.Agent is
                end;
             elsif Lowercase (To_String (S.Model_Info.Provider)) =
               "opencode-go"
+            elsif Lowercase (To_String (S.Model_Info.Provider)) = "ollama" then
+               declare
+                  Provider : LLM.Providers.Ollama.Provider :=
+                    LLM.Providers.Ollama.Create;
+               begin
+                  Send_With_Retry
+                    (S             => S,
+                     Provider      => Provider,
+                     Tools_Json    => Tools_Json,
+                     Builder       => Builder,
+                     Pending_Tools => Pending_Tools,
+                     On_Event      => On_Event);
+               end;
             then
                declare
                   Provider : LLM.Providers.OpenCode_Go.Provider :=
