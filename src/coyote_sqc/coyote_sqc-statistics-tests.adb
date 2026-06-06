@@ -1,31 +1,37 @@
 --  Coyote_SQC.Statistics.Tests body.
 --
+--  Implementation notes:
+--  - All internal sorted copies (Sorted_V) and simulation scratch arrays
+--    (Sim_V) use LF_Vectors.Vector (heap-backed) to avoid dynamic stack
+--    allocation that scales with the session count.
+--  - Compute_Dip's working arrays (Mn, Mj, Gcm, Lcm) use Int_Vectors.Vector
+--    (heap-backed) for the same reason.
+--  - In-place sorting throughout uses LF_Sorting.Sort (Generic_Sorting
+--    instantiation on LF_Vectors) rather than the previous insertion-sort
+--    procedure that operated on Long_Float_Array slices.
+--  - The public API (Long_Float_Array parameters) is unchanged.
+--
 --  Project: coyote
 
+with Ada.Containers.Vectors;
 with Ada.Numerics.Long_Elementary_Functions;
 with Ada.Numerics.Float_Random;
+with Coyote_SQC.Data_Model;
 
 package body Coyote_SQC.Statistics.Tests is
 
    use Ada.Numerics.Long_Elementary_Functions;
 
-   --  ── Internal helpers ──────────────────────────────────────────────────
+   --  ── Internal vector types ─────────────────────────────────────────────
 
-   --  In-place insertion sort (ascending).
-   procedure Sort (A : in out Long_Float_Array) is
-      Key : Long_Float;
-      J   : Integer;
-   begin
-      for I in A'First + 1 .. A'Last loop
-         Key := A (I);
-         J   := I - 1;
-         while J >= A'First and then A (J) > Key loop
-            A (J + 1) := A (J);
-            J := J - 1;
-         end loop;
-         A (J + 1) := Key;
-      end loop;
-   end Sort;
+   package LF_Vectors renames Coyote_SQC.Data_Model.Long_Float_Vectors;
+   package LF_Sorting  is new LF_Vectors.Generic_Sorting;
+
+   package Int_Vectors is new Ada.Containers.Vectors
+     (Index_Type   => Positive,
+      Element_Type => Integer);
+
+   --  ── Normal CDF approximation ──────────────────────────────────────────
 
    --  Normal CDF via the Abramowitz & Stegun rational approximation 7.1.26
    --  (max |error| < 1.5e-7).
@@ -84,20 +90,20 @@ package body Coyote_SQC.Statistics.Tests is
    end Mean_Of;
 
    function Std_Dev_Of (Values : Long_Float_Array) return Long_Float is
-      N  : constant Natural := Values'Length;
-      Mu : Long_Float;
-      SS : Long_Float := 0.0;
-      D  : Long_Float;
+      N    : constant Natural := Values'Length;
+      M    : Long_Float;
+      Sum  : Long_Float := 0.0;
+      Diff : Long_Float;
    begin
       if N < 2 then
          return 0.0;
       end if;
-      Mu := Mean_Of (Values);
+      M := Mean_Of (Values);
       for V of Values loop
-         D  := V - Mu;
-         SS := SS + D * D;
+         Diff := V - M;
+         Sum  := Sum + Diff * Diff;
       end loop;
-      return Sqrt (SS / Long_Float (N - 1));
+      return Sqrt (Sum / Long_Float (N - 1));
    end Std_Dev_Of;
 
    --  ── Goodness-of-fit tests ─────────────────────────────────────────────
@@ -105,14 +111,14 @@ package body Coyote_SQC.Statistics.Tests is
    function KS_Normality_P_Value
      (Values : Long_Float_Array) return Long_Float
    is
-      N      : constant Natural := Values'Length;
-      Mu     : Long_Float;
-      Sig    : Long_Float;
-      D      : Long_Float := 0.0;
-      Fn     : Long_Float;
-      Fz     : Long_Float;
-      Diff   : Long_Float;
-      Sorted : Long_Float_Array := Values;
+      N        : constant Natural := Values'Length;
+      Mu       : Long_Float;
+      Sig      : Long_Float;
+      D        : Long_Float := 0.0;
+      Fn       : Long_Float;
+      Fz       : Long_Float;
+      Diff     : Long_Float;
+      Sorted_V : LF_Vectors.Vector;
    begin
       if N < 3 then
          return -1.0;
@@ -122,15 +128,19 @@ package body Coyote_SQC.Statistics.Tests is
       if Sig = 0.0 then
          return -1.0;
       end if;
-      Sort (Sorted);
-      for I in Sorted'Range loop
-         Fn   := Long_Float (I - Sorted'First + 1) / Long_Float (N);
-         Fz   := Normal_CDF ((Sorted (I) - Mu) / Sig);
+      for V of Values loop
+         Sorted_V.Append (V);
+      end loop;
+      LF_Sorting.Sort (Sorted_V);
+      --  Sorted_V is 1-based; rank I ∈ [1..N] maps to ECDF value I/N.
+      for I in 1 .. N loop
+         Fn   := Long_Float (I) / Long_Float (N);
+         Fz   := Normal_CDF ((Sorted_V (Positive (I)) - Mu) / Sig);
          Diff := abs (Fn - Fz);
          if Diff > D then
             D := Diff;
          end if;
-         Diff := abs (Long_Float (I - Sorted'First) / Long_Float (N) - Fz);
+         Diff := abs (Long_Float (I - 1) / Long_Float (N) - Fz);
          if Diff > D then
             D := Diff;
          end if;
@@ -141,14 +151,14 @@ package body Coyote_SQC.Statistics.Tests is
    function KS_Exponential_P_Value
      (Values : Long_Float_Array) return Long_Float
    is
-      N      : constant Natural := Values'Length;
-      Mu     : Long_Float;
-      Lambda : Long_Float;
-      D      : Long_Float := 0.0;
-      Fn     : Long_Float;
-      Fz     : Long_Float;
-      Diff   : Long_Float;
-      Sorted : Long_Float_Array := Values;
+      N        : constant Natural := Values'Length;
+      Mu       : Long_Float;
+      Lambda   : Long_Float;
+      D        : Long_Float := 0.0;
+      Fn       : Long_Float;
+      Fz       : Long_Float;
+      Diff     : Long_Float;
+      Sorted_V : LF_Vectors.Vector;
    begin
       if N < 3 then
          return -1.0;
@@ -158,15 +168,19 @@ package body Coyote_SQC.Statistics.Tests is
          return -1.0;
       end if;
       Lambda := 1.0 / Mu;
-      Sort (Sorted);
-      for I in Sorted'Range loop
-         Fn   := Long_Float (I - Sorted'First + 1) / Long_Float (N);
-         Fz   := 1.0 - Exp (-Lambda * Sorted (I));
+      for V of Values loop
+         Sorted_V.Append (V);
+      end loop;
+      LF_Sorting.Sort (Sorted_V);
+      --  Sorted_V is 1-based; rank I ∈ [1..N] maps to ECDF value I/N.
+      for I in 1 .. N loop
+         Fn   := Long_Float (I) / Long_Float (N);
+         Fz   := 1.0 - Exp (-Lambda * Sorted_V (Positive (I)));
          Diff := abs (Fn - Fz);
          if Diff > D then
             D := Diff;
          end if;
-         Diff := abs (Long_Float (I - Sorted'First) / Long_Float (N) - Fz);
+         Diff := abs (Long_Float (I - 1) / Long_Float (N) - Fz);
          if Diff > D then
             D := Diff;
          end if;
@@ -178,7 +192,7 @@ package body Coyote_SQC.Statistics.Tests is
      (Values : Long_Float_Array) return Long_Float
    is
       N          : constant Natural := Values'Length;
-      Sorted     : Long_Float_Array := Values;
+      Sorted_V   : LF_Vectors.Vector;
       Med        : Long_Float;
       N1         : Long_Float := 0.0;
       N2         : Long_Float := 0.0;
@@ -192,15 +206,18 @@ package body Coyote_SQC.Statistics.Tests is
       if N < 10 then
          return -1.0;
       end if;
-      Sort (Sorted);
+      for V of Values loop
+         Sorted_V.Append (V);
+      end loop;
+      LF_Sorting.Sort (Sorted_V);
       declare
          Mid : constant Natural := N / 2;
       begin
          if N mod 2 = 1 then
-            Med := Sorted (Sorted'First + Mid);
+            Med := Sorted_V (Positive (Mid + 1));
          else
-            Med := (Sorted (Sorted'First + Mid - 1)
-                  + Sorted (Sorted'First + Mid)) / 2.0;
+            Med := (Sorted_V (Positive (Mid))
+                  + Sorted_V (Positive (Mid + 1))) / 2.0;
          end if;
       end;
       --  Count n1, n2 and runs in original (chronological) order;
@@ -243,7 +260,7 @@ package body Coyote_SQC.Statistics.Tests is
 
    --  ── Dip test for unimodality ──────────────────────────────────────────
 
-   --  Compute Hartigan's dip statistic for a sorted array.
+   --  Compute Hartigan's dip statistic for a sorted vector.
    --  Implements Algorithm AS 217 (Hartigan, P.M., Appl. Stat., 1985, 34:3)
    --  translated from the C reference implementation by M. Maechler.
    --
@@ -252,25 +269,38 @@ package body Coyote_SQC.Statistics.Tests is
    --  interval [Low, High] until convergence.  All intermediate values are
    --  kept in "2N * dip" units; the final result is divided by 2N.
    --
-   --  Pre-condition: X must be sorted ascending; X'Length >= 1.
-   function Compute_Dip (X : Long_Float_Array) return Long_Float is
-      N  : constant Positive := X'Length;
-      B  : constant Integer  := X'First - 1; --  1-based index bias
+   --  Working arrays Mn, Mj, Gcm, Lcm are heap-backed Int_Vectors.Vector
+   --  objects pre-filled with N zeros before use.
+   --
+   --  Pre-condition: X must be sorted ascending; X.Length >= 1.
+   function Compute_Dip (X : LF_Vectors.Vector) return Long_Float is
+      N  : constant Positive := Positive (X.Length);
 
-      Mn  : array (1 .. N) of Integer;  --  GCM predecessor chain
-      Mj  : array (1 .. N) of Integer;  --  LCM successor chain
-      Gcm : array (1 .. N) of Integer;  --  GCM change-point list
-      Lcm : array (1 .. N) of Integer;  --  LCM change-point list
+      Mn  : Int_Vectors.Vector;  --  GCM predecessor chain
+      Mj  : Int_Vectors.Vector;  --  LCM successor chain
+      Gcm : Int_Vectors.Vector;  --  GCM change-point list
+      Lcm : Int_Vectors.Vector;  --  LCM change-point list
 
-      Low, High   : Integer;
-      Dip_Val     : Long_Float;
-      Ig, Ih      : Integer;
-      Ix, Iv      : Integer;
+      Low, High     : Integer;
+      Dip_Val       : Long_Float;
+      Ig, Ih        : Integer;
+      Ix, Iv        : Integer;
       L_Gcm, L_Lcm : Integer;
       Dip_L, Dip_U, Dip_New : Long_Float;
 
-      function Xv (I : Integer) return Long_Float is (X (B + I));
+      --  1-based element access on the sorted data vector.
+      function Xv (I : Integer) return Long_Float is
+        (X (Positive (I)));
+
    begin
+      --  Pre-fill working arrays with N zero elements.
+      for K in 1 .. N loop
+         Mn.Append (0);
+         Mj.Append (0);
+         Gcm.Append (0);
+         Lcm.Append (0);
+      end loop;
+
       if N < 2 or else Xv (N) = Xv (1) then
          return 0.0;
       end if;
@@ -280,35 +310,35 @@ package body Coyote_SQC.Statistics.Tests is
       Dip_Val := 1.0; --  starting value in 2N units (= 1/(2N) actual dip)
 
       --  Build Mn: for each j, Mn(j) is the predecessor on the GCM hull.
-      Mn (1) := 1;
+      Mn.Replace_Element (1, 1);
       for J in 2 .. N loop
-         Mn (J) := J - 1;
+         Mn.Replace_Element (Positive (J), J - 1);
          loop
             declare
-               Mnj   : constant Integer := Mn (J);
-               Mnmnj : constant Integer := Mn (Mnj);
+               Mnj   : constant Integer := Mn.Element (Positive (J));
+               Mnmnj : constant Integer := Mn.Element (Positive (Mnj));
             begin
                exit when Mnj = 1
                  or else (Xv (J) - Xv (Mnj)) * Long_Float (Mnj - Mnmnj) <
                          (Xv (Mnj) - Xv (Mnmnj)) * Long_Float (J - Mnj);
-               Mn (J) := Mnmnj;
+               Mn.Replace_Element (Positive (J), Mnmnj);
             end;
          end loop;
       end loop;
 
       --  Build Mj: for each k, Mj(k) is the successor on the LCM hull.
-      Mj (N) := N;
+      Mj.Replace_Element (N, N);
       for K in reverse 1 .. N - 1 loop
-         Mj (K) := K + 1;
+         Mj.Replace_Element (Positive (K), K + 1);
          loop
             declare
-               Mjk   : constant Integer := Mj (K);
-               Mjmjk : constant Integer := Mj (Mjk);
+               Mjk   : constant Integer := Mj.Element (Positive (K));
+               Mjmjk : constant Integer := Mj.Element (Positive (Mjk));
             begin
                exit when Mjk = N
                  or else (Xv (K) - Xv (Mjk)) * Long_Float (Mjk - Mjmjk) <
                          (Xv (Mjk) - Xv (Mjmjk)) * Long_Float (K - Mjk);
-               Mj (K) := Mjmjk;
+               Mj.Replace_Element (Positive (K), Mjmjk);
             end;
          end loop;
       end loop;
@@ -316,10 +346,17 @@ package body Coyote_SQC.Statistics.Tests is
       --  Main iteration: refine modal interval [Low, High].
       loop
          --  Collect GCM change points from High down to Low.
-         Gcm (1) := High;
-         declare I : Integer := 1; begin
-            while Gcm (I) > Low loop
-               Gcm (I + 1) := Mn (Gcm (I));
+         Gcm.Replace_Element (1, High);
+         declare
+            I : Integer := 1;
+         begin
+            while Gcm.Element (Positive (I)) > Low loop
+               declare
+                  Gcm_I : constant Integer := Gcm.Element (Positive (I));
+               begin
+                  Gcm.Replace_Element
+                    (Positive (I + 1), Mn.Element (Positive (Gcm_I)));
+               end;
                I := I + 1;
             end loop;
             Ig    := I;
@@ -328,10 +365,17 @@ package body Coyote_SQC.Statistics.Tests is
          Ix := Ig - 1;
 
          --  Collect LCM change points from Low up to High.
-         Lcm (1) := Low;
-         declare I : Integer := 1; begin
-            while Lcm (I) < High loop
-               Lcm (I + 1) := Mj (Lcm (I));
+         Lcm.Replace_Element (1, Low);
+         declare
+            I : Integer := 1;
+         begin
+            while Lcm.Element (Positive (I)) < High loop
+               declare
+                  Lcm_I : constant Integer := Lcm.Element (Positive (I));
+               begin
+                  Lcm.Replace_Element
+                    (Positive (I + 1), Mj.Element (Positive (Lcm_I)));
+               end;
                I := I + 1;
             end loop;
             Ih    := I;
@@ -344,15 +388,20 @@ package body Coyote_SQC.Statistics.Tests is
             D : Long_Float := 0.0;
          begin
             if L_Gcm /= 2 or else L_Lcm /= 2 then
-               while Gcm (Ix) /= Lcm (Iv) loop
+               while Gcm.Element (Positive (Ix)) /=
+                     Lcm.Element (Positive (Iv))
+               loop
                   declare
-                     Gcmix : constant Integer := Gcm (Ix);
-                     Lcmiv : constant Integer := Lcm (Iv);
+                     Gcmix : constant Integer :=
+                       Gcm.Element (Positive (Ix));
+                     Lcmiv : constant Integer :=
+                       Lcm.Element (Positive (Iv));
                      Dx    : Long_Float;
                   begin
                      if Gcmix > Lcmiv then
                         declare
-                           Gcmi1 : constant Integer := Gcm (Ix + 1);
+                           Gcmi1 : constant Integer :=
+                             Gcm.Element (Positive (Ix + 1));
                         begin
                            Dx := Long_Float (Lcmiv - Gcmi1 + 1)
                               - (Xv (Lcmiv) - Xv (Gcmi1))
@@ -367,7 +416,8 @@ package body Coyote_SQC.Statistics.Tests is
                         end;
                      else
                         declare
-                           Lcmiv1 : constant Integer := Lcm (Iv - 1);
+                           Lcmiv1 : constant Integer :=
+                             Lcm.Element (Positive (Iv - 1));
                         begin
                            Dx := (Xv (Gcmix) - Xv (Lcmiv1))
                               * Long_Float (Lcmiv - Lcmiv1)
@@ -401,8 +451,8 @@ package body Coyote_SQC.Statistics.Tests is
          for J in Ig .. L_Gcm - 1 loop
             declare
                Max_T : Long_Float := 1.0;
-               Jb    : constant Integer := Gcm (J + 1);
-               Je    : constant Integer := Gcm (J);
+               Jb    : constant Integer := Gcm.Element (Positive (J + 1));
+               Je    : constant Integer := Gcm.Element (Positive (J));
             begin
                if Je - Jb > 1 and then Xv (Je) /= Xv (Jb) then
                   declare
@@ -433,8 +483,8 @@ package body Coyote_SQC.Statistics.Tests is
          for J in Ih .. L_Lcm - 1 loop
             declare
                Max_T : Long_Float := 1.0;
-               Jb    : constant Integer := Lcm (J);
-               Je    : constant Integer := Lcm (J + 1);
+               Jb    : constant Integer := Lcm.Element (Positive (J));
+               Je    : constant Integer := Lcm.Element (Positive (J + 1));
             begin
                if Je - Jb > 1 and then Xv (Je) /= Xv (Jb) then
                   declare
@@ -466,9 +516,10 @@ package body Coyote_SQC.Statistics.Tests is
          end if;
 
          --  Convergence check (Maechler 1994 fix: prevents infinite loop).
-         exit when Low = Gcm (Ig) and then High = Lcm (Ih);
-         Low  := Gcm (Ig);
-         High := Lcm (Ih);
+         exit when Low = Gcm.Element (Positive (Ig))
+           and then High = Lcm.Element (Positive (Ih));
+         Low  := Gcm.Element (Positive (Ig));
+         High := Lcm.Element (Positive (Ih));
       end loop;
 
       return Dip_Val / Long_Float (2 * N);
@@ -479,18 +530,29 @@ package body Coyote_SQC.Statistics.Tests is
       K      : Positive := 2_000) return Long_Float
    is
       use Ada.Numerics.Float_Random;
-      N      : constant Natural := Values'Length;
-      Sorted : Long_Float_Array := Values;
-      D_Obs  : Long_Float;
-      Count  : Natural := 0;
-      Gen    : Generator;
-      Sim    : Long_Float_Array (1 .. N);
+      N        : constant Natural := Values'Length;
+      Sorted_V : LF_Vectors.Vector;
+      D_Obs    : Long_Float;
+      Count    : Natural := 0;
+      Gen      : Generator;
+      Sim_V    : LF_Vectors.Vector;
    begin
       if N < 4 then
          return -1.0;
       end if;
-      Sort (Sorted);
-      D_Obs := Compute_Dip (Sorted);
+
+      --  Build and sort a heap-backed copy of the input for the observed dip.
+      for V of Values loop
+         Sorted_V.Append (V);
+      end loop;
+      LF_Sorting.Sort (Sorted_V);
+      D_Obs := Compute_Dip (Sorted_V);
+
+      --  Pre-fill simulation vector with N sentinel zeros; each iteration
+      --  overwrites every element before sorting and computing the dip.
+      for I in 1 .. N loop
+         Sim_V.Append (0.0);
+      end loop;
 
       --  Bootstrap null distribution: draw K samples of size N from
       --  Uniform[0,1].  The uniform distribution maximises the expected
@@ -500,10 +562,11 @@ package body Coyote_SQC.Statistics.Tests is
       Reset (Gen, Initiator => 12_345);
       for K_Iter in 1 .. K loop
          for I in 1 .. N loop
-            Sim (I) := Long_Float (Random (Gen));
+            Sim_V.Replace_Element
+              (Positive (I), Long_Float (Random (Gen)));
          end loop;
-         Sort (Sim);
-         if Compute_Dip (Sim) >= D_Obs then
+         LF_Sorting.Sort (Sim_V);
+         if Compute_Dip (Sim_V) >= D_Obs then
             Count := Count + 1;
          end if;
       end loop;

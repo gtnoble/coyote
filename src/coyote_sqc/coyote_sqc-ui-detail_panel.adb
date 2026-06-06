@@ -31,6 +31,8 @@ with Gtk.Text_Iter;
 with Gtk.Text_View;
 with Gtk.Widget;
 with Ada.Containers.Hashed_Maps;
+with Ada.Containers.Vectors;
+with Ada.Unchecked_Deallocation;
 with Ada.Strings.Unbounded.Hash;
 with Glib;
 with Gtk.Adjustment;
@@ -43,6 +45,7 @@ with Coyote_SQC.Statistics.I_Chart;
 with Coyote_SQC.Statistics.Xbar;
 with Coyote_SQC.UI.Histogram_Canvas;
 with Coyote_SQC.Statistics.Tests;
+with Coyote_SQC.Statistics.Bootstrap;
 with Gtk.Grid;
 
 package body Coyote_SQC.UI.Detail_Panel is
@@ -308,6 +311,7 @@ package body Coyote_SQC.UI.Detail_Panel is
 
    procedure Build_Single_View (Sid : String);
    procedure Build_Pinned_View (Sid : String);
+   procedure Build_Two_Set_View;
 
    --  ── Build single-session view ─────────────────────────────────────────
 
@@ -867,6 +871,467 @@ package body Coyote_SQC.UI.Detail_Panel is
       Panel_Box.Pack_Start (VBox, True, True, 0);
       Panel_Box.Show_All;
    end Build_Multi_View;
+
+   procedure Build_Two_Set_View is
+      use Gtk.Box;
+      use Gtk.Frame;
+      use Gtk.Label;
+      use Gtk.Button;
+      use Gtk.Grid;
+      use Gtk.Enums;
+      use Gtk.Text_View;
+      use Gtk.Scrolled_Window;
+      use Ada.Strings.Fixed;
+      use Ada.Strings;
+      use Ada.Calendar;
+      use Coyote_SQC.App;
+      use Coyote_SQC.Statistics.Tests;
+
+      Active : constant Coyote_SQC.Charts.Chart_Kind :=
+        State.Active_Chart;
+      CD     : constant Coyote_SQC.App.Chart_Data :=
+        State.Charts (Active);
+      Props  : constant Coyote_SQC.Charts.Chart_Properties :=
+        Coyote_SQC.Charts.Properties (Active);
+
+      package LF_Vectors renames Long_Float_Vectors;
+      Vals_A_Vec : LF_Vectors.Vector;
+      Vals_B_Vec : LF_Vectors.Vector;
+      N_A     : Natural := 0;
+      N_B     : Natural := 0;
+      CL      : Long_Float := 0.0;
+      UCL     : Long_Float := 0.0;
+      Has_UCL : Boolean    := False;
+      LCL     : Long_Float := 0.0;
+      Has_LCL : Boolean    := False;
+      Got_CL  : Boolean    := False;
+
+      --  Date ranges.
+      T_Min_A : Ada.Calendar.Time := Ada.Calendar.Time_Of (2100, 1, 1, 0.0);
+      T_Max_A : Ada.Calendar.Time := Ada.Calendar.Time_Of (1970, 1, 2, 0.0);
+      T_Min_B : Ada.Calendar.Time := Ada.Calendar.Time_Of (2100, 1, 1, 0.0);
+      T_Max_B : Ada.Calendar.Time := Ada.Calendar.Time_Of (1970, 1, 2, 0.0);
+
+      VBox : Gtk.Box.Gtk_Box;
+      Frame : Gtk.Frame.Gtk_Frame;
+      MC_Entry : Gtk.Text_View.Gtk_Text_View;
+
+      --  Formatting helpers (same rules as in Refresh_Histogram_If_Multi).
+      function Fmt_V (V : Long_Float) return String is
+         Av : constant Long_Float := abs V;
+      begin
+         if Av >= 100.0 then
+            return (if V < 0.0 then "-" else "")
+              & Trim (Long_Long_Integer'Image
+                  (Long_Long_Integer (Long_Float'Rounding (Av))),
+                  Ada.Strings.Left);
+         else
+            declare
+               IV : constant Long_Long_Integer :=
+                 Long_Long_Integer (Long_Float'Rounding (Av * 100.0));
+            begin
+               return (if V < 0.0 then "-" else "")
+                 & Trim (Long_Long_Integer'Image (IV / 100),
+                         Ada.Strings.Left)
+                 & "."
+                 & (if IV mod 100 < 10 then "0" else "")
+                 & Trim (Long_Long_Integer'Image (IV mod 100),
+                         Ada.Strings.Left);
+            end;
+         end if;
+      end Fmt_V;
+
+      function Fmt_P (P : Long_Float) return String is
+         IV : Natural;
+      begin
+         if P < 0.0 then
+            return "N/A";
+         elsif P < 0.001 then
+            return "< 0.001";
+         else
+            IV := Natural (Long_Float'Rounding (P * 1000.0));
+            if IV >= 1000 then
+               return "1.000";
+            end if;
+            return "0."
+              & (if IV < 100 then "0" else "")
+              & (if IV < 10 then "0" else "")
+              & Trim (Natural'Image (IV), Ada.Strings.Left);
+         end if;
+      end Fmt_P;
+
+      function Fmt_N (N : Natural) return String is
+      begin
+         return Trim (Natural'Image (N), Ada.Strings.Left);
+      end Fmt_N;
+
+      function Fmt_Date_Range
+        (T_Min : Ada.Calendar.Time;
+         T_Max : Ada.Calendar.Time;
+         Found : Boolean) return String is
+      begin
+         if not Found then
+            return "-";
+         end if;
+         declare
+            D1 : constant String :=
+              Ada.Calendar.Formatting.Image (T_Min, Time_Zone => 0);
+            D2 : constant String :=
+              Ada.Calendar.Formatting.Image (T_Max, Time_Zone => 0);
+         begin
+            return D1 (D1'First .. D1'First + 9) & " - "
+              & D2 (D2'First .. D2'First + 9);
+         end;
+      end Fmt_Date_Range;
+
+      function Fmt_CI
+        (CI : Coyote_SQC.Statistics.Bootstrap.CI_Result) return String is
+      begin
+         if not CI.Valid then
+            return "N/A";
+         end if;
+         return Fmt_V (CI.Point_Estimate)
+           & " [" & Fmt_V (CI.Lower)
+           & ", " & Fmt_V (CI.Upper) & "]";
+      end Fmt_CI;
+
+      Found_A : Boolean := False;
+      Found_B : Boolean := False;
+
+   begin
+      --  ── Collect Set A and Set B values from the active chart ──────────
+      for P of CD.Points loop
+         if not P.Excluded then
+            if State.Selection.Contains (P.Session_Id) then
+               N_A := N_A + 1;
+               Vals_A_Vec.Append (P.Stat_Value);
+               if P.Session_Time < T_Min_A then
+                  T_Min_A := P.Session_Time;
+               end if;
+               if P.Session_Time > T_Max_A then
+                  T_Max_A := P.Session_Time;
+               end if;
+               Found_A := True;
+               if not Got_CL then
+                  CL      := P.CL;
+                  UCL     := P.UCL;
+                  Has_UCL := P.Has_UCL;
+                  LCL     := P.LCL;
+                  Has_LCL := P.Has_LCL;
+                  Got_CL  := True;
+               end if;
+            end if;
+            if State.Set_B.Contains (P.Session_Id) then
+               N_B := N_B + 1;
+               Vals_B_Vec.Append (P.Stat_Value);
+               if P.Session_Time < T_Min_B then
+                  T_Min_B := P.Session_Time;
+               end if;
+               if P.Session_Time > T_Max_B then
+                  T_Max_B := P.Session_Time;
+               end if;
+               Found_B := True;
+            end if;
+         end if;
+      end loop;
+
+      --  ── Apply display transform (same rules as Refresh_Histogram_If_Multi)
+      if (Props.Is_MR_Chart
+          and then CD.MR_Transform_Active /= Coyote_SQC.Data_Model.None)
+        or else (not Props.Is_MR_Chart
+                 and then CD.Transform_Active /= Coyote_SQC.Data_Model.None)
+      then
+         declare
+            use Coyote_SQC.Data_Model;
+            Eff_Active : constant Coyote_SQC.Data_Model.Transform_Kind :=
+              (if Props.Is_MR_Chart
+               then CD.MR_Transform_Active
+               else CD.Transform_Active);
+            Eff_Lambda : constant Long_Float :=
+              (if Props.Is_MR_Chart
+               then CD.MR_Transform_Lambda
+               else CD.Transform_Lambda);
+         begin
+            for I in 1 .. N_A loop
+               if Vals_A_Vec (I) > 0.0
+                 or else (Eff_Active /= Box_Cox
+                          and then Vals_A_Vec (I) >= 0.0)
+                 or else Eff_Active = Arcsinh_VS
+               then
+                  Vals_A_Vec.Replace_Element
+                    (I, Coyote_SQC.Statistics.I_Chart.Apply_Transform
+                          (Vals_A_Vec (I), Eff_Active, Eff_Lambda));
+               end if;
+            end loop;
+            for I in 1 .. N_B loop
+               if Vals_B_Vec (I) > 0.0
+                 or else (Eff_Active /= Box_Cox
+                          and then Vals_B_Vec (I) >= 0.0)
+                 or else Eff_Active = Arcsinh_VS
+               then
+                  Vals_B_Vec.Replace_Element
+                    (I, Coyote_SQC.Statistics.I_Chart.Apply_Transform
+                          (Vals_B_Vec (I), Eff_Active, Eff_Lambda));
+               end if;
+            end loop;
+         end;
+      end if;
+
+      --  ── Compute bootstrap CIs ────────────────────────────────────────
+      declare
+         BS_Result : Coyote_SQC.Statistics.Bootstrap.Three_CI_Results;
+         X_Label   : constant String :=
+           Ada.Strings.Unbounded.To_String (Props.Y_Axis_Label);
+      begin
+         BS_Result := Coyote_SQC.Statistics.Bootstrap.Compute
+           (Set_A => Vals_A_Vec, Set_B => Vals_B_Vec);
+
+         --  ── Refresh two-set histogram ─────────────────────────────────
+         Coyote_SQC.UI.Histogram_Canvas.Refresh_Two_Set
+           (Values_A  => Vals_A_Vec,
+            Values_B  => Vals_B_Vec,
+            CL        => CL,
+            UCL       => UCL,
+            Has_UCL   => Has_UCL,
+            LCL       => LCL,
+            Has_LCL   => Has_LCL,
+            X_Label   => X_Label,
+            Has_Data  => N_A > 0 or else N_B > 0);
+
+         --  ── Build widget tree ─────────────────────────────────────────
+         Gtk.Box.Gtk_New_Vbox (VBox);
+         VBox.Set_Spacing (6);
+         VBox.Set_Border_Width (6);
+
+         --  Set headers grid (2 rows × 3 cols).
+         declare
+            Header_Grid : Gtk.Grid.Gtk_Grid;
+            Lbl         : Gtk.Label.Gtk_Label;
+         begin
+            Gtk.Grid.Gtk_New (Header_Grid);
+            Header_Grid.Set_Column_Spacing (8);
+            Header_Grid.Set_Row_Spacing (2);
+
+            --  Row 0: Set A (blue).
+            Gtk.Label.Gtk_New (Lbl, "Set A");
+            Lbl.Set_Xalign (0.0);
+            Lbl.Set_Markup
+              ("<span foreground=""#1a4ec2""><b>Set A</b></span>");
+            Header_Grid.Attach (Lbl, 0, 0);
+
+            Gtk.Label.Gtk_New (Lbl, Fmt_N (N_A) & " sessions");
+            Lbl.Set_Xalign (0.0);
+            Header_Grid.Attach (Lbl, 1, 0);
+
+            Gtk.Label.Gtk_New
+              (Lbl, Fmt_Date_Range (T_Min_A, T_Max_A, Found_A));
+            Lbl.Set_Xalign (0.0);
+            Header_Grid.Attach (Lbl, 2, 0);
+
+            --  Row 1: Set B (orange).
+            Gtk.Label.Gtk_New (Lbl, "Set B");
+            Lbl.Set_Xalign (0.0);
+            Lbl.Set_Markup
+              ("<span foreground=""#c76000""><b>Set B</b></span>");
+            Header_Grid.Attach (Lbl, 0, 1);
+
+            Gtk.Label.Gtk_New (Lbl, Fmt_N (N_B) & " sessions");
+            Lbl.Set_Xalign (0.0);
+            Header_Grid.Attach (Lbl, 1, 1);
+
+            Gtk.Label.Gtk_New
+              (Lbl, Fmt_Date_Range (T_Min_B, T_Max_B, Found_B));
+            Lbl.Set_Xalign (0.0);
+            Header_Grid.Attach (Lbl, 2, 1);
+
+            VBox.Pack_Start (Header_Grid, False, False, 0);
+         end;
+
+         --  Distribution histogram (two-set overlay).
+         declare
+            Hist_Frame : Gtk.Frame.Gtk_Frame;
+            Hist_DA    : constant Gtk.Drawing_Area.Gtk_Drawing_Area :=
+              Coyote_SQC.UI.Histogram_Canvas.Build;
+         begin
+            Gtk.Frame.Gtk_New (Hist_Frame, "Distribution");
+            Hist_Frame.Add (Hist_DA);
+            VBox.Pack_Start (Hist_Frame, False, False, 0);
+         end;
+
+         --  Summary Statistics (9 rows × 3 columns).
+         declare
+            Stats_Frame : Gtk.Frame.Gtk_Frame;
+            Grid        : Gtk.Grid.Gtk_Grid;
+            Key_Lbl     : Gtk.Label.Gtk_Label;
+            Val_A_Lbl   : Gtk.Label.Gtk_Label;
+            Val_B_Lbl   : Gtk.Label.Gtk_Label;
+
+            type LF_Arr_Ptr is access Long_Float_Array;
+            procedure Free_LF_Arr is new Ada.Unchecked_Deallocation
+              (Long_Float_Array, LF_Arr_Ptr);
+            Test_A_Ptr : LF_Arr_Ptr :=
+              new Long_Float_Array (1 .. N_A);
+            Test_B_Ptr : LF_Arr_Ptr :=
+              new Long_Float_Array (1 .. N_B);
+            Test_A     : Long_Float_Array renames Test_A_Ptr.all;
+            Test_B     : Long_Float_Array renames Test_B_Ptr.all;
+
+            procedure Add_Row
+              (Row    :     Glib.Gint;
+               Key    :     String;
+               Val_A  :     String;
+               Val_B  :     String)
+            is
+            begin
+               Gtk.Label.Gtk_New (Key_Lbl, Key);
+               Key_Lbl.Set_Xalign (0.0);
+               Grid.Attach (Key_Lbl, 0, Row);
+               Gtk.Label.Gtk_New (Val_A_Lbl, Val_A);
+               Val_A_Lbl.Set_Xalign (1.0);
+               Grid.Attach (Val_A_Lbl, 1, Row);
+               Gtk.Label.Gtk_New (Val_B_Lbl, Val_B);
+               Val_B_Lbl.Set_Xalign (1.0);
+               Grid.Attach (Val_B_Lbl, 2, Row);
+            end Add_Row;
+
+         begin
+            --  Populate heap-allocated arrays from Set A / Set B vectors.
+            for I in 1 .. N_A loop
+               Test_A (I) := Vals_A_Vec (I);
+            end loop;
+            for I in 1 .. N_B loop
+               Test_B (I) := Vals_B_Vec (I);
+            end loop;
+            Gtk.Frame.Gtk_New (Stats_Frame, "Summary Statistics");
+            Gtk.Grid.Gtk_New (Grid);
+            Grid.Set_Column_Spacing (12);
+            Grid.Set_Row_Spacing (3);
+            Grid.Set_Border_Width (4);
+
+            --  Column headers.
+            Gtk.Label.Gtk_New (Key_Lbl, "");
+            Grid.Attach (Key_Lbl, 0, 0);
+            Gtk.Label.Gtk_New (Key_Lbl, "Set A");
+            Key_Lbl.Set_Xalign (1.0);
+            Key_Lbl.Set_Markup ("<b>Set A</b>");
+            Grid.Attach (Key_Lbl, 1, 0);
+            Gtk.Label.Gtk_New (Key_Lbl, "Set B");
+            Key_Lbl.Set_Xalign (1.0);
+            Key_Lbl.Set_Markup ("<b>Set B</b>");
+            Grid.Attach (Key_Lbl, 2, 0);
+
+            Add_Row (1, "N:",
+                     Fmt_N (N_A),
+                     Fmt_N (N_B));
+            Add_Row (2, "Mean:",
+                     (if N_A > 0 then Fmt_V (Mean_Of (Test_A)) else "-"),
+                     (if N_B > 0 then Fmt_V (Mean_Of (Test_B)) else "-"));
+            Add_Row (3, "Median:",
+                     (if N_A > 0
+                      then Fmt_V (Coyote_SQC.Statistics.I_Chart.Median_Of
+                                    (Test_A))
+                      else "-"),
+                     (if N_B > 0
+                      then Fmt_V (Coyote_SQC.Statistics.I_Chart.Median_Of
+                                    (Test_B))
+                      else "-"));
+            Add_Row (4, "Std Dev:",
+                     (if N_A > 0 then Fmt_V (Std_Dev_Of (Test_A)) else "-"),
+                     (if N_B > 0 then Fmt_V (Std_Dev_Of (Test_B)) else "-"));
+            Add_Row (5, "KS Normal p:",
+                     Fmt_P (if N_A > 0
+                            then KS_Normality_P_Value (Test_A) else -1.0),
+                     Fmt_P (if N_B > 0
+                            then KS_Normality_P_Value (Test_B) else -1.0));
+            Add_Row (6, "KS Exp p:",
+                     Fmt_P (if N_A > 0
+                            then KS_Exponential_P_Value (Test_A) else -1.0),
+                     Fmt_P (if N_B > 0
+                            then KS_Exponential_P_Value (Test_B) else -1.0));
+            Add_Row (7, "Runs Test p:",
+                     Fmt_P (if N_A > 0
+                            then Runs_Test_P_Value (Test_A) else -1.0),
+                     Fmt_P (if N_B > 0
+                            then Runs_Test_P_Value (Test_B) else -1.0));
+            Add_Row (8, "Dip Test p:",
+                     Fmt_P (if N_A > 0
+                            then Dip_Test_P_Value (Test_A) else -1.0),
+                     Fmt_P (if N_B > 0
+                            then Dip_Test_P_Value (Test_B) else -1.0));
+
+            Free_LF_Arr (Test_A_Ptr);
+            Free_LF_Arr (Test_B_Ptr);
+            Stats_Frame.Add (Grid);
+            VBox.Pack_Start (Stats_Frame, False, False, 0);
+         end;
+
+         --  Comparison (Bootstrap 95% CI) frame.
+         declare
+            CI_Frame : Gtk.Frame.Gtk_Frame;
+            CI_Grid  : Gtk.Grid.Gtk_Grid;
+            Key_Lbl  : Gtk.Label.Gtk_Label;
+            Val_Lbl  : Gtk.Label.Gtk_Label;
+         begin
+            Gtk.Frame.Gtk_New (CI_Frame, "Comparison (Bootstrap 95% CI)");
+            Gtk.Grid.Gtk_New (CI_Grid);
+            CI_Grid.Set_Column_Spacing (12);
+            CI_Grid.Set_Row_Spacing (3);
+            CI_Grid.Set_Border_Width (4);
+
+            Gtk.Label.Gtk_New (Key_Lbl, "Mean diff (B" & "-" & "A):");
+            Key_Lbl.Set_Xalign (0.0);
+            CI_Grid.Attach (Key_Lbl, 0, 0);
+            Gtk.Label.Gtk_New (Val_Lbl, Fmt_CI (BS_Result.Mean_Diff));
+            Val_Lbl.Set_Xalign (1.0);
+            CI_Grid.Attach (Val_Lbl, 1, 0);
+
+            Gtk.Label.Gtk_New (Key_Lbl, "Median diff (B" & "-" & "A):");
+            Key_Lbl.Set_Xalign (0.0);
+            CI_Grid.Attach (Key_Lbl, 0, 1);
+            Gtk.Label.Gtk_New (Val_Lbl, Fmt_CI (BS_Result.Median_Diff));
+            Val_Lbl.Set_Xalign (1.0);
+            CI_Grid.Attach (Val_Lbl, 1, 1);
+
+            Gtk.Label.Gtk_New (Key_Lbl, "SD ratio (B/A):");
+            Key_Lbl.Set_Xalign (0.0);
+            CI_Grid.Attach (Key_Lbl, 0, 2);
+            Gtk.Label.Gtk_New (Val_Lbl, Fmt_CI (BS_Result.SD_Ratio));
+            Val_Lbl.Set_Xalign (1.0);
+            CI_Grid.Attach (Val_Lbl, 1, 2);
+
+            CI_Frame.Add (CI_Grid);
+            VBox.Pack_Start (CI_Frame, False, False, 0);
+         end;
+
+         --  Add Comment to All Selected (applies to Set A = Selection).
+         declare
+            CBox : Gtk.Box.Gtk_Box;
+            CBt  : Gtk.Button.Gtk_Button;
+            CE_S : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+         begin
+            Gtk.Frame.Gtk_New (Frame, "Add Comment to All Selected");
+            Gtk.Box.Gtk_New_Vbox (CBox);
+            Gtk.Text_View.Gtk_New (MC_Entry);
+            MC_Entry.Set_Wrap_Mode (Wrap_Word);
+            Multi_Comment_Entry := MC_Entry;
+            Gtk.Scrolled_Window.Gtk_New (CE_S);
+            CE_S.Set_Policy (Policy_Never, Policy_Automatic);
+            CE_S.Set_Size_Request (-1, 60);
+            CE_S.Add (MC_Entry);
+            CBox.Pack_Start (CE_S, False, False, 2);
+            Gtk.Button.Gtk_New (CBt, "Add Comment to All");
+            CBt.On_Clicked (On_Add_Multi_Comment_Clicked'Access);
+            CBox.Pack_Start (CBt, False, False, 2);
+            Frame.Add (CBox);
+            VBox.Pack_Start (Frame, False, False, 0);
+         end;
+
+         Inner_Box := VBox;
+         Panel_Box.Pack_Start (VBox, True, True, 0);
+         Panel_Box.Show_All;
+      end;
+   end Build_Two_Set_View;
+
 
    --  ── Histogram ─────────────────────────────────────────────────────────
 
@@ -1573,7 +2038,11 @@ package body Coyote_SQC.UI.Detail_Panel is
            Natural (Coyote_SQC.App.State.Selection.Length);
          Pinned : constant String := To_String (Pinned_Session_Id);
       begin
-         if N = 0 then
+         if not Coyote_SQC.App.State.Set_B.Is_Empty then
+            Pinned_Session_Id := Null_Unbounded_String;
+            Set_Visible (True);
+            Build_Two_Set_View;
+         elsif N = 0 then
             Pinned_Session_Id := Null_Unbounded_String;
             Set_Visible (False);
          elsif N = 1 then

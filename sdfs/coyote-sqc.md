@@ -58,6 +58,40 @@ back-transformed values so the scale is interpretable.
 the main coyote GUI frontend and coyote_sqc's detail panel. This avoids
 duplicating the libcmark-gfm integration and the session JSONL replay logic.
 
+
+### Percentile bootstrap for two-set CI
+
+The requirements specify the percentile bootstrap (B = 10 000, seed 12 345)
+rather than the bias-corrected and accelerated (BCa) bootstrap.  The BCa
+bootstrap requires computing an influence function for each statistic, which
+is non-trivial to implement correctly for the median and adds a dependency on
+jackknife resampling.  For typical session counts (tens to hundreds of points
+per set), the percentile bootstrap produces CIs that are accurate enough for
+the intended exploratory use case.  The fixed seed and B = 10 000 ensure
+reproducible, deterministic output — the same selection always produces the
+same CI bounds.  Computation is synchronous on the GTK main loop thread
+because the typical dataset is small (< 500 data points total); no
+asynchronous machinery is needed.
+
+### Two-set selection model
+
+Set A is the existing single selection (unchanged interaction model from §9.1).
+Set B is added as a parallel UUID set in `App_State`.  An "Edit Set B ☐"
+toolbar toggle redirects all selection actions (click, shift+click,
+shift+drag) to Set B when active.  This avoids introducing new modifier keys
+or multi-step workflows; the user's existing selection habits transfer directly
+to both sets.  Set A continues to serve as the authoritative selection for all
+non-comparison operations (setup interval, bulk comments, Y-Fit).
+
+### Overlapping histogram bin unification
+
+When two sets are compared in §10.3, bins are computed from the *combined*
+range of both sets using the Freedman-Diaconis rule applied to the pooled
+sample.  Both sets use identical bin boundaries.  This ensures the two bar
+series are visually comparable: bars in the same bin represent the same value
+range.  Using per-set bin boundaries would make the bars incommensurable and
+defeat the purpose of the overlap.
+
 ---
 
 ## Key Constraints
@@ -78,7 +112,8 @@ duplicating the libcmark-gfm integration and the session JSONL replay logic.
   in `test/fixtures/sqc/` — v1 format, v3 format, thinking sessions,
   compaction sessions.
 - `Coyote_SQC.Statistics.*`: covered by AUnit tests — c4(n) table values,
-  Xbar/s/p/I/MR limit calculations.
+  Xbar/s/p/I/MR limit calculations, bootstrap CI computation (point estimates,
+  CI coverage, N/A cases, reproducibility).
 - `Coyote_SQC.Workspace`: covered by AUnit tests — load/save round-trip,
   version migration.
 
@@ -92,3 +127,39 @@ duplicating the libcmark-gfm integration and the session JSONL replay logic.
 - Workspace version 10 (`analyzeAllDirectories`) is the current version.
   Future schema changes should increment the version and add migration logic
   in `Coyote_SQC.Workspace.Load`.
+- Two-set comparison (PCR-016): complete.  `Coyote_SQC.Statistics.Bootstrap`
+  (ads + adb, 5 AUnit tests), `App_State` Set B fields, toolbar "Edit Set B"
+  toggle (`Edit_Set_B_Mode`; canvas selection routed to `Set_B` when active;
+  orange halos on canvas for Set B points), View menu "Clear Both Sets" item
+  (clears both sets, resets toggle, refreshes panel), `Histogram_Canvas.Refresh_Two_Set`
+  (two-series overlay histogram: shared FD bins, blue Set A / orange Set B bars
+  at 0.5 opacity, CL/UCL/LCL overlays, legend), `Build_Two_Set_View` in
+  Detail_Panel (set headers, overlapping histogram, 9-row × 3-col summary
+  statistics including N/mean/median/std dev/KS/runs/dip for each set,
+  Bootstrap 95% CI frame for mean diff, median diff, SD ratio, Add Comment
+  frame), `Update_Menu_States` sensitivity for `Clear_Both_Sets_Item`.
+  Build passes, 665 tests all pass.
+- **PCR-017 (stack-overflow fix, 2026-06-06):** All dynamically-bounded
+  internal arrays in `Bootstrap.Compute` (`A_Star`, `B_Star`) and
+  `Statistics.Tests` (`Sorted` copies in KS/Runs functions; `Sorted_V`,
+  `Sim_V` in dip test; `Mn`, `Mj`, `Gcm`, `Lcm` in `Compute_Dip`) converted
+  from stack-allocated `Long_Float_Array` / `array (1..N) of Integer` to
+  heap-backed `Ada.Containers.Vectors` container objects.  Public API surfaces
+  (`Long_Float_Array` parameter types) are unchanged.  Dead private code
+  removed: `Quick_Sort`, `Sort_LF`, three array-form stat helpers from
+  bootstrap body; insertion-sort `Sort` from tests body.  `LF_Sorting.Sort`
+  (Generic_Sorting instantiation) used throughout both files.  Build clean;
+  665 tests pass.
+- **PCR-018 (stale-widget Queue_Draw fix, 2026-06-06):** `STORAGE_ERROR`
+  (SIGSEGV) in `Histogram_Canvas.Refresh_Two_Set` caused by calling
+  `Queue_Draw` on a destroyed `Gtk_Drawing_Area`.  Root cause: `Build`
+  creates a new widget each call and stores it in the package-level
+  `The_Widget`; when `Detail_Panel.Refresh` tears down the old widget
+  container it destroys the underlying GObject, but `The_Widget` remains
+  Ada-non-null.  `Refresh_Two_Set` (called before `Build`) then passed
+  the stale pointer to `Queue_Draw`.  Fix: added private
+  `On_Widget_Destroy` callback in the package body that nulls `The_Widget`
+  when the GObject is finalised; connected via `The_Widget.On_Destroy`
+  inside `Build`.  The existing `if The_Widget /= null` guards in both
+  `Refresh` and `Refresh_Two_Set` then correctly suppress stale draws.
+  No test changes (no new public API).  Build clean; 665 tests pass.

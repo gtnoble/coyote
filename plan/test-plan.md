@@ -124,7 +124,7 @@ in SRS-CORE). No separate hardware integration testing (software-only system).
 - **I (Inspection):** Code review.
 - **A (Analysis):** Build artefact or design document analysis.
 
-**Progression criterion:** All 658+ AUnit tests must pass before any
+**Progression criterion:** All 665+ AUnit tests must pass before any
 demonstration-verified requirements are reviewed. Demonstration tests are
 performed after the automated suite is green.
 
@@ -168,10 +168,11 @@ SRS-CORE requirement groups.
 | `coyote_sqc_integrity_tests.adb` | SRS-SQC integrity | ~15 |
 | `coyote_sqc_jsd_tests.adb` | SRS-SQC JSD metrics | ~20 |
 | `coyote_sqc_histogram_tests.adb` | SRS-SQC histogram | ~10 |
+| `coyote_sqc_bootstrap_tests.adb` | SRS-SQC §5.17 bootstrap CI, §10.3 two-set histogram bins | ~7 |
 | `acme_event_parser_tests.adb` | REQ-CORE-100–108 | ~20 |
 | `acme_raw_events_tests.adb` | REQ-CORE-100 | ~10 |
 
-**Total automated tests (current):** 660
+**Total automated tests (current):** **660** (+ 7 pending: bootstrap CI and two-set histogram tests required by SRS-SQC §15.6, added 2026-06-06)
 
 ### 4.3 Planned Tests — Demonstration
 
@@ -290,6 +291,11 @@ full `cd test && alr run coyote_test` run is performed and the pass count
 and any failures are recorded here or in the Test Report.
 
 **Baseline as of 2026-06-01:** 658 tests, 0 failures, 0 unexpected errors.
+**Baseline as of 2026-06-06 (PCR-016 Bootstrap):** 665 tests, 0 failures,
+0 unexpected errors.  Added 5 Bootstrap CI tests
+(`Test_Bootstrap_Point_Estimates`, `Test_Bootstrap_CI_Coverage`,
+`Test_Bootstrap_NA_Insufficient`, `Test_Bootstrap_NA_SD_Zero`,
+`Test_Bootstrap_Reproducibility`) for `Coyote_SQC.Statistics.Bootstrap`.
 **Baseline as of 2026-06-03:** 660 tests, 0 failures, 0 unexpected errors.
 (+2 tests: Test_Parse_File_Sets_File_Path, Test_Parse_File_Sets_File_Mtime
 for PCR-015 incremental reload fix.)
@@ -298,3 +304,4 @@ for PCR-015 incremental reload fix.)
 `plan/problems.md` as PCR-009. They are accepted as deferred for the current
 build with the rationale that the uncovered requirements are either low-risk
 (SIGTERM handling) or require live external services (Copilot, live acme).
+**Baseline as of 2026-06-06:** 660 tests, 0 failures, 0 unexpected errors.  7 new test cases required by SRS-SQC §15.6 (§5.17 bootstrap CI, §10.3 two-set histogram) are pending implementation; they are not yet included in the suite.

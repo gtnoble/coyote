@@ -6,6 +6,7 @@
 --
 --  Project: coyote
 
+with Coyote_SQC.Data_Model;
 with Gtk.Drawing_Area;
 
 package Coyote_SQC.UI.Histogram_Canvas is
@@ -55,5 +56,28 @@ package Coyote_SQC.UI.Histogram_Canvas is
       Bin_Min   : out Long_Float;
       Bin_Width : out Long_Float;
       Counts    : out Bin_Count_Array);
+
+
+   --  Update histogram data for a two-set overlay and queue a redraw.
+   --
+   --  Values_A : statistic values for Set A (blue, semi-transparent).
+   --  Values_B : statistic values for Set B (orange, semi-transparent).
+   --  CL, UCL, LCL, Has_UCL, Has_LCL : control-limit lines derived from the
+   --             first contributing Set A point (same rules as single-set Refresh).
+   --  X_Label  : x-axis label (active chart's statistic name).
+   --  Has_Data : when False the widget shows "No data for active chart".
+   --
+   --  Bin boundaries are computed from the pooled (Values_A & Values_B) sample
+   --  using the Freedman-Diaconis rule; both sets share the same bins.
+   procedure Refresh_Two_Set
+     (Values_A  : Coyote_SQC.Data_Model.Long_Float_Vectors.Vector;
+      Values_B  : Coyote_SQC.Data_Model.Long_Float_Vectors.Vector;
+      CL        : Long_Float;
+      UCL       : Long_Float;
+      Has_UCL   : Boolean;
+      LCL       : Long_Float;
+      Has_LCL   : Boolean;
+      X_Label   : String;
+      Has_Data  : Boolean);
 
 end Coyote_SQC.UI.Histogram_Canvas;

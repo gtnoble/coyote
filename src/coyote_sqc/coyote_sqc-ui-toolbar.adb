@@ -19,6 +19,7 @@ package body Coyote_SQC.UI.Toolbar is
    use type Coyote_SQC.App.App_State_Access;
    use type Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
    use type Gtk.Check_Button.Gtk_Check_Button;
+   use type Gtk.Toggle_Button.Gtk_Toggle_Button;
 
    --  Module-level picker instances (heap-allocated).
    type Picker_Access is access all Coyote_SQC.UI.Datetime_Picker.Instance;
@@ -112,6 +113,17 @@ package body Coyote_SQC.UI.Toolbar is
       end if;
       Coyote_SQC.UI.Chart_Canvas.Queue_Redraw;
    end On_Log_Y_Toggled;
+   procedure On_Edit_Set_B_Toggled
+     (Self : access Gtk.Toggle_Button.Gtk_Toggle_Button_Record'Class)
+   is
+      New_Mode : constant Boolean := Self.Get_Active;
+   begin
+      if Coyote_SQC.App.State = null then return; end if;
+      --  Same-value guard: no side effects when syncing programmatically.
+      if New_Mode = Coyote_SQC.App.State.Edit_Set_B_Mode then return; end if;
+      Coyote_SQC.App.State.Edit_Set_B_Mode := New_Mode;
+   end On_Edit_Set_B_Toggled;
+
 
 
 
@@ -182,6 +194,18 @@ package body Coyote_SQC.UI.Toolbar is
          Log_Y_Check := Log_Y;
       end;
 
+      --  Edit Set B toggle.
+      declare
+         Edit_Set_B : Gtk.Toggle_Button.Gtk_Toggle_Button;
+      begin
+         Gtk.Toggle_Button.Gtk_New (Edit_Set_B, "Edit Set B");
+         Edit_Set_B.On_Toggled (On_Edit_Set_B_Toggled'Access);
+         Toolbar.Pack_Start (Edit_Set_B, False, False, 4);
+         if Coyote_SQC.App.State /= null then
+            Coyote_SQC.App.State.Edit_Set_B_Button := Edit_Set_B;
+         end if;
+      end;
+
       Container.Pack_Start (Toolbar, False, False, 0);
    end Build;
 
@@ -221,6 +245,19 @@ package body Coyote_SQC.UI.Toolbar is
            (Coyote_SQC.App.State.Workspace.Log_Y_Mode);
       end if;
    end Sync_Log_Y_Button;
+
+   --  ── Sync_Edit_Set_B_Button ────────────────────────────────────────────
+
+   procedure Sync_Edit_Set_B_Button is
+   begin
+      if Coyote_SQC.App.State /= null
+        and then Coyote_SQC.App.State.Edit_Set_B_Button /= null
+      then
+         Coyote_SQC.App.State.Edit_Set_B_Button.Set_Active
+           (Coyote_SQC.App.State.Edit_Set_B_Mode);
+      end if;
+   end Sync_Edit_Set_B_Button;
+
 
 
 

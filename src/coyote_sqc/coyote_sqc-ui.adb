@@ -82,6 +82,8 @@ package body Coyote_SQC.UI is
      (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
    procedure On_Clear_Setup
      (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
+   procedure On_Clear_Both_Sets
+     (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
 
    function On_Window_Delete
      (Win   : access Gtk.Widget.Gtk_Widget_Record'Class;
@@ -538,6 +540,22 @@ package body Coyote_SQC.UI is
       end if;
    end On_Clear_Selection;
 
+   procedure On_Clear_Both_Sets
+     (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
+   is
+      pragma Unreferenced (Item);
+   begin
+      if Coyote_SQC.App.State /= null then
+         Coyote_SQC.App.State.Selection.Clear;
+         Coyote_SQC.App.State.Set_B.Clear;
+         Coyote_SQC.App.State.Edit_Set_B_Mode := False;
+         Coyote_SQC.UI.Toolbar.Sync_Edit_Set_B_Button;
+         Coyote_SQC.UI.Detail_Panel.Refresh;
+         Coyote_SQC.UI.Chart_Canvas.Queue_Redraw;
+         Coyote_SQC.App.Update_Menu_States;
+      end if;
+   end On_Clear_Both_Sets;
+
    procedure On_Clear_Setup
      (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
    is
@@ -740,6 +758,17 @@ package body Coyote_SQC.UI is
       end;
       Add_Sep (View_M);
       Add_Item (View_M, "Clear Selection",  On_Clear_Selection'Access);
+      declare
+         CBS : Gtk.Menu_Item.Gtk_Menu_Item;
+      begin
+         Gtk.Menu_Item.Gtk_New (CBS, "Clear Both Sets");
+         CBS.On_Activate (On_Clear_Both_Sets'Access);
+         View_M.Append (CBS);
+         Coyote_SQC.App.State.Clear_Both_Sets_Item := CBS;
+         CBS.Set_Sensitive
+           (not Coyote_SQC.App.State.Selection.Is_Empty
+            or else not Coyote_SQC.App.State.Set_B.Is_Empty);
+      end;
       declare
          CSI : Gtk.Menu_Item.Gtk_Menu_Item;
       begin

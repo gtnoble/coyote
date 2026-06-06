@@ -801,6 +801,54 @@ Returns `N/A` when N < 4.
 **Interpretation:** a small p-value (e.g. < 0.05) suggests multimodality —
 the chart metric may reflect two distinct process regimes.
 
+### 5.17 Bootstrap Confidence Intervals for Two-Set Comparison
+
+When two sets of points are selected (§9.4), the application computes bootstrap
+confidence intervals to compare the distributions of the active chart's statistic
+between Set A and Set B.
+
+#### Method
+
+The **percentile bootstrap** with B = 10 000 resamples is applied.  A fixed random
+seed of 12 345 is used, so the same selection always yields the same intervals.
+Sessions excluded from the active chart (e.g. zero-tool-call sessions on the
+failure-rate chart) are omitted from both sets before computation; the same exclusion
+rules that govern chart display apply here.
+
+Let `a₁, …, a_m` be the active-chart statistics for the m contributing sessions in
+Set A, and `b₁, …, b_n` for the n contributing sessions in Set B.
+
+**Confidence level:** 95% (non-configurable).
+
+**Three statistics are computed:**
+
+1. **Mean difference** — θ_mean = mean(B) − mean(A)
+2. **Median difference** — θ_median = median(B) − median(A)
+3. **Standard deviation ratio** — θ_SD = SD(B) / SD(A), where SD denotes the
+   sample standard deviation (N−1 denominator).
+
+**Bootstrap procedure for each statistic θ:**
+
+1. Draw B independent bootstrap samples: resample m values with replacement from
+   Set A to form A*; resample n values with replacement from Set B to form B*.
+2. Compute θ* for the resample: mean(B*) − mean(A*) for the mean difference;
+   median(B*) − median(A*) for the median difference; SD(B*) / SD(A*) for the ratio.
+3. The 95% confidence interval is the 2.5th and 97.5th percentiles of the B
+   bootstrap replicates θ*₁, …, θ*_B.
+
+The point estimate (the observed θ computed from the original, non-resampled data)
+is displayed alongside each confidence interval.
+
+**Special cases:**
+
+- If Set A or Set B has fewer than 2 contributing sessions on the active chart, all
+  three statistics and their CIs are shown as `N/A`.
+- For the SD ratio: when SD(A) = 0 in a bootstrap replicate, that replicate is
+  excluded.  If more than 50% of replicates are excluded, the ratio CI is shown as
+  `N/A`.  When SD(A) = 0 in the original data, the ratio point estimate is also
+  shown as `N/A`.
+
+
 ## 6. Charts
 
 ### 5.9 EWMA Chart for Session Totals
@@ -1523,7 +1571,8 @@ The following elements are rendered in this z-order (bottom to top):
 | Out-of-control, no comment | Filled red circle |
 | In setup interval (any control status) | Yellow ring halo (2 px stroke, drawn at radius + 6 px outside the marker); fill colour reflects control status as above |
 | Out-of-control, comment present | Filled orange circle |
-| Selected | Blue halo ring drawn around the marker, regardless of fill |
+| Selected (Set A) | Blue halo ring drawn around the marker, regardless of fill |
+| Selected (Set B) | Orange halo ring drawn around the marker, regardless of fill |
 | Zero-thinking excluded (Section 5.5) | Hollow gray circle; no setup halo |
 | Single-turn session on Xbar chart (Section 5.5) | Hollow black circle; no setup halo |
 | Single-turn session on s chart | No marker; gap in connecting line |
@@ -1601,7 +1650,7 @@ workspace is opened and saved when the workspace is saved.
 ### 7.4 Toolbar
 
 ```
-[From: YYYY-MM-DD HH:MM ▼]  [To: YYYY-MM-DD HH:MM ▼]  [Show All]  [Y-Fit]  [Run Sequence ☐]  [Log Y ☐]
+[From: YYYY-MM-DD HH:MM ▼]  [To: YYYY-MM-DD HH:MM ▼]  [Show All]  [Y-Fit]  [Run Sequence ☐]  [Log Y ☐]  [Edit Set B ☐]
 ```
 
 - **From / To pickers:** GtkEntry with a GtkCalendar popover and time spinners.
@@ -1615,6 +1664,10 @@ workspace is opened and saved when the workspace is saved.
 - **Run Sequence ☐:** toggles between Time Scale and Run Sequence x-axis modes
   (see Section 7.3.5).
 - **Log Y ☐:** enables y-axis logarithmic (base-10 decade) scaling (see Section 7.3.6).
+- **Edit Set B ☐:** toggles the active selection target between Set A and Set B
+  (see Section 9.4).  When checked, all selection actions (click, shift+click,
+  shift+drag) modify Set B instead of Set A.  Point markers for Set B are
+  highlighted with an orange halo; those for Set A retain their blue halo.
 
 ### 7.5 Menu Bar
 
@@ -1637,6 +1690,7 @@ workspace is opened and saved when the workspace is saved.
 - Chart Settings…  `Ctrl+,`  (opens Chart Settings dialog for the currently active chart; see §13.6)
 - ─
 - Clear Selection
+- Clear Both Sets  (grayed out if both Set A and Set B are empty; see Section 9.4)
 - Clear Setup Interval  (grayed out if not established)
 - Set Selection as Setup Interval  (grayed out if selection is empty)
 - Select Setup Interval  (grayed out if not established; selects all current setup interval points)
@@ -1725,8 +1779,8 @@ cursor position:
 | Shift+drag a box | Add all points within the box to the current selection |
 | Click empty chart area | Clear selection; close detail panel |
 
-Selected points are rendered with a blue halo ring drawn around their marker,
-regardless of the marker's fill color.
+Selected points are rendered with a halo ring drawn around their marker (blue for Set A,
+orange for Set B; see Section 9.4), regardless of the marker's fill color.
 
 ### 9.2 Selection Persistence
 
@@ -1740,9 +1794,62 @@ chart where it is plotted.
 ### 9.3 Selection State in Detail Panel
 
 When the selection contains exactly one point, the detail panel shows the
-single-session view (Section 10.1). When the selection contains two or more points,
-the detail panel shows the multi-select view (Section 10.2). When the selection is
-empty, the detail panel is hidden (collapsed to zero width).
+single-session view (Section 10.1). When the selection contains two or more points
+and Set B is empty, the detail panel shows the multi-select view (Section 10.2).
+When both Set A and Set B contain at least one session, the two-set comparison view
+(Section 10.3) is shown.  When the selection is empty, the detail panel is hidden
+(collapsed to zero width).  See Section 9.5 for the complete state table.
+
+
+### 9.4 Two-Set Selection Mode
+
+The application supports a **two-set comparison mode** that allows the user to
+designate two independent sets of sessions — Set A and Set B — for side-by-side
+statistical comparison in the detail panel (Section 10.3).
+
+**Activating two-set mode:** a toolbar toggle button labelled **"Edit Set B"**
+switches the active editing target between Set A (the standard selection) and Set B.
+
+- When **"Edit Set B"** is inactive (default), all selection actions (§9.1) modify
+  Set A.  Set A selected-point markers are highlighted with a **blue halo**.
+- When **"Edit Set B"** is active, all selection actions (§9.1) modify Set B.  Set B
+  selected-point markers are highlighted with an **orange halo**.
+
+Both sets are always visible simultaneously: blue halo markers for Set A and orange
+halo markers for Set B appear on the chart at the same time, even when neither set
+is the active editing target.
+
+**Clearing sets:**
+
+- Clicking an empty area of the chart canvas clears whichever set is currently being
+  edited (Set A when "Edit Set B" is inactive; Set B when it is active).
+- **View → Clear Both Sets** clears both Set A and Set B simultaneously and
+  collapses the detail panel.  The menu item is enabled whenever at least one set
+  is non-empty.
+
+**Interaction with existing selection operations:**
+
+- Set A is the selection used for all operations that require a single selection:
+  establishing a setup interval (§11.1), the "Set as Setup Interval" button
+  (§10.2), and bulk comments (§10.2).  Set B is never used for these operations.
+- Switching charts does not clear either set (consistent with §9.2 selection
+  persistence).
+
+### 9.5 Detail Panel State with Two Sets
+
+The detail panel state depends on the contents of both sets:
+
+| Set A | Set B | Detail panel shows |
+|---|---|---|
+| Empty | Empty | Hidden (collapsed to zero width) |
+| 1 session | Empty | Single-session view (§10.1) |
+| 2+ sessions | Empty | Multi-select view (§10.2) |
+| Any | 1+ sessions | Two-set comparison view (§10.3) |
+
+When Set B contains at least one session, the two-set comparison view (§10.3) is
+shown regardless of how many sessions are in Set A.  If Set A is empty while Set B
+is non-empty, Set A is treated as an empty contributing set in §10.3: all statistics
+and CIs that involve Set A values are shown as `N/A`.
 
 ---
 
@@ -1913,6 +2020,96 @@ selection changes, using the same trigger as the histogram refresh.
   datetime, model (abbreviated), source directory (abbreviated).
 - Clicking any row in this list switches the detail panel to the single-session view
   for that session without clearing the overall selection.
+
+
+### 10.3 Two-Set Comparison View
+
+Displayed when Set B contains at least one session (see §9.5 for the full state
+rules).
+
+**Set headers:**
+Two side-by-side summary header rows — one for Set A and one for Set B — each
+showing:
+
+- Set label ("Set A" or "Set B") rendered in the respective halo colour (blue for
+  Set A, orange for Set B).
+- Count of contributing sessions (sessions not excluded from the active chart).
+- Date range of those sessions (earliest to latest, `YYYY-MM-DD`).
+
+**Overlapping histogram:**
+A Cairo-rendered histogram comparing the active chart's statistic for Set A and
+Set B, placed between the set headers and the per-set summary statistics table.
+
+- **Contributing sessions:** the same exclusion rules as §10.2 apply independently
+  to each set.
+- **Bin layout:** bins span the combined range of both sets:
+  `range = max(all values from A and B) − min(all values from A and B)`.  The
+  number of bins k is determined by the Freedman-Diaconis rule applied to the
+  pooled values from both sets: `h = 2 × IQR_pooled / (m+n)^(1/3)`,
+  `k = max(1, ceil(range / h))`, capped at 32.  When IQR_pooled = 0, a single bin
+  covering the full range is used.  Bin boundaries are identical for both sets,
+  ensuring bars align on the same x-axis scale for visual comparison.
+- **Rendering:** Set A bars are filled with semi-transparent blue (opacity 0.5);
+  Set B bars are filled with semi-transparent orange (opacity 0.5).  Overlapping
+  regions show both colours blended.
+- **Overlay lines:** derived from the active chart's first contributing Set A point,
+  using the same rules as §10.2 (center line solid blue; UCL and LCL red dashed;
+  lines outside the x-range are suppressed; UCL/LCL omitted when absent).
+- **Legend:** a small inline legend labels the two fill colours as "Set A" and
+  "Set B".
+- **Y-axis:** a common "Count" scale spanning the maximum bar height across both
+  sets.
+- **X-axis:** labelled with the active chart's statistic name (same string as the
+  y-axis label on the main chart canvas).
+- The histogram area height is fixed at 180 px and is not user-resizable.
+- When no contributing sessions exist for either set on the active chart, the area
+  displays "No data for active chart" centred in the widget.
+- The histogram updates automatically when the active chart changes or either set
+  changes.
+
+**Per-set summary statistics:**
+A two-column grid immediately below the histogram, one column per set.  Each column
+has the same rows as the multi-select Summary Statistics (§10.2):
+
+| Row label | Set A | Set B |
+|---|---|---|
+| `N:` | Contributing session count | Contributing session count |
+| `Mean:` | Arithmetic mean | Arithmetic mean |
+| `Median:` | Median | Median |
+| `Std Dev:` | Sample standard deviation | Sample standard deviation |
+| `KS Normal p:` | p-value (§5.14) | p-value (§5.14) |
+| `KS Exp p:` | p-value (§5.14) | p-value (§5.14) |
+| `Runs Test p:` | p-value (§5.15) | p-value (§5.15) |
+| `Dip Test p:` | p-value (§5.16) | p-value (§5.16) |
+
+Display rules for numeric values and p-values: same as §10.2.
+
+**Bootstrap comparison statistics:**
+A "Comparison (Bootstrap 95% CI)" frame immediately below the per-set summary,
+displaying the three bootstrap statistics from §5.17:
+
+| Row label | Value shown |
+|---|---|
+| `Mean diff (B−A):` | Point estimate `[lower, upper]` — e.g. `12.3 [−4.1, 28.7]` |
+| `Median diff (B−A):` | Point estimate `[lower, upper]` |
+| `SD ratio (B/A):` | Point estimate `[lower, upper]` |
+
+Where a statistic is `N/A` (insufficient data or SD(A) = 0), the value cell shows
+`N/A`.  Numeric display rules: point estimates and CI bounds use the same format as
+§10.2 (rounded integer if |value| ≥ 100, otherwise 2 decimal places).  CI bounds
+are enclosed in brackets separated by a comma and a space.
+
+The frame heading identifies the method: *"Percentile bootstrap, B = 10 000,
+95% CI (seed 12 345)"*.
+
+Bootstrap statistics are recomputed whenever either set changes or the active chart
+changes.  Computation is performed on the GTK main loop thread (the datasets are
+small); no spinner is required.
+
+**Bulk comment section:**
+Identical to §10.2.  Applies to Set A sessions only; Set B sessions are not included
+in bulk comments issued from this view.
+
 
 ---
 
@@ -2356,4 +2553,29 @@ All statistical formula implementations shall have AUnit unit tests covering:
 - JSD Xbar/s parameter estimation: for a known setup interval of three
   sessions with known per-argument S_k vectors, verify grand mean and pooled s
   match §5.2 formulas applied to the pooled Long_Float S_k values.
+
+- Bootstrap CI point estimates: for Set A = {1, 2, 3, 4, 5} and Set B = {3, 4, 5,
+  6, 7}, verify mean diff point estimate = 2.0, median diff point estimate = 2.0,
+  and SD ratio point estimate = 1.0 (both sets have equal sample standard
+  deviations).
+- Bootstrap CI interval coverage: for the same two sets as above, with seed 12 345
+  and B = 10 000 resamples, verify that the 95% CI for the mean difference
+  contains the point estimate 2.0, has lower bound < 2.0, and has upper bound > 2.0.
+- Bootstrap CI N/A for insufficient data: with Set A having exactly 1 contributing
+  session and Set B having 5, verify all three statistics and all six CI bounds are
+  `N/A`.
+- Bootstrap CI SD ratio N/A when SD(A) = 0 in original data: with
+  Set A = {5, 5, 5} and Set B = {5, 6, 7}, verify the SD ratio point estimate and
+  CI are `N/A`; verify mean difference and median difference are still computed and
+  displayed.
+- Bootstrap CI reproducibility: running the bootstrap for the same two sets twice
+  with seed 12 345 produces identical lower and upper bounds for all three
+  statistics.
+- Two-set histogram combined bins: for Set A values in [10, 20] and Set B values in
+  [15, 25], verify that the computed bin boundaries span [10, 25] (the combined
+  range) and that the same bin vector is applied to both sets; verify no Set A or
+  Set B bar extends outside the combined range.
+- Two-set histogram single-bin fallback: when IQR_pooled = 0 (e.g. all values in
+  both sets are identical), verify exactly one bin is produced covering the full
+  range and no exception is raised.
 *End of document.*

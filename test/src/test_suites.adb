@@ -1947,6 +1947,26 @@ package body Test_Suites is
         ("SQC stats: Dip test does not flag tightly unimodal data (p > 0.10)",
          Coyote_SQC_Statistics_Tests
            .Test_Dip_Unimodal_Not_Sig'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC Bootstrap: point estimates for Set A={1..5} and Set B={3..7}",
+         Coyote_SQC_Statistics_Tests
+           .Test_Bootstrap_Point_Estimates'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC Bootstrap: 95% CI with seed 12345 contains true parameter",
+         Coyote_SQC_Statistics_Tests
+           .Test_Bootstrap_CI_Coverage'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC Bootstrap: all stats N/A when Set A has fewer than 2 values",
+         Coyote_SQC_Statistics_Tests
+           .Test_Bootstrap_NA_Insufficient'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC Bootstrap: SD_Ratio N/A when SD(A) = 0",
+         Coyote_SQC_Statistics_Tests
+           .Test_Bootstrap_NA_SD_Zero'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC Bootstrap: same seed produces identical CI bounds",
+         Coyote_SQC_Statistics_Tests
+           .Test_Bootstrap_Reproducibility'Access));
 
       --  Coyote_SQC parser: Anthropic token normalization
       Result.Add_Test (SQC_Parser_Caller.Create

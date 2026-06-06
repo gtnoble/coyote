@@ -270,6 +270,9 @@ Coyote_SQC.Statistics.Tests          -- descriptive statistics (Mean_Of,
                         --   Std_Dev_Of) and goodness-of-fit tests
                         --   (KS_Normality_P_Value, KS_Exponential_P_Value,
                         --   Runs_Test_P_Value) for the multi-select panel
+Coyote_SQC.Statistics.Bootstrap      -- percentile bootstrap 95% CI for two-set
+                        --   comparison (§5.17): Compute_CI for mean diff,
+                        --   median diff, and SD ratio; fixed seed 12345
 Coyote_SQC.Charts                    -- Chart_Kind enum; Chart_State per chart
 Coyote_SQC.Workspace                 -- Workspace_Record; load/save .sqcw files
 Coyote_SQC.Workspace.Integrity       -- setup interval integrity checks on filter change
@@ -1447,6 +1450,69 @@ function Dip_Test_P_Value
    K      : Positive := 2_000) return Long_Float;
 ```
 
+
+### 7.18 Bootstrap Confidence Intervals — `Coyote_SQC.Statistics.Bootstrap`
+
+Implements the percentile bootstrap for the three two-set comparison statistics
+specified in SRS-SQC §5.17.  B = 10 000 resamples; fixed random seed 12 345
+(Ada `Ada.Numerics.Discrete_Random`); 95% confidence interval (2.5th and 97.5th
+percentiles of the bootstrap distribution).
+
+```ada
+package Coyote_SQC.Statistics.Bootstrap is
+
+   type CI_Result is record
+      Point_Estimate : Long_Float;
+      Lower          : Long_Float;
+      Upper          : Long_Float;
+      Valid          : Boolean := False;
+      --  Valid = False when N < 2 in either set, or when SD(A) = 0 for
+      --  the ratio statistic, or when >50% of ratio replicates are
+      --  undefined (SD(A*) = 0).  Point_Estimate, Lower, Upper are
+      --  undefined when Valid = False; display as "N/A".
+   end record;
+
+   type Three_CI_Results is record
+      Mean_Diff   : CI_Result;
+      Median_Diff : CI_Result;
+      SD_Ratio    : CI_Result;
+   end record;
+
+   --  Compute all three bootstrap CIs for the comparison Set_B − Set_A
+   --  (mean and median differences) and Set_B / Set_A (SD ratio).
+   --  Set_A and Set_B are heap-backed vectors (Data_Model.Long_Float_Vectors) of contributing session statistics;
+   --  caller has already applied active-chart exclusion rules.
+   --  Returns Valid = False for any statistic where fewer than 2
+   --  observations are available in the relevant set.
+   function Compute
+     (Set_A : Coyote_SQC.Data_Model.Long_Float_Vectors.Vector;
+      Set_B : Coyote_SQC.Data_Model.Long_Float_Vectors.Vector;
+      B     : Positive := 10_000;
+      Seed  : Integer  := 12_345) return Three_CI_Results;
+
+end Coyote_SQC.Statistics.Bootstrap;
+```
+
+**Implementation notes:**
+
+- `Ada.Numerics.Discrete_Random` is instantiated with `Integer` and seeded with
+  `Seed` before the resample loop; the generator is local to each `Compute` call
+  so the fixed seed guarantees reproducible output regardless of call order.
+- For the SD ratio: bootstrap replicates where `StdDev(A*) = 0` are discarded.
+  If more than 50% of replicates are discarded, `SD_Ratio.Valid := False`.
+- All storage in `Bootstrap.Compute` is heap-backed: input parameters
+  `Set_A` / `Set_B` use `Coyote_SQC.Data_Model.Long_Float_Vectors.Vector`;
+  resample vectors `A_Star` / `B_Star` are pre-filled `LF_Vectors.Vector`
+  objects overwritten in-place each iteration via `Replace_Element`; replicate
+  accumulation vectors `Mean_Boot`, `Med_Boot`, `SD_Boot` and sorted-copy
+  vectors `Set_A_Sorted`, `Set_B_Sorted` are likewise heap-backed.  This
+  eliminates all dynamic stack pressure on the GTK callback thread regardless
+  of session count (PCR-017).  `Coyote_SQC.Statistics.Tests` applies the same
+  principle: `Sorted_V` / `Sim_V` in `Dip_Test_P_Value` and `KS_*` /
+  `Runs_Test_P_Value` use `LF_Vectors.Vector`; the four working arrays
+  (`Mn`, `Mj`, `Gcm`, `Lcm`) in `Compute_Dip` use `Int_Vectors.Vector`
+  (an `Ada.Containers.Vectors (Positive, Integer)` instantiation).
+
 ## 8. Chart Definitions
 
 ### 7.11 EWMA Chart — `Coyote_SQC.Statistics.EWMA_Chart`
@@ -2003,6 +2069,14 @@ type App_State is limited record
    Metrics          : array (Chart_Kind) of ...;  -- per-session metrics cache
    Active_Chart     : Chart_Kind := Turn_Tokens_Xbar;
    Selection        : UUID_Set;   -- selected session UUIDs
+   Set_B             : UUID_Set;    -- Set B session UUIDs (two-set comparison)
+   Edit_Set_B_Mode   : Boolean := False;
+   --  When True, all selection actions (click, shift+click, shift+drag)
+   --  modify Set_B instead of Selection.  Toggled by the toolbar
+   --  Edit_Set_B_Button.
+   --  GTK handles for two-set mode:
+   Edit_Set_B_Button    : Gtk.Toggle_Button.Gtk_Toggle_Button;
+   Clear_Both_Sets_Item : Gtk.Menu_Item.Gtk_Menu_Item;
    Date_From        : Ada.Calendar.Time;
    Date_To          : Ada.Calendar.Time;
    Run_Sequence_Mode : Boolean := False;  -- True = equal-spacing run-sequence x-axis
@@ -2031,7 +2105,7 @@ GTK's single-threaded callback model.
 ### 11.4 Toolbar — `Coyote_SQC.UI.Toolbar`
 
 ```
-[From: YYYY-MM-DD HH:MM ▼]  [To: YYYY-MM-DD HH:MM ▼]  [Show All]  [Y-Fit]  [Run Sequence ☐]  [Log Y ☐]
+[From: YYYY-MM-DD HH:MM ▼]  [To: YYYY-MM-DD HH:MM ▼]  [Show All]  [Y-Fit]  [Run Sequence ☐]  [Log Y ☐]  [Edit Set B ☐]
 ```
 
 - **From / To:** `Coyote_SQC.UI.Datetime_Picker` instances (§11.7).
@@ -2078,6 +2152,7 @@ The toolbar pickers update live as the chart is panned (§12.3).
 | Chart Settings… `Ctrl+,` | Open the Chart Settings dialog (§11.12) for the currently active chart; calls `UI.Chart_Settings_Dialog.Show (Active_Chart)` |
 | *(separator)* | |
 | Clear Selection | `App_State.Selection.Clear`; hide detail panel |
+| Clear Both Sets | `App_State.Selection.Clear; App_State.Set_B.Clear`; update `Edit_Set_B_Button` and detail panel; grayed out when both sets are empty — handle stored in `App_State.Clear_Both_Sets_Item` |
 | Clear Setup Interval | `Workspace.Clear_Setup_Interval` with confirmation; grayed out if `Setup_Session_Ids` is empty |
 | Set Selection as Setup Interval | Assign `App_State.Selection` to `Workspace.Setup_Session_Ids`; shows confirmation dialog if a setup interval is already established; sets `Modified := True`, calls `Recompute_Charts` and `Queue_Redraw`; grayed out when `Selection` is empty — handle stored in `App_State.Set_Selection_As_Setup_Item` |
 | Select Setup Interval | Copy `Workspace.Setup_Session_Ids` into `App_State.Selection`; calls `Update_Menu_States` and `Queue_Redraw` so newly selected points receive halos; grayed out when `Setup_Session_Ids` is empty — handle stored in `App_State.Select_Setup_Interval_Item` |
@@ -2144,6 +2219,60 @@ GtkBox (vertical)
 
 Clicking a row in the Selected Sessions list switches the detail panel to the
 single-session view for that session without clearing the overall multi-selection.
+
+**Two-set comparison view** (Set B non-empty; see SRS-SQC §10.3):
+
+```
+GtkBox (vertical)
+├── GtkGrid (set headers, 2 rows × 3 columns)
+│   ├── [row 0] GtkLabel "Set A" (blue)  GtkLabel "<N> sessions"  GtkLabel "<date range>"
+│   └── [row 1] GtkLabel "Set B" (orange) GtkLabel "<N> sessions"  GtkLabel "<date range>"
+├── GtkFrame "Distribution"
+│   └── GtkDrawingArea (Two_Set_Histogram_Canvas, 180 px fixed height)
+├── GtkFrame "Summary Statistics"
+│   └── GtkGrid (9 rows × 3 columns: label + Set A value + Set B value)
+│       Rows: N, Mean, Median, Std Dev, KS Normal p, KS Exp p, Runs Test p, Dip Test p
+├── GtkFrame "Comparison (Bootstrap 95% CI)"
+│   └── GtkGrid (3 rows × 2 columns: label + "point [lower, upper]")
+│       Rows: Mean diff (B−A), Median diff (B−A), SD ratio (B/A)
+├── GtkFrame "Add Comment to All Selected"
+│   ├── GtkTextView (entry; applies to Set A sessions only)
+│   └── GtkButton "Add Comment to All"
+└── [No Selected Sessions list in this view]
+```
+
+`Two_Set_Histogram_Canvas` extends `Coyote_SQC.UI.Histogram_Canvas` with a
+second data series.  A new `Refresh_Two_Set` procedure accepts `Values_A` and
+`Values_B` arrays; it computes shared bin boundaries from the combined range
+using the Freedman-Diaconis rule on the pooled sample, then renders two bar
+series in semi-transparent blue (Set A, opacity 0.5) and semi-transparent
+orange (Set B, opacity 0.5).  The overlay lines (CL, UCL, LCL) are derived
+from the first contributing Set A point, using the same rules as the
+single-set histogram (§11.9).  A two-item inline legend ("Set A" / "Set B")
+is drawn in the upper-right corner of the histogram area.
+
+Bootstrap CIs are computed by calling `Coyote_SQC.Statistics.Bootstrap.Compute`
+and displayed in the Comparison frame.  Computation is synchronous (the GTK
+main loop thread); typical dataset sizes make this negligible.
+
+```ada
+--  New procedure in Coyote_SQC.UI.Histogram_Canvas:
+procedure Refresh_Two_Set
+  (Values_A  : Coyote_SQC.Data_Model.Long_Float_Vectors.Vector;
+   Values_B  : Coyote_SQC.Data_Model.Long_Float_Vectors.Vector;
+   CL        : Long_Float;
+   UCL       : Long_Float;
+   Has_UCL   : Boolean;
+   LCL       : Long_Float;
+   Has_LCL   : Boolean;
+   X_Label   : String;
+   Has_Data  : Boolean);
+```
+
+`Compute_Bins` (already exposed for unit testing) is called once on the
+pooled union of both value sets; both sets receive the same `Bin_Min`,
+`Bin_Width`, and `N_Bins`.
+
 
 **Summary Statistics frame:** `GtkFrame "Summary Statistics"` containing a
 `GtkGrid` (7 rows × 2 columns) placed between the Distribution histogram
@@ -2905,7 +3034,8 @@ The `On_Draw` callback executes these steps in order:
 | Out-of-control, comment present | `(0.95, 0.5, 0.0)` | `(0.7, 0.35, 0.0)` | No |
 | Zero-thinking excluded | `(0, 0, 0)` | `(0.6, 0.6, 0.6)` | Yes |
 | Single-turn on Xbar chart | `(0, 0, 0)` | `(0, 0, 0)` | Yes |
-| Selected halo | — | `(0.1, 0.3, 0.9)` 2px ring | Additive |
+| Selected (Set A) halo | — | `(0.1, 0.3, 0.9)` 2px ring | Additive |
+| Selected (Set B) halo | — | `(0.9, 0.5, 0.1)` 2px ring (orange) | Additive |
 
 Setup interval and selection halos are additive: a selected setup-interval point
 receives both a yellow ring (radius+6) and a blue ring (radius+3). Hollow-gray and

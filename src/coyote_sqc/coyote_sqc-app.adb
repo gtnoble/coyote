@@ -1641,6 +1641,11 @@ package body Coyote_SQC.App is
          State.Select_Setup_Interval_Item.Set_Sensitive
            (not State.Workspace.Setup_Session_Ids.Is_Empty);
       end if;
+      if State.Clear_Both_Sets_Item /= null then
+         State.Clear_Both_Sets_Item.Set_Sensitive
+           (not State.Selection.Is_Empty
+            or else not State.Set_B.Is_Empty);
+      end if;
    end Update_Menu_States;
 
    procedure Update_Title is

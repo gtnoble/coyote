@@ -15,12 +15,28 @@ with Coyote_SQC.Statistics.Xbar;
 with Coyote_SQC.Statistics.I_Chart;
 with Coyote_SQC.Statistics.Tests;
 with Coyote_SQC.Statistics.EWMA_Chart;
+with Coyote_SQC.Statistics.Bootstrap;
 with Ada.Numerics.Long_Elementary_Functions;
 
 package body Coyote_SQC_Statistics_Tests is
 
    use AUnit.Assertions;
    use Coyote_SQC.Statistics;
+   package LFV renames Coyote_SQC.Data_Model.Long_Float_Vectors;
+
+   --  Convert a Long_Float_Array aggregate to a heap-backed vector for
+   --  Bootstrap.Compute test calls (avoids large stack allocations).
+   function To_Vec
+     (Arr : Coyote_SQC.Statistics.Bootstrap.Long_Float_Array)
+      return LFV.Vector
+   is
+      V : LFV.Vector;
+   begin
+      for X of Arr loop
+         V.Append (X);
+      end loop;
+      return V;
+   end To_Vec;
 
    --  ── c4 tests ─────────────────────────────────────────────────────────
 
@@ -2387,5 +2403,107 @@ package body Coyote_SQC_Statistics_Tests is
       Assert (P > 0.10,
               "Tightly unimodal data should not be flagged as multimodal");
    end Test_Dip_Unimodal_Not_Sig;
+
+
+   --  ── Bootstrap CI tests (SRS-SQC §15.6, PCR-016) ──────────────────────
+
+   procedure Test_Bootstrap_Point_Estimates (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.Bootstrap;
+      A     : constant LFV.Vector := To_Vec ((1.0, 2.0, 3.0, 4.0, 5.0));
+      B_Set : constant LFV.Vector := To_Vec ((3.0, 4.0, 5.0, 6.0, 7.0));
+      R     : Three_CI_Results;
+      Tol   : constant Long_Float := 1.0e-10;
+   begin
+      R := Compute (A, B_Set);
+      Assert (R.Mean_Diff.Valid, "Mean_Diff should be Valid");
+      Assert (abs (R.Mean_Diff.Point_Estimate - 2.0) < Tol,
+              "Mean_Diff point estimate should be 2.0");
+      Assert (R.Median_Diff.Valid, "Median_Diff should be Valid");
+      Assert (abs (R.Median_Diff.Point_Estimate - 2.0) < Tol,
+              "Median_Diff point estimate should be 2.0");
+      Assert (R.SD_Ratio.Valid, "SD_Ratio should be Valid");
+      Assert (abs (R.SD_Ratio.Point_Estimate - 1.0) < Tol,
+              "SD_Ratio point estimate should be 1.0");
+   end Test_Bootstrap_Point_Estimates;
+
+   procedure Test_Bootstrap_CI_Coverage (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.Bootstrap;
+      A     : constant LFV.Vector := To_Vec ((1.0, 2.0, 3.0, 4.0, 5.0));
+      B_Set : constant LFV.Vector := To_Vec ((3.0, 4.0, 5.0, 6.0, 7.0));
+      R     : Three_CI_Results;
+   begin
+      R := Compute (A, B_Set, B => 10_000, Seed => 12_345);
+      Assert (R.Mean_Diff.Valid, "Mean_Diff CI should be Valid");
+      Assert (R.Mean_Diff.Lower < R.Mean_Diff.Upper,
+              "Mean_Diff CI should have positive width");
+      Assert (R.Mean_Diff.Lower <= 2.0 and then R.Mean_Diff.Upper >= 2.0,
+              "Mean_Diff 95% CI should contain 2.0 (true mean diff)");
+      Assert (R.Median_Diff.Valid, "Median_Diff CI should be Valid");
+      Assert (R.Median_Diff.Lower < R.Median_Diff.Upper,
+              "Median_Diff CI should have positive width");
+      Assert (R.Median_Diff.Lower <= 2.0
+              and then R.Median_Diff.Upper >= 2.0,
+              "Median_Diff 95% CI should contain 2.0 (true median diff)");
+      Assert (R.SD_Ratio.Valid, "SD_Ratio CI should be Valid");
+      Assert (R.SD_Ratio.Lower < R.SD_Ratio.Upper,
+              "SD_Ratio CI should have positive width");
+      Assert (R.SD_Ratio.Lower <= 1.0 and then R.SD_Ratio.Upper >= 1.0,
+              "SD_Ratio 95% CI should contain 1.0 (true SD ratio)");
+   end Test_Bootstrap_CI_Coverage;
+
+   procedure Test_Bootstrap_NA_Insufficient (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.Bootstrap;
+      A     : constant LFV.Vector := To_Vec ((1 => 5.0));
+      B_Set : constant LFV.Vector := To_Vec ((3.0, 4.0, 5.0, 6.0, 7.0));
+      R     : Three_CI_Results;
+   begin
+      R := Compute (A, B_Set);
+      Assert (not R.Mean_Diff.Valid,
+              "Mean_Diff should be N/A when Set A has fewer than 2 values");
+      Assert (not R.Median_Diff.Valid,
+              "Median_Diff should be N/A when Set A has fewer than 2 values");
+      Assert (not R.SD_Ratio.Valid,
+              "SD_Ratio should be N/A when Set A has fewer than 2 values");
+   end Test_Bootstrap_NA_Insufficient;
+
+   procedure Test_Bootstrap_NA_SD_Zero (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.Bootstrap;
+      A     : constant LFV.Vector := To_Vec ((5.0, 5.0, 5.0));
+      B_Set : constant LFV.Vector := To_Vec ((5.0, 6.0, 7.0));
+      R     : Three_CI_Results;
+   begin
+      R := Compute (A, B_Set);
+      Assert (R.Mean_Diff.Valid,
+              "Mean_Diff should be Valid when SD(A)=0");
+      Assert (R.Median_Diff.Valid,
+              "Median_Diff should be Valid when SD(A)=0");
+      Assert (not R.SD_Ratio.Valid,
+              "SD_Ratio should be N/A when SD(A) = 0");
+   end Test_Bootstrap_NA_SD_Zero;
+
+   procedure Test_Bootstrap_Reproducibility (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Statistics.Bootstrap;
+      A     : constant LFV.Vector := To_Vec ((1.0, 2.0, 3.0, 4.0, 5.0));
+      B_Set : constant LFV.Vector := To_Vec ((3.0, 4.0, 5.0, 6.0, 7.0));
+      R1    : Three_CI_Results;
+      R2    : Three_CI_Results;
+   begin
+      R1 := Compute (A, B_Set, Seed => 42);
+      R2 := Compute (A, B_Set, Seed => 42);
+      Assert (R1.Mean_Diff.Lower = R2.Mean_Diff.Lower
+              and then R1.Mean_Diff.Upper = R2.Mean_Diff.Upper,
+              "Mean_Diff CI bounds should be identical for same seed");
+      Assert (R1.Median_Diff.Lower = R2.Median_Diff.Lower
+              and then R1.Median_Diff.Upper = R2.Median_Diff.Upper,
+              "Median_Diff CI bounds should be identical for same seed");
+      Assert (R1.SD_Ratio.Lower = R2.SD_Ratio.Lower
+              and then R1.SD_Ratio.Upper = R2.SD_Ratio.Upper,
+              "SD_Ratio CI bounds should be identical for same seed");
+   end Test_Bootstrap_Reproducibility;
 
 end Coyote_SQC_Statistics_Tests;

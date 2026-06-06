@@ -19,5 +19,9 @@ package Coyote_SQC.UI.Toolbar is
    --  Update the Log Y checkbox to reflect State.Workspace.Log_Y_Mode.
    --  Called after the mode is toggled via the View menu item.
    procedure Sync_Log_Y_Button;
+   --  Update the Edit Set B toggle to reflect State.Edit_Set_B_Mode.
+   --  Called after the mode is cleared programmatically (e.g. by
+   --  Clear Both Sets).
+   procedure Sync_Edit_Set_B_Button;
 
 end Coyote_SQC.UI.Toolbar;

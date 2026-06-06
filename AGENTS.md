@@ -436,7 +436,7 @@ conform to the guidelines it defines.
 ## Testing
 
 The Test Plan (`plan/test-plan.md`) is the governing document for test scope,
-environment, traceability, and the current test baseline (658 tests, all green).
+environment, traceability, and the current test baseline (665 tests, all green).
 
 Tests live in `test/src/` and use AUnit. Run the full suite:
 ```sh

@@ -13,6 +13,7 @@ with Gtk.Box;
 with Gtk.Drawing_Area;
 with Gtk.Label;
 with Gtk.Menu_Item;
+with Gtk.Toggle_Button;
 with Gtk.Check_Menu_Item;
 with Gtk.Paned;
 with Gtk.Scrolled_Window;
@@ -176,6 +177,11 @@ package Coyote_SQC.App is
       Active_Chart : Coyote_SQC.Charts.Chart_Kind :=
         Coyote_SQC.Charts.Turn_Tokens_Xbar;
       Selection    : Coyote_SQC.Data_Model.UUID_Set;
+      Set_B           : Coyote_SQC.Data_Model.UUID_Set;
+      --  Set B session UUIDs for two-set comparison (§9.4).
+      Edit_Set_B_Mode : Boolean := False;
+      --  When True, all selection actions modify Set_B instead of
+      --  Selection.  Toggled by the Edit_Set_B_Button toolbar toggle.
       Date_From    : Ada.Calendar.Time;
       Date_To      : Ada.Calendar.Time;
       --  Workspace file tracking
@@ -195,6 +201,8 @@ package Coyote_SQC.App is
       Select_Setup_Interval_Item  : Gtk.Menu_Item.Gtk_Menu_Item;
       Run_Sequence_Item : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
       Log_Y_Item        : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
+      Edit_Set_B_Button    : Gtk.Toggle_Button.Gtk_Toggle_Button;
+      Clear_Both_Sets_Item : Gtk.Menu_Item.Gtk_Menu_Item;
       Run_Sequence_Mode : Boolean := False;
       Content_Paned    : Gtk.Paned.Gtk_Paned;
       Left_Scroll      : Gtk.Scrolled_Window.Gtk_Scrolled_Window;

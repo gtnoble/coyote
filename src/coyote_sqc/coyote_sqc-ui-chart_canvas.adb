@@ -683,6 +683,19 @@ package body Coyote_SQC.UI.Chart_Canvas is
          end if;
       end loop;
 
+      --  ── 8b. Set B halos (orange) ─────────────────────────────────────
+      Set_Color (Cr, 1.0, 0.55, 0.0, 0.9);
+      Cairo.Set_Line_Width (Cr, 2.0);
+      for P of CD.Points loop
+         if Vis (P)
+           and then State.Set_B.Contains (P.Session_Id)
+         then
+            Cairo.Arc (Cr, SX (P), SY (P), Pt_Radius + 5.0, 0.0,
+                       Gdouble (2.0 * Ada.Numerics.Pi));
+            Cairo.Stroke (Cr);
+         end if;
+      end loop;
+
       --  ── 9. Axes ───────────────────────────────────────────────────────
       Set_Color (Cr, 0.0, 0.0, 0.0, 1.0);
       Cairo.Set_Line_Width (Cr, 1.0);
@@ -1088,7 +1101,19 @@ package body Coyote_SQC.UI.Chart_Canvas is
                   SID : constant Unbounded_String :=
                     To_Unbounded_String (Hit_Id);
                begin
-                  if (Event.State and Shift_Mask) /= 0 then
+                  if State.Edit_Set_B_Mode then
+                     --  Editing Set B — route to Set_B instead of Selection.
+                     if (Event.State and Shift_Mask) /= 0 then
+                        if State.Set_B.Contains (SID) then
+                           State.Set_B.Delete (SID);
+                        else
+                           State.Set_B.Include (SID);
+                        end if;
+                     else
+                        State.Set_B.Clear;
+                        State.Set_B.Include (SID);
+                     end if;
+                  elsif (Event.State and Shift_Mask) /= 0 then
                      --  Add/remove from selection.
                      if State.Selection.Contains (SID) then
                         State.Selection.Delete (SID);
@@ -1117,8 +1142,12 @@ package body Coyote_SQC.UI.Chart_Canvas is
                   CS.Drag_Y_Max   := CS.Y_Max;
                end if;
             else
-               --  Click on empty area: clear selection.
-               State.Selection.Clear;
+               --  Click on empty area: clear the active set.
+               if State.Edit_Set_B_Mode then
+                  State.Set_B.Clear;
+               else
+                  State.Selection.Clear;
+               end if;
                Refresh_Detail;
                Queue_Redraw;
             end if;
@@ -1362,7 +1391,11 @@ package body Coyote_SQC.UI.Chart_Canvas is
                if PX >= X1 and then PX <= X2
                  and then PY >= Y1 and then PY <= Y2
                then
-                  State.Selection.Include (P.Session_Id);
+                  if State.Edit_Set_B_Mode then
+                     State.Set_B.Include (P.Session_Id);
+                  else
+                     State.Selection.Include (P.Session_Id);
+                  end if;
                end if;
             end;
          end if;

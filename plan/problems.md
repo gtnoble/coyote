@@ -337,3 +337,92 @@ client-controlled work product gets an entry here.
   All 658 existing AUnit tests pass after the change.
 - **Status:** Resolved
 - **Date resolved:** 2026-06-03
+
+---
+
+## PCR-016
+
+- **Date reported:** 2026-06-06
+- **Category:** Requirements — new capability
+- **Priority:** 4-Minor
+- **Description:** Users requested the ability to select two independent sets
+  of sessions (Set A and Set B) for side-by-side statistical comparison.
+  Comparison statistics required are: bootstrap 95% percentile CI for mean
+  difference (B−A), median difference (B−A), and standard deviation ratio
+  (B/A).  The right panel should show these CIs alongside per-set summary
+  statistics (N, mean, median, std dev, KS/runs/dip p-values) and an
+  overlapping histogram of the two sets on the active chart metric.
+- **Affected work products:** SRS-SQC `requirements/coyote-sqc-requirements.md`,
+  SDD-SQC `design/coyote-sqc-design.md`, `sdfs/coyote-sqc.md`
+- **Corrective action required:** Add §5.17, §9.4, §9.5, and §10.3 to SRS-SQC;
+  update SDD-SQC with new `Statistics.Bootstrap` package, `App_State` Set B
+  fields, toolbar/menu/detail-panel additions, and overlapping histogram design;
+  record design rationale in component development log.
+- **Actions taken (2026-06-06):** SRS-SQC updated (new §5.17 Bootstrap CIs,
+  §9.4 Two-Set Selection Mode, §9.5 Detail Panel State with Two Sets, §10.3
+  Two-Set Comparison View; toolbar "Edit Set B ☐", View menu "Clear Both Sets",
+  marker color table updated for Set A/B halos; 7 new test cases in §15.6).
+  SDD-SQC already updated (§7.18 Bootstrap package, §11.4 Edit Set B toolbar,
+  §11.5 Clear Both Sets menu, §11.6 two-set comparison view, App_State Set B
+  fields).  Implementation begun 2026-06-06: `Coyote_SQC.Statistics.Bootstrap`
+  package created (ads + adb), 5 AUnit tests added (665 tests, all pass),
+  `App_State` extended with `Set_B`, `Edit_Set_B_Mode`, `Edit_Set_B_Button`,
+  `Clear_Both_Sets_Item` fields.  UI additions complete 2026-06-06:
+  toolbar "Edit Set B" toggle (`Edit_Set_B_Mode`; routes canvas selection to
+  `Set_B`; orange halos on canvas), View menu "Clear Both Sets" item,
+  `Refresh_Two_Set` in `Histogram_Canvas` (two-series overlay, shared bins,
+  legend, CL/UCL/LCL overlays), `Build_Two_Set_View` in Detail_Panel (set
+  headers, overlapping histogram, 9-row × 3-col summary statistics, Bootstrap
+  95% CI frame, Add Comment frame), `Update_Menu_States` sensitivity for
+  `Clear_Both_Sets_Item`.  Build passes, 665 tests all pass.
+- **Status:** Resolved
+
+## PCR-017
+
+- **Problem:** `STORAGE_ERROR` (stack overflow) in `coyote_sqc` when clicking a
+  two-set comparison with a large number of sessions.  The crash occurs inside
+  the GTK button-release callback stack:
+  `On_Button_Release` → `Refresh_Detail` → `Build_Two_Set_View`.
+- **Root cause:** Multiple dynamically-bounded local arrays whose sizes are
+  only known at run time are allocated on the call stack in subprograms along
+  the two-set rendering path.  In GNAT's development build the stack frames
+  for these arrays may be retained beyond the lexical scope in which they are
+  declared, causing stack usage to accumulate over the call chain:
+  (a) `Bootstrap.Compute` — `A_Star (1 .. M)` and `B_Star (1 .. N)` for
+  the 10 000-iteration resample loop; (b) `Statistics.Tests` KS and Runs-test
+  functions — `Sorted : Long_Float_Array := Values`; (c) `Compute_Dip` /
+  `Dip_Test_P_Value` — `Sorted`, `Sim`, and four `array (1 .. N) of Integer`
+  working arrays (`Mn`, `Mj`, `Gcm`, `Lcm`).  With large session sets the
+  cumulative stack pressure exceeds the available stack, raising
+  `STORAGE_ERROR` at the entry probe of the deepest callee (`Refresh_Two_Set`).
+- **Classification:** Defect — implementation error (large stack allocations
+  in GTK callback context).
+- **Corrective action:** Eliminate dynamic stack allocations from the two-set
+  path by converting all dynamically-bounded internal arrays to heap-backed
+  `Ada.Containers.Vectors` container objects.  No public API surfaces change.
+  1. `Bootstrap.Compute` (`coyote_sqc-statistics-bootstrap.adb`): replaced
+     `A_Star : Long_Float_Array (1 .. M)` and `B_Star : Long_Float_Array (1 .. N)`
+     with `LF_Vectors.Vector` objects pre-filled before the resample loop and
+     overwritten in-place each iteration via `Replace_Element`.  Removed the
+     private `Quick_Sort`, `Sort_LF`, and three array-form overloads of
+     `Mean_Of`, `Std_Dev_Of`, and `Median_Sorted` that became dead code;
+     `LF_Sorting.Sort` (Generic_Sorting instantiation) is used throughout.
+  2. `Statistics.Tests` (`coyote_sqc-statistics-tests.adb`): replaced all
+     dynamically-bounded stack arrays with `LF_Vectors.Vector` or
+     `Int_Vectors.Vector` (new `Ada.Containers.Vectors (Positive, Integer)`
+     instantiation):
+     - `KS_Normality_P_Value`, `KS_Exponential_P_Value`, `Runs_Test_P_Value`:
+       `Sorted : Long_Float_Array := Values` → `Sorted_V : LF_Vectors.Vector`.
+     - `Dip_Test_P_Value`: `Sorted : Long_Float_Array := Values` and
+       `Sim : Long_Float_Array (1 .. N)` → `Sorted_V`, `Sim_V :
+       LF_Vectors.Vector`.
+     - `Compute_Dip`: parameter type changed from `Long_Float_Array` to
+       `LF_Vectors.Vector`; the four working arrays `Mn`, `Mj`, `Gcm`, `Lcm`
+       (`array (1 .. N) of Integer`) replaced with `Int_Vectors.Vector`
+       objects pre-filled with N zeros; element reads use `.Element (Positive
+       (I))` and writes use `.Replace_Element (Positive (I), Val)`.
+     - Removed the private insertion-sort `Sort (A : in out Long_Float_Array)`
+       helper (now dead).
+- **Actions taken (2026-06-06):** Both files rewritten; build clean (zero
+  errors, zero warnings); 665 AUnit tests pass.
+- **Status:** Resolved
