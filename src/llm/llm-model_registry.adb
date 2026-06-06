@@ -13,7 +13,6 @@ use type LLM.Providers.OpenCode_Go.Catalogue.Wire_Kind;
 with LLM.Providers.OpenRouter.Catalogue;
 with LLM.Providers.Ollama.Catalogue;
 with LLM.Settings;
-with LLM.Providers.Ollama.Catalogue;
 
 package body LLM.Model_Registry is
 
@@ -254,7 +253,7 @@ package body LLM.Model_Registry is
     -- use settings to allow local baseUrl and apiKey overrides
     declare
       Root : constant GNATCOLL.JSON.JSON_Value :=
-        LLM.Settings.Load_Json_File (LLM.Settings.Models_Path);
+        GNATCOLL.JSON.JSON_Null;
       Prov : constant GNATCOLL.JSON.JSON_Value :=
         LLM.Settings.Find_Provider_Config (Root, "ollama");
       Base_Url : String := "";

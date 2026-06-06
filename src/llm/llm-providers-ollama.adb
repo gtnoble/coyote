@@ -127,9 +127,9 @@ package body LLM.Providers.Ollama is
                  and then Msg.Get ("content").Kind = GNATCOLL.JSON.JSON_String_Type
                then
                   declare
-                     Delta : constant String := Msg.Get ("content").Get;
+                     Content_Delta : constant String := Msg.Get ("content").Get;
                   begin
-                     if Delta'Length > 0 then
+                     if Content_Delta'Length > 0 then
                         if not Text_Started then
                            Text_Started := True;
                            H.all
@@ -144,7 +144,7 @@ package body LLM.Providers.Ollama is
                         H.all
                           (LLM.Events.Message_Update_Event'
                             (Kind          => LLM.Events.Text_Delta,
-                             Delta_Text    => To_Unbounded_String (Delta),
+                             Delta_Text    => To_Unbounded_String (Content_Delta),
                              Signature     => Null_Unbounded_String,
                              Content_Index => 0,
                              Tool_Call_Id  => Null_Unbounded_String,
