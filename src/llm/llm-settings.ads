@@ -38,6 +38,13 @@ package LLM.Settings is
    --    2. ${ENV_VAR} interpolation in models.json.
    --    3. Provider-specific environment variable fallback.
    --  Returns "" when no key is configured for that provider.
+
+   --  Path to ~/.coyote/models.json.  Empty when $HOME is not set.
+   function Models_Path return String;
+
+   --  Read a file and parse it as JSON, returning JSON_Null on error or
+   --  when the file is absent.
+   function Load_Json_File (Path : String) return GNATCOLL.JSON.JSON_Value;
    function Resolve_Api_Key (Provider : String) return String;
 
    --  Return the providers.<name> object from a loaded models.json root.
