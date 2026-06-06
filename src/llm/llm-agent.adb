@@ -1550,14 +1550,11 @@ package body LLM.Agent is
                      On_Event      => On_Event);
                end;
             elsif Lowercase (To_String (S.Model_Info.Provider)) =
-              "anthropic"
+              "opencode-go"
             then
                declare
-                  Api_Key  : constant String :=
-                    LLM.Settings.Resolve_Api_Key ("anthropic");
-                  Provider : LLM.Providers.Anthropic_Messages.Provider :=
-                    LLM.Providers.Anthropic_Messages.Create
-                      ("https://api.anthropic.com", Api_Key);
+                  Provider : LLM.Providers.OpenCode_Go.Provider :=
+                    LLM.Providers.OpenCode_Go.Create;
                begin
                   Send_With_Retry
                     (S             => S,
@@ -1568,24 +1565,11 @@ package body LLM.Agent is
                      On_Event      => On_Event);
                end;
             elsif Lowercase (To_String (S.Model_Info.Provider)) =
-              "opencode-go"
-            elsif Lowercase (To_String (S.Model_Info.Provider)) = "ollama" then
+              "ollama"
+            then
                declare
                   Provider : LLM.Providers.Ollama.Provider :=
                     LLM.Providers.Ollama.Create;
-               begin
-                  Send_With_Retry
-                    (S             => S,
-                     Provider      => Provider,
-                     Tools_Json    => Tools_Json,
-                     Builder       => Builder,
-                     Pending_Tools => Pending_Tools,
-                     On_Event      => On_Event);
-               end;
-            then
-               declare
-                  Provider : LLM.Providers.OpenCode_Go.Provider :=
-                    LLM.Providers.OpenCode_Go.Create;
                begin
                   Send_With_Retry
                     (S             => S,
