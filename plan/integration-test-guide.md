@@ -101,6 +101,44 @@ alr run coyote_test
 - Prefer provider smoke tests over large multi-turn transcripts.
 - Clean up temporary files and windows even on failure.
 
+
+## Example: Run Future Ollama Live Tests
+
+Ollama can run locally on `localhost:11434` (default) or you can use Ollama Cloud
+at `https://ollama.com`.
+
+```sh
+# For local Ollama instance (if running on port 11434):
+export COYOTE_RUN_OLLAMA_LIVE=1
+
+cd /home/gtnoble/Projects/coyote/test
+alr run coyote_test
+```
+
+If the local instance is not available, integration tests will skip gracefully.
+
+For Ollama Cloud, set the API key and base URL in `~/.coyote/models.json`:
+
+```json
+{
+  "providers": {
+    "ollama": {
+      "baseUrl": "https://ollama.com",
+      "apiKey": "your-token-here"
+    }
+  }
+}
+```
+
+Then set the guard and run:
+
+```sh
+export COYOTE_RUN_OLLAMA_LIVE=1
+
+cd /home/gtnoble/Projects/coyote/test
+alr run coyote_test
+```
+
 ## Non-Goals
 
 - Do not add tests that require real credentials in CI.

@@ -254,7 +254,7 @@ package body LLM.Model_Registry is
      -- use settings to allow local baseUrl and apiKey overrides
      declare
        Root : constant GNATCOLL.JSON.JSON_Value :=
-         Load_Json_File (LLM.Settings.Models_Path);
+         LLM.Settings.Load_Json_File (LLM.Settings.Models_Path);
        Prov : constant GNATCOLL.JSON.JSON_Value :=
          LLM.Settings.Find_Provider_Config (Root, "ollama");
        Base_Url : String := "";

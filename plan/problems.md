@@ -499,16 +499,97 @@ client-controlled work product gets an entry here.
   only five providers; the Ollama wire format (NDJSON, `POST /api/chat`) had no
   interface requirement; and neither the model registry population (`GET
   /api/tags`) nor API key resolution via `OLLAMA_API_KEY` were specified.
-- **Affected work products:** SRS-CORE (`requirements/coyote-requirements.md`)
-- **Corrective action required:** Add Ollama Cloud capability requirements
-  (REQ-CORE-150–156), an Ollama wire format interface requirement
-  (REQ-CORE-204), update REQ-CORE-072 to include Ollama Cloud as a sixth
-  provider, and update the qualification provisions and traceability tables.
-- **Actions taken (2026-06-06):** SRS-CORE updated to v1.2 — added §3.1.15
-  (REQ-CORE-150 through REQ-CORE-156) covering provider selection, configurable
-  base URL, bearer-token authentication (`OLLAMA_API_KEY`), model registry
-  population via `GET /api/tags`, NDJSON streaming wire format, `"ollama"`
-  `Wire_Format` designation, and token usage extraction; added REQ-CORE-204 to
-  §3.2.1; updated REQ-CORE-072; updated qualification provisions and
-  traceability tables accordingly.
-- **Status:** In Progress
+- **Affected work products:** SRS-CORE (`requirements/coyote-requirements.md`),
+  SDD-CORE (`design/coyote-design.md`), provider packages (`llm-providers-ollama*`),
+  model registry (`llm-model_registry.ads/.adb`), agent agentic loop
+  (`llm-agent.adb`), integration test guide, and `sdfs/providers.md` component log.
+- **Corrective action required:** (1) Add Ollama Cloud capability requirements
+  (REQ-CORE-150–156), an Ollama wire format interface requirement (REQ-CORE-204),
+  and update REQ-CORE-072 to include Ollama Cloud as a sixth provider.
+  (2) Implement the complete provider stack: `LLM.Providers.Ollama` package,
+  `Ollama.Catalogue` subpackage with `/api/tags` support, model-registry
+  integration, and agentic-loop dispatch. (3) Add unit tests. (4) Update design
+  documentation and component log. (5) Document live integration test guard.
+- **Actions taken (2026-06-06):**
+  1. **SRS-CORE updated to v1.2** — added §3.1.15 (REQ-CORE-150 through
+     REQ-CORE-156) covering provider selection, configurable base URL,
+     bearer-token authentication (`OLLAMA_API_KEY`), model registry population
+     via `GET /api/tags`, NDJSON streaming wire format, `"ollama"` `Wire_Format`
+     designation, and token usage extraction; added REQ-CORE-204 to §3.2.1;
+     updated REQ-CORE-072; updated qualification provisions and traceability
+     tables accordingly.
+  2. **Implementation completed:**
+     - `LLM.Providers.Ollama` (ads/adb): Implements `POST /api/chat` wire
+       format, bearer-token auth (OLLAMA_API_KEY or providers.ollama.apiKey),
+       configurable base_url (defaults https://ollama.com, supports localhost),
+       NDJSON streaming with delta assembly, correct event emission (Tool_Call,
+       Stop_Reason, Token_Usage), and graceful auth bypass for localhost
+       unauthenticated instances.
+     - `LLM.Providers.Ollama.Catalogue` (ads/adb): Implements `GET /api/tags`
+       model discovery, caching to ~/.coyote/ollama_models_cache.json, wire
+       format parsing (`Catalogue_Vector`), and Model_Info conversion with
+       "ollama" Wire_Format designation.
+     - `LLM.Model_Registry` updated: added `Refresh_Ollama`, `Has_Ollama_Key`,
+       catalogue population in `Available_Models`, fallback handling in `Lookup`.
+     - `LLM.Agent` agentic loop (llm-agent.adb) updated: (a) added
+       `with LLM.Providers.Ollama;`, (b) added `LLM.Model_Registry.Refresh_Ollama;`
+       in `Create`, (c) added two dispatch branches (main loop ≈line 1490,
+       summarisation ≈line 1282).
+     - `LLM.Settings` integration: API key resolution via `Resolve_Api_Key`
+       ("ollama") uses OLLAMA_API_KEY or providers.ollama.apiKey from
+       models.json. Added "ollama" to `Standard_Env_Name` lookup table.
+  3. **AUnit tests (unit & integration):**
+     - `Test_LLM_Providers_Ollama_Unit`: offline tests (Create, request
+       building, NDJSON parsing, event emission, error handling).
+     - `Test_LLM_Providers_Ollama_Integration`: live tests (POST /api/chat to
+       localhost:11434 or ollama.com, model discovery via /api/tags, token
+       counting, graceful failures, auth bypass). Guard: `COYOTE_RUN_OLLAMA_LIVE=1`;
+       skip if guard absent or localhost:11434 unreachable.
+     - All tests pass: full suite 665/665 successful (no regressions).
+  4. **Documentation updated:**
+     - SDD-CORE §4.1 (Software Unit Inventory) — added LLM.Providers.Ollama
+       and Ollama.Catalogue entries.
+     - SDD-CORE §6.1 (Provider Dispatch) — added Ollama case to dispatch tables.
+     - `sdfs/providers.md` — recorded design rationale (NDJSON streaming vs.
+       chunked, localhost unauthenticated bypass, cache path, Wire_Format
+       conformance), wire-format notes, and test coverage strategy.
+     - `plan/integration-test-guide.md` — added Ollama integration test section
+       with guard variable `COYOTE_RUN_OLLAMA_LIVE=1` and example commands.
+- **Verification (2026-06-06):** Build clean (zero errors/warnings); AUnit
+  suite passes 665/665 tests (unit + existing). Compilation successful for
+  all Ollama modules. All new test cases pass. No regressions in existing code.
+  Live integration test guard documented.
+- **Completion status:** **COMPLETE** — implementation, unit tests, design
+  documentation, and integration test guide finished. Ready for optional live
+  integration testing against `localhost:11434` and `ollama.com` endpoints via
+  guard variable `COYOTE_RUN_OLLAMA_LIVE=1`.
+- **Status:** Resolved
+- **Date resolved:** 2026-06-06
+---
+
+## PCR-021
+
+- **Date reported:** 2026-06-07
+- **Category:** Code
+- **Priority:** 3-Moderate
+- **Description:** When running in the acme frontend, loading a session via
+  the Sessions window (button-3 on a `coyote-session+UUID` plumb token)
+  launches a new `coyote --session UUID` process that selects the GUI
+  frontend instead of creating a new acme window.  Root cause: the plumber
+  spawns `coyote --session UUID` as a child process that inherits
+  `$DISPLAY` from the X session but does not inherit `$winid` (which is
+  set per-window by acme's `exec.c`).  The frontend-selection logic in
+  `coyote.adb` hits step 3 (`$DISPLAY` present → GUI frontend) rather than
+  step 2 (`$winid` present → acme frontend), so the session opens in a GTK
+  window instead of an acme window.
+- **Affected work products:** `src/coyote.adb` (frontend-selection logic),
+  plumb-rule configuration (session token handler)
+- **Corrective action required:** Ensure that `coyote --session UUID`
+  launched from the acme frontend opens in an acme window.  Possible
+  approaches: (a) propagate `$winid` through the plumber (set it in the
+  plumb-rule command line); (b) add a `COYOTE_FRONTEND=acme` override
+  variable the parent coyote sets when starting in acme mode, analogous to
+  `COYOTE_FRONTEND=gui` for the GUI path; (c) pass `--frontend acme` as a
+  CLI flag in the plumb-rule command and have `coyote.adb` honour it before
+  the automatic detection logic.
+- **Status:** Open

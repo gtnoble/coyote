@@ -323,8 +323,8 @@ package body LLM.Providers.Ollama.Catalogue is
 
    procedure Load_Catalogue
      (Models        :    out Catalogue_Vectors.Vector;
-      Base_Url      :        String;
-      Api_Key       :        String;
+      Base_Url      :        String := "";
+      Api_Key       :        String := "";
       Max_Age_Hours :        Natural := 24)
    is
       Cache_Result : constant Cache_Load_Result :=

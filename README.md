@@ -8,7 +8,7 @@ Sessions are stored in a JSONL format compatible with [pi](https://github.com/ma
 
 - **Streaming output** — thinking blocks, assistant text, and tool summaries rendered live in the acme window body
 - **Built-in tools** — `bash`, `read`, `write`, `edit`, `find`, `glob`, and `shell — use to spawn ephemeral subagents with `coyote --one-shot --prompt -``
-- **Multiple providers** — OpenAI Chat Completions, Anthropic Messages, OpenRouter, and GitHub Copilot
+- **Multiple providers** — OpenAI Chat Completions, Anthropic Messages, OpenRouter, GitHub Copilot, and Ollama
 - **Context compaction** — automatic or manual summarisation of older conversation history to stay within model context windows
 - **Plumber integration** — switch model or thinking level by button-3 clicking `coyote-model+` or `coyote-thinking+` tokens in any acme window; button-3 a `coyote-session+` token to open a session in a new window; button-3 a `coyote-fork+` token at the end of any turn to branch the session at that point
 - **Session persistence** — conversations saved to `~/.coyote/sessions/` as JSONL files
@@ -151,6 +151,7 @@ Model specs use `provider/model-id` format:
 | OpenAI | `openai/gpt-4o` |
 | OpenRouter | `openrouter/anthropic/claude-sonnet-4-20250514` |
 | GitHub Copilot | `github-copilot/claude-sonnet-4.6` |
+| Ollama | `ollama/neural-chat` |
 
 ## Built-in Tools
 

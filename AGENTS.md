@@ -144,7 +144,7 @@ Key roles for the most-frequently-touched packages:
 - `src/llm/llm-agent.ads/.adb` — Agentic loop: `Create`, `Run_Prompt`,
   `Compact`, `Request_Abort`, `Request_Pause`, `Resume`
 - `src/llm/llm-events.ads` — `Agent_Event'Class` hierarchy
-- `src/llm/llm-providers-*.ads/.adb` — Provider wire formats (OpenAI,
+- `src/llm/llm-providers-*.ads/.adb` — Provider wire formats (OpenAI, Ollama,
   Anthropic, Copilot, OpenRouter, OpenCode Go)
 - `src/llm/llm-session_store.ads/.adb` — JSONL session persistence
 - `src/llm/llm-compaction.ads/.adb` — Token estimation and cut-point logic
