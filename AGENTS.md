@@ -201,6 +201,18 @@ agent communicates with GTK via the `Coyote_GUI.Updates` protected queue
 **Critical rule:** Never share a `Nine_P.Client.Fs` or `Nine_P.Client.File`
 between tasks.  All GTK widget operations must execute on the main Ada task.
 
+### Thinking output display (reasoning blocks)
+
+All frontends now display reasoning/thinking output as flowing prose rather
+than fragmented token-by-token lines. The implementation buffers all thinking
+deltas during streaming and collapses internal newlines to spaces on display,
+while preserving paragraph breaks (`\n\n` → blank line). This provides readable
+multi-line reasoning without the visual clutter of one-token-per-line output.
+
+The collapsing algorithm is implemented in `Coyote_App.Utils.Collapse_Thinking_Delta`
+and is applied by each frontend independently in the `End_Thinking` primitive
+(see `design/coyote-design.md §5.3.5` for architectural details).
+
 ### Dispatch
 
 `Dispatch_Event` in `Coyote_App.Dispatch` maps each incoming

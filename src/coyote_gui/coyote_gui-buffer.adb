@@ -158,21 +158,29 @@ package body Coyote_GUI.Buffer is
       --  cannot span the thinking-block insertion and be swept away later.
       End_Text_Block (B);
       if not B.In_Thinking then
+         B.Thinking_Buffer := Null_Unbounded_String;
          B.In_Thinking := True;
-         Insert_Tagged (B, UC_BOX_V & " ", B.Tag_Thinking);
       end if;
    end Begin_Thinking;
 
    procedure Append_Thinking (B : in out Instance; Text : String) is
    begin
-      Insert_Tagged (B, Text, B.Tag_Thinking);
+      --  Accumulate chunks; output is deferred until End_Thinking.
+      Append (B.Thinking_Buffer, Text);
    end Append_Thinking;
 
    procedure End_Thinking (B : in out Instance) is
+      use Coyote_App.Utils;
+      Collapsed : constant String :=
+        Collapse_Thinking_Delta (To_String (B.Thinking_Buffer));
    begin
       if B.In_Thinking then
+         if Collapsed'Length > 0 then
+            Insert_Tagged (B, UC_BOX_V & " " & Collapsed, B.Tag_Thinking);
+         end if;
          Insert_Tagged (B, "" & ASCII.LF, B.Tag_Thinking);
          B.In_Thinking := False;
+         B.Thinking_Buffer := Null_Unbounded_String;
       end if;
    end End_Thinking;
 

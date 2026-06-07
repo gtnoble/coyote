@@ -110,6 +110,8 @@ private
 
    type Instance is new Coyote_App.Frontend.Instance with record
       Win_Ptr    : access Acme.Window.Win := null;
+      Thinking_Buffer : Ada.Strings.Unbounded.Unbounded_String;
+      In_Thinking     : Boolean := False;
       My_FS      : aliased Nine_P.Client.Fs;
       Tag_Suffix : Ada.Strings.Unbounded.Unbounded_String;
    end record;

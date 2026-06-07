@@ -58,6 +58,29 @@ GTK thread. The 8192-item bound prevents unbounded memory use if the GTK
 thread falls behind. The idle callback is registered once at frontend creation
 and fires as long as the queue is non-empty.
 
+### Thinking-text buffering and collapsing (PCR-022)
+
+SSE streaming from LLM providers delivers thinking tokens as short chunks with
+leading/trailing newlines and internal line breaks. Naive per-chunk rendering
+produced illegible fragmented output. The solution: each frontend buffers all
+thinking deltas between `Begin_Thinking` and `End_Thinking` events, then
+collapses them to flowing prose on flush.
+
+**Implementation:** `Coyote_App.Utils.Collapse_Thinking_Delta` (pure function)
+replaces single `\n`/`\r` with spaces, preserves `\n\n` as paragraph breaks,
+and trims leading/trailing whitespace. Both Acme and GUI frontends apply the
+same pattern: buffer during accumulation, collapse and emit once on `End_Thinking`.
+
+**Rationale:** Display layer owns rendering semantics. Providers remain
+wire-format-neutral. Buffering occurs in the frontend, not the provider or
+dispatch layer, keeping concerns isolated and allowing different frontends to
+apply different rendering strategies if needed (e.g., the plain frontend could
+preserve more whitespace for line-by-line thinking output).
+
+**Test coverage:** `Test_Dispatch_Thinking_Delta` in `test/src/dispatch_tests.adb`
+emits both `Thinking_Delta` and `Thinking_End` events, verifying the collapsing
+and buffer-management semantics.
+
 ### Markdown re-render on `End_Text_Block`
 
 Streaming markdown tokens are inserted as raw plain text. When `End_Text_Block`

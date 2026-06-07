@@ -122,6 +122,7 @@ private
       Stream_Mark      : Gtk.Text_Mark.Gtk_Text_Mark;
       Stream_Buf       : Unbounded_String;
       In_Thinking      : Boolean := False;
+      Thinking_Buffer  : Unbounded_String;
       Tools            : Tool_Maps.Map;
       Render_Markdown  : Boolean := True;
    end record;

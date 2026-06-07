@@ -95,8 +95,8 @@ package body Coyote_App.Frontend.Acme_Win is
 
    procedure Begin_Thinking (F : in out Instance) is
    begin
-      Acme.Window.Append
-        (F.Win_Ptr.all, F.My_FS'Access, ASCII.LF & UC_BOX_V & " ");
+      F.Thinking_Buffer := Ada.Strings.Unbounded.Null_Unbounded_String;
+      F.In_Thinking := True;
    end Begin_Thinking;
 
    --  ── Append_Thinking ───────────────────────────────────────────────────
@@ -105,36 +105,29 @@ package body Coyote_App.Frontend.Acme_Win is
      (F    : in out Instance;
       Text : in     String)
    is
-      Start : Natural := Text'First;
+      use Ada.Strings.Unbounded;
    begin
-      for I in Text'Range loop
-         if Text (I) = ASCII.LF then
-            if I > Start then
-               Acme.Window.Append
-                 (F.Win_Ptr.all, F.My_FS'Access, Text (Start .. I - 1));
-            end if;
-            Acme.Window.Append
-              (F.Win_Ptr.all, F.My_FS'Access,
-               "" & ASCII.LF & UC_BOX_V & " ");
-            Start := I + 1;
-         end if;
-      end loop;
-      if Start <= Text'Last then
-         Acme.Window.Append
-           (F.Win_Ptr.all, F.My_FS'Access, Text (Start .. Text'Last));
-      end if;
+      --  Accumulate chunks; output is deferred until End_Thinking.
+      Append (F.Thinking_Buffer, Text);
    end Append_Thinking;
 
    --  ── End_Thinking ──────────────────────────────────────────────────────
 
    procedure End_Thinking (F : in out Instance) is
+      use Ada.Strings.Unbounded;
+      Collapsed : constant String :=
+        Coyote_App.Utils.Collapse_Thinking_Delta (To_String (F.Thinking_Buffer));
    begin
+      if Collapsed'Length > 0 then
+         Acme.Window.Append
+           (F.Win_Ptr.all, F.My_FS'Access,
+            ASCII.LF & UC_BOX_V & " " & Collapsed);
+      end if;
       Acme.Window.Append
         (F.Win_Ptr.all, F.My_FS'Access, "" & ASCII.LF & ASCII.LF);
+      F.In_Thinking := False;
+      F.Thinking_Buffer := Null_Unbounded_String;
    end End_Thinking;
-
-   --  ── Begin_Tool ────────────────────────────────────────────────────────
-
    procedure Begin_Tool
      (F          : in out Instance;
       Name       : in     String;

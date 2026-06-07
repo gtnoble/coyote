@@ -172,6 +172,19 @@ package Coyote_App.Utils is
       Filter   : String;
       Warn_Buf : out Ada.Strings.Unbounded.Unbounded_String) return String;
 
+   --  Collapse thinking-text deltas to flowing prose.
+   --
+   --  Thinking SSE chunks often contain leading/trailing newlines and
+   --  internal line breaks that should be displayed as flowing text rather
+   --  than as one fragment per line.  This function:
+   --    * Collapses single \n and \r characters to spaces (flowing text)
+   --    * Preserves \n\n (paragraph breaks) as blank lines
+   --    * Trims leading and trailing whitespace from the result
+   --
+   --  Example: " The\n user\n wants " → "The user wants"
+   --           "Para 1\n\nPara 2" → "Para 1\n\nPara 2" (unchanged)
+   function Collapse_Thinking_Delta (Text : String) return String;
+
    --  ── Turn footer builders ─────────────────────────────────────────────
 
    --  Build the bracketed per-turn summary placed before the fork token.

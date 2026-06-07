@@ -711,5 +711,72 @@ package body Coyote_App.Utils is
 
       return To_String (Result);
    end Format_Session_List;
+   --  ── Thinking-text collapse ───────────────────────────────────────────
 
+
+   function Collapse_Thinking_Delta (Text : String) return String is
+      use Ada.Strings.Unbounded;
+      Result     : Unbounded_String;
+      I          : Natural := Text'First;
+      First_NZ   : Natural := 0;
+      Last_NZ    : Natural := 0;
+   begin
+      --  Find first and last non-whitespace positions.
+      for J in Text'Range loop
+         if Text (J) /= ' ' and then Text (J) /= ASCII.HT
+           and then Text (J) /= ASCII.LF and then Text (J) /= ASCII.CR
+         then
+            if First_NZ = 0 then
+               First_NZ := J;
+            end if;
+            Last_NZ := J;
+         end if;
+      end loop;
+
+      --  If all whitespace, return empty.
+      if First_NZ = 0 then
+         return "";
+      end if;
+
+      --  Process trimmed text: collapse single newlines to spaces,
+      --  but preserve paragraph breaks (\n\n).
+      I := First_NZ;
+      while I <= Last_NZ loop
+         if Text (I) = ASCII.LF or else Text (I) = ASCII.CR then
+            --  Check for paragraph break: \n\n or \r\n\r\n or similar.
+            declare
+               J : Natural := I + 1;
+               Found_Another_LF : Boolean := False;
+            begin
+               --  Skip any CR/LF after the current one.
+               while J <= Last_NZ
+                 and then (Text (J) = ASCII.LF or else Text (J) = ASCII.CR)
+               loop
+                  if Text (J) = ASCII.LF then
+                     Found_Another_LF := True;
+                  end if;
+                  J := J + 1;
+               end loop;
+
+               --  If we found a second LF (indicating \n\n or \r\r or mixed),
+               --  it's a paragraph break: emit it.
+               if Found_Another_LF then
+                  Append (Result, "" & ASCII.LF & ASCII.LF);
+                  I := J;
+               else
+                  --  Single newline: collapse to space (unless at end).
+                  if I < Last_NZ then
+                     Append (Result, " ");
+                  end if;
+                  I := I + 1;
+               end if;
+            end;
+         else
+            Append (Result, Text (I .. I));
+            I := I + 1;
+         end if;
+      end loop;
+
+      return To_String (Result);
+   end Collapse_Thinking_Delta;
 end Coyote_App.Utils;

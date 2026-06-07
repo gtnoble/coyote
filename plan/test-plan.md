@@ -294,6 +294,11 @@ and any failures are recorded here or in the Test Report.
 **Baseline as of 2026-06-06 (PCR-016 Bootstrap):** 665 tests, 0 failures,
 0 unexpected errors.  Added 5 Bootstrap CI tests
 (`Test_Bootstrap_Point_Estimates`, `Test_Bootstrap_CI_Coverage`,
+**Baseline as of 2026-06-07 (PCR-022 Thinking Display):** 665 tests, 0 failures,
+0 unexpected errors.  Test count unchanged; `Test_Dispatch_Thinking_Delta` updated
+to reflect new buffering semantics (now emits both `Thinking_Delta` and `Thinking_End`
+events to verify collapsing behaviour).  No new test cases added; existing test
+infrastructure sufficient to cover the buffering and collapsing logic.
 `Test_Bootstrap_NA_Insufficient`, `Test_Bootstrap_NA_SD_Zero`,
 `Test_Bootstrap_Reproducibility`) for `Coyote_SQC.Statistics.Bootstrap`.
 **Baseline as of 2026-06-03:** 660 tests, 0 failures, 0 unexpected errors.

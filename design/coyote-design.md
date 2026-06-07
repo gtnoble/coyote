@@ -502,6 +502,47 @@ spawns `Agent_Task`, then calls `Gtk.Main.Main`.
 
 ---
 
+---
+
+### 5.3.5 Thinking-text buffering and collapsing
+
+**Problem:** SSE streaming from LLM providers delivers thinking tokens as short
+chunks (1–5 words) with leading/trailing newlines and internal line breaks.
+Naive per-chunk rendering produces illegible fragmented output:
+```
+│ The
+│  user
+│  wants me
+```
+instead of flowing prose:
+```
+│ The user wants me to…
+```
+
+**Solution (PCR-022 resolution, 2026-06-07):** Each frontend (Acme and GUI)
+buffers all thinking-delta chunks received between `Begin_Thinking` and
+`End_Thinking` events, then collapses them to flowing prose on flush:
+
+**Collapsing algorithm:**
+- Single `\n` or `\r` → replaced with space (flowing text)
+- `\n\n` (paragraph breaks) → preserved as blank line
+- Leading/trailing whitespace trimmed
+- Implemented in `Coyote_App.Utils.Collapse_Thinking_Delta` (pure function)
+
+**Frontend implementation (Acme and GUI identical pattern):**
+- `Begin_Thinking`: Initialize buffer; set flag to defer output
+- `Append_Thinking`: Accumulate chunk to buffer; no output yet
+- `End_Thinking`: Collapse buffer using `Collapse_Thinking_Delta`, emit once
+  with prefix (Acme box-drawing, GUI tag), clear buffer and flag
+
+**Architectural rationale:** Display layer owns rendering semantics. Providers
+remain wire-format-neutral and emit raw SSE deltas. The buffering occurs in
+the frontend, not the provider or dispatch layer, keeping concerns isolated.
+
+**Test coverage:** `Test_Dispatch_Thinking_Delta` in `test/src/dispatch_tests.adb`
+emits both `Thinking_Delta` (accumulate) and `Thinking_End` (flush) events,
+verifying the collapsing behaviour.
+
 ### 5.4 `Coyote_App.Frontend` (abstract interface)
 
 **Purpose:** Defines the contract between `Dispatch_Event` and all concrete

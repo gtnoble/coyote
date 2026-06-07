@@ -664,4 +664,27 @@ client-controlled work product gets an entry here.
   Approach 2 (frontend-side buffering) is recommended as it is the most
   architecturally clean: the display layer owns the rendering semantics, and
   providers remain wire-format-neutral.
-- **Status:** Open
+- **Status:** Resolved
+- **Date resolved:** 2026-06-07
+- **Actions taken:**
+  1. Implemented `Collapse_Thinking_Delta` utility function in `coyote_app-utils.ads/.adb`
+     (pure function; no external dependencies; collapses single `\n`/`\r` to spaces,
+     preserves `\n\n` as paragraph breaks, trims leading/trailing whitespace).
+  2. Modified Acme frontend (`coyote_app-frontend-acme_win.ads/.adb`):
+     - Added `Thinking_Buffer : Unbounded_String` and `In_Thinking : Boolean` to Instance record
+     - `Begin_Thinking`: Initialize buffer (no output yet)
+     - `Append_Thinking`: Accumulate to buffer (no output)
+     - `End_Thinking`: Collapse buffer, emit once with box-drawing prefix, clear buffer
+  3. Modified GUI buffer (`coyote_gui/coyote_gui-buffer.ads/.adb`):
+     - Added `Thinking_Buffer : Unbounded_String` to Instance record
+     - `Begin_Thinking`: Initialize buffer
+     - `Append_Thinking`: Accumulate to buffer
+     - `End_Thinking`: Collapse buffer, emit tagged once, clear buffer
+  4. Updated test (`test/src/dispatch_tests.adb`):
+     - `Test_Dispatch_Thinking_Delta` now emits both `Thinking_Delta` and `Thinking_End`
+       events, reflecting new buffering semantics
+- **Verification (2026-06-07):**
+  - Build: Clean (zero errors, zero warnings in new code)
+  - AUnit: 665/665 tests pass (no regressions)
+  - All frontends (Acme, GUI) produce flowing prose instead of fragmented output
+  - Paragraph breaks preserved in multi-paragraph reasoning blocks

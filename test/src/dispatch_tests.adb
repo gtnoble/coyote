@@ -285,11 +285,27 @@ package body Dispatch_Tests is
          Coyote_App.Frontend.Acme_Win.Create (My_Frontend, Win'Unchecked_Access);
          Acme.Window.Append (Win, FS'Access, Format_Status (S) & ASCII.LF);
 
+         --  Dispatch Thinking_Delta to accumulate in buffer (deferred output).
          Dispatch_Event
            (Event   => LLM.Events.Message_Update_Event'
               (LLM.Events.Agent_Event with
                Kind          => LLM.Events.Thinking_Delta,
                Delta_Text    => To_Unbounded_String ("a thought"),
+               Signature     => Null_Unbounded_String,
+               Content_Index => 0,
+               Tool_Call_Id  => Null_Unbounded_String,
+               Tool_Name     => Null_Unbounded_String),
+            Frontend => My_Frontend,
+            State   => S,
+            Section => Sect,
+            PID     => PID);
+
+         --  Now dispatch Thinking_End to flush and display the buffered text.
+         Dispatch_Event
+           (Event   => LLM.Events.Message_Update_Event'
+              (LLM.Events.Agent_Event with
+               Kind          => LLM.Events.Thinking_End,
+               Delta_Text    => Null_Unbounded_String,
                Signature     => Null_Unbounded_String,
                Content_Index => 0,
                Tool_Call_Id  => Null_Unbounded_String,
