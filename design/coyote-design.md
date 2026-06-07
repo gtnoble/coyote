@@ -436,7 +436,7 @@ variables `$winid`, `$DISPLAY`, `$WAYLAND_DISPLAY`, `COYOTE_FRONTEND`,
 `COYOTE_NO_SESSION`, `COYOTE_SESSION_ID`, `COYOTE_PARENT_SESSION`.
 
 **Outputs:** `Coyote_App.Options` record passed to `Run` or `Run_GUI`;
-environment variable `COYOTE_FRONTEND` set when GUI is selected.
+environment variable `COYOTE_FRONTEND` set when the frontend is a windowing kind (Acme or GUI).
 
 **Control flow:**
 1. Parse arguments sequentially. Each recognised flag sets the corresponding
@@ -444,8 +444,10 @@ environment variable `COYOTE_FRONTEND` set when GUI is selected.
 2. If `$COYOTE_NO_SESSION` is set, force `Opts.No_Session := True`.
 3. If `--session UUID` was given and the session's working directory exists,
    call `Ada.Directories.Set_Directory`.
-4. Evaluate frontend selection rules in priority order; set `Opts.Frontend`.
-5. If GUI selected, call `Ada.Environment_Variables.Set ("COYOTE_FRONTEND", "gui")`.
+4. Evaluate the frontend selection rules listed below (the `--frontend` flag wins over all); set `Opts.Frontend`.
+5. Propagate the selected frontend to child processes via
+   `COYOTE_FRONTEND`.  If Acme: set `COYOTE_FRONTEND=acme`.  If GUI:
+   set `COYOTE_FRONTEND=gui`.  Plain frontend does not set this variable.
 6. Dispatch to `Coyote_App.Run` (Acme/Plain) or `Coyote_App.Run_GUI` (GUI).
 
 **Error handling:** `Coyote_Utils.Bad_Arg_Error` is caught at the outermost

@@ -592,7 +592,26 @@ client-controlled work product gets an entry here.
   `COYOTE_FRONTEND=gui` for the GUI path; (c) pass `--frontend acme` as a
   CLI flag in the plumb-rule command and have `coyote.adb` honour it before
   the automatic detection logic.
-- **Status:** Open
+- **Status:** Resolved
+- **Actions taken (2026-06-07):**
+  1. Added `--frontend acme|gui|plain` CLI flag to `coyote.adb`, which
+     overrides all automatic frontend detection.  Parsed flag sets
+     `Opts.Frontend` and `Opts.Frontend_Explicit := True`.
+  2. Added `COYOTE_FRONTEND=acme` environment-variable propagation in
+     `coyote.adb` when the Acme frontend is selected (symmetric with the
+     existing `COYOTE_FRONTEND=gui` for the GUI path).
+  3. Updated frontend-detection priority: (0) `--frontend` flag,
+     (3) `COYOTE_FRONTEND=acme`, with `COYOTE_FRONTEND=acme` checked
+     at the same level as `$winid` so it wins over `$DISPLAY`.
+  4. Updated the session plumb rule in `~/lib/plumbing` to include
+     `--frontend acme`: `plumb start coyote --frontend acme --session $0`.
+  5. Added `Frontend_Explicit : Boolean := False` to `Coyote_App.Options`.
+  6. Updated documentation: AGENTS.md (frontend selection table, env var
+     table, plumb token schema), SRS-CORE (new REQ-CORE-006, updated
+     REQ-CORE-002/003/004/005 and traceability table), SDD-CORE (§5.1
+     control flow).
+  7. All 665 existing AUnit tests pass; build clean.
+- **Date resolved:** 2026-06-07
 ---
 
 ## PCR-022

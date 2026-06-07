@@ -226,6 +226,9 @@ package Coyote_App is
       Work_Dir_Warning : Ada.Strings.Unbounded.Unbounded_String;
       --  Which frontend to use; set by the entry-point before calling Run.
       Frontend       : Frontend_Kind := Acme_Frontend;
+      --  True when --frontend was explicitly set on the command line.
+      --  When True, the automatic detection logic is skipped.
+      Frontend_Explicit : Boolean := False;
    end record;
 
    --  ── Section_Kind ─────────────────────────────────────────────────────

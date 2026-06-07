@@ -131,6 +131,20 @@ libcmark-gfm is used — it never assumes a specific numeric value.
 
 ## Open Questions / Future Work
 
+### PCR-021 — Acme session-loading frontend selection (2026-06-07)
+
+**Problem:**  Button-3 on a `coyote-session+UUID` token in the acme Sessions
+window spawned `coyote --session UUID` via the plumber, which inherited
+`$DISPLAY` but not `$winid`, so the child process selected the GUI frontend
+instead of opening a new acme window.
+
+**Fix:**  Two complementary mechanisms:
+1. `--frontend acme|gui|plain` CLI flag that overrides all automatic
+   detection.  The plumb rule for session tokens now uses `--frontend acme`.
+2. `COYOTE_FRONTEND=acme` environment-variable propagation when the Acme
+   frontend is selected (symmetric with `COYOTE_FRONTEND=gui` for GUI).
+
+
 - The GUI frontend currently uses a `GtkTextView` for the prompt input area.
   A multi-line `GtkSourceView` with syntax highlighting would improve the
   editing experience for long prompts, but adds a dependency on `gtksourceview`.

@@ -158,23 +158,25 @@ and record the key design decisions in the relevant `sdfs/` log.
 `coyote.adb` selects the frontend before calling `Run` or `Run_GUI`:
 
 ```
+0. --frontend flag set explicitly               → the named frontend
 1. --one-shot flag set (non-subagent)          → Plain_Frontend  (Coyote_App.Run)
 2. $winid non-zero (set by acme exec.c per window launch) → Acme_Frontend   (Coyote_App.Run)
-3. $DISPLAY or $WAYLAND_DISPLAY set            → GUI_Frontend    (Coyote_App.Run_GUI)
-4. COYOTE_FRONTEND=gui                         → GUI_Frontend    (Coyote_App.Run_GUI)
-5. otherwise (piped / no display)              → Plain_Frontend  (Coyote_App.Run)
+3. COYOTE_FRONTEND=acme                        → Acme_Frontend   (Coyote_App.Run)
+4. $DISPLAY or $WAYLAND_DISPLAY set            → GUI_Frontend    (Coyote_App.Run_GUI)
+5. COYOTE_FRONTEND=gui                         → GUI_Frontend    (Coyote_App.Run_GUI)
+6. otherwise (piped / no display)              → Plain_Frontend  (Coyote_App.Run)
 ```
 
 The selected kind is stored in `Options.Frontend : Frontend_Kind`.
 
 ### `COYOTE_FRONTEND` environment variable
 
-When the GUI frontend is selected, `coyote.adb` immediately sets
-`COYOTE_FRONTEND=gui` in the process environment.  All child processes
-(shell tool subprocesses, `:new` spawns, subagent invocations) inherit this
-and trigger step 4, selecting the GUI frontend automatically.  This mirrors
-how the acme frontend propagates via `$winid`: in both cases the "headful
-context" is ambient and inherited.
+When the GUI or Acme frontend is selected, `coyote.adb` immediately sets
+`COYOTE_FRONTEND=gui` or `COYOTE_FRONTEND=acme` in the process environment.
+All child processes (shell tool subprocesses, `:new` spawns, subagent
+invocations) inherit this and trigger the corresponding step, selecting
+the same frontend automatically.  This mirrors how the Acme path already
+propagates `$winid`: the "headful context" is ambient and inherited.
 
 Unlike the old TUI approach, there is no PTY relay or `openpty` machinery.
 The GUI frontend calls `Gtk.Main.Init` directly on the main Ada task and
@@ -228,7 +230,7 @@ Coyote uses its own family of plumb tokens. All token strings begin with a
 | Token | Plumb port | Purpose |
 |---|---|---|
 | `coyote-model+PID/PROVIDER/ID` | `/coyote-model` | Switch the active model in the running instance identified by PID |
-| `coyote-session+UUID` | launches `coyote --session UUID` | Load a session; the plumber spawns a new `coyote` process |
+| `coyote-session+UUID` | launches `coyote --frontend acme --session UUID` | Load a session; the plumber spawns a new `coyote` process |
 | `coyote-session+UUID/tool/TOKEN` | launches `bin/coyote_open` | Open a tool-call detail window; TOKEN is the first 16 hex chars of SHA-256(tool_call_id) |
 | `coyote-thinking+PID/LEVEL` | `/coyote-thinking` | Set the reasoning level in the running instance identified by PID |
 | `coyote-fork+PID/UUID/N` | `/coyote-fork` | Fork the session at turn N in the running instance identified by PID |
@@ -255,7 +257,7 @@ communication and context propagation:
 | `COYOTE_SESSION_ID` | `coyote.adb` after session creation | child processes | Session lineage: child coyotes promote this to `COYOTE_PARENT_SESSION` so their sessions record a parent link |
 | `COYOTE_PARENT_SESSION` | child coyote at startup | `LLM.Session_Store` | Written into the new session's JSONL header as `parentSession` |
 | `COYOTE_NO_SESSION` | `coyote.adb` when `--no-session` is active | child coyote at startup | Propagates `--no-session` to all descendant coyote processes |
-| `COYOTE_FRONTEND` | GUI `coyote.adb` after selecting GUI frontend | child coyote at startup | When set to `gui`, a child selects the GUI frontend and opens its own GTK window. Mirrors how `$winid` propagates the acme context. |
+| `COYOTE_FRONTEND` | `coyote.adb` after selecting a windowing frontend | child coyote at startup | When set to `gui`, a child selects the GUI frontend and opens its own GTK window.  When set to `acme`, a child selects the Acme frontend and opens in a new acme window.  Mirrors how `$winid` propagates the acme context. |
 
 ## Subagent invocation (shell-based)
 

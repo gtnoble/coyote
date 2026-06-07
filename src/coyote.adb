@@ -5,6 +5,7 @@
 --                 [--no-tools] [--no-session]
 --                 [--prompt TEXT|-] [--one-shot] [--subagent] [--name LABEL]
 --                 [--prompt-filter CMD]
+--                 [--frontend acme|gui|plain]
 --
 --  --agent TEXT|@PATH
 --                 Append extra instructions to the system prompt.
@@ -25,11 +26,18 @@
 --                 is written to stdin; stdout is used as the filtered
 --                 prompt.  Runs via "$SHELL -c CMD" ($SHELL defaults to
 --                 "sh").  Overrides the "promptFilter" settings.json field.
+
+--  --frontend acme|gui|plain
+--                 Override automatic frontend detection.  When specified,
+--                 the named frontend is used regardless of environment
+--                 variables.  Useful in plumb rules to force the Acme
+--                 frontend for session-loading links.
 --
 --  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Command_Line;
+
 with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Exceptions;
@@ -117,6 +125,27 @@ begin
             I := I + 1;
             Opts.Prompt_Filter :=
               To_Unbounded_String (Ada.Command_Line.Argument (I));
+         elsif Arg = "--frontend"
+           and then I < Ada.Command_Line.Argument_Count
+         then
+            I := I + 1;
+            declare
+               Val : constant String := Ada.Command_Line.Argument (I);
+            begin
+               if Val = "acme" then
+                  Opts.Frontend := Coyote_App.Acme_Frontend;
+               elsif Val = "gui" then
+                  Opts.Frontend := Coyote_App.GUI_Frontend;
+               elsif Val = "plain" then
+                  Opts.Frontend := Coyote_App.Plain_Frontend;
+               else
+                  Ada.Text_IO.Put_Line
+                    (Ada.Text_IO.Standard_Error,
+                     "Unknown frontend: " & Val);
+               end if;
+               Opts.Frontend_Explicit := True;
+            end;
+
          else
             Ada.Text_IO.Put_Line
               (Ada.Text_IO.Standard_Error,
@@ -166,14 +195,20 @@ begin
 
    --  ── Frontend detection ────────────────────────────────────────────────
    --  Priority:
+   --    0. --frontend flag explicitly set    → that frontend
    --    1. --one-shot (non-subagent)          → Plain
    --    2. $winid non-zero (set by acme per exec.c:1584) → Acme
-   --    3. $DISPLAY or $WAYLAND_DISPLAY set   → GUI
-   --    4. COYOTE_FRONTEND=gui                → GUI
-   --    5. otherwise                          → Plain
-   if Opts.One_Shot and then not Opts.Subagent then
+   --    3. COYOTE_FRONTEND=acme               → Acme
+   --    4. $DISPLAY or $WAYLAND_DISPLAY set   → GUI
+   --    5. COYOTE_FRONTEND=gui                → GUI
+   --    6. otherwise                          → Plain
+   if Opts.Frontend_Explicit then
+      --  Frontend already set by --frontend flag; skip detection.
+      null;
+   elsif Opts.One_Shot and then not Opts.Subagent then
       Opts.Frontend := Coyote_App.Plain_Frontend;
    elsif Ada.Environment_Variables.Value ("winid", "0") /= "0"
+     or else Ada.Environment_Variables.Value ("COYOTE_FRONTEND", "") = "acme"
    then
       Opts.Frontend := Coyote_App.Acme_Frontend;
    elsif (Ada.Environment_Variables.Exists ("DISPLAY")
@@ -190,9 +225,11 @@ begin
       Opts.Frontend := Coyote_App.Plain_Frontend;
    end if;
 
-   --  Propagate GUI context to child processes (subagents inherit this
-   --  and open their own GTK windows automatically).
+   --  Propagate frontend context to child processes (subagents inherit this
+   --  and open their own windows automatically, following the same frontend).
    case Opts.Frontend is
+      when Coyote_App.Acme_Frontend =>
+         Ada.Environment_Variables.Set ("COYOTE_FRONTEND", "acme");
       when Coyote_App.GUI_Frontend =>
          Ada.Environment_Variables.Set ("COYOTE_FRONTEND", "gui");
       when others => null;

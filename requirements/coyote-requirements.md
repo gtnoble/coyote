@@ -79,22 +79,33 @@ given without the `--subagent` flag, regardless of any display environment.
 
 **REQ-CORE-002** (D)
 The executable shall select the Acme frontend when the environment variable
-`$winid` is set to a non-zero integer, provided the Plain-only condition of
-REQ-CORE-001 does not apply.
+`$winid` is set to a non-zero integer, or `COYOTE_FRONTEND` equals `"acme"`,
+provided the Plain-only condition of REQ-CORE-001 does not apply and no
+`--frontend` flag overrides the selection.
 
 **REQ-CORE-003** (D)
-The executable shall select the GUI frontend when none of the above apply and
-at least one of the following is true: `$DISPLAY` is non-empty, `$WAYLAND_DISPLAY`
-is non-empty, or `COYOTE_FRONTEND` equals `"gui"`.
+The executable shall select the GUI frontend when none of the above apply,
+no `--frontend` flag overrides the selection, and at least one of the following
+is true: `$DISPLAY` is non-empty, `$WAYLAND_DISPLAY` is non-empty, or
+`COYOTE_FRONTEND` equals `"gui"`.
 
 **REQ-CORE-004** (D)
-When no display environment is detected and neither REQ-CORE-001 nor
-REQ-CORE-002 applies, the executable shall select the Plain frontend.
+When no display environment is detected, no `--frontend` flag overrides the
+selection, and none of REQ-CORE-001, REQ-CORE-002, or REQ-CORE-003 applies,
+the executable shall select the Plain frontend.
 
 **REQ-CORE-005** (I)
-When the GUI frontend is selected, the executable shall set the environment
-variable `COYOTE_FRONTEND=gui` before spawning any child processes, so that
-subagents inherit the GUI context.
+When the Acme or GUI frontend is selected, the executable shall set the
+environment variable `COYOTE_FRONTEND=acme` or `COYOTE_FRONTEND=gui`
+respectively before spawning any child processes, so that subagents inherit
+the headful context.
+
+
+**REQ-CORE-006** (T)
+The executable shall accept an optional `--frontend acme|gui|plain`
+command-line argument that overrides all automatic frontend detection.
+When `--frontend` is given, the named frontend shall be used regardless
+of the display environment.
 
 ---
 
@@ -793,10 +804,11 @@ Traceability from requirements to test cases. Test Plan reference:
 | Requirement ID | Description (abbreviated) | Verification | Test Case (TBD) |
 |---|---|---|---|
 | REQ-CORE-001 | Plain frontend on --one-shot | D | TC-001 |
-| REQ-CORE-002 | Acme frontend on $winid | D | TC-002 |
-| REQ-CORE-003 | GUI frontend on $DISPLAY/$WAYLAND_DISPLAY/COYOTE_FRONTEND | D | TC-003 |
-| REQ-CORE-004 | Plain frontend as fallback | D | TC-004 |
-| REQ-CORE-005 | COYOTE_FRONTEND=gui propagation | I | TC-005 |
+| REQ-CORE-002 | Acme frontend on $winid or COYOTE_FRONTEND=acme | D | TC-002 |
+| REQ-CORE-003 | GUI frontend on $DISPLAY/$WAYLAND_DISPLAY/COYOTE_FRONTEND=gui | D | TC-003 |
+| REQ-CORE-004 | Plain frontend fallback after all checks fail | D | TC-004 |
+| REQ-CORE-005 | COYOTE_FRONTEND=acme|gui propagation | I | TC-005 |
+| REQ-CORE-006 | --frontend flag overrides detection | T | TC-006 |
 | REQ-CORE-010 | --session UUID resumes session | T | TC-010 |
 | REQ-CORE-011 | CWD restored on session resume | D | TC-011 |
 | REQ-CORE-012 | Warning on missing CWD | D | TC-012 |
