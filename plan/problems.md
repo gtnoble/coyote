@@ -593,3 +593,75 @@ client-controlled work product gets an entry here.
   CLI flag in the plumb-rule command and have `coyote.adb` honour it before
   the automatic detection logic.
 - **Status:** Open
+---
+
+## PCR-022
+
+- **Date reported:** 2026-06-07
+- **Category:** Code
+- **Priority:** 1-Critical
+- **Description:** Thinking (reasoning) text is displayed as fragmented
+  one-token-per-line output in all frontends, making it illegible.  Each SSE
+  thinking delta chunk from the provider arrives as a short fragment (often
+  1–3 words) with leading or trailing newlines.  The acme frontend's
+  `Append_Thinking` splits the incoming text on `\n` and wraps every fragment
+  on its own line with a `│ ` box-drawing prefix, producing output like:
+
+  ```
+  │ The
+  │  user
+  │  wants me
+  │  to commit
+  ```
+  rather than flowing text:
+  ```
+  │ The user wants me to commit…
+  ```
+
+  The GUI frontend suffers a similar but milder version: each delta chunk is
+  inserted into a styled tag region but still appears as disjoint fragments
+  rather than flowing prose.
+
+  Root cause: `Append_Thinking` in the acme frontend (`coyote_app-frontend-acme_win.adb`
+  lines 102–126) treats every `\n` in the incoming delta as a hard line break and
+  re-emits the box-drawing prefix after each one.  `Normalize_Thinking_Delta` in
+  `llm-providers-openai_completions.adb` (line 164) strips leading/trailing
+  newlines from each chunk but does not address the fundamental mismatch between
+  the chunked stream and the display layer's line-break semantics.  The
+  Anthropic-Messages provider (`llm-providers-anthropic_messages.adb` line 779)
+  emits thinking deltas with no normalization at all.  Other providers
+  (Ollama, OpenCode) may also pass through unnormalized deltas.
+- **Affected work products:**
+  - `src/coyote_app-frontend-acme_win.adb` — `Append_Thinking` (lines 102–126),
+    `Begin_Thinking` (line 96, currently a no-op), `End_Thinking` (line 130,
+    currently a no-op)
+  - `src/coyote_app-frontend-gui.adb` — thinking display path
+  - `src/coyote_app-frontend-plain.adb` — thinking display path
+  - `src/llm/llm-providers-openai_completions.adb` — `Normalize_Thinking_Delta`
+    only normalizes per-chunk whitespace; does not solve the chunk-to-flow
+    reassembly problem
+  - `src/llm/llm-providers-anthropic_messages.adb` — thinking delta emission
+    (line 779) with no normalization
+  - `src/llm/llm-events.ads` — `Message_Update_Event` / `Message_Update_Kind`
+    thinking event hierarchy
+  - `sdfs/frontends.md` — component development log for frontend thinking display
+- **Corrective action required:** Redesign the thinking-text display so that
+  all per-chunk `\n` characters are collapsed into spaces (producing flowing
+  prose) rather than preserved as hard line breaks.  Only explicit paragraph
+  breaks (double newline, i.e. `\n\n`) from the model should produce a new
+  visual line.  The solution should be one of:
+  1. **Provider-side normalisation** — strip all single `\n` from each delta
+     before emission, converting to spaces.  Preserve `\n\n` through a
+     buffer-based lookahead.
+  2. **Frontend-side buffering** — buffer all thinking delta text in the
+     frontend (`Begin_Thinking` opens the buffer; `Append_Thinking` accumulates;
+     `End_Thinking` flushes collapsed text).  This centralises the fix in one
+     layer but requires `Begin_Thinking` and `End_Thinking` to become active
+     in the acme frontend (currently no-ops).
+  3. **Two-phase display** — render thinking text only at `Thinking_End`
+     (one-shot display of the full thinking block).  Eliminates the streaming
+     problem entirely but loses live-feedback UX.
+  Approach 2 (frontend-side buffering) is recommended as it is the most
+  architecturally clean: the display layer owns the rendering semantics, and
+  providers remain wire-format-neutral.
+- **Status:** Open
