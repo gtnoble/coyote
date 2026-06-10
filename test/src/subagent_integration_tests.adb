@@ -12,7 +12,6 @@ package body Subagent_Integration_Tests is
 
    use AUnit.Assertions;
 
-   Model : constant String := "github-copilot/gpt-5-mini";
 
    --  ── Helpers ──────────────────────────────────────────────────────────
 
@@ -196,8 +195,6 @@ package body Subagent_Integration_Tests is
          Null_Err := Open (Null_File, Write_Mode);
          Args.Append (Coyote);
          Args.Append ("--one-shot");
-         Args.Append ("--model");
-         Args.Append (Model);
          Args.Append ("--prompt");
          Args.Append
            ("Reply with only the word PONG and nothing else.");
@@ -323,8 +320,6 @@ package body Subagent_Integration_Tests is
          Null_Err := Open (Null_File, Write_Mode);
          Args.Append (Coyote);
          Args.Append ("--one-shot");
-         Args.Append ("--model");
-         Args.Append (Model);
          Args.Append ("--prompt");
          Args.Append ("Reply with the single word PONG.");
          Handle := Start
