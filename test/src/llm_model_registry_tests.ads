@@ -7,7 +7,7 @@ package LLM_Model_Registry_Tests is
 
   procedure Test_GitHub_Copilot_Anthropic_Wire_Format (T : in out Test);
   procedure Test_GitHub_Copilot_OpenAI_Wire_Format (T : in out Test);
-  procedure Test_GitHub_Copilot_Not_Found (T : in out Test);
+  procedure Test_GitHub_Copilot_Default_Fallback (T : in out Test);
   procedure Test_OpenRouter_Cost_Loaded (T : in out Test);
   procedure Test_OpenRouter_Default_Fallback (T : in out Test);
   procedure Test_Unknown_Provider_Not_Found (T : in out Test);

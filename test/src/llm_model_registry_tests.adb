@@ -281,7 +281,7 @@ package body LLM_Model_Registry_Tests is
       raise;
   end Test_GitHub_Copilot_OpenAI_Wire_Format;
 
-  procedure Test_GitHub_Copilot_Not_Found (T : in out Test) is
+  procedure Test_GitHub_Copilot_Default_Fallback (T : in out Test) is
     pragma Unreferenced (T);
 
     Home         : constant String := "/tmp/coyote_model_registry_test_3";
@@ -289,26 +289,33 @@ package body LLM_Model_Registry_Tests is
       Ada.Environment_Variables.Exists ("HOME");
     Old_Home     : constant String :=
       Ada.Environment_Variables.Value ("HOME", "");
-    Raised       : Boolean := False;
+    Model        : LLM.Model_Registry.Model_Info;
   begin
     Prepare_GitHub_Copilot_Fixture_Home (Home);
     Ada.Environment_Variables.Set ("HOME", Home);
 
     LLM.Model_Registry.Refresh_GitHub_Copilot;
 
-    begin
-      declare
-        Model : constant LLM.Model_Registry.Model_Info :=
-          LLM.Model_Registry.Lookup ("github-copilot", "nonexistent");
-      begin
-        pragma Unreferenced (Model);
-      end;
-    exception
-      when LLM.Model_Registry.Not_Found =>
-        Raised := True;
-    end;
+    --  Unknown models should return a default record rather than raising
+    --  Not_Found, so the agent can start even when the Copilot catalogue
+    --  is not populated.
 
-    Assert (Raised, "Unknown GitHub Copilot models should raise Not_Found");
+    Model := LLM.Model_Registry.Lookup ("github-copilot", "nonexistent");
+    Assert
+      (To_String (Model.Provider) = "github-copilot",
+       "Default fallback should have github-copilot provider");
+    Assert
+      (To_String (Model.Model_Id) = "nonexistent",
+       "Default fallback should preserve the requested model ID");
+    Assert
+      (To_String (Model.Wire_Format) = "openai-completions",
+       "Non-Claude default fallback should use openai-completions");
+
+    --  Claude-like model IDs should get the Anthropic wire format.
+    Model := LLM.Model_Registry.Lookup ("github-copilot", "claude-unknown");
+    Assert
+      (To_String (Model.Wire_Format) = "anthropic-messages",
+       "Claude-like default fallback should use anthropic-messages");
 
     Restore_Env ("HOME", Home_Was_Set, Old_Home);
     Cleanup_Test_Home (Home);
@@ -317,7 +324,7 @@ package body LLM_Model_Registry_Tests is
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
       Cleanup_Test_Home (Home);
       raise;
-  end Test_GitHub_Copilot_Not_Found;
+  end Test_GitHub_Copilot_Default_Fallback;
 
   procedure Test_OpenRouter_Cost_Loaded (T : in out Test) is
     pragma Unreferenced (T);

@@ -68,14 +68,19 @@ stalled connections without aborting slow-but-active streams.
 
 ### GitHub Copilot token refresh
 
-Copilot OAuth tokens expire after approximately 30 minutes. The refresh logic
-in `LLM.Auth.GitHub_Copilot.Ensure_Valid_Token`:
-1. Parses the `expires_at` field from `~/.coyote/auth.json`.
-2. If within 60 seconds of expiry (or already expired), calls the Copilot
-   token refresh endpoint.
-3. Writes the new token back to `auth.json`.
-4. This is called at the start of every `Send` invocation, not on a timer,
-   to avoid background tasks and to ensure the token is fresh at each request.
+Token refresh is deferred to request time.  The provider's `Send` calls
+`Ensure_Valid` (which may exchange the refresh token for a new access token
+via the GitHub token endpoint) only when a Copilot completion request is
+actually made.  At startup, `Refresh_GitHub_Copilot` populates the model
+registry using the cached access token when that token is present and
+non-expired; no live refresh is performed.  If the cached token has expired
+or the catalogue load fails (network error, lapsed subscription, etc.),
+the Copilot portion of the registry remains empty and the agent starts
+normally — `Lookup` returns a conservative default record with a
+model-ID-based wire-format heuristic ("claude" → anthropic-messages,
+else openai-completions).  The restore path is automatic: running
+`coyote login github-copilot` writes fresh credentials to auth.json,
+and the next startup will see a non-expired token and load the catalogue.
 
 ---
 

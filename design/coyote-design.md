@@ -667,11 +667,16 @@ determine the `tools` JSON schema shape.
 **Purpose:** Routing provider; selects wire format based on model ID.
 
 **`Send` procedure:**
-1. Call `LLM.Auth.GitHub_Copilot.Ensure_Valid_Token` (refreshes if needed).
+1. Load Copilot credentials from `~/.coyote/auth.json` and call
+   `Ensure_Valid` to refresh the access token only when a request
+   is actually made — no token refresh occurs at startup.
 2. Inspect model ID: if it matches a known Claude model pattern → use
    `Anthropic_Messages.Provider`; otherwise → use `OpenAI_Completions.Provider`.
-3. Construct the appropriate delegate with Copilot's base URL and token.
-4. Forward the call.
+3. Load the model catalogue (`Load_Catalogue`) and construct the
+   appropriate delegate with Copilot's base URL and token.
+4. Forward the call.  If the completions API returns HTTP 401 despite
+   a token that appeared valid, force a token refresh via the GitHub
+   token-exchange endpoint and retry exactly once.
 
 ---
 
@@ -947,14 +952,22 @@ wire_format (`"openai-completions"` or `"anthropic-messages"`), supports_thinkin
 **`Available_Models → Model_Info_Array`:** Returns all registered models from
 all providers for which an API key is present.
 
-**`Lookup (Provider, Model_Id) → Model_Info`:** Returns the `Model_Info` for
-the given pair, or a synthesised default entry if the model is not in any
-catalogue (wire_format inferred from provider name pattern).
+**`Refresh_GitHub_Copilot`:** Uses the access token already stored in
+`~/.coyote/auth.json` when it is present and non-expired (checked via
+`LLM.Auth.GitHub_Copilot.Token_Expired`).  No live token refresh is
+performed at startup — token refresh is deferred to the provider's `Send`.
+The catalogue load (`Load_Catalogue`) is wrapped in an exception handler;
+any failure (network error, expired subscription, 401 Unauthorized, JSON
+parse error) is silently swallowed, leaving the Copilot portion of the
+registry empty.  When the cached token has expired or credentials are
+absent, the procedure returns early without touching the registry.
 
-**`Refresh_*` procedures:** One per provider (Copilot, OpenRouter, OpenCode).
-Each fetches the provider's `/models` endpoint, parses the JSON catalogue,
-and registers entries. Network failures are silently ignored (stale or empty
-catalogue is used).
+**`Lookup` for `"github-copilot"`:** Returns a `Default_GitHub_Copilot_Model`
+with conservative limits and a model-ID-based wire-format heuristic: model
+IDs containing `"claude"` → `"anthropic-messages"`, all others →
+`"openai-completions"`.  `Not_Found` is no longer raised for unknown
+Copilot model IDs, so the agent can start and operate even when the Copilot
+catalogue has not been loaded.
 
 ---
 

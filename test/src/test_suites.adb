@@ -2210,8 +2210,8 @@ package body Test_Suites is
          LLM_Model_Registry_Tests
            .Test_GitHub_Copilot_OpenAI_Wire_Format'Access));
       Result.Add_Test (LLM_Model_Registry_Caller.Create
-        ("LLM.Model_Registry raises Not_Found for unknown Copilot ids",
-         LLM_Model_Registry_Tests.Test_GitHub_Copilot_Not_Found'Access));
+        ("LLM.Model_Registry returns a default for unknown Copilot ids",
+         LLM_Model_Registry_Tests.Test_GitHub_Copilot_Default_Fallback'Access));
       Result.Add_Test (LLM_Model_Registry_Caller.Create
         ("LLM.Model_Registry preserves OpenRouter model pricing",
          LLM_Model_Registry_Tests.Test_OpenRouter_Cost_Loaded'Access));

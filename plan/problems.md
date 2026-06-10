@@ -707,3 +707,79 @@ client-controlled work product gets an entry here.
   - AUnit: 665/665 tests pass (no regressions)
   - All frontends (Acme, GUI) produce flowing prose instead of fragmented output
   - Paragraph breaks preserved in multi-paragraph reasoning blocks
+
+---
+
+## PCR-023
+
+- **Date reported:** 2026-06-10
+- **Category:** Corrective Action
+- **Priority:** 1-Critical
+- **Description:** `coyote` crashes at startup before showing any window when
+  the GitHub Copilot subscription has lapsed or the Copilot API is
+  unreachable.  Root cause: `Refresh_GitHub_Copilot` (called unconditionally
+  during `Agent.Create`) calls `Ensure_Valid`, which calls
+  `GitHub_Copilot.Refresh_Token` — a live HTTP call to
+  `api.github.com/copilot_internal/v2/token`.  When GitHub returns non-200
+  (lapsed subscription, network error, etc.), `Auth_Error` is raised and
+  propagates unhandled, killing the process before the acme window or GUI
+  window is created.
+- **Affected work products:**
+  - `src/llm/llm-model_registry.adb` — `Refresh_GitHub_Copilot`
+    unconditionally called `Ensure_Valid` and loaded the catalogue without
+    graceful failure handling; `Lookup` raised `Not_Found` for unknown
+    Copilot model IDs
+  - `src/llm/llm-model_registry.ads` — spec comments for
+    `Refresh_GitHub_Copilot` and `Lookup`
+  - `test/src/llm_model_registry_tests.adb` — `Test_GitHub_Copilot_Not_Found`
+    expected `Not_Found`; renamed to `Test_GitHub_Copilot_Default_Fallback`
+  - `test/src/llm_model_registry_tests.ads` — renamed test procedure
+  - `test/src/test_suites.adb` — updated test registration string
+  - `sdfs/providers.md` — updated token-refresh description
+- **Corrective action required:**
+  1. Make `Refresh_GitHub_Copilot` fail soft: do not call `Ensure_Valid` at
+     startup; instead check `Token_Expired` and return early if the cached
+     token has expired.  Wrap the catalogue load in an exception handler
+     (`when others => null`) so any network failure, auth failure, or parse
+     error leaves the Copilot registry empty rather than crashing.
+  2. Add `Default_GitHub_Copilot_Model` — a function returning a conservative
+     `Model_Info` with a model-ID-based wire-format heuristic (model IDs
+     containing "claude" → `"anthropic-messages"`, others →
+     `"openai-completions"`).
+  3. Update `Lookup` for `"github-copilot"` to return the default fallback
+     instead of raising `Not_Found`, so the agent can start even when the
+     Copilot catalogue is not populated.
+  4. Remove three duplicate `with` clauses in the context clause; add
+     `with Ada.Strings.Fixed` for the Claude-detection heuristic.
+- **Status:** Resolved
+- **Date resolved:** 2026-06-10
+- **Actions taken:**
+  1. Removed `Ensure_Valid(Creds)` call from `Refresh_GitHub_Copilot`;
+     replaced with `Token_Expired(Creds)` guard that returns early when the
+     cached access token has expired.  `Creds` declared `constant` (no
+     longer modified in-place).
+  2. Wrapped catalogue load in `begin … exception when others => null; end`
+     block — network errors, lapsed subscriptions, JSON parse failures are
+     all silently swallowed, leaving the Copilot registry empty.
+  3. Added `Default_GitHub_Copilot_Model(Model_Id)` function: returns a
+     `Model_Info` with `Context_Window => 128_000`, `Max_Tokens => 4_096`,
+     and a wire-format heuristic (`"claude"` in model ID →
+     `"anthropic-messages"`, else `"openai-completions"`).  All cost fields
+     zeroed so no cost inflation occurs until real pricing is available.
+  4. Updated `Lookup` for `"github-copilot"`: calls
+     `Default_GitHub_Copilot_Model(Model_Id)` instead of raising
+     `Not_Found`.
+  5. Renamed test `Test_GitHub_Copilot_Not_Found` →
+     `Test_GitHub_Copilot_Default_Fallback`; test now asserts that
+     `Lookup("github-copilot", "nonexistent")` returns a default record with
+     `Provider = "github-copilot"` and `Wire_Format = "openai-completions"`;
+     added a second assertion for `"claude-unknown"` → `"anthropic-messages"`.
+  6. Updated `sdfs/providers.md` — rewrote token-refresh section to describe
+     deferred-on-request semantics, graceful degradation at startup, and the
+     automatic restore path (`coyote login github-copilot` → fresh
+     credentials → next startup populates catalogue).
+- **Verification (2026-06-10):**
+  - Build: Clean (zero errors, one pre-existing indentation warning)
+  - AUnit: 665/665 tests pass (no regressions; test renamed, not added)
+  - 6 files changed (105 insertions, 52 deletions): llm-model_registry.adb/ads,
+    llm_model_registry_tests.adb/ads, test_suites.adb, sdfs/providers.md

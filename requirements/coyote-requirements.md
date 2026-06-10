@@ -326,6 +326,14 @@ In the Acme frontend, the thinking level may be switched at runtime by
 sending a `coyote-thinking+PID/LEVEL` token via the `/coyote-thinking` plumb
 port.
 
+**REQ-CORE-077** (D)
+The agent shall start and operate normally (display the selected frontend
+window and accept user input) even when a configured provider's credentials
+are invalid, expired, or the provider API is unreachable at startup.  The
+provider's portion of the model registry shall be left empty and any
+provider-specific failure shall be reported only when the user explicitly
+attempts to use that provider's models.
+
 ---
 
 #### 3.1.8 Session Persistence
@@ -851,6 +859,7 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-074 | Copilot token auto-refresh | D | TC-074 |
 | REQ-CORE-075 | Runtime model switch via plumb | D | TC-075 |
 | REQ-CORE-076 | Runtime thinking switch via plumb | D | TC-076 |
+| REQ-CORE-077 | Provider graceful startup | D | TC-077 |
 | REQ-CORE-080 | Session saved to correct path | T | TC-080 |
 | REQ-CORE-081 | Session uses v3 JSONL format | T | TC-081 |
 | REQ-CORE-082 | Session resume loads history | T | TC-082 |
@@ -893,7 +902,7 @@ objectives stated in the Project Plan (PLAN §1 and §3):
 | Tool execution | REQ-CORE-050–055 |
 | Session persistence and resume | REQ-CORE-080–084, REQ-CORE-701 |
 | Context compaction | REQ-CORE-060–064 |
-| Multi-provider LLM support | REQ-CORE-070–076, REQ-CORE-150–156, REQ-CORE-200–204 |
+| Multi-provider LLM support | REQ-CORE-070–077, REQ-CORE-150–156, REQ-CORE-200–204 |
 | Skill discovery and system prompt construction | REQ-CORE-090–093 |
 | Subagent spawning with session lineage | REQ-CORE-019–020, REQ-CORE-030–032 |
 | Error visibility and graceful shutdown | REQ-CORE-140–142, REQ-CORE-702–703 |

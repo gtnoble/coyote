@@ -36,14 +36,20 @@ package LLM.Model_Registry is
 
   Not_Found : exception;
 
-  --  Populate the registry from the live GitHub Copilot catalogue.
+  --  Populate the registry from the cached GitHub Copilot catalogue.
   --
-  --  Calls LLM.Auth.Load_Credentials, Ensure_Valid, Get_Base_Url, and then
-  --  LLM.Providers.GitHub_Copilot.Catalogue.Load_Catalogue.
+  --  Uses the access token already stored in ~/.coyote/auth.json when
+  --  that token is present and non-expired; no live token refresh is
+  --  performed.  Token refresh is deferred to the provider's Send.
+  --
+  --  Load_Catalogue errors (network failure, expired subscription, etc.)
+  --  are silently swallowed so the agent can start even when the Copilot
+  --  API is unreachable or credentials are invalid.
   --
   --  All existing "github-copilot" entries are cleared before the refreshed
-  --  catalogue data is appended. When no Copilot credentials are configured,
-  --  the GitHub Copilot portion of the registry becomes empty.
+  --  catalogue data is appended. When no Copilot credentials are configured
+  --  or the cached token has expired, the Copilot portion of the registry
+  --  becomes empty.
   procedure Refresh_GitHub_Copilot;
 
   --  Populate the registry from the live OpenRouter catalogue.
@@ -81,7 +87,9 @@ package LLM.Model_Registry is
   --  For "opencode-go", an unknown Model_Id returns a default record with
   --  OpenAI-completions wire format and conservative limits.
   --
-  --  For "github-copilot", a missing Model_Id raises Not_Found.
+  --  For "github-copilot", a missing Model_Id returns a default record
+  --  with conservative limits and a wire-format heuristic (Claude models
+  --  use "anthropic-messages", all others "openai-completions").
   --
   --  Unknown providers also raise Not_Found.
   function Lookup

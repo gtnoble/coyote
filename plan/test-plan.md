@@ -299,6 +299,12 @@ and any failures are recorded here or in the Test Report.
 to reflect new buffering semantics (now emits both `Thinking_Delta` and `Thinking_End`
 events to verify collapsing behaviour).  No new test cases added; existing test
 infrastructure sufficient to cover the buffering and collapsing logic.
+
+**Baseline as of 2026-06-10 (PCR-023 Copilot Graceful Startup):** 665 tests, 0 failures,
+0 unexpected errors.  Test count unchanged; `Test_GitHub_Copilot_Not_Found` renamed to
+`Test_GitHub_Copilot_Default_Fallback` and updated to assert default-fallback behaviour
+instead of `Not_Found` exception raising.  No new test cases added; existing test
+infrastructure sufficient to verify the new graceful-degradation path.
 `Test_Bootstrap_NA_Insufficient`, `Test_Bootstrap_NA_SD_Zero`,
 `Test_Bootstrap_Reproducibility`) for `Coyote_SQC.Statistics.Bootstrap`.
 **Baseline as of 2026-06-03:** 660 tests, 0 failures, 0 unexpected errors.

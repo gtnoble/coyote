@@ -1,10 +1,7 @@
 with GNATCOLL.JSON;
 use type GNATCOLL.JSON.JSON_Value_Type;
 with Ada.Characters.Handling;
-with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
-with LLM.Auth;
-with LLM.Auth.GitHub_Copilot;
-with LLM.Providers.GitHub_Copilot.Catalogue;
+with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with LLM.Auth;
 with LLM.Auth.GitHub_Copilot;
@@ -281,7 +278,7 @@ package body LLM.Model_Registry is
    end Refresh_Ollama;
 
 procedure Refresh_GitHub_Copilot is
-    Creds  : LLM.Auth.Provider_Credentials :=
+    Creds  : constant LLM.Auth.Provider_Credentials :=
       LLM.Auth.Load_Credentials ("github-copilot");
     Models :
       LLM.Providers.GitHub_Copilot.Catalogue.Catalogue_Vectors.Vector;
@@ -294,26 +291,38 @@ procedure Refresh_GitHub_Copilot is
       return;
     end if;
 
-    LLM.Auth.GitHub_Copilot.Ensure_Valid (Creds);
+    --  Do not refresh the token at startup; only use a cached
+    --  non-expired token.  The provider's Send refreshes lazily.
+    if LLM.Auth.GitHub_Copilot.Token_Expired (Creds) then
+      return;
+    end if;
 
     if Length (Creds.Access_Token) = 0 then
       return;
     end if;
 
-    declare
-      Base_Url : constant String :=
-        LLM.Auth.GitHub_Copilot.Get_Base_Url
-          (To_String (Creds.Access_Token));
+    --  Load the catalogue and populate the registry.  Any failure
+    --  (network error, expired subscription, etc.) is swallowed so
+    --  the agent can start with an empty Copilot registry.
     begin
-      LLM.Providers.GitHub_Copilot.Catalogue.Load_Catalogue
-        (Base_Url => Base_Url,
-         Token    => To_String (Creds.Access_Token),
-         Models   => Models);
-    end;
+      declare
+        Base_Url : constant String :=
+          LLM.Auth.GitHub_Copilot.Get_Base_Url
+            (To_String (Creds.Access_Token));
+      begin
+        LLM.Providers.GitHub_Copilot.Catalogue.Load_Catalogue
+          (Base_Url => Base_Url,
+           Token    => To_String (Creds.Access_Token),
+           Models   => Models);
+      end;
 
-    for Item of Models loop
-      Registry.Append (To_Model_Info (Item));
-    end loop;
+      for Item of Models loop
+        Registry.Append (To_Model_Info (Item));
+      end loop;
+    exception
+      when others =>
+        null;
+    end;
   end Refresh_GitHub_Copilot;
 
   procedure Refresh_OpenRouter is
@@ -371,6 +380,31 @@ procedure Refresh_GitHub_Copilot is
     end loop;
   end Refresh_OpenCode_Go;
 
+  function Default_GitHub_Copilot_Model (Model_Id : String) return Model_Info
+  is
+    Lower_Id  : constant String :=
+      Ada.Characters.Handling.To_Lower (Model_Id);
+    Is_Claude : constant Boolean :=
+      Ada.Strings.Fixed.Index (Lower_Id, "claude") > 0;
+  begin
+    return
+      (Model_Id            => To_Unbounded_String (Model_Id),
+       Name                => To_Unbounded_String (Model_Id),
+       Provider            => To_Unbounded_String ("github-copilot"),
+       Context_Window      => 128_000,
+       Max_Tokens          => 4_096,
+       Reasoning           => False,
+       Supports_Tools      => True,
+       Supports_Images     => False,
+       Max_Thinking_Budget => 0,
+       Min_Thinking_Budget => 0,
+       Wire_Format         =>
+         (if Is_Claude
+          then To_Unbounded_String ("anthropic-messages")
+          else To_Unbounded_String ("openai-completions")),
+       Cost                => (others => 0.0));
+  end Default_GitHub_Copilot_Model;
+
   function Lookup
     (Provider : String;
      Model_Id : String) return Model_Info
@@ -390,8 +424,7 @@ procedure Refresh_GitHub_Copilot is
     elsif Want_Provider = "opencode-go" then
       return Default_OpenCode_Go_Model (Model_Id);
     elsif Want_Provider = "github-copilot" then
-      raise Not_Found with
-        "GitHub Copilot model not found: " & Model_Id;
+      return Default_GitHub_Copilot_Model (Model_Id);
     elsif Want_Provider = "anthropic" then
       raise Not_Found with "Anthropic model not found: " & Model_Id;
     elsif Want_Provider = "ollama" then
