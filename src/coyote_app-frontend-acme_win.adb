@@ -93,13 +93,18 @@ package body Coyote_App.Frontend.Acme_Win is
 
    --  ── Begin_Thinking ────────────────────────────────────────────────────
 
+
    procedure Begin_Thinking (F : in out Instance) is
    begin
-      F.Thinking_Buffer := Ada.Strings.Unbounded.Null_Unbounded_String;
-      F.In_Thinking := True;
+      End_Text_Block (F);
+      if not F.In_Thinking then
+         F.Thinking_Buffer := Ada.Strings.Unbounded.Null_Unbounded_String;
+         F.In_Thinking := True;
+      end if;
    end Begin_Thinking;
 
    --  ── Append_Thinking ───────────────────────────────────────────────────
+
 
    procedure Append_Thinking
      (F    : in out Instance;

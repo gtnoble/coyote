@@ -84,18 +84,6 @@ package body Coyote_App.History is
       In_Turn        : Boolean         := False;
       Saw_Asst_Text  : Boolean         := False;
 
-      --  Flush any accumulated thinking content through the frontend.
-      procedure Flush_Thinking
-        (Thinking_Parts : in out Unbounded_String)
-      is
-      begin
-         if Length (Thinking_Parts) > 0 then
-            Frontend.Begin_Thinking;
-            Frontend.Append_Thinking (To_String (Thinking_Parts));
-            Frontend.End_Thinking;
-            Thinking_Parts := Null_Unbounded_String;
-         end if;
-      end Flush_Thinking;
 
       --  Return the Tool_Result_Entry whose Id matches, or a blank entry.
       function Find_TR (Id : String) return Tool_Result_Entry is
@@ -426,7 +414,6 @@ package body Coyote_App.History is
                               declare
                                  Content        : constant JSON_Array :=
                                    Msg.Get ("content");
-                                 Thinking_Parts : Unbounded_String;
                               begin
                                  for I in 1 .. Length (Content) loop
                                     declare
@@ -435,23 +422,12 @@ package body Coyote_App.History is
                                        BType : constant String    :=
                                          Get_String (Block, "type");
                                     begin
-                                       --  thinking block — accumulate
+                                       --  thinking block — render individually
                                        if BType = "thinking" then
-                                          declare
-                                             Th : constant String :=
-                                               Ada.Strings.Fixed.Trim
-                                                 (Get_String
-                                                    (Block, "thinking"),
-                                                  Ada.Strings.Both);
-                                          begin
-                                             if Length (Thinking_Parts) > 0
-                                             then
-                                                Append
-                                                  (Thinking_Parts,
-                                                   "" & ASCII.LF & ASCII.LF);
-                                             end if;
-                                             Append (Thinking_Parts, Th);
-                                          end;
+                                          Frontend.Begin_Thinking;
+                                          Frontend.Append_Thinking
+                                            (Get_String (Block, "thinking"));
+                                          Frontend.End_Thinking;
 
                                        --  text block
                                        elsif BType = "text" then
@@ -460,8 +436,6 @@ package body Coyote_App.History is
                                                Get_String (Block, "text");
                                           begin
                                              if Text'Length > 0 then
-                                                Flush_Thinking
-                                                  (Thinking_Parts);
                                                 Frontend.Append_Text (Text);
                                                 Frontend.End_Text_Block;
                                                 Saw_Asst_Text := True;
@@ -470,7 +444,6 @@ package body Coyote_App.History is
 
                                        --  toolCall block
                                        elsif BType = "toolCall" then
-                                          Flush_Thinking (Thinking_Parts);
                                           declare
                                              Tool_Id   : constant String :=
                                                Get_String (Block, "id");
@@ -513,8 +486,7 @@ package body Coyote_App.History is
                                        end if;
                                     end;
                                  end loop;
-                                 --  Flush any trailing thinking block.
-                                 Flush_Thinking (Thinking_Parts);
+
                               end;
                            end if;
                         end if;

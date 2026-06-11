@@ -762,6 +762,10 @@ package body LLM.Providers.OpenAI_Completions is
          end if;
 
          if Has_String_Field (Delta_Value, "content") then
+            if State.Thinking_Started then
+               Emit_Update (Handler, LLM.Events.Thinking_End);
+               State.Thinking_Started := False;
+            end if;
             if not State.Text_Started then
                Emit_Update (Handler, LLM.Events.Text_Start);
                State.Text_Started := True;
@@ -778,6 +782,10 @@ package body LLM.Providers.OpenAI_Completions is
             and then Delta_Value.Get ("tool_calls").Kind
                    = GNATCOLL.JSON.JSON_Array_Type
          then
+            if State.Thinking_Started then
+               Emit_Update (Handler, LLM.Events.Thinking_End);
+               State.Thinking_Started := False;
+            end if;
             Process_Tool_Calls (Delta_Value, State, Handler);
          end if;
       end;
@@ -841,6 +849,15 @@ package body LLM.Providers.OpenAI_Completions is
             State.Stop := To_Stop_Reason (Choice.Get ("finish_reason").Get);
          end if;
 
+         if Has_String_Field (Message, "reasoning") then
+            Emit_Update (Handler, LLM.Events.Thinking_Start);
+            Emit_Update
+               (Handler    => Handler,
+           Kind       => LLM.Events.Thinking_Delta,
+           Delta_Text => Get_String_Field (Message, "reasoning"));
+            State.Thinking_Started := True;
+         end if;
+
          if Content'Length > 0 then
             Emit_Update (Handler, LLM.Events.Text_Start);
             Emit_Update
@@ -855,6 +872,10 @@ package body LLM.Providers.OpenAI_Completions is
             and then Message.Get ("tool_calls").Kind
                    = GNATCOLL.JSON.JSON_Array_Type
          then
+            if State.Thinking_Started then
+               Emit_Update (Handler, LLM.Events.Thinking_End);
+               State.Thinking_Started := False;
+            end if;
             Process_Tool_Calls (Message, State, Handler);
          end if;
       end;
