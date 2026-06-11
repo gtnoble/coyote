@@ -200,6 +200,7 @@ behaviour. Results are recorded in a Test Report.
 | DEM-016 | REQ-CORE-140 | Inject a provider error (invalid API key); verify error notice visible in frontend |
 | DEM-017 | REQ-CORE-142 | Send SIGTERM to a running coyote; verify clean exit and session file is intact |
 | DEM-018 | REQ-CORE-084 | Run `coyote_list_sessions` in a directory with sessions; verify output lists sessions |
+| DEM-019 | REQ-CORE-024 | Run `coyote --help` and `coyote -h`; verify usage printed to stdout and exit code 0 |
 
 ### 4.4 Planned Tests — Inspection
 
@@ -248,6 +249,7 @@ These are entered as open items in the problem log (PCR-009).
 | REQ-CORE-021 | D | DEM-013 (Acme window name) |
 | REQ-CORE-022 | D | DEM (TBD) |
 | REQ-CORE-023 | T | `coyote_utils_tests.adb` |
+| REQ-CORE-024 | D | TC-024 (DEM-019) |
 | REQ-CORE-030–032 | T/I | `coyote_app_tests.adb`, code inspection |
 | REQ-CORE-040–046 | T/D | `dispatch_tests.adb`, `llm_agent_tests.adb`, DEM-006 |
 | REQ-CORE-050–053 | T | `llm_tools_tests.adb` |

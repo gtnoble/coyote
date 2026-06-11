@@ -5,7 +5,7 @@
 --                 [--no-tools] [--no-session]
 --                 [--prompt TEXT|-] [--one-shot] [--subagent] [--name LABEL]
 --                 [--prompt-filter CMD]
---                 [--frontend acme|gui|plain]
+--                 [--frontend acme|gui|plain] [-h|--help]
 --
 --  --agent TEXT|@PATH
 --                 Append extra instructions to the system prompt.
@@ -33,6 +33,7 @@
 --                 variables.  Useful in plumb rules to force the Acme
 --                 frontend for session-loading links.
 --
+--  -h, --help     Print this help message and exit.
 --  Project: coyote
 --  For revision history, see the project version-control log.
 
@@ -51,6 +52,55 @@ procedure Coyote is
    Opts : Coyote_App.Options;
    I    : Positive := 1;
 
+   procedure Print_Usage is
+   begin
+      Ada.Text_IO.Put_Line
+        ("coyote -- Native Ada LLM coding agent harness");
+      Ada.Text_IO.New_Line;
+      Ada.Text_IO.Put_Line
+        ("Usage: coyote [--session UUID] [--model PROVIDER/ID]");
+      Ada.Text_IO.Put_Line
+        ("               [--agent TEXT|@PATH]");
+      Ada.Text_IO.Put_Line
+        ("               [--no-tools] [--no-session]");
+      Ada.Text_IO.Put_Line
+        ("               [--prompt TEXT|-] [--one-shot]"
+         & " [--subagent] [--name LABEL]");
+      Ada.Text_IO.Put_Line
+        ("               [--prompt-filter CMD]");
+      Ada.Text_IO.Put_Line
+        ("               [--frontend acme|gui|plain]");
+      Ada.Text_IO.Put_Line
+        ("               [-h|--help]");
+      Ada.Text_IO.New_Line;
+      Ada.Text_IO.Put_Line ("Options:");
+      Ada.Text_IO.New_Line;
+      Ada.Text_IO.Put_Line
+        ("  --session UUID        Resume the given session");
+      Ada.Text_IO.Put_Line
+        ("  --model ID             Select the LLM model");
+      Ada.Text_IO.Put_Line
+        ("  --agent TEXT|@PATH     Append to system prompt");
+      Ada.Text_IO.Put_Line
+        ("  --no-tools             Disable tool execution");
+      Ada.Text_IO.Put_Line
+        ("  --no-session           Do not persist this session");
+      Ada.Text_IO.Put_Line
+        ("  --prompt TEXT|-        Send initial prompt");
+      Ada.Text_IO.Put_Line
+        ("  --one-shot             Exit after one turn");
+      Ada.Text_IO.Put_Line
+        ("  --subagent             Like --one-shot, keeps frontend");
+      Ada.Text_IO.Put_Line
+        ("  --name LABEL            Set window name label");
+      Ada.Text_IO.Put_Line
+        ("  --prompt-filter CMD    Filter prompts through shell");
+      Ada.Text_IO.Put_Line
+        ("  --frontend acme|gui|plain"
+         & "   Override frontend selection");
+      Ada.Text_IO.Put_Line
+        ("  -h, --help              Print this help and exit");
+   end Print_Usage;
 begin
    while I <= Ada.Command_Line.Argument_Count loop
       declare
@@ -146,6 +196,10 @@ begin
                Opts.Frontend_Explicit := True;
             end;
 
+         elsif Arg = "-h" or else Arg = "--help" then
+            Print_Usage;
+            Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Success);
+            return;
          else
             Ada.Text_IO.Put_Line
               (Ada.Text_IO.Standard_Error,

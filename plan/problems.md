@@ -783,3 +783,22 @@ client-controlled work product gets an entry here.
   - AUnit: 665/665 tests pass (no regressions; test renamed, not added)
   - 6 files changed (105 insertions, 52 deletions): llm-model_registry.adb/ads,
     llm_model_registry_tests.adb/ads, test_suites.adb, sdfs/providers.md
+
+
+---
+
+## PCR-024
+
+- **Date reported:** 2026-06-11
+- **Category:** Requirements
+- **Priority:** 4-Minor
+- **Description:** No `-h` / `--help` CLI option was specified in the
+  requirements. The user requested that this capability be added to the
+  coyote CLI so that users can view a usage summary without consulting
+  documentation or examining source code.
+- **Affected work products:** SRS-CORE (`requirements/coyote-requirements.md`)
+- **Corrective action required:** Add requirement REQ-CORE-024 to SRS-CORE
+  §3.1.2 specifying `-h` and `--help` arguments that print usage and exit.
+- **Actions taken:** REQ-CORE-024 added 2026-06-11.  Implementation completed 2026-06-11: `Print_Usage` procedure added to `coyote.adb`; `-h` and `--help` parsed in argument loop, printing usage to stdout and exiting with success status.  Demo test TC-024 added to Test Plan §4.3.
+- **Status:** Resolved
+- **Date resolved:** 2026-06-11

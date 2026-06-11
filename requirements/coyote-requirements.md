@@ -1,9 +1,9 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.2
-**Date:** 2026-06-06
-**Status:** Reviewed (2026-06-06)
+**Version:** 1.3
+**Date:** 2026-06-11
+**Status:** Draft
 **Project Plan:** `plan/project-plan.md`
 
 ---
@@ -178,6 +178,12 @@ the prompt.
 **REQ-CORE-023** (D)
 The executable shall emit an error message on stderr and set a non-zero exit
 status when an unrecognised command-line argument is given.
+
+**REQ-CORE-024** (D)
+The executable shall accept `-h` and `--help` command-line arguments.
+When either is given, the executable shall write a summary of all accepted
+arguments and their meanings to standard output and exit with a success
+status, without starting a session or opening a frontend window.
 
 ---
 
@@ -831,6 +837,7 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-021 | --name LABEL appended to window | D | TC-021 |
 | REQ-CORE-022 | --prompt-filter applied to prompts | D | TC-022 |
 | REQ-CORE-023 | Unknown arg → error + non-zero exit | D | TC-023 |
+| REQ-CORE-024 | -h/--help prints usage and exits | D | TC-024 |
 | REQ-CORE-030 | COYOTE_SESSION_ID exported | I | TC-030 |
 | REQ-CORE-031 | Parent session lineage recorded | I | TC-031 |
 | REQ-CORE-032 | COYOTE_NO_SESSION propagated | T | TC-032 |
@@ -896,7 +903,7 @@ objectives stated in the Project Plan (PLAN §1 and §3):
 
 | Objective | Derived Requirements |
 |---|---|
-| Self-contained Ada LLM agent with no Node.js dependency | REQ-CORE-500–505, REQ-CORE-800–805 |
+| Self-contained Ada LLM agent with no Node.js dependency | REQ-CORE-024, REQ-CORE-500–505, REQ-CORE-800–805 |
 | Multi-frontend support (acme, GTK3, plain) | REQ-CORE-001–004, REQ-CORE-100–131 |
 | Streaming output | REQ-CORE-040–046, REQ-CORE-700 |
 | Tool execution | REQ-CORE-050–055 |
