@@ -2378,6 +2378,7 @@ package body Coyote_App is
                            LLM.Agent.Set_Thinking
                              (S     => Agent_Session,
                               Level => It.Level);
+                           State.Set_Thinking (To_String (Current_Thinking));
                            My_Frontend.Set_Status
                              (Format_Status (State, Status_Label));
                         exception
