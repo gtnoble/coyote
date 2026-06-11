@@ -10,6 +10,7 @@ with Acme_Integration_Tests;
 with Dispatch_Tests;
 with Session_Lister_Tests;
 with Coyote_App_Tests;
+with Collapse_Utils_Tests;
 with Coyote_Utils_Tests;
 with Coyote_Cmark_Tests;
 with Session_History_Tests;
@@ -81,6 +82,8 @@ package body Test_Suites is
      new AUnit.Test_Caller (LLM_Skills_Tests.Test);
    package Coyote_Utils_Caller is
      new AUnit.Test_Caller (Coyote_Utils_Tests.Test);
+   package Collapse_Utils_Caller is
+     new AUnit.Test_Caller (Collapse_Utils_Tests.Test);
    package Coyote_Cmark_Caller is
      new AUnit.Test_Caller (Coyote_Cmark_Tests.Test);
    package LLM_HTTP_Caller is
@@ -1137,6 +1140,24 @@ package body Test_Suites is
       Result.Add_Test (Coyote_Utils_Caller.Create
         ("Coyote_Utils Strip_Session_Prefix returns empty for empty input",
          Coyote_Utils_Tests.Test_Strip_Session_Prefix_Empty'Access));
+
+      --  Collapse_Utils tests
+      Result.Add_Test (Collapse_Utils_Caller.Create
+        ("Collapse_Thinking_Delta: single-word tokens joined with spaces",
+         Collapse_Utils_Tests.Test_Collapse_Basic'Access));
+      Result.Add_Test (Collapse_Utils_Caller.Create
+        ("Collapse_Thinking_Delta: paragraph breaks (LF LF) preserved",
+         Collapse_Utils_Tests.Test_Collapse_Paragraph'Access));
+      Result.Add_Test (Collapse_Utils_Caller.Create
+        ("Collapse_Thinking_Delta: empty input returns empty string",
+         Collapse_Utils_Tests.Test_Collapse_Empty'Access));
+      Result.Add_Test (Collapse_Utils_Caller.Create
+        ("Collapse_Thinking_Delta: no-LF input returned verbatim",
+         Collapse_Utils_Tests.Test_Collapse_NoLF'Access));
+      Result.Add_Test (Collapse_Utils_Caller.Create
+        ("Collapse_Thinking_Delta: leading/trailing whitespace stripped",
+         Collapse_Utils_Tests.Test_Collapse_Leading_Trailing_WS'Access));
+
 
       --  Coyote_Cmark binding tests
       Result.Add_Test (Coyote_Cmark_Caller.Create

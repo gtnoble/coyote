@@ -761,22 +761,25 @@ package body LLM.Providers.OpenAI_Completions is
                            (Get_String_Field (Delta_Value, "reasoning")));
          end if;
 
-         if Has_String_Field (Delta_Value, "content") then
-            if State.Thinking_Started then
-               Emit_Update (Handler, LLM.Events.Thinking_End);
-               State.Thinking_Started := False;
-            end if;
-            if not State.Text_Started then
-               Emit_Update (Handler, LLM.Events.Text_Start);
-               State.Text_Started := True;
-            end if;
-
-            Emit_Update
-               (Handler    => Handler,
-           Kind       => LLM.Events.Text_Delta,
-           Delta_Text => Get_String_Field (Delta_Value, "content"));
+      declare
+         Content : constant String := Get_String_Field (Delta_Value, "content");
+      begin
+         if State.Thinking_Started and then Content'Length > 0 then
+            Emit_Update (Handler, LLM.Events.Thinking_End);
+            State.Thinking_Started := False;
+         end if;
+         if not State.Text_Started then
+            Emit_Update (Handler, LLM.Events.Text_Start);
+            State.Text_Started := True;
          end if;
 
+         if Content'Length > 0 then
+            Emit_Update
+               (Handler    => Handler,
+                Kind       => LLM.Events.Text_Delta,
+                Delta_Text => Content);
+         end if;
+      end;
          if Delta_Value.Kind = GNATCOLL.JSON.JSON_Object_Type
             and then Delta_Value.Has_Field ("tool_calls")
             and then Delta_Value.Get ("tool_calls").Kind

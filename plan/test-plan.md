@@ -124,7 +124,7 @@ in SRS-CORE). No separate hardware integration testing (software-only system).
 - **I (Inspection):** Code review.
 - **A (Analysis):** Build artefact or design document analysis.
 
-**Progression criterion:** All 665+ AUnit tests must pass before any
+**Progression criterion:** All 670+ AUnit tests must pass before any
 demonstration-verified requirements are reviewed. Demonstration tests are
 performed after the automated suite is green.
 
@@ -151,6 +151,7 @@ SRS-CORE requirement groups.
 | `dispatch_tests.adb` | REQ-CORE-040–046 (dispatch) | ~20 |
 | `coyote_app_tests.adb` | REQ-CORE-010–023 (CLI parsing) | ~30 |
 | `coyote_utils_tests.adb` | REQ-CORE-023 | ~10 |
+| `collapse_utils_tests.adb` | REQ-CORE-023 (thinking collapse) | 5 |
 | `llm_model_registry_tests.adb` | REQ-CORE-070–071 | ~15 |
 | `llm_catalogue_tests.adb` | REQ-CORE-072 | ~10 |
 | `llm_http_tests.adb` | REQ-CORE-200 (HTTP streaming) | ~20 |
@@ -172,7 +173,7 @@ SRS-CORE requirement groups.
 | `acme_event_parser_tests.adb` | REQ-CORE-100–108 | ~20 |
 | `acme_raw_events_tests.adb` | REQ-CORE-100 | ~10 |
 
-**Total automated tests (current):** **660** (+ 7 pending: bootstrap CI and two-set histogram tests required by SRS-SQC §15.6, added 2026-06-06)
+**Total automated tests (current):** **670
 
 ### 4.3 Planned Tests — Demonstration
 
@@ -296,6 +297,9 @@ and any failures are recorded here or in the Test Report.
 **Baseline as of 2026-06-06 (PCR-016 Bootstrap):** 665 tests, 0 failures,
 0 unexpected errors.  Added 5 Bootstrap CI tests
 (`Test_Bootstrap_Point_Estimates`, `Test_Bootstrap_CI_Coverage`,
+`Test_Bootstrap_NA_Insufficient`, `Test_Bootstrap_NA_SD_Zero`,
+`Test_Bootstrap_Reproducibility`) for `Coyote_SQC.Statistics.Bootstrap`.
+**Baseline as of 2026-06-03:** 660 tests, 0 failures, 0 unexpected errors.
 **Baseline as of 2026-06-07 (PCR-022 Thinking Display):** 665 tests, 0 failures,
 0 unexpected errors.  Test count unchanged; `Test_Dispatch_Thinking_Delta` updated
 to reflect new buffering semantics (now emits both `Thinking_Delta` and `Thinking_End`
@@ -307,11 +311,14 @@ infrastructure sufficient to cover the buffering and collapsing logic.
 `Test_GitHub_Copilot_Default_Fallback` and updated to assert default-fallback behaviour
 instead of `Not_Found` exception raising.  No new test cases added; existing test
 infrastructure sufficient to verify the new graceful-degradation path.
-`Test_Bootstrap_NA_Insufficient`, `Test_Bootstrap_NA_SD_Zero`,
-`Test_Bootstrap_Reproducibility`) for `Coyote_SQC.Statistics.Bootstrap`.
-**Baseline as of 2026-06-03:** 660 tests, 0 failures, 0 unexpected errors.
 (+2 tests: Test_Parse_File_Sets_File_Path, Test_Parse_File_Sets_File_Mtime
 for PCR-015 incremental reload fix.)
+
+**Baseline as of 2026-06-11 (PCR-022 follow-up: thinking-block empty-content fix):**
+670 tests, 0 failures, 0 unexpected errors.  Added 5 Collapse_Thinking_Delta unit
+tests (`collapse_utils_tests.adb`): `Test_Collapse_Basic`,
+`Test_Collapse_Paragraph`, `Test_Collapse_Empty`, `Test_Collapse_NoLF`,
+`Test_Collapse_Leading_Trailing_WS`.
 
 **Coverage gap PCR:** The gaps identified in §4.5 are logged in
 `plan/problems.md` as PCR-009. They are accepted as deferred for the current

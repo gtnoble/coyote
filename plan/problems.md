@@ -708,6 +708,25 @@ client-controlled work product gets an entry here.
   - All frontends (Acme, GUI) produce flowing prose instead of fragmented output
   - Paragraph breaks preserved in multi-paragraph reasoning blocks
 
+- **Follow-up (2026-06-11):** An additional root cause was identified after
+  PCR-022 was initially closed.  The OpenAI streaming API interleaves empty
+  `{"delta":{"content":""}}` chunks between consecutive reasoning-token deltas.
+  Each empty `content` field triggered `Thinking_End` in
+  `Process_Stream_Event` (the guard was `Has_String_Field (Delta_Value,
+  "content")` — true even for the empty string), causing the frontend to
+  flush the partial thinking buffer and emit a separate `│`-prefixed line
+  after every word.  The fragmented output reported in the original
+  description was therefore caused by a combination of (a) the original
+  per-chunk `\n` splitting issue and (b) this premature `Thinking_End`
+  emission, with (b) being the dominant factor.  Fixed by:
+  1. Extracting `Content : constant String := Get_String_Field (…,
+     "content")` once, emitting `Thinking_End` only when
+     `Content'Length > 0`, and suppressing empty `Text_Delta` events
+     (`llm-providers-openai_completions.adb` lines 764–782, streaming).
+  2. Adding the same guard in the tool-calls branch (line 788).
+  Affected file: `src/llm/llm-providers-openai_completions.adb` only.
+  No frontend, event-hierarchy, or dispatch changes were needed.
+
 ---
 
 ## PCR-023
