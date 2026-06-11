@@ -177,8 +177,8 @@ package body Coyote_GUI.Buffer is
       if B.In_Thinking then
          if Collapsed'Length > 0 then
             Insert_Tagged (B, UC_BOX_V & " " & Collapsed, B.Tag_Thinking);
+            Insert_Tagged (B, "" & ASCII.LF, B.Tag_Thinking);
          end if;
-         Insert_Tagged (B, "" & ASCII.LF, B.Tag_Thinking);
          B.In_Thinking := False;
          B.Thinking_Buffer := Null_Unbounded_String;
       end if;

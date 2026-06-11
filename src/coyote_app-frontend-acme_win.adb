@@ -118,15 +118,17 @@ package body Coyote_App.Frontend.Acme_Win is
       Collapsed : constant String :=
         Coyote_App.Utils.Collapse_Thinking_Delta (To_String (F.Thinking_Buffer));
    begin
-      if Collapsed'Length > 0 then
-         Acme.Window.Append
-           (F.Win_Ptr.all, F.My_FS'Access,
-            ASCII.LF & UC_BOX_V & " " & Collapsed);
+      if F.In_Thinking then
+         if Collapsed'Length > 0 then
+            Acme.Window.Append
+              (F.Win_Ptr.all, F.My_FS'Access,
+               ASCII.LF & UC_BOX_V & " " & Collapsed);
+            Acme.Window.Append
+              (F.Win_Ptr.all, F.My_FS'Access, "" & ASCII.LF & ASCII.LF);
+         end if;
+         F.In_Thinking := False;
+         F.Thinking_Buffer := Null_Unbounded_String;
       end if;
-      Acme.Window.Append
-        (F.Win_Ptr.all, F.My_FS'Access, "" & ASCII.LF & ASCII.LF);
-      F.In_Thinking := False;
-      F.Thinking_Buffer := Null_Unbounded_String;
    end End_Thinking;
    procedure Begin_Tool
      (F          : in out Instance;
