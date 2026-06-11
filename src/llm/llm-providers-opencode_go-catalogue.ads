@@ -27,6 +27,10 @@ package LLM.Providers.OpenCode_Go.Catalogue is
       Supports_Tools  : Boolean := True;
       Supports_Images : Boolean := False;
       Wire            : Wire_Kind := OpenAI_Completions_Wire;
+      Cost_Input       : Long_Float := 0.0;
+      Cost_Output      : Long_Float := 0.0;
+      Cost_Cache_Read  : Long_Float := 0.0;
+      Cost_Cache_Write : Long_Float := 0.0;
    end record;
 
    package Catalogue_Vectors is new Ada.Containers.Vectors

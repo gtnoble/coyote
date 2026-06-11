@@ -1023,8 +1023,24 @@ model ID, in the same pattern as GitHub Copilot.
 
 **No authentication:** OpenCode Go is a local proxy; no token header is set.
 
----
+**Catalogue package `OpenCode_Go.Catalogue`:**
+1. Fetches the model-ID list from `https://opencode.ai/zen/go/v1/models`,
+   caches to `~/.coyote/opencode_go_models_cache.json`.
+2. Cross-references each model ID against the OpenRouter model catalogue
+   (using either the live API response or the on-disk cache at
+   `~/.coyote/openrouter_models_cache.json`).  Matching is by normalised
+   model-ID base name (provider prefix stripped).
+3. Populates per-model `Model_Info` records from the matching OpenRouter
+   entry: `context_window` ← `context_length`,
+   `max_tokens` ← `top_provider.max_completion_tokens`,
+   `Reasoning` ← presence of `"reasoning"` in `supported_parameters`,
+   pricing sub-fields from the `pricing` object.
+4. When a model is not found on OpenRouter, conservative defaults are used
+   (context window 128,000, max tokens 16,384, no reasoning).  The
+   `Wire_Format_For` function is still consulted for wire-format routing
+   (hardcoded per the Go docs endpoint table).
 
+---
 ### 5.26 `LLM.Tools`
 
 **Purpose:** Defines tool-control flags and the tool descriptor type.

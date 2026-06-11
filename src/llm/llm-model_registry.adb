@@ -75,7 +75,11 @@ package body LLM.Model_Registry is
             LLM.Providers.OpenCode_Go.Catalogue.Anthropic_Messages_Wire
           then To_Unbounded_String ("anthropic-messages")
           else To_Unbounded_String ("openai-completions")),
-       Cost                => (others => 0.0));
+       Cost                =>
+         (Input       => Item.Cost_Input,
+          Output      => Item.Cost_Output,
+          Cache_Read  => Item.Cost_Cache_Read,
+          Cache_Write => Item.Cost_Cache_Write));
   end To_Model_Info;
 
   function Default_OpenCode_Go_Model (Model_Id : String) return Model_Info

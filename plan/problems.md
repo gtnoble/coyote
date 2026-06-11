@@ -802,3 +802,46 @@ client-controlled work product gets an entry here.
 - **Actions taken:** REQ-CORE-024 added 2026-06-11.  Implementation completed 2026-06-11: `Print_Usage` procedure added to `coyote.adb`; `-h` and `--help` parsed in argument loop, printing usage to stdout and exiting with success status.  Demo test TC-024 added to Test Plan §4.3.
 - **Status:** Resolved
 - **Date resolved:** 2026-06-11
+
+## PCR-025
+
+- **Date reported:** 2026-06-11
+- **Category:** Requirements
+- **Priority:** 4-Minor
+- **Description:** OpenCode Go model metadata (context window size,
+  reasoning support, pricing) was hardcoded in a static `Known_Meta`
+  array in `LLM.Providers.OpenCode_Go.Catalogue`.  New models and
+  changed context windows require manual source edits to stay current.
+  The live `/v1/models` endpoint returns only model IDs, not capabilities.
+  OpenRouter's public `/api/v1/models` endpoint provides context window,
+  max tokens, reasoning support, and pricing for nearly all Go models.
+- **Affected work products:** SRS-CORE (`requirements/coyote-requirements.md`),
+  SDD-CORE (`design/coyote-design.md`), catalogue implementation
+  (`src/llm/llm-providers-opencode_go-catalogue.adb`), providers SDF
+  (`sdfs/providers.md`)
+- **Corrective action required:** Add requirement REQ-CORE-078 to
+  SRS-CORE §3.1.7 specifying that OpenCode Go model metadata shall be
+  obtained by cross-referencing the Go model list against the OpenRouter
+  catalogue.  Update SDD-CORE §5.25 and `sdfs/providers.md` accordingly.
+  Implement the cross-referencing in `Load_Catalogue`.
+- **Actions taken (2026-06-11):**
+  1. Removed the hardcoded `Known_Meta` array and `Lookup_Static` function
+     from `llm-providers-opencode_go-catalogue.adb`.
+  2. Added `Base_Name` and `Find_OpenRouter_Meta` helper functions that
+     cross-reference each Go model ID against the OpenRouter catalogue
+     (live or cached), matching by normalised base name (provider prefix
+     stripped from OpenRouter model IDs).
+  3. `Load_Catalogue` now loads the OpenRouter catalogue first, then passes
+     it through to `Load_Cache`, `Fetch_Live`, `Parse_Models`, and
+     `Parse_Model` so that every Go model inherits context window, max
+     tokens, reasoning support, and pricing from the matching OpenRouter
+     entry.
+  4. Added cost fields (`Cost_Input`, `Cost_Output`, `Cost_Cache_Read`,
+     `Cost_Cache_Write`) to `OpenCode_Go.Catalogue.Model_Info` and updated
+     `LLM.Model_Registry.To_Model_Info` to pass them through to the unified
+     registry record.
+  5. Removed unused `Get_Array_Field` helper.
+  6. All 665 existing AUnit tests pass; build clean (5 style-only line-length
+     warnings in the catalogue body, matching existing codebase patterns).
+- **Status:** Resolved
+- **Date resolved:** 2026-06-11

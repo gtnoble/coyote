@@ -12,95 +12,17 @@ with Ada.Text_IO;
 with GNAT.OS_Lib;
 with GNATCOLL.JSON;
 with LLM.HTTP;
+with LLM.Providers.OpenRouter.Catalogue;
 with LLM.Settings;
 
 package body LLM.Providers.OpenCode_Go.Catalogue is
 
    use type GNATCOLL.JSON.JSON_Value_Type;
 
-   --  Per-model static metadata for known OpenCode Go models.
-   --  When a model appears in the dynamic /v1/models list but is not
-   --  listed here, conservative defaults are used instead.
-
-   type Model_Meta is record
-      Id             : Unbounded_String;
-      Context_Window : Natural := 128_000;
-      Max_Tokens     : Natural := 16_384;
-      Reasoning      : Boolean := False;
-   end record;
-
-   Known_Meta : constant array (Positive range <>) of Model_Meta :=
-     ((Id => To_Unbounded_String ("glm-5"),
-       Context_Window => 128_000,
-       Max_Tokens     => 16_384,
-       Reasoning      => True),
-      (Id => To_Unbounded_String ("glm-5.1"),
-       Context_Window => 128_000,
-       Max_Tokens     => 16_384,
-       Reasoning      => True),
-      (Id => To_Unbounded_String ("kimi-k2.5"),
-       Context_Window => 131_072,
-       Max_Tokens     => 16_384,
-       Reasoning      => True),
-      (Id => To_Unbounded_String ("kimi-k2.6"),
-       Context_Window => 131_072,
-       Max_Tokens     => 16_384,
-       Reasoning      => True),
-      (Id => To_Unbounded_String ("deepseek-v4-pro"),
-       Context_Window => 128_000,
-       Max_Tokens     => 16_384,
-       Reasoning      => True),
-      (Id => To_Unbounded_String ("deepseek-v4-flash"),
-       Context_Window => 128_000,
-       Max_Tokens     => 16_384,
-       Reasoning      => False),
-      (Id => To_Unbounded_String ("qwen3.5-plus"),
-       Context_Window => 131_072,
-       Max_Tokens     => 16_384,
-       Reasoning      => True),
-      (Id => To_Unbounded_String ("qwen3.6-plus"),
-       Context_Window => 131_072,
-       Max_Tokens     => 16_384,
-       Reasoning      => True),
-      (Id => To_Unbounded_String ("minimax-m2.5"),
-       Context_Window => 128_000,
-       Max_Tokens     => 16_384,
-       Reasoning      => False),
-      (Id => To_Unbounded_String ("minimax-m2.7"),
-       Context_Window => 128_000,
-       Max_Tokens     => 16_384,
-       Reasoning      => False),
-      (Id => To_Unbounded_String ("mimo-v2.5"),
-       Context_Window => 128_000,
-       Max_Tokens     => 16_384,
-       Reasoning      => True),
-      (Id => To_Unbounded_String ("mimo-v2.5-pro"),
-       Context_Window => 128_000,
-       Max_Tokens     => 16_384,
-       Reasoning      => True),
-      (Id => To_Unbounded_String ("mimo-v2-pro"),
-       Context_Window => 128_000,
-       Max_Tokens     => 16_384,
-       Reasoning      => True),
-      (Id => To_Unbounded_String ("mimo-v2-omni"),
-       Context_Window => 128_000,
-       Max_Tokens     => 16_384,
-       Reasoning      => False));
-
-   function Lookup_Static (Model_Id : String) return Model_Meta is
-      Lower_Id : constant String :=
-        Ada.Characters.Handling.To_Lower (Model_Id);
-   begin
-      for Item of Known_Meta loop
-         if To_String (Item.Id) = Lower_Id then
-            return Item;
-         end if;
-      end loop;
-      return (Id             => To_Unbounded_String (Lower_Id),
-              Context_Window => 128_000,
-              Max_Tokens     => 16_384,
-              Reasoning      => False);
-   end Lookup_Static;
+   --  Per-model metadata for known OpenCode Go models.
+   --  Metadata is obtained by cross-referencing each model ID against
+   --  the OpenRouter model catalogue (live or cached).  Models not found
+   --  on OpenRouter fall back to conservative defaults.
 
    function Wire_Format_For (Model_Id : String) return Wire_Kind is
       Lower_Id : constant String :=
@@ -114,6 +36,58 @@ package body LLM.Providers.OpenCode_Go.Catalogue is
       end if;
       return OpenAI_Completions_Wire;
    end Wire_Format_For;
+
+   ------------------------------------------------------------
+   --  OpenRouter cross-reference helpers
+   ------------------------------------------------------------
+
+   function Base_Name (Model_Id : String) return String is
+      Pos : Natural := 0;
+   begin
+      for I in reverse Model_Id'Range loop
+         if Model_Id (I) = '/' then
+            Pos := I;
+            exit;
+         end if;
+      end loop;
+      if Pos > 0 and then Pos < Model_Id'Last then
+         return Ada.Characters.Handling.To_Lower
+           (Model_Id (Pos + 1 .. Model_Id'Last));
+      end if;
+      return Ada.Characters.Handling.To_Lower (Model_Id);
+   end Base_Name;
+
+   function Find_OpenRouter_Meta
+     (Go_Model_Id : String;
+      OR_Models   : LLM.Providers.OpenRouter.Catalogue.Catalogue_Vectors.Vector)
+     return LLM.Providers.OpenRouter.Catalogue.Model_Info
+   is
+      Lower_Id : constant String :=
+        Ada.Characters.Handling.To_Lower (Go_Model_Id);
+   begin
+      for OR_Model of OR_Models loop
+         if Base_Name (To_String (OR_Model.Model_Id)) = Lower_Id then
+            return OR_Model;
+         end if;
+      end loop;
+      --  Return a default with conservative values.
+      return
+        (Model_Id        => To_Unbounded_String (Go_Model_Id),
+         Name            => To_Unbounded_String (Go_Model_Id),
+         Context_Window  => 128_000,
+         Max_Tokens      => 16_384,
+         Supports_Tools  => True,
+         Supports_Images => False,
+         Reasoning       => False,
+         Cost_Input      => 0.0,
+         Cost_Output     => 0.0,
+         Cost_Cache_Read => 0.0,
+         Cost_Cache_Write => 0.0);
+   end Find_OpenRouter_Meta;
+
+   ------------------------------------------------------------
+   --  Cache-path and HTTP utilities
+   ------------------------------------------------------------
 
    function Cache_Path return String is
       Base : constant String := LLM.Settings.Agent_Dir;
@@ -269,20 +243,6 @@ package body LLM.Providers.OpenCode_Go.Catalogue is
       return Default;
    end Get_String_Field;
 
-   function Get_Array_Field
-     (Value : GNATCOLL.JSON.JSON_Value;
-      Field : String) return GNATCOLL.JSON.JSON_Array
-   is
-   begin
-      if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
-        and then Value.Has_Field (Field)
-        and then Value.Get (Field).Kind = GNATCOLL.JSON.JSON_Array_Type
-      then
-         return Value.Get (Field).Get;
-      end if;
-      return GNATCOLL.JSON.Empty_Array;
-   end Get_Array_Field;
-
    function Get_Long_Long_Field
      (Value : GNATCOLL.JSON.JSON_Value;
       Field : String) return Long_Long_Integer
@@ -301,34 +261,60 @@ package body LLM.Providers.OpenCode_Go.Catalogue is
       return 0;
    end Get_Long_Long_Field;
 
+   ------------------------------------------------------------
+   --  Model parsing with OpenRouter cross-reference
+   ------------------------------------------------------------
+
    function Parse_Model
-     (Value : GNATCOLL.JSON.JSON_Value) return Model_Info
+     (Value    : GNATCOLL.JSON.JSON_Value;
+      OR_Meta  : LLM.Providers.OpenRouter.Catalogue.Model_Info)
+     return Model_Info
    is
-      Id       : constant String := Get_String_Field (Value, "id");
-      Meta     : constant Model_Meta := Lookup_Static (Id);
+      Id : constant String := Get_String_Field (Value, "id");
    begin
       return
         (Model_Id        => To_Unbounded_String (Id),
          Name            => To_Unbounded_String (Id),
-         Context_Window  => Meta.Context_Window,
-         Max_Tokens      => Meta.Max_Tokens,
-         Reasoning       => Meta.Reasoning,
-         Supports_Tools  => True,
-         Supports_Images => False,
-         Wire            => Wire_Format_For (Id));
+         Context_Window  => OR_Meta.Context_Window,
+         Max_Tokens      => OR_Meta.Max_Tokens,
+         Reasoning       => OR_Meta.Reasoning,
+         Supports_Tools  => OR_Meta.Supports_Tools,
+         Supports_Images => OR_Meta.Supports_Images,
+         Wire            => Wire_Format_For (Id),
+         Cost_Input      => OR_Meta.Cost_Input,
+         Cost_Output     => OR_Meta.Cost_Output,
+         Cost_Cache_Read => OR_Meta.Cost_Cache_Read,
+         Cost_Cache_Write => OR_Meta.Cost_Cache_Write);
    end Parse_Model;
 
    procedure Parse_Models
-     (Items  :     GNATCOLL.JSON.JSON_Array;
-      Models : out Catalogue_Vectors.Vector)
+     (Items     :     GNATCOLL.JSON.JSON_Array;
+      Models    : out Catalogue_Vectors.Vector;
+      OR_Models :     LLM.Providers.OpenRouter.Catalogue.Catalogue_Vectors.Vector)
    is
+      Go_Id   : String (1 .. 256);
+      Go_Len  : Natural;
+      OR_Meta : LLM.Providers.OpenRouter.Catalogue.Model_Info;
    begin
       Models.Clear;
       for I in 1 .. GNATCOLL.JSON.Length (Items) loop
+         declare
+            Raw_Id : constant String := Get_String_Field
+              (GNATCOLL.JSON.Get (Items, I), "id");
+         begin
+            Go_Len := Raw_Id'Length;
+            Go_Id (1 .. Go_Len) := Raw_Id;
+         end;
+         OR_Meta := Find_OpenRouter_Meta (Go_Id (1 .. Go_Len), OR_Models);
          Models.Append
-           (Parse_Model (GNATCOLL.JSON.Get (Items, I)));
+           (Parse_Model
+             (GNATCOLL.JSON.Get (Items, I), OR_Meta));
       end loop;
    end Parse_Models;
+
+   ------------------------------------------------------------
+   --  Caching layer
+   ------------------------------------------------------------
 
    type Cache_Load_Result is record
       Found  : Boolean := False;
@@ -337,7 +323,9 @@ package body LLM.Providers.OpenCode_Go.Catalogue is
    end record;
 
    function Load_Cache
-     (Max_Age_Hours : Natural) return Cache_Load_Result
+     (Max_Age_Hours : Natural;
+      OR_Models     : LLM.Providers.OpenRouter.Catalogue.Catalogue_Vectors.Vector)
+     return Cache_Load_Result
    is
       Path       : constant String := Cache_Path;
       Content    : constant String := Read_File (Path);
@@ -363,7 +351,7 @@ package body LLM.Providers.OpenCode_Go.Catalogue is
       Fetched_At := Get_Long_Long_Field (Root, "fetched_at");
       Result.Found := True;
       Result.Fresh := Is_Fresh (Fetched_At, Max_Age_Hours);
-      Parse_Models (Root.Get ("data").Get, Result.Models);
+      Parse_Models (Root.Get ("data").Get, Result.Models, OR_Models);
       return Result;
    exception
       when others =>
@@ -390,8 +378,10 @@ package body LLM.Providers.OpenCode_Go.Catalogue is
    end Save_Cache;
 
    function Fetch_Live
-     (Models : out Catalogue_Vectors.Vector;
-      Data   : out GNATCOLL.JSON.JSON_Value) return Boolean
+     (Models    : out Catalogue_Vectors.Vector;
+      Data      : out GNATCOLL.JSON.JSON_Value;
+      OR_Models :     LLM.Providers.OpenRouter.Catalogue.Catalogue_Vectors.Vector)
+     return Boolean
    is
       Headers       : LLM.HTTP.Header_List;
       Status        : Natural := 0;
@@ -426,7 +416,7 @@ package body LLM.Providers.OpenCode_Go.Catalogue is
          return False;
       end if;
       Data := Root.Get ("data");
-      Parse_Models (Root.Get ("data").Get, Models);
+      Parse_Models (Root.Get ("data").Get, Models, OR_Models);
       return True;
    exception
       when others =>
@@ -435,24 +425,39 @@ package body LLM.Providers.OpenCode_Go.Catalogue is
          return False;
    end Fetch_Live;
 
+   ------------------------------------------------------------
+   --  Public entry point
+   ------------------------------------------------------------
+
    procedure Load_Catalogue
      (Models        :    out Catalogue_Vectors.Vector;
       Max_Age_Hours :        Natural := 24)
    is
-      Cache_Result : constant Cache_Load_Result :=
-        Load_Cache (Max_Age_Hours);
-      Live_Models : Catalogue_Vectors.Vector;
-      Live_Data   : GNATCOLL.JSON.JSON_Value;
+      --  Load the OpenRouter catalogue first so its metadata is
+      --  available for cross-referencing during cache and live paths.
+      OR_Models    : LLM.Providers.OpenRouter.Catalogue.Catalogue_Vectors.Vector;
+      Cache_Result : Cache_Load_Result;
+      Live_Models  : Catalogue_Vectors.Vector;
+      Live_Data    : GNATCOLL.JSON.JSON_Value;
    begin
+      LLM.Providers.OpenRouter.Catalogue.Load_Catalogue
+        (OR_Models, Max_Age_Hours);
+
+      Cache_Result := Load_Cache (Max_Age_Hours, OR_Models);
+
       if Cache_Result.Found and then Cache_Result.Fresh then
          Models := Cache_Result.Models;
          return;
       end if;
-      if Fetch_Live (Models => Live_Models, Data => Live_Data) then
+
+      if Fetch_Live (Models => Live_Models, Data => Live_Data,
+                     OR_Models => OR_Models)
+      then
          Models := Live_Models;
          Save_Cache (Live_Data);
          return;
       end if;
+
       if Cache_Result.Found then
          Ada.Text_IO.Put_Line
            (Ada.Text_IO.Standard_Error,

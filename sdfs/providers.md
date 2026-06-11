@@ -33,6 +33,22 @@ format (OpenAI function schema vs. Anthropic tool schema). Routing providers
 than storing it in the catalogue, because the same model ID may map to
 different wire formats depending on the provider's current routing logic.
 
+### OpenCode Go model metadata via OpenRouter cross-reference
+
+The live OpenCode Go `/v1/models` endpoint returns only model identifiers
+(`id`, `object`, `created`, `owned_by`) — no context window, reasoning
+support, or pricing fields.  Rather than maintaining a hardcoded
+`Known_Meta` array that must be manually updated for every new model or
+capability change, the catalogue builder cross-references each Go model ID
+against the OpenRouter catalogue.  Matching is by normalised base name
+(provider prefix stripped), which maps 17 of the 19 Go models to exact
+OpenRouter entries (`glm-5` → `z-ai/glm-5`, `kimi-k2.6` →
+`moonshotai/kimi-k2.6`, etc.).  Unmatched models (currently `mimo-v2-omni`
+and `mimo-v2-pro`) fall back to conservative defaults (128k context, no
+reasoning).  This approach eliminates the manual-update burden and keeps
+the catalogue current with OpenRouter's model-list refreshes.
+
+
 ### SSE parser is stateless between chunks
 
 `LLM.SSE` maintains no inter-chunk state of its own. The provider adapter
@@ -112,6 +128,11 @@ and the next startup will see a non-expired token and load the catalogue.
 ## Open Questions / Future Work
 
 - OpenRouter and OpenCode Go model catalogues are fetched once at startup
+  and cached to `~/.coyote/*_models_cache.json`. The OpenCode Go catalogue
+  cross-references the OpenRouter catalogue to obtain context window sizes,
+  reasoning support, and pricing metadata, since the Go `/v1/models` endpoint
+  returns only model IDs.  There is no background refresh. Consider a cache
+  TTL check if stale catalogues become an issue.
   and cached to `~/.coyote/*_models_cache.json`. There is no background
   refresh. Consider a cache TTL check if stale catalogues become an issue.
 - The Anthropic thinking beta header (`anthropic-beta: interleaved-thinking-...`)

@@ -340,6 +340,20 @@ provider's portion of the model registry shall be left empty and any
 provider-specific failure shall be reported only when the user explicitly
 attempts to use that provider's models.
 
+**REQ-CORE-078** (D)
+When constructing the OpenCode Go model catalogue, the agent shall obtain
+per-model metadata — context window size, maximum output tokens, reasoning
+support, and per-token pricing — by cross-referencing the model identifier
+list from the OpenCode Go `/v1/models` endpoint against the OpenRouter
+model catalogue.  For each Go model ID, the agent shall locate the
+matching entry in the OpenRouter catalogue (or its on-disk cache) and
+populate the catalogue `Model_Info` record from the OpenRouter fields
+(`context_length`, `top_provider.max_completion_tokens`,
+`supported_parameters` membership for reasoning, and pricing sub-fields).
+Models not found on OpenRouter shall fall back to conservative defaults
+(context window 128,000, max tokens 16,384, no reasoning).
+
+
 ---
 
 #### 3.1.8 Session Persistence
@@ -867,6 +881,8 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-075 | Runtime model switch via plumb | D | TC-075 |
 | REQ-CORE-076 | Runtime thinking switch via plumb | D | TC-076 |
 | REQ-CORE-077 | Provider graceful startup | D | TC-077 |
+| REQ-CORE-078 | OpenCode Go metadata from OpenRouter | D | TC-078 |
+
 | REQ-CORE-080 | Session saved to correct path | T | TC-080 |
 | REQ-CORE-081 | Session uses v3 JSONL format | T | TC-081 |
 | REQ-CORE-082 | Session resume loads history | T | TC-082 |
@@ -909,7 +925,7 @@ objectives stated in the Project Plan (PLAN §1 and §3):
 | Tool execution | REQ-CORE-050–055 |
 | Session persistence and resume | REQ-CORE-080–084, REQ-CORE-701 |
 | Context compaction | REQ-CORE-060–064 |
-| Multi-provider LLM support | REQ-CORE-070–077, REQ-CORE-150–156, REQ-CORE-200–204 |
+| Multi-provider LLM support | REQ-CORE-070–078, REQ-CORE-150–156, REQ-CORE-200–204 |
 | Skill discovery and system prompt construction | REQ-CORE-090–093 |
 | Subagent spawning with session lineage | REQ-CORE-019–020, REQ-CORE-030–032 |
 | Error visibility and graceful shutdown | REQ-CORE-140–142, REQ-CORE-702–703 |
