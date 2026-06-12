@@ -50,10 +50,11 @@ package LLM.Providers.OpenAI_Completions is
      Name  :        String;
      Value :        String);
 
-   --  Internal extension point for derived providers.
+   --  Inject standard reasoning-effort configuration into the request.
    --
-   --  Descendants may mutate Request to add provider-specific request fields
-   --  before the JSON body is serialised and sent.
+   --  Maps Thinking_Level to the OpenAI reasoning.effort field ("low",
+   --  "medium", "high").  When Thinking is Off this is a no-op.
+   --  Descendants may override to add provider-specific logic.
    procedure Customize_Request
       (P        : in out Provider;
      Model_Id :        String;

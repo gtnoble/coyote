@@ -4,8 +4,6 @@
 --  For revision history, see the project version-control log.
 
 with Ada.Environment_Variables;
-with Ada.Strings.Unbounded;
-with GNATCOLL.JSON;
 with LLM.HTTP;
 with LLM.Providers.OpenRouter.Catalogue;
 with LLM.Settings;
@@ -59,63 +57,6 @@ package body LLM.Providers.OpenRouter is
       return LLM.Settings.Resolve_Api_Key ("openrouter");
    end Resolve_Api_Key;
 
-   function Supports_Reasoning (Model_Id : String) return Boolean is
-      Models : LLM.Providers.OpenRouter.Catalogue.Catalogue_Vectors.Vector;
-   begin
-      LLM.Providers.OpenRouter.Catalogue.Load_Catalogue (Models);
-
-      for Model of Models loop
-         if Ada.Strings.Unbounded.To_String (Model.Model_Id) = Model_Id then
-            return Model.Reasoning;
-         end if;
-      end loop;
-
-      return False;
-   exception
-      when others =>
-         return False;
-   end Supports_Reasoning;
-
-   function Reasoning_Effort
-      (Thinking : LLM.Providers.Thinking_Level) return String
-   is
-   begin
-      case Thinking is
-         when LLM.Providers.Off =>
-            return "";
-         when LLM.Providers.Minimal | LLM.Providers.Low =>
-            return "low";
-         when LLM.Providers.Medium =>
-            return "medium";
-         when LLM.Providers.High | LLM.Providers.X_High =>
-            return "high";
-      end case;
-   end Reasoning_Effort;
-
-   overriding
-   procedure Customize_Request
-      (P        : in out Provider;
-     Model_Id :        String;
-     Thinking :        LLM.Providers.Thinking_Level;
-     Request  :        GNATCOLL.JSON.JSON_Value)
-   is
-      pragma Unreferenced (P);
-
-      Effort : constant String := Reasoning_Effort (Thinking);
-   begin
-      if Effort'Length = 0 or else not Supports_Reasoning (Model_Id) then
-         return;
-      end if;
-
-      declare
-         Reasoning : constant GNATCOLL.JSON.JSON_Value :=
-            GNATCOLL.JSON.Create_Object;
-      begin
-         Reasoning.Set_Field ("effort", Effort);
-         Request.Set_Field ("reasoning", Reasoning);
-      end;
-   end Customize_Request;
-
    overriding
    procedure Send
       (P             : in out Provider;
@@ -129,6 +70,14 @@ package body LLM.Providers.OpenRouter is
    is
       Api_Key : constant String := Resolve_Api_Key (P);
    begin
+      --  Trigger a stale-cache refresh before sending so the live
+      --  model catalogue is available for reasoning-effort decisions.
+      declare
+         Models : LLM.Providers.OpenRouter.Catalogue.Catalogue_Vectors.Vector;
+      begin
+         LLM.Providers.OpenRouter.Catalogue.Load_Catalogue (Models);
+      end;
+
       if Api_Key'Length = 0 then
          raise LLM.HTTP.Curl_Error with
             "OpenRouter API key is not configured; set OPENROUTER_API_KEY or "

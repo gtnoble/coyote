@@ -1,14 +1,12 @@
 --  LLM.Providers.OpenRouter — OpenRouter chat-completions adapter.
 --
 --  Extends the base OpenAI chat-completions provider with OpenRouter's
---  default base URL, metadata headers, API-key resolution, and optional
---  reasoning-effort request field.
+--  default base URL, metadata headers, and API-key resolution.
+--  Reasoning-effort configuration is inherited from the base
+--  OpenAI_Completions provider.
 --
 --  Project: coyote
 --  For revision history, see the project version-control log.
-
-with GNATCOLL.JSON;
-with LLM.Providers;
 with LLM.Providers.OpenAI_Completions;
 with LLM.Types;
 
@@ -36,12 +34,5 @@ package LLM.Providers.OpenRouter is
 private
 
    type Provider is new LLM.Providers.OpenAI_Completions.Provider with null record;
-
-   overriding
-   procedure Customize_Request
-      (P        : in out Provider;
-     Model_Id :        String;
-     Thinking :        LLM.Providers.Thinking_Level;
-     Request  :        GNATCOLL.JSON.JSON_Value);
 
 end LLM.Providers.OpenRouter;

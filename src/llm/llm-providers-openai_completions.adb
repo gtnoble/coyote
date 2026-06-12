@@ -93,6 +93,22 @@ package body LLM.Providers.OpenAI_Completions is
             Value => To_Unbounded_String (Value)));
    end Add_Header;
 
+   function Reasoning_Effort
+      (Thinking : LLM.Providers.Thinking_Level) return String
+   is
+   begin
+      case Thinking is
+         when LLM.Providers.Off =>
+            return "";
+         when LLM.Providers.Minimal | LLM.Providers.Low =>
+            return "low";
+         when LLM.Providers.Medium =>
+            return "medium";
+         when LLM.Providers.High | LLM.Providers.X_High =>
+            return "high";
+      end case;
+   end Reasoning_Effort;
+
    procedure Customize_Request
       (P        : in out Provider;
      Model_Id :        String;
@@ -101,10 +117,20 @@ package body LLM.Providers.OpenAI_Completions is
    is
       pragma Unreferenced (P);
       pragma Unreferenced (Model_Id);
-      pragma Unreferenced (Thinking);
-      pragma Unreferenced (Request);
+
+      Effort : constant String := Reasoning_Effort (Thinking);
    begin
-      null;
+      if Effort'Length = 0 then
+         return;
+      end if;
+
+      declare
+         Reasoning : constant GNATCOLL.JSON.JSON_Value :=
+            GNATCOLL.JSON.Create_Object;
+      begin
+         Reasoning.Set_Field ("effort", Effort);
+         Request.Set_Field ("reasoning", Reasoning);
+      end;
    end Customize_Request;
 
    function Endpoint_Url (Base_Url : String) return String is
@@ -384,6 +410,7 @@ package body LLM.Providers.OpenAI_Completions is
       Message.Set_Field ("cache_control", Cache_Marker);
       GNATCOLL.JSON.Append (Messages, Message);
    end Append_System_Message;
+
    procedure Append_User_Message
       (Messages : in out GNATCOLL.JSON.JSON_Array;
      Msg      :        LLM.Types.Message)

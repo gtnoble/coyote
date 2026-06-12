@@ -636,9 +636,16 @@ extended by `OpenRouter`.
 6. Special case for image tool results: split into text stub + follow-up
    user message with `image_url` (OAI does not accept vision in role=tool).
 
+
 **`Wire_Format` field:** `"openai-completions"` — used by `LLM.Agent` to
 determine the `tools` JSON schema shape.
 
+**`Customize_Request` (non-overriding):** Maps `Thinking_Level` to the
+OpenAI `reasoning.effort` request field (`"low"`, `"medium"`, `"high"`).
+When `Thinking` is `Off` this is a no-op.  This base implementation applies
+to all providers routing through the OpenAI completions wire format —
+OpenRouter, GitHub Copilot (OpenAI-wire path), and OpenCode Go (OpenAI-wire
+path).  Descendants may override to add provider-specific logic.
 ---
 
 ### 5.7 `LLM.Providers.Anthropic_Messages`
@@ -999,12 +1006,15 @@ OpenRouter-specific base URL and request customisation.
 **`Create` function:** Sets base URL to `https://openrouter.ai/api/v1` and
 sets the `HTTP-Referer` and `X-Title` headers required by OpenRouter.
 
-**`Customize_Request` override:** Adds `"provider"` routing hints if present
-in the model entry's metadata.
+**`Customize_Request` (inherited):** Reasoning-effort configuration is
+inherited from the base `OpenAI_Completions` provider (§5.6).  OpenRouter
+no longer overrides `Customize_Request`; the base implementation maps
+`Thinking_Level` to `reasoning.effort` for all OpenAI-compatible providers.
 
 **Catalogue package `OpenRouter.Catalogue`:** Fetches
 `https://openrouter.ai/api/v1/models`, caches to
 `~/.coyote/openrouter_models_cache.json`. Each entry is parsed into a
+`Catalogue_Entry` record (id, display_name, context_length, pricing).
 `Catalogue_Entry` record (id, display_name, context_length, pricing).
 
 ---
