@@ -775,7 +775,7 @@ package body LLM.Providers.OpenAI_Completions is
             State.Stop := To_Stop_Reason (Choice.Get ("finish_reason").Get);
          end if;
 
-         if Has_String_Field (Delta_Value, "reasoning") then
+         if Has_String_Field (Delta_Value, "reasoning") or else Has_String_Field (Delta_Value, "reasoning_content") then
             if not State.Thinking_Started then
                Emit_Update (Handler, LLM.Events.Thinking_Start);
                State.Thinking_Started := True;
@@ -785,7 +785,7 @@ package body LLM.Providers.OpenAI_Completions is
                (Handler    => Handler,
            Kind       => LLM.Events.Thinking_Delta,
            Delta_Text => Normalize_Thinking_Delta
-                           (Get_String_Field (Delta_Value, "reasoning")));
+                           (Get_String_Field (Delta_Value, "reasoning") & Get_String_Field (Delta_Value, "reasoning_content")));
          end if;
 
       declare
@@ -879,12 +879,12 @@ package body LLM.Providers.OpenAI_Completions is
             State.Stop := To_Stop_Reason (Choice.Get ("finish_reason").Get);
          end if;
 
-         if Has_String_Field (Message, "reasoning") then
+         if Has_String_Field (Message, "reasoning") or else Has_String_Field (Message, "reasoning_content") then
             Emit_Update (Handler, LLM.Events.Thinking_Start);
             Emit_Update
                (Handler    => Handler,
            Kind       => LLM.Events.Thinking_Delta,
-           Delta_Text => Get_String_Field (Message, "reasoning"));
+           Delta_Text => Get_String_Field (Message, "reasoning") & Get_String_Field (Message, "reasoning_content"));
             State.Thinking_Started := True;
          end if;
 
