@@ -1699,7 +1699,7 @@ package body Coyote_SQC.App is
             if Coyote_SQC.Charts.Properties (K).Is_Quantile_CC_Chart then
                for QP of State.Charts (K).Quantile_Points loop
                   if QP.Has_OOC then
-                     OOC_Set.Insert (QP.Session_Id);
+                     OOC_Set.Include (QP.Session_Id);
                   end if;
                end loop;
             end if;

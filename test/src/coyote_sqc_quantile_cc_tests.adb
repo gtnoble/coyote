@@ -383,4 +383,82 @@ package body Coyote_SQC_Quantile_CC_Tests is
       end;
    end Test_Cache_Invalidation;
 
+
+   procedure Test_Sort_Through_Quantiles_Reverse (T : in out Test) is
+      pragma Unreferenced (T);
+      --  Reverse-sorted input should produce identical quantiles to
+      --  already-sorted input when the sort is correct.
+      Sorted : constant Long_Float_Array :=
+        (1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0);
+      Reverse_Sorted : Long_Float_Array :=
+        (10.0, 9.0, 8.0, 7.0, 6.0, 5.0, 4.0, 3.0, 2.0, 1.0);
+      Q_Sorted  : constant Quantile_Array := Compute_Quantiles (Sorted, 10);
+      Q_Reverse : constant Quantile_Array :=
+        Compute_Quantiles (Reverse_Sorted, 10);
+   begin
+      for I in Quantile_Index loop
+         Check_Quantile ("reverse " & I'Image,
+                         Q_Reverse (I), Q_Sorted (I));
+      end loop;
+   end Test_Sort_Through_Quantiles_Reverse;
+
+   procedure Test_Sort_Through_Quantiles_All_Equal (T : in out Test) is
+      pragma Unreferenced (T);
+      --  All-equal values: every quantile equals the common value.
+      Vals : Long_Float_Array (1 .. 20);
+      Q    : Quantile_Array;
+   begin
+      for I in Vals'Range loop
+         Vals (I) := 7.5;
+      end loop;
+      Q := Compute_Quantiles (Vals, 20);
+      for I in Quantile_Index loop
+         Check_Quantile ("all-equal " & I'Image, Q (I), 7.5);
+      end loop;
+   end Test_Sort_Through_Quantiles_All_Equal;
+
+   procedure Test_Sort_Through_Quantiles_Two_Desc (T : in out Test) is
+      pragma Unreferenced (T);
+      Vals : Long_Float_Array := (100.0, 1.0);
+      Q    : constant Quantile_Array := Compute_Quantiles (Vals, 2);
+   begin
+      --  After sort: (1.0, 100.0). Min=1.0, Q1=1.0, Med=1.0, Q3=100.0, Max=100.0
+      --  With R-7 interpolation: p=0*(1)=0 → idx=0 → 1.0; p=0.25*1=0.25 → idx=0,f=0.25*2+0.75*1=...
+      --  Actually for n=2: pos(0)=0, pos(0.25)=0.25, pos(0.5)=0.5, pos(0.75)=0.75, pos(1)=1
+      --  Idx=0+k: min(0)=1.0, Q1(.25)=1+0.25*99=25.75, med(.5)=50.5, Q3(.75)=75.25, max(1)=100
+      --  Just verify ordering: min ≤ Q1 ≤ med ≤ Q3 ≤ max and min=1.0, max=100.0
+      Check_Quantile ("two-min", Q (Min_Q), 1.0);
+      Check_Quantile ("two-max", Q (Max_Q), 100.0);
+      Assert (Q (Min_Q) <= Q (Q1),
+              "min <= Q1 for two elements");
+      Assert (Q (Q1) <= Q (Median_Q),
+              "Q1 <= median for two elements");
+      Assert (Q (Median_Q) <= Q (Q3),
+              "median <= Q3 for two elements");
+      Assert (Q (Q3) <= Q (Max_Q),
+              "Q3 <= max for two elements");
+   end Test_Sort_Through_Quantiles_Two_Desc;
+
+   procedure Test_Sort_Through_Quantiles_Larger (T : in out Test) is
+      pragma Unreferenced (T);
+      --  50 elements: odd/even mix, verify quantile ordering.
+      Vals : Long_Float_Array (1 .. 50);
+      Q    : Quantile_Array;
+   begin
+      --  Fill with a deterministic pattern that is not sorted.
+      for I in Vals'Range loop
+         Vals (I) := Long_Float (((I * 97 + 13) mod 50) + 1);
+      end loop;
+      Q := Compute_Quantiles (Vals, 50);
+      --  Verify quantile ordering invariants.
+      Assert (Q (Min_Q) <= Q (Q1),
+              "min <= Q1 for 50 elements");
+      Assert (Q (Q1) <= Q (Median_Q),
+              "Q1 <= median for 50 elements");
+      Assert (Q (Median_Q) <= Q (Q3),
+              "median <= Q3 for 50 elements");
+      Assert (Q (Q3) <= Q (Max_Q),
+              "Q3 <= max for 50 elements");
+   end Test_Sort_Through_Quantiles_Larger;
+
 end Coyote_SQC_Quantile_CC_Tests;

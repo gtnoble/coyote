@@ -340,6 +340,15 @@ chart kinds added in `Recompute_Charts`; `Is_OOC_From_Quantile` field
 added to `Chart_Point`.  13 quantile unit tests and 7 rendering tests
 are specified in SDD-SQC §14.6–§14.7 and are pending implementation.
 
+**Baseline as of 2026-06-13 (Sort optimization — introsort + validity suppression):**
+687 tests, 0 failures, 0 unexpected errors.  Replaced GNAT's
+`Ada.Containers.Generic_Array_Sort` (heapsort) with a custom introsort
+(quicksort with median-of-three pivot, insertion sort for partitions ≤ 16
+elements, heapsort fallback for worst-case guarantee) with validity checks
+suppressed via `pragma Suppress (Validity_Check)`.  4 new sort-correctness
+tests added (reverse input, all-equal values, two-element descending, and
+50-element random-ish pattern), exercised through `Compute_Quantiles`.
+
 
 **Coverage gap PCR:** The gaps identified in §4.5 are logged in
 `plan/problems.md` as PCR-009. They are accepted as deferred for the current

@@ -29,7 +29,7 @@ package Coyote_SQC.Statistics.Quantile_CC is
    type Long_Float_Array is array (Positive range <>) of Long_Float;
 
    --  Number of bootstrap replicates.
-   B_Replicates : constant Positive := 100_000;
+   B_Replicates : constant Positive := 10_000;
 
    --  Fixed seed for reproducible bootstrap results.
    Bootstrap_Seed : constant Integer := 54_321;

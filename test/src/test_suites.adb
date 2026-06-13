@@ -2145,6 +2145,22 @@ package body Test_Suites is
         ("Quantile CC: cache invalidation clears entries",
          Coyote_SQC_Quantile_CC_Tests
            .Test_Cache_Invalidation'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Quantile CC: sort through quantiles -- reverse input",
+         Coyote_SQC_Quantile_CC_Tests
+           .Test_Sort_Through_Quantiles_Reverse'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Quantile CC: sort through quantiles -- all equal values",
+         Coyote_SQC_Quantile_CC_Tests
+           .Test_Sort_Through_Quantiles_All_Equal'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Quantile CC: sort through quantiles -- two descending",
+         Coyote_SQC_Quantile_CC_Tests
+           .Test_Sort_Through_Quantiles_Two_Desc'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Quantile CC: sort through quantiles -- 50 random-ish",
+         Coyote_SQC_Quantile_CC_Tests
+           .Test_Sort_Through_Quantiles_Larger'Access));
 
       --  LLM.Providers.GitHub_Copilot.Catalogue tests
       Result.Add_Test (LLM_Catalogue_Caller.Create
