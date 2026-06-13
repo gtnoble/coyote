@@ -2,17 +2,12 @@
 --
 --  Project: coyote
 
-with Ada.Containers.Generic_Array_Sort;
 
 package body Coyote_SQC.Statistics.Quantile_CC is
 
    use Coyote_SQC.Data_Model;
 
    --  ── Sorting helpers ────────────────────────────────────────────────
-   procedure Sort_Array is new Ada.Containers.Generic_Array_Sort
-     (Index_Type   => Positive,
-      Element_Type => Long_Float,
-      Array_Type   => Long_Float_Array);
 
    --  In-place insertion sort — faster than heapsort for small N.
    --  Used in the inner bootstrap loop where N_I is typically < 50.
@@ -30,6 +25,87 @@ package body Coyote_SQC.Statistics.Quantile_CC is
          A (J) := Tmp;
       end loop;
    end Insertion_Sort;
+
+   --  In-place quicksort with median-of-three pivot.
+   --  Falls back to Insertion_Sort for segments of size <= 16.
+   --  Replaces the former Generic_Array_Sort (heapsort) instantiation
+   --  whose indirect element references consumed 61% of CPU in gprof.
+   procedure Quick_Sort (A : in out Long_Float_Array) is
+      Cutoff : constant Positive := 16;
+
+      function Median_Of_Three (Lo, Mid, Hi : Positive) return Positive is
+         V_Lo  : constant Long_Float := A (Lo);
+         V_Mid : constant Long_Float := A (Mid);
+         V_Hi  : constant Long_Float := A (Hi);
+      begin
+         if (V_Lo <= V_Mid and then V_Mid <= V_Hi)
+           or else (V_Hi <= V_Mid and then V_Mid <= V_Lo)
+         then
+            return Mid;
+         elsif (V_Mid <= V_Lo and then V_Lo <= V_Hi)
+           or else (V_Hi <= V_Lo and then V_Lo <= V_Mid)
+         then
+            return Lo;
+         else
+            return Hi;
+         end if;
+      end Median_Of_Three;
+
+      procedure Swap (I, J : Positive) is
+         Tmp : constant Long_Float := A (I);
+      begin
+         A (I) := A (J);
+         A (J) := Tmp;
+      end Swap;
+
+      procedure Sort_Segment (Lo, Hi : Positive) is
+      begin
+         if Hi - Lo + 1 <= Cutoff then
+            Insertion_Sort (A (Lo .. Hi));
+            return;
+         end if;
+
+         declare
+            Mid    : constant Positive := Lo + (Hi - Lo) / 2;
+            Pivot  : constant Positive := Median_Of_Three (Lo, Mid, Hi);
+            P_Val  : constant Long_Float := A (Pivot);
+         begin
+            Swap (Pivot, Hi);
+
+            declare
+               Store : Natural := Lo - 1;
+            begin
+               for J in Lo .. Hi - 1 loop
+                  if A (J) <= P_Val then
+                     Store := Store + 1;
+                     Swap (Store, J);
+                  end if;
+               end loop;
+
+               Swap (Store + 1, Hi);
+
+               declare
+                  Left_Sz  : constant Natural := Store + 1 - Lo;
+                  Right_Sz : constant Natural := Hi - (Store + 1);
+                  Piv_Pos  : constant Positive := Store + 1;
+               begin
+                  if Left_Sz < Right_Sz then
+                     Sort_Segment (Lo, Piv_Pos - 1);
+                     Sort_Segment (Piv_Pos + 1, Hi);
+                  else
+                     Sort_Segment (Piv_Pos + 1, Hi);
+                     Sort_Segment (Lo, Piv_Pos - 1);
+                  end if;
+               end;
+            end;
+         end;
+      end Sort_Segment;
+
+   begin
+      if A'Length > 1 then
+         Sort_Segment (A'First, A'Last);
+      end if;
+   end Quick_Sort;
 
    --  ── Random number generation ─────────────────────────────────────────
    --  Simple 31-bit linear congruential generator for reproducibility
@@ -90,11 +166,7 @@ package body Coyote_SQC.Statistics.Quantile_CC is
            "Compute_Quantiles: Values'Length < N";
       end if;
 
-      if N <= 50 then
-         Insertion_Sort (Sorted_Vals);
-      else
-         Sort_Array (Sorted_Vals);
-      end if;
+      Quick_Sort (Sorted_Vals);
 
       Result (Min_Q)    := Linear_Quantile (0.00);
       Result (Q1)       := Linear_Quantile (0.25);
@@ -117,7 +189,7 @@ package body Coyote_SQC.Statistics.Quantile_CC is
       for I in A'Range loop
          A (I) := V.Element (I - 1);
       end loop;
-      Sort_Array (A);
+      Quick_Sort (A);
       for I in A'Range loop
          V.Replace_Element (I - 1, A (I));
       end loop;
