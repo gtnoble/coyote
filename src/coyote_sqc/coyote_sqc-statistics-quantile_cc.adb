@@ -108,7 +108,9 @@ package body Coyote_SQC.Statistics.Quantile_CC is
       end Sort_Segment;
 
    begin
-      if A'Length > 1 then
+      if A'Length > 100 then
+         Sort_Array (A);
+      elsif A'Length > 1 then
          Sort_Segment (A'First, A'Last);
       end if;
    end Quick_Sort;
