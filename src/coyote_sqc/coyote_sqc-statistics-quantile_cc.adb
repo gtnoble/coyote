@@ -230,7 +230,7 @@ package body Coyote_SQC.Statistics.Quantile_CC is
          if Max = 0 then
             return 0;
          end if;
-         return Natural (Float'Floor (Float (Rand) * Float (Max)));
+         return Natural (Rand * Float (Max));
       end Random_Natural;
 
    begin
