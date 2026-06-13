@@ -3,6 +3,7 @@
 --  Project: coyote
 
 with Ada.Exceptions;
+with Ada.Unchecked_Deallocation;
 with Ada.Calendar;
 with Ada.Numerics.Long_Elementary_Functions;
 with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
@@ -1101,7 +1102,12 @@ package body Coyote_SQC.App is
             --  Build the reference pool: flattened subgroup values from
             --  all eligible setup-interval sessions, plus offsets and
             --  lengths for per-session grouping.
-            Pool_Vals    : Long_Float_Array (1 .. 1024 * 1024);
+            type Pool_Acc is access Long_Float_Array;
+            Pool_Vals : Pool_Acc :=
+              new Long_Float_Array (1 .. 1024 * 1024);
+            procedure Free_Pool is
+              new Ada.Unchecked_Deallocation
+                (Long_Float_Array, Pool_Acc);
             Pool_Offs    : Data_Model.Natural_Vectors.Vector;
             Pool_Lens    : Data_Model.Natural_Vectors.Vector;
             Pool_Idx     : Natural := 0;
@@ -1118,8 +1124,8 @@ package body Coyote_SQC.App is
                end if;
                Pool_Offs.Append (Pool_Idx);
                Pool_Lens.Append (Len);
-               for I in 0 .. Len - 1 loop
-                  Pool_Vals (Pool_Idx + I + 1) := Vals.Element (I);
+               for I in 1 .. Len loop
+                  Pool_Vals (Pool_Idx + I) := Vals.Element (I);
                end loop;
                Pool_Idx := Pool_Idx + Len;
                Pool_Count := Pool_Count + 1;
@@ -1209,7 +1215,7 @@ package body Coyote_SQC.App is
                               Sorted : Long_Float_Array (1 .. N_I);
                            begin
                               for J in 1 .. N_I loop
-                                 Sorted (J) := LFV.Element (J - 1);
+                                 Sorted (J) := LFV.Element (J);
                               end loop;
                               QP.Values := Compute_Quantiles (Sorted, N_I);
                            end;
@@ -1243,6 +1249,7 @@ package body Coyote_SQC.App is
                end;
             end loop;
 
+            Free_Pool (Pool_Vals);
             CD.Is_Retro := Is_Retro;
             State.Charts (Kind) := CD;
             return;

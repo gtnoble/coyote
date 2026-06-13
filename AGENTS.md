@@ -85,6 +85,9 @@ the `coyote-skill-author` skill for a condensed quick-reference.
 # Build (development profile, default)
 alr build
 
+# Build with gprof profiling enabled
+# alr build -- -XCOYOTE_PROFILE=true
+
 # Build release — DO NOT USE unless explicitly requested by the user
 # alr build --release
 
@@ -96,9 +99,9 @@ Object files go to `obj/<profile>/`, binaries to `bin/`.
 
 **Build profile discipline — always use development:**
 
-- Always build with plain `alr build` (no `--release` or `--validation` flag).
+- Always build with plain `alr build` (no `--release`, `--validation`, or profiling flag).
 - The config in `config/coyote_config.*` must always reflect the `development`
-  profile. If it ever shows `release` or `validation`, treat that as a bug and
+  profile. If it ever shows `release`, `validation`, or profiling, treat that as a bug and
   revert it before proceeding.
 - Never deviate from either rule without an explicit instruction from the user.
 

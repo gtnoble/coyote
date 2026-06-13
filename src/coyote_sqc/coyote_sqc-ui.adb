@@ -2,6 +2,7 @@ with Gdk.Types;              use Gdk.Types;
 with Gdk.Types.Keysyms;
 with Gtk.Accel_Group;
 with Ada.Exceptions;
+with Ada.Text_IO;
 with Gdk.Event;
 with Gtk.Dialog;
 with Gtk.Drawing_Area;
@@ -280,6 +281,10 @@ package body Coyote_SQC.UI is
                Rebuild_Recent_Submenu;
             exception
                when E : others =>
+                  Ada.Text_IO.Put_Line
+                    (Ada.Text_IO.Standard_Error,
+                     "coyote_sqc: workspace open failed: "
+                     & Ada.Exceptions.Exception_Information (E));
                   Coyote_SQC.UI.Dialogs.Error
                     (Coyote_SQC.App.State.Main_Window,
                      "Open Failed",
@@ -412,6 +417,10 @@ package body Coyote_SQC.UI is
          Coyote_SQC.UI.Chart_Canvas.Queue_Redraw;
       exception
          when E : others =>
+            Ada.Text_IO.Put_Line
+              (Ada.Text_IO.Standard_Error,
+               "coyote_sqc: workspace open failed: "
+               & Ada.Exceptions.Exception_Information (E));
             Coyote_SQC.UI.Dialogs.Error
               (Coyote_SQC.App.State.Main_Window,
                "Open Failed",

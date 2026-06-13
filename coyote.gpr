@@ -12,6 +12,8 @@ project Coyote is
    for Main use ("coyote.adb", "coyote_list_sessions.adb",
                  "coyote_open.adb", "coyote_sqc_main.adb");
 
+   --  gprof profiling flag; passed via -XCOYOTE_PROFILE=true.
+   Profile_Enabled := external ("COYOTE_PROFILE", "false");
 
    package Builder is
       for Executable ("coyote_sqc_main.adb") use "coyote_sqc";
@@ -19,7 +21,12 @@ project Coyote is
 
    package Compiler is
       for Default_Switches ("Ada") use Coyote_Config.Ada_Compiler_Switches;
-      for Switches ("C") use ("-O2", "-I/usr/include/x86_64-linux-gnu");
+      case Profile_Enabled is
+         when "true" =>
+            for Switches ("C") use ("-O2", "-I/usr/include/x86_64-linux-gnu", "-pg");
+         when others =>
+            for Switches ("C") use ("-O2", "-I/usr/include/x86_64-linux-gnu");
+      end case;
    end Compiler;
 
    package Binder is
@@ -27,7 +34,12 @@ project Coyote is
    end Binder;
 
    package Linker is
-      for Switches ("Ada") use ("-lcurl", "-lutil", "-lcmark-gfm", "-lcmark-gfm-extensions");
+      case Profile_Enabled is
+         when "true" =>
+            for Switches ("Ada") use ("-lcurl", "-lutil", "-lcmark-gfm", "-lcmark-gfm-extensions", "-pg");
+         when others =>
+            for Switches ("Ada") use ("-lcurl", "-lutil", "-lcmark-gfm", "-lcmark-gfm-extensions");
+      end case;
    end Linker;
 
    package Install is

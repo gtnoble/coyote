@@ -141,6 +141,7 @@ the point of decision, not reconstructed post-hoc.
 ### 4.2 Development Environment
 
 **Compiler / build:** GNAT (Ada 2022), Alire (`alr build`), GPRbuild.
+Profiling builds: `alr build -- -XCOYOTE_PROFILE=true` (adds `-pg` for gprof).
 Object files: `obj/development/`. Binaries: `bin/`.
 
 **Test environment:** AUnit test suite in `test/`. Run with

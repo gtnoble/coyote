@@ -157,7 +157,7 @@ package body Coyote_SQC.Statistics.Quantile_CC is
                declare
                   Pick : constant Natural := Random_Natural (Sess_Size);
                begin
-                  Resample_Buf (J) := Pool_Values (Offset + Pick);
+                  Resample_Buf (J) := Pool_Values (Offset + Pick + 1);
                end;
             end loop;
 
