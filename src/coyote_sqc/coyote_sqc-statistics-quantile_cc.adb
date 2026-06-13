@@ -108,9 +108,7 @@ package body Coyote_SQC.Statistics.Quantile_CC is
       end Sort_Segment;
 
    begin
-      if A'Length > 500 then
-         Sort_Array (A);
-      elsif A'Length > 1 then
+      if A'Length > 1 then
          Sort_Segment (A'First, A'Last);
       end if;
    end Quick_Sort;
@@ -197,7 +195,7 @@ package body Coyote_SQC.Statistics.Quantile_CC is
       for I in A'Range loop
          A (I) := V.Element (I - 1);
       end loop;
-      Quick_Sort (A);
+      Sort_Array (A);
       for I in A'Range loop
          V.Replace_Element (I - 1, A (I));
       end loop;
