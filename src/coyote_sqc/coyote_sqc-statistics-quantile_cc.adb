@@ -1,6 +1,7 @@
 --  Coyote_SQC.Statistics.Quantile_CC body.
 --
 --  Project: coyote
+with Ada.Containers.Generic_Array_Sort;
 
 
 package body Coyote_SQC.Statistics.Quantile_CC is
@@ -25,6 +26,11 @@ package body Coyote_SQC.Statistics.Quantile_CC is
          A (J) := Tmp;
       end loop;
    end Insertion_Sort;
+
+   procedure Sort_Array is new Ada.Containers.Generic_Array_Sort
+     (Index_Type   => Positive,
+      Element_Type => Long_Float,
+      Array_Type   => Long_Float_Array);
 
    --  In-place quicksort with median-of-three pivot.
    --  Falls back to Insertion_Sort for segments of size <= 16.
@@ -102,7 +108,9 @@ package body Coyote_SQC.Statistics.Quantile_CC is
       end Sort_Segment;
 
    begin
-      if A'Length > 1 then
+      if A'Length > 500 then
+         Sort_Array (A);
+      elsif A'Length > 1 then
          Sort_Segment (A'First, A'Last);
       end if;
    end Quick_Sort;
@@ -144,7 +152,7 @@ package body Coyote_SQC.Statistics.Quantile_CC is
 
       function Linear_Quantile (P : Long_Float) return Long_Float is
          Pos : constant Long_Float := P * Long_Float (N - 1);
-         K   : constant Natural     := Natural (Long_Float'Floor (Pos));
+         K   : constant Natural     := Natural (Pos);
          F   : constant Long_Float  := Pos - Long_Float (K);
          Idx1 : constant Positive   := K + 1;
          Idx2 : constant Positive   := Positive'Min (K + 2, N);
