@@ -230,7 +230,7 @@ package body Coyote_SQC.Statistics.Quantile_CC is
          if Max = 0 then
             return 0;
          end if;
-         return Natural (Rand * Float (Max));
+         return Natural'Min (Natural (Rand * Float (Max)), Max - 1);
       end Random_Natural;
 
    begin
