@@ -182,6 +182,131 @@ defeat the purpose of the overlap.
 
 ### Quantile Control Chart — SRS and SDD (2026-06-13)
 
+### Quantile Control Chart — Implementation start (2026-06-13)
+
+**New files created:**
+- `src/coyote_sqc/coyote_sqc-statistics-quantile_cc.ads` — public spec: two-stage
+  bootstrap (B=100 000), five R-type-7 quantile computation, per-component
+  Bonferroni-corrected limit extraction (rank 27/99 974 at α=0.0027 family-wise),
+  OOC detection, lazy caching by subgroup size `n_i`
+- `src/coyote_sqc/coyote_sqc-statistics-quantile_cc.adb` — full body: 31-bit LCG
+  (glibc parameters) for reproducible RNG with fixed seed 54 321, generic array
+  sort for quantile ordering, vector sort for bootstrap distribution ordering,
+  `Build_Distribution` with two-stage resampling (random session → n_i draws with
+  replacement → five quantiles), cache vector with linear lookup by n_i
+
+**Enumeration and metadata (`coyote_sqc-charts.ads/.adb`):**
+- Four new `Chart_Kind` values appended: `Turn_Tokens_Quantile`,
+  `Tool_Call_Tokens_Quantile`, `Thinking_Tokens_Quantile`, `Tool_Call_JSD_Quantile`
+- `Is_Quantile_CC_Chart : Boolean` field added to `Chart_Properties`; every existing
+  chart kind gets `False` via Perl batch insertion; four new kinds get `True`
+- Left-panel group `"Quantile Profiles" / "Quantile Profiles"` with four chart
+  labels; comment updated from "forty-eight" to "fifty-five charts"
+
+**Application state (`coyote_sqc-app.ads/.adb`):**
+- `Quantile_Point` record added: `Session_Id`, `Session_Index`, `Session_Time`,
+  `N` (subgroup size), `Excluded`, `In_Setup`, `Has_Comment`, `Values`
+  (`Quantile_Array`), `Limits` (`Quantile_Limits_Array`), `OOC_Comps`
+  (`Quantile_Component_Set`), `Has_OOC`
+- `Quantile_Point_Vectors` container instantiation added
+- `Chart_Data` extended: `Quantile_Points : Quantile_Point_Vectors.Vector`,
+  `Quantile_Cache : Quantile_CC_Cache`
+- `Chart_Point` extended: `Is_OOC_From_Quantile : Boolean` — set when any
+  Quantile CC flag a session as out-of-control
+- `with Coyote_SQC.Statistics.Quantile_CC` added to spec
+- `Compute_Session_Stat`: stub for all four Quantile CC kinds (`Excluded := True`)
+- `Descriptor`: four new entries mapping subgroup accessors (`Sub_Output_Tokens`,
+  `Sub_Tool_Tokens`, `Sub_Thinking_Tokens`, `Sub_JSD_S`) and exclusion rules
+  (`No_Exclusion`, `Zero_Tool_Call_Turns`, `Zero_Thinking`, `Zero_Tool_Call_Turns`)
+- `Recompute_Chart`: ~170-line Quantile CC path (gated by
+  `Props.Is_Quantile_CC_Chart`) that:
+  - Builds a reference pool by flattening subgroup vectors from eligible
+    setup-interval sessions into a single `Long_Float_Array` (1 MiB max) with
+    per-session offset/length index vectors
+  - Applies per-chart exclusion rules (`Zero_Thinking`, `Zero_Tool_Call_Turns`)
+  - For each session: extracts subgroup values, sorts and computes five quantiles
+    via `Compute_Quantiles`, looks up cached bootstrap distribution by `n_i`,
+    extracts Bonferroni-corrected limits via `Extract_Limits`, flags OOC
+    components and session status
+  - Returns early from normal `Chart_Point` loop
+  - `Clear_Cache (CD.Quantile_Cache)` called at start to flush stale distributions
+- `Recompute_Charts`: OOC propagation block after `Update_Menu_States` — collects
+  all session UUIDs flagged `Has_OOC` on any Quantile CC chart, then sets
+  `Is_OOC_From_Quantile` on matching `Chart_Point` entries in every non-Quantile
+  chart kind
+- `Chart_Point` aggregate extended with `Is_OOC_From_Quantile => False`
+- `Has_Comment` call restructured to inline call with comma for new field
+
+**Statistics (`coyote_sqc-statistics.adb`):**
+- Two `Estimate_Parameters` case statements updated with null handlers for the
+  four Quantile CC chart kinds (`null; -- Quantile CC uses bootstrap` and
+  `Parameters.Parameters_Valid := False;`)
+
+**Build status:** Clean build with no errors.  All 670 existing AUnit tests
+pass (zero regressions).
+
+### Quantile Control Chart — Implementation complete (2026-06-13)
+
+All remaining work from the 2026-06-13 start log is now complete:
+
+**Canvas rendering** (`coyote_sqc-ui-chart_canvas.adb`):
+- Quantile helpers (`Quantile_Point_X`, `Vis_Quantile`) at package level
+  for x-coordinate and date-range visibility checks
+- On_Draw: `Vis_Quantile` inlined at the Hit_Test and Rubberband_Select
+  call sites (local scope issue)
+- Step 2b: Quantile-specific setup-interval yellow band (parallel to
+  regular Points band, keyed on `Quantile_Points`)
+- Step 5b (replaces steps 3–6 for Quantile CC): renders 5 horizontal
+  component lines (min/Q1/med/Q3/max) at half-widths 6/10/14/10/6 px,
+  each inside a hollow control-limit box; drawn in order median→Q1/Q3→
+  min/max so narrower bars overdraw wider ones
+- Color selection per §12.7: black/gray (in-control/no-comment),
+  green (in-control/comment), red (OOC/no-comment), orange (OOC/comment)
+- Log Y guard: components with non-positive values skipped
+- Step 6a: setup-interval yellow ring, Set A blue halo, Set B orange
+  halo — each drawn as a Cairo rectangle around the bounding box of the
+  full diagram (3 px outside, 2 px stroke)
+- Hit testing: checks vertical extent of each diagram's components;
+  returns the session UUID on overlap
+- Rubber-band selection: analogously checks diagram bounding-box
+  intersection with the selection rectangle
+
+**Quantile CC `with` added:** `Coyote_SQC.Statistics.Quantile_CC` imported
+in chart_canvas.adb after the Toolbar import.
+
+**Hover tooltip** (`coyote_sqc-ui-hover_tooltip.adb`):
+- `Build_Stats_Line` function replaces the old `Limits_Line` constant;
+  dual-mode logic: when `QP_Found` is True (Quantile CC chart), shows
+  `n = N turns` plus per-component values with UCL/LCL and a `← out-of-control`
+  annotation for components flagged OOC; when `Pt_Found` (regular chart),
+  shows CL/UCL/LCL as before
+- `Quantile_CC` import added; `QP_Found`/`QP` declarations inserted
+  after the existing `Pt`/`Pt_Found` declarations
+- Quantile-Point lookup block inserted after the Chart-Point lookup block
+
+**Bug fixes during implementation:**
+- LCG overflow: `LC_State.X` changed from `Integer` to `Long_Long_Integer`,
+  `Modulus` likewise; multiplication now uses `Long_Long_Integer(1_103_515_245)`
+  to avoid intermediate overflow on 32-bit `Integer`
+- 0-based index: `Random_Natural(K)` → `Random_Natural(K) + 1` so the
+  session bucket index is 1-based as `Pool_Offsets.Element` expects
+
+**Unit tests** (13 new, all passing):
+- `test/src/coyote_sqc_quantile_cc_tests.ads` — test suite spec using
+  `AUnit.Test_Fixtures.Test_Fixture`
+- `test/src/coyote_sqc_quantile_cc_tests.adb` — 13 tests using a
+  `Build_Small_Dist` helper with `Small_B = 200` to keep bootstrap
+  computation fast (≈ 2 ms per test)
+- `test/src/test_suites.adb` — `with` clause and `SQC_Quantile_CC_Caller`
+  instantiation added; 13 test registrations appended after the
+  integrity-test block
+
+**Build status:** Clean build; all 683 AUnit tests pass (0 failures,
+0 unexpected errors).  No regressions.
+adaptation for quantile points, unit tests (13 statistical + 7 rendering
+tests per §14.6–§14.7).
+
+
 Added SRS-SQC §5.18 (Quantile Control Chart — Bootstrap Methodology), four
 new chart definitions (§6.42–6.45: Turn Tokens, Tool Call Tokens, Thinking
 Tokens, and Tool Call JSD Quantile Control Charts), §7.3.2a (Quantile CC

@@ -312,6 +312,12 @@ package body Coyote_SQC.App is
                Value := StdDev_LF_F (Metrics.Per_Consecutive_Tool_S);
             end if;
 
+         --  Quantile CC charts: handled separately in Recompute_Chart.
+         when Turn_Tokens_Quantile
+            | Tool_Call_Tokens_Quantile
+            | Thinking_Tokens_Quantile
+            | Tool_Call_JSD_Quantile =>
+            Excluded := True;
       end case;
    end Compute_Session_Stat;
 
@@ -572,6 +578,18 @@ package body Coyote_SQC.App is
             | Session_Tool_Call_JSD_Sum_MR
             | Session_Tool_Call_JSD_Sum_EWMA =>
             D.Get_Observation := Obs_Tool_JSD_Sum'Access;
+            D.Exclusion_Rule  := Zero_Tool_Call_Turns;
+         when Turn_Tokens_Quantile =>
+            D.Get_Subgroup   := Sub_Output_Tokens'Access;
+            D.Exclusion_Rule := No_Exclusion;
+         when Tool_Call_Tokens_Quantile =>
+            D.Get_Subgroup   := Sub_Tool_Tokens'Access;
+            D.Exclusion_Rule := Zero_Tool_Call_Turns;
+         when Thinking_Tokens_Quantile =>
+            D.Get_Subgroup   := Sub_Thinking_Tokens'Access;
+            D.Exclusion_Rule := Zero_Thinking;
+         when Tool_Call_JSD_Quantile =>
+            D.LF_Get_Subgroup := Sub_JSD_S'Access;
             D.Exclusion_Rule  := Zero_Tool_Call_Turns;
       end case;
       return D;
@@ -1071,6 +1089,165 @@ package body Coyote_SQC.App is
       if Props.Is_EWMA_Chart then
          Z_Ewma_Prev := CD.Params.Grand_Mean;
       end if;
+
+      --  ── Quantile Control Chart path ──────────────────────────────────
+      if Props.Is_Quantile_CC_Chart then
+         --  Quantile CC uses a two-stage bootstrap; the regular Chart_Point
+         --  loop is skipped.  Instead, Quantile_Points are populated with
+         --  the five-quantile statistics and bootstrap-based limits.
+         declare
+            use Coyote_SQC.Statistics.Quantile_CC;
+
+            --  Build the reference pool: flattened subgroup values from
+            --  all eligible setup-interval sessions, plus offsets and
+            --  lengths for per-session grouping.
+            Pool_Vals    : Long_Float_Array (1 .. 1024 * 1024);
+            Pool_Offs    : Data_Model.Natural_Vectors.Vector;
+            Pool_Lens    : Data_Model.Natural_Vectors.Vector;
+            Pool_Idx     : Natural := 0;
+            Pool_Count   : Natural := 0;
+
+            procedure Append_Subgroup (Vals : Long_Float_Vectors.Vector) is
+               Len : constant Natural := Natural (Vals.Length);
+            begin
+               if Len = 0 then
+                  return;
+               end if;
+               if Pool_Idx + Len > Pool_Vals'Last then
+                  return;  --  safety clamp
+               end if;
+               Pool_Offs.Append (Pool_Idx);
+               Pool_Lens.Append (Len);
+               for I in 0 .. Len - 1 loop
+                  Pool_Vals (Pool_Idx + I + 1) := Vals.Element (I);
+               end loop;
+               Pool_Idx := Pool_Idx + Len;
+               Pool_Count := Pool_Count + 1;
+            end Append_Subgroup;
+
+            Is_Retro : constant Boolean :=
+              State.Workspace.Setup_Session_Ids.Is_Empty;
+         begin
+            --  Populate the reference pool from setup-interval sessions
+            --  (or all sessions for retrospective mode).
+            for M of State.All_Metrics loop
+               if Is_Retro
+                 or else State.Workspace.Setup_Session_Ids.Contains
+                           (M.Session_Id)
+               then
+                  case Dsc.Exclusion_Rule is
+                     when Zero_Thinking =>
+                        if not M.Any_Thinking then
+                           goto Skip_Pool_Session;
+                        end if;
+                     when Zero_Tool_Call_Turns =>
+                        if M.N_Tool_Call_Turns_For_Chart = 0 then
+                           goto Skip_Pool_Session;
+                        end if;
+                     when others => null;
+                  end case;
+
+                  declare
+                     LFV : constant Long_Float_Vectors.Vector :=
+                       Get_LF_Values (M);
+                  begin
+                     if Natural (LFV.Length) > 0 then
+                        Append_Subgroup (LFV);
+                     end if;
+                  end;
+               end if;
+               <<Skip_Pool_Session>>
+            end loop;
+
+            --  Clear and reuse the per-chart quantile cache.
+            Clear_Cache (CD.Quantile_Cache);
+
+            --  Compute one quantile diagram per session.
+            CD.Quantile_Points.Clear;
+            for I in 1 .. Natural (State.Sessions.Length) loop
+               declare
+                  Sess  : constant Data_Model.Session_Record :=
+                    State.Sessions.Element (I);
+                  M     : constant Data_Model.Session_Metrics_Record :=
+                    State.All_Metrics.Element (I);
+                  In_Setup : constant Boolean :=
+                    State.Workspace.Setup_Session_Ids.Contains
+                      (Sess.Session_Id);
+                  Has_Comm : constant Boolean :=
+                    Has_Comment (To_String (Sess.Session_Id));
+                  QP : Quantile_Point;
+               begin
+                  QP.Session_Id    := Sess.Session_Id;
+                  QP.Session_Index := I;
+                  QP.Session_Time  := Sess.Start_Time;
+                  QP.In_Setup      := In_Setup;
+                  QP.Has_Comment   := Has_Comm;
+
+                  case Dsc.Exclusion_Rule is
+                     when Zero_Thinking =>
+                        if not M.Any_Thinking then
+                           QP.Excluded := True;
+                        end if;
+                     when Zero_Tool_Call_Turns =>
+                        if M.N_Tool_Call_Turns_For_Chart = 0 then
+                           QP.Excluded := True;
+                        end if;
+                     when others => null;
+                  end case;
+
+                  if not QP.Excluded then
+                     declare
+                        LFV : constant Long_Float_Vectors.Vector :=
+                          Get_LF_Values (M);
+                        N_I : constant Natural := Natural (LFV.Length);
+                     begin
+                        if N_I = 0 then
+                           QP.Excluded := True;
+                        else
+                           QP.N := N_I;
+                           declare
+                              Sorted : Long_Float_Array (1 .. N_I);
+                           begin
+                              for J in 1 .. N_I loop
+                                 Sorted (J) := LFV.Element (J - 1);
+                              end loop;
+                              QP.Values := Compute_Quantiles (Sorted, N_I);
+                           end;
+                           if Pool_Count > 0 then
+                              declare
+                                 Dist : constant Bootstrap_Distribution :=
+                                   Get_Distribution
+                                     (CD.Quantile_Cache,
+                                      Pool_Vals (1 .. Pool_Idx),
+                                      Pool_Offs, Pool_Lens,
+                                      N_I);
+                              begin
+                                 QP.Limits := Extract_Limits (Dist);
+                              end;
+                           else
+                              for Comp in Quantile_Index loop
+                                 QP.Limits (Comp) :=
+                                   (UCL => 0.0, CL => 0.0, LCL => 0.0,
+                                    Has_UCL => False, Has_LCL => False);
+                              end loop;
+                           end if;
+                           QP.OOC_Comps :=
+                             OOC_Components (QP.Values, QP.Limits);
+                           QP.Has_OOC :=
+                             Session_Is_OOC (QP.Values, QP.Limits);
+                        end if;
+                     end;
+                  end if;
+
+                  CD.Quantile_Points.Append (QP);
+               end;
+            end loop;
+
+            CD.Is_Retro := Is_Retro;
+            State.Charts (Kind) := CD;
+            return;
+         end;
+      end if;
       --  Compute one point per session.
       for I in 1 .. Natural (State.Sessions.Length) loop
          declare
@@ -1489,8 +1666,8 @@ package body Coyote_SQC.App is
                 Single_Turn   => Single,
                 In_Setup      => In_Setup,
                 Hollow_Gray   => HGray,
-                Has_Comment   => Has_Comment
-                                   (To_String (Sess.Session_Id))));
+                Has_Comment   => Has_Comment (To_String (Sess.Session_Id)),
+                Is_OOC_From_Quantile => False));
          end;
       end loop;
 
@@ -1503,6 +1680,33 @@ package body Coyote_SQC.App is
          Recompute_Chart (K);
       end loop;
       Update_Menu_States;
+
+      --  ── OOC propagation: Quantile CC → other charts ──────────────────
+      --  Collect all session UUIDs flagged out-of-control on any Quantile
+      --  CC chart, then set Is_OOC_From_Quantile on those sessions'
+      --  Chart_Point entries in every non-Quantile chart kind.
+      declare
+         OOC_Set : Data_Model.UUID_Set;
+      begin
+         for K in Chart_Kind loop
+            if Coyote_SQC.Charts.Properties (K).Is_Quantile_CC_Chart then
+               for QP of State.Charts (K).Quantile_Points loop
+                  if QP.Has_OOC then
+                     OOC_Set.Insert (QP.Session_Id);
+                  end if;
+               end loop;
+            end if;
+         end loop;
+         for K in Chart_Kind loop
+            if not Coyote_SQC.Charts.Properties (K).Is_Quantile_CC_Chart then
+               for P of State.Charts (K).Points loop
+                  if OOC_Set.Contains (P.Session_Id) then
+                     P.Is_OOC_From_Quantile := True;
+                  end if;
+               end loop;
+            end if;
+         end loop;
+      end;
    end Recompute_Charts;
 
    --  ── Reload_Sessions ──────────────────────────────────────────────────

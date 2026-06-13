@@ -391,6 +391,9 @@ package body Coyote_SQC.Statistics is
                   Accumulate_I (M.Total_Tool_Call_JSD_S);
                end if;
 
+            when Turn_Tokens_Quantile | Tool_Call_Tokens_Quantile
+               | Thinking_Tokens_Quantile | Tool_Call_JSD_Quantile =>
+               null;  --  Quantile CC uses bootstrap; no parameters to accumulate.
 
          end case;
 
@@ -591,6 +594,10 @@ package body Coyote_SQC.Statistics is
                end if;
                end if;
             end if;
+         when Turn_Tokens_Quantile | Tool_Call_Tokens_Quantile
+            | Thinking_Tokens_Quantile | Tool_Call_JSD_Quantile =>
+            Parameters.Parameters_Valid := False;
+            --  Quantile CC uses bootstrap; no classical parameters to finalize.
 
       end case;
    end Estimate_Parameters;

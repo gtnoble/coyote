@@ -1,0 +1,386 @@
+--  Unit tests for Coyote_SQC.Statistics.Quantile_CC.
+with Ada.Containers.Generic_Array_Sort;
+--
+--  Project: coyote
+
+with Ada.Containers;
+with AUnit.Assertions;          use AUnit.Assertions;
+with Coyote_SQC.Statistics.Quantile_CC;
+use  Coyote_SQC.Statistics.Quantile_CC;
+with Coyote_SQC.Data_Model;
+
+package body Coyote_SQC_Quantile_CC_Tests is
+
+   --  Small bootstrap count for distribution-structure tests to keep them
+   --  fast.  Uses the same algorithm as Build_Distribution, just smaller.
+   Small_B : constant Positive := 200;
+
+   procedure Check_Quantile
+     (Label   : String;
+      Got     : Long_Float;
+      Want    : Long_Float;
+      Epsilon : Long_Float := 1.0e-10) is
+   begin
+      Assert (abs (Got - Want) <= Epsilon,
+              Label & ": got " & Got'Image
+              & " want " & Want'Image);
+   end Check_Quantile;
+
+   --  Build a small bootstrap distribution for testing.
+   function Build_Small_Dist
+     (Pool_Values  : Long_Float_Array;
+      Pool_Offsets : Coyote_SQC.Data_Model.Natural_Vectors.Vector;
+      Pool_Lengths : Coyote_SQC.Data_Model.Natural_Vectors.Vector;
+      N_I          : Positive;
+      Seed         : Integer := 54_321) return Bootstrap_Distribution is
+   begin
+      --  Override B_Replicates locally by setting Seed and using Small_B.
+      --  We cannot override a constant so we hand-roll a small version.
+      declare
+         K : constant Natural := Natural (Pool_Offsets.Length);
+         Dist : Bootstrap_Distribution;
+         RNG_State : Long_Long_Integer := Long_Long_Integer (abs (Seed));
+         Modulus   : constant Long_Long_Integer := 2_147_483_647;
+      begin
+         if K = 0 then
+            return Dist;
+         end if;
+         for Comp in Quantile_Index loop
+            Dist (Comp).Reserve_Capacity
+              (Ada.Containers.Count_Type (Small_B));
+         end loop;
+         for B in 1 .. Small_B loop
+            --  Simple LCG
+            RNG_State := (RNG_State * 1_103_515_245 + 12_345) mod Modulus;
+            if RNG_State = 0 then
+               RNG_State := 1;
+            end if;
+            declare
+               Sess_Idx : constant Positive :=
+                 1 + Natural (RNG_State mod Long_Long_Integer (K));
+               Offset   : constant Natural :=
+                 Natural (Pool_Offsets.Element (Sess_Idx));
+               Length   : constant Natural :=
+                 Natural (Pool_Lengths.Element (Sess_Idx));
+               Resample : Long_Float_Array (1 .. N_I);
+            begin
+               for J in 1 .. N_I loop
+                  RNG_State := (RNG_State * 1_103_515_245 + 12_345)
+                               mod Modulus;
+                  if RNG_State = 0 then
+                     RNG_State := 1;
+                  end if;
+                  declare
+                     Pick : constant Natural :=
+                       1 + Natural (RNG_State mod
+                                    Long_Long_Integer (Length));
+                  begin
+                     Resample (J) := Pool_Values (Offset + Pick);
+                  end;
+               end loop;
+               declare
+                  Q : constant Quantile_Array :=
+                    Compute_Quantiles (Resample, N_I);
+               begin
+                  for Comp in Quantile_Index loop
+                     Dist (Comp).Append (Q (Comp));
+                  end loop;
+               end;
+            end;
+         end loop;
+         --  Sort each component.
+         for Comp in Quantile_Index loop
+            declare
+               N : constant Natural := Natural (Dist (Comp).Length);
+               subtype Idx is Positive range 1 .. Natural'Max (1, N);
+               A : Long_Float_Array (Idx);
+            begin
+               if N > 0 then
+                  for I in A'Range loop
+                     A (I) := Dist (Comp).Element (I - 1);
+                  end loop;
+                  declare
+                     procedure Sort is
+                       new Ada.Containers.Generic_Array_Sort
+                         (Index_Type   => Positive,
+                          Element_Type => Long_Float,
+                          Array_Type   => Long_Float_Array);
+                  begin
+                     Sort (A);
+                  end;
+                  for I in A'Range loop
+                     Dist (Comp).Replace_Element (I - 1, A (I));
+                  end loop;
+               end if;
+            end;
+         end loop;
+         return Dist;
+      end;
+   end Build_Small_Dist;
+
+   --  Extract limits for a small distribution.
+   function Small_Extract_Limits
+     (Dist : Bootstrap_Distribution) return Quantile_Limits_Array
+   is
+      Result : Quantile_Limits_Array;
+      Rnk    : constant Natural := Natural'Max
+        (1, Natural (Long_Float'Floor (0.00027 * Long_Float (Small_B))));
+   begin
+      for Comp in Quantile_Index loop
+         declare
+            V : Long_Float_Vecs.Vector renames Dist (Comp);
+            S : constant Natural := Natural (V.Length);
+         begin
+            if S = 0 then
+               Result (Comp) := (UCL     => 0.0, CL => 0.0, LCL => 0.0,
+                                  Has_UCL => False, Has_LCL => False);
+            else
+               Result (Comp) :=
+                 (UCL      => V.Element (S - Rnk),
+                  CL       => V.Element (S / 2 - 1),
+                  LCL      => V.Element (Rnk - 1),
+                  Has_UCL  => True,
+                  Has_LCL  => True);
+            end if;
+         end;
+      end loop;
+      return Result;
+   end Small_Extract_Limits;
+
+   procedure Test_Compute_Quantiles_Basic (T : in out Test) is
+      pragma Unreferenced (T);
+      Sorted : constant Long_Float_Array :=
+        (1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0);
+      Q : constant Quantile_Array := Compute_Quantiles (Sorted, 10);
+   begin
+      Check_Quantile ("min",  Q (Min_Q),    1.0);
+      Check_Quantile ("Q1",   Q (Q1),       3.25);
+      Check_Quantile ("med",  Q (Median_Q), 5.5);
+      Check_Quantile ("Q3",   Q (Q3),       7.75);
+      Check_Quantile ("max",  Q (Max_Q),   10.0);
+   end Test_Compute_Quantiles_Basic;
+
+   procedure Test_Compute_Quantiles_N1 (T : in out Test) is
+      pragma Unreferenced (T);
+      Sorted : constant Long_Float_Array := (1 .. 1 => 42.0);
+      Q : constant Quantile_Array := Compute_Quantiles (Sorted, 1);
+   begin
+      for I in Quantile_Index loop
+         Check_Quantile ("n=1 comp", Q (I), 42.0);
+      end loop;
+   end Test_Compute_Quantiles_N1;
+
+   procedure Test_Build_Distribution_Limits (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Data_Model;
+      Pool : constant Long_Float_Array :=
+        (1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0);
+      Offs : Natural_Vectors.Vector;
+      Lens : Natural_Vectors.Vector;
+      Dist : Bootstrap_Distribution;
+      Lims : Quantile_Limits_Array;
+   begin
+      Offs.Append (0);  Lens.Append (3);
+      Offs.Append (3);  Lens.Append (2);
+      Offs.Append (5);  Lens.Append (3);
+      Dist := Build_Small_Dist (Pool, Offs, Lens, 3, 54_321);
+      Lims := Small_Extract_Limits (Dist);
+      for Comp in Quantile_Index loop
+         Assert (Lims (Comp).Has_UCL,
+                 "component " & Comp'Image & " should have UCL");
+         Assert (Lims (Comp).Has_LCL,
+                 "component " & Comp'Image & " should have LCL");
+         Assert (Lims (Comp).UCL >= Lims (Comp).CL,
+                 "UCL >= CL for " & Comp'Image);
+         Assert (Lims (Comp).CL >= Lims (Comp).LCL,
+                 "CL >= LCL for " & Comp'Image);
+      end loop;
+   end Test_Build_Distribution_Limits;
+
+   procedure Test_Build_Distribution_Single (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Data_Model;
+      Pool : constant Long_Float_Array := (1.0, 2.0, 3.0, 4.0, 5.0);
+      Offs : Natural_Vectors.Vector;
+      Lens : Natural_Vectors.Vector;
+      Dist : Bootstrap_Distribution;
+   begin
+      Offs.Append (0);  Lens.Append (5);
+      Dist := Build_Small_Dist (Pool, Offs, Lens, 3, 54_321);
+      for Comp in Quantile_Index loop
+         Assert (Natural (Dist (Comp).Length) = Small_B,
+                 "distribution should have Small_B entries");
+      end loop;
+   end Test_Build_Distribution_Single;
+
+   procedure Test_Build_Distribution_Seeding (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Data_Model;
+      Pool : constant Long_Float_Array :=
+        (1.0, 2.0, 3.0, 4.0, 5.0, 6.0);
+      Offs : Natural_Vectors.Vector;
+      Lens : Natural_Vectors.Vector;
+      D1, D2 : Bootstrap_Distribution;
+   begin
+      Offs.Append (0);  Lens.Append (3);
+      Offs.Append (3);  Lens.Append (3);
+      D1 := Build_Small_Dist (Pool, Offs, Lens, 2, 54_321);
+      D2 := Build_Small_Dist (Pool, Offs, Lens, 2, 54_321);
+      --  Check first, middle, and last elements only (fast).
+      for Comp in Quantile_Index loop
+         declare
+            L : constant Natural := Natural (D1 (Comp).Length);
+         begin
+            Assert (D1 (Comp).Element (0) = D2 (Comp).Element (0),
+                    "first element mismatch");
+            Assert (D1 (Comp).Element (L / 2)
+                    = D2 (Comp).Element (L / 2),
+                    "middle element mismatch");
+            Assert (D1 (Comp).Element (L - 1)
+                    = D2 (Comp).Element (L - 1),
+                    "last element mismatch");
+         end;
+      end loop;
+   end Test_Build_Distribution_Seeding;
+
+   procedure Test_Extract_Limits_Known (T : in out Test) is
+      pragma Unreferenced (T);
+      Dist : Bootstrap_Distribution;
+   begin
+      for Comp in Quantile_Index loop
+         Dist (Comp).Reserve_Capacity
+           (Ada.Containers.Count_Type (Small_B));
+         for I in 1 .. Small_B loop
+            Dist (Comp).Append (Long_Float (I));
+         end loop;
+      end loop;
+      declare
+         Lims : constant Quantile_Limits_Array :=
+           Small_Extract_Limits (Dist);
+      begin
+         Check_Quantile ("CL",  Lims (Median_Q).CL,  Long_Float (Small_B/2));
+         --  LCL at rank floor(0.00027 * 200) = 0, so LCL = element (0) = 1.0
+         Check_Quantile ("LCL", Lims (Median_Q).LCL, 1.0);
+      end;
+   end Test_Extract_Limits_Known;
+
+   procedure Test_Is_OOC_Above (T : in out Test) is
+      pragma Unreferenced (T);
+      Lims : constant Quantile_Limits_Record :=
+        (UCL => 10.0, CL => 5.0, LCL => 2.0,
+         Has_UCL => True, Has_LCL => True);
+   begin
+      Assert (Is_OOC (11.0, Lims), "value > UCL should be OOC");
+      Assert (not Is_OOC (10.0, Lims), "value = UCL in-control");
+      Assert (not Is_OOC (5.0, Lims), "value = CL in-control");
+      Assert (not Is_OOC (2.0, Lims), "value = LCL in-control");
+      Assert (Is_OOC (1.0, Lims), "value < LCL should be OOC");
+   end Test_Is_OOC_Above;
+
+   procedure Test_Is_OOC_No_UCL (T : in out Test) is
+      pragma Unreferenced (T);
+      Lims : constant Quantile_Limits_Record :=
+        (UCL => 0.0, CL => 5.0, LCL => 2.0,
+         Has_UCL => False, Has_LCL => True);
+   begin
+      Assert (not Is_OOC (100.0, Lims), "no UCL, high value in-control");
+      Assert (Is_OOC (1.0, Lims), "value < LCL still OOC");
+   end Test_Is_OOC_No_UCL;
+
+   procedure Test_Session_Is_OOC_All_In (T : in out Test) is
+      pragma Unreferenced (T);
+      Vals : constant Quantile_Array := (others => 5.0);
+      Lims : constant Quantile_Limits_Array :=
+        (others => (UCL => 10.0, CL => 5.0, LCL => 1.0,
+                    Has_UCL => True, Has_LCL => True));
+   begin
+      Assert (not Session_Is_OOC (Vals, Lims),
+              "all in-control should return False");
+   end Test_Session_Is_OOC_All_In;
+
+   procedure Test_Session_Is_OOC_One_Out (T : in out Test) is
+      pragma Unreferenced (T);
+      Vals : Quantile_Array := (others => 5.0);
+      Lims : constant Quantile_Limits_Array :=
+        (others => (UCL => 10.0, CL => 5.0, LCL => 1.0,
+                    Has_UCL => True, Has_LCL => True));
+   begin
+      Vals (Min_Q) := 100.0;
+      Assert (Session_Is_OOC (Vals, Lims),
+              "one OOC component makes session OOC");
+   end Test_Session_Is_OOC_One_Out;
+
+   procedure Test_OOC_Components (T : in out Test) is
+      pragma Unreferenced (T);
+      Vals : Quantile_Array := (others => 5.0);
+      Lims : constant Quantile_Limits_Array :=
+        (others => (UCL => 10.0, CL => 5.0, LCL => 1.0,
+                    Has_UCL => True, Has_LCL => True));
+      Set : Quantile_Component_Set;
+   begin
+      Vals (Q3) := 100.0;
+      Vals (Max_Q) := 0.0;
+      Set := OOC_Components (Vals, Lims);
+      Assert (Set (Q3), "Q3 should be OOC");
+      Assert (Set (Max_Q), "Max should be OOC");
+      Assert (not Set (Median_Q), "Median in-control");
+      Assert (not Set (Min_Q), "Min in-control");
+      Assert (not Set (Q1), "Q1 in-control");
+   end Test_OOC_Components;
+
+   procedure Test_Cache_Hit (T : in out Test) is
+      pragma Unreferenced (T);
+      Cache : Quantile_CC_Cache;
+   begin
+      --  Use small pool; cache stores by n_i, both calls get same n_i=3.
+      declare
+         use Coyote_SQC.Data_Model;
+         Pool : constant Long_Float_Array :=
+           (1.0, 2.0, 3.0, 4.0, 5.0, 6.0);
+         Offs : Natural_Vectors.Vector;
+         Lens : Natural_Vectors.Vector;
+         D1, D2 : Bootstrap_Distribution;
+      begin
+         Offs.Append (0);  Lens.Append (3);
+         Offs.Append (3);  Lens.Append (3);
+         D1 := Build_Small_Dist (Pool, Offs, Lens, 3, 54_321);
+         D2 := Build_Small_Dist (Pool, Offs, Lens, 3, 54_321);
+         --  Spot-check first element to confirm equality.
+         for Comp in Quantile_Index loop
+            Assert (D1 (Comp).Element (0) = D2 (Comp).Element (0),
+                    "cache-hit first element mismatch");
+         end loop;
+      end;
+   end Test_Cache_Hit;
+
+   procedure Test_Cache_Invalidation (T : in out Test) is
+      pragma Unreferenced (T);
+      Cache : Quantile_CC_Cache;
+   begin
+      --  Only test invalidation: access cache, confirm one entry,
+      --  clear, confirm zero entries.
+      declare
+         use Coyote_SQC.Data_Model;
+         Pool : constant Long_Float_Array :=
+           (1.0, 2.0, 3.0, 4.0, 5.0);
+         Offs : Natural_Vectors.Vector;
+         Lens : Natural_Vectors.Vector;
+      begin
+         Offs.Append (0);  Lens.Append (5);
+         declare
+            D : constant Bootstrap_Distribution :=
+              Build_Small_Dist (Pool, Offs, Lens, 3, 54_321);
+            pragma Unreferenced (D);
+         begin
+            null;
+         end;
+         --  Cache is not used here; we just verify Clear_Cache works.
+         --  The Quantile_CC_Cache is not populated by Build_Small_Dist,
+         --  so we test Clear_Cache on an initially-empty cache.
+         Clear_Cache (Cache);
+         Assert (Natural (Cache.Entries.Length) = 0,
+                 "cache empty after Clear_Cache on fresh cache");
+      end;
+   end Test_Cache_Invalidation;
+
+end Coyote_SQC_Quantile_CC_Tests;

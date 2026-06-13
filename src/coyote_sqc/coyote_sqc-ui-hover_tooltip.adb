@@ -15,6 +15,7 @@ with Gdk.Rectangle;
 with Gtk.Label;
 with Gtk.Popover;
 with Coyote_Renderer.Markup;
+with Coyote_SQC.Statistics.Quantile_CC;
 with Gtk.Widget;
 
 package body Coyote_SQC.UI.Hover_Tooltip is
@@ -140,6 +141,8 @@ package body Coyote_SQC.UI.Hover_Tooltip is
          Latest_Text : Ada.Strings.Unbounded.Unbounded_String;
          Pt_Found   : Boolean := False;
          Pt         : Coyote_SQC.App.Chart_Point;
+         QP_Found   : Boolean := False;
+         QP         : Coyote_SQC.App.Quantile_Point;
       begin
          for C of Coyote_SQC.App.State.Workspace.Comments loop
             if To_String (C.Session_Id) = Session_Id then
@@ -163,6 +166,30 @@ package body Coyote_SQC.UI.Hover_Tooltip is
                   exit;
                end if;
             end loop;
+         end;
+
+         --  Look up the quantile point for this session if active chart
+         --  is a Quantile CC chart.
+         begin
+            if Coyote_SQC.Charts.Properties
+                 (Coyote_SQC.App.State.Active_Chart)
+                 .Is_Quantile_CC_Chart
+            then
+               declare
+                  Active : constant Coyote_SQC.Charts.Chart_Kind :=
+                    Coyote_SQC.App.State.Active_Chart;
+               begin
+                  for Q of Coyote_SQC.App.State.Charts (Active)
+                           .Quantile_Points
+                  loop
+                     if To_String (Q.Session_Id) = Session_Id then
+                        QP       := Q;
+                        QP_Found := True;
+                        exit;
+                     end if;
+                  end loop;
+               end;
+            end if;
          end;
 
          declare
@@ -191,18 +218,66 @@ package body Coyote_SQC.UI.Hover_Tooltip is
               Coyote_Renderer.Markup.Xml_Escape (Latest_Ts_Str);
             Esc_Latest_Body : constant String :=
               Coyote_Renderer.Markup.Xml_Escape (C_Display);
-            --  Control limits line (empty when chart point not found).
-            Limits_Line : constant String :=
-              (if Pt_Found
-               then ASCII.LF
-                    & "CL: " & Format_Float (Pt.CL)
-                    & (if Pt.Has_UCL
-                       then "   UCL: " & Format_Float (Pt.UCL)
-                       else "")
-                    & (if Pt.Has_LCL
-                       then "   LCL: " & Format_Float (Pt.LCL)
-                       else "")
-               else "");
+            --  Control limits / quantile diagram line.
+            function Build_Stats_Line return String is
+               use Ada.Strings.Unbounded;
+               Result : Unbounded_String;
+               NL     : constant String := "" & ASCII.LF;
+            begin
+               if QP_Found then
+                  --  Quantile CC chart: show n and five components.
+                  Result := To_Unbounded_String
+                    (NL & "n = " & Format_Number
+                       (Long_Long_Integer (QP.N)) & " turns" & NL & NL);
+                  declare
+                     use Coyote_SQC.Statistics.Quantile_CC;
+                  begin
+                     for Comp in Quantile_Index loop
+                        declare
+                           V  : constant Long_Float := QP.Values (Comp);
+                           L  : constant Quantile_Limits_Record :=
+                             QP.Limits (Comp);
+                           UCL_Str : constant String :=
+                             (if L.Has_UCL
+                              then Format_Float (L.UCL)
+                              else "-");
+                           LCL_Str : constant String :=
+                             (if L.Has_LCL
+                              then Format_Float (L.LCL)
+                              else "-");
+                        begin
+                           Result := Result
+                             & (case Comp is when Min_Q => "min", when Q1 => "Q1", when Median_Q => "med", when Q3 => "Q3", when Max_Q => "max") & ":  "
+                             & Format_Float (V)
+                             & " (UCL: " & UCL_Str
+                             & ", LCL: " & LCL_Str & ")";
+                           if QP.OOC_Comps (Comp) then
+                              Result := Result
+                                & "  " & Character'Val (16#E2#)
+                                & Character'Val (16#86#)
+                                & Character'Val (16#90#)
+                                & " out-of-control";
+                           end if;
+                           if Comp /= Max_Q then
+                              Result := Result & NL;
+                           end if;
+                        end;
+                     end loop;
+                  end;
+               elsif Pt_Found then
+                  Result := To_Unbounded_String
+                    (NL & "CL: " & Format_Float (Pt.CL));
+                  if Pt.Has_UCL then
+                     Result := Result
+                       & "   UCL: " & Format_Float (Pt.UCL);
+                  end if;
+                  if Pt.Has_LCL then
+                     Result := Result
+                       & "   LCL: " & Format_Float (Pt.LCL);
+                  end if;
+               end if;
+               return To_String (Result);
+            end Build_Stats_Line;
             Markup : constant String :=
               "<b>" & TS14 & "</b>"
               & "  " & Esc_Model & ASCII.LF
@@ -213,7 +288,7 @@ package body Coyote_SQC.UI.Hover_Tooltip is
               & " tokens   Output: "
               & Format_Number (Long_Long_Integer (Sess.Total_Output_Tokens))
               & " tokens"
-              & Limits_Line
+              & Build_Stats_Line
               & (if N_Comments > 0
                  then ASCII.LF & "Comments: "
                       & Trim (N_Comments'Image, Ada.Strings.Left)

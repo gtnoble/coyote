@@ -293,6 +293,14 @@ These are entered as open items in the problem log (PCR-009).
 full `cd test && alr run coyote_test` run is performed and the pass count
 and any failures are recorded here or in the Test Report.
 
+
+**Baseline as of 2026-06-13 (Quantile Control Chart):** 683 tests, 0 failures,
+0 unexpected errors.  Added 13 Quantile CC tests for
+Coyote_SQC.Statistics.Quantile_CC (compute-quantiles, build-distribution,
+extract-limits, OOC-detection, cache-hit, cache-invalidation).  Two bugs
+fixed during implementation: LCG 32-bit overflow and 0-based index in
+bucket selection.  No regressions; all 665 existing tests pass.
+
 **Baseline as of 2026-06-01:** 658 tests, 0 failures, 0 unexpected errors.
 **Baseline as of 2026-06-06 (PCR-016 Bootstrap):** 665 tests, 0 failures,
 0 unexpected errors.  Added 5 Bootstrap CI tests
@@ -319,6 +327,19 @@ for PCR-015 incremental reload fix.)
 tests (`collapse_utils_tests.adb`): `Test_Collapse_Basic`,
 `Test_Collapse_Paragraph`, `Test_Collapse_Empty`, `Test_Collapse_NoLF`,
 `Test_Collapse_Leading_Trailing_WS`.
+
+**Baseline as of 2026-06-13 (Quantile Control Chart implementation start):**
+670 tests, 0 failures, 0 unexpected errors.  New packages
+`Coyote_SQC.Statistics.Quantile_CC` (ads + adb) added; four new chart kinds
+(`Turn_Tokens_Quantile`, `Tool_Call_Tokens_Quantile`,
+`Thinking_Tokens_Quantile`, `Tool_Call_JSD_Quantile`) registered in
+`Chart_Kind` enumeration, `Properties`, and `Descriptor`; quantile
+recompute path (two-stage bootstrap with caching) added to
+`Recompute_Chart`; OOC propagation from Quantile CC charts to all other
+chart kinds added in `Recompute_Charts`; `Is_OOC_From_Quantile` field
+added to `Chart_Point`.  13 quantile unit tests and 7 rendering tests
+are specified in SDD-SQC §14.6–§14.7 and are pending implementation.
+
 
 **Coverage gap PCR:** The gaps identified in §4.5 are logged in
 `plan/problems.md` as PCR-009. They are accepted as deferred for the current

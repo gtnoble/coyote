@@ -1,0 +1,290 @@
+--  Coyote_SQC.Statistics.Quantile_CC body.
+--
+--  Project: coyote
+
+with Ada.Containers.Generic_Array_Sort;
+
+package body Coyote_SQC.Statistics.Quantile_CC is
+
+   use Coyote_SQC.Data_Model;
+
+   --  ── Sorting helpers ────────────────────────────────────────────────
+   procedure Sort_Array is new Ada.Containers.Generic_Array_Sort
+     (Index_Type   => Positive,
+      Element_Type => Long_Float,
+      Array_Type   => Long_Float_Array);
+
+   --  ── Random number generation ─────────────────────────────────────────
+   --  Simple 31-bit linear congruential generator for reproducibility
+   --  across all platforms.  Parameters from glibc rand().
+   type LC_State is record
+      X : Long_Long_Integer := 1;
+   end record;
+
+   Modulus : constant Long_Long_Integer := 2_147_483_647;  -- 2^31 − 1
+
+   procedure LC_Next (State : in out LC_State; R : out Float) is
+   begin
+      State.X := (State.X * Long_Long_Integer (1_103_515_245) + 12_345) mod Modulus;
+      if State.X = 0 then
+         State.X := 1;
+      end if;
+      R := Float (State.X) / Float (Modulus);
+   end LC_Next;
+
+   procedure LC_Seed (State : in out LC_State; Seed : Integer) is
+   begin
+      State.X := Long_Long_Integer (abs (Seed)) mod Modulus;
+      if State.X = 0 then
+         State.X := 1;
+      end if;
+   end LC_Seed;
+
+   --  ── Compute_Quantiles ─────────────────────────────────────────────────
+
+   function Compute_Quantiles
+     (Values : Long_Float_Array;
+      N      : Natural) return Quantile_Array
+   is
+      Sorted_Vals : Long_Float_Array (1 .. N) := Values (1 .. N);
+      Result      : Quantile_Array;
+
+      function Linear_Quantile (P : Long_Float) return Long_Float is
+         Pos : constant Long_Float := P * Long_Float (N - 1);
+         K   : constant Natural     := Natural (Long_Float'Floor (Pos));
+         F   : constant Long_Float  := Pos - Long_Float (K);
+         Idx1 : constant Positive   := K + 1;
+         Idx2 : constant Positive   := Positive'Min (K + 2, N);
+      begin
+         if Idx1 = Idx2 or else F = 0.0 then
+            return Sorted_Vals (Idx1);
+         else
+            return Sorted_Vals (Idx1) * (1.0 - F) + Sorted_Vals (Idx2) * F;
+         end if;
+      end Linear_Quantile;
+
+   begin
+      if N < 1 then
+         raise Constraint_Error with
+           "Compute_Quantiles: N must be >= 1";
+      end if;
+      if Values'Length < N then
+         raise Constraint_Error with
+           "Compute_Quantiles: Values'Length < N";
+      end if;
+
+      Sort_Array (Sorted_Vals);
+
+      Result (Min_Q)    := Linear_Quantile (0.00);
+      Result (Q1)       := Linear_Quantile (0.25);
+      Result (Median_Q) := Linear_Quantile (0.50);
+      Result (Q3)       := Linear_Quantile (0.75);
+      Result (Max_Q)    := Linear_Quantile (1.00);
+
+      return Result;
+   end Compute_Quantiles;
+
+   --  ── Internal: sort a Long_Float_Vecs.Vector in-place ──────────────────
+   procedure Sort_Vec (V : in out Long_Float_Vecs.Vector) is
+      N : constant Natural := Natural (V.Length);
+      subtype Array_Idx is Positive range 1 .. Natural'Max (1, N);
+      A : Long_Float_Array (Array_Idx);
+   begin
+      if N = 0 then
+         return;
+      end if;
+      for I in A'Range loop
+         A (I) := V.Element (I - 1);
+      end loop;
+      Sort_Array (A);
+      for I in A'Range loop
+         V.Replace_Element (I - 1, A (I));
+      end loop;
+   end Sort_Vec;
+
+   --  ── Build_Distribution ────────────────────────────────────────────────
+
+   function Build_Distribution
+     (Pool_Values  : Long_Float_Array;
+      Pool_Offsets : Natural_Vectors.Vector;
+      Pool_Lengths : Natural_Vectors.Vector;
+      N_I          : Positive;
+      Seed         : Integer := Bootstrap_Seed)
+     return Bootstrap_Distribution
+   is
+      K : constant Natural := Natural (Pool_Offsets.Length);
+      Dist : Bootstrap_Distribution;
+      Resample_Buf : Long_Float_Array (1 .. N_I);
+      RNG : LC_State;
+
+      function Rand return Float is
+         R : Float;
+      begin
+         LC_Next (RNG, R);
+         return R;
+      end Rand;
+
+      function Random_Natural (Max : Natural) return Natural is
+      begin
+         if Max = 0 then
+            return 0;
+         end if;
+         return Natural (Float'Floor (Float (Rand) * Float (Max)));
+      end Random_Natural;
+
+   begin
+      if K = 0 then
+         return Dist;
+      end if;
+
+      for Comp in Quantile_Index loop
+         Dist (Comp).Reserve_Capacity
+           (Ada.Containers.Count_Type (B_Replicates));
+      end loop;
+
+      LC_Seed (RNG, Seed);
+
+      for B in 1 .. B_Replicates loop
+         declare
+            Sess_Idx : constant Positive := Random_Natural (K) + 1;
+            Offset   : constant Natural :=
+              Natural (Pool_Offsets.Element (Sess_Idx));
+            Length   : constant Natural :=
+              Natural (Pool_Lengths.Element (Sess_Idx));
+            Sess_Size : constant Natural := Length;
+         begin
+            for J in 1 .. N_I loop
+               declare
+                  Pick : constant Natural := Random_Natural (Sess_Size);
+               begin
+                  Resample_Buf (J) := Pool_Values (Offset + Pick);
+               end;
+            end loop;
+
+            declare
+               Q : constant Quantile_Array :=
+                 Compute_Quantiles (Resample_Buf, N_I);
+            begin
+               for Comp in Quantile_Index loop
+                  Dist (Comp).Append (Q (Comp));
+               end loop;
+            end;
+         end;
+      end loop;
+
+      for Comp in Quantile_Index loop
+         Sort_Vec (Dist (Comp));
+      end loop;
+
+      return Dist;
+   end Build_Distribution;
+
+   --  ── Extract_Limits ────────────────────────────────────────────────────
+
+   function Extract_Limits
+     (Dist : Bootstrap_Distribution) return Quantile_Limits_Array
+   is
+      Result : Quantile_Limits_Array;
+   begin
+      for Comp in Quantile_Index loop
+         declare
+            V : Long_Float_Vecs.Vector renames Dist (Comp);
+            S : constant Natural := Natural (V.Length);
+         begin
+            if S = 0 then
+               Result (Comp) := (UCL     => 0.0,
+                                 CL      => 0.0,
+                                 LCL     => 0.0,
+                                 Has_UCL => False,
+                                 Has_LCL => False);
+            else
+               Result (Comp) :=
+                 (UCL      => V.Element (UCL_Rank - 1),
+                  CL       => V.Element (B_Replicates / 2 - 1),
+                  LCL      => V.Element (Bonferroni_Rank - 1),
+                  Has_UCL  => True,
+                  Has_LCL  => True);
+            end if;
+         end;
+      end loop;
+      return Result;
+   end Extract_Limits;
+
+   --  ── Is_OOC ────────────────────────────────────────────────────────────
+
+   function Is_OOC
+     (Value  : Long_Float;
+      Limits : Quantile_Limits_Record) return Boolean
+   is
+   begin
+      if Limits.Has_UCL and then Value > Limits.UCL then
+         return True;
+      elsif Limits.Has_LCL and then Value < Limits.LCL then
+         return True;
+      else
+         return False;
+      end if;
+   end Is_OOC;
+
+   --  ── Session_Is_OOC ────────────────────────────────────────────────────
+
+   function Session_Is_OOC
+     (Values : Quantile_Array;
+      Limits : Quantile_Limits_Array) return Boolean
+   is
+   begin
+      for Comp in Quantile_Index loop
+         if Is_OOC (Values (Comp), Limits (Comp)) then
+            return True;
+         end if;
+      end loop;
+      return False;
+   end Session_Is_OOC;
+
+   --  ── OOC_Components ────────────────────────────────────────────────────
+
+   function OOC_Components
+     (Values : Quantile_Array;
+      Limits : Quantile_Limits_Array) return Quantile_Component_Set
+   is
+      Result : Quantile_Component_Set;
+   begin
+      for Comp in Quantile_Index loop
+         Result (Comp) := Is_OOC (Values (Comp), Limits (Comp));
+      end loop;
+      return Result;
+   end OOC_Components;
+
+   --  ── Cache functions ───────────────────────────────────────────────────
+
+   function Get_Distribution
+     (Cache        : in out Quantile_CC_Cache;
+      Pool_Values  : Long_Float_Array;
+      Pool_Offsets : Natural_Vectors.Vector;
+      Pool_Lengths : Natural_Vectors.Vector;
+      N_I          : Positive;
+      Seed         : Integer := Bootstrap_Seed) return Bootstrap_Distribution
+   is
+   begin
+      for E of Cache.Entries loop
+         if E.N = N_I then
+            return E.Dist;
+         end if;
+      end loop;
+
+      declare
+         Dist : constant Bootstrap_Distribution :=
+           Build_Distribution
+             (Pool_Values, Pool_Offsets, Pool_Lengths, N_I, Seed);
+      begin
+         Cache.Entries.Append ((N => N_I, Dist => Dist));
+         return Dist;
+      end;
+   end Get_Distribution;
+
+   procedure Clear_Cache (Cache : in out Quantile_CC_Cache) is
+   begin
+      Cache.Entries.Clear;
+   end Clear_Cache;
+
+end Coyote_SQC.Statistics.Quantile_CC;

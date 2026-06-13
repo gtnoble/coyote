@@ -29,6 +29,7 @@ with Coyote_SQC_Workspace_Tests;
 with Coyote_SQC_Histogram_Tests;
 with Coyote_SQC_JSD_Tests;
 with Coyote_SQC_Integrity_Tests;
+with Coyote_SQC_Quantile_CC_Tests;
 with LLM_SSE_Tests;
 with LLM_Tools_Tests;
 with LLM_OpenAI_Completions_Tests;
@@ -136,6 +137,8 @@ package body Test_Suites is
      new AUnit.Test_Caller (Coyote_SQC_Integrity_Tests.Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
+   package SQC_Quantile_CC_Caller is
+     new AUnit.Test_Caller (Coyote_SQC_Quantile_CC_Tests.Test);
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
         AUnit.Test_Suites.New_Suite;
    begin
@@ -2094,6 +2097,55 @@ package body Test_Suites is
       Result.Add_Test (SQC_Integrity_Caller.Create
         ("SQC integrity: Remove_Missing no-op when all present",
          Coyote_SQC_Integrity_Tests.Test_Remove_Missing_None'Access));
+
+      --  Coyote_SQC Quantile CC tests
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Quantile CC: Compute_Quantiles basic 10-element array",
+         Coyote_SQC_Quantile_CC_Tests.Test_Compute_Quantiles_Basic'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Quantile CC: Compute_Quantiles n=1 returns all equal",
+         Coyote_SQC_Quantile_CC_Tests.Test_Compute_Quantiles_N1'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Quantile CC: Build_Distribution with 3-session pool",
+         Coyote_SQC_Quantile_CC_Tests
+           .Test_Build_Distribution_Limits'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Quantile CC: Build_Distribution single-session pool",
+         Coyote_SQC_Quantile_CC_Tests
+           .Test_Build_Distribution_Single'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Quantile CC: Build_Distribution seed reproducibility",
+         Coyote_SQC_Quantile_CC_Tests
+           .Test_Build_Distribution_Seeding'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Quantile CC: Extract_Limits with known distribution",
+         Coyote_SQC_Quantile_CC_Tests
+           .Test_Extract_Limits_Known'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Quantile CC: Is_OOC detects value above UCL",
+         Coyote_SQC_Quantile_CC_Tests.Test_Is_OOC_Above'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Quantile CC: Is_OOC with Has_UCL=False",
+         Coyote_SQC_Quantile_CC_Tests.Test_Is_OOC_No_UCL'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Quantile CC: Session_Is_OOC all in-control",
+         Coyote_SQC_Quantile_CC_Tests
+           .Test_Session_Is_OOC_All_In'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Quantile CC: Session_Is_OOC one component out",
+         Coyote_SQC_Quantile_CC_Tests
+           .Test_Session_Is_OOC_One_Out'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Quantile CC: OOC_Components returns correct set",
+         Coyote_SQC_Quantile_CC_Tests.Test_OOC_Components'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Quantile CC: cache hit returns same distribution",
+         Coyote_SQC_Quantile_CC_Tests.Test_Cache_Hit'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Quantile CC: cache invalidation clears entries",
+         Coyote_SQC_Quantile_CC_Tests
+           .Test_Cache_Invalidation'Access));
+
       --  LLM.Providers.GitHub_Copilot.Catalogue tests
       Result.Add_Test (LLM_Catalogue_Caller.Create
         ("LLM.Catalogue loads and parses a fresh cached Copilot model list",

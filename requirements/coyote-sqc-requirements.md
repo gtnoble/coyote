@@ -227,7 +227,7 @@ Derived from a Session_Record. Computed once at load time and cached.
 
 | Field | Type | Description |
 |---|---|---|
-| `Chart_Type` | Chart_Type enum | Identifies which of the fifty-one charts this defines |
+| `Chart_Type` | Chart_Type enum | Identifies which of the fifty-five charts this defines |
 
 ---
 
@@ -2264,7 +2264,7 @@ selection changes, using the same trigger as the histogram refresh.
 
 **Set as Setup Interval button:**
 - Clicking this button sets the workspace setup interval to exactly the selected
-  sessions, applying to all fifty-one charts simultaneously.
+  sessions, applying to all fifty-five charts simultaneously.
 - If a setup interval is already established, a confirmation dialog is shown:
   "Replace existing setup interval for this workspace?"
 - On confirmation, all charts recompute their limits and recolor the setup interval
@@ -2380,7 +2380,7 @@ in bulk comments issued from this view.
 ### 11.1 Establishing a Setup Interval
 
 A setup interval is a single workspace-level set of sessions used to estimate the
-center line and control limits for all fifty-one charts simultaneously. It is established
+center line and control limits for all fifty-five charts simultaneously. It is established
 by selecting one or more sessions (Section 9) and either clicking "Set as Setup Interval"
 in the multi-select detail panel (Section 10.2) or choosing **View → Set Selection as
 Setup Interval** from the menu bar. There is no requirement for the
@@ -2390,11 +2390,11 @@ setup sessions to be contiguous in time.
 
 The setup interval is stored as a set of session UUIDs in the `Setup_Session_Ids`
 field of the `Workspace_Record`. It is workspace-level: a single setup interval
-applies to all fifty-one charts. The set is stored within the workspace file.
+applies to all fifty-five charts. The set is stored within the workspace file.
 
 ### 11.3 Visual Representation
 
-Setup interval sessions are rendered with filled yellow markers on all fifty-one charts.
+Setup interval sessions are rendered with filled yellow markers on all fifty-five charts.
 A faint yellow vertical band spans the x-extent of the setup interval sessions on
 every chart.
 

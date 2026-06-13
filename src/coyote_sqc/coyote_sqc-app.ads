@@ -8,6 +8,7 @@ with Ada.Strings.Unbounded;
 with Coyote_SQC.Charts;
 with Coyote_SQC.Data_Model;
 with Coyote_SQC.Statistics;
+with Coyote_SQC.Statistics.Quantile_CC;
 with Glib;
 with Gtk.Box;
 with Gtk.Drawing_Area;
@@ -42,11 +43,35 @@ package Coyote_SQC.App is
       Has_UCL       : Boolean := False;  --  UCL line should be drawn
       Has_LCL       : Boolean := False;  --  LCL line should be drawn
       Has_CL        : Boolean := False;  --  CL line should be drawn
+      Is_OOC_From_Quantile : Boolean := False;
+      --  True when this session is flagged out-of-control by a
+      --  Quantile CC chart; propagates to all other chart kinds.
    end record;
 
    package Chart_Point_Vectors is new Ada.Containers.Vectors
      (Index_Type   => Positive,
       Element_Type => Chart_Point);
+
+   --  ── Quantile control chart point data ──────────────────────────────
+   --
+   --  A session's quantile diagram on a Quantile CC chart.
+   type Quantile_Point is record
+      Session_Id    : Ada.Strings.Unbounded.Unbounded_String;
+      Session_Index : Positive := 1;
+      Session_Time  : Ada.Calendar.Time;
+      N             : Positive := 1;  --  subgroup size
+      Excluded      : Boolean := False;
+      In_Setup      : Boolean := False;
+      Has_Comment   : Boolean := False;
+      Values        : Coyote_SQC.Statistics.Quantile_CC.Quantile_Array;
+      Limits        : Coyote_SQC.Statistics.Quantile_CC.Quantile_Limits_Array;
+      OOC_Comps     : Coyote_SQC.Statistics.Quantile_CC.Quantile_Component_Set;
+      Has_OOC       : Boolean := False;
+   end record;
+
+   package Quantile_Point_Vectors is new Ada.Containers.Vectors
+     (Index_Type   => Positive,
+      Element_Type => Quantile_Point);
 
    --  Precomputed data for one chart kind.
    type Chart_Data is record
@@ -65,6 +90,9 @@ package Coyote_SQC.App is
       MR_Transform_Limits : Coyote_SQC.Statistics.Limits_Record :=
         (UCL => 0.0, CL => 0.0, LCL => 0.0,
          Has_UCL => False, Has_LCL => False);
+      --  Quantile CC data (populated only for Quantile CC chart kinds).
+      Quantile_Points : Quantile_Point_Vectors.Vector;
+      Quantile_Cache  : Coyote_SQC.Statistics.Quantile_CC.Quantile_CC_Cache;
    end record;
 
    type Chart_Data_Array is
@@ -74,8 +102,7 @@ package Coyote_SQC.App is
    --
    --  A Chart_Descriptor fully specifies how to compute one chart kind.
    --  Recompute_Chart looks it up and proceeds without further case dispatch
-   --  Recompute_Chart looks up Descriptor (Kind) and then proceeds without
-   --  further case dispatch on Kind.
+   --  on Kind.
 
 
    --  Per-session exclusion rules for parameter estimation and chart display.

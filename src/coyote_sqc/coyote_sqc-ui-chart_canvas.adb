@@ -21,6 +21,7 @@ with Gtk.Menu;
 with Gtk.Menu_Item;
 with Gtk.Separator_Menu_Item;
 with Coyote_SQC.UI.Toolbar;
+with Coyote_SQC.Statistics.Quantile_CC;
 with Gdk.Event;
 with Gdk.Types;              use Gdk.Types;
 with Glib;                   use Glib;
@@ -209,7 +210,17 @@ package body Coyote_SQC.UI.Chart_Canvas is
       end if;
    end Point_X;
 
-   --  Update State.Date_From/Date_To from the current X_Min/X_Max in
+   --  Return the x-coordinate for a quantile point in current scale mode.
+   function Quantile_Point_X
+     (QP : Coyote_SQC.App.Quantile_Point) return Long_Float is
+   begin
+      if State.Run_Sequence_Mode then
+         return Long_Float (QP.Session_Index);
+      else
+         return Time_To_LF (QP.Session_Time);
+      end if;
+   end Quantile_Point_X;
+
    --  Canvas_State, converting from the current coordinate space to
    --  Ada.Calendar.Time.
    procedure Update_Dates_From_X is
@@ -377,6 +388,23 @@ package body Coyote_SQC.UI.Chart_Canvas is
       function SY (P : Coyote_SQC.App.Chart_Point) return Gdouble is
         (Gdouble (Data_To_Screen_Y (P.Stat_Value)));
 
+      --  ── Quantile helpers ──────────────────────────────────────────────
+      function Quantile_Point_X
+        (QP : Coyote_SQC.App.Quantile_Point) return Long_Float is
+      begin
+         if State.Run_Sequence_Mode then
+            return Long_Float (QP.Session_Index);
+         else
+            return Time_To_LF (QP.Session_Time);
+         end if;
+      end Quantile_Point_X;
+
+      function Vis_Quantile
+        (QP : Coyote_SQC.App.Quantile_Point) return Boolean is
+        (not QP.Excluded
+         and then Time_To_LF (QP.Session_Time) >= Date_From_LF
+         and then Time_To_LF (QP.Session_Time) <= Date_To_LF);
+
    begin
       --  Update canvas size from widget.
       CS.Width  := Gint (W);
@@ -407,6 +435,43 @@ package body Coyote_SQC.UI.Chart_Canvas is
             for P of CD.Points loop
                if P.In_Setup then
                   declare T : constant Long_Float := Point_X (P);
+                  begin
+                     if T < S1 then S1 := T; end if;
+                     if T > S2 then S2 := T; end if;
+                  end;
+               end if;
+            end loop;
+            if S1 <= S2 then
+               declare
+                  BX1 : constant Gdouble :=
+                    Gdouble'Max (ML,
+                      Gdouble (Data_To_Screen_X (S1)));
+                  BX2 : constant Gdouble :=
+                    Gdouble'Min (ML + PW,
+                      Gdouble (Data_To_Screen_X (S2)));
+               begin
+                  if BX2 > BX1 then
+                     Set_Color (Cr, 1.0, 0.97, 0.6, 0.4);
+                     Cairo.Rectangle (Cr, BX1, MT, BX2 - BX1, PH);
+                     Cairo.Fill (Cr);
+                  end if;
+               end;
+            end if;
+         end;
+      end if;
+
+      --  ── 2b. Quantile setup interval band ───────────────────────────
+      if Props.Is_Quantile_CC_Chart
+        and then not State.Workspace.Setup_Session_Ids.Is_Empty
+      then
+         declare
+            S1 : Long_Float := Long_Float'Last;
+            S2 : Long_Float := Long_Float'First;
+         begin
+            for QP of CD.Quantile_Points loop
+               if QP.In_Setup then
+                  declare T : constant Long_Float :=
+                    Quantile_Point_X (QP);
                   begin
                      if T < S1 then S1 := T; end if;
                      if T > S2 then S2 := T; end if;
@@ -557,6 +622,112 @@ package body Coyote_SQC.UI.Chart_Canvas is
       end;
       Cairo.Stroke (Cr);
 
+      --  ── 5b. Quantile Control Chart diagrams ───────────────────────
+      if Props.Is_Quantile_CC_Chart then
+         --  ── Quantile Control Chart rendering ──────────────────────────
+         declare
+            use Coyote_SQC.Statistics.Quantile_CC;
+            Half_Widths : constant array (Quantile_Index) of Gdouble :=
+              (Min_Q => 6.0, Q1 => 10.0, Median_Q => 14.0,
+               Q3 => 10.0, Max_Q => 6.0);
+            Draw_Order : constant array (1 .. 5) of Quantile_Index :=
+              (Median_Q, Q1, Q3, Min_Q, Max_Q);
+         begin
+            for QP of CD.Quantile_Points loop
+               if Vis_Quantile (QP) then
+                  declare
+                     QX : constant Gdouble :=
+                       Gdouble (Data_To_Screen_X (Quantile_Point_X (QP)));
+                  begin
+                     for Comp of Draw_Order loop
+                        declare
+                           Lims : Quantile_Limits_Record renames
+                             QP.Limits (Comp);
+                           Val  : constant Long_Float := QP.Values (Comp);
+                           HW   : constant Gdouble := Half_Widths (Comp);
+                           OOC  : constant Boolean := QP.OOC_Comps (Comp);
+                           Comm : constant Boolean := QP.Has_Comment;
+                           Box_R, Box_G, Box_B : Gdouble;
+                           Line_R, Line_G, Line_B : Gdouble;
+                        begin
+                           --  Log Y guard: skip non-positive values.
+                           if State.Workspace.Log_Y_Mode
+                             and then (Val <= 0.0
+                               or else Lims.UCL <= 0.0
+                               or else Lims.LCL <= 0.0)
+                           then
+                              goto Skip_Component;
+                           end if;
+
+                           --  Color selection per S12.7.
+                           if OOC and then Comm then
+                              Line_R := 0.95; Line_G := 0.5;
+                              Line_B := 0.0;
+                              Box_R  := 0.95; Box_G  := 0.5;
+                              Box_B  := 0.0;
+                           elsif OOC then
+                              Line_R := 0.9;  Line_G := 0.1;
+                              Line_B := 0.1;
+                              Box_R  := 0.9;  Box_G  := 0.1;
+                              Box_B  := 0.1;
+                           elsif Comm then
+                              Line_R := 0.1;  Line_G := 0.7;
+                              Line_B := 0.2;
+                              Box_R  := 0.1;  Box_G  := 0.7;
+                              Box_B  := 0.2;
+                           else
+                              Line_R := 0.0;  Line_G := 0.0;
+                              Line_B := 0.0;
+                              Box_R  := 0.41; Box_G  := 0.41;
+                              Box_B  := 0.41;
+                           end if;
+
+                           --  Draw control-limit box.
+                           if Lims.Has_UCL and then Lims.Has_LCL then
+                              declare
+                                 UY : constant Gdouble :=
+                                   Gdouble
+                                     (Data_To_Screen_Y (Lims.UCL));
+                                 LY : constant Gdouble :=
+                                   Gdouble
+                                     (Data_To_Screen_Y (Lims.LCL));
+                              begin
+                                 Set_Color
+                                   (Cr, Box_R, Box_G, Box_B, 1.0);
+                                 Cairo.Set_Line_Width (Cr, 1.0);
+                                 Cairo.Set_Dash
+                                   (Cr, No_Dashes, 0.0);
+                                 Cairo.Rectangle
+                                   (Cr, QX - HW, UY,
+                                    2.0 * HW, LY - UY);
+                                 Cairo.Stroke (Cr);
+                              end;
+                           end if;
+
+                           --  Draw component value line.
+                           declare
+                              VY : constant Gdouble :=
+                                Gdouble (Data_To_Screen_Y (Val));
+                           begin
+                              Set_Color
+                                (Cr, Line_R, Line_G, Line_B, 1.0);
+                              Cairo.Set_Line_Width (Cr, 2.0);
+                              Cairo.Set_Dash
+                                (Cr, No_Dashes, 0.0);
+                              Cairo.Move_To (Cr, QX - HW, VY);
+                              Cairo.Line_To (Cr, QX + HW, VY);
+                              Cairo.Stroke (Cr);
+                           end;
+                        end;
+                        <<Skip_Component>>
+                     end loop;
+                  end;
+               end if;
+            end loop;
+         end;
+
+      end if;
+
       Cairo.Restore (Cr);
       --  ── 6. Point markers ─────────────────────────────────────────────
       --  Colors per §12.7. Separate fill/stroke where spec differs.
@@ -696,6 +867,122 @@ package body Coyote_SQC.UI.Chart_Canvas is
          end if;
       end loop;
 
+
+
+
+
+      --  ── 6a. Quantile diagram halos ─────────────────────────────────
+      if Props.Is_Quantile_CC_Chart then
+         --  Setup interval halos: yellow ring around bounding box.
+         Set_Color (Cr, 1.0, 0.80, 0.0, 1.0);
+         Cairo.Set_Line_Width (Cr, 2.0);
+         Cairo.Set_Dash (Cr, No_Dashes, 0.0);
+         for QP of CD.Quantile_Points loop
+            if Vis_Quantile (QP) and then QP.In_Setup then
+               declare
+                  use Coyote_SQC.Statistics.Quantile_CC;
+                  QX : constant Gdouble :=
+                    Gdouble (Data_To_Screen_X (Quantile_Point_X (QP)));
+                  Min_UCL : Gdouble := Gdouble'Last;
+                  Max_LCL : Gdouble := Gdouble'First;
+               begin
+                  for Comp in Quantile_Index loop
+                     if QP.Limits (Comp).Has_UCL then
+                        Min_UCL := Gdouble'Min
+                          (Min_UCL,
+                           Gdouble
+                             (Data_To_Screen_Y (QP.Limits (Comp).UCL)));
+                     end if;
+                     if QP.Limits (Comp).Has_LCL then
+                        Max_LCL := Gdouble'Max
+                          (Max_LCL,
+                           Gdouble
+                             (Data_To_Screen_Y (QP.Limits (Comp).LCL)));
+                     end if;
+                  end loop;
+                  if Min_UCL <= Max_LCL then
+                     Cairo.Rectangle
+                       (Cr, QX - 17.0, Min_UCL, 34.0, Max_LCL - Min_UCL);
+                     Cairo.Stroke (Cr);
+                  end if;
+               end;
+            end if;
+         end loop;
+
+         --  Selection halos (Set A, blue).
+         Set_Color (Cr, 0.1, 0.3, 0.9, 0.9);
+         Cairo.Set_Line_Width (Cr, 2.0);
+         for QP of CD.Quantile_Points loop
+            if Vis_Quantile (QP)
+              and then State.Selection.Contains (QP.Session_Id)
+            then
+               declare
+                  use Coyote_SQC.Statistics.Quantile_CC;
+                  QX : constant Gdouble :=
+                    Gdouble (Data_To_Screen_X (Quantile_Point_X (QP)));
+                  Min_UCL : Gdouble := Gdouble'Last;
+                  Max_LCL : Gdouble := Gdouble'First;
+               begin
+                  for Comp in Quantile_Index loop
+                     if QP.Limits (Comp).Has_UCL then
+                        Min_UCL := Gdouble'Min
+                          (Min_UCL,
+                           Gdouble
+                             (Data_To_Screen_Y (QP.Limits (Comp).UCL)));
+                     end if;
+                     if QP.Limits (Comp).Has_LCL then
+                        Max_LCL := Gdouble'Max
+                          (Max_LCL,
+                           Gdouble
+                             (Data_To_Screen_Y (QP.Limits (Comp).LCL)));
+                     end if;
+                  end loop;
+                  if Min_UCL <= Max_LCL then
+                     Cairo.Rectangle
+                       (Cr, QX - 17.0, Min_UCL, 34.0, Max_LCL - Min_UCL);
+                     Cairo.Stroke (Cr);
+                  end if;
+               end;
+            end if;
+         end loop;
+
+         --  Set B halos (orange).
+         Set_Color (Cr, 1.0, 0.55, 0.0, 0.9);
+         Cairo.Set_Line_Width (Cr, 2.0);
+         for QP of CD.Quantile_Points loop
+            if Vis_Quantile (QP)
+              and then State.Set_B.Contains (QP.Session_Id)
+            then
+               declare
+                  use Coyote_SQC.Statistics.Quantile_CC;
+                  QX : constant Gdouble :=
+                    Gdouble (Data_To_Screen_X (Quantile_Point_X (QP)));
+                  Min_UCL : Gdouble := Gdouble'Last;
+                  Max_LCL : Gdouble := Gdouble'First;
+               begin
+                  for Comp in Quantile_Index loop
+                     if QP.Limits (Comp).Has_UCL then
+                        Min_UCL := Gdouble'Min
+                          (Min_UCL,
+                           Gdouble
+                             (Data_To_Screen_Y (QP.Limits (Comp).UCL)));
+                     end if;
+                     if QP.Limits (Comp).Has_LCL then
+                        Max_LCL := Gdouble'Max
+                          (Max_LCL,
+                           Gdouble
+                             (Data_To_Screen_Y (QP.Limits (Comp).LCL)));
+                     end if;
+                  end loop;
+                  if Min_UCL <= Max_LCL then
+                     Cairo.Rectangle
+                       (Cr, QX - 17.0, Min_UCL, 34.0, Max_LCL - Min_UCL);
+                     Cairo.Stroke (Cr);
+                  end if;
+               end;
+            end if;
+         end loop;
+      end if;
       --  ── 9. Axes ───────────────────────────────────────────────────────
       Set_Color (Cr, 0.0, 0.0, 0.0, 1.0);
       Cairo.Set_Line_Width (Cr, 1.0);
@@ -1341,6 +1628,58 @@ package body Coyote_SQC.UI.Chart_Canvas is
       Date_From_LF : constant Long_Float := Time_To_LF (State.Date_From);
       Date_To_LF   : constant Long_Float := Time_To_LF (State.Date_To);
    begin
+      --  Quantile CC hit test: check bounding box of each diagram.
+      if Coyote_SQC.Charts.Properties (State.Active_Chart)
+           .Is_Quantile_CC_Chart
+      then
+         declare
+            use Coyote_SQC.Statistics.Quantile_CC;
+         begin
+            for QP of CD.Quantile_Points loop
+               if (not QP.Excluded and then Time_To_LF (QP.Session_Time) >= Date_From_LF and then Time_To_LF (QP.Session_Time) <= Date_To_LF) then
+                  declare
+                     QX : constant Long_Float :=
+                       Data_To_Screen_X (Quantile_Point_X (QP));
+                  begin
+                     if abs (MX - QX) <= 14.0 then
+                        --  Check vertical extent.
+                        for Comp in Quantile_Index loop
+                           declare
+                              Lims : Quantile_Limits_Record renames
+                                QP.Limits (Comp);
+                              Val  : constant Long_Float := QP.Values (Comp);
+                           begin
+                              if not State.Workspace.Log_Y_Mode
+                                or else (Val > 0.0
+                                  and then Lims.UCL > 0.0
+                                  and then Lims.LCL > 0.0)
+                              then
+                                 declare
+                                    UY : constant Long_Float :=
+                                      Data_To_Screen_Y (Lims.UCL);
+                                    LY : constant Long_Float :=
+                                      Data_To_Screen_Y (Lims.LCL);
+                                    VY : constant Long_Float :=
+                                      Data_To_Screen_Y (Val);
+                                    MinY : constant Long_Float :=
+                                      Long_Float'Min (UY, VY);
+                                    MaxY : constant Long_Float :=
+                                      Long_Float'Max (LY, VY);
+                                 begin
+                                    if MY >= MinY and then MY <= MaxY then
+                                       return To_String (QP.Session_Id);
+                                    end if;
+                                 end;
+                              end if;
+                           end;
+                        end loop;
+                     end if;
+                  end;
+               end if;
+            end loop;
+         end;
+         return "";
+      end if;
       for P of CD.Points loop
          if (not P.Excluded or else P.Hollow_Gray)
            and then Time_To_LF (P.Session_Time) >= Date_From_LF
@@ -1379,6 +1718,56 @@ package body Coyote_SQC.UI.Chart_Canvas is
       Date_To_LF   : constant Long_Float := Time_To_LF (State.Date_To);
    begin
       for P of CD.Points loop
+      --  Quantile CC rubber-band selection.
+      if Coyote_SQC.Charts.Properties (State.Active_Chart)
+           .Is_Quantile_CC_Chart
+      then
+         for QP of CD.Quantile_Points loop
+            if (not QP.Excluded and then Time_To_LF (QP.Session_Time) >= Date_From_LF and then Time_To_LF (QP.Session_Time) <= Date_To_LF) then
+               declare
+                  QX : constant Long_Float :=
+                    Data_To_Screen_X (Quantile_Point_X (QP));
+                  Box_Min_Y : Long_Float := Long_Float'Last;
+                  Box_Max_Y : Long_Float := Long_Float'First;
+               begin
+                  if QX >= X1 and then QX <= X2 then
+                     --  Check if any component falls within Y range.
+                     declare
+                        use Coyote_SQC.Statistics.Quantile_CC;
+                     begin
+                        for Comp in Quantile_Index loop
+                           declare
+                              Lims : Quantile_Limits_Record renames
+                                QP.Limits (Comp);
+                           begin
+                              if Lims.Has_UCL then
+                                 Box_Min_Y := Long_Float'Min
+                                   (Box_Min_Y,
+                                    Data_To_Screen_Y (Lims.UCL));
+                              end if;
+                              if Lims.Has_LCL then
+                                 Box_Max_Y := Long_Float'Max
+                                   (Box_Max_Y,
+                                    Data_To_Screen_Y (Lims.LCL));
+                              end if;
+                           end;
+                        end loop;
+                     end;
+                     if Box_Min_Y <= Y2
+                       and then Box_Max_Y >= Y1
+                     then
+                        if State.Edit_Set_B_Mode then
+                           State.Set_B.Include (QP.Session_Id);
+                        else
+                           State.Selection.Include (QP.Session_Id);
+                        end if;
+                     end if;
+                  end if;
+               end;
+            end if;
+         end loop;
+         return;
+      end if;
          if (not P.Excluded or else P.Hollow_Gray)
            and then Time_To_LF (P.Session_Time) >= Date_From_LF
            and then Time_To_LF (P.Session_Time) <= Date_To_LF

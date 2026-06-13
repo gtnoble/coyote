@@ -22,7 +22,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => True,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Turn_Tokens_S =>
             return
               (Label           => U ("Turn Tokens -- s"),
@@ -33,7 +34,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => True,
                Is_S_Chart      => True,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Tool_Call_Tokens_Xbar =>
             return
               (Label           => U ("Tool Call Tokens -- Xbar"),
@@ -44,7 +46,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => True,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Tool_Call_Tokens_S =>
             return
               (Label           => U ("Tool Call Tokens -- s"),
@@ -55,7 +58,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => True,
                Is_S_Chart      => True,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Thinking_Tokens_Xbar =>
             return
               (Label           => U ("Thinking Tokens -- Xbar"),
@@ -66,7 +70,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => True,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Thinking_Tokens_S =>
             return
               (Label           => U ("Thinking Tokens -- s"),
@@ -77,7 +82,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => True,
                Is_S_Chart      => True,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Tool_Call_Failure_Rate =>
             return
               (Label           => U ("Tool Call Failure Rate"),
@@ -88,7 +94,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Fraction_Tool_Call_Turns =>
             return
               (Label           => U ("Fraction: Tool-Call Turns"),
@@ -99,7 +106,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Fraction_Thinking_Turns =>
             return
               (Label           => U ("Fraction: Thinking Turns"),
@@ -110,7 +118,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Fraction_Thinking_Tokens_I =>
             return
               (Label           => U ("Fraction: Thinking Tokens -- I"),
@@ -121,7 +130,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Fraction_Thinking_Tokens_MR =>
             return
               (Label           => U ("Fraction: Thinking Tokens -- MR"),
@@ -132,7 +142,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => True,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Fraction_Thinking_Tokens_EWMA =>
             return
               (Label           => U ("Fraction: Thinking Tokens -- EWMA"),
@@ -143,7 +154,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => True);
+               Is_EWMA_Chart   => True,
+               Is_Quantile_CC_Chart => False);
          when Fraction_Tool_Call_Tokens_I =>
             return
               (Label           => U ("Fraction: Tool-Call Tokens -- I"),
@@ -154,7 +166,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Fraction_Tool_Call_Tokens_MR =>
             return
               (Label           => U ("Fraction: Tool-Call Tokens -- MR"),
@@ -165,7 +178,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => True,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Fraction_Tool_Call_Tokens_EWMA =>
             return
               (Label           => U ("Fraction: Tool-Call Tokens -- EWMA"),
@@ -176,7 +190,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => True);
+               Is_EWMA_Chart   => True,
+               Is_Quantile_CC_Chart => False);
          when Session_Input_Tokens_I =>
             return
               (Label           => U ("Session Input Tokens -- I"),
@@ -187,7 +202,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Session_Input_Tokens_MR =>
             return
               (Label           => U ("Session Input Tokens -- MR"),
@@ -198,7 +214,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => True,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Session_Output_Tokens_I =>
             return
               (Label           => U ("Session Output Tokens -- I"),
@@ -209,7 +226,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Session_Output_Tokens_MR =>
             return
               (Label           => U ("Session Output Tokens -- MR"),
@@ -220,7 +238,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => True,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Session_Cache_Read_Tokens_I =>
             return
               (Label           => U ("Session Cache Read Tokens -- I"),
@@ -231,7 +250,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Session_Cache_Read_Tokens_MR =>
             return
               (Label           => U ("Session Cache Read Tokens -- MR"),
@@ -242,7 +262,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => True,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Session_Cache_Write_Tokens_I =>
             return
               (Label           => U ("Session Cache Write Tokens -- I"),
@@ -253,7 +274,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Session_Cache_Write_Tokens_MR =>
             return
               (Label           => U ("Session Cache Write Tokens -- MR"),
@@ -264,7 +286,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => True,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Session_Thinking_Tokens_I =>
             return
               (Label           => U ("Session Thinking Tokens -- I"),
@@ -275,7 +298,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Session_Thinking_Tokens_MR =>
             return
               (Label           => U ("Session Thinking Tokens -- MR"),
@@ -286,7 +310,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => True,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Session_Tool_Call_Tokens_I =>
             return
               (Label           => U ("Session Tool-Call Tokens -- I"),
@@ -297,7 +322,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Session_Tool_Call_Tokens_MR =>
             return
               (Label           => U ("Session Tool-Call Tokens -- MR"),
@@ -308,7 +334,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => True,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Session_Tool_Call_Result_Tokens_I =>
             return
               (Label           => U ("Session Tool-Call Result Tokens -- I"),
@@ -319,7 +346,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Session_Tool_Call_Result_Tokens_MR =>
             return
               (Label           => U ("Session Tool-Call Result Tokens -- MR"),
@@ -330,7 +358,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => True,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Session_Input_Tokens_EWMA =>
             return
               (Label           => U ("Session Input Tokens -- EWMA"),
@@ -341,7 +370,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => True);
+               Is_EWMA_Chart   => True,
+               Is_Quantile_CC_Chart => False);
          when Session_Output_Tokens_EWMA =>
             return
               (Label           => U ("Session Output Tokens -- EWMA"),
@@ -352,7 +382,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => True);
+               Is_EWMA_Chart   => True,
+               Is_Quantile_CC_Chart => False);
          when Session_Cache_Read_Tokens_EWMA =>
             return
               (Label           => U ("Session Cache Read Tokens -- EWMA"),
@@ -363,7 +394,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => True);
+               Is_EWMA_Chart   => True,
+               Is_Quantile_CC_Chart => False);
          when Session_Cache_Write_Tokens_EWMA =>
             return
               (Label           => U ("Session Cache Write Tokens -- EWMA"),
@@ -374,7 +406,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => True);
+               Is_EWMA_Chart   => True,
+               Is_Quantile_CC_Chart => False);
          when Session_Thinking_Tokens_EWMA =>
             return
               (Label           => U ("Session Thinking Tokens -- EWMA"),
@@ -385,7 +418,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => True);
+               Is_EWMA_Chart   => True,
+               Is_Quantile_CC_Chart => False);
          when Session_Tool_Call_Tokens_EWMA =>
             return
               (Label           => U ("Session Tool-Call Tokens -- EWMA"),
@@ -396,7 +430,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => True);
+               Is_EWMA_Chart   => True,
+               Is_Quantile_CC_Chart => False);
          when Session_Tool_Call_Result_Tokens_EWMA =>
             return
               (Label           => U ("Session Tool-Call Result Tokens -- EWMA"),
@@ -407,7 +442,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => True);
+               Is_EWMA_Chart   => True,
+               Is_Quantile_CC_Chart => False);
          when Session_Turn_Count_I =>
             return
               (Label           => U ("Session Turn Count -- I"),
@@ -418,7 +454,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Session_Turn_Count_MR =>
             return
               (Label           => U ("Session Turn Count -- MR"),
@@ -429,7 +466,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => True,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Session_Turn_Count_EWMA =>
             return
               (Label           => U ("Session Turn Count -- EWMA"),
@@ -440,7 +478,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => True);
+               Is_EWMA_Chart   => True,
+               Is_Quantile_CC_Chart => False);
          when Session_Uncached_Input_Tokens_I =>
             return
               (Label           => U ("Session Uncached Input Tokens -- I"),
@@ -451,7 +490,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Session_Uncached_Input_Tokens_MR =>
             return
               (Label           => U ("Session Uncached Input Tokens -- MR"),
@@ -462,7 +502,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => True,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Session_Uncached_Input_Tokens_EWMA =>
             return
               (Label           => U ("Session Uncached Input Tokens -- EWMA"),
@@ -473,7 +514,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => True);
+               Is_EWMA_Chart   => True,
+               Is_Quantile_CC_Chart => False);
          when Fraction_Thinking_Per_Tool_Call_I =>
             return
               (Label           => U ("Fraction: Thinking/Tool-Call Tokens -- I"),
@@ -484,7 +526,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Fraction_Thinking_Per_Tool_Call_MR =>
             return
               (Label           => U ("Fraction: Thinking/Tool-Call Tokens -- MR"),
@@ -495,7 +538,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => True,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Fraction_Thinking_Per_Tool_Call_EWMA =>
             return
               (Label           => U ("Fraction: Thinking/Tool-Call Tokens -- EWMA"),
@@ -506,7 +550,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => True);
+               Is_EWMA_Chart   => True,
+               Is_Quantile_CC_Chart => False);
          when Fraction_Uncached_Input_I =>
             return
               (Label           => U ("Fraction: Uncached/Total Input -- I"),
@@ -517,7 +562,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Fraction_Uncached_Input_MR =>
             return
               (Label           => U ("Fraction: Uncached/Total Input -- MR"),
@@ -528,7 +574,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => True,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Fraction_Uncached_Input_EWMA =>
             return
               (Label           => U ("Fraction: Uncached/Total Input -- EWMA"),
@@ -539,7 +586,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => True);
+               Is_EWMA_Chart   => True,
+               Is_Quantile_CC_Chart => False);
          when Tool_Call_JSD_Xbar =>
             return
               (Label           => U ("Consecutive Tool Diversity -- Xbar"),
@@ -550,7 +598,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => True,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Tool_Call_JSD_S =>
             return
               (Label           => U ("Consecutive Tool Diversity -- s"),
@@ -561,7 +610,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => True,
                Is_S_Chart      => True,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Session_Tool_Call_JSD_Sum_I =>
             return
               (Label           => U ("Consecutive Tool Diversity Sum -- I"),
@@ -572,7 +622,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Session_Tool_Call_JSD_Sum_MR =>
             return
               (Label           => U ("Consecutive Tool Diversity Sum -- MR"),
@@ -583,7 +634,8 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => True,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => False);
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
          when Session_Tool_Call_JSD_Sum_EWMA =>
             return
               (Label           => U ("Consecutive Tool Diversity Sum -- EWMA"),
@@ -594,7 +646,56 @@ package body Coyote_SQC.Charts is
                Is_MR_Chart     => False,
                Is_Xbar_S_Chart => False,
                Is_S_Chart      => False,
-               Is_EWMA_Chart   => True);
+               Is_EWMA_Chart   => True,
+               Is_Quantile_CC_Chart => False);
+         when Turn_Tokens_Quantile =>
+            return
+              (Label           => U ("Turn Tokens Quantile"),
+               Group_Path      => U ("Quantile Profiles/Quantile Profiles"),
+               Y_Axis_Label    => U ("Quantile (output tokens/turn)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => False,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => True);
+         when Tool_Call_Tokens_Quantile =>
+            return
+              (Label           => U ("Tool Call Tokens Quantile"),
+               Group_Path      => U ("Quantile Profiles/Quantile Profiles"),
+               Y_Axis_Label    => U ("Quantile (tool-call tokens/turn)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => False,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => True);
+         when Thinking_Tokens_Quantile =>
+            return
+              (Label           => U ("Thinking Tokens Quantile"),
+               Group_Path      => U ("Quantile Profiles/Quantile Profiles"),
+               Y_Axis_Label    => U ("Quantile (thinking tokens/turn)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => False,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => True);
+         when Tool_Call_JSD_Quantile =>
+            return
+              (Label           => U ("Tool Call JSD Quantile"),
+               Group_Path      => U ("Quantile Profiles/Quantile Profiles"),
+               Y_Axis_Label    => U ("Quantile (JSD similarity)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => False,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => True);
       end case;
    end Properties;
 
