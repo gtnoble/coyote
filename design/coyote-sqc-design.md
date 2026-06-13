@@ -2,7 +2,7 @@
 
 **Project:** Coyote Session Quality Control  
 **Version:** 0.1 (draft)  
-**Date:** 2026-05-21  
+**Date:** 2026-06-13  
 **Status:** In progress  
 **Requirements:** `requirements/coyote-sqc-requirements.md`
 
@@ -273,6 +273,7 @@ Coyote_SQC.Statistics.Tests          -- descriptive statistics (Mean_Of,
 Coyote_SQC.Statistics.Bootstrap      -- percentile bootstrap 95% CI for two-set
                         --   comparison (§5.17): Compute_CI for mean diff,
                         --   median diff, and SD ratio; fixed seed 12345
+Coyote_SQC.Statistics.Quantile_CC    -- two-stage bootstrap quantile profile limits
 Coyote_SQC.Charts                    -- Chart_Kind enum; Chart_State per chart
 Coyote_SQC.Workspace                 -- Workspace_Record; load/save .sqcw files
 Coyote_SQC.Workspace.Integrity       -- setup interval integrity checks on filter change
@@ -700,7 +701,12 @@ type Chart_Kind is
    --  similarity per session (sum of all Per_Consecutive_Tool_S values).
    Session_Tool_Call_JSD_Sum_I,
    Session_Tool_Call_JSD_Sum_MR,
-   Session_Tool_Call_JSD_Sum_EWMA);
+   Session_Tool_Call_JSD_Sum_EWMA,
+   --  Quantile Control Charts:
+   Turn_Tokens_Quantile,
+   Tool_Call_Tokens_Quantile,
+   Thinking_Tokens_Quantile,
+   Tool_Call_JSD_Quantile)
 
 type Chart_Definition_Record is record
    Chart  : Chart_Kind;
@@ -1491,6 +1497,154 @@ package Coyote_SQC.Statistics.Bootstrap is
       Seed  : Integer  := 12_345) return Three_CI_Results;
 
 end Coyote_SQC.Statistics.Bootstrap;
+
+### 7.19 Quantile Control Chart — `Coyote_SQC.Statistics.Quantile_CC`
+
+The Quantile Control Chart computes per-component bootstrap control limits
+for the minimum, first quartile, median, third quartile, and maximum of
+per-turn observations within each session, using a two-stage bootstrap
+resampling procedure.
+
+#### Two-Stage Bootstrap Procedure
+
+```ada
+with Ada.Containers.Vectors;
+with Coyote_SQC.Data_Model;
+
+package Coyote_SQC.Statistics.Quantile_CC is
+
+   --  Number of bootstrap replicates.
+   B_Replicates : constant Positive := 100_000;
+
+   --  Fixed seed for reproducible bootstrap results.
+   Bootstrap_Seed : constant Integer := 54_321;
+
+   --  Bonferroni-adjusted alpha for 5 simultaneous comparisons.
+   --  α = 0.0027 (3-sigma), α_B = α / 5 = 0.00054.
+   --  Two-sided tail probability: α_B / 2 = 0.00027.
+   --  For B = 100_000: r = floor(0.00027 * 100_000) = 27.
+   Bonferroni_Rank : constant Positive := 27;
+   --  LCL_j = b_{(27)}, UCL_j = b_{(B − 27 + 1)} = b_{(99_974)},
+   --  CL_j  = b_{(50_000)} (median of the bootstrap distribution).
+
+   --  The five quantile statistics computed from a subgroup sample.
+   type Quantile_Index is (Min_Q, Q1, Median_Q, Q3, Max_Q);
+
+   type Quantile_Array is array (Quantile_Index) of Long_Float;
+
+   --  Bootstrap distribution for a single unique n_i.
+   package Long_Float_Vecs is new Ada.Containers.Vectors (Natural, Long_Float);
+
+   type Bootstrap_Distribution is array (Quantile_Index) of
+     Long_Float_Vecs.Vector;
+
+   --  Compute the five quantile statistics from a single subgroup sample
+   --  of size n using linear interpolation (R type 7 default).
+   --  Position p(k) = (n − 1) * (k − 1) / 4 for k = 1…5.
+   --  Raises Constraint_Error if n < 1 or Values'Length < n.
+   function Compute_Quantiles
+     (Values : Long_Float_Array;
+      N      : Natural) return Quantile_Array;
+
+   --  Build the bootstrap distribution for a given subgroup size n_i.
+   --  Pool_Values is the flattened vector of all setup-interval subgroup
+   --  values, grouped by session: Pool_Offsets(I) is the 0-based start
+   --  index of session I's subgroup in Pool_Values;
+   --  Pool_Lengths(I) is the subgroup size of session I.
+   --  Sessions with a zero-length subgroup are excluded by the caller.
+   --  Returns a Bootstrap_Distribution containing B_Replicates values
+   --  for each of the five quantile statistics, sorted ascending.
+   function Build_Distribution
+     (Pool_Values  : Long_Float_Array;
+      Pool_Offsets : Coyote_SQC.Data_Model.Natural_Vectors.Vector;
+      Pool_Lengths : Coyote_SQC.Data_Model.Natural_Vectors.Vector;
+      N_I          : Positive) return Bootstrap_Distribution;
+
+   --  Extract control limits and center line for each of the five
+   --  quantile statistics from a precomputed bootstrap distribution.
+   --  Uses the Bonferroni-adjusted tail rank Bonferroni_Rank.
+   function Extract_Limits
+     (Dist : Bootstrap_Distribution) return Quantile_Limits_Array;
+
+   type Quantile_Limits_Record is record
+      UCL      : Long_Float;
+      CL       : Long_Float;
+      LCL      : Long_Float;
+      Has_UCL  : Boolean := True;
+      Has_LCL  : Boolean := True;
+   end record;
+
+   type Quantile_Limits_Array is array (Quantile_Index) of
+     Quantile_Limits_Record;
+
+   --  Determine whether a component is out-of-control.
+   --  Returns True when Value strictly exceeds UCL or is strictly below LCL.
+   function Is_OOC
+     (Value    : Long_Float;
+      Limits   : Quantile_Limits_Record) return Boolean;
+
+   --  Determine whether a session is out-of-control on a Quantile CC.
+   --  Returns True when any component is out-of-control.
+   function Session_Is_OOC
+     (Values : Quantile_Array;
+      Limits : Quantile_Limits_Array) return Boolean;
+
+   --  Return the set of components that are out-of-control.
+   --  Empty set when all components are in-control.
+   function OOC_Components
+     (Values : Quantile_Array;
+      Limits : Quantile_Limits_Array) return Quantile_Component_Set;
+
+   type Quantile_Component_Set is array (Quantile_Index) of Boolean
+     with Default_Component_Value => False;
+
+   --  Cache: maps subgroup size n_i → Bootstrap_Distribution.
+   --  Distributions are lazily computed on first access and reused.
+   --  The cache is cleared when the setup interval or session data changes.
+
+end Coyote_SQC.Statistics.Quantile_CC;
+```
+
+#### Caching Strategy
+
+A per-chart `Cache_Map` (keyed by `Natural`, the subgroup size `n_i`) stores
+precomputed `Bootstrap_Distribution` objects.  The cache is:
+
+- **Populated lazily:** the first `Chart_Point` for a given `n_i` triggers
+  distribution computation.
+- **Reused:** subsequent sessions with the same `n_i` reuse the cached
+  distribution without recomputation.
+- **Cleared:** when the setup interval changes or sessions are reloaded,
+  all per-chart caches are emptied so that distributions reflect the new
+  reference pool.
+
+Because the bootstrap is `O(B · n_i)` per distribution and B = 100 000,
+precomputing once per unique `n_i` ensures interactive performance even
+for workspaces with thousands of sessions (typical workspaces have fewer
+than 100 distinct subgroup sizes).
+
+#### Chart Descriptor Extensions
+
+For Quantile CC chart kinds, the `Chart_Descriptor` fields are:
+
+- `Get_Subgroup` / `LF_Get_Subgroup`: extracts the per-turn subgroup vector
+  for each session (used to populate the reference pool and compute per-session
+  quantiles).
+- `Get_Observation`: null (Quantile CC does not use scalar observations).
+- `Exclusion_Rule`: depends on chart kind — `Zero_Thinking` for Thinking
+  Tokens Quantile; `Zero_Tool_Call_Turns` for Tool Call Tokens Quantile and
+  Tool Call JSD Quantile; `No_Exclusion` for Turn Tokens Quantile.
+- Box-Cox, estimation method, and EWMA parameters in `Chart_Settings` are
+  not consulted for Quantile CC chart kinds.
+
+#### OOC Propagation
+
+When `Session_Is_OOC` returns `True` for a session on a Quantile CC, the
+session's marker on **all other charts** (Xbar, s, I, MR, EWMA, p) is
+recolored according to the existing out-of-control rules: red if no
+comment, orange if a comment is present.  This ensures that an anomaly
+detected on one chart is immediately visible when browsing other metrics.
+
 ```
 
 **Implementation notes:**
@@ -1740,12 +1894,14 @@ type Chart_Properties is record
    Is_I_Chart      : Boolean;
    Is_Xbar_S_Chart : Boolean;
    Is_EWMA_Chart   : Boolean;
+   Is_MR_Chart        : Boolean;
+   Is_Quantile_CC_Chart : Boolean;
 end record;
 
 function Properties (Kind : Chart_Kind) return Chart_Properties;
 ```
 
-The fifty-one charts and their properties:
+The fifty-five charts and their properties:
 
 | `Chart_Kind` | Label | Group_Path | Y-Axis Label |
 |---|---|---|---|
@@ -1802,6 +1958,10 @@ The fifty-one charts and their properties:
 | `Session_Tool_Call_JSD_Sum_I` | `Consecutive Tool Diversity Sum -- I` | `Tool Call Behavior/Consecutive Diversity` | `Sum of tool-call similarity scores` |
 | `Session_Tool_Call_JSD_Sum_MR` | `Consecutive Tool Diversity Sum -- MR` | `Tool Call Behavior/Consecutive Diversity` | `MR (sum of tool-call similarity scores)` |
 | `Session_Tool_Call_JSD_Sum_EWMA` | `Consecutive Tool Diversity Sum -- EWMA` | `Tool Call Behavior/Consecutive Diversity` | `EWMA (sum of tool-call similarity scores)` |
+| `Turn_Tokens_Quantile` | `Turn Tokens Quantile` | `Quantile Profiles/Quantile Profiles` | `Quantile (output tokens/turn)` |
+| `Tool_Call_Tokens_Quantile` | `Tool Call Tokens Quantile` | `Quantile Profiles/Quantile Profiles` | `Quantile (tool-call tokens/turn)` |
+| `Thinking_Tokens_Quantile` | `Thinking Tokens Quantile` | `Quantile Profiles/Quantile Profiles` | `Quantile (thinking tokens/turn)` |
+| `Tool_Call_JSD_Quantile` | `Tool Call JSD Quantile` | `Quantile Profiles/Quantile Profiles` | `Quantile (JSD similarity)` |
 
 The left-panel display order is derived from each chart's `Group_Path`:
 groups and sub-groups are sorted alphabetically, with enum declaration
@@ -2049,7 +2209,7 @@ The three panels are separated by `GtkPaned` splitters. Default widths: left pan
 ### 11.2 Left Panel — `Coyote_SQC.UI.Left_Panel`
 
 A `GtkListBox` with visual group separators. Each row is a `GtkListBoxRow`
-containing a `GtkLabel`. The four groups ("Token Consumption", "Rates", "Session Totals", "Tool Call Behavior") are separated
+containing a `GtkLabel`. The five groups ("Token Consumption", "Rates", "Session Totals", "Tool Call Behavior") are separated
 by a `GtkSeparator` row styled with a group label above it.
 
 Clicking a row:
@@ -2997,6 +3157,58 @@ The `On_Draw` callback executes these steps in order:
 5. **Center line:** solid blue polyline through all non-excluded points,
    clipped to the plot area.
 6. **Point markers:** filled/hollow circles per §7.3.3 of the requirements.
+
+6a. **Quantile diagrams (Quantile CC only):** when the active chart is a
+   Quantile Control Chart (§6.42–6.45), steps 3–6 (connecting line,
+   control limit series, center line, point markers) are replaced by the
+   following quantile diagram rendering procedure.  For each session, a
+   vertical quantile diagram is drawn at its x-coordinate, consisting of
+   five horizontal component lines each inside a hollow control-limit
+   box.  Components are rendered from the session's median y-value
+   outward (median, then Q1/Q3, then min/max) so that narrower boxes
+   are drawn on top of wider boxes.
+
+   Component widths (horizontal extent from center, in pixels):
+
+   | Component | Half-width |
+   |---|---|
+   | Minimum | 6 |
+   | First quartile | 10 |
+   | Median | 14 |
+   | Third quartile | 10 |
+   | Maximum | 6 |
+
+   For each component:
+
+   - **Control box:** a hollow rectangle centered at the session's
+     x-coordinate, with top edge at `Data_To_Screen_Y (UCL_j)`, bottom
+     edge at `Data_To_Screen_Y (LCL_j)`, and total width `2 × half_width`.
+     Stroke width: 1 px.
+   - **Component line:** a filled horizontal line segment centered at
+     the session's x-coordinate at `Data_To_Screen_Y (Value_j)`, with
+     total width `2 × half_width`.  Line thickness: 2 px.
+
+   Component colors (line and box are the same color):
+
+   | Condition | Color (Cairo RGB) |
+   |---|---|
+   | In-control, no comment for session | Black line `(0, 0, 0)`, gray box `(0.41, 0.41, 0.41)` |
+   | In-control, comment present | Green line `(0.1, 0.7, 0.2)`, green box `(0.1, 0.7, 0.2)` |
+   | Out-of-control, no comment | Red line `(0.9, 0.1, 0.1)`, red box `(0.9, 0.1, 0.1)` |
+   | Out-of-control, comment present | Orange line `(0.95, 0.5, 0.0)`, orange box `(0.95, 0.5, 0.0)` |
+
+   **Setup interval halo:** sessions in the setup interval receive a
+   yellow ring: a hollow rectangle drawn 3 px outside the bounding box
+   of the full diagram (from min LCL to max UCL vertically, from
+   −max_half_width to +max_half_width horizontally), with 2 px stroke
+   in yellow `(1.0, 0.80, 0.0)`.
+
+   **Selection halo:** selected sessions receive a blue (Set A) ring or
+   orange (Set B) ring drawn 3 px outside the bounding box, with 2 px
+   stroke.
+
+   **Log Y mode:** when `Log_Y_Mode` is active, any component whose
+   `Value_j`, `UCL_j`, or `LCL_j` is ≤ 0 is skipped (not drawn).
    Radius: 5px.
 7. **Rubber-band rectangle:** if `Rubberband_Active`, draw a dashed rectangle
    in dark gray (`RGBA(0.3, 0.3, 0.3, 0.8)`) with a semi-transparent fill
@@ -3050,6 +3262,10 @@ The `On_Draw` callback executes these steps in order:
 | Single-turn on Xbar chart | `(0, 0, 0)` | `(0, 0, 0)` | Yes |
 | Selected (Set A) halo | — | `(0.1, 0.3, 0.9)` 2px ring | Additive |
 | Selected (Set B) halo | — | `(0.9, 0.5, 0.1)` 2px ring (orange) | Additive |
+| Quantile CC component, in-control, no comment | Black line `(0,0,0)`, gray box `(0.41,0.41,0.41)` |
+| Quantile CC component, in-control, comment present | Green line `(0.1,0.7,0.2)`, green box `(0.1,0.7,0.2)` |
+| Quantile CC component, OOC, no comment | Red line `(0.9,0.1,0.1)`, red box `(0.9,0.1,0.1)` |
+| Quantile CC component, OOC, comment present | Orange line `(0.95,0.5,0.0)`, orange box `(0.95,0.5,0.0)` |
 
 Setup interval and selection halos are additive: a selected setup-interval point
 receives both a yellow ring (radius+6) and a blue ring (radius+3). Hollow-gray and
@@ -3278,6 +3494,51 @@ existing AUnit test suite. Fixture files live in `test/fixtures/sqc/`.
 
 ---
 
+
+### 14.6 Quantile Control Chart Tests — `Coyote_SQC.Tests.Statistics.Quantile_CC`
+
+- `Compute_Quantiles` with a known sorted 10-element array returns correct
+  R type 7 values for all five quantiles to 1 × 10⁻¹⁰.
+- `Compute_Quantiles` with n = 1 returns all five quantiles equal to the single
+  value.
+- `Build_Distribution` for a three-session pool with known values and n_i = 5
+  produces a bootstrap distribution with B = 100 000 entries per quantile
+  statistic; verify the ranks 27 and 99 974 agree with independently computed
+  values (Bonferroni α_B/2 = 0.00027).
+- `Build_Distribution` with a single-session pool (only within-session
+  variability) still produces valid limits without raising an exception.
+- `Build_Distribution` seeding: two calls with the same pool, n_i, and seed
+  (54 321) produce identical limits for all five statistics.
+- `Extract_Limits` returns correct UCL_j, LCL_j, and CL_j from a known sorted
+  bootstrap distribution vector to 1 × 10⁻¹⁰.
+- `Is_OOC` returns `True` when a value strictly exceeds UCL or is strictly
+  below LCL; returns `False` when the value is within `[LCL, UCL]`.
+- `Session_Is_OOC` returns `True` when any single component is out-of-control;
+  returns `False` when all five are in-control.
+- `OOC_Components` returns an array where only the out-of-control positions
+  are `True`.
+- Cache: after the first call to `Build_Distribution` for a given n_i,
+  subsequent calls for the same n_i return the cached distribution without
+  recomputation.
+- Cache invalidation: after a call to `Clear_Cache`, the next
+  `Build_Distribution` recomputes the distribution.
+
+### 14.7 Quantile Control Chart Rendering Tests — `Coyote_SQC.Tests.Chart_Canvas`
+
+- Component widths: a session with n_i = 10 renders five horizontal line
+  segments at the correct y-positions, with the median having the greatest
+  half-width (14 px), Q1/Q3 having medium half-width (10 px), and min/max
+  having the narrowest half-width (6 px).
+- Component coloring: an in-control session with no comment renders black
+  lines and gray boxes; adding a comment changes both to green for
+  in-control components; an OOC component with no comment renders red;
+  an OOC component with a comment renders orange.
+- Setup interval halo: a session in the setup interval receives a yellow
+  ring drawn outside the bounding box of the full diagram.
+- Selection halo: a selected session receives a blue (Set A) or orange
+  (Set B) ring outside the bounding box.
+- Log Y mode with zero/negative values: components whose UCL, LCL, or
+  statistic is ≤ 0 are skipped and do not cause an exception.
 *End of document.*
 Note: Box_Cox_Inverse requires (for λ ≠ 0) that Z*λ + 1 > 0 for any transformed value Z being inverted. If this condition is not met the inverse raises Constraint_Error. When back-transform of UCL or CL fails the implementation must provide a visible explanation (status bar or popup) and one of the documented fallback behaviours: choose an alternate valid lambda, fall back to λ = 0 (log), or render limits in transformed units with a clear label. The application MUST NOT silently omit control limits without notifying the user.
 

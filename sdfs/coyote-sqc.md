@@ -179,3 +179,32 @@ defeat the purpose of the overlap.
   add the same ten null assignments — belt-and-suspenders, makes the three
   view-builder procedures consistent.  No test changes (no new public API).
   Build clean; 665 tests pass.
+
+### Quantile Control Chart — SRS and SDD (2026-06-13)
+
+Added SRS-SQC §5.18 (Quantile Control Chart — Bootstrap Methodology), four
+new chart definitions (§6.42–6.45: Turn Tokens, Tool Call Tokens, Thinking
+Tokens, and Tool Call JSD Quantile Control Charts), §7.3.2a (Quantile CC
+Rendering), §7.3.3 (per-component coloring rows), and §8.3a (Quantile CC
+Hover tooltip). Chart count increased from 51 to 55. Left-panel group
+layout updated with new "Quantile Profiles" top-level group.
+
+Bootstrap methodology: two-stage resampling — sample a random setup-interval
+session, then sample n_i observations with replacement from that session's
+per-turn values, compute five R type 7 quantiles. B = 100 000 replicates
+per unique n_i, cached. Bonferroni correction for 5 simultaneous
+comparisons (α_B = α/5, tail rank 27 of 100 000). Fixed seed 54 321.
+Box-Cox and estimation method not applicable. Session-level OOC flag
+propagates to all other charts.
+
+SDD-SQC updated: added `Coyote_SQC.Statistics.Quantile_CC` package to
+architecture (§4), four new `Chart_Kind` enum values (§6.7),
+`Is_MR_Chart` and `Is_Quantile_CC_Chart` fields to `Chart_Properties`
+(§6.7a), `Coyote_SQC.Statistics.Quantile_CC` package specification with
+`Compute_Quantiles`, `Build_Distribution`, `Extract_Limits`, `Is_OOC`,
+`Session_Is_OOC`, `OOC_Components`, caching strategy, and OOC propagation
+(§7.19), rendering pipeline step 6a for quantile diagram rendering (§12.6),
+color rows in §12.7, and two new test suites in §14.6–§14.7.
+
+12 new test requirements added to SRS-SQC §15.6; 16 new test cases specified
+in SDD-SQC §14.6–§14.7.
