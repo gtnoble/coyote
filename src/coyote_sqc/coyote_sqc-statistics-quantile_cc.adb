@@ -1,7 +1,6 @@
 --  Coyote_SQC.Statistics.Quantile_CC body.
 --
 --  Project: coyote
-with Ada.Containers.Generic_Array_Sort;
 
 
 package body Coyote_SQC.Statistics.Quantile_CC is
@@ -27,10 +26,49 @@ package body Coyote_SQC.Statistics.Quantile_CC is
       end loop;
    end Insertion_Sort;
 
-   procedure Sort_Array is new Ada.Containers.Generic_Array_Sort
-     (Index_Type   => Positive,
-      Element_Type => Long_Float,
-      Array_Type   => Long_Float_Array);
+   --  In-place heapsort with direct array access (no indirection).
+   --  Eliminates cache_maps__reference overhead (29% of CPU in gprof
+   --  from the Generic_Array_Sort indirect element accessor).
+   --  Used for large arrays (N > 500) and the outer Sort_Vec sorts
+   --  where quicksort recursion overhead dominates.
+   procedure Heap_Sort (A : in out Long_Float_Array) is
+      N : constant Positive := A'Length;
+
+      procedure Sift_Down (Start, Last : Positive) is
+         Root   : constant Long_Float := A (Start);
+         Parent : Positive := Start;
+         Child  : Positive;
+      begin
+         loop
+            Child := 2 * Parent;
+            exit when Child > Last;
+            if Child < Last and then A (Child) < A (Child + 1) then
+               Child := Child + 1;
+            end if;
+            exit when Root >= A (Child);
+            A (Parent) := A (Child);
+            Parent := Child;
+         end loop;
+         A (Parent) := Root;
+      end Sift_Down;
+   begin
+      if N <= 1 then
+         return;
+      end if;
+      for I in reverse 1 .. N / 2 loop
+         Sift_Down (I, N);
+      end loop;
+      for I in reverse 2 .. N loop
+         declare
+            Tmp : constant Long_Float := A (1);
+         begin
+            A (1) := A (I);
+            A (I) := Tmp;
+         end;
+         Sift_Down (1, I - 1);
+      end loop;
+   end Heap_Sort;
+
 
    --  In-place quicksort with median-of-three pivot.
    --  Falls back to Insertion_Sort for segments of size <= 16.
@@ -108,8 +146,8 @@ package body Coyote_SQC.Statistics.Quantile_CC is
       end Sort_Segment;
 
    begin
-      if A'Length > 100 then
-         Sort_Array (A);
+      if A'Length > 500 then
+         Heap_Sort (A);
       elsif A'Length > 1 then
          Sort_Segment (A'First, A'Last);
       end if;
@@ -197,7 +235,7 @@ package body Coyote_SQC.Statistics.Quantile_CC is
       for I in A'Range loop
          A (I) := V.Element (I - 1);
       end loop;
-      Sort_Array (A);
+      Heap_Sort (A);
       for I in A'Range loop
          V.Replace_Element (I - 1, A (I));
       end loop;
