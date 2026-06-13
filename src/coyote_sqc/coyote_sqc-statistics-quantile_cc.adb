@@ -14,6 +14,23 @@ package body Coyote_SQC.Statistics.Quantile_CC is
       Element_Type => Long_Float,
       Array_Type   => Long_Float_Array);
 
+   --  In-place insertion sort — faster than heapsort for small N.
+   --  Used in the inner bootstrap loop where N_I is typically < 50.
+   procedure Insertion_Sort (A : in out Long_Float_Array) is
+      J   : Positive;
+      Tmp : Long_Float;
+   begin
+      for I in A'First + 1 .. A'Last loop
+         Tmp := A (I);
+         J   := I;
+         while J > A'First and then A (J - 1) > Tmp loop
+            A (J) := A (J - 1);
+            J := J - 1;
+         end loop;
+         A (J) := Tmp;
+      end loop;
+   end Insertion_Sort;
+
    --  ── Random number generation ─────────────────────────────────────────
    --  Simple 31-bit linear congruential generator for reproducibility
    --  across all platforms.  Parameters from glibc rand().
@@ -73,7 +90,11 @@ package body Coyote_SQC.Statistics.Quantile_CC is
            "Compute_Quantiles: Values'Length < N";
       end if;
 
-      Sort_Array (Sorted_Vals);
+      if N <= 50 then
+         Insertion_Sort (Sorted_Vals);
+      else
+         Sort_Array (Sorted_Vals);
+      end if;
 
       Result (Min_Q)    := Linear_Quantile (0.00);
       Result (Q1)       := Linear_Quantile (0.25);
