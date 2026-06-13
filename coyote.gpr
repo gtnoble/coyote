@@ -29,6 +29,7 @@ project Coyote is
       end case;
       case Profile_Enabled is
          when "true" =>
+            for Switches ("Ada") use Coyote_Config.Ada_Compiler_Switches & ("-pg");
             for Switches ("C") use ("-O2", "-I/usr/include/x86_64-linux-gnu", "-pg");
          when others =>
             for Switches ("C") use ("-O2", "-I/usr/include/x86_64-linux-gnu");
