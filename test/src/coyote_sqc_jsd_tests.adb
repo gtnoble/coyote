@@ -43,168 +43,102 @@ package body Coyote_SQC_JSD_Tests is
               "Token_Count("""","") should be 0");
    end Test_Token_Count_Empty;
 
-   --  ── Compute_S_Values tests ────────────────────────────────────────────
+   --  ── Compute_S_Values tests (scalar return) ────────────────────────────
 
-   --  Two identical calls: Result must contain 2 elements
-   --  (tool_name key + 1 argument key).
-   procedure Test_S_Values_Identical_Calls_Length (T : in out Test) is
+   --  Two identical calls: the pair-level sum must be positive.
+   procedure Test_S_Values_Identical_Calls_Non_Zero (T : in out Test) is
       pragma Unreferenced (T);
-      Result : Long_Float_Vectors.Vector;
+      S : constant Long_Float :=
+        Coyote_SQC.Statistics.JSD.Compute_S_Values
+          (Tool_Name_1 => "tool",
+           Arguments_1 => "{""x"":""val""}",
+           Tool_Name_2 => "tool",
+           Arguments_2 => "{""x"":""val""}");
    begin
-      Coyote_SQC.Statistics.JSD.Compute_S_Values
-        (Tool_Name_1 => "tool",
-         Arguments_1 => "{""x"":""val""}",
-         Tool_Name_2 => "tool",
-         Arguments_2 => "{""x"":""val""}",
-         Result      => Result);
-      Assert (Result.Length = 2,
-              "Identical calls: Length should be 2 (tool_name + 1 key); got "
-              & Ada.Containers.Count_Type'Image (Result.Length));
-   end Test_S_Values_Identical_Calls_Length;
+      Assert (S > 0.0,
+              "Identical calls: pair-level sum must be > 0; got "
+              & Long_Float'Image (S));
+   end Test_S_Values_Identical_Calls_Non_Zero;
 
-   --  Two identical calls: each S_k = N_k = 2 (both sides have 1 token).
-   --  Sum = 4.0.
+   --  Two identical calls: sum of per-key S_k = 4.0
+   --  (tool_name S_k = 2.0 + argument S_k = 2.0).
    procedure Test_S_Values_Identical_Calls_Sum (T : in out Test) is
       pragma Unreferenced (T);
-      Tol    : constant Long_Float := 1.0e-9;
-      Result : Long_Float_Vectors.Vector;
-      Total  : Long_Float := 0.0;
+      Tol : constant Long_Float := 1.0e-9;
+      S   : constant Long_Float :=
+        Coyote_SQC.Statistics.JSD.Compute_S_Values
+          (Tool_Name_1 => "tool",
+           Arguments_1 => "{""x"":""val""}",
+           Tool_Name_2 => "tool",
+           Arguments_2 => "{""x"":""val""}");
    begin
-      Coyote_SQC.Statistics.JSD.Compute_S_Values
-        (Tool_Name_1 => "tool",
-         Arguments_1 => "{""x"":""val""}",
-         Tool_Name_2 => "tool",
-         Arguments_2 => "{""x"":""val""}",
-         Result      => Result);
-      for V of Result loop
-         Total := Total + V;
-      end loop;
-      Assert (abs (Total - 4.0) <= Tol,
-              "Identical calls: sum of S_k should be 4.0; got "
-              & Long_Float'Image (Total));
-      --  Each individual S_k should equal N_k = 2 (identical distributions).
-      Assert (abs (Result.Element (1) - 2.0) <= Tol,
-              "Identical calls: tool_name S_k should be 2.0; got "
-              & Long_Float'Image (Result.Element (1)));
-      Assert (abs (Result.Element (2) - 2.0) <= Tol,
-              "Identical calls: argument S_k should be 2.0; got "
-              & Long_Float'Image (Result.Element (2)));
+      Assert (abs (S - 4.0) <= Tol,
+              "Identical calls: pair-level sum should be 4.0; got "
+              & Long_Float'Image (S));
    end Test_S_Values_Identical_Calls_Sum;
 
-   --  Key present in one call but absent in the other: S_k = 0.
-   procedure Test_S_Values_One_Side_Absent_Zero (T : in out Test) is
+   --  Keys present only on one side: absent-key S_k = 0, so total sum
+   --  equals the tool_name S_k only (tool_name "t"/"t", 1 token each).
+   procedure Test_S_Values_One_Side_Absent (T : in out Test) is
       pragma Unreferenced (T);
-      Tol    : constant Long_Float := 1.0e-9;
-      Result : Long_Float_Vectors.Vector;
+      Tol : constant Long_Float := 1.0e-9;
+      S   : constant Long_Float :=
+        Coyote_SQC.Statistics.JSD.Compute_S_Values
+          (Tool_Name_1 => "t",
+           Arguments_1 => "{""a"":""foo""}",
+           Tool_Name_2 => "t",
+           Arguments_2 => "{""b"":""bar""}");
    begin
-      --  Call_1 has key "a", Call_2 has key "b"; neither shares the other's key.
-      Coyote_SQC.Statistics.JSD.Compute_S_Values
-        (Tool_Name_1 => "t",
-         Arguments_1 => "{""a"":""foo""}",
-         Tool_Name_2 => "t",
-         Arguments_2 => "{""b"":""bar""}",
-         Result      => Result);
-      --  S_k for "a" (absent in Call_2) and "b" (absent in Call_1) must be 0.
-      Assert (abs (Result.Element (2) - 0.0) <= Tol,
-              "One-side absent key ""a"": S_k should be 0; got "
-              & Long_Float'Image (Result.Element (2)));
-      Assert (abs (Result.Element (3) - 0.0) <= Tol,
-              "One-side absent key ""b"": S_k should be 0; got "
-              & Long_Float'Image (Result.Element (3)));
-   end Test_S_Values_One_Side_Absent_Zero;
+      --  Tool-name S_k = 2.0 (identical distributions, 1 token each);
+      --  argument keys "a" and "b" each contribute 0.0 (absent on one side).
+      Assert (abs (S - 2.0) <= Tol,
+              "One-side absent keys: pair-level sum should be 2.0; got "
+              & Long_Float'Image (S));
+   end Test_S_Values_One_Side_Absent;
 
-   --  One-side absent keys still produce entries (Length includes them).
-   procedure Test_S_Values_One_Side_Absent_Length (T : in out Test) is
-      pragma Unreferenced (T);
-      Result : Long_Float_Vectors.Vector;
-   begin
-      Coyote_SQC.Statistics.JSD.Compute_S_Values
-        (Tool_Name_1 => "t",
-         Arguments_1 => "{""a"":""foo""}",
-         Tool_Name_2 => "t",
-         Arguments_2 => "{""b"":""bar""}",
-         Result      => Result);
-      --  3 entries: tool_name ("t"/"t"), "a" (absent in 2), "b" (absent in 1).
-      Assert (Result.Length = 3,
-              "One-side absent: Length should be 3; got "
-              & Ada.Containers.Count_Type'Image (Result.Length));
-   end Test_S_Values_One_Side_Absent_Length;
-
-   --  Keys whose values are non-string JSON (integer) produce N_k = 0 on
-   --  both sides and must be skipped — not added to Result.
+   --  Keys with integer values produce no tokens on either side and are
+   --  skipped.  Result is tool_name S_k only.
    procedure Test_S_Values_Integer_Key_Skipped (T : in out Test) is
       pragma Unreferenced (T);
-      Result : Long_Float_Vectors.Vector;
+      Tol : constant Long_Float := 1.0e-9;
+      S   : constant Long_Float :=
+        Coyote_SQC.Statistics.JSD.Compute_S_Values
+          (Tool_Name_1 => "f",
+           Arguments_1 => "{""n"":42}",
+           Tool_Name_2 => "f",
+           Arguments_2 => "{""n"":99}");
    begin
-      --  Both calls have an integer-valued key "n": no string content → skipped.
-      Coyote_SQC.Statistics.JSD.Compute_S_Values
-        (Tool_Name_1 => "f",
-         Arguments_1 => "{""n"":42}",
-         Tool_Name_2 => "f",
-         Arguments_2 => "{""n"":99}",
-         Result      => Result);
-      --  Only tool_name should be appended.
-      Assert (Result.Length = 1,
-              "Integer-valued key must be skipped; Length should be 1, got "
-              & Ada.Containers.Count_Type'Image (Result.Length));
+      --  Tool-name "f"/"f" (1 token each) → S_k = 2.0.
+      Assert (abs (S - 2.0) <= Tol,
+              "Integer-valued key must be skipped; pair-level sum should be "
+              & "2.0; got " & Long_Float'Image (S));
    end Test_S_Values_Integer_Key_Skipped;
 
-   --  Different tool names produce a lower tool_name S_k than identical
-   --  tool names with the same number of tokens.
+   --  Different tool names produce a lower pair-level sum than identical
+   --  tool names with the same argument values.
    procedure Test_S_Values_Different_Tool_Names (T : in out Test) is
       pragma Unreferenced (T);
-      Result_Diff  : Long_Float_Vectors.Vector;
-      Result_Same  : Long_Float_Vectors.Vector;
+      Tol        : constant Long_Float := 1.0e-9;
+      S_Diff     : constant Long_Float :=
+        Coyote_SQC.Statistics.JSD.Compute_S_Values
+          (Tool_Name_1 => "read",
+           Arguments_1 => "{""x"":""val""}",
+           Tool_Name_2 => "write",
+           Arguments_2 => "{""x"":""val""}");
+      S_Same     : constant Long_Float :=
+        Coyote_SQC.Statistics.JSD.Compute_S_Values
+          (Tool_Name_1 => "read",
+           Arguments_1 => "{""x"":""val""}",
+           Tool_Name_2 => "read",
+           Arguments_2 => "{""x"":""val""}");
    begin
-      --  Different tool names; identical "x" argument.
-      Coyote_SQC.Statistics.JSD.Compute_S_Values
-        (Tool_Name_1 => "read",
-         Arguments_1 => "{""x"":""val""}",
-         Tool_Name_2 => "write",
-         Arguments_2 => "{""x"":""val""}",
-         Result      => Result_Diff);
-      --  Identical tool names; identical "x" argument.
-      Coyote_SQC.Statistics.JSD.Compute_S_Values
-        (Tool_Name_1 => "read",
-         Arguments_1 => "{""x"":""val""}",
-         Tool_Name_2 => "read",
-         Arguments_2 => "{""x"":""val""}",
-         Result      => Result_Same);
-
-      --  First element is the tool_name S_k.
-      Assert (Result_Diff.Element (1) < Result_Same.Element (1),
-              "Different tool names must produce lower tool_name S_k than "
-              & "identical tool names");
-      --  Argument S_k should be the same (2.0) in both cases.
-      Assert (abs (Result_Diff.Element (2) - 2.0) < 1.0e-9,
-              "Argument S_k with identical values must be 2.0");
+      Assert (S_Diff < S_Same,
+              "Different tool names must produce lower pair-level sum than "
+              & "identical tool names; Diff=" & Long_Float'Image (S_Diff)
+              & " Same=" & Long_Float'Image (S_Same));
+      --  Argument S_k is the same in both cases; the difference comes
+      --  entirely from the tool_name contribution.
    end Test_S_Values_Different_Tool_Names;
-
-   --  Compute_S_Values appends to Result rather than clearing it.
-   procedure Test_S_Values_Appends_Not_Clears (T : in out Test) is
-      pragma Unreferenced (T);
-      Result : Long_Float_Vectors.Vector;
-   begin
-      --  First call; adds 2 elements (tool_name + "x").
-      Coyote_SQC.Statistics.JSD.Compute_S_Values
-        (Tool_Name_1 => "tool",
-         Arguments_1 => "{""x"":""v""}",
-         Tool_Name_2 => "tool",
-         Arguments_2 => "{""x"":""v""}",
-         Result      => Result);
-      Assert (Result.Length = 2, "After first call: Length = 2");
-
-      --  Second call on the same Result vector; should append, not replace.
-      Coyote_SQC.Statistics.JSD.Compute_S_Values
-        (Tool_Name_1 => "tool",
-         Arguments_1 => "{""x"":""v""}",
-         Tool_Name_2 => "tool",
-         Arguments_2 => "{""x"":""v""}",
-         Result      => Result);
-      Assert (Result.Length = 4,
-              "After second call: Length should be 4 (appended); got "
-              & Ada.Containers.Count_Type'Image (Result.Length));
-   end Test_S_Values_Appends_Not_Clears;
 
    --  ── Metrics JSD field tests ───────────────────────────────────────────
 
@@ -221,8 +155,8 @@ package body Coyote_SQC_JSD_Tests is
    end Make_TC;
 
    --  Two identical tool calls in one turn:
-   --  N_Consecutive_Tool_Pairs = 1, Per_Consecutive_Tool_S.Length = 2,
-   --  Total_Tool_Call_JSD_S = 4.0 (both S_k values equal N_k = 2).
+   --  N_Consecutive_Tool_Pairs = 1, Per_Consecutive_Tool_S.Length = 1
+   --  (one pair-level scalar), Total_Tool_Call_JSD_S = 4.0.
    procedure Test_Metrics_JSD_Two_Identical_Calls (T : in out Test) is
       pragma Unreferenced (T);
       Session : Session_Record;
@@ -241,8 +175,8 @@ package body Coyote_SQC_JSD_Tests is
       Assert (M.N_Consecutive_Tool_Pairs = 1,
               "Two identical calls: N_Consecutive_Tool_Pairs must be 1; got "
               & Natural'Image (M.N_Consecutive_Tool_Pairs));
-      Assert (M.Per_Consecutive_Tool_S.Length = 2,
-              "Two identical calls: Per_Consecutive_Tool_S.Length must be 2; got "
+      Assert (M.Per_Consecutive_Tool_S.Length = 1,
+              "Two identical calls: Per_Consecutive_Tool_S.Length must be 1; got "
               & Ada.Containers.Count_Type'Image
                   (M.Per_Consecutive_Tool_S.Length));
       Assert (abs (M.Total_Tool_Call_JSD_S - 4.0) <= Tol,
@@ -291,7 +225,8 @@ package body Coyote_SQC_JSD_Tests is
               "No tool calls: Total_Tool_Call_JSD_S must be 0.0");
    end Test_Metrics_JSD_No_Tool_Calls;
 
-   --  Total_Tool_Call_JSD_S equals the sum of Per_Consecutive_Tool_S.
+   --  Total_Tool_Call_JSD_S equals the sum of Per_Consecutive_Tool_S
+   --  (each element is a pair-level scalar).
    procedure Test_Metrics_JSD_Total_S_Sum (T : in out Test) is
       pragma Unreferenced (T);
       Session : Session_Record;

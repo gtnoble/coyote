@@ -2019,32 +2019,25 @@ package body Test_Suites is
         ("SQC JSD: Token_Count empty tool name and args yields 0",
          Coyote_SQC_JSD_Tests.Test_Token_Count_Empty'Access));
       Result.Add_Test (SQC_JSD_Caller.Create
-        ("SQC JSD: Compute_S_Values identical calls produce 2 elements",
+        ("SQC JSD: Compute_S_Values identical calls pair-level sum non-zero",
          Coyote_SQC_JSD_Tests
-           .Test_S_Values_Identical_Calls_Length'Access));
+           .Test_S_Values_Identical_Calls_Non_Zero'Access));
       Result.Add_Test (SQC_JSD_Caller.Create
         ("SQC JSD: Compute_S_Values identical calls sum = 4.0",
          Coyote_SQC_JSD_Tests
            .Test_S_Values_Identical_Calls_Sum'Access));
       Result.Add_Test (SQC_JSD_Caller.Create
-        ("SQC JSD: Compute_S_Values one-side absent key gives S_k = 0",
+        ("SQC JSD: Compute_S_Values one-side absent key pair-level sum equals tool_name-only S_k",
          Coyote_SQC_JSD_Tests
-           .Test_S_Values_One_Side_Absent_Zero'Access));
-      Result.Add_Test (SQC_JSD_Caller.Create
-        ("SQC JSD: Compute_S_Values one-side absent key still appears in Result",
-         Coyote_SQC_JSD_Tests
-           .Test_S_Values_One_Side_Absent_Length'Access));
+           .Test_S_Values_One_Side_Absent'Access));
       Result.Add_Test (SQC_JSD_Caller.Create
         ("SQC JSD: Compute_S_Values integer-valued key skipped (N_k = 0)",
          Coyote_SQC_JSD_Tests
            .Test_S_Values_Integer_Key_Skipped'Access));
       Result.Add_Test (SQC_JSD_Caller.Create
-        ("SQC JSD: Compute_S_Values different tool names give lower S_k",
+        ("SQC JSD: Compute_S_Values different tool names give lower pair-level sum",
          Coyote_SQC_JSD_Tests
            .Test_S_Values_Different_Tool_Names'Access));
-      Result.Add_Test (SQC_JSD_Caller.Create
-        ("SQC JSD: Compute_S_Values appends to Result, does not clear",
-         Coyote_SQC_JSD_Tests.Test_S_Values_Appends_Not_Clears'Access));
       Result.Add_Test (SQC_JSD_Caller.Create
         ("SQC JSD: Metrics.Compute N_Consecutive_Tool_Pairs=1 for two calls",
          Coyote_SQC_JSD_Tests

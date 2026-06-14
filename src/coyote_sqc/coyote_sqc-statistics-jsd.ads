@@ -19,8 +19,8 @@ with Coyote_SQC.Data_Model;
 
 package Coyote_SQC.Statistics.JSD is
 
-   --  Compute per-argument JSD similarity values for a consecutive tool call
-   --  pair and append them to Result.
+   --  Compute the pair-level JSD similarity score for a consecutive tool call
+   --  pair.  Returns the sum of per-argument bias-corrected S_k values.
    --
    --  For each key in the union of both calls' top-level JSON argument fields
    --  (plus a synthetic "tool_name" key processed first), a token sequence is
@@ -30,14 +30,14 @@ package Coyote_SQC.Statistics.JSD is
    --  S_k = 0.0.  Keys present on both sides with tokens receive the full
    --  bias-corrected JSD formula.
    --
-   --  Result is not cleared before appending; the caller is responsible for
-   --  initialising it.
-   procedure Compute_S_Values
+   --  The per-key S_k values are summed; the pair-level total is returned
+   --  as a single scalar.  This preserves equal weighting of each
+   --  consecutive pair in subsequent session-level statistics.
+   function Compute_S_Values
      (Tool_Name_1 : String;
       Arguments_1 : String;
       Tool_Name_2 : String;
-      Arguments_2 : String;
-      Result      : in out Coyote_SQC.Data_Model.Long_Float_Vectors.Vector);
+      Arguments_2 : String) return Long_Float;
 
    --  Return the total token count for a single tool call: prepend tool name,
    --  extract all JSON string values from the whole Arguments blob (character

@@ -18,13 +18,11 @@ package Coyote_SQC_JSD_Tests is
    procedure Test_Token_Count_Empty                  (T : in out Test);
 
    --  Compute_S_Values tests.
-   procedure Test_S_Values_Identical_Calls_Length    (T : in out Test);
+   procedure Test_S_Values_Identical_Calls_Non_Zero (T : in out Test);
    procedure Test_S_Values_Identical_Calls_Sum       (T : in out Test);
-   procedure Test_S_Values_One_Side_Absent_Zero      (T : in out Test);
-   procedure Test_S_Values_One_Side_Absent_Length    (T : in out Test);
+   procedure Test_S_Values_One_Side_Absent           (T : in out Test);
    procedure Test_S_Values_Integer_Key_Skipped       (T : in out Test);
    procedure Test_S_Values_Different_Tool_Names      (T : in out Test);
-   procedure Test_S_Values_Appends_Not_Clears        (T : in out Test);
 
    --  Metrics JSD field tests (via Coyote_SQC.Metrics.Compute).
    procedure Test_Metrics_JSD_Two_Identical_Calls    (T : in out Test);

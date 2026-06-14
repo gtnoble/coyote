@@ -277,12 +277,11 @@ package body Coyote_SQC.Statistics.JSD is
 
    --  ── Public operations ─────────────────────────────────────────────────
 
-   procedure Compute_S_Values
+   function Compute_S_Values
      (Tool_Name_1 : String;
       Arguments_1 : String;
       Tool_Name_2 : String;
-      Arguments_2 : String;
-      Result      : in out Coyote_SQC.Data_Model.Long_Float_Vectors.Vector)
+      Arguments_2 : String) return Long_Float
    is
       use type GNATCOLL.JSON.JSON_Value_Type;
       Parse_1 : constant GNATCOLL.JSON.Read_Result :=
@@ -306,6 +305,7 @@ package body Coyote_SQC.Statistics.JSD is
         GNATCOLL.JSON.Kind (JSON_1) = GNATCOLL.JSON.JSON_Object_Type;
       Is_Obj_2 : constant Boolean :=
         GNATCOLL.JSON.Kind (JSON_2) = GNATCOLL.JSON.JSON_Object_Type;
+      Sum     : Long_Float := 0.0;
 
       --  Track keys already processed from JSON_1 to avoid double-counting.
       --  We reuse Token_Maps as a string set (element values are unused).
@@ -319,7 +319,7 @@ package body Coyote_SQC.Statistics.JSD is
          Build_Map_From_Text (Text1, Map1, N1);
          Build_Map_From_Text (Text2, Map2, N2);
          if N1 > 0 or else N2 > 0 then
-            Result.Append (Compute_One_S (Map1, N1, Map2, N2));
+            Sum := Sum + Compute_One_S (Map1, N1, Map2, N2);
          end if;
       end Append_S_For_Texts;
 
@@ -376,6 +376,7 @@ package body Coyote_SQC.Statistics.JSD is
             Append_S_For_Texts (Text1, Text2);
          end;
       end if;
+      return Sum;
    end Compute_S_Values;
 
    function Token_Count
