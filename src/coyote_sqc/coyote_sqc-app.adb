@@ -1816,6 +1816,47 @@ package body Coyote_SQC.App is
          end if;
       end loop;
 
+      --  Quantile CC: include component values and limits in Y range.
+      if Properties (State.Active_Chart).Is_Quantile_CC_Chart then
+         declare
+            use Coyote_SQC.Statistics.Quantile_CC;
+         begin
+            for QP of CD.Quantile_Points loop
+               if not QP.Excluded
+                 and then QP.Session_Time >= State.Date_From
+                 and then QP.Session_Time <= State.Date_To
+               then
+                  for Comp in Quantile_Index loop
+                     declare
+                        V : constant Long_Float := QP.Values (Comp);
+                        L : Quantile_Limits_Record renames
+                          QP.Limits (Comp);
+                     begin
+                        --  Component value.
+                        if not Log_Y or else V > 0.0 then
+                           if V < Y1 then Y1 := V; end if;
+                           if V > Y2 then Y2 := V; end if;
+                           Any := True;
+                        end if;
+                        --  UCL.
+                        if L.Has_UCL
+                          and then (not Log_Y or else L.UCL > 0.0)
+                        then
+                           if L.UCL > Y2 then Y2 := L.UCL; end if;
+                        end if;
+                        --  LCL.
+                        if L.Has_LCL
+                          and then (not Log_Y or else L.LCL > 0.0)
+                        then
+                           if L.LCL < Y1 then Y1 := L.LCL; end if;
+                        end if;
+                     end;
+                  end loop;
+               end if;
+            end loop;
+         end;
+      end if;
+
       if not Any then return; end if;
 
       if Log_Y and then Y1 > 0.0 then

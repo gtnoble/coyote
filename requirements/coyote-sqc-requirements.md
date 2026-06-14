@@ -1144,6 +1144,21 @@ Bootstrap quantile limits are inherently non-parametric; a parametric
 transformation would conflict with the distribution-free nature of the
 method.
 
+#### Log Y-Axis Scaling
+
+Log Y-axis scaling (§7.3.6) is available for Quantile Control Charts.
+Unlike Box-Cox transformation, Log Y scaling is a purely visual coordinate
+mapping applied at render time — it does not alter the statistical
+parameters or the bootstrap limit computation.  The non-parametric nature
+of the bootstrap method is preserved.
+
+When Log Y mode is active on a Quantile Control Chart, each of the five
+component statistics and their associated control limits (UCL, LCL) are
+mapped through log₁₀ for display.  A component whose observed value,
+UCL, or LCL is ≤ 0 is skipped (not drawn).  Y-axis tick generation, zoom,
+pan, and Y-Fit operate in log space exactly as described in §7.3.6.
+
+
 #### Estimation Method
 
 #### Session-Level Out-of-Control Flag
@@ -1784,6 +1799,15 @@ independently.
 **Retrospective limits.** When no setup interval is established, control
 boxes are drawn in gray and the "retrospective limits" label is displayed
 (§7.3.4).
+
+**Log Y mode.** When `Log_Y_Mode` is active (§7.3.6), the y-axis renders
+in base-10 logarithmic scale.  Each component's observed value, UCL, and
+LCL are mapped through log₁₀ for coordinate computation.  A component
+whose Value_j, UCL_j, or LCL_j is ≤ 0 is skipped (not drawn).  The
+diagram's bounding box contracts to enclose only the visible components.
+Y-axis tick generation, zoom, pan, and Y-Fit operate in log space as
+described in §7.3.6.  The y-axis label is unchanged.
+
 
 
 #### 7.3.3 Point Marker Colors
@@ -2882,4 +2906,13 @@ All statistical formula implementations shall have AUnit unit tests covering:
 - Quantile CC hover tooltip: verify the tooltip lists all five component values with
   their UCL and LCL, and annotates only the out-of-control components with `←
   out-of-control`.
+- Quantile CC Log Y coordinate mapping: verify that when Log Y mode is active,
+  each component's value, UCL, and LCL are mapped through log₁₀ for coordinate
+  computation; the y-axis renders decade-boundary tick marks; zoom and pan
+  operate multiplicatively in log space.
+- Quantile CC Log Y non-positive skip: verify that components whose Value_j ≤ 0,
+  UCL_j ≤ 0, or LCL_j ≤ 0 are skipped (not drawn) in Log Y mode and no
+  exception is raised.  The diagram's bounding box contracts to enclose only
+  the visible components.
+
 *End of document.*

@@ -887,13 +887,19 @@ package body Coyote_SQC.UI.Chart_Canvas is
                   Max_LCL : Gdouble := Gdouble'First;
                begin
                   for Comp in Quantile_Index loop
-                     if QP.Limits (Comp).Has_UCL then
+                     if QP.Limits (Comp).Has_UCL
+                       and then (not State.Workspace.Log_Y_Mode
+                         or else QP.Limits (Comp).UCL > 0.0)
+                     then
                         Min_UCL := Gdouble'Min
                           (Min_UCL,
                            Gdouble
                              (Data_To_Screen_Y (QP.Limits (Comp).UCL)));
                      end if;
-                     if QP.Limits (Comp).Has_LCL then
+                     if QP.Limits (Comp).Has_LCL
+                       and then (not State.Workspace.Log_Y_Mode
+                         or else QP.Limits (Comp).LCL > 0.0)
+                     then
                         Max_LCL := Gdouble'Max
                           (Max_LCL,
                            Gdouble
@@ -924,13 +930,19 @@ package body Coyote_SQC.UI.Chart_Canvas is
                   Max_LCL : Gdouble := Gdouble'First;
                begin
                   for Comp in Quantile_Index loop
-                     if QP.Limits (Comp).Has_UCL then
+                     if QP.Limits (Comp).Has_UCL
+                       and then (not State.Workspace.Log_Y_Mode
+                         or else QP.Limits (Comp).UCL > 0.0)
+                     then
                         Min_UCL := Gdouble'Min
                           (Min_UCL,
                            Gdouble
                              (Data_To_Screen_Y (QP.Limits (Comp).UCL)));
                      end if;
-                     if QP.Limits (Comp).Has_LCL then
+                     if QP.Limits (Comp).Has_LCL
+                       and then (not State.Workspace.Log_Y_Mode
+                         or else QP.Limits (Comp).LCL > 0.0)
+                     then
                         Max_LCL := Gdouble'Max
                           (Max_LCL,
                            Gdouble
@@ -961,13 +973,19 @@ package body Coyote_SQC.UI.Chart_Canvas is
                   Max_LCL : Gdouble := Gdouble'First;
                begin
                   for Comp in Quantile_Index loop
-                     if QP.Limits (Comp).Has_UCL then
+                     if QP.Limits (Comp).Has_UCL
+                       and then (not State.Workspace.Log_Y_Mode
+                         or else QP.Limits (Comp).UCL > 0.0)
+                     then
                         Min_UCL := Gdouble'Min
                           (Min_UCL,
                            Gdouble
                              (Data_To_Screen_Y (QP.Limits (Comp).UCL)));
                      end if;
-                     if QP.Limits (Comp).Has_LCL then
+                     if QP.Limits (Comp).Has_LCL
+                       and then (not State.Workspace.Log_Y_Mode
+                         or else QP.Limits (Comp).LCL > 0.0)
+                     then
                         Max_LCL := Gdouble'Max
                           (Max_LCL,
                            Gdouble
@@ -1740,12 +1758,18 @@ package body Coyote_SQC.UI.Chart_Canvas is
                               Lims : Quantile_Limits_Record renames
                                 QP.Limits (Comp);
                            begin
-                              if Lims.Has_UCL then
+                              if Lims.Has_UCL
+                                and then (not State.Workspace.Log_Y_Mode
+                                  or else Lims.UCL > 0.0)
+                              then
                                  Box_Min_Y := Long_Float'Min
                                    (Box_Min_Y,
                                     Data_To_Screen_Y (Lims.UCL));
                               end if;
-                              if Lims.Has_LCL then
+                              if Lims.Has_LCL
+                                and then (not State.Workspace.Log_Y_Mode
+                                  or else Lims.LCL > 0.0)
+                              then
                                  Box_Max_Y := Long_Float'Max
                                    (Box_Max_Y,
                                     Data_To_Screen_Y (Lims.LCL));

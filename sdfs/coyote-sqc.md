@@ -333,3 +333,21 @@ color rows in §12.7, and two new test suites in §14.6–§14.7.
 
 12 new test requirements added to SRS-SQC §15.6; 16 new test cases specified
 in SDD-SQC §14.6–§14.7.
+
+### 2026-06-14 — Quantile CC Log Y Support
+
+**Changes:**
+- `coyote_sqc-app.adb` — `Y_Fit`: added Quantile CC path that collects
+  component values (min, Q1, median, Q3, max) and UCL/LCL limits from
+  `Chart_Data.Quantile_Points`. In Log Y mode, ≤0 values are skipped.
+- `coyote_sqc-ui-chart_canvas.adb` — Setup/Selection/Set B diagram halos:
+  added Log Y guards to component iteration so that non-positive UCL/LCL
+  values (which `Data_To_Screen_Y` maps to an off-screen sentinel in Log Y
+  mode) are skipped when computing the bounding box.
+- `coyote_sqc-ui-chart_canvas.adb` — Rubber-band selection for Quantile CC:
+  added Log Y guards to component iteration.
+
+**Requirements:** SRS-SQC §5.18 (new §5.18a "Log Y-Axis Scaling"),
+§7.3.2a (Log Y mode rendering paragraph), §15.6 (two new test requirements).
+**Design:** SDD-SQC §12.4 (Y-Fit updated to note Quantile CC support).
+**Tests:** 687 tests, 0 failures, 0 unexpected errors. No regressions.

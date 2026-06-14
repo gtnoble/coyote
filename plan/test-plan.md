@@ -349,6 +349,18 @@ suppressed via `pragma Suppress (Validity_Check)`.  4 new sort-correctness
 tests added (reverse input, all-equal values, two-element descending, and
 50-element random-ish pattern), exercised through `Compute_Quantiles`.
 
+**Baseline as of 2026-06-14 (Quantile CC Log Y support):**
+687 tests, 0 failures, 0 unexpected errors.  Added Log Y-axis scaling
+support for Quantile Control Charts: `Y_Fit` now collects quantile
+component values and limits; setup, Set A, and Set B diagram halos
+skip non-positive components in Log Y mode; rubber-band selection
+skips non-positive components in Log Y mode.  No new test cases added;
+existing test infrastructure sufficient to cover the rendering path.
+Requirements updated in SRS-SQC §5.18 (new Log Y-Axis Scaling
+subsection), §7.3.2a (Log Y mode rendering), and §15.6 (two new test
+requirements).  No regressions.
+
+
 
 **Coverage gap PCR:** The gaps identified in §4.5 are logged in
 `plan/problems.md` as PCR-009. They are accepted as deferred for the current

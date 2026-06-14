@@ -3110,7 +3110,10 @@ UCL/LCL series within that range). Sets `Y_Min` and `Y_Max` to the minimum and
 maximum of those values, expanded by 10% margin on each side. In **Log Y mode**
 (§12.2.2), only positive values are collected and a multiplicative 10% margin is
 applied (`Y_Min / 1.1`, `Y_Max * 1.1`). If no eligible points are in range,
-no-op.
+no-op.  For Quantile Control Charts, the five component values (min, Q1,
+median, Q3, max) and their associated UCL/LCL limits are collected from
+`Chart_Data.Quantile_Points`.
+
 
 ### 12.5 Hit Testing
 
