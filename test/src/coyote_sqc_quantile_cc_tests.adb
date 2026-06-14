@@ -39,7 +39,7 @@ package body Coyote_SQC_Quantile_CC_Tests is
       declare
          K : constant Natural := Natural (Pool_Offsets.Length);
          Dist : Bootstrap_Distribution;
-         RNG_State : Long_Long_Integer := Long_Long_Integer (abs (Seed));
+         RNG_State : Long_Long_Integer := Long_Long_Integer (abs (Seed)) + Long_Long_Integer (N_I);
          Modulus   : constant Long_Long_Integer := 2_147_483_647;
       begin
          if K = 0 then
@@ -461,4 +461,131 @@ package body Coyote_SQC_Quantile_CC_Tests is
               "Q3 <= max for 50 elements");
    end Test_Sort_Through_Quantiles_Larger;
 
+
+   procedure Test_Interpolate_Limits_Anchor (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Data_Model;
+      Pool : constant Long_Float_Array :=
+        (1.0, 2.0, 3.0, 4.0, 5.0, 6.0);
+      Offs : Natural_Vectors.Vector;
+      Lens : Natural_Vectors.Vector;
+      Cache : Quantile_CC_Cache;
+      Lims_Interp : Quantile_Limits_Array;
+      Lims_Exact  : Quantile_Limits_Array;
+   begin
+      Offs.Append (0);  Lens.Append (3);
+      Offs.Append (3);  Lens.Append (3);
+
+      --  Anchor N_I = 3 (exact anchor): should match exact limits.
+      Lims_Interp := Interpolate_Limits
+        (Cache, Pool, Offs, Lens, 3);
+      declare
+         Dist : constant Bootstrap_Distribution :=
+           Get_Distribution (Cache, Pool, Offs, Lens, 3);
+      begin
+         Lims_Exact := Extract_Limits (Dist);
+      end;
+      for Comp in Quantile_Index loop
+         Assert (Lims_Interp (Comp).Has_UCL = Lims_Exact (Comp).Has_UCL,
+                 "anchor: Has_UCL mismatch for " & Comp'Image);
+         Assert (Lims_Interp (Comp).Has_LCL = Lims_Exact (Comp).Has_LCL,
+                 "anchor: Has_LCL mismatch for " & Comp'Image);
+         Assert (abs (Lims_Interp (Comp).CL - Lims_Exact (Comp).CL)
+                 <= 1.0e-10,
+                 "anchor: CL mismatch for " & Comp'Image);
+         Assert (abs (Lims_Interp (Comp).UCL - Lims_Exact (Comp).UCL)
+                 <= 1.0e-10,
+                 "anchor: UCL mismatch for " & Comp'Image);
+         Assert (abs (Lims_Interp (Comp).LCL - Lims_Exact (Comp).LCL)
+                 <= 1.0e-10,
+                 "anchor: LCL mismatch for " & Comp'Image);
+      end loop;
+   end Test_Interpolate_Limits_Anchor;
+
+   procedure Test_Interpolate_Limits_Between (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Data_Model;
+      Pool : constant Long_Float_Array :=
+        (1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0);
+      Offs : Natural_Vectors.Vector;
+      Lens : Natural_Vectors.Vector;
+      Cache_Small : Quantile_CC_Cache;
+      Cache_Large : Quantile_CC_Cache;
+      Lims_Small : Quantile_Limits_Array;
+      Lims_Large : Quantile_Limits_Array;
+   begin
+      Offs.Append (0);  Lens.Append (4);
+      Offs.Append (4);  Lens.Append (4);
+
+      Lims_Small := Interpolate_Limits
+        (Cache_Small, Pool, Offs, Lens, 3);
+      Lims_Large := Interpolate_Limits
+        (Cache_Large, Pool, Offs, Lens, 10);
+
+      for Comp in Quantile_Index loop
+         if Lims_Small (Comp).Has_UCL
+           and then Lims_Large (Comp).Has_UCL
+         then
+            declare
+               HW_Small : constant Long_Float :=
+                 Lims_Small (Comp).UCL - Lims_Small (Comp).CL;
+               HW_Large : constant Long_Float :=
+                 Lims_Large (Comp).UCL - Lims_Large (Comp).CL;
+            begin
+               --  HW at larger N should not exceed HW at smaller N
+               --  (scaling factor sqrt(3/10) ≈ 0.55).
+               Assert
+                 (HW_Large <= HW_Small
+                  or else abs (HW_Small - HW_Large) < 1.0e-10,
+                  "between: UCL HW should shrink for " & Comp'Image);
+            end;
+         end if;
+         if Lims_Small (Comp).Has_LCL
+           and then Lims_Large (Comp).Has_LCL
+         then
+            declare
+               HW_Small : constant Long_Float :=
+                 Lims_Small (Comp).CL - Lims_Small (Comp).LCL;
+               HW_Large : constant Long_Float :=
+                 Lims_Large (Comp).CL - Lims_Large (Comp).LCL;
+            begin
+               Assert
+                 (HW_Large <= HW_Small
+                  or else abs (HW_Small - HW_Large) < 1.0e-10,
+                  "between: LCL HW should shrink for " & Comp'Image);
+            end;
+         end if;
+      end loop;
+
+      --  Interpolated CL should be within pool range.
+      for Comp in Quantile_Index loop
+         Assert (Lims_Small (Comp).CL >= 0.0,
+                 "between: CL out of range for " & Comp'Image);
+      end loop;
+   end Test_Interpolate_Limits_Between;
+   procedure Test_Interpolate_Limits_N1 (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.Data_Model;
+      Pool : constant Long_Float_Array :=
+        (1.0, 2.0, 3.0, 4.0, 5.0);
+      Offs : Natural_Vectors.Vector;
+      Lens : Natural_Vectors.Vector;
+      Cache : Quantile_CC_Cache;
+      Lims : Quantile_Limits_Array;
+   begin
+      Offs.Append (0);  Lens.Append (5);
+
+      --  N_I = 1 falls back to exact computation.
+      Lims := Interpolate_Limits
+        (Cache, Pool, Offs, Lens, 1);
+
+      for Comp in Quantile_Index loop
+         Assert (Lims (Comp).Has_UCL,
+                 "n=1: should have UCL for " & Comp'Image);
+         Assert (Lims (Comp).Has_LCL,
+                 "n=1: should have LCL for " & Comp'Image);
+         Assert (Lims (Comp).CL > 0.0,
+                 "n=1: CL should be positive for " & Comp'Image);
+      end loop;
+   end Test_Interpolate_Limits_N1;
 end Coyote_SQC_Quantile_CC_Tests;

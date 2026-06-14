@@ -3,6 +3,7 @@
 --  Project: coyote
 
 with Ada.Calendar;
+with Ada.Containers;
 with Ada.Containers.Vectors;
 with Ada.Strings.Unbounded;
 with Coyote_SQC.Charts;
@@ -93,6 +94,11 @@ package Coyote_SQC.App is
       --  Quantile CC data (populated only for Quantile CC chart kinds).
       Quantile_Points : Quantile_Point_Vectors.Vector;
       Quantile_Cache  : Coyote_SQC.Statistics.Quantile_CC.Quantile_CC_Cache;
+      --  Identity of the Quantile CC reference pool (session ids +
+      --  subgroup lengths).  Preserved across Recompute_Chart calls;
+      --  when unchanged the cache is reused, avoiding O(10 000)
+      --  bootstrap resamples per unique n_i.
+      Quantile_Pool_Fingerprint : Ada.Containers.Hash_Type := 0;
    end record;
 
    type Chart_Data_Array is

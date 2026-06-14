@@ -2162,6 +2162,18 @@ package body Test_Suites is
          Coyote_SQC_Quantile_CC_Tests
            .Test_Sort_Through_Quantiles_Larger'Access));
 
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Interpolate_Limits at anchor matches exact",
+         Coyote_SQC_Quantile_CC_Tests
+           .Test_Interpolate_Limits_Anchor'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Interpolate_Limits between anchors shrinks HW",
+         Coyote_SQC_Quantile_CC_Tests
+           .Test_Interpolate_Limits_Between'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Interpolate_Limits n=1 falls back to exact",
+         Coyote_SQC_Quantile_CC_Tests
+           .Test_Interpolate_Limits_N1'Access));
       --  LLM.Providers.GitHub_Copilot.Catalogue tests
       Result.Add_Test (LLM_Catalogue_Caller.Create
         ("LLM.Catalogue loads and parses a fresh cached Copilot model list",

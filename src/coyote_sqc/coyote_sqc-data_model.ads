@@ -28,6 +28,9 @@ package Coyote_SQC.Data_Model is
       Arguments     : Ada.Strings.Unbounded.Unbounded_String;
       --  Raw JSON argument string; stored at parse time to support JSD
       --  consecutive tool-call similarity computation (§7.14 of spec).
+      Interpolate_Quantile_Limits : Boolean := False;
+      --  When True, Quantile CC charts use interpolated control limits
+      --  instead of exact bootstrap for every subgroup size (§5.18.1).
    end record;
 
    package Tool_Call_Vectors is new Ada.Containers.Vectors
@@ -230,6 +233,8 @@ package Coyote_SQC.Data_Model is
       --  ignoring Source_Directories.  Source_Directories is preserved so
       --  the prior list is restored when the option is unchecked.
       Analyze_All_Directories : Boolean := False;
+      Interpolate_Quantile_Limits : Boolean := False;
+      --  When True, Quantile CC charts use interpolated control limits
+      --  instead of exact bootstrap for every subgroup size (§5.18.1).
    end record;
-
 end Coyote_SQC.Data_Model;

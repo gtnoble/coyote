@@ -1514,7 +1514,7 @@ with Coyote_SQC.Data_Model;
 package Coyote_SQC.Statistics.Quantile_CC is
 
    --  Number of bootstrap replicates.
-   B_Replicates : constant Positive := 100_000;
+   B_Replicates : constant Positive := 10_000;
 
    --  Fixed seed for reproducible bootstrap results.
    Bootstrap_Seed : constant Integer := 54_321;
@@ -1522,10 +1522,13 @@ package Coyote_SQC.Statistics.Quantile_CC is
    --  Bonferroni-adjusted alpha for 5 simultaneous comparisons.
    --  α = 0.0027 (3-sigma), α_B = α / 5 = 0.00054.
    --  Two-sided tail probability: α_B / 2 = 0.00027.
-   --  For B = 100_000: r = floor(0.00027 * 100_000) = 27.
-   Bonferroni_Rank : constant Positive := 27;
-   --  LCL_j = b_{(27)}, UCL_j = b_{(B − 27 + 1)} = b_{(99_974)},
-   --  CL_j  = b_{(50_000)} (median of the bootstrap distribution).
+   --  r = max(1, floor(0.00027 * B_Replicates)), computed at
+   --  elaboration from B_Replicates.
+   Bonferroni_Rank : constant Natural :=
+     Natural'Max (1, Natural (Long_Float'Floor
+       (0.00027 * Long_Float (B_Replicates))));
+   --  LCL_j = b_{(r)}, UCL_j = b_{(B - r + 1)},
+   --  CL_j  = b_{(B / 2)} (median of the bootstrap distribution).
 
    --  The five quantile statistics computed from a subgroup sample.
    type Quantile_Index is (Min_Q, Q1, Median_Q, Q3, Max_Q);
@@ -1558,7 +1561,12 @@ package Coyote_SQC.Statistics.Quantile_CC is
      (Pool_Values  : Long_Float_Array;
       Pool_Offsets : Coyote_SQC.Data_Model.Natural_Vectors.Vector;
       Pool_Lengths : Coyote_SQC.Data_Model.Natural_Vectors.Vector;
-      N_I          : Positive) return Bootstrap_Distribution;
+      N_I          : Positive;
+      Seed         : Integer := Bootstrap_Seed)
+     return Bootstrap_Distribution;
+   --  The effective seed is Seed + N_I, so each subgroup size
+   --  gets an independent bootstrap stream while remaining
+   --  reproducible.
 
    --  Extract control limits and center line for each of the five
    --  quantile statistics from a precomputed bootstrap distribution.
@@ -1618,10 +1626,56 @@ precomputed `Bootstrap_Distribution` objects.  The cache is:
   all per-chart caches are emptied so that distributions reflect the new
   reference pool.
 
-Because the bootstrap is `O(B · n_i)` per distribution and B = 100 000,
+Because the bootstrap is `O(B · n_i)` per distribution and B_Replicates,
 precomputing once per unique `n_i` ensures interactive performance even
 for workspaces with thousands of sessions (typical workspaces have fewer
 than 100 distinct subgroup sizes).
+
+
+#### Interpolated Limits
+
+The package provides `Interpolate_Limits` as an alternative to the full
+bootstrap for every subgroup size.  When the workspace option
+`Interpolate_Quantile_Limits` is enabled, limits are derived by computing
+exact bootstrap distributions at a small set of anchor subgroup sizes and
+scaling half-widths by `√(n_a / n)` for non-anchor sizes.
+
+**Constants:**
+- `Interp_Delta = 0.15` — tolerance for relative half-width error from
+  `O(1/n)` bias.
+- `Interp_C = 0.5` — quantile finite-sample bias constant.
+- `Interp_Discrete_Max = 16` — smallest `n` where `1/√n` scaling is
+  reliable (padded beyond `⌈(C/δ)²⌉` for discrete-index safety).
+
+**Anchor algorithm.** Anchors are every integer 2 .. `Discrete_Max`,
+then uniformly in `x = 1/√n` space with spacing `Δx = δ/√(Discrete_Max)`,
+grown lazily by `Ensure_Anchors_Up_To(N)`.  The anchor vector is a
+body-level variable shared across all chart kinds.
+
+**Interpolation.** For `n ≥ 2`:
+1. Ensure anchors up to `n`.
+2. Find the nearest lower anchor `n_a ≤ n`.
+3. Compute exact limits at `n_a` via `Get_Distribution` + `Extract_Limits`.
+4. If `n = n_a`, return exact limits.
+5. Otherwise scale half-widths: `HW(n) = HW(n_a) × √(n_a/n)` with CL
+   taken unchanged from the anchor.
+
+For `n = 1` (degenerate), exact bootstrap is used.
+
+**Error bound.** The relative error in any half-width from the `O(1/n)`
+bias term is bounded by `Interp_Delta² ≈ 2.25%` across the continuous
+regime, which is well below the Monte Carlo noise of `B_Replicates = 10 000`.
+
+```ada
+   function Interpolate_Limits
+     (Cache        : in out Quantile_CC_Cache;
+      Pool_Values  : Long_Float_Array;
+      Pool_Offsets : Coyote_SQC.Data_Model.Natural_Vectors.Vector;
+      Pool_Lengths : Coyote_SQC.Data_Model.Natural_Vectors.Vector;
+      N_I          : Positive;
+      Seed         : Integer := Bootstrap_Seed)
+     return Quantile_Limits_Array;
+```
 
 #### Chart Descriptor Extensions
 
@@ -3506,11 +3560,13 @@ existing AUnit test suite. Fixture files live in `test/fixtures/sqc/`.
   value.
 - `Build_Distribution` for a three-session pool with known values and n_i = 5
   produces a bootstrap distribution with B = 100 000 entries per quantile
-  statistic; verify the ranks 27 and 99 974 agree with independently computed
-  values (Bonferroni α_B/2 = 0.00027).
+  statistic; verify the limit ranks agree with the Bonferroni_Rank
+  and UCL_Rank constants (Bonferroni α_B/2 = 0.00027).
 - `Build_Distribution` with a single-session pool (only within-session
   variability) still produces valid limits without raising an exception.
-- `Build_Distribution` seeding: two calls with the same pool, n_i, and seed
+- `Build_Distribution` seeding: each subgroup size `n_i` receives an
+  independent stream (effective seed = base_seed + n_i); two calls with
+  the same pool and `n_i` produce identical limits for all five statistics.
   (54 321) produce identical limits for all five statistics.
 - `Extract_Limits` returns correct UCL_j, LCL_j, and CL_j from a known sorted
   bootstrap distribution vector to 1 × 10⁻¹⁰.

@@ -489,8 +489,8 @@ package body Coyote_SQC.Workspace is
         Get_Bool_Field (Root, "logYMode", False);
       Workspace.Analyze_All_Directories :=
         Get_Bool_Field (Root, "analyzeAllDirectories", False);
-
-      --  Source directories.
+      Workspace.Interpolate_Quantile_Limits :=
+        Get_Bool_Field (Root, "interpolateQuantileLimits", False);
       if Root.Kind = GNATCOLL.JSON.JSON_Object_Type
         and then Root.Has_Field ("sourceDirectories")
       then
@@ -731,8 +731,9 @@ package body Coyote_SQC.Workspace is
       Root.Set_Field ("logYMode", Workspace.Log_Y_Mode);
       Root.Set_Field ("analyzeAllDirectories",
                       Workspace.Analyze_All_Directories);
+      Root.Set_Field ("interpolateQuantileLimits",
+                      Workspace.Interpolate_Quantile_Limits);
 
-      --  Sort comments by ascending timestamp before serialising (§9.2).
       declare
          Sorted_Cmts : Comment_Vectors.Vector := Workspace.Comments;
          function Cmt_Lt (A, B : Comment_Record) return Boolean is

@@ -3,9 +3,12 @@
 --  Project: coyote
 
 
+with Ada.Numerics.Long_Elementary_Functions;
 package body Coyote_SQC.Statistics.Quantile_CC is
 
    use Coyote_SQC.Data_Model;
+
+   use Ada.Numerics.Long_Elementary_Functions;
 
    --  ── Sorting helpers ────────────────────────────────────────────────
 
@@ -292,7 +295,7 @@ package body Coyote_SQC.Statistics.Quantile_CC is
            (Ada.Containers.Count_Type (B_Replicates));
       end loop;
 
-      LC_Seed (RNG, Seed);
+      LC_Seed (RNG, Seed + Integer (N_I));
 
       for B in 1 .. B_Replicates loop
          declare
@@ -436,5 +439,162 @@ package body Coyote_SQC.Statistics.Quantile_CC is
    begin
       Cache.Entries.Clear;
    end Clear_Cache;
+
+   --  ── Interpolated limits ─────────────────────────────────────────────
+
+   --  Anchor set: grows lazily as larger N values are encountered.
+   --  Shared across all chart kinds (anchors depend only on N, not on
+   --  which per-turn quantity is being charted).
+   Anchors : Natural_Vectors.Vector;
+
+   --  Ensure the anchor vector includes every integer up to Discrete_Max
+   --  and extends in 1/√n space up to at least N.
+   procedure Ensure_Anchors_Up_To (N : Positive) is
+      --  n_min for the continuous regime: the larger of Discrete_Max
+      --  and ceil((C/δ)²).
+      N_Min_Raw : constant Long_Float :=
+        (Interp_C / Interp_Delta) ** 2;
+      N_Min : constant Positive :=
+        Positive'Max (Interp_Discrete_Max,
+          Positive (Long_Float'Ceiling (N_Min_Raw)));
+      --  Spacing in x = 1/√n: Δx = δ / √N_Min.
+      X_Delta : constant Long_Float :=
+        Interp_Delta / Sqrt (Long_Float (N_Min));
+   begin
+      if Anchors.Is_Empty then
+         --  Phase 1: every integer 2 .. N_Min
+         for I in 2 .. N_Min loop
+            Anchors.Append (Natural (I));
+         end loop;
+      end if;
+
+      --  Phase 2: extend uniformly in x = 1/√n until we cover N.
+      while Anchors.Last_Element < Natural (N) loop
+         declare
+            Last_N : constant Natural :=
+              Natural (Anchors.Last_Element);
+            X_Last : constant Long_Float :=
+              1.0 / Sqrt (Long_Float (Last_N));
+            X_Next : constant Long_Float := X_Last - X_Delta;
+         begin
+            if X_Next <= 0.0 then
+               --  Numerically degenerate; just step by 1.
+               Anchors.Append (Natural (Last_N + 1));
+            else
+               declare
+                  Next_N : constant Positive :=
+                    Positive (Long_Float'Ceiling
+                      (1.0 / (X_Next * X_Next)));
+               begin
+                  if Next_N <= Last_N then
+                     Anchors.Append (Natural (Last_N + 1));
+                  else
+                     Anchors.Append (Natural (Next_N));
+                  end if;
+               end;
+            end if;
+         end;
+      end loop;
+   end Ensure_Anchors_Up_To;
+
+   --  ── Interpolate_Limits ─────────────────────────────────────────────
+
+   function Interpolate_Limits
+     (Cache        : in out Quantile_CC_Cache;
+      Pool_Values  : Long_Float_Array;
+      Pool_Offsets : Natural_Vectors.Vector;
+      Pool_Lengths : Natural_Vectors.Vector;
+      N_I          : Positive;
+      Seed         : Integer := Bootstrap_Seed)
+     return Quantile_Limits_Array
+   is
+      Result : Quantile_Limits_Array;
+   begin
+      --  For n = 1 (degenerate), use exact bootstrap.
+      if N_I = 1 then
+         declare
+            Dist : constant Bootstrap_Distribution :=
+              Get_Distribution
+                (Cache, Pool_Values, Pool_Offsets, Pool_Lengths,
+                 1, Seed);
+         begin
+            return Extract_Limits (Dist);
+         end;
+      end if;
+
+      --  Grow anchors if needed.
+      Ensure_Anchors_Up_To (N_I);
+
+      --  Find nearest lower anchor ≤ N_I.
+      declare
+         Anchor_N : Natural := 0;
+      begin
+         for A of Anchors loop
+            exit when Natural (A) > N_I;
+            Anchor_N := Natural (A);
+         end loop;
+
+         if Anchor_N = 0 then
+            --  Should not happen for N_I ≥ 2, but guard.
+            pragma Assert (False, "Interpolate_Limits: no anchor for N_I");
+            for Comp in Quantile_Index loop
+               Result (Comp) :=
+                 (UCL     => 0.0,
+                  CL      => 0.0,
+                  LCL     => 0.0,
+                  Has_UCL => False,
+                  Has_LCL => False);
+            end loop;
+            return Result;
+         end if;
+
+         --  Compute exact distribution at the anchor.
+         declare
+            Dist : constant Bootstrap_Distribution :=
+              Get_Distribution
+                (Cache, Pool_Values, Pool_Offsets, Pool_Lengths,
+                 Anchor_N, Seed);
+            Anchor_Limits : constant Quantile_Limits_Array :=
+              Extract_Limits (Dist);
+         begin
+            if N_I = Anchor_N then
+               return Anchor_Limits;
+            end if;
+
+            --  Scale half-widths by √(Anchor_N / N_I).
+            declare
+               Scale : constant Long_Float :=
+                 Sqrt
+                   (Long_Float (Anchor_N) / Long_Float (N_I));
+            begin
+               for Comp in Quantile_Index loop
+                  declare
+                     L : Quantile_Limits_Record renames
+                       Anchor_Limits (Comp);
+                  begin
+                     Result (Comp).CL := L.CL;
+                     Result (Comp).Has_UCL := L.Has_UCL;
+                     Result (Comp).Has_LCL := L.Has_LCL;
+                     if L.Has_UCL then
+                        Result (Comp).UCL :=
+                          L.CL + (L.UCL - L.CL) * Scale;
+                     else
+                        Result (Comp).UCL := 0.0;
+                     end if;
+                     if L.Has_LCL then
+                        Result (Comp).LCL :=
+                          L.CL - (L.CL - L.LCL) * Scale;
+                     else
+                        Result (Comp).LCL := 0.0;
+                     end if;
+                  end;
+               end loop;
+            end;
+         end;
+      end;
+
+      return Result;
+   end Interpolate_Limits;
+
 
 end Coyote_SQC.Statistics.Quantile_CC;

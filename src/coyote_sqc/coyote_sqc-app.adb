@@ -1220,16 +1220,27 @@ package body Coyote_SQC.App is
                               QP.Values := Compute_Quantiles (Sorted, N_I);
                            end;
                            if Pool_Count > 0 then
-                              declare
-                                 Dist : constant Bootstrap_Distribution :=
-                                   Get_Distribution
-                                     (CD.Quantile_Cache,
+                              if State.Workspace.Interpolate_Quantile_Limits
+                              then
+                                 QP.Limits := Interpolate_Limits
+                                   (Cache        => CD.Quantile_Cache,
+                                    Pool_Values  =>
                                       Pool_Vals (1 .. Pool_Idx),
-                                      Pool_Offs, Pool_Lens,
-                                      N_I);
-                              begin
-                                 QP.Limits := Extract_Limits (Dist);
-                              end;
+                                    Pool_Offsets => Pool_Offs,
+                                    Pool_Lengths => Pool_Lens,
+                                    N_I          => N_I);
+                              else
+                                 declare
+                                    Dist : constant Bootstrap_Distribution :=
+                                      Get_Distribution
+                                        (CD.Quantile_Cache,
+                                         Pool_Vals (1 .. Pool_Idx),
+                                         Pool_Offs, Pool_Lens,
+                                         N_I);
+                                 begin
+                                    QP.Limits := Extract_Limits (Dist);
+                                 end;
+                              end if;
                            else
                               for Comp in Quantile_Index loop
                                  QP.Limits (Comp) :=

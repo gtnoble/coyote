@@ -361,6 +361,19 @@ subsection), §7.3.2a (Log Y mode rendering), and §15.6 (two new test
 requirements).  No regressions.
 
 
+**Baseline as of 2026-06-14 (Quantile CC interpolation):**
+690 tests, 0 failures, 0 unexpected errors.  Fixed Bonferroni_Rank to
+compute from B_Replicates (formerly hardcoded 27 for B=100 000; now 2 for
+B=10 000).  Fixed RNG seed to derive from N_I (formerly shared across all
+subgroup sizes).  Added interpolated quantile limit computation:
+`Interpolate_Limits` in `Quantile_CC` computes exact bootstrap distributions
+at ~20 anchor subgroup sizes and derives limits for arbitrary N via 1/sqrt(N)
+half-width scaling, giving ~8.5x reduction in bootstrap runs.  Added three
+new tests for `Interpolate_Limits` (anchor match, between-anchor shrinkage,
+n=1 fallback).  Added `Interpolate_Quantile_Limits` boolean to workspace data
+model, serialization, and workspace settings dialog.  Requirements and design
+documents updated.
+
 
 **Coverage gap PCR:** The gaps identified in §4.5 are logged in
 `plan/problems.md` as PCR-009. They are accepted as deferred for the current

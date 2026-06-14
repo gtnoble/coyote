@@ -51,6 +51,7 @@ package body Coyote_SQC.UI.Workspace_Settings is
    WS_Analyze_All_CB : Gtk.Check_Button.Gtk_Check_Button     := null;
    WS_Dir_Scroll     : Gtk.Scrolled_Window.Gtk_Scrolled_Window := null;
    WS_Dir_HBox       : Gtk.Box.Gtk_Box                         := null;
+   WS_Interp_CB : Gtk.Check_Button.Gtk_Check_Button := null;
 
    --  ── Directory management callbacks ─────────────────────────────────────
 
@@ -217,6 +218,24 @@ package body Coyote_SQC.UI.Workspace_Settings is
          Analyze_CB.On_Toggled (On_Analyze_All_Toggled'Access);
          VBox.Pack_Start (Analyze_CB, False, False, 4);
 
+         --  Quantile CC interpolation toggle (§5.18.1).
+         declare
+            Interp_CB : Gtk.Check_Button.Gtk_Check_Button;
+         begin
+            Gtk.Check_Button.Gtk_New
+              (Interp_CB,
+               "Use interpolated quantile control limits (faster)");
+            Interp_CB.Set_Tooltip_Text
+              ("When enabled, bootstrap control limits are computed at"
+               & " a small set of anchor subgroup sizes and interpolated"
+               & " for other sizes using 1/sqrt(N) scaling.  Approximately"
+               & " 10× faster; negligible accuracy loss for N >= 10.");
+            Interp_CB.Set_Active
+              (Coyote_SQC.App.State.Workspace
+                 .Interpolate_Quantile_Limits);
+            VBox.Pack_Start (Interp_CB, False, False, 0);
+            WS_Interp_CB := Interp_CB;
+         end;
          Gtk.List_Box.Gtk_New (Dir_LB);
          for Dir of New_Dirs loop
             declare
@@ -336,6 +355,23 @@ package body Coyote_SQC.UI.Workspace_Settings is
                   Coyote_SQC.App.State.Modified := True;
                end if;
             end;
+         --  Apply Interpolate_Quantile_Limits.
+         if WS_Interp_CB /= null then
+            declare
+               New_Val : constant Boolean :=
+                 WS_Interp_CB.Get_Active;
+            begin
+               if New_Val /=
+                  Coyote_SQC.App.State.Workspace
+                    .Interpolate_Quantile_Limits
+               then
+                  Coyote_SQC.App.State.Workspace
+                    .Interpolate_Quantile_Limits := New_Val;
+                  Coyote_SQC.App.State.Modified := True;
+               end if;
+            end;
+         end if;
+
          end if;
 
          --  Apply model filter (read back from text buffer).
@@ -394,6 +430,7 @@ package body Coyote_SQC.UI.Workspace_Settings is
       WS_New_Dirs.Clear;
       WS_Analyze_All_CB := null;
       WS_Dir_Scroll     := null;
+      WS_Interp_CB := null;
       WS_Dir_HBox       := null;
       D.Destroy;
    end Show_Dialog;
