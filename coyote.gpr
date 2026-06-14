@@ -22,9 +22,11 @@ project Coyote is
    package Compiler is
       case Coyote_Config.Build_Profile is
          when "development" =>
-            for Default_Switches ("Ada") use Coyote_Config.Ada_Compiler_Switches;
+            for Default_Switches ("Ada") use Coyote_Config.Ada_Compiler_Switches
+		& ("-gnata");
          when others =>
             for Default_Switches ("Ada") use Coyote_Config.Ada_Compiler_Switches
+              & ("-gnata")
               & ("-gnatVn");
       end case;
       case Profile_Enabled is

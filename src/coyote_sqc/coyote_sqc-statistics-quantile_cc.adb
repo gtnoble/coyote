@@ -190,7 +190,7 @@ package body Coyote_SQC.Statistics.Quantile_CC is
 
       function Linear_Quantile (P : Long_Float) return Long_Float is
          Pos : constant Long_Float := P * Long_Float (N - 1);
-         K   : constant Natural     := Natural (Pos);
+         K   : constant Natural     := Natural (Long_Float'Truncation (Pos));
          F   : constant Long_Float  := Pos - Long_Float (K);
          Idx1 : constant Positive   := K + 1;
          Idx2 : constant Positive   := Positive'Min (K + 2, N);
@@ -213,6 +213,10 @@ package body Coyote_SQC.Statistics.Quantile_CC is
       end if;
 
       Quick_Sort (Sorted_Vals);
+      --  Invariant: sort produced a sorted array (requires -gnata).
+      pragma Assert
+        ((for all I in 1 .. N - 1 => Sorted_Vals (I) <= Sorted_Vals (I + 1)),
+         "Quick_Sort failed to produce a sorted array");
 
       Result (Min_Q)    := Linear_Quantile (0.00);
       Result (Q1)       := Linear_Quantile (0.25);
@@ -220,6 +224,13 @@ package body Coyote_SQC.Statistics.Quantile_CC is
       Result (Q3)       := Linear_Quantile (0.75);
       Result (Max_Q)    := Linear_Quantile (1.00);
 
+      --  Invariant: quantile ordering (requires -gnata).
+      pragma Assert
+        (Result (Min_Q) <= Result (Q1)
+         and then Result (Q1) <= Result (Median_Q)
+         and then Result (Median_Q) <= Result (Q3)
+         and then Result (Q3) <= Result (Max_Q),
+         "Compute_Quantiles non-monotonic");
       return Result;
    end Compute_Quantiles;
 
