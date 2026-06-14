@@ -302,7 +302,9 @@ package body LLM.Providers.OpenAI_Completions is
       return
          (Input       => Get_Natural_Field (Value, "prompt_tokens"),
        Output      => Get_Natural_Field (Value, "completion_tokens"),
-       Cache_Read  => Get_Natural_Field (Details, "cached_tokens"),
+       Cache_Read  => (if Get_Natural_Field (Details, "cached_tokens") > 0
+                         then Get_Natural_Field (Details, "cached_tokens")
+                         else Get_Natural_Field (Value, "prompt_cache_hit_tokens")),
       Cache_Write => 0,
       Thinking    => Get_Natural_Field (Comp_Det, "reasoning_tokens"));
    end Parse_Usage;
@@ -559,6 +561,32 @@ package body LLM.Providers.OpenAI_Completions is
          end case;
       end loop;
 
+      --  Add a cache_control breakpoint on the last user-role
+      --  or tool-role message so the conversation prefix is
+      --  cached across turns.  This matches the Anthropic
+      --  provider's strategy and yields significant cost savings
+      --  for providers that honor the cache_control field
+      --  (OpenRouter, Copilot, Anthropic-compatible backends).
+      --  Providers that lack cache_control silently ignore it.
+      declare
+         Cache_Marker : constant GNATCOLL.JSON.JSON_Value :=
+           GNATCOLL.JSON.Create_Object;
+      begin
+         Cache_Marker.Set_Field ("type", "ephemeral");
+         for J in reverse 1 .. GNATCOLL.JSON.Length (Msgs) loop
+            declare
+               Msg : constant GNATCOLL.JSON.JSON_Value :=
+                 GNATCOLL.JSON.Get (Msgs, J);
+            begin
+               if Get_String_Field (Msg, "role") = "user"
+                 or else Get_String_Field (Msg, "role") = "tool"
+               then
+                  Msg.Set_Field ("cache_control", Cache_Marker);
+                  exit;
+               end if;
+            end;
+         end loop;
+      end;
       Request.Set_Field ("messages", Msgs);
 
       if Tools_Json'Length > 0 then

@@ -640,6 +640,15 @@ extended by `OpenRouter`.
 **`Wire_Format` field:** `"openai-completions"` — used by `LLM.Agent` to
 determine the `tools` JSON schema shape.
 
+**Cache breakpoints:** `Build_Request_Body` places `cache_control` markers
+on (1) the system message, (2) the last message with `role:"user"` or
+`role:"tool"`, and (3) the last tool definition.  The user/tool message
+breakpoint advances each turn to encompass the entire conversation prefix,
+yielding near-zero cache miss rates for providers that honour the
+`cache_control` field (OpenRouter routing to Anthropic backends, GitHub
+Copilot).  Providers that do not support `cache_control` retain automatic
+prefix caching with no change in behaviour.
+
 **`Customize_Request` (non-overriding):** Maps `Thinking_Level` to the
 OpenAI `reasoning.effort` request field (`"low"`, `"medium"`, `"high"`).
 When `Thinking` is `Off` this is a no-op.  This base implementation applies

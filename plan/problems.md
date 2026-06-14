@@ -864,3 +864,42 @@ client-controlled work product gets an entry here.
      warnings in the catalogue body, matching existing codebase patterns).
 - **Status:** Resolved
 - **Date resolved:** 2026-06-11
+
+## PCR-026
+
+- **Date reported:** 2026-06-14
+- **Category:** Performance
+- **Priority:** 3-Medium
+- **Description:** OpenAI-wire sessions (OpenRouter, OpenCode Go
+  OpenAI path) exhibited a ~50% prompt cache miss rate per turn
+  compared to ~0% for Anthropic-wire sessions (GitHub Copilot
+  Anthropic path).  Investigation of sessions `6c5fb2dc` (OpenRouter,
+  137 turns, 50.4% miss rate) and `2e112097` (GitHub Copilot,
+  115 turns, ~0% miss rate) traced the root cause to missing
+  `cache_control` markers on user/tool messages in
+  `OpenAI_Completions.Build_Request_Body`.  The Anthropic path placed
+  breakpoints on the system prompt, the last user/tool message, and the
+  last tool definition; the OpenAI path placed them only on the system
+  prompt and tools, leaving the growing conversation permanently uncached.
+  A secondary issue: DeepSeek models report cache hits via
+  `prompt_cache_hit_tokens` at the usage top-level, not via the nested
+  `prompt_tokens_details.cached_tokens` path, so `Cache_Read` was always
+  zero for DeepSeek sessions.
+- **Affected work products:** SDD-CORE (`design/coyote-design.md`),
+  `src/llm/llm-providers-openai_completions.adb`,
+  providers SDF (`sdfs/providers.md`)
+- **Corrective action required:** Add a `cache_control: {type:"ephemeral"}`
+  marker on the last `role:"user"` or `role:"tool"` message in
+  `Build_Request_Body`.  Add a `prompt_cache_hit_tokens` fallback in
+  `Parse_Usage` for DeepSeek models.  Update SDD §5.6 and SDF.
+- **Actions taken (2026-06-14):**
+  1. Added `cache_control` on last user/tool message after the
+     message-building loop, before `Request.Set_Field("messages", Msgs)`,
+     mirroring the Anthropic provider's strategy.
+  2. Added DeepSeek fallback in `Parse_Usage`: if `cached_tokens` is zero,
+     read `prompt_cache_hit_tokens` directly from the usage object.
+  3. Updated SDD-CORE §5.6 with a Cache breakpoints paragraph.
+  4. Updated providers SDF with a log entry.
+  5. Updated test plan baseline: 688 tests, all passing.
+- **Status:** Resolved
+- **Date resolved:** 2026-06-14

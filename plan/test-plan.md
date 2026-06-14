@@ -380,3 +380,6 @@ documents updated.
 build with the rationale that the uncovered requirements are either low-risk
 (SIGTERM handling) or require live external services (Copilot, live acme).
 **Baseline as of 2026-06-06:** 660 tests, 0 failures, 0 unexpected errors.  7 new test cases required by SRS-SQC §15.6 (§5.17 bootstrap CI, §10.3 two-set histogram) are pending implementation; they are not yet included in the suite.
+
+**Baseline as of 2026-06-14 (PCR-024 OpenAI Cache Parity):** 688 tests, 0 failures,
+0 unexpected errors.

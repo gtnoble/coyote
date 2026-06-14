@@ -138,3 +138,48 @@ and the next startup will see a non-expired token and load the catalogue.
 - The Anthropic thinking beta header (`anthropic-beta: interleaved-thinking-...`)
   is hardcoded to the 2025-05-14 version. This should be made configurable
   or updated when Anthropic graduates the feature from beta.
+
+---
+
+## 2026-06-14: OpenAI Prompt Caching Parity with Anthropic
+
+Two changes in `llm-providers-openai_completions.adb` to bring OpenAI-wire
+caching performance in line with the Anthropic provider:
+
+1. **`cache_control` on last user/tool message** (`Build_Request_Body`):
+   After building the message array and before `Request.Set_Field("messages",
+   Msgs)`, a `cache_control: {type:"ephemeral"}` marker is placed on the last
+   message with `role:"user"` or `role:"tool"`.  This mirrors the Anthropic
+   provider's strategy of placing a cache breakpoint on the conversation
+   prefix so that the entire history up to the most recent tool result is
+   cached.  Providers that honor `cache_control` (OpenRouter routing to
+   Anthropic backends, GitHub Copilot) benefit from full conversation
+   caching.  Providers that don't support `cache_control` (native OpenAI,
+   DeepSeek via OpenRouter) silently ignore the unknown field and continue
+   with automatic prefix caching as before.
+
+   Prior to this change, only the system prompt and tool definitions carried
+   `cache_control` markers; the conversation history was never explicitly
+   cached.  On sessions where the conversation grew significantly (e.g., 137
+   turns with large tool results), roughly half the request was uncached
+   every turn (~50% miss rate).  The fix reduces miss rate to near zero for
+   providers that honor the marker.
+
+2. **DeepSeek `prompt_cache_hit_tokens` fallback** (`Parse_Usage`):
+   DeepSeek's API reports cached tokens via `prompt_cache_hit_tokens` at the
+   usage level, not via the nested `prompt_tokens_details.cached_tokens`
+   path that OpenAI uses.  Added a fallback: if `cached_tokens` is zero or
+   absent, `prompt_cache_hit_tokens` is read directly from the usage object.
+   This ensures `Cache_Read` is populated correctly for DeepSeek models.
+
+Both changes are backward-compatible: they add fields to outgoing requests
+only when message arrays are non-empty, and they add an additional JSON
+field read that defaults to zero when absent.
+
+Root cause analysis from session comparison:
+- Session `6c5fb2dc` (OpenRouter, 137 turns, thinking on): 50.4% cache miss
+  rate, cacheWrite=0 on all turns, ~12M uncached tokens
+- Session `2e112097` (GitHub Copilot→Anthropic, 115 turns, thinking off):
+  ~0% miss rate, 156K cacheWrite, ~900 uncached tokens
+The difference was driven by absence of `cache_control` on user/tool messages
+in the OpenAI-wire path; the Anthropic path already had this.
