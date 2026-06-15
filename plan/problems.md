@@ -945,3 +945,45 @@ client-controlled work product gets an entry here.
      All 688 tests pass.
 - **Status:** Resolved
 - **Date resolved:** 2026-06-15
+
+---
+
+## PCR-028
+
+- **Date reported:** 2026-06-15
+- **Category:** Design
+- **Priority:** 4-Minor
+- **Description:** Quantile Control Chart control limits rendered as flat
+  rectangles.  When limits from different components overlapped (common when
+  two quartile limits cluster closely or when a limit coincides with another
+  component's value line), the overlapping rectangles were visually
+  indistinguishable — the viewer could not tell which limit belonged to which
+  component.  The user requested a lozenge-shaped representation (rectangular
+  body with triangular end caps pointing to the UCL and LCL values) to improve
+  limit resolvability when limits overlap.
+- **Affected work products:** SRS-SQC (`requirements/coyote-sqc-requirements.md`
+  §7.3.2a, §7.3.3, §15.6), SDD-SQC (`design/coyote-sqc-design.md` §12.6 step
+  6a, §12.7), `src/coyote_sqc/coyote_sqc-ui-chart_canvas.adb` (control-limit
+  drawing and halo drawing)
+- **Corrective action required:** Update requirements to describe lozenge shape;
+  update design with lozenge geometry (triangular tips at UCL/LCL, rectangular
+  body spanning `UY+TH` to `LY-TH`, `TH = half_width × 0.5`); implement
+  lozenge-shaped Cairo closed path in chart canvas; build and test.
+- **Actions taken (2026-06-15):**
+  1. SRS-SQC §7.3.2a: "hollow rectangle" → "hollow lozenge shape — a rectangular
+     body with triangular end caps"; "Box width" → "Lozenge width"; "rectangle top
+     is the UCL" → "lozenge top tip is the UCL"; "rectangles" → "lozenges";
+     "control boxes" → "control lozenges".  SRS-SQC §7.3.3: "control box" →
+     "control lozenge" (3 rows).  SRS-SQC §15.6 test description: "gray box" →
+     "gray lozenge".
+  2. SDD-SQC §12.6 step 6a: "Control box: a hollow rectangle" → "Control box: a
+     lozenge shape (rectangular body with triangular end caps)"; added geometry
+     description (triangular tips at UCL_j and LCL_j, rectangular body from
+     `UY+TH` to `LY-TH`, `TH = half_width × 0.5`).  SDD-SQC §12.7 table: eight
+     "box" entries → "lozenge".  Test section: "gray boxes" → "gray lozenges".
+  3. Implementation: replaced `Cairo.Rectangle` call with a six-vertex lozenge
+     closed path (`Move_To` → 5 × `Line_To` → `Close_Path` → `Stroke`).  Updated
+     comment from "Draw control-limit box" to "Draw control-limit lozenge".
+  4. Build: clean (style warnings only, no errors).  All 688 tests pass.
+- **Status:** Resolved
+- **Date resolved:** 2026-06-15

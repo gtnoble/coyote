@@ -351,3 +351,28 @@ in SDD-SQC §14.6–§14.7.
 §7.3.2a (Log Y mode rendering paragraph), §15.6 (two new test requirements).
 **Design:** SDD-SQC §12.4 (Y-Fit updated to note Quantile CC support).
 **Tests:** 687 tests, 0 failures, 0 unexpected errors. No regressions.
+
+### 2026-06-15 — Quantile CC Lozenge Control Limits
+
+**Design decision:** Changed quantile control-limit box shape from a flat
+rectangle to a lozenge (rectangular body with triangular end caps).  The
+triangular tips point to the UCL and LCL values, making it unambiguous which
+limit belongs to which component when limits overlap.  The rectangular body
+spans from `UY + TH` to `LY - TH` where `TH = half_width × 0.5`.
+
+**Rationale:** The prior flat-rectangle shape was visually ambiguous when two
+component limits overlaid (e.g. Q3's UCL coinciding with median's LCL).  The
+lozenge's triangular end caps give each limit a distinct visual identity at
+its exact numeric position, improving resolvability without requiring colour
+or pattern changes.
+
+**Implementation:** Replaced `Cairo.Rectangle` with a six-vertex closed path
+(`Move_To` → 5× `Line_To` → `Close_Path` → `Stroke`) in the Quantile CC
+rendering pipeline.  No changes to statistical computation, limit estimation,
+or the bootstrap procedure.
+
+**Files changed:**
+- `src/coyote_sqc/coyote_sqc-ui-chart_canvas.adb` — control-limit drawing
+- `requirements/coyote-sqc-requirements.md` — §7.3.2a, §7.3.3, §15.6
+- `design/coyote-sqc-design.md` — §12.6 step 6a, §12.7
+- `plan/problems.md` — PCR-028

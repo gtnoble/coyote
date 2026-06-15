@@ -3237,9 +3237,9 @@ The `On_Draw` callback executes these steps in order:
 
    For each component:
 
-   - **Control box:** a hollow rectangle centered at the session's
-     x-coordinate, with top edge at `Data_To_Screen_Y (UCL_j)`, bottom
-     edge at `Data_To_Screen_Y (LCL_j)`, and total width `2 × half_width`.
+   - **Control box:** a lozenge shape (rectangular body with triangular end caps) centered at the session's
+     x-coordinate, whose triangular tips extend to `Data_To_Screen_Y (UCL_j)` (upper tip) and
+     `Data_To_Screen_Y (LCL_j)` (lower tip).  The rectangular body spans from `UY + TH` to `LY - TH`, where `TH = half_width × 0.5` is the triangle height.  Total horizontal width: `2 × half_width`.
      Stroke width: 1 px.
    - **Component line:** a filled horizontal line segment centered at
      the session's x-coordinate at `Data_To_Screen_Y (Value_j)`, with
@@ -3249,10 +3249,10 @@ The `On_Draw` callback executes these steps in order:
 
    | Condition | Color (Cairo RGB) |
    |---|---|
-   | In-control, no comment for session | Black line `(0, 0, 0)`, gray box `(0.41, 0.41, 0.41)` |
-   | In-control, comment present | Green line `(0.1, 0.7, 0.2)`, green box `(0.1, 0.7, 0.2)` |
-   | Out-of-control, no comment | Red line `(0.9, 0.1, 0.1)`, red box `(0.9, 0.1, 0.1)` |
-   | Out-of-control, comment present | Orange line `(0.95, 0.5, 0.0)`, orange box `(0.95, 0.5, 0.0)` |
+   | In-control, no comment for session | Black line `(0, 0, 0)`, gray lozenge `(0.41, 0.41, 0.41)` |
+   | In-control, comment present | Green line `(0.1, 0.7, 0.2)`, green lozenge `(0.1, 0.7, 0.2)` |
+   | Out-of-control, no comment | Red line `(0.9, 0.1, 0.1)`, red lozenge `(0.9, 0.1, 0.1)` |
+   | Out-of-control, comment present | Orange line `(0.95, 0.5, 0.0)`, orange lozenge `(0.95, 0.5, 0.0)` |
 
    **Setup interval halo:** sessions in the setup interval receive a
    yellow ring: a hollow rectangle drawn 3 px outside the bounding box
@@ -3319,10 +3319,10 @@ The `On_Draw` callback executes these steps in order:
 | Single-turn on Xbar chart | `(0, 0, 0)` | `(0, 0, 0)` | Yes |
 | Selected (Set A) halo | — | `(0.1, 0.3, 0.9)` 2px ring | Additive |
 | Selected (Set B) halo | — | `(0.9, 0.5, 0.1)` 2px ring (orange) | Additive |
-| Quantile CC component, in-control, no comment | Black line `(0,0,0)`, gray box `(0.41,0.41,0.41)` |
-| Quantile CC component, in-control, comment present | Green line `(0.1,0.7,0.2)`, green box `(0.1,0.7,0.2)` |
-| Quantile CC component, OOC, no comment | Red line `(0.9,0.1,0.1)`, red box `(0.9,0.1,0.1)` |
-| Quantile CC component, OOC, comment present | Orange line `(0.95,0.5,0.0)`, orange box `(0.95,0.5,0.0)` |
+| Quantile CC component, in-control, no comment | Black line `(0,0,0)`, gray lozenge `(0.41,0.41,0.41)` |
+| Quantile CC component, in-control, comment present | Green line `(0.1,0.7,0.2)`, green lozenge `(0.1,0.7,0.2)` |
+| Quantile CC component, OOC, no comment | Red line `(0.9,0.1,0.1)`, red lozenge `(0.9,0.1,0.1)` |
+| Quantile CC component, OOC, comment present | Orange line `(0.95,0.5,0.0)`, orange lozenge `(0.95,0.5,0.0)` |
 
 Setup interval and selection halos are additive: a selected setup-interval point
 receives both a yellow ring (radius+6) and a blue ring (radius+3). Hollow-gray and
@@ -3589,7 +3589,7 @@ existing AUnit test suite. Fixture files live in `test/fixtures/sqc/`.
   half-width (14 px), Q1/Q3 having medium half-width (10 px), and min/max
   having the narrowest half-width (6 px).
 - Component coloring: an in-control session with no comment renders black
-  lines and gray boxes; adding a comment changes both to green for
+  lines and gray lozenges; adding a comment changes both to green for
   in-control components; an OOC component with no comment renders red;
   an OOC component with a comment renders orange.
 - Setup interval halo: a session in the setup interval receives a yellow

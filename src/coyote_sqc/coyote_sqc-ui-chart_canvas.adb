@@ -682,7 +682,7 @@ package body Coyote_SQC.UI.Chart_Canvas is
                               Box_B  := 0.41;
                            end if;
 
-                           --  Draw control-limit box.
+                           --  Draw control-limit lozenge.
                            if Lims.Has_UCL and then Lims.Has_LCL then
                               declare
                                  UY : constant Gdouble :=
@@ -697,10 +697,18 @@ package body Coyote_SQC.UI.Chart_Canvas is
                                  Cairo.Set_Line_Width (Cr, 1.0);
                                  Cairo.Set_Dash
                                    (Cr, No_Dashes, 0.0);
-                                 Cairo.Rectangle
-                                   (Cr, QX - HW, UY,
-                                    2.0 * HW, LY - UY);
-                                 Cairo.Stroke (Cr);
+                                 declare
+                                    TH : constant Gdouble := HW * 0.5;
+                                 begin
+                                    Cairo.Move_To (Cr, QX - HW, UY + TH);
+                                    Cairo.Line_To (Cr, QX + HW, UY + TH);
+                                    Cairo.Line_To (Cr, QX + HW, LY - TH);
+                                    Cairo.Line_To (Cr, QX, LY);
+                                    Cairo.Line_To (Cr, QX - HW, LY - TH);
+                                    Cairo.Line_To (Cr, QX, UY);
+                                    Cairo.Close_Path (Cr);
+                                    Cairo.Stroke (Cr);
+                                 end;
                               end;
                            end if;
 

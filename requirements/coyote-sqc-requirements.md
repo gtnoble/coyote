@@ -1800,10 +1800,10 @@ Instead of the connecting-line / limit-series / point-marker model used by
 all other charts, each session is represented as a vertical **quantile
 diagram** positioned at its x-coordinate.  The diagram has five components,
 each rendered as a thick horizontal line (the observed statistic) inside a
-hollow rectangle (the bootstrap control limits).  Widths distinguish the
+hollow lozenge shape — a rectangular body with triangular end caps (the bootstrap control limits).  Widths distinguish the
 five statistics:
 
-| Component | Line width (px) | Box width (px) | Purpose |
+| Component | Line width (px) | Lozenge width (px) | Purpose |
 |---|---|---|---|
 | Minimum | 12 | 12 | Narrowest: extreme order statistic |
 | First quartile | 20 | 20 | Medium: lower quartile |
@@ -1811,8 +1811,8 @@ five statistics:
 | Third quartile | 20 | 20 | Medium: upper quartile |
 | Maximum | 12 | 12 | Narrowest: extreme order statistic |
 
-The rectangle top is the UCL; its bottom is the LCL.  The horizontal line is
-the observed statistic value.  Color rules for lines and rectangles follow
+The lozenge top tip is the UCL; its bottom tip is the LCL.  The horizontal line is
+the observed statistic value.  Color rules for lines and lozenges follow
 the component coloring table in §5.18.
 
 **Setup interval band** is rendered behind all diagrams exactly as for other
@@ -1825,7 +1825,7 @@ diagram.  Individual components within a diagram are not selectable
 independently.
 
 **Retrospective limits.** When no setup interval is established, control
-boxes are drawn in gray and the "retrospective limits" label is displayed
+lozenges are drawn in gray and the "retrospective limits" label is displayed
 (§7.3.4).
 
 **Log Y mode.** When `Log_Y_Mode` is active (§7.3.6), the y-axis renders
@@ -1852,9 +1852,9 @@ described in §7.3.6.  The y-axis label is unchanged.
 | Zero-thinking excluded (Section 5.5) | Hollow gray circle; no setup halo |
 | Single-turn session on Xbar chart (Section 5.5) | Hollow black circle; no setup halo |
 | Single-turn session on s chart | No marker; gap in connecting line |
-| Quantile CC component OOC, no comment | Red component line, red control box |
-| Quantile CC component OOC, with comment | Orange component line, orange control box |
-| Quantile CC component in-control, comment present | Green component line, green control box |
+| Quantile CC component OOC, no comment | Red component line, red control lozenge |
+| Quantile CC component OOC, with comment | Orange component line, orange control lozenge |
+| Quantile CC component in-control, comment present | Green component line, green control lozenge |
 
 #### 7.3.4 Retrospective Limits
 
@@ -2926,7 +2926,7 @@ All statistical formula implementations shall have AUnit unit tests covering:
   session is flagged out-of-control on this chart and receives the corresponding
   marker color (red for no comment, orange for comment present) on all other charts.
 - Quantile CC component coloring: verify that an in-control component with no
-  comment for the session renders as black line / gray box; an in-control component
+  comment for the session renders as black line / gray lozenge; an in-control component
   with a comment renders as green; an OOC component with no comment renders as red;
   an OOC component with a comment renders as orange.
 - Quantile CC Bonferroni conservatism note: confirm the requirements document
