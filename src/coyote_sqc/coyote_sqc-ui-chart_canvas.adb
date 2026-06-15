@@ -700,12 +700,12 @@ package body Coyote_SQC.UI.Chart_Canvas is
                                  declare
                                     TH : constant Gdouble := HW * 0.5;
                                  begin
-                                    Cairo.Move_To (Cr, QX - HW, UY + TH);
+                                    Cairo.Move_To (Cr, QX, UY);
                                     Cairo.Line_To (Cr, QX + HW, UY + TH);
                                     Cairo.Line_To (Cr, QX + HW, LY - TH);
                                     Cairo.Line_To (Cr, QX, LY);
                                     Cairo.Line_To (Cr, QX - HW, LY - TH);
-                                    Cairo.Line_To (Cr, QX, UY);
+                                    Cairo.Line_To (Cr, QX - HW, UY + TH);
                                     Cairo.Close_Path (Cr);
                                     Cairo.Stroke (Cr);
                                  end;
