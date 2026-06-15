@@ -229,7 +229,7 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `Coyote_GUI.Updates` | Protected agent→GTK queue | `src/coyote_gui/coyote_gui-updates.ads/.adb` |
 | `Coyote_GUI.Prompt_Queue` | Protected GTK→agent queue | `src/coyote_gui/coyote_gui-prompt_queue.ads/.adb` |
 | `Coyote_GUI.Buffer` | GtkTextBuffer wrapper + markdown rendering | `src/coyote_gui/coyote_gui-buffer.ads/.adb` |
-| `Coyote_Utils` | CLI arg resolution, session prefix stripping | `src/coyote_utils.ads/.adb` |
+| `Coyote_Utils` | CLI arg resolution, file reading, session prefix stripping | `src/coyote_utils.ads/.adb` |
 | `LLM` | Root package | `src/llm/llm.ads` |
 | `LLM.Types` | Message, content block, usage types | `src/llm/llm-types.ads/.adb` |
 | `LLM.Events` | Agent event hierarchy | `src/llm/llm-events.ads` |
@@ -1257,6 +1257,19 @@ entry; `Agent_Task` waits here between turns).
 **Purpose:** CLI argument resolution and session prefix stripping utilities
 shared by the entry-point packages.
 
+
+**`Read_Whole_File (Path : String) → String`:** Reads the entire contents
+of `Path` as a `String` using `Stream_IO` chunk-based reading (8 KB buffer).
+Unlike `Ada.Text_IO.Get_Line` which recurses linearly with line length, this
+function handles arbitrarily long lines (including single-line JSON files)
+without stack overflow.  Returns `""` when `Path` is empty or does not exist.
+
+**`Read_File_If_Exists (Path : String) → String`:** Thin wrapper that
+delegates to `Read_Whole_File`.  Preserved for backward compatibility.
+
+**`Resolve_Prompt_Arg (Arg : String) → String`:** If `Arg` starts with `@`,
+reads and returns the content of the named file; otherwise returns `Arg`
+as-is.
 **`Resolve_Prompt_Arg (Arg : String) → String`:** If `Arg` starts with `@`,
 reads and returns the content of the named file; otherwise returns `Arg`
 as-is.

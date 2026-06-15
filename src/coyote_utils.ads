@@ -10,6 +10,13 @@ package Coyote_Utils is
    --  exist, or cannot be read.
    function Read_File_If_Exists (Path : String) return String;
 
+   --  Read the entire contents of Path as a String using Stream_IO.
+   --  Returns "" when Path is empty or does not exist.
+   --  Unlike Read_File_If_Exists, this does not use Text_IO.Get_Line
+   --  and therefore handles files with very long (or no) line breaks
+   --  without stack overflow.
+   function Read_Whole_File (Path : String) return String;
+
    --  Raised by Resolve_Text_Arg when the argument begins with '@' but
    --  the referenced file cannot be found or read.
    Bad_Arg_Error : exception;

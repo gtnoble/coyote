@@ -5,42 +5,52 @@
 
 with Ada.Directories;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
-with Ada.Text_IO;
+with Ada.Streams.Stream_IO;
 
 package body Coyote_Utils is
 
-   function Read_File_If_Exists (Path : String) return String is
-      File   : Ada.Text_IO.File_Type;
-      Result : Unbounded_String;
+
+   --  Read the entire file at Path using Stream_IO chunk-based reading.
+   --  Unlike Text_IO.Get_Line, this handles files with very long lines
+   --  (including single-line JSON) without stack overflow.
+   function Read_Whole_File (Path : String) return String is
+      File    : Ada.Streams.Stream_IO.File_Type;
+      Content : Unbounded_String;
+      Buffer  : Ada.Streams.Stream_Element_Array (1 .. 8192);
+      pragma Suppress_Initialization (Buffer);
+      Last    : Ada.Streams.Stream_Element_Offset;
+      use type Ada.Streams.Stream_Element_Offset;
    begin
-      if Path'Length = 0 then
+      if Path'Length = 0
+        or else not Ada.Directories.Exists (Path)
+      then
          return "";
       end if;
 
-      if not Ada.Directories.Exists (Path) then
-         return "";
-      end if;
+      Ada.Streams.Stream_IO.Open
+        (File, Ada.Streams.Stream_IO.In_File, Path);
 
-      Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Path);
-
-      while not Ada.Text_IO.End_Of_File (File) loop
-         declare
-            Line : constant String := Ada.Text_IO.Get_Line (File);
-         begin
-            Append (Result, Line);
-            Append (Result, ASCII.LF);
-         end;
+      loop
+         Ada.Streams.Stream_IO.Read (File, Buffer, Last);
+         exit when Last = 0;
+         for I in 1 .. Last loop
+            Append (Content, Character'Val (Buffer (I)));
+         end loop;
       end loop;
 
-      Ada.Text_IO.Close (File);
-      return To_String (Result);
+      Ada.Streams.Stream_IO.Close (File);
+      return To_String (Content);
    exception
       when others =>
-         if Ada.Text_IO.Is_Open (File) then
-            Ada.Text_IO.Close (File);
+         if Ada.Streams.Stream_IO.Is_Open (File) then
+            Ada.Streams.Stream_IO.Close (File);
          end if;
-
          return "";
+   end Read_Whole_File;
+
+   function Read_File_If_Exists (Path : String) return String is
+   begin
+      return Read_Whole_File (Path);
    end Read_File_If_Exists;
 
    function Resolve_Text_Arg (Arg : String) return String is

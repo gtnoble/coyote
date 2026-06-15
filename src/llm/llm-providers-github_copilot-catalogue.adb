@@ -13,6 +13,7 @@ with GNATCOLL.JSON;
 with LLM.Auth.GitHub_Copilot;
 with LLM.HTTP;
 with LLM.Settings;
+with Coyote_Utils;
 
 package body LLM.Providers.GitHub_Copilot.Catalogue is
 
@@ -69,33 +70,12 @@ package body LLM.Providers.GitHub_Copilot.Catalogue is
    end Delete_If_Exists;
 
    function Read_File (Path : String) return String is
-      File    : Ada.Text_IO.File_Type;
-      Content : Unbounded_String;
    begin
       if Path'Length = 0 or else not Ada.Directories.Exists (Path) then
          return "";
       end if;
 
-      Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Path);
-
-      while not Ada.Text_IO.End_Of_File (File) loop
-         declare
-            Line : constant String := Ada.Text_IO.Get_Line (File);
-         begin
-            Append (Content, Line);
-            Append (Content, ASCII.LF);
-         end;
-      end loop;
-
-      Ada.Text_IO.Close (File);
-      return To_String (Content);
-   exception
-      when others =>
-         if Ada.Text_IO.Is_Open (File) then
-            Ada.Text_IO.Close (File);
-         end if;
-
-         return "";
+      return Coyote_Utils.Read_Whole_File (Path);
    end Read_File;
 
    procedure Write_Atomically (Path : String; Content : String) is

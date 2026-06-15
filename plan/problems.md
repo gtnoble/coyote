@@ -903,3 +903,45 @@ client-controlled work product gets an entry here.
   5. Updated test plan baseline: 688 tests, all passing.
 - **Status:** Resolved
 - **Date resolved:** 2026-06-14
+
+## PCR-027
+
+- **Date reported:** 2026-06-15
+- **Category:** Code
+- **Priority:** 1-Critical
+- **Description:** SIGSEGV (stack overflow) in `Agent_Task` when reading
+  the 512 KB single-line `~/.coyote/openrouter_models_cache.json` file.
+  The cause was GNAT's `Ada.Text_IO.Get_Line` runtime using tail-recursion
+  proportional to line length; a single-line 512 KB file produced ~512K
+  recursive calls, exhausting the task's stack.  The same vulnerable
+  `Read_File` pattern was duplicated in seven other locations across the
+  LLM layer (`llm-auth.adb`, `llm-settings.adb`, `llm-system_prompt.adb`,
+  `llm-providers-ollama-catalogue.adb`,
+  `llm-providers-opencode_go-catalogue.adb`,
+  `llm-providers-github_copilot-catalogue.adb`, and the
+  `Read_File_If_Exists` function in `coyote_utils.adb`).  Any catalogue
+  cache file or configuration file with a very long line could trigger the
+  crash.
+- **Affected work products:** SDD-CORE (`design/coyote-design.md`),
+  `src/coyote_utils.ads/.adb`, seven LLM catalogue/auth/settings packages,
+  providers SDF (`sdfs/providers.md`)
+- **Corrective action required:** Replace all `Ada.Text_IO.Get_Line`-based
+  file reading with a chunk-based `Ada.Streams.Stream_IO` reader that
+  cannot overflow the stack on long lines.  Add the new function to
+  `Coyote_Utils` so it is available to all packages.
+- **Actions taken (2026-06-15):**
+  1. Added `Read_Whole_File` to `Coyote_Utils` (spec + body) using
+     `Ada.Streams.Stream_IO` with an 8 KB chunk buffer.  No recursion,
+     no line-length limit.
+  2. Rewrote `Coyote_Utils.Read_File_If_Exists` as a thin wrapper
+     delegating to `Read_Whole_File`.
+  3. Replaced all seven duplicated `Read_File` bodies across the LLM
+     layer with thin wrappers that call `Coyote_Utils.Read_Whole_File`,
+     preserving local precondition checks (e.g. `llm-system_prompt.adb`'s
+     `Ordinary_File` gate).
+  4. Removed unused `with Ada.Text_IO` from `llm-settings.adb` and
+     `llm-system_prompt.adb`.
+  5. Net change: -118 lines (174 removed, 56 added).  Build clean.
+     All 688 tests pass.
+- **Status:** Resolved
+- **Date resolved:** 2026-06-15

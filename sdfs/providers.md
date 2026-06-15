@@ -183,3 +183,41 @@ Root cause analysis from session comparison:
   ~0% miss rate, 156K cacheWrite, ~900 uncached tokens
 The difference was driven by absence of `cache_control` on user/tool messages
 in the OpenAI-wire path; the Anthropic path already had this.
+
+## 2026-06-15: Eliminate `Ada.Text_IO.Get_Line` Stack-Overflow Vulnerability
+
+**Problem:** The local `Read_File` helper functions in `LLM.Auth`,
+`LLM.Settings`, `LLM.System_Prompt`, and all four catalogue packages
+(`OpenRouter`, `Ollama`, `OpenCode_Go`, `GitHub_Copilot`) used
+`Ada.Text_IO.Get_Line` in a loop.  GNAT's runtime implementation of
+`Get_Line` uses tail-recursion proportional to line length; a single-line
+512 KB JSON file (such as `~/.coyote/openrouter_models_cache.json`) caused
+~512K recursive calls, exhausting the `Agent_Task`'s stack and producing
+SIGSEGV.
+
+**Fix:** Added `Coyote_Utils.Read_Whole_File`, a chunk-based
+`Ada.Streams.Stream_IO` reader with an 8 KB buffer — zero recursion, no
+line-length limit.  All eight duplicated `Read_File` bodies were replaced
+with thin wrappers that call `Coyote_Utils.Read_Whole_File`, preserving any
+local pre-condition checks.  The `Read_File_If_Exists` function in
+`Coyote_Utils` was also rewritten to delegate to `Read_Whole_File`.
+
+**Files changed:**
+- `src/coyote_utils.ads` — added `Read_Whole_File` spec
+- `src/coyote_utils.adb` — added `Read_Whole_File` body; rewrote
+  `Read_File_If_Exists` as wrapper
+- `src/llm/llm-auth.adb` — replaced local `Read_File` with `Coyote_Utils`
+- `src/llm/llm-settings.adb` — replaced local `Read_File`; removed unused
+  `with Ada.Text_IO`, `with GNATCOLL.JSON`
+- `src/llm/llm-system_prompt.adb` — replaced local `Read_File`; removed
+  unused `with Ada.Text_IO`
+- `src/llm/llm-providers-openrouter-catalogue.adb` — replaced local
+  `Read_File`
+- `src/llm/llm-providers-ollama-catalogue.adb` — replaced local `Read_File`
+- `src/llm/llm-providers-opencode_go-catalogue.adb` — replaced local
+  `Read_File`
+- `src/llm/llm-providers-github_copilot-catalogue.adb` — replaced local
+  `Read_File`
+
+**Result:** Net -118 lines (174 removed, 56 added).  Build clean.  688 tests
+passing.  No more unbounded `Get_Line` recursion anywhere in the codebase.
