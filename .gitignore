@@ -4,3 +4,9 @@
 /config/
 *__GNATPP-TEMP
 gmon.out
+*.ali
+*.o
+b~*.adb
+b~*.ads
+b~*.ali
+b~*.o

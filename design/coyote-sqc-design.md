@@ -611,6 +611,16 @@ type Session_Metrics_Record is record
    --  Sum of all Per_Consecutive_Tool_S values across every consecutive
    --  tool call pair in the session.  0.0 when N_Consecutive_Tool_Pairs = 0.
    --  Used as the scalar observation for I/MR/EWMA charts (§7.14a).
+   --  MI consecutive tool-call mutual information.
+   --  Per_Consecutive_Tool_MI holds one MI_k value per eligible consecutive
+   --  pair in session order.  N_Consecutive_Tool_MI_Pairs = T−1 for a
+   --  session with T non-empty tool calls (0 when T ≤ 1).
+   Per_Consecutive_Tool_MI  : Long_Float_Vectors.Vector;
+   N_Consecutive_Tool_MI_Pairs : Natural := 0;
+   Total_Tool_Call_MI    : Long_Float := 0.0;
+   --  Sum of all Per_Consecutive_Tool_MI values across every consecutive
+   --  tool call pair in the session.  0.0 when N_Consecutive_Tool_MI_Pairs = 0.
+   --  Used as the scalar observation for I/MR/EWMA charts (§7.14c).
 end record;
 ```
 
@@ -702,11 +712,20 @@ type Chart_Kind is
    Session_Tool_Call_JSD_Sum_I,
    Session_Tool_Call_JSD_Sum_MR,
    Session_Tool_Call_JSD_Sum_EWMA,
+   --  Tool call consecutive mutual information Xbar/s charts:
+   Tool_Call_MI_Xbar,
+   Tool_Call_MI_S,
+   --  Session-level I/MR/EWMA charts for total consecutive tool-call
+   --  mutual information per session (sum of all MI_k values).
+   Session_Tool_Call_MI_Sum_I,
+   Session_Tool_Call_MI_Sum_MR,
+   Session_Tool_Call_MI_Sum_EWMA,
    --  Quantile Control Charts:
    Turn_Tokens_Quantile,
    Tool_Call_Tokens_Quantile,
    Thinking_Tokens_Quantile,
-   Tool_Call_JSD_Quantile)
+   Tool_Call_JSD_Quantile,
+   Tool_Call_MI_Quantile)
 
 type Chart_Definition_Record is record
    Chart  : Chart_Kind;
@@ -1177,13 +1196,13 @@ same `Box_Cox`, `Box_Cox_Inverse`, and `Estimate_Lambda` functions from
 `Coyote_SQC.Statistics.I_Chart` to per-turn Xbar/S chart data.
 
 **Per-pair lambda estimation (Auto and Robust_Auto modes):** for each chart
-pair (Turn, Tool Call, Thinking, JSD), all setup-interval per-turn values for that
+pair (Turn, Tool Call, Thinking, JSD, MI), all setup-interval per-turn values for that
 pair are collected and passed to `Estimate_Lambda` with `Source =
 Chart_Settings (Kind).Box_Cox.Lambda_Source`. Lambda estimates are independent across
 pairs. Fewer than three eligible values falls back to λ = 0.
 
 **Fixed mode:** a single `Fixed_Lambda` from `Chart_Settings (Kind).Box_Cox` applies
-to all four chart pairs.
+to all five chart pairs.
 
 **Transformed-space parameters:** the resulting λ is stored in
 `Chart_Data.Box_Cox_Lambda`. `CD.Params.Grand_Mean` and `CD.Params.Pooled_S`
@@ -1335,6 +1354,137 @@ end Coyote_SQC.Statistics.JSD;
 ```
 
 ### 7.14a Session Total JSD Similarity Scalar
+
+### 7.14b Compression-Based Mutual Information — `Coyote_SQC.Statistics.MI`
+
+The compression-based mutual information (MI) statistic provides an alternative
+measure of compositional similarity between pairs of adjacent tool calls.  It
+uses zlib deflate compression to approximate the mutual information between the
+argument strings of two consecutive calls, based on the principle that compressed
+size approximates Shannon entropy.
+
+#### String Extraction
+
+For a consecutive pair (call_i, call_{i+1}), the same argument-field extraction
+procedure as the JSD statistic (§7.14) is applied.  For each key in the union of
+both calls' argument sets (including `tool_name`), a string is produced:
+
+1. For the `tool_name` key: the raw tool name, lowercased.
+2. For each JSON argument key: parse `Arguments`; extract all string-valued leaf
+   content recursively; concatenate leaf values separated by a single space.
+3. A key absent from one call contributes the empty string `""`.
+
+A call with no string-valued arguments contributes only the `tool_name`
+comparison — identical treatment to the JSD path.
+
+#### Compression Algorithm
+
+Each string is compressed independently using zlib deflate at maximum
+compression (level 9, `Z_DEFAULT_STRATEGY`, window bits 15).  The compressed
+length in bytes is used:
+
+- `C_a`: compressed size of string_a
+- `C_b`: compressed size of string_b
+- `C_ab`: compressed size of string_a concatenated with string_b (no additional
+  separator beyond the space inserted in String Extraction item 2)
+
+#### Per-Argument MI Value (MI_k)
+
+For each key _k_ in the union of both calls' argument sets (including
+`tool_name`):
+
+```
+MI_k = C_a_k + C_b_k − C_ab_k
+```
+
+- **Both sides empty** (key has no string content in either call): no
+  observation is produced; the key is skipped.
+- **One side empty** (key present in one call but absent or empty in the
+  other): MI_k ≈ 0 (the empty-string zlib overhead gives near-zero shared
+  information).  Non-positive MI_k (< 0, which can occur due to zlib block
+  header overhead) is clamped to 0.0.
+- **Both sides non-empty**: MI_k is computed via the full formula; expected
+  positive.  Non-positive values are clamped to 0.0.
+
+**Interpretation:** MI_k ≈ C_a_k means the argument values are nearly
+identical (maximum shared information).  MI_k ≈ 0 means the values are
+maximally different (no shared information beyond what random bytes would
+share).
+
+#### Subgroup
+
+For a consecutive pair (call_i, call_{i+1}), all computed MI_k values are
+appended in order (`tool_name` first, then JSON argument keys in source order)
+to the session's `Per_Consecutive_Tool_MI` vector.
+
+For a session with T non-empty tool calls, the subgroup vector
+`Per_Consecutive_Tool_MI` has length n = Σᵢ Kᵢ, where Kᵢ is the number of
+non-skipped keys for pair i.  `N_Consecutive_Tool_MI_Pairs` = T − 1.
+
+**Exclusion rules:**
+- Sessions with T ≤ 1 non-empty tool calls (n = 0): excluded entirely from
+  all MI charts; no marker plotted.
+- Sessions with subgroup size n = 1 (single per-argument observation): plotted
+  as a hollow circle on the Xbar chart; no s marker (same convention as
+  single-turn sessions on existing s charts).
+
+Box-Cox transformation may optionally be applied to the `Tool_Call_MI_Xbar`
+and `Tool_Call_MI_S` chart pair (see §7.10).
+
+#### Ada Package
+
+```ada
+with Coyote_SQC.Data_Model;
+
+package Coyote_SQC.Statistics.MI is
+
+   --  Compute per-argument mutual information values for a consecutive tool
+   --  call pair and append them to Result.
+   --
+   --  One MI_k value is appended for each key in the union of:
+   --    - a synthetic "tool_name" key (always processed; tool name string)
+   --    - every top-level JSON argument key in Arguments_1 or Arguments_2
+   --
+   --  Keys with no string content on either side are skipped.
+   --  Keys present in one call but absent in the other contribute MI_k ≈ 0.
+   --  Non-positive MI_k values (compression artifacts) are clamped to 0.0.
+   --
+   --  Result is not cleared before appending; the caller is responsible
+   --  for initialising it.
+   procedure Compute_MI_Values
+     (Tool_Name_1 : String;
+      Arguments_1 : String;
+      Tool_Name_2 : String;
+      Arguments_2 : String;
+      Result      : in out Coyote_SQC.Data_Model.Long_Float_Vectors.Vector);
+
+end Coyote_SQC.Statistics.MI;
+```
+
+### 7.14c Session Total MI Scalar
+
+`Total_Tool_Call_MI` is the session-level sum of all per-argument MI values
+computed by `Coyote_SQC.Statistics.MI.Compute_MI_Values` across every
+consecutive tool call pair in the session:
+
+```
+Total_Tool_Call_MI = Σ{ MI_k : k ∈ Per_Consecutive_Tool_MI }
+```
+
+Computed by `Coyote_SQC.Metrics.Compute` after the MI loop that populates
+`Per_Consecutive_Tool_MI`.
+
+**I/MR/EWMA chart kinds:** `Session_Tool_Call_MI_Sum_I`,
+`Session_Tool_Call_MI_Sum_MR`, and `Session_Tool_Call_MI_Sum_EWMA` use this
+scalar as their observation.  Exclusion, limit formulas, and EWMA recursion
+follow §7.8 and §7.11 exactly.  Box-Cox transformation is not applied; the
+sum of MI_k values across many keys benefits from the central limit theorem,
+so transformation provides no normality benefit.
+
+**Descriptor:** `Get_Observation = Obs_Tool_MI_Sum`,
+`Box-Cox transformation is not applied (see §5.20)`,
+`Exclusion_Rule = Zero_Tool_Call_Turns` (sessions with
+`N_Consecutive_Tool_MI_Pairs = 0` are excluded).
 
 `Total_Tool_Call_JSD_S` is the session-level sum of all per-argument JSD
 similarity values computed by `Coyote_SQC.Statistics.JSD.Compute_S_Values`
@@ -1706,7 +1856,7 @@ For Quantile CC chart kinds, the `Chart_Descriptor` fields are:
 - `Get_Observation`: null (Quantile CC does not use scalar observations).
 - `Exclusion_Rule`: depends on chart kind — `Zero_Thinking` for Thinking
   Tokens Quantile; `Zero_Tool_Call_Turns` for Tool Call Tokens Quantile and
-  Tool Call JSD Quantile; `No_Exclusion` for Turn Tokens Quantile.
+  Tool Call JSD Quantile and Tool Call MI Quantile; `No_Exclusion` for Turn Tokens Quantile.
 - Box-Cox, estimation method, and EWMA parameters in `Chart_Settings` are
   not consulted for Quantile CC chart kinds.
 
@@ -1974,7 +2124,7 @@ end record;
 function Properties (Kind : Chart_Kind) return Chart_Properties;
 ```
 
-The fifty-five charts and their properties:
+The sixty-one charts and their properties:
 
 | `Chart_Kind` | Label | Group_Path | Y-Axis Label |
 |---|---|---|---|
@@ -2031,10 +2181,16 @@ The fifty-five charts and their properties:
 | `Session_Tool_Call_JSD_Sum_I` | `Consecutive Tool Diversity Sum -- I` | `Tool Call Behavior/Consecutive Diversity` | `Sum of tool-call similarity scores` |
 | `Session_Tool_Call_JSD_Sum_MR` | `Consecutive Tool Diversity Sum -- MR` | `Tool Call Behavior/Consecutive Diversity` | `MR (sum of tool-call similarity scores)` |
 | `Session_Tool_Call_JSD_Sum_EWMA` | `Consecutive Tool Diversity Sum -- EWMA` | `Tool Call Behavior/Consecutive Diversity` | `EWMA (sum of tool-call similarity scores)` |
+| `Tool_Call_MI_Xbar` | `Consecutive Tool MI Diversity -- Xbar` | `Tool Call Behavior/Mutual Information Diversity` | `Mean consecutive tool-call MI` |
+| `Tool_Call_MI_S` | `Consecutive Tool MI Diversity -- s` | `Tool Call Behavior/Mutual Information Diversity` | `Std dev consecutive tool-call MI` |
+| `Session_Tool_Call_MI_Sum_I` | `Consecutive Tool MI Diversity Sum -- I` | `Tool Call Behavior/Mutual Information Diversity` | `Sum of tool-call MI scores` |
+| `Session_Tool_Call_MI_Sum_MR` | `Consecutive Tool MI Diversity Sum -- MR` | `Tool Call Behavior/Mutual Information Diversity` | `MR (sum of tool-call MI scores)` |
+| `Session_Tool_Call_MI_Sum_EWMA` | `Consecutive Tool MI Diversity Sum -- EWMA` | `Tool Call Behavior/Mutual Information Diversity` | `EWMA (sum of tool-call MI scores)` |
 | `Turn_Tokens_Quantile` | `Turn Tokens Quantile` | `Quantile Profiles/Quantile Profiles` | `Quantile (output tokens/turn)` |
 | `Tool_Call_Tokens_Quantile` | `Tool Call Tokens Quantile` | `Quantile Profiles/Quantile Profiles` | `Quantile (tool-call tokens/turn)` |
 | `Thinking_Tokens_Quantile` | `Thinking Tokens Quantile` | `Quantile Profiles/Quantile Profiles` | `Quantile (thinking tokens/turn)` |
 | `Tool_Call_JSD_Quantile` | `Tool Call JSD Quantile` | `Quantile Profiles/Quantile Profiles` | `Quantile (JSD similarity)` |
+| `Tool_Call_MI_Quantile` | `Tool Call MI Quantile` | `Quantile Profiles/Quantile Profiles` | `Quantile (MI similarity)` |
 
 The left-panel display order is derived from each chart's `Group_Path`:
 groups and sub-groups are sorted alphabetically, with enum declaration

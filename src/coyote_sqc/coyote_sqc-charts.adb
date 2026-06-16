@@ -696,6 +696,78 @@ package body Coyote_SQC.Charts is
                Is_S_Chart      => False,
                Is_EWMA_Chart   => False,
                Is_Quantile_CC_Chart => True);
+         when Tool_Call_MI_Xbar =>
+            return
+              (Label           => U ("Consecutive Tool MI Diversity -- Xbar"),
+               Group_Path      => U ("Tool Call Behavior/Mutual Information Diversity"),
+               Y_Axis_Label    => U ("Mean consecutive tool-call MI"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => True,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
+         when Tool_Call_MI_S =>
+            return
+              (Label           => U ("Consecutive Tool MI Diversity -- s"),
+               Group_Path      => U ("Tool Call Behavior/Mutual Information Diversity"),
+               Y_Axis_Label    => U ("Std dev consecutive tool-call MI"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => True,
+               Is_S_Chart      => True,
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
+         when Session_Tool_Call_MI_Sum_I =>
+            return
+              (Label           => U ("Consecutive Tool MI Diversity Sum -- I"),
+               Group_Path      => U ("Tool Call Behavior/Mutual Information Diversity"),
+               Y_Axis_Label    => U ("Sum of tool-call MI scores"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => True,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => False,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
+         when Session_Tool_Call_MI_Sum_MR =>
+            return
+              (Label           => U ("Consecutive Tool MI Diversity Sum -- MR"),
+               Group_Path      => U ("Tool Call Behavior/Mutual Information Diversity"),
+               Y_Axis_Label    => U ("MR (sum of tool-call MI scores)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => True,
+               Is_Xbar_S_Chart => False,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
+         when Session_Tool_Call_MI_Sum_EWMA =>
+            return
+              (Label           => U ("Consecutive Tool MI Diversity Sum -- EWMA"),
+               Group_Path      => U ("Tool Call Behavior/Mutual Information Diversity"),
+               Y_Axis_Label    => U ("EWMA (sum of tool-call MI scores)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => False,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => True,
+               Is_Quantile_CC_Chart => False);
+         when Tool_Call_MI_Quantile =>
+            return
+              (Label           => U ("Tool Call MI Quantile"),
+               Group_Path      => U ("Quantile Profiles/Quantile Profiles"),
+               Y_Axis_Label    => U ("Quantile (MI similarity)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => False,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => True);
       end case;
    end Properties;
 

@@ -288,7 +288,7 @@ package body Coyote_SQC.Statistics is
                   Accumulate_Xbar_S (M.Per_Turn_Thinking_Tokens);
                end if;
 
-            when Tool_Call_JSD_Xbar | Tool_Call_JSD_S =>
+            when Tool_Call_JSD_Xbar | Tool_Call_JSD_S | Tool_Call_MI_Xbar | Tool_Call_MI_S =>
                if M.N_Consecutive_Tool_Pairs >= 1 then
                   Accumulate_Xbar_S_LF (M.Per_Consecutive_Tool_S);
                end if;
@@ -391,8 +391,15 @@ package body Coyote_SQC.Statistics is
                   Accumulate_I (M.Total_Tool_Call_JSD_S);
                end if;
 
+            when Session_Tool_Call_MI_Sum_I
+               | Session_Tool_Call_MI_Sum_MR
+               | Session_Tool_Call_MI_Sum_EWMA =>
+               if M.N_Consecutive_Tool_MI_Pairs > 0 then
+                  Accumulate_I (M.Total_Tool_Call_MI);
+               end if;
+
             when Turn_Tokens_Quantile | Tool_Call_Tokens_Quantile
-               | Thinking_Tokens_Quantile | Tool_Call_JSD_Quantile =>
+               | Thinking_Tokens_Quantile | Tool_Call_JSD_Quantile | Tool_Call_MI_Quantile =>
                null;  --  Quantile CC uses bootstrap; no parameters to accumulate.
 
          end case;
@@ -407,7 +414,7 @@ package body Coyote_SQC.Statistics is
          when Turn_Tokens_Xbar | Turn_Tokens_S
             | Tool_Call_Tokens_Xbar | Tool_Call_Tokens_S
             | Thinking_Tokens_Xbar | Thinking_Tokens_S
-            | Tool_Call_JSD_Xbar | Tool_Call_JSD_S =>
+            | Tool_Call_JSD_Xbar | Tool_Call_JSD_S | Tool_Call_MI_Xbar | Tool_Call_MI_S =>
 
             if Method = Robust_Median then
                --  Grand_Mean: unweighted median of session arithmetic means.
@@ -522,7 +529,10 @@ package body Coyote_SQC.Statistics is
             | Fraction_Uncached_Input_EWMA
             | Session_Tool_Call_JSD_Sum_I
             | Session_Tool_Call_JSD_Sum_MR
-            | Session_Tool_Call_JSD_Sum_EWMA =>
+            | Session_Tool_Call_JSD_Sum_EWMA
+            | Session_Tool_Call_MI_Sum_I
+            | Session_Tool_Call_MI_Sum_MR
+            | Session_Tool_Call_MI_Sum_EWMA =>
 
             if Method = Robust_Median then
                --  Grand_Mean: median of all setup-interval observations.
@@ -595,7 +605,7 @@ package body Coyote_SQC.Statistics is
                end if;
             end if;
          when Turn_Tokens_Quantile | Tool_Call_Tokens_Quantile
-            | Thinking_Tokens_Quantile | Tool_Call_JSD_Quantile =>
+            | Thinking_Tokens_Quantile | Tool_Call_JSD_Quantile | Tool_Call_MI_Quantile =>
             Parameters.Parameters_Valid := False;
             --  Quantile CC uses bootstrap; no classical parameters to finalize.
 

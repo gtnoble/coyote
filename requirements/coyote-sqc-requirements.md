@@ -227,7 +227,7 @@ Derived from a Session_Record. Computed once at load time and cached.
 
 | Field | Type | Description |
 |---|---|---|
-| `Chart_Type` | Chart_Type enum | Identifies which of the fifty-five charts this defines |
+| `Chart_Type` | Chart_Type enum | Identifies which of the sixty-one charts this defines |
 
 ---
 
@@ -542,20 +542,21 @@ transformation may be applied before computing Xbar and s chart limits to improv
 normality and reduce false out-of-control signals. The same Box-Cox family as §5.7
 is used (parameterised by λ).
 
-The transformation applies to all eight per-turn Xbar/S charts:
+The transformation applies to all ten per-turn Xbar/S charts:
 `Turn_Tokens_Xbar`, `Turn_Tokens_S`, `Tool_Call_Tokens_Xbar`,
 `Tool_Call_Tokens_S`, `Thinking_Tokens_Xbar`, `Thinking_Tokens_S`,
-`Tool_Call_JSD_Xbar`, `Tool_Call_JSD_S`.
+`Tool_Call_JSD_Xbar`, `Tool_Call_JSD_S`,
+`Tool_Call_MI_Xbar`, `Tool_Call_MI_S`.
 
 **Per-pair lambda in auto mode:** when the lambda source is Auto-estimate (MLE)
 or Auto-estimate (robust), λ is estimated independently for each chart pair
-(Turn, Tool Call, Thinking, JSD) from that pair's flattened setup-interval per-turn
+(Turn, Tool Call, Thinking, JSD, MI) from that pair's flattened setup-interval per-turn
 values using the same algorithm as §5.7 (MLE or Qₙ robust, respectively). Turn,
-Tool Call, Thinking, and JSD similarity values can therefore have different estimated λ values.
+Tool Call, Thinking, JSD, and MI similarity values can therefore have different estimated λ values.
 Fewer than three eligible turn values falls back to λ = 0.
 
 **Shared lambda in fixed mode:** in fixed mode, a single user-specified λ applies
-to all three chart pairs.
+to all five chart pairs.
 
 **Lambda source and configuration:** each Xbar/S chart has its own independent Box-Cox configuration, accessible via the Chart Settings dialog (§13.6).
 
@@ -1079,6 +1080,7 @@ whose subgroup is non-empty for the measured quantity:
 | Tool Call Tokens Quantile | `Per_Turn_Tool_Tokens` | Sessions with `N_Tool_Call_Turns_For_Chart = 0` |
 | Thinking Tokens Quantile | `Per_Turn_Thinking_Tokens` | Sessions with `Any_Thinking = False` |
 | Tool Call JSD Quantile | `Per_Consecutive_Tool_S` | Sessions with `N_Consecutive_Tool_Pairs = 0` |
+| Tool Call MI Quantile | `Per_Consecutive_Tool_MI` | Sessions with `N_Consecutive_Tool_MI_Pairs = 0` |
 
 When no setup interval has been established, retrospective limits are
 computed from all currently visible sessions (see §5.1).
@@ -1235,6 +1237,138 @@ hover tooltip (§8.3a), each annotated with `← out-of-control`.
 The classical/robust estimation method setting (§5.11) does not apply to
 Quantile Control Charts.  Quantile limits are derived directly from the
 bootstrap distribution; there is no separate parameter-estimation step.
+
+
+### 5.19 Consecutive Tool Call Mutual Information — Compression-Based Statistic
+
+The compression-based mutual information (MI) statistic provides an alternative
+measure of compositional similarity between pairs of adjacent tool calls within
+a session.  Unlike the JSD statistic (§5.12) which operates on token
+distributions, the MI statistic uses zlib deflate compression to approximate
+the mutual information between the argument strings of two consecutive calls.
+High values indicate the two calls are nearly identical (potential looping);
+low values indicate diversity.
+
+The statistic is based on the principle that the compressed size of a string
+approximates its Shannon entropy: size_a ≈ H(a), size_b ≈ H(b), and
+size_{ab} ≈ H(a,b).  The mutual information I(a,b) = H(a) + H(b) − H(a,b) ≈
+size_a + size_b − size_{ab} measures how much information the two strings
+share (Cover & Thomas, *Elements of Information Theory*, 2nd ed. 2006, §2.3).
+
+#### String Extraction
+
+For a consecutive pair (call_i, call_{i+1}), the same argument-field
+extraction procedure used by the JSD statistic is applied.  For each key
+in the **union** of both calls' top-level JSON argument fields (plus a
+synthetic `tool_name` key), a string is produced as follows:
+
+1. For the `tool_name` key: the raw tool name string, lowercased.
+2. For each JSON argument key: parse the `Arguments` JSON object; extract
+   all string-valued leaf content for that key (recursively for nested
+   objects and arrays); concatenate the leaf values into a single string,
+   separated by a single space.
+3. For a key absent from one call: the empty string `""` is used on that
+   side.
+
+A call with no string-valued arguments contributes only the `tool_name`
+comparison; this is treated identically to a call where every argument key is
+absent — no special boundary exclusion applies.
+
+#### Compression
+
+Each string is compressed using zlib deflate at maximum compression
+(level 9, `Z_DEFAULT_STRATEGY`, window bits 15).  The compressed size in
+bytes is used:
+
+- `C_a` = compressed size of string_a bytes.
+- `C_b` = compressed size of string_b.
+- `C_ab` = compressed size of string_a concatenated with string_b (no
+  intervening separator beyond the space inserted by String Extraction
+  item 2).
+
+#### Per-Argument MI Value
+
+For each key _k_ in the union of both calls' argument sets (including
+`tool_name`):
+
+```
+MI_k = C_a_k + C_b_k − C_ab_k
+```
+
+- If both strings are empty (key has no string content in either call):
+  no observation is produced for key _k_; the key is skipped.
+- If exactly one string is empty (key present in one call but absent or
+  empty in the other): the empty string compresses to the zlib header
+  and empty-block overhead (typically 8–11 bytes).  The concatenation
+  compresses to approximately the non-empty compressed size plus the
+  empty-string overhead, giving MI_k ≈ 0 (i.e. no shared information).
+  A non-positive MI_k (< 0, which can occur due to zlib block header
+  overhead) is clamped to 0.0.
+- If both strings are non-empty: MI_k is computed via the full
+  compression formula and is expected to be positive.  A non-positive
+  result (compression artifact) is clamped to 0.0.
+
+**Interpretation:** MI_k ≈ C_a_k means the two argument strings share
+nearly all their information (near-identical content).  MI_k ≈ 0 means
+the two strings share essentially no information (maximally different).
+
+Unlike the JSD S_k which scales with N_k (token count), MI_k is
+expressed in approximate bytes of shared information and scales naturally
+with string length.  It is always in [0, C_a_k + C_b_k].
+
+#### Session Subgroup and Chart Types
+
+For a consecutive pair (call_i, call_{i+1}), all computed MI_k values are
+appended in order (`tool_name` first, then JSON argument keys in source
+order) to the session's `Per_Consecutive_Tool_MI` vector.
+
+For a session with T non-empty tool calls (calls that contribute at least one
+MI_k observation), the subgroup vector `Per_Consecutive_Tool_MI` has length
+n = Σᵢ Kᵢ, where Kᵢ is the number of non-skipped keys for pair i.
+`N_Consecutive_Tool_MI_Pairs` = T − 1.
+
+This subgroup drives the Xbar/s chart pair (§6.46–6.47) using the standard
+Xbar and s chart formulas (§5.2) with per-point variable-n control limits,
+where n is the length of `Per_Consecutive_Tool_MI` for that session.
+
+**Exclusion rules:**
+- Sessions with T ≤ 1 non-empty tool calls: `N_Consecutive_Tool_MI_Pairs` = 0;
+  excluded entirely from both charts; no marker plotted.
+- Sessions with subgroup size n = 1 (single per-argument observation): plotted
+  as a hollow circle on the Xbar chart; no s marker.
+
+Box-Cox transformation may optionally be applied to the
+`Tool_Call_MI_Xbar` and `Tool_Call_MI_S` chart pair; see §5.8.
+Subgroup values of 0.0 (absent arguments or compression-artifact clamp)
+are excluded from both the chart and λ estimation when Box-Cox is active.
+
+### 5.20 Session Total Mutual Information — I/MR/EWMA Scalar
+
+The session-level **total tool-call mutual information** is defined as the
+sum of all per-argument MI_k values accumulated across every consecutive
+tool call pair in the session:
+
+```
+Total_Tool_Call_MI = Σ Per_Consecutive_Tool_MI
+```
+
+This collapses the subgroup vector used by the Xbar/s charts (§5.19) into a
+single scalar per session, suitable for an Individuals (I) chart, its
+companion Moving-Range (MR) chart, and an EWMA chart — the same triplet used
+for all other session-level totals.
+
+**Observation:** one positive-real scalar per session.  
+**Exclusion:** sessions with `N_Consecutive_Tool_MI_Pairs = 0` (≤ 1 non-empty
+tool calls) are excluded; no marker is plotted.  
+**Limits (I chart):** derived from the mean moving range of the setup
+interval (§5.6).  Box-Cox transformation is not applied (MI values are in
+compressed bytes and the sum over many keys benefits from the central limit
+theorem).  
+**MR chart:** `MR_i = |Total_Tool_Call_MI_i − Total_Tool_Call_MI_{i-1}|`;
+sessions without consecutive pairs are skipped and do not advance the MR
+sequence.  
+**EWMA chart:** independently computes Grand_Mean and σ from the same
+setup-interval observations as the corresponding I chart.
 
 Fifty-five charts are available in every workspace. They are pre-instantiated; the user does
 not create or delete charts. All charts share a single workspace-level setup interval
@@ -1681,6 +1815,84 @@ maximum of the per-argument S_k values.
 **Exclusion:** sessions with `N_Consecutive_Tool_Pairs = 0` (no consecutive
 tool-call pairs) are excluded entirely.
 
+### 6.46 Consecutive Tool MI Diversity — Xbar Chart
+
+**Measured quantity:** mean compression-based MI similarity across consecutive
+tool call pairs within a session (see §5.19).
+**Subgroup:** the vector of MI_k values for consecutive pairs within the
+session.
+**Subgroup size n:** total non-empty tool calls minus one (T−1).
+**Statistic:** mean MI_k (x̄).
+**Exclusion:** sessions with T ≤ 1 non-empty tool calls excluded entirely (no
+marker).  Sessions with T = 2 (n = 1) plotted as hollow circles on the Xbar
+chart; no s marker.
+**Limits:** derived from the grand mean and pooled standard deviation of the
+setup interval (§5.2), using the standard Xbar formulas.  When Box-Cox
+transformation is enabled (§5.8), limits are computed in the transformed
+space and back-transformed to original MI units for display.
+
+### 6.47 Consecutive Tool MI Diversity — s Chart
+
+**Measured quantity:** standard deviation of MI_k values across consecutive
+tool call pairs within a session (see §5.19).
+**Subgroup:** the vector of MI_k values for consecutive pairs within the
+session.
+**Subgroup size n:** total non-empty tool calls minus one (T−1).
+**Statistic:** sample standard deviation of MI_k (s).
+**Exclusion:** sessions with T ≤ 2 (n ≤ 1) have no s statistic; no marker
+plotted on the s chart for these sessions.
+**Limits:** derived from the pooled standard deviation of the setup interval
+(§5.2), using the standard s chart formulas.  When Box-Cox transformation
+is enabled (§5.8), limits are computed in the transformed space; the
+standard deviation remains in transformed units.
+
+### 6.48 Consecutive Tool MI Diversity Sum — I Chart
+
+**Measured quantity:** total consecutive tool-call MI for the session
+(`Total_Tool_Call_MI` = Σ MI_k across all consecutive pairs; see §5.20).
+**Observation:** one scalar value per session; no within-session subgroup.
+**Statistic:** the session total (x).
+**Exclusion:** sessions with `N_Consecutive_Tool_MI_Pairs = 0` (≤ 1 non-empty
+tool calls) are excluded; no marker plotted.
+**Limits:** derived from the mean moving range of the setup interval (§5.6).
+Box-Cox transformation is not applied.
+
+### 6.49 Consecutive Tool MI Diversity Sum — MR Chart
+
+**Measured quantity:** absolute difference in `Total_Tool_Call_MI` between
+consecutive sessions in chronological order.
+**Statistic:** `MR_i = |Total_Tool_Call_MI_i − Total_Tool_Call_MI_{i-1}|`.
+**First session:** no marker is plotted; a gap is left in the connecting line.
+**Exclusion:** sessions with `N_Consecutive_Tool_MI_Pairs = 0` do not contribute
+to the MR sequence (they are skipped as if absent from the time series).
+**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6).  Box-Cox transformation
+is not applied.
+
+### 6.50 Consecutive Tool MI Diversity Sum — EWMA Chart
+
+**Measured quantity:** total consecutive tool-call MI for the session
+(`Total_Tool_Call_MI`).
+**Statistic:** the EWMA value `Z_t = λ · x_t + (1−λ) · Z_{t−1}` (§5.9).
+**Limits:** time-varying UCL and LCL at step _t_ (§5.9).
+**Parameters:** Grand_Mean and σ are independently computed from the same
+setup-interval observations as the Consecutive Tool MI Diversity Sum — I
+chart (§6.48).
+
+### 6.51 Tool Call MI — Quantile Control Chart
+
+**Measured quantity:** per-argument MI values
+(`Per_Consecutive_Tool_MI`; see §5.19).
+**Subgroup:** per-argument MI_k values across all consecutive tool-call pairs
+within the session.
+**Subgroup size `n_i`:** length of `Per_Consecutive_Tool_MI` vector
+(`N_Consecutive_Tool_MI_Pairs` × average keys-per-pair).
+**Five statistics:** minimum, first quartile, median, third quartile, and
+maximum of the per-argument MI_k values.
+**Limits:** per-component bootstrap control limits (§5.18).
+**Exclusion:** sessions with `N_Consecutive_Tool_MI_Pairs = 0` (no consecutive
+tool-call pairs) are excluded entirely.
+
+
 
 ## 7. UI Layout and Navigation
 
@@ -1695,7 +1907,7 @@ The main window contains, from top to bottom:
 
 ### 7.2 Left Panel
 
-A GtkListBox (~180px default width, user-resizable) listing the fifty-five charts in
+A GtkListBox (~180px default width, user-resizable) listing the sixty-one charts in
 five visually separated groups with indented sub-group labels. Top-level groups are
 bold; sub-group labels are italic and indented 8 px; chart rows are indented 16 px.
 Groups and sub-groups are ordered alphabetically (case-sensitive). Enum declaration
@@ -1708,6 +1920,7 @@ Quantile Profiles
     Tool Call Tokens Quantile
     Thinking Tokens Quantile
     Tool Call JSD Quantile
+    Tool Call MI Quantile
 
 Token Consumption
   Thinking Tokens
@@ -1789,6 +2002,12 @@ Tool Call Behavior
     Consecutive Tool Diversity Sum -- I
     Consecutive Tool Diversity Sum -- MR
     Consecutive Tool Diversity Sum -- EWMA
+  Mutual Information Diversity
+    Consecutive Tool MI Diversity -- Xbar
+    Consecutive Tool MI Diversity -- s
+    Consecutive Tool MI Diversity Sum -- I
+    Consecutive Tool MI Diversity Sum -- MR
+    Consecutive Tool MI Diversity Sum -- EWMA
 ```
 
 Clicking a row switches the chart displayed in the chart area. The active chart is
@@ -2345,7 +2564,7 @@ selection changes, using the same trigger as the histogram refresh.
 
 **Set as Setup Interval button:**
 - Clicking this button sets the workspace setup interval to exactly the selected
-  sessions, applying to all fifty-five charts simultaneously.
+  sessions, applying to all sixty-one charts simultaneously.
 - If a setup interval is already established, a confirmation dialog is shown:
   "Replace existing setup interval for this workspace?"
 - On confirmation, all charts recompute their limits and recolor the setup interval
@@ -2461,7 +2680,7 @@ in bulk comments issued from this view.
 ### 11.1 Establishing a Setup Interval
 
 A setup interval is a single workspace-level set of sessions used to estimate the
-center line and control limits for all fifty-five charts simultaneously. It is established
+center line and control limits for all sixty-one charts simultaneously. It is established
 by selecting one or more sessions (Section 9) and either clicking "Set as Setup Interval"
 in the multi-select detail panel (Section 10.2) or choosing **View → Set Selection as
 Setup Interval** from the menu bar. There is no requirement for the
@@ -2471,11 +2690,11 @@ setup sessions to be contiguous in time.
 
 The setup interval is stored as a set of session UUIDs in the `Setup_Session_Ids`
 field of the `Workspace_Record`. It is workspace-level: a single setup interval
-applies to all fifty-five charts. The set is stored within the workspace file.
+applies to all sixty-one charts. The set is stored within the workspace file.
 
 ### 11.3 Visual Representation
 
-Setup interval sessions are rendered with filled yellow markers on all fifty-five charts.
+Setup interval sessions are rendered with filled yellow markers on all sixty-one charts.
 A faint yellow vertical band spans the x-extent of the setup interval sessions on
 every chart.
 
@@ -2894,6 +3113,41 @@ All statistical formula implementations shall have AUnit unit tests covering:
 - JSD hollow circle: a session whose Per_Consecutive_Tool_S has exactly
   1 element is plotted as a hollow circle on the Xbar chart.
 - JSD Xbar/s parameter estimation: for a known setup interval of three
+- MI `Compute_MI_Values` function: for two known argument strings, verify
+  MI_k = C_a + C_b − C_ab produces a non-negative value; for identical strings
+  verify MI_k ≈ C_a (within 5 bytes); for completely different strings verify
+  MI_k is close to zero (≤ max(20, 0.1 × (C_a + C_b))).
+- MI identical calls: when Tool_Name and Arguments are identical, verify
+  all per-argument MI_k values are positive and close to the individual
+  compressed sizes (within 5 bytes each).
+- MI completely different calls: when argument strings share no common
+  substrings, verify every MI_k is close to zero.
+- MI no-argument call: for a call with tool name but no string-valued
+  arguments, verify that only the tool-name MI_k is appended and the call
+  participates normally in consecutive pairs (no boundary exclusion).
+- MI missing argument: for a pair where key "stdin" is present in call 1
+  but absent from call 2, verify MI_stdin = 0.0 is appended to
+  Per_Consecutive_Tool_MI.
+- MI non-positive clamp: for a pair where zlib block-header overhead causes
+  a negative raw MI_k value, verify the value is clamped to 0.0 rather than
+  stored as negative.
+- MI session metrics: for a session with T = 4 non-empty tool calls each
+  having K = 2 non-skipped argument keys per pair, verify
+  N_Consecutive_Tool_MI_Pairs = 3 and Per_Consecutive_Tool_MI has 6 elements
+  (3 pairs × 2 keys each), with values matching independently hand-computed
+  MI_k values.
+- MI subgroup exclusion: sessions with T ≤ 1 produce
+  N_Consecutive_Tool_MI_Pairs = 0 and are excluded from both Xbar and s charts.
+- MI hollow circle: a session whose Per_Consecutive_Tool_MI has exactly
+  1 element is plotted as a hollow circle on the Xbar chart.
+- MI Xbar/s parameter estimation: for a known setup interval of three
+  sessions with known per-argument MI_k vectors, verify grand mean and pooled s
+  match §5.2 formulas applied to the pooled Long_Float MI_k values.
+- MI Sum I/MR/EWMA independence: verify that `Recompute_Chart` for
+  `Session_Tool_Call_MI_Sum_EWMA` independently computes the same `Grand_Mean`
+  and `Mean_MR` as `Session_Tool_Call_MI_Sum_I`, derived from the same
+  setup-interval observations.
+
   sessions with known per-argument S_k vectors, verify grand mean and pooled s
   match §5.2 formulas applied to the pooled Long_Float S_k values.
 

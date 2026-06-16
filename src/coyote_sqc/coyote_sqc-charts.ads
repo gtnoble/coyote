@@ -6,7 +6,7 @@ with Ada.Strings.Unbounded;
 
 package Coyote_SQC.Charts is
 
-   --  The fifty-five charts available in every workspace.
+   --  The sixty-one charts available in every workspace.
    --  order matches the left-panel display order.
    type Chart_Kind is
      (Turn_Tokens_Xbar,
@@ -73,7 +73,13 @@ package Coyote_SQC.Charts is
       Turn_Tokens_Quantile,
       Tool_Call_Tokens_Quantile,
       Thinking_Tokens_Quantile,
-      Tool_Call_JSD_Quantile);
+      Tool_Call_JSD_Quantile,
+      Tool_Call_MI_Xbar,
+      Tool_Call_MI_S,
+      Session_Tool_Call_MI_Sum_I,
+      Session_Tool_Call_MI_Sum_MR,
+      Session_Tool_Call_MI_Sum_EWMA,
+      Tool_Call_MI_Quantile);
 
    --  Display metadata for one chart.
    type Chart_Properties is record

@@ -410,3 +410,45 @@ limits are now interpolated rather than held piecewise-constant.
 **Design:** SDD-SQC §7.19 "Interpolated Limits" rewritten.
 **Tests:** 688 tests, 0 failures, 0 unexpected errors.  No regressions.
 
+
+---
+
+### 2026-06-16 — Mutual Information diversity charts (requirements & design)
+
+**Motivation:** Added a second measure of consecutive tool-call diversity based on
+compression-based mutual information.  The MI statistic uses zlib deflate at
+maximum compression (level 9) to approximate the mutual information between
+argument strings of successive tool calls: MI_k = C_a + C_b − C_ab, where C_x
+is the compressed size of string x.  This complements the existing JSD-based
+diversity charts by providing an entropy-based measure that scales naturally
+with string length and does not require tokenization.
+
+**Requirements:** SRS-SQC §5.19 (MI statistics), §5.20 (session total MI scalar),
+§6.46–6.51 (six new chart definitions).  Chart count advanced from 55 to 61.
+§5.8 Box-Cox chart list updated to include MI Xbar/S pair.
+
+**Design:** SDD-SQC §7.14b (compression-based MI), §7.14c (session total MI scalar).
+New package `Coyote_SQC.Statistics.MI` with `Compute_MI_Values` procedure.
+Six new `Chart_Kind` enum values: `Tool_Call_MI_Xbar`, `Tool_Call_MI_S`,
+`Session_Tool_Call_MI_Sum_I`, `Session_Tool_Call_MI_Sum_MR`,
+`Session_Tool_Call_MI_Sum_EWMA`, `Tool_Call_MI_Quantile`.
+Three new `Session_Metrics_Record` fields: `Per_Consecutive_Tool_MI`,
+`N_Consecutive_Tool_MI_Pairs`, `Total_Tool_Call_MI`.
+
+**Tests:** 11 MI unit tests added to SRS-SQC §15.6.  No implementation yet.
+
+**Chart layout:**
+
+| Chart kind | Group | Chart type |
+|---|---|---|
+| `Tool_Call_MI_Xbar` | Tool Call Behavior / Mutual Information Diversity | Xbar |
+| `Tool_Call_MI_S` | Tool Call Behavior / Mutual Information Diversity | s |
+| `Session_Tool_Call_MI_Sum_I` | Tool Call Behavior / Mutual Information Diversity | I |
+| `Session_Tool_Call_MI_Sum_MR` | Tool Call Behavior / Mutual Information Diversity | MR |
+| `Session_Tool_Call_MI_Sum_EWMA` | Tool Call Behavior / Mutual Information Diversity | EWMA |
+| `Tool_Call_MI_Quantile` | Quantile Profiles | Quantile CC |
+
+**Files changed:**
+- `requirements/coyote-sqc-requirements.md` — added §5.19, §5.20, §6.46–6.51; 11 test entries; "55" → "61" (6 occurrences); updated §5.8, §5.18, §7.2 left panel
+- `design/coyote-sqc-design.md` — added §7.14b, §7.14c; 6 enum values; 3 metrics fields; 6 chart table rows; "55" → "61"; updated §7.10, Quantile CC exclusion rules
+- `plan/test-plan.md` — added `coyote_sqc_mi_tests.adb` inventory row; baseline entry

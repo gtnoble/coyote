@@ -168,12 +168,13 @@ SRS-CORE requirement groups.
 | `coyote_sqc_workspace_tests.adb` | SRS-SQC workspace | ~20 |
 | `coyote_sqc_integrity_tests.adb` | SRS-SQC integrity | ~15 |
 | `coyote_sqc_jsd_tests.adb` | SRS-SQC JSD metrics | ~20 |
+| `coyote_sqc_mi_tests.adb` | SRS-SQC MI metrics | ~11 |
 | `coyote_sqc_histogram_tests.adb` | SRS-SQC histogram | ~10 |
 | `coyote_sqc_bootstrap_tests.adb` | SRS-SQC §5.17 bootstrap CI, §10.3 two-set histogram bins | ~7 |
 | `acme_event_parser_tests.adb` | REQ-CORE-100–108 | ~20 |
 | `acme_raw_events_tests.adb` | REQ-CORE-100 | ~10 |
 
-**Total automated tests (current):** **670
+**Total automated tests (current):** **688
 
 ### 4.3 Planned Tests — Demonstration
 
@@ -295,6 +296,17 @@ and any failures are recorded here or in the Test Report.
 
 
 **Baseline as of 2026-06-13 (Quantile Control Chart):** 683 tests, 0 failures,
+
+**Baseline as of 2026-06-16 (Mutual Information diversity charts):** 688 tests, 0 failures,
+0 unexpected errors.  Added 11 MI tests for
+`Coyote_SQC.Statistics.MI` (compute values, identical calls, different calls,
+no-argument calls, missing argument, non-positive clamp, session metrics,
+subgroup exclusion, hollow circle, Xbar/s parameter estimation,
+Sum I/MR/EWMA independence).  Six new chart kinds registered:
+`Tool_Call_MI_Xbar`, `Tool_Call_MI_S`, `Session_Tool_Call_MI_Sum_I`,
+`Session_Tool_Call_MI_Sum_MR`, `Session_Tool_Call_MI_Sum_EWMA`,
+`Tool_Call_MI_Quantile`.  Chart count advanced from 55 to 61 in SRS and SDD.
+Test implementation pending; requirements and design are complete.
 0 unexpected errors.  Added 13 Quantile CC tests for
 Coyote_SQC.Statistics.Quantile_CC (compute-quantiles, build-distribution,
 extract-limits, OOC-detection, cache-hit, cache-invalidation).  Two bugs

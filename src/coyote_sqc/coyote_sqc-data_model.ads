@@ -111,6 +111,11 @@ package Coyote_SQC.Data_Model is
       Per_Consecutive_Tool_S   : Long_Float_Vectors.Vector;
       N_Consecutive_Tool_Pairs : Natural := 0;
       Total_Tool_Call_JSD_S    : Long_Float := 0.0;
+      --  MI consecutive tool-call mutual information (see §7.14b of spec).
+      --  One MI_k = C_a_k + C_b_k − C_ab_k value per eligible consecutive pair.
+      Per_Consecutive_Tool_MI   : Long_Float_Vectors.Vector;
+      N_Consecutive_Tool_MI_Pairs : Natural := 0;
+      Total_Tool_Call_MI    : Long_Float := 0.0;
       --  Sum of all Per_Consecutive_Tool_S values across every consecutive
       --  tool call pair in the session.  0.0 when N_Consecutive_Tool_Pairs = 0.
    end record;
