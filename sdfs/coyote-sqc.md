@@ -376,3 +376,37 @@ or the bootstrap procedure.
 - `requirements/coyote-sqc-requirements.md` — §7.3.2a, §7.3.3, §15.6
 - `design/coyote-sqc-design.md` — §12.6 step 6a, §12.7
 - `plan/problems.md` — PCR-028
+
+### 2026-06-15 — Adaptive Anchor Interpolation for Quantile CC
+
+**Changes:**
+- `coyote_sqc-statistics-quantile_cc.ads` — Replaced `Interp_Delta`, `Interp_C`,
+  `Interp_Discrete_Max` with `Adaptive_Discrete_Max`, `Adaptive_Tolerance_Rel`,
+  `Adaptive_Tolerance_Abs`.  Extended `Quantile_CC_Cache` with `Anchors`,
+  `Tolerance_Rel`, `Tolerance_Abs` fields.  Rewrote `Interpolate_Limits`
+  documentation.
+- `coyote_sqc-statistics-quantile_cc.adb` — Removed body-level `Anchors`
+  variable and `Ensure_Anchors_Up_To` procedure with its fixed-grid logic.
+  Added `X_Of_N`, `N_Of_X`, `X_Midpoint` coordinate helpers,
+  `Interpolate_From_Anchors` (linear interpolation in `x = 1/√n` space
+  between two anchors), `Max_Limit_Error`, `Max_HW`, `Tolerance_For`,
+  `Exact_Limits_At` helpers, `Ensure_Anchors_Cover` with recursive
+  `Refine_Gap` procedure.  Rewrote `Interpolate_Limits` to use adaptive
+  bisection: for `n ≤ 16`, exact bootstrap at every integer; for `n > 16`,
+  anchors are placed by bisecting gaps in `x`-space and testing the
+  x-midpoint for error against tolerance, subdividing when exceeded.
+  Bounding anchors are used for linear interpolation.
+
+**Design decision:** Replaced the a-priori fixed-anchor scheme (heuristic
+constants C=0.5, δ=0.15) with adaptive bisection in `x = 1/√n` space.
+Anchors are placed only where the data demands them; the interpolation
+error is measured, not assumed.  Tolerance is 5% of half-width with a
+1-token absolute floor.  The algorithm guarantees no interpolated limit
+differs from its exact bootstrap counterpart by more than the tolerance.
+Linear interpolation in `x`-space replaces origin-scaling; centre-line
+limits are now interpolated rather than held piecewise-constant.
+
+**Requirements:** SRS-SQC §5.18 "Interpolated Limits" rewritten.
+**Design:** SDD-SQC §7.19 "Interpolated Limits" rewritten.
+**Tests:** 688 tests, 0 failures, 0 unexpected errors.  No regressions.
+

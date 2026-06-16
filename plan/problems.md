@@ -987,3 +987,47 @@ client-controlled work product gets an entry here.
   4. Build: clean (style warnings only, no errors).  All 688 tests pass.
 - **Status:** Resolved
 - **Date resolved:** 2026-06-15
+
+### PCR-029 — Adaptive Anchor Interpolation for Quantile CC
+
+- **Date opened:** 2026-06-15
+- **Originator:** Developer (user request)
+- **Priority:** Minor (enhancement)
+- **Category:** Design improvement
+- **Description:** The Quantile Control Chart interpolation scheme (SRS-SQC
+  §5.18, SDD-SQC §7.19) used a fixed a-priori anchor grid with heuristic
+  constants (`C = 0.5`, `δ = 0.15`) and origin-scaling in `√n` space
+  (`HW(n) = HW(n_a) × √(n_a/n)`).  The user was intellectually dissatisfied
+  with the inability to verify the interpolation error on actual data and
+  with the opaque heuristic constants.  The user requested replacement with
+  an adaptive scheme that measures error rather than assuming it.
+- **Affected work products:** SRS-SQC (`requirements/coyote-sqc-requirements.md`
+  §5.18 "Interpolated Limits"), SDD-SQC (`design/coyote-sqc-design.md` §7.19
+  "Interpolated Limits"), `src/coyote_sqc/coyote_sqc-statistics-quantile_cc.ads`,
+  `src/coyote_sqc/coyote_sqc-statistics-quantile_cc.adb`, `sdfs/coyote-sqc.md`.
+- **Corrective action required:** Replace fixed-anchor origin-scaling with
+  adaptive bisection in `x = 1/√n` space using linear interpolation between
+  two bounding anchors.  Anchors are placed only where the interpolation error
+  exceeds a configurable tolerance (5% of half-width, 1-token floor).  Remove
+  heuristic constants `Interp_Delta`, `Interp_C`.  Retain discrete regime
+  (exact bootstrap at 2..16).  Update all documentation.
+- **Actions taken (2026-06-15):**
+  1. SRS-SQC §5.18 rewritten: coordinate transformation, discrete regime,
+     adaptive anchor placement algorithm, tolerance, error guarantee, fallback.
+  2. SDD-SQC §7.19 rewritten with algorithm steps, constants, and error
+     guarantee.
+  3. Spec (`coyote_sqc-statistics-quantile_cc.ads`): replaced `Interp_Delta`,
+     `Interp_C`, `Interp_Discrete_Max` with `Adaptive_Discrete_Max`,
+     `Adaptive_Tolerance_Rel`, `Adaptive_Tolerance_Abs`.  Extended
+     `Quantile_CC_Cache` with `Anchors`, `Tolerance_Rel`, `Tolerance_Abs`.
+  4. Body (`coyote_sqc-statistics-quantile_cc.adb`): removed body-level
+     `Anchors` and `Ensure_Anchors_Up_To`.  Added coordinate helpers
+     (`X_Of_N`, `N_Of_X`, `X_Midpoint`), interpolation helpers
+     (`Interpolate_From_Anchors`, `Max_Limit_Error`, `Max_HW`,
+     `Tolerance_For`, `Exact_Limits_At`), and `Ensure_Anchors_Cover` with
+     recursive `Refine_Gap`.  Rewrote `Interpolate_Limits` for adaptive
+     bisection and linear `x`-space interpolation.
+  5. Build: clean.  All 688 tests pass, 0 regressions.
+- **Status:** Resolved
+- **Date resolved:** 2026-06-15
+

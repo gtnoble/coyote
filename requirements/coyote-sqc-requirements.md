@@ -1119,33 +1119,62 @@ changes.
 
 
 #### Interpolated Limits
-
 When the `Interpolate_Quantile_Limits` workspace option is enabled, the
-application may compute control limits via anchor-distribution interpolation
-instead of exact bootstrap for every subgroup size.
+application may compute control limits via adaptive anchor-distribution
+interpolation instead of exact bootstrap for every subgroup size.
 
-**Anchor points.** Exact bootstrap distributions are computed only at a small
-set of anchor subgroup sizes.  Anchors are every integer from
-2 to `n_min = max(16, ⌈(C/δ)²⌉)` (the discrete regime where the R-7
-quantile estimator's finite-sample bias exceeds the interpolation tolerance),
-then uniformly in `x = 1/√n` space with spacing `Δx = δ / √n_min`, grown
-lazily as larger subgroup sizes are encountered.
+**Coordinate transformation.**  Interpolation is performed in `x = 1/√n`
+space, where the leading-order term of the half-width `HW(n) ≈ k/√n` is
+linear.  Let `f(x) = HW(1/x²)`; the function `f(x)` is approximately
+linear in `x`.
 
-**Parameters.** `δ = 0.15` (tolerance for relative half-width error from
-`O(1/n)` bias) and `C = 0.5` (quantile finite-sample bias constant).  The
-relative interpolation error in any limit half-width is bounded by
-`δ² ≈ 2.25%` in the continuous regime, which is well below the Monte Carlo
-noise from B = 10 000 replicates.
+**Discrete regime.**  For `n ≤ 16`, exact bootstrap distributions are
+computed at every integer subgroup size.  These are cheap (the inner sort
+on ≤16 elements hits an O(n²) insertion-sort cutoff) and avoid any
+smoothness assumptions in the small-n regime where the R-7 quantile
+estimator's discrete-index behaviour is least regular.
 
-**Interpolation formula.** For a target subgroup size `n` and nearest lower
-anchor `n_a ≤ n`:
-- `CL_j(n) = CL_j(n_a)` (centre line is constant in `n`).
-- `HW_j(n) = HW_j(n_a) × √(n_a / n)` where `HW_j` is the upper or lower
-  half-width `|UCL_j − CL_j|` or `|CL_j − LCL_j|`.
+**Adaptive anchor placement.**  For `n > 16`, the application places
+anchors only where interpolation error exceeds the chosen tolerance.
+Starting from `n_min` and `n_max` (the smallest and largest subgroup
+sizes in the data above 16), the gap is recursively bisected in
+`x = 1/√n` space:
+
+1. Compute exact bootstrap limits at the x-midpoint
+   `n_mid = 4 / (1/√a + 1/√b)²` (rounded to the nearest integer and
+   clamped to `(a+1)‥(b−1)`).
+2. Compute linearly interpolated limits at `n_mid` from anchors `a` and `b`
+   in `x`-space: `f_interp(x) = f(x_a) + (f(x_b) − f(x_a)) · (x − x_a) /
+   (x_b − x_a)` where `x = 1/√n`.
+3. If the maximum absolute error (with respect to the half-widths from `a`,
+   or the absolute floor) exceeds the tolerance, subdivide: insert
+   `n_mid` as a new anchor and recurse into the two sub-intervals
+   `(a, n_mid)` and `(n_mid, b)`.
+4. Otherwise the interval is accepted; any non-anchor `n` in `(a, b)`
+   receives limits by linear interpolation in `x`-space from the two
+   bounding anchors, with centre-line limits likewise interpolated.
+
+Refinement is performed lazily: the first session requesting a previously
+uncovered `n` triggers anchor extension and refinement of any new gaps.
+Subsequent sessions benefit from the cached anchor set.
+
+**Tolerance.**  The error tolerance is the greater of 5% of the anchor
+half-width and 1 token (absolute floor).  This ensures that the
+interpolation error is small relative to the limit width and well below
+practical significance when limits are tight.
+
+**Error guarantee.**  Because the interpolation error `e(x) ≈ ½f''(ξ) ·
+(x − x_a)(x − x_b)` is a parabola in `x` with its maximum at the
+midpoint, testing at the x-midpoint bounds the error for the entire
+interval.  The algorithm guarantees that no interpolated limit differs
+from its exact bootstrap counterpart by more than the tolerance.
 
 **Fallback.**  Exact bootstrap is used when `n = 1` or when the workspace
-option is disabled.  The anchor cache is separate from the per-chart
-bootstrap cache and grows monotonically; it is never cleared.
+option is disabled.  When the option is enabled and `n > 16`, adaptive
+anchor refinement runs automatically.  The anchor set is stored per
+chart kind in the `Quantile_CC_Cache` and is cleared (together with the
+distribution cache) when the setup interval or session data changes.
+
 #### Random Seed
 
 A fixed random seed of `54 321` shall be used for all bootstrap computation  The effective seed for each subgroup size n_i is 54 321 + n_i, giving each size an independent random-number sequence while preserving reproducibility.

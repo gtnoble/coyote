@@ -1633,38 +1633,55 @@ than 100 distinct subgroup sizes).
 
 
 #### Interpolated Limits
-
 The package provides `Interpolate_Limits` as an alternative to the full
 bootstrap for every subgroup size.  When the workspace option
-`Interpolate_Quantile_Limits` is enabled, limits are derived by computing
-exact bootstrap distributions at a small set of anchor subgroup sizes and
-scaling half-widths by `√(n_a / n)` for non-anchor sizes.
+`Interpolate_Quantile_Limits` is enabled, limits are derived via adaptive
+anchor-distribution interpolation with a provable error bound.
+
+**Coordinate transformation.**  Interpolation is performed in `x = 1/√n`
+space, where the leading-order term of the half-width `HW(n) ≈ k/√n` is
+linear in `x`.
+
+**Discrete regime.**  For `n ≤ 16`, exact bootstrap distributions are
+computed at every integer subgroup size and cached as anchors (§7.19).
+
+**Adaptive anchor placement.**  For `n > 16`, anchors are placed only
+where needed.  Starting from the smallest and largest `n` in the data
+above 16, each gap `(a, b)` is bisected in `x = 1/√n` space and tested:
+
+1. `n_mid = 4 / (1/√a + 1/√b)²`, rounded to nearest integer, clamped to
+   `(a+1)‥(b−1)`.
+2. Compute exact limits at `n_mid` via `Build_Distribution` +
+   `Extract_Limits`.
+3. Compute linearly interpolated limits at `n_mid` from anchors `a` and
+   `b` in `x`-space.
+4. `error = maxⱼ |exactⱼ − interpolatedⱼ|`, `tolerance = max(HW_a ·
+   Adaptive_Tolerance_Rel, Adaptive_Tolerance_Abs)`.
+5. If `error > tolerance`, insert `n_mid` as an anchor and recurse into
+   `(a, n_mid)` and `(n_mid, b)`.
+6. Otherwise the interval is accepted; limits for any `n ∈ (a, b)` are
+   computed by linear interpolation in `x`-space from the bounding
+   anchors, with centre-line limits likewise interpolated.
 
 **Constants:**
-- `Interp_Delta = 0.15` — tolerance for relative half-width error from
-  `O(1/n)` bias.
-- `Interp_C = 0.5` — quantile finite-sample bias constant.
-- `Interp_Discrete_Max = 16` — smallest `n` where `1/√n` scaling is
-  reliable (padded beyond `⌈(C/δ)²⌉` for discrete-index safety).
+- `Adaptive_Discrete_Max = 16` — integers ≤ this value always receive
+  exact bootstrap (the discrete regime).
+- `Adaptive_Tolerance_Rel = 0.05` — 5% of the half-width from anchor `a`.
+- `Adaptive_Tolerance_Abs = 1.0` — absolute floor in token units.
 
-**Anchor algorithm.** Anchors are every integer 2 .. `Discrete_Max`,
-then uniformly in `x = 1/√n` space with spacing `Δx = δ/√(Discrete_Max)`,
-grown lazily by `Ensure_Anchors_Up_To(N)`.  The anchor vector is a
-body-level variable shared across all chart kinds.
+The anchor set is stored in `Quantile_CC_Cache.Anchors` (per chart kind)
+and is cleared together with the distribution cache when the setup
+interval changes.
 
-**Interpolation.** For `n ≥ 2`:
-1. Ensure anchors up to `n`.
-2. Find the nearest lower anchor `n_a ≤ n`.
-3. Compute exact limits at `n_a` via `Get_Distribution` + `Extract_Limits`.
-4. If `n = n_a`, return exact limits.
-5. Otherwise scale half-widths: `HW(n) = HW(n_a) × √(n_a/n)` with CL
-   taken unchanged from the anchor.
+**Error guarantee.**  For piecewise-linear interpolation of a smooth
+function `f(x)` on `[x_a, x_b]`, the interpolation error is approximately
+`e(x) ≈ ½f''(ξ) · (x − x_a)(x − x_b)`, a parabola with its maximum at
+the midpoint.  Testing at the x-midpoint therefore bounds the error for
+the entire interval.  The algorithm guarantees that no interpolated limit
+differs from its exact bootstrap counterpart by more than the tolerance.
 
-For `n = 1` (degenerate), exact bootstrap is used.
-
-**Error bound.** The relative error in any half-width from the `O(1/n)`
-bias term is bounded by `Interp_Delta² ≈ 2.25%` across the continuous
-regime, which is well below the Monte Carlo noise of `B_Replicates = 10 000`.
+**Fallback.**  Exact bootstrap is used when `n = 1` or when the workspace
+option is disabled.
 
 ```ada
    function Interpolate_Limits
@@ -1675,6 +1692,8 @@ regime, which is well below the Monte Carlo noise of `B_Replicates = 10 000`.
       N_I          : Positive;
       Seed         : Integer := Bootstrap_Seed)
      return Quantile_Limits_Array;
+```
+
 ```
 
 #### Chart Descriptor Extensions

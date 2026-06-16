@@ -440,62 +440,243 @@ package body Coyote_SQC.Statistics.Quantile_CC is
       Cache.Entries.Clear;
    end Clear_Cache;
 
-   --  ── Interpolated limits ─────────────────────────────────────────────
+   --  ── Adaptive interpolation ───────────────────────────────────────────
 
-   --  Anchor set: grows lazily as larger N values are encountered.
-   --  Shared across all chart kinds (anchors depend only on N, not on
-   --  which per-turn quantity is being charted).
-   Anchors : Natural_Vectors.Vector;
+   --  Coordinate transformation: x = 1/√n.
+   function X_Of_N (N : Positive) return Long_Float is
+     (1.0 / Sqrt (Long_Float (N)));
 
-   --  Ensure the anchor vector includes every integer up to Discrete_Max
-   --  and extends in 1/√n space up to at least N.
-   procedure Ensure_Anchors_Up_To (N : Positive) is
-      --  n_min for the continuous regime: the larger of Discrete_Max
-      --  and ceil((C/δ)²).
-      N_Min_Raw : constant Long_Float :=
-        (Interp_C / Interp_Delta) ** 2;
-      N_Min : constant Positive :=
-        Positive'Max (Interp_Discrete_Max,
-          Positive (Long_Float'Ceiling (N_Min_Raw)));
-      --  Spacing in x = 1/√n: Δx = δ / √N_Min.
-      X_Delta : constant Long_Float :=
-        Interp_Delta / Sqrt (Long_Float (N_Min));
+   --  Inverse: n = ceil(1/x²), clamped to at least 1.
+   function N_Of_X (X : Long_Float) return Positive is
    begin
-      if Anchors.Is_Empty then
-         --  Phase 1: every integer 2 .. N_Min
-         for I in 2 .. N_Min loop
-            Anchors.Append (Natural (I));
-         end loop;
+      if X <= 0.0 then
+         return Positive'Last;
       end if;
+      return Positive'Max (1, Positive (Long_Float'Ceiling (1.0 / (X * X))));
+   end N_Of_X;
 
-      --  Phase 2: extend uniformly in x = 1/√n until we cover N.
-      while Anchors.Last_Element < Natural (N) loop
+   --  Bisection midpoint in x = 1/√n space, clamped to (A+1)‥(B−1).
+   function X_Midpoint (A, B : Positive) return Positive is
+      X_Mid : constant Long_Float :=
+        (1.0 / Sqrt (Long_Float (A)) + 1.0 / Sqrt (Long_Float (B))) / 2.0;
+      N_Mid : constant Positive := N_Of_X (X_Mid);
+   begin
+      if N_Mid <= A then
+         return A + 1;
+      elsif N_Mid >= B then
+         return B - 1;
+      else
+         return N_Mid;
+      end if;
+   end X_Midpoint;
+
+   --  Linear interpolation in x = 1/√n space between two anchors.
+   procedure Interpolate_From_Anchors
+     (N_A       : Positive;
+      Lims_A    : Quantile_Limits_Array;
+      N_B       : Positive;
+      Lims_B    : Quantile_Limits_Array;
+      N_Target  : Positive;
+      Result    : out Quantile_Limits_Array)
+   is
+      X_A      : constant Long_Float := X_Of_N (N_A);
+      X_B      : constant Long_Float := X_Of_N (N_B);
+      X_T      : constant Long_Float := X_Of_N (N_Target);
+      Frac     : constant Long_Float := (X_T - X_A) / (X_B - X_A);
+   begin
+      for Comp in Quantile_Index loop
          declare
-            Last_N : constant Natural :=
-              Natural (Anchors.Last_Element);
-            X_Last : constant Long_Float :=
-              1.0 / Sqrt (Long_Float (Last_N));
-            X_Next : constant Long_Float := X_Last - X_Delta;
+            LA : Quantile_Limits_Record renames Lims_A (Comp);
+            LB : Quantile_Limits_Record renames Lims_B (Comp);
          begin
-            if X_Next <= 0.0 then
-               --  Numerically degenerate; just step by 1.
-               Anchors.Append (Natural (Last_N + 1));
+            Result (Comp).CL :=
+              LA.CL + (LB.CL - LA.CL) * Frac;
+            Result (Comp).Has_UCL := LA.Has_UCL and LB.Has_UCL;
+            Result (Comp).Has_LCL := LA.Has_LCL and LB.Has_LCL;
+            if Result (Comp).Has_UCL then
+               Result (Comp).UCL :=
+                 LA.UCL + (LB.UCL - LA.UCL) * Frac;
             else
-               declare
-                  Next_N : constant Positive :=
-                    Positive (Long_Float'Ceiling
-                      (1.0 / (X_Next * X_Next)));
-               begin
-                  if Next_N <= Last_N then
-                     Anchors.Append (Natural (Last_N + 1));
-                  else
-                     Anchors.Append (Natural (Next_N));
-                  end if;
-               end;
+               Result (Comp).UCL := 0.0;
+            end if;
+            if Result (Comp).Has_LCL then
+               Result (Comp).LCL :=
+                 LA.LCL + (LB.LCL - LA.LCL) * Frac;
+            else
+               Result (Comp).LCL := 0.0;
             end if;
          end;
       end loop;
-   end Ensure_Anchors_Up_To;
+   end Interpolate_From_Anchors;
+
+   --  Get exact limits at N, computing and caching the bootstrap
+   --  distribution if needed.
+   function Exact_Limits_At
+     (Cache        : in out Quantile_CC_Cache;
+      Pool_Values  : Long_Float_Array;
+      Pool_Offsets : Natural_Vectors.Vector;
+      Pool_Lengths : Natural_Vectors.Vector;
+      N            : Positive;
+      Seed         : Integer) return Quantile_Limits_Array
+   is
+      Dist : constant Bootstrap_Distribution :=
+        Get_Distribution (Cache, Pool_Values, Pool_Offsets, Pool_Lengths,
+                          N, Seed);
+   begin
+      return Extract_Limits (Dist);
+   end Exact_Limits_At;
+
+   --  Maximum absolute error between two limit arrays, across all
+   --  components (CL, UCL differences, LCL differences).
+   function Max_Limit_Error
+     (Exact, Interp : Quantile_Limits_Array) return Long_Float
+   is
+      E : Long_Float := 0.0;
+   begin
+      for Comp in Quantile_Index loop
+         declare
+            D : Long_Float;
+         begin
+            D := abs (Exact (Comp).CL - Interp (Comp).CL);
+            if D > E then E := D; end if;
+            if Exact (Comp).Has_UCL and Interp (Comp).Has_UCL then
+               D := abs (Exact (Comp).UCL - Interp (Comp).UCL);
+               if D > E then E := D; end if;
+            end if;
+            if Exact (Comp).Has_LCL and Interp (Comp).Has_LCL then
+               D := abs (Exact (Comp).LCL - Interp (Comp).LCL);
+               if D > E then E := D; end if;
+            end if;
+         end;
+      end loop;
+      return E;
+   end Max_Limit_Error;
+
+   --  Maximum half-width across all components of a limit array.
+   function Max_HW (Limits : Quantile_Limits_Array) return Long_Float is
+      HW : Long_Float := 0.0;
+   begin
+      for Comp in Quantile_Index loop
+         if Limits (Comp).Has_UCL then
+            declare
+               H : constant Long_Float :=
+                 Limits (Comp).UCL - Limits (Comp).CL;
+            begin
+               if H > HW then HW := H; end if;
+            end;
+         end if;
+         if Limits (Comp).Has_LCL then
+            declare
+               H : constant Long_Float :=
+                 Limits (Comp).CL - Limits (Comp).LCL;
+            begin
+               if H > HW then HW := H; end if;
+            end;
+         end if;
+      end loop;
+      return HW;
+   end Max_HW;
+
+   --  Compute the tolerance for an anchor pair: max(pct * HW_a, abs_floor).
+   function Tolerance_For (Lims_A : Quantile_Limits_Array;
+                           Rel    : Long_Float;
+                           Abs_Min : Long_Float) return Long_Float
+   is
+      H : constant Long_Float := Max_HW (Lims_A);
+   begin
+      return Long_Float'Max (H * Rel, Abs_Min);
+   end Tolerance_For;
+
+   --  Ensure the anchor set covers at least up to Target_N.  Anchors
+   --  are stored in Cache.Anchors as a sorted vector.
+   procedure Ensure_Anchors_Cover
+     (Cache        : in out Quantile_CC_Cache;
+      Pool_Values  : Long_Float_Array;
+      Pool_Offsets : Natural_Vectors.Vector;
+      Pool_Lengths : Natural_Vectors.Vector;
+      Target_N     : Positive;
+      Seed         : Integer)
+   is
+      Anchors : Natural_Vectors.Vector renames Cache.Anchors;
+      Rel     : constant Long_Float := Cache.Tolerance_Rel;
+      Abs_Min  : constant Long_Float := Cache.Tolerance_Abs;
+
+      --  Seed the discrete regime on first use.
+      procedure Seed_Discrete is
+      begin
+         for I in 2 .. Adaptive_Discrete_Max loop
+            Anchors.Append (I);
+         end loop;
+      end Seed_Discrete;
+
+      --  Recursively refine the gap (Idx_Left, Idx_Right) — indices
+      --  into Anchors, with corresponding n values A and B.
+      procedure Refine_Gap (Idx_Left, Idx_Right : Positive) is
+         A : constant Positive := Anchors.Element (Idx_Left);
+         B : constant Positive := Anchors.Element (Idx_Right);
+         N_Mid : constant Positive := X_Midpoint (A, B);
+         --  Guard: if the gap is too narrow, accept it.
+      begin
+         if N_Mid <= A or else N_Mid >= B then
+            return;
+         end if;
+
+         declare
+            Lims_A  : constant Quantile_Limits_Array :=
+              Exact_Limits_At (Cache, Pool_Values,
+                               Pool_Offsets, Pool_Lengths, A, Seed);
+            Lims_B  : constant Quantile_Limits_Array :=
+              Exact_Limits_At (Cache, Pool_Values,
+                               Pool_Offsets, Pool_Lengths, B, Seed);
+            Lims_Exact : constant Quantile_Limits_Array :=
+              Exact_Limits_At (Cache, Pool_Values,
+                               Pool_Offsets, Pool_Lengths, N_Mid, Seed);
+            Lims_Interp : Quantile_Limits_Array;
+            Error       : Long_Float;
+            Tol         : Long_Float;
+         begin
+            Interpolate_From_Anchors
+              (A, Lims_A, B, Lims_B, N_Mid, Lims_Interp);
+            Error := Max_Limit_Error (Lims_Exact, Lims_Interp);
+            Tol := Tolerance_For (Lims_A, Rel, Abs_Min);
+
+            if Error > Tol then
+               --  Insert N_Mid as a new anchor.
+               Anchors.Insert (Idx_Right, N_Mid);
+               --  Recursively refine the two sub-intervals.
+               Refine_Gap (Idx_Left, Idx_Right);
+               Refine_Gap (Idx_Right, Idx_Right + 1);
+            end if;
+         end;
+      end Refine_Gap;
+
+      --  Find the insertion/extend gap and refine.
+      procedure Extend_And_Refine is
+      begin
+         if Anchors.Is_Empty then
+            Seed_Discrete;
+         end if;
+
+         if Target_N <= Anchors.Last_Element then
+            return;  --  Already covered.
+         end if;
+
+         --  Add Target_N as a new anchor.
+         Anchors.Append (Target_N);
+
+         --  Refine the gap from the previous anchor to Target_N.
+         if Natural (Anchors.Length) >= 2 then
+         declare
+            LI : constant Natural := Natural (Anchors.Last_Index);
+         begin
+            Refine_Gap (LI - 1, LI);
+         end;
+         end if;
+      end Extend_And_Refine;
+
+   begin
+      Extend_And_Refine;
+   end Ensure_Anchors_Cover;
 
    --  ── Interpolate_Limits ─────────────────────────────────────────────
 
@@ -508,93 +689,67 @@ package body Coyote_SQC.Statistics.Quantile_CC is
       Seed         : Integer := Bootstrap_Seed)
      return Quantile_Limits_Array
    is
-      Result : Quantile_Limits_Array;
+      Anchors : Natural_Vectors.Vector renames Cache.Anchors;
    begin
-      --  For n = 1 (degenerate), use exact bootstrap.
+      --  n = 1 is degenerate — use exact bootstrap.
       if N_I = 1 then
-         declare
-            Dist : constant Bootstrap_Distribution :=
-              Get_Distribution
-                (Cache, Pool_Values, Pool_Offsets, Pool_Lengths,
-                 1, Seed);
-         begin
-            return Extract_Limits (Dist);
-         end;
+         return Exact_Limits_At
+           (Cache, Pool_Values, Pool_Offsets, Pool_Lengths, 1, Seed);
       end if;
 
-      --  Grow anchors if needed.
-      Ensure_Anchors_Up_To (N_I);
+      --  Ensure anchors cover N_I.
+      Ensure_Anchors_Cover
+        (Cache, Pool_Values, Pool_Offsets, Pool_Lengths, N_I, Seed);
 
-      --  Find nearest lower anchor ≤ N_I.
+      --  If N_I is itself an anchor, return exact limits.
+      for I in 2 .. Natural (Anchors.Last_Index) loop
+         if Anchors.Element (I) = N_I then
+            return Exact_Limits_At
+              (Cache, Pool_Values, Pool_Offsets, Pool_Lengths,
+               N_I, Seed);
+         end if;
+      end loop;
+
+      --  Find the two bounding anchors a ≤ N_I ≤ b.
       declare
-         Anchor_N : Natural := 0;
+         Idx_Left  : Natural := 0;
+         Idx_Right : Natural := 0;
       begin
-         for A of Anchors loop
-            exit when Natural (A) > N_I;
-            Anchor_N := Natural (A);
+         for I in 1 .. Natural (Anchors.Last_Index) loop
+            declare
+               A : constant Positive := Anchors.Element (I);
+            begin
+               if A <= N_I then
+                  Idx_Left := I;
+               else
+                  Idx_Right := I;
+                  exit;
+               end if;
+            end;
          end loop;
 
-         if Anchor_N = 0 then
-            --  Should not happen for N_I ≥ 2, but guard.
-            pragma Assert (False, "Interpolate_Limits: no anchor for N_I");
-            for Comp in Quantile_Index loop
-               Result (Comp) :=
-                 (UCL     => 0.0,
-                  CL      => 0.0,
-                  LCL     => 0.0,
-                  Has_UCL => False,
-                  Has_LCL => False);
-            end loop;
-            return Result;
+         if Idx_Left = 0 or else Idx_Right = 0 then
+            --  Should not happen — anchors always cover N_I.
+            pragma Assert (False, "Interpolate_Limits: no bounding anchors");
+            return Exact_Limits_At
+              (Cache, Pool_Values, Pool_Offsets, Pool_Lengths,
+               N_I, Seed);
          end if;
 
-         --  Compute exact distribution at the anchor.
          declare
-            Dist : constant Bootstrap_Distribution :=
-              Get_Distribution
-                (Cache, Pool_Values, Pool_Offsets, Pool_Lengths,
-                 Anchor_N, Seed);
-            Anchor_Limits : constant Quantile_Limits_Array :=
-              Extract_Limits (Dist);
+            A : constant Positive := Anchors.Element (Idx_Left);
+            B : constant Positive := Anchors.Element (Idx_Right);
+            Lims_A : constant Quantile_Limits_Array :=
+              Exact_Limits_At (Cache, Pool_Values,
+                               Pool_Offsets, Pool_Lengths, A, Seed);
+            Lims_B : constant Quantile_Limits_Array :=
+              Exact_Limits_At (Cache, Pool_Values,
+                               Pool_Offsets, Pool_Lengths, B, Seed);
+            Result : Quantile_Limits_Array;
          begin
-            if N_I = Anchor_N then
-               return Anchor_Limits;
-            end if;
-
-            --  Scale half-widths by √(Anchor_N / N_I).
-            declare
-               Scale : constant Long_Float :=
-                 Sqrt
-                   (Long_Float (Anchor_N) / Long_Float (N_I));
-            begin
-               for Comp in Quantile_Index loop
-                  declare
-                     L : Quantile_Limits_Record renames
-                       Anchor_Limits (Comp);
-                  begin
-                     Result (Comp).CL := L.CL;
-                     Result (Comp).Has_UCL := L.Has_UCL;
-                     Result (Comp).Has_LCL := L.Has_LCL;
-                     if L.Has_UCL then
-                        Result (Comp).UCL :=
-                          L.CL + (L.UCL - L.CL) * Scale;
-                     else
-                        Result (Comp).UCL := 0.0;
-                     end if;
-                     if L.Has_LCL then
-                        Result (Comp).LCL :=
-                          L.CL - (L.CL - L.LCL) * Scale;
-                     else
-                        Result (Comp).LCL := 0.0;
-                     end if;
-                  end;
-               end loop;
-            end;
+            Interpolate_From_Anchors (A, Lims_A, B, Lims_B, N_I, Result);
+            return Result;
          end;
       end;
-
-      return Result;
    end Interpolate_Limits;
-
-
 end Coyote_SQC.Statistics.Quantile_CC;

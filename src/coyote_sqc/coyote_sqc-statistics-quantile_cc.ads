@@ -139,7 +139,10 @@ package Coyote_SQC.Statistics.Quantile_CC is
       Element_Type => Cache_Entry);
 
    type Quantile_CC_Cache is record
-      Entries : Cache_Maps.Vector;
+      Entries       : Cache_Maps.Vector;
+      Anchors       : Coyote_SQC.Data_Model.Natural_Vectors.Vector;
+      Tolerance_Rel : Long_Float := 0.05;
+      Tolerance_Abs : Long_Float := 1.0;
    end record;
 
    --  Look up or compute the bootstrap distribution for subgroup size N_I.
@@ -155,34 +158,40 @@ package Coyote_SQC.Statistics.Quantile_CC is
       N_I          : Positive;
       Seed         : Integer := Bootstrap_Seed) return Bootstrap_Distribution;
 
-   --  Discard all cached distributions.
+   --  Discard all cached distributions and anchors.
    procedure Clear_Cache (Cache : in out Quantile_CC_Cache);
-
-   --  ── Interpolated limits ─────────────────────────────────────────────
+   --  ── Adaptive interpolation ───────────────────────────────────────────
    --
-   --  Interpolation parameters for anchor-based quantile limit computation.
-   --  δ = tolerance for relative half-width error from O(1/n) bias.
-   --  C = quantile finite-sample bias constant.
-   --  Discrete_Max = smallest n where 1/√n scaling is reliable (padded to
-   --  at least 16 for discrete-index safety).
-   --
-   --  Anchors are every integer 2 .. Discrete_Max, then uniformly in
-   --  1/√n space thereafter, grown lazily as larger subgroup sizes
-   --  are encountered.
+   --  Adaptive anchor-based quantile limit interpolation.  Anchors are
+   --  placed only where interpolation error exceeds the tolerance.
+   --  Interpolation is linear in x = 1/√n space between two consecutive
+   --  anchors.  The anchor set is stored per chart kind in
+   --  Quantile_CC_Cache.Anchors and is cleared together with the
+   --  distribution cache.
 
-   Interp_Delta        : constant Long_Float  := 0.15;
-   Interp_C            : constant Long_Float  := 0.5;
-   Interp_Discrete_Max : constant Positive    := 16;
+   --  Maximum n for which exact bootstrap is always computed.
+   Adaptive_Discrete_Max : constant Positive := 16;
+
+   --  Relative tolerance: 5% of the half-width from anchor a.
+   Adaptive_Tolerance_Rel : constant Long_Float := 0.05;
+
+   --  Absolute tolerance floor (token units).
+   Adaptive_Tolerance_Abs : constant Long_Float := 1.0;
 
    --  Interpolate control limits for subgroup size N_I using
-   --  anchor-distribution scaling in 1/√N space.
+   --  adaptive anchor-based linear interpolation in x = 1/√N space.
    --
-   --  Exact bootstrap distributions are computed only at a small set of
-   --  anchor subgroup sizes (cached in Cache).  For a non-anchor N_I,
-   --  the limits are derived from the nearest lower anchor N_a by
-   --  scaling half-widths:  HW'(j) = HW_a(j) × √(N_a / N_I).
-   --  The relative interpolation error in half-width is bounded
-   --  by Interp_Delta² ≈ 2.25% in the continuous regime.
+   --  For N_I ≤ Adaptive_Discrete_Max: exact bootstrap at every integer.
+   --  For N_I > Adaptive_Discrete_Max: anchors are grown adaptively by
+   --  bisecting gaps in x-space and testing the x-midpoint.  Limits
+   --  for a non-anchor N_I are computed by linear interpolation in
+   --  x-space from the two bounding anchors.  CL, UCL, and LCL are all
+   --  interpolated (no piecewise-constant centre line).
+   --
+   --  The error guarantee: for every anchor pair (a, b), the maximum
+   --  absolute error of the interpolated limits anywhere in (a, b) does
+   --  not exceed max(HW_a · Adaptive_Tolerance_Rel,
+   --  Adaptive_Tolerance_Abs).
    --
    --  For N_I = 1 (degenerate), exact computation is used.
    --  Requires Pool_Count > 0 (caller must check).
@@ -194,6 +203,7 @@ package Coyote_SQC.Statistics.Quantile_CC is
       N_I          : Positive;
       Seed         : Integer := Bootstrap_Seed)
      return Quantile_Limits_Array;
+
 
 
 end Coyote_SQC.Statistics.Quantile_CC;
