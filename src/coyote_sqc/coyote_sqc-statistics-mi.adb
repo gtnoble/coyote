@@ -4,17 +4,16 @@
 
 with Ada.Characters.Handling;
 with Ada.Containers.Hashed_Sets;
-with Ada.Streams;
 with Ada.Strings.Unbounded;
 with Ada.Strings.Unbounded.Hash;
 with GNATCOLL.JSON;
 with Coyote_SQC.Zlib;
 with Interfaces.C;
+with Ada.Unchecked_Deallocation;
 
 package body Coyote_SQC.Statistics.MI is
 
    use Ada.Characters.Handling;
-   use Ada.Streams;
    use Ada.Strings.Unbounded;
    use Interfaces.C;
    use type GNATCOLL.JSON.JSON_Value_Type;
@@ -30,35 +29,45 @@ package body Coyote_SQC.Statistics.MI is
    --  Returns 0 on failure (empty input or compression error).
    function Compressed_Size (S : String) return Natural is
       use type Interfaces.C.size_t;
+      type Char_Array_Access is access Interfaces.C.char_array;
+      procedure Free is new Ada.Unchecked_Deallocation
+        (Interfaces.C.char_array, Char_Array_Access);
       S_Len   : constant Natural := S'Length;
-      Src_Len : constant Coyote_SQC.Zlib.uLong :=
-        Coyote_SQC.Zlib.uLong (S_Len);
-      Bound   : constant Coyote_SQC.Zlib.uLong :=
-        Coyote_SQC.Zlib.Compress_Bound (Src_Len);
-      B_Int   : constant Interfaces.C.size_t :=
-        Interfaces.C.size_t (Bound);
-      Dest    : Interfaces.C.Char_Array (0 .. B_Int - 1);
-      Dest_Len : aliased Coyote_SQC.Zlib.uLongf := Bound;
-      Src     : Interfaces.C.Char_Array (0 .. Interfaces.C.size_t (S_Len) - 1);
-      Ret     : Interfaces.C.int;
    begin
       if S_Len = 0 then
          return 0;
       end if;
-      for I in S'Range loop
-         Src (Interfaces.C.size_t (I - S'First)) :=
-           Interfaces.C.Char'Val (Character'Pos (S (I)));
-      end loop;
-      Ret := Coyote_SQC.Zlib.Compress2
-        (Dest       => Dest,
-         Dest_Len   => Dest_Len,
-         Source     => Src,
-         Source_Len => Src_Len,
-         Level      => 9);
-      if Ret /= Coyote_SQC.Zlib.Z_OK then
-         return 0;
-      end if;
-      return Natural (Dest_Len);
+      declare
+         Src_Len : constant Coyote_SQC.Zlib.uLong :=
+           Coyote_SQC.Zlib.uLong (S_Len);
+         Bound   : constant Coyote_SQC.Zlib.uLong :=
+           Coyote_SQC.Zlib.Compress_Bound (Src_Len);
+         B_Int   : constant Interfaces.C.size_t :=
+           Interfaces.C.size_t (Bound);
+         Dest : Char_Array_Access :=
+           new Interfaces.C.char_array (0 .. B_Int - 1);
+         Dest_Len : aliased Coyote_SQC.Zlib.uLongf := Bound;
+         Src  : Char_Array_Access :=
+           new Interfaces.C.char_array (0 .. Interfaces.C.size_t (S_Len) - 1);
+         Ret     : Interfaces.C.int;
+      begin
+         for I in S'Range loop
+            Src.all (Interfaces.C.size_t (I - S'First)) :=
+              Interfaces.C.char'Val (Character'Pos (S (I)));
+         end loop;
+         Ret := Coyote_SQC.Zlib.Compress2
+           (Dest       => Dest.all,
+            Dest_Len   => Dest_Len,
+            Source     => Src.all,
+            Source_Len => Src_Len,
+            Level      => 9);
+         Free (Dest);
+         Free (Src);
+         if Ret /= Coyote_SQC.Zlib.Z_OK then
+            return 0;
+         end if;
+         return Natural (Dest_Len);
+      end;
    end Compressed_Size;
 
    --  Extract all string-valued leaf content from a JSON value, returning a

@@ -100,6 +100,9 @@ package body Coyote_SQC.Metrics is
       --  Sum Per_Consecutive_Tool_S into the session-level scalar.
       for V of M.Per_Consecutive_Tool_S loop
 
+         M.Total_Tool_Call_JSD_S := M.Total_Tool_Call_JSD_S + V;
+      end loop;
+
       --  Compute consecutive MI tool-call similarity pairs.
       --  Same iteration as JSD but using compression-based MI.
       declare
@@ -130,9 +133,6 @@ package body Coyote_SQC.Metrics is
       --  Sum Per_Consecutive_Tool_MI into the session-level scalar.
       for V of M.Per_Consecutive_Tool_MI loop
          M.Total_Tool_Call_MI := M.Total_Tool_Call_MI + V;
-      end loop;
-
-         M.Total_Tool_Call_JSD_S := M.Total_Tool_Call_JSD_S + V;
       end loop;
 
       return M;

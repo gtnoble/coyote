@@ -452,3 +452,54 @@ Three new `Session_Metrics_Record` fields: `Per_Consecutive_Tool_MI`,
 - `requirements/coyote-sqc-requirements.md` — added §5.19, §5.20, §6.46–6.51; 11 test entries; "55" → "61" (6 occurrences); updated §5.8, §5.18, §7.2 left panel
 - `design/coyote-sqc-design.md` — added §7.14b, §7.14c; 6 enum values; 3 metrics fields; 6 chart table rows; "55" → "61"; updated §7.10, Quantile CC exclusion rules
 - `plan/test-plan.md` — added `coyote_sqc_mi_tests.adb` inventory row; baseline entry
+
+---
+
+### 2026-06-16 — MI Diversity Charts Implementation
+
+**Status:** Implemented.
+
+**Packages added:**
+- `src/coyote_sqc/coyote_sqc-statistics-mi.ads` — `Compute_MI_Values` procedure spec
+- `src/coyote_sqc/coyote_sqc-statistics-mi.adb` — compression-based MI per-argument
+  computation using zlib deflate (level 9).  Implements the same per-key argument
+  extraction pattern as the JSD package.  Non-positive MI_k values clamped to 0.0;
+  both-empty keys skipped.  Supports the same JSON object and fallback extraction
+  paths as the JSD companion.
+- `src/coyote_sqc/coyote_sqc-zlib.ads` — thin binding: `compressBound` and `compress2`
+  from system zlib via `Interfaces.C`.
+- `test/src/coyote_sqc_mi_tests.ads` / `.adb` — 13 unit tests
+
+**Packages modified:**
+- `coyote_sqc-data_model.ads` — added `Per_Consecutive_Tool_MI`,
+  `N_Consecutive_Tool_MI_Pairs`, `Total_Tool_Call_MI` fields to
+  `Session_Metrics_Record`
+- `coyote_sqc-charts.ads` / `.adb` — 6 new `Chart_Kind` enum values;
+  6 new `Properties` entries; "fifty-five" → "sixty-one"
+- `coyote_sqc-metrics.adb` — MI pair computation loop and sum accumulator
+- `coyote_sqc-statistics.adb` — MI chart cases in `Estimate_Parameters`
+  (accumulation + finalization phases)
+- `coyote_sqc-app.adb` — `Obs_Tool_MI_Sum` and `Sub_MI_LF` accessors;
+  `Compute_Session_Stat` MI Xbar/S cases; `Descriptor` MI entries;
+  `Recompute_Chart` MR/EWMA list entries and Box-Cox Xbar/S transform list
+- `test/src/test_suites.adb` — `Coyote_SQC_MI_Tests` registration and
+  `SQC_MI_Caller` instantiation; 13 test procedures registered
+
+**Test baseline:** 701 tests, 0 failures.
+
+### 2026-06-16 — PCR-030: MI Nested-Loop Hang Fix
+
+**Problem:** Loading a workspace hung with the MI chart feature active (commit
+`4e7aae2`).  The MI computation block and its summation loop were mistakenly
+placed inside the body of the JSD sum `for` loop, causing O(N²) complexity:
+each of the N iterations of the JSD sum loop walked all N tool-call pairs and
+performed zlib deflate (level 9) compressions.  For a moderate number of tool
+calls this saturated the CPU with N² compress2 calls.
+
+**Fix:** Moved the MI compute block and MI sum loop from inside the JSD sum
+`for` loop's body to after its `end loop;`, restoring O(N) complexity.  Added
+a blank line before `return M` for readability.  See PCR-030 in
+`plan/problems.md` for full details.
+
+**Files changed:** `src/coyote_sqc/coyote_sqc-metrics.adb`
+**Build:** Clean.  **Tests:** 701 tests, 0 failures, 0 regressions.

@@ -1370,7 +1370,7 @@ sequence.
 **EWMA chart:** independently computes Grand_Mean and σ from the same
 setup-interval observations as the corresponding I chart.
 
-Fifty-five charts are available in every workspace. They are pre-instantiated; the user does
+Sixty-one charts are available in every workspace. They are pre-instantiated; the user does
 not create or delete charts. All charts share a single workspace-level setup interval
 (see Section 11).
 

@@ -329,6 +329,18 @@ infrastructure sufficient to cover the buffering and collapsing logic.
 **Baseline as of 2026-06-10 (PCR-023 Copilot Graceful Startup):** 665 tests, 0 failures,
 0 unexpected errors.  Test count unchanged; `Test_GitHub_Copilot_Not_Found` renamed to
 `Test_GitHub_Copilot_Default_Fallback` and updated to assert default-fallback behaviour
+
+**Baseline as of 2026-06-16 (MI Diversity Charts):** 701 tests, 0 failures,
+0 unexpected errors.  Added 13 Mutual Information (MI) diversity chart tests
+(`Coyote_SQC_MI_Tests`) covering: `Test_MI_Identical_Calls`,
+`Test_MI_Different_Tool_Names`, `Test_MI_One_Side_Absent`,
+`Test_MI_Integer_Key_Skipped`, `Test_MI_Both_Sides_Empty`,
+`Test_Metrics_MI_Two_Identical_Calls`, `Test_Metrics_MI_Single_Tool_Call`,
+`Test_Metrics_MI_No_Tool_Calls`, `Test_Metrics_MI_Total_Sum`,
+`Test_Metrics_MI_Cross_Turn_Pairs`, `Test_Estimate_MI_Sum_I_Grand_Mean`,
+`Test_Estimate_MI_Sum_I_Mean_MR`, `Test_Estimate_MI_Sum_Excludes_No_Pairs`.
+Plus 23 tests from prior features (Histogram Two-Set, Turn Count Box-Cox,
+Quantile CC interpolation, etc.).  No regressions.
 instead of `Not_Found` exception raising.  No new test cases added; existing test
 infrastructure sufficient to verify the new graceful-degradation path.
 (+2 tests: Test_Parse_File_Sets_File_Path, Test_Parse_File_Sets_File_Mtime

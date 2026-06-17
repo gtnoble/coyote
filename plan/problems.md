@@ -1031,3 +1031,37 @@ client-controlled work product gets an entry here.
 - **Status:** Resolved
 - **Date resolved:** 2026-06-15
 
+
+---
+
+## PCR-030
+
+- **Date reported:** 2026-06-16
+- **Category:** Code
+- **Priority:** 1-Critical
+- **Description:** Loading a workspace in coyote_sqc causes the application to
+  hang (O(N²) performance regression).  When the MI (mutual information)
+  diversity chart feature was added (commit `4e7aae2`), the new MI computation
+  block and its summation loop were mistakenly inserted between the
+  `for V of M.Per_Consecutive_Tool_S loop` header and its body statement
+  (`M.Total_Tool_Call_JSD_S := …`).  This nested the MI computation (which
+  iterates all N tool-call pairs and performs zlib deflate at level 9 for each)
+  inside the O(N) JSD summation loop, yielding O(N²) overall complexity.  For
+  a session with even a moderate number of tool-call pairs, the MI computation
+  ran N² times instead of once — each zlib compression being CPU-intensive —
+  producing the appearance of a hang.
+- **Root cause:** Structural editing error — the MI computation block and its
+  sum loop were placed inside the body of the JSD summation `for` loop rather
+  than after its `end loop;`.
+- **Affected work products:** `src/coyote_sqc/coyote_sqc-metrics.adb`,
+  `sdfs/coyote-sqc.md`, `plan/problems.md`
+- **Corrective action required:** Move the MI computation block and MI
+  summation loop from inside the JSD sum loop to after its `end loop;`,
+  restoring O(N) complexity.  Add a blank line before `return M`.
+- **Actions taken (2026-06-16):**
+  1. Moved lines 103–136 (MI compute block + MI sum loop) from inside the JSD
+     sum `for` loop body to after its `end loop;`.
+  2. Added blank line before `return M` for readability.
+  3. Build: clean.  All 701 AUnit tests pass (0 failures, 0 regressions).
+- **Status:** Resolved
+- **Date resolved:** 2026-06-16

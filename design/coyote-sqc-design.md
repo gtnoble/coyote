@@ -274,6 +274,8 @@ Coyote_SQC.Statistics.Bootstrap      -- percentile bootstrap 95% CI for two-set
                         --   comparison (§5.17): Compute_CI for mean diff,
                         --   median diff, and SD ratio; fixed seed 12345
 Coyote_SQC.Statistics.Quantile_CC    -- two-stage bootstrap quantile profile limits
+Coyote_SQC.Statistics.MI            -- zlib compression-based MI for consecutive tool calls
+Coyote_SQC.Zlib                     -- thin Ada binding to system zlib (compressBound, compress2)
 Coyote_SQC.Charts                    -- Chart_Kind enum; Chart_State per chart
 Coyote_SQC.Workspace                 -- Workspace_Record; load/save .sqcw files
 Coyote_SQC.Workspace.Integrity       -- setup interval integrity checks on filter change
