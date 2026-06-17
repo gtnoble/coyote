@@ -96,6 +96,38 @@ package body Coyote_SQC.App is
       end;
    end StdDev_LF_F;
 
+
+   --  Convert Natural_Vectors.Vector to Long_Float_Array for use with
+   --  Median_Of / Qn_Scale_Any in the robust plot-method path.
+   function To_LF_Array
+     (V : Natural_Vectors.Vector) return Coyote_SQC.Statistics.I_Chart.Long_Float_Array
+   is
+      A : Coyote_SQC.Statistics.I_Chart.Long_Float_Array (1 .. Natural (V.Length));
+      I : Natural := A'First;
+   begin
+      for X of V loop
+         A (I) := Long_Float (X);
+         I := I + 1;
+      end loop;
+      return A;
+   end To_LF_Array;
+
+   --  Convert Long_Float_Vectors.Vector to Long_Float_Array for use with
+   --  Median_Of / Qn_Scale_Any in the robust plot-method path (JSD / MI).
+   function To_LF_Array_F
+     (V : Long_Float_Vectors.Vector) return Coyote_SQC.Statistics.I_Chart.Long_Float_Array
+   is
+      A : Coyote_SQC.Statistics.I_Chart.Long_Float_Array (1 .. Natural (V.Length));
+      I : Natural := A'First;
+   begin
+      for X of V loop
+         A (I) := X;
+         I := I + 1;
+      end loop;
+      return A;
+   end To_LF_Array_F;
+
+
    --  ── Compute_Session_Stat ─────────────────────────────────────────────
 
    procedure Compute_Session_Stat
@@ -105,7 +137,8 @@ package body Coyote_SQC.App is
       N          : out Positive;
       Excluded   : out Boolean;
       Single     : out Boolean;
-      Hollow_Gray: out Boolean)
+      Hollow_Gray : out Boolean;
+      Plot_Method :     Plot_Method_Kind := Classical)
    is
    begin
       Value       := 0.0;
@@ -116,7 +149,13 @@ package body Coyote_SQC.App is
       case Kind is
          when Turn_Tokens_Xbar =>
             N := Metrics.N_Turns;
-            Value  := Mean_LF (Metrics.Per_Turn_Output_Tokens);
+            if Plot_Method = Robust_Median then
+               Value :=
+                 Coyote_SQC.Statistics.I_Chart.Median_Of
+                   (To_LF_Array (Metrics.Per_Turn_Output_Tokens));
+            else
+               Value := Mean_LF (Metrics.Per_Turn_Output_Tokens);
+            end if;
             Single := (N = 1);
 
          when Turn_Tokens_S =>
@@ -124,7 +163,13 @@ package body Coyote_SQC.App is
             if N = 1 then
                Excluded := True;
             else
-               Value := StdDev_LF (Metrics.Per_Turn_Output_Tokens);
+               if Plot_Method = Robust_Median then
+                  Value :=
+                    Coyote_SQC.Statistics.I_Chart.Qn_Scale_Any
+                      (To_LF_Array (Metrics.Per_Turn_Output_Tokens));
+               else
+                  Value := StdDev_LF (Metrics.Per_Turn_Output_Tokens);
+               end if;
             end if;
 
          when Tool_Call_Tokens_Xbar =>
@@ -133,7 +178,13 @@ package body Coyote_SQC.App is
                Hollow_Gray := True;
             else
                N      := Metrics.N_Tool_Call_Turns_For_Chart;
-               Value  := Mean_LF (Metrics.Per_Turn_Tool_Tokens);
+               if Plot_Method = Robust_Median then
+                  Value :=
+                    Coyote_SQC.Statistics.I_Chart.Median_Of
+                      (To_LF_Array (Metrics.Per_Turn_Tool_Tokens));
+               else
+                  Value := Mean_LF (Metrics.Per_Turn_Tool_Tokens);
+               end if;
                Single := (N = 1);
             end if;
 
@@ -145,7 +196,13 @@ package body Coyote_SQC.App is
                Excluded := True;
             else
                N     := Metrics.N_Tool_Call_Turns_For_Chart;
-               Value := StdDev_LF (Metrics.Per_Turn_Tool_Tokens);
+               if Plot_Method = Robust_Median then
+                  Value :=
+                    Coyote_SQC.Statistics.I_Chart.Qn_Scale_Any
+                      (To_LF_Array (Metrics.Per_Turn_Tool_Tokens));
+               else
+                  Value := StdDev_LF (Metrics.Per_Turn_Tool_Tokens);
+               end if;
             end if;
 
          when Thinking_Tokens_Xbar =>
@@ -154,7 +211,13 @@ package body Coyote_SQC.App is
                Hollow_Gray := True;
             else
                N      := Metrics.N_Thinking_Turns_For_Chart;
-               Value  := Mean_LF (Metrics.Per_Turn_Thinking_Tokens);
+               if Plot_Method = Robust_Median then
+                  Value :=
+                    Coyote_SQC.Statistics.I_Chart.Median_Of
+                      (To_LF_Array (Metrics.Per_Turn_Thinking_Tokens));
+               else
+                  Value := Mean_LF (Metrics.Per_Turn_Thinking_Tokens);
+               end if;
                Single := (N = 1);
             end if;
 
@@ -166,7 +229,13 @@ package body Coyote_SQC.App is
                Excluded := True;
             else
                N     := Metrics.N_Thinking_Turns_For_Chart;
-               Value := StdDev_LF (Metrics.Per_Turn_Thinking_Tokens);
+               if Plot_Method = Robust_Median then
+                  Value :=
+                    Coyote_SQC.Statistics.I_Chart.Qn_Scale_Any
+                      (To_LF_Array (Metrics.Per_Turn_Thinking_Tokens));
+               else
+                  Value := StdDev_LF (Metrics.Per_Turn_Thinking_Tokens);
+               end if;
             end if;
 
          when Tool_Call_Failure_Rate =>
@@ -298,18 +367,36 @@ package body Coyote_SQC.App is
                Excluded    := True;
             elsif Metrics.N_Consecutive_Tool_Pairs = 1 then
                N      := Metrics.N_Consecutive_Tool_Pairs;
-               Value  := Mean_LF_F (Metrics.Per_Consecutive_Tool_S);
+               if Plot_Method = Robust_Median then
+                  Value :=
+                    Coyote_SQC.Statistics.I_Chart.Median_Of
+                      (To_LF_Array_F (Metrics.Per_Consecutive_Tool_S));
+               else
+                  Value := Mean_LF_F (Metrics.Per_Consecutive_Tool_S);
+               end if;
                Single := True;  --  Hollow circle: no variance estimate
             else
                N     := Metrics.N_Consecutive_Tool_Pairs;
-               Value := Mean_LF_F (Metrics.Per_Consecutive_Tool_S);
+               if Plot_Method = Robust_Median then
+                  Value :=
+                    Coyote_SQC.Statistics.I_Chart.Median_Of
+                      (To_LF_Array_F (Metrics.Per_Consecutive_Tool_S));
+               else
+                  Value := Mean_LF_F (Metrics.Per_Consecutive_Tool_S);
+               end if;
             end if;
          when Tool_Call_JSD_S =>
             if Metrics.N_Consecutive_Tool_Pairs <= 1 then
                Excluded := True;
             else
                N     := Metrics.N_Consecutive_Tool_Pairs;
-               Value := StdDev_LF_F (Metrics.Per_Consecutive_Tool_S);
+               if Plot_Method = Robust_Median then
+                  Value :=
+                    Coyote_SQC.Statistics.I_Chart.Qn_Scale_Any
+                      (To_LF_Array_F (Metrics.Per_Consecutive_Tool_S));
+               else
+                  Value := StdDev_LF_F (Metrics.Per_Consecutive_Tool_S);
+               end if;
             end if;
          --  MI chart kinds — mirror JSD but use Per_Consecutive_Tool_MI.
          when Tool_Call_MI_Xbar =>
@@ -317,11 +404,23 @@ package body Coyote_SQC.App is
                Excluded    := True;
             elsif Metrics.N_Consecutive_Tool_MI_Pairs = 1 then
                N      := Metrics.N_Consecutive_Tool_MI_Pairs;
-               Value  := Mean_LF_F (Metrics.Per_Consecutive_Tool_MI);
+               if Plot_Method = Robust_Median then
+                  Value :=
+                    Coyote_SQC.Statistics.I_Chart.Median_Of
+                      (To_LF_Array_F (Metrics.Per_Consecutive_Tool_MI));
+               else
+                  Value := Mean_LF_F (Metrics.Per_Consecutive_Tool_MI);
+               end if;
                Single := True;
             else
                N     := Metrics.N_Consecutive_Tool_MI_Pairs;
-               Value := Mean_LF_F (Metrics.Per_Consecutive_Tool_MI);
+               if Plot_Method = Robust_Median then
+                  Value :=
+                    Coyote_SQC.Statistics.I_Chart.Median_Of
+                      (To_LF_Array_F (Metrics.Per_Consecutive_Tool_MI));
+               else
+                  Value := Mean_LF_F (Metrics.Per_Consecutive_Tool_MI);
+               end if;
             end if;
 
          when Tool_Call_MI_S =>
@@ -329,8 +428,14 @@ package body Coyote_SQC.App is
                Excluded := True;
             else
                N     := Metrics.N_Consecutive_Tool_MI_Pairs;
-               Value := StdDev_LF_F (Metrics.Per_Consecutive_Tool_MI);
-               Value := StdDev_LF_F (Metrics.Per_Consecutive_Tool_S);
+               if Plot_Method = Robust_Median then
+                  Value :=
+                    Coyote_SQC.Statistics.I_Chart.Qn_Scale_Any
+                      (To_LF_Array_F (Metrics.Per_Consecutive_Tool_MI));
+               else
+                  Value := StdDev_LF_F (Metrics.Per_Consecutive_Tool_MI);
+               end if;
+
             end if;
 
          --  Quantile CC charts: handled separately in Recompute_Chart.
@@ -726,7 +831,7 @@ package body Coyote_SQC.App is
       then
          declare
             --  Collect setup-interval raw values in chronological order.
-            Raw   : Statistics.I_Chart.Long_Float_Array
+            Raw   : Coyote_SQC.Statistics.I_Chart.Long_Float_Array
                       (1 .. Natural (State.All_Metrics.Length));
             N_Raw  : Natural := 0;
             N_Zero : Natural := 0;
@@ -771,7 +876,7 @@ package body Coyote_SQC.App is
                   declare
                      Fallback : Boolean;
                   begin
-                     Lambda := Statistics.I_Chart.Estimate_Lambda
+                     Lambda := Coyote_SQC.Statistics.I_Chart.Estimate_Lambda
                                  (Raw (1 .. N_Raw),
                                   Use_Robust    =>
                                     Chart_Cfg.Transform
@@ -796,7 +901,7 @@ package body Coyote_SQC.App is
             --  I_Sigma: classical = mean(MR_z)/d2; robust = Qn(z_vals)/2.2219.
             if N_Raw > 0 then
                declare
-                  Z_Vals   : Statistics.I_Chart.Long_Float_Array (1 .. N_Raw);
+                  Z_Vals   : Coyote_SQC.Statistics.I_Chart.Long_Float_Array (1 .. N_Raw);
                   Sum_Z    : Long_Float := 0.0;
                   Prev_Z   : Long_Float := 0.0;
                   Has_PZ   : Boolean    := False;
@@ -806,7 +911,7 @@ package body Coyote_SQC.App is
                   for Idx in 1 .. N_Raw loop
                      declare
                         Z : constant Long_Float :=
-                          Statistics.I_Chart.Apply_Transform (Raw (Idx), Chart_Cfg.Transform.Kind, Lambda);
+                          Coyote_SQC.Statistics.I_Chart.Apply_Transform (Raw (Idx), Chart_Cfg.Transform.Kind, Lambda);
                      begin
                         Z_Vals (Idx) := Z;
                         Sum_Z := Sum_Z + Z;
@@ -824,7 +929,7 @@ package body Coyote_SQC.App is
                   then
                      if N_Raw >= 2 then
                         CD.Params.I_Sigma :=
-                          Statistics.I_Chart.Qn_Scale_Any (Z_Vals) / 2.2219;
+                          Coyote_SQC.Statistics.I_Chart.Qn_Scale_Any (Z_Vals) / 2.2219;
                      end if;
                   else
                      CD.Params.I_Sigma :=
@@ -845,7 +950,7 @@ package body Coyote_SQC.App is
         and then Chart_Cfg.Transform.Kind /= Data_Model.None
       then
          declare
-            Raws  : Statistics.I_Chart.Long_Float_Array
+            Raws  : Coyote_SQC.Statistics.I_Chart.Long_Float_Array
                       (1 .. Natural (State.All_Metrics.Length));
             N_R   : Natural := 0;
          begin
@@ -868,7 +973,7 @@ package body Coyote_SQC.App is
 
             if N_R >= 2 then
                declare
-                  MR_Buf    : Statistics.I_Chart.Long_Float_Array
+                  MR_Buf    : Coyote_SQC.Statistics.I_Chart.Long_Float_Array
                                 (1 .. N_R - 1);
                   N_MR      : Natural := 0;
                   N_Zero_MR : Natural := 0;
@@ -904,7 +1009,7 @@ package body Coyote_SQC.App is
                      declare
                         Fallback : Boolean;
                      begin
-                        Lambda_MR := Statistics.I_Chart.Estimate_Lambda
+                        Lambda_MR := Coyote_SQC.Statistics.I_Chart.Estimate_Lambda
                           (MR_Buf (1 .. N_MR),
                            Use_Robust    =>
                              Chart_Cfg.Transform.Lambda_Source =
@@ -915,21 +1020,21 @@ package body Coyote_SQC.App is
 
                   if N_MR > 0 then
                      declare
-                        W_Arr : Statistics.I_Chart.Long_Float_Array
+                        W_Arr : Coyote_SQC.Statistics.I_Chart.Long_Float_Array
                                   (1 .. N_MR);
                         W_Sum : Long_Float := 0.0;
                         CL_W  : Long_Float;
                      begin
                         for Idx in 1 .. N_MR loop
                            W_Arr (Idx) :=
-                             Statistics.I_Chart.Apply_Transform
+                             Coyote_SQC.Statistics.I_Chart.Apply_Transform
                                (MR_Buf (Idx), Chart_Cfg.Transform.Kind, Lambda_MR);
                            W_Sum := W_Sum + W_Arr (Idx);
                         end loop;
                         if Chart_Cfg.Estimation_Method =
                               Data_Model.Robust_Median
                         then
-                           CL_W := Statistics.I_Chart.Median_Of (W_Arr);
+                           CL_W := Coyote_SQC.Statistics.I_Chart.Median_Of (W_Arr);
                         else
                            CL_W := W_Sum / Long_Float (N_MR);
                         end if;
@@ -937,14 +1042,14 @@ package body Coyote_SQC.App is
                         if CL_W > 0.0 then
                            declare
                               MR_W_Lim : constant Statistics.Limits_Record :=
-                                Statistics.I_Chart.Compute_MR_Limits (CL_W);
+                                Coyote_SQC.Statistics.I_Chart.Compute_MR_Limits (CL_W);
                            begin
                               CD.MR_Transform_Limits :=
                                 (UCL     =>
-                                   Statistics.I_Chart.Invert_Transform
+                                   Coyote_SQC.Statistics.I_Chart.Invert_Transform
                                      (MR_W_Lim.UCL, Chart_Cfg.Transform.Kind, Lambda_MR),
                                  CL      =>
-                                   Statistics.I_Chart.Invert_Transform
+                                   Coyote_SQC.Statistics.I_Chart.Invert_Transform
                                      (MR_W_Lim.CL,  Chart_Cfg.Transform.Kind, Lambda_MR),
                                  LCL     => 0.0,
                                  Has_UCL => True,
@@ -1021,7 +1126,7 @@ package body Coyote_SQC.App is
             else
                --  Pass 2: fill array for Estimate_Lambda.
                declare
-                  Raw   : Statistics.I_Chart.Long_Float_Array
+                  Raw   : Coyote_SQC.Statistics.I_Chart.Long_Float_Array
                             (1 .. Max_Vals);
                   N_Raw : Natural := 0;
                begin
@@ -1039,7 +1144,7 @@ package body Coyote_SQC.App is
                      declare
                         Fallback : Boolean;
                      begin
-                        Lambda := Statistics.I_Chart.Estimate_Lambda
+                        Lambda := Coyote_SQC.Statistics.I_Chart.Estimate_Lambda
                                     (Raw (1 .. N_Raw),
                                      Use_Robust    =>
                                        Chart_Cfg.Transform
@@ -1085,7 +1190,7 @@ package body Coyote_SQC.App is
                               if V > 0.0 then
                                  declare
                                     Z : constant Long_Float :=
-                                      Statistics.I_Chart.Apply_Transform
+                                      Coyote_SQC.Statistics.I_Chart.Apply_Transform
                                         (V, Chart_Cfg.Transform.Kind, Lambda);
                                  begin
                                     Z_Sum := Z_Sum + Z;
@@ -1335,7 +1440,7 @@ package body Coyote_SQC.App is
             In_Setup : constant Boolean :=
               State.Workspace.Setup_Session_Ids.Contains (Sess.Session_Id);
          begin
-            Compute_Session_Stat (M, Kind, Value, N, Excl, Single, HGray);
+            Compute_Session_Stat (M, Kind, Value, N, Excl, Single, HGray, Chart_Cfg.Plot_Method);
             --  MR chart override: compute moving range from previous session.
             if Kind in Session_Input_Tokens_MR
                       | Session_Output_Tokens_MR
@@ -1401,7 +1506,7 @@ package body Coyote_SQC.App is
                         then
                            declare
                               Z_X : constant Long_Float :=
-                                Statistics.I_Chart.Apply_Transform
+                                Coyote_SQC.Statistics.I_Chart.Apply_Transform
                                   (Raw_X, CD.Transform_Active,
                                    CD.Transform_Lambda);
                               Sigma_Z : constant Long_Float :=
@@ -1432,7 +1537,7 @@ package body Coyote_SQC.App is
                               begin
                                  begin
                                     Inv_UCL :=
-                                      Statistics.I_Chart.Invert_Transform
+                                      Coyote_SQC.Statistics.I_Chart.Invert_Transform
                                         (Lim_Z.UCL, CD.Transform_Active,
                                          CD.Transform_Lambda);
                                     Has_Inv_UCL := Lim_Z.Has_UCL;
@@ -1441,7 +1546,7 @@ package body Coyote_SQC.App is
                                  end;
                                  begin
                                     Inv_CL :=
-                                      Statistics.I_Chart.Invert_Transform
+                                      Coyote_SQC.Statistics.I_Chart.Invert_Transform
                                         (Lim_Z.CL, CD.Transform_Active,
                                          CD.Transform_Lambda);
                                  exception
@@ -1450,7 +1555,7 @@ package body Coyote_SQC.App is
                                  if not Excl and then Lim_Z.Has_LCL then
                                     begin
                                        Inv_LCL :=
-                                         Statistics.I_Chart.Invert_Transform
+                                         Coyote_SQC.Statistics.I_Chart.Invert_Transform
                                            (Lim_Z.LCL, CD.Transform_Active,
                                             CD.Transform_Lambda);
                                        Has_Inv_LCL := True;
@@ -1461,7 +1566,7 @@ package body Coyote_SQC.App is
                                  if not Excl then
                                     begin
                                        Value :=
-                                         Statistics.I_Chart.Invert_Transform
+                                         Coyote_SQC.Statistics.I_Chart.Invert_Transform
                                            (Z_Ewma_Prev, CD.Transform_Active,
                                             CD.Transform_Lambda);
                                        Excl := False;
@@ -1537,7 +1642,7 @@ package body Coyote_SQC.App is
                      elsif not Excl then
                         declare
                            Z : constant Long_Float :=
-                             Statistics.I_Chart.Apply_Transform
+                             Coyote_SQC.Statistics.I_Chart.Apply_Transform
                                (V, CD.Transform_Active, CD.Transform_Lambda);
                         begin
                            Z_Sum := Z_Sum + Z;
@@ -1560,7 +1665,7 @@ package body Coyote_SQC.App is
                               --  token units for display.
                               begin
                                  Value :=
-                                   Statistics.I_Chart.Invert_Transform
+                                   Coyote_SQC.Statistics.I_Chart.Invert_Transform
                                      (Mean_Z, CD.Transform_Active, CD.Transform_Lambda);
                               exception
                                  when Constraint_Error => Excl := True;
@@ -1622,7 +1727,7 @@ package body Coyote_SQC.App is
                            begin
                               begin
                                  Inv_UCL :=
-                                   Statistics.I_Chart.Invert_Transform
+                                   Coyote_SQC.Statistics.I_Chart.Invert_Transform
                                      (L_Z.UCL, CD.Transform_Active, CD.Transform_Lambda);
                                  Has_Inv_UCL := True;
                               exception
@@ -1630,7 +1735,7 @@ package body Coyote_SQC.App is
                               end;
                               begin
                                  Inv_CL :=
-                                   Statistics.I_Chart.Invert_Transform
+                                   Coyote_SQC.Statistics.I_Chart.Invert_Transform
                                      (L_Z.CL, CD.Transform_Active, CD.Transform_Lambda);
                               exception
                                  when Constraint_Error => Excl := True;
@@ -1638,7 +1743,7 @@ package body Coyote_SQC.App is
                               if L_Z.Has_LCL then
                                  begin
                                     Inv_LCL :=
-                                      Statistics.I_Chart.Invert_Transform
+                                      Coyote_SQC.Statistics.I_Chart.Invert_Transform
                                         (L_Z.LCL, CD.Transform_Active, CD.Transform_Lambda);
                                     Has_Inv_LCL := True;
                                  exception
@@ -1660,7 +1765,7 @@ package body Coyote_SQC.App is
                elsif Dsc.Properties.Is_I_Chart then
                   declare
                      L_Z : constant Statistics.Limits_Record :=
-                       Statistics.I_Chart.Compute_I_Limits
+                       Coyote_SQC.Statistics.I_Chart.Compute_I_Limits
                          (Grand_Mean => CD.Params.Grand_Mean,
                           Sigma      => CD.Params.I_Sigma);
                   begin
@@ -1685,17 +1790,17 @@ package body Coyote_SQC.App is
                         begin
                            begin
                               Inv_UCL     :=
-                                Statistics.I_Chart.Invert_Transform
+                                Coyote_SQC.Statistics.I_Chart.Invert_Transform
                                   (L_Z.UCL, CD.Transform_Active, CD.Transform_Lambda);
                               Has_Inv_UCL := True;
                            exception
                               when Constraint_Error => null;
                            end;
-                           Inv_CL  := Statistics.I_Chart.Invert_Transform
+                           Inv_CL  := Coyote_SQC.Statistics.I_Chart.Invert_Transform
                                         (L_Z.CL, CD.Transform_Active, CD.Transform_Lambda);
                            Inv_LCL :=
                              (if L_Z.Has_LCL
-                              then Statistics.I_Chart.Invert_Transform
+                              then Coyote_SQC.Statistics.I_Chart.Invert_Transform
                                      (L_Z.LCL, CD.Transform_Active, CD.Transform_Lambda)
                               else 0.0);
                            Limits :=
@@ -1713,7 +1818,7 @@ package body Coyote_SQC.App is
                   if CD.MR_Transform_Active /= Data_Model.None then
                      Limits := CD.MR_Transform_Limits;
                   else
-                     Limits := Statistics.I_Chart.Compute_MR_Limits
+                     Limits := Coyote_SQC.Statistics.I_Chart.Compute_MR_Limits
                        (Mean_MR => CD.Params.Mean_MR);
                   end if;
                else

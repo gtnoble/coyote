@@ -1952,6 +1952,39 @@ package body Test_Suites is
          Coyote_SQC_Statistics_Tests
            .Test_Robust_EWMA_Outlier_Grand_Mean'Access));
       Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: robust Xbar plot uses median",
+         Coyote_SQC_Statistics_Tests.Test_Robust_Xbar_Plot_Median'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: robust s chart plot uses Qn",
+         Coyote_SQC_Statistics_Tests.Test_Robust_S_Plot_Qn'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: robust plot produces distinct values",
+         Coyote_SQC_Statistics_Tests.Test_Robust_Plot_Round_Trip'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: robust plot I chart unaffected",
+         Coyote_SQC_Statistics_Tests
+           .Test_Robust_Plot_I_Chart_Unaffected'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: robust plot p chart unaffected",
+         Coyote_SQC_Statistics_Tests
+           .Test_Robust_Plot_P_Chart_Unaffected'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: robust plot quantile CC unaffected",
+         Coyote_SQC_Statistics_Tests
+           .Test_Robust_Plot_Quantile_Unaffected'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: robust plot single-turn Xbar identical",
+         Coyote_SQC_Statistics_Tests
+           .Test_Robust_Plot_Single_Turn_Xbar'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: robust plot single-turn s excluded",
+         Coyote_SQC_Statistics_Tests
+           .Test_Robust_Plot_Single_Turn_S'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: robust plot Box-Cox interaction",
+         Coyote_SQC_Statistics_Tests
+           .Test_Robust_Plot_Box_Cox_Interaction'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
         ("SQC stats: Sqrt_VS forward/inverse round-trip",
          Coyote_SQC_Statistics_Tests
            .Test_Sqrt_VS_Round_Trip'Access));

@@ -117,6 +117,17 @@ package Coyote_SQC_Statistics_Tests is
    procedure Test_EWMA_Box_Cox_Asymmetric_Limits     (T : in out Test);
 
    --  Robust estimation + EWMA interaction tests.
+   --  Robust plot method tests (§7.13a).
+   procedure Test_Robust_Xbar_Plot_Median           (T : in out Test);
+   procedure Test_Robust_S_Plot_Qn                  (T : in out Test);
+   procedure Test_Robust_Plot_Round_Trip             (T : in out Test);
+   procedure Test_Robust_Plot_I_Chart_Unaffected     (T : in out Test);
+   procedure Test_Robust_Plot_P_Chart_Unaffected     (T : in out Test);
+   procedure Test_Robust_Plot_Quantile_Unaffected    (T : in out Test);
+   procedure Test_Robust_Plot_Single_Turn_Xbar       (T : in out Test);
+   procedure Test_Robust_Plot_Single_Turn_S          (T : in out Test);
+   procedure Test_Robust_Plot_Box_Cox_Interaction    (T : in out Test);
+
    procedure Test_Robust_EWMA_Outlier_Grand_Mean     (T : in out Test);
 
 

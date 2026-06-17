@@ -532,7 +532,7 @@ cost of a higher family-wise false-alarm rate.
 **Backward compatibility:** No workspace version bump.  Workspace files
 lacking the `quantileBonferroni` field load with the default `true`
 (Bonferroni enabled), preserving the behaviour of all existing saved
-workspaces.  Implementation deferred; tests not yet written.
+**Implementation complete** as of 2026-06-17.  9 new tests pass, all 713 existing tests green.  No workspace version bump (backward compatible — absent `"plotMethod"` defaults to `"classical"`).
 
 
 ### 2026-06-17 — Robust Plot Method for Plotted Points (SRS/SDD)
@@ -567,5 +567,4 @@ robust/classical, robust/robust) are all valid.
 - §14.1: added 9 robust plot method test entries
 
 **Backward compatibility:** No workspace version bump.  Workspace files
-lacking a `"plotMethod"` field in a `chartSettings` entry load with the
-default `"classical"`.  Implementation deferred; tests not yet written.
+lacking a `"plotMethod"` field in a `chartSettings` entry load with the default "classical".

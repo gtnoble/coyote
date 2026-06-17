@@ -261,13 +261,14 @@ package Coyote_SQC.App is
    --  Return the statistic value for one session on a given chart.
    --  Returns 0.0 and sets Excluded=True if the session does not contribute.
    procedure Compute_Session_Stat
-     (Metrics  :     Coyote_SQC.Data_Model.Session_Metrics_Record;
-      Kind     :     Coyote_SQC.Charts.Chart_Kind;
-      Value    : out Long_Float;
-      N        : out Positive;
-      Excluded : out Boolean;
+     (Metrics     :     Coyote_SQC.Data_Model.Session_Metrics_Record;
+      Kind        :     Coyote_SQC.Charts.Chart_Kind;
+      Value       : out Long_Float;
+      N           : out Positive;
+      Excluded    : out Boolean;
       Single      : out Boolean;
-      Hollow_Gray : out Boolean);
+      Hollow_Gray : out Boolean;
+      Plot_Method :     Data_Model.Plot_Method_Kind := Data_Model.Classical);
 
    --  Fit Y range to all visible points in [X_Min, X_Max].
    procedure Y_Fit;

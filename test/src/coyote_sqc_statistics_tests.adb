@@ -16,6 +16,7 @@ with Coyote_SQC.Statistics.I_Chart;
 with Coyote_SQC.Statistics.Tests;
 with Coyote_SQC.Statistics.EWMA_Chart;
 with Coyote_SQC.Statistics.Bootstrap;
+with Coyote_SQC.App;
 with Ada.Numerics.Long_Elementary_Functions;
 
 package body Coyote_SQC_Statistics_Tests is
@@ -2505,5 +2506,241 @@ package body Coyote_SQC_Statistics_Tests is
               and then R1.SD_Ratio.Upper = R2.SD_Ratio.Upper,
               "SD_Ratio CI bounds should be identical for same seed");
    end Test_Bootstrap_Reproducibility;
+
+
+   --  ── Robust plot method tests (SRS-SQC §7.13a) ────────────────────────
+
+   procedure Test_Robust_Xbar_Plot_Median (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.App;
+      use Coyote_SQC.Data_Model;
+      use Coyote_SQC.Charts;
+      use Natural_Vectors;
+      --  Session with per-turn tokens {5, 10, 100}.
+      M : Session_Metrics_Record;
+      V : Long_Float;
+      N : Positive;
+      E, Sg, Hg : Boolean;
+   begin
+      M.N_Turns := 3;
+      M.Per_Turn_Output_Tokens.Append (5);
+      M.Per_Turn_Output_Tokens.Append (10);
+      M.Per_Turn_Output_Tokens.Append (100);
+      Compute_Session_Stat
+        (M, Turn_Tokens_Xbar, V, N, E, Sg, Hg,
+         Plot_Method => Robust_Median);
+      Assert (abs (V - 10.0) < 1.0e-10,
+              "Robust Xbar value should be median 10.0");
+      Compute_Session_Stat
+        (M, Turn_Tokens_Xbar, V, N, E, Sg, Hg,
+         Plot_Method => Classical);
+      Assert (abs (V - 115.0 / 3.0) < 1.0e-10,
+              "Classical Xbar value should be mean " &
+              Long_Float'Image (115.0 / 3.0));
+   end Test_Robust_Xbar_Plot_Median;
+
+   procedure Test_Robust_S_Plot_Qn (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.App;
+      use Coyote_SQC.Data_Model;
+      use Coyote_SQC.Charts;
+      use Natural_Vectors;
+      --  Session with per-turn tokens {10, 20, 30}.
+      M : Session_Metrics_Record;
+      V : Long_Float;
+      N : Positive;
+      E, Sg, Hg : Boolean;
+   begin
+      M.N_Turns := 3;
+      M.Per_Turn_Output_Tokens.Append (10);
+      M.Per_Turn_Output_Tokens.Append (20);
+      M.Per_Turn_Output_Tokens.Append (30);
+      Compute_Session_Stat
+        (M, Turn_Tokens_S, V, N, E, Sg, Hg,
+         Plot_Method => Robust_Median);
+      Assert (not E, "Should not be excluded");
+      Assert (abs (V - 22.086) < 1.0e-3,
+              "Robust s value should be Qn of {10,20,30}");
+      Compute_Session_Stat
+        (M, Turn_Tokens_S, V, N, E, Sg, Hg,
+         Plot_Method => Classical);
+      Assert (not E, "Should not be excluded");
+      --  Classical StdDev of {10, 20, 30} = sqrt(200/2) = 10.0
+      Assert (abs (V - 10.0) < 1.0e-10,
+              "Classical s value should be 10.0");
+   end Test_Robust_S_Plot_Qn;
+
+   procedure Test_Robust_Plot_Round_Trip (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.App;
+      use Coyote_SQC.Data_Model;
+      use Coyote_SQC.Charts;
+      use Natural_Vectors;
+      --  Session with per-turn tokens {5, 10, 100}.
+      M : Session_Metrics_Record;
+      V : Long_Float;
+      N : Positive;
+      E, Sg, Hg : Boolean;
+   begin
+      M.N_Turns := 3;
+      M.Per_Turn_Output_Tokens.Append (5);
+      M.Per_Turn_Output_Tokens.Append (10);
+      M.Per_Turn_Output_Tokens.Append (100);
+      --  Verify both plot methods produce distinct values.
+      Compute_Session_Stat
+        (M, Turn_Tokens_Xbar, V, N, E, Sg, Hg,
+         Plot_Method => Robust_Median);
+      Assert (not E, "Should not be excluded");
+      Assert (V /= 115.0 / 3.0,
+              "Robust median should differ from classical mean");
+      Compute_Session_Stat
+        (M, Turn_Tokens_Xbar, V, N, E, Sg, Hg,
+         Plot_Method => Classical);
+      Assert (abs (V - 115.0 / 3.0) < 1.0e-10,
+              "Classical should equal mean");
+   end Test_Robust_Plot_Round_Trip;
+
+   procedure Test_Robust_Plot_I_Chart_Unaffected (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.App;
+      use Coyote_SQC.Data_Model;
+      use Coyote_SQC.Charts;
+      M : Session_Metrics_Record;
+      V1, V2 : Long_Float;
+      N : Positive;
+      E, Sg, Hg : Boolean;
+   begin
+      M.Total_Input_Tokens := 42;
+      Compute_Session_Stat
+        (M, Session_Input_Tokens_I, V1, N, E, Sg, Hg,
+         Plot_Method => Robust_Median);
+      Compute_Session_Stat
+        (M, Session_Input_Tokens_I, V2, N, E, Sg, Hg,
+         Plot_Method => Classical);
+      Assert (abs (V1 - V2) < 1.0e-10,
+              "I chart should be unaffected by Plot_Method");
+      Assert (not E, "Should not be excluded");
+   end Test_Robust_Plot_I_Chart_Unaffected;
+
+   procedure Test_Robust_Plot_P_Chart_Unaffected (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.App;
+      use Coyote_SQC.Data_Model;
+      use Coyote_SQC.Charts;
+      M : Session_Metrics_Record;
+      V1, V2 : Long_Float;
+      N : Positive;
+      E, Sg, Hg : Boolean;
+   begin
+      M.N_Turns := 10;
+      M.N_Tool_Calls := 3;
+      M.N_Failed_Tool_Calls := 1;
+      Compute_Session_Stat
+        (M, Tool_Call_Failure_Rate, V1, N, E, Sg, Hg,
+         Plot_Method => Robust_Median);
+      Compute_Session_Stat
+        (M, Tool_Call_Failure_Rate, V2, N, E, Sg, Hg,
+         Plot_Method => Classical);
+      Assert (abs (V1 - V2) < 1.0e-10,
+              "p chart should be unaffected by Plot_Method");
+   end Test_Robust_Plot_P_Chart_Unaffected;
+
+   procedure Test_Robust_Plot_Quantile_Unaffected (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.App;
+      use Coyote_SQC.Data_Model;
+      use Coyote_SQC.Charts;
+      M : Session_Metrics_Record;
+      V : Long_Float;
+      N : Positive;
+      E1, E2 : Boolean;
+      Sg, Hg : Boolean;
+   begin
+      Compute_Session_Stat
+        (M, Turn_Tokens_Quantile, V, N, E1, Sg, Hg,
+         Plot_Method => Robust_Median);
+      Compute_Session_Stat
+        (M, Turn_Tokens_Quantile, V, N, E2, Sg, Hg,
+         Plot_Method => Classical);
+      Assert (E1 and then E2,
+              "Quantile CC should be excluded (handled separately)"
+              & " regardless of Plot_Method");
+   end Test_Robust_Plot_Quantile_Unaffected;
+
+   procedure Test_Robust_Plot_Single_Turn_Xbar (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.App;
+      use Coyote_SQC.Data_Model;
+      use Coyote_SQC.Charts;
+      use Natural_Vectors;
+      M : Session_Metrics_Record;
+      V1, V2 : Long_Float;
+      N : Positive;
+      E, Sg, Hg : Boolean;
+   begin
+      M.N_Turns := 1;
+      M.Per_Turn_Output_Tokens.Append (42);
+      Compute_Session_Stat
+        (M, Turn_Tokens_Xbar, V1, N, E, Sg, Hg,
+         Plot_Method => Robust_Median);
+      Compute_Session_Stat
+        (M, Turn_Tokens_Xbar, V2, N, E, Sg, Hg,
+         Plot_Method => Classical);
+      Assert (abs (V1 - V2) < 1.0e-10,
+              "Single-turn Xbar should be identical under both methods");
+      Assert (Sg, "Single turn should be marked Single");
+   end Test_Robust_Plot_Single_Turn_Xbar;
+
+   procedure Test_Robust_Plot_Single_Turn_S (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.App;
+      use Coyote_SQC.Data_Model;
+      use Coyote_SQC.Charts;
+      use Natural_Vectors;
+      M : Session_Metrics_Record;
+      V : Long_Float;
+      N : Positive;
+      E1, E2 : Boolean;
+      Sg, Hg : Boolean;
+   begin
+      M.N_Turns := 1;
+      M.Per_Turn_Output_Tokens.Append (42);
+      Compute_Session_Stat
+        (M, Turn_Tokens_S, V, N, E1, Sg, Hg,
+         Plot_Method => Robust_Median);
+      Compute_Session_Stat
+        (M, Turn_Tokens_S, V, N, E2, Sg, Hg,
+         Plot_Method => Classical);
+      Assert (E1 and then E2,
+              "Single-turn s chart should be excluded under both methods");
+   end Test_Robust_Plot_Single_Turn_S;
+
+   procedure Test_Robust_Plot_Box_Cox_Interaction (T : in out Test) is
+      pragma Unreferenced (T);
+      use Coyote_SQC.App;
+      use Coyote_SQC.Data_Model;
+      use Coyote_SQC.Charts;
+      use Natural_Vectors;
+      --  The robust plot method must produce the median of z-space values
+      --  when Box-Cox is active, but the statistic computed by
+      --  Compute_Session_Stat is in original units regardless of Box-Cox.
+      --  So the robust plot method test at this level only confirms that
+      --  Plot_Method affects the original-space statistic as expected.
+      --  Box-Cox back-transform is tested at the Recompute_Chart level.
+      M : Session_Metrics_Record;
+      V : Long_Float;
+      N : Positive;
+      E, Sg, Hg : Boolean;
+   begin
+      M.N_Turns := 3;
+      M.Per_Turn_Output_Tokens.Append (5);
+      M.Per_Turn_Output_Tokens.Append (10);
+      M.Per_Turn_Output_Tokens.Append (100);
+      Compute_Session_Stat
+        (M, Turn_Tokens_Xbar, V, N, E, Sg, Hg,
+         Plot_Method => Robust_Median);
+      Assert (abs (V - 10.0) < 1.0e-10,
+              "Robust median of {5,10,100} should be 10.0");
+   end Test_Robust_Plot_Box_Cox_Interaction;
 
 end Coyote_SQC_Statistics_Tests;

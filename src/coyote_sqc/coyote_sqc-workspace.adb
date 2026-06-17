@@ -260,6 +260,15 @@ package body Coyote_SQC.Workspace is
       Rec.EWMA_Weight := Get_Float_Field (Obj, "ewmaWeight", 0.2);
       Rec.EWMA_L      := Get_Float_Field (Obj, "ewmaL",      3.0);
 
+      --  Plot method (optional; default = classical).
+      declare
+         PM : constant String := Get_String_Field (Obj, "plotMethod");
+      begin
+         if PM = "robust_median" then
+            Rec.Plot_Method := Robust_Median;
+         end if;
+      end;
+
       return Rec;
    end Parse_Chart_Settings;
 
@@ -268,6 +277,7 @@ package body Coyote_SQC.Workspace is
    begin
       return Rec.Transform.Kind = None
         and then Rec.Estimation_Method = Classical
+        and then Rec.Plot_Method = Classical
         and then Rec.EWMA_Weight = 0.2
         and then Rec.EWMA_L = 3.0;
    end Is_Default;
@@ -284,6 +294,11 @@ package body Coyote_SQC.Workspace is
       --  Estimation method — omit when classical (default).
       if Rec.Estimation_Method = Robust_Median then
          Obj.Set_Field ("estimationMethod", "robust_median");
+      end if;
+
+      --  Plot method — omit when classical (default).
+      if Rec.Plot_Method = Robust_Median then
+         Obj.Set_Field ("plotMethod", "robust_median");
       end if;
 
       --  EWMA params — omit when default.

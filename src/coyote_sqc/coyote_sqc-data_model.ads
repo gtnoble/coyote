@@ -185,6 +185,12 @@ package Coyote_SQC.Data_Model is
    --  Robust_Median uses median / Qₙ residuals / median MR.
    --  p-charts always use the classical grand proportion regardless.
    --  See §7.13 of the spec.
+   --  Controls how plotted session statistics (markers on the chart) are
+   --  computed from the session's own subgroup data.  Applies only to Xbar
+   --  and s charts; ignored for all other chart kinds.  Default: Classical.
+   --  See §7.13a of the spec.
+   type Plot_Method_Kind is (Classical, Robust_Median);
+
    type Estimation_Method_Kind is (Classical, Robust_Median);
 
    --  ── Per-chart settings ────────────────────────────────────────────────
@@ -200,6 +206,7 @@ package Coyote_SQC.Data_Model is
       --  they are ignored for all other chart kinds.
       EWMA_Weight       : Long_Float := 0.2;
       EWMA_L            : Long_Float := 3.0;
+      Plot_Method        : Plot_Method_Kind := Classical;
    end record;
 
    --  Map from Chart_Kind to per-chart settings.

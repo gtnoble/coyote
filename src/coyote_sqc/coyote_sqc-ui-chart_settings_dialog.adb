@@ -80,6 +80,13 @@ package body Coyote_SQC.UI.Chart_Settings_Dialog is
 
       --  Estimation-method widget.
       Est_C : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
+   --  Plot-method combo (Xbar/s charts only; null otherwise).
+   PM_C : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text := null;
+
+   --  Plot-method combo indices (shown only for Xbar/s charts).
+   Plot_Classical : constant Glib.Gint := 0;
+   Plot_Robust    : constant Glib.Gint := 1;
+
 
       --  EWMA parameter widgets.
       Wt_Sp : Gtk.Spin_Button.Gtk_Spin_Button := null;
@@ -244,6 +251,10 @@ package body Coyote_SQC.UI.Chart_Settings_Dialog is
          Gtk.Combo_Box.Set_Active
            (Gtk.Combo_Box.Gtk_Combo_Box (Est_C), Est_Classical);
          if Props.Is_EWMA_Chart and then Wt_Sp /= null then
+         if Props.Is_Xbar_S_Chart and then PM_C /= null then
+            Gtk.Combo_Box.Set_Active
+              (Gtk.Combo_Box.Gtk_Combo_Box (PM_C), Plot_Classical);
+         end if;
             Wt_Sp.Set_Value (0.2);
             L_Sp.Set_Value (3.0);
          end if;
@@ -440,6 +451,55 @@ package body Coyote_SQC.UI.Chart_Settings_Dialog is
          VBox.Pack_Start (Exp, False, False, 0);
       end;
 
+
+      --  ── Plot Method expander (Xbar/s charts only) ─────────────────────
+      if Props.Is_Xbar_S_Chart then
+         declare
+            Exp     : Gtk.Expander.Gtk_Expander;
+            Innr    : Gtk.Box.Gtk_Box;
+            PM_Rw   : Gtk.Box.Gtk_Box;
+            PM_Lb   : Gtk.Label.Gtk_Label;
+            PM_Note : Gtk.Label.Gtk_Label;
+            PM_Non_Def : constant Boolean :=
+              Cur.Plot_Method /= Classical;
+         begin
+            Gtk.Expander.Gtk_New (Exp, "Plot Method");
+            Exp.Set_Expanded (PM_Non_Def);
+
+            Gtk.Box.Gtk_New_Vbox (Innr);
+            Innr.Set_Spacing (4);
+            Innr.Set_Border_Width (4);
+
+            Gtk.Box.Gtk_New_Hbox (PM_Rw);
+            PM_Rw.Set_Spacing (4);
+            Gtk.Label.Gtk_New (PM_Lb, "Method:");
+            PM_Rw.Pack_Start (PM_Lb, False, False, 0);
+            Gtk.Combo_Box_Text.Gtk_New (PM_C);
+            PM_C.Append_Text
+              ("Classical (mean / sample s)");
+            PM_C.Append_Text
+              ("Robust (median / Qn)");
+            Gtk.Combo_Box.Set_Active
+              (Gtk.Combo_Box.Gtk_Combo_Box (PM_C),
+               (if Cur.Plot_Method = Robust_Median
+                then Plot_Robust else Plot_Classical));
+            PM_Rw.Pack_Start (PM_C, True, True, 0);
+            Innr.Pack_Start (PM_Rw, False, False, 0);
+
+            Gtk.Label.Gtk_New
+              (PM_Note,
+               "The Plot Method controls plotted points independently"
+               & " of the Estimation Method, which controls the"
+               & " control limits.  The two settings may differ.");
+            PM_Note.Set_Halign (Gtk.Widget.Align_Start);
+            PM_Note.Set_Line_Wrap (True);
+            Innr.Pack_Start (PM_Note, False, False, 0);
+
+            Exp.Add (Innr);
+            VBox.Pack_Start (Exp, False, False, 0);
+         end;
+      end if;
+
       --  ── EWMA Parameters expander (EWMA charts only) ────────────────────
       if Props.Is_EWMA_Chart then
          declare
@@ -545,6 +605,15 @@ package body Coyote_SQC.UI.Chart_Settings_Dialog is
             then
                New_Cfg.EWMA_Weight := Long_Float (Wt_Sp.Get_Value);
                New_Cfg.EWMA_L      := Long_Float (L_Sp.Get_Value);
+
+            --  Plot method (Xbar/s charts only).
+            if Props.Is_Xbar_S_Chart and then PM_C /= null then
+               if Gtk.Combo_Box.Get_Active
+                 (Gtk.Combo_Box.Gtk_Combo_Box (PM_C)) = Plot_Robust
+               then
+                  New_Cfg.Plot_Method := Robust_Median;
+               end if;
+            end if;
             end if;
 
             --  Sparse map update: remove entry if at default.
