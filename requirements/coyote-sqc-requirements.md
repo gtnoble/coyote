@@ -244,6 +244,7 @@ the map; absent entries are treated as all-default.
 | `Estimation_Method` | Estimation_Method_Kind | Whether to use classical or robust location/scale estimators for this chart's control limits; see §5.11. Default: `Classical`. p-charts always use the classical grand proportion regardless of this setting. |
 | `EWMA_Weight` | Long_Float | Smoothing weight λ ∈ (0.0, 1.0] for EWMA charts only; ignored for all other chart kinds. Default: 0.2. |
 | `EWMA_L` | Long_Float | Sigma multiplier L ∈ [1.0, 4.0] for EWMA charts only; ignored for all other chart kinds. Default: 3.0. |
+| `Plot_Method` | Plot_Method_Kind | Whether plotted session statistics use classical or robust within-session estimators. Applies only to Xbar and s charts; ignored for all other chart kinds. Default: `Classical`. See §5.11a. |
 
 ---
 
@@ -601,6 +602,75 @@ for Xbar charts, z-space limits are computed from `CD.Params.Grand_Mean` and
 `CD.Points`. Summary statistics labels gain a `(z)` suffix.
 
 **Storage:** each chart's configuration is stored in the workspace `chartSettings` JSON map (see §13.1). Estimated λ values are transient runtime values recomputed from the setup interval and not persisted.
+
+
+### 5.11a Robust Per-Session Statistics for Plotted Points
+
+The `Estimation_Method` setting (§5.11) controls how the **control limits**
+(CL, UCL, LCL) are computed. A separate per-chart setting, `Plot_Method`,
+controls how the **plotted session statistics** (the markers on the chart)
+are computed from the session's own subgroup data. Both settings default to
+`Classical`.
+
+`Plot_Method` applies only to Xbar and s charts, where each session
+contributes a subgroup of per-turn observations. For I, MR, EWMA, p, and
+Quantile CC charts there is either no within-session subgroup or the
+statistic inherently uses an alternative estimator (e.g. non-parametric
+quantiles for Quantile CC); `Plot_Method` has no effect on these chart
+kinds.
+
+Two methods are available:
+
+- **Classical** (default) — the session statistic is the arithmetic mean
+  of per-turn values for Xbar charts and the sample standard deviation for
+  s charts, exactly as defined in §5.2. This is the standard SPC convention.
+- **Robust (median/Qₙ)** — for Xbar charts, the session statistic is the
+  **median** of the per-turn values, a resistant location estimator with
+  50% breakdown point. For s charts, the session statistic is **Qₙ**, the
+  Rousseeuw & Croux (1993) robust scale estimator applied to the per-turn
+  values (the same `Qn_Scale` function used for Box-Cox lambda estimation
+  in §5.7 and robust Pooled_S in §5.11). Qₙ has 82% Gaussian efficiency
+  and a 50% breakdown point.
+
+The robust per-session statistic is computed independently of the control
+limits: the estimate used for the plotted point and the estimate used for
+the center line and limits may differ. The following combinations are
+valid:
+
+| `Estimation_Method` | `Plot_Method` | Limits | Plotted points |
+|---|---|---|---|
+| `Classical` | `Classical` | Classical grand mean, pooled s | Session arithmetic mean, sample s |
+| `Classical` | `Robust_Median` | Classical grand mean, pooled s | Session median, Qₙ |
+| `Robust_Median` | `Classical` | Robust median-of-means, Qₙ-pooled-s | Session arithmetic mean, sample s |
+| `Robust_Median` | `Robust_Median` | Robust median-of-means, Qₙ-pooled-s | Session median, Qₙ |
+
+**Xbar chart with robust plot method:** the plotted value for each session is
+`Median_Of(per_turn_values)`. For a session with n = 1, the median equals the
+single value, which matches the classical mean — no behavioural change.
+Sessions with zero or missing per-turn values remain excluded (no change).
+
+**s chart with robust plot method:** the plotted value for each session is
+`Qn_Scale(per_turn_values)`. This directly estimates the within-session
+process standard deviation σ. For a session with n = 1, Qₙ is undefined and
+the session remains excluded from the s chart. The classical s chart formula
+`s_i = sqrt(Σ(x_{i,j} − x̄_i)² / (n_i − 1))` is replaced. The Qₙ output is
+in the same units as the classical s and is plotted on the same y-axis.
+
+**Interaction with Box-Cox:** when Box-Cox is active for the chart (§5.8),
+the robust plot method is applied to the **transformed** per-turn values
+(z-space) — exactly as the classical session mean and standard deviation are
+applied to transformed values in the current Box-Cox path. The back-
+transformation rules for Xbar charts (§5.8, Xbar chart display) apply to
+the robust median as well: `Box_Cox_Inverse(Median_Of(z_{i,j}), λ)`.
+
+**Hollow and excluded markers:** the existing hollow-marker and exclusion
+rules (§5.5) are unchanged by the plot method. A single-turn session on an
+Xbar chart remains hollow; a single-turn session on an s chart remains
+excluded. A zero-thinking session on the thinking charts remains a hollow
+gray marker.
+
+**Storage:** each chart's plot method is stored in the workspace
+`chartSettings` JSON map (see §13.1) as the per-chart field `"plotMethod"`.
 
 ### 5.12 Consecutive Tool Call Similarity — JSD Statistic
 
@@ -2879,6 +2949,23 @@ Settings for each chart are stored sparsely in the workspace `chartSettings` JSO
   *"EWMA charts independently apply this method using the same setup-interval
   observations as the companion I chart."*
 
+
+#### Plot Method *(Xbar and s charts only)*
+
+Shown only for Xbar and s chart kinds; hidden for all other chart types.
+
+- Drop-down with two choices:
+  - **Classical** (default) — plotted point statistic is the session's
+    arithmetic mean (§5.2) for Xbar charts and sample standard deviation
+    for s charts.
+  - **Robust (median/Qₙ)** — plotted point statistic is the session's
+    median for Xbar charts and Qₙ robust scale estimator for s charts;
+    50% breakdown point (§5.11a).
+- An inline note reads:
+  *"The Plot Method controls the plotted points independently of the
+  Estimation Method (above), which controls the control limits. The two
+  settings may differ."*
+
 #### EWMA Parameters *(EWMA charts only)*
 
 Shown only for EWMA chart kinds; hidden for all other chart types.
@@ -3093,6 +3180,15 @@ All statistical formula implementations shall have AUnit unit tests covering:
   unchanged.
 - Robust estimation version migration: workspace files at version ≤ 5
   that are missing `estimationMethod` load with the default `"classical"`.
+- Robust plot method — Xbar chart: for Xbar charts with `Plot_Method = Robust_Median`, verify the plotted point value equals the median of the session's per-turn subgroup values, not the arithmetic mean. For a session with per-turn tokens {5, 10, 100}, verify `Value = 10.0` (median) under robust plot method and `Value = 38.333…` under classical.
+- Robust plot method — s chart: for s charts with `Plot_Method = Robust_Median`, verify the plotted point value equals `Qn_Scale(per_turn_values)` applied to the session's per-turn subgroup values. For a session with per-turn tokens {10, 20, 30}, verify `Qn_Scale` returns the expected value (≈ 22.086) to 1 × 10⁻³.
+- Robust plot method round-trip: the `plotMethod` field (`"classical"` or `"robust_median"`) survives workspace save/load unchanged within a `chartSettings` entry.
+- Robust plot method — I/MR/EWMA charts unaffected: verify that setting `Plot_Method = Robust_Median` on an I chart kind has no effect on plotted points (there is no within-session subgroup to apply a robust statistic to; the single scalar session observation is plotted as-is).
+- Robust plot method — p charts unaffected: verify that setting `Plot_Method = Robust_Median` on a p chart has no effect on plotted points (the session proportion is the only meaningful statistic).
+- Robust plot method — Quantile CC charts unaffected: verify that setting `Plot_Method = Robust_Median` on a Quantile CC chart has no effect on plotted points (quantile statistics are inherently non-parametric).
+- Robust plot method — single-turn Xbar: for a session with exactly one turn, verify the median equals the single value and the plotted point is identical under both classical and robust plot methods.
+- Robust plot method — single-turn s chart: for a session with exactly one turn, verify the session remains excluded (n=1 has no s statistic) regardless of plot method.
+- Robust plot method — Box-Cox interaction: for an Xbar chart with both Box-Cox enabled and `Plot_Method = Robust_Median`, verify the session median is computed on the transformed (z-space) per-turn values and back-transformed to original units for display, matching the classical Box-Cox path behaviour.
 - Session Turn Count Box-Cox: sessions with N_Turns = 1 are not excluded from I/MR/EWMA charts when Box-Cox is active (since ln(1) = 0 is valid); verify no exclusion occurs and no status-bar notice is posted for such sessions.
 - Session Turn Count Box-Cox: MR̄ = 0 when all setup-interval sessions have N_Turns = 1 after transformation (y = 0 for all); verify no limits are drawn and no exception is raised.
 - Token normalization: for an Anthropic session with `input_tokens=100`, `cache_read_input_tokens=200`, `cache_creation_input_tokens=50`, verify `Total_Input_Tokens=350`, `Total_Cache_Read_Tokens=200`, `Total_Cache_Write_Tokens=50`, and `Total_Uncached_Input_Tokens=100`. For an OpenAI session with `prompt_tokens=350`, `cached_tokens=250`, verify `Total_Input_Tokens=350`, `Total_Cache_Read_Tokens=250`, `Total_Cache_Write_Tokens=0`, and `Total_Uncached_Input_Tokens=100`.

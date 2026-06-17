@@ -533,3 +533,39 @@ cost of a higher family-wise false-alarm rate.
 lacking the `quantileBonferroni` field load with the default `true`
 (Bonferroni enabled), preserving the behaviour of all existing saved
 workspaces.  Implementation deferred; tests not yet written.
+
+
+### 2026-06-17 — Robust Plot Method for Plotted Points (SRS/SDD)
+
+**Feature:** Added a per-chart `Plot_Method` setting that controls whether
+plotted session statistics on Xbar and s charts use classical (mean /
+sample s) or robust (median / Qₙ) within-session estimators.  This is
+independent of the `Estimation_Method` setting, which controls the control
+limits.  The four combinations (classical/classical, classical/robust,
+robust/classical, robust/robust) are all valid.
+
+**SRS changes** (`requirements/coyote-sqc-requirements.md`):
+- §4.7a Chart Settings Record: added `Plot_Method` field to the table
+- §5.11a: new section "Robust Per-Session Statistics for Plotted Points"
+  describing the two plot methods, their independence from
+  Estimation_Method, Box-Cox interaction, and the four valid combinations
+- §13.6 Chart Settings Dialog: new "Plot Method" expander section
+  (Xbar/s charts only) with drop-down selector and independence note
+- §15.6: added 9 test requirements (Xbar median-vs-mean, s chart Qₙ,
+  workspace round-trip, I/MR/EWMA/p/Quantile CC non-effect,
+  single-turn edge cases, Box-Cox interaction)
+
+**SDD changes** (`design/coyote-sqc-design.md`):
+- §6.8b: added `Plot_Method_Kind` enumerated type (Classical, Robust_Median)
+- §6.8c Chart_Settings_Record: added `Plot_Method` field
+- §7.13a: new section detailing implementation in `Compute_Session_Stat`
+  and `Recompute_Chart`, with per-chart behaviour for Xbar and s charts,
+  Box-Cox interaction, and a four-combination validity table
+- §11.12 Chart Settings Dialog: added "Plot Method" expander to widget
+  tree and full widget specification
+- §11.12 Reset to Defaults button: updated to include `Plot_Method`
+- §14.1: added 9 robust plot method test entries
+
+**Backward compatibility:** No workspace version bump.  Workspace files
+lacking a `"plotMethod"` field in a `chartSettings` entry load with the
+default `"classical"`.  Implementation deferred; tests not yet written.
