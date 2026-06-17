@@ -503,3 +503,33 @@ a blank line before `return M` for readability.  See PCR-030 in
 
 **Files changed:** `src/coyote_sqc/coyote_sqc-metrics.adb`
 **Build:** Clean.  **Tests:** 701 tests, 0 failures, 0 regressions.
+
+### 2026-06-17 — Quantile CC Bonferroni Checkbox (SRS/SDD)
+
+**Feature:** Added a workspace-level `Quantile_Bonferroni` checkbox
+(boolean, default `true`) that controls whether Bonferroni multiplicity
+correction is applied to quantile control chart limits.  When unchecked,
+each of the five quantile components is tested at the unadjusted
+α = 0.0027, widening limits and increasing detection sensitivity at the
+cost of a higher family-wise false-alarm rate.
+
+**SRS changes** (`requirements/coyote-sqc-requirements.md`):
+- §4.6 Workspace Record: added `Quantile_Bonferroni` field
+- §5.18: rewrote Bonferroni correction section with enabled/disabled
+  subsections and limit formulas for both modes
+- §13.5: added checkbox description to Workspace Settings Dialog
+- §15.6: added 3 test requirements (disabled mode, workspace round-trip,
+  backward compatibility)
+
+**SDD changes** (`design/coyote-sqc-design.md`):
+- §6.9 Workspace_Record: added `Quantile_Bonferroni : Boolean := True`
+- §7.19: added `Bonferroni_Enabled` parameter to `Extract_Limits`
+  (default `True`) and supporting comment
+- §9.2: added `quantileBonferroni` to JSON schema
+- §9.3: added version-migration note (absent → default `true`)
+- §11.11: added checkbox description to Workspace Settings Dialog
+
+**Backward compatibility:** No workspace version bump.  Workspace files
+lacking the `quantileBonferroni` field load with the default `true`
+(Bonferroni enabled), preserving the behaviour of all existing saved
+workspaces.  Implementation deferred; tests not yet written.

@@ -904,6 +904,12 @@ type Workspace_Record is record
    --  EWMA_Weight = 0.2, EWMA_L = 3.0) are omitted from the map to keep
    --  the workspace file compact.  See §6.8c for the record type.
    Chart_Settings     : Chart_Settings_Maps.Map;
+   --  Workspace-level option controlling Bonferroni correction on
+   --  quantile control charts.  When True (default), the five
+   --  simultaneous quantile tests use the Bonferroni-adjusted
+   --  alpha_B = alpha/5 (see SRS-SQC 5.18).  When False, each
+   --  component is tested at unadjusted alpha.
+   Quantile_Bonferroni : Boolean := True;
 end record;
 ```
 
@@ -1723,8 +1729,11 @@ package Coyote_SQC.Statistics.Quantile_CC is
    --  Extract control limits and center line for each of the five
    --  quantile statistics from a precomputed bootstrap distribution.
    --  Uses the Bonferroni-adjusted tail rank Bonferroni_Rank.
+   --  When Bonferroni_Enabled is False, uses the unadjusted tail
+   --  rank Unadjusted_Rank instead.
    function Extract_Limits
-     (Dist : Bootstrap_Distribution) return Quantile_Limits_Array;
+     (Dist : Bootstrap_Distribution; Bonferroni_Enabled : Boolean := True)
+     return Quantile_Limits_Array;
 
    type Quantile_Limits_Record is record
       UCL      : Long_Float;
@@ -2217,6 +2226,7 @@ Workspace files use the `.sqcw` extension. Location is user-chosen via file choo
   "modelFilter": ["string", ...],
   "setupSessionIds": ["uuid-string", ...],
   "logYMode": false,
+  "quantileBonferroni": true,
   "analyzeAllDirectories": false,
   "chartSettings": {
     "Session_Input_Tokens_I": {
@@ -2268,12 +2278,22 @@ values **shall be omitted** from `chartSettings` to keep the file compact.
 
 ### 9.3 Version Migration
 
+   --  Quantile_Bonferroni controls whether the Bonferroni multiplicity
+   --  correction is applied to quantile control chart limits (§5.18).
+   --  When True (default), each individual statistic is tested at
+   --  α_B = α / 5 = 0.00054.  When False, each component is tested at
+   --  the unadjusted α = 0.0027, increasing detection sensitivity.
+
 The application reads the `"version"` field first:
 
 - `version = 10`: load normally using the schema above.
 - `version = 9`: load and migrate — `analyzeAllDirectories` key is absent;
   default `false` is applied to `Workspace.Analyze_All_Directories`.
 - `version = 8`: load and migrate — `logYMode` key is absent; default `false`
+- Absent `quantileBonferroni`: workspace files that lack the
+  `quantileBonferroni` field load with the default `true`
+  (Bonferroni enabled), preserving the behaviour of all previously
+  saved workspaces with quantile charts.
   is applied to `Workspace.Log_Y_Mode`.
 - `version = 1` to `7`: load with automatic migration — see migration rules below.
 - `version > 10`: refuse to open; show a dialog:
@@ -2986,6 +3006,11 @@ integrity check (§11 of the requirements) is performed.
 
 Per-chart Box-Cox, estimation method, and EWMA parameters are configured through
 the Chart Settings dialog (§11.12), not through Workspace Settings.
+
+- **Quantile Bonferroni** checkbox: when checked (default), applies the
+  Bonferroni multiplicity correction to quantile control chart limits.
+  When unchecked, each quantile component is tested at the unadjusted
+  α = 0.0027 for increased detection sensitivity.
 
 ### 11.12 Chart Settings Dialog — `Coyote_SQC.UI.Chart_Settings_Dialog`
 

@@ -222,6 +222,7 @@ Derived from a Session_Record. Computed once at load time and cached.
 | `Setup_Session_Ids` | Set of UUID string | Sessions comprising the workspace setup interval; empty if not yet established |
 | `Comments` | Vector of Comment_Record | All comments for this workspace |
 | `Chart_Settings` | Map of Chart_Kind → Chart_Settings_Record | Per-chart configuration (Box-Cox transformation, estimation method, EWMA parameters); see §4.7a. Charts at default settings are omitted from the map. |
+| `Quantile_Bonferroni` | Boolean | Whether Bonferroni correction is applied to quantile control chart limits; see §5.18. Default: true. |
 
 ### 4.7 Chart Definition Record
 
@@ -1093,8 +1094,12 @@ given the sorted bootstrap distribution of `B = 10 000` values
 
 **Bonferroni correction.** Since five simultaneous comparisons are performed
 per session, the family-wise false-alarm rate is controlled at the standard
-3-sigma level `α = 0.0027` (one false alarm per ~370 sessions) by applying
-the Bonferroni correction: each individual statistic is tested at
+3-sigma level `α = 0.0027` (one false alarm per ~370 sessions).  The
+`Quantile_Bonferroni` workspace option (see §13.5) controls whether a
+Bonferroni multiplicity correction is applied:
+
+**Bonferroni enabled (default).** The Bonferroni correction divides `α`
+equally among the five statistics: each individual statistic is tested at
 `α_B = α / 5 = 0.00054`. For a two-sided test, the tail probability is
 `α_B / 2 = 0.00027`:
 
@@ -1103,11 +1108,23 @@ LCL_j = b_{(r)}       where r = max(1, ⌊α_B / 2 · B⌋)
 UCL_j = b_{(B − r + 1)}
 CL_j  = b_{(B / 2)}     (median of the bootstrap distribution)
 ```
+
+**Bonferroni disabled.** Each individual statistic is tested at the
+unadjusted `α = 0.0027` (tail probability `α / 2 = 0.00135`), increasing
+detection sensitivity at the cost of a higher family-wise false-alarm
+rate across the five correlated statistics:
+
+```
+LCL_j = b_{(r)}       where r = max(1, ⌊α / 2 · B⌋)
+UCL_j = b_{(B − r + 1)}
+CL_j  = b_{(B / 2)}     (median of the bootstrap distribution)
+```
+
 The Bonferroni correction is conservative because the five quantile
 statistics are correlated (they derive from the same within-session sample).
-The actual family-wise error rate will be below the nominal `α = 0.0027`;
-alternative corrections such as bootstrap-based adjusted p-values
-(Westfall–Young) may be explored in a future revision if detection
+When enabled, the actual family-wise error rate will be below the nominal
+`α = 0.0027`; alternative corrections such as bootstrap-based adjusted
+p-values (Westfall–Young) may be explored in a future revision if detection
 sensitivity proves insufficient.
 
 #### Caching
@@ -2806,6 +2823,10 @@ Accessible via Workspace → Workspace Settings…. Contains:
 - Model filter section: a list of model identifiers with Add (text entry) and Remove
   buttons, plus a "Include all models" checkbox that clears and disables the list.
 
+- Quantile Bonferroni checkbox: when checked (default), applies the Bonferroni
+  multiplicity correction to quantile control chart limits (§5.18). When
+  unchecked, each quantile component is tested at the unadjusted α = 0.0027.
+
 Changes take effect on clicking OK, at which point sessions are reloaded and the
 setup interval integrity check (Section 11.4) is performed.
 
@@ -3214,6 +3235,15 @@ All statistical formula implementations shall have AUnit unit tests covering:
   an OOC component with a comment renders as orange.
 - Quantile CC Bonferroni conservatism note: confirm the requirements document
   states that the Bonferroni correction is conservative due to quantile correlation.
+- Quantile CC Bonferroni disabled: verify that when `Quantile_Bonferroni` is
+  `false`, limits are computed using α = 0.0027 (r = max(1, ⌊0.00135 · B⌋))
+  rather than α_B = 0.00054; confirm limits widen, increasing out-of-control
+  detection sensitivity.
+- Quantile CC Bonferroni workspace round-trip: the `Quantile_Bonferroni`
+  field (boolean, default `true`) survives workspace save/load unchanged.
+- Quantile CC Bonferroni backward compatibility: workspace files that lack
+  the `Quantile_Bonferroni` field load with the default `true` (Bonferroni
+  enabled), preserving the behaviour of all previously saved workspaces.
 - Quantile CC hover tooltip: verify the tooltip lists all five component values with
   their UCL and LCL, and annotates only the out-of-control components with `←
   out-of-control`.
