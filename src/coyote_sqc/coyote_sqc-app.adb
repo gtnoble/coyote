@@ -1714,11 +1714,7 @@ package body Coyote_SQC.App is
             --  standard deviation remains in transformed units.
             if CD.Transform_Active /= Data_Model.None
               and then not Excl
-              and then Kind in
-                Turn_Tokens_Xbar   | Turn_Tokens_S
-                | Tool_Call_Tokens_Xbar | Tool_Call_Tokens_S
-                | Thinking_Tokens_Xbar  | Thinking_Tokens_S
-                | Tool_Call_JSD_Xbar    | Tool_Call_JSD_S | Tool_Call_MI_Xbar | Tool_Call_MI_S
+              and then Dsc.Properties.Is_Xbar_S_Chart
             then
                declare
                   Tokens : constant Long_Float_Vectors.Vector :=

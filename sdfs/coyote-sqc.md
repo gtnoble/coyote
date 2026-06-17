@@ -651,3 +651,75 @@ The MR-chart transform block already correctly branched on
   that estimation method controls Grand_Mean, I_Sigma, and Pooled_S in the
   transform override block.
 - `plan/problems.md`: PCR-024 logged.
+
+### 2026-06-17 — Fix: workspace file load fails on single-line JSON exceeding 65536 bytes
+
+**Problem:** Opening a workspace from the recent-workspaces menu failed with
+`GNATCOLL.JSON.INVALID_JSON_STREAM : control character not allowed in string`.
+The error occurred when the `.sqcw` workspace file exceeded the 65,536-byte
+`Get_Line` buffer (the file was a single-line JSON blob of ~105 KB).
+
+**Root cause:** Both `coyote_sqc-workspace.adb` (`Load`) and
+`coyote_sqc-config.adb` (`Load_Recent`) read JSON files with
+`Ada.Text_IO.Get_Line` into a fixed `String (1 .. 65536)` buffer, appending
+chunks with `ASCII.LF` appended.  When line length exceeded the buffer,
+`Get_Line` returned a full buffer without consuming the line terminator; the
+inserted `ASCII.LF` landed inside a JSON string value, producing an illegal
+control character.
+
+The same latent bug existed in `Load_Recent` (`coyote_sqc-config.adb`) but
+hadn't triggered because `recent_workspaces.json` was only 195 bytes.
+
+**Fix:** Both procedures now use `Coyote_Utils.Read_Whole_File`, which reads
+the entire file via `Stream_IO` without line-boundary interpretation:
+
+- **`coyote_sqc-workspace.adb` (Load):** Replaced the `Ada.Text_IO.Open` /
+  `Get_Line` / `Close` block with a single `Read_Whole_File` call.  Removed
+  the now-unused `File`, `Line`, and `Last` local variables.  Added
+  `with Coyote_Utils;` to the context clause.
+
+- **`coyote_sqc-config.adb` (Load_Recent):** Replaced the `Get_Line`-based
+  reading with `Read_Whole_File`.  Removed the `File`, `Buf`, `Line`, and
+  `Last` declarations.  Added `with Coyote_Utils;` to the context clause.
+
+**Tests:** Full test suite (713 tests) passes — 0 failures.
+
+**Documents updated:**
+- `plan/problems.md`: PCR-033 logged.
+
+### 2026-06-17 — Consolidation: merge duplicate Xbar/S accumulation code and simplify chart-kind membership
+
+**Rationale:** Investigation revealed three forms of duplication across the
+Xbar/S chart code paths:
+
+1. Two near-identical accumulate procedures — `Accumulate_Xbar_S` (operating
+  on `Natural_Vectors.Vector`) and `Accumulate_Xbar_S_LF` (operating on
+  `Long_Float_Vectors.Vector`) — duplicated the same classical mean/variance
+  accumulation and robust residual collection logic (~40 lines each).
+
+2. An 8-chart-kind explicit membership test (`Kind in Turn_Tokens_Xbar |
+  Turn_Tokens_S | Tool_Call_Tokens_Xbar | ... | Tool_Call_MI_S`) was used
+  in `coyote_sqc-app.adb` where the existing `Properties.Is_Xbar_S_Chart`
+  predicate already encoded the same set.
+
+3. Three helper functions (`Mean_Of`, `Sum_Of`, `Sample_Variance`) that only
+  existed to serve the old `Accumulate_Xbar_S` body became dead code after
+  consolidation and were removed.
+
+**Changes:**
+
+- **`coyote_sqc-statistics.adb`:**
+  - `Accumulate_Xbar_S_LF` is now the canonical accumulation procedure.
+  - `Accumulate_Xbar_S` is a 10-line wrapper that converts `Natural` values
+    to `Long_Float` and delegates to `Accumulate_Xbar_S_LF`.
+  - Removed dead `Mean_Of`, `Sum_Of`, and `Sample_Variance` (~48 lines).
+  - Reordered procedures so `Accumulate_Xbar_S_LF` appears before its caller.
+
+- **`coyote_sqc-app.adb`:**
+  - Replaced the explicit 8-chart-kind membership test with
+    `Dsc.Properties.Is_Xbar_S_Chart` (6 lines → 1 line).
+
+**Tests:** Full test suite (713 tests) passes — 0 failures.
+
+**Documents updated:**
+- `sdfs/coyote-sqc.md`: this entry.

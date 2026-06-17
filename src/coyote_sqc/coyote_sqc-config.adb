@@ -8,6 +8,7 @@ with Ada.Exceptions;
 with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with GNAT.OS_Lib;
+with Coyote_Utils;
 with GNATCOLL.JSON;
 
 package body Coyote_SQC.Config is
@@ -51,27 +52,16 @@ package body Coyote_SQC.Config is
    end Get_Int;
 
    --  ── Load ──────────────────────────────────────────────────────────────
-
    function Load_Recent return Recent_List is
-      Result : Recent_List;
-      Path   : constant String := Recent_File;
-      File   : Ada.Text_IO.File_Type;
-      Buf    : Unbounded_String;
-      Line   : String (1 .. 4096);
-      Last   : Natural;
-      Root   : GNATCOLL.JSON.JSON_Value;
+      Result  : Recent_List;
+      Path    : constant String := Recent_File;
+      Content : constant String := Coyote_Utils.Read_Whole_File (Path);
+      Root    : GNATCOLL.JSON.JSON_Value;
    begin
-      if not Ada.Directories.Exists (Path) then
+      if Content'Length = 0 then
          return Result;
       end if;
-      Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Path);
-      while not Ada.Text_IO.End_Of_File (File) loop
-         Ada.Text_IO.Get_Line (File, Line, Last);
-         Append (Buf, Line (1 .. Last));
-      end loop;
-      Ada.Text_IO.Close (File);
-
-      Root := GNATCOLL.JSON.Read (To_String (Buf));
+      Root := GNATCOLL.JSON.Read (Content);
       if Root.Kind /= GNATCOLL.JSON.JSON_Object_Type then
          return Result;
       end if;
@@ -106,7 +96,7 @@ package body Coyote_SQC.Config is
          return Result;
    end Load_Recent;
 
-   --  ── Record_Open ───────────────────────────────────────────────────────
+
 
    procedure Record_Open (Name : String; Path : String) is
       use Ada.Calendar;

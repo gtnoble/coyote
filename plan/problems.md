@@ -1183,3 +1183,43 @@ The MR-chart transform block already correctly branched on
 - `design/coyote-sqc-design.md` §7.13 "Interaction with Box-Cox" —
   rewritten to clarify that the estimation method controls `Grand_Mean`,
   `I_Sigma`, and `Pooled_S` in the transform override block.
+
+---
+
+## PCR-033
+
+- **Date reported:** 2026-06-17
+- **Category:** Code
+- **Priority:** 2-Serious
+- **Description:** Opening a workspace from the recent-workspaces menu failed
+  with `GNATCOLL.JSON.INVALID_JSON_STREAM : control character not allowed in
+  string`.  The `.sqcw` workspace file contained ~105 KB of compact JSON on a
+  single line; the `Load` procedure in `coyote_sqc-workspace.adb` read the
+  file with `Ada.Text_IO.Get_Line` into a `String (1 .. 65536)` buffer,
+  inserting `ASCII.LF` between chunks — which landed inside a JSON string
+  value.  The same latent bug was present in `coyote_sqc-config.adb`
+  (`Load_Recent`).
+- **Root cause:** In `coyote_sqc-workspace.adb` (line 475, `Line : String
+  (1 .. 65536)`): when the single-line JSON exceeded the buffer size,
+  `Get_Line` returned a full buffer without consuming the line terminator,
+  and the code appended `ASCII.LF` between chunks (line 485), producing an
+  illegal control character in the JSON.  `coyote_sqc-config.adb` had the
+  same pattern (line 60, `Line : String (1 .. 4096)`).
+- **Affected work products:**
+  `src/coyote_sqc/coyote_sqc-workspace.adb`,
+  `src/coyote_sqc/coyote_sqc-config.adb`
+- **Corrective action required:** Replace `Ada.Text_IO.Get_Line`-based
+  reading with `Coyote_Utils.Read_Whole_File` (which uses `Stream_IO`) in
+  both `Load` and `Load_Recent`.
+- **Actions taken (2026-06-17):**
+  1. `coyote_sqc-workspace.adb` `Load` procedure: replaced
+     `Ada.Text_IO.Open` / `Get_Line` loop / `Ada.Text_IO.Close` with
+     `Coyote_Utils.Read_Whole_File`.  Removed unused `File`, `Line`, `Last`
+     locals.  Added `with Coyote_Utils;`.
+  2. `coyote_sqc-config.adb` `Load_Recent` function: replaced `Get_Line`-based
+     reading with `Read_Whole_File`.  Removed unused `File`, `Buf`, `Line`,
+     `Last` locals.  Added `with Coyote_Utils;`.
+  3. Build: clean (style warnings only, all pre-existing).  All 713 AUnit
+     tests pass (0 failures, 0 regressions).
+- **Status:** Resolved
+- **Date resolved:** 2026-06-17

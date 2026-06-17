@@ -7,6 +7,7 @@ with Ada.Numerics.Discrete_Random;
 with Ada.Strings.Unbounded;             use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with Ada.Directories;
+with Coyote_Utils;
 with GNATCOLL.JSON;
 
 package body Coyote_SQC.Workspace is
@@ -470,21 +471,13 @@ package body Coyote_SQC.Workspace is
       Version_Found : out Natural;
       Migrated      : out Boolean)
    is
-      File    : Ada.Text_IO.File_Type;
       Content : Unbounded_String;
-      Line    : String (1 .. 65536);
-      Last    : Natural;
       Root    : GNATCOLL.JSON.JSON_Value;
       Version : Long_Integer;
    begin
       Migrated := False;
 
-      Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Path);
-      while not Ada.Text_IO.End_Of_File (File) loop
-         Ada.Text_IO.Get_Line (File, Line, Last);
-         Append (Content, Line (1 .. Last) & ASCII.LF);
-      end loop;
-      Ada.Text_IO.Close (File);
+      Content := To_Unbounded_String (Coyote_Utils.Read_Whole_File (Path));
 
       Root := GNATCOLL.JSON.Read (To_String (Content));
 

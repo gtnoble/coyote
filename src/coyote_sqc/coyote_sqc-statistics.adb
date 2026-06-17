@@ -22,55 +22,6 @@ package body Coyote_SQC.Statistics is
      (Index_Type   => Positive,
       Element_Type => Long_Float);
 
-   --  Return the unbiased sample variance of a Natural vector.
-   --  Returns 0.0 when the vector has fewer than 2 elements.
-   function Sample_Variance
-     (Values : Natural_Vectors.Vector) return Long_Float
-   is
-      N : constant Natural := Natural (Values.Length);
-   begin
-      if N < 2 then
-         return 0.0;
-      end if;
-      declare
-         Sum   : Long_Float := 0.0;
-         Mean  : Long_Float := 0.0;
-         Sumsq : Long_Float := 0.0;
-      begin
-         for V of Values loop
-            Sum := Sum + Long_Float (V);
-         end loop;
-         Mean := Sum / Long_Float (N);
-         for V of Values loop
-            declare
-               D : constant Long_Float := Long_Float (V) - Mean;
-            begin
-               Sumsq := Sumsq + D * D;
-            end;
-         end loop;
-         return Sumsq / Long_Float (N - 1);
-      end;
-   end Sample_Variance;
-
-   --  Return the sum of a Natural vector as a Long_Float.
-   function Sum_Of (Values : Natural_Vectors.Vector) return Long_Float is
-      S : Long_Float := 0.0;
-   begin
-      for V of Values loop
-         S := S + Long_Float (V);
-      end loop;
-      return S;
-   end Sum_Of;
-
-   --  Return the arithmetic mean of a Natural vector, or 0.0 if empty.
-   function Mean_Of (Values : Natural_Vectors.Vector) return Long_Float is
-      N : constant Natural := Natural (Values.Length);
-   begin
-      if N = 0 then
-         return 0.0;
-      end if;
-      return Sum_Of (Values) / Long_Float (N);
-   end Mean_Of;
 
    --  Sort a slice of a LF_Value_Array in-place (insertion sort).
    procedure Sort_Slice
@@ -168,42 +119,9 @@ package body Coyote_SQC.Statistics is
          return Setup_Ids.Contains (M.Session_Id);
       end In_Setup;
 
-      --  Accumulate per-turn values for Xbar/s charts (both classical and
-      --  robust; the correct output is selected at finalization).
-      procedure Accumulate_Xbar_S
-        (Values : Natural_Vectors.Vector)
-      is
-         N : constant Natural := Natural (Values.Length);
-      begin
-         if N = 0 then
-            return;
-         end if;
-         declare
-            Session_Mean : constant Long_Float := Mean_Of (Values);
-         begin
-            --  Classical accumulators.
-            Total_N             := Total_N + Long_Float (N);
-            Total_Weighted_Mean :=
-              Total_Weighted_Mean + Long_Float (N) * Session_Mean;
-            if N >= 2 then
-               Sum_Numerator   :=
-                 Sum_Numerator + Long_Float (N - 1) * Sample_Variance (Values);
-               Sum_Denominator :=
-                 Sum_Denominator + Long_Float (N - 1);
-            end if;
-
-            --  Robust accumulators (session mean for Grand_Mean median;
-            --  residuals for Qₙ Pooled_S).
-            Robust_XS_Means.Append (Session_Mean);
-            for V of Values loop
-               Robust_XS_Residuals.Append
-                 (Long_Float (V) - Session_Mean);
-            end loop;
-         end;
-      end Accumulate_Xbar_S;
-
-      --  Accumulate per-pair Long_Float Sᵢ values for JSD Xbar/s charts.
-      --  Mirrors Accumulate_Xbar_S but operates on Long_Float_Vectors.
+      --  Canonical accumulate for Xbar/s charts.  Operates on Long_Float
+      --  values (per-pair JSD similarity, per-pair MI, or converted
+      --  per-turn token counts).
       procedure Accumulate_Xbar_S_LF
         (Values : Long_Float_Vectors.Vector)
       is
@@ -242,6 +160,23 @@ package body Coyote_SQC.Statistics is
             end loop;
          end;
       end Accumulate_Xbar_S_LF;
+
+      --  Accumulate per-turn Natural values for Xbar/s charts.
+      --  Converts to Long_Float and delegates to Accumulate_Xbar_S_LF.
+      procedure Accumulate_Xbar_S
+        (Values : Natural_Vectors.Vector)
+      is
+         LF_Vals : Long_Float_Vectors.Vector;
+      begin
+         if Values.Is_Empty then
+            return;
+         end if;
+         for V of Values loop
+            LF_Vals.Append (Long_Float (V));
+         end loop;
+         Accumulate_Xbar_S_LF (LF_Vals);
+      end Accumulate_Xbar_S;
+
 
       --  Accumulate a single I-chart observation (session total or turn count).
       procedure Accumulate_I (Val : Long_Float) is
