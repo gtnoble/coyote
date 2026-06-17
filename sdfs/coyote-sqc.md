@@ -568,3 +568,18 @@ robust/classical, robust/robust) are all valid.
 
 **Backward compatibility:** No workspace version bump.  Workspace files
 lacking a `"plotMethod"` field in a `chartSettings` entry load with the default "classical".
+
+### 2026-06-17 — Plot Method dialog fix (PCR-031)
+
+**Defect:** The Chart Settings dialog never read or persisted the `Plot_Method`
+combo selection for Xbar/s charts.  The code blocks that wrote
+`New_Cfg.Plot_Method` and reset the combo were nested inside the EWMA-chart
+conditional (`if Props.Is_EWMA_Chart … then`).  Since no chart is both EWMA
+and Xbar/s, both blocks were dead code.
+
+**Fix:** Moved the Plot Method read/reset blocks out of the EWMA `if` to
+standalone sibling conditionals.  Two locations in
+`coyote_sqc-ui-chart_settings_dialog.adb`: the OK handler and `On_Reset`.
+
+**Impact:** Xbar/s chart `plotMethod` workspace entries now persist correctly;
+the dialog displays the current (non-default) value on re-open.

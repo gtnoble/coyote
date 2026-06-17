@@ -1633,6 +1633,10 @@ package body Coyote_SQC.App is
                   Z_Sum  : Long_Float := 0.0;
                   Z_Sq   : Long_Float := 0.0;
                   N_Z    : Natural    := 0;
+                  Use_Robust_Plot : constant Boolean :=
+                    Chart_Cfg.Plot_Method = Robust_Median;
+                  Z_Vals : Coyote_SQC.Statistics.I_Chart.Long_Float_Array
+                             (1 .. Natural (Tokens.Length));
                begin
                   for V of Tokens loop
                      if not Transform_Domain_OK (V, Chart_Cfg.Transform.Kind) then
@@ -1648,6 +1652,9 @@ package body Coyote_SQC.App is
                            Z_Sum := Z_Sum + Z;
                            Z_Sq  := Z_Sq  + Z * Z;
                            N_Z   := N_Z + 1;
+                           if Use_Robust_Plot then
+                              Z_Vals (N_Z) := Z;
+                           end if;
                         end;
                      end if;
                   end loop;
@@ -1656,35 +1663,75 @@ package body Coyote_SQC.App is
                      if N_Z = 0 then
                         Excl := True;
                      else
-                        declare
-                           Mean_Z : constant Long_Float :=
-                             Z_Sum / Long_Float (N_Z);
-                        begin
-                           if not Dsc.Properties.Is_S_Chart then
-                              --  Back-transform session mean to original
-                              --  token units for display.
-                              begin
-                                 Value :=
-                                   Coyote_SQC.Statistics.I_Chart.Invert_Transform
-                                     (Mean_Z, CD.Transform_Active, CD.Transform_Lambda);
-                              exception
-                                 when Constraint_Error => Excl := True;
-                              end;
-                           else
-                              --  Std dev stays in transformed units.
-                              if N_Z >= 2 then
-                                 Value :=
-                                   Sqrt
-                                     ((Z_Sq
-                                       - Z_Sum * Z_Sum
-                                         / Long_Float (N_Z))
-                                        / Long_Float (N_Z - 1));
-                                 Single := False;
+                        if Use_Robust_Plot then
+                           --  Robust estimators on transformed values.
+                           declare
+                              Z_Sub : constant
+                                Coyote_SQC.Statistics.I_Chart
+                                  .Long_Float_Array :=
+                                  Z_Vals (1 .. N_Z);
+                           begin
+                              if not Dsc.Properties.Is_S_Chart then
+                                 --  Xbar: median of z-values,
+                                 --  back-transform to original.
+                                 declare
+                                    Med_Z : constant Long_Float :=
+                                      Coyote_SQC.Statistics.I_Chart.Median_Of
+                                        (Z_Sub);
+                                 begin
+                                    Value :=
+                                      Coyote_SQC.Statistics.I_Chart.Invert_Transform
+                                        (Med_Z, CD.Transform_Active,
+                                         CD.Transform_Lambda);
+                                 exception
+                                    when Constraint_Error => Excl := True;
+                                 end;
                               else
-                                 Excl := True;
+                                 --  S chart: Qn scale of z-values
+                                 --  (stays in z-space).
+                                 if N_Z >= 2 then
+                                    Value :=
+                                      Coyote_SQC.Statistics.I_Chart.Qn_Scale_Any
+                                        (Z_Sub);
+                                    Single := False;
+                                 else
+                                    Excl := True;
+                                 end if;
                               end if;
-                           end if;
-                        end;
+                           end;
+                        else
+                           --  Classical estimators: mean / sample std dev.
+                           declare
+                              Mean_Z : constant Long_Float :=
+                                Z_Sum / Long_Float (N_Z);
+                           begin
+                              if not Dsc.Properties.Is_S_Chart then
+                                 --  Back-transform session mean to original
+                                 --  token units for display.
+                                 begin
+                                    Value :=
+                                      Coyote_SQC.Statistics.I_Chart.Invert_Transform
+                                        (Mean_Z, CD.Transform_Active,
+                                         CD.Transform_Lambda);
+                                 exception
+                                    when Constraint_Error => Excl := True;
+                                 end;
+                              else
+                                 --  Std dev stays in transformed units.
+                                 if N_Z >= 2 then
+                                    Value :=
+                                      Sqrt
+                                        ((Z_Sq
+                                          - Z_Sum * Z_Sum
+                                            / Long_Float (N_Z))
+                                           / Long_Float (N_Z - 1));
+                                    Single := False;
+                                 else
+                                    Excl := True;
+                                 end if;
+                              end if;
+                           end;
+                        end if;
                      end if;
                   end if;
                end;

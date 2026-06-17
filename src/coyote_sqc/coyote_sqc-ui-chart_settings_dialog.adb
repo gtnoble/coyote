@@ -251,12 +251,12 @@ package body Coyote_SQC.UI.Chart_Settings_Dialog is
          Gtk.Combo_Box.Set_Active
            (Gtk.Combo_Box.Gtk_Combo_Box (Est_C), Est_Classical);
          if Props.Is_EWMA_Chart and then Wt_Sp /= null then
+            Wt_Sp.Set_Value (0.2);
+            L_Sp.Set_Value (3.0);
+         end if;
          if Props.Is_Xbar_S_Chart and then PM_C /= null then
             Gtk.Combo_Box.Set_Active
               (Gtk.Combo_Box.Gtk_Combo_Box (PM_C), Plot_Classical);
-         end if;
-            Wt_Sp.Set_Value (0.2);
-            L_Sp.Set_Value (3.0);
          end if;
       end On_Reset;
 
@@ -605,6 +605,7 @@ package body Coyote_SQC.UI.Chart_Settings_Dialog is
             then
                New_Cfg.EWMA_Weight := Long_Float (Wt_Sp.Get_Value);
                New_Cfg.EWMA_L      := Long_Float (L_Sp.Get_Value);
+            end if;
 
             --  Plot method (Xbar/s charts only).
             if Props.Is_Xbar_S_Chart and then PM_C /= null then
@@ -613,7 +614,6 @@ package body Coyote_SQC.UI.Chart_Settings_Dialog is
                then
                   New_Cfg.Plot_Method := Robust_Median;
                end if;
-            end if;
             end if;
 
             --  Sparse map update: remove entry if at default.

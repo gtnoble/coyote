@@ -1065,3 +1065,37 @@ client-controlled work product gets an entry here.
   3. Build: clean.  All 701 AUnit tests pass (0 failures, 0 regressions).
 - **Status:** Resolved
 - **Date resolved:** 2026-06-16
+---
+
+## PCR-031
+
+- **Date reported:** 2026-06-17
+- **Category:** Code
+- **Priority:** 2-Serious
+- **Description:** Selecting a robust plot method (Robust_Median) in the Chart
+  Settings dialog for an Xbar or s chart had no effect.  After closing the dialog
+  and re-opening it, the Plot Method combo always showed "Classical" regardless
+  of the prior selection.  The plotted chart points likewise remained classical.
+- **Root cause:** Two nested-if errors in
+  `coyote_sqc-ui-chart_settings_dialog.adb`.  (1) In the OK handler, the block
+  that reads the Plot Method combo and writes `New_Cfg.Plot_Method` was
+  incorrectly nested inside the `if Props.Is_EWMA_Chart … then` block.  Since
+  no chart is simultaneously an EWMA chart and an Xbar/s chart, the code was
+  unreachable — `Plot_Method` was never set, always retaining its default
+  `Classical`.  (2) The same nesting error existed in the `On_Reset` handler:
+  the Plot Method combo reset was inside the EWMA if-block and therefore never
+  executed for Xbar/s charts (though this bug was masked by the read-never-
+  happens bug).
+- **Affected work products:** `src/coyote_sqc/coyote_sqc-ui-chart_settings_dialog.adb`
+- **Corrective action required:** Move the Plot Method read block out of the
+  EWMA conditional in the OK handler, making it an independent `if` at the same
+  nesting level.  Apply the same restructuring to `On_Reset`.
+- **Actions taken (2026-06-17):**
+  1. OK handler (~line 603): moved `if Props.Is_Xbar_S_Chart … PM_C …` block
+     from inside `if Props.Is_EWMA_Chart …` to after its `end if;`, as a
+     sibling conditional.
+  2. `On_Reset` handler (~line 253): same restructuring — EWMA reset and Xbar/s
+     plot-method reset are now independent `if` blocks.
+  3. Build: clean.  All 713 AUnit tests pass (0 failures, 0 regressions).
+- **Status:** Resolved
+- **Date resolved:** 2026-06-17
