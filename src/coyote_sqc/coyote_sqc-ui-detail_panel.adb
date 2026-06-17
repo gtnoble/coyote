@@ -1792,7 +1792,10 @@ package body Coyote_SQC.UI.Detail_Panel is
                        Coyote_SQC.Metrics.Compute (Sess);
                      Max_N   : constant Natural :=
                        Natural (Metrics.Per_Turn_Output_Tokens.Length)
+                       + Natural (Metrics.Per_Turn_Tool_Tokens.Length)
+                       + Natural (Metrics.Per_Turn_Thinking_Tokens.Length)
                        + Natural (Metrics.Per_Consecutive_Tool_S.Length)
+                       + Natural (Metrics.Per_Consecutive_Tool_MI.Length)
                        + 1;
                      Vals    : Coyote_SQC.UI.Histogram_Canvas.Long_Float_Array
                                  (1 .. Max_N);
