@@ -52,6 +52,7 @@ package body Coyote_SQC.UI.Workspace_Settings is
    WS_Dir_Scroll     : Gtk.Scrolled_Window.Gtk_Scrolled_Window := null;
    WS_Dir_HBox       : Gtk.Box.Gtk_Box                         := null;
    WS_Interp_CB : Gtk.Check_Button.Gtk_Check_Button := null;
+   WS_Bf_CB : Gtk.Check_Button.Gtk_Check_Button := null;
 
    --  ── Directory management callbacks ─────────────────────────────────────
 
@@ -235,6 +236,28 @@ package body Coyote_SQC.UI.Workspace_Settings is
                  .Interpolate_Quantile_Limits);
             VBox.Pack_Start (Interp_CB, False, False, 0);
             WS_Interp_CB := Interp_CB;
+
+            --  Quantile CC Bonferroni correction toggle.
+            declare
+               Bf_CB : Gtk.Check_Button.Gtk_Check_Button;
+            begin
+               Gtk.Check_Button.Gtk_New
+                 (Bf_CB,
+                  "Apply Bonferroni correction to quantile charts");
+               Bf_CB.Set_Tooltip_Text
+                 ("When enabled (default), Bonferroni"
+                  & " multiplicity correction controls the"
+                  & " family-wise false-alarm rate for quantile"
+                  & " control charts.  When unchecked, each"
+                  & " quantile component is tested at the"
+                  & " unadjusted 3-sigma level for increased"
+                  & " detection sensitivity.");
+               Bf_CB.Set_Active
+                 (Coyote_SQC.App.State.Workspace
+                    .Quantile_Bonferroni);
+               VBox.Pack_Start (Bf_CB, False, False, 0);
+               WS_Bf_CB := Bf_CB;
+            end;
          end;
          Gtk.List_Box.Gtk_New (Dir_LB);
          for Dir of New_Dirs loop
@@ -370,6 +393,23 @@ package body Coyote_SQC.UI.Workspace_Settings is
                   Coyote_SQC.App.State.Modified := True;
                end if;
             end;
+
+         --  Apply Quantile_Bonferroni.
+         if WS_Bf_CB /= null then
+            declare
+               New_Val : constant Boolean :=
+                 WS_Bf_CB.Get_Active;
+            begin
+               if New_Val /=
+                  Coyote_SQC.App.State.Workspace
+                    .Quantile_Bonferroni
+               then
+                  Coyote_SQC.App.State.Workspace
+                    .Quantile_Bonferroni := New_Val;
+                  Coyote_SQC.App.State.Modified := True;
+               end if;
+            end;
+         end if;
          end if;
 
          end if;
@@ -431,6 +471,7 @@ package body Coyote_SQC.UI.Workspace_Settings is
       WS_Analyze_All_CB := null;
       WS_Dir_Scroll     := null;
       WS_Interp_CB := null;
+      WS_Bf_CB := null;
       WS_Dir_HBox       := null;
       D.Destroy;
    end Show_Dialog;

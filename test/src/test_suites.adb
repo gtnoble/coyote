@@ -1901,6 +1901,15 @@ package body Test_Suites is
         ("SQC workspace: Analyze_All_Directories round-trips through save/load",
          Coyote_SQC_Workspace_Tests
            .Test_Analyze_All_Directories_Round_Trip'Access));
+
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("Quantile_Bonferroni round-trip",
+         Coyote_SQC_Workspace_Tests
+           .Test_Quantile_Bonferroni_Round_Trip'Access));
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("Quantile_Bonferroni defaults to True when absent",
+         Coyote_SQC_Workspace_Tests
+           .Test_Quantile_Bonferroni_Default'Access));
       --  Coyote_SQC histogram bin computation tests
       Result.Add_Test (SQC_Histogram_Caller.Create
         ("SQC histogram: n=2 uniform: FD gives 2 bins",
@@ -2209,6 +2218,11 @@ package body Test_Suites is
         ("Interpolate_Limits n=1 falls back to exact",
          Coyote_SQC_Quantile_CC_Tests
            .Test_Interpolate_Limits_N1'Access));
+
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Extract_Limits with Bonferroni disabled uses unadjusted ranks",
+         Coyote_SQC_Quantile_CC_Tests
+           .Test_Extract_Limits_Bonferroni_Disabled'Access));
       --  LLM.Providers.GitHub_Copilot.Catalogue tests
       Result.Add_Test (LLM_Catalogue_Caller.Create
         ("LLM.Catalogue loads and parses a fresh cached Copilot model list",

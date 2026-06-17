@@ -491,6 +491,8 @@ package body Coyote_SQC.Workspace is
         Get_Bool_Field (Root, "analyzeAllDirectories", False);
       Workspace.Interpolate_Quantile_Limits :=
         Get_Bool_Field (Root, "interpolateQuantileLimits", False);
+      Workspace.Quantile_Bonferroni :=
+        Get_Bool_Field (Root, "quantileBonferroni", True);
       if Root.Kind = GNATCOLL.JSON.JSON_Object_Type
         and then Root.Has_Field ("sourceDirectories")
       then
@@ -733,7 +735,8 @@ package body Coyote_SQC.Workspace is
                       Workspace.Analyze_All_Directories);
       Root.Set_Field ("interpolateQuantileLimits",
                       Workspace.Interpolate_Quantile_Limits);
-
+      Root.Set_Field ("quantileBonferroni",
+                      Workspace.Quantile_Bonferroni);
       declare
          Sorted_Cmts : Comment_Vectors.Vector := Workspace.Comments;
          function Cmt_Lt (A, B : Comment_Record) return Boolean is

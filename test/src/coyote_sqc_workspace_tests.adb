@@ -743,4 +743,68 @@ package body Coyote_SQC_Workspace_Tests is
       end;
    end Test_Analyze_All_Directories_Round_Trip;
 
+
+   procedure Test_Quantile_Bonferroni_Round_Trip (T : in out Test) is
+      pragma Unreferenced (T);
+      Path   : constant String :=
+        Ada.Directories.Current_Directory & "/fixtures/sqc/tmp_bonf.sqcw";
+      W_Out  : Workspace_Record;
+      W_In   : Workspace_Record;
+      VF     : Natural;
+      Mig    : Boolean;
+   begin
+      W_Out.Workspace_Id := To_Unbounded_String ("bonf-ws-001");
+      W_Out.Name         := To_Unbounded_String ("Bonferroni Round-Trip");
+      W_Out.Quantile_Bonferroni := False;
+      Coyote_SQC.Workspace.Save (Path, W_Out);
+      Coyote_SQC.Workspace.Load (Path, W_In, VF, Mig);
+      Ada.Directories.Delete_File (Path);
+      Assert (not W_In.Quantile_Bonferroni,
+              "Quantile_Bonferroni should be False after round-trip");
+      --  Default (True) round-trip.
+      declare
+         W_Out2 : Workspace_Record;
+         W_In2  : Workspace_Record;
+         VF2    : Natural;
+         Mig2   : Boolean;
+      begin
+         W_Out2.Workspace_Id := To_Unbounded_String ("bonf-ws-002");
+         W_Out2.Name         := To_Unbounded_String ("Bonferroni Default Test");
+         --  Leave Quantile_Bonferroni at default (True).
+         Coyote_SQC.Workspace.Save (Path, W_Out2);
+         Coyote_SQC.Workspace.Load (Path, W_In2, VF2, Mig2);
+         Ada.Directories.Delete_File (Path);
+         Assert (W_In2.Quantile_Bonferroni,
+                 "Quantile_Bonferroni should default to True");
+      end;
+   end Test_Quantile_Bonferroni_Round_Trip;
+
+   procedure Test_Quantile_Bonferroni_Default (T : in out Test) is
+      pragma Unreferenced (T);
+      Path : constant String :=
+        Ada.Directories.Current_Directory & "/fixtures/sqc/tmp_bonf_default.sqcw";
+   begin
+      --  Write a minimal workspace file without the quantileBonferroni field.
+      declare
+         File : Ada.Text_IO.File_Type;
+      begin
+         Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, Path);
+         Ada.Text_IO.Put_Line (File, "{"
+           & """version"": 10,"
+           & """workspaceId"": ""bonf-def-001"","
+           & """name"": ""No Bonferroni Field""}");
+         Ada.Text_IO.Close (File);
+      end;
+      declare
+         W_In   : Workspace_Record;
+         VF     : Natural;
+         Mig    : Boolean;
+      begin
+         Coyote_SQC.Workspace.Load (Path, W_In, VF, Mig);
+         Ada.Directories.Delete_File (Path);
+         Assert (W_In.Quantile_Bonferroni,
+                 "Quantile_Bonferroni should default to True"
+                 & " when field absent from workspace file");
+      end;
+   end Test_Quantile_Bonferroni_Default;
 end Coyote_SQC_Workspace_Tests;

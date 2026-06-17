@@ -330,8 +330,8 @@ infrastructure sufficient to cover the buffering and collapsing logic.
 0 unexpected errors.  Test count unchanged; `Test_GitHub_Copilot_Not_Found` renamed to
 `Test_GitHub_Copilot_Default_Fallback` and updated to assert default-fallback behaviour
 
-**Baseline as of 2026-06-16 (MI Diversity Charts):** 701 tests, 0 failures,
-0 unexpected errors.  Added 13 Mutual Information (MI) diversity chart tests
+**Baseline as of 2026-06-16 (Quantile Bonferroni Checkbox):** 704 tests, 0 failures,
+0 unexpected errors.  "Quantile CC Bonferroni Checkbox" feature: added `Quantile_Bonferroni` workspace option (boolean, default true) controlling Bonferroni multiplicity correction on quantile control charts.  3 new tests: `Test_Extract_Limits_Bonferroni_Disabled`, `Test_Quantile_Bonferroni_Round_Trip`, `Test_Quantile_Bonferroni_Default`.
 (`Coyote_SQC_MI_Tests`) covering: `Test_MI_Identical_Calls`,
 `Test_MI_Different_Tool_Names`, `Test_MI_One_Side_Absent`,
 `Test_MI_Integer_Key_Skipped`, `Test_MI_Both_Sides_Empty`,

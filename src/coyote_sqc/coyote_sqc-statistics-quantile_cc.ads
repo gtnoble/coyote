@@ -45,6 +45,13 @@ package Coyote_SQC.Statistics.Quantile_CC is
 
    --  UCL rank index: B_Replicates - Bonferroni_Rank + 1.
    UCL_Rank : constant Natural := B_Replicates - Bonferroni_Rank + 1;
+   --  Unadjusted alpha tail rank (Bonferroni disabled).
+   --  α = 0.0027, two-sided tail α/2 = 0.00135.
+   --  r = max (1, floor (0.00135 * B_Replicates)).
+   Unadjusted_Rank : constant Natural :=
+     Natural'Max (1, Natural (Long_Float'Floor
+       (0.00135 * Long_Float (B_Replicates))));
+   --  When Bonferroni is disabled, LCL_j = b_{(r)}, UCL_j = b_{(B - r + 1)}.
 
    --  The five quantile statistics computed from a subgroup sample.
    type Quantile_Index is (Min_Q, Q1, Median_Q, Q3, Max_Q);
@@ -102,7 +109,7 @@ package Coyote_SQC.Statistics.Quantile_CC is
    --  quantile statistics from a precomputed bootstrap distribution.
    --  Uses the Bonferroni-adjusted tail ranks.
    function Extract_Limits
-     (Dist : Bootstrap_Distribution) return Quantile_Limits_Array;
+     (Dist : Bootstrap_Distribution; Bonferroni_Enabled : Boolean := True) return Quantile_Limits_Array;
 
    --  Determine whether a single component is out-of-control.
    --  Returns True when Value strictly exceeds UCL or is strictly below LCL.
@@ -143,6 +150,9 @@ package Coyote_SQC.Statistics.Quantile_CC is
       Anchors       : Coyote_SQC.Data_Model.Natural_Vectors.Vector;
       Tolerance_Rel : Long_Float := 0.05;
       Tolerance_Abs : Long_Float := 1.0;
+      --  When True, Extract_Limits uses Bonferroni-corrected ranks.
+      --  When False, each component is tested at the unadjusted α = 0.0027.
+      Bonferroni_Enabled : Boolean := True;
    end record;
 
    --  Look up or compute the bootstrap distribution for subgroup size N_I.
@@ -201,7 +211,8 @@ package Coyote_SQC.Statistics.Quantile_CC is
       Pool_Offsets : Coyote_SQC.Data_Model.Natural_Vectors.Vector;
       Pool_Lengths : Coyote_SQC.Data_Model.Natural_Vectors.Vector;
       N_I          : Positive;
-      Seed         : Integer := Bootstrap_Seed)
+      Seed         : Integer := Bootstrap_Seed;
+      Bonferroni_Enabled : Boolean := True)
      return Quantile_Limits_Array;
 
 

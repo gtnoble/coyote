@@ -588,4 +588,76 @@ package body Coyote_SQC_Quantile_CC_Tests is
                  "n=1: CL should be positive for " & Comp'Image);
       end loop;
    end Test_Interpolate_Limits_N1;
+
+   procedure Test_Extract_Limits_Bonferroni_Disabled (T : in out Test)
+   is
+      pragma Unreferenced (T);
+      Dist : Bootstrap_Distribution;
+      Bonf_Lims : Quantile_Limits_Array;
+      Unadj_Lims : Quantile_Limits_Array;
+   begin
+      --  Build a small sorted distribution for testing.
+      for Comp in Quantile_Index loop
+         Dist (Comp).Reserve_Capacity
+           (Ada.Containers.Count_Type (Small_B));
+         for I in 1 .. Small_B loop
+            Dist (Comp).Append (Long_Float (I));
+         end loop;
+      end loop;
+
+      --  Extract limits with Bonferroni enabled (default).
+      Bonf_Lims := Small_Extract_Limits (Dist);
+      --  Extract limits with Bonferroni disabled.
+      Unadj_Lims := Small_Extract_Limits (Dist);
+      --  Both use the same Small_Extract_Limits (Bonferroni) path for
+      --  Small_B; the full B_Replicates test below exercises the
+      --  Bonferroni_Enabled parameter.
+      for Comp in Quantile_Index loop
+         Assert (abs (Bonf_Lims (Comp).UCL - Unadj_Lims (Comp).UCL)
+                 <= 1.0e-10,
+                 "Bonferroni limits match unadjusted at Small_B for "
+                 & Comp'Image);
+      end loop;
+
+      --  Test with full B_Replicates to verify the Unadjusted_Rank
+      --  constant is correct and limits tighten without Bonferroni.
+      declare
+         use Coyote_SQC.Data_Model;
+         Pool : constant Long_Float_Array :=
+           (1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0);
+         Offs : Natural_Vectors.Vector;
+         Lens : Natural_Vectors.Vector;
+         Cache : Quantile_CC_Cache;
+         Full_Dist : Bootstrap_Distribution;
+         Bonf_Full : Quantile_Limits_Array;
+         Unadj_Full : Quantile_Limits_Array;
+      begin
+         Offs.Append (0);  Lens.Append (4);
+         Offs.Append (4);  Lens.Append (4);
+         Full_Dist := Get_Distribution (Cache, Pool, Offs, Lens, 3, 54_321);
+         Bonf_Full := Extract_Limits (Full_Dist, Bonferroni_Enabled => True);
+         Unadj_Full := Extract_Limits (Full_Dist, Bonferroni_Enabled => False);
+         for Comp in Quantile_Index loop
+            Assert (Unadj_Full (Comp).Has_UCL,
+                    "unadjusted Has_UCL for " & Comp'Image);
+            Assert (Unadj_Full (Comp).Has_LCL,
+                    "unadjusted Has_LCL for " & Comp'Image);
+            if Bonf_Full (Comp).Has_UCL and Unadj_Full (Comp).Has_UCL then
+               Assert (Unadj_Full (Comp).UCL <= Bonf_Full (Comp).UCL
+                       + 1.0e-10,
+                       "unadjusted UCL <= Bonferroni UCL for "
+                       & Comp'Image);
+            end if;
+            if Bonf_Full (Comp).Has_LCL and Unadj_Full (Comp).Has_LCL then
+               Assert (Unadj_Full (Comp).LCL >= Bonf_Full (Comp).LCL
+                       - 1.0e-10,
+                       "unadjusted LCL >= Bonferroni LCL for "
+                       & Comp'Image);
+            end if;
+         end loop;
+         Assert (Unadjusted_Rank > Bonferroni_Rank,
+                 "Unadjusted_Rank > Bonferroni_Rank");
+      end;
+   end Test_Extract_Limits_Bonferroni_Disabled;
+
 end Coyote_SQC_Quantile_CC_Tests;

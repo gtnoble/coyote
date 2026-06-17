@@ -335,7 +335,7 @@ package body Coyote_SQC.Statistics.Quantile_CC is
    --  ── Extract_Limits ────────────────────────────────────────────────────
 
    function Extract_Limits
-     (Dist : Bootstrap_Distribution) return Quantile_Limits_Array
+     (Dist : Bootstrap_Distribution; Bonferroni_Enabled : Boolean := True) return Quantile_Limits_Array
    is
       Result : Quantile_Limits_Array;
    begin
@@ -352,9 +352,15 @@ package body Coyote_SQC.Statistics.Quantile_CC is
                                  Has_LCL => False);
             else
                Result (Comp) :=
-                 (UCL      => V.Element (UCL_Rank - 1),
+                 (UCL      => V.Element (
+                    (if Bonferroni_Enabled
+                     then UCL_Rank - 1
+                     else B_Replicates - Unadjusted_Rank)),
                   CL       => V.Element (B_Replicates / 2 - 1),
-                  LCL      => V.Element (Bonferroni_Rank - 1),
+                  LCL      => V.Element (
+                    (if Bonferroni_Enabled
+                     then Bonferroni_Rank - 1
+                     else Unadjusted_Rank - 1)),
                   Has_UCL  => True,
                   Has_LCL  => True);
             end if;
@@ -523,7 +529,7 @@ package body Coyote_SQC.Statistics.Quantile_CC is
         Get_Distribution (Cache, Pool_Values, Pool_Offsets, Pool_Lengths,
                           N, Seed);
    begin
-      return Extract_Limits (Dist);
+      return Extract_Limits (Dist, Cache.Bonferroni_Enabled);
    end Exact_Limits_At;
 
    --  Maximum absolute error between two limit arrays, across all
@@ -686,12 +692,14 @@ package body Coyote_SQC.Statistics.Quantile_CC is
       Pool_Offsets : Natural_Vectors.Vector;
       Pool_Lengths : Natural_Vectors.Vector;
       N_I          : Positive;
-      Seed         : Integer := Bootstrap_Seed)
+      Seed         : Integer := Bootstrap_Seed;
+      Bonferroni_Enabled : Boolean := True)
      return Quantile_Limits_Array
    is
       Anchors : Natural_Vectors.Vector renames Cache.Anchors;
    begin
       --  n = 1 is degenerate — use exact bootstrap.
+      Cache.Bonferroni_Enabled := Bonferroni_Enabled;
       if N_I = 1 then
          return Exact_Limits_At
            (Cache, Pool_Values, Pool_Offsets, Pool_Lengths, 1, Seed);

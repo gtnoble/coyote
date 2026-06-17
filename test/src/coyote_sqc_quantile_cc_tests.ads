@@ -31,4 +31,6 @@ package Coyote_SQC_Quantile_CC_Tests is
    procedure Test_Interpolate_Limits_N1            (T : in out Test);
    procedure Test_Sort_Through_Quantiles_Larger    (T : in out Test);
 
+   procedure Test_Extract_Limits_Bonferroni_Disabled (T : in out Test);
+
 end Coyote_SQC_Quantile_CC_Tests;

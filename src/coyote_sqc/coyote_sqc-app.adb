@@ -1278,7 +1278,8 @@ package body Coyote_SQC.App is
                                       Pool_Vals (1 .. Pool_Idx),
                                     Pool_Offsets => Pool_Offs,
                                     Pool_Lengths => Pool_Lens,
-                                    N_I          => N_I);
+                                    N_I          => N_I,
+                                    Bonferroni_Enabled => State.Workspace.Quantile_Bonferroni);
                               else
                                  declare
                                     Dist : constant Bootstrap_Distribution :=
@@ -1288,7 +1289,9 @@ package body Coyote_SQC.App is
                                          Pool_Offs, Pool_Lens,
                                          N_I);
                                  begin
-                                    QP.Limits := Extract_Limits (Dist);
+                                    QP.Limits := Extract_Limits
+                                      (Dist,
+                                       State.Workspace.Quantile_Bonferroni);
                                  end;
                               end if;
                            else
