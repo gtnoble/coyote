@@ -504,6 +504,23 @@ a blank line before `return M` for readability.  See PCR-030 in
 **Files changed:** `src/coyote_sqc/coyote_sqc-metrics.adb`
 **Build:** Clean.  **Tests:** 701 tests, 0 failures, 0 regressions.
 
+
+### 2026-06-17 — PCR-032: MI Xbar/S Centerline Used Wrong Data Source
+
+**Problem:** The centerlines (Grand_Mean) and Pooled_S for `Tool_Call_MI_Xbar`
+and `Tool_Call_MI_S` charts were computed from JSD similarity values
+(`Per_Consecutive_Tool_S`) rather than MI values (`Per_Consecutive_Tool_MI`).
+The `when` branch in `Estimate_Parameters` (accumulation phase) merged MI chart
+kinds with JSD chart kinds, applying the wrong dataset to MI charts.  JSD charts
+were unaffected.
+
+**Fix:** Split `Tool_Call_MI_Xbar | Tool_Call_MI_S` into a separate `when`
+branch in the accumulation phase, using `M.N_Consecutive_Tool_MI_Pairs` and
+`M.Per_Consecutive_Tool_MI`.
+
+**Files changed:** `src/coyote_sqc/coyote_sqc-statistics.adb`
+**Build:** Clean.  **Tests:** 713 tests, 0 failures, 0 regressions.
+
 ### 2026-06-17 — Quantile CC Bonferroni Checkbox (SRS/SDD)
 
 **Feature:** Added a workspace-level `Quantile_Bonferroni` checkbox

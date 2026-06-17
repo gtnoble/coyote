@@ -1102,6 +1102,35 @@ client-controlled work product gets an entry here.
 
 ---
 
+
+## PCR-032
+
+- **Date reported:** 2026-06-17
+- **Category:** Code
+- **Priority:** 2-Serious
+- **Description:** The centerlines (Grand_Mean) and Pooled_S for `Tool_Call_MI_Xbar`
+  and `Tool_Call_MI_S` charts were computed from JSD similarity values
+  (`Per_Consecutive_Tool_S`) rather than MI values (`Per_Consecutive_Tool_MI`).
+  This caused the centerline and control limits to reflect the wrong dataset,
+  visibly misaligned with the plotted MI points.  JSD Xbar/s charts were
+  unaffected.
+- **Root cause:** In `coyote_sqc-statistics.adb`, `Estimate_Parameters`, the
+  `when` branch for MI chart kinds was merged with JSD chart kinds:
+  `when Tool_Call_JSD_Xbar | Tool_Call_JSD_S | Tool_Call_MI_Xbar | Tool_Call_MI_S =>`.
+  The block inside used `M.N_Consecutive_Tool_Pairs` (JSD pair count) and
+  `M.Per_Consecutive_Tool_S` (JSD data) unconditionally, applying the wrong
+  metric to MI charts.
+- **Affected work products:** `src/coyote_sqc/coyote_sqc-statistics.adb`
+- **Corrective action required:** Split the MI Xbar/S chart kinds into their
+  own `when` branch in the accumulation phase of `Estimate_Parameters`, using
+  `M.N_Consecutive_Tool_MI_Pairs` and `M.Per_Consecutive_Tool_MI`.
+- **Actions taken (2026-06-17):**
+  1. Split `Tool_Call_MI_Xbar | Tool_Call_MI_S` into a separate `when` branch
+     after the JSD branch, referencing the correct data fields.
+  2. Build: clean.  All 713 AUnit tests pass (0 failures, 0 regressions).
+- **Status:** Resolved
+- **Date resolved:** 2026-06-17
+
 ### PCR-024 — Control-limit estimation method ignored during variance-stabilizing transform
 
 **Date:** 2026-06-17

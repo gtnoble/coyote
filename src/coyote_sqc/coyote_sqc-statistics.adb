@@ -288,9 +288,14 @@ package body Coyote_SQC.Statistics is
                   Accumulate_Xbar_S (M.Per_Turn_Thinking_Tokens);
                end if;
 
-            when Tool_Call_JSD_Xbar | Tool_Call_JSD_S | Tool_Call_MI_Xbar | Tool_Call_MI_S =>
+            when Tool_Call_JSD_Xbar | Tool_Call_JSD_S =>
                if M.N_Consecutive_Tool_Pairs >= 1 then
                   Accumulate_Xbar_S_LF (M.Per_Consecutive_Tool_S);
+               end if;
+
+            when Tool_Call_MI_Xbar | Tool_Call_MI_S =>
+               if M.N_Consecutive_Tool_MI_Pairs >= 1 then
+                  Accumulate_Xbar_S_LF (M.Per_Consecutive_Tool_MI);
                end if;
 
             when Tool_Call_Failure_Rate =>
