@@ -1174,8 +1174,10 @@ function Estimate_Lambda
 When Box-Cox is active, `Recompute_Chart` in `Coyote_SQC.App`:
 
 1. Transforms all setup-interval values: `Z_i = Box_Cox (X_i, Lambda)`.
-2. Computes `Grand_Mean_Z` and `Mean_MR_Z` in the transformed space using
-   the standard formulae from §7.5.
+2. Computes `Grand_Mean_Z` and `I_Sigma_Z` in the transformed space using
+   the estimation method selected in Chart_Cfg.Estimation_Method:
+   *Classical* uses the arithmetic mean / mean MR from §7.5;
+   *Robust_Median* uses the median / Q_n from §7.13.
 3. Calls `Compute_I_Limits` with `Grand_Mean_Z` and `Mean_MR_Z` to obtain
    limits in the **transformed** space.
 4. For the **I chart**: back-transforms each limit value independently via
@@ -1220,12 +1222,19 @@ pairs. Fewer than three eligible values falls back to λ = 0.
 to all five chart pairs.
 
 **Transformed-space parameters:** the resulting λ is stored in
-`Chart_Data.Box_Cox_Lambda`. `CD.Params.Grand_Mean` and `CD.Params.Pooled_S`
-are then replaced with `Grand_Mean_Z` and `Pooled_S_Z` (weighted grand mean and
-pooled standard deviation of the z-transformed per-turn values across setup
-sessions), so the standard `Xbar.Compute_Limits` and `S_Chart.Compute_Limits`
-formulas (§7.2, §7.3) operate entirely in z-space.
+`Chart_Data.Box_Cox_Lambda`.  `CD.Params.Grand_Mean` and `CD.Params.Pooled_S`
+are then recomputed in the transformed space, respecting the selected
+`Estimation_Method`:
 
+- **Classical** (default): size-weighted grand mean (`Total_WM / Total_N`)
+  and pooled standard deviation of the z-transformed per-turn values across
+  setup sessions.
+- **Robust_Median**: unweighted median of the per-session `z̄_i` values for
+  `Grand_Mean`, and `Q_n` scale of the pooled within-session z-residuals for
+  `Pooled_S` (defined in §7.13).
+
+In either case the standard `Xbar.Compute_Limits` and `S_Chart.Compute_Limits`
+formulas (§7.2, §7.3) operate on the resulting parameters entirely in z-space.
 **Xbar chart:** for each session, the per-turn values are transformed and their
 mean `z̄_i` is computed. `Box_Cox_Inverse(z̄_i, λ)` is stored as the chart point
 value in original token units. The z-space limits from `Xbar.Compute_Limits` are
@@ -2114,10 +2123,14 @@ reused here without modification.
 
 #### Interaction with Box-Cox
 
-The estimation method is orthogonal to Box-Cox transformation.  When both
-are active, the robust estimators operate on the *transformed* values
-produced by the Box-Cox step (as for the classical estimators), so the
-choice of estimation method does not affect the Box-Cox path.
+The estimation method is orthogonal to Box-Cox transformation: the
+Box-Cox forward transform and inverse are applied identically regardless
+of which estimator is selected.  When both are active, the chosen
+estimator (classical or robust) operates on the *transformed* values.
+In `Recompute_Chart`, the transform override block branches on
+`Chart_Cfg.Estimation_Method` so that `Grand_Mean`, `I_Sigma`, and
+(for Xbar/S charts) `Pooled_S` are recomputed using the selected
+method's formulae (§7.5 for Classical, §7.13 for Robust_Median) in z-space.
 
 ### 7.13a Robust Per-Session Statistics for Plotted Points
 

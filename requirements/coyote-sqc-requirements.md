@@ -573,9 +573,12 @@ so the y-axis remains in original (token) units.
 token units; the y-axis is in transformed units when Box-Cox is active.
 
 **Grand mean and pooled s in transformed space:** `Grand_Mean_Z` is the
-size-weighted grand mean of the per-session `z̄_i` values estimated from the
-setup interval; `Pooled_S_Z` is the pooled standard deviation of the `z_{i,j}`
-values. These override the standard grand mean and pooled s used by the Xbar and
+size-weighted grand mean of the per-session `z̄_i` values under Classical
+estimation, or the unweighted median of the per-session `z̄_i` values under
+Robust_Median estimation.  `Pooled_S_Z` is the pooled standard deviation of
+the `z_{i,j}` values under Classical estimation, or the `Q_n` scale of the
+pooled within-session residuals in z-space under Robust_Median estimation.
+These override the standard grand mean and pooled s used by the Xbar and
 s chart limit formulas (§5.2), which then operate entirely in z-space.
 
 **Xbar limit back-transformation:** UCL_Z, CL_Z, and LCL_Z from the z-space

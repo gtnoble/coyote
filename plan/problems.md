@@ -1099,3 +1099,58 @@ client-controlled work product gets an entry here.
   3. Build: clean.  All 713 AUnit tests pass (0 failures, 0 regressions).
 - **Status:** Resolved
 - **Date resolved:** 2026-06-17
+
+---
+
+### PCR-024 — Control-limit estimation method ignored during variance-stabilizing transform
+
+**Date:** 2026-06-17
+**Status:** Resolved
+**Category:** Implementation defect (logic error)
+**Priority:** Moderate
+**Severity:** High — control limits silently wrong when Robust_Median
+  estimation is combined with a variance-stabilizing transform.
+
+**Description:** When a variance-stabilizing transform (Box-Cox, sqrt,
+Anscombe, arcsinh, Freeman-Tukey) was active on an I/EWMA/turn-count chart
+or an Xbar/S chart, switching the estimation method between Classical and
+Robust_Median in the chart settings dialog had no effect on the computed
+`Grand_Mean` (and `Pooled_S` for Xbar/S charts).  Only `I_Sigma` was
+recomputed per the estimation method.
+
+**Root cause:** `coyote_sqc-app.adb`, `Recompute_Chart`:
+
+- **I-chart path** (~line 926): The `Grand_Mean := Sum_Z / N_Raw`
+  assignment was outside the `if Estimation_Method = Robust_Median` branch;
+  only `I_Sigma` was conditionally computed.
+
+- **Xbar/S path** (~line 1230): The "Pass 3" computation used only
+  classical formulae (weighted mean, pooled variance) with no branch on
+  `Estimation_Method`.
+
+The MR-chart transform block already correctly branched on
+`Estimation_Method`.
+
+**Resolution:** Two edits in `coyote_sqc-app.adb`:
+
+1. I-chart transform block — moved `Grand_Mean` inside the
+   estimation-method branch (`Robust_Median → Median_Of`, `Classical →
+   Sum_Z / N_Raw`).
+
+2. Xbar/S transform block — restructured `if Max_Vals > 0 then` to branch
+   on `Estimation_Method`: the robust path collects per-session means and
+   residuals in z-space and computes `Grand_Mean` as the median of session
+   means and `Pooled_S` as `Qn_Scale_Any` of residuals.
+
+**Tests:** Full test suite (713 tests) passes — 0 failures.
+
+**Documents updated:**
+- `requirements/coyote-sqc-requirements.md` §5.7 — "Grand mean and pooled s
+  in transformed space" now describes both Classical and Robust_Median paths.
+- `design/coyote-sqc-design.md` §7.9 step 2 — updated to reference both
+  §7.5 (classical) and §7.13 (robust) formulae.
+- `design/coyote-sqc-design.md` §7.10 "Transformed-space parameters" —
+  expanded to describe both classical and robust parameter computation.
+- `design/coyote-sqc-design.md` §7.13 "Interaction with Box-Cox" —
+  rewritten to clarify that the estimation method controls `Grand_Mean`,
+  `I_Sigma`, and `Pooled_S` in the transform override block.

@@ -923,15 +923,17 @@ package body Coyote_SQC.App is
                         Has_PZ := True;
                      end;
                   end loop;
-                  CD.Params.Grand_Mean := Sum_Z / Long_Float (N_Raw);
                   if Chart_Cfg.Estimation_Method =
                         Data_Model.Robust_Median
                   then
+                     CD.Params.Grand_Mean :=
+                       Coyote_SQC.Statistics.I_Chart.Median_Of (Z_Vals);
                      if N_Raw >= 2 then
                         CD.Params.I_Sigma :=
                           Coyote_SQC.Statistics.I_Chart.Qn_Scale_Any (Z_Vals) / 2.2219;
                      end if;
                   else
+                     CD.Params.Grand_Mean := Sum_Z / Long_Float (N_Raw);
                      CD.Params.I_Sigma :=
                        (if MR_Z_Cnt > 0
                         then MR_Z_Sum / (Long_Float (MR_Z_Cnt) * 1.128)
@@ -1171,70 +1173,161 @@ package body Coyote_SQC.App is
             --  Each session contributes N_Z transformed values; we weight
             --  by session size for the grand mean and use pooled variance.
             if Max_Vals > 0 then
-               declare
-                  Total_N  : Long_Float := 0.0;
-                  Total_WM : Long_Float := 0.0;
-                  Sum_Num  : Long_Float := 0.0;
-                  Sum_Den  : Long_Float := 0.0;
-               begin
-                  for M of State.All_Metrics loop
-                     if Is_Setup_M (M) then
-                        declare
-                           Tokens : constant Long_Float_Vectors.Vector :=
-                             Get_LF_Values (M);
-                           Z_Sum  : Long_Float := 0.0;
-                           Z_Sq   : Long_Float := 0.0;
-                           N_Z    : Natural    := 0;
-                        begin
-                           for V of Tokens loop
-                              if V > 0.0 then
-                                 declare
-                                    Z : constant Long_Float :=
-                                      Coyote_SQC.Statistics.I_Chart.Apply_Transform
-                                        (V, Chart_Cfg.Transform.Kind, Lambda);
-                                 begin
-                                    Z_Sum := Z_Sum + Z;
-                                    Z_Sq  := Z_Sq  + Z * Z;
-                                    N_Z   := N_Z + 1;
-                                 end;
-                              end if;
-                           end loop;
-                           if N_Z > 0 then
-                              declare
-                                 Mean_Z : constant Long_Float :=
-                                   Z_Sum / Long_Float (N_Z);
-                              begin
-                                 Total_N  := Total_N  + Long_Float (N_Z);
-                                 Total_WM :=
-                                   Total_WM + Long_Float (N_Z) * Mean_Z;
-                                 if N_Z >= 2 then
+               if Chart_Cfg.Estimation_Method =
+                     Data_Model.Robust_Median
+               then
+                  --  Robust path: collect session means and in-session
+                  --  residuals in the transformed space, then use median
+                  --  and Qn for Grand_Mean and Pooled_S respectively.
+                  declare
+                     Rob_Means     : Coyote_SQC.Data_Model.Long_Float_Vectors.Vector;
+                     Rob_Residuals : Coyote_SQC.Data_Model.Long_Float_Vectors.Vector;
+                  begin
+                     for M of State.All_Metrics loop
+                        if Is_Setup_M (M) then
+                           declare
+                              Tokens : constant Long_Float_Vectors.Vector :=
+                                Get_LF_Values (M);
+                              Z_Sum  : Long_Float := 0.0;
+                              N_Z    : Natural    := 0;
+                              Z_Vals : Coyote_SQC.Statistics.I_Chart.Long_Float_Array
+                                         (1 .. Natural (Tokens.Length));
+                           begin
+                              for V of Tokens loop
+                                 if V > 0.0 then
                                     declare
-                                       Var_Z : constant Long_Float :=
-                                         (Z_Sq
-                                          - Z_Sum * Z_Sum
-                                            / Long_Float (N_Z))
-                                         / Long_Float (N_Z - 1);
+                                       Z : constant Long_Float :=
+                                         Coyote_SQC.Statistics.I_Chart.Apply_Transform
+                                           (V, Chart_Cfg.Transform.Kind, Lambda);
                                     begin
-                                       Sum_Num :=
-                                         Sum_Num
-                                         + Long_Float (N_Z - 1) * Var_Z;
-                                       Sum_Den :=
-                                         Sum_Den + Long_Float (N_Z - 1);
+                                       Z_Sum := Z_Sum + Z;
+                                       N_Z := N_Z + 1;
+                                       Z_Vals (N_Z) := Z;
                                     end;
                                  end if;
-                              end;
-                           end if;
+                              end loop;
+                              if N_Z > 0 then
+                                 declare
+                                    Mean_Z : constant Long_Float :=
+                                      Z_Sum / Long_Float (N_Z);
+                                 begin
+                                    Rob_Means.Append (Mean_Z);
+                                    for Idx in 1 .. N_Z loop
+                                       Rob_Residuals.Append
+                                         (Z_Vals (Idx) - Mean_Z);
+                                    end loop;
+                                 end;
+                              end if;
+                           end;
+                        end if;
+                     end loop;
+
+                     --  Grand_Mean: median of session means.
+                     if not Rob_Means.Is_Empty then
+                        declare
+                           N_Sess : constant Positive :=
+                             Positive (Rob_Means.Length);
+                           Arr : Coyote_SQC.Statistics.I_Chart.Long_Float_Array
+                                   (1 .. N_Sess);
+                           Idx : Positive := 1;
+                        begin
+                           for V of Rob_Means loop
+                              Arr (Idx) := V;
+                              Idx := Idx + 1;
+                           end loop;
+                           CD.Params.Grand_Mean :=
+                             Coyote_SQC.Statistics.I_Chart.Median_Of (Arr);
                         end;
                      end if;
-                  end loop;
-                  if Total_N > 0.0 then
-                     CD.Params.Grand_Mean := Total_WM / Total_N;
-                  end if;
-                  if Sum_Den > 0.0 then
-                     CD.Params.Pooled_S :=
-                       Sqrt (Sum_Num / Sum_Den);
-                  end if;
-               end;
+
+                     --  Pooled_S: Qn scale of all pooled within-session
+                     --  residuals in z-space.
+                     if not Rob_Residuals.Is_Empty
+                       and then Natural (Rob_Residuals.Length) >= 2
+                     then
+                        declare
+                           N_Res : constant Positive :=
+                             Positive (Rob_Residuals.Length);
+                           Arr : Coyote_SQC.Statistics.I_Chart.Long_Float_Array
+                                   (1 .. N_Res);
+                           Idx : Positive := 1;
+                        begin
+                           for V of Rob_Residuals loop
+                              Arr (Idx) := V;
+                              Idx := Idx + 1;
+                           end loop;
+                           CD.Params.Pooled_S :=
+                             Coyote_SQC.Statistics.I_Chart.Qn_Scale_Any (Arr);
+                        end;
+                     end if;
+                  end;
+               else
+                  --  Classical path: weighted mean and pooled variance.
+                  declare
+                     Total_N  : Long_Float := 0.0;
+                     Total_WM : Long_Float := 0.0;
+                     Sum_Num  : Long_Float := 0.0;
+                     Sum_Den  : Long_Float := 0.0;
+                  begin
+                     for M of State.All_Metrics loop
+                        if Is_Setup_M (M) then
+                           declare
+                              Tokens : constant Long_Float_Vectors.Vector :=
+                                Get_LF_Values (M);
+                              Z_Sum  : Long_Float := 0.0;
+                              Z_Sq   : Long_Float := 0.0;
+                              N_Z    : Natural    := 0;
+                           begin
+                              for V of Tokens loop
+                                 if V > 0.0 then
+                                    declare
+                                       Z : constant Long_Float :=
+                                         Coyote_SQC.Statistics.I_Chart.Apply_Transform
+                                           (V, Chart_Cfg.Transform.Kind, Lambda);
+                                    begin
+                                       Z_Sum := Z_Sum + Z;
+                                       Z_Sq  := Z_Sq  + Z * Z;
+                                       N_Z   := N_Z + 1;
+                                    end;
+                                 end if;
+                              end loop;
+                              if N_Z > 0 then
+                                 declare
+                                    Mean_Z : constant Long_Float :=
+                                      Z_Sum / Long_Float (N_Z);
+                                 begin
+                                    Total_N  := Total_N  + Long_Float (N_Z);
+                                    Total_WM :=
+                                      Total_WM + Long_Float (N_Z) * Mean_Z;
+                                    if N_Z >= 2 then
+                                       declare
+                                          Var_Z : constant Long_Float :=
+                                            (Z_Sq
+                                             - Z_Sum * Z_Sum
+                                               / Long_Float (N_Z))
+                                            / Long_Float (N_Z - 1);
+                                       begin
+                                          Sum_Num :=
+                                            Sum_Num
+                                            + Long_Float (N_Z - 1) * Var_Z;
+                                          Sum_Den :=
+                                            Sum_Den + Long_Float (N_Z - 1);
+                                       end;
+                                    end if;
+                                 end;
+                              end if;
+                           end;
+                        end if;
+                     end loop;
+                     if Total_N > 0.0 then
+                        CD.Params.Grand_Mean := Total_WM / Total_N;
+                     end if;
+                     if Sum_Den > 0.0 then
+                        CD.Params.Pooled_S :=
+                          Sqrt (Sum_Num / Sum_Den);
+                     end if;
+                  end;
+               end if;
             end if;
          end;
       end if;
