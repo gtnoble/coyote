@@ -202,6 +202,19 @@ Derived from a Session_Record. Computed once at load time and cached.
 | `Per_Consecutive_Tool_S` | Vector of Long_Float | Per-argument JSD similarity values across all consecutive tool-call pairs; see §5.12 |
 | `N_Consecutive_Tool_Pairs` | Natural | Number of eligible consecutive pairs (T−1 for T non-empty tool calls; 0 when T ≤ 1) |
 
+| `Total_Cost` | Fixed_Point | Total token cost for the session; sum of input, output, cache read, and cache write costs |
+| `Total_Input_Cost` | Fixed_Point | Input token cost for the session |
+| `Total_Output_Cost` | Fixed_Point | Output token cost for the session |
+| `Total_Cache_Read_Cost` | Fixed_Point | Cache read token cost for the session |
+| `Total_Cache_Write_Cost` | Fixed_Point | Cache write token cost for the session |
+| `Total_Uncached_Input_Cost` | Fixed_Point | Uncached input token cost for the session |
+| `Per_Turn_Cost` | Vector of Fixed_Point | Total cost per turn |
+| `Per_Turn_Input_Cost` | Vector of Fixed_Point | Input cost per turn |
+| `Per_Turn_Output_Cost` | Vector of Fixed_Point | Output cost per turn |
+| `Per_Turn_Cache_Read_Cost` | Vector of Fixed_Point | Cache read cost per turn |
+| `Per_Turn_Cache_Write_Cost` | Vector of Fixed_Point | Cache write cost per turn |
+| `Per_Turn_Uncached_Input_Cost` | Vector of Fixed_Point | Uncached input cost per turn |
+
 ### 4.5 Comment Record
 
 | Field | Type | Description |
@@ -228,7 +241,7 @@ Derived from a Session_Record. Computed once at load time and cached.
 
 | Field | Type | Description |
 |---|---|---|
-| `Chart_Type` | Chart_Type enum | Identifies which of the sixty-one charts this defines |
+| `Chart_Type` | Chart_Type enum | Identifies which of the ninety-one charts this defines |
 
 ---
 
@@ -278,6 +291,132 @@ represents the tokens billed at full price (not served from, and not written
 to, the cache). For Anthropic this equals the raw `input_tokens`; for OpenAI
 this equals `prompt_tokens − cached_tokens`.
 
+
+
+
+
+### 4.9 Token Pricing and Cost Computation
+
+Token costs are derived from token counts and a per-model pricing table. Costs
+are expressed in USD with sub-cent precision (four decimal places).
+
+**Pricing data sources.** The application resolves per-model pricing through
+two sources in priority order:
+
+1. **Local pricing file** (primary) — a JSON file at a configurable path
+   (default: `~/.config/coyote_sqc/pricing.json`). Each entry maps a model
+   identifier string to per-token prices in USD (not per-million-token).
+   When the model is found in this file, its prices are used directly; no API
+   call is made.
+2. **OpenRouter model API** (fallback) — when the local pricing file is absent
+   or a particular model is not found in it, the application queries the
+   OpenRouter public `/api/v1/models` endpoint (no authentication required).
+   The response carries an array `data[]` of model objects, each with a
+   `pricing` sub-object (see schema below).  All OpenRouter prices are in
+   USD per token.  A shorthand endpoint `/api/v1/model/{author}/{slug}` is
+   available for single-model lookups.
+
+Pricing retrieved from a local file takes precedence: the OpenRouter fallback
+is applied model-by-model, so a workspace containing sessions for several
+models can price some locally and others from the API.
+
+**Price field mapping.** The application maps the following fields from each
+source to its internal four-category price record:
+
+| Internal field | Local file key | OpenRouter key | Notes |
+|---|---|---|---|
+| `input_price` | `input_price` | `pricing.prompt` | Per-token price for uncached prompt |
+| `output_price` | `output_price` | `pricing.completion` | Per-token price for model output |
+| `cache_read_price` | `cache_read_price` | `pricing.input_cache_read` | Per-token price for cached prompt hits |
+| `cache_write_price` | `cache_write_price` | `pricing.input_cache_write` | Per-token price for prompt cache fills |
+
+All prices are in USD per token.  Zero-valued fields in either source are
+treated as zero — no special sentinel convention applies.
+
+OpenRouter additionally reports `pricing.internal_reasoning` (per-token cost
+of reasoning/thinking tokens), `pricing.request` (fixed flat fee per API
+call), `pricing.image` (per-image input), and `pricing.web_search` (per web
+search call).  These fields are **not** consumed by the application; thinking
+tokens and request overhead are not costed separately.
+
+**Session cost computation.** For a session using model _m_:
+
+```
+Input_Cost      = Total_Uncached_Input_Tokens × input_price_m
+                 + Total_Cache_Read_Tokens     × cache_read_price_m
+                 + Total_Cache_Write_Tokens    × cache_write_price_m
+Output_Cost     = Total_Output_Tokens × output_price_m
+Total_Cost      = Input_Cost + Output_Cost
+Cache_Read_Cost = Total_Cache_Read_Tokens  × cache_read_price_m
+Cache_Write_Cost = Total_Cache_Write_Tokens × cache_write_price_m
+Uncached_Input_Cost = Total_Uncached_Input_Tokens × input_price_m
+```
+
+A session for which the model's pricing data is unavailable from either source
+is excluded from all cost charts; a status-bar notice reports the count of
+unpriced sessions.
+
+**Per-turn cost computation.** Per-turn costs are computed analogously from
+per-turn token counts. For cost components where per-turn token breakdown is
+unavailable at turn granularity in the session data (e.g., cache read/write
+for providers that report cache totals only at the session level), the
+per-turn value is the session total divided by the turn count.
+
+**Local pricing file format.** The pricing file is a JSON object with a
+`"models"` map.  Each model entry specifies four per-token prices in USD:
+
+```json
+{
+  "models": {
+    "anthropic/claude-sonnet-4-5": {
+      "input_price": 0.000003,
+      "output_price": 0.000015,
+      "cache_read_price": 0.0000003,
+      "cache_write_price": 0.00000375
+    }
+  }
+}
+```
+
+When the pricing file is absent and OpenRouter is unreachable, no cost charts
+display data; all cost chart areas show "Pricing data unavailable" centred in
+the widget. The pricing file and OpenRouter cache are re-read on workspace
+reload (Workspace → Reload Sessions).
+
+**OpenRouter response schema (extract).** The response body of
+`GET /api/v1/models` has the shape:
+
+```json
+{
+  "data": [
+    {
+      "id": "openai/gpt-4o",
+      "name": "GPT-4o",
+      "pricing": {
+        "prompt": "0.0000025",
+        "completion": "0.00001",
+        "request": "0",
+        "image": "0",
+        "web_search": "0",
+        "internal_reasoning": "0",
+        "input_cache_read": "0.00000125",
+        "input_cache_write": "0.0000025"
+      },
+      "context_length": 128000,
+      "architecture": { ... },
+      "top_provider": { ... }
+    }
+  ]
+}
+```
+
+All pricing fields are **strings** (not numbers) in the API response; the
+application parses them into Long_Float at load time.  A field value of `"0"`
+indicates the feature is free for that model.  The OpenRouter response is
+cached locally to `~/.config/coyote_sqc/openrouter_models_cache.json` and
+refreshed no more than once per application start.  The cache expires after
+24 hours; a reload sessions operation (Workspace → Reload Sessions) refreshes
+the cache if it has expired.
 
 ## 5. Statistical Methods
 ### Box-Cox back‑transform safety
@@ -1460,7 +1599,41 @@ sequence.
 **EWMA chart:** independently computes Grand_Mean and σ from the same
 setup-interval observations as the corresponding I chart.
 
-Sixty-one charts are available in every workspace. They are pre-instantiated; the user does
+
+
+### 5.21 Token Cost Charts — I/MR/EWMA Formulas
+
+Session-level token costs are positive-real scalars; they use the same
+Individuals (I), Moving-Range (MR), and EWMA chart formulas as session token
+totals (§5.6, §5.9). Box-Cox transformation is available (§5.7) and operates
+identically: costs are positive and typically right-skewed, so Box-Cox
+correction is appropriate.
+
+**Observation:** one scalar cost value per session (in display-currency units
+with sub-cent precision).
+
+**Exclusion:** sessions for which the model's pricing data is unavailable are
+excluded from all cost charts. When Box-Cox transformation is enabled,
+sessions with a zero cost total for the measured quantity are excluded from
+that chart's I and EWMA charts and from the MR λ_MR estimation; a status-bar
+notice reports the count of excluded sessions.
+
+### 5.22 Token Cost Charts — Xbar/s Formulas
+
+Per-turn token costs use the same Xbar and s chart formulas as per-turn token
+counts (§5.2). The subgroup size _n_ is the turn count for the session. Box-Cox
+transformation is available (§5.8) and operates identically.
+
+**Observation:** one cost value per turn, computed as the product of the
+per-turn token count and the model's per-token price for the relevant token
+category.
+
+**Exclusion:** same rules as token-count Xbar/s charts (§5.5). Sessions for
+which the model's pricing data is unavailable are excluded entirely. Sessions
+with a single turn are plotted as hollow circles on the Xbar chart and excluded
+from the s chart.
+
+Ninety-one charts are available in every workspace. They are pre-instantiated; the user does
 not create or delete charts. All charts share a single workspace-level setup interval
 (see Section 11).
 
@@ -1984,6 +2157,230 @@ tool-call pairs) are excluded entirely.
 
 
 
+
+
+### 6.52 Session Total Cost — I Chart
+
+**Measured quantity:** total token cost for the session (`Total_Cost`).
+**Observation:** one scalar value per session; no within-session subgroup.
+**Statistic:** the session total cost (x).
+**Limits:** derived from the mean moving range of the setup interval (§5.6). When Box-Cox transformation is enabled (§5.7), limits are computed in the transformed space and back-transformed to original (currency) units for display.
+
+### 6.53 Session Total Cost — MR Chart
+
+**Measured quantity:** absolute difference in total token cost between consecutive sessions in chronological order.
+**Statistic:** `MR_i = |Total_Cost_i − Total_Cost_{i-1}|`.
+**First session:** no marker is plotted; a gap is left in the connecting line.
+**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6). When Box-Cox transformation is enabled (§5.7), the MR chart uses its own independent Box-Cox transformation (λ_MR estimated from the setup-interval MR series); points are original-space absolute differences and limits are back-transformed to original (currency) units.
+
+### 6.54 Session Total Cost — EWMA Chart
+
+**Measured quantity:** total token cost for the session (`Total_Cost`).
+**Statistic:** the EWMA value `Z_t = λ · x_t + (1−λ) · Z_{t−1}` (§5.9).
+**Limits:** time-varying UCL and LCL at step _t_ (§5.9). When Box-Cox is active, the EWMA and limits are computed in z-space and back-transformed (§5.9).
+**Parameters:** Grand_Mean and σ are independently computed from the same setup-interval observations as the Session Total Cost — I chart.
+
+### 6.55 Session Input Cost — I Chart
+
+**Measured quantity:** input token cost for the session (`Total_Input_Cost`).
+**Observation:** one scalar value per session; no within-session subgroup.
+**Statistic:** the session total cost (x).
+**Limits:** derived from the mean moving range of the setup interval (§5.6). When Box-Cox transformation is enabled (§5.7), limits are computed in the transformed space and back-transformed to original (currency) units for display.
+
+### 6.56 Session Input Cost — MR Chart
+
+**Measured quantity:** absolute difference in input token cost between consecutive sessions in chronological order.
+**Statistic:** `MR_i = |Total_Input_Cost_i − Total_Input_Cost_{i-1}|`.
+**First session:** no marker is plotted; a gap is left in the connecting line.
+**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6). When Box-Cox transformation is enabled (§5.7), the MR chart uses its own independent Box-Cox transformation (λ_MR estimated from the setup-interval MR series); points are original-space absolute differences and limits are back-transformed to original (currency) units.
+
+### 6.57 Session Input Cost — EWMA Chart
+
+**Measured quantity:** input token cost for the session (`Total_Input_Cost`).
+**Statistic:** the EWMA value `Z_t = λ · x_t + (1−λ) · Z_{t−1}` (§5.9).
+**Limits:** time-varying UCL and LCL at step _t_ (§5.9). When Box-Cox is active, the EWMA and limits are computed in z-space and back-transformed (§5.9).
+**Parameters:** Grand_Mean and σ are independently computed from the same setup-interval observations as the Session Input Cost — I chart.
+
+### 6.58 Session Output Cost — I Chart
+
+**Measured quantity:** output token cost for the session (`Total_Output_Cost`).
+**Observation:** one scalar value per session; no within-session subgroup.
+**Statistic:** the session total cost (x).
+**Limits:** derived from the mean moving range of the setup interval (§5.6). When Box-Cox transformation is enabled (§5.7), limits are computed in the transformed space and back-transformed to original (currency) units for display.
+
+### 6.59 Session Output Cost — MR Chart
+
+**Measured quantity:** absolute difference in output token cost between consecutive sessions in chronological order.
+**Statistic:** `MR_i = |Total_Output_Cost_i − Total_Output_Cost_{i-1}|`.
+**First session:** no marker is plotted; a gap is left in the connecting line.
+**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6). When Box-Cox transformation is enabled (§5.7), the MR chart uses its own independent Box-Cox transformation (λ_MR estimated from the setup-interval MR series); points are original-space absolute differences and limits are back-transformed to original (currency) units.
+
+### 6.60 Session Output Cost — EWMA Chart
+
+**Measured quantity:** output token cost for the session (`Total_Output_Cost`).
+**Statistic:** the EWMA value `Z_t = λ · x_t + (1−λ) · Z_{t−1}` (§5.9).
+**Limits:** time-varying UCL and LCL at step _t_ (§5.9). When Box-Cox is active, the EWMA and limits are computed in z-space and back-transformed (§5.9).
+**Parameters:** Grand_Mean and σ are independently computed from the same setup-interval observations as the Session Output Cost — I chart.
+
+### 6.61 Session Cache Read Cost — I Chart
+
+**Measured quantity:** cache read token cost for the session (`Total_Cache_Read_Cost`).
+**Observation:** one scalar value per session; no within-session subgroup.
+**Statistic:** the session total cost (x).
+**Limits:** derived from the mean moving range of the setup interval (§5.6). When Box-Cox transformation is enabled (§5.7), limits are computed in the transformed space and back-transformed to original (currency) units for display.
+
+### 6.62 Session Cache Read Cost — MR Chart
+
+**Measured quantity:** absolute difference in cache read token cost between consecutive sessions in chronological order.
+**Statistic:** `MR_i = |Total_Cache_Read_Cost_i − Total_Cache_Read_Cost_{i-1}|`.
+**First session:** no marker is plotted; a gap is left in the connecting line.
+**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6). When Box-Cox transformation is enabled (§5.7), the MR chart uses its own independent Box-Cox transformation (λ_MR estimated from the setup-interval MR series); points are original-space absolute differences and limits are back-transformed to original (currency) units.
+
+### 6.63 Session Cache Read Cost — EWMA Chart
+
+**Measured quantity:** cache read token cost for the session (`Total_Cache_Read_Cost`).
+**Statistic:** the EWMA value `Z_t = λ · x_t + (1−λ) · Z_{t−1}` (§5.9).
+**Limits:** time-varying UCL and LCL at step _t_ (§5.9). When Box-Cox is active, the EWMA and limits are computed in z-space and back-transformed (§5.9).
+**Parameters:** Grand_Mean and σ are independently computed from the same setup-interval observations as the Session Cache Read Cost — I chart.
+
+### 6.64 Session Cache Write Cost — I Chart
+
+**Measured quantity:** cache write token cost for the session (`Total_Cache_Write_Cost`).
+**Observation:** one scalar value per session; no within-session subgroup.
+**Statistic:** the session total cost (x).
+**Limits:** derived from the mean moving range of the setup interval (§5.6). When Box-Cox transformation is enabled (§5.7), limits are computed in the transformed space and back-transformed to original (currency) units for display.
+
+### 6.65 Session Cache Write Cost — MR Chart
+
+**Measured quantity:** absolute difference in cache write token cost between consecutive sessions in chronological order.
+**Statistic:** `MR_i = |Total_Cache_Write_Cost_i − Total_Cache_Write_Cost_{i-1}|`.
+**First session:** no marker is plotted; a gap is left in the connecting line.
+**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6). When Box-Cox transformation is enabled (§5.7), the MR chart uses its own independent Box-Cox transformation (λ_MR estimated from the setup-interval MR series); points are original-space absolute differences and limits are back-transformed to original (currency) units.
+
+### 6.66 Session Cache Write Cost — EWMA Chart
+
+**Measured quantity:** cache write token cost for the session (`Total_Cache_Write_Cost`).
+**Statistic:** the EWMA value `Z_t = λ · x_t + (1−λ) · Z_{t−1}` (§5.9).
+**Limits:** time-varying UCL and LCL at step _t_ (§5.9). When Box-Cox is active, the EWMA and limits are computed in z-space and back-transformed (§5.9).
+**Parameters:** Grand_Mean and σ are independently computed from the same setup-interval observations as the Session Cache Write Cost — I chart.
+
+### 6.67 Session Uncached Input Cost — I Chart
+
+**Measured quantity:** uncached input token cost for the session (`Total_Uncached_Input_Cost`).
+**Observation:** one scalar value per session; no within-session subgroup.
+**Statistic:** the session total cost (x).
+**Limits:** derived from the mean moving range of the setup interval (§5.6). When Box-Cox transformation is enabled (§5.7), limits are computed in the transformed space and back-transformed to original (currency) units for display.
+
+### 6.68 Session Uncached Input Cost — MR Chart
+
+**Measured quantity:** absolute difference in uncached input token cost between consecutive sessions in chronological order.
+**Statistic:** `MR_i = |Total_Uncached_Input_Cost_i − Total_Uncached_Input_Cost_{i-1}|`.
+**First session:** no marker is plotted; a gap is left in the connecting line.
+**Limits:** `UCL = D4 × MR̄`; LCL = 0 always (§5.6). When Box-Cox transformation is enabled (§5.7), the MR chart uses its own independent Box-Cox transformation (λ_MR estimated from the setup-interval MR series); points are original-space absolute differences and limits are back-transformed to original (currency) units.
+
+### 6.69 Session Uncached Input Cost — EWMA Chart
+
+**Measured quantity:** uncached input token cost for the session (`Total_Uncached_Input_Cost`).
+**Statistic:** the EWMA value `Z_t = λ · x_t + (1−λ) · Z_{t−1}` (§5.9).
+**Limits:** time-varying UCL and LCL at step _t_ (§5.9). When Box-Cox is active, the EWMA and limits are computed in z-space and back-transformed (§5.9).
+**Parameters:** Grand_Mean and σ are independently computed from the same setup-interval observations as the Session Uncached Input Cost — I chart.
+
+### 6.70 Turn Total Cost — Xbar Chart
+
+**Measured quantity:** total token cost per turn (`Per_Turn_Cost`).
+**Subgroup:** turns within a session.
+**Subgroup size n:** total turns in the session.
+**Statistic:** mean total cost per turn (x̄).
+**Limits:** derived from the grand mean and pooled standard deviation of the setup interval (§5.2). When Box-Cox transformation is enabled (§5.8), limits are computed in the transformed space and back-transformed to original (currency) units for display.
+
+### 6.71 Turn Total Cost — s Chart
+
+**Measured quantity:** total token cost per turn.
+**Subgroup:** turns within a session.
+**Subgroup size n:** total turns in the session.
+**Statistic:** sample standard deviation of total cost across turns (s).
+**Limits:** derived from the pooled standard deviation of the setup interval (§5.2). When Box-Cox transformation is enabled (§5.8), limits and the s statistic are displayed in transformed units.
+
+### 6.72 Turn Input Cost — Xbar Chart
+
+**Measured quantity:** input token cost per turn (`Per_Turn_Input_Cost`).
+**Subgroup:** turns within a session.
+**Subgroup size n:** total turns in the session.
+**Statistic:** mean input cost per turn (x̄).
+**Limits:** derived from the grand mean and pooled standard deviation of the setup interval (§5.2). When Box-Cox transformation is enabled (§5.8), limits are computed in the transformed space and back-transformed to original (currency) units for display.
+
+### 6.73 Turn Input Cost — s Chart
+
+**Measured quantity:** input token cost per turn.
+**Subgroup:** turns within a session.
+**Subgroup size n:** total turns in the session.
+**Statistic:** sample standard deviation of input cost across turns (s).
+**Limits:** derived from the pooled standard deviation of the setup interval (§5.2). When Box-Cox transformation is enabled (§5.8), limits and the s statistic are displayed in transformed units.
+
+### 6.74 Turn Output Cost — Xbar Chart
+
+**Measured quantity:** output token cost per turn (`Per_Turn_Output_Cost`).
+**Subgroup:** turns within a session.
+**Subgroup size n:** total turns in the session.
+**Statistic:** mean output cost per turn (x̄).
+**Limits:** derived from the grand mean and pooled standard deviation of the setup interval (§5.2). When Box-Cox transformation is enabled (§5.8), limits are computed in the transformed space and back-transformed to original (currency) units for display.
+
+### 6.75 Turn Output Cost — s Chart
+
+**Measured quantity:** output token cost per turn.
+**Subgroup:** turns within a session.
+**Subgroup size n:** total turns in the session.
+**Statistic:** sample standard deviation of output cost across turns (s).
+**Limits:** derived from the pooled standard deviation of the setup interval (§5.2). When Box-Cox transformation is enabled (§5.8), limits and the s statistic are displayed in transformed units.
+
+### 6.76 Turn Cache Read Cost — Xbar Chart
+
+**Measured quantity:** cache read token cost per turn (`Per_Turn_Cache_Read_Cost`).
+**Subgroup:** turns within a session.
+**Subgroup size n:** total turns in the session.
+**Statistic:** mean cache read cost per turn (x̄).
+**Limits:** derived from the grand mean and pooled standard deviation of the setup interval (§5.2). When Box-Cox transformation is enabled (§5.8), limits are computed in the transformed space and back-transformed to original (currency) units for display.
+
+### 6.77 Turn Cache Read Cost — s Chart
+
+**Measured quantity:** cache read token cost per turn.
+**Subgroup:** turns within a session.
+**Subgroup size n:** total turns in the session.
+**Statistic:** sample standard deviation of cache read cost across turns (s).
+**Limits:** derived from the pooled standard deviation of the setup interval (§5.2). When Box-Cox transformation is enabled (§5.8), limits and the s statistic are displayed in transformed units.
+
+### 6.78 Turn Cache Write Cost — Xbar Chart
+
+**Measured quantity:** cache write token cost per turn (`Per_Turn_Cache_Write_Cost`).
+**Subgroup:** turns within a session.
+**Subgroup size n:** total turns in the session.
+**Statistic:** mean cache write cost per turn (x̄).
+**Limits:** derived from the grand mean and pooled standard deviation of the setup interval (§5.2). When Box-Cox transformation is enabled (§5.8), limits are computed in the transformed space and back-transformed to original (currency) units for display.
+
+### 6.79 Turn Cache Write Cost — s Chart
+
+**Measured quantity:** cache write token cost per turn.
+**Subgroup:** turns within a session.
+**Subgroup size n:** total turns in the session.
+**Statistic:** sample standard deviation of cache write cost across turns (s).
+**Limits:** derived from the pooled standard deviation of the setup interval (§5.2). When Box-Cox transformation is enabled (§5.8), limits and the s statistic are displayed in transformed units.
+
+### 6.80 Turn Uncached Input Cost — Xbar Chart
+
+**Measured quantity:** uncached input token cost per turn (`Per_Turn_Uncached_Input_Cost`).
+**Subgroup:** turns within a session.
+**Subgroup size n:** total turns in the session.
+**Statistic:** mean uncached input cost per turn (x̄).
+**Limits:** derived from the grand mean and pooled standard deviation of the setup interval (§5.2). When Box-Cox transformation is enabled (§5.8), limits are computed in the transformed space and back-transformed to original (currency) units for display.
+
+### 6.81 Turn Uncached Input Cost — s Chart
+
+**Measured quantity:** uncached input token cost per turn.
+**Subgroup:** turns within a session.
+**Subgroup size n:** total turns in the session.
+**Statistic:** sample standard deviation of uncached input cost across turns (s).
+**Limits:** derived from the pooled standard deviation of the setup interval (§5.2). When Box-Cox transformation is enabled (§5.8), limits and the s statistic are displayed in transformed units.
+
 ## 7. UI Layout and Navigation
 
 ### 7.1 Window Structure
@@ -1997,8 +2394,8 @@ The main window contains, from top to bottom:
 
 ### 7.2 Left Panel
 
-A GtkListBox (~180px default width, user-resizable) listing the sixty-one charts in
-five visually separated groups with indented sub-group labels. Top-level groups are
+A GtkListBox (~180px default width, user-resizable) listing the ninety-one charts in
+six visually separated groups with indented sub-group labels. Top-level groups are
 bold; sub-group labels are italic and indented 8 px; chart rows are indented 16 px.
 Groups and sub-groups are ordered alphabetically (case-sensitive). Enum declaration
 order is preserved within each sub-group.
@@ -2085,7 +2482,46 @@ Session Totals
     Session Uncached Input Tokens -- MR
     Session Uncached Input Tokens -- EWMA
 
+Token Costs
+  Cache Read Cost
+    Session Cache Read Cost -- I
+    Session Cache Read Cost -- MR
+    Session Cache Read Cost -- EWMA
+    Turn Cache Read Cost -- Xbar
+    Turn Cache Read Cost -- s
+  Cache Write Cost
+    Session Cache Write Cost -- I
+    Session Cache Write Cost -- MR
+    Session Cache Write Cost -- EWMA
+    Turn Cache Write Cost -- Xbar
+    Turn Cache Write Cost -- s
+  Input Cost
+    Session Input Cost -- I
+    Session Input Cost -- MR
+    Session Input Cost -- EWMA
+    Turn Input Cost -- Xbar
+    Turn Input Cost -- s
+  Output Cost
+    Session Output Cost -- I
+    Session Output Cost -- MR
+    Session Output Cost -- EWMA
+    Turn Output Cost -- Xbar
+    Turn Output Cost -- s
+  Total Cost
+    Session Total Cost -- I
+    Session Total Cost -- MR
+    Session Total Cost -- EWMA
+    Turn Total Cost -- Xbar
+    Turn Total Cost -- s
+  Uncached Input Cost
+    Session Uncached Input Cost -- I
+    Session Uncached Input Cost -- MR
+    Session Uncached Input Cost -- EWMA
+    Turn Uncached Input Cost -- Xbar
+    Turn Uncached Input Cost -- s
+
 Tool Call Behavior
+
   Consecutive Diversity
     Consecutive Tool Diversity -- Xbar
     Consecutive Tool Diversity -- s
@@ -2654,7 +3090,7 @@ selection changes, using the same trigger as the histogram refresh.
 
 **Set as Setup Interval button:**
 - Clicking this button sets the workspace setup interval to exactly the selected
-  sessions, applying to all sixty-one charts simultaneously.
+  sessions, applying to all ninety-one charts simultaneously.
 - If a setup interval is already established, a confirmation dialog is shown:
   "Replace existing setup interval for this workspace?"
 - On confirmation, all charts recompute their limits and recolor the setup interval
@@ -2770,7 +3206,7 @@ in bulk comments issued from this view.
 ### 11.1 Establishing a Setup Interval
 
 A setup interval is a single workspace-level set of sessions used to estimate the
-center line and control limits for all sixty-one charts simultaneously. It is established
+center line and control limits for all ninety-one charts simultaneously. It is established
 by selecting one or more sessions (Section 9) and either clicking "Set as Setup Interval"
 in the multi-select detail panel (Section 10.2) or choosing **View → Set Selection as
 Setup Interval** from the menu bar. There is no requirement for the
@@ -2780,11 +3216,11 @@ setup sessions to be contiguous in time.
 
 The setup interval is stored as a set of session UUIDs in the `Setup_Session_Ids`
 field of the `Workspace_Record`. It is workspace-level: a single setup interval
-applies to all sixty-one charts. The set is stored within the workspace file.
+applies to all ninety-one charts. The set is stored within the workspace file.
 
 ### 11.3 Visual Representation
 
-Setup interval sessions are rendered with filled yellow markers on all sixty-one charts.
+Setup interval sessions are rendered with filled yellow markers on all ninety-one charts.
 A faint yellow vertical band spans the x-extent of the setup interval sessions on
 every chart.
 
@@ -3204,6 +3640,18 @@ All statistical formula implementations shall have AUnit unit tests covering:
 - `Fraction_Thinking_Per_Tool_Call_I` I chart `Estimate_Parameters`: for two sessions with known `Total_Thinking_Tokens` and `Total_Tool_Call_Input_Tokens`, verify `Grand_Mean = mean(thinking_i / tool_call_i)` to 1×10⁻⁹.
 - `Fraction_Uncached_Input_I` I chart `Estimate_Parameters`: for two sessions with known `Total_Uncached_Input_Tokens` and `Total_Input_Tokens`, verify `Grand_Mean = mean(uncached_i / input_i)` to 1×10⁻⁹.
 - New rate chart zero-denominator exclusion: sessions with `Total_Tool_Call_Input_Tokens = 0` are excluded from `Fraction_Thinking_Per_Tool_Call_I`; sessions with `Total_Input_Tokens = 0` are excluded from `Fraction_Uncached_Input_I`; `Grand_Mean` is computed from eligible sessions only.
+
+
+- Cost computation: given a session with known per-token prices (input_price = $0.000003, output_price = $0.000015, cache_read_price = $0.0000003, cache_write_price = $0.00000375) and known token counts, verify `Total_Cost`, `Total_Input_Cost`, `Total_Output_Cost`, `Total_Cache_Read_Cost`, `Total_Cache_Write_Cost`, and `Total_Uncached_Input_Cost` match hand-computed values to four decimal places.
+- Per-turn cost computation: for a session with three turns each having known per-turn token counts, verify the six per-turn cost vectors match hand-computed values to four decimal places.
+- Cost I/MR limit computation: for a known five-session dataset with known pricing, verify UCL, CL, and LCL match hand-computed §5.6 formula values to four decimal places for each of the six cost categories.
+- Cost EWMA computation: for the six Session Cost EWMA chart kinds, verify `Z_t` and time-varying limits independently compute Grand_Mean and σ from the same setup-interval observations as the corresponding I chart.
+- Cost Xbar/s limit computation: for a known three-session dataset with known per-turn costs, verify Xbar and s chart limits match hand-computed §5.2 formula values to four decimal places for each of the six cost categories.
+- Cost chart zero-value exclusion: sessions with zero cost for the measured quantity are excluded from the respective I/MR/Xbar chart when Box-Cox is enabled, and a status-bar notice is posted.
+- Unpriced model exclusion: sessions whose model has no entry in the local pricing file and the OpenRouter catalogue are excluded from all cost charts, and a status-bar notice reports the count.
+- Per-turn cache cost fallback: when the session format does not report per-turn cache read/write token breakdown, verify that `Per_Turn_Cache_Read_Cost` equals `Total_Cache_Read_Cost / N_Turns` and similarly for cache write and uncached input costs (average across turns).
+- Pricing data sources: verify that a valid `pricing.json` with per-token prices produces the expected cost values; verify that when the local file is absent, OpenRouter API fallback resolves `pricing.prompt`, `pricing.completion`, `pricing.input_cache_read`, and `pricing.input_cache_write` — all as per-token string values — and produces correct cache-aware cost computations; verify that a model absent from both sources is excluded with a status-bar notice; verify that string-to-Long_Float parsing of OpenRouter price fields handles `"0"` and fractional values correctly.
+- Cost workspace round-trip: cost-related workspace settings (any new fields) survive save/load unchanged.
 
 ---
 

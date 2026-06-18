@@ -305,7 +305,7 @@ subgroup exclusion, hollow circle, Xbar/s parameter estimation,
 Sum I/MR/EWMA independence).  Six new chart kinds registered:
 `Tool_Call_MI_Xbar`, `Tool_Call_MI_S`, `Session_Tool_Call_MI_Sum_I`,
 `Session_Tool_Call_MI_Sum_MR`, `Session_Tool_Call_MI_Sum_EWMA`,
-`Tool_Call_MI_Quantile`.  Chart count advanced from 55 to 61 in SRS and SDD.
+`Tool_Call_MI_Quantile`.  Chart count advanced from 55 to 61 in SRS and SDD. Further advanced to 91 with the addition of 30 token cost charts.=1
 Test implementation pending; requirements and design are complete.
 0 unexpected errors.  Added 13 Quantile CC tests for
 Coyote_SQC.Statistics.Quantile_CC (compute-quantiles, build-distribution,
@@ -409,3 +409,13 @@ build with the rationale that the uncovered requirements are either low-risk
 
 **Baseline as of 2026-06-14 (PCR-024 OpenAI Cache Parity):** 688 tests, 0 failures,
 0 unexpected errors.
+
+**Baseline as of 2026-06-18 (Token Cost Charts):** 713 tests, 0 failures,
+0 unexpected errors.  30 new chart kinds added for token cost charts (18
+session-level I/MR/EWMA and 12 turn-level Xbar/s), bringing total chart count
+from 61 to 91.  10 cost-specific test requirements added to SRS-SQC §15.6
+covering cost computation accuracy, per-turn cost vectors, I/MR/Xbar limit
+computation, zero-value exclusion, unpriced model exclusion, per-turn cache
+cost fallback, pricing data source resolution, and workspace round-trip.
+Requirements and design documents updated.  Test implementation pending;
+requirements and design are complete.

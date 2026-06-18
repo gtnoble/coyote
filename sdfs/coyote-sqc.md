@@ -723,3 +723,60 @@ Xbar/S chart code paths:
 
 **Documents updated:**
 - `sdfs/coyote-sqc.md`: this entry.
+
+
+
+### 2026-06-18 — Token Cost Charts (SRS/SDD)
+
+**Feature:** Added 30 new token cost control charts to `coyote_sqc`:
+18 session-level (I/MR/EWMA for Total, Input, Output, Cache Read, Cache
+Write, and Uncached Input cost) and 12 turn-level (Xbar/s for each of the
+same six cost categories). Charts use the same statistical formulas as their
+token-count counterparts (§5.6, §5.9, §5.2 of SRS). Box-Cox transformation is
+available for both families.
+
+Costs are computed from token counts and a per-model pricing table. Pricing
+resolution is two-tier: (1) local `pricing.json` (USD per token), (2)
+OpenRouter `/api/v1/models` fallback (no auth required, per-token prices in
+`pricing.prompt`, `pricing.completion`, `pricing.input_cache_read`, and
+`pricing.input_cache_write` fields as string values). The OpenRouter response
+is cached to `~/.config/coyote_sqc/openrouter_models_cache.json` with 24-hour
+expiry. Sessions whose model has no pricing from either source are excluded
+from all cost charts.
+
+**Chart layout (6th left-panel group, "Token Costs"):**
+- Cache Read Cost: I / MR / EWMA / Xbar / s
+- Cache Write Cost: I / MR / EWMA / Xbar / s
+- Input Cost: I / MR / EWMA / Xbar / s
+- Output Cost: I / MR / EWMA / Xbar / s
+- Total Cost: I / MR / EWMA / Xbar / s
+- Uncached Input Cost: I / MR / EWMA / Xbar / s
+
+**Chart count:** 61 → 91.
+
+**Session_Metrics_Record additions:** `Total_Cost`, `Total_Input_Cost`,
+`Total_Output_Cost`, `Total_Cache_Read_Cost`, `Total_Cache_Write_Cost`,
+`Total_Uncached_Input_Cost` (all `Long_Float`) plus six `Long_Float_Vectors`
+for per-turn costs.
+
+**SRS changes** (`requirements/coyote-sqc-requirements.md`):
+- §4.4: 12 cost fields added to Session Metrics Record
+- §4.9: new pricing section with two-tier resolution
+- §5.21: I/MR/EWMA cost chart formulas
+- §5.22: Xbar/s cost chart formulas
+- §6.52–§6.81: 30 new chart definitions
+- §7.2 left panel: "Token Costs" group (6th group)
+- §15.6: 10 cost-specific test requirements
+- All "sixty-one" → "ninety-one" (7 occurrences)
+- "five visually separated groups" → "six"
+
+**SDD changes** (`design/coyote-sqc-design.md`):
+- §6.5: 12 cost fields added to `Session_Metrics_Record`
+- §6.7: 30 new `Chart_Kind` enum values
+- §7.20: new cost computation section
+- §8: 30 new chart property rows; chart count updated
+- §13.3–§13.4: pricing.json and OpenRouter cache config
+- §14.8–§14.9: cost computation and chart test entries
+
+**Test plan:** Entry added for cost chart feature.
+

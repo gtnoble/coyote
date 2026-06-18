@@ -620,6 +620,19 @@ type Session_Metrics_Record is record
    Per_Consecutive_Tool_MI  : Long_Float_Vectors.Vector;
    N_Consecutive_Tool_MI_Pairs : Natural := 0;
    Total_Tool_Call_MI    : Long_Float := 0.0;
+   --  Token cost totals (USD, sub-cent precision).
+   Total_Cost                : Long_Float := 0.0;
+   Total_Input_Cost          : Long_Float := 0.0;
+   Total_Output_Cost         : Long_Float := 0.0;
+   Total_Cache_Read_Cost     : Long_Float := 0.0;
+   Total_Cache_Write_Cost    : Long_Float := 0.0;
+   Total_Uncached_Input_Cost : Long_Float := 0.0;
+   Per_Turn_Cost             : Long_Float_Vectors.Vector;
+   Per_Turn_Input_Cost       : Long_Float_Vectors.Vector;
+   Per_Turn_Output_Cost      : Long_Float_Vectors.Vector;
+   Per_Turn_Cache_Read_Cost  : Long_Float_Vectors.Vector;
+   Per_Turn_Cache_Write_Cost : Long_Float_Vectors.Vector;
+   Per_Turn_Uncached_Input_Cost : Long_Float_Vectors.Vector;
    --  Sum of all Per_Consecutive_Tool_MI values across every consecutive
    --  tool call pair in the session.  0.0 when N_Consecutive_Tool_MI_Pairs = 0.
    --  Used as the scalar observation for I/MR/EWMA charts (§7.14c).
@@ -727,8 +740,40 @@ type Chart_Kind is
    Tool_Call_Tokens_Quantile,
    Thinking_Tokens_Quantile,
    Tool_Call_JSD_Quantile,
-   Tool_Call_MI_Quantile)
+   Tool_Call_MI_Quantile),
 
+   --  Token Cost Charts — Session-level I/MR/EWMA (6 categories × 3):
+   Session_Total_Cost_I,
+   Session_Total_Cost_MR,
+   Session_Total_Cost_EWMA,
+   Session_Input_Cost_I,
+   Session_Input_Cost_MR,
+   Session_Input_Cost_EWMA,
+   Session_Output_Cost_I,
+   Session_Output_Cost_MR,
+   Session_Output_Cost_EWMA,
+   Session_Cache_Read_Cost_I,
+   Session_Cache_Read_Cost_MR,
+   Session_Cache_Read_Cost_EWMA,
+   Session_Cache_Write_Cost_I,
+   Session_Cache_Write_Cost_MR,
+   Session_Cache_Write_Cost_EWMA,
+   Session_Uncached_Input_Cost_I,
+   Session_Uncached_Input_Cost_MR,
+   Session_Uncached_Input_Cost_EWMA,
+   --  Token Cost Charts — Turn-level Xbar/s (6 categories × 2):
+   Turn_Total_Cost_Xbar,
+   Turn_Total_Cost_S,
+   Turn_Input_Cost_Xbar,
+   Turn_Input_Cost_S,
+   Turn_Output_Cost_Xbar,
+   Turn_Output_Cost_S,
+   Turn_Cache_Read_Cost_Xbar,
+   Turn_Cache_Read_Cost_S,
+   Turn_Cache_Write_Cost_Xbar,
+   Turn_Cache_Write_Cost_S,
+   Turn_Uncached_Input_Cost_Xbar,
+   Turn_Uncached_Input_Cost_S)
 type Chart_Definition_Record is record
    Chart  : Chart_Kind;
 end record;
@@ -1917,6 +1962,73 @@ detected on one chart is immediately visible when browsing other metrics.
   (`Mn`, `Mj`, `Gcm`, `Lcm`) in `Compute_Dip` use `Int_Vectors.Vector`
   (an `Ada.Containers.Vectors (Positive, Integer)` instantiation).
 
+
+### 7.20 Token Cost Computation — `Coyote_SQC.Metrics`
+
+Token costs are derived from token counts and a per-model pricing table.
+The computation is performed by `Coyote_SQC.Metrics.Compute` after the
+existing token-count accumulators and JSD/MI loops.
+
+#### Pricing lookup
+
+`Coyote_SQC.Metrics` uses a `Pricing_Table` type:
+
+```ada
+type Per_Token_Prices is record
+   Input_Price       : Long_Float := 0.0;
+   Output_Price      : Long_Float := 0.0;
+   Cache_Read_Price  : Long_Float := 0.0;
+   Cache_Write_Price : Long_Float := 0.0;
+end record;
+
+package Pricing_Maps is new Ada.Containers.Hashed_Maps
+  (Key_Type        => Ada.Strings.Unbounded.Unbounded_String,
+   Element_Type    => Per_Token_Prices,
+   Hash            => Ada.Strings.Unbounded.Hash,
+   Equivalent_Keys => Ada.Strings.Unbounded."=");
+```
+
+Pricing is resolved in priority order:
+
+1. **Local pricing file** (`~/.config/coyote_sqc/pricing.json`) — per-token
+   prices in USD.  Checked first.
+2. **OpenRouter `/api/v1/models`** — fallback.  The endpoint requires no
+   authentication.  Prices are in the `pricing.prompt`, `pricing.completion`,
+   `pricing.input_cache_read`, and `pricing.input_cache_write` fields as
+   per-token string values.  Parsed into `Long_Float` at load time.  Cached
+   to `~/.config/coyote_sqc/openrouter_models_cache.json` with a 24-hour
+   expiry.
+
+A session whose model has no pricing from either source is excluded from
+all cost charts; a status-bar notice reports the count of unpriced sessions.
+
+#### Session-level cost computation
+
+For a session using model _m_ with prices `P = Pricing (m)`:
+
+```
+Uncached_Input_Cost = Total_Uncached_Input_Tokens × P.Input_Price
+Cache_Read_Cost     = Total_Cache_Read_Tokens     × P.Cache_Read_Price
+Cache_Write_Cost    = Total_Cache_Write_Tokens    × P.Cache_Write_Price
+Input_Cost          = Uncached_Input_Cost + Cache_Read_Cost + Cache_Write_Cost
+Output_Cost         = Total_Output_Tokens × P.Output_Price
+Total_Cost          = Input_Cost + Output_Cost
+```
+
+#### Per-turn cost computation
+
+Computed analogously from per-turn token counts.  When per-turn cache
+read/write breakdown is unavailable (providers that report cache totals
+only at the session level), the per-turn value is the session total
+divided by the turn count.
+
+#### Cost chart descriptors
+
+All 30 cost chart kinds use the same `Get_Observation`/`Get_Subgroup`
+accessor pattern as the corresponding token-count charts.  Session-level
+cost charts use the I/MR/EWMA formulas (§7.5, §7.11); turn-level cost
+charts use the Xbar/s formulas (§7.2, §7.3).  Box-Cox transformation is
+available for both families (§7.9, §7.10).
 ## 8. Chart Definitions
 
 ### 7.11 EWMA Chart — `Coyote_SQC.Statistics.EWMA_Chart`
@@ -2220,7 +2332,7 @@ end record;
 function Properties (Kind : Chart_Kind) return Chart_Properties;
 ```
 
-The sixty-one charts and their properties:
+The ninety-one charts and their properties:
 
 | `Chart_Kind` | Label | Group_Path | Y-Axis Label |
 |---|---|---|---|
@@ -2288,6 +2400,36 @@ The sixty-one charts and their properties:
 | `Tool_Call_JSD_Quantile` | `Tool Call JSD Quantile` | `Quantile Profiles/Quantile Profiles` | `Quantile (JSD similarity)` |
 | `Tool_Call_MI_Quantile` | `Tool Call MI Quantile` | `Quantile Profiles/Quantile Profiles` | `Quantile (MI similarity)` |
 
+| `Session_Total_Cost_I` | `Session Total Cost -- I` | `Token Costs/Total Cost` | `Total cost (USD)` |
+| `Session_Total_Cost_MR` | `Session Total Cost -- MR` | `Token Costs/Total Cost` | `Moving range (total cost)` |
+| `Session_Total_Cost_EWMA` | `Session Total Cost -- EWMA` | `Token Costs/Total Cost` | `EWMA (total cost)` |
+| `Session_Input_Cost_I` | `Session Input Cost -- I` | `Token Costs/Input Cost` | `Input cost (USD)` |
+| `Session_Input_Cost_MR` | `Session Input Cost -- MR` | `Token Costs/Input Cost` | `Moving range (input cost)` |
+| `Session_Input_Cost_EWMA` | `Session Input Cost -- EWMA` | `Token Costs/Input Cost` | `EWMA (input cost)` |
+| `Session_Output_Cost_I` | `Session Output Cost -- I` | `Token Costs/Output Cost` | `Output cost (USD)` |
+| `Session_Output_Cost_MR` | `Session Output Cost -- MR` | `Token Costs/Output Cost` | `Moving range (output cost)` |
+| `Session_Output_Cost_EWMA` | `Session Output Cost -- EWMA` | `Token Costs/Output Cost` | `EWMA (output cost)` |
+| `Session_Cache_Read_Cost_I` | `Session Cache Read Cost -- I` | `Token Costs/Cache Read Cost` | `Cache read cost (USD)` |
+| `Session_Cache_Read_Cost_MR` | `Session Cache Read Cost -- MR` | `Token Costs/Cache Read Cost` | `Moving range (cache read cost)` |
+| `Session_Cache_Read_Cost_EWMA` | `Session Cache Read Cost -- EWMA` | `Token Costs/Cache Read Cost` | `EWMA (cache read cost)` |
+| `Session_Cache_Write_Cost_I` | `Session Cache Write Cost -- I` | `Token Costs/Cache Write Cost` | `Cache write cost (USD)` |
+| `Session_Cache_Write_Cost_MR` | `Session Cache Write Cost -- MR` | `Token Costs/Cache Write Cost` | `Moving range (cache write cost)` |
+| `Session_Cache_Write_Cost_EWMA` | `Session Cache Write Cost -- EWMA` | `Token Costs/Cache Write Cost` | `EWMA (cache write cost)` |
+| `Session_Uncached_Input_Cost_I` | `Session Uncached Input Cost -- I` | `Token Costs/Uncached Input Cost` | `Uncached input cost (USD)` |
+| `Session_Uncached_Input_Cost_MR` | `Session Uncached Input Cost -- MR` | `Token Costs/Uncached Input Cost` | `Moving range (uncached input cost)` |
+| `Session_Uncached_Input_Cost_EWMA` | `Session Uncached Input Cost -- EWMA` | `Token Costs/Uncached Input Cost` | `EWMA (uncached input cost)` |
+| `Turn_Total_Cost_Xbar` | `Turn Total Cost -- Xbar` | `Token Costs/Total Cost` | `Mean total cost/turn` |
+| `Turn_Total_Cost_S` | `Turn Total Cost -- s` | `Token Costs/Total Cost` | `Std dev total cost/turn` |
+| `Turn_Input_Cost_Xbar` | `Turn Input Cost -- Xbar` | `Token Costs/Input Cost` | `Mean input cost/turn` |
+| `Turn_Input_Cost_S` | `Turn Input Cost -- s` | `Token Costs/Input Cost` | `Std dev input cost/turn` |
+| `Turn_Output_Cost_Xbar` | `Turn Output Cost -- Xbar` | `Token Costs/Output Cost` | `Mean output cost/turn` |
+| `Turn_Output_Cost_S` | `Turn Output Cost -- s` | `Token Costs/Output Cost` | `Std dev output cost/turn` |
+| `Turn_Cache_Read_Cost_Xbar` | `Turn Cache Read Cost -- Xbar` | `Token Costs/Cache Read Cost` | `Mean cache read cost/turn` |
+| `Turn_Cache_Read_Cost_S` | `Turn Cache Read Cost -- s` | `Token Costs/Cache Read Cost` | `Std dev cache read cost/turn` |
+| `Turn_Cache_Write_Cost_Xbar` | `Turn Cache Write Cost -- Xbar` | `Token Costs/Cache Write Cost` | `Mean cache write cost/turn` |
+| `Turn_Cache_Write_Cost_S` | `Turn Cache Write Cost -- s` | `Token Costs/Cache Write Cost` | `Std dev cache write cost/turn` |
+| `Turn_Uncached_Input_Cost_Xbar` | `Turn Uncached Input Cost -- Xbar` | `Token Costs/Uncached Input Cost` | `Mean uncached input cost/turn` |
+| `Turn_Uncached_Input_Cost_S` | `Turn Uncached Input Cost -- s` | `Token Costs/Uncached Input Cost` | `Std dev uncached input cost/turn` |
 The left-panel display order is derived from each chart's `Group_Path`:
 groups and sub-groups are sorted alphabetically, with enum declaration
 order preserved within each sub-group.
@@ -3671,6 +3813,39 @@ Maximum 5 entries, ordered by descending `lastOpened`. On each workspace open or
 save, the entry for that path is upserted at the top and any entry beyond position 5
 is dropped. The file is written atomically (write to `.tmp`, then rename).
 
+
+### 13.3 Pricing — `pricing.json`
+
+Per-model token pricing for cost chart computation, resolved in priority
+order with an OpenRouter fallback (see §7.20).
+
+```json
+{
+  "models": {
+    "anthropic/claude-sonnet-4-5": {
+      "input_price": 0.000003,
+      "output_price": 0.000015,
+      "cache_read_price": 0.0000003,
+      "cache_write_price": 0.00000375
+    }
+  }
+}
+```
+
+All prices are in USD per token.  The file is read on workspace reload
+and does not survive workspace save/load (it is ambient configuration,
+not workspace state).
+
+### 13.4 OpenRouter Cache — `openrouter_models_cache.json`
+
+Cached response from the OpenRouter `/api/v1/models` endpoint.
+Automatically managed by the application; user-editable for offline use
+or when a custom pricing override is desired before the local pricing
+file is set up.  Imports only the `pricing` sub-object per model,
+converting string-valued prices to `Long_Float`.
+
+Expires after 24 hours; refreshed on Workspace → Reload Sessions if
+the cache has expired.
 ---
 
 ## 14. Testing
@@ -3946,6 +4121,39 @@ existing AUnit test suite. Fixture files live in `test/fixtures/sqc/`.
   (Set B) ring outside the bounding box.
 - Log Y mode with zero/negative values: components whose UCL, LCL, or
   statistic is ≤ 0 are skipped and do not cause an exception.
+
+### 14.8 Cost Computation Tests — `Coyote_SQC.Tests.Metrics`
+
+- Cost accuracy: for a session with known per-token prices and known token
+  counts, verify all six cost totals (`Total_Cost`, `Total_Input_Cost`,
+  `Total_Output_Cost`, `Total_Cache_Read_Cost`, `Total_Cache_Write_Cost`,
+  `Total_Uncached_Input_Cost`) match hand-computed values to four decimal
+  places.
+- Per-turn cost accuracy: for a session with three turns and known per-turn
+  token counts, verify the six per-turn cost vectors match hand-computed
+  values to four decimal places.
+- Per-turn cache cost fallback: with per-turn cache read/write breakdown
+  absent, verify `Per_Turn_Cache_Read_Cost` equals `Total_Cache_Read_Cost /
+  N_Turns` for all turns.
+- Unpriced model exclusion: sessions whose model has no pricing entry skip
+  cost computation entirely; `Total_Cost = 0.0` and all cost charts exclude
+  the session.
+- OpenRouter fallback: when a model is absent from the local pricing file,
+  verify that its OpenRouter prices are loaded from the cached response and
+  applied correctly.
+
+### 14.9 Cost Chart Tests — `Coyote_SQC.Tests.Statistics`
+
+- Cost I/MR limit computation: for a known five-session dataset with known
+  pricing, verify UCL, CL, and LCL match hand-computed §5.6 formula values
+  to four decimal places for each of the six cost categories.
+- Cost EWMA independence: for the six Session Cost EWMA chart kinds, verify
+  `Z_t` and limits use independently computed `Grand_Mean` and σ.
+- Cost Xbar/s limit computation: for a known three-session dataset with
+  known per-turn costs, verify Xbar and s chart limits to four decimal
+  places for each cost category.
+- Zero-value exclusion: sessions with zero cost for the measured quantity
+  are excluded when Box-Cox is enabled; status-bar notice is posted.
 *End of document.*
 Note: Box_Cox_Inverse requires (for λ ≠ 0) that Z*λ + 1 > 0 for any transformed value Z being inverted. If this condition is not met the inverse raises Constraint_Error. When back-transform of UCL or CL fails the implementation must provide a visible explanation (status bar or popup) and one of the documented fallback behaviours: choose an alternate valid lambda, fall back to λ = 0 (log), or render limits in transformed units with a clear label. The application MUST NOT silently omit control limits without notifying the user.
 
