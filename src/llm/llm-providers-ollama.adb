@@ -4,6 +4,7 @@
 --  For revision history, see the project version-control log.
 
 with Ada.Strings.Fixed;
+with Ada.Text_IO;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Exceptions;
 with GNATCOLL.JSON;
@@ -343,10 +344,10 @@ package body LLM.Providers.Ollama is
       end if;
 
       --  Build messages array
-      for I in 1 .. Messages.Length loop
+      for I in Messages.First_Index .. Messages.Last_Index loop
          declare
             M      : constant LLM.Types.Message :=
-              Messages.Element (Positive (I));
+              Messages.Element (I);
             Msg_Obj : GNATCOLL.JSON.JSON_Value :=
                         GNATCOLL.JSON.Create_Object;
             Content : Unbounded_String;
@@ -363,10 +364,10 @@ package body LLM.Providers.Ollama is
             end case;
 
             --  Concatenate content blocks
-            for J in 1 .. M.Content.Length loop
+            for J in M.Content.First_Index .. M.Content.Last_Index loop
                declare
                   Block : constant LLM.Types.Content_Block :=
-                    M.Content.Element (Positive (J));
+                    M.Content.Element (J);
                begin
                   case Block.Kind is
                      when LLM.Types.Text_Block =>
@@ -414,6 +415,10 @@ package body LLM.Providers.Ollama is
 
    exception
       when E : others =>
+         Ada.Text_IO.Put_Line
+           (Ada.Text_IO.Standard_Error,
+            "[!] ollama provider error: "
+            & Ada.Exceptions.Exception_Message (E));
          Handler.all
            (LLM.Events.Message_End_Event'
              (Stop      => LLM.Types.Error_Stop,

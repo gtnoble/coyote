@@ -256,7 +256,7 @@ package body LLM.Providers.Ollama.Catalogue is
       Parsed        : GNATCOLL.JSON.Read_Result;
       Root          : GNATCOLL.JSON.JSON_Value;
       Endpoint      : constant String :=
-        (if Base_Url'Length = 0 then "http://localhost:11434/api/tags"
+        (if Base_Url'Length = 0 then "https://ollama.com/api/tags"
          elsif Base_Url (Base_Url'Last) = '/' then Base_Url & "api/tags"
          else Base_Url & "/api/tags");
 

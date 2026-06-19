@@ -6,6 +6,7 @@ with Ada.Characters.Handling;
 with Ada.Containers;
 with Ada.Containers.Vectors;
 with Ada.Directories;
+with Ada.Text_IO;
 with Ada.Exceptions;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
@@ -1066,8 +1067,16 @@ package body LLM.Agent is
                         begin
                            Emit (On_Event, Event);
                         end;
+                        Ada.Text_IO.Put_Line
+                          (Ada.Text_IO.Standard_Error,
+                           "[!] agent error (retry exhausted): "
+                           & Ada.Exceptions.Exception_Message (Occurrence));
                         raise;
                      else
+                        Ada.Text_IO.Put_Line
+                          (Ada.Text_IO.Standard_Error,
+                           "[!] agent error (non-retryable): "
+                           & Ada.Exceptions.Exception_Message (Occurrence));
                         raise;
                      end if;
                end;
@@ -1741,7 +1750,7 @@ package body LLM.Agent is
             end if;
          end if;
       exception
-         when others =>
+         when Occurrence : others =>
             Was_Aborted := S.Abort_State.Requested;
             S.Streaming := False;
             declare
@@ -1752,6 +1761,10 @@ package body LLM.Agent is
             end;
             S.Abort_State.Clear;
             S.Pause_State.Release;
+            Ada.Text_IO.Put_Line
+              (Ada.Text_IO.Standard_Error,
+               "[!] agent error (run_prompt): "
+               & Ada.Exceptions.Exception_Message (Occurrence));
             raise;
       end;
 
