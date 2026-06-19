@@ -733,7 +733,7 @@ package body LLM.Agent is
       Rates     : LLM.Types.Model_Cost) return Long_Float
    is
    begin
-      return Long_Float (Tok_Usage.Input)
+      return Long_Float (Tok_Usage.Input - Tok_Usage.Cache_Read - Tok_Usage.Cache_Write)
         * Rates.Input / 1_000_000.0
         + Long_Float (Tok_Usage.Output)
         * Rates.Output / 1_000_000.0
