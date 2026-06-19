@@ -119,7 +119,7 @@ package body Coyote_SQC_Parser_Tests is
       Coyote_SQC.Session_Parser.Parse_File
         (Fixture ("v3_session.jsonl"), Session, Ok);
       Assert (Ok, "Parse_File must succeed");
-      M := Coyote_SQC.Metrics.Compute (Session);
+      M := Coyote_SQC.Metrics.Compute (Session, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map);
       Assert
         (M.N_Tool_Calls = 2,
          "N_Tool_Calls should be 2; got "

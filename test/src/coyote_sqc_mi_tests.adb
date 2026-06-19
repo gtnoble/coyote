@@ -168,7 +168,7 @@ package body Coyote_SQC_MI_Tests is
       Session.Turns.Append (Turn);
       Session.Session_Id := To_Unbounded_String ("mi1");
 
-      M := Coyote_SQC.Metrics.Compute (Session);
+      M := Coyote_SQC.Metrics.Compute (Session, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map);
 
       Assert (M.N_Consecutive_Tool_MI_Pairs = 1,
               "Two identical MI calls: N_Pairs must be 1; got "
@@ -192,7 +192,7 @@ package body Coyote_SQC_MI_Tests is
       Session.Turns.Append (Turn);
       Session.Session_Id := To_Unbounded_String ("mi2");
 
-      M := Coyote_SQC.Metrics.Compute (Session);
+      M := Coyote_SQC.Metrics.Compute (Session, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map);
 
       Assert (M.N_Consecutive_Tool_MI_Pairs = 0,
               "Single tool call: N_MI_Pairs must be 0");
@@ -213,7 +213,7 @@ package body Coyote_SQC_MI_Tests is
       Session.Turns.Append (Turn);
       Session.Session_Id := To_Unbounded_String ("mi3");
 
-      M := Coyote_SQC.Metrics.Compute (Session);
+      M := Coyote_SQC.Metrics.Compute (Session, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map);
 
       Assert (M.N_Consecutive_Tool_MI_Pairs = 0,
               "No tool calls: N_MI_Pairs must be 0");
@@ -236,7 +236,7 @@ package body Coyote_SQC_MI_Tests is
       Session.Turns.Append (Turn);
       Session.Session_Id := To_Unbounded_String ("mi4");
 
-      M := Coyote_SQC.Metrics.Compute (Session);
+      M := Coyote_SQC.Metrics.Compute (Session, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map);
 
       for V of M.Per_Consecutive_Tool_MI loop
          Manual := Manual + V;
@@ -263,7 +263,7 @@ package body Coyote_SQC_MI_Tests is
       Session.Turns.Append (Turn2);
       Session.Session_Id := To_Unbounded_String ("mi5");
 
-      M := Coyote_SQC.Metrics.Compute (Session);
+      M := Coyote_SQC.Metrics.Compute (Session, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map);
 
       Assert (M.N_Consecutive_Tool_MI_Pairs = 1,
               "Cross-turn MI pair: N_MI_Pairs must be 1; got "

@@ -1,19 +1,44 @@
-with Ada.Strings.Unbounded;
-with Coyote_SQC.Statistics.JSD;
-with Coyote_SQC.Statistics.MI;
 --  Coyote_SQC.Metrics body.
 --
 --  Project: coyote
+
+with Ada.Strings.Unbounded;
+with Coyote_SQC.Statistics.JSD;
+with Coyote_SQC.Statistics.MI;
 
 package body Coyote_SQC.Metrics is
 
    use Coyote_SQC.Data_Model;
 
    function Compute
-     (Session : Session_Record) return Session_Metrics_Record
+     (Session : Session_Record;
+      Pricing : Pricing_Table) return Session_Metrics_Record
    is
       M : Session_Metrics_Record;
+      --  Cost helpers.
+      TC  : Long_Float := 0.0;
+      IC  : Long_Float := 0.0;
+      OC  : Long_Float := 0.0;
+      CRC : Long_Float := 0.0;
+      CWC : Long_Float := 0.0;
+      UIC : Long_Float := 0.0;
+      P   : Per_Token_Prices;
+      Has_P : Boolean := False;
+      use Ada.Strings.Unbounded;
    begin
+      --  Look up pricing for this session's model.
+      if not Pricing.Is_Empty then
+         declare
+            Pos : constant Pricing_Maps.Cursor :=
+              Pricing.Find (Session.Model);
+         begin
+            if Pricing_Maps.Has_Element (Pos) then
+               P := Pricing_Maps.Element (Pos);
+               Has_P := True;
+            end if;
+         end;
+      end if;
+
       M.Session_Id := Session.Session_Id;
       M.Total_Input_Tokens  := Session.Total_Input_Tokens;
       M.Total_Output_Tokens := Session.Total_Output_Tokens;
@@ -30,8 +55,7 @@ package body Coyote_SQC.Metrics is
          M.Total_Thinking_Tokens :=
            M.Total_Thinking_Tokens + Turn.Thinking_Tokens;
 
-         --  Tool calls: sum estimated per-TC token costs, count calls and
-         --  failures, and accumulate for tool-call turns only.
+         --  Tool calls.
          declare
             Tool_Sum : Natural := 0;
          begin
@@ -69,11 +93,7 @@ package body Coyote_SQC.Metrics is
       end loop;
 
       --  Compute consecutive JSD tool-call similarity pairs.
-      --  Iterate all tool calls in session order (across turn boundaries),
-      --  appending per-argument S_k values for each adjacent pair via
-      --  Compute_S_Values.
       declare
-         use Ada.Strings.Unbounded;
          Prev_Name : Unbounded_String;
          Prev_Args : Unbounded_String;
          Has_Prev  : Boolean := False;
@@ -97,16 +117,13 @@ package body Coyote_SQC.Metrics is
          end loop;
       end;
 
-      --  Sum Per_Consecutive_Tool_S into the session-level scalar.
+      --  Sum Per_Consecutive_Tool_S.
       for V of M.Per_Consecutive_Tool_S loop
-
          M.Total_Tool_Call_JSD_S := M.Total_Tool_Call_JSD_S + V;
       end loop;
 
       --  Compute consecutive MI tool-call similarity pairs.
-      --  Same iteration as JSD but using compression-based MI.
       declare
-         use Ada.Strings.Unbounded;
          Prev_Name : Unbounded_String;
          Prev_Args : Unbounded_String;
          Has_Prev  : Boolean := False;
@@ -130,10 +147,68 @@ package body Coyote_SQC.Metrics is
          end loop;
       end;
 
-      --  Sum Per_Consecutive_Tool_MI into the session-level scalar.
+      --  Sum Per_Consecutive_Tool_MI.
       for V of M.Per_Consecutive_Tool_MI loop
          M.Total_Tool_Call_MI := M.Total_Tool_Call_MI + V;
       end loop;
+
+      --  Compute token costs if pricing is available for this model.
+      if Has_P then
+         declare
+            N_Turns : constant Natural :=
+              (if Session.Turns.Is_Empty then 1
+               else Natural (Session.Turns.Length));
+            PTC  : Long_Float;
+            PTIC : Long_Float;
+            PTOC : Long_Float;
+            PTCRC : Long_Float;
+            PTCWC : Long_Float;
+            PTUIC : Long_Float;
+         begin
+            for Turn of Session.Turns loop
+               PTIC := Long_Float (Turn.Input_Tokens) * P.Input_Price;
+               PTOC := Long_Float (Turn.Output_Tokens) * P.Output_Price;
+               PTC  := PTIC + PTOC;
+
+               M.Per_Turn_Cost.Append (PTC);
+               M.Per_Turn_Input_Cost.Append (PTIC);
+               M.Per_Turn_Output_Cost.Append (PTOC);
+
+               TC  := TC + PTC;
+               IC  := IC + PTIC;
+               OC  := OC + PTOC;
+            end loop;
+
+            --  Session-level cache and uncached costs.
+            CRC := Long_Float (Session.Total_Cache_Read_Tokens)
+                     * P.Cache_Read_Price;
+            CWC := Long_Float (Session.Total_Cache_Write_Tokens)
+                     * P.Cache_Write_Price;
+            UIC := Long_Float (Session.Total_Uncached_Input_Tokens)
+                     * P.Input_Price;
+
+            M.Total_Cache_Read_Cost  := CRC;
+            M.Total_Cache_Write_Cost := CWC;
+            M.Total_Uncached_Input_Cost := UIC;
+
+            --  Total input cost = uncached + cache read + cache write.
+            M.Total_Input_Cost := IC + CRC + CWC;
+            M.Total_Output_Cost := OC;
+            M.Total_Cost := M.Total_Input_Cost + M.Total_Output_Cost;
+
+            --  Per-turn cache costs: average across turns.
+            if N_Turns > 0 then
+               PTCRC := CRC / Long_Float (N_Turns);
+               PTCWC := CWC / Long_Float (N_Turns);
+               PTUIC := UIC / Long_Float (N_Turns);
+               for I in 1 .. N_Turns loop
+                  M.Per_Turn_Cache_Read_Cost.Append (PTCRC);
+                  M.Per_Turn_Cache_Write_Cost.Append (PTCWC);
+                  M.Per_Turn_Uncached_Input_Cost.Append (PTUIC);
+               end loop;
+            end if;
+         end;
+      end if;
 
       return M;
    end Compute;

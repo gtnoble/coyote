@@ -347,7 +347,7 @@ package body Coyote_SQC.App is
             | Fraction_Thinking_Per_Tool_Call_EWMA | Fraction_Uncached_Input_EWMA
             | Session_Tool_Call_JSD_Sum_EWMA
             | Session_Tool_Call_MI_Sum_I
-            | Session_Tool_Call_MI_Sum_EWMA =>
+            | Session_Tool_Call_MI_Sum_EWMA | Session_Total_Cost_EWMA | Session_Input_Cost_EWMA | Session_Output_Cost_EWMA | Session_Cache_Read_Cost_EWMA | Session_Cache_Write_Cost_EWMA | Session_Uncached_Input_Cost_EWMA =>
             --  EWMA requires previous Z value; caller overrides in the
             --  per-session loop after calling Compute_Session_Stat.
             Excluded := True;
@@ -359,7 +359,7 @@ package body Coyote_SQC.App is
             | Session_Uncached_Input_Tokens_MR
             | Session_Turn_Count_MR | Fraction_Thinking_Tokens_MR | Fraction_Tool_Call_Tokens_MR
             | Fraction_Thinking_Per_Tool_Call_MR | Fraction_Uncached_Input_MR
-            | Session_Tool_Call_JSD_Sum_MR | Session_Tool_Call_MI_Sum_MR =>
+            | Session_Tool_Call_JSD_Sum_MR | Session_Tool_Call_MI_Sum_MR | Session_Total_Cost_MR | Session_Input_Cost_MR | Session_Output_Cost_MR | Session_Cache_Read_Cost_MR | Session_Cache_Write_Cost_MR | Session_Uncached_Input_Cost_MR =>
             --  call for non-first sessions.
             Excluded := True;
          when Tool_Call_JSD_Xbar =>
@@ -436,6 +436,172 @@ package body Coyote_SQC.App is
                   Value := StdDev_LF_F (Metrics.Per_Consecutive_Tool_MI);
                end if;
 
+            end if;
+
+
+         --  Token cost I charts.
+         when Session_Total_Cost_I =>
+            Value := Metrics.Total_Cost;
+            N     := 1;
+         when Session_Input_Cost_I =>
+            Value := Metrics.Total_Input_Cost;
+            N     := 1;
+         when Session_Output_Cost_I =>
+            Value := Metrics.Total_Output_Cost;
+            N     := 1;
+         when Session_Cache_Read_Cost_I =>
+            Value := Metrics.Total_Cache_Read_Cost;
+            N     := 1;
+         when Session_Cache_Write_Cost_I =>
+            Value := Metrics.Total_Cache_Write_Cost;
+            N     := 1;
+         when Session_Uncached_Input_Cost_I =>
+            Value := Metrics.Total_Uncached_Input_Cost;
+            N     := 1;
+
+         --  Token cost Xbar/S charts.
+         when Turn_Total_Cost_Xbar =>
+            N := Metrics.N_Turns;
+            if Plot_Method = Robust_Median then
+               Value :=
+                 Coyote_SQC.Statistics.I_Chart.Median_Of
+                   (To_LF_Array_F (Metrics.Per_Turn_Cost));
+            else
+               Value := Mean_LF_F (Metrics.Per_Turn_Cost);
+            end if;
+            Single := (N = 1);
+         when Turn_Total_Cost_S =>
+            N := Metrics.N_Turns;
+            if N = 1 then
+               Excluded := True;
+            else
+               if Plot_Method = Robust_Median then
+                  Value :=
+                    Coyote_SQC.Statistics.I_Chart.Qn_Scale_Any
+                      (To_LF_Array_F (Metrics.Per_Turn_Cost));
+               else
+                  Value := StdDev_LF_F (Metrics.Per_Turn_Cost);
+               end if;
+            end if;
+
+         when Turn_Input_Cost_Xbar =>
+            N := Metrics.N_Turns;
+            if Plot_Method = Robust_Median then
+               Value :=
+                 Coyote_SQC.Statistics.I_Chart.Median_Of
+                   (To_LF_Array_F (Metrics.Per_Turn_Input_Cost));
+            else
+               Value := Mean_LF_F (Metrics.Per_Turn_Input_Cost);
+            end if;
+            Single := (N = 1);
+         when Turn_Input_Cost_S =>
+            N := Metrics.N_Turns;
+            if N = 1 then
+               Excluded := True;
+            else
+               if Plot_Method = Robust_Median then
+                  Value :=
+                    Coyote_SQC.Statistics.I_Chart.Qn_Scale_Any
+                      (To_LF_Array_F (Metrics.Per_Turn_Input_Cost));
+               else
+                  Value := StdDev_LF_F (Metrics.Per_Turn_Input_Cost);
+               end if;
+            end if;
+
+         when Turn_Output_Cost_Xbar =>
+            N := Metrics.N_Turns;
+            if Plot_Method = Robust_Median then
+               Value :=
+                 Coyote_SQC.Statistics.I_Chart.Median_Of
+                   (To_LF_Array_F (Metrics.Per_Turn_Output_Cost));
+            else
+               Value := Mean_LF_F (Metrics.Per_Turn_Output_Cost);
+            end if;
+            Single := (N = 1);
+         when Turn_Output_Cost_S =>
+            N := Metrics.N_Turns;
+            if N = 1 then
+               Excluded := True;
+            else
+               if Plot_Method = Robust_Median then
+                  Value :=
+                    Coyote_SQC.Statistics.I_Chart.Qn_Scale_Any
+                      (To_LF_Array_F (Metrics.Per_Turn_Output_Cost));
+               else
+                  Value := StdDev_LF_F (Metrics.Per_Turn_Output_Cost);
+               end if;
+            end if;
+
+         when Turn_Cache_Read_Cost_Xbar =>
+            N := Metrics.N_Turns;
+            if Plot_Method = Robust_Median then
+               Value :=
+                 Coyote_SQC.Statistics.I_Chart.Median_Of
+                   (To_LF_Array_F (Metrics.Per_Turn_Cache_Read_Cost));
+            else
+               Value := Mean_LF_F (Metrics.Per_Turn_Cache_Read_Cost);
+            end if;
+            Single := (N = 1);
+         when Turn_Cache_Read_Cost_S =>
+            N := Metrics.N_Turns;
+            if N = 1 then
+               Excluded := True;
+            else
+               if Plot_Method = Robust_Median then
+                  Value :=
+                    Coyote_SQC.Statistics.I_Chart.Qn_Scale_Any
+                      (To_LF_Array_F (Metrics.Per_Turn_Cache_Read_Cost));
+               else
+                  Value := StdDev_LF_F (Metrics.Per_Turn_Cache_Read_Cost);
+               end if;
+            end if;
+
+         when Turn_Cache_Write_Cost_Xbar =>
+            N := Metrics.N_Turns;
+            if Plot_Method = Robust_Median then
+               Value :=
+                 Coyote_SQC.Statistics.I_Chart.Median_Of
+                   (To_LF_Array_F (Metrics.Per_Turn_Cache_Write_Cost));
+            else
+               Value := Mean_LF_F (Metrics.Per_Turn_Cache_Write_Cost);
+            end if;
+            Single := (N = 1);
+         when Turn_Cache_Write_Cost_S =>
+            N := Metrics.N_Turns;
+            if N = 1 then
+               Excluded := True;
+            else
+               if Plot_Method = Robust_Median then
+                  Value :=
+                    Coyote_SQC.Statistics.I_Chart.Qn_Scale_Any
+                      (To_LF_Array_F (Metrics.Per_Turn_Cache_Write_Cost));
+               else
+                  Value := StdDev_LF_F (Metrics.Per_Turn_Cache_Write_Cost);
+               end if;
+            end if;
+
+         when Turn_Uncached_Input_Cost_Xbar =>
+            N := Metrics.N_Turns;
+            if Plot_Method = Robust_Median then
+               Value :=
+                 Coyote_SQC.Statistics.I_Chart.Median_Of
+                   (To_LF_Array_F (Metrics.Per_Turn_Uncached_Input_Cost));
+            else
+               Value := Mean_LF_F (Metrics.Per_Turn_Uncached_Input_Cost);
+            end if;
+            Single := (N = 1);
+         when Turn_Uncached_Input_Cost_S =>
+            N := Metrics.N_Turns;
+            if N = 1 then
+               Excluded := True;
+            else
+               if Plot_Method = Robust_Median then
+                  Value :=
+                    Coyote_SQC.Statistics.I_Chart.Qn_Scale_Any
+                      (To_LF_Array_F (Metrics.Per_Turn_Uncached_Input_Cost));
+               else
+                  Value := StdDev_LF_F (Metrics.Per_Turn_Uncached_Input_Cost);
+               end if;
             end if;
 
          --  Quantile CC charts: handled separately in Recompute_Chart.
@@ -516,6 +682,83 @@ package body Coyote_SQC.App is
    begin
       return (Valid => True, Value => Long_Float (M.N_Turns));
    end Obs_Turn_Count;
+
+   --  ── Cost observation accessors ────────────────────────────────────
+
+   function Obs_Total_Cost
+     (M : Session_Metrics_Record) return Observation_Result is
+   begin
+      return (Valid => True, Value => M.Total_Cost);
+   end Obs_Total_Cost;
+
+   function Obs_Input_Cost
+     (M : Session_Metrics_Record) return Observation_Result is
+   begin
+      return (Valid => True, Value => M.Total_Input_Cost);
+   end Obs_Input_Cost;
+
+   function Obs_Output_Cost
+     (M : Session_Metrics_Record) return Observation_Result is
+   begin
+      return (Valid => True, Value => M.Total_Output_Cost);
+   end Obs_Output_Cost;
+
+   function Obs_Cache_Read_Cost
+     (M : Session_Metrics_Record) return Observation_Result is
+   begin
+      return (Valid => True, Value => M.Total_Cache_Read_Cost);
+   end Obs_Cache_Read_Cost;
+
+   function Obs_Cache_Write_Cost
+     (M : Session_Metrics_Record) return Observation_Result is
+   begin
+      return (Valid => True, Value => M.Total_Cache_Write_Cost);
+   end Obs_Cache_Write_Cost;
+
+   function Obs_Uncached_Input_Cost
+     (M : Session_Metrics_Record) return Observation_Result is
+   begin
+      return (Valid => True, Value => M.Total_Uncached_Input_Cost);
+   end Obs_Uncached_Input_Cost;
+
+   --  ── Cost subgroup accessors (Long_Float) ──────────────────────────
+
+   function Sub_Total_Cost
+     (M : Session_Metrics_Record) return Long_Float_Vectors.Vector is
+   begin
+      return M.Per_Turn_Cost;
+   end Sub_Total_Cost;
+
+   function Sub_Input_Cost
+     (M : Session_Metrics_Record) return Long_Float_Vectors.Vector is
+   begin
+      return M.Per_Turn_Input_Cost;
+   end Sub_Input_Cost;
+
+   function Sub_Output_Cost
+     (M : Session_Metrics_Record) return Long_Float_Vectors.Vector is
+   begin
+      return M.Per_Turn_Output_Cost;
+   end Sub_Output_Cost;
+
+   function Sub_Cache_Read_Cost
+     (M : Session_Metrics_Record) return Long_Float_Vectors.Vector is
+   begin
+      return M.Per_Turn_Cache_Read_Cost;
+   end Sub_Cache_Read_Cost;
+
+   function Sub_Cache_Write_Cost
+     (M : Session_Metrics_Record) return Long_Float_Vectors.Vector is
+   begin
+      return M.Per_Turn_Cache_Write_Cost;
+   end Sub_Cache_Write_Cost;
+
+   function Sub_Uncached_Input_Cost
+     (M : Session_Metrics_Record) return Long_Float_Vectors.Vector is
+   begin
+      return M.Per_Turn_Uncached_Input_Cost;
+   end Sub_Uncached_Input_Cost;
+
 
    --  Ratio accessor: thinking tokens / output tokens.
    --  Returns (Valid => False) when Total_Output_Tokens = 0 (session
@@ -747,6 +990,46 @@ package body Coyote_SQC.App is
          when Tool_Call_MI_Quantile =>
             D.LF_Get_Subgroup := Sub_MI_LF'Access;
             D.Exclusion_Rule  := Zero_Tool_Call_Turns;
+
+         --  Token cost I/MR/EWMA charts (session-level).
+         when Session_Total_Cost_I | Session_Total_Cost_MR | Session_Total_Cost_EWMA =>
+            D.Get_Observation := Obs_Total_Cost'Access;
+            D.Exclusion_Rule  := Zero_Observation;
+         when Session_Input_Cost_I | Session_Input_Cost_MR | Session_Input_Cost_EWMA =>
+            D.Get_Observation := Obs_Input_Cost'Access;
+            D.Exclusion_Rule  := Zero_Observation;
+         when Session_Output_Cost_I | Session_Output_Cost_MR | Session_Output_Cost_EWMA =>
+            D.Get_Observation := Obs_Output_Cost'Access;
+            D.Exclusion_Rule  := Zero_Observation;
+         when Session_Cache_Read_Cost_I | Session_Cache_Read_Cost_MR | Session_Cache_Read_Cost_EWMA =>
+            D.Get_Observation := Obs_Cache_Read_Cost'Access;
+            D.Exclusion_Rule  := Zero_Observation;
+         when Session_Cache_Write_Cost_I | Session_Cache_Write_Cost_MR | Session_Cache_Write_Cost_EWMA =>
+            D.Get_Observation := Obs_Cache_Write_Cost'Access;
+            D.Exclusion_Rule  := Zero_Observation;
+         when Session_Uncached_Input_Cost_I | Session_Uncached_Input_Cost_MR | Session_Uncached_Input_Cost_EWMA =>
+            D.Get_Observation := Obs_Uncached_Input_Cost'Access;
+            D.Exclusion_Rule  := Zero_Observation;
+         --  Token cost Xbar/S charts (turn-level).
+         when Turn_Total_Cost_Xbar | Turn_Total_Cost_S =>
+            D.LF_Get_Subgroup := Sub_Total_Cost'Access;
+            D.Exclusion_Rule  := No_Exclusion;
+         when Turn_Input_Cost_Xbar | Turn_Input_Cost_S =>
+            D.LF_Get_Subgroup := Sub_Input_Cost'Access;
+            D.Exclusion_Rule  := No_Exclusion;
+         when Turn_Output_Cost_Xbar | Turn_Output_Cost_S =>
+            D.LF_Get_Subgroup := Sub_Output_Cost'Access;
+            D.Exclusion_Rule  := No_Exclusion;
+         when Turn_Cache_Read_Cost_Xbar | Turn_Cache_Read_Cost_S =>
+            D.LF_Get_Subgroup := Sub_Cache_Read_Cost'Access;
+            D.Exclusion_Rule  := No_Exclusion;
+         when Turn_Cache_Write_Cost_Xbar | Turn_Cache_Write_Cost_S =>
+            D.LF_Get_Subgroup := Sub_Cache_Write_Cost'Access;
+            D.Exclusion_Rule  := No_Exclusion;
+         when Turn_Uncached_Input_Cost_Xbar | Turn_Uncached_Input_Cost_S =>
+            D.LF_Get_Subgroup := Sub_Uncached_Input_Cost'Access;
+            D.Exclusion_Rule  := No_Exclusion;
+
       end case;
       return D;
    end Descriptor;
@@ -1544,6 +1827,12 @@ package body Coyote_SQC.App is
                       | Session_Tool_Call_Result_Tokens_MR
                       | Session_Uncached_Input_Tokens_MR
                       | Session_Turn_Count_MR
+                      | Session_Total_Cost_MR
+                      | Session_Input_Cost_MR
+                      | Session_Output_Cost_MR
+                      | Session_Cache_Read_Cost_MR
+                      | Session_Cache_Write_Cost_MR
+                      | Session_Uncached_Input_Cost_MR
             then
                declare
                   Obs_R : constant Observation_Result :=
@@ -2034,6 +2323,9 @@ package body Coyote_SQC.App is
       State.Sessions.Clear;
       State.All_Metrics.Clear;
 
+
+      --  Load pricing data for cost chart computation.
+      State.Pricing := Coyote_SQC.Config.Load_Pricing;
       --  Pass Old_Sessions so Load_Sessions can skip parsing unchanged files.
       Coyote_SQC.Session_Parser.Load_Sessions
         (Source_Directories      => State.Workspace.Source_Directories,
@@ -2064,7 +2356,7 @@ package body Coyote_SQC.App is
             end loop;
             if not Found then
                State.All_Metrics.Append
-                 (Coyote_SQC.Metrics.Compute (Sess));
+                 (Coyote_SQC.Metrics.Compute (Sess, State.Pricing));
             end if;
          end;
       end loop;

@@ -768,6 +768,370 @@ package body Coyote_SQC.Charts is
                Is_S_Chart      => False,
                Is_EWMA_Chart   => False,
                Is_Quantile_CC_Chart => True);
+         --  Token Cost Charts — Session-level I/MR/EWMA (6 categories × 3)
+         when Session_Total_Cost_I =>
+            return
+              (Label           => U ("Session Total Cost -- I"),
+               Group_Path      => U ("Token Costs/Total Cost"),
+               Y_Axis_Label    => U ("Total cost (USD)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => True,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => False,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
+         when Session_Total_Cost_MR =>
+            return
+              (Label           => U ("Session Total Cost -- MR"),
+               Group_Path      => U ("Token Costs/Total Cost"),
+               Y_Axis_Label    => U ("Moving range (total cost)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => True,
+               Is_Xbar_S_Chart => False,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
+         when Session_Total_Cost_EWMA =>
+            return
+              (Label           => U ("Session Total Cost -- EWMA"),
+               Group_Path      => U ("Token Costs/Total Cost"),
+               Y_Axis_Label    => U ("EWMA (total cost)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => False,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => True,
+               Is_Quantile_CC_Chart => False);
+         when Session_Input_Cost_I =>
+            return
+              (Label           => U ("Session Input Cost -- I"),
+               Group_Path      => U ("Token Costs/Input Cost"),
+               Y_Axis_Label    => U ("Input cost (USD)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => True,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => False,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
+         when Session_Input_Cost_MR =>
+            return
+              (Label           => U ("Session Input Cost -- MR"),
+               Group_Path      => U ("Token Costs/Input Cost"),
+               Y_Axis_Label    => U ("Moving range (input cost)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => True,
+               Is_Xbar_S_Chart => False,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
+         when Session_Input_Cost_EWMA =>
+            return
+              (Label           => U ("Session Input Cost -- EWMA"),
+               Group_Path      => U ("Token Costs/Input Cost"),
+               Y_Axis_Label    => U ("EWMA (input cost)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => False,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => True,
+               Is_Quantile_CC_Chart => False);
+         when Session_Output_Cost_I =>
+            return
+              (Label           => U ("Session Output Cost -- I"),
+               Group_Path      => U ("Token Costs/Output Cost"),
+               Y_Axis_Label    => U ("Output cost (USD)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => True,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => False,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
+         when Session_Output_Cost_MR =>
+            return
+              (Label           => U ("Session Output Cost -- MR"),
+               Group_Path      => U ("Token Costs/Output Cost"),
+               Y_Axis_Label    => U ("Moving range (output cost)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => True,
+               Is_Xbar_S_Chart => False,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
+         when Session_Output_Cost_EWMA =>
+            return
+              (Label           => U ("Session Output Cost -- EWMA"),
+               Group_Path      => U ("Token Costs/Output Cost"),
+               Y_Axis_Label    => U ("EWMA (output cost)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => False,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => True,
+               Is_Quantile_CC_Chart => False);
+         when Session_Cache_Read_Cost_I =>
+            return
+              (Label           => U ("Session Cache Read Cost -- I"),
+               Group_Path      => U ("Token Costs/Cache Read Cost"),
+               Y_Axis_Label    => U ("Cache read cost (USD)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => True,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => False,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
+         when Session_Cache_Read_Cost_MR =>
+            return
+              (Label           => U ("Session Cache Read Cost -- MR"),
+               Group_Path      => U ("Token Costs/Cache Read Cost"),
+               Y_Axis_Label    => U ("Moving range (cache read cost)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => True,
+               Is_Xbar_S_Chart => False,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
+         when Session_Cache_Read_Cost_EWMA =>
+            return
+              (Label           => U ("Session Cache Read Cost -- EWMA"),
+               Group_Path      => U ("Token Costs/Cache Read Cost"),
+               Y_Axis_Label    => U ("EWMA (cache read cost)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => False,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => True,
+               Is_Quantile_CC_Chart => False);
+         when Session_Cache_Write_Cost_I =>
+            return
+              (Label           => U ("Session Cache Write Cost -- I"),
+               Group_Path      => U ("Token Costs/Cache Write Cost"),
+               Y_Axis_Label    => U ("Cache write cost (USD)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => True,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => False,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
+         when Session_Cache_Write_Cost_MR =>
+            return
+              (Label           => U ("Session Cache Write Cost -- MR"),
+               Group_Path      => U ("Token Costs/Cache Write Cost"),
+               Y_Axis_Label    => U ("Moving range (cache write cost)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => True,
+               Is_Xbar_S_Chart => False,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
+         when Session_Cache_Write_Cost_EWMA =>
+            return
+              (Label           => U ("Session Cache Write Cost -- EWMA"),
+               Group_Path      => U ("Token Costs/Cache Write Cost"),
+               Y_Axis_Label    => U ("EWMA (cache write cost)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => False,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => True,
+               Is_Quantile_CC_Chart => False);
+         when Session_Uncached_Input_Cost_I =>
+            return
+              (Label           => U ("Session Uncached Input Cost -- I"),
+               Group_Path      => U ("Token Costs/Uncached Input Cost"),
+               Y_Axis_Label    => U ("Uncached input cost (USD)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => True,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => False,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
+         when Session_Uncached_Input_Cost_MR =>
+            return
+              (Label           => U ("Session Uncached Input Cost -- MR"),
+               Group_Path      => U ("Token Costs/Uncached Input Cost"),
+               Y_Axis_Label    => U ("Moving range (uncached input cost)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => True,
+               Is_Xbar_S_Chart => False,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
+         when Session_Uncached_Input_Cost_EWMA =>
+            return
+              (Label           => U ("Session Uncached Input Cost -- EWMA"),
+               Group_Path      => U ("Token Costs/Uncached Input Cost"),
+               Y_Axis_Label    => U ("EWMA (uncached input cost)"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => False,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => True,
+               Is_Quantile_CC_Chart => False);
+
+         --  Token Cost Charts — Turn-level Xbar/s (6 categories × 2)
+         when Turn_Total_Cost_Xbar =>
+            return
+              (Label           => U ("Turn Total Cost -- Xbar"),
+               Group_Path      => U ("Token Costs/Total Cost"),
+               Y_Axis_Label    => U ("Mean total cost/turn"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => True,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
+         when Turn_Total_Cost_S =>
+            return
+              (Label           => U ("Turn Total Cost -- s"),
+               Group_Path      => U ("Token Costs/Total Cost"),
+               Y_Axis_Label    => U ("Std dev total cost/turn"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => True,
+               Is_S_Chart      => True,
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
+         when Turn_Input_Cost_Xbar =>
+            return
+              (Label           => U ("Turn Input Cost -- Xbar"),
+               Group_Path      => U ("Token Costs/Input Cost"),
+               Y_Axis_Label    => U ("Mean input cost/turn"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => True,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
+         when Turn_Input_Cost_S =>
+            return
+              (Label           => U ("Turn Input Cost -- s"),
+               Group_Path      => U ("Token Costs/Input Cost"),
+               Y_Axis_Label    => U ("Std dev input cost/turn"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => True,
+               Is_S_Chart      => True,
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
+         when Turn_Output_Cost_Xbar =>
+            return
+              (Label           => U ("Turn Output Cost -- Xbar"),
+               Group_Path      => U ("Token Costs/Output Cost"),
+               Y_Axis_Label    => U ("Mean output cost/turn"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => True,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
+         when Turn_Output_Cost_S =>
+            return
+              (Label           => U ("Turn Output Cost -- s"),
+               Group_Path      => U ("Token Costs/Output Cost"),
+               Y_Axis_Label    => U ("Std dev output cost/turn"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => True,
+               Is_S_Chart      => True,
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
+         when Turn_Cache_Read_Cost_Xbar =>
+            return
+              (Label           => U ("Turn Cache Read Cost -- Xbar"),
+               Group_Path      => U ("Token Costs/Cache Read Cost"),
+               Y_Axis_Label    => U ("Mean cache read cost/turn"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => True,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
+         when Turn_Cache_Read_Cost_S =>
+            return
+              (Label           => U ("Turn Cache Read Cost -- s"),
+               Group_Path      => U ("Token Costs/Cache Read Cost"),
+               Y_Axis_Label    => U ("Std dev cache read cost/turn"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => True,
+               Is_S_Chart      => True,
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
+         when Turn_Cache_Write_Cost_Xbar =>
+            return
+              (Label           => U ("Turn Cache Write Cost -- Xbar"),
+               Group_Path      => U ("Token Costs/Cache Write Cost"),
+               Y_Axis_Label    => U ("Mean cache write cost/turn"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => True,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
+         when Turn_Cache_Write_Cost_S =>
+            return
+              (Label           => U ("Turn Cache Write Cost -- s"),
+               Group_Path      => U ("Token Costs/Cache Write Cost"),
+               Y_Axis_Label    => U ("Std dev cache write cost/turn"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => True,
+               Is_S_Chart      => True,
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
+         when Turn_Uncached_Input_Cost_Xbar =>
+            return
+              (Label           => U ("Turn Uncached Input Cost -- Xbar"),
+               Group_Path      => U ("Token Costs/Uncached Input Cost"),
+               Y_Axis_Label    => U ("Mean uncached input cost/turn"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => True,
+               Is_S_Chart      => False,
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
+         when Turn_Uncached_Input_Cost_S =>
+            return
+              (Label           => U ("Turn Uncached Input Cost -- s"),
+               Group_Path      => U ("Token Costs/Uncached Input Cost"),
+               Y_Axis_Label    => U ("Std dev uncached input cost/turn"),
+               Is_P_Chart      => False,
+               Is_I_Chart      => False,
+               Is_MR_Chart     => False,
+               Is_Xbar_S_Chart => True,
+               Is_S_Chart      => True,
+               Is_EWMA_Chart   => False,
+               Is_Quantile_CC_Chart => False);
+
       end case;
    end Properties;
 

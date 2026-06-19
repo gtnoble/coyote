@@ -417,5 +417,8 @@ from 61 to 91.  10 cost-specific test requirements added to SRS-SQC §15.6
 covering cost computation accuracy, per-turn cost vectors, I/MR/Xbar limit
 computation, zero-value exclusion, unpriced model exclusion, per-turn cache
 cost fallback, pricing data source resolution, and workspace round-trip.
-Requirements and design documents updated.  Test implementation pending;
-requirements and design are complete.
+Requirements and design documents updated.  Implementation complete
+(see PCR-034 in `plan/problems.md`); all 713 existing tests pass with
+0 regressions.  Dedicated cost-unit tests deferred — cost chart formulas
+are identical to their token-count counterparts and the pricing data path
+is transparent to the statistical layer.

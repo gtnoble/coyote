@@ -6,6 +6,8 @@
 
 with Ada.Strings.Unbounded;
 
+with Coyote_SQC.Metrics;
+
 package Coyote_SQC.Config is
 
    --  A recent workspace entry.
@@ -34,5 +36,13 @@ package Coyote_SQC.Config is
    --  the top of the list and trims to Max_Recent entries.  Writes the file
    --  atomically (write to .tmp, then rename).
    procedure Record_Open (Name : String; Path : String);
+
+   --  ── Pricing ────────────────────────────────────────────────────────
+
+   --  Load the token pricing table: first from ~/.config/coyote_sqc/pricing.json
+   --  (if it exists), then attempt the OpenRouter API fallback for any model
+   --  not found locally.  Returns an empty table on error or when no pricing
+   --  source is available.
+   function Load_Pricing return Coyote_SQC.Metrics.Pricing_Table;
 
 end Coyote_SQC.Config;

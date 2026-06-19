@@ -241,7 +241,7 @@ Derived from a Session_Record. Computed once at load time and cached.
 
 | Field | Type | Description |
 |---|---|---|
-| `Chart_Type` | Chart_Type enum | Identifies which of the ninety-one charts this defines |
+| `Chart_Type` | Chart_Type enum | Identifies which of the ninety-three charts this defines |
 
 ---
 
@@ -2394,7 +2394,7 @@ The main window contains, from top to bottom:
 
 ### 7.2 Left Panel
 
-A GtkListBox (~180px default width, user-resizable) listing the ninety-one charts in
+A GtkListBox (~180px default width, user-resizable) listing the ninety-three charts in
 six visually separated groups with indented sub-group labels. Top-level groups are
 bold; sub-group labels are italic and indented 8 px; chart rows are indented 16 px.
 Groups and sub-groups are ordered alphabetically (case-sensitive). Enum declaration
@@ -3090,7 +3090,7 @@ selection changes, using the same trigger as the histogram refresh.
 
 **Set as Setup Interval button:**
 - Clicking this button sets the workspace setup interval to exactly the selected
-  sessions, applying to all ninety-one charts simultaneously.
+  sessions, applying to all ninety-three charts simultaneously.
 - If a setup interval is already established, a confirmation dialog is shown:
   "Replace existing setup interval for this workspace?"
 - On confirmation, all charts recompute their limits and recolor the setup interval
@@ -3206,7 +3206,7 @@ in bulk comments issued from this view.
 ### 11.1 Establishing a Setup Interval
 
 A setup interval is a single workspace-level set of sessions used to estimate the
-center line and control limits for all ninety-one charts simultaneously. It is established
+center line and control limits for all ninety-three charts simultaneously. It is established
 by selecting one or more sessions (Section 9) and either clicking "Set as Setup Interval"
 in the multi-select detail panel (Section 10.2) or choosing **View → Set Selection as
 Setup Interval** from the menu bar. There is no requirement for the
@@ -3216,11 +3216,11 @@ setup sessions to be contiguous in time.
 
 The setup interval is stored as a set of session UUIDs in the `Setup_Session_Ids`
 field of the `Workspace_Record`. It is workspace-level: a single setup interval
-applies to all ninety-one charts. The set is stored within the workspace file.
+applies to all ninety-three charts. The set is stored within the workspace file.
 
 ### 11.3 Visual Representation
 
-Setup interval sessions are rendered with filled yellow markers on all ninety-one charts.
+Setup interval sessions are rendered with filled yellow markers on all ninety-three charts.
 A faint yellow vertical band spans the x-extent of the setup interval sessions on
 every chart.
 

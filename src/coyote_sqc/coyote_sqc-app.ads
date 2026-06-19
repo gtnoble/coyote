@@ -8,6 +8,7 @@ with Ada.Containers.Vectors;
 with Ada.Strings.Unbounded;
 with Coyote_SQC.Charts;
 with Coyote_SQC.Data_Model;
+with Coyote_SQC.Metrics;
 with Coyote_SQC.Statistics;
 with Coyote_SQC.Statistics.Quantile_CC;
 with Glib;
@@ -206,6 +207,9 @@ package Coyote_SQC.App is
       Workspace    : Coyote_SQC.Data_Model.Workspace_Record;
       Sessions     : Coyote_SQC.Data_Model.Session_Vectors.Vector;
       All_Metrics  : Coyote_SQC.Data_Model.Metrics_Vectors.Vector;
+      --  Token pricing table (model ID -> per-token USD prices).
+      --  Initialised to empty at startup; populated on Reload Sessions.
+      Pricing      : Coyote_SQC.Metrics.Pricing_Table;
       Charts       : Chart_Data_Array;
       Active_Chart : Coyote_SQC.Charts.Chart_Kind :=
         Coyote_SQC.Charts.Turn_Tokens_Xbar;

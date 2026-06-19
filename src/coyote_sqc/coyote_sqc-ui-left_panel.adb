@@ -25,9 +25,9 @@ package body Coyote_SQC.UI.Left_Panel is
    The_List_Box : Gtk.List_Box.Gtk_List_Box := null;
 
    --  Maximum GtkListBox rows.
-   --  48 charts + 3 top-group separators + 19 sub-group separators = 70;
-   --  96 provides comfortable headroom.
-   Max_LB_Rows : constant := 96;
+   --  93 charts + 6 top-group separators + 28 sub-group separators = 127;
+   --  160 provides comfortable headroom.
+   Max_LB_Rows : constant := 160;
 
    --  Mapping: GtkListBox row index -> Chart_Kind (only valid when
    --  Row_Is_Chart(I) = True).  Separator rows are not chart rows.

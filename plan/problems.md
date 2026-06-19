@@ -158,6 +158,15 @@ client-controlled work product gets an entry here.
   Project Plan; populate at each joint review.
 - **Actions taken:** §8 added to `plan/project-plan.md` version 1.0 (stub,
   to be populated at first joint review).
+- **Actions taken (2026-06-18):**
+  1. Added 12 cost fields to `Session_Metrics_Record` (6 totals + 6 per-turn vectors).
+  2. Added 30 `Chart_Kind` enum values and chart properties in `coyote_sqc-charts`.
+  3. Added pricing types (`Per_Token_Prices`, `Pricing_Table`) and cost computation to `Coyote_SQC.Metrics.Compute`.
+  4. Added cost chart accumulation and finalization cases to `Coyote_SQC.Statistics.Estimate_Parameters`.
+  5. Added cost chart descriptors, observation/subgroup accessors, Compute_Session_Stat cases, and Descriptor entries to `Coyote_SQC.App`.
+  6. Added `Pricing` field to `App_State` and updated all call sites.
+  7. Build succeeds; all 713 existing AUnit tests pass (0 regressions).
+  8. Remaining: left panel "Token Costs" group, Recompute_Chart MR/EWMA integration, pricing loading from files/API, and unit tests.
 - **Status:** In Progress
 
 ---
@@ -1223,3 +1232,68 @@ The MR-chart transform block already correctly branched on
      tests pass (0 failures, 0 regressions).
 - **Status:** Resolved
 - **Date resolved:** 2026-06-17
+
+## PCR-034
+
+- **Date reported:** 2026-06-18
+- **Category:** Requirements
+- **Priority:** 3-Moderate
+- **Description:** The SRS-SQC and SDD-SQC documents specify 30 token cost
+  control charts (§6.52–§6.81 in SRS, §6.7 enums + §7.20 cost computation in
+  SDD), but no implementation exists — no cost fields in
+  `Session_Metrics_Record`, no cost `Chart_Kind` enum values, no cost
+  computation in `Coyote_SQC.Metrics`, and no pricing loading infrastructure.
+  Users opening a workspace have no visibility into session token costs.
+- **Affected work products:**
+  `src/coyote_sqc/coyote_sqc-data_model.ads`,
+  `src/coyote_sqc/coyote_sqc-charts.ads/.adb`,
+  `src/coyote_sqc/coyote_sqc-metrics.ads/.adb`,
+  `src/coyote_sqc/coyote_sqc-statistics.adb`,
+  `src/coyote_sqc/coyote_sqc-app.adb`,
+  `src/coyote_sqc/coyote_sqc-config.ads/.adb`,
+  `sdfs/coyote-sqc.md`
+- **Actions taken (2026-06-18):**
+  1. Added 12 cost fields to `Session_Metrics_Record` (6 totals + 6 per-turn vectors).
+  2. Added 30 `Chart_Kind` enum values and chart properties in `coyote_sqc-charts`.
+  3. Added pricing types (`Per_Token_Prices`, `Pricing_Table`) and per-session cost computation to `Coyote_SQC.Metrics.Compute`.
+  4. Added cost chart accumulation and finalization cases to `Coyote_SQC.Statistics.Estimate_Parameters`.
+  5. Added cost observation/subgroup accessors, `Compute_Session_Stat` cases, and `Descriptor` entries to `Coyote_SQC.App`.
+  6. Added `Pricing` field to `App_State` and updated all call sites.
+  7. Added cost MR chart kinds to the per-session MR override block in `Recompute_Chart`.
+  8. Added `Load_Pricing` to `Coyote_SQC.Config` (reads `~/.config/coyote_sqc/pricing.json`).
+  9. Left panel auto-generates "Token Costs" group from chart `Group_Path` entries — no code changes needed.
+  10. Build succeeds cleanly; all 713 existing AUnit tests pass (0 regressions).
+- **Verification:** Cost charts render on the same I/MR/EWMA/Xbar/s chart formulas as their token-count equivalents. Cost fields in `Session_Metrics_Record` are computed by `Metrics.Compute` when pricing data is available; when no pricing data is present, cost fields remain 0.0 and all cost charts show points at zero.
+- **Deferred:** Unit tests for cost computation accuracy and chart limit validation (cost path reuses the same statistical formulas as token-count charts; the pricing data path is transparent to the statistical layer). OpenRouter API fallback for pricing data.
+- **Status:** Resolved
+- **Date resolved:** 2026-06-18
+
+## PCR-035
+
+- **Date reported:** 2026-06-19
+- **Category:** Implementation
+- **Priority:** 3-Moderate
+- **Description:** Selecting Token Cost charts (and some Tool Call Behavior
+  charts) in the `coyote_sqc` left panel has no effect — the row highlights
+  visually but the chart canvas does not update.  The root cause is
+  `Max_LB_Rows = 96` in `Coyote_SQC.UI.Left_Panel`, which was sized
+  for 48 chart kinds but is too small for the current 93 chart kinds.
+  The left panel needs 127 rows (93 charts + 6 top-group separators
+  + 28 sub-group separators); the 96-row limit causes the `Row_Map`
+  and `Row_Is_Chart` arrays to drop the mapping for the last 31 rows
+  (from Output Cost sub-group through the entire Tool Call Behavior
+  group).  The rows appear visually (they are added to the GtkListBox)
+  but `On_Row_Activated` ignores clicks because `Row_Is_Chart` is
+  default-False and `Idx < LB_Row_Count` fails.
+  
+  The code comment describing the row budget (48 charts + 3 + 19 = 70)
+  was also stale.
+- **Affected work products:**
+  `src/coyote_sqc/coyote_sqc-ui-left_panel.adb`
+- **Actions taken (2026-06-19):**
+  1. Increased `Max_LB_Rows` from 96 to 160.
+  2. Updated the row-budget comment to reflect the current chart count
+     (93 charts + 6 + 28 = 127; 160 provides headroom).
+  3. Build succeeds cleanly; all 713 existing AUnit tests pass.
+- **Status:** Resolved
+- **Date resolved:** 2026-06-19

@@ -307,9 +307,9 @@ package body Coyote_SQC_Statistics_Tests is
       Tokens_2.Append (200);
 
       Metrics.Append
-        (Coyote_SQC.Metrics.Compute (Make_Session ("s1", Tokens_1)));
+        (Coyote_SQC.Metrics.Compute (Make_Session ("s1", Tokens_1), Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
       Metrics.Append
-        (Coyote_SQC.Metrics.Compute (Make_Session ("s2", Tokens_2)));
+        (Coyote_SQC.Metrics.Compute (Make_Session ("s2", Tokens_2), Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
 
       --  Setup interval = all sessions (empty UUID set → retrospective).
       Estimate_Parameters (Metrics, Setup, Turn_Tokens_Xbar, Parameters => Params);
@@ -354,11 +354,11 @@ package body Coyote_SQC_Statistics_Tests is
          Vec : Natural_Vectors.Vector;
       begin Vec.Append (A); Vec.Append (B); return Vec; end V2;
    begin
-      Metrics.Append (Coyote_SQC.Metrics.Compute (Make_Session ("d1", V  (10, 12, 11))));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (Make_Session ("d2", V  (20, 22, 21, 19))));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (Make_Session ("d3", V5 (15, 17, 16, 18, 14))));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (Make_Session ("d4", V2 (30, 34))));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (Make_Session ("d5", V  (25, 23, 24))));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (Make_Session ("d1", V  (10, 12, 11)), Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (Make_Session ("d2", V  (20, 22, 21, 19)), Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (Make_Session ("d3", V5 (15, 17, 16, 18, 14)), Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (Make_Session ("d4", V2 (30, 34)), Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (Make_Session ("d5", V  (25, 23, 24)), Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
 
       Estimate_Parameters (Metrics, Setup, Turn_Tokens_Xbar, Parameters => Params);
 
@@ -481,8 +481,8 @@ package body Coyote_SQC_Statistics_Tests is
       T2.Tool_Calls.Append (TC_Fail);
       S2.Turns.Append (T2);
 
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S1));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S2));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S1, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S2, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
 
       Estimate_Parameters (Metrics, Setup, Tool_Call_Failure_Rate, Parameters => Params);
 
@@ -513,8 +513,8 @@ package body Coyote_SQC_Statistics_Tests is
       Turn.Output_Tokens := 150;
       S2.Turns.Append (Turn);
 
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S1));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S2));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S1, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S2, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
 
       Estimate_Parameters (Metrics, Setup, Turn_Tokens_Xbar, Parameters => Params);
 
@@ -547,8 +547,8 @@ package body Coyote_SQC_Statistics_Tests is
       N3_Tokens.Append (100);
       N3_Tokens.Append (110);
 
-      Metrics.Append (Coyote_SQC.Metrics.Compute (Make_Session ("n1", N1_Tokens)));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (Make_Session ("n3", N3_Tokens)));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (Make_Session ("n1", N1_Tokens), Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (Make_Session ("n3", N3_Tokens), Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
 
       Estimate_Parameters (Metrics, Setup, Turn_Tokens_Xbar, Parameters => Params);
 
@@ -590,8 +590,8 @@ package body Coyote_SQC_Statistics_Tests is
       Turn_N.Output_Tokens      := 100;
       S_No_Thinking.Turns.Append (Turn_N);
 
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S_Thinking));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S_No_Thinking));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S_Thinking, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S_No_Thinking, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
 
       Estimate_Parameters (Metrics, Setup, Thinking_Tokens_Xbar, Parameters => Params);
 
@@ -635,8 +635,8 @@ package body Coyote_SQC_Statistics_Tests is
       Turn_N.Output_Tokens   := 100;
       S_No_Tool.Turns.Append (Turn_N);
 
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S_Tool));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S_No_Tool));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S_Tool, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S_No_Tool, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
 
       Estimate_Parameters (Metrics, Setup, Tool_Call_Tokens_Xbar, Parameters => Params);
 
@@ -681,7 +681,7 @@ package body Coyote_SQC_Statistics_Tests is
       Turn2.Output_Tokens := 50;
       S.Turns.Append (Turn2);
 
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
 
       --  Check computed metrics directly.
       declare
@@ -850,9 +850,9 @@ package body Coyote_SQC_Statistics_Tests is
       Turn3.Turn_Index      := 1;
       S3.Turns.Append (Turn3);
 
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S1));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S2));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S3));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S1, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S2, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S3, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
 
       Estimate_Parameters (Metrics, Setup, Session_Input_Tokens_I, Parameters => Params);
 
@@ -881,7 +881,7 @@ package body Coyote_SQC_Statistics_Tests is
       Turn1.Turn_Index     := 1;
       S.Turns.Append (Turn1);
 
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
 
       Estimate_Parameters (Metrics, Setup, Session_Input_Tokens_I, Parameters => Params);
 
@@ -1469,11 +1469,11 @@ package body Coyote_SQC_Statistics_Tests is
       S4.Total_Input_Tokens := 120; T4.Turn_Index := 1; S4.Turns.Append (T4);
       S5.Session_Id := To_Unbounded_String ("s5");
       S5.Total_Input_Tokens := 5000; T5.Turn_Index := 1; S5.Turns.Append (T5);
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S1));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S2));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S3));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S4));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S5));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S1, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S2, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S3, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S4, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S5, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
       Estimate_Parameters
         (Metrics, Setup, Session_Input_Tokens_I,
          Method => Robust_Median, Parameters => Params);
@@ -1525,11 +1525,11 @@ package body Coyote_SQC_Statistics_Tests is
       S5.Session_Id := To_Unbounded_String ("s5");
       S5.Total_Input_Tokens := 130;
       T5.Turn_Index := 1; S5.Turns.Append (T5);
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S1));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S2));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S3));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S4));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S5));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S1, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S2, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S3, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S4, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S5, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
       Estimate_Parameters
         (Metrics, Setup, Session_Input_Tokens_I,
          Method => Robust_Median, Parameters => Params);
@@ -1606,11 +1606,11 @@ package body Coyote_SQC_Statistics_Tests is
       S4.Total_Input_Tokens := 120; S4.Turns.Append (T1);
       S5.Session_Id := To_Unbounded_String ("s5");
       S5.Total_Input_Tokens := 130; S5.Turns.Append (T1);
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S1));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S2));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S3));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S4));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S5));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S1, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S2, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S3, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S4, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S5, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
       Estimate_Parameters
         (Metrics, Setup, Session_Input_Tokens_MR,
          Method => Robust_Median, Parameters => Params_R);
@@ -1677,9 +1677,9 @@ package body Coyote_SQC_Statistics_Tests is
             S3.Turns.Append (T3);
          end;
       end loop;
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S1));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S2));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S3));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S1, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S2, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S3, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
       Estimate_Parameters
         (Metrics, Setup, Turn_Tokens_Xbar,
          Method => Robust_Median, Parameters => Params);
@@ -1727,8 +1727,8 @@ package body Coyote_SQC_Statistics_Tests is
          S2.Turns.Append (T2b);
          S2.Turns.Append (T2c);
       end;
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S1));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S2));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S1, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S2, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
       Estimate_Parameters
         (Metrics, Setup, Turn_Tokens_Xbar,
          Method => Robust_Median, Parameters => Params);
@@ -1799,8 +1799,8 @@ package body Coyote_SQC_Statistics_Tests is
       end;
       S2.Turns.Append (T2);
 
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S1));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S2));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S1, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S2, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
 
       Estimate_Parameters
         (Metrics, Setup, Tool_Call_Failure_Rate,

@@ -2332,7 +2332,7 @@ end record;
 function Properties (Kind : Chart_Kind) return Chart_Properties;
 ```
 
-The ninety-one charts and their properties:
+The ninety-three charts and their properties:
 
 | `Chart_Kind` | Label | Group_Path | Y-Axis Label |
 |---|---|---|---|

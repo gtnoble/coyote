@@ -113,6 +113,20 @@ package Coyote_SQC.Data_Model is
       Per_Consecutive_Tool_MI   : Long_Float_Vectors.Vector;
       N_Consecutive_Tool_MI_Pairs : Natural := 0;
       Total_Tool_Call_MI    : Long_Float := 0.0;
+
+      --  Token cost totals (USD, sub-cent precision).
+      Total_Cost                : Long_Float := 0.0;
+      Total_Input_Cost          : Long_Float := 0.0;
+      Total_Output_Cost         : Long_Float := 0.0;
+      Total_Cache_Read_Cost     : Long_Float := 0.0;
+      Total_Cache_Write_Cost    : Long_Float := 0.0;
+      Total_Uncached_Input_Cost : Long_Float := 0.0;
+      Per_Turn_Cost             : Long_Float_Vectors.Vector;
+      Per_Turn_Input_Cost       : Long_Float_Vectors.Vector;
+      Per_Turn_Output_Cost      : Long_Float_Vectors.Vector;
+      Per_Turn_Cache_Read_Cost  : Long_Float_Vectors.Vector;
+      Per_Turn_Cache_Write_Cost : Long_Float_Vectors.Vector;
+      Per_Turn_Uncached_Input_Cost : Long_Float_Vectors.Vector;
       --  Sum of all Per_Consecutive_Tool_S values across every consecutive
       --  tool call pair in the session.  0.0 when N_Consecutive_Tool_Pairs = 0.
    end record;

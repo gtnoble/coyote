@@ -6,7 +6,7 @@ with Ada.Strings.Unbounded;
 
 package Coyote_SQC.Charts is
 
-   --  The sixty-one charts available in every workspace.
+   --  The ninety-one charts available in every workspace.
    --  order matches the left-panel display order.
    type Chart_Kind is
      (Turn_Tokens_Xbar,
@@ -79,7 +79,39 @@ package Coyote_SQC.Charts is
       Session_Tool_Call_MI_Sum_I,
       Session_Tool_Call_MI_Sum_MR,
       Session_Tool_Call_MI_Sum_EWMA,
-      Tool_Call_MI_Quantile);
+      Tool_Call_MI_Quantile,
+   --  Token Cost Charts — Session-level I/MR/EWMA (6 categories × 3):
+   Session_Total_Cost_I,
+   Session_Total_Cost_MR,
+   Session_Total_Cost_EWMA,
+   Session_Input_Cost_I,
+   Session_Input_Cost_MR,
+   Session_Input_Cost_EWMA,
+   Session_Output_Cost_I,
+   Session_Output_Cost_MR,
+   Session_Output_Cost_EWMA,
+   Session_Cache_Read_Cost_I,
+   Session_Cache_Read_Cost_MR,
+   Session_Cache_Read_Cost_EWMA,
+   Session_Cache_Write_Cost_I,
+   Session_Cache_Write_Cost_MR,
+   Session_Cache_Write_Cost_EWMA,
+   Session_Uncached_Input_Cost_I,
+   Session_Uncached_Input_Cost_MR,
+   Session_Uncached_Input_Cost_EWMA,
+   --  Token Cost Charts — Turn-level Xbar/s (6 categories × 2):
+   Turn_Total_Cost_Xbar,
+   Turn_Total_Cost_S,
+   Turn_Input_Cost_Xbar,
+   Turn_Input_Cost_S,
+   Turn_Output_Cost_Xbar,
+   Turn_Output_Cost_S,
+   Turn_Cache_Read_Cost_Xbar,
+   Turn_Cache_Read_Cost_S,
+   Turn_Cache_Write_Cost_Xbar,
+   Turn_Cache_Write_Cost_S,
+   Turn_Uncached_Input_Cost_Xbar,
+   Turn_Uncached_Input_Cost_S);
 
    --  Display metadata for one chart.
    type Chart_Properties is record

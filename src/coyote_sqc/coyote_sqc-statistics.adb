@@ -333,10 +333,55 @@ package body Coyote_SQC.Statistics is
 
             when Session_Tool_Call_MI_Sum_I
                | Session_Tool_Call_MI_Sum_MR
-               | Session_Tool_Call_MI_Sum_EWMA =>
+               | Session_Tool_Call_MI_Sum_EWMA=>
                if M.N_Consecutive_Tool_MI_Pairs > 0 then
                   Accumulate_I (M.Total_Tool_Call_MI);
                end if;
+
+
+            --  Token cost Xbar/S charts.
+            when Turn_Total_Cost_Xbar | Turn_Total_Cost_S =>
+               Accumulate_Xbar_S_LF (M.Per_Turn_Cost);
+
+            when Turn_Input_Cost_Xbar | Turn_Input_Cost_S =>
+               Accumulate_Xbar_S_LF (M.Per_Turn_Input_Cost);
+
+            when Turn_Output_Cost_Xbar | Turn_Output_Cost_S =>
+               Accumulate_Xbar_S_LF (M.Per_Turn_Output_Cost);
+
+            when Turn_Cache_Read_Cost_Xbar | Turn_Cache_Read_Cost_S =>
+               Accumulate_Xbar_S_LF (M.Per_Turn_Cache_Read_Cost);
+
+            when Turn_Cache_Write_Cost_Xbar | Turn_Cache_Write_Cost_S =>
+               Accumulate_Xbar_S_LF (M.Per_Turn_Cache_Write_Cost);
+
+            when Turn_Uncached_Input_Cost_Xbar | Turn_Uncached_Input_Cost_S =>
+               Accumulate_Xbar_S_LF (M.Per_Turn_Uncached_Input_Cost);
+
+            --  Token cost I/MR/EWMA charts (session-level scalars).
+            when Session_Total_Cost_I | Session_Total_Cost_MR
+               | Session_Total_Cost_EWMA =>
+               Accumulate_I (M.Total_Cost);
+
+            when Session_Input_Cost_I | Session_Input_Cost_MR
+               | Session_Input_Cost_EWMA =>
+               Accumulate_I (M.Total_Input_Cost);
+
+            when Session_Output_Cost_I | Session_Output_Cost_MR
+               | Session_Output_Cost_EWMA =>
+               Accumulate_I (M.Total_Output_Cost);
+
+            when Session_Cache_Read_Cost_I | Session_Cache_Read_Cost_MR
+               | Session_Cache_Read_Cost_EWMA =>
+               Accumulate_I (M.Total_Cache_Read_Cost);
+
+            when Session_Cache_Write_Cost_I | Session_Cache_Write_Cost_MR
+               | Session_Cache_Write_Cost_EWMA =>
+               Accumulate_I (M.Total_Cache_Write_Cost);
+
+            when Session_Uncached_Input_Cost_I | Session_Uncached_Input_Cost_MR
+               | Session_Uncached_Input_Cost_EWMA =>
+               Accumulate_I (M.Total_Uncached_Input_Cost);
 
             when Turn_Tokens_Quantile | Tool_Call_Tokens_Quantile
                | Thinking_Tokens_Quantile | Tool_Call_JSD_Quantile | Tool_Call_MI_Quantile =>
@@ -354,7 +399,7 @@ package body Coyote_SQC.Statistics is
          when Turn_Tokens_Xbar | Turn_Tokens_S
             | Tool_Call_Tokens_Xbar | Tool_Call_Tokens_S
             | Thinking_Tokens_Xbar | Thinking_Tokens_S
-            | Tool_Call_JSD_Xbar | Tool_Call_JSD_S | Tool_Call_MI_Xbar | Tool_Call_MI_S =>
+            | Tool_Call_JSD_Xbar | Tool_Call_JSD_S | Tool_Call_MI_Xbar | Tool_Call_MI_S | Turn_Total_Cost_Xbar | Turn_Total_Cost_S | Turn_Input_Cost_Xbar | Turn_Input_Cost_S | Turn_Output_Cost_Xbar | Turn_Output_Cost_S | Turn_Cache_Read_Cost_Xbar | Turn_Cache_Read_Cost_S | Turn_Cache_Write_Cost_Xbar | Turn_Cache_Write_Cost_S | Turn_Uncached_Input_Cost_Xbar | Turn_Uncached_Input_Cost_S =>
 
             if Method = Robust_Median then
                --  Grand_Mean: unweighted median of session arithmetic means.
@@ -472,7 +517,7 @@ package body Coyote_SQC.Statistics is
             | Session_Tool_Call_JSD_Sum_EWMA
             | Session_Tool_Call_MI_Sum_I
             | Session_Tool_Call_MI_Sum_MR
-            | Session_Tool_Call_MI_Sum_EWMA =>
+            | Session_Tool_Call_MI_Sum_EWMA | Session_Total_Cost_I | Session_Total_Cost_MR | Session_Total_Cost_EWMA | Session_Input_Cost_I | Session_Input_Cost_MR | Session_Input_Cost_EWMA | Session_Output_Cost_I | Session_Output_Cost_MR | Session_Output_Cost_EWMA | Session_Cache_Read_Cost_I | Session_Cache_Read_Cost_MR | Session_Cache_Read_Cost_EWMA | Session_Cache_Write_Cost_I | Session_Cache_Write_Cost_MR | Session_Cache_Write_Cost_EWMA | Session_Uncached_Input_Cost_I | Session_Uncached_Input_Cost_MR | Session_Uncached_Input_Cost_EWMA =>
 
             if Method = Robust_Median then
                --  Grand_Mean: median of all setup-interval observations.

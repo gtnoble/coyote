@@ -170,7 +170,7 @@ package body Coyote_SQC_JSD_Tests is
       Session.Turns.Append (Turn);
       Session.Session_Id := To_Unbounded_String ("j1");
 
-      M := Coyote_SQC.Metrics.Compute (Session);
+      M := Coyote_SQC.Metrics.Compute (Session, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map);
 
       Assert (M.N_Consecutive_Tool_Pairs = 1,
               "Two identical calls: N_Consecutive_Tool_Pairs must be 1; got "
@@ -196,7 +196,7 @@ package body Coyote_SQC_JSD_Tests is
       Session.Turns.Append (Turn);
       Session.Session_Id := To_Unbounded_String ("j2");
 
-      M := Coyote_SQC.Metrics.Compute (Session);
+      M := Coyote_SQC.Metrics.Compute (Session, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map);
 
       Assert (M.N_Consecutive_Tool_Pairs = 0,
               "Single tool call: N_Consecutive_Tool_Pairs must be 0");
@@ -217,7 +217,7 @@ package body Coyote_SQC_JSD_Tests is
       Session.Turns.Append (Turn);
       Session.Session_Id := To_Unbounded_String ("j3");
 
-      M := Coyote_SQC.Metrics.Compute (Session);
+      M := Coyote_SQC.Metrics.Compute (Session, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map);
 
       Assert (M.N_Consecutive_Tool_Pairs = 0,
               "No tool calls: N_Consecutive_Tool_Pairs must be 0");
@@ -241,7 +241,7 @@ package body Coyote_SQC_JSD_Tests is
       Session.Turns.Append (Turn);
       Session.Session_Id := To_Unbounded_String ("j4");
 
-      M := Coyote_SQC.Metrics.Compute (Session);
+      M := Coyote_SQC.Metrics.Compute (Session, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map);
 
       for V of M.Per_Consecutive_Tool_S loop
          Manual := Manual + V;
@@ -268,7 +268,7 @@ package body Coyote_SQC_JSD_Tests is
       Session.Turns.Append (Turn2);
       Session.Session_Id := To_Unbounded_String ("j5");
 
-      M := Coyote_SQC.Metrics.Compute (Session);
+      M := Coyote_SQC.Metrics.Compute (Session, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map);
 
       --  One call in turn 1, one in turn 2: still one consecutive pair.
       Assert (M.N_Consecutive_Tool_Pairs = 1,

@@ -780,3 +780,35 @@ for per-turn costs.
 
 **Test plan:** Entry added for cost chart feature.
 
+
+### 2026-06-18 — Token Cost Charts Implementation Complete (PCR-034)
+
+**Status:** Resolved.
+
+30 new token cost charts added: 18 session-level (I/MR/EWMA for Total, Input,
+Output, Cache Read, Cache Write, Uncached Input cost) and 12 turn-level (Xbar/s
+for each of the same 6 cost categories). Chart count: 61 → 91.
+
+**Packages modified:**
+- `coyote_sqc-data_model.ads` — 12 cost fields in `Session_Metrics_Record`
+- `coyote_sqc-charts.ads/.adb` — 30 `Chart_Kind` enum values + properties
+- `coyote_sqc-metrics.ads/.adb` — `Per_Token_Prices`, `Pricing_Table`, cost computation
+- `coyote_sqc-statistics.adb` — accumulation + finalization cases
+- `coyote_sqc-app.adb/.ads` — accessors, `Compute_Session_Stat` cases, `Descriptor`
+  entries, MR override, `Pricing` field in `App_State`
+- `coyote_sqc-config.ads/.adb` — `Load_Pricing` (reads `~/.config/coyote_sqc/pricing.json`)
+- `coyote_sqc-ui-detail_panel.adb` — updated `Metrics.Compute` call
+
+**Pricing loading:** Reads `~/.config/coyote_sqc/pricing.json` at session-load time.
+File format: `{"models": {"model-id": {"input_price": ..., "output_price": ...,
+"cache_read_price": ..., "cache_write_price": ...}}}`. All prices in USD per token.
+OpenRouter API fallback deferred to future iteration.
+
+**Design decision:** Cost charts reuse the same I/MR/EWMA/Xbar/s formulas as their
+token-count counterparts. The pricing data path is transparent to the statistical
+layer — `Metrics.Compute` populates cost fields when pricing is available, and
+chart descriptors drive the same `Estimate_Parameters`/`Recompute_Chart` pipeline.
+
+**Tests:** 713/713 pass (0 regressions). Unit tests for cost accuracy deferred
+(cost path reuses existing statistical formulas).
+

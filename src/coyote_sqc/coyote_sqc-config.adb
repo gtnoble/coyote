@@ -168,4 +168,66 @@ package body Coyote_SQC.Config is
             & Ada.Exceptions.Exception_Information (E));
    end Record_Open;
 
+   --  ── Pricing ────────────────────────────────────────────────────────
+
+   function Load_Pricing return Coyote_SQC.Metrics.Pricing_Table is
+      Result   : Coyote_SQC.Metrics.Pricing_Table;
+      Dir      : constant String := Config_Dir;
+      Cfg_Path : constant String := Dir & "/pricing.json";
+
+      function Parse_Prices (Obj : GNATCOLL.JSON.JSON_Value)
+        return Coyote_SQC.Metrics.Per_Token_Prices
+      is
+         function Get_LF (F : String) return Long_Float is
+            V : constant GNATCOLL.JSON.JSON_Value := Obj.Get (F);
+         begin
+            if V.Kind = GNATCOLL.JSON.JSON_Int_Type then
+               return Long_Float (Long_Integer'(V.Get));
+            elsif V.Kind = GNATCOLL.JSON.JSON_Float_Type then
+               return GNATCOLL.JSON.Get_Long_Float (Obj, F);
+            end if;
+            return 0.0;
+         end Get_LF;
+      begin
+         return
+           (Input_Price       => Get_LF ("input_price"),
+            Output_Price      => Get_LF ("output_price"),
+            Cache_Read_Price  => Get_LF ("cache_read_price"),
+            Cache_Write_Price => Get_LF ("cache_write_price"));
+      end Parse_Prices;
+
+      --  Callback for Map_JSON_Object: accumulate model name → prices.
+      procedure Add_Model
+        (Name  : String;
+         Value : GNATCOLL.JSON.JSON_Value)
+      is
+      begin
+         Result.Include
+           (To_Unbounded_String (Name), Parse_Prices (Value));
+      end Add_Model;
+
+   begin
+      begin
+         declare
+            Content : constant String :=
+              Coyote_Utils.Read_Whole_File (Cfg_Path);
+            Root    : GNATCOLL.JSON.JSON_Value;
+         begin
+            if Content'Length > 0 then
+               Root := GNATCOLL.JSON.Read (Content);
+               if Root.Has_Field ("models") then
+                  Root.Get ("models").Map_JSON_Object
+                    (Add_Model'Access);
+               end if;
+            end if;
+         end;
+      exception
+         when others =>
+            Ada.Text_IO.Put_Line
+              (Ada.Text_IO.Standard_Error,
+               "coyote_sqc: failed to load pricing from " & Cfg_Path);
+      end;
+      return Result;
+   end Load_Pricing;
+
 end Coyote_SQC.Config;

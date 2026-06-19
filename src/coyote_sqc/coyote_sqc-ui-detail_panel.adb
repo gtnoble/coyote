@@ -1789,7 +1789,7 @@ package body Coyote_SQC.UI.Detail_Panel is
                if Sess.Session_Id = Sid then
                   declare
                      Metrics : constant Session_Metrics_Record :=
-                       Coyote_SQC.Metrics.Compute (Sess);
+                       Coyote_SQC.Metrics.Compute (Sess, Coyote_SQC.App.State.Pricing);
                      Max_N   : constant Natural :=
                        Natural (Metrics.Per_Turn_Output_Tokens.Length)
                        + Natural (Metrics.Per_Turn_Tool_Tokens.Length)
