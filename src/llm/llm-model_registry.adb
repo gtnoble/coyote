@@ -254,26 +254,31 @@ package body LLM.Model_Registry is
 
      -- use settings to allow local baseUrl and apiKey overrides
      declare
-       Root : constant GNATCOLL.JSON.JSON_Value :=
+       Root     : constant GNATCOLL.JSON.JSON_Value :=
          LLM.Settings.Load_Json_File (LLM.Settings.Models_Path);
-       Prov : constant GNATCOLL.JSON.JSON_Value :=
+       Prov     : constant GNATCOLL.JSON.JSON_Value :=
          LLM.Settings.Find_Provider_Config (Root, "ollama");
-       Base_Url : String := "";
-       Api_Key  : String := "";
-     begin
-       if Prov.Kind = GNATCOLL.JSON.JSON_Object_Type then
-         if Prov.Has_Field ("baseUrl") and then Prov.Get ("baseUrl").Kind = GNATCOLL.JSON.JSON_String_Type then
-           Base_Url := Prov.Get ("baseUrl").Get;
-         end if;
-         if Prov.Has_Field ("apiKey") and then Prov.Get ("apiKey").Kind = GNATCOLL.JSON.JSON_String_Type then
-           Api_Key := Prov.Get ("apiKey").Get;
-         end if;
-       end if;
-       if Api_Key = "" then
-         Api_Key := LLM.Settings.Resolve_Api_Key ("ollama");
-       end if;
 
-       LLM.Providers.Ollama.Catalogue.Load_Catalogue (Models, Base_Url, Api_Key);
+       Base_Url : constant String :=
+         (if Prov.Kind = GNATCOLL.JSON.JSON_Object_Type
+            and then Prov.Has_Field ("baseUrl")
+            and then Prov.Get ("baseUrl").Kind = GNATCOLL.JSON.JSON_String_Type
+          then Prov.Get ("baseUrl").Get
+          else "");
+
+       Json_Api_Key : constant String :=
+         (if Prov.Kind = GNATCOLL.JSON.JSON_Object_Type
+            and then Prov.Has_Field ("apiKey")
+            and then Prov.Get ("apiKey").Kind = GNATCOLL.JSON.JSON_String_Type
+          then Prov.Get ("apiKey").Get
+          else "");
+
+       Api_Key : constant String :=
+         (if Json_Api_Key'Length > 0 then Json_Api_Key
+          else LLM.Settings.Resolve_Api_Key ("ollama"));
+     begin
+       LLM.Providers.Ollama.Catalogue.Load_Catalogue
+         (Models, Base_Url, Api_Key);
      end;
 
      for Item of Models loop
