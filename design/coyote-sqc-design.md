@@ -1006,10 +1006,16 @@ Inputs (all computed from the setup interval sessions):
 Output: `UCL`, `Center_Line`, `LCL` as Long_Float.
 
 ```
-UCL = Grand_Mean + 3 * Pooled_S / (C4(N) * sqrt(N))
+UCL = Grand_Mean + 3 * Pooled_S / sqrt(N)
 CL  = Grand_Mean
-LCL = Grand_Mean - 3 * Pooled_S / (C4(N) * sqrt(N))
+LCL = Grand_Mean - 3 * Pooled_S / sqrt(N)
 ```
+
+The pooled standard deviation `Pooled_S` (as computed in §7.5) is a direct
+estimator of σ — it is the root-mean-square of the subgroup s_i weighted by
+degrees of freedom, not the arithmetic mean s̄.  Because s̄ has expectation
+c4·σ, the standard Xbar formula divides by c4 to unbias s̄.  `Pooled_S` already
+estimates σ without bias correction, so the c4 factor is not needed here.
 
 Single-turn sessions (`N = 1`) are plotted with `CL = session_mean` and no
 control limits (`Has_UCL = False`, `Has_LCL = False`). `C4` is never called

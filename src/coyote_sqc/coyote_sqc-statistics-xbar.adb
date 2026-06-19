@@ -3,7 +3,6 @@
 --  Project: coyote
 
 with Ada.Numerics.Long_Elementary_Functions;
-with Coyote_SQC.Statistics.C4;
 
 package body Coyote_SQC.Statistics.Xbar is
 
@@ -35,11 +34,12 @@ package body Coyote_SQC.Statistics.Xbar is
             Has_LCL => False);
       end if;
 
+         --  Pooled_S is a direct estimator of sigma (not s_bar),
+         --  so no c4 unbiasing constant is needed here.
       declare
-         C4_N   : constant Long_Float := C4.C4 (N);
          NF     : constant Long_Float := Long_Float (N);
          Spread : constant Long_Float :=
-           3.0 * Pooled_S / (C4_N * Sqrt (NF));
+           3.0 * Pooled_S / Sqrt (NF);
       begin
          --  Xbar LCL can be negative; it is always drawn when limits exist.
          return

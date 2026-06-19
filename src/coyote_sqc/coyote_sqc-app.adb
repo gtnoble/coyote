@@ -461,149 +461,203 @@ package body Coyote_SQC.App is
 
          --  Token cost Xbar/S charts.
          when Turn_Total_Cost_Xbar =>
-            N := Metrics.N_Turns;
-            if Plot_Method = Robust_Median then
-               Value :=
-                 Coyote_SQC.Statistics.I_Chart.Median_Of
-                   (To_LF_Array_F (Metrics.Per_Turn_Cost));
+            if Metrics.Per_Turn_Cost.Is_Empty then
+               Excluded    := True;
+               Hollow_Gray := True;
             else
-               Value := Mean_LF_F (Metrics.Per_Turn_Cost);
-            end if;
-            Single := (N = 1);
-         when Turn_Total_Cost_S =>
-            N := Metrics.N_Turns;
-            if N = 1 then
-               Excluded := True;
-            else
+               N := Metrics.N_Turns;
                if Plot_Method = Robust_Median then
                   Value :=
-                    Coyote_SQC.Statistics.I_Chart.Qn_Scale_Any
+                    Coyote_SQC.Statistics.I_Chart.Median_Of
                       (To_LF_Array_F (Metrics.Per_Turn_Cost));
                else
-                  Value := StdDev_LF_F (Metrics.Per_Turn_Cost);
+                  Value := Mean_LF_F (Metrics.Per_Turn_Cost);
+               end if;
+               Single := (N = 1);
+            end if;
+         when Turn_Total_Cost_S =>
+            if Metrics.Per_Turn_Cost.Is_Empty then
+               Excluded    := True;
+               Hollow_Gray := True;
+            else
+               N := Metrics.N_Turns;
+               if N = 1 then
+                  Excluded := True;
+               else
+                  if Plot_Method = Robust_Median then
+                     Value :=
+                       Coyote_SQC.Statistics.I_Chart.Qn_Scale_Any
+                         (To_LF_Array_F (Metrics.Per_Turn_Cost));
+                  else
+                     Value := StdDev_LF_F (Metrics.Per_Turn_Cost);
+                  end if;
                end if;
             end if;
-
          when Turn_Input_Cost_Xbar =>
-            N := Metrics.N_Turns;
-            if Plot_Method = Robust_Median then
-               Value :=
-                 Coyote_SQC.Statistics.I_Chart.Median_Of
-                   (To_LF_Array_F (Metrics.Per_Turn_Input_Cost));
+            if Metrics.Per_Turn_Input_Cost.Is_Empty then
+               Excluded    := True;
+               Hollow_Gray := True;
             else
-               Value := Mean_LF_F (Metrics.Per_Turn_Input_Cost);
-            end if;
-            Single := (N = 1);
-         when Turn_Input_Cost_S =>
-            N := Metrics.N_Turns;
-            if N = 1 then
-               Excluded := True;
-            else
+               N := Metrics.N_Turns;
                if Plot_Method = Robust_Median then
                   Value :=
-                    Coyote_SQC.Statistics.I_Chart.Qn_Scale_Any
+                    Coyote_SQC.Statistics.I_Chart.Median_Of
                       (To_LF_Array_F (Metrics.Per_Turn_Input_Cost));
                else
-                  Value := StdDev_LF_F (Metrics.Per_Turn_Input_Cost);
+                  Value := Mean_LF_F (Metrics.Per_Turn_Input_Cost);
+               end if;
+               Single := (N = 1);
+            end if;
+         when Turn_Input_Cost_S =>
+            if Metrics.Per_Turn_Input_Cost.Is_Empty then
+               Excluded    := True;
+               Hollow_Gray := True;
+            else
+               N := Metrics.N_Turns;
+               if N = 1 then
+                  Excluded := True;
+               else
+                  if Plot_Method = Robust_Median then
+                     Value :=
+                       Coyote_SQC.Statistics.I_Chart.Qn_Scale_Any
+                         (To_LF_Array_F (Metrics.Per_Turn_Input_Cost));
+                  else
+                     Value := StdDev_LF_F (Metrics.Per_Turn_Input_Cost);
+                  end if;
                end if;
             end if;
-
          when Turn_Output_Cost_Xbar =>
-            N := Metrics.N_Turns;
-            if Plot_Method = Robust_Median then
-               Value :=
-                 Coyote_SQC.Statistics.I_Chart.Median_Of
-                   (To_LF_Array_F (Metrics.Per_Turn_Output_Cost));
+            if Metrics.Per_Turn_Output_Cost.Is_Empty then
+               Excluded    := True;
+               Hollow_Gray := True;
             else
-               Value := Mean_LF_F (Metrics.Per_Turn_Output_Cost);
-            end if;
-            Single := (N = 1);
-         when Turn_Output_Cost_S =>
-            N := Metrics.N_Turns;
-            if N = 1 then
-               Excluded := True;
-            else
+               N := Metrics.N_Turns;
                if Plot_Method = Robust_Median then
                   Value :=
-                    Coyote_SQC.Statistics.I_Chart.Qn_Scale_Any
+                    Coyote_SQC.Statistics.I_Chart.Median_Of
                       (To_LF_Array_F (Metrics.Per_Turn_Output_Cost));
                else
-                  Value := StdDev_LF_F (Metrics.Per_Turn_Output_Cost);
+                  Value := Mean_LF_F (Metrics.Per_Turn_Output_Cost);
+               end if;
+               Single := (N = 1);
+            end if;
+         when Turn_Output_Cost_S =>
+            if Metrics.Per_Turn_Output_Cost.Is_Empty then
+               Excluded    := True;
+               Hollow_Gray := True;
+            else
+               N := Metrics.N_Turns;
+               if N = 1 then
+                  Excluded := True;
+               else
+                  if Plot_Method = Robust_Median then
+                     Value :=
+                       Coyote_SQC.Statistics.I_Chart.Qn_Scale_Any
+                         (To_LF_Array_F (Metrics.Per_Turn_Output_Cost));
+                  else
+                     Value := StdDev_LF_F (Metrics.Per_Turn_Output_Cost);
+                  end if;
                end if;
             end if;
-
          when Turn_Cache_Read_Cost_Xbar =>
-            N := Metrics.N_Turns;
-            if Plot_Method = Robust_Median then
-               Value :=
-                 Coyote_SQC.Statistics.I_Chart.Median_Of
-                   (To_LF_Array_F (Metrics.Per_Turn_Cache_Read_Cost));
+            if Metrics.Per_Turn_Cache_Read_Cost.Is_Empty then
+               Excluded    := True;
+               Hollow_Gray := True;
             else
-               Value := Mean_LF_F (Metrics.Per_Turn_Cache_Read_Cost);
-            end if;
-            Single := (N = 1);
-         when Turn_Cache_Read_Cost_S =>
-            N := Metrics.N_Turns;
-            if N = 1 then
-               Excluded := True;
-            else
+               N := Metrics.N_Turns;
                if Plot_Method = Robust_Median then
                   Value :=
-                    Coyote_SQC.Statistics.I_Chart.Qn_Scale_Any
+                    Coyote_SQC.Statistics.I_Chart.Median_Of
                       (To_LF_Array_F (Metrics.Per_Turn_Cache_Read_Cost));
                else
-                  Value := StdDev_LF_F (Metrics.Per_Turn_Cache_Read_Cost);
+                  Value := Mean_LF_F (Metrics.Per_Turn_Cache_Read_Cost);
+               end if;
+               Single := (N = 1);
+            end if;
+         when Turn_Cache_Read_Cost_S =>
+            if Metrics.Per_Turn_Cache_Read_Cost.Is_Empty then
+               Excluded    := True;
+               Hollow_Gray := True;
+            else
+               N := Metrics.N_Turns;
+               if N = 1 then
+                  Excluded := True;
+               else
+                  if Plot_Method = Robust_Median then
+                     Value :=
+                       Coyote_SQC.Statistics.I_Chart.Qn_Scale_Any
+                         (To_LF_Array_F (Metrics.Per_Turn_Cache_Read_Cost));
+                  else
+                     Value := StdDev_LF_F (Metrics.Per_Turn_Cache_Read_Cost);
+                  end if;
                end if;
             end if;
-
          when Turn_Cache_Write_Cost_Xbar =>
-            N := Metrics.N_Turns;
-            if Plot_Method = Robust_Median then
-               Value :=
-                 Coyote_SQC.Statistics.I_Chart.Median_Of
-                   (To_LF_Array_F (Metrics.Per_Turn_Cache_Write_Cost));
+            if Metrics.Per_Turn_Cache_Write_Cost.Is_Empty then
+               Excluded    := True;
+               Hollow_Gray := True;
             else
-               Value := Mean_LF_F (Metrics.Per_Turn_Cache_Write_Cost);
-            end if;
-            Single := (N = 1);
-         when Turn_Cache_Write_Cost_S =>
-            N := Metrics.N_Turns;
-            if N = 1 then
-               Excluded := True;
-            else
+               N := Metrics.N_Turns;
                if Plot_Method = Robust_Median then
                   Value :=
-                    Coyote_SQC.Statistics.I_Chart.Qn_Scale_Any
+                    Coyote_SQC.Statistics.I_Chart.Median_Of
                       (To_LF_Array_F (Metrics.Per_Turn_Cache_Write_Cost));
                else
-                  Value := StdDev_LF_F (Metrics.Per_Turn_Cache_Write_Cost);
+                  Value := Mean_LF_F (Metrics.Per_Turn_Cache_Write_Cost);
+               end if;
+               Single := (N = 1);
+            end if;
+         when Turn_Cache_Write_Cost_S =>
+            if Metrics.Per_Turn_Cache_Write_Cost.Is_Empty then
+               Excluded    := True;
+               Hollow_Gray := True;
+            else
+               N := Metrics.N_Turns;
+               if N = 1 then
+                  Excluded := True;
+               else
+                  if Plot_Method = Robust_Median then
+                     Value :=
+                       Coyote_SQC.Statistics.I_Chart.Qn_Scale_Any
+                         (To_LF_Array_F (Metrics.Per_Turn_Cache_Write_Cost));
+                  else
+                     Value := StdDev_LF_F (Metrics.Per_Turn_Cache_Write_Cost);
+                  end if;
                end if;
             end if;
-
          when Turn_Uncached_Input_Cost_Xbar =>
-            N := Metrics.N_Turns;
-            if Plot_Method = Robust_Median then
-               Value :=
-                 Coyote_SQC.Statistics.I_Chart.Median_Of
-                   (To_LF_Array_F (Metrics.Per_Turn_Uncached_Input_Cost));
+            if Metrics.Per_Turn_Uncached_Input_Cost.Is_Empty then
+               Excluded    := True;
+               Hollow_Gray := True;
             else
-               Value := Mean_LF_F (Metrics.Per_Turn_Uncached_Input_Cost);
-            end if;
-            Single := (N = 1);
-         when Turn_Uncached_Input_Cost_S =>
-            N := Metrics.N_Turns;
-            if N = 1 then
-               Excluded := True;
-            else
+               N := Metrics.N_Turns;
                if Plot_Method = Robust_Median then
                   Value :=
-                    Coyote_SQC.Statistics.I_Chart.Qn_Scale_Any
+                    Coyote_SQC.Statistics.I_Chart.Median_Of
                       (To_LF_Array_F (Metrics.Per_Turn_Uncached_Input_Cost));
                else
-                  Value := StdDev_LF_F (Metrics.Per_Turn_Uncached_Input_Cost);
+                  Value := Mean_LF_F (Metrics.Per_Turn_Uncached_Input_Cost);
+               end if;
+               Single := (N = 1);
+            end if;
+         when Turn_Uncached_Input_Cost_S =>
+            if Metrics.Per_Turn_Uncached_Input_Cost.Is_Empty then
+               Excluded    := True;
+               Hollow_Gray := True;
+            else
+               N := Metrics.N_Turns;
+               if N = 1 then
+                  Excluded := True;
+               else
+                  if Plot_Method = Robust_Median then
+                     Value :=
+                       Coyote_SQC.Statistics.I_Chart.Qn_Scale_Any
+                         (To_LF_Array_F (Metrics.Per_Turn_Uncached_Input_Cost));
+                  else
+                     Value := StdDev_LF_F (Metrics.Per_Turn_Uncached_Input_Cost);
+                  end if;
                end if;
             end if;
-
          --  Quantile CC charts: handled separately in Recompute_Chart.
          when Turn_Tokens_Quantile
             | Tool_Call_Tokens_Quantile

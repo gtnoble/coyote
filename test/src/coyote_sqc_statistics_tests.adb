@@ -136,11 +136,12 @@ package body Coyote_SQC_Statistics_Tests is
       Assert (L.UCL - L.CL = L.CL - L.LCL,
               "Limits must be symmetric about CL");
       --  Numerical values to 4 decimal places (§14.1).
-      --  C4(5) ≈ 0.93999; Spread = 3*10/(C4(5)*sqrt(5)) ≈ 14.273.
-      Assert (abs (L.UCL - 114.2730) < 5.0e-4,
-              "UCL should be ~114.2730; got " & Long_Float'Image (L.UCL));
-      Assert (abs (L.LCL - 85.7270) < 5.0e-4,
-              "LCL should be ~85.7270; got " & Long_Float'Image (L.LCL));
+      --  Pooled_S is a direct estimator of σ; no c4 bias correction needed.
+      --  Spread = 3*10/sqrt(5) ≈ 13.4164.
+      Assert (abs (L.UCL - 113.4164) < 5.0e-4,
+              "UCL should be ~113.4164; got " & Long_Float'Image (L.UCL));
+      Assert (abs (L.LCL - 86.5836) < 5.0e-4,
+              "LCL should be ~86.5836; got " & Long_Float'Image (L.LCL));
    end Test_Xbar_Limits_Basic;
 
    procedure Test_Xbar_N1_Undefined (T : in out Test) is
@@ -328,7 +329,7 @@ package body Coyote_SQC_Statistics_Tests is
 
    --  §14.1: 5-session dataset with varying subgroup sizes.
    --  Grand_Mean ≈ 19.4706, Pooled_S = 1.5 (exact).
-   --  Xbar(N=5): UCL≈21.6115, CL≈19.4706, LCL≈17.3296.
+   --  Xbar(N=5): UCL≈21.4830, CL≈19.4706, LCL≈17.4581.
    --  S(N=5):    UCL≈ 2.9454, CL≈ 1.4100, LCL=0.0.
    procedure Test_Xbar_Known_Dataset (T : in out Test) is
       pragma Unreferenced (T);
@@ -375,12 +376,12 @@ package body Coyote_SQC_Statistics_Tests is
               Pooled_S   => Params.Pooled_S,
               N          => 5);
       begin
-         Assert (abs (L.UCL - 21.6115) < 5.0e-4,
-                 "Xbar UCL (N=5) ~= 21.6115; got " & Long_Float'Image (L.UCL));
+         Assert (abs (L.UCL - 21.4830) < 5.0e-4,
+                 "Xbar UCL (N=5) ~= 21.4830; got " & Long_Float'Image (L.UCL));
          Assert (abs (L.CL - 19.4706) < 5.0e-4,
                  "Xbar CL (N=5) ~= 19.4706; got " & Long_Float'Image (L.CL));
-         Assert (abs (L.LCL - 17.3296) < 5.0e-4,
-                 "Xbar LCL (N=5) ~= 17.3296; got " & Long_Float'Image (L.LCL));
+         Assert (abs (L.LCL - 17.4581) < 5.0e-4,
+                 "Xbar LCL (N=5) ~= 17.4581; got " & Long_Float'Image (L.LCL));
       end;
 
       --  Verify s chart limits at N=5.
