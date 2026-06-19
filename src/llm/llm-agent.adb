@@ -738,7 +738,8 @@ package body LLM.Agent is
         + Long_Float (Tok_Usage.Output)
         * Rates.Output / 1_000_000.0
         + Long_Float (Tok_Usage.Cache_Read)
-        * Rates.Cache_Read / 1_000_000.0;
+        * Rates.Cache_Read / 1_000_000.0
+        + Long_Float (Tok_Usage.Cache_Write) * Rates.Cache_Write / 1_000_000.0;
    end Usage_Cost_Dollars;
 
    function Usage_Cost_Dmil
