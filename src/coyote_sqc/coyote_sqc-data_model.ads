@@ -39,6 +39,8 @@ package Coyote_SQC.Data_Model is
    type Turn_Record is record
       Turn_Index       : Positive := 1;
       Input_Tokens     : Natural  := 0;
+      Cache_Read_Tokens : Natural := 0;
+      Cache_Write_Tokens : Natural := 0;
       Output_Tokens    : Natural  := 0;
       Thinking_Tokens  : Natural  := 0;
       Thinking_Enabled : Boolean  := False;

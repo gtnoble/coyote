@@ -3,6 +3,7 @@
 --  Project: coyote
 
 with Ada.Strings.Unbounded;
+with Ada.Strings.Fixed;
 with Coyote_SQC.Statistics.JSD;
 with Coyote_SQC.Statistics.MI;
 
@@ -35,6 +36,33 @@ package body Coyote_SQC.Metrics is
             if Pricing_Maps.Has_Element (Pos) then
                P := Pricing_Maps.Element (Pos);
                Has_P := True;
+            end if;
+         end;
+      end if;
+
+      --  Fallback: if the exact model ID wasn't found in the pricing
+      --  table (e.g. because the session recorded a proxy-provider prefix
+      --  like github-copilot/claude-sonnet-4.6), try matching by the
+      --  model-name portion alone (e.g. claude-sonnet-4.6).
+      if not Has_P then
+         declare
+            Model_Str : constant String := To_String (Session.Model);
+            Slash     : constant Natural :=
+              Ada.Strings.Fixed.Index (Model_Str, "/");
+         begin
+            if Slash > 0 and then Slash < Model_Str'Last then
+               declare
+                  Model_Only : constant Unbounded_String :=
+                    To_Unbounded_String
+                      (Model_Str (Slash + 1 .. Model_Str'Last));
+                  Pos2 : constant Pricing_Maps.Cursor :=
+                    Pricing.Find (Model_Only);
+               begin
+                  if Pricing_Maps.Has_Element (Pos2) then
+                     P := Pricing_Maps.Element (Pos2);
+                     Has_P := True;
+                  end if;
+               end;
             end if;
          end;
       end if;
@@ -166,7 +194,13 @@ package body Coyote_SQC.Metrics is
             PTUIC : Long_Float;
          begin
             for Turn of Session.Turns loop
-               PTIC := Long_Float (Turn.Input_Tokens) * P.Input_Price;
+               --  Per-turn input cost: uncached at input price,
+               --  cached reads at cache-read price, cached writes at cache-write price.
+               PTIC := Long_Float (Turn.Input_Tokens
+                                    - Turn.Cache_Read_Tokens
+                                    - Turn.Cache_Write_Tokens) * P.Input_Price
+                       + Long_Float (Turn.Cache_Read_Tokens) * P.Cache_Read_Price
+                       + Long_Float (Turn.Cache_Write_Tokens) * P.Cache_Write_Price;
                PTOC := Long_Float (Turn.Output_Tokens) * P.Output_Price;
                PTC  := PTIC + PTOC;
 
@@ -192,7 +226,7 @@ package body Coyote_SQC.Metrics is
             M.Total_Uncached_Input_Cost := UIC;
 
             --  Total input cost = uncached + cache read + cache write.
-            M.Total_Input_Cost := IC + CRC + CWC;
+            M.Total_Input_Cost := IC;
             M.Total_Output_Cost := OC;
             M.Total_Cost := M.Total_Input_Cost + M.Total_Output_Cost;
 

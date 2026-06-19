@@ -287,6 +287,8 @@ package body Coyote_SQC.Session_Parser is
                Turn.Input_Tokens :=
                  Turn.Input_Tokens + Turn_Cache_Read + Turn_Cache_Write;
             end if;
+            Turn.Cache_Read_Tokens  := Turn_Cache_Read;
+            Turn.Cache_Write_Tokens := Turn_Cache_Write;
             Session.Total_Input_Tokens  :=
               Session.Total_Input_Tokens  + Turn.Input_Tokens;
             Session.Total_Output_Tokens :=
