@@ -4,6 +4,8 @@
 --  For revision history, see the project version-control log.
 
 with Ada.Calendar;
+with Ada.Characters.Handling;
+with Ada.Strings.Fixed;
 with Ada.Directories;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
@@ -158,19 +160,73 @@ package body LLM.Providers.Ollama.Catalogue is
       return 0;
    end Get_Long_Long_Field;
 
+   function Get_Object_Field
+     (Value : GNATCOLL.JSON.JSON_Value;
+      Field : String) return GNATCOLL.JSON.JSON_Value
+   is
+   begin
+      if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
+        and then Value.Has_Field (Field)
+        and then Value.Get (Field).Kind
+          = GNATCOLL.JSON.JSON_Object_Type
+      then
+         return Value.Get (Field);
+      end if;
+      return GNATCOLL.JSON.JSON_Null;
+   end Get_Object_Field;
+
+   function Estimated_Ctx (Param_Str : String) return Natural is
+      Dot : constant Natural :=
+        Ada.Strings.Fixed.Index (Param_Str, ".");
+   begin
+      if Param_Str'Length = 0 then
+         return 128_000;
+      elsif Ada.Strings.Fixed.Index (Param_Str, "M") > 0 then
+         return 8_192;
+      elsif Dot = 0 then
+         return 128_000;
+      else
+         declare
+            Major : constant Natural :=
+              Natural'Value
+                (Param_Str (Param_Str'First .. Dot - 1));
+         begin
+            if Major >= 100 then
+               return 128_000;
+            elsif Major >= 30 then
+               return 32_768;
+            else
+               return 8_192;
+            end if;
+         end;
+      end if;
+   end Estimated_Ctx;
+
+
    function Parse_Model
      (Value : GNATCOLL.JSON.JSON_Value) return Model_Info
    is
-      Id : constant String := Get_String_Field (Value, "name");
+      Id      : constant String := Get_String_Field (Value, "name");
+      Details : constant GNATCOLL.JSON.JSON_Value :=
+        Get_Object_Field (Value, "details");
+      Param   : constant String :=
+        Get_String_Field (Details, "parameter_size");
+      Family  : constant String :=
+        Ada.Characters.Handling.To_Lower
+          (Get_String_Field (Details, "family"));
    begin
       return
         (Model_Id        => To_Unbounded_String (Id),
          Name            => To_Unbounded_String (Id),
-         Context_Window  => 128_000,
+         Context_Window  => Estimated_Ctx (Param),
          Max_Tokens      => 16_384,
-         Reasoning       => False,
+         Reasoning       =>
+           Family = "deepseek-r1"
+             or else Family = "qwen"
+             or else Family = "gemma4",
          Supports_Tools  => True,
-         Supports_Images => False);
+         Supports_Images =>
+           Family = "gemma4" or else Family = "llava");
    end Parse_Model;
 
    procedure Parse_Models

@@ -325,6 +325,8 @@ package body Dispatch_Tests is
             Assert_Contains
               (Body_Text, "a thought",
                "thinking_delta should append the thought text");
+            Assert (S.Text_Emitted,
+                    "thinking_delta should set Text_Emitted");
          end;
 
          begin

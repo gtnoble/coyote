@@ -216,6 +216,7 @@ package body Coyote_App.Dispatch is
                   Section := Thinking_Section;
                end if;
                Frontend.Append_Thinking (To_String (Ev.Delta_Text));
+               State.Set_Text_Emitted (True);
 
             elsif Ev.Kind = LLM.Events.Thinking_End then
                Frontend.End_Thinking;
