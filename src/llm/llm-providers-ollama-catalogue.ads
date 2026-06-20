@@ -1,7 +1,7 @@
 --  LLM.Providers.Ollama.Catalogue — live Ollama model list.
---
 --  Fetches the available models from the Ollama /api/tags endpoint,
---  with a 24-hour disk cache stored under ~/.coyote, and annotates each
+--  enriches each entry via /api/show to extract real capabilities
+--  (thinking, vision, context length), and caches the result for 24 hours.
 --  model with its wire format (Ollama native chat).
 --
 --  Project: coyote

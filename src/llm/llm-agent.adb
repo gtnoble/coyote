@@ -19,7 +19,7 @@ with LLM.Providers.GitHub_Copilot;
 with LLM.Providers.OpenCode_Go;
 with LLM.Providers.OpenRouter;
 with LLM.Session_Store;
-with LLM.Providers.Ollama;
+with LLM.Providers.OpenAI_Completions;
 with LLM.Settings;
 with LLM.System_Prompt;
 with LLM.Tools;
@@ -1333,8 +1333,11 @@ package body LLM.Agent is
          end;
       elsif Lowercase (To_String (S.Model_Info.Provider)) = "ollama" then
          declare
-            Provider : LLM.Providers.Ollama.Provider :=
-              LLM.Providers.Ollama.Create;
+            Api_Key  : constant String :=
+              LLM.Settings.Resolve_Api_Key ("ollama");
+            Provider : LLM.Providers.OpenAI_Completions.Provider :=
+              LLM.Providers.OpenAI_Completions.Create
+                ("https://ollama.com/v1/", Api_Key);
          begin
             Provider.Send
               (Model_Id      => To_String (S.Model_Info.Model_Id),
@@ -1578,8 +1581,11 @@ package body LLM.Agent is
               "ollama"
             then
                declare
-                  Provider : LLM.Providers.Ollama.Provider :=
-                    LLM.Providers.Ollama.Create;
+                  Api_Key  : constant String :=
+                    LLM.Settings.Resolve_Api_Key ("ollama");
+                  Provider : LLM.Providers.OpenAI_Completions.Provider :=
+                    LLM.Providers.OpenAI_Completions.Create
+                      ("https://ollama.com/v1/", Api_Key);
                begin
                   Send_With_Retry
                     (S             => S,

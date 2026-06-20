@@ -183,7 +183,7 @@ package body LLM.Model_Registry is
        Supports_Images     => Item.Supports_Images,
        Max_Thinking_Budget => 0,
        Min_Thinking_Budget => 0,
-       Wire_Format         => To_Unbounded_String ("ollama"),
+       Wire_Format         => To_Unbounded_String ("openai-completions"),
        Cost                => (others => 0.0));
   end To_Model_Info;
 
@@ -200,7 +200,7 @@ package body LLM.Model_Registry is
        Supports_Images     => False,
        Max_Thinking_Budget => 0,
        Min_Thinking_Budget => 0,
-       Wire_Format         => To_Unbounded_String ("ollama"),
+       Wire_Format         => To_Unbounded_String ("openai-completions"),
        Cost                => (others => 0.0));
   end Default_Ollama_Model;
 

@@ -221,3 +221,40 @@ local pre-condition checks.  The `Read_File_If_Exists` function in
 
 **Result:** Net -118 lines (174 removed, 56 added).  Build clean.  688 tests
 passing.  No more unbounded `Get_Line` recursion anywhere in the codebase.
+
+## 2026-06-20: Migrate Ollama Chat to OpenAI-Compatible Endpoint
+
+**Change:** Retired the native Ollama chat provider (`llm-providers-ollama.adb`,
+957 lines) and migrated all Ollama chat traffic to use the OpenAI-compatible
+`POST /v1/chat/completions` endpoint via `LLM.Providers.OpenAI_Completions`.
+The native NDJSON streaming parser, custom request builder, thinking-block
+state machine, and tool-call accumulator are replaced by the shared OpenAI SSE
+pipeline — one less streaming protocol to maintain.
+
+The catalogue (`llm-providers-ollama-catalogue.adb`) now performs a two-phase
+fetch: `/api/tags` for the model list, then `/api/show` per model to extract
+real capabilities (thinking, vision), context length (from
+`model_info.{arch}.context_length`), and model family.  Previously the
+catalogue hardcoded 128K context for Cloud models and guessed reasoning/vision
+support from a small hardcoded family-name table.
+
+**Files changed:**
+- `src/llm/llm-providers-ollama.adb` — **deleted** (957 lines)
+- `src/llm/llm-providers-ollama.ads` — replaced with minimal parent spec (the
+  `Ollama.Catalogue` child package still needs a parent)
+- `src/llm/llm-providers-ollama-catalogue.adb` — rewritten: removed
+  `Estimated_Ctx`, added `Get_Natural_Field`, rewrote `Parse_Model` to read
+  enriched fields from `/api/show`, rewrote `Fetch_Live` to call `/api/show`
+  per model (+272/-66 lines)
+- `src/llm/llm-agent.adb` — replaced `with LLM.Providers.Ollama` with
+  `with LLM.Providers.OpenAI_Completions`; both dispatcher branches
+  (summarization and agentic loop) now create `OpenAI_Completions.Provider`
+  pointing at `https://ollama.com/v1/`
+- `src/llm/llm-model_registry.adb` — changed `Wire_Format` from `"ollama"` to
+  `"openai-completions"` in both `To_Model_Info` and `Default_Ollama_Model`
+- `requirements/coyote-requirements.md` — updated REQ-CORE-150..156 and
+  REQ-CORE-204 to reflect the OpenAI-compatible endpoint
+
+**Result:** Net -841 lines (1,073 deleted, 232 added).  Build clean.  All
+existing tests pass.  Ollama models now share the mature, well-tested OpenAI
+SSE streaming pipeline.

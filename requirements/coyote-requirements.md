@@ -513,15 +513,16 @@ shall exit cleanly.
 ---
 
 #### 3.1.15 Ollama Cloud Provider
+#### 3.1.15 Ollama Cloud Provider
 
 **REQ-CORE-150** (D)
 The agent shall support Ollama Cloud as an LLM provider, identified by the
 provider name `"ollama"`. When selected, the agent shall communicate with the
-Ollama API using the Ollama native chat wire format described in REQ-CORE-154.
-
+Ollama API using the OpenAI-compatible `/v1/chat/completions` endpoint
+described in REQ-CORE-154.
 **REQ-CORE-151** (I)
 The Ollama provider base URL shall be configurable. The cloud default is
-`https://ollama.com`. When a `baseUrl` key is present in the
+`https://ollama.com/v1/`. When a `baseUrl` key is present in the
 `~/.coyote/models.json` entry for the `"ollama"` provider, that value shall
 be used instead, permitting use with a locally-running Ollama instance (e.g.
 `http://localhost:11434`).
@@ -536,29 +537,34 @@ shall be omitted.
 
 **REQ-CORE-153** (D)
 The Ollama provider shall populate the model registry at startup by issuing
-`GET /api/tags` against the configured base URL and parsing the returned
-`models` array. Each entry's `name` field becomes the model identifier in
-the registry. When no API key is configured and the base URL is not a
+`GET /api/tags` against the configured base URL and then enriching each
+model entry via `POST /api/show` to extract capabilities (thinking, vision,
+tools), context length, and model family. Each entry's `name` field becomes
+the model identifier in the registry. When no API key is configured and the
+base URL is not a localhost address, registry population shall be skipped.
 localhost address, registry population shall be skipped.
 
 **REQ-CORE-154** (I)
-Ollama requests shall be sent to `POST /api/chat`. The JSON request body
-shall include `model`, `messages`, `tools`, `stream` (set to `true`), and —
-for thinking-capable models when a non-zero thinking level is requested — a
-`think` field. The streaming response shall be parsed as newline-delimited
-JSON (NDJSON): each line is a complete JSON object containing a `done`
-boolean field.
+**REQ-CORE-154** (I)
+Ollama requests shall be sent to `POST /v1/chat/completions` (the OpenAI-
+compatible endpoint) using the standard OpenAI chat-completions wire format.
+The JSON request body shall include `model`, `messages`, `tools`, `stream`
+(set to `true`), and — for thinking-capable models when a non-zero thinking
+level is requested — a `reasoning_effort` field mapping to `"low"`,
+`"medium"`, or `"high"`. The streaming response shall be parsed as standard
+OpenAI SSE (Server-Sent Events): each event contains a JSON delta within a
+`data:` line.
 
 **REQ-CORE-155** (I)
-The Ollama wire format shall be designated `"ollama"` in the model registry
-`Wire_Format` field. Tool definitions sent to Ollama models shall use the
-Ollama-native function calling format as defined in the Ollama API
-specification for `POST /api/chat`.
+The Ollama wire format shall be designated `"openai-completions"` in the
+model registry `Wire_Format` field. Tool definitions sent to Ollama models
+shall use the standard OpenAI `{type: "function", function: ...}` format.
 
 **REQ-CORE-156** (D)
-Token usage for Ollama responses shall be extracted from the final streaming
-chunk where `done` is `true`: the `prompt_eval_count` field provides the
-input token count and the `eval_count` field provides the output token count.
+Token usage for Ollama responses shall be extracted from the final SSE
+`usage` event, using the standard `prompt_tokens` and `completion_tokens`
+fields. Cache token counts are not reported by the Ollama compat API and
+shall be recorded as zero.
 Cache token counts are not reported by the Ollama API and shall be recorded
 as zero.
 
@@ -589,12 +595,11 @@ tool message and a follow-up user message carrying the `image_url`, because
 OpenAI does not support vision content inside `role=tool` messages.
 
 **REQ-CORE-204** (I)
-The Ollama native chat wire format (`"ollama"`) shall be used for Ollama
-Cloud and locally-configured Ollama models. This format is distinct from
-the OpenAI Chat Completions (`"openai-completions"`) and Anthropic Messages
-(`"anthropic-messages"`) wire formats. The chat endpoint is `POST /api/chat`;
-the response stream is newline-delimited JSON (NDJSON) rather than
-server-sent events (SSE).
+Ollama Cloud and locally-configured Ollama models shall use the OpenAI
+compatible chat-completions wire format (`"openai-completions"`). This
+format is identical to the one used by OpenRouter and other OpenAI-compat
+providers: the chat endpoint is `POST /v1/chat/completions` and the
+response stream is standard server-sent events (SSE).
 
 ---
 
