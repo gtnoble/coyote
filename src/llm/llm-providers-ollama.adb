@@ -299,14 +299,12 @@ package body LLM.Providers.Ollama is
                        GNATCOLL.JSON.Create_Object;
       Messages_Arr : GNATCOLL.JSON.JSON_Array :=
                        GNATCOLL.JSON.Empty_Array;
-      Effective_Base_Url : String :=
-                             To_String (P.Base_Url);
-      Effective_Api_Key  : String :=
-                             To_String (P.Api_Key);
+      Effective_Base_Url : Unbounded_String := P.Base_Url;
+      Effective_Api_Key  : Unbounded_String := P.Api_Key;
    begin
       Handler.all (LLM.Events.Agent_Start_Event'(LLM.Events.Agent_Event with null record));
 
-      if Effective_Base_Url'Length = 0 then
+      if Length (Effective_Base_Url) = 0 then
          --  Resolve from settings if empty
          declare
             Root : constant GNATCOLL.JSON.JSON_Value :=
@@ -320,19 +318,19 @@ package body LLM.Providers.Ollama is
                  GNATCOLL.JSON.JSON_Object_Type
             then
                Effective_Base_Url :=
-                 Get_String_Field (Prov, "baseUrl");
+                To_Unbounded_String (Get_String_Field (Prov, "baseUrl"));
             end if;
-            if Effective_Api_Key'Length = 0 then
+            if Length (Effective_Api_Key) = 0 then
                Effective_Api_Key :=
-                 LLM.Settings.Resolve_Api_Key ("ollama");
+                 To_Unbounded_String (LLM.Settings.Resolve_Api_Key ("ollama"));
             end if;
          end;
       end if;
 
-      if Effective_Api_Key'Length > 0 then
+      if Length (Effective_Api_Key) > 0 then
          LLM.HTTP.Add_Header
            (Headers, "Authorization",
-            "Bearer " & Effective_Api_Key);
+            "Bearer " & To_String (Effective_Api_Key));
       end if;
       LLM.HTTP.Add_Header
         (Headers, "Content-Type", "application/json");
@@ -399,7 +397,7 @@ package body LLM.Providers.Ollama is
       end if;
 
       LLM.HTTP.Post
-        (URL      => Endpoint_Url (Effective_Base_Url),
+        (URL      => Endpoint_Url (To_String (Effective_Base_Url)),
          Headers  => Headers,
          Payload  => GNATCOLL.JSON.Write (Request_Obj),
          On_Chunk => On_Chunk'Access,
