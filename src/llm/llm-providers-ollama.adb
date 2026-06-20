@@ -153,6 +153,18 @@ package body LLM.Providers.Ollama is
       return Default;
    end Get_String_Field;
 
+   function Write_Arguments
+     (Func_Obj : GNATCOLL.JSON.JSON_Value) return String
+   is
+   begin
+      if Func_Obj.Kind = GNATCOLL.JSON.JSON_Object_Type
+        and then Func_Obj.Has_Field ("arguments")
+      then
+         return GNATCOLL.JSON.Write (Func_Obj.Get ("arguments"));
+      end if;
+      return "";
+   end Write_Arguments;
+
    function Has_Int_Field
      (Value : GNATCOLL.JSON.JSON_Value;
       Field : String) return Boolean
@@ -391,7 +403,7 @@ package body LLM.Providers.Ollama is
          TC_Name     : constant String :=
            Get_String_Field (Func_Obj, "name");
          TC_Args     : constant String :=
-           Get_String_Field (Func_Obj, "arguments");
+           Write_Arguments (Func_Obj);
 
          --  Tool calls may arrive all-at-once or incrementally.
          --  Accumulate partial fragments and emit progressive deltas.

@@ -1760,6 +1760,7 @@ package body LLM.Agent is
                Emit (On_Event, End_Event);
             end;
             S.Abort_State.Clear;
+            Emit (On_Event, Session_Stats (S));
             S.Pause_State.Release;
             Ada.Text_IO.Put_Line
               (Ada.Text_IO.Standard_Error,

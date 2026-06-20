@@ -180,28 +180,32 @@ package body Coyote_App.Dispatch is
               (Coyote_App.Frontend.Info,
                ASCII.LF & "[STOP] Aborted." & ASCII.LF);
             State.Set_Aborted (False);
-         elsif not State.Text_Emitted
-           and then not State.Is_Retrying
-         then
+         else
             declare
+               Stop    : constant String := State.Last_Stop_Reason;
                Err_Msg : constant String := State.Last_Error_Message;
             begin
-               Frontend.Append_Notice
-                 (Coyote_App.Frontend.Warning,
-                  "No response from the agent"
-                  & (if Err_Msg'Length > 0
-                     then ": " & Err_Msg
-                     else " -- context may be too long, or a temporary"
-                          & " error occurred. Try New."));
+               if Stop = "error" then
+                  Frontend.Append_Notice
+                    (Coyote_App.Frontend.Warning,
+                     "Agent stopped with an error"
+                     & (if Err_Msg'Length > 0
+                        then ": " & Err_Msg
+                        else ""));
+               elsif not State.Text_Emitted
+                 and then not State.Is_Retrying
+               then
+                  Frontend.Append_Notice
+                    (Coyote_App.Frontend.Warning,
+                     "No response from the agent"
+                     & (if Err_Msg'Length > 0
+                        then ": " & Err_Msg
+                        else " -- context may be too long, or a temporary"
+                             & " error occurred. Try New."));
+               end if;
             end;
          end if;
-         declare
-            Stop : constant String := State.Last_Stop_Reason;
-         begin
-            if Stop = "stop" or else Stop = "length" then
-               State.Set_Pending_Stats (True);
-            end if;
-         end;
+         State.Set_Pending_Stats (True);
          Frontend.Set_Status (Format_Status (State, "ready"));
          Frontend.Set_Mode (Coyote_App.Frontend.Idle);
 
