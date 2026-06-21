@@ -711,6 +711,17 @@ package body LLM.Session_Store is
                      Header.Set_Field ("parentRelation", "subagent");
                   end if;
                end;
+               --  Record the current thinking level in the session header so
+               --  session replayers and SQC tooling can see it.
+               declare
+                  Think_Level : constant String :=
+                    Ada.Environment_Variables.Value
+                      ("COYOTE_THINKING_LEVEL", "");
+               begin
+                  if Think_Level'Length > 0 then
+                     Header.Set_Field ("thinkingLevel", Think_Level);
+                  end if;
+               end;
 
                Write_Raw_Line
                  (Path  => Path,

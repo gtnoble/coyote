@@ -732,6 +732,17 @@ package body Coyote_App is
                   State.Set_Prompt_Filter
                     (To_String (Settings_Value.Prompt_Filter));
                end if;
+               --  Inherit thinking level from parent subagent process.
+               declare
+                  Think_Level : constant String :=
+                    Ada.Environment_Variables.Value
+                      ("COYOTE_THINKING_LEVEL", "");
+               begin
+                  if Think_Level'Length > 0 then
+                     Current_Thinking :=
+                       Ada.Strings.Unbounded.To_Unbounded_String (Think_Level);
+                  end if;
+               end;
             end;
 
             --  When spawned as a subagent via the shell tool, the parent
@@ -782,6 +793,13 @@ package body Coyote_App is
                     ("COYOTE_SESSION_ID", Sess);
                end if;
             end;
+            --  Publish the thinking level for child subagent processes.
+            if Ada.Strings.Unbounded.Length (Current_Thinking) > 0 then
+               Ada.Environment_Variables.Set
+                 ("COYOTE_THINKING_LEVEL",
+                  Ada.Strings.Unbounded.To_String (Current_Thinking));
+            end if;
+
 
             if Length (Opts.Session_Id) > 0 then
                Render_Loaded_Session (To_String (Opts.Session_Id));
@@ -876,6 +894,9 @@ package body Coyote_App is
                         when Set_Thinking_Command =>
                            begin
                               Current_Thinking := Text;
+                              Ada.Environment_Variables.Set
+                                ("COYOTE_THINKING_LEVEL",
+                                 To_String (Current_Thinking));
                               LLM.Agent.Set_Thinking
                                 (S     => Agent_Session,
                                  Level =>
@@ -2187,6 +2208,17 @@ package body Coyote_App is
                   State.Set_Prompt_Filter
                     (To_String (Settings_Value.Prompt_Filter));
                end if;
+               --  Inherit thinking level from parent subagent process.
+               declare
+                  Think_Level : constant String :=
+                    Ada.Environment_Variables.Value
+                      ("COYOTE_THINKING_LEVEL", "");
+               begin
+                  if Think_Level'Length > 0 then
+                     Current_Thinking :=
+                       Ada.Strings.Unbounded.To_Unbounded_String (Think_Level);
+                  end if;
+               end;
             end;
 
             My_Frontend.Set_Status ("Initializing" & UC_ELLIP);
@@ -2237,6 +2269,13 @@ package body Coyote_App is
                     ("COYOTE_SESSION_ID", Sess);
                end if;
             end;
+            --  Publish the thinking level for child subagent processes.
+            if Ada.Strings.Unbounded.Length (Current_Thinking) > 0 then
+               Ada.Environment_Variables.Set
+                 ("COYOTE_THINKING_LEVEL",
+                  Ada.Strings.Unbounded.To_String (Current_Thinking));
+            end if;
+
 
             if Length (Opts.Session_Id) > 0 then
                Render_Loaded_Session (To_String (Opts.Session_Id));
@@ -2379,6 +2418,9 @@ package body Coyote_App is
                              (S     => Agent_Session,
                               Level => It.Level);
                            State.Set_Thinking (To_String (Current_Thinking));
+                           Ada.Environment_Variables.Set
+                             ("COYOTE_THINKING_LEVEL",
+                              To_String (Current_Thinking));
                            My_Frontend.Set_Status
                              (Format_Status (State, Status_Label));
                         exception

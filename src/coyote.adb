@@ -220,6 +220,13 @@ begin
       Ada.Environment_Variables.Set ("COYOTE_NO_SESSION", "1");
    end if;
 
+   --  Inherit thinking level from the parent process when spawned as a
+   --  subagent.  The parent sets COYOTE_THINKING_LEVEL before spawning
+   --  so that the thinking level propagates to all descendants.
+   if Ada.Environment_Variables.Exists ("COYOTE_THINKING_LEVEL") then
+      null;  --  Used only for propagation; consumed in Coyote_App.Run
+   end if;
+
    --  When resuming a session, change to the working directory that was
    --  current when the session was created so all relative paths resolve
    --  consistently.  If the stored directory no longer exists, record a

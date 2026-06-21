@@ -433,7 +433,7 @@ simple and auditable.*
 
 **Inputs:** `Ada.Command_Line.Argument_Count` / `Argument`; environment
 variables `$winid`, `$DISPLAY`, `$WAYLAND_DISPLAY`, `COYOTE_FRONTEND`,
-`COYOTE_NO_SESSION`, `COYOTE_SESSION_ID`, `COYOTE_PARENT_SESSION`.
+`COYOTE_NO_SESSION`, `COYOTE_SESSION_ID`, `COYOTE_PARENT_SESSION`, `COYOTE_THINKING_LEVEL`.
 
 **Outputs:** `Coyote_App.Options` record passed to `Run` or `Run_GUI`;
 environment variable `COYOTE_FRONTEND` set when the frontend is a windowing kind (Acme or GUI).
@@ -441,6 +441,9 @@ environment variable `COYOTE_FRONTEND` set when the frontend is a windowing kind
 **Control flow:**
 1. Parse arguments sequentially. Each recognised flag sets the corresponding
    field in `Opts`. Unknown arguments trigger `Put_Line (Standard_Error, ...)`.
+2a. If `$COYOTE_THINKING_LEVEL` is set, `Coyote_App.Run` inherits the
+    parent's thinking level, overriding the `defaultThinkingLevel` from
+    `settings.json`.
 2. If `$COYOTE_NO_SESSION` is set, force `Opts.No_Session := True`.
 3. If `--session UUID` was given and the session's working directory exists,
    call `Ada.Directories.Set_Directory`.
