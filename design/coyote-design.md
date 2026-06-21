@@ -1148,6 +1148,13 @@ points > 255 cannot appear as character literals.
 - `Format_Duration (Seconds : Duration) → String` — humanises durations.
 - `Truncate_Middle (S : String; Max_Len : Natural) → String` — truncates long
   strings with a middle ellipsis.
+- `Format_Turn_Summary (Input_Tokens, Output_Tokens, Ctx_Window, Model_Text,
+  Turn_Cost_Dmil, Session_Cost_Dmil, Stop_Reason_Text) → String` — builds the
+  bracketed per-turn summary line (e.g. `[ctx 24k/400k (6%) | ^537 out | stop]`).
+  The `Stop_Reason_Text` parameter (added v1.7) displays the provider stop reason
+  (`stop`, `length`, `toolUse`, `aborted`, `error`, `unknown`) when non-empty.
+- `Format_Turn_Footer (Turn_N, UUID, PID, ...) → String` — wraps the summary
+  with a `coyote-fork+` plumb token and a double-line separator.
 
 ---
 

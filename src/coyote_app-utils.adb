@@ -410,7 +410,8 @@ package body Coyote_App.Utils is
       Ctx_Window        : Natural;
       Model_Text        : String;
       Turn_Cost_Dmil    : Natural := 0;
-      Session_Cost_Dmil : Natural := 0) return String
+      Session_Cost_Dmil : Natural := 0;
+      Stop_Reason_Text : String  := "") return String
    is
       Parts : Unbounded_String;
    begin
@@ -451,6 +452,12 @@ package body Coyote_App.Utils is
          end if;
          Append (Parts, Model_Text);
       end if;
+      if Stop_Reason_Text'Length > 0 then
+         if Length (Parts) > 0 then
+            Append (Parts, " | ");
+         end if;
+         Append (Parts, Stop_Reason_Text);
+      end if;
       return
         (if Length (Parts) > 0
          then "[" & To_String (Parts) & "]"
@@ -466,7 +473,8 @@ package body Coyote_App.Utils is
       Ctx_Window        : Natural := 0;
       Model_Text        : String  := "";
       Turn_Cost_Dmil    : Natural := 0;
-      Session_Cost_Dmil : Natural := 0) return String
+      Session_Cost_Dmil : Natural := 0;
+      Stop_Reason_Text : String  := "") return String
    is
       Summary : constant String :=
         Format_Turn_Summary
@@ -475,7 +483,8 @@ package body Coyote_App.Utils is
            Ctx_Window        => Ctx_Window,
            Model_Text        => Model_Text,
            Turn_Cost_Dmil    => Turn_Cost_Dmil,
-           Session_Cost_Dmil => Session_Cost_Dmil);
+           Session_Cost_Dmil => Session_Cost_Dmil,
+           Stop_Reason_Text => Stop_Reason_Text);
    begin
       return ASCII.LF & ASCII.LF
              & (if Summary'Length > 0 then Summary & " " else "")

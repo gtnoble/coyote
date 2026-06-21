@@ -91,6 +91,7 @@ package body Coyote_App.Dispatch is
       Model_Text        : constant String  := State.Current_Model;
       Turn_Cost_Dmil    : constant Natural := State.Turn_Cost_Dmil;
       Session_Cost_Dmil : constant Natural := State.Session_Cost_Dmil;
+      Stop_Reason_Text : constant String  := State.Last_Stop_Reason;
    begin
       State.Increment_Turn_Count;
       Frontend.Append_Turn_Footer
@@ -103,7 +104,8 @@ package body Coyote_App.Dispatch is
             Ctx_Window        => Ctx_Window,
             Model_Text        => Model_Text,
             Turn_Cost_Dmil    => Turn_Cost_Dmil,
-            Session_Cost_Dmil => Session_Cost_Dmil));
+            Session_Cost_Dmil => Session_Cost_Dmil,
+            Stop_Reason_Text => Stop_Reason_Text));
    end Append_Live_Turn_Footer;
 
    --  ── Open_Sub_Window ───────────────────────────────────────────────────

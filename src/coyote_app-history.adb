@@ -83,6 +83,7 @@ package body Coyote_App.History is
       Turns_Rendered : Natural         := 0;
       In_Turn        : Boolean         := False;
       Saw_Asst_Text  : Boolean         := False;
+      Turn_Stop    : Unbounded_String := Null_Unbounded_String;
 
 
       --  Return the Tool_Result_Entry whose Id matches, or a blank entry.
@@ -323,12 +324,15 @@ package body Coyote_App.History is
                                     Ctx_Window    =>
                                       State.Context_Window,
                                     Model_Text    =>
-                                      To_String (Cur_Model)));
+                                      To_String (Cur_Model),
+                                    Stop_Reason_Text =>
+                                      To_String (Turn_Stop)));
                            end if;
                            In_Turn       := True;
                            Saw_Asst_Text := False;
                            Turn_Input    := 0;
                            Turn_Output   := 0;
+                           Turn_Stop    := Null_Unbounded_String;
                            if Msg.Has_Field ("content")
                              and then
                                Msg.Get ("content").Kind = JSON_Array_Type
@@ -406,6 +410,10 @@ package body Coyote_App.History is
                                  end;
                               end if;
                            end;
+                           --  Capture stop reason for footer.
+                           Turn_Stop :=
+                             To_Unbounded_String
+                               (Get_String (Msg, "stopReason"));
                            --  Render content blocks.
                            if Msg.Has_Field ("content")
                              and then
@@ -524,7 +532,9 @@ package body Coyote_App.History is
                Input_Tokens  => Turn_Input,
                Output_Tokens => Turn_Output,
                Ctx_Window    => State.Context_Window,
-               Model_Text    => To_String (Cur_Model)));
+               Model_Text    => To_String (Cur_Model),
+               Stop_Reason_Text =>
+                 To_String (Turn_Stop)));
       end if;
       --  Restore turn count so subsequent live turns are numbered correctly.
       State.Set_Turn_Count (Turns_Rendered);

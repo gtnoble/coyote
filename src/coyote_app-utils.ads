@@ -195,7 +195,8 @@ package Coyote_App.Utils is
       Ctx_Window        : Natural;
       Model_Text        : String;
       Turn_Cost_Dmil    : Natural := 0;
-      Session_Cost_Dmil : Natural := 0) return String;
+      Session_Cost_Dmil : Natural := 0;
+      Stop_Reason_Text : String  := "") return String;
 
    --  Turn footer between completed turns.  Carries a clickable fork token
    --  so button-3 opens a forked session.
@@ -209,7 +210,8 @@ package Coyote_App.Utils is
       Ctx_Window        : Natural := 0;
       Model_Text        : String  := "";
       Turn_Cost_Dmil    : Natural := 0;
-      Session_Cost_Dmil : Natural := 0) return String;
+      Session_Cost_Dmil : Natural := 0;
+      Stop_Reason_Text : String  := "") return String;
 
    --  ── JSON field helpers ────────────────────────────────────────────────
 
