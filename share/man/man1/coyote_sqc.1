@@ -1,0 +1,137 @@
+.\" Man page for coyote_sqc — Coyote Session Quality Control application
+.\" Generated 2026-06-21
+.TH COYOTE_SQC 1 "2026-06-21" "coyote_sqc 0.1.0" "Coyote Manual"
+.SH NAME
+coyote_sqc \- Statistical Quality Control companion for the Coyote coding agent
+.SH SYNOPSIS
+.B coyote_sqc
+[\fIworkspace.sqcw\fR]
+.SH DESCRIPTION
+.B coyote_sqc
+is a standalone GTK3 application that reads Coyote session data,
+computes Statistical Process Control (SPC) chart statistics, and
+presents an interactive graphical analysis environment for process
+monitoring, investigation, and annotation.
+.PP
+The application ingests Coyote session JSONL files from one or more
+source directories, aggregates session-level and turn-level metrics,
+and displays them as interactive control charts.  It does not write
+to or modify Coyote session files; all application state (workspace
+definition, chart setup intervals, comments) is stored in a separate
+workspace file.
+.PP
+The application supports 91 pre-instantiated control charts across
+six groups: Quantile Profiles, Token Consumption, Rates, Session
+Totals, Token Costs, and Tool Call Behavior.  Chart types include
+Xbar/s, Individuals (I), Moving Range (MR), Exponentially Weighted
+Moving Average (EWMA), p-charts, and Quantile Control Charts.
+.SH OPTIONS
+.TP
+\fIworkspace.sqcw\fR
+Optional path to a workspace file to open at startup.  If omitted,
+the application starts with an empty workspace; the user can create
+a new workspace or open an existing one via the File menu.
+.SH "WORKSPACE FILE FORMAT"
+Workspace files use the
+.B .sqcw
+extension and are stored as JSON.  A workspace contains:
+.IP \(bu 2
+One or more source directories to scan for Coyote session files.
+.IP \(bu
+An optional model filter (list of model identifier strings).
+.IP \(bu
+A setup interval \(em the set of sessions used to estimate control
+limits for all charts.
+.IP \(bu
+Per-session comments for annotation and investigation tracking.
+.IP \(bu
+Per-chart settings (Box-Cox transformation, estimation method,
+EWMA parameters, plot method).
+.PP
+The file format is versioned; the application refuses to open
+workspace files with a version higher than it supports.
+.SH "CHART GROUPS"
+The 91 charts are organised into six groups in the left panel:
+.TP
+.B Quantile Profiles
+Five Quantile Control Charts showing the empirical distribution of
+per-turn observations (minimum, Q1, median, Q3, maximum) with
+bootstrap control limits.
+.TP
+.B Token Consumption
+Six Xbar/s chart pairs for per-turn token consumption: Turn Tokens,
+Tool Call Tokens, and Thinking Tokens.
+.TP
+.B Rates
+Eleven p-charts and I/MR/EWMA charts for event rates and token
+ratios: tool-call failure rate, fraction of tool-call turns,
+fraction of thinking turns, and various token-ratio charts.
+.TP
+.B Session Totals
+Twenty-four I/MR/EWMA chart triplets for session-level totals:
+Input, Output, Cache Read, Cache Write, Thinking, Tool-Call,
+Tool-Call Result, and Uncached Input tokens, plus Turn Count.
+.TP
+.B Token Costs
+Thirty I/MR/EWMA and Xbar/s charts for session-level and per-turn
+token costs across six cost categories: Total, Input, Output,
+Cache Read, Cache Write, and Uncached Input.
+.TP
+.B Tool Call Behavior
+Fifteen charts for consecutive tool-call similarity analysis:
+Jensen-Shannon divergence (JSD) and compression-based mutual
+information (MI) diversity metrics, each with Xbar/s, I/MR/EWMA,
+and Quantile CC variants.
+.SH "STATISTICAL METHODS"
+.IP \(bu 2
+The only out-of-control rule is the 3-sigma rule: a point is
+out-of-control if its statistic falls strictly outside the control
+limits.
+.IP \(bu
+Control limits are variable \(em computed individually for each
+point using that session's actual subgroup size.
+.IP \(bu
+All limit parameters are estimated exclusively from the sessions
+in the user-designated setup interval.
+.IP \(bu
+Box-Cox transformation is available for I/MR/EWMA and Xbar/s
+charts to correct skewness in token-count and cost data.
+.IP \(bu
+Robust (median/Q\(ssn\(es) estimation is available as an alternative
+to classical estimators for control limit computation.
+.IP \(bu
+Quantile Control Charts use a two-stage bootstrap procedure
+with Bonferroni multiplicity correction.
+.SH FILES
+.TP
+.I ~/.config/coyote_sqc/config.json
+Per-user application configuration (recent workspaces).
+.TP
+.I ~/.config/coyote_sqc/pricing.json
+Per-model token pricing data in USD per token.  When absent,
+pricing is resolved from the OpenRouter public model API.
+.TP
+.I ~/.config/coyote_sqc/openrouter_models_cache.json
+Cached OpenRouter model catalogue (refreshed at most once per
+application start; expires after 24 hours).
+.TP
+.I *.sqcw
+Workspace files in JSON format, stored at a user-chosen location.
+.SH EXAMPLES
+.TP
+Start with a new empty workspace:
+.EX
+coyote_sqc
+.EE
+.TP
+Open an existing workspace:
+.EX
+coyote_sqc ~/analysis/coyote-june.sqcw
+.EE
+.SH "SEE ALSO"
+.BR coyote (1)
+.PP
+Project documentation:
+.IR requirements/coyote-sqc-requirements.md ,
+.IR design/coyote-sqc-design.md
+in the coyote source tree.

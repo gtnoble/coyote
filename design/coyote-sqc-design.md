@@ -1,8 +1,8 @@
 # coyote_sqc — Design Specification
 
 **Project:** Coyote Session Quality Control  
-**Version:** 0.1 (draft)  
-**Date:** 2026-06-13  
+**Version:** 0.2  
+**Date:** 2026-06-21  
 **Status:** In progress  
 **Requirements:** `requirements/coyote-sqc-requirements.md`
 
@@ -4160,6 +4160,21 @@ existing AUnit test suite. Fixture files live in `test/fixtures/sqc/`.
   places for each cost category.
 - Zero-value exclusion: sessions with zero cost for the measured quantity
   are excluded when Box-Cox is enabled; status-bar notice is posted.
+
+### 14.10 Man Page
+
+The man page for `coyote_sqc` is a static file at `share/man/man1/coyote_sqc.1`.
+It is produced in standard troff/nroff man(7) format and documents: application
+purpose, command-line invocation (optional workspace path), workspace file format
+(`.sqcw` JSON), chart groups (Quantile Profiles, Token Consumption, Rates,
+Session Totals, Token Costs, Tool Call Behavior), statistical methods (3-sigma
+rule, variable control limits, Box-Cox transformation, robust estimation, Quantile
+CC bootstrap), configuration and pricing files, usage examples, and cross-reference
+to `coyote(1)`.
+
+No automated test verifies the man page; it is validated by manual inspection
+(`man coyote_sqc`) and by checking that the file is present at the installed
+location in `share/man/man1/`.
 *End of document.*
 Note: Box_Cox_Inverse requires (for λ ≠ 0) that Z*λ + 1 > 0 for any transformed value Z being inverted. If this condition is not met the inverse raises Constraint_Error. When back-transform of UCL or CL fails the implementation must provide a visible explanation (status bar or popup) and one of the documented fallback behaviours: choose an alternate valid lambda, fall back to λ = 0 (log), or render limits in transformed units with a clear label. The application MUST NOT silently omit control limits without notifying the user.
 

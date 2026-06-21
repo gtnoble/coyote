@@ -1,8 +1,8 @@
 # SQC/SPC Companion Application — Requirements Document
 
 **Project:** Coyote Session Quality Control  
-**Version:** 0.1 (draft)  
-**Date:** 2026-06-13  
+**Version:** 0.2  
+**Date:** 2026-06-21  
 **Status:** In progress
 
 ---
@@ -24,6 +24,7 @@
 13. [Workspace Management](#13-workspace-management)
 14. [Session Replay Rendering](#14-session-replay-rendering)
 15. [Non-Functional Requirements](#15-non-functional-requirements)
+   - 15.7 Man Page
 
 ---
 
@@ -3803,4 +3804,13 @@ All statistical formula implementations shall have AUnit unit tests covering:
   exception is raised.  The diagram's bounding box contracts to enclose only
   the visible components.
 
+
+### 15.7 Man Page
+
+A man page for the `coyote_sqc` executable shall be provided in standard
+troff/nroff man(7) format, installed as `coyote_sqc.1` in the appropriate
+man directory.  The man page shall document the application's purpose,
+command-line invocation, workspace file format, chart types, and basic
+usage examples.  It shall include the standard man-page sections: NAME,
+SYNOPSIS, DESCRIPTION, OPTIONS, FILES, EXAMPLES, and SEE ALSO.
 *End of document.*

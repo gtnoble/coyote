@@ -1,7 +1,7 @@
 # Test Plan — coyote (STP)
 
-**Version:** 1.1
-**Date:** 2026-06-03
+**Version:** 1.3
+**Date:** 2026-06-21
 **Status:** Reviewed and acknowledged — M4 complete (2026-06-03)
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
@@ -285,6 +285,7 @@ These are entered as open items in the problem log (PCR-009).
 | REQ-CORE-703 | I | Code inspection (task exception handlers) |
 | REQ-CORE-704 | I | Code inspection (provider package structure) |
 | REQ-CORE-800–805 | I | Build artefact inspection, code inspection |
+| REQ-CORE-160 | I | Code inspection (man page content) |
 
 ---
 

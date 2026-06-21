@@ -1,7 +1,7 @@
 # Project Plan — coyote
 
-**Version:** 1.9
-**Date:** 2026-06-18
+**Version:** 1.10
+**Date:** 2026-06-21
 **Status:** Active
 
 ---
@@ -577,11 +577,11 @@ acknowledged the design without comment.
 
 | Artifact | ID | Location | Current Version | Control Level |
 |---|---|---|---|---|
-| Project Plan | PLAN | `plan/project-plan.md` | 1.9 (2026-06-18) | Project |
+| Project Plan | PLAN | `plan/project-plan.md` | 1.10 (2026-06-21) | Project |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
-| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.2 (2026-06-06) | Client |
-| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.1 (2026-06-02) | Project |
-| coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 1.0 (2026-06-18) | Project |
-| coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 1.0 (2026-06-18) | Project |
-| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.2 (2026-06-18) | Project |
+| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.4 (2026-06-21) | Client |
+| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.2 (2026-06-21) | Project |
+| coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.2 (2026-06-21) | Project |
+| coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.2 (2026-06-21) | Project |
+| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.3 (2026-06-21) | Project |
 | Agent Working Instructions (secondary) | AGENTS | `AGENTS.md` | active | Project |

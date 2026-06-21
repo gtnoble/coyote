@@ -1,8 +1,8 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.3
-**Date:** 2026-06-11
+**Version:** 1.4
+**Date:** 2026-06-21
 **Status:** Draft
 **Project Plan:** `plan/project-plan.md`
 
@@ -565,8 +565,21 @@ Token usage for Ollama responses shall be extracted from the final SSE
 `usage` event, using the standard `prompt_tokens` and `completion_tokens`
 fields. Cache token counts are not reported by the Ollama compat API and
 shall be recorded as zero.
-Cache token counts are not reported by the Ollama API and shall be recorded
-as zero.
+Cache token counts are not reported by the Ollama API and shall be recorded as zero.
+
+#### 3.1.16 Man Page
+
+**REQ-CORE-160** (I)
+A man page for the `coyote` executable shall be provided in standard
+troff/nroff man(7) format, installed as `coyote.1` in the appropriate
+man directory.  The man page shall document all command-line arguments,
+environment variables used by coyote (`COYOTE_SESSION_ID`,
+`COYOTE_PARENT_SESSION`, `COYOTE_NO_SESSION`, `COYOTE_FRONTEND`),
+frontend selection behaviour, configuration files, and basic usage
+examples.  It shall include the standard man-page sections: NAME,
+SYNOPSIS, DESCRIPTION, OPTIONS, ENVIRONMENT, FILES, EXAMPLES, and
+SEE ALSO.
+
 
 ---
 
@@ -903,6 +916,7 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-130..131 | Session history replay | D | TC-130..131 |
 | REQ-CORE-140..142 | Error handling | D | TC-140..142 |
 | REQ-CORE-150..156 | Ollama Cloud provider | D/I | TC-150..156 |
+| REQ-CORE-160 | Man page for coyote executable | I | TC-160 |
 | REQ-CORE-200..204 | Provider API interfaces | I | TC-200..204 |
 | REQ-CORE-210..212 | acme 9P VFS interface | I | TC-210..212 |
 | REQ-CORE-220..221 | GTK3 interface | I | TC-220..221 |
@@ -914,6 +928,7 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-600..601 | Resource requirements | A | TC-600..601 |
 | REQ-CORE-700..704 | Quality factors | D/I | TC-700..704 |
 | REQ-CORE-800..805 | Constraints | I | TC-800..805 |
+
 
 ---
 
@@ -931,6 +946,7 @@ objectives stated in the Project Plan (PLAN §1 and §3):
 | Session persistence and resume | REQ-CORE-080–084, REQ-CORE-701 |
 | Context compaction | REQ-CORE-060–064 |
 | Multi-provider LLM support | REQ-CORE-070–078, REQ-CORE-150–156, REQ-CORE-200–204 |
+| Man pages for coyote and coyote_sqc | REQ-CORE-160 |
 | Skill discovery and system prompt construction | REQ-CORE-090–093 |
 | Subagent spawning with session lineage | REQ-CORE-019–020, REQ-CORE-030–032 |
 | Error visibility and graceful shutdown | REQ-CORE-140–142, REQ-CORE-702–703 |

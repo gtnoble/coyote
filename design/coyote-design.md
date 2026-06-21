@@ -1,8 +1,8 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.1
-**Date:** 2026-06-02
+**Version:** 1.2
+**Date:** 2026-06-21
 **Status:** Reviewed — project control (M3 complete 2026-06-02)
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
@@ -1463,6 +1463,7 @@ blocking; `Agent_Resumed_Event` is emitted after unblocking.
 | REQ-CORE-600–601 | `LLM.Compaction` (unbounded growth prevention); `Coyote_App` (GTK threading) |
 | REQ-CORE-700–704 | `LLM.HTTP` (streaming latency); `LLM.Session_Store` (persistence); all frontends (error visibility) |
 | REQ-CORE-800–805 | Build system; `Coyote_App.Utils` (UC_* constants); all packages (.ads/.adb split) |
+| REQ-CORE-160 | `share/man/man1/coyote.1` (static man page) |
 
 ---
 

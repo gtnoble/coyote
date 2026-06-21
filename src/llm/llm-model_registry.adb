@@ -49,10 +49,31 @@ package body LLM.Model_Registry is
     return LLM.Settings.Resolve_Api_Key ("opencode-go")'Length > 0;
   end Has_OpenCode_Go_Key;
 
-  function Has_Ollama_Key return Boolean is
+  function Is_Ollama_Configured_Internal return Boolean is
+    Root : constant GNATCOLL.JSON.JSON_Value :=
+      LLM.Settings.Load_Json_File (LLM.Settings.Models_Path);
+    Prov : constant GNATCOLL.JSON.JSON_Value :=
+      LLM.Settings.Find_Provider_Config (Root, "ollama");
+    Base_Url_Str : constant String :=
+      (if Prov.Kind = GNATCOLL.JSON.JSON_Object_Type
+         and then Prov.Has_Field ("baseUrl")
+         and then Prov.Get ("baseUrl").Kind = GNATCOLL.JSON.JSON_String_Type
+       then Prov.Get ("baseUrl").Get
+       else "");
   begin
-    return LLM.Settings.Resolve_Api_Key ("ollama")'Length > 0;
-  end Has_Ollama_Key;
+    if LLM.Settings.Resolve_Api_Key ("ollama")'Length > 0 then
+      return True;
+    end if;
+    if Base_Url_Str'Length > 0 then
+      return True;
+    end if;
+    return False;
+  end Is_Ollama_Configured_Internal;
+
+  function Is_Ollama_Configured return Boolean is
+  begin
+    return Is_Ollama_Configured_Internal;
+  end Is_Ollama_Configured;
 
   function To_Model_Info
     (Item : LLM.Providers.OpenCode_Go.Catalogue.Model_Info)
@@ -248,7 +269,7 @@ package body LLM.Model_Registry is
    begin
      Remove_Provider_Entries ("ollama");
 
-     if not Has_Ollama_Key then
+     if not Is_Ollama_Configured then
        return;
      end if;
 
@@ -471,7 +492,7 @@ procedure Refresh_GitHub_Copilot is
     Include_OpenRouter : constant Boolean := Has_OpenRouter_Key;
     Include_Anthropic  : constant Boolean := Has_Anthropic_Key;
     Include_OpenCode   : constant Boolean := Has_OpenCode_Go_Key;
-    Include_Ollama   : constant Boolean := Has_Ollama_Key;
+    Include_Ollama   : constant Boolean := Is_Ollama_Configured;
   begin
     for Item of Registry loop
       declare

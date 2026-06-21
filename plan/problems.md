@@ -1297,3 +1297,108 @@ The MR-chart transform block already correctly branched on
   3. Build succeeds cleanly; all 713 existing AUnit tests pass.
 - **Status:** Resolved
 - **Date resolved:** 2026-06-19
+
+## PCR-036
+
+- **Date reported:** 2026-06-21
+- **Category:** Implementation
+- **Priority:** 3-Moderate
+- **Description:** The Ollama provider catalogue refresh was gated on
+  `Has_Ollama_Key`, which checked only for a non-empty API key
+  (`$OLLAMA_API_KEY` or `providers.ollama.apiKey` in `models.json`).
+  Local Ollama instances (e.g. `http://localhost:11434`) typically run
+  without authentication, so the gate prevented the two-phase catalogue
+  fetch (`/api/tags` → `/api/show` per model) from ever running.  The
+  per-model `{arch}.context_length` values extracted by
+  `Fetch_Show_Detail` were never obtained, and all Ollama models fell
+  through to `Default_Ollama_Model` with a hardcoded
+  `Context_Window => 128_000`.  This meant the status bar and turn
+  footers always showed "128k ctx" regardless of the model's actual
+  context length (e.g. llama3:8b has 8,192, mistral:7b has 32,768).
+- **Affected work products:**
+  `src/llm/llm-model_registry.adb`
+- **Actions taken (2026-06-21):**
+  1. Replaced `Has_Ollama_Key` with `Is_Ollama_Configured`, which returns
+     True when either an API key is present OR a `baseUrl` is configured
+     in `models.json` (covering local unauthenticated instances).
+  2. Added `Is_Ollama_Configured_Internal` helper that checks both
+     conditions, using a local `Base_Url_Str : constant String` to avoid
+     the ambiguous `'Length` attribute error on a chained `.Get` call.
+  3. Updated the gate in `Refresh_Ollama` and the inclusion check in
+     `Available_Models` to use `Is_Ollama_Configured`.
+  4. Build succeeds cleanly; all 712 non-subagent AUnit tests pass
+     (the 1 subagent integration test failure is pre-existing).
+- **Status:** Resolved
+- **Date resolved:** 2026-06-21
+
+## PCR-037
+
+- **Date reported:** 2026-06-21
+- **Category:** Requirements
+- **Priority:** 4-Minor
+- **Description:** No man page requirements existed for `coyote` or
+  `coyote_sqc`.  The user requested that man pages be specified for both
+  executables so that users can consult standard `man coyote` and
+  `man coyote_sqc` documentation without consulting project files or
+  source code.
+- **Affected work products:** SRS-CORE (`requirements/coyote-requirements.md`),
+  SRS-SQC (`requirements/coyote-sqc-requirements.md`),
+  Project Plan (`plan/project-plan.md`),
+  Test Plan (`plan/test-plan.md`)
+- **Corrective action required:** Add REQ-CORE-160 to SRS-CORE §3.1.16
+  specifying a man page for `coyote`; add §15.7 to SRS-SQC specifying a
+  man page for `coyote_sqc`; update qualification provisions, traceability
+  tables, artifact version table, and test plan traceability accordingly.
+- **Actions taken (2026-06-21):**
+  1. SRS-CORE v1.4: added §3.1.16 with REQ-CORE-160 (man page for coyote
+     in man(7) format, covering CLI args, env vars, frontend selection,
+     config files, and usage examples); added qualification row
+     (REQ-CORE-160, I, TC-160); added traceability row ("Man pages for
+     coyote and coyote_sqc" → REQ-CORE-160).
+  2. SRS-SQC v0.2: added §15.7 (man page for coyote_sqc in man(7) format,
+     covering purpose, invocation, workspace format, chart types, and
+     examples); updated TOC.
+  3. Project Plan v1.10: updated artifact version table (SRS-CORE 1.2→1.4,
+     SRS-SQC 1.0→0.2, PLAN 1.9→1.10).
+  4. Test Plan: added REQ-CORE-160 to traceability table.
+- **Status:** Resolved
+- **Date resolved:** 2026-06-21
+
+## PCR-038
+
+- **Date reported:** 2026-06-21
+- **Category:** Requirements
+- **Priority:** 4-Minor
+- **Description:** Man page requirements (REQ-CORE-160, SRS-SQC §15.7) added
+  in PCR-037 required implementation: creation of the actual man page files
+  and corresponding design-document updates.
+- **Affected work products:**
+  `share/man/man1/coyote.1` (new),
+  `share/man/man1/coyote_sqc.1` (new),
+  `design/coyote-design.md`,
+  `design/coyote-sqc-design.md`,
+  `plan/project-plan.md`
+- **Corrective action required:** Create man pages for both executables in
+  standard troff/nroff man(7) format; update SDD-CORE and SDD-SQC traceability
+  and versioning; update Project Plan artifact version table.
+- **Actions taken (2026-06-21):**
+  1. Created `share/man/man1/coyote.1` — 188-line man page covering NAME,
+     SYNOPSIS, DESCRIPTION, OPTIONS (all 12 flags), ENVIRONMENT (8 variables),
+     FILES (5 configuration/session paths), FRONTEND SELECTION (5-step
+     priority), EXAMPLES (6 examples), and SEE ALSO.  Verified rendering
+     with `MANPATH=share/man man coyote.1`.
+  2. Created `share/man/man1/coyote_sqc.1` — 134-line man page covering
+     NAME, SYNOPSIS, DESCRIPTION, OPTIONS, WORKSPACE FILE FORMAT, CHART
+     GROUPS (6 groups with descriptions), STATISTICAL METHODS (6 bullet
+     points), FILES (4 paths), EXAMPLES (2 examples), and SEE ALSO.
+     Verified rendering with `MANPATH=share/man man coyote_sqc.1`.
+  3. SDD-CORE v1.1 → v1.2: added REQ-CORE-160 row to §6 traceability table
+     (`share/man/man1/coyote.1` (static man page)).
+  4. SDD-SQC v0.1 → v0.2: added §14.10 Man Page section describing the
+     static man page at `share/man/man1/coyote_sqc.1`.
+  5. Project Plan v1.10: updated SDD-CORE (1.1→1.2) and SDD-SQC (1.0→0.2)
+     in artifact version table.
+  6. Build: clean (zero errors, pre-existing style warnings only).  712/713
+     AUnit tests pass (1 pre-existing subagent integration test failure).
+- **Status:** Resolved
+- **Date resolved:** 2026-06-21
