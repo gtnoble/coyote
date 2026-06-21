@@ -91,15 +91,15 @@ package body Coyote_App.Frontend.Acme_Win is
       null;
    end End_Text_Block;
 
-   --  ── Begin_Thinking ────────────────────────────────────────────────────
 
 
    procedure Begin_Thinking (F : in out Instance) is
    begin
       End_Text_Block (F);
       if not F.In_Thinking then
-         F.Thinking_Buffer := Ada.Strings.Unbounded.Null_Unbounded_String;
-         F.In_Thinking := True;
+         F.In_Thinking        := True;
+         F.Prefix_Emitted     := False;
+         F.Last_Ended_With_LF := True;
       end if;
    end Begin_Thinking;
 
@@ -110,29 +110,43 @@ package body Coyote_App.Frontend.Acme_Win is
      (F    : in out Instance;
       Text : in     String)
    is
-      use Ada.Strings.Unbounded;
+      use Coyote_App.Utils;
+      Trimmed : constant String := Collapse_Thinking_Delta (Text);
    begin
-      --  Accumulate chunks; output is deferred until End_Thinking.
-      Append (F.Thinking_Buffer, Text);
+      if Trimmed'Length = 0 then
+         return;
+      end if;
+
+      if not F.Prefix_Emitted then
+         Acme.Window.Append
+           (F.Win_Ptr.all, F.My_FS'Access,
+            ASCII.LF & UC_BOX_V & " ");
+         F.Prefix_Emitted     := True;
+         F.Last_Ended_With_LF := False;
+      elsif not F.Last_Ended_With_LF
+        and then Trimmed (Trimmed'First) /= ASCII.LF
+      then
+         Acme.Window.Append
+           (F.Win_Ptr.all, F.My_FS'Access, " ");
+      end if;
+
+      Acme.Window.Append (F.Win_Ptr.all, F.My_FS'Access, Trimmed);
+      F.Last_Ended_With_LF :=
+        Trimmed (Trimmed'Last) = ASCII.LF;
    end Append_Thinking;
 
    --  ── End_Thinking ──────────────────────────────────────────────────────
 
    procedure End_Thinking (F : in out Instance) is
-      use Ada.Strings.Unbounded;
-      Collapsed : constant String :=
-        Coyote_App.Utils.Collapse_Thinking_Delta (To_String (F.Thinking_Buffer));
    begin
       if F.In_Thinking then
-         if Collapsed'Length > 0 then
-            Acme.Window.Append
-              (F.Win_Ptr.all, F.My_FS'Access,
-               ASCII.LF & UC_BOX_V & " " & Collapsed);
+         if F.Prefix_Emitted then
             Acme.Window.Append
               (F.Win_Ptr.all, F.My_FS'Access, "" & ASCII.LF & ASCII.LF);
          end if;
-         F.In_Thinking := False;
-         F.Thinking_Buffer := Null_Unbounded_String;
+         F.In_Thinking        := False;
+         F.Prefix_Emitted     := False;
+         F.Last_Ended_With_LF := True;
       end if;
    end End_Thinking;
    procedure Begin_Tool

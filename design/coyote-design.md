@@ -529,7 +529,7 @@ buffers all thinking-delta chunks received between `Begin_Thinking` and
 `End_Thinking` events, then collapses them to flowing prose on flush:
 
 **Collapsing algorithm:**
-- Single `\n` or `\r` → replaced with space (flowing text)
+- Single `\n` or `\r` → preserved as line break
 - `\n\n` (paragraph breaks) → preserved as blank line
 - Leading/trailing whitespace trimmed
 - Implemented in `Coyote_App.Utils.Collapse_Thinking_Delta` (pure function)

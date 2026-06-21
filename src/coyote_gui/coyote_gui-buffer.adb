@@ -154,33 +154,51 @@ package body Coyote_GUI.Buffer is
 
    procedure Begin_Thinking (B : in out Instance) is
    begin
-      --  Close any open streaming text block first, so its Stream_Mark
-      --  cannot span the thinking-block insertion and be swept away later.
       End_Text_Block (B);
       if not B.In_Thinking then
-         B.Thinking_Buffer := Null_Unbounded_String;
-         B.In_Thinking := True;
+         B.In_Thinking        := True;
+         B.Prefix_Emitted     := False;
+         B.Last_Ended_With_LF := True;
       end if;
    end Begin_Thinking;
 
    procedure Append_Thinking (B : in out Instance; Text : String) is
+      use Coyote_App.Utils;
+      Trimmed : constant String := Collapse_Thinking_Delta (Text);
+      Sep     : constant String :=
+        (if not B.Prefix_Emitted
+         then ""
+         elsif (not B.Last_Ended_With_LF
+                and then Trimmed'Length > 0
+                and then Trimmed (Trimmed'First) /= ASCII.LF)
+         then " "
+         else "");
    begin
-      --  Accumulate chunks; output is deferred until End_Thinking.
-      Append (B.Thinking_Buffer, Text);
+      if Trimmed'Length = 0 then
+         return;
+      end if;
+
+      if not B.Prefix_Emitted then
+         Insert_Tagged (B, UC_BOX_V & " " & Trimmed, B.Tag_Thinking);
+         B.Prefix_Emitted     := True;
+         B.Last_Ended_With_LF :=
+           Trimmed (Trimmed'Last) = ASCII.LF;
+      else
+         Insert_Tagged (B, Sep & Trimmed, B.Tag_Thinking);
+         B.Last_Ended_With_LF :=
+           Trimmed (Trimmed'Last) = ASCII.LF;
+      end if;
    end Append_Thinking;
 
    procedure End_Thinking (B : in out Instance) is
-      use Coyote_App.Utils;
-      Collapsed : constant String :=
-        Collapse_Thinking_Delta (To_String (B.Thinking_Buffer));
    begin
       if B.In_Thinking then
-         if Collapsed'Length > 0 then
-            Insert_Tagged (B, UC_BOX_V & " " & Collapsed, B.Tag_Thinking);
+         if B.Prefix_Emitted then
             Insert_Tagged (B, "" & ASCII.LF, B.Tag_Thinking);
          end if;
-         B.In_Thinking := False;
-         B.Thinking_Buffer := Null_Unbounded_String;
+         B.In_Thinking        := False;
+         B.Prefix_Emitted     := False;
+         B.Last_Ended_With_LF := True;
       end if;
    end End_Thinking;
 

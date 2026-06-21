@@ -12,8 +12,8 @@ package body Collapse_Utils_Tests is
         Coyote_App.Utils.Collapse_Thinking_Delta (Input);
    begin
       AUnit.Assertions.Assert
-        (Result = "The user wants me",
-         "Expected 'The user wants me' but got '" & Result & "'");
+        (Result = "The" & ASCII.LF & "user" & ASCII.LF & "wants me",
+         "Expected '" & "The" & ASCII.LF & "user" & ASCII.LF & "wants me" & "' but got '" & Result & "'");
    end Test_Collapse_Basic;
 
    procedure Test_Collapse_Paragraph (T : in out Test) is

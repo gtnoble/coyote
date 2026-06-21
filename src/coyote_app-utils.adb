@@ -773,10 +773,8 @@ package body Coyote_App.Utils is
                   Append (Result, "" & ASCII.LF & ASCII.LF);
                   I := J;
                else
-                  --  Single newline: collapse to space (unless at end).
-                  if I < Last_NZ then
-                     Append (Result, " ");
-                  end if;
+                  --  Single newline: preserve as line break.
+                  Append (Result, "" & ASCII.LF);
                   I := I + 1;
                end if;
             end;

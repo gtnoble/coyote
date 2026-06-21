@@ -177,11 +177,11 @@ package Coyote_App.Utils is
    --  Thinking SSE chunks often contain leading/trailing newlines and
    --  internal line breaks that should be displayed as flowing text rather
    --  than as one fragment per line.  This function:
-   --    * Collapses single \n and \r characters to spaces (flowing text)
+   --    * Preserves single \n and \r characters as line breaks
    --    * Preserves \n\n (paragraph breaks) as blank lines
    --    * Trims leading and trailing whitespace from the result
    --
-   --  Example: " The\n user\n wants " → "The user wants"
+   --  Example: " The\n user\n wants " → "The\nuser\nwants"
    --           "Para 1\n\nPara 2" → "Para 1\n\nPara 2" (unchanged)
    function Collapse_Thinking_Delta (Text : String) return String;
 

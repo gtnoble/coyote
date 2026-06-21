@@ -121,9 +121,10 @@ private
       In_Text_Block    : Boolean := False;
       Stream_Mark      : Gtk.Text_Mark.Gtk_Text_Mark;
       Stream_Buf       : Unbounded_String;
-      In_Thinking      : Boolean := False;
-      Thinking_Buffer  : Unbounded_String;
-      Tools            : Tool_Maps.Map;
+      In_Thinking          : Boolean := False;
+      Tools                : Tool_Maps.Map;
+      Prefix_Emitted       : Boolean := False;
+      Last_Ended_With_LF   : Boolean := True;
       Render_Markdown  : Boolean := True;
    end record;
 

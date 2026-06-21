@@ -1149,7 +1149,7 @@ package body Test_Suites is
 
       --  Collapse_Utils tests
       Result.Add_Test (Collapse_Utils_Caller.Create
-        ("Collapse_Thinking_Delta: single-word tokens joined with spaces",
+        ("Collapse_Thinking_Delta: single-word tokens preserved as line breaks",
          Collapse_Utils_Tests.Test_Collapse_Basic'Access));
       Result.Add_Test (Collapse_Utils_Caller.Create
         ("Collapse_Thinking_Delta: paragraph breaks (LF LF) preserved",
