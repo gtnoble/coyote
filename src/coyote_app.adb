@@ -420,8 +420,8 @@ package body Coyote_App is
       Tag_Extra : constant String :=
         (if Opts.One_Shot
          then " | Stop Steer"
-         else " | Send Steer New Compact Clear"
-              & " Models Sessions Thinking Stats");
+         else " | Send Steer New Compact Clear SetDefault"
+              & " Models Sessions Thinking Stats SetDefault");
 
       --  Process ID used to build window-specific selector tokens.
       My_PID : constant String := Natural_Image (Natural (Getpid));
@@ -718,7 +718,7 @@ package body Coyote_App is
             end if;
             Coyote_App.Frontend.Acme_Win.Create (My_Frontend, Win'Unchecked_Access);
             My_Frontend.Set_Tag_Suffix
-              (if Opts.One_Shot then "" else " Models Sessions Thinking Stats");
+              (if Opts.One_Shot then "" else " Models Sessions Thinking Stats SetDefault");
 
             declare
                Settings_Value : constant LLM.Settings.Settings :=
@@ -1272,6 +1272,37 @@ package body Coyote_App is
                                           "+thinking",
                                           Content);
                                     end;
+                                 elsif Text = "SetDefault" then
+                                    declare
+                                       Model_Spec : constant String :=
+                                         LLM.Agent.Current_Model_Spec
+                                           (Agent_Session);
+                                       Provider : Unbounded_String;
+                                       Model_Id : Unbounded_String;
+                                    begin
+                                       if Model_Spec'Length > 0 then
+                                          Split_Model_Spec
+                                            (Model_Spec, Provider, Model_Id);
+                                       end if;
+                                       LLM.Settings.Save_Defaults
+                                         (Provider    =>
+                                            To_String (Provider),
+                                          Model_Id    =>
+                                            To_String (Model_Id),
+                                          Think_Level =>
+                                            State.Current_Thinking);
+                                       Acme.Window.Append
+                                         (Win,
+                                          My_FS'Access,
+                                          ASCII.LF & "[Defaults saved: "
+                                          & Model_Spec
+                                          & (if
+                                            State.Current_Thinking'Length > 0
+                                            then " ~"
+                                              & State.Current_Thinking
+                                            else "")
+                                          & "]" & ASCII.LF);
+                                    end;
                                  elsif Text = "Stats" then
                                     declare
                                        Parent    : constant String :=
@@ -1798,7 +1829,7 @@ package body Coyote_App is
    begin
       --  ── Initial window setup ──────────────────────────────────────────
       State.Set_Tag_Suffix
-        (if Opts.One_Shot then "" else " Models Sessions Thinking Stats");
+        (if Opts.One_Shot then "" else " Models Sessions Thinking Stats SetDefault");
       Acme.Window.Ctl (Win, Win_FS'Access, "cleartag");
       Acme.Window.Append_Tag (Win, Win_FS'Access, Tag_Extra);
       Acme.Window.Set_Name
@@ -2448,6 +2479,29 @@ package body Coyote_App is
                                  & Ada.Exceptions.Exception_Message (Ex));
                         end;
 
+                     when Coyote_GUI.Prompt_Queue.Set_Default =>
+                        declare
+                           Model_Spec : constant String :=
+                             LLM.Agent.Current_Model_Spec (Agent_Session);
+                           Provider : Unbounded_String;
+                           Model_Id : Unbounded_String;
+                        begin
+                           if Model_Spec'Length > 0 then
+                              Split_Model_Spec
+                                (Model_Spec, Provider, Model_Id);
+                           end if;
+                           LLM.Settings.Save_Defaults
+                             (Provider    => To_String (Provider),
+                              Model_Id    => To_String (Model_Id),
+                              Think_Level => State.Current_Thinking);
+                           My_Frontend.Append_Notice
+                             (Coyote_App.Frontend.Info,
+                              "Defaults saved: " & Model_Spec
+                              & (if
+                                State.Current_Thinking'Length > 0
+                                then " ~" & State.Current_Thinking
+                                else ""));
+                        end;
                   end case;
                end;
             end loop Prompt_Loop;

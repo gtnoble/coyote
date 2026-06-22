@@ -156,7 +156,7 @@ Exit code: 0
 
 ---
 
-### DEM-013 — Acme tag commands (REQ-CORE-100–107)
+### DEM-013 — Acme tag commands (REQ-CORE-100–109)
 
 **Status:** Deferred — requires interactive acme session.
 **Result: DEFERRED**

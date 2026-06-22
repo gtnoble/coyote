@@ -158,7 +158,7 @@ SRS-CORE requirement groups.
 | `llm_openai_completions_tests.adb` | REQ-CORE-201 | ~30 |
 | `llm_anthropic_messages_tests.adb` | REQ-CORE-202 | ~30 |
 | `llm_openrouter_tests.adb` | REQ-CORE-072 (OpenRouter) | ~15 |
-| `tool_uri_tests.adb` | REQ-CORE-100–108 (plumb token format) | ~10 |
+| `tool_uri_tests.adb` | REQ-CORE-100–109 (plumb token format) | ~10 |
 | `coyote_cmark_tests.adb` | REQ-CORE-111 (Markdown rendering) | ~25 |
 | `nine_p_proto_tests.adb` | REQ-CORE-210 (9P protocol) | ~20 |
 | `nine_p_mock_server_tests.adb` | REQ-CORE-210–211 | ~15 |
@@ -171,7 +171,7 @@ SRS-CORE requirement groups.
 | `coyote_sqc_mi_tests.adb` | SRS-SQC MI metrics | ~11 |
 | `coyote_sqc_histogram_tests.adb` | SRS-SQC histogram | ~10 |
 | `coyote_sqc_bootstrap_tests.adb` | SRS-SQC §5.17 bootstrap CI, §10.3 two-set histogram bins | ~7 |
-| `acme_event_parser_tests.adb` | REQ-CORE-100–108 | ~20 |
+| `acme_event_parser_tests.adb` | REQ-CORE-100–109 | ~20 |
 | `acme_raw_events_tests.adb` | REQ-CORE-100 | ~10 |
 
 **Total automated tests (current):** **688
@@ -196,7 +196,7 @@ behaviour. Results are recorded in a Test Report.
 | DEM-010 | REQ-CORE-070 | Set defaultModel in settings.json; start coyote without --model; verify correct model used |
 | DEM-011 | REQ-CORE-074 | Use an expired Copilot token; send a prompt; verify token is refreshed and request succeeds |
 | DEM-012 | REQ-CORE-075 | In Acme, plumb a `coyote-model+PID/...` token; verify model changes on next turn |
-| DEM-013 | REQ-CORE-100–107 | Exercise each Acme tag command; verify expected behaviour for each |
+| DEM-013 | REQ-CORE-100–109 | Exercise each Acme tag command; verify expected behaviour for each |
 | DEM-014 | REQ-CORE-110–114 | Exercise GUI window: markdown rendering, tool frames, vi scroll, menu actions |
 | DEM-015 | REQ-CORE-130 | Resume a session; verify history replayed in frontend |
 | DEM-016 | REQ-CORE-140 | Inject a provider error (invalid API key); verify error notice visible in frontend |
@@ -264,7 +264,7 @@ These are entered as open items in the problem log (PCR-009).
 | REQ-CORE-080–083 | T | `llm_session_store_tests.adb` |
 | REQ-CORE-084 | T/D | `session_lister_tests.adb`, DEM-018 |
 | REQ-CORE-090–093 | T | `llm_skills_tests.adb` |
-| REQ-CORE-100–108 | T/D | `acme_event_parser_tests.adb`, `tool_uri_tests.adb`, DEM-013 |
+| REQ-CORE-100–109 | T/D | `acme_event_parser_tests.adb`, `tool_uri_tests.adb`, DEM-013 |
 | REQ-CORE-110–115 | T/D | `coyote_cmark_tests.adb`, DEM-014 |
 | REQ-CORE-120–121 | D | DEM-001 (plain output) |
 | REQ-CORE-130–131 | T/D | `session_history_tests.adb`, DEM-015 |

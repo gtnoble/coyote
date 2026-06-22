@@ -23,6 +23,7 @@ package Coyote_GUI.Prompt_Queue is
       Set_Model,         --  change the active model
       Set_Thinking,      --  change the reasoning level
       Switch_Session,    --  load a different session by UUID
+      Set_Default,       --  persist current model and thinking as defaults
       Shutdown_Item);    --  queue is closing; agent task should exit
 
    --  ── Payload variant record ────────────────────────────────────────────

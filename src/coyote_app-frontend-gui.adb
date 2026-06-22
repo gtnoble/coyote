@@ -404,6 +404,14 @@ package body Coyote_App.Frontend.GUI is
       end if;
    end On_Compact_Activate;
 
+   procedure On_Set_Default_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class) is
+      pragma Unreferenced (Self);
+   begin
+      if Current_Frontend /= null then
+         Current_Frontend.PQ.Enqueue ((Kind => Set_Default));
+      end if;
+   end On_Set_Default_Activate;
    procedure On_Stats_Activate
      (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class) is
       pragma Unreferenced (Self);
@@ -1124,6 +1132,9 @@ package body Coyote_App.Frontend.GUI is
       Item.On_Activate (On_Compact_Activate'Access);
       Add_Sep (Agent_Menu);
       Item := Make_Item ("Session _Stats", Agent_Menu);
+      Add_Sep (Agent_Menu);
+      Item := Make_Item ("Set _Defaults", Agent_Menu);
+      Item.On_Activate (On_Set_Default_Activate'Access);
       Item.On_Activate (On_Stats_Activate'Access);
       --  ── View menu ─────────────────────────────────────────────────────
       declare

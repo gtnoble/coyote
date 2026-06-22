@@ -6,7 +6,10 @@
 with Ada.Characters.Handling;
 with Ada.Directories;
 with Ada.Environment_Variables;
+with Ada.IO_Exceptions;
+with Ada.Text_IO;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
+with GNAT.OS_Lib;
 with Coyote_Utils;
 
 package body LLM.Settings is
@@ -32,6 +35,11 @@ package body LLM.Settings is
 
       return Base & "/settings.json";
    end Settings_Path;
+
+   function Temp_Path (Path : String) return String is
+   begin
+      return Path & ".tmp";
+   end Temp_Path;
 
    function Models_Path return String is
       Base : constant String := Agent_Dir;
@@ -228,4 +236,78 @@ package body LLM.Settings is
       return "";
    end Resolve_Api_Key;
 
+   procedure Delete_If_Exists (Path : String) is
+   begin
+      if Path'Length > 0 and then Ada.Directories.Exists (Path) then
+         Ada.Directories.Delete_File (Path);
+      end if;
+   exception
+      when others =>
+         null;
+   end Delete_If_Exists;
+
+   procedure Write_Atomically (Path : String; Content : String) is
+      File      : Ada.Text_IO.File_Type;
+      Tmp_Path  : constant String := Temp_Path (Path);
+      Renamed   : Boolean         := False;
+      Dir_Path  : constant String :=
+        Ada.Directories.Containing_Directory (Path);
+   begin
+      if Path'Length = 0 then
+         raise Ada.IO_Exceptions.Use_Error with
+           "HOME is not set; cannot write settings";
+      end if;
+
+      Ada.Directories.Create_Path (Dir_Path);
+      Delete_If_Exists (Tmp_Path);
+
+      Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, Tmp_Path);
+      Ada.Text_IO.Put (File, Content);
+      Ada.Text_IO.Close (File);
+
+      GNAT.OS_Lib.Rename_File (Tmp_Path, Path, Renamed);
+
+      if not Renamed then
+         Delete_If_Exists (Tmp_Path);
+         raise Ada.IO_Exceptions.Use_Error with
+           "Failed to rename temporary settings file";
+      end if;
+   exception
+      when others =>
+         if Ada.Text_IO.Is_Open (File) then
+            Ada.Text_IO.Close (File);
+         end if;
+
+         raise;
+   end Write_Atomically;
+
+   procedure Save_Defaults
+     (Provider    : String;
+      Model_Id    : String;
+      Think_Level : String)
+   is
+      Path     : constant String := Settings_Path;
+      Existing : constant GNATCOLL.JSON.JSON_Value :=
+        Load_Json_File (Path);
+      Root     : constant GNATCOLL.JSON.JSON_Value :=
+        (if Existing.Kind = GNATCOLL.JSON.JSON_Object_Type
+         then Existing
+         else GNATCOLL.JSON.Create_Object);
+   begin
+      if Path'Length = 0 then
+         return;
+      end if;
+
+      if Provider'Length > 0 then
+         Root.Set_Field ("defaultProvider", Provider);
+      end if;
+      if Model_Id'Length > 0 then
+         Root.Set_Field ("defaultModel", Model_Id);
+      end if;
+      if Think_Level'Length > 0 then
+         Root.Set_Field ("defaultThinkingLevel", Think_Level);
+      end if;
+
+      Write_Atomically (Path, GNATCOLL.JSON.Write (Root));
+   end Save_Defaults;
 end LLM.Settings;

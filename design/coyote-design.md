@@ -1450,7 +1450,7 @@ blocking; `Agent_Resumed_Event` is emitted after unblocking.
 | REQ-CORE-070–076 | `LLM.Agent`, `LLM.Settings`, `LLM.Model_Registry`, all providers |
 | REQ-CORE-080–084 | `LLM.Session_Store`, `Session_Lister` |
 | REQ-CORE-090–093 | `LLM.Skills`, `LLM.System_Prompt` |
-| REQ-CORE-100–108 | `Coyote_App.Frontend.Acme_Win`, `Coyote_App`, `Acme.Window`, `Nine_P.Client` |
+| REQ-CORE-100–109 | `Coyote_App.Frontend.Acme_Win`, `Coyote_App`, `Acme.Window`, `Nine_P.Client`, `LLM.Settings` |
 | REQ-CORE-110–115 | `Coyote_App.Frontend.GUI`, `Coyote_GUI.Buffer`, `Coyote_Cmark` |
 | REQ-CORE-120–121 | `Coyote_App.Frontend.Plain` |
 | REQ-CORE-130–131 | `Coyote_App.History`, all frontends |

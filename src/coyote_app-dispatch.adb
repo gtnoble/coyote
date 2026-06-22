@@ -139,7 +139,7 @@ package body Coyote_App.Dispatch is
    is
       Text : constant String :=
         (case Mode is
-         when Idle_Tag    => " | Send Steer New Compact Clear",
+         when Idle_Tag    => " | Send Steer New Compact Clear SetDefault",
          when Running_Tag => " | Stop Steer Pause",
          when Armed_Tag   => " | Stop Steer Pausing",
          when Paused_Tag  => " | Stop Steer Send Resume")

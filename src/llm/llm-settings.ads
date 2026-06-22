@@ -53,4 +53,11 @@ package LLM.Settings is
      (Root : GNATCOLL.JSON.JSON_Value; Provider : String)
       return GNATCOLL.JSON.JSON_Value;
 
+
+   --  Write the current default model (Provider/Id) and thinking level
+   --  to ~/.coyote/settings.json, preserving all other existing fields.
+   procedure Save_Defaults
+     (Provider    : String;
+      Model_Id    : String;
+      Think_Level : String);
 end LLM.Settings;

@@ -409,7 +409,7 @@ the 9P VFS, using the window ID from `$winid`.
 
 **REQ-CORE-101** (D)
 The Acme frontend shall support the following tag commands: Send, Stop, New,
-Clear, Models, Sessions, Thinking, Stats, Compact, Pause, Resume.
+Clear, Models, Sessions, Thinking, Stats, Compact, Pause, Resume, SetDefault.
 
 **REQ-CORE-102** (D)
 The Send tag command shall read the window body text below the last prompt
@@ -438,6 +438,12 @@ the next turn boundary.
 In the Acme frontend, a `coyote-fork+PID/UUID/N` token sent via the
 `/coyote-fork` plumb port shall fork the session at turn N and open the
 forked session in a new coyote window.
+
+**REQ-CORE-109** (D)
+The SetDefault tag command shall write the active model identifier and
+thinking level to `~/.coyote/settings.json` under the `defaultProvider`,
+`defaultModel`, and `defaultThinkingLevel` keys, so that subsequent coyote
+sessions inherit the current configuration as their default.
 
 ---
 
@@ -910,7 +916,7 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-091 | Incomplete SKILL.md silently skipped | T | TC-091 |
 | REQ-CORE-092 | Skills included in system prompt | D | TC-092 |
 | REQ-CORE-093 | Local skills shadow global | T | TC-093 |
-| REQ-CORE-100..108 | Acme frontend tag commands | D | TC-100..108 |
+| REQ-CORE-100..109 | Acme frontend tag commands | D | TC-100..109 |
 | REQ-CORE-110..115 | GUI frontend capabilities | D | TC-110..115 |
 | REQ-CORE-120..121 | Plain frontend capabilities | D | TC-120..121 |
 | REQ-CORE-130..131 | Session history replay | D | TC-130..131 |
