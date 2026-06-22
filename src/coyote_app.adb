@@ -420,7 +420,7 @@ package body Coyote_App is
       Tag_Extra : constant String :=
         (if Opts.One_Shot
          then " | Stop Steer"
-         else " | Send Steer New Compact Clear SetDefault"
+         else " | Send Steer New Compact Clear"
               & " Models Sessions Thinking Stats SetDefault");
 
       --  Process ID used to build window-specific selector tokens.

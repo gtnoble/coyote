@@ -63,7 +63,7 @@ package body Coyote_App.Frontend.Acme_Win is
       Suffix : constant String := To_String (F.Tag_Suffix);
       Text   : constant String :=
         (case Mode is
-         when Idle    => " | Send Steer New Compact Clear SetDefault",
+         when Idle    => " | Send Steer New Compact Clear",
          when Running => " | Stop Steer Pause",
          when Armed   => " | Stop Steer Pausing",
          when Paused  => " | Stop Steer Send Resume")
