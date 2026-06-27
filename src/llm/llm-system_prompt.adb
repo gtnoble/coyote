@@ -244,19 +244,13 @@ package body LLM.System_Prompt is
             & " command=""cat > path"","
             & " stdin=""<file content>"""
             & ASCII.LF
-            & "- Edit files precisely with hed, sed, or perl"
+            & "- Edit files precisely with aged, sed, or perl"
             & " (pass the script via the stdin field;"
             & " use perl -0777 -i -pe for multi-line patterns)"
             & ASCII.LF
-            & "- Always invoke hed as `hed -M` (machine/agent mode):"
-            & " provides deferred writes with transactional rollback,"
-            & " OK/? per-command signalling, and verbose error output"
-            & ASCII.LF
-            & "- To insert a block containing a lone . line via hed, write"
-            & " the block to a temp file first (cat > /tmp/block via stdin),"
-            & " then use hed's r command to read it into the buffer"
-            & " (e.g. 42r /tmp/block) -- input mode has no escape for"
-            & " a lone . terminator"
+            & "- Edit files with aged: `aged FILE OLD NEW` for exact"
+            & " string replacement, or `aged -d DELIM FILE` to read"
+            & " OLD and NEW from stdin separated by a DELIM line"
             & ASCII.LF
             & "- For non-trivial sed/perl/awk scripts, pass the script"
             & " body via the stdin field rather than embedding it in"

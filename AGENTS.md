@@ -1,16 +1,16 @@
-# coyote — Agent Instructions
+# coyote ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Agent Instructions
 
 ## Project Overview
 
 The project is a multi-frontend Ada coding-agent harness.  Three frontends are
 available and selected automatically at startup:
 
-- **Acme frontend** — opens a `+coyote` acme window and renders streaming
+- **Acme frontend** ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ opens a `+coyote` acme window and renders streaming
   output there (selected when `$winid` is set, i.e. when running inside acme).
-- **GUI frontend — GTK3 graphical window with conversation view,
+- **GUI frontend ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ GTK3 graphical window with conversation view,
   vi-style scroll navigation, and `$EDITOR`/`$PAGER` integration (selected
   when stdout is a TTY and `$winid` is not set).
-- **Plain frontend — line-oriented text output with no ANSI (selected for text output with no ANSI (selected for
+- **Plain frontend ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ line-oriented text output with no ANSI (selected for text output with no ANSI (selected for
   `--one-shot` mode and when stdout is not a TTY, e.g. piped output).
 
 All frontends implement the abstract `Coyote_App.Frontend.Instance` interface
@@ -21,12 +21,12 @@ and drive the same `LLM.Agent` agentic loop.
 binaries such as `acmeevent` live in `/usr/local/plan9/bin/`.
 
 Three executables are built:
-- `bin/coyote` — the main entry point; selects the appropriate frontend
+- `bin/coyote` ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ the main entry point; selects the appropriate frontend
   (`Acme_Frontend`, `GUI_Frontend`, or `Plain_Frontend`) based on `$winid` and
   display detection, then calls `Coyote_App.Run` or `Coyote_App.Run_GUI`
-- `bin/coyote_list_sessions` — lists saved sessions for the current directory
-- `bin/coyote_open` — opens a tool-call detail window; launched by the plumber
-- `bin/coyote_sqc` — Statistical Quality Control application; reads Coyote session JSONL files and displays SPC control charts in a GTK3 GUI
+- `bin/coyote_list_sessions` ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ lists saved sessions for the current directory
+- `bin/coyote_open` ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ opens a tool-call detail window; launched by the plumber
+- `bin/coyote_sqc` ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Statistical Quality Control application; reads Coyote session JSONL files and displays SPC control charts in a GTK3 GUI
   for `coyote-session+UUID/tool/TOKEN` links
 
 ## Documentation
@@ -58,10 +58,10 @@ artifacts live in `plan/`, `requirements/`, `design/`, and `sdfs/`.
 
 ### Operational References
 
-- `docs/skills.md` — full reference for the `SKILL.md` file format
+- `docs/skills.md` ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ full reference for the `SKILL.md` file format
   (frontmatter fields, discovery roots, shadowing, writing effective
   descriptions and bodies)
-- `plan/integration-test-guide.md` — opt-in live-provider and acme
+- `plan/integration-test-guide.md` ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ opt-in live-provider and acme
   integration tests: guard variables, setup, and procedure
 
 When authoring or editing a `SKILL.md` for this project, load
@@ -72,7 +72,7 @@ the `coyote-skill-author` skill for a condensed quick-reference.
 - **Build system:** [Alire](https://alire.ada.dev/) (`alr`) with a GPRbuild
   project (`coyote.gpr`)
 - **Dependencies:**
-  - `gnatcoll` ≥ 25.0.0 (JSON, OS, process utilities)
+  - `gnatcoll` ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¥ 25.0.0 (JSON, OS, process utilities)
   - system `libcurl` development headers (`libcurl4-openssl-dev` on Debian /
     Ubuntu) for the native HTTP/SSE client
   - system `libcmark-gfm` development headers (`libcmark-gfm-dev` and
@@ -88,7 +88,7 @@ alr build
 # Build with gprof profiling enabled
 # alr build -- -XCOYOTE_PROFILE=true
 
-# Build release — DO NOT USE unless explicitly requested by the user
+# Build release ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ DO NOT USE unless explicitly requested by the user
 # alr build --release
 
 # Run tests
@@ -97,7 +97,7 @@ cd test && alr run coyote_test
 
 Object files go to `obj/<profile>/`, binaries to `bin/`.
 
-**Build profile discipline — always use development:**
+**Build profile discipline ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ always use development:**
 
 - Always build with plain `alr build` (no `--release`, `--validation`, or profiling flag).
 - The config in `config/coyote_config.*` must always reflect the `development`
@@ -108,13 +108,13 @@ Object files go to `obj/<profile>/`, binaries to `bin/`.
 ## Source Layout
 
 The full software unit inventory (38 units with source files and descriptions)
-is in `design/coyote-design.md §4.1`.  Directory structure:
+is in `design/coyote-design.md ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§4.1`.  Directory structure:
 
 ```
 src/
   coyote.adb            -- Entry point (CLI parsing, frontend selection)
   coyote_app.ads/.adb   -- App_State (protected), Run, Run_GUI
-  coyote_app-dispatch.ads/.adb  -- Dispatch_Event: LLM event → Frontend'Class
+  coyote_app-dispatch.ads/.adb  -- Dispatch_Event: LLM event ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Frontend'Class
   coyote_app-frontend.ads       -- Abstract Frontend interface
   coyote_app-frontend-*.ads/.adb -- Concrete frontends (Acme_Win, GUI, Plain)
   coyote_app-history.ads/.adb   -- Session JSONL replay
@@ -144,31 +144,31 @@ docs/                   -- Operational references (skills.md)
 
 Key roles for the most-frequently-touched packages:
 
-- `src/llm/llm-agent.ads/.adb` — Agentic loop: `Create`, `Run_Prompt`,
+- `src/llm/llm-agent.ads/.adb` ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Agentic loop: `Create`, `Run_Prompt`,
   `Compact`, `Request_Abort`, `Request_Pause`, `Resume`
-- `src/llm/llm-events.ads` — `Agent_Event'Class` hierarchy
-- `src/llm/llm-providers-*.ads/.adb` — Provider wire formats (OpenAI,
+- `src/llm/llm-events.ads` ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ `Agent_Event'Class` hierarchy
+- `src/llm/llm-providers-*.ads/.adb` ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Provider wire formats (OpenAI,
   Anthropic, Copilot, OpenRouter, OpenCode Go, and Ollama catalogue)
   Anthropic, Copilot, OpenRouter, OpenCode Go)
-- `src/llm/llm-session_store.ads/.adb` — JSONL session persistence
-- `src/llm/llm-compaction.ads/.adb` — Token estimation and cut-point logic
-- `src/llm/llm-skills.ads/.adb` — Skill discovery and prompt formatting
-- `src/coyote_gui/coyote_gui-buffer.ads/.adb` — GtkTextBuffer + markdown
+- `src/llm/llm-session_store.ads/.adb` ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ JSONL session persistence
+- `src/llm/llm-compaction.ads/.adb` ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Token estimation and cut-point logic
+- `src/llm/llm-skills.ads/.adb` ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Skill discovery and prompt formatting
+- `src/coyote_gui/coyote_gui-buffer.ads/.adb` ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ GtkTextBuffer + markdown
 
-**When adding new source files:** add them to `design/coyote-design.md §4.1`
+**When adding new source files:** add them to `design/coyote-design.md ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§4.1`
 and record the key design decisions in the relevant `sdfs/` log.
 ## Frontend Selection
 
 `coyote.adb` selects the frontend before calling `Run` or `Run_GUI`:
 
 ```
-0. --frontend flag set explicitly               → the named frontend
-1. --one-shot flag set (non-subagent)          → Plain_Frontend  (Coyote_App.Run)
-2. $winid non-zero (set by acme exec.c per window launch) → Acme_Frontend   (Coyote_App.Run)
-3. COYOTE_FRONTEND=acme                        → Acme_Frontend   (Coyote_App.Run)
-4. $DISPLAY or $WAYLAND_DISPLAY set            → GUI_Frontend    (Coyote_App.Run_GUI)
-5. COYOTE_FRONTEND=gui                         → GUI_Frontend    (Coyote_App.Run_GUI)
-6. otherwise (piped / no display)              → Plain_Frontend  (Coyote_App.Run)
+0. --frontend flag set explicitly               ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ the named frontend
+1. --one-shot flag set (non-subagent)          ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Plain_Frontend  (Coyote_App.Run)
+2. $winid non-zero (set by acme exec.c per window launch) ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Acme_Frontend   (Coyote_App.Run)
+3. COYOTE_FRONTEND=acme                        ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Acme_Frontend   (Coyote_App.Run)
+4. $DISPLAY or $WAYLAND_DISPLAY set            ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ GUI_Frontend    (Coyote_App.Run_GUI)
+5. COYOTE_FRONTEND=gui                         ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ GUI_Frontend    (Coyote_App.Run_GUI)
+6. otherwise (piped / no display)              ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Plain_Frontend  (Coyote_App.Run)
 ```
 
 The selected kind is stored in `Options.Frontend : Frontend_Kind`.
@@ -189,9 +189,9 @@ process is needed.
 
 ## Architecture
 
-The full architectural design — static dependencies, concepts of execution for
-the Acme and GUI paths, and the five key design decisions — is in
-`design/coyote-design.md §4`.
+The full architectural design ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ static dependencies, concepts of execution for
+the Acme and GUI paths, and the five key design decisions ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ is in
+`design/coyote-design.md ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§4`.
 
 ### Summary: concurrency model
 
@@ -212,19 +212,19 @@ between tasks.  All GTK widget operations must execute on the main Ada task.
 All frontends now display reasoning/thinking output as flowing prose rather
 than fragmented token-by-token lines. The implementation buffers all thinking
 deltas during streaming and collapses internal newlines to spaces on display,
-while preserving paragraph breaks (`\n\n` → blank line). This provides readable
+while preserving paragraph breaks (`\n\n` ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ blank line). This provides readable
 multi-line reasoning without the visual clutter of one-token-per-line output.
 
 The collapsing algorithm is implemented in `Coyote_App.Utils.Collapse_Thinking_Delta`
 and is applied by each frontend independently in the `End_Thinking` primitive
-(see `design/coyote-design.md §5.3.5` for architectural details).
+(see `design/coyote-design.md ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§5.3.5` for architectural details).
 
 ### Dispatch
 
 `Dispatch_Event` in `Coyote_App.Dispatch` maps each incoming
 `LLM.Events.Agent_Event'Class` value to the appropriate `Frontend'Class`
 calls.  Both the Acme and GUI paths share the same dispatcher.  See
-`design/coyote-design.md §5.3` for the full dispatch table.
+`design/coyote-design.md ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§5.3` for the full dispatch table.
 ## Plumb Token Schema
 
 Coyote uses its own family of plumb tokens. All token strings begin with a
@@ -313,7 +313,7 @@ Key points:
 - Window control is done by writing to `/N/ctl`, body via addr=$ + `/N/data`,
   tag via `/N/tag`, and events are read from `/N/event`.
 - `Acme.Window` operations take an explicit `not null access Nine_P.Client.Fs`
-  so each task can pass its own connection — **never share an `Fs` across
+  so each task can pass its own connection ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ **never share an `Fs` across
   tasks**.
 
 ## Native Agent Event Flow
@@ -324,44 +324,44 @@ callback (`Dispatch_Event` in `Coyote_App.Dispatch`), which maps them to
 `Frontend'Class` primitives.
 
 The full event hierarchy is in `src/llm/llm-events.ads`.  The dispatch table
-(event type → frontend calls) is in `design/coyote-design.md §5.3`.
+(event type ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ frontend calls) is in `design/coyote-design.md ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§5.3`.
 ## Adding a New LLM Provider
 
 To add a new provider (e.g. `my-provider`), touch these files in order:
 
-1. **`src/llm/llm-settings.adb`** — Add the provider name to
+1. **`src/llm/llm-settings.adb`** ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Add the provider name to
    `Standard_Env_Name` so `Resolve_Api_Key ("my-provider")` checks the right
    env var. (If the provider needs config beyond an API key, extend
    `Find_Provider_Config` or add a dedicated resolution function.)
 
-2. **`src/llm/llm-providers-my_provider.ads/.adb`** — Provider package. Either:
+2. **`src/llm/llm-providers-my_provider.ads/.adb`** ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Provider package. Either:
    - A thin routing provider that delegates to `OpenAI_Completions` and/or
      `Anthropic_Messages` (like `GitHub_Copilot` or `OpenCode_Go` does), **or**
    - A direct subclass of `OpenAI_Completions.Provider` with `Create` and
      `Customize_Request` overrides (like `OpenRouter`), **or**
    - A standalone `Provider` descendant with its own wire format.
 
-3. **`src/llm/llm-providers-my_provider-catalogue.ads/.adb`** (optional) — If
+3. **`src/llm/llm-providers-my_provider-catalogue.ads/.adb`** (optional) ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ If
    the provider has a `/models` endpoint, build a catalogue package modelled on
    `OpenRouter.Catalogue`: fetch from the live API, cache to
    `~/.coyote/my_provider_models_cache.json`, parse into a
    `Catalogue_Vectors.Vector`.
 
-4. **`src/llm/llm-model_registry.ads/.adb`** — Add `Refresh_My_Provider`,
+4. **`src/llm/llm-model_registry.ads/.adb`** ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Add `Refresh_My_Provider`,
    `Has_My_Provider_Key`, and a `To_Model_Info` conversion from the catalogue
    type.  Update `Available_Models` to include the provider when keyed, and
    update `Lookup` to provide a default fallback for unknown model IDs of this
    provider.
 
-5. **`src/llm/llm-agent.adb`** — Three changes:
+5. **`src/llm/llm-agent.adb`** ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Three changes:
    - Add `with LLM.Providers.My_Provider;`
    - Add `LLM.Model_Registry.Refresh_My_Provider;` in `Create` (around line
      1098, next to the other Refresh calls)
    - Add an `elsif` branch in **two places**: the agentic loop dispatch
-     (≈line 1490) and the summarisation dispatch (≈line 1282). Both follow
-     the same pattern — create the provider, call `Send` or `Send_With_Retry`.
+     (ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂline 1490) and the summarisation dispatch (ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂline 1282). Both follow
+     the same pattern ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ create the provider, call `Send` or `Send_With_Retry`.
 
-6. **`coyote.gpr`** — No changes needed; `for Source_Dirs` already includes
+6. **`coyote.gpr`** ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ No changes needed; `for Source_Dirs` already includes
    `src/llm/`, so new files there are picked up automatically.
 
 ### Wire format routing
@@ -377,7 +377,7 @@ implementation.
 
 `LLM.Model_Registry.Model_Info` records carry a `Wire_Format` field
 (`"openai-completions"` or `"anthropic-messages"`) that determines tool JSON
-shape in `Build_Tools_Json` (llm-agent.adb ≈line 497). Catalogue packages
+shape in `Build_Tools_Json` (llm-agent.adb ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂline 497). Catalogue packages
 must set this field; routing providers set it dynamically.
 
 ### API key resolution
@@ -392,9 +392,9 @@ step 3 works out of the box.
 **Always load the `structured-sw-developer` skill at the start of any software
 development engagement on this project.** The skill is located at
 `/home/gtnoble/.coyote/skills/structured-sw-developer/SKILL.md`. It defines
-the MIL-STD-498-based process framework used throughout this project — planning,
+the MIL-STD-498-based process framework used throughout this project ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ planning,
 requirements, design, implementation, testing, configuration management, and
-quality assurance obligations — and must be loaded before undertaking any
+quality assurance obligations ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ and must be loaded before undertaking any
 non-trivial development task.
 
 ## Throwaway Scripts
@@ -403,7 +403,7 @@ non-trivial development task.
 tool call on any data-exploration, scripting, or investigation task.** The
 skill is located at
 `/home/gtnoble/.coyote/skills/throwaway-scripts/SKILL.md`. Skipping it is
-the primary cause of repetitive exploratory call loops that waste 3–5 tool
+the primary cause of repetitive exploratory call loops that waste 3ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ5 tool
 calls.
 
 ## Ada Style Guide
@@ -450,7 +450,7 @@ conform to the guidelines it defines.
 - The same principle applies to any other interpreter or tool that accepts
   code via standard input (e.g. `python`, `awk`, `sed` scripts): prefer
   `stdin` over embedding code in the command string.
-- **Always load the `hed` skill before editing or writing any file.** The skill is at `/home/gtnoble/.coyote/skills/hed-tools/SKILL.md`. `hed` is a portable `ed(1)` with agent-oriented extensions; always invoke it as `hed -M` for deferred-write, transactional, machine-mode edits.
+- **Use `aged` for exact search-and-replace editing.** `aged FILE OLD NEW` replaces the first exact match of OLD with NEW in FILE. `aged -d DELIM FILE` reads OLD and NEW from stdin, separated by a line matching DELIM.
 
 ## Testing
 
@@ -476,28 +476,28 @@ exercise `Coyote_GUI.Buffer` can create a `GtkTextBuffer` directly (or mock
 it) without starting a GTK window.
 
 When a test is added or changed, update the test-count baseline in
-`plan/test-plan.md §7`.
+`plan/test-plan.md ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§7`.
 ## Definition of Done
 
 A feature is **not complete** until all of the following are satisfied:
 
-1. **Tests written and passing** — every new public subprogram or behaviour
+1. **Tests written and passing** ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ every new public subprogram or behaviour
    must have corresponding AUnit tests in `test/src/`. Run the full test suite
    (`cd test && alr run coyote_test`) and confirm all tests pass before
    declaring the work done.
-2. **Existing tests still pass** — no regressions. The full suite must remain
+2. **Existing tests still pass** ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ no regressions. The full suite must remain
    green after the change.
-3. **Documentation updated** — any user-visible behaviour, CLI flag, plumb
+3. **Documentation updated** ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ any user-visible behaviour, CLI flag, plumb
    token, event type, or public API change must be reflected in the relevant
    structured documents: SRS-CORE for capability changes, SDD-CORE for design
    changes, SDD-SQC/SRS-SQC for coyote_sqc changes, `plan/test-plan.md` for
    test-scope changes, and `AGENTS.md` for agent operational guidance. New
-   source files must be added to `design/coyote-design.md §4.1`.
+   source files must be added to `design/coyote-design.md ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§4.1`.
 
 ## Editing Discipline
 
 Before making any code edits:
-**Before making any edits, load the `hed` skill** (`/home/gtnoble/.coyote/skills/hed-tools/SKILL.md`) to ensure the correct file-editing tool is selected. Always invoke `hed` with `-M` (machine/agent mode) for safe, transactional edits.
+**Use `aged` for exact search-and-replace edits.** `aged FILE OLD NEW` replaces the first exact match of OLD with NEW. When OLD appears multiple times, make it more specific to target a single match. For multi-line replacements, use `aged -d DELIM FILE` and feed OLD and NEW via stdin.
 
 
 1. **Map every affected site first.** Identify all call sites, declaration
@@ -514,8 +514,9 @@ Before making any code edits:
    `^   procedure` missing a call site indented with 6 spaces). If a grep
    returns fewer hits than expected, investigate before proceeding.
 
-4. **Plan all changes before executing any.** Collect the full list of edits —
-   including every call site, declaration, spec, and test — then execute them
+4. **Plan all changes before executing any.** Collect the full list of edits ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ
+   including every call site, declaration, spec, and test ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ then execute them
    in one coherent pass (bottom-to-top when inserting lines to keep line
    numbers stable), rather than making incremental edits that shift line
    numbers and require re-greps.
+
