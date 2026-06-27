@@ -32,21 +32,23 @@ package body Coyote_SQC_MI_Tests is
    --  ── Compute_MI_Values tests ───────────────────────────────────────────
 
    --  Two identical calls produce a positive MI value for each key.
+   --  Two identical calls with longer strings produce positive MI values.
    procedure Test_MI_Identical_Calls (T : in out Test) is
       pragma Unreferenced (T);
       Result : Long_Float_Vectors.Vector;
-      Min_Expected : constant Long_Float := 1.0;  --  at least 1 byte of shared info
    begin
       Coyote_SQC.Statistics.MI.Compute_MI_Values
-        (Tool_Name_1 => "shell",
-         Arguments_1 => "{""command"":""ls""}",
-         Tool_Name_2 => "shell",
-         Arguments_2 => "{""command"":""ls""}",
+        (Tool_Name_1 => "shell_command",
+         Arguments_1 => "{""command"":""ls -la /home/user/projects""}",
+         Tool_Name_2 => "shell_command",
+         Arguments_2 => "{""command"":""ls -la /home/user/projects""}",
          Result      => Result);
 
       Assert (not Result.Is_Empty,
               "Identical calls: must produce at least one MI value");
-      --  Each MI_k should be positive for identical strings.
+      --  Each MI_k should be positive for identical strings of
+      --  sufficient length (dictionary-preloaded compression needs
+      --  enough content to overcome block-header overhead).
       for I in 1 .. Natural (Result.Length) loop
          Assert (Result.Element (I) > 0.0,
                  "Identical calls: MI_k[" & Positive'Image (I)
@@ -114,14 +116,15 @@ package body Coyote_SQC_MI_Tests is
    end Test_MI_One_Side_Absent;
 
    --  Integer-valued keys are skipped (no string content).
+   --  Integer-valued keys are skipped (no string content).
    procedure Test_MI_Integer_Key_Skipped (T : in out Test) is
       pragma Unreferenced (T);
       Result : Long_Float_Vectors.Vector;
    begin
       Coyote_SQC.Statistics.MI.Compute_MI_Values
-        (Tool_Name_1 => "f",
+        (Tool_Name_1 => "file_read",
          Arguments_1 => "{""n"":42}",
-         Tool_Name_2 => "f",
+         Tool_Name_2 => "file_read",
          Arguments_2 => "{""n"":99}",
          Result      => Result);
 
@@ -156,6 +159,8 @@ package body Coyote_SQC_MI_Tests is
 
    --  Two identical tool calls: N_Consecutive_Tool_MI_Pairs = 1,
    --  Per_Consecutive_Tool_MI has entries, Total_Tool_Call_MI > 0.
+   --  Two identical tool calls: N_Consecutive_Tool_MI_Pairs = 1,
+   --  Per_Consecutive_Tool_MI has entries, Total_Tool_Call_MI > 0.
    procedure Test_Metrics_MI_Two_Identical_Calls (T : in out Test) is
       pragma Unreferenced (T);
       Session : Session_Record;
@@ -163,8 +168,10 @@ package body Coyote_SQC_MI_Tests is
       M       : Session_Metrics_Record;
    begin
       Turn.Turn_Index := 1;
-      Turn.Tool_Calls.Append (Make_TC ("tool", "{""x"":""val""}"));
-      Turn.Tool_Calls.Append (Make_TC ("tool", "{""x"":""val""}"));
+      Turn.Tool_Calls.Append
+        (Make_TC ("shell_command", "{""command"":""ls -la /home/user""}"));
+      Turn.Tool_Calls.Append
+        (Make_TC ("shell_command", "{""command"":""ls -la /home/user""}"));
       Session.Turns.Append (Turn);
       Session.Session_Id := To_Unbounded_String ("mi1");
 

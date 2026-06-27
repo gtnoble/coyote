@@ -275,7 +275,10 @@ Coyote_SQC.Statistics.Bootstrap      -- percentile bootstrap 95% CI for two-set
                         --   median diff, and SD ratio; fixed seed 12345
 Coyote_SQC.Statistics.Quantile_CC    -- two-stage bootstrap quantile profile limits
 Coyote_SQC.Statistics.MI            -- zlib compression-based MI for consecutive tool calls
-Coyote_SQC.Zlib                     -- thin Ada binding to system zlib (compressBound, compress2)
+Coyote_SQC.Zlib                     -- thin Ada binding to system zlib (streaming deflate
+                        --   with dictionary support: compressBound, compress2,
+                        --   Init_Stream, Set_Dict, Compress_Stream, Free_Stream,
+                        --   Compress_With_Dict)
 Coyote_SQC.Charts                    -- Chart_Kind enum; Chart_State per chart
 Coyote_SQC.Workspace                 -- Workspace_Record; load/save .sqcw files
 Coyote_SQC.Workspace.Integrity       -- setup interval integrity checks on filter change
@@ -1367,6 +1370,36 @@ keys, invalidating the poolability justification for the Xbar/s chart.
 
 **Interpretation:** S_k ≈ N_k means the argument value is identical in both
 calls; S_k ≈ 0 means the two values are maximally different on that argument.
+
+#### Per-Argument MI Value (MI_k)
+
+For each key _k_ in the union of both calls' argument sets (including
+`tool_name`):
+
+```
+MI_k = (|compress(C, dict=∅)| − |compress(C, dict=Q)|
+        + |compress(Q, dict=∅)| − |compress(Q, dict=C)|) / 2
+```
+
+where C and Q are the argument strings from each call, and
+|compress(X, dict=D)| is the compressed size of X in bytes when compressed
+with dictionary D pre-loaded into the compressor via zlib streaming deflate
+at level 9.
+
+- **Both sides empty** (key has no string content in either call): no
+  observation is produced; the key is skipped.
+- **One side empty** (key present in one call but absent or empty in the
+  other): MI_k ≈ 0 (the empty-string zlib overhead gives near-zero shared
+  information).
+- **Both sides non-empty**: MI_k is computed via the full symmetric
+  dictionary-preloaded formula.  Negative values (when the dictionary
+  misleads the compressor) are retained — they indicate dissimilarity.
+
+**Interpretation:** MI_k > 0 means the argument values share information
+beyond what random bytes would share (the dictionary helps compress the
+target).  MI_k ≈ 0 means the values are maximally different.  Negative
+MI_k means the dictionary actively misleads the compressor (the strings
+are anti-correlated in a compression sense).
 
 #### Subgroup
 

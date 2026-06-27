@@ -1522,29 +1522,34 @@ For each key _k_ in the union of both calls' argument sets (including
 `tool_name`):
 
 ```
-MI_k = C_a_k + C_b_k − C_ab_k
+MI_k = (|compress(C, dict=∅)| − |compress(C, dict=Q)|
+        + |compress(Q, dict=∅)| − |compress(Q, dict=C)|) / 2
 ```
+
+where |compress(X, dict=D)| is the compressed size of X in bytes when
+compressed with dictionary D pre-loaded into the compressor via zlib
+streaming deflate at level 9.
 
 - If both strings are empty (key has no string content in either call):
   no observation is produced for key _k_; the key is skipped.
 - If exactly one string is empty (key present in one call but absent or
   empty in the other): the empty string compresses to the zlib header
-  and empty-block overhead (typically 8–11 bytes).  The concatenation
-  compresses to approximately the non-empty compressed size plus the
-  empty-string overhead, giving MI_k ≈ 0 (i.e. no shared information).
-  A non-positive MI_k (< 0, which can occur due to zlib block header
-  overhead) is clamped to 0.0.
-- If both strings are non-empty: MI_k is computed via the full
-  compression formula and is expected to be positive.  A non-positive
-  result (compression artifact) is clamped to 0.0.
+  and empty-block overhead (typically 8–11 bytes).  The dictionary-preloaded
+  compression gives MI_k ≈ 0 (i.e. no shared information).
+- If both strings are non-empty: MI_k is computed via the full symmetric
+  dictionary-preloaded formula.  Negative values (when the dictionary
+  misleads the compressor) are retained — they indicate dissimilarity.
 
-**Interpretation:** MI_k ≈ C_a_k means the two argument strings share
-nearly all their information (near-identical content).  MI_k ≈ 0 means
-the two strings share essentially no information (maximally different).
+**Interpretation:** MI_k > 0 means the two argument strings share
+information beyond what random bytes would share (the dictionary helps
+compress the target).  MI_k ≈ 0 means the two strings share essentially
+no information (maximally different).  Negative MI_k means the dictionary
+actively misleads the compressor (the strings are anti-correlated in a
+compression sense).
 
 Unlike the JSD S_k which scales with N_k (token count), MI_k is
 expressed in approximate bytes of shared information and scales naturally
-with string length.  It is always in [0, C_a_k + C_b_k].
+with string length.
 
 #### Session Subgroup and Chart Types
 
@@ -3683,12 +3688,11 @@ All statistical formula implementations shall have AUnit unit tests covering:
   1 element is plotted as a hollow circle on the Xbar chart.
 - JSD Xbar/s parameter estimation: for a known setup interval of three
 - MI `Compute_MI_Values` function: for two known argument strings, verify
-  MI_k = C_a + C_b − C_ab produces a non-negative value; for identical strings
-  verify MI_k ≈ C_a (within 5 bytes); for completely different strings verify
-  MI_k is close to zero (≤ max(20, 0.1 × (C_a + C_b))).
-- MI identical calls: when Tool_Name and Arguments are identical, verify
-  all per-argument MI_k values are positive and close to the individual
-  compressed sizes (within 5 bytes each).
+  the symmetric dictionary-preloaded formula produces a positive value for
+  identical strings and a value close to zero for completely different
+  strings.
+- MI identical calls: when Tool_Name and Arguments are identical and
+  sufficiently long, verify all per-argument MI_k values are positive.
 - MI completely different calls: when argument strings share no common
   substrings, verify every MI_k is close to zero.
 - MI no-argument call: for a call with tool name but no string-valued
@@ -3697,9 +3701,9 @@ All statistical formula implementations shall have AUnit unit tests covering:
 - MI missing argument: for a pair where key "stdin" is present in call 1
   but absent from call 2, verify MI_stdin = 0.0 is appended to
   Per_Consecutive_Tool_MI.
-- MI non-positive clamp: for a pair where zlib block-header overhead causes
-  a negative raw MI_k value, verify the value is clamped to 0.0 rather than
-  stored as negative.
+- MI negative retention: for a pair where the dictionary misleads the
+  compressor (dissimilar short strings), verify the negative MI_k value
+  is retained rather than clamped to 0.0.
 - MI session metrics: for a session with T = 4 non-empty tool calls each
   having K = 2 non-skipped argument keys per pair, verify
   N_Consecutive_Tool_MI_Pairs = 3 and Per_Consecutive_Tool_MI has 6 elements

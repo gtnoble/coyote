@@ -1,21 +1,32 @@
---  Coyote_SQC.Statistics.MI body.
---
---  Project: coyote
-
 with Ada.Characters.Handling;
 with Ada.Containers.Hashed_Sets;
 with Ada.Strings.Unbounded;
 with Ada.Strings.Unbounded.Hash;
 with GNATCOLL.JSON;
 with Coyote_SQC.Zlib;
-with Interfaces.C;
-with Ada.Unchecked_Deallocation;
 
 package body Coyote_SQC.Statistics.MI is
 
+--  Coyote_SQC.Statistics.MI body.
+--
+--  Implements per-argument compression-based mutual information MI_k
+--  using zlib deflate streaming dictionary-preloaded compression at
+--  level 9.
+--
+--    MI_k = (|compress(C, dict=∅)| − |compress(C, dict=Q)|
+--            + |compress(Q, dict=∅)| − |compress(Q, dict=C)|) / 2
+--
+--  where C and Q are the argument strings from each call, and
+--  |compress(X, dict=D)| is the compressed size of X in bytes when
+--  compressed with dictionary D pre-loaded into the compressor.
+--
+--  Negative MI_k values (when the dictionary misleads the compressor)
+--  are retained.  Both-side-empty keys are skipped.
+--
+--  Project: coyote
+
    use Ada.Characters.Handling;
    use Ada.Strings.Unbounded;
-   use Interfaces.C;
    use type GNATCOLL.JSON.JSON_Value_Type;
 
    --  Simple set of Unbounded_Strings for tracking processed keys.
@@ -24,51 +35,28 @@ package body Coyote_SQC.Statistics.MI is
       Hash                => Ada.Strings.Unbounded.Hash,
       Equivalent_Elements => "=");
 
-   --  Compress a String and return the compressed size in bytes.
-   --  Uses zlib compress2 at level 9.
+   --  Compress Source with an empty dictionary and return the compressed
+   --  size in bytes.  Uses zlib streaming deflate at level 9.
    --  Returns 0 on failure (empty input or compression error).
-   function Compressed_Size (S : String) return Natural is
-      use type Interfaces.C.size_t;
-      type Char_Array_Access is access Interfaces.C.char_array;
-      procedure Free is new Ada.Unchecked_Deallocation
-        (Interfaces.C.char_array, Char_Array_Access);
-      S_Len   : constant Natural := S'Length;
+   function Compressed_Size_Bare (Source : String) return Natural is
    begin
-      if S_Len = 0 then
+      return Coyote_SQC.Zlib.Compress_With_Dict
+        (Source, 9, "");
+   end Compressed_Size_Bare;
+
+   --  Compress Source with Dict pre-loaded into the compressor and return
+   --  the compressed size in bytes.  Uses zlib streaming deflate at level 9.
+   --  Returns 0 on failure (empty input or compression error).
+   function Compressed_Size_With_Dict
+     (Source : String;
+      Dict   : String) return Natural is
+   begin
+      if Source'Length = 0 then
          return 0;
       end if;
-      declare
-         Src_Len : constant Coyote_SQC.Zlib.uLong :=
-           Coyote_SQC.Zlib.uLong (S_Len);
-         Bound   : constant Coyote_SQC.Zlib.uLong :=
-           Coyote_SQC.Zlib.Compress_Bound (Src_Len);
-         B_Int   : constant Interfaces.C.size_t :=
-           Interfaces.C.size_t (Bound);
-         Dest : Char_Array_Access :=
-           new Interfaces.C.char_array (0 .. B_Int - 1);
-         Dest_Len : aliased Coyote_SQC.Zlib.uLongf := Bound;
-         Src  : Char_Array_Access :=
-           new Interfaces.C.char_array (0 .. Interfaces.C.size_t (S_Len) - 1);
-         Ret     : Interfaces.C.int;
-      begin
-         for I in S'Range loop
-            Src.all (Interfaces.C.size_t (I - S'First)) :=
-              Interfaces.C.char'Val (Character'Pos (S (I)));
-         end loop;
-         Ret := Coyote_SQC.Zlib.Compress2
-           (Dest       => Dest.all,
-            Dest_Len   => Dest_Len,
-            Source     => Src.all,
-            Source_Len => Src_Len,
-            Level      => 9);
-         Free (Dest);
-         Free (Src);
-         if Ret /= Coyote_SQC.Zlib.Z_OK then
-            return 0;
-         end if;
-         return Natural (Dest_Len);
-      end;
-   end Compressed_Size;
+      return Coyote_SQC.Zlib.Compress_With_Dict
+        (Source, 9, Dict);
+   end Compressed_Size_With_Dict;
 
    --  Extract all string-valued leaf content from a JSON value, returning a
    --  space-separated single string (same extraction logic as the JSD
@@ -191,10 +179,11 @@ package body Coyote_SQC.Statistics.MI is
 
       Seen_Keys : Key_Sets.Set;
 
-      --  Compute one MI_k value and append to Result.
+      --  Compute one MI_k value using the symmetric dictionary-preloaded
+      --  formula and append to Result.
       procedure Append_MI_For_Strings (S1, S2 : String) is
-         C1 : constant Natural := Compressed_Size (S1);
-         C2 : constant Natural := Compressed_Size (S2);
+         C1_Bare : constant Natural := Compressed_Size_Bare (S1);
+         C2_Bare : constant Natural := Compressed_Size_Bare (S2);
       begin
          if S1'Length = 0 and then S2'Length = 0 then
             return;  --  both empty: skip
@@ -205,11 +194,14 @@ package body Coyote_SQC.Statistics.MI is
             return;
          end if;
          declare
-            Concat : constant String := S1 & S2;
-            C_AB   : constant Natural := Compressed_Size (Concat);
-            Raw    : constant Long_Float := Long_Float (C1 + C2 - C_AB);
+            C1_Dict : constant Natural :=
+              Compressed_Size_With_Dict (S1, S2);
+            C2_Dict : constant Natural :=
+              Compressed_Size_With_Dict (S2, S1);
+            Raw     : constant Long_Float :=
+              Long_Float (C1_Bare - C1_Dict + C2_Bare - C2_Dict) / 2.0;
          begin
-            Result.Append (Long_Float'Max (0.0, Raw));
+            Result.Append (Raw);
          end;
       end Append_MI_For_Strings;
 

@@ -2,16 +2,20 @@
 --  statistic for consecutive tool call pairs.
 --
 --  Implements per-argument compression-based mutual information MI_k
---  using zlib deflate at maximum compression (level 9).
+--  using zlib deflate streaming dictionary-preloaded compression at
+--  level 9.
 --
---    MI_k = C_a_k + C_b_k − C_ab_k
+--    MI_k = (|compress(C, dict=∅)| − |compress(C, dict=Q)|
+--            + |compress(Q, dict=∅)| − |compress(Q, dict=C)|) / 2
 --
---  where C_a, C_b are the compressed sizes of the argument strings from
---  each call, and C_ab is the compressed size of the concatenated strings.
+--  where C and Q are the argument strings from each call, and
+--  |compress(X, dict=D)| is the compressed size of X in bytes when
+--  compressed with dictionary D pre-loaded into the compressor.
 --
---  Non-positive MI_k values (zlib block-header overhead) are clamped to
---  0.0.  Both-side-empty keys are skipped.
+--  Negative MI_k values (when the dictionary misleads the compressor)
+--  are retained.  Both-side-empty keys are skipped.
 --
+--  Project: coyote
 --  Project: coyote
 
 with Coyote_SQC.Data_Model;
@@ -27,7 +31,8 @@ package Coyote_SQC.Statistics.MI is
    --
    --  Keys with no string content on either side are skipped.
    --  Keys present in one call but absent in the other contribute MI_k = 0.0.
-   --  Non-positive MI_k values (compression artifacts) are clamped to 0.0.
+   --  Negative MI_k values (when the dictionary misleads the compressor)
+   --  are retained.
    --
    --  Each string is lowercased before compression.
    --

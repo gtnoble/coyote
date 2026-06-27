@@ -416,11 +416,16 @@ limits are now interpolated rather than held piecewise-constant.
 ### 2026-06-16 — Mutual Information diversity charts (requirements & design)
 
 **Motivation:** Added a second measure of consecutive tool-call diversity based on
-compression-based mutual information.  The MI statistic uses zlib deflate at
-maximum compression (level 9) to approximate the mutual information between
-argument strings of successive tool calls: MI_k = C_a + C_b − C_ab, where C_x
-is the compressed size of string x.  This complements the existing JSD-based
+compression-based mutual information.  The MI statistic uses zlib streaming
+deflate at maximum compression (level 9) with dictionary pre-loading to
+approximate the mutual information between argument strings of successive
+tool calls:
+  MI_k = (|compress(C, dict=∅)| − |compress(C, dict=Q)|
+          + |compress(Q, dict=∅)| − |compress(Q, dict=C)|) / 2
+where |compress(X, dict=D)| is the compressed size of X with dictionary D
+pre-loaded into the compressor.  This complements the existing JSD-based
 diversity charts by providing an entropy-based measure that scales naturally
+with string length and does not require tokenization.
 with string length and does not require tokenization.
 
 **Requirements:** SRS-SQC §5.19 (MI statistics), §5.20 (session total MI scalar),
@@ -462,11 +467,14 @@ Three new `Session_Metrics_Record` fields: `Per_Consecutive_Tool_MI`,
 **Packages added:**
 - `src/coyote_sqc/coyote_sqc-statistics-mi.ads` — `Compute_MI_Values` procedure spec
 - `src/coyote_sqc/coyote_sqc-statistics-mi.adb` — compression-based MI per-argument
-  computation using zlib deflate (level 9).  Implements the same per-key argument
-  extraction pattern as the JSD package.  Non-positive MI_k values clamped to 0.0;
-  both-empty keys skipped.  Supports the same JSON object and fallback extraction
-  paths as the JSD companion.
-- `src/coyote_sqc/coyote_sqc-zlib.ads` — thin binding: `compressBound` and `compress2`
+  computation using zlib streaming deflate (level 9) with dictionary
+  pre-loading.  Implements the same per-key argument extraction pattern as
+  the JSD package.  Negative MI_k values are retained (not clamped);
+  both-empty keys skipped.  Supports the same JSON object and fallback
+  extraction paths as the JSD companion.
+- `src/coyote_sqc/coyote_sqc-zlib.ads` / `.adb` — thin binding: streaming deflate
+  with dictionary support (`Init_Stream`, `Set_Dict`, `Compress_Stream`,
+  `Free_Stream`, `Compress_With_Dict`) plus `compressBound` and `compress2`
   from system zlib via `Interfaces.C`.
 - `test/src/coyote_sqc_mi_tests.ads` / `.adb` — 13 unit tests
 
