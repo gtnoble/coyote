@@ -524,29 +524,43 @@ instead of flowing prose:
 │ The user wants me to…
 ```
 
-**Solution (PCR-022 resolution, 2026-06-07):** Each frontend (Acme and GUI)
-buffers all thinking-delta chunks received between `Begin_Thinking` and
-`End_Thinking` events, then collapses them to flowing prose on flush:
+**Solution (PCR-022 resolution, 2026-06-07; revised PCR-039, 2026-06-27):**
+Each frontend (Acme and GUI) collapses each thinking delta as it arrives
+and emits it immediately, producing flowing prose without buffering.
 
 **Collapsing algorithm:**
-- Single `\n` or `\r` → preserved as line break
+- Spaces are treated as content, not whitespace — they carry word-boundary
+  information from providers like Anthropic that delimit tokens with
+  leading spaces (e.g. `" the"`, `" edits"`)
+- Single `\n` or `\r` → collapsed to space (restores word boundaries across
+  OpenAI-style deltas that terminate each token with trailing `\n`)
 - `\n\n` (paragraph breaks) → preserved as blank line
-- Leading/trailing whitespace trimmed
+- Leading and trailing LF, CR, HT trimmed; spaces preserved
 - Implemented in `Coyote_App.Utils.Collapse_Thinking_Delta` (pure function)
 
 **Frontend implementation (Acme and GUI identical pattern):**
-- `Begin_Thinking`: Initialize buffer; set flag to defer output
-- `Append_Thinking`: Accumulate chunk to buffer; no output yet
-- `End_Thinking`: Collapse buffer using `Collapse_Thinking_Delta`, emit once
-  with prefix (Acme box-drawing, GUI tag), clear buffer and flag
+- `Begin_Thinking`: Set `Prefix_Emitted` flag to false, mark thinking active
+- `Append_Thinking`: Collapse delta via `Collapse_Thinking_Delta`, emit with
+  box-drawing prefix on first call; subsequent deltas are concatenated
+  directly (no inter-delta separator — spacing is handled by the collapse
+  function itself)
+- `End_Thinking`: Append final blank line, clear thinking state
+- No `Last_Ended_With_LF` tracking — the collapse function produces
+  self-contained output with all spacing resolved internally
 
 **Architectural rationale:** Display layer owns rendering semantics. Providers
-remain wire-format-neutral and emit raw SSE deltas. The buffering occurs in
-the frontend, not the provider or dispatch layer, keeping concerns isolated.
+remain wire-format-neutral and emit raw SSE deltas. Collapsing occurs
+per-delta in each frontend's `Append_Thinking`, producing immediate
+streaming output without buffering.  The collapse function normalises both
+OpenAI-style (trailing-`\n`) and Anthropic-style (leading-space) deltas
+into concatenable prose fragments.
 
-**Test coverage:** `Test_Dispatch_Thinking_Delta` in `test/src/dispatch_tests.adb`
-emits both `Thinking_Delta` (accumulate) and `Thinking_End` (flush) events,
-verifying the collapsing behaviour.
+**Test coverage:** 8 `Collapse_Thinking_Delta` unit tests in
+`test/src/collapse_utils_tests.adb` cover all edge cases: single-LF→space,
+paragraph preservation, empty input, no-LF verbatim, space preservation,
+OpenAI trailing-LF stripping, OpenAI mid-stream LFs→spaces, and LF/HT-only
+whitespace.  `Test_Dispatch_Thinking_Delta` in
+`test/src/dispatch_tests.adb` verifies end-to-end thinking-delta dispatch.
 
 ### 5.4 `Coyote_App.Frontend` (abstract interface)
 
