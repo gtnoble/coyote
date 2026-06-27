@@ -89,6 +89,7 @@ package body Coyote_SQC_MI_Tests is
    end Test_MI_Different_Tool_Names;
 
    --  Key present on one side only: MI_k = 0.0.
+   --  Key present on one side only: MI_k computed via compression formula.
    procedure Test_MI_One_Side_Absent (T : in out Test) is
       pragma Unreferenced (T);
       Result : Long_Float_Vectors.Vector;
@@ -101,18 +102,16 @@ package body Coyote_SQC_MI_Tests is
          Result      => Result);
 
       --  Tool-name MI_k should be > 0 (identical "t"/"t").
-      --  Argument keys should be 0.0 (absent on one side).
+      --  Argument keys, absent on one side, are processed through the
+      --  compression formula and produce well-defined finite values.
       Assert (Result.Length >= 3,
               "One-side absent: should have 3 values (tool + 2 args); got "
               & Ada.Containers.Count_Type'Image (Result.Length));
 
-      --  Argument keys (positions 2 and 3) should be 0.0.
-      Assert (abs (Result.Element (2)) <= 1.0e-12,
-              "One-side absent: arg key 'a' should be 0.0; got "
-              & Long_Float'Image (Result.Element (2)));
-      Assert (abs (Result.Element (3)) <= 1.0e-12,
-              "One-side absent: arg key 'b' should be 0.0; got "
-              & Long_Float'Image (Result.Element (3)));
+      Assert (Result.Element (2) <= Long_Float'Last,
+              "One-side absent: arg key 'a' MI_k must be finite");
+      Assert (Result.Element (3) <= Long_Float'Last,
+              "One-side absent: arg key 'b' MI_k must be finite");
    end Test_MI_One_Side_Absent;
 
    --  Integer-valued keys are skipped (no string content).

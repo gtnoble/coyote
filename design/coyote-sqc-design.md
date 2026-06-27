@@ -1389,8 +1389,9 @@ at level 9.
 - **Both sides empty** (key has no string content in either call): no
   observation is produced; the key is skipped.
 - **One side empty** (key present in one call but absent or empty in the
-  other): MI_k ≈ 0 (the empty-string zlib overhead gives near-zero shared
-  information).
+  other): MI_k is computed via the compression formula with the absent
+  side corresponding to an empty buffer.  The formula yields a valid
+  (possibly negative) MI_k value.
 - **Both sides non-empty**: MI_k is computed via the full symmetric
   dictionary-preloaded formula.  Negative values (when the dictionary
   misleads the compressor) are retained — they indicate dissimilarity.
@@ -1508,11 +1509,11 @@ MI_k = C_a_k + C_b_k − C_ab_k
 - **Both sides empty** (key has no string content in either call): no
   observation is produced; the key is skipped.
 - **One side empty** (key present in one call but absent or empty in the
-  other): MI_k ≈ 0 (the empty-string zlib overhead gives near-zero shared
-  information).  Non-positive MI_k (< 0, which can occur due to zlib block
-  header overhead) is clamped to 0.0.
-- **Both sides non-empty**: MI_k is computed via the full formula; expected
-  positive.  Non-positive values are clamped to 0.0.
+  other): MI_k is computed via the compression formula with the absent
+  side corresponding to an empty buffer.  The formula yields a valid
+  (possibly negative) MI_k value.
+- **Both sides non-empty**: MI_k is computed via the full formula; negative
+  values are retained — they indicate dissimilarity.
 
 **Interpretation:** MI_k ≈ C_a_k means the argument values are nearly
 identical (maximum shared information).  MI_k ≈ 0 means the values are
@@ -1554,8 +1555,9 @@ package Coyote_SQC.Statistics.MI is
    --    - every top-level JSON argument key in Arguments_1 or Arguments_2
    --
    --  Keys with no string content on either side are skipped.
-   --  Keys present in one call but absent in the other contribute MI_k ≈ 0.
-   --  Non-positive MI_k values (compression artifacts) are clamped to 0.0.
+   --  Keys present in one call but absent in the other are processed
+   --  through the compression formula with the absent side corresponding
+   --  to an empty buffer.  Negative MI_k values are retained.
    --
    --  Result is not cleared before appending; the caller is responsible
    --  for initialising it.

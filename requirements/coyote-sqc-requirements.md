@@ -1533,9 +1533,9 @@ streaming deflate at level 9.
 - If both strings are empty (key has no string content in either call):
   no observation is produced for key _k_; the key is skipped.
 - If exactly one string is empty (key present in one call but absent or
-  empty in the other): the empty string compresses to the zlib header
-  and empty-block overhead (typically 8–11 bytes).  The dictionary-preloaded
-  compression gives MI_k ≈ 0 (i.e. no shared information).
+  empty in the other): MI_k is computed via the compression formula with
+  the absent side corresponding to an empty buffer.  The formula yields a
+  valid (possibly negative) MI_k value.
 - If both strings are non-empty: MI_k is computed via the full symmetric
   dictionary-preloaded formula.  Negative values (when the dictionary
   misleads the compressor) are retained — they indicate dissimilarity.

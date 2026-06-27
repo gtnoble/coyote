@@ -30,7 +30,6 @@ package Coyote_SQC.Statistics.MI is
    --    - every top-level JSON argument key in Arguments_1 or Arguments_2
    --
    --  Keys with no string content on either side are skipped.
-   --  Keys present in one call but absent in the other contribute MI_k = 0.0.
    --  Negative MI_k values (when the dictionary misleads the compressor)
    --  are retained.
    --

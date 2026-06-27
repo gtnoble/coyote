@@ -37,7 +37,7 @@ package body Coyote_SQC.Statistics.MI is
 
    --  Compress Source with an empty dictionary and return the compressed
    --  size in bytes.  Uses zlib streaming deflate at level 9.
-   --  Returns 0 on failure (empty input or compression error).
+   --  Returns 0 on compression error.
    function Compressed_Size_Bare (Source : String) return Natural is
    begin
       return Coyote_SQC.Zlib.Compress_With_Dict
@@ -46,14 +46,11 @@ package body Coyote_SQC.Statistics.MI is
 
    --  Compress Source with Dict pre-loaded into the compressor and return
    --  the compressed size in bytes.  Uses zlib streaming deflate at level 9.
-   --  Returns 0 on failure (empty input or compression error).
+   --  Returns 0 on compression error.
    function Compressed_Size_With_Dict
      (Source : String;
       Dict   : String) return Natural is
    begin
-      if Source'Length = 0 then
-         return 0;
-      end if;
       return Coyote_SQC.Zlib.Compress_With_Dict
         (Source, 9, Dict);
    end Compressed_Size_With_Dict;
@@ -187,11 +184,6 @@ package body Coyote_SQC.Statistics.MI is
       begin
          if S1'Length = 0 and then S2'Length = 0 then
             return;  --  both empty: skip
-         end if;
-         if S1'Length = 0 or else S2'Length = 0 then
-            --  One side absent: MI_k ≈ 0.
-            Result.Append (0.0);
-            return;
          end if;
          declare
             C1_Dict : constant Natural :=
