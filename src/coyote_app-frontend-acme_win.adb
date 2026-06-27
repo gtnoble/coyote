@@ -99,7 +99,6 @@ package body Coyote_App.Frontend.Acme_Win is
       if not F.In_Thinking then
          F.In_Thinking        := True;
          F.Prefix_Emitted     := False;
-         F.Last_Ended_With_LF := True;
       end if;
    end Begin_Thinking;
 
@@ -121,18 +120,10 @@ package body Coyote_App.Frontend.Acme_Win is
          Acme.Window.Append
            (F.Win_Ptr.all, F.My_FS'Access,
             ASCII.LF & UC_BOX_V & " ");
-         F.Prefix_Emitted     := True;
-         F.Last_Ended_With_LF := False;
-      elsif not F.Last_Ended_With_LF
-        and then Trimmed (Trimmed'First) /= ASCII.LF
-      then
-         Acme.Window.Append
-           (F.Win_Ptr.all, F.My_FS'Access, " ");
+         F.Prefix_Emitted := True;
       end if;
 
       Acme.Window.Append (F.Win_Ptr.all, F.My_FS'Access, Trimmed);
-      F.Last_Ended_With_LF :=
-        Trimmed (Trimmed'Last) = ASCII.LF;
    end Append_Thinking;
 
    --  ── End_Thinking ──────────────────────────────────────────────────────
@@ -146,7 +137,6 @@ package body Coyote_App.Frontend.Acme_Win is
          end if;
          F.In_Thinking        := False;
          F.Prefix_Emitted     := False;
-         F.Last_Ended_With_LF := True;
       end if;
    end End_Thinking;
    procedure Begin_Tool

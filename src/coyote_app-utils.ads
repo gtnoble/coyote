@@ -174,15 +174,19 @@ package Coyote_App.Utils is
 
    --  Collapse thinking-text deltas to flowing prose.
    --
-   --  Thinking SSE chunks often contain leading/trailing newlines and
-   --  internal line breaks that should be displayed as flowing text rather
-   --  than as one fragment per line.  This function:
-   --    * Preserves single \n and \r characters as line breaks
+   --  Thinking SSE chunks from providers arrive as per-token deltas.
+   --  OpenAI delimits tokens with trailing newlines; Anthropic delimits
+   --  tokens with leading spaces.  This function normalises both forms
+   --  into concatenable prose:
+   --    * Collapses single \n and \r characters to spaces (restoring
+   --      word boundaries across OpenAI-style deltas)
    --    * Preserves \n\n (paragraph breaks) as blank lines
-   --    * Trims leading and trailing whitespace from the result
+   --    * Preserves spaces as content (they carry word-boundary
+   --      information from providers like Anthropic)
+   --    * Trims leading and trailing LF, CR, and HT only
    --
-   --  Example: " The\n user\n wants " → "The\nuser\nwants"
-   --           "Para 1\n\nPara 2" → "Para 1\n\nPara 2" (unchanged)
+   --  Example: " The\n user\n wants "  → " The user wants"
+   --           "Para 1\n\nPara 2"      → "Para 1\n\nPara 2" (unchanged)
    function Collapse_Thinking_Delta (Text : String) return String;
 
    --  ── Turn footer builders ─────────────────────────────────────────────

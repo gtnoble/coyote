@@ -124,7 +124,6 @@ private
       In_Thinking          : Boolean := False;
       Tools                : Tool_Maps.Map;
       Prefix_Emitted       : Boolean := False;
-      Last_Ended_With_LF   : Boolean := True;
       Render_Markdown  : Boolean := True;
    end record;
 

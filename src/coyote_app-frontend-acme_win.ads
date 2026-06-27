@@ -112,7 +112,6 @@ private
       Win_Ptr    : access Acme.Window.Win := null;
       In_Thinking          : Boolean := False;
       Prefix_Emitted       : Boolean := False;
-      Last_Ended_With_LF   : Boolean := True;
       My_FS      : aliased Nine_P.Client.Fs;
       Tag_Suffix : Ada.Strings.Unbounded.Unbounded_String;
    end record;

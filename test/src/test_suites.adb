@@ -1149,7 +1149,7 @@ package body Test_Suites is
 
       --  Collapse_Utils tests
       Result.Add_Test (Collapse_Utils_Caller.Create
-        ("Collapse_Thinking_Delta: single-word tokens preserved as line breaks",
+        ("Collapse_Thinking_Delta: single-LF collapse to spaces",
          Collapse_Utils_Tests.Test_Collapse_Basic'Access));
       Result.Add_Test (Collapse_Utils_Caller.Create
         ("Collapse_Thinking_Delta: paragraph breaks (LF LF) preserved",
@@ -1163,6 +1163,15 @@ package body Test_Suites is
       Result.Add_Test (Collapse_Utils_Caller.Create
         ("Collapse_Thinking_Delta: leading/trailing whitespace stripped",
          Collapse_Utils_Tests.Test_Collapse_Leading_Trailing_WS'Access));
+      Result.Add_Test (Collapse_Utils_Caller.Create
+        ("Collapse_Thinking_Delta: spaces preserved as word boundaries",
+         Collapse_Utils_Tests.Test_Collapse_Preserves_Spaces'Access));
+      Result.Add_Test (Collapse_Utils_Caller.Create
+        ("Collapse_Thinking_Delta: OpenAI-style trailing LF stripped",
+         Collapse_Utils_Tests.Test_Collapse_OpenAI_Style'Access));
+      Result.Add_Test (Collapse_Utils_Caller.Create
+        ("Collapse_Thinking_Delta: OpenAI mid-stream LFs become spaces",
+         Collapse_Utils_Tests.Test_Collapse_OpenAI_Mid_Stream'Access));
 
 
       --  Coyote_Cmark binding tests

@@ -5,15 +5,17 @@ package body Collapse_Utils_Tests is
 
    procedure Test_Collapse_Basic (T : in out Test) is
       pragma Unreferenced (T);
-      --  Simulate tokens with LF between them
+      --  Simulate OpenAI-style tokens with LF between them.
+      --  The collapse function should convert single LFs to spaces
+      --  and strip leading/trailing LFs.
       Input  : constant String :=
         "The" & ASCII.LF & "user" & ASCII.LF & "wants me" & ASCII.LF;
       Result : constant String :=
         Coyote_App.Utils.Collapse_Thinking_Delta (Input);
    begin
       AUnit.Assertions.Assert
-        (Result = "The" & ASCII.LF & "user" & ASCII.LF & "wants me",
-         "Expected '" & "The" & ASCII.LF & "user" & ASCII.LF & "wants me" & "' but got '" & Result & "'");
+        (Result = "The user wants me",
+         "Expected 'The user wants me' but got '" & Result & "'");
    end Test_Collapse_Basic;
 
    procedure Test_Collapse_Paragraph (T : in out Test) is
@@ -36,8 +38,8 @@ package body Collapse_Utils_Tests is
          "Empty input should return empty");
       AUnit.Assertions.Assert
         (Coyote_App.Utils.Collapse_Thinking_Delta
-           ("  " & ASCII.LF & " ") = "",
-         "Whitespace-only should return empty");
+           (ASCII.LF & ASCII.HT & ASCII.LF) = "",
+         "LF/HT-only should return empty");
    end Test_Collapse_Empty;
 
    procedure Test_Collapse_NoLF (T : in out Test) is
@@ -53,14 +55,55 @@ package body Collapse_Utils_Tests is
 
    procedure Test_Collapse_Leading_Trailing_WS (T : in out Test) is
       pragma Unreferenced (T);
+      --  Spaces are content (word boundaries from Anthropic).
+      --  Only LF/CR/HT are trimmed; spaces are preserved.
       Input  : constant String :=
         ASCII.LF & "  Hello  " & ASCII.LF & ASCII.LF;
       Result : constant String :=
         Coyote_App.Utils.Collapse_Thinking_Delta (Input);
    begin
       AUnit.Assertions.Assert
-        (Result = "Hello",
-         "Expected leading, trailing, and interior whitespace trimmed");
+        (Result = "  Hello  ",
+         "Expected LFs trimmed but internal and leading/trailing spaces preserved");
    end Test_Collapse_Leading_Trailing_WS;
 
+
+   procedure Test_Collapse_Preserves_Spaces (T : in out Test) is
+      pragma Unreferenced (T);
+      --  Anthropic-style deltas: leading space carries word-boundary info.
+      Result : constant String :=
+        Coyote_App.Utils.Collapse_Thinking_Delta (" the");
+   begin
+      AUnit.Assertions.Assert
+        (Result = " the",
+         "Expected leading space to be preserved as word boundary");
+   end Test_Collapse_Preserves_Spaces;
+
+   procedure Test_Collapse_OpenAI_Style (T : in out Test) is
+      pragma Unreferenced (T);
+      --  OpenAI-style tokens: each has trailing LF.
+      --  The collapse function should strip trailing LF and preserve text.
+      Input  : constant String := "All" & ASCII.LF;
+      Result : constant String :=
+        Coyote_App.Utils.Collapse_Thinking_Delta (Input);
+   begin
+      AUnit.Assertions.Assert
+        (Result = "All",
+         "Expected trailing LF stripped, got '" & Result & "'");
+   end Test_Collapse_OpenAI_Style;
+
+   procedure Test_Collapse_OpenAI_Mid_Stream (T : in out Test) is
+      pragma Unreferenced (T);
+      --  OpenAI-style tokens concatenated: single LFs become spaces.
+      Input  : constant String :=
+        "first" & ASCII.LF & "second" & ASCII.LF & "third";
+      Result : constant String :=
+        Coyote_App.Utils.Collapse_Thinking_Delta (Input);
+   begin
+      AUnit.Assertions.Assert
+        (Result = "first second third",
+         "Expected single LFs collapsed to spaces, got '" & Result & "'");
+   end Test_Collapse_OpenAI_Mid_Stream;
+
 end Collapse_Utils_Tests;
+

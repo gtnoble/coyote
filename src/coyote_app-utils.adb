@@ -730,10 +730,13 @@ package body Coyote_App.Utils is
       First_NZ   : Natural := 0;
       Last_NZ    : Natural := 0;
    begin
-      --  Find first and last non-whitespace positions.
+      --  Find first and last positions that are not LF, CR, or HT.
+      --  Spaces are treated as content (they carry word-boundary
+      --  information from providers like Anthropic).
       for J in Text'Range loop
-         if Text (J) /= ' ' and then Text (J) /= ASCII.HT
-           and then Text (J) /= ASCII.LF and then Text (J) /= ASCII.CR
+         if Text (J) /= ASCII.LF
+           and then Text (J) /= ASCII.CR
+           and then Text (J) /= ASCII.HT
          then
             if First_NZ = 0 then
                First_NZ := J;
@@ -742,7 +745,7 @@ package body Coyote_App.Utils is
          end if;
       end loop;
 
-      --  If all whitespace, return empty.
+      --  If all LF/CR/HT (or empty), return empty.
       if First_NZ = 0 then
          return "";
       end if;
@@ -773,8 +776,8 @@ package body Coyote_App.Utils is
                   Append (Result, "" & ASCII.LF & ASCII.LF);
                   I := J;
                else
-                  --  Single newline: preserve as line break.
-                  Append (Result, "" & ASCII.LF);
+                  --  Single newline: collapse to space.
+                  Append (Result, " ");
                   I := I + 1;
                end if;
             end;
