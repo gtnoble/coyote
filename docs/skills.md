@@ -2,7 +2,7 @@
 
 Skills are reusable instruction documents that coyote surfaces to the agent
 at startup.  Only the `name` and `description` from each skill's frontmatter
-are injected into the system prompt; the full body is loaded on demand — the
+are injected into the system prompt; the full body is loaded on demand â the
 agent reads the `SKILL.md` file via the `shell` tool (e.g. `cat`) when it
 decides the skill is relevant.
 
@@ -32,7 +32,7 @@ window when it decides the skill is relevant to the current task.
 | Field | Required | Description |
 |---|---|---|
 | `name` | **Yes** | Unique identifier. Lowercase letters, digits, and hyphens. Must match the parent directory name. |
-| `description` | **Yes** | Short summary (≤ 1 024 chars, double-quoted). This is the **only** text the agent sees before deciding whether to load the skill — make it count. |
+| `description` | **Yes** | Short summary (â¤ 1 024 chars, double-quoted). This is the **only** text the agent sees before deciding whether to load the skill â make it count. |
 
 **Skills missing either required field are silently skipped.**
 
@@ -49,25 +49,26 @@ find them.
 
 ## Discovery & Shadowing
 
-Coyote scans four roots in order.  Later roots shadow earlier ones when two
+Coyote scans five roots in order.  Later roots shadow earlier ones when two
 skills share the same name, so project-local skills override global ones.
 
 | Priority | Path | Scope |
 |---|---|---|
 | 1 (lowest) | `~/.coyote/skills/*/SKILL.md` | Global, coyote-specific |
 | 2 | `~/.agents/skills/*/SKILL.md` | Global, provider-agnostic |
-| 3 | `{cwd}/.coyote/skills/*/SKILL.md` | Project-local, coyote-specific |
-| 4 (highest) | `{cwd}/.agents/skills/*/SKILL.md` | Project-local, provider-agnostic |
+| 3 | `$BASE/share/agents/skills/*/SKILL.md` | Installation-relative, provider-agnostic |
+| 4 | `{cwd}/.coyote/skills/*/SKILL.md` | Project-local, coyote-specific |
+| 5 (highest) | `{cwd}/.agents/skills/*/SKILL.md` | Project-local, provider-agnostic |
 
 ---
 
 ## Directory Layout
 
 ```
-~/.coyote/skills/          ← global, coyote-specific root
-└── my-skill/
-    ├── SKILL.md           ← required; frontmatter + overview/instructions
-    └── reference.md       ← optional; loaded by agent on demand
+~/.coyote/skills/          â global, coyote-specific root
+âââ my-skill/
+    âââ SKILL.md           â required; frontmatter + overview/instructions
+    âââ reference.md       â optional; loaded by agent on demand
 ```
 
 Relative paths in the body should be written relative to the directory
@@ -82,7 +83,7 @@ are relevant.  It is presented in the `<available_skills>` block in the system
 prompt.
 
 Rules:
-- **Always double-quote** the value — unquoted values containing colons,
+- **Always double-quote** the value â unquoted values containing colons,
   em-dashes, or other YAML special characters cause a silent parse failure.
 - Write in **third person** (the text is injected into the system prompt).
 - State **what** the skill covers and **when** to load it.
@@ -106,7 +107,7 @@ description: Helps with web content: news and feeds.
 
 ### Be concise
 
-The agent is already capable — only add context it doesn't already have.
+The agent is already capable â only add context it doesn't already have.
 Challenge every paragraph: does this earn its token cost?
 
 ### Progressive disclosure
@@ -117,19 +118,19 @@ them from `SKILL.md` so the agent knows to read them when needed.
 
 ```
 my-skill/
-├── SKILL.md        ← always loaded when triggered (~overview + TOC)
-├── advanced.md     ← agent reads when task requires it
-└── reference.md    ← agent reads when task requires it
+âââ SKILL.md        â always loaded when triggered (~overview + TOC)
+âââ advanced.md     â agent reads when task requires it
+âââ reference.md    â agent reads when task requires it
 ```
 
-Avoid chains deeper than one level (`SKILL.md → file.md`, never
-`SKILL.md → file.md → detail.md`) — the agent may not follow deeply nested
+Avoid chains deeper than one level (`SKILL.md â file.md`, never
+`SKILL.md â file.md â detail.md`) â the agent may not follow deeply nested
 references.
 
 ### Match specificity to fragility
 
-- One correct path → give exact steps (low freedom).
-- Many valid approaches → give general guidance (high freedom).
+- One correct path â give exact steps (low freedom).
+- Many valid approaches â give general guidance (high freedom).
 
 ---
 
@@ -148,8 +149,8 @@ description: "PostgreSQL query tuning: EXPLAIN ANALYZE, index selection, vacuum,
 ## Workflow
 
 1. Run `EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT) <query>;` and capture output.
-2. Look for `Seq Scan` on large tables — likely missing index.
-3. Check `actual rows` vs `estimated rows` — large divergence → run `ANALYZE`.
+2. Look for `Seq Scan` on large tables â likely missing index.
+3. Check `actual rows` vs `estimated rows` â large divergence â run `ANALYZE`.
 4. Confirm index usage with `\d tablename`.
 
 ## Index selection
@@ -174,5 +175,5 @@ See `reference.md` for full operator class list.
 | Skill silently skipped | Ensure both `name` and `description` are present with valid `---`/`---` delimiters |
 | Description parse error | Wrap in double quotes; escape literal `"` as `\"` |
 | Wrong skill loaded | Check for name collisions across roots; most project-local wins |
-| Agent never loads skill | Improve description — add trigger phrases and keywords |
+| Agent never loads skill | Improve description â add trigger phrases and keywords |
 | Context bloat | Move large reference material to sibling files with progressive disclosure |

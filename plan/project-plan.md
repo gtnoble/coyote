@@ -1,7 +1,7 @@
-# Project Plan — coyote
+# Project Plan ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ coyote
 
-**Version:** 1.10
-**Date:** 2026-06-21
+**Version:** 1.11
+**Date:** 2026-06-28
 **Status:** Active
 
 ---
@@ -37,7 +37,7 @@
 
 ## 1. Overview
 
-**Project:** coyote — a native Ada LLM coding agent.
+**Project:** coyote ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ a native Ada LLM coding agent.
 
 **Purpose:** Develop and maintain a self-contained multi-frontend LLM coding
 agent that operates inside the acme text editor and a GTK3 GUI. The agent
@@ -47,19 +47,19 @@ Statistical Quality Control application (coyote_sqc) for process monitoring.
 
 **Scope:** This plan covers all active development activities for the coyote
 executable, the coyote_sqc executable, and their shared libraries. It does not
-cover deployment to third-party end-users; §5.12 (prepare for use) and §5.13
+cover deployment to third-party end-users; ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§5.12 (prepare for use) and ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§5.13
 (prepare for handover) are waived until a deployment or maintenance-handover
 scenario arises.
 
-**System type:** Software-only. §5.3 (system requirements analysis) and §5.4
-(system design) are collapsed into §5.5 and §5.6 respectively — there is no
+**System type:** Software-only. ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§5.3 (system requirements analysis) and ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§5.4
+(system design) are collapsed into ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§5.5 and ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§5.6 respectively ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ there is no
 separate system-level stratum.
 
 **Waived activities:**
-- §5.10 (HW/SW integration testing) — permanently off; no hardware components.
-- §5.12 (prepare for use) — deferred; no formal deployment sites at present.
-- §5.13 (prepare for handover) — deferred; no maintenance team at present.
-- §5.19.3 (security and privacy) — deferred; no sensitive user data handled
+- ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§5.10 (HW/SW integration testing) ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ permanently off; no hardware components.
+- ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§5.12 (prepare for use) ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ deferred; no formal deployment sites at present.
+- ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§5.13 (prepare for handover) ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ deferred; no maintenance team at present.
+- ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§5.19.3 (security and privacy) ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ deferred; no sensitive user data handled
   beyond API keys stored in user-controlled files.
 
 ---
@@ -68,7 +68,7 @@ separate system-level stratum.
 
 | ID | Title | Location |
 |---|---|---|
-| SRS-CORE | coyote Requirements Specification | `requirements/coyote-requirements.md` |
+| SRS-CORE | coyote Requirements Specification | `requirements/coyote-requirements.md` | 1.5 (2026-06-28) | Client |
 | SDD-CORE | coyote Design Description | `design/coyote-design.md` |
 | SRS-SQC | coyote_sqc Requirements Specification | `requirements/coyote-sqc-requirements.md` |
 | SDD-SQC | coyote_sqc Design Specification | `design/coyote-sqc-design.md` |
@@ -101,8 +101,8 @@ in `requirements/coyote-sqc-requirements.md`; design documented in `design/coyot
 
 ### Shared libraries
 
-- `coyote_renderer` — shared Pango markup and session-view rendering
-- `coyote_cmark` — thin Ada binding to libcmark-gfm
+- `coyote_renderer` ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ shared Pango markup and session-view rendering
+- `coyote_cmark` ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ thin Ada binding to libcmark-gfm
 
 ---
 
@@ -114,16 +114,16 @@ in `requirements/coyote-sqc-requirements.md`; design documented in `design/coyot
 as each build proceeds; there is no big-bang requirements freeze.
 
 **Build definition:** A build is a coherent set of capabilities brought through
-requirements analysis → design → implementation → unit testing → integration
-testing → acceptance review. Builds do not have fixed durations; they are
+requirements analysis ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ design ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ implementation ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ unit testing ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ integration
+testing ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ acceptance review. Builds do not have fixed durations; they are
 closed when the planned capability set has been implemented and tested.
 
 **Current build:** Build N (ongoing). Scope: formalise process artifacts
 (this Project Plan, SRS-CORE, SDD-CORE, Test Plan) while continuing active
 development on both components.
 
-**Approach to rationale:** Key design decisions — architecture choices,
-algorithm selections, interface conventions, provider wire-format decisions —
+**Approach to rationale:** Key design decisions ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ architecture choices,
+algorithm selections, interface conventions, provider wire-format decisions ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ
 are recorded in component development logs (`sdfs/`). Rationale is noted at
 the point of decision, not reconstructed post-hoc.
 
@@ -134,7 +134,7 @@ the point of decision, not reconstructed post-hoc.
   Concurrency design documented explicitly (task types, protected objects,
   shared-state rules).
 - Code: Ada 2022, GNAT/GCC. Style per the Ada Quality and Style Guide
-  (see `AGENTS.md §Ada Style Guide`).
+  (see `AGENTS.md ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§Ada Style Guide`).
 - Test cases: AUnit for unit and integration tests; test fixtures in
   `test/fixtures/`.
 
@@ -194,7 +194,7 @@ For coyote_sqc: SDD-SQC (`design/coyote-sqc-design.md`) is the governing documen
 
 **Design methods:** Ada packages map directly to software units. Concurrency
 design uses Ada task types and protected objects as described in SDD-CORE.
-Provider additions follow the approach described in SDD-CORE §5 (Detailed Design).
+Provider additions follow the approach described in SDD-CORE ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§5 (Detailed Design).
 
 ### 4.5 Implementation and Unit Testing
 
@@ -219,7 +219,7 @@ integration tests are in `test/src/` guarded by environment variables.
 
 **Test approach:** Unit tests exercise individual packages in isolation (with
 stubs where necessary). Integration tests exercise interactions between
-packages — e.g. session store + agent loop, provider + SSE parser + event
+packages ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ e.g. session store + agent loop, provider + SSE parser + event
 dispatch.
 
 ### 4.7 Acceptance Testing
@@ -260,7 +260,7 @@ commit at which they were last substantively changed.
 artifact is preceded by a PCR entry describing the change and its rationale.
 The git commit message references the PCR ID.
 
-**Configuration status accounting:** The Artifact Version Table in §9 of this
+**Configuration status accounting:** The Artifact Version Table in ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§9 of this
 document tracks each controlled artifact, its current version/commit, and its
 control level.
 
@@ -268,7 +268,7 @@ control level.
 
 ### 4.9 Product Evaluation
 
-**Products evaluated:** Every work product listed in §9 (artifact version
+**Products evaluated:** Every work product listed in ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§9 (artifact version
 table) is subject to in-process and final evaluation before being presented
 to the user.
 
@@ -287,7 +287,7 @@ development log (`sdfs/`) or in the PCR log if a deficiency is found.
 
 ### 4.10 Quality Assurance
 
-**Approach:** Inline QA — each activity is checked against this Project Plan
+**Approach:** Inline QA ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ each activity is checked against this Project Plan
 as it proceeds. At each joint review, the developer confirms that:
 - All required work products for the phase exist and have been evaluated.
 - All AUnit tests pass.
@@ -332,12 +332,12 @@ Other (per `documents.md Part 3`).
 critique and raise issues. Issues are entered into `plan/problems.md`. The
 review is considered closed when all raised issues have been triaged.
 
-**Management indicators** are reported at every management review (see §4.14).
+**Management indicators** are reported at every management review (see ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§4.14).
 
 ### 4.13 Risk Management
 
 **Approach:** Risks are identified throughout the project, not only at start.
-At each joint review the risk register (§7) is updated: new risks added, old
+At each joint review the risk register (ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§7) is updated: new risks added, old
 risks re-assessed, mitigated risks closed.
 
 **Risk register structure:** ID, description, likelihood (Low/Med/High),
@@ -348,15 +348,15 @@ impact (Low/Med/High), mitigation strategy, status (Open/Mitigated/Closed).
 **Indicator set:** The six standard indicators defined in the
 structured-sw-developer skill:
 
-1. Requirements volatility — additions, changes, deletions since last review
-2. Component progress — per component: requirements complete / designed /
+1. Requirements volatility ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ additions, changes, deletions since last review
+2. Component progress ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ per component: requirements complete / designed /
    implemented / unit-tested / integrated
-3. Open problems — count by priority from `plan/problems.md`
-4. Milestone status — planned vs. actual for major phase milestones
-5. Scope changes — count of agreed amendments to the project brief
-6. Test results trend — pass/fail/deferred from most recent test run
+3. Open problems ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ count by priority from `plan/problems.md`
+4. Milestone status ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ planned vs. actual for major phase milestones
+5. Scope changes ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ count of agreed amendments to the project brief
+6. Test results trend ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ pass/fail/deferred from most recent test run
 
-**Reporting:** Appended to §8 (Management Indicator History) after each joint
+**Reporting:** Appended to ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§8 (Management Indicator History) after each joint
 review.
 
 ### 4.15 Process Improvement
@@ -405,7 +405,7 @@ Subsequent builds will define their own milestone sets.
 | ID | Description | Likelihood | Impact | Mitigation | Status |
 |---|---|---|---|---|---|
 | R1 | Upstream library API changes (libcurl, GTK3, cmark-gfm) break the build | Low | Moderate | Pin Alire dependency versions; monitor library release notes | Open |
-| R2 | Provider wire-format changes (Anthropic, OpenAI, Copilot) break streaming | Medium | High | Opt-in provider integration tests (guarded by env vars); review R1–R10 review records after provider releases; isolate wire-format code in dedicated provider packages | Open |
+| R2 | Provider wire-format changes (Anthropic, OpenAI, Copilot) break streaming | Medium | High | Opt-in provider integration tests (guarded by env vars); review R1ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂR10 review records after provider releases; isolate wire-format code in dedicated provider packages | Open |
 | R3 | SDD-CORE drifts from actual implementation, misleading future development | Medium | Moderate | Treat SDD-CORE as the primary controlled design artifact; include SDD-CORE review in the Definition of Done for each build; update AGENTS.md to match SDD-CORE when it diverges; PCR raised when drift is detected | Open |
 | R4 | Process artifact maintenance overhead crowds out feature work | Low | Low | Keep all process artifacts in Markdown co-located with the code; lightweight tooling (no external tracking systems); tailor to minimum viable coverage | Open |
 
@@ -415,7 +415,7 @@ Subsequent builds will define their own milestone sets.
 
 *(Appended at each joint review.)*
 
-### Review 1 — M1 Plan Review (2026-06-02)
+### Review 1 ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ M1 Plan Review (2026-06-02)
 
 **Review type:** Plan review
 **Trigger:** Project Plan presented for M1 acknowledgement
@@ -425,7 +425,7 @@ Subsequent builds will define their own milestone sets.
 | Requirements volatility | SRS-CORE v1.0 (2026-06-01): 101 requirements. No additions, changes, or deletions since creation. |
 | Component progress | coyote core: requirements complete, designed, implemented, unit-tested, integrated. coyote_sqc: requirements complete, designed, implemented, unit-tested, integrated. |
 | Open problems | 1 Open (PCR-009, priority 4-Minor); 1 In Progress (PCR-008, priority 4-Minor); 10 Resolved. |
-| Milestone status | M1 Complete 2026-06-02. M2–M6 Pending. |
+| Milestone status | M1 Complete 2026-06-02. M2ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂM6 Pending. |
 | Scope changes | 0 agreed amendments to project brief since project start. |
 | Test results trend | 658 AUnit tests passing; 0 failures; 6 requirements deferred to demonstration (PCR-009). |
 
@@ -440,21 +440,21 @@ acknowledged the plan independently.
 ---
 
 
-### Review 2 — M2 Requirements Review (2026-06-02)
+### Review 2 ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ M2 Requirements Review (2026-06-02)
 
 **Review type:** Software requirements review
-**Trigger:** M2 — SRS-CORE v1.1 presented for review
+**Trigger:** M2 ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ SRS-CORE v1.1 presented for review
 
 | Indicator | Value |
 |---|---|
 | Requirements volatility | SRS-CORE v1.1 (2026-06-02): 101 requirements. 1 requirement revised (REQ-CORE-704); 0 additions or deletions since v1.0. |
 | Component progress | coyote core: requirements complete, designed, implemented, unit-tested, integrated. coyote_sqc: same. |
 | Open problems | PCR-009 Open (4-Minor). PCR-013 and PCR-014 raised and resolved at this review. |
-| Milestone status | M1 Complete 2026-06-02. M2 Complete 2026-06-02. M3–M6 Pending. |
+| Milestone status | M1 Complete 2026-06-02. M2 Complete 2026-06-02. M3ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂM6 Pending. |
 | Scope changes | 0 agreed amendments since project start. |
 | Test results trend | 658 AUnit tests passing; 0 failures (no new test run since M1). |
 
-**Issues raised at review:** PCR-013 (missing N/A stubs in SRS §3),
+**Issues raised at review:** PCR-013 (missing N/A stubs in SRS ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§3),
 PCR-014 (REQ-CORE-704 referenced AGENTS.md normatively). Both resolved
 before acknowledgement.
 
@@ -462,7 +462,7 @@ before acknowledgement.
 acknowledged the specification independently.
 
 
-### Review 2 — M3 Design Review (2026-06-02)
+### Review 2 ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ M3 Design Review (2026-06-02)
 
 **Review type:** Software design review
 **Trigger:** SDD-CORE v1.1 presented for M3 acknowledgement
@@ -472,7 +472,7 @@ acknowledged the specification independently.
 | Requirements volatility | SRS-CORE v1.1: 101 requirements. No additions, changes, or deletions since M2. |
 | Component progress | coyote core: requirements complete, designed, implemented, unit-tested, integrated. coyote_sqc: unchanged. |
 | Open problems | 1 Open (PCR-009, priority 4-Minor); 1 In Progress (PCR-008, priority 4-Minor); 12 Resolved. |
-| Milestone status | M1 Complete 2026-06-02. M2 Complete 2026-06-02. M3 Complete 2026-06-02. M4–M6 Pending. |
+| Milestone status | M1 Complete 2026-06-02. M2 Complete 2026-06-02. M3 Complete 2026-06-02. M4ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂM6 Pending. |
 | Scope changes | 0 agreed amendments since project start. |
 | Test results trend | 658 AUnit tests passing; 0 failures (no new test run since M2). |
 
@@ -485,17 +485,17 @@ acknowledged the design without comment.
 
 
 
-### Review 3 — M4 Test Readiness Review (2026-06-03)
+### Review 3 ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ M4 Test Readiness Review (2026-06-03)
 
 **Review type:** Test readiness review
-**Trigger:** M4 — Test Plan v1.0 presented for acknowledgement
+**Trigger:** M4 ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Test Plan v1.0 presented for acknowledgement
 
 | Indicator | Value |
 |---|---|
 | Requirements volatility | SRS-CORE v1.1: 101 requirements. No additions, changes, or deletions since M3. |
 | Component progress | coyote core: requirements complete, designed, implemented, unit-tested, integrated. coyote_sqc: same. |
-| Open problems | 1 Open (PCR-009, priority 4-Minor — coverage gaps accepted/deferred); all other PCRs resolved. |
-| Milestone status | M1–M3 Complete (2026-06-02). M4 Complete 2026-06-03. M5–M6 Pending. |
+| Open problems | 1 Open (PCR-009, priority 4-Minor ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ coverage gaps accepted/deferred); all other PCRs resolved. |
+| Milestone status | M1ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂM3 Complete (2026-06-02). M4 Complete 2026-06-03. M5ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂM6 Pending. |
 | Scope changes | 0 agreed amendments since project start. |
 | Test results trend | 658 tests passing; 0 failures (confirmed pre-review dry run). |
 
@@ -506,21 +506,21 @@ acknowledged the design without comment.
 ---
 
 
-### Review 4 — M5 Requirements Coverage Review (2026-06-03)
+### Review 4 ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ M5 Requirements Coverage Review (2026-06-03)
 
 **Review type:** Requirements traceability review
-**Trigger:** M5 — All SRS-CORE requirements confirmed to have assigned verification methods
+**Trigger:** M5 ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ All SRS-CORE requirements confirmed to have assigned verification methods
 
 | Indicator | Value |
 |---|---|
 | Requirements volatility | SRS-CORE v1.1: 118 requirements. No changes since M4. |
 | Component progress | coyote core: requirements complete, designed, implemented, unit-tested, integrated. coyote_sqc: same. |
-| Open problems | 1 Open (PCR-009, priority 4-Minor — demonstration tests pending M6); all other PCRs resolved. |
-| Milestone status | M1–M5 Complete (M5: 2026-06-03). M6 Pending. |
+| Open problems | 1 Open (PCR-009, priority 4-Minor ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ demonstration tests pending M6); all other PCRs resolved. |
+| Milestone status | M1ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂM5 Complete (M5: 2026-06-03). M6 Pending. |
 | Scope changes | 0 agreed amendments since project start. |
 | Test results trend | 658 tests passing; 0 failures (confirmed pre-review dry run). |
 
-**Coverage verification:** All 118 SRS-CORE requirements (REQ-CORE-001 through REQ-CORE-805) appear in the Test Plan §6 traceability table with an assigned verification method (T, D, I, or A). Six requirements (REQ-CORE-011/012, 022, 074, 075/076, 107, 142) use Demonstration as their method; these are formally accepted per Test Plan §4.5 and PCR-009. Automated AUnit baseline: 658 tests, 0 failures.
+**Coverage verification:** All 118 SRS-CORE requirements (REQ-CORE-001 through REQ-CORE-805) appear in the Test Plan ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§6 traceability table with an assigned verification method (T, D, I, or A). Six requirements (REQ-CORE-011/012, 022, 074, 075/076, 107, 142) use Demonstration as their method; these are formally accepted per Test Plan ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§4.5 and PCR-009. Automated AUnit baseline: 658 tests, 0 failures.
 
 **Issues raised at review:** None.
 
@@ -528,21 +528,21 @@ acknowledged the design without comment.
 
 
 
-### Review 5 — M6 Acceptance Test Results Review (2026-06-03)
+### Review 5 ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ M6 Acceptance Test Results Review (2026-06-03)
 
 **Review type:** Test results review
-**Trigger:** M6 — First full acceptance test run with recorded results
+**Trigger:** M6 ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ First full acceptance test run with recorded results
 
 | Indicator | Value |
 |---|---|
 | Requirements volatility | SRS-CORE v1.1: 118 requirements. No changes since M5. |
 | Component progress | coyote core: requirements complete, designed, implemented, unit-tested, integrated. coyote_sqc: same. |
-| Open problems | 1 Open (PCR-009, priority 4-Minor — 14 demonstration tests deferred to future build). All other PCRs resolved. |
-| Milestone status | M1–M6 Complete (M6: 2026-06-03). |
+| Open problems | 1 Open (PCR-009, priority 4-Minor ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ 14 demonstration tests deferred to future build). All other PCRs resolved. |
+| Milestone status | M1ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂM6 Complete (M6: 2026-06-03). |
 | Scope changes | 0 agreed amendments since project start. |
 | Test results trend | 658 AUnit tests passing; 0 failures; 4 demonstrations PASS; 14 demonstrations deferred (PCR-009); 21 inspection/analysis items PASS. |
 
-**Test Report:** `plan/test-report-m6.md` v1.0 — 658/658 automated tests pass, zero failures. DEM-001, DEM-002, DEM-004, and DEM-018 executed and passed. DEM-003 and DEM-005–DEM-017 deferred under PCR-009.
+**Test Report:** `plan/test-report-m6.md` v1.0 ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ 658/658 automated tests pass, zero failures. DEM-001, DEM-002, DEM-004, and DEM-018 executed and passed. DEM-003 and DEM-005ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂDEM-017 deferred under PCR-009.
 
 **Issues raised at review:** None new. PCR-009 remains open (accepted deferral for this build).
 
@@ -553,17 +553,17 @@ acknowledged the design without comment.
 
 ---
 
-### Review 6 — SRS-CORE v1.2 Requirements Review (2026-06-06)
+### Review 6 ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ SRS-CORE v1.2 Requirements Review (2026-06-06)
 
 **Review type:** Software requirements review
-**Trigger:** User-requested Ollama Cloud provider requirements (PCR-020) — SRS-CORE v1.2 presented for acknowledgement
+**Trigger:** User-requested Ollama Cloud provider requirements (PCR-020) ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ SRS-CORE v1.2 presented for acknowledgement
 
 | Indicator | Value |
 |---|---|
-| Requirements volatility | SRS-CORE v1.2 (2026-06-06): 126 requirements. 8 additions (REQ-CORE-150–156, REQ-CORE-204); 1 revision (REQ-CORE-072 extended provider list to six). No deletions since v1.1. |
+| Requirements volatility | SRS-CORE v1.2 (2026-06-06): 126 requirements. 8 additions (REQ-CORE-150ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ156, REQ-CORE-204); 1 revision (REQ-CORE-072 extended provider list to six). No deletions since v1.1. |
 | Component progress | coyote core: requirements updated (Ollama Cloud); design and implementation pending for new provider. coyote_sqc: unchanged. |
-| Open problems | PCR-020 Open (priority 3-Moderate — Ollama Cloud requirements added; implementation pending). PCR-009 Open (priority 4-Minor — deferred demonstration tests). |
-| Milestone status | M1–M6 Complete. Ollama Cloud implementation not yet scheduled. |
+| Open problems | PCR-020 Open (priority 3-Moderate ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Ollama Cloud requirements added; implementation pending). PCR-009 Open (priority 4-Minor ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ deferred demonstration tests). |
+| Milestone status | M1ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂM6 Complete. Ollama Cloud implementation not yet scheduled. |
 | Scope changes | 1 agreed amendment since project start: Ollama Cloud provider added to SRS-CORE. |
 | Test results trend | 665 AUnit tests passing; 0 failures. No test changes for this review. |
 
@@ -577,10 +577,10 @@ acknowledged the design without comment.
 
 | Artifact | ID | Location | Current Version | Control Level |
 |---|---|---|---|---|
-| Project Plan | PLAN | `plan/project-plan.md` | 1.10 (2026-06-21) | Project |
+| Project Plan | PLAN | `plan/project-plan.md` | 1.11 (2026-06-28) | Project |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
-| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.4 (2026-06-21) | Client |
-| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.2 (2026-06-21) | Project |
+| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.5 (2026-06-28) | Client |
+| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.3 (2026-06-28) | Project |
 | coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.2 (2026-06-21) | Project |
 | coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.2 (2026-06-21) | Project |
 | Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.3 (2026-06-21) | Project |

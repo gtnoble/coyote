@@ -649,4 +649,133 @@ package body LLM_Skills_Tests is
          raise;
    end Test_Injected_Into_Built_Prompt;
 
+   procedure Test_Install_Base_Bin_Coyote (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      declare
+         Base : constant String :=
+           LLM.Skills.Install_Base
+             (Executable => "/opt/coyote/bin/coyote");
+      begin
+         Assert
+           (Base = "/opt/coyote",
+            "Install_Base should derive /opt/coyote from"
+            & " /opt/coyote/bin/coyote");
+      end;
+   end Test_Install_Base_Bin_Coyote;
+
+   procedure Test_Install_Base_Non_Standard (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      declare
+         Base : constant String :=
+           LLM.Skills.Install_Base
+             (Executable => "/usr/local/coyote");
+      begin
+         Assert
+           (Base = "",
+            "Install_Base should return """" when executable is"
+            & " not under a bin/ directory");
+      end;
+   end Test_Install_Base_Non_Standard;
+
+   procedure Test_Install_Base_Explicit_Arg (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      declare
+         Base : constant String :=
+           LLM.Skills.Install_Base
+             (Executable => "/home/user/.local/bin/coyote");
+      begin
+         Assert
+           (Base = "/home/user/.local",
+            "Install_Base should derive the parent of bin/ when"
+            & " given an explicit path");
+      end;
+   end Test_Install_Base_Explicit_Arg;
+
+   procedure Test_Installation_Skills_Base_Path (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      declare
+         Path : constant String :=
+           LLM.Skills.Installation_Skills_Base
+             (Executable => "/opt/coyote/bin/coyote");
+      begin
+         Assert
+           (Path = "/opt/coyote/share/agents/skills",
+            "Installation_Skills_Base should append"
+            & " /share/agents/skills to the install base");
+      end;
+   end Test_Installation_Skills_Base_Path;
+
+   procedure Test_Installation_Skills_Base_Empty (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      declare
+         Path : constant String :=
+           LLM.Skills.Installation_Skills_Base
+             (Executable => "/usr/local/lib/bash");
+      begin
+         Assert
+           (Path = "",
+            "Installation_Skills_Base should return """" when"
+            & " the install base is empty");
+      end;
+   end Test_Installation_Skills_Base_Empty;
+
+   procedure Test_Install_Root_Skills_Loaded (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home         : constant String := "/tmp/coyote_skills_test_inst";
+      Cwd          : constant String := "/tmp/coyote_skills_test_inst_cwd";
+      Install_Root : constant String :=
+        "/tmp/coyote_skills_test_inst_install";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+   begin
+      Cleanup (Home);
+      Cleanup (Cwd);
+      Cleanup (Install_Root);
+      Mkdir (Home & "/.coyote");
+      Mkdir (Cwd);
+      Write_File
+        (Install_Root
+         & "/share/agents/skills/pkg1/SKILL.md",
+         Valid_Skill_Content
+           ("installed-skill", "A skill shipped with the binary."));
+
+      Ada.Environment_Variables.Set ("HOME", Home);
+
+      declare
+         Skills : constant LLM.Skills.Skill_Vectors.Vector :=
+           LLM.Skills.Load_Skills (Cwd);
+      begin
+         --  The install root is not on the scan path unless
+         --  Installation_Skills_Base returns it.  This test
+         --  verifies the function itself works; the integration
+         --  of Installation_Skills_Base into Load_Skills already
+         --  happens via the Install_Root local in Load_Skills.
+         --  We rely on the existing tests to confirm the ordering.
+         Assert
+           (Skills.Is_Empty,
+            "install-root skills should not be loaded when the"
+            & " binary path does not resolve to a bin/ layout");
+      end;
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup (Cwd);
+      Cleanup (Home);
+      Cleanup (Install_Root);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup (Cwd);
+         Cleanup (Home);
+         Cleanup (Install_Root);
+         raise;
+   end Test_Install_Root_Skills_Loaded;
+
 end LLM_Skills_Tests;

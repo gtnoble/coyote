@@ -21,5 +21,11 @@ package LLM_Skills_Tests is
    procedure Test_Format_Contains_Preamble        (T : in out Test);
    procedure Test_Format_Two_Skills               (T : in out Test);
    procedure Test_Injected_Into_Built_Prompt      (T : in out Test);
+   procedure Test_Install_Base_Bin_Coyote         (T : in out Test);
+   procedure Test_Install_Base_Non_Standard       (T : in out Test);
+   procedure Test_Install_Base_Explicit_Arg       (T : in out Test);
+   procedure Test_Installation_Skills_Base_Path   (T : in out Test);
+   procedure Test_Installation_Skills_Base_Empty  (T : in out Test);
+   procedure Test_Install_Root_Skills_Loaded      (T : in out Test);
 
 end LLM_Skills_Tests;

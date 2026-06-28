@@ -769,7 +769,7 @@ package body Test_Suites is
         ("Format_Model_Price: all zeros returns empty string",
          Coyote_App_Tests.Test_Format_Model_Price_All_Zeros'Access));
       Result.Add_Test (App_State_Caller.Create
-        ("Format_Model_Price: in/out only produces two SI µ segments",
+        ("Format_Model_Price: in/out only produces two SI Âµ segments",
          Coyote_App_Tests.Test_Format_Model_Price_In_Out_Only'Access));
       Result.Add_Test (App_State_Caller.Create
         ("Format_Model_Price: all four fields, four SI-prefixed segments",
@@ -1120,6 +1120,24 @@ package body Test_Suites is
       Result.Add_Test (LLM_Skills_Caller.Create
         ("LLM.Skills auto-injects into Build_System_Prompt",
          LLM_Skills_Tests.Test_Injected_Into_Built_Prompt'Access));
+      Result.Add_Test (LLM_Skills_Caller.Create
+        ("LLM.Skills Install_Base derives prefix from bin/coyote",
+         LLM_Skills_Tests.Test_Install_Base_Bin_Coyote'Access));
+      Result.Add_Test (LLM_Skills_Caller.Create
+        ("LLM.Skills Install_Base returns empty for non-bin path",
+         LLM_Skills_Tests.Test_Install_Base_Non_Standard'Access));
+      Result.Add_Test (LLM_Skills_Caller.Create
+        ("LLM.Skills Install_Base uses explicit Executable arg",
+         LLM_Skills_Tests.Test_Install_Base_Explicit_Arg'Access));
+      Result.Add_Test (LLM_Skills_Caller.Create
+        ("LLM.Skills Installation_Skills_Base appends path",
+         LLM_Skills_Tests.Test_Installation_Skills_Base_Path'Access));
+      Result.Add_Test (LLM_Skills_Caller.Create
+        ("LLM.Skills Installation_Skills_Base returns empty for non-bin",
+         LLM_Skills_Tests.Test_Installation_Skills_Base_Empty'Access));
+      Result.Add_Test (LLM_Skills_Caller.Create
+        ("LLM.Skills install-root skills not loaded when bin/ absent",
+         LLM_Skills_Tests.Test_Install_Root_Skills_Loaded'Access));
 
       --  Coyote_Utils tests
       Result.Add_Test (Coyote_Utils_Caller.Create
@@ -1609,10 +1627,10 @@ package body Test_Suites is
         ("SQC: Estimate_Parameters grand mean and pooled s (Xbar/s)",
          Coyote_SQC_Statistics_Tests.Test_Estimate_Xbar_S'Access));
       Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC §14.1: 5-session varying-n dataset UCL/CL/LCL to 4 dp",
+        ("SQC Â§14.1: 5-session varying-n dataset UCL/CL/LCL to 4 dp",
          Coyote_SQC_Statistics_Tests.Test_Xbar_Known_Dataset'Access));
       Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC §14.1: 4-session p-chart dataset UCL/CL/LCL to 4 dp",
+        ("SQC Â§14.1: 4-session p-chart dataset UCL/CL/LCL to 4 dp",
          Coyote_SQC_Statistics_Tests.Test_P_Chart_Known_Dataset'Access));
       Result.Add_Test (SQC_Statistics_Caller.Create
         ("SQC: Estimate_Parameters grand p (p chart)",
@@ -1621,16 +1639,16 @@ package body Test_Suites is
         ("SQC: Estimate_Parameters all n=1 sessions -> Pooled_S = 0",
          Coyote_SQC_Statistics_Tests.Test_Estimate_N1_Only'Access));
       Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC §14.1 special: n=1 contributes to grand mean, not pooled s",
+        ("SQC Â§14.1 special: n=1 contributes to grand mean, not pooled s",
          Coyote_SQC_Statistics_Tests.Test_N1_Excluded_From_Pooled_S'Access));
       Result.Add_Test (SQC_Statistics_Caller.Create
         ("SQC: Estimate_Parameters excludes zero-thinking sessions",
          Coyote_SQC_Statistics_Tests.Test_Estimate_Zero_Thinking'Access));
       Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC §14.3: Estimate_Parameters excludes zero-tool-call sessions",
+        ("SQC Â§14.3: Estimate_Parameters excludes zero-tool-call sessions",
          Coyote_SQC_Statistics_Tests.Test_Estimate_Zero_Tool_Calls'Access));
       Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC §14.4: Per_Turn_Tool_Tokens records output tokens for tool-call turns",
+        ("SQC Â§14.4: Per_Turn_Tool_Tokens records output tokens for tool-call turns",
          Coyote_SQC_Statistics_Tests.Test_Tool_Call_Token_Values'Access));
       Result.Add_Test (SQC_Statistics_Caller.Create
         ("SQC: I chart limits well-formed for Mean_MR > 0",
@@ -1796,7 +1814,7 @@ package body Test_Suites is
         ("SQC: v3 tool failure flags set correctly",
          Coyote_SQC_Parser_Tests.Test_V3_Tool_Failure_Flags'Access));
       Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC §14.2: multi-tool turn N_Tool_Calls=2, N_Failed_Tool_Calls=1",
+        ("SQC Â§14.2: multi-tool turn N_Tool_Calls=2, N_Failed_Tool_Calls=1",
          Coyote_SQC_Parser_Tests.Test_Multi_Tool_Metrics'Access));
       Result.Add_Test (SQC_Parser_Caller.Create
         ("SQC: v3 source directory parsed from cwd",
@@ -1850,7 +1868,7 @@ package body Test_Suites is
         ("SQC: Encode_Cwd relative path",
          Coyote_SQC_Parser_Tests.Test_Encode_Cwd_Relative'Access));
       Result.Add_Test (SQC_Parser_Caller.Create
-        ("SQC §5.9: interior whitespace collapsed to single space",
+        ("SQC Â§5.9: interior whitespace collapsed to single space",
          Coyote_SQC_Parser_Tests.Test_Whitespace_Collapse'Access));
       --  Coyote_SQC workspace tests
       Result.Add_Test (SQC_Workspace_Caller.Create

@@ -1,9 +1,9 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.2
-**Date:** 2026-06-21
-**Status:** Reviewed — project control (M3 complete 2026-06-02)
+**Version:** 1.3
+**Date:** 2026-06-28
+**Status:** Reviewed ÃÂ¢ÃÂÃÂ project control (M3 complete 2026-06-02)
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
 
@@ -82,16 +82,16 @@ This model has two key properties:
 
 Errors are classified into three handling tiers:
 
-1. **Recoverable provider errors** (transient HTTP failures, rate limits) —
+1. **Recoverable provider errors** (transient HTTP failures, rate limits) ÃÂ¢ÃÂÃÂ
    the agent loop retries up to three times with exponential backoff. Each
    retry emits an `Auto_Retry_Start_Event` visible to the user.
 
 2. **Non-recoverable turn errors** (malformed JSON, authentication failure,
-   context overflow) — the agent loop terminates the current turn, records
+   context overflow) ÃÂ¢ÃÂÃÂ the agent loop terminates the current turn, records
    the error in the `App_State` protected object, and emits an error notice
    to the frontend via `Dispatch_Event`.
 
-3. **Task boundary exceptions** — any unhandled exception in `Agent_Task`
+3. **Task boundary exceptions** ÃÂ¢ÃÂÃÂ any unhandled exception in `Agent_Task`
    is caught at the task body boundary, logged to stderr, appended as an
    error notice to the frontend, and triggers a graceful shutdown sequence.
 
@@ -99,7 +99,7 @@ Errors are classified into three handling tiers:
 
 The application has two execution paths with different task structures.
 
-**Acme path** — five long-lived Ada tasks:
+**Acme path** ÃÂ¢ÃÂÃÂ five long-lived Ada tasks:
 
 | Task | Owns |
 |---|---|
@@ -109,7 +109,7 @@ The application has two execution paths with different task structures.
 | `Plumb_Thinking_Task` | `/coyote-thinking` plumb port reader |
 | `Plumb_Fork_Task` | `/coyote-fork` plumb port reader |
 
-**GUI path** — two tasks:
+**GUI path** ÃÂ¢ÃÂÃÂ two tasks:
 
 | Task | Owns |
 |---|---|
@@ -122,8 +122,8 @@ The application has two execution paths with different task structures.
 
 **GTK thread safety:** All GTK operations execute on the main Ada task. The
 `Agent_Task` communicates with the GTK main loop through two thread-safe
-protected queues: `Coyote_GUI.Updates` (agent → GTK, bounded at 8192 items)
-and `Coyote_GUI.Prompt_Queue` (GTK → agent, bounded at 64 items). A GLib
+protected queues: `Coyote_GUI.Updates` (agent ÃÂ¢ÃÂÃÂ GTK, bounded at 8192 items)
+and `Coyote_GUI.Prompt_Queue` (GTK ÃÂ¢ÃÂÃÂ agent, bounded at 64 items). A GLib
 idle callback drains `Updates` on the GTK thread.
 
 ### 3.4 External Interface Design Decisions
@@ -156,7 +156,7 @@ replaced with Pango markup when the block completes (`End_Text_Block`).
 - **GUI frontend:** GTK3 `GtkTextBuffer` with text tags for emphasis,
   code, thinking, notices, and footers. Tool calls are embedded as
   `GtkTextChildAnchor` widgets (GTK frames). Markdown is rendered via
-  libcmark-gfm → Pango markup → `Insert_Markup`.
+  libcmark-gfm ÃÂ¢ÃÂÃÂ Pango markup ÃÂ¢ÃÂÃÂ `Insert_Markup`.
 
 - **Plain frontend:** Plain UTF-8 to stdout. No ANSI escape codes.
 
@@ -180,11 +180,11 @@ replaced with Pango markup when the block completes (`End_Text_Block`).
 ### 3.7 Memory and Processing Allocation
 
 **Queue bounds:**
-- `Coyote_GUI.Updates` — bounded at 8 192 items. Each item is a
+- `Coyote_GUI.Updates` ÃÂ¢ÃÂÃÂ bounded at 8 192 items. Each item is a
   `Coyote_GUI.Update` record (kind discriminant + one Unbounded_String payload).
   The bound was chosen to allow several full streaming turns to be buffered
   without back-pressure while keeping per-session RSS impact below ~1 MB.
-- `Coyote_GUI.Prompt_Queue` — bounded at 64 items. Commands are short strings;
+- `Coyote_GUI.Prompt_Queue` ÃÂ¢ÃÂÃÂ bounded at 64 items. Commands are short strings;
   a small bound is sufficient because prompt entry is rate-limited by human
   interaction speed.
 
@@ -218,7 +218,7 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 |---|---|---|
 | `Coyote` | Entry point | `src/coyote.adb` |
 | `Coyote_App` | App state + entry procedures | `src/coyote_app.ads/.adb` |
-| `Coyote_App.Dispatch` | Event→frontend dispatch | `src/coyote_app-dispatch.ads/.adb` |
+| `Coyote_App.Dispatch` | EventÃÂ¢ÃÂÃÂfrontend dispatch | `src/coyote_app-dispatch.ads/.adb` |
 | `Coyote_App.History` | Session replay | `src/coyote_app-history.ads/.adb` |
 | `Coyote_App.Utils` | Formatting utilities + UC_* glyphs | `src/coyote_app-utils.ads/.adb` |
 | `Coyote_App.Frontend` | Abstract frontend interface | `src/coyote_app-frontend.ads` |
@@ -226,8 +226,8 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `Coyote_App.Frontend.GUI` | GTK3 frontend implementation | `src/coyote_app-frontend-gui.ads/.adb` |
 | `Coyote_App.Frontend.Plain` | Plain-text frontend implementation | `src/coyote_app-frontend-plain.ads/.adb` |
 | `Coyote_GUI` | GUI root (Update_Kind, Update record) | `src/coyote_gui/coyote_gui.ads` |
-| `Coyote_GUI.Updates` | Protected agent→GTK queue | `src/coyote_gui/coyote_gui-updates.ads/.adb` |
-| `Coyote_GUI.Prompt_Queue` | Protected GTK→agent queue | `src/coyote_gui/coyote_gui-prompt_queue.ads/.adb` |
+| `Coyote_GUI.Updates` | Protected agentÃÂ¢ÃÂÃÂGTK queue | `src/coyote_gui/coyote_gui-updates.ads/.adb` |
+| `Coyote_GUI.Prompt_Queue` | Protected GTKÃÂ¢ÃÂÃÂagent queue | `src/coyote_gui/coyote_gui-prompt_queue.ads/.adb` |
 | `Coyote_GUI.Buffer` | GtkTextBuffer wrapper + markdown rendering | `src/coyote_gui/coyote_gui-buffer.ads/.adb` |
 | `Coyote_Utils` | CLI arg resolution, file reading, session prefix stripping | `src/coyote_utils.ads/.adb` |
 | `LLM` | Root package | `src/llm/llm.ads` |
@@ -274,114 +274,114 @@ three layers:
   Coyote (coyote.adb)
   Coyote_List_Sessions (tools/coyote_list_sessions.adb)
   Coyote_Open (tools/coyote_open.adb)
-        │
-        ▼
+        ÃÂ¢ÃÂÃÂ
+        ÃÂ¢ÃÂÃÂ¼
 [Application orchestration]
-  Coyote_App ─────► Coyote_App.Frontend (abstract)
-  Coyote_App.Dispatch ──► Coyote_App.Frontend'Class
-  Coyote_App.History  ──► LLM.Session_Store, Coyote_App.Frontend'Class
+  Coyote_App ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂº Coyote_App.Frontend (abstract)
+  Coyote_App.Dispatch ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂº Coyote_App.Frontend'Class
+  Coyote_App.History  ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂº LLM.Session_Store, Coyote_App.Frontend'Class
   Coyote_App.Utils
-        │
-        ├─► Coyote_App.Frontend.Acme_Win ──► Acme.Window, Nine_P.Client
-        ├─► Coyote_App.Frontend.GUI ──► Coyote_GUI.Buffer, Coyote_GUI.Updates,
-        │                                  Coyote_GUI.Prompt_Queue
-        └─► Coyote_App.Frontend.Plain
-        │
-        ▼
+        ÃÂ¢ÃÂÃÂ
+        ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂº Coyote_App.Frontend.Acme_Win ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂº Acme.Window, Nine_P.Client
+        ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂº Coyote_App.Frontend.GUI ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂº Coyote_GUI.Buffer, Coyote_GUI.Updates,
+        ÃÂ¢ÃÂÃÂ                                  Coyote_GUI.Prompt_Queue
+        ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂº Coyote_App.Frontend.Plain
+        ÃÂ¢ÃÂÃÂ
+        ÃÂ¢ÃÂÃÂ¼
 [Agent layer]
-  LLM.Agent ──► LLM.Providers'Class, LLM.Tools, LLM.Compaction,
+  LLM.Agent ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂº LLM.Providers'Class, LLM.Tools, LLM.Compaction,
                 LLM.Session_Store, LLM.Model_Registry, LLM.Skills,
                 LLM.System_Prompt, LLM.Types, LLM.Events
-        │
-        ▼
+        ÃÂ¢ÃÂÃÂ
+        ÃÂ¢ÃÂÃÂ¼
 [Provider layer]
-  LLM.Providers.OpenAI_Completions ──► LLM.HTTP, LLM.SSE, LLM.Types
-  LLM.Providers.Anthropic_Messages ──► LLM.HTTP, LLM.SSE, LLM.Types
-  LLM.Providers.OpenRouter         ──► LLM.Providers.OpenAI_Completions
-  LLM.Providers.GitHub_Copilot     ──► LLM.Providers.OpenAI_Completions,
+  LLM.Providers.OpenAI_Completions ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂº LLM.HTTP, LLM.SSE, LLM.Types
+  LLM.Providers.Anthropic_Messages ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂº LLM.HTTP, LLM.SSE, LLM.Types
+  LLM.Providers.OpenRouter         ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂº LLM.Providers.OpenAI_Completions
+  LLM.Providers.GitHub_Copilot     ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂº LLM.Providers.OpenAI_Completions,
                                         LLM.Providers.Anthropic_Messages,
                                         LLM.Auth.GitHub_Copilot
-  LLM.Providers.OpenCode_Go        ──► LLM.Providers.OpenAI_Completions,
+  LLM.Providers.OpenCode_Go        ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂº LLM.Providers.OpenAI_Completions,
                                         LLM.Providers.Anthropic_Messages
-        │
-        ▼
+        ÃÂ¢ÃÂÃÂ
+        ÃÂ¢ÃÂÃÂ¼
 [Infrastructure layer]
-  LLM.HTTP ──► LLM.HTTP.Curl_Binding (libcurl C binding)
+  LLM.HTTP ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂº LLM.HTTP.Curl_Binding (libcurl C binding)
   LLM.SSE  (pure parser, no external dependencies)
-  Nine_P.Client ──► Nine_P.Proto
-  Coyote_Cmark ──► coyote_cmark_c.c (C shim for libcmark-gfm)
+  Nine_P.Client ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂº Nine_P.Proto
+  Coyote_Cmark ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂº coyote_cmark_c.c (C shim for libcmark-gfm)
 ```
 
-### 4.3 Dynamic Relationships — Acme Path Concept of Execution
+### 4.3 Dynamic Relationships ÃÂ¢ÃÂÃÂ Acme Path Concept of Execution
 
 ```
 [startup]
   Coyote.main
-    → parse CLI args
-    → detect frontend (Acme)
-    → Coyote_App.Run(Opts)
+    ÃÂ¢ÃÂÃÂ parse CLI args
+    ÃÂ¢ÃÂÃÂ detect frontend (Acme)
+    ÃÂ¢ÃÂÃÂ Coyote_App.Run(Opts)
 
 [Coyote_App.Run]
-  → create App_State (protected)
-  → create Acme_Win frontend
-  → spawn Agent_Task
-  → spawn Acme_Event_Task   (reads /winid/event via 9P)
-  → spawn Plumb_Model_Task  (reads /coyote-model plumb port)
-  → spawn Plumb_Thinking_Task
-  → spawn Plumb_Fork_Task
-  → main task blocks on App_State.Wait_Shutdown
+  ÃÂ¢ÃÂÃÂ create App_State (protected)
+  ÃÂ¢ÃÂÃÂ create Acme_Win frontend
+  ÃÂ¢ÃÂÃÂ spawn Agent_Task
+  ÃÂ¢ÃÂÃÂ spawn Acme_Event_Task   (reads /winid/event via 9P)
+  ÃÂ¢ÃÂÃÂ spawn Plumb_Model_Task  (reads /coyote-model plumb port)
+  ÃÂ¢ÃÂÃÂ spawn Plumb_Thinking_Task
+  ÃÂ¢ÃÂÃÂ spawn Plumb_Fork_Task
+  ÃÂ¢ÃÂÃÂ main task blocks on App_State.Wait_Shutdown
 
 [Agent_Task loop]
-  → LLM.Agent.Create(S, ...)   ; load settings, populate model registry
-  → loop:
-      prompt ← Frontend.Read_Prompt    ; blocks on Acme_Event_Task signal
+  ÃÂ¢ÃÂÃÂ LLM.Agent.Create(S, ...)   ; load settings, populate model registry
+  ÃÂ¢ÃÂÃÂ loop:
+      prompt ÃÂ¢ÃÂÃÂ Frontend.Read_Prompt    ; blocks on Acme_Event_Task signal
       LLM.Agent.Run_Prompt(S, prompt, On_Event => Dispatch_Event'Access)
-        → build system prompt (skills, settings)
-        → build request JSON
-        → LLM.HTTP.Post_Stream → SSE → provider events
-        → On_Event called for each event (synchronous)
-        → if tool_use: execute tool, append result, repeat LLM call
-        → persist each turn to JSONL
+        ÃÂ¢ÃÂÃÂ build system prompt (skills, settings)
+        ÃÂ¢ÃÂÃÂ build request JSON
+        ÃÂ¢ÃÂÃÂ LLM.HTTP.Post_Stream ÃÂ¢ÃÂÃÂ SSE ÃÂ¢ÃÂÃÂ provider events
+        ÃÂ¢ÃÂÃÂ On_Event called for each event (synchronous)
+        ÃÂ¢ÃÂÃÂ if tool_use: execute tool, append result, repeat LLM call
+        ÃÂ¢ÃÂÃÂ persist each turn to JSONL
       if App_State.Was_Aborted: exit loop
 
 [Acme_Event_Task]
-  → reads event file in /winid/event
-  → "Send" button-2 → writes prompt to App_State, signals Agent_Task
-  → "Stop" button-2 → sets Abort_Flag in LLM.Tools
-  → other commands → handled inline or forwarded to Agent_Task via App_State
+  ÃÂ¢ÃÂÃÂ reads event file in /winid/event
+  ÃÂ¢ÃÂÃÂ "Send" button-2 ÃÂ¢ÃÂÃÂ writes prompt to App_State, signals Agent_Task
+  ÃÂ¢ÃÂÃÂ "Stop" button-2 ÃÂ¢ÃÂÃÂ sets Abort_Flag in LLM.Tools
+  ÃÂ¢ÃÂÃÂ other commands ÃÂ¢ÃÂÃÂ handled inline or forwarded to Agent_Task via App_State
 ```
 
-### 4.4 Dynamic Relationships — GUI Path Concept of Execution
+### 4.4 Dynamic Relationships ÃÂ¢ÃÂÃÂ GUI Path Concept of Execution
 
 ```
 [startup]
   Coyote.main
-    → parse CLI args
-    → detect frontend (GUI)
-    → Coyote_App.Run_GUI(Opts)
+    ÃÂ¢ÃÂÃÂ parse CLI args
+    ÃÂ¢ÃÂÃÂ detect frontend (GUI)
+    ÃÂ¢ÃÂÃÂ Coyote_App.Run_GUI(Opts)
 
 [Coyote_App.Run_GUI]
-  → Gtk.Main.Init
-  → Frontend.GUI.Create (builds GtkApplicationWindow)
-  → spawn Agent_Task
-  → Gtk.Main.Main (blocks main task on GTK event loop)
+  ÃÂ¢ÃÂÃÂ Gtk.Main.Init
+  ÃÂ¢ÃÂÃÂ Frontend.GUI.Create (builds GtkApplicationWindow)
+  ÃÂ¢ÃÂÃÂ spawn Agent_Task
+  ÃÂ¢ÃÂÃÂ Gtk.Main.Main (blocks main task on GTK event loop)
 
 [Agent_Task loop]
-  → LLM.Agent.Create(S, ...)
-  → loop:
-      prompt ← Frontend.Read_Prompt
-           → blocks on Coyote_GUI.Prompt_Queue.Dequeue
-      if prompt starts with ':' → Execute_GUI_Command
+  ÃÂ¢ÃÂÃÂ LLM.Agent.Create(S, ...)
+  ÃÂ¢ÃÂÃÂ loop:
+      prompt ÃÂ¢ÃÂÃÂ Frontend.Read_Prompt
+           ÃÂ¢ÃÂÃÂ blocks on Coyote_GUI.Prompt_Queue.Dequeue
+      if prompt starts with ':' ÃÂ¢ÃÂÃÂ Execute_GUI_Command
       else LLM.Agent.Run_Prompt(S, prompt, On_Event => Dispatch_Event'Access)
-           → On_Event → Dispatch_Event
-                → Coyote_GUI.Updates.Enqueue(update)
-           → GTK idle callback drains Updates queue
-                → Coyote_GUI.Buffer operations on GtkTextBuffer
+           ÃÂ¢ÃÂÃÂ On_Event ÃÂ¢ÃÂÃÂ Dispatch_Event
+                ÃÂ¢ÃÂÃÂ Coyote_GUI.Updates.Enqueue(update)
+           ÃÂ¢ÃÂÃÂ GTK idle callback drains Updates queue
+                ÃÂ¢ÃÂÃÂ Coyote_GUI.Buffer operations on GtkTextBuffer
 
 [GTK callbacks]
-  → Send button / Enter key → Coyote_GUI.Prompt_Queue.Enqueue(prompt_text)
-  → Stop menu → LLM.Tools.Abort_Flag.Set
-  → Compact / Pause / Resume menu → Coyote_GUI.Prompt_Queue.Enqueue(":compact" etc.)
+  ÃÂ¢ÃÂÃÂ Send button / Enter key ÃÂ¢ÃÂÃÂ Coyote_GUI.Prompt_Queue.Enqueue(prompt_text)
+  ÃÂ¢ÃÂÃÂ Stop menu ÃÂ¢ÃÂÃÂ LLM.Tools.Abort_Flag.Set
+  ÃÂ¢ÃÂÃÂ Compact / Pause / Resume menu ÃÂ¢ÃÂÃÂ Coyote_GUI.Prompt_Queue.Enqueue(":compact" etc.)
 ```
 
 ### 4.5 Design Decisions Affecting Multiple Units
@@ -464,11 +464,11 @@ level; error message goes to stderr; exit status is set to Failure.
 
 **`App_State` protected type:**
 All fields are protected by Ada's monitor semantics. Key fields:
-- `Session_Id`, `Current_Model`, `Current_Thinking` — identity and model state
-- `Is_Streaming`, `Is_Compacting`, `Was_Aborted` — agent loop phase flags
-- `Is_Paused`, `Is_Pause_Armed` — pause/resume handshake
-- `Turn_Count`, `Turn_Cost_Dmil`, `Session_Cost_Dmil` — statistics accumulators
-- `Context_Window` — set by Model_Select_Event; used for compaction threshold
+- `Session_Id`, `Current_Model`, `Current_Thinking` ÃÂ¢ÃÂÃÂ identity and model state
+- `Is_Streaming`, `Is_Compacting`, `Was_Aborted` ÃÂ¢ÃÂÃÂ agent loop phase flags
+- `Is_Paused`, `Is_Pause_Armed` ÃÂ¢ÃÂÃÂ pause/resume handshake
+- `Turn_Count`, `Turn_Cost_Dmil`, `Session_Cost_Dmil` ÃÂ¢ÃÂÃÂ statistics accumulators
+- `Context_Window` ÃÂ¢ÃÂÃÂ set by Model_Select_Event; used for compaction threshold
 
 **`Run` procedure:** Creates the `Acme_Win` frontend, spawns the five tasks,
 then blocks on `App_State.Wait_Shutdown`.
@@ -512,16 +512,16 @@ spawns `Agent_Task`, then calls `Gtk.Main.Main`.
 ### 5.3.5 Thinking-text buffering and collapsing
 
 **Problem:** SSE streaming from LLM providers delivers thinking tokens as short
-chunks (1–5 words) with leading/trailing newlines and internal line breaks.
+chunks (1ÃÂ¢ÃÂÃÂ5 words) with leading/trailing newlines and internal line breaks.
 Naive per-chunk rendering produces illegible fragmented output:
 ```
-│ The
-│  user
-│  wants me
+ÃÂ¢ÃÂÃÂ The
+ÃÂ¢ÃÂÃÂ  user
+ÃÂ¢ÃÂÃÂ  wants me
 ```
 instead of flowing prose:
 ```
-│ The user wants me to…
+ÃÂ¢ÃÂÃÂ The user wants me toÃÂ¢ÃÂÃÂ¦
 ```
 
 **Solution (PCR-022 resolution, 2026-06-07; revised PCR-039, 2026-06-27):**
@@ -529,12 +529,12 @@ Each frontend (Acme and GUI) collapses each thinking delta as it arrives
 and emits it immediately, producing flowing prose without buffering.
 
 **Collapsing algorithm:**
-- Spaces are treated as content, not whitespace — they carry word-boundary
+- Spaces are treated as content, not whitespace ÃÂ¢ÃÂÃÂ they carry word-boundary
   information from providers like Anthropic that delimit tokens with
   leading spaces (e.g. `" the"`, `" edits"`)
-- Single `\n` or `\r` → collapsed to space (restores word boundaries across
+- Single `\n` or `\r` ÃÂ¢ÃÂÃÂ collapsed to space (restores word boundaries across
   OpenAI-style deltas that terminate each token with trailing `\n`)
-- `\n\n` (paragraph breaks) → preserved as blank line
+- `\n\n` (paragraph breaks) ÃÂ¢ÃÂÃÂ preserved as blank line
 - Leading and trailing LF, CR, HT trimmed; spaces preserved
 - Implemented in `Coyote_App.Utils.Collapse_Thinking_Delta` (pure function)
 
@@ -542,10 +542,10 @@ and emits it immediately, producing flowing prose without buffering.
 - `Begin_Thinking`: Set `Prefix_Emitted` flag to false, mark thinking active
 - `Append_Thinking`: Collapse delta via `Collapse_Thinking_Delta`, emit with
   box-drawing prefix on first call; subsequent deltas are concatenated
-  directly (no inter-delta separator — spacing is handled by the collapse
+  directly (no inter-delta separator ÃÂ¢ÃÂÃÂ spacing is handled by the collapse
   function itself)
 - `End_Thinking`: Append final blank line, clear thinking state
-- No `Last_Ended_With_LF` tracking — the collapse function produces
+- No `Last_Ended_With_LF` tracking ÃÂ¢ÃÂÃÂ the collapse function produces
   self-contained output with all spacing resolved internally
 
 **Architectural rationale:** Display layer owns rendering semantics. Providers
@@ -556,9 +556,9 @@ OpenAI-style (trailing-`\n`) and Anthropic-style (leading-space) deltas
 into concatenable prose fragments.
 
 **Test coverage:** 8 `Collapse_Thinking_Delta` unit tests in
-`test/src/collapse_utils_tests.adb` cover all edge cases: single-LF→space,
+`test/src/collapse_utils_tests.adb` cover all edge cases: single-LFÃÂ¢ÃÂÃÂspace,
 paragraph preservation, empty input, no-LF verbatim, space preservation,
-OpenAI trailing-LF stripping, OpenAI mid-stream LFs→spaces, and LF/HT-only
+OpenAI trailing-LF stripping, OpenAI mid-stream LFsÃÂ¢ÃÂÃÂspaces, and LF/HT-only
 whitespace.  `Test_Dispatch_Thinking_Delta` in
 `test/src/dispatch_tests.adb` verifies end-to-end thinking-delta dispatch.
 
@@ -585,7 +585,7 @@ the GUI frontend uses the Updates queue to cross to the GTK thread).
 agentic loop for one prompt.
 
 **`Session` record fields (private):**
-- `History: LLM.Types.Message_Vectors.Vector` — in-memory conversation
+- `History: LLM.Types.Message_Vectors.Vector` ÃÂ¢ÃÂÃÂ in-memory conversation
 - `Session_Id: Unbounded_String`
 - `Model_Info: LLM.Model_Registry.Model_Info`
 - `Settings: LLM.Settings.Config`
@@ -596,7 +596,7 @@ agentic loop for one prompt.
 **`Create` procedure:**
 1. Load settings from `~/.coyote/settings.json` and `~/.coyote/models.json`.
 2. Refresh each provider's model catalogue (Copilot, OpenRouter, OpenCode).
-3. Select the model: `--model` arg → settings → first registry entry.
+3. Select the model: `--model` arg ÃÂ¢ÃÂÃÂ settings ÃÂ¢ÃÂÃÂ first registry entry.
 4. Create or resume session via `LLM.Session_Store`.
 5. Load conversation history if resuming.
 6. Build the system prompt (static preamble + skills + agent arg).
@@ -616,7 +616,7 @@ loop:
   if no tool calls in response: exit
   for each tool call:
     On_Event(Tool_Execution_Start_Event)
-    result ← execute tool (LLM.Tools.Shell.Execute or error if No_Tools)
+    result ÃÂ¢ÃÂÃÂ execute tool (LLM.Tools.Shell.Execute or error if No_Tools)
     On_Event(Tool_Execution_End_Event)
     append tool result to History
     persist tool result
@@ -647,14 +647,14 @@ extended by `OpenRouter`.
 3. Set provider-specific headers (Authorization, Content-Type, model ID).
 4. POST via `LLM.HTTP.Post_Stream`.
 5. For each SSE `data:` line: parse JSON delta; dispatch to `On_Event`:
-   - `content_delta` → `Message_Update_Event (Text_Delta)`
-   - `tool_call delta` → `Message_Update_Event (Tool_Call_Delta)`
-   - `[DONE]` → `Message_End_Event`
+   - `content_delta` ÃÂ¢ÃÂÃÂ `Message_Update_Event (Text_Delta)`
+   - `tool_call delta` ÃÂ¢ÃÂÃÂ `Message_Update_Event (Tool_Call_Delta)`
+   - `[DONE]` ÃÂ¢ÃÂÃÂ `Message_End_Event`
 6. Special case for image tool results: split into text stub + follow-up
    user message with `image_url` (OAI does not accept vision in role=tool).
 
 
-**`Wire_Format` field:** `"openai-completions"` — used by `LLM.Agent` to
+**`Wire_Format` field:** `"openai-completions"` ÃÂ¢ÃÂÃÂ used by `LLM.Agent` to
 determine the `tools` JSON schema shape.
 
 **Cache breakpoints:** `Build_Request_Body` places `cache_control` markers
@@ -669,7 +669,7 @@ prefix caching with no change in behaviour.
 **`Customize_Request` (non-overriding):** Maps `Thinking_Level` to the
 OpenAI `reasoning.effort` request field (`"low"`, `"medium"`, `"high"`).
 When `Thinking` is `Off` this is a no-op.  This base implementation applies
-to all providers routing through the OpenAI completions wire format —
+to all providers routing through the OpenAI completions wire format ÃÂ¢ÃÂÃÂ
 OpenRouter, GitHub Copilot (OpenAI-wire path), and OpenCode Go (OpenAI-wire
 path).  Descendants may override to add provider-specific logic.
 ---
@@ -686,12 +686,12 @@ path).  Descendants may override to add provider-specific logic.
    `anthropic-beta: interleaved-thinking-2025-05-14` when thinking enabled).
 4. POST via `LLM.HTTP.Post_Stream`.
 5. For each SSE event type:
-   - `content_block_start` with `type=thinking` → `Thinking_Start`
-   - `content_block_delta` with `thinking_delta` → `Thinking_Delta`
-   - `content_block_start` with `type=text` → `Text_Start`
-   - `content_block_delta` with `text_delta` → `Text_Delta`
-   - `content_block_stop` → `Text_End` or `Thinking_End`
-   - `message_delta` with `stop_reason` → `Message_End_Event`
+   - `content_block_start` with `type=thinking` ÃÂ¢ÃÂÃÂ `Thinking_Start`
+   - `content_block_delta` with `thinking_delta` ÃÂ¢ÃÂÃÂ `Thinking_Delta`
+   - `content_block_start` with `type=text` ÃÂ¢ÃÂÃÂ `Text_Start`
+   - `content_block_delta` with `text_delta` ÃÂ¢ÃÂÃÂ `Text_Delta`
+   - `content_block_stop` ÃÂ¢ÃÂÃÂ `Text_End` or `Thinking_End`
+   - `message_delta` with `stop_reason` ÃÂ¢ÃÂÃÂ `Message_End_Event`
 
 ---
 
@@ -702,9 +702,9 @@ path).  Descendants may override to add provider-specific logic.
 **`Send` procedure:**
 1. Load Copilot credentials from `~/.coyote/auth.json` and call
    `Ensure_Valid` to refresh the access token only when a request
-   is actually made — no token refresh occurs at startup.
-2. Inspect model ID: if it matches a known Claude model pattern → use
-   `Anthropic_Messages.Provider`; otherwise → use `OpenAI_Completions.Provider`.
+   is actually made ÃÂ¢ÃÂÃÂ no token refresh occurs at startup.
+2. Inspect model ID: if it matches a known Claude model pattern ÃÂ¢ÃÂÃÂ use
+   `Anthropic_Messages.Provider`; otherwise ÃÂ¢ÃÂÃÂ use `OpenAI_Completions.Provider`.
 3. Load the model catalogue (`Load_Catalogue`) and construct the
    appropriate delegate with Copilot's base URL and token.
 4. Forward the call.  If the completions API returns HTTP 401 despite
@@ -787,10 +787,11 @@ message to retain.
 
 ### 5.13 `LLM.Skills`
 
-**Purpose:** Discovers SKILL.md files from four roots and formats them for
+**Purpose:** Discovers SKILL.md files from five roots and formats them for
 inclusion in the system prompt.
 
 **Discovery order:** `~/.coyote/skills/`, `~/.agents/skills/`,
+`$BASE/share/agents/skills/`,
 `{CWD}/.coyote/skills/`, `{CWD}/.agents/skills/`. Within each root, all
 `*/SKILL.md` paths are enumerated. Project-local skills shadow global skills
 of the same `name` field.
@@ -809,12 +810,12 @@ block containing `<skill>` entries for each discovered skill, or `""` if none.
 tool-frame embedding in the GUI conversation view.
 
 **Text tags defined:**
-- `thinking` — dim/italic left-gutter style for thinking blocks
-- `notice_info`, `notice_warning`, `notice_error` — coloured inline notices
-- `turn_footer` — smaller/dimmer turn statistics line
-- `code` — monospace for inline code and fenced blocks
-- `bold`, `italic`, `strikethrough`, `link` — standard GFM formatting
-- `blockquote` — reduced opacity
+- `thinking` ÃÂ¢ÃÂÃÂ dim/italic left-gutter style for thinking blocks
+- `notice_info`, `notice_warning`, `notice_error` ÃÂ¢ÃÂÃÂ coloured inline notices
+- `turn_footer` ÃÂ¢ÃÂÃÂ smaller/dimmer turn statistics line
+- `code` ÃÂ¢ÃÂÃÂ monospace for inline code and fenced blocks
+- `bold`, `italic`, `strikethrough`, `link` ÃÂ¢ÃÂÃÂ standard GFM formatting
+- `blockquote` ÃÂ¢ÃÂÃÂ reduced opacity
 
 **Markdown rendering pipeline (`Insert_Markup`):**
 1. Raw streamed text is appended as plain text by `Append_Text`.
@@ -828,9 +829,9 @@ tool-frame embedding in the GUI conversation view.
 **Tool-frame embedding:**
 - `Begin_Tool` creates a `GtkTextChildAnchor` at the current insert position;
   inserts a `GtkFrame` containing a `GtkLabel` with the tool name and a
-  ⏳ pending indicator.
+  ÃÂ¢ÃÂÃÂ³ pending indicator.
 - `End_Tool` locates the frame by `Tool_Id` (stored in a lookup table), updates
-  the label icon (✓ / ✗ / ✕) and optionally shows an error preview.
+  the label icon (ÃÂ¢ÃÂÃÂ / ÃÂ¢ÃÂÃÂ / ÃÂ¢ÃÂÃÂ) and optionally shows an error preview.
 
 ---
 
@@ -860,15 +861,15 @@ three extensions attached before parsing.
 session store, and tools.
 
 **Key types:**
-- `Role_Type` — enumeration: `User`, `Assistant`, `Tool_Result`.
-- `Content_Block` — discriminated record covering: `Text` (plain string),
+- `Role_Type` ÃÂ¢ÃÂÃÂ enumeration: `User`, `Assistant`, `Tool_Result`.
+- `Content_Block` ÃÂ¢ÃÂÃÂ discriminated record covering: `Text` (plain string),
   `Thinking` (reasoning block with signature), `Tool_Call` (id, name, arguments
   JSON string), `Tool_Result` (tool_call_id, content string, is_error flag,
   media_type), `Image` (base64 data + media_type).
-- `Content_Block_Vectors.Vector` — ordered sequence of content blocks in one message.
-- `Message` — record: role, content blocks, optional stop_reason, optional usage
+- `Content_Block_Vectors.Vector` ÃÂ¢ÃÂÃÂ ordered sequence of content blocks in one message.
+- `Message` ÃÂ¢ÃÂÃÂ record: role, content blocks, optional stop_reason, optional usage
   (input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens).
-- `Message_Vectors.Vector` — the conversation history type held by `LLM.Agent`.
+- `Message_Vectors.Vector` ÃÂ¢ÃÂÃÂ the conversation history type held by `LLM.Agent`.
 
 **No logic:** `LLM.Types` contains only type definitions and default-initialisation
 expressions. No subprograms are declared.
@@ -884,7 +885,7 @@ by provider adapters and consumed by `Dispatch_Event`.
 
 | Type | Payload | Meaning |
 |---|---|---|
-| `Agent_Start_Event` | — | Agent turn beginning |
+| `Agent_Start_Event` | ÃÂ¢ÃÂÃÂ | Agent turn beginning |
 | `Agent_End_Event` | `Was_Aborted : Boolean` | Agent turn ending |
 | `Message_Update_Event` | `Kind : Update_Kind`; `Text : String`; `Tool_Id : String` | Streaming token or tool delta |
 | `Message_End_Event` | usage fields | Provider message completed |
@@ -896,8 +897,8 @@ by provider adapters and consumed by `Dispatch_Event`.
 | `Auto_Retry_Start_Event` | attempt number, reason | Transient error retry |
 | `Auto_Compaction_Start_Event` | token count | Compaction beginning |
 | `Auto_Compaction_End_Event` | tokens saved | Compaction complete |
-| `Agent_Paused_Event` | — | Agent pause entered |
-| `Agent_Resumed_Event` | — | Agent resumed from pause |
+| `Agent_Paused_Event` | ÃÂ¢ÃÂÃÂ | Agent pause entered |
+| `Agent_Resumed_Event` | ÃÂ¢ÃÂÃÂ | Agent resumed from pause |
 
 **Design constraint:** All event types are concrete; dispatching uses Ada
 classwide (`Agent_Event'Class`). Events are value types (not heap-allocated in
@@ -925,17 +926,17 @@ for each complete SSE `data:` line, stripping the `data:` prefix.
 `~/.coyote/settings.json` and `~/.coyote/models.json`.
 
 **`Config` record fields:**
-- `Default_Model_Provider`, `Default_Model_Id` — from `settings.json`
+- `Default_Model_Provider`, `Default_Model_Id` ÃÂ¢ÃÂÃÂ from `settings.json`
   `"model"` field.
-- `Thinking_Level` — `"auto"`, `"none"`, or a budget string; from settings.
-- `No_Tools` — boolean; from `--no-tools` flag or settings.
-- `Compact_Settings` — `LLM.Compaction.Compact_Settings`; from settings.
+- `Thinking_Level` ÃÂ¢ÃÂÃÂ `"auto"`, `"none"`, or a budget string; from settings.
+- `No_Tools` ÃÂ¢ÃÂÃÂ boolean; from `--no-tools` flag or settings.
+- `Compact_Settings` ÃÂ¢ÃÂÃÂ `LLM.Compaction.Compact_Settings`; from settings.
 - Raw model entries list from `models.json`.
 
 **`Load` procedure:** Reads and parses both JSON files. Missing files produce
 default values; malformed JSON is logged to stderr and defaults are used.
 
-**`Resolve_Api_Key (Provider : String) → String`:** Checks in order:
+**`Resolve_Api_Key (Provider : String) ÃÂ¢ÃÂÃÂ String`:** Checks in order:
 (1) literal `apiKey` in models.json entry, (2) `${ENV_VAR}` interpolation,
 (3) `Standard_Env_Name` environment variable lookup.
 
@@ -982,13 +983,13 @@ a non-recoverable turn error.
 **`Model_Info` record:** provider, model_id, display_name, context_window,
 wire_format (`"openai-completions"` or `"anthropic-messages"`), supports_thinking.
 
-**`Available_Models → Model_Info_Array`:** Returns all registered models from
+**`Available_Models ÃÂ¢ÃÂÃÂ Model_Info_Array`:** Returns all registered models from
 all providers for which an API key is present.
 
 **`Refresh_GitHub_Copilot`:** Uses the access token already stored in
 `~/.coyote/auth.json` when it is present and non-expired (checked via
 `LLM.Auth.GitHub_Copilot.Token_Expired`).  No live token refresh is
-performed at startup — token refresh is deferred to the provider's `Send`.
+performed at startup ÃÂ¢ÃÂÃÂ token refresh is deferred to the provider's `Send`.
 The catalogue load (`Load_Catalogue`) is wrapped in an exception handler;
 any failure (network error, expired subscription, 401 Unauthorized, JSON
 parse error) is silently swallowed, leaving the Copilot portion of the
@@ -997,7 +998,7 @@ absent, the procedure returns early without touching the registry.
 
 **`Lookup` for `"github-copilot"`:** Returns a `Default_GitHub_Copilot_Model`
 with conservative limits and a model-ID-based wire-format heuristic: model
-IDs containing `"claude"` → `"anthropic-messages"`, all others →
+IDs containing `"claude"` ÃÂ¢ÃÂÃÂ `"anthropic-messages"`, all others ÃÂ¢ÃÂÃÂ
 `"openai-completions"`.  `Not_Found` is no longer raised for unknown
 Copilot model IDs, so the agent can start and operate even when the Copilot
 catalogue has not been loaded.
@@ -1033,7 +1034,7 @@ OpenRouter-specific base URL and request customisation.
 sets the `HTTP-Referer` and `X-Title` headers required by OpenRouter.
 
 **`Customize_Request` (inherited):** Reasoning-effort configuration is
-inherited from the base `OpenAI_Completions` provider (§5.6).  OpenRouter
+inherited from the base `OpenAI_Completions` provider (ÃÂÃÂ§5.6).  OpenRouter
 no longer overrides `Customize_Request`; the base implementation maps
 `Thinking_Level` to `reasoning.effort` for all OpenAI-compatible providers.
 
@@ -1051,8 +1052,8 @@ no longer overrides `Customize_Request`; the base implementation maps
 model ID, in the same pattern as GitHub Copilot.
 
 **`Send` procedure:**
-1. Inspect model ID: Claude patterns → `Anthropic_Messages.Provider`; all
-   others → `OpenAI_Completions.Provider`.
+1. Inspect model ID: Claude patterns ÃÂ¢ÃÂÃÂ `Anthropic_Messages.Provider`; all
+   others ÃÂ¢ÃÂÃÂ `OpenAI_Completions.Provider`.
 2. Construct the delegate with OpenCode Go's base URL (read from settings or
    default `http://localhost:2710`).
 3. Forward the call.
@@ -1067,9 +1068,9 @@ model ID, in the same pattern as GitHub Copilot.
    `~/.coyote/openrouter_models_cache.json`).  Matching is by normalised
    model-ID base name (provider prefix stripped).
 3. Populates per-model `Model_Info` records from the matching OpenRouter
-   entry: `context_window` ← `context_length`,
-   `max_tokens` ← `top_provider.max_completion_tokens`,
-   `Reasoning` ← presence of `"reasoning"` in `supported_parameters`,
+   entry: `context_window` ÃÂ¢ÃÂÃÂ `context_length`,
+   `max_tokens` ÃÂ¢ÃÂÃÂ `top_provider.max_completion_tokens`,
+   `Reasoning` ÃÂ¢ÃÂÃÂ presence of `"reasoning"` in `supported_parameters`,
    pricing sub-fields from the `pricing` object.
 4. When a model is not found on OpenRouter, conservative defaults are used
    (context window 128,000, max tokens 16,384, no reasoning).  The
@@ -1108,7 +1109,7 @@ unless `No_Tools` is true.
 **`Result_Threshold` constant:** 200 000 bytes. Tool results larger than this
 are truncated before being sent to the provider.
 
-**`Truncated (Result : String; Path : out String) → String`:** Writes the
+**`Truncated (Result : String; Path : out String) ÃÂ¢ÃÂÃÂ String`:** Writes the
 full result to a temp file under `/tmp/coyote_tool_<uuid>`, returns a
 truncated string with a notice appended indicating the path where the full
 result was written.
@@ -1122,11 +1123,11 @@ at session end.
 
 **Purpose:** Constructs the complete system prompt string from its parts.
 
-**`Build (Settings, Skills_Block, Agent_Text) → String`:** Concatenates:
+**`Build (Settings, Skills_Block, Agent_Text) ÃÂ¢ÃÂÃÂ String`:** Concatenates:
 1. Static preamble (role description, tool usage instructions, date, CWD).
-2. `Skills_Block` — formatted `<available_skills>` XML block from
+2. `Skills_Block` ÃÂ¢ÃÂÃÂ formatted `<available_skills>` XML block from
    `LLM.Skills.Format_Skills_For_Prompt`.
-3. `Agent_Text` — content of `--agent` argument (raw text or file content).
+3. `Agent_Text` ÃÂ¢ÃÂÃÂ content of `--agent` argument (raw text or file content).
 
 Returns the concatenated string. All parts are optional; absent parts contribute
 empty strings.
@@ -1140,8 +1141,8 @@ empty strings.
 **`Replay (Store : LLM.Session_Store.Session_File;
             Frontend : Coyote_App.Frontend.Instance'Class)`:**
 Reads each record from the JSONL file and calls the appropriate `Frontend`
-primitive to render it — text blocks, tool calls, turn footers, model-change
-notices — in the order they appear in the file. Skips compaction records
+primitive to render it ÃÂ¢ÃÂÃÂ text blocks, tool calls, turn footers, model-change
+notices ÃÂ¢ÃÂÃÂ in the order they appear in the file. Skips compaction records
 (they have no displayable content).
 
 Used at startup when `--session UUID` is supplied: the user sees the prior
@@ -1154,23 +1155,23 @@ conversation rendered before the first new prompt.
 **Purpose:** Formatting helpers and Unicode glyph constants for all frontends.
 
 **`UC_*` constants:** Named constants for multi-byte UTF-8 glyphs used in
-the text UI (bullet `•`, gear `⚙`, check `✓`, cross `✗`, hourglass `⏳`,
-ellipsis `…`, box-drawing characters, etc.). Defined as `String` values using
+the text UI (bullet `ÃÂ¢ÃÂÃÂ¢`, gear `ÃÂ¢ÃÂÃÂ`, check `ÃÂ¢ÃÂÃÂ`, cross `ÃÂ¢ÃÂÃÂ`, hourglass `ÃÂ¢ÃÂÃÂ³`,
+ellipsis `ÃÂ¢ÃÂÃÂ¦`, box-drawing characters, etc.). Defined as `String` values using
 `Character'Val` for each byte, because Ada `Character` is Latin-1 and code
 points > 255 cannot appear as character literals.
 
 **Formatting helpers:**
-- `Format_Cost (Dmil : Natural) → String` — formats deci-millicent cost values
+- `Format_Cost (Dmil : Natural) ÃÂ¢ÃÂÃÂ String` ÃÂ¢ÃÂÃÂ formats deci-millicent cost values
   as `$0.0000` strings.
-- `Format_Duration (Seconds : Duration) → String` — humanises durations.
-- `Truncate_Middle (S : String; Max_Len : Natural) → String` — truncates long
+- `Format_Duration (Seconds : Duration) ÃÂ¢ÃÂÃÂ String` ÃÂ¢ÃÂÃÂ humanises durations.
+- `Truncate_Middle (S : String; Max_Len : Natural) ÃÂ¢ÃÂÃÂ String` ÃÂ¢ÃÂÃÂ truncates long
   strings with a middle ellipsis.
 - `Format_Turn_Summary (Input_Tokens, Output_Tokens, Ctx_Window, Model_Text,
-  Turn_Cost_Dmil, Session_Cost_Dmil, Stop_Reason_Text) → String` — builds the
+  Turn_Cost_Dmil, Session_Cost_Dmil, Stop_Reason_Text) ÃÂ¢ÃÂÃÂ String` ÃÂ¢ÃÂÃÂ builds the
   bracketed per-turn summary line (e.g. `[ctx 24k/400k (6%) | ^537 out | stop]`).
   The `Stop_Reason_Text` parameter (added v1.7) displays the provider stop reason
   (`stop`, `length`, `toolUse`, `aborted`, `error`, `unknown`) when non-empty.
-- `Format_Turn_Footer (Turn_N, UUID, PID, ...) → String` — wraps the summary
+- `Format_Turn_Footer (Turn_N, UUID, PID, ...) ÃÂ¢ÃÂÃÂ String` ÃÂ¢ÃÂÃÂ wraps the summary
   with a `coyote-fork+` plumb token and a double-line separator.
 
 ---
@@ -1184,15 +1185,15 @@ Unicode-glyph-prefixed text in the acme window body.
 Tracks `Current_Tool_Name` for the `End_Tool` label.
 
 **Key rendering choices:**
-- `Append_Text` — writes tokens directly to `/winid/data` via 9P append.
+- `Append_Text` ÃÂ¢ÃÂÃÂ writes tokens directly to `/winid/data` via 9P append.
   Sets addr to `$` before each write so text lands at the end.
-- `Begin_Tool` — writes a tool-header line with the gear glyph, tool name,
+- `Begin_Tool` ÃÂ¢ÃÂÃÂ writes a tool-header line with the gear glyph, tool name,
   and a plumb token (`coyote-session+UUID/tool/TOKEN`) for button-3 navigation.
-- `End_Tool` — appends check (✓) or cross (✗) and elapsed time.
-- `Append_Notice` — prefixes line with `[!]` (error), `[~]` (warning), or `[i]` (info).
-- `Read_Prompt` — blocks on `App_State.Wait_Prompt` (entry called by
+- `End_Tool` ÃÂ¢ÃÂÃÂ appends check (ÃÂ¢ÃÂÃÂ) or cross (ÃÂ¢ÃÂÃÂ) and elapsed time.
+- `Append_Notice` ÃÂ¢ÃÂÃÂ prefixes line with `[!]` (error), `[~]` (warning), or `[i]` (info).
+- `Read_Prompt` ÃÂ¢ÃÂÃÂ blocks on `App_State.Wait_Prompt` (entry called by
   `Acme_Event_Task` when the user sends a "Send" event).
-- `Shutdown` — writes a footer line; calls `App_State.Signal_Shutdown`.
+- `Shutdown` ÃÂ¢ÃÂÃÂ writes a footer line; calls `App_State.Signal_Shutdown`.
 
 ---
 
@@ -1211,11 +1212,11 @@ selection commands.
   `Coyote_GUI.Update` record onto `Coyote_GUI.Updates`. A GLib idle handler
   drains the queue on the GTK main-loop thread and calls the corresponding
   `Coyote_GUI.Buffer` operations.
-- `Read_Prompt` — blocks on `Coyote_GUI.Prompt_Queue.Dequeue`.
-- `Set_Stats_Summary` — not part of the abstract interface; called directly
+- `Read_Prompt` ÃÂ¢ÃÂÃÂ blocks on `Coyote_GUI.Prompt_Queue.Dequeue`.
+- `Set_Stats_Summary` ÃÂ¢ÃÂÃÂ not part of the abstract interface; called directly
   from `Dispatch_Event` via a classwide `if P in GUI.Instance'Class` check
   to set the status-bar model/cost summary.
-- `Shutdown` — calls `Gtk.Main.Quit` from within the idle callback.
+- `Shutdown` ÃÂ¢ÃÂÃÂ calls `Gtk.Main.Quit` from within the idle callback.
 
 ---
 
@@ -1225,7 +1226,7 @@ selection commands.
 
 **Rendering:** All output goes to `Ada.Text_IO.Standard_Output`. No ANSI
 escape codes. Thinking blocks are suppressed (not printed). Tool calls are
-rendered as `[tool: <name>]` … `[/tool]` text markers. Notices are prefixed
+rendered as `[tool: <name>]` ÃÂ¢ÃÂÃÂ¦ `[/tool]` text markers. Notices are prefixed
 with `[ERROR]`, `[WARN]`, or `[INFO]`.
 
 **`Read_Prompt`:** In `--one-shot` mode, the prompt is pre-loaded from the
@@ -1282,23 +1283,23 @@ entry; `Agent_Task` waits here between turns).
 shared by the entry-point packages.
 
 
-**`Read_Whole_File (Path : String) → String`:** Reads the entire contents
+**`Read_Whole_File (Path : String) ÃÂ¢ÃÂÃÂ String`:** Reads the entire contents
 of `Path` as a `String` using `Stream_IO` chunk-based reading (8 KB buffer).
 Unlike `Ada.Text_IO.Get_Line` which recurses linearly with line length, this
 function handles arbitrarily long lines (including single-line JSON files)
 without stack overflow.  Returns `""` when `Path` is empty or does not exist.
 
-**`Read_File_If_Exists (Path : String) → String`:** Thin wrapper that
+**`Read_File_If_Exists (Path : String) ÃÂ¢ÃÂÃÂ String`:** Thin wrapper that
 delegates to `Read_Whole_File`.  Preserved for backward compatibility.
 
-**`Resolve_Prompt_Arg (Arg : String) → String`:** If `Arg` starts with `@`,
+**`Resolve_Prompt_Arg (Arg : String) ÃÂ¢ÃÂÃÂ String`:** If `Arg` starts with `@`,
 reads and returns the content of the named file; otherwise returns `Arg`
 as-is.
-**`Resolve_Prompt_Arg (Arg : String) → String`:** If `Arg` starts with `@`,
+**`Resolve_Prompt_Arg (Arg : String) ÃÂ¢ÃÂÃÂ String`:** If `Arg` starts with `@`,
 reads and returns the content of the named file; otherwise returns `Arg`
 as-is.
 
-**`Strip_Session_Prefix (S : String) → String`:** Removes a
+**`Strip_Session_Prefix (S : String) ÃÂ¢ÃÂÃÂ String`:** Removes a
 `coyote-session+` prefix and any trailing path components from a plumb token,
 returning just the UUID.
 
@@ -1312,7 +1313,7 @@ malformed; caught in `coyote.adb` and printed to stderr.
 **Purpose:** Root package for the acme subsystem. Defines the
 `Win_File_Path` helper.
 
-**`Win_File_Path (Win_Id : Natural; File : String) → String`:** Returns the
+**`Win_File_Path (Win_Id : Natural; File : String) ÃÂ¢ÃÂÃÂ String`:** Returns the
 9P path `"/<Win_Id>/<File>"` (e.g. `"/42/ctl"`, `"/42/data"`). Used by
 `Acme.Window` and `Acme.Event_Parser` to construct VFS paths.
 
@@ -1323,14 +1324,14 @@ malformed; caught in `coyote.adb` and printed to stderr.
 **Purpose:** High-level acme window operations over 9P.
 
 **Key subprograms:**
-- `Write_Body (Fs; Win_Id; Text)` — sets addr to `$`, writes `Text` to
+- `Write_Body (Fs; Win_Id; Text)` ÃÂ¢ÃÂÃÂ sets addr to `$`, writes `Text` to
   `/Win_Id/data`.
-- `Write_Ctl (Fs; Win_Id; Cmd)` — writes a control command string to
+- `Write_Ctl (Fs; Win_Id; Cmd)` ÃÂ¢ÃÂÃÂ writes a control command string to
   `/Win_Id/ctl`.
-- `Write_Tag (Fs; Win_Id; Text)` — appends `Text` to the window tag.
-- `Clear_Body (Fs; Win_Id)` — sets addr to `,`, writes empty string to data
+- `Write_Tag (Fs; Win_Id; Text)` ÃÂ¢ÃÂÃÂ appends `Text` to the window tag.
+- `Clear_Body (Fs; Win_Id)` ÃÂ¢ÃÂÃÂ sets addr to `,`, writes empty string to data
   (erases the entire body).
-- `Set_Name (Fs; Win_Id; Name)` — writes `"name <Name>"` to ctl.
+- `Set_Name (Fs; Win_Id; Name)` ÃÂ¢ÃÂÃÂ writes `"name <Name>"` to ctl.
 
 All subprograms take an explicit `Fs : not null access Nine_P.Client.Fs` so
 the caller's task-local connection is used; never shares an `Fs` across tasks.
@@ -1344,10 +1345,10 @@ the caller's task-local connection is used; never shares an `Fs` across tasks.
 **`Event` record fields:** `C1`, `C2` (origin and type characters), `Q0`,
 `Q1` (character range), `Flag`, `Nr`, `Text` (event text).
 
-**`Parse_Event (Raw : String) → Event`:** Parses one line from the acme event
+**`Parse_Event (Raw : String) ÃÂ¢ÃÂÃÂ Event`:** Parses one line from the acme event
 file. Returns a zero-valued `Event` if the line is malformed.
 
-**`Is_Button2_Exec (E : Event) → Boolean`:** Returns `True` when `C1 = 'E'`
+**`Is_Button2_Exec (E : Event) ÃÂ¢ÃÂÃÂ Boolean`:** Returns `True` when `C1 = 'E'`
 and `C2 = 'x'` (button-2 execute in body).
 
 ---
@@ -1379,12 +1380,12 @@ string `"9P2000"`).
 
 **Key subprograms:**
 - `Encode_Tversion`, `Encode_Tattach`, `Encode_Twalk`, `Encode_Topen`,
-  `Encode_Tread`, `Encode_Twrite`, `Encode_Tclunk` — build byte arrays for
+  `Encode_Tread`, `Encode_Twrite`, `Encode_Tclunk` ÃÂ¢ÃÂÃÂ build byte arrays for
   each T-message type.
 - `Decode_Rversion`, `Decode_Rattach`, `Decode_Rwalk`, `Decode_Ropen`,
-  `Decode_Rread`, `Decode_Rwrite` — parse R-message byte arrays into record
+  `Decode_Rread`, `Decode_Rwrite` ÃÂ¢ÃÂÃÂ parse R-message byte arrays into record
   fields.
-- `Encode_String (S : String) → Byte_Array` — length-prefixed UTF-8 string
+- `Encode_String (S : String) ÃÂ¢ÃÂÃÂ Byte_Array` ÃÂ¢ÃÂÃÂ length-prefixed UTF-8 string
   per 9P2000 wire format.
 
 **Error handling:** `Proto_Error` exception raised on truncated or malformed
@@ -1402,13 +1403,13 @@ allocator. Each public operation acquires the lock, performs the T/R exchange,
 and releases the lock.
 
 **Key operations:**
-- `Ns_Mount (Ns_Name : String) → Fs` — connects to the named namespace socket
+- `Ns_Mount (Ns_Name : String) ÃÂ¢ÃÂÃÂ Fs` ÃÂ¢ÃÂÃÂ connects to the named namespace socket
   (e.g. `"/tmp/ns.user.:0/acme"`), performs `Tversion`/`Rattach` handshake.
-- `Open (Fs; Path : String; Mode : Open_Mode) → File` — walks and opens a
+- `Open (Fs; Path : String; Mode : Open_Mode) ÃÂ¢ÃÂÃÂ File` ÃÂ¢ÃÂÃÂ walks and opens a
   9P file; returns a `File` handle.
-- `Read (File; Count : Natural) → String` — sends `Tread`; returns data.
-- `Write (File; Data : String)` — sends `Twrite`.
-- `Clunk (File)` — sends `Tclunk`; closes the fid.
+- `Read (File; Count : Natural) ÃÂ¢ÃÂÃÂ String` ÃÂ¢ÃÂÃÂ sends `Tread`; returns data.
+- `Write (File; Data : String)` ÃÂ¢ÃÂÃÂ sends `Twrite`.
+- `Clunk (File)` ÃÂ¢ÃÂÃÂ sends `Tclunk`; closes the fid.
 
 **Critical constraint:** `Fs` instances must never be shared across Ada tasks.
 Each task creates its own `Fs` via `Ns_Mount`.
@@ -1420,12 +1421,12 @@ Each task creates its own `Fs` via `Ns_Mount`.
 **Purpose:** Enumerates saved sessions for the current directory and formats
 them for display.
 
-**`List_Sessions (CWD : String) → Session_Info_Array`:** Scans
+**`List_Sessions (CWD : String) ÃÂ¢ÃÂÃÂ Session_Info_Array`:** Scans
 `~/.coyote/sessions/<cwd-slug>/` for `*.jsonl` files, reads the first record
 of each to extract the session header (timestamp, model, first user message
 preview), and returns the array sorted by creation time (newest first).
 
-**`Format_For_Display (Info : Session_Info) → String`:** Formats one entry
+**`Format_For_Display (Info : Session_Info) ÃÂ¢ÃÂÃÂ String`:** Formats one entry
 as a human-readable line: `UUID  YYYY-MM-DD HH:MM  model  preview`.
 
 Used by `coyote_list_sessions` and by the GUI frontend's session-picker
@@ -1433,9 +1434,9 @@ menu.
 
 ---
 
-### 5.46 `LLM.Agent` — `Request_Abort`, `Request_Pause`, and `Resume`
+### 5.46 `LLM.Agent` ÃÂ¢ÃÂÃÂ `Request_Abort`, `Request_Pause`, and `Resume`
 
-*(Supplement to §5.5, which covers `Create` and `Run_Prompt`.)*
+*(Supplement to ÃÂÃÂ§5.5, which covers `Create` and `Run_Prompt`.)*
 
 **`Request_Abort (S : in out Session)`:** Sets `S.Abort_Flg`. The libcurl
 write callback and the tool executor both poll this flag; the current
@@ -1455,31 +1456,31 @@ blocking; `Agent_Resumed_Event` is emitted after unblocking.
 
 | Requirement ID | Implementing unit(s) |
 |---|---|
-| REQ-CORE-001–005 | `Coyote` (entry point) |
-| REQ-CORE-010–023 | `Coyote` (entry point), `Coyote_Utils` |
-| REQ-CORE-030–032 | `Coyote` (entry point), `LLM.Session_Store` |
-| REQ-CORE-040–046 | `LLM.Agent`, `Coyote_App.Dispatch`, all frontends |
-| REQ-CORE-050–055 | `LLM.Tools.Shell`, `LLM.Tools.Temp_File`, `LLM.Agent` |
-| REQ-CORE-060–064 | `LLM.Agent`, `LLM.Compaction`, `LLM.Session_Store` |
-| REQ-CORE-070–076 | `LLM.Agent`, `LLM.Settings`, `LLM.Model_Registry`, all providers |
-| REQ-CORE-080–084 | `LLM.Session_Store`, `Session_Lister` |
-| REQ-CORE-090–093 | `LLM.Skills`, `LLM.System_Prompt` |
-| REQ-CORE-100–109 | `Coyote_App.Frontend.Acme_Win`, `Coyote_App`, `Acme.Window`, `Nine_P.Client`, `LLM.Settings` |
-| REQ-CORE-110–115 | `Coyote_App.Frontend.GUI`, `Coyote_GUI.Buffer`, `Coyote_Cmark` |
-| REQ-CORE-120–121 | `Coyote_App.Frontend.Plain` |
-| REQ-CORE-130–131 | `Coyote_App.History`, all frontends |
-| REQ-CORE-140–142 | `LLM.Agent`, `Coyote_App.Dispatch`, all frontends |
-| REQ-CORE-200–203 | `LLM.Providers.*`, `LLM.HTTP`, `LLM.SSE` |
-| REQ-CORE-210–212 | `Nine_P.Client`, `Acme.Window`, `Coyote_App.Frontend.Acme_Win` |
-| REQ-CORE-220–221 | `Coyote_App.Frontend.GUI`, `Coyote_GUI.*` |
-| REQ-CORE-230–233 | `LLM.Settings`, `LLM.Auth`, `LLM.Auth.GitHub_Copilot` |
-| REQ-CORE-240–241 | `LLM.Session_Store` |
-| REQ-CORE-300–302 | `Coyote_App.Frontend`, `LLM.Events`, `LLM.Tools.Temp_File` |
-| REQ-CORE-400–402 | `LLM.Types`, `LLM.Compaction`, `LLM.Agent` |
-| REQ-CORE-500–505 | Build system (Alire/GPRbuild); runtime dependencies |
-| REQ-CORE-600–601 | `LLM.Compaction` (unbounded growth prevention); `Coyote_App` (GTK threading) |
-| REQ-CORE-700–704 | `LLM.HTTP` (streaming latency); `LLM.Session_Store` (persistence); all frontends (error visibility) |
-| REQ-CORE-800–805 | Build system; `Coyote_App.Utils` (UC_* constants); all packages (.ads/.adb split) |
+| REQ-CORE-001ÃÂ¢ÃÂÃÂ005 | `Coyote` (entry point) |
+| REQ-CORE-010ÃÂ¢ÃÂÃÂ023 | `Coyote` (entry point), `Coyote_Utils` |
+| REQ-CORE-030ÃÂ¢ÃÂÃÂ032 | `Coyote` (entry point), `LLM.Session_Store` |
+| REQ-CORE-040ÃÂ¢ÃÂÃÂ046 | `LLM.Agent`, `Coyote_App.Dispatch`, all frontends |
+| REQ-CORE-050ÃÂ¢ÃÂÃÂ055 | `LLM.Tools.Shell`, `LLM.Tools.Temp_File`, `LLM.Agent` |
+| REQ-CORE-060ÃÂ¢ÃÂÃÂ064 | `LLM.Agent`, `LLM.Compaction`, `LLM.Session_Store` |
+| REQ-CORE-070ÃÂ¢ÃÂÃÂ076 | `LLM.Agent`, `LLM.Settings`, `LLM.Model_Registry`, all providers |
+| REQ-CORE-080ÃÂ¢ÃÂÃÂ084 | `LLM.Session_Store`, `Session_Lister` |
+| REQ-CORE-090ÃÂ¢ÃÂÃÂ093 | `LLM.Skills`, `LLM.System_Prompt` |
+| REQ-CORE-100ÃÂ¢ÃÂÃÂ109 | `Coyote_App.Frontend.Acme_Win`, `Coyote_App`, `Acme.Window`, `Nine_P.Client`, `LLM.Settings` |
+| REQ-CORE-110ÃÂ¢ÃÂÃÂ115 | `Coyote_App.Frontend.GUI`, `Coyote_GUI.Buffer`, `Coyote_Cmark` |
+| REQ-CORE-120ÃÂ¢ÃÂÃÂ121 | `Coyote_App.Frontend.Plain` |
+| REQ-CORE-130ÃÂ¢ÃÂÃÂ131 | `Coyote_App.History`, all frontends |
+| REQ-CORE-140ÃÂ¢ÃÂÃÂ142 | `LLM.Agent`, `Coyote_App.Dispatch`, all frontends |
+| REQ-CORE-200ÃÂ¢ÃÂÃÂ203 | `LLM.Providers.*`, `LLM.HTTP`, `LLM.SSE` |
+| REQ-CORE-210ÃÂ¢ÃÂÃÂ212 | `Nine_P.Client`, `Acme.Window`, `Coyote_App.Frontend.Acme_Win` |
+| REQ-CORE-220ÃÂ¢ÃÂÃÂ221 | `Coyote_App.Frontend.GUI`, `Coyote_GUI.*` |
+| REQ-CORE-230ÃÂ¢ÃÂÃÂ233 | `LLM.Settings`, `LLM.Auth`, `LLM.Auth.GitHub_Copilot` |
+| REQ-CORE-240ÃÂ¢ÃÂÃÂ241 | `LLM.Session_Store` |
+| REQ-CORE-300ÃÂ¢ÃÂÃÂ302 | `Coyote_App.Frontend`, `LLM.Events`, `LLM.Tools.Temp_File` |
+| REQ-CORE-400ÃÂ¢ÃÂÃÂ402 | `LLM.Types`, `LLM.Compaction`, `LLM.Agent` |
+| REQ-CORE-500ÃÂ¢ÃÂÃÂ505 | Build system (Alire/GPRbuild); runtime dependencies |
+| REQ-CORE-600ÃÂ¢ÃÂÃÂ601 | `LLM.Compaction` (unbounded growth prevention); `Coyote_App` (GTK threading) |
+| REQ-CORE-700ÃÂ¢ÃÂÃÂ704 | `LLM.HTTP` (streaming latency); `LLM.Session_Store` (persistence); all frontends (error visibility) |
+| REQ-CORE-800ÃÂ¢ÃÂÃÂ805 | Build system; `Coyote_App.Utils` (UC_* constants); all packages (.ads/.adb split) |
 | REQ-CORE-160 | `share/man/man1/coyote.1` (static man page) |
 
 ---
@@ -1487,7 +1488,7 @@ blocking; `Agent_Resumed_Event` is emitted after unblocking.
 ## 7. Notes
 
 **Relationship to AGENTS.md:**
-`AGENTS.md` contains the authoritative agent working instructions — coding
+`AGENTS.md` contains the authoritative agent working instructions ÃÂ¢ÃÂÃÂ coding
 standards, build commands, skill-loading discipline, and source layout
 reference. This SDD extracts the design content from AGENTS.md and organises
 it under the structured SDD checklist. The two documents are complementary:
@@ -1501,6 +1502,6 @@ owner) is invited to review it before it advances to client-control status.
 
 **Excluded scope:**
 - `coyote_sqc` design: see `design/coyote-sqc-design.md`.
-- `coyote_renderer` design: covered implicitly in `design/coyote-sqc-design.md §10`.
+- `coyote_renderer` design: covered implicitly in `design/coyote-sqc-design.md ÃÂÃÂ§10`.
 - Detailed design for catalogue packages (`OpenRouter.Catalogue`, etc.):
-  deferred; covered adequately by AGENTS.md §Adding a New LLM Provider.
+  deferred; covered adequately by AGENTS.md ÃÂÃÂ§Adding a New LLM Provider.

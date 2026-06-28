@@ -1,8 +1,9 @@
---  LLM.Skills — discover and format agent skills for the system prompt.
+--  LLM.Skills ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ discover and format agent skills for the system prompt.
 --
 --  Skills are SKILL.md files found under (in scan order):
 --    ~/.coyote/skills/*/SKILL.md       (global, coyote-specific)
 --    ~/.agents/skills/*/SKILL.md       (global, provider-agnostic)
+--    $BASE/share/agents/skills/*/SKILL.md  (installation-relative)
 --    {Cwd}/.coyote/skills/*/SKILL.md   (project-local, coyote-specific)
 --    {Cwd}/.agents/skills/*/SKILL.md   (project-local, provider-agnostic)
 --
@@ -25,7 +26,7 @@ package LLM.Skills is
      (Index_Type   => Natural,
       Element_Type => Skill);
 
-   --  Scan all four skill roots (see package header) for SKILL.md files.
+   --  Scan all five skill roots (see package header) for SKILL.md files.
    --  Returns an empty vector when no skills are found.
    --  Skills missing a name or description are silently skipped.
    function Load_Skills (Cwd : String) return Skill_Vectors.Vector;
@@ -34,5 +35,20 @@ package LLM.Skills is
    --  system prompt. Returns "" when Skills is empty.
    function Format_Skills_For_Prompt
      (Skills : Skill_Vectors.Vector) return String;
+
+   --  Derive the installation prefix ($BASE) from the binary path.
+   --  Resolves the real path of Executable, then takes the parent of its
+   --  parent directory (stripping bin/<name>).  Returns "" when the path
+   --  is not of the expected form.
+   --  Executable defaults to Ada.Command_Line.Command_Name (the running
+   --  binary).
+   function Install_Base
+     (Executable : String := "") return String;
+
+   --  Return the installation-relative skill root, or "" when
+   --  Install_Base is empty (uninstalled / non-standard layout).
+   --  Executable is forwarded to Install_Base.
+   function Installation_Skills_Base
+     (Executable : String := "") return String;
 
 end LLM.Skills;

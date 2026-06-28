@@ -105,3 +105,25 @@ boundaries from normal user messages.
   event loop. Consider moving it to a separate task if latency becomes an issue.
 - The 4-bytes-per-token heuristic should be validated against real session
   data once sufficient sessions are accumulated in coyote_sqc.
+
+
+## 2026-06-28: PCR-039 Install-relative skill root added
+
+- Added `Install_Base` and `Installation_Skills_Base` functions to
+  `LLM.Skills`. These derive the installation prefix from the binary
+  path (resolve Full_Name of Command_Name, walk up through bin/
+  to the parent).  Returns "" when the path is not of the expected
+  `$BASE/bin/<name>` form.
+- `Load_Skills` now uses `Installation_Skills_Base` to construct
+  `Install_Root` and inserts `Collect_Skills_From_Root (Install_Root,
+  Result)` between the `.agents` global root and the project-local roots.
+  This gives installed skills priority 3 of 5 — after global user
+  skills but before project-local skills, so per-project overrides work.
+- `Install_Base` and `Installation_Skills_Base` accept an optional
+  `Executable` parameter for testability; both default to
+  `Ada.Command_Line.Command_Name`.
+- Six new AUnit tests cover the Install_Base and
+  Installation_Skills_Base functions (bin/coyote path, non-bin
+  fallback, explicit arg, empty base propagation).
+- Updated spec header from "four" to "five" roots and replaced
+  Alire COYOTE_ALIRE_PREFIX references with `$BASE` description.

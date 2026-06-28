@@ -3,6 +3,7 @@
 --  Project: coyote
 --  For revision history, see the project version-control log.
 
+with Ada.Command_Line;
 with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Strings;
@@ -181,6 +182,44 @@ package body LLM.Skills is
          null;
    end Collect_Skills_From_Root;
 
+   function Install_Base (Executable : String := "") return String is
+      Cmd : constant String :=
+        (if Executable'Length > 0
+         then Executable
+         else Ada.Command_Line.Command_Name);
+      Exe : constant String := Ada.Directories.Full_Name (Cmd);
+      Bin : constant String := Ada.Directories.Containing_Directory (Exe);
+   begin
+      if Bin'Length = 0
+        or else Ada.Directories.Simple_Name (Bin) /= "bin"
+      then
+         return "";
+      end if;
+
+      declare
+         Base : constant String :=
+           Ada.Directories.Containing_Directory (Bin);
+      begin
+         if Base'Length = 0 then
+            return "";
+         end if;
+
+         return Base;
+      end;
+   end Install_Base;
+
+   function Installation_Skills_Base
+     (Executable : String := "") return String
+   is
+      Base : constant String := Install_Base (Executable);
+   begin
+      if Base'Length > 0 then
+         return Base & "/share/agents/skills";
+      end if;
+
+      return "";
+   end Installation_Skills_Base;
+
    function Load_Skills (Cwd : String) return Skill_Vectors.Vector is
       Result              : Skill_Vectors.Vector;
       Agent_Dir           : constant String := LLM.Settings.Agent_Dir;
@@ -190,6 +229,7 @@ package body LLM.Skills is
         (if Agent_Dir'Length > 0 then Agent_Dir & "/skills" else "");
       Global_Agents_Root  : constant String :=
         (if Home'Length > 0 then Home & "/.agents/skills" else "");
+      Install_Root        : constant String := Installation_Skills_Base;
       Project_Coyote_Root : constant String :=
         (if Cwd'Length > 0 then Cwd & "/.coyote/skills" else "");
       Project_Agents_Root : constant String :=
@@ -197,6 +237,7 @@ package body LLM.Skills is
    begin
       Collect_Skills_From_Root (Global_Coyote_Root, Result);
       Collect_Skills_From_Root (Global_Agents_Root, Result);
+      Collect_Skills_From_Root (Install_Root, Result);
       Collect_Skills_From_Root (Project_Coyote_Root, Result);
       Collect_Skills_From_Root (Project_Agents_Root, Result);
       return Result;
