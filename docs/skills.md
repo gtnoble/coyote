@@ -66,9 +66,9 @@ skills share the same name, so project-local skills override global ones.
 
 ```
 ~/.coyote/skills/          â global, coyote-specific root
-âââ my-skill/
-    âââ SKILL.md           â required; frontmatter + overview/instructions
-    âââ reference.md       â optional; loaded by agent on demand
+└── my-skill/
+    ├── SKILL.md           â required; frontmatter + overview/instructions
+    └── reference.md       â optional; loaded by agent on demand
 ```
 
 Relative paths in the body should be written relative to the directory
@@ -118,9 +118,9 @@ them from `SKILL.md` so the agent knows to read them when needed.
 
 ```
 my-skill/
-âââ SKILL.md        â always loaded when triggered (~overview + TOC)
-âââ advanced.md     â agent reads when task requires it
-âââ reference.md    â agent reads when task requires it
+├── SKILL.md        â always loaded when triggered (~overview + TOC)
+├── advanced.md     â agent reads when task requires it
+└── reference.md    â agent reads when task requires it
 ```
 
 Avoid chains deeper than one level (`SKILL.md â file.md`, never

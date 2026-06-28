@@ -48,10 +48,10 @@ data, environment, resource, quality, and constraint requirements for the
 coyote component. Each requirement carries a unique identifier
 (`REQ-CORE-NNN`) and a stated verification method:
 
-- **T** ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Test (automated AUnit test case)
-- **D** ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Demonstration (manually demonstrated by running the application)
-- **I** ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Inspection (review of source code or configuration)
-- **A** ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Analysis (examination of design documents or build artefacts)
+- **T** — Test (automated AUnit test case)
+- **D** — Demonstration (manually demonstrated by running the application)
+- **I** — Inspection (review of source code or configuration)
+- **A** — Analysis (examination of design documents or build artefacts)
 
 ---
 
@@ -160,7 +160,7 @@ JSON result summary to standard output.
 
 **REQ-CORE-020** (D)
 The executable shall accept a `--subagent` flag. When set, the executable
-shall behave as `--one-shot` but shall not force the Plain frontend ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ the
+shall behave as `--one-shot` but shall not force the Plain frontend — the
 inherited display context (`COYOTE_FRONTEND` or `$winid`) governs frontend
 selection, allowing a headful window to open.
 
@@ -342,8 +342,8 @@ attempts to use that provider's models.
 
 **REQ-CORE-078** (D)
 When constructing the OpenCode Go model catalogue, the agent shall obtain
-per-model metadata ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ context window size, maximum output tokens, reasoning
-support, and per-token pricing ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ by cross-referencing the model identifier
+per-model metadata — context window size, maximum output tokens, reasoning
+support, and per-token pricing — by cross-referencing the model identifier
 list from the OpenCode Go `/v1/models` endpoint against the OpenRouter
 model catalogue.  For each Go model ID, the agent shall locate the
 matching entry in the OpenRouter catalogue (or its on-disk cache) and
@@ -564,8 +564,8 @@ localhost address, registry population shall be skipped.
 Ollama requests shall be sent to `POST /v1/chat/completions` (the OpenAI-
 compatible endpoint) using the standard OpenAI chat-completions wire format.
 The JSON request body shall include `model`, `messages`, `tools`, `stream`
-(set to `true`), and ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ for thinking-capable models when a non-zero thinking
-level is requested ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ a `reasoning_effort` field mapping to `"low"`,
+(set to `true`), and — for thinking-capable models when a non-zero thinking
+level is requested — a `reasoning_effort` field mapping to `"low"`,
 `"medium"`, or `"high"`. The streaming response shall be parsed as standard
 OpenAI SSE (Server-Sent Events): each event contains a JSON delta within a
 `data:` line.
@@ -846,7 +846,7 @@ safety-critical hazards have been identified.
 
 ### 3.11 Security and Privacy Requirements
 
-Deferred per the Project Plan (ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§5.19.3 waived). No sensitive user data is
+Deferred per the Project Plan (§5.19.3 waived). No sensitive user data is
 handled beyond API keys stored in user-controlled configuration files. This
 section will be activated if a relevant deployment scenario is identified.
 
@@ -883,7 +883,7 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-020 | --subagent opens headful window | D | TC-020 |
 | REQ-CORE-021 | --name LABEL appended to window | D | TC-021 |
 | REQ-CORE-022 | --prompt-filter applied to prompts | D | TC-022 |
-| REQ-CORE-023 | Unknown arg ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ error + non-zero exit | D | TC-023 |
+| REQ-CORE-023 | Unknown arg → error + non-zero exit | D | TC-023 |
 | REQ-CORE-024 | -h/--help prints usage and exits | D | TC-024 |
 | REQ-CORE-030 | COYOTE_SESSION_ID exported | I | TC-030 |
 | REQ-CORE-031 | Parent session lineage recorded | I | TC-031 |
@@ -896,7 +896,7 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-045 | Auto-retry events displayed | D | TC-045 |
 | REQ-CORE-046 | Compaction events displayed | D | TC-046 |
 | REQ-CORE-050 | shell tool executes commands | T | TC-050 |
-| REQ-CORE-051 | shell tool media_type ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ image block | T | TC-051 |
+| REQ-CORE-051 | shell tool media_type → image block | T | TC-051 |
 | REQ-CORE-052 | Oversized result truncated to temp file | T | TC-052 |
 | REQ-CORE-053 | Image results bypass size cap | I | TC-053 |
 | REQ-CORE-054 | --no-tools returns error to model | D | TC-054 |
@@ -951,21 +951,21 @@ Traceability from requirements to test cases. Test Plan reference:
 ## 5. Requirements Traceability
 
 All requirements in this specification derive from the following project
-objectives stated in the Project Plan (PLAN ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§1 and ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§3):
+objectives stated in the Project Plan (PLAN §1 and §3):
 
 | Objective | Derived Requirements |
 |---|---|
-| Self-contained Ada LLM agent with no Node.js dependency | REQ-CORE-024, REQ-CORE-500ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ505, REQ-CORE-800ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ805 |
-| Multi-frontend support (acme, GTK3, plain) | REQ-CORE-001ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ004, REQ-CORE-100ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ131 |
-| Streaming output | REQ-CORE-040ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ046, REQ-CORE-700 |
-| Tool execution | REQ-CORE-050ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ055 |
-| Session persistence and resume | REQ-CORE-080ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ084, REQ-CORE-701 |
-| Context compaction | REQ-CORE-060ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ064 |
-| Multi-provider LLM support | REQ-CORE-070ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ078, REQ-CORE-150ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ156, REQ-CORE-200ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ204 |
+| Self-contained Ada LLM agent with no Node.js dependency | REQ-CORE-024, REQ-CORE-500–505, REQ-CORE-800–805 |
+| Multi-frontend support (acme, GTK3, plain) | REQ-CORE-001–004, REQ-CORE-100–131 |
+| Streaming output | REQ-CORE-040–046, REQ-CORE-700 |
+| Tool execution | REQ-CORE-050–055 |
+| Session persistence and resume | REQ-CORE-080–084, REQ-CORE-701 |
+| Context compaction | REQ-CORE-060–064 |
+| Multi-provider LLM support | REQ-CORE-070–078, REQ-CORE-150–156, REQ-CORE-200–204 |
 | Man pages for coyote and coyote_sqc | REQ-CORE-160 |
-| Skill discovery and system prompt construction | REQ-CORE-090ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ094 |
-| Subagent spawning with session lineage | REQ-CORE-019ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ020, REQ-CORE-030ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ032 |
-| Error visibility and graceful shutdown | REQ-CORE-140ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ142, REQ-CORE-702ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ703 |
+| Skill discovery and system prompt construction | REQ-CORE-090–094 |
+| Subagent spawning with session lineage | REQ-CORE-019–020, REQ-CORE-030–032 |
+| Error visibility and graceful shutdown | REQ-CORE-140–142, REQ-CORE-702–703 |
 
 ---
 
