@@ -1,4 +1,4 @@
-# Component Development Log — Core Agent
+# Component Development Log â Core Agent
 
 **Components:** `LLM.Agent`, `LLM.Compaction`, `LLM.Session_Store`,
 `LLM.System_Prompt`, `LLM.Skills`, `LLM.Types`, `LLM.Events`
@@ -46,7 +46,7 @@ The `Estimate_Tokens` function in `LLM.Compaction` uses a simple 4-bytes-per-
 token heuristic. The actual ratio varies: English prose is approximately
 4 bytes/token; code with long identifiers is higher; minified code is lower.
 4 bytes/token is conservative (over-estimates token count), which means
-compaction triggers slightly earlier than necessary — a safe bias that avoids
+compaction triggers slightly earlier than necessary â a safe bias that avoids
 context overflow rather than risking it. A tiktoken binding was considered but
 rejected: it would add a C dependency and require per-model tokenizer files.
 
@@ -87,11 +87,11 @@ boundaries from normal user messages.
 
 ## Unit Test Coverage Notes
 
-- `LLM.Compaction`: covered by AUnit tests in `test/src/` —
+- `LLM.Compaction`: covered by AUnit tests in `test/src/` â
   `Result_Threshold` boundary cases; `Find_Cut_Point` with varying histories.
-- `LLM.Session_Store`: covered by AUnit tests — v1/v3 parse round-trips;
+- `LLM.Session_Store`: covered by AUnit tests â v1/v3 parse round-trips;
   compaction record encoding; cwd-slug encoding.
-- `LLM.Skills`: covered by AUnit tests — discovery with mock file trees;
+- `LLM.Skills`: covered by AUnit tests â discovery with mock file trees;
   shadowing; frontmatter missing-field handling.
 - `LLM.Agent`: not directly unit-tested (requires a live provider or mock).
   Covered by demonstration tests.
@@ -117,7 +117,7 @@ boundaries from normal user messages.
 - `Load_Skills` now uses `Installation_Skills_Base` to construct
   `Install_Root` and inserts `Collect_Skills_From_Root (Install_Root,
   Result)` between the `.agents` global root and the project-local roots.
-  This gives installed skills priority 3 of 5 — after global user
+  This gives installed skills priority 3 of 5 â after global user
   skills but before project-local skills, so per-project overrides work.
 - `Install_Base` and `Installation_Skills_Base` accept an optional
   `Executable` parameter for testability; both default to
@@ -127,3 +127,10 @@ boundaries from normal user messages.
   fallback, explicit arg, empty base propagation).
 - Updated spec header from "four" to "five" roots and replaced
   Alire COYOTE_ALIRE_PREFIX references with `$BASE` description.
+- Follow-up fix 2026-06-28: `Install_Base` default path resolution
+  changed from `Ada.Command_Line.Command_Name` to `/proc/self/exe`
+  (new `Binary_Path` helper with `Command_Name` fallback for
+  non-Linux).  `Command_Name` returns only `argv[0]` (bare name
+  when found via `PATH`), and `Full_Name` prepends CWD, producing
+  a path whose parent is not `bin/`.  `/proc/self/exe` gives the
+  real binary path regardless of invocation.
