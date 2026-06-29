@@ -2562,16 +2562,29 @@ package body Coyote_SQC.App is
       end if;
    end Update_Title;
 
+   --  ── Refresh_Comment_State ────────────────────────────────────────────
+
+   procedure Refresh_Comment_State is
+   begin
+      for K in Chart_Kind loop
+         for P of State.Charts (K).Points loop
+            P.Has_Comment :=
+              State.Workspace.Commented_Session_Ids.Contains (P.Session_Id);
+         end loop;
+         for QP of State.Charts (K).Quantile_Points loop
+            QP.Has_Comment :=
+              State.Workspace.Commented_Session_Ids.Contains (QP.Session_Id);
+         end loop;
+      end loop;
+      Coyote_SQC.UI.Chart_Canvas.Queue_Redraw;
+   end Refresh_Comment_State;
+
    --  ── Has_Comment ──────────────────────────────────────────────────────
 
    function Has_Comment (Session_Id : String) return Boolean is
    begin
-      for C of State.Workspace.Comments loop
-         if To_String (C.Session_Id) = Session_Id then
-            return True;
-         end if;
-      end loop;
-      return False;
+      return State.Workspace.Commented_Session_Ids.Contains
+        (To_Unbounded_String (Session_Id));
    end Has_Comment;
 
    --  ── Run ──────────────────────────────────────────────────────────────

@@ -820,3 +820,25 @@ chart descriptors drive the same `Estimate_Parameters`/`Recompute_Chart` pipelin
 **Tests:** 713/713 pass (0 regressions). Unit tests for cost accuracy deferred
 (cost path reuses existing statistical formulas).
 
+
+### Comment Speed Fix — 2026-06-29
+
+Adding a comment previously called `Recompute_Charts`, which recomputed
+all 71 chart kinds — Box-Cox estimation, EWMA recursion, control-limit
+derivation — plus per-session `Has_Comment` linear scans across the full
+comment vector (O(S × C × 71) string comparisons).  None of that work was
+necessary; only the `Has_Comment` boolean on existing chart points changes.
+
+**Changes:**
+
+- `Coyote_SQC.Data_Model.Workspace_Record` now includes `Commented_Session_Ids : UUID_Set` alongside the existing `Comments` vector.
+- `Coyote_SQC.Workspace.Load` populates `Commented_Session_Ids` during deserialization.
+- `Coyote_SQC.App.Has_Comment` is now an O(1) `UUID_Set.Contains` lookup (was linear scan).
+- New `Coyote_SQC.App.Refresh_Comment_State` procedure: iterates all `Chart_Point` and `Quantile_Point` records across all 71 chart kinds, sets `Has_Comment` from the UUID set in-place, and calls `Queue_Redraw`.  No statistics recomputation.
+- `On_Add_Comment_Clicked` and `On_Add_Multi_Comment_Clicked` in `Detail_Panel` now populate `Commented_Session_Ids` and call `Refresh_Comment_State` instead of `Recompute_Charts`.
+
+**Result:** Adding a comment now takes milliseconds regardless of workspace size.
+`Has_Comment` remains available within the full `Recompute_Chart` path for initial
+point construction, benefiting from the O(1) speedup there too.
+
+**Build:** Clean.  **Tests:** 722/722 pass (0 regressions).

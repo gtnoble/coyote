@@ -664,6 +664,15 @@ package Comment_Vectors is new Ada.Containers.Vectors
    Element_Type => Comment_Record);
 ```
 
+**Design note — Commented_Session_Ids:** The `Workspace_Record` also holds
+`Commented_Session_Ids : UUID_Set`, a hash set of session UUIDs that have
+one or more comments. This enables O(1) `Has_Comment` lookups during chart
+point construction and supports `Refresh_Comment_State` — a lightweight
+procedure that updates `Has_Comment` flags on all chart points in-place
+without recomputing statistics. Adding a comment populates the set and
+calls `Refresh_Comment_State` instead of `Recompute_Charts`, avoiding a
+full re-estimation of all 71 chart kinds.
+
 ### 6.7 Chart_Definition_Record
 
 ```ada
@@ -954,6 +963,7 @@ type Workspace_Record is record
    Model_Filter       : String_Vectors.Vector;
    Setup_Session_Ids  : UUID_Set;
    Comments           : Comment_Vectors.Vector;
+   Commented_Session_Ids : UUID_Set;
    --  Per-chart Box-Cox, estimation method, and EWMA parameter settings.
    --  Charts at default settings (Box-Cox disabled, Classical estimation,
    --  EWMA_Weight = 0.2, EWMA_L = 3.0) are omitted from the map to keep

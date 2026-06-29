@@ -197,9 +197,10 @@ package body Coyote_SQC.UI.Detail_Panel is
                Text       => Text);
          begin
             Coyote_SQC.App.State.Workspace.Comments.Append (New_Comment);
+            Coyote_SQC.App.State.Workspace.Commented_Session_Ids.Include (Comment_Sess_Id);
             Coyote_SQC.App.State.Modified := True;
             Coyote_SQC.App.Update_Title;
-            Coyote_SQC.App.Recompute_Charts;
+            Coyote_SQC.App.Refresh_Comment_State;
          end;
          Buf.Set_Text ("");
          Refresh;
@@ -239,11 +240,12 @@ package body Coyote_SQC.UI.Detail_Panel is
                    Session_Id => Sid,
                    Timestamp  => Now,
                    Text       => Text));
+               Coyote_SQC.App.State.Workspace.Commented_Session_Ids.Include (Sid);
             end loop;
          end;
          Coyote_SQC.App.State.Modified := True;
          Coyote_SQC.App.Update_Title;
-         Coyote_SQC.App.Recompute_Charts;
+         Coyote_SQC.App.Refresh_Comment_State;
          Buf.Set_Text ("");
          Refresh;
       end;

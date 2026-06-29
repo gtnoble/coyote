@@ -248,6 +248,7 @@ package Coyote_SQC.Data_Model is
       Model_Filter       : String_Vectors.Vector;
       Setup_Session_Ids  : UUID_Set;
       Comments           : Comment_Vectors.Vector;
+      Commented_Session_Ids : UUID_Set;
       --  Per-chart Box-Cox, estimation method, and EWMA parameter settings.
       --  Charts at default settings (Box-Cox disabled, Classical estimation,
       --  EWMA_Weight = 0.2, EWMA_L = 3.0) are omitted from the map to keep

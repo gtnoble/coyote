@@ -332,7 +332,7 @@ infrastructure sufficient to cover the buffering and collapsing logic.
 `Test_GitHub_Copilot_Default_Fallback` and updated to assert default-fallback behaviour
 
 **Baseline as of 2026-06-16 (Quantile Bonferroni Checkbox):** 704 tests, 0 failures,
-**Baseline as of 2026-06-17 (Robust Plot Method):** 713 tests, 0 failures,
+**Baseline as of 2026-06-29 (Comment Speed Fix):** 722 tests, 0 failures,
   0 unexpected errors.
 0 unexpected errors.  "Quantile CC Bonferroni Checkbox" feature: added `Quantile_Bonferroni` workspace option (boolean, default true) controlling Bonferroni multiplicity correction on quantile control charts.  3 new tests: `Test_Extract_Limits_Bonferroni_Disabled`, `Test_Quantile_Bonferroni_Round_Trip`, `Test_Quantile_Bonferroni_Default`.
 (`Coyote_SQC_MI_Tests`) covering: `Test_MI_Identical_Calls`,

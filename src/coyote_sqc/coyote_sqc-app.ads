@@ -262,6 +262,11 @@ package Coyote_SQC.App is
    --  Recompute chart data for a single chart kind.
    procedure Recompute_Chart (Kind : Coyote_SQC.Charts.Chart_Kind);
 
+   --  Update Has_Comment flags on all chart points without recomputing
+   --  statistics.  Use after adding/removing comments (much faster than
+   --  a full Recompute_Charts).
+   procedure Refresh_Comment_State;
+
    --  Return the statistic value for one session on a given chart.
    --  Returns 0.0 and sets Excluded=True if the session does not contribute.
    procedure Compute_Session_Stat

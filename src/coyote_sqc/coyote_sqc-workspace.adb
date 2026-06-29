@@ -589,6 +589,7 @@ package body Coyote_SQC.Workspace is
                   Rec.Text       :=
                     To_Unbounded_String (Get_String_Field (C, "text"));
                   Workspace.Comments.Append (Rec);
+                  Workspace.Commented_Session_Ids.Include (Rec.Session_Id);
                end;
             end loop;
          end;
