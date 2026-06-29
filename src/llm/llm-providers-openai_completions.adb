@@ -540,6 +540,20 @@ package body LLM.Providers.OpenAI_Completions is
    begin
       Request.Set_Field ("model", Model_Id);
       Request.Set_Field ("stream", P.Use_Streaming);
+
+      --  Request stream_options so the provider includes usage
+      --  (prompt/completion token counts) in the final SSE chunk.
+      --  This is a standard OpenAI API field honoured by Ollama,
+      --  OpenRouter, Copilot and others.  Providers that do not
+      --  support it silently ignore the field.
+      declare
+         Stream_Opts : constant GNATCOLL.JSON.JSON_Value :=
+           GNATCOLL.JSON.Create_Object;
+      begin
+         Stream_Opts.Set_Field ("include_usage", True);
+         Request.Set_Field ("stream_options", Stream_Opts);
+      end;
+
       Request.Set_Field ("max_completion_tokens", Integer (Max_Tokens));
 
       Append_System_Message (Msgs, System_Prompt);
