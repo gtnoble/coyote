@@ -183,9 +183,6 @@ package body Coyote_SQC.Metrics is
       --  Compute token costs if pricing is available for this model.
       if Has_P then
          declare
-            N_Turns : constant Natural :=
-              (if Session.Turns.Is_Empty then 1
-               else Natural (Session.Turns.Length));
             PTC  : Long_Float;
             PTIC : Long_Float;
             PTOC : Long_Float;
@@ -195,31 +192,44 @@ package body Coyote_SQC.Metrics is
          begin
             for Turn of Session.Turns loop
                --  Per-turn input cost: uncached at input price,
-               --  cached reads at cache-read price, cached writes at cache-write price.
+               --  cached reads at cache-read price,
+               --  cached writes at cache-write price.
                PTIC := Long_Float (Turn.Input_Tokens
                                     - Turn.Cache_Read_Tokens
-                                    - Turn.Cache_Write_Tokens) * P.Input_Price
-                       + Long_Float (Turn.Cache_Read_Tokens) * P.Cache_Read_Price
-                       + Long_Float (Turn.Cache_Write_Tokens) * P.Cache_Write_Price;
-               PTOC := Long_Float (Turn.Output_Tokens) * P.Output_Price;
+                                    - Turn.Cache_Write_Tokens)
+                         * P.Input_Price
+                       + Long_Float (Turn.Cache_Read_Tokens)
+                         * P.Cache_Read_Price
+                       + Long_Float (Turn.Cache_Write_Tokens)
+                         * P.Cache_Write_Price;
+               PTOC := Long_Float (Turn.Output_Tokens)
+                         * P.Output_Price;
                PTC  := PTIC + PTOC;
+
+               --  Per-turn cache and uncached cost components.
+               PTCRC := Long_Float (Turn.Cache_Read_Tokens)
+                          * P.Cache_Read_Price;
+               PTCWC := Long_Float (Turn.Cache_Write_Tokens)
+                          * P.Cache_Write_Price;
+               PTUIC := Long_Float (Turn.Input_Tokens
+                                     - Turn.Cache_Read_Tokens
+                                     - Turn.Cache_Write_Tokens)
+                          * P.Input_Price;
 
                M.Per_Turn_Cost.Append (PTC);
                M.Per_Turn_Input_Cost.Append (PTIC);
                M.Per_Turn_Output_Cost.Append (PTOC);
+               M.Per_Turn_Cache_Read_Cost.Append (PTCRC);
+               M.Per_Turn_Cache_Write_Cost.Append (PTCWC);
+               M.Per_Turn_Uncached_Input_Cost.Append (PTUIC);
 
                TC  := TC + PTC;
                IC  := IC + PTIC;
                OC  := OC + PTOC;
+               CRC := CRC + PTCRC;
+               CWC := CWC + PTCWC;
+               UIC := UIC + PTUIC;
             end loop;
-
-            --  Session-level cache and uncached costs.
-            CRC := Long_Float (Session.Total_Cache_Read_Tokens)
-                     * P.Cache_Read_Price;
-            CWC := Long_Float (Session.Total_Cache_Write_Tokens)
-                     * P.Cache_Write_Price;
-            UIC := Long_Float (Session.Total_Uncached_Input_Tokens)
-                     * P.Input_Price;
 
             M.Total_Cache_Read_Cost  := CRC;
             M.Total_Cache_Write_Cost := CWC;
@@ -229,18 +239,6 @@ package body Coyote_SQC.Metrics is
             M.Total_Input_Cost := IC;
             M.Total_Output_Cost := OC;
             M.Total_Cost := M.Total_Input_Cost + M.Total_Output_Cost;
-
-            --  Per-turn cache costs: average across turns.
-            if N_Turns > 0 then
-               PTCRC := CRC / Long_Float (N_Turns);
-               PTCWC := CWC / Long_Float (N_Turns);
-               PTUIC := UIC / Long_Float (N_Turns);
-               for I in 1 .. N_Turns loop
-                  M.Per_Turn_Cache_Read_Cost.Append (PTCRC);
-                  M.Per_Turn_Cache_Write_Cost.Append (PTCWC);
-                  M.Per_Turn_Uncached_Input_Cost.Append (PTUIC);
-               end loop;
-            end if;
          end;
       end if;
 
