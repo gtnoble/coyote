@@ -176,6 +176,7 @@ package body Coyote_App.Dispatch is
          State.Set_Streaming (False);
          State.Set_Paused (False);
          State.Set_Pause_Armed (False);
+         State.Set_Is_Retrying (False);
          Section := No_Section;
          if State.Was_Aborted then
             Frontend.Append_Notice

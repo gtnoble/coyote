@@ -1402,3 +1402,31 @@ The MR-chart transform block already correctly branched on
      AUnit tests pass (1 pre-existing subagent integration test failure).
 - **Status:** Resolved
 - **Date resolved:** 2026-06-21
+
+## PCR-039
+
+- **Date reported:** 2026-07-02
+- **Category:** Code
+- **Priority:** 2-Serious
+- **Description:** Aborting during a retry sequence leaves `Is_Retrying`
+  permanently `True`. After the user clicks Stop, the agentic loop aborts
+  and `Agent_End_Event` resets `Streaming`, `Paused`, `Pause_Armed`, and
+  `Aborted` — but not `Is_Retrying`. The next Send is blocked with
+  *"Agent is running (retrying) — use Steer to redirect or Stop first"*
+  because `Is_Retrying` is still set.
+- **Root cause:** The `Agent_End_Event` handler in
+  `src/coyote_app-dispatch.adb` (line 175) resets three state flags but
+  omits `Is_Retrying`. The `Auto_Retry_End_Event` handler is the only
+  code path that clears `Is_Retrying`, and it is only reached on retry
+  success or retry exhaustion — not on abort.
+- **Affected work products:** `src/coyote_app-dispatch.adb`
+- **Corrective action required:** Add `State.Set_Is_Retrying (False)` to
+  the `Agent_End_Event` handler alongside the other state-clearing calls.
+- **Actions taken (2026-07-02):**
+  1. Added `State.Set_Is_Retrying (False);` after
+     `State.Set_Pause_Armed (False);` in `Dispatch_Event`
+     (`coyote_app-dispatch.adb` line 178).
+- **Status:** Resolved
+- **Date resolved:** 2026-07-02
+
+---
