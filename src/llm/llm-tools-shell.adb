@@ -120,6 +120,8 @@ package body LLM.Tools.Shell is
         GNATCOLL.JSON.Create_Object;
       Run_Grp_P  : constant GNATCOLL.JSON.JSON_Value :=
         GNATCOLL.JSON.Create_Object;
+      Timeout_P  : constant GNATCOLL.JSON.JSON_Value :=
+        GNATCOLL.JSON.Create_Object;
       Required   : GNATCOLL.JSON.JSON_Array := GNATCOLL.JSON.Empty_Array;
    begin
       Command.Set_Field ("type", "string");
@@ -152,11 +154,19 @@ package body LLM.Tools.Shell is
          & " in parallel. Lower group numbers execute first. Only applies"
          & " when all tool calls in a turn carry a run_group.");
 
+      Timeout_P.Set_Field ("type", "integer");
+      Timeout_P.Set_Field
+        ("description",
+         "Optional wall-clock timeout in seconds. When positive the"
+         & " command is automatically terminated after that many seconds."
+         & " The output collected up to that point is returned with a"
+         & " timeout notice appended. Omit, or use 0, for no time limit.");
       Props.Set_Field ("command", Command);
       Props.Set_Field ("description", Desc_P);
       Props.Set_Field ("stdin", Stdin_P);
       Props.Set_Field ("media_type", Media_P);
       Props.Set_Field ("run_group", Run_Grp_P);
+      Props.Set_Field ("timeout", Timeout_P);
 
       GNATCOLL.JSON.Append (Required, GNATCOLL.JSON.Create ("command"));
 
@@ -249,6 +259,8 @@ package body LLM.Tools.Shell is
             Output           : Unbounded_String;
             Has_Stdin_Text   : Boolean         := False;
             Stdin_Text       : Unbounded_String := Null_Unbounded_String;
+            Timeout_Seconds  : Integer := 0;
+            Timer_Fired      : Boolean := False;
             Stdin_R          : File_Descriptor := Invalid_FD;
             Stdin_W          : File_Descriptor := Invalid_FD;
             Requested_Mime   : Unbounded_String := Null_Unbounded_String;
@@ -311,6 +323,22 @@ package body LLM.Tools.Shell is
                end;
             end if;
 
+            --  Parse the optional "timeout" field.
+            if Root.Has_Field ("timeout")
+              and then Root.Get ("timeout").Kind =
+                GNATCOLL.JSON.JSON_Int_Type
+            then
+               declare
+                  Raw : constant Long_Integer := Root.Get ("timeout").Get;
+               begin
+                  if Raw > 0 and then Raw <=
+                    Long_Integer (Integer'Last)
+                  then
+                     Timeout_Seconds := Integer (Raw);
+                  end if;
+               end;
+            end if;
+
             Open_Pipe (Output_R, Output_W);
 
             if Has_Stdin_Text then
@@ -352,28 +380,110 @@ package body LLM.Tools.Shell is
             Close (Output_W);
             Output_W := Invalid_FD;
 
-            --  Read all output from the child process.  When an abort flag is
-            --  provided the read loop runs inside an ATC block: if the user
-            --  requests abort while Read is blocking, Wait_Requested fires and
-            --  Ada's runtime interrupts the blocked syscall immediately.
-            if Abort_Flg /= null then
-               select
-                  Abort_Flg.Wait_Requested;
-               then abort
-                  Read_Output_Loop :
+            --  When a timeout is requested, spawn a timer task that fires
+            --  a local abort flag after Timeout_Seconds seconds.  The ATC
+            --  waits on this local flag so the read loop is interrupted
+            --  immediately when the timer expires.  User-abort requests are
+            --  polled at the top of each read iteration; their latency is
+            --  bounded by a single Read call (typically sub-millisecond).
+            --  The timer is cancelled as soon as the read loop completes.
+            if Timeout_Seconds > 0 then
+               declare
+                  Watch_Abort : aliased LLM.Tools.Abort_Flag;
+
+                  task Timer;
+                  task body Timer is
+                  begin
+                     delay Duration (Timeout_Seconds);
+                     Timer_Fired := True;
+                     Watch_Abort.Set;
+                  end Timer;
+               begin
+                  select
+                     Watch_Abort.Wait_Requested;
+                  then abort
+                     Read_Loop :
+                     loop
+                        --  Honour an external abort request at the top of
+                        --  every iteration.  User-clicked-Abort retains the
+                        --  "[command was aborted]" message.
+                        if Abort_Flg /= null
+                          and then Abort_Flg.Requested
+                        then
+                           Timer_Fired := False;
+                           exit Read_Loop;
+                        end if;
+
+                        Bytes_Read := Read (Output_R, Chunk);
+                        exit Read_Loop when Bytes_Read <= 0;
+                        Append (Output, Chunk (1 .. Bytes_Read));
+                     end loop Read_Loop;
+                  end select;
+
+                  abort Timer;
+               end;
+
+            else
+               --  Read all output from the child process.  When an abort
+               --  flag is provided the read loop runs inside an ATC block:
+               --  if the user requests abort while Read is blocking,
+               --  Wait_Requested fires and Ada's runtime interrupts the
+               --  blocked syscall immediately.
+               if Abort_Flg /= null then
+                  select
+                     Abort_Flg.Wait_Requested;
+                  then abort
+                     Read_Output_Loop :
+                     loop
+                        Bytes_Read := Read (Output_R, Chunk);
+                        exit Read_Output_Loop when Bytes_Read <= 0;
+                        Append (Output, Chunk (1 .. Bytes_Read));
+                     end loop Read_Output_Loop;
+                  end select;
+               else
+                  No_Abort_Read_Loop :
                   loop
                      Bytes_Read := Read (Output_R, Chunk);
-                     exit Read_Output_Loop when Bytes_Read <= 0;
+                     exit No_Abort_Read_Loop when Bytes_Read <= 0;
                      Append (Output, Chunk (1 .. Bytes_Read));
-                  end loop Read_Output_Loop;
-               end select;
-            else
-               No_Abort_Read_Loop :
-               loop
-                  Bytes_Read := Read (Output_R, Chunk);
-                  exit No_Abort_Read_Loop when Bytes_Read <= 0;
-                  Append (Output, Chunk (1 .. Bytes_Read));
-               end loop No_Abort_Read_Loop;
+                  end loop No_Abort_Read_Loop;
+               end if;
+            end if;
+
+            --  If timed out, terminate the child process before waiting.
+            if Timer_Fired then
+               if Handle /= Invalid_Handle then
+                  declare
+                     Dummy : Integer;
+                  begin
+                     Dummy :=
+                       C_Kill (-Integer (Handle), 15);
+                  end;
+               end if;
+               Close (Output_R);
+               Output_R := Invalid_FD;
+               Exit_Code := Wait (Handle);
+               --  Preserve partial stdout/stderr as the result so the
+               --  model sees how much work the command completed before
+               --  the timeout expired.
+               Is_Error   := True;
+               Media_Type := Null_Unbounded_String;
+               if Length (Output) > 0 then
+                  Append (Output, ASCII.LF);
+                  Append
+                    (Output,
+                     "[command timed out after"
+                     & Integer'Image (Timeout_Seconds)
+                     & " seconds]");
+                  Result := Output;
+               else
+                  Result := To_Unbounded_String
+                    ("[command timed out after"
+                     & Integer'Image (Timeout_Seconds)
+                     & " seconds -- no output]");
+               end if;
+               Cleanup;
+               return;
             end if;
 
             --  If aborted, terminate the child process before waiting.

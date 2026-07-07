@@ -265,6 +265,11 @@ package body LLM.System_Prompt is
             & "- Find files: find path -name pattern;"
             & " search content: grep -r pattern path (or rg)"
             & ASCII.LF
+            & "- Set a wall-clock timeout on shell commands by adding a"
+            & " `timeout` integer field (seconds). A timed-out command"
+            & " returns partial output with a ""[command timed out"" notice."
+            & " Omit the field (or use 0) for no time limit."
+            & ASCII.LF
             & "- When summarizing your actions, output plain text directly"
             & " - do NOT use cat or bash to display what you did"
             & ASCII.LF

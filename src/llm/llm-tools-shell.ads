@@ -31,6 +31,12 @@ package LLM.Tools.Shell is
    --
    --  When "stdin" is absent or empty the command reads from /dev/null.
    --
+   --  When "timeout" is present and positive the command is automatically
+   --  terminated after that many seconds.  The combined output collected up
+   --  to that point is returned as Result with a timeout notice appended.
+   --  A timeout of 0 or a missing / non-integer "timeout" field disables
+   --  the timer (the default: no per-command time limit).
+   --
    --  Result receives the combined stdout/stderr text (or base64-encoded
    --  image bytes when media_type is non-empty).  Media_Type receives the
    --  value of the "media_type" argument, or an empty Unbounded_String when

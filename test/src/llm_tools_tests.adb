@@ -424,4 +424,98 @@ package body LLM_Tools_Tests is
    end Test_Execute_Image_Not_Truncated;
 
 
+   --  ── Shell timeout tests ───────────────────────────────────────────────
+
+   procedure Test_Shell_Timeout_Under (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Result     : Unbounded_String;
+      Media_Type : Unbounded_String;
+      Is_Error   : Boolean;
+   begin
+      LLM.Tools.Shell.Execute
+        (Args_Json  =>
+           "{""command"":""sleep 0.5 && echo ok"","
+           & """timeout"":5}",
+         Result     => Result,
+         Media_Type => Media_Type,
+         Is_Error   => Is_Error);
+
+      Assert (not Is_Error,
+              "command that finishes under the timeout should succeed");
+      Assert
+        (Contains (To_String (Result), "ok"),
+         "output should contain the expected text");
+      Assert
+        (not Contains (To_String (Result), "timed out"),
+         "output must not contain a timeout notice");
+   end Test_Shell_Timeout_Under;
+
+   procedure Test_Shell_Timeout_Triggers (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Result     : Unbounded_String;
+      Media_Type : Unbounded_String;
+      Is_Error   : Boolean;
+   begin
+      LLM.Tools.Shell.Execute
+        (Args_Json  =>
+           "{""command"":""sleep 10"","
+           & """timeout"":2}",
+         Result     => Result,
+         Media_Type => Media_Type,
+         Is_Error   => Is_Error);
+
+      Assert (Is_Error,
+              "command exceeding the timeout should set Is_Error");
+      Assert
+        (Contains (To_String (Result), "timed out after 2 seconds"),
+         "output should contain ""timed out after 2 seconds"", got: "
+         & To_String (Result));
+   end Test_Shell_Timeout_Triggers;
+
+   procedure Test_Shell_Timeout_Zero (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Result     : Unbounded_String;
+      Media_Type : Unbounded_String;
+      Is_Error   : Boolean;
+   begin
+      LLM.Tools.Shell.Execute
+        (Args_Json  =>
+           "{""command"":""echo ok"","
+           & """timeout"":0}",
+         Result     => Result,
+         Media_Type => Media_Type,
+         Is_Error   => Is_Error);
+
+      Assert (not Is_Error,
+              "timeout=0 should be treated as no time limit");
+      Assert
+        (Contains (To_String (Result), "ok"),
+         "output should contain the expected text");
+   end Test_Shell_Timeout_Zero;
+
+   procedure Test_Shell_Timeout_Negative (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Result     : Unbounded_String;
+      Media_Type : Unbounded_String;
+      Is_Error   : Boolean;
+   begin
+      LLM.Tools.Shell.Execute
+        (Args_Json  =>
+           "{""command"":""echo ok"","
+           & """timeout"":-5}",
+         Result     => Result,
+         Media_Type => Media_Type,
+         Is_Error   => Is_Error);
+
+      Assert (not Is_Error,
+              "negative timeout should be treated as no time limit");
+      Assert
+        (Contains (To_String (Result), "ok"),
+         "output should contain the expected text");
+   end Test_Shell_Timeout_Negative;
+
 end LLM_Tools_Tests;

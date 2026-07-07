@@ -1496,6 +1496,18 @@ package body Test_Suites is
         ("LLM.Tools.Execute image results bypass truncation cap",
          LLM_Tools_Tests.Test_Execute_Image_Not_Truncated'Access));
 
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell timeout finishes before deadline",
+         LLM_Tools_Tests.Test_Shell_Timeout_Under'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell timeout kills an over-running command",
+         LLM_Tools_Tests.Test_Shell_Timeout_Triggers'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell timeout=0 disables the timer",
+         LLM_Tools_Tests.Test_Shell_Timeout_Zero'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell negative timeout is ignored",
+         LLM_Tools_Tests.Test_Shell_Timeout_Negative'Access));
       --  LLM.Providers.OpenAI_Completions tests
       Result.Add_Test (LLM_OpenAI_Completions_Caller.Create
         ("LLM.OpenAI_Completions streams text SSE responses",
