@@ -1699,9 +1699,35 @@ package body LLM.Agent is
             end if;
 
             Finish_Open_Block (Builder);
-            --  Do not start tool execution if stop was requested after
-            --  streaming completed.
-            exit Agentic_Loop when S.Abort_State.Requested;
+            --  When the user aborted during streaming and the response
+            --  contains no tool calls, preserve the partial assistant
+            --  message in the conversation history so the model sees
+            --  how much work was done before the abort.
+            --  (Tool-call responses are deferred: the partial assistant
+            --  message alone would form an invalid transcript without
+            --  matching tool-result messages, so we do not attempt to
+            --  preserve those here.)
+            if S.Abort_State.Requested then
+               if Has_Assistant_Message (Builder)
+                 and then Pending_Tools.Is_Empty
+               then
+                  declare
+                     Raw   : constant LLM.Types.Message :=
+                       Assistant_Message (Builder);
+                     Reply : constant LLM.Types.Message :=
+                       (Role      => Raw.Role,
+                        Content   => Raw.Content,
+                        Tok_Usage => Raw.Tok_Usage,
+                        Stop      => LLM.Types.Aborted,
+                        Timestamp => Raw.Timestamp);
+                  begin
+                     Append_Pending_Message (Reply);
+                     Flush_Pending_Messages;
+                     Messages_To_Persist.Clear;
+                  end;
+               end if;
+               exit Agentic_Loop;
+            end if;
 
             if not Pending_Tools.Is_Empty then
                declare
@@ -1924,10 +1950,10 @@ package body LLM.Agent is
 
                   Append_Pending_Message (Reply);
                   Append_Pending_Batch (Tool_Messages);
-                  if not S.Abort_State.Requested then
-                     Flush_Pending_Messages;
-                     Messages_To_Persist.Clear;
-                  end if;
+                  --  Persist tool results even when the user aborted,
+                  --  so the partial conversation is recoverable.
+                  Flush_Pending_Messages;
+                  Messages_To_Persist.Clear;
                end;
 
                exit Agentic_Loop when S.Abort_State.Requested;

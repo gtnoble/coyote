@@ -389,7 +389,19 @@ package body LLM.Tools.Shell is
                Close (Output_R);
                Output_R := Invalid_FD;
                Exit_Code := Wait (Handle);
-               Set_Error ("aborted", Result, Media_Type, Is_Error);
+               --  Preserve partial stdout/stderr as the result so the
+               --  model sees how much work the command completed before
+               --  the abort signal arrived.
+               Is_Error   := True;
+               Media_Type := Null_Unbounded_String;
+               if Length (Output) > 0 then
+                  Append (Output, ASCII.LF);
+                  Append (Output, "[command was aborted]");
+                  Result := Output;
+               else
+                  Result := To_Unbounded_String
+                    ("[command was aborted -- no output]");
+               end if;
                Cleanup;
                return;
             end if;
