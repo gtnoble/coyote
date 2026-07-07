@@ -33,16 +33,28 @@ package body LLM.Agent is
    use type LLM.Types.Role;
    use type LLM.Types.Stop_Reason;
    use type LLM.Types.Usage;
+   use type GNATCOLL.JSON.JSON_Value_Type;
 
    type Pending_Tool is record
       Tool_Call_Id   : Unbounded_String;
       Tool_Name      : Unbounded_String;
       Arguments_Json : Unbounded_String;
+      Run_Group      : Natural := 0;
    end record;
 
    package Pending_Tool_Vectors is new Ada.Containers.Vectors
      (Index_Type   => Natural,
       Element_Type => Pending_Tool);
+
+   --  Extract the optional integer "run_group" from a tool call's JSON
+   --  arguments.  Returns 0 when absent, non-integer, or after the JSON
+   --  has been stripped (meaning "no group").
+   function Extract_Run_Group (Args_Json : String) return Natural;
+
+   --  Parse Args_Json, remove the "run_group" field if present, and
+   --  return the cleaned JSON.  Returns the original string unchanged
+   --  when the field is absent or the JSON is invalid.
+   function Strip_Run_Group (Args_Json : String) return String;
 
    --  Result of one executed tool call, stored by a Worker_Task.
    type Tool_Result_Slot is record
@@ -189,6 +201,79 @@ package body LLM.Agent is
    begin
       Handler.all (Event);
    end Emit;
+
+   function Extract_Run_Group (Args_Json : String) return Natural is
+      Max_Group : constant := 2**30;
+   begin
+      if Args_Json'Length = 0 then
+         return 0;
+      end if;
+
+      declare
+         Parsed : constant GNATCOLL.JSON.Read_Result :=
+           GNATCOLL.JSON.Read (Args_Json);
+      begin
+         if not Parsed.Success
+           or else Parsed.Value.Kind /= GNATCOLL.JSON.JSON_Object_Type
+         then
+            return 0;
+         end if;
+
+         if not Parsed.Value.Has_Field ("run_group") then
+            return 0;
+         end if;
+
+         declare
+            Field : constant GNATCOLL.JSON.JSON_Value :=
+              Parsed.Value.Get ("run_group");
+         begin
+            if Field.Kind /= GNATCOLL.JSON.JSON_Int_Type then
+               return 0;
+            end if;
+
+            declare
+               Value : constant Long_Integer := Field.Get;
+            begin
+               if Value < 1
+                 or else Value > Long_Integer (Max_Group)
+               then
+                  return 0;
+               else
+                  return Natural (Value);
+               end if;
+            end;
+         end;
+      end;
+   end Extract_Run_Group;
+
+   function Strip_Run_Group (Args_Json : String) return String is
+   begin
+      if Args_Json'Length = 0 then
+         return Args_Json;
+      end if;
+
+      declare
+         Parsed : constant GNATCOLL.JSON.Read_Result :=
+           GNATCOLL.JSON.Read (Args_Json);
+      begin
+         if not Parsed.Success
+           or else Parsed.Value.Kind /= GNATCOLL.JSON.JSON_Object_Type
+         then
+            return Args_Json;
+         end if;
+
+         if not Parsed.Value.Has_Field ("run_group") then
+            return Args_Json;
+         end if;
+
+         declare
+            Clean : constant GNATCOLL.JSON.JSON_Value := Parsed.Value;
+         begin
+            Clean.Unset_Field ("run_group");
+            return GNATCOLL.JSON.Write (Clean);
+         end;
+      end;
+   end Strip_Run_Group;
 
    function Lowercase (Text : String) return String is
    begin
@@ -913,10 +998,23 @@ package body LLM.Agent is
             begin
                Consume_Update (Builder, Update);
                if Update.Kind = LLM.Events.Tool_Call_End then
-                  Pending_Tools.Append
-                    ((Tool_Call_Id   => Update.Tool_Call_Id,
-                      Tool_Name      => Update.Tool_Name,
-                      Arguments_Json => Update.Delta_Text));
+                  declare
+                     Args_Json : constant String :=
+                       To_String (Update.Delta_Text);
+                     Group     : constant Natural :=
+                       Extract_Run_Group (Args_Json);
+                     Cleaned   : constant String :=
+                       (if Group > 0
+                        then Strip_Run_Group (Args_Json)
+                        else Args_Json);
+                  begin
+                     Pending_Tools.Append
+                       ((Tool_Call_Id   => Update.Tool_Call_Id,
+                         Tool_Name      => Update.Tool_Name,
+                         Arguments_Json =>
+                           To_Unbounded_String (Cleaned),
+                         Run_Group      => Group));
+                  end;
                end if;
                Emit (On_Event, E);
             end;
@@ -1610,23 +1708,28 @@ package body LLM.Agent is
                   Reply         : constant LLM.Types.Message :=
                     Assistant_Message (Builder);
                   Tool_Messages : LLM.Types.Message_Vectors.Vector;
-                  --  Worker_Access is declared here (not at package body
-                  --  scope) so that heap-allocated Worker_Task objects are
-                  --  mastered by this block per Ada RM 9.3 — the runtime
-                  --  awaits their termination when the block exits.
                   N             : constant Positive :=
                     Positive (Pending_Tools.Length);
-                  type Worker_Access is access Worker_Task;
-                  Store         : aliased Results_Store (Count => N);
-                  Workers       : array (1 .. N) of Worker_Access;
+                  type Worker_Access is access all Worker_Task;
+
+                  --  Collect results in a persistent array so Phase 3
+                  --  can read them regardless of execution strategy.
+                  Results : Tool_Result_Slot_Array (1 .. N)
+                    := (others => (others => <>));
+
+                  --  True when every tool carries a valid run_group > 0.
+                  All_Have_Groups : constant Boolean :=
+                    (for all I in 1 .. N =>
+                       Pending_Tools.Element (I - 1).Run_Group > 0);
                begin
                   if not Has_Assistant_Message (Builder) then
                      raise Constraint_Error with
                        "Tool batch missing assistant message";
                   end if;
 
-                  --  Phase 1: emit Tool_Execution_Start_Event for every tool
-                  --  (main task, sequential) before any worker is spawned.
+                  --  Phase 1: emit Tool_Execution_Start_Event for every
+                  --  tool (main task, sequential) before any worker is
+                  --  spawned.
                   for I in Pending_Tools.First_Index
                     .. Pending_Tools.Last_Index
                   loop
@@ -1644,52 +1747,161 @@ package body LLM.Agent is
                      end;
                   end loop;
 
-                  --  Phase 2: spawn one Worker_Task per pending tool and wait
-                  --  for all to complete.  Workers do not call On_Event; they
-                  --  only call Store.Set, which is a protected operation.
-                  for I in 1 .. N loop
-                     Workers (I) := new Worker_Task
-                       (Store          => Store'Access,
-                        Abort_Flg      => S.Abort_State'Access,
-                        Context_Window => S.Model_Info.Context_Window);
-                     Workers (I).Start
-                       (Index => I,
-                        Tool  => Pending_Tools.Element (I - 1));
-                  end loop;
+                  if All_Have_Groups then
+                     --  ── grouped execution ─────────────────────────
+                     --  Collect unique group numbers, sort ascending.
+                     declare
+                        type Group_Map is array (1 .. N) of Natural;
+                        Groups      : Group_Map := (others => 0);
+                        Group_Count : Natural  := 0;
 
-                  Store.Wait_All;
+                        procedure Append_Group (Grp : Natural) is
+                           Found : Boolean := False;
+                        begin
+                           for J in 1 .. Group_Count loop
+                              if Groups (J) = Grp then
+                                 Found := True;
+                                 exit;
+                              end if;
+                           end loop;
+                           if not Found then
+                              Group_Count := Group_Count + 1;
+                              Groups (Group_Count) := Grp;
+                           end if;
+                        end Append_Group;
 
-                  --  Phase 3: emit Tool_Execution_End_Event for every tool in
-                  --  the original call order, then build the Tool_Messages
-                  --  batch.  The stats footer is appended to the persisted
-                  --  result text of the last tool so the model can track
-                  --  token consumption and cost across turns.
+                        procedure Sort_Groups is
+                           Temp : Natural;
+                        begin
+                           for I in 1 .. Group_Count - 1 loop
+                              for J in I + 1 .. Group_Count loop
+                                 if Groups (I) > Groups (J) then
+                                    Temp       := Groups (I);
+                                    Groups (I) := Groups (J);
+                                    Groups (J) := Temp;
+                                 end if;
+                              end loop;
+                           end loop;
+                        end Sort_Groups;
+
+                     begin
+                        for I in 1 .. N loop
+                           Append_Group
+                             (Pending_Tools.Element (I - 1).Run_Group);
+                        end loop;
+                        Sort_Groups;
+
+                        for G in 1 .. Group_Count loop
+                           exit when S.Abort_State.Requested;
+
+                           declare
+                              Group_Number : constant Natural :=
+                                Groups (G);
+                              Group_Size   : Natural := 0;
+                              Slot_Map     : array (1 .. N)
+                                of Natural := (others => 0);
+                           begin
+                              for I in 1 .. N loop
+                                 if Pending_Tools.Element (I - 1)
+                                   .Run_Group = Group_Number
+                                 then
+                                    Group_Size := Group_Size + 1;
+                                    Slot_Map (Group_Size) := I;
+                                 end if;
+                              end loop;
+
+                              declare
+                                 Store   : aliased Results_Store
+                                   (Count => Group_Size);
+                                 Workers : array (1 .. Group_Size)
+                                   of Worker_Access;
+                              begin
+                                 for W in 1 .. Group_Size loop
+                                    Workers (W) := new Worker_Task
+                                      (Store          =>
+                                         Store'Unchecked_Access,
+                                       Abort_Flg      =>
+                                         S.Abort_State'Access,
+                                       Context_Window =>
+                                         S.Model_Info
+                                           .Context_Window);
+                                    Workers (W).Start
+                                      (Index => W,
+                                       Tool  =>
+                                         Pending_Tools.Element
+                                           (Slot_Map (W) - 1));
+                                 end loop;
+
+                                 Store.Wait_All;
+
+                                 for W in 1 .. Group_Size loop
+                                    Results (Slot_Map (W)) :=
+                                      Store.Get (W);
+                                 end loop;
+                              end;
+                           end;
+                        end loop;
+                     end;
+
+                  else
+                     --  ── sequential execution ──────────────────────
+                     for I in 1 .. N loop
+                        exit when S.Abort_State.Requested;
+
+                        declare
+                           Store  : aliased Results_Store
+                             (Count => 1);
+                           Worker : Worker_Access;
+                           Tool   : constant Pending_Tool :=
+                             Pending_Tools.Element (I - 1);
+                        begin
+                           Worker := new Worker_Task
+                             (Store          => Store'Unchecked_Access,
+                              Abort_Flg      =>
+                                S.Abort_State'Access,
+                              Context_Window =>
+                                S.Model_Info.Context_Window);
+                           Worker.Start
+                             (Index => 1, Tool => Tool);
+                           Store.Wait_All;
+                           Results (I) := Store.Get (1);
+                        end;
+                     end loop;
+                  end if;
+
+                  --  Phase 3: emit Tool_Execution_End_Event for every
+                  --  tool in the original call order, then build the
+                  --  Tool_Messages batch.  The stats footer is appended
+                  --  to the persisted result text of the last tool.
                   declare
                      Stats_Footer : constant String :=
-                       Format_Session_Cost_Footer (S, Builder.Tok_Usage);
+                       Format_Session_Cost_Footer
+                         (S, Builder.Tok_Usage);
                   begin
                      for I in 1 .. N loop
                         declare
                            Tool_Block  : constant Pending_Tool :=
                              Pending_Tools.Element (I - 1);
-                           Slot        : constant Tool_Result_Slot :=
-                             Store.Get (I);
+                           Slot        : constant
+                             Tool_Result_Slot := Results (I);
                            End_Event   : constant
                              LLM.Events.Tool_Execution_End_Event :=
                                (LLM.Events.Agent_Event with
-                                Tool_Call_Id => Tool_Block.Tool_Call_Id,
-                                Tool_Name    => Tool_Block.Tool_Name,
-                                Result_Text  => Slot.Result_Text,
-                                Is_Error     => Slot.Is_Error,
-                                Is_Cancelled => S.Abort_State.Requested);
-                           --  Append footer to the stored text of the last
-                           --  tool only.  The UI event always shows the raw
-                           --  tool output so the footer does not clutter
-                           --  the error preview or the tool result panel.
+                                Tool_Call_Id =>
+                                  Tool_Block.Tool_Call_Id,
+                                Tool_Name    =>
+                                  Tool_Block.Tool_Name,
+                                Result_Text  =>
+                                  Slot.Result_Text,
+                                Is_Error     =>
+                                  Slot.Is_Error,
+                                Is_Cancelled =>
+                                  S.Abort_State.Requested);
                            Stored_Text : constant String :=
                              Ada.Strings.Unbounded.To_String
                                (Slot.Result_Text)
-                             & (if I = N and then Stats_Footer'Length > 0
+                             & (if I = N
+                                   and then Stats_Footer'Length > 0
                                    and then Ada.Strings.Unbounded.Length
                                               (Slot.Media_Type) = 0
                                 then ASCII.LF & Stats_Footer

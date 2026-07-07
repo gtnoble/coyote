@@ -98,6 +98,32 @@ boundaries from normal user messages.
 
 ---
 
+## 2026-07-06 — Run-Group Tool Execution
+
+Tool calls now execute **sequentially by default**. The shell tool accepts an
+optional integer `run_group` argument (stripped before the command executor
+sees it). When every tool call in a turn carries a `run_group > 0`, calls
+are grouped and executed in ascending group order, with calls within the same
+group running concurrently via the existing `Worker_Task` + `Results_Store`
+fork-join pattern. When any call lacks `run_group` (or has `run_group = 0`),
+all calls run one at a time in the original call order.
+
+Files changed:
+- `src/llm/llm-agent.adb` — `Pending_Tool` gained `Run_Group : Natural`;
+  `Extract_Run_Group` and `Strip_Run_Group` helpers added; tool accumulation
+  now parses and removes `run_group` from the JSON; execution block
+  dispatches between the grouped path (old parallel machinery, scoped per
+  group) and the new sequential path (single worker per tool, one at a time).
+- `src/llm/llm-tools-shell.adb` — `run_group` added to the shell tool JSON
+  schema as an optional integer property.
+- `test/src/llm_parallel_tools_tests.adb` — two new tests: sequential default
+  (`Test_Tools_Run_Sequentially_By_Default`) and group ordering
+  (`Test_Tools_Run_In_Group_Order`); existing concurrency test updated to
+  include `run_group:1`.
+- Requirements: added REQ-CORE-056.
+
+---
+
 ## Open Questions / Future Work
 
 - The `promptFilter` feature runs the filter via `$SHELL -c CMD` synchronously

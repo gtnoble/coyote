@@ -22,4 +22,11 @@ package LLM_Parallel_Tools_Tests is
    --  Was_Aborted = True and only the user prompt is persisted.
    procedure Test_Parallel_Abort_During_Batch (T : in out Test);
 
+   --  Two tools without run_group execute sequentially (default behaviour).
+   procedure Test_Tools_Run_Sequentially_By_Default (T : in out Test);
+
+   --  Three tools in two groups: group 1 runs first in parallel, then
+   --  group 2 runs in parallel after group 1 completes.
+   procedure Test_Tools_Run_In_Group_Order (T : in out Test);
+
 end LLM_Parallel_Tools_Tests;

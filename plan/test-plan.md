@@ -145,7 +145,7 @@ SRS-CORE requirement groups.
 | `llm_system_prompt_tests.adb` | REQ-CORE-090â092 | ~10 |
 | `llm_types_tests.adb` | REQ-CORE-400â402 | ~20 |
 | `llm_agent_tests.adb` | REQ-CORE-040â046, 060â064 | ~80 |
-| `llm_parallel_tools_tests.adb` | REQ-CORE-050 (parallel tools) | ~10 |
+| `llm_parallel_tools_tests.adb` | REQ-CORE-056 (run_group) | ~15 |
 | `llm_context_tests.adb` | REQ-CORE-060 (compaction threshold) | ~15 |
 | `session_history_tests.adb` | REQ-CORE-130â131 | ~15 |
 | `dispatch_tests.adb` | REQ-CORE-040â046 (dispatch) | ~20 |
@@ -257,6 +257,7 @@ These are entered as open items in the problem log (PCR-009).
 | REQ-CORE-050â053 | T | `llm_tools_tests.adb` |
 | REQ-CORE-054 | D | DEM (--no-tools with tool model) |
 | REQ-CORE-055 | D | DEM-007 |
+| REQ-CORE-056 | T | `llm_parallel_tools_tests.adb` |
 | REQ-CORE-060â064 | T/D | `llm_compaction_tests.adb`, `llm_context_tests.adb`, DEM-008â009 |
 | REQ-CORE-070â073 | T/D | `llm_settings_tests.adb`, `llm_model_registry_tests.adb`, DEM-010 |
 | REQ-CORE-074 | D | DEM-011 |
@@ -334,6 +335,18 @@ infrastructure sufficient to cover the buffering and collapsing logic.
 **Baseline as of 2026-06-16 (Quantile Bonferroni Checkbox):** 704 tests, 0 failures,
 **Baseline as of 2026-06-29 (Comment Speed Fix):** 722 tests, 0 failures,
   0 unexpected errors.
+
+**Baseline as of 2026-07-06 (Run-Group Tool Execution):** 724 tests, 0 failures,
+  0 unexpected errors.  Tool calls now execute sequentially by default; a
+  `run_group` integer argument on all tool calls in a turn enables grouped
+  parallel execution (calls in the same group run concurrently, groups run in
+  ascending order).  Added REQ-CORE-056.  2 new tests:
+  `Test_Tools_Run_Sequentially_By_Default` (two 0.3 s sleeps without
+  run_group must take > 0.5 s wall-clock) and
+  `Test_Tools_Run_In_Group_Order` (three tools in two groups: group 1
+  runs before group 2).  `Test_Parallel_Tools_Run_Concurrently` updated
+  to include `run_group:1` on both tools.
+
 0 unexpected errors.  "Quantile CC Bonferroni Checkbox" feature: added `Quantile_Bonferroni` workspace option (boolean, default true) controlling Bonferroni multiplicity correction on quantile control charts.  3 new tests: `Test_Extract_Limits_Bonferroni_Disabled`, `Test_Quantile_Bonferroni_Round_Trip`, `Test_Quantile_Bonferroni_Default`.
 (`Coyote_SQC_MI_Tests`) covering: `Test_MI_Identical_Calls`,
 `Test_MI_Different_Tool_Names`, `Test_MI_One_Side_Absent`,

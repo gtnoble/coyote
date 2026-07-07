@@ -270,6 +270,15 @@ Tool execution shall be abortable: when the user triggers an abort (via the
 Stop tag command in Acme or equivalent in GUI), a running tool invocation
 shall be cancelled and the agent loop shall terminate cleanly.
 
+**REQ-CORE-056** (I)
+The shell tool shall accept an optional integer `run_group` argument. When
+every tool call in a turn carries a valid `run_group > 0`, tool calls shall
+be executed in groups: calls within the same group run concurrently, groups
+run sequentially in ascending group-number order. When any tool call lacks a
+`run_group` (or has `run_group = 0`), all calls in the turn shall execute
+sequentially in the original call order. The `run_group` field shall be
+stripped from the arguments JSON before the command executor receives it.
+
 ---
 
 #### 3.1.6 Context Compaction
@@ -901,6 +910,7 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-053 | Image results bypass size cap | I | TC-053 |
 | REQ-CORE-054 | --no-tools returns error to model | D | TC-054 |
 | REQ-CORE-055 | Stop aborts tool execution | D | TC-055 |
+| REQ-CORE-056 | run_group controls parallel/sequential execution | T | TC-056 |
 | REQ-CORE-060 | Auto compaction at threshold | D | TC-060 |
 | REQ-CORE-061 | Manual compaction via command | D | TC-061 |
 | REQ-CORE-062 | Compaction summarises and trims history | D | TC-062 |
@@ -958,7 +968,7 @@ objectives stated in the Project Plan (PLAN §1 and §3):
 | Self-contained Ada LLM agent with no Node.js dependency | REQ-CORE-024, REQ-CORE-500–505, REQ-CORE-800–805 |
 | Multi-frontend support (acme, GTK3, plain) | REQ-CORE-001–004, REQ-CORE-100–131 |
 | Streaming output | REQ-CORE-040–046, REQ-CORE-700 |
-| Tool execution | REQ-CORE-050–055 |
+| Tool execution | REQ-CORE-050–056 |
 | Session persistence and resume | REQ-CORE-080–084, REQ-CORE-701 |
 | Context compaction | REQ-CORE-060–064 |
 | Multi-provider LLM support | REQ-CORE-070–078, REQ-CORE-150–156, REQ-CORE-200–204 |

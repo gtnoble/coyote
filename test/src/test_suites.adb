@@ -2597,6 +2597,14 @@ package body Test_Suites is
         ("Parallel batch: abort during batch sets Was_Aborted",
          LLM_Parallel_Tools_Tests
            .Test_Parallel_Abort_During_Batch'Access));
+      Result.Add_Test (LLM_Parallel_Caller.Create
+        ("Sequential default: tools without run_group run sequentially",
+         LLM_Parallel_Tools_Tests
+           .Test_Tools_Run_Sequentially_By_Default'Access));
+      Result.Add_Test (LLM_Parallel_Caller.Create
+        ("Group order: group 1 runs before group 2",
+         LLM_Parallel_Tools_Tests
+           .Test_Tools_Run_In_Group_Order'Access));
       Result.Add_Test (LLM_Agent_Caller.Create
         ("LLM.Agent pause fires at turn boundary and resumes normally",
          LLM_Agent_Tests.Test_Pause_Fires_At_Turn_Boundary'Access));

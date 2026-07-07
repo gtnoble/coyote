@@ -118,6 +118,8 @@ package body LLM.Tools.Shell is
         GNATCOLL.JSON.Create_Object;
       Media_P    : constant GNATCOLL.JSON.JSON_Value :=
         GNATCOLL.JSON.Create_Object;
+      Run_Grp_P  : constant GNATCOLL.JSON.JSON_Value :=
+        GNATCOLL.JSON.Create_Object;
       Required   : GNATCOLL.JSON.JSON_Array := GNATCOLL.JSON.Empty_Array;
    begin
       Command.Set_Field ("type", "string");
@@ -143,10 +145,18 @@ package body LLM.Tools.Shell is
          & " base64-encoded and returned as an image content block of this"
          & " type.  Omit or leave empty for plain-text output (the default).");
 
+      Run_Grp_P.Set_Field ("type", "integer");
+      Run_Grp_P.Set_Field
+        ("description",
+         "Optional execution group number. Tools in the same group run"
+         & " in parallel. Lower group numbers execute first. Only applies"
+         & " when all tool calls in a turn carry a run_group.");
+
       Props.Set_Field ("command", Command);
       Props.Set_Field ("description", Desc_P);
       Props.Set_Field ("stdin", Stdin_P);
       Props.Set_Field ("media_type", Media_P);
+      Props.Set_Field ("run_group", Run_Grp_P);
 
       GNATCOLL.JSON.Append (Required, GNATCOLL.JSON.Create ("command"));
 

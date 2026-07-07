@@ -614,13 +614,15 @@ loop:
   append assistant message to History
   persist assistant message
   if no tool calls in response: exit
-  for each tool call:
-    On_Event(Tool_Execution_Start_Event)
-    result ← execute tool (LLM.Tools.Shell.Execute or error if No_Tools)
-    On_Event(Tool_Execution_End_Event)
-    append tool result to History
-    persist tool result
-  end for
+  --  Phase 1: emit Tool_Execution_Start_Event for every tool in call order.
+  --  Phase 2: execute tools.  If all tools carry a run_group > 0 then
+  --    group by run_group value, sort groups ascending, execute each group's
+  --    tools concurrently within the group; otherwise execute every tool
+  --    sequentially in call order.
+  --  Phase 3: emit Tool_Execution_End_Event for every tool in call order;
+  --    append each tool result to History and persist.
+  --  The run_group field is stripped from arguments JSON before the tool
+  --  executor sees it.
 end loop
 -- check compaction threshold; compact if needed
 emit Session_Stats_Event
