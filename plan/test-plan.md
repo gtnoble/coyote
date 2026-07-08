@@ -347,20 +347,10 @@ infrastructure sufficient to cover the buffering and collapsing logic.
   runs before group 2).  `Test_Parallel_Tools_Run_Concurrently` updated
   to include `run_group:1` on both tools.
 
-0 unexpected errors.  "Quantile CC Bonferroni Checkbox" feature: added `Quantile_Bonferroni` workspace option (boolean, default true) controlling Bonferroni multiplicity correction on quantile control charts.  3 new tests: `Test_Extract_Limits_Bonferroni_Disabled`, `Test_Quantile_Bonferroni_Round_Trip`, `Test_Quantile_Bonferroni_Default`.
-(`Coyote_SQC_MI_Tests`) covering: `Test_MI_Identical_Calls`,
-`Test_MI_Different_Tool_Names`, `Test_MI_One_Side_Absent`,
-`Test_MI_Integer_Key_Skipped`, `Test_MI_Both_Sides_Empty`,
-`Test_Metrics_MI_Two_Identical_Calls`, `Test_Metrics_MI_Single_Tool_Call`,
-`Test_Metrics_MI_No_Tool_Calls`, `Test_Metrics_MI_Total_Sum`,
-`Test_Metrics_MI_Cross_Turn_Pairs`, `Test_Estimate_MI_Sum_I_Grand_Mean`,
-`Test_Estimate_MI_Sum_I_Mean_MR`, `Test_Estimate_MI_Sum_Excludes_No_Pairs`.
-Plus 23 tests from prior features (Histogram Two-Set, Turn Count Box-Cox,
-Quantile CC interpolation, etc.).  No regressions.
-instead of `Not_Found` exception raising.  No new test cases added; existing test
-infrastructure sufficient to verify the new graceful-degradation path.
-(+2 tests: Test_Parse_File_Sets_File_Path, Test_Parse_File_Sets_File_Mtime
-for PCR-015 incremental reload fix.)
+**Baseline as of 2026-07-08 (Continue Tag):** 724 tests, 0 failures,
+  0 unexpected errors.  Test count unchanged.  Added `Continue` tag command
+  to the Acme idle-window button set; re-submits the session from idle state
+  by enqueueing a `"Continue."` user prompt.
 
 **Baseline as of 2026-06-11 (PCR-022 follow-up: thinking-block empty-content fix):**
 670 tests, 0 failures, 0 unexpected errors.  Added 5 Collapse_Thinking_Delta unit

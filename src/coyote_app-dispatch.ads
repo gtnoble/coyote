@@ -27,7 +27,7 @@ package Coyote_App.Dispatch is
    --  Replace the acme window tag with the button set appropriate for Mode,
    --  appending Suffix (e.g. " Models Sessions Thinking Stats").
    --
-   --     Idle_Tag    →  | Send Steer New Compact Clear<Suffix>
+   --     Idle_Tag    →  | Send Steer New Compact Clear Continue<Suffix>
    --     Running_Tag →  | Stop Steer Pause<Suffix>
    --     Armed_Tag   →  | Stop Steer Pausing<Suffix>
    --     Paused_Tag  →  | Stop Steer Send Resume<Suffix>

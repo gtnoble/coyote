@@ -347,6 +347,7 @@ three layers:
 [Acme_Event_Task]
   → reads event file in /winid/event
   → "Send" button-2 → writes prompt to App_State, signals Agent_Task
+  → "Continue" button-2 → enqueues "Continue." prompt, resumes agentic loop
   → "Stop" button-2 → sets Abort_Flag in LLM.Tools
   → other commands → handled inline or forwarded to Agent_Task via App_State
 ```

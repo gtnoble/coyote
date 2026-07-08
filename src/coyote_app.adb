@@ -1232,6 +1232,14 @@ package body Coyote_App is
                                        My_FS'Access,
                                        Format_Status (State, "ready")
                                        & ASCII.LF);
+                                 elsif Text = "Continue" then
+                                    Acme.Window.Append
+                                      (Win,
+                                       My_FS'Access,
+                                       ASCII.LF & UC_TRI_R
+                                       & " Continue" & ASCII.LF);
+                                    Commands.Enqueue
+                                      (Prompt_Command, "Continue.");
                                  elsif Text = "Models" then
                                     Open_Models_Window;
                                  elsif Text = "Sessions" then

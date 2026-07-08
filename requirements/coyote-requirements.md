@@ -427,7 +427,7 @@ the 9P VFS, using the window ID from `$winid`.
 
 **REQ-CORE-101** (D)
 The Acme frontend shall support the following tag commands: Send, Stop, New,
-Clear, Models, Sessions, Thinking, Stats, Compact, Pause, Resume, SetDefault.
+Clear, Continue, Models, Sessions, Thinking, Stats, Compact, Pause, Resume, SetDefault.
 
 **REQ-CORE-102** (D)
 The Send tag command shall read the window body text below the last prompt
