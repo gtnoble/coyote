@@ -414,7 +414,15 @@ package body LLM.Tools.Shell is
                            exit Read_Loop;
                         end if;
 
-                        Bytes_Read := Read (Output_R, Chunk);
+                        begin
+                           Bytes_Read := Read (Output_R, Chunk);
+                        exception
+                           when others =>
+                              if Timer_Fired then
+                                 exit Read_Loop;
+                              end if;
+                              raise;
+                        end;
                         exit Read_Loop when Bytes_Read <= 0;
                         Append (Output, Chunk (1 .. Bytes_Read));
                      end loop Read_Loop;
@@ -435,7 +443,17 @@ package body LLM.Tools.Shell is
                   then abort
                      Read_Output_Loop :
                      loop
-                        Bytes_Read := Read (Output_R, Chunk);
+                        begin
+                           Bytes_Read := Read (Output_R, Chunk);
+                        exception
+                           when others =>
+                              if Abort_Flg /= null
+                                and then Abort_Flg.Requested
+                              then
+                                 exit Read_Output_Loop;
+                              end if;
+                              raise;
+                        end;
                         exit Read_Output_Loop when Bytes_Read <= 0;
                         Append (Output, Chunk (1 .. Bytes_Read));
                      end loop Read_Output_Loop;
