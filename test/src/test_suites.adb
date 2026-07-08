@@ -1508,6 +1508,12 @@ package body Test_Suites is
       Result.Add_Test (LLM_Tools_Caller.Create
         ("LLM.Tools.Shell negative timeout is ignored",
          LLM_Tools_Tests.Test_Shell_Timeout_Negative'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell timeout under: elapsed time verifies fast finish",
+         LLM_Tools_Tests.Test_Shell_Timeout_Under_Elapsed'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell timeout triggers: elapsed time verifies tight window",
+         LLM_Tools_Tests.Test_Shell_Timeout_Triggers_Elapsed'Access));
       --  LLM.Providers.OpenAI_Completions tests
       Result.Add_Test (LLM_OpenAI_Completions_Caller.Create
         ("LLM.OpenAI_Completions streams text SSE responses",

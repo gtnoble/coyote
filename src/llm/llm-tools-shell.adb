@@ -353,6 +353,13 @@ package body LLM.Tools.Shell is
                Null_In := Open (Null_File, Read_Mode);
             end if;
 
+            --  Wrap the shell invocation with setsid(1) so the child
+            --  process becomes a session leader in its own process group.
+            --  This means kill(-Handle, N) kills the shell and all its
+            --  descendants, which in turn closes the write-end of the
+            --  output pipe from the kernel side and unblocks any blocked
+            --  read() immediately.
+            Args.Append ("/usr/bin/setsid");
             Args.Append (Shell_Path);
             Args.Append ("-lc");
             Args.Append (Command);
@@ -380,76 +387,95 @@ package body LLM.Tools.Shell is
             Close (Output_W);
             Output_W := Invalid_FD;
 
-            --  When a timeout is requested, spawn a timer task that fires
-            --  a local abort flag after Timeout_Seconds seconds.  The ATC
-            --  waits on this local flag so the read loop is interrupted
-            --  immediately when the timer expires.  User-abort requests are
-            --  polled at the top of each read iteration; their latency is
-            --  bounded by a single Read call (typically sub-millisecond).
-            --  The timer is cancelled as soon as the read loop completes.
+            --  When a timeout is requested, spawn a timer task that
+            --  sends SIGKILL to the child process group after the timeout
+            --  elapses.  The child runs under setsid(1) so it is the
+            --  leader of its own process group; kill(-Handle, SIGKILL)
+            --  kills the shell and all descendants.  The kernel then
+            --  closes the write-end of the output pipe, unblocking any
+            --  blocked read() with EOF.  The timer is cancelled as soon
+            --  as the read loop completes.
             if Timeout_Seconds > 0 then
                declare
-                  Watch_Abort : aliased LLM.Tools.Abort_Flag;
-
                   task Timer;
                   task body Timer is
                   begin
                      delay Duration (Timeout_Seconds);
                      Timer_Fired := True;
-                     Watch_Abort.Set;
+                     --  kill(-Handle, SIGKILL) kills the child's entire
+                     --  process group (the setsid child + shell + all
+                     --  descendants).  The kernel closes the pipe's
+                     --  write-end → blocked read() returns EOF.
+                     if Handle /= Invalid_Handle then
+                        declare
+                           Dummy : Integer;
+                        begin
+                           Dummy :=
+                             C_Kill (-Integer (Handle), 9);
+                        end;
+                     end if;
                   end Timer;
                begin
-                  select
-                     Watch_Abort.Wait_Requested;
-                  then abort
-                     Read_Loop :
-                     loop
-                        --  Honour an external abort request at the top of
-                        --  every iteration.  User-clicked-Abort retains the
-                        --  "[command was aborted]" message.
-                        if Abort_Flg /= null
-                          and then Abort_Flg.Requested
-                        then
-                           Timer_Fired := False;
-                           exit Read_Loop;
-                        end if;
-
-                        begin
-                           Bytes_Read := Read (Output_R, Chunk);
-                        exception
-                           when others =>
-                              if Timer_Fired then
-                                 exit Read_Loop;
-                              end if;
-                              raise;
-                        end;
-                        exit Read_Loop when Bytes_Read <= 0;
-                        Append (Output, Chunk (1 .. Bytes_Read));
-                     end loop Read_Loop;
-                  end select;
+                  Read_Loop :
+                  loop
+                     begin
+                        Bytes_Read := Read (Output_R, Chunk);
+                     exception
+                        when others =>
+                           if Timer_Fired then
+                              --  Child killed by timer → expected error;
+                              --  read() returning 0 is handled by the
+                              --  Bytes_Read <= 0 exit below.
+                              exit Read_Loop;
+                           end if;
+                           raise;
+                     end;
+                     exit Read_Loop when Bytes_Read <= 0;
+                     Append (Output, Chunk (1 .. Bytes_Read));
+                  end loop Read_Loop;
 
                   abort Timer;
                end;
 
             else
-               --  Read all output from the child process.  When an abort
-               --  flag is provided the read loop runs inside an ATC block:
-               --  if the user requests abort while Read is blocking,
-               --  Wait_Requested fires and Ada's runtime interrupts the
-               --  blocked syscall immediately.
+               --  When an abort flag is provided, spawn an Abort_Watcher
+               --  task that sends SIGKILL to the child's process group
+               --  as soon as the flag is set.  The child runs under
+               --  setsid(1), so kill(-Handle, SIGKILL) kills the shell
+               --  and all descendants, unblocking any blocked read().
                if Abort_Flg /= null then
-                  select
-                     Abort_Flg.Wait_Requested;
-                  then abort
+                  declare
+                     Aborted : Boolean := False;
+
+                     task Abort_Watcher;
+                     task body Abort_Watcher is
+                     begin
+                        Abort_Flg.Wait_Requested;
+                        Aborted := True;
+                        --  kill(-Handle, SIGKILL) kills the setsid child's
+                        --  process group (shell + descendants).  The kernel
+                        --  closes the pipe's write-end → blocked read()
+                        --  returns EOF immediately.
+                        if Handle /= Invalid_Handle then
+                           declare
+                              Dummy : Integer;
+                           begin
+                              Dummy :=
+                                C_Kill (-Integer (Handle), 9);
+                           end;
+                        end if;
+                     end Abort_Watcher;
+                  begin
                      Read_Output_Loop :
                      loop
                         begin
                            Bytes_Read := Read (Output_R, Chunk);
                         exception
                            when others =>
-                              if Abort_Flg /= null
-                                and then Abort_Flg.Requested
-                              then
+                              if Aborted then
+                                 --  Child killed by Abort_Watcher →
+                                 --  expected error; read() returning 0
+                                 --  is handled by the Bytes_Read exit.
                                  exit Read_Output_Loop;
                               end if;
                               raise;
@@ -457,7 +483,9 @@ package body LLM.Tools.Shell is
                         exit Read_Output_Loop when Bytes_Read <= 0;
                         Append (Output, Chunk (1 .. Bytes_Read));
                      end loop Read_Output_Loop;
-                  end select;
+
+                     abort Abort_Watcher;
+                  end;
                else
                   No_Abort_Read_Loop :
                   loop

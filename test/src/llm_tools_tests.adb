@@ -1,4 +1,5 @@
 with AUnit.Assertions;
+with Ada.Real_Time;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with LLM.Tools;
@@ -517,5 +518,80 @@ package body LLM_Tools_Tests is
         (Contains (To_String (Result), "ok"),
          "output should contain the expected text");
    end Test_Shell_Timeout_Negative;
+
+   --  ── Independent elapsed-time timeout tests ─────────────────────────
+
+   procedure Test_Shell_Timeout_Under_Elapsed (T : in out Test) is
+      pragma Unreferenced (T);
+
+      use Ada.Real_Time;
+
+      Result     : Unbounded_String;
+      Media_Type : Unbounded_String;
+      Is_Error   : Boolean;
+      Start      : constant Time := Clock;
+      Elapsed    : Time_Span;
+   begin
+      LLM.Tools.Shell.Execute
+        (Args_Json  =>
+           "{""command"":""sleep 0.5 && echo ok"","
+           & """timeout"":5}",
+         Result     => Result,
+         Media_Type => Media_Type,
+         Is_Error   => Is_Error);
+
+      Elapsed := Clock - Start;
+
+      Assert (not Is_Error,
+              "command that finishes under the timeout should succeed");
+      Assert
+        (Contains (To_String (Result), "ok"),
+         "output should contain the expected text");
+      Assert
+        (not Contains (To_String (Result), "timed out"),
+         "output must not contain a timeout notice");
+      Assert
+        (To_Duration (Elapsed) < 2.0,
+         "elapsed time should be well within the 5 s timeout, got: "
+         & Duration'Image (To_Duration (Elapsed)));
+   end Test_Shell_Timeout_Under_Elapsed;
+
+
+   procedure Test_Shell_Timeout_Triggers_Elapsed (T : in out Test) is
+      pragma Unreferenced (T);
+
+      use Ada.Real_Time;
+
+      Result     : Unbounded_String;
+      Media_Type : Unbounded_String;
+      Is_Error   : Boolean;
+      Start      : constant Time := Clock;
+      Elapsed    : Time_Span;
+   begin
+      LLM.Tools.Shell.Execute
+        (Args_Json  =>
+           "{""command"":""sleep 10"","
+           & """timeout"":2}",
+         Result     => Result,
+         Media_Type => Media_Type,
+         Is_Error   => Is_Error);
+
+      Elapsed := Clock - Start;
+
+      Assert (Is_Error,
+              "command exceeding the timeout should set Is_Error");
+      Assert
+        (Contains (To_String (Result), "timed out after 2 seconds"),
+         "output should contain ""timed out after 2 seconds"", got: "
+         & To_String (Result));
+      Assert
+        (To_Duration (Elapsed) >= 1.5,
+         "elapsed time should be at least 1.5 s, got: "
+         & Duration'Image (To_Duration (Elapsed)));
+      Assert
+        (To_Duration (Elapsed) <= 3.0,
+         "elapsed time should be no more than 3.0 s, got: "
+         & Duration'Image (To_Duration (Elapsed)));
+   end Test_Shell_Timeout_Triggers_Elapsed;
 
 end LLM_Tools_Tests;

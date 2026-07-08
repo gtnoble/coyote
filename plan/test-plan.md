@@ -329,8 +329,11 @@ events to verify collapsing behaviour).  No new test cases added; existing test
 infrastructure sufficient to cover the buffering and collapsing logic.
 
 **Baseline as of 2026-06-10 (PCR-023 Copilot Graceful Startup):** 665 tests, 0 failures,
-0 unexpected errors.  Test count unchanged; `Test_GitHub_Copilot_Not_Found` renamed to
-`Test_GitHub_Copilot_Default_Fallback` and updated to assert default-fallback behaviour
+
+**Baseline as of 2026-07-08 (Shell Tool Timeout Elapsed-Time Tests):** 726 tests, 0 failures,
+  0 unexpected errors.  2 new tests (`Test_Shell_Timeout_Under_Elapsed`,
+  `Test_Shell_Timeout_Triggers_Elapsed`) independently verify timeout
+  wall-clock behaviour using `Ada.Real_Time.Clock`.
 
 **Baseline as of 2026-06-16 (Quantile Bonferroni Checkbox):** 704 tests, 0 failures,
 **Baseline as of 2026-06-29 (Comment Speed Fix):** 722 tests, 0 failures,

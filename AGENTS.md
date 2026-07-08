@@ -301,10 +301,15 @@ Key points:
   not already set.  This ensures child sessions record their `parentSession`
   automatically when launched from a parent coyote process.
 
-- Abort semantics: the shell tool implementation sends SIGTERM (signal 15) to the
-  child process group on abort (via `kill(-pid, SIGTERM)`), so spawned coyotes and
-  their descendants are given a chance to terminate gracefully.  Note: SIGTERM can
-  be caught or ignored; it is not SIGKILL.
+- Abort semantics: each shell-tool child runs under `setsid(1)` so it is the
+  leader of its own process group.  On abort or timeout a dedicated watcher
+  task sends `SIGKILL` (signal 9) to the process group via `kill(-pid, 9)`,
+  which kills the shell and all descendants immediately.  The kernel closes
+  the write-end of the output pipe, which unblocks any blocked `read()` in
+  the agent task with EOF.  This guarantees sub-second abort latency even
+  when the command is consuming no CPU (e.g. `sleep 3600`).  A redundant
+  `SIGTERM` cleanup follows in the main task's post-loop path but the child
+  is already dead by that point.
 
 ## 9P / Acme VFS Conventions
 

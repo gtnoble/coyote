@@ -98,6 +98,45 @@ boundaries from normal user messages.
 
 ---
 
+## 2026-07-08 — Timeout and Abort Reliability (setsid + SIGKILL)
+
+The shell tool's timeout and manual-abort paths were reworked to guarantee
+sub-second abort latency even when the child process is consuming no CPU
+(e.g. `sleep 3600`).  The previous design used an Ada `select`/`then abort`
+ATC block to attempt to interrupt a blocking `read()` syscall, but GNAT does
+not preempt C-level `read()` on Linux, so the ATC loop could not exit until
+the child closed the pipe — which only happens when the child exits.
+
+**Root cause:** `close(fd)` from another thread does not unblock `read(fd)`
+on Linux (NPTL).  fd tables are per-process, not per-thread, so a sibling
+thread closing the fd has no effect on the blocked caller.  Verified
+
+with a standalone C test program (`/tmp/test_tcbr.c`).
+
+**Fix:** three changes to `src/llm/llm-tools-shell.adb`:
+
+1. **Shell invocation wrapped in `setsid(1)`:** the child becomes a session
+   leader in its own process group.  `kill(-Handle, SIGKILL)` therefore kills
+   the shell and all descendants atomically.
+
+2. **Timer task changed from "flag-setter" to "killer":** the immediate-mode
+   `SIGTERM` in the main-task post-loop path is preserved as redundant
+   cleanup, but the Timer now sends `SIGKILL` from its own task immediately
+   after the delay, then exits.  When the kernel reaps the child it closes
+   the write-end of the output pipe, and the blocked `read()` in the main
+   task returns EOF (0 bytes).
+
+3. **Manual-abort path uses the same pattern:** an `Abort_Watcher` task
+   blocks on `Abort_Flg.Wait_Requested`, then sends `SIGKILL` to the child's
+   process group.
+
+**Tests added:** two new elapsed-time tests in
+`test/src/llm_tools_tests.adb`:
+- `Test_Shell_Timeout_Under_Elapsed` — verifies `Ada.Real_Time.Clock`
+  elapsed < 2.0 s when command finishes under timeout
+- `Test_Shell_Timeout_Triggers_Elapsed` — verifies elapsed ≥ 1.5 s and
+  ≤ 3.0 s when `sleep 10` is killed with a 2 s timeout
+
 ## 2026-07-06 — Run-Group Tool Execution
 
 Tool calls now execute **sequentially by default**. The shell tool accepts an

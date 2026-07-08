@@ -97,4 +97,12 @@ package LLM_Tools_Tests is
    --  timeout=-5 is treated as no time limit.
    procedure Test_Shell_Timeout_Negative                (T : in out Test);
 
+   --  Independently clocks that an undersleeping command finishes well
+   --  inside the timeout window using Ada.Real_Time.Clock.
+   procedure Test_Shell_Timeout_Under_Elapsed            (T : in out Test);
+
+   --  Independently clocks that a timed-out command is killed within
+   --  the expected window (timeout +/- tolerance) using Ada.Real_Time.Clock.
+   procedure Test_Shell_Timeout_Triggers_Elapsed         (T : in out Test);
+
 end LLM_Tools_Tests;
