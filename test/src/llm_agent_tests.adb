@@ -1528,8 +1528,8 @@ package body LLM_Agent_Tests is
       Messages := LLM.Session_Store.Load_Messages
         (LLM.Agent.Session_Id (Agent_Session));
       Assert
-        (Messages.Length = 0,
-         "Aborted turn should not persist any messages");
+        (Messages.Length = 4,
+         "Aborted turn should persist tool results for recoverability");
 
       Ada.Environment_Variables.Set
         ("COYOTE_OPENROUTER_BASE_URL",
@@ -1642,10 +1642,10 @@ package body LLM_Agent_Tests is
       Messages := LLM.Session_Store.Load_Messages
         (LLM.Agent.Session_Id (Agent_Session));
       Assert
-        (Messages.Length = 2,
-         "Only completed turns should be persisted to the session file");
+        (Messages.Length = 6,
+         "Session file should contain aborted tool results plus completed turn");
       Assert
-        (Assistant_Text (Messages.Element (1)) = "Recovered",
+        (Assistant_Text (Messages.Element (5)) = "Recovered",
          "Second prompt should still complete after the aborted turn");
 
       Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);

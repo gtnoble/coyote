@@ -252,12 +252,16 @@ package body Test_HTTP_Server is
       end Setup_Socket;
 
    begin
-      --  Block until the caller calls Bind.  The socket setup happens
-      --  inside the rendezvous so that the entry returns only once the
-      --  socket is bound and the OS accept queue is ready.
-      accept Bind (Port : in Positive) do
-         Setup_Socket (Port);
-      end Bind;
+      --  Block until the caller calls Bind, but also accept Stop so
+      --  that a caller can cancel a server that was never bound.
+      select
+         accept Bind (Port : in Positive) do
+            Setup_Socket (Port);
+         end Bind;
+      or
+         accept Stop;
+         goto Cleanup;
+      end select;
 
       Main_Loop : loop
 
@@ -318,7 +322,10 @@ package body Test_HTTP_Server is
 
       end loop Main_Loop;
 
-      Close_Socket (Server_Socket);
+      <<Cleanup>>
+      if Server_Socket /= No_Socket then
+         Close_Socket (Server_Socket);
+      end if;
 
    exception
       when others =>
