@@ -2512,6 +2512,9 @@ package body Test_Suites is
         ("LLM.Agent keeps aborted multi-tool history structurally valid",
          LLM_Agent_Tests.Test_Abort_Batched_Tools_Keep_History_Valid'Access));
       Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent aborts shell tool with timeout promptly",
+         LLM_Agent_Tests.Test_Abort_During_Shell_With_Timeout'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
         ("LLM.Agent flushes tool batch to session file as soon as it"
          & " completes",
          LLM_Agent_Tests.

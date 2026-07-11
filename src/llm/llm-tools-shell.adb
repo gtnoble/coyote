@@ -389,19 +389,33 @@ package body LLM.Tools.Shell is
 
             --  When a timeout is requested, spawn a timer task that
             --  sends SIGKILL to the child process group after the timeout
-            --  elapses.  The child runs under setsid(1) so it is the
-            --  leader of its own process group; kill(-Handle, SIGKILL)
-            --  kills the shell and all descendants.  The kernel then
-            --  closes the write-end of the output pipe, unblocking any
-            --  blocked read() with EOF.  The timer is cancelled as soon
-            --  as the read loop completes.
+            --  elapses, or immediately when the abort flag is set.  The
+            --  child runs under setsid(1) so it is the leader of its own
+            --  process group; kill(-Handle, SIGKILL) kills the shell and
+            --  all descendants.  The kernel then closes the write-end of
+            --  the output pipe, unblocking any blocked read() with EOF.
+            --  The timer is cancelled as soon as the read loop completes.
             if Timeout_Seconds > 0 then
                declare
+                  Killed : Boolean := False;
+
                   task Timer;
                   task body Timer is
                   begin
-                     delay Duration (Timeout_Seconds);
-                     Timer_Fired := True;
+                     --  Race the timeout delay against the abort flag;
+                     --  whichever fires first triggers the kill.
+                     if Abort_Flg /= null then
+                        select
+                           Abort_Flg.Wait_Requested;
+                           --  abort fired; leave Timer_Fired False
+                        or
+                           delay Duration (Timeout_Seconds);
+                           Timer_Fired := True;
+                        end select;
+                     else
+                        delay Duration (Timeout_Seconds);
+                        Timer_Fired := True;
+                     end if;
                      --  kill(-Handle, SIGKILL) kills the child's entire
                      --  process group (the setsid child + shell + all
                      --  descendants).  The kernel closes the pipe's
@@ -412,6 +426,7 @@ package body LLM.Tools.Shell is
                         begin
                            Dummy :=
                              C_Kill (-Integer (Handle), 9);
+                           Killed := True;
                         end;
                      end if;
                   end Timer;
@@ -422,10 +437,10 @@ package body LLM.Tools.Shell is
                         Bytes_Read := Read (Output_R, Chunk);
                      exception
                         when others =>
-                           if Timer_Fired then
-                              --  Child killed by timer → expected error;
-                              --  read() returning 0 is handled by the
-                              --  Bytes_Read <= 0 exit below.
+                           if Killed then
+                              --  Child killed by timer or abort →
+                              --  expected error; read() returning 0
+                              --  is handled by the Bytes_Read exit.
                               exit Read_Loop;
                            end if;
                            raise;

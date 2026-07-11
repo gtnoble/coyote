@@ -1430,3 +1430,38 @@ The MR-chart transform block already correctly branched on
 - **Date resolved:** 2026-07-02
 
 ---
+
+## PCR-013: Stop button doesn't abort tool calls with timeout
+
+- **Date discovered:** 2026-07-11
+- **Severity:** High
+- **Category:** Defect — abort mechanism ignores timeout-bearing shell commands
+- **Description:** Clicking `Stop` during a tool call that includes a
+  `timeout` parameter has no effect on the running child process. The
+  `Timer` task in `LLM.Tools.Shell.Execute` only watches the timeout
+  delay; it never checks `Abort_Flg`. The abort-aware `Abort_Watcher`
+  lives in a separate `else` branch that is only reached when
+  `Timeout_Seconds = 0`.
+- **Root cause:** In `src/llm/llm-tools-shell.adb` the `if Timeout_Seconds >
+  0` branch spawned a `Timer` task with a simple `delay` statement that
+  never polled `Abort_Flg`. The `select or delay` abort-watching
+  construct was only present in the `else` / `Abort_Flg /= null` branch.
+- **Affected work products:** `src/llm/llm-tools-shell.adb`
+- **Corrective action required:** Modify the `Timer` task in the timeout
+  branch to race the timeout delay against `Abort_Flg.Wait_Requested`
+  using an Ada timed-entry-call `select … or delay` construct.
+- **Actions taken (2026-07-11):**
+  1. Replaced the plain `delay Duration (Timeout_Seconds)` in `Timer`
+     with a `select or delay` construct that waits for either the
+     timeout to expire or `Abort_Flg.Wait_Requested` to complete.
+  2. Added `Killed : Boolean` flag to track kill completion for the
+     exception handler.
+  3. `Timer_Fired` is only set when the timeout fires first, preserving
+     the correct post-loop message ("timed out" vs "aborted").
+  4. Updated leading comment block to document the dual-watch behavior.
+- **Status:** Resolved
+- **Date resolved:** 2026-07-11
+- **Test baseline:** All 729 previously-passing tests remain green.
+  Pre-existing failure (LLM.System_Prompt preserves section order)
+  is unrelated.
+

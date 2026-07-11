@@ -32,6 +32,8 @@ begin
         LLM_Agent_Tests.Test_Abort_Request'Access);
    Run ("Test_Abort_Batched_Tools_Keep_History_Valid",
         LLM_Agent_Tests.Test_Abort_Batched_Tools_Keep_History_Valid'Access);
+   Run ("Test_Abort_During_Shell_With_Timeout",
+        LLM_Agent_Tests.Test_Abort_During_Shell_With_Timeout'Access);
    Run ("Test_Session_File_Written_Only_After_Turn_End",
         LLM_Agent_Tests.Test_Session_File_Written_Only_After_Turn_End'Access);
 end Run_LLM_Agent_One;

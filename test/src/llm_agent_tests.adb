@@ -1679,6 +1679,208 @@ package body LLM_Agent_Tests is
          raise;
    end Test_Abort_Batched_Tools_Keep_History_Valid;
 
+   procedure Test_Abort_During_Shell_With_Timeout
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+
+      Home           : constant String :=
+        "/tmp/coyote_llm_agent_test_timeout_abort";
+      Port           : constant Positive := 18_790;
+      Agent_Session  : LLM.Agent.Session;
+      Messages       : LLM.Types.Message_Vectors.Vector;
+      Server_Stopped : Boolean := False;
+      Home_Was_Set   : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home       : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Key_Was_Set    : constant Boolean :=
+        Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
+      Old_Key        : constant String :=
+        Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
+      Url_Was_Set    : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
+      Old_Url        : constant String :=
+        Ada.Environment_Variables.Value
+          ("COYOTE_OPENROUTER_BASE_URL", "");
+
+      protected State is
+         procedure Note_End (Was_Aborted : Boolean);
+         procedure Note_Error;
+         function Saw_Aborted_End return Boolean;
+         function Had_Error return Boolean;
+      private
+         Aborted_End : Boolean := False;
+         Task_Error  : Boolean := False;
+      end State;
+
+      protected body State is
+         procedure Note_End (Was_Aborted : Boolean) is
+         begin
+            Aborted_End := Was_Aborted;
+         end Note_End;
+
+         procedure Note_Error is
+         begin
+            Task_Error := True;
+         end Note_Error;
+
+         function Saw_Aborted_End return Boolean is
+         begin
+            return Aborted_End;
+         end Saw_Aborted_End;
+
+         function Had_Error return Boolean is
+         begin
+            return Task_Error;
+         end Had_Error;
+      end State;
+
+      procedure On_Event (E : LLM.Events.Agent_Event'Class) is
+      begin
+         if E in LLM.Events.Agent_End_Event then
+            State.Note_End (LLM.Events.Agent_End_Event (E).Was_Aborted);
+         end if;
+      end On_Event;
+
+      --  SSE payload for a single shell tool call that sleeps 100 s
+      --  with a 60 s timeout.  Without the abort fix, the Timer task
+      --  would wait the full 60 s before killing the child; with it the
+      --  abort flag should win the select-or-delay race immediately.
+      Timeout_Tool_SSE : constant String :=
+        Tool_Call_SSE_Payload
+          ((1 => Tool_Call_Def
+             (Tool_Call_Id   => "call_timeout",
+              Tool_Name      => "shell",
+              Arguments_Json =>
+                "{""command"":""sleep 100"",""timeout"":60}")),
+           Prompt_Tokens     => 14,
+           Completion_Tokens => 7);
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Res.Status := 200;
+         Add_SSE_Header (Res);
+         Append (Res.Body_Data, Timeout_Tool_SSE);
+      end Handle_Request;
+
+      Srv : Test_HTTP_Server.Server
+        (Handle_Request'Unrestricted_Access);
+   begin
+      Prepare_Test_Home (Home);
+      Write_OpenRouter_Cache (Home);
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Set ("OPENROUTER_API_KEY", "test-key");
+      Ada.Environment_Variables.Set
+        ("COYOTE_OPENROUTER_BASE_URL",
+         "http://127.0.0.1:" & Natural_Image (Port) & "/api/v1");
+
+      LLM.Agent.Create
+        (S          => Agent_Session,
+         Model_Spec => "openrouter/openai/gpt-4o-mini",
+         No_Tools   => False);
+
+      Srv.Bind (Port);
+
+      declare
+         task Runner;
+
+         task body Runner is
+         begin
+            LLM.Agent.Run_Prompt
+              (S        => Agent_Session,
+               Prompt   => "Run a command with a timeout",
+               On_Event => On_Event'Access);
+         exception
+            when others =>
+               State.Note_Error;
+         end Runner;
+      begin
+         --  Let the shell tool start executing (the child process
+         --  starts sleep 100).
+         delay 0.20;
+         LLM.Agent.Request_Abort (Agent_Session);
+
+         --  The abort must terminate quickly: the child should be
+         --  killed via the Timer task's select-or-delay, not by the
+         --  60 s timeout.  200 * 0.05 = 10 s maximum wait.
+         for I in 1 .. 200 loop
+            exit when Runner'Terminated;
+            delay 0.05;
+         end loop;
+
+         Assert (Runner'Terminated,
+                 "Aborted timeout tool call must terminate within 10 s");
+      end;
+
+      Srv.Stop;
+      Server_Stopped := True;
+
+      Assert
+        (not State.Had_Error,
+         "Run_Prompt task should not raise");
+      Assert
+        (State.Saw_Aborted_End,
+         "Agent_End_Event should report Was_Aborted=True");
+
+      Messages := LLM.Session_Store.Load_Messages
+        (LLM.Agent.Session_Id (Agent_Session));
+
+      --  Aborted turn should persist: user, assistant tool call,
+      --  and tool result with the abort marker.
+      Assert
+        (Messages.Length = 3,
+         "Aborted timeout turn should persist user, assistant,"
+         & " and tool result");
+      Assert
+        (Messages.Element (1).Role = LLM.Types.Assistant,
+         "Second message should be the assistant tool-call");
+      Assert
+        (Messages.Element (1).Content.Length = 1,
+         "Assistant tool-call batch should contain 1 tool-call block");
+      Assert
+        (Messages.Element (2).Role = LLM.Types.Tool_Result,
+         "Third message should be the tool result");
+
+      --  The tool result should show it was aborted (not timed out).
+      Assert
+        (Messages.Element (2).Content.Length = 1,
+         "Tool result should have one content block");
+      Assert
+        (Ada.Strings.Unbounded.Length
+           (Messages.Element (2).Content.Element (0).Result_Text) > 0,
+         "Tool result should have non-empty text");
+      Assert
+        (Ada.Strings.Fixed.Index
+           (Ada.Strings.Unbounded.To_String
+              (Messages.Element (2).Content.Element (0).Result_Text),
+            "aborted") > 0,
+         "Tool result text should contain ""aborted""");
+
+      Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
+      Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         if not Server_Stopped then
+            begin
+               Srv.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
+         Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
+         Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Abort_During_Shell_With_Timeout;
+
    procedure Test_Session_File_Written_Only_After_Turn_End
      (T : in out Test)
    is

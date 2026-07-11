@@ -13,6 +13,8 @@ package LLM_Agent_Tests is
    procedure Test_Abort_Request                    (T : in out Test);
    procedure Test_Abort_Batched_Tools_Keep_History_Valid
      (T : in out Test);
+   procedure Test_Abort_During_Shell_With_Timeout
+     (T : in out Test);
    procedure Test_Session_File_Written_Only_After_Turn_End
      (T : in out Test);
    procedure Test_Session_Resume                   (T : in out Test);

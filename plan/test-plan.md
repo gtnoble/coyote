@@ -355,6 +355,12 @@ infrastructure sufficient to cover the buffering and collapsing logic.
   to the Acme idle-window button set; re-submits the session from idle state
   by enqueueing a `"Continue."` user prompt.
 
+**Baseline as of 2026-07-11 (PCR-013 Timeout Abort Fix):** 731 tests, 1 failure
+  (pre-existing: LLM.System_Prompt preserves section order), 0 unexpected
+  errors.  1 new test: `Test_Abort_During_Shell_With_Timeout` verifies that
+  the Stop button kills a running shell tool that carries a `timeout`
+  parameter, without waiting for the timeout to expire.
+
 **Baseline as of 2026-06-11 (PCR-022 follow-up: thinking-block empty-content fix):**
 670 tests, 0 failures, 0 unexpected errors.  Added 5 Collapse_Thinking_Delta unit
 tests (`collapse_utils_tests.adb`): `Test_Collapse_Basic`,
