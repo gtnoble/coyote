@@ -329,6 +329,13 @@ events to verify collapsing behaviour).  No new test cases added; existing test
 infrastructure sufficient to cover the buffering and collapsing logic.
 
 **Baseline as of 2026-06-10 (PCR-023 Copilot Graceful Startup):** 665 tests, 0 failures,
+  0 unexpected errors.
+
+**Baseline as of 2026-07-11 (PCR-??? Timeout Stdout Flushing):** 733 tests,
+  1 known failure ("LLM.System_Prompt preserves section order" —
+  pre-existing, context/skills section ordering, tracked separately),
+  0 unexpected errors.  2 new test cases added: timeout preserves stdout
+  emitted before kill, abort preserves stdout emitted before kill.
 
 **Baseline as of 2026-07-08 (Shell Tool Timeout Elapsed-Time Tests):** 726 tests, 0 failures,
   0 unexpected errors.  2 new tests (`Test_Shell_Timeout_Under_Elapsed`,

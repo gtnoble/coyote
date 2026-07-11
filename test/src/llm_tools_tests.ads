@@ -105,4 +105,12 @@ package LLM_Tools_Tests is
    --  the expected window (timeout +/- tolerance) using Ada.Real_Time.Clock.
    procedure Test_Shell_Timeout_Triggers_Elapsed         (T : in out Test);
 
+   --  Commands that produce output before timing out preserve that stdout
+   --  ahead of the timeout notice.
+   procedure Test_Shell_Timeout_Preserves_Stdout          (T : in out Test);
+
+   --  Commands that produce output before being aborted preserve that
+   --  stdout ahead of the abort notice.
+   procedure Test_Shell_Abort_Preserves_Stdout            (T : in out Test);
+
 end LLM_Tools_Tests;

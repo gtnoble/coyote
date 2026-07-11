@@ -594,4 +594,112 @@ package body LLM_Tools_Tests is
          & Duration'Image (To_Duration (Elapsed)));
    end Test_Shell_Timeout_Triggers_Elapsed;
 
+   --  ── Timeout / abort partial-stdout flushing tests ──────────────────
+
+   procedure Test_Shell_Timeout_Preserves_Stdout (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Result     : Unbounded_String;
+      Media_Type : Unbounded_String;
+      Is_Error   : Boolean;
+   begin
+      --  A command that writes stdout then sleeps past the timeout:
+      --  the output written before the kill should be preserved.
+      LLM.Tools.Shell.Execute
+        (Args_Json  =>
+           "{""command"":""echo hello && sleep 10"","
+           & """timeout"":1}",
+         Result     => Result,
+         Media_Type => Media_Type,
+         Is_Error   => Is_Error);
+
+      declare
+         Result_Text : constant String := To_String (Result);
+      begin
+         Assert (Is_Error,
+                 "command exceeding the timeout should set Is_Error");
+         Assert
+           (Contains (Result_Text, "hello"),
+            "stdout emitted before the timeout should be preserved, got: "
+            & Result_Text);
+         Assert
+           (Contains (Result_Text, "timed out after 1 seconds"),
+            "timeout notice must be present");
+         Assert
+           (Ada.Strings.Fixed.Index (Result_Text, "hello")
+              < Ada.Strings.Fixed.Index (Result_Text, "timed out"),
+            "stdout must appear before the timeout notice, got: "
+            & Result_Text);
+      end;
+   end Test_Shell_Timeout_Preserves_Stdout;
+
+   procedure Test_Shell_Abort_Preserves_Stdout (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Flag    : aliased LLM.Tools.Abort_Flag;
+      Result  : Unbounded_String;
+      Media_Type : Unbounded_String;
+      Is_Error   : Boolean;
+   begin
+      --  Execute the shell in a task so the main test can trigger the
+      --  abort while the command is still running.
+      declare
+         task Executor;
+
+         task body Executor is
+         begin
+            LLM.Tools.Shell.Execute
+              (Args_Json  =>
+                 "{""command"":""echo hello && sleep 10"","
+                 & """timeout"":30}",
+               Result     => Result,
+               Media_Type => Media_Type,
+               Is_Error   => Is_Error,
+               Abort_Flg  => Flag'Access);
+         end Executor;
+      begin
+         --  Let echo complete before we kill.
+         delay 0.50;
+         Flag.Set;
+
+         --  Wait for the executor to finish (killed immediately after
+         --  the abort is issued).
+         declare
+            use Ada.Real_Time;
+            Deadline : constant Time := Clock + Milliseconds (2_000);
+         begin
+            loop
+               exit when Executor'Terminated;
+               exit when Clock >= Deadline;
+               delay 0.01;
+            end loop;
+         end;
+
+         Assert (Executor'Terminated,
+                 "aborted shell must terminate within 2 s");
+      end;
+
+      declare
+         Result_Text : constant String := To_String (Result);
+         Hello_Pos   : constant Natural :=
+           Ada.Strings.Fixed.Index (Result_Text, "hello");
+         Abort_Pos   : constant Natural :=
+           Ada.Strings.Fixed.Index (Result_Text, "was aborted");
+      begin
+         Assert (Is_Error,
+                 "aborted command should set Is_Error");
+         Assert
+           (Hello_Pos > 0,
+            "stdout emitted before the abort should be preserved, got: "
+            & Result_Text);
+         Assert
+           (Abort_Pos > 0,
+            "abort notice must be present");
+         Assert
+           (Hello_Pos < Abort_Pos,
+            "stdout must appear before the abort notice, got: "
+            & Result_Text);
+      end;
+   end Test_Shell_Abort_Preserves_Stdout;
+
 end LLM_Tools_Tests;

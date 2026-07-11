@@ -1514,6 +1514,12 @@ package body Test_Suites is
       Result.Add_Test (LLM_Tools_Caller.Create
         ("LLM.Tools.Shell timeout triggers: elapsed time verifies tight window",
          LLM_Tools_Tests.Test_Shell_Timeout_Triggers_Elapsed'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell timeout preserves stdout emitted before kill",
+         LLM_Tools_Tests.Test_Shell_Timeout_Preserves_Stdout'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell abort preserves stdout emitted before kill",
+         LLM_Tools_Tests.Test_Shell_Abort_Preserves_Stdout'Access));
       --  LLM.Providers.OpenAI_Completions tests
       Result.Add_Test (LLM_OpenAI_Completions_Caller.Create
         ("LLM.OpenAI_Completions streams text SSE responses",
