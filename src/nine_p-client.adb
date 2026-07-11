@@ -169,6 +169,8 @@ package body Nine_P.Client is
          null;
       end;
    exception
+      when GNAT.Sockets.Socket_Error | P9_Error =>
+         null;  --  Expected during teardown: socket may be closing.
       when Ex : others =>
          Ada.Text_IO.Put_Line
            (Ada.Text_IO.Standard_Error,
@@ -460,6 +462,8 @@ package body Nine_P.Client is
                Clunk_Fid (Object'Access, Object.Root_Fid);
             end if;
          exception
+            when GNAT.Sockets.Socket_Error | P9_Error =>
+               null;  --  Expected during teardown: socket may be closing.
             when Ex : others =>
                Ada.Text_IO.Put_Line
                  (Ada.Text_IO.Standard_Error,
@@ -469,6 +473,8 @@ package body Nine_P.Client is
          begin
             Close_Socket (Object.Socket);
          exception
+            when GNAT.Sockets.Socket_Error =>
+               null;  --  Expected during teardown: socket may be closed.
             when Ex : others =>
                Ada.Text_IO.Put_Line
                  (Ada.Text_IO.Standard_Error,
@@ -487,6 +493,8 @@ package body Nine_P.Client is
          begin
             Clunk_Fid (Object.Filesystem, Object.Fid);
          exception
+            when GNAT.Sockets.Socket_Error | P9_Error =>
+               null;  --  Expected during teardown: socket may be closing.
             when Ex : others =>
                Ada.Text_IO.Put_Line
                  (Ada.Text_IO.Standard_Error,
