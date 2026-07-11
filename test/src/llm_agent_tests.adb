@@ -1289,9 +1289,13 @@ package body LLM_Agent_Tests is
          delay 0.10;
          LLM.Agent.Request_Abort (Agent_Session);
 
-         while not Runner'Terminated loop
+         for I in 1 .. 200 loop
+            exit when Runner'Terminated;
             delay 0.05;
          end loop;
+
+         Assert (Runner'Terminated,
+                 "Abort request must terminate within 10 s");
       end;
 
       Srv.Stop;
@@ -4870,9 +4874,13 @@ package body LLM_Agent_Tests is
          LLM.Agent.Resume (Agent_Session);
 
          --  Wait for the runner to finish.
-         while not Runner'Terminated loop
+         for I in 1 .. 200 loop
+            exit when Runner'Terminated;
             delay 0.05;
          end loop;
+
+         Assert (Runner'Terminated,
+                 "Runner must finish after Resume within 10 s");
       end;
 
       Srv.Stop;
@@ -5022,9 +5030,13 @@ package body LLM_Agent_Tests is
          --  Abort while paused: should unblock the loop and exit.
          LLM.Agent.Request_Abort (Agent_Session);
 
-         while not Runner'Terminated loop
+         for I in 1 .. 200 loop
+            exit when Runner'Terminated;
             delay 0.05;
          end loop;
+
+         Assert (Runner'Terminated,
+                 "Runner must terminate after Abort while paused within 10 s");
       end;
 
       Srv.Stop;

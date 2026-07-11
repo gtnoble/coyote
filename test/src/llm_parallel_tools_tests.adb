@@ -553,17 +553,9 @@ package body LLM_Parallel_Tools_Tests is
       Srv.Bind (Port);
 
       declare
-         task Aborter;
+         task Runner;
 
-         task body Aborter is
-         begin
-            delay 0.15;
-            LLM.Agent.Request_Abort (Agent_Session);
-         exception
-            when others =>
-               State.Note_Error;
-         end Aborter;
-      begin
+         task body Runner is
          begin
             LLM.Agent.Run_Prompt
               (S        => Agent_Session,
@@ -572,8 +564,18 @@ package body LLM_Parallel_Tools_Tests is
          exception
             when others =>
                State.Note_Error;
-               raise;
-         end;
+         end Runner;
+      begin
+         delay 0.15;
+         LLM.Agent.Request_Abort (Agent_Session);
+
+         for I in 1 .. 200 loop
+            exit when Runner'Terminated;
+            delay 0.05;
+         end loop;
+
+         Assert (Runner'Terminated,
+                 "Aborted parallel tool batch must finish within 10 s");
       end;
 
       Srv.Stop;
