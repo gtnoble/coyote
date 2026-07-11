@@ -1,6 +1,17 @@
 with Ada.Text_IO;
+with Interfaces.C;
 
 package body Test_Verbose_Result is
+
+   --  Detect whether stdout is a TTY; suppress ANSI colours when piped.
+
+   STDOUT_FILENO : constant Interfaces.C.int := 1;
+
+   function C_Isatty (Fd : Interfaces.C.int) return Interfaces.C.int;
+   pragma Import (C, C_Isatty, "isatty");
+
+   use type Interfaces.C.int;
+   Use_Color : constant Boolean := C_Isatty (STDOUT_FILENO) = 1;
 
    --  ANSI escape sequences for coloured output.
    ANSI_Reset : constant String := ASCII.ESC & "[0m";
@@ -38,10 +49,16 @@ package body Test_Verbose_Result is
    is
       pragma Unreferenced (Elapsed);
    begin
-      Ada.Text_IO.Put (ANSI_Green);
+      if Use_Color then
+         Ada.Text_IO.Put (ANSI_Green);
+      end if;
       Ada.Text_IO.Put ("OK ");
       Put_Test_Name (Test_Name, Routine_Name);
-      Ada.Text_IO.Put_Line (ANSI_Reset);
+      if Use_Color then
+         Ada.Text_IO.Put_Line (ANSI_Reset);
+      else
+         Ada.Text_IO.New_Line;
+      end if;
       --  Chain to parent so the summary reporter still works.
       AUnit.Test_Results.Add_Success
         (AUnit.Test_Results.Result (R),
@@ -60,10 +77,16 @@ package body Test_Verbose_Result is
    is
       pragma Unreferenced (Elapsed);
    begin
-      Ada.Text_IO.Put (ANSI_Red);
+      if Use_Color then
+         Ada.Text_IO.Put (ANSI_Red);
+      end if;
       Ada.Text_IO.Put ("FAIL ");
       Put_Test_Name (Test_Name, Routine_Name);
-      Ada.Text_IO.Put_Line (ANSI_Reset);
+      if Use_Color then
+         Ada.Text_IO.Put_Line (ANSI_Reset);
+      else
+         Ada.Text_IO.New_Line;
+      end if;
       AUnit.Test_Results.Add_Failure
         (AUnit.Test_Results.Result (R),
          Test_Name, Routine_Name, Failure, Elapsed);
@@ -81,10 +104,16 @@ package body Test_Verbose_Result is
    is
       pragma Unreferenced (Elapsed);
    begin
-      Ada.Text_IO.Put (ANSI_Red);
+      if Use_Color then
+         Ada.Text_IO.Put (ANSI_Red);
+      end if;
       Ada.Text_IO.Put ("ERR  ");
       Put_Test_Name (Test_Name, Routine_Name);
-      Ada.Text_IO.Put_Line (ANSI_Reset);
+      if Use_Color then
+         Ada.Text_IO.Put_Line (ANSI_Reset);
+      else
+         Ada.Text_IO.New_Line;
+      end if;
       AUnit.Test_Results.Add_Error
         (AUnit.Test_Results.Result (R),
          Test_Name, Routine_Name, Error, Elapsed);
