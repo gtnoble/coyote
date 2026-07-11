@@ -281,28 +281,59 @@ package body LLM.System_Prompt is
             & " session=...in/...out] footer to the last result;"
             & " use this to monitor token consumption and cost"
             & ASCII.LF
-            & "- To spawn a subagent, use the shell tool with"
-            & " command=""coyote --subagent --prompt -"" and the prompt"
-            & " text in the `stdin` field. The --subagent flag opens a"
-            & " new terminal/acme window (inheriting"
-            & " `COYOTE_FRONTEND=gui` or `$winid`) and exits after one"
-            & " turn. The shell tool call returns quickly with empty"
-            & " output; the work happens in the new window."
-            & " Pass `--model provider/id` to override the model,"
-            & " `--agent TEXT|@path` to extend the system prompt,"
-            & " and `--name label` to name the window."
-            & " Session lineage is recorded automatically: the child"
-            & " inherits `COYOTE_SESSION_ID` and promotes it to"
-            & " `COYOTE_PARENT_SESSION`, linking sessions in the log."
-            & " Abort: on abort, SIGTERM is sent to the child process"
-            & " group (`kill(-pid, SIGTERM)`), terminating the subagent"
-            & " and all its descendants gracefully."
-            & " To preprocess the prompt with a template engine, pipe"
-            & " through it before coyote: e.g."
-            & " `printf 'include(tmpl.m4)' | m4 |"
-            & " coyote --subagent --prompt -`."
-            & " This works for any filter: m4 macro sets, envsubst,"
-            & " or custom scripts.");
+            & ASCII.LF
+            & "# Parallel Delegation (Subagents)"
+            & ASCII.LF
+            & ASCII.LF
+            & "For complex multi-phase tasks, spawn subagents to"
+            & " parallelize independent work.  Do NOT do everything"
+            & " sequentially inline when work can be delegated."
+            & ASCII.LF
+            & ASCII.LF
+            & "**PREFER spawning a subagent when:**"
+            & ASCII.LF
+            & "- Codebase exploration: BEFORE making edits, spawn a"
+            & " subagent to search, grep, or read files while you"
+            & " plan your approach.  Delegating exploration is faster"
+            & " than doing all searching inline, turn by turn."
+            & ASCII.LF
+            & "- Independent subtasks: when a request splits into"
+            & " unrelated pieces (e.g. ""fix bug A"" and ""refactor"
+            & " module B""), spawn a subagent for each in parallel."
+            & ASCII.LF
+            & "- Heavy computation: offload build runs, test suites,"
+            & " or large-scale searches to subagents while you"
+            & " continue editing or planning."
+            & ASCII.LF
+            & "- Skill-specific work: when a skill in"
+            & " &lt;available_skills&gt; matches the task, spawn a"
+            & " subagent with `--agent @path/to/SKILL.md` so it"
+            & " has the specialised instructions."
+            & ASCII.LF
+            & ASCII.LF
+            & "**Do NOT spawn subagents for:**"
+            & ASCII.LF
+            & "- Sequential dependent work (step 2 needs step 1)"
+            & ASCII.LF
+            & "- Trivial single-file fixes or one-shot questions"
+            & ASCII.LF
+            & "- Simple commands with no exploration needed"
+            & ASCII.LF
+            & ASCII.LF
+            & "**Invocation:** use the shell tool with"
+            & " `coyote --subagent --prompt -`, piping the task"
+            & " prompt to stdin.  The call returns quickly with empty"
+            & " output; the subagent opens its own window and runs"
+            & " one turn.  Pass `--model PROVIDER/ID`,"
+            & " `--agent @path`, and `--name LABEL`.  Session"
+            & " lineage is auto-linked via COYOTE_SESSION_ID."
+            & ASCII.LF
+            & ASCII.LF
+            & "Example:"
+            & " `printf 'Search all callers of Init()\n'"
+            & " | coyote --subagent"
+            & " --agent @~/.coyote/skills/ada-style-guide/SKILL.md"
+            & " --name ""search-init"" --prompt -`");
          Append
            (Result,
             ASCII.LF
