@@ -414,6 +414,40 @@ package body Coyote_App is
       Model_Id := To_Unbounded_String (Spec (Slash + 1 .. Spec'Last));
    end Split_Model_Spec;
 
+   --  ── Process Reaper ───────────────────────────────────────────────────
+   --
+   --  Fire-and-forget process launches (New window, Fork session) spawn
+   --  subprocesses whose exit the parent does not wait for.  Without
+   --  reaping, these become zombie processes.  Process_Reaper tasks are
+   --  allocated dynamically to call Wait on the child PID in the
+   --  background; the task's master is the library unit, so the caller
+   --  continues without blocking.
+
+   task type Process_Reaper
+     (Handle : GNATCOLL.OS.Process.Process_Handle) is
+      pragma Storage_Size (16 * 1024);
+   end Process_Reaper;
+
+   task body Process_Reaper is
+      Status : Integer;
+      pragma Unreferenced (Status);
+   begin
+      Status := GNATCOLL.OS.Process.Wait (Handle);
+   exception
+      when others =>
+         null;
+   end Process_Reaper;
+
+   type Process_Reaper_Access is access Process_Reaper;
+
+   procedure Reap_Child
+     (Handle : GNATCOLL.OS.Process.Process_Handle) is
+      R : Process_Reaper_Access := new Process_Reaper (Handle);
+      pragma Unreferenced (R);
+   begin
+      null;
+   end Reap_Child;
+
    --  ── Run ───────────────────────────────────────────────────────────────
 
    procedure Run (Opts : Options) is
@@ -1173,7 +1207,6 @@ package body Coyote_App is
                                        Null_FD : File_Descriptor;
                                        Args    : Argument_List;
                                        Handle  : Process_Handle;
-                                       pragma Unreferenced (Handle);
                                     begin
                                        Null_FD := Open (Null_File, Read_Mode);
                                        Args.Append
@@ -1192,6 +1225,7 @@ package body Coyote_App is
                                               Ada.Directories
                                                 .Current_Directory);
                                        Close (Null_FD);
+                                       Reap_Child (Handle);
                                     end;
                                  elsif Text = "Pause" then
                                     --  Arm a pause to fire at the next turn
@@ -1784,7 +1818,6 @@ package body Coyote_App is
                                  Null_FD  : File_Descriptor;
                                  Args     : Argument_List;
                                  Handle   : Process_Handle;
-                                 pragma Unreferenced (Handle);
                               begin
                                  if New_UUID'Length = 0 then
                                     Acme.Window.Append
@@ -1808,6 +1841,7 @@ package body Coyote_App is
                                        Stderr => Null_FD,
                                        Cwd    => Cwd);
                                     Close (Null_FD);
+                                    Reap_Child (Handle);
                                     Acme.Window.Append
                                       (Win,
                                        My_FS'Access,
@@ -2414,7 +2448,6 @@ package body Coyote_App is
                            Null_FD : File_Descriptor;
                            Args    : Argument_List;
                            Handle  : Process_Handle;
-                           pragma Unreferenced (Handle);
                         begin
                            Null_FD := Open (Null_File, Read_Mode);
                            Args.Append (Ada.Command_Line.Command_Name);
@@ -2430,6 +2463,7 @@ package body Coyote_App is
                               Cwd    =>
                                 Ada.Directories.Current_Directory);
                            Close (Null_FD);
+                           Reap_Child (Handle);
                         end;
 
                      when Coyote_GUI.Prompt_Queue.Set_Model =>
