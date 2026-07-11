@@ -4258,7 +4258,7 @@ package body LLM_Agent_Tests is
    is
       pragma Unreferenced (T);
 
-      Guard_Name : constant String := "COYOTE_RUN_GITHUB_COPILOT_LIVE";
+      Guard_Name : constant String := "COYOTE_TEST_LIVE";
       Auth_Path  : constant String :=
         Ada.Environment_Variables.Value ("HOME", "") & "/.coyote/auth.json";
       Agent_Session : LLM.Agent.Session;

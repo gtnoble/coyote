@@ -12,7 +12,6 @@ package body Subagent_Integration_Tests is
 
    use AUnit.Assertions;
 
-
    --  ── Helpers ──────────────────────────────────────────────────────────
 
    --  True when the acme 9P server socket is present in the namespace.
@@ -23,6 +22,13 @@ package body Subagent_Integration_Tests is
    exception
       when others => return False;
    end Acme_Running;
+
+   function Is_Guarded (Name : String) return Boolean is
+   begin
+      return Ada.Environment_Variables.Value (Name, "0") = "1";
+   exception
+      when others => return False;
+   end Is_Guarded;
 
    --  Locate the coyote binary under test.  Checks ../bin/coyote
    --  relative to the test working directory first, then the COYOTE_BIN
@@ -227,6 +233,9 @@ package body Subagent_Integration_Tests is
       end Runner;
 
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;
@@ -360,6 +369,9 @@ package body Subagent_Integration_Tests is
       end Runner;
 
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;
@@ -498,6 +510,9 @@ package body Subagent_Integration_Tests is
       end Runner;
 
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;

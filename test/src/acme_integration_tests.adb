@@ -4,6 +4,7 @@ with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with GNATCOLL.OS.FS;
 with GNATCOLL.OS.Process;    use GNATCOLL.OS.Process;
 with Nine_P;                 use Nine_P;
+with Ada.Environment_Variables;
 with Nine_P.Client;          use Nine_P.Client;
 with Acme;
 with Acme.Window;
@@ -29,6 +30,13 @@ package body Acme_Integration_Tests is
       when others =>
          return False;
    end Acme_Running;
+
+   function Is_Guarded (Name : String) return Boolean is
+   begin
+      return Ada.Environment_Variables.Value (Name, "0") = "1";
+   exception
+      when others => return False;
+   end Is_Guarded;
 
    --  Natural'Image without the leading space.
    function Natural_Image (N : Natural) return String is
@@ -185,6 +193,9 @@ package body Acme_Integration_Tests is
    procedure Test_New_Win_Has_Valid_Id (T : in out Test) is
       pragma Unreferenced (T);
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;
@@ -213,6 +224,9 @@ package body Acme_Integration_Tests is
       pragma Unreferenced (T);
       Marker : constant String := "acme_ada_test_content";
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;
@@ -243,6 +257,9 @@ package body Acme_Integration_Tests is
       pragma Unreferenced (T);
       Marker : constant String := "MyTag";
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;
@@ -273,6 +290,9 @@ package body Acme_Integration_Tests is
       pragma Unreferenced (T);
       Name : constant String := "/tmp/+ada_test_win";
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;
@@ -308,6 +328,9 @@ package body Acme_Integration_Tests is
         & "third line" & ASCII.LF;
       First_Line : constant String := "REPLACED";
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;
@@ -348,6 +371,9 @@ package body Acme_Integration_Tests is
    procedure Test_Delete_Removes_Window_From_Index (T : in out Test) is
       pragma Unreferenced (T);
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;
@@ -393,6 +419,9 @@ package body Acme_Integration_Tests is
         & "beta" & ASCII.LF
         & "gamma" & ASCII.LF;
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;
@@ -422,6 +451,9 @@ package body Acme_Integration_Tests is
       Full_Text : constant String := "abcdefghij" & ASCII.LF;
       Expected  : constant String := "abcd";
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;
@@ -449,6 +481,9 @@ package body Acme_Integration_Tests is
    procedure Test_Selection_Empty (T : in out Test) is
       pragma Unreferenced (T);
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;
@@ -475,6 +510,9 @@ package body Acme_Integration_Tests is
       Content  : constant String := "hello world" & ASCII.LF;
       Expected : constant String := "hello";
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;
@@ -509,6 +547,9 @@ package body Acme_Integration_Tests is
    procedure Test_Raw_Event_From_Live (T : in out Test) is
       pragma Unreferenced (T);
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;
@@ -554,6 +595,9 @@ package body Acme_Integration_Tests is
       Pending : constant String := "PENDING:abc123ef";
       After   : constant String := ASCII.LF & "line three" & ASCII.LF;
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;
@@ -599,6 +643,9 @@ package body Acme_Integration_Tests is
       pragma Unreferenced (T);
       Content : constant String := "unchanged content" & ASCII.LF;
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;
@@ -646,6 +693,9 @@ package body Acme_Integration_Tests is
       Block2   : constant String :=
         ASCII.LF & "[tool2]" & ASCII.LF & Tok2 & ASCII.LF;
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;
@@ -716,6 +766,9 @@ package body Acme_Integration_Tests is
         "turn 1 response" & ASCII.LF
         & "turn 2 response" & ASCII.LF;
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;
@@ -761,6 +814,9 @@ package body Acme_Integration_Tests is
       Status_Line : constant String :=
         "CLEAR_STATUS_MARKER" & ASCII.LF;
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;
@@ -804,6 +860,9 @@ package body Acme_Integration_Tests is
       --  Plain ASCII status marker; avoids raw multi-byte UTF-8 literals.
       Status_Line : constant String := "CLEAR_STATUS_MARKER" & ASCII.LF;
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;
@@ -847,6 +906,9 @@ package body Acme_Integration_Tests is
         & Character'Val (16#95#)
         & Character'Val (16#90#);
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;
@@ -904,6 +966,9 @@ package body Acme_Integration_Tests is
         "ca8add79-7902-415c-af1d-b4b4e93bb12b";
       PID        : constant String := "36546";
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;

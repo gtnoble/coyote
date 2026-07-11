@@ -37,6 +37,13 @@ package body Session_History_Tests is
       when others => return False;
    end Acme_Running;
 
+   function Is_Guarded (Name : String) return Boolean is
+   begin
+      return Ada.Environment_Variables.Value (Name, "0") = "1";
+   exception
+      when others => return False;
+   end Is_Guarded;
+
    function Getpid return Integer;
    pragma Import (C, Getpid, "getpid");
 
@@ -169,6 +176,9 @@ package body Session_History_Tests is
    procedure Test_Render_File_Not_Found (T : in out Test) is
       pragma Unreferenced (T);
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;
@@ -212,6 +222,9 @@ package body Session_History_Tests is
       Home         : constant String :=
         Test_Home_Root & "/render-user";
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;
@@ -273,6 +286,9 @@ package body Session_History_Tests is
       Home         : constant String :=
         Test_Home_Root & "/render-asst";
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;
@@ -346,6 +362,9 @@ package body Session_History_Tests is
       Home         : constant String :=
         Test_Home_Root & "/render-tool-ok";
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;
@@ -430,6 +449,9 @@ package body Session_History_Tests is
       Home         : constant String :=
         Test_Home_Root & "/render-tool-err";
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;
@@ -514,6 +536,9 @@ package body Session_History_Tests is
       Home         : constant String :=
         Test_Home_Root & "/render-think";
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;
@@ -588,6 +613,9 @@ package body Session_History_Tests is
       Home         : constant String :=
         Test_Home_Root & "/render-model";
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;
@@ -655,6 +683,9 @@ package body Session_History_Tests is
       Home         : constant String :=
         Test_Home_Root & "/render-tokens";
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;
@@ -739,6 +770,9 @@ package body Session_History_Tests is
       Home         : constant String :=
         Test_Home_Root & "/render-sep";
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;
@@ -822,6 +856,9 @@ package body Session_History_Tests is
       Home          : constant String :=
         Test_Home_Root & "/render-uri";
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;
@@ -905,6 +942,9 @@ package body Session_History_Tests is
       Home         : constant String :=
         Test_Home_Root & "/render-nouri";
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;
@@ -987,6 +1027,9 @@ package body Session_History_Tests is
         Test_Home_Root & "/native-user-assistant";
       Cwd_Slug     : constant String := "--native-user-assistant--";
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;
@@ -1065,6 +1108,9 @@ package body Session_History_Tests is
         & Character'Val (16#9C#)
         & Character'Val (16#93#);
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;
@@ -1149,6 +1195,9 @@ package body Session_History_Tests is
         Test_Home_Root & "/native-model-change";
       Cwd_Slug     : constant String := "--native-model-change--";
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;
@@ -1217,6 +1266,9 @@ package body Session_History_Tests is
         Test_Home_Root & "/native-two-turn-session";
       Cwd_Slug     : constant String := "--native-two-turn-session--";
    begin
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
       if not Acme_Running then
          return;
       end if;

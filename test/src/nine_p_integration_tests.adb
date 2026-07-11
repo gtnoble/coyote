@@ -6,6 +6,7 @@ with GNATCOLL.OS.FS;
 with GNATCOLL.OS.Process;   use GNATCOLL.OS.Process;
 with Nine_P;                use Nine_P;
 with Nine_P.Client;         use Nine_P.Client;
+with Ada.Environment_Variables;
 
 package body Nine_P_Integration_Tests is
 
@@ -19,6 +20,13 @@ package body Nine_P_Integration_Tests is
    exception
       when others => return False;
    end Acme_Running;
+
+   function Is_Guarded (Name : String) return Boolean is
+   begin
+      return Ada.Environment_Variables.Value (Name, "0") = "1";
+   exception
+      when others => return False;
+   end Is_Guarded;
 
    --  Run "/usr/local/plan9/bin/9p read <path>" and return stdout.
    function Read_Via_9p (Path : String) return String is
@@ -51,6 +59,9 @@ package body Nine_P_Integration_Tests is
    procedure Test_Ns_Mount_Acme (T : in out Test) is
       pragma Unreferenced (T);
    begin
+      if not Is_Guarded ("COYOTE_TEST_9P") then
+         return;
+      end if;
       if not Acme_Running then return; end if;
       declare
          FS : Nine_P.Client.Fs := Ns_Mount ("acme");
@@ -63,6 +74,9 @@ package body Nine_P_Integration_Tests is
    procedure Test_Read_Acme_Index (T : in out Test) is
       pragma Unreferenced (T);
    begin
+      if not Is_Guarded ("COYOTE_TEST_9P") then
+         return;
+      end if;
       if not Acme_Running then return; end if;
       declare
          FS   : aliased Nine_P.Client.Fs   := Ns_Mount ("acme");
@@ -88,6 +102,9 @@ package body Nine_P_Integration_Tests is
    procedure Test_Open_New_Ctl (T : in out Test) is
       pragma Unreferenced (T);
    begin
+      if not Is_Guarded ("COYOTE_TEST_9P") then
+         return;
+      end if;
       if not Acme_Running then return; end if;
       declare
          FS   : aliased Nine_P.Client.Fs   := Ns_Mount ("acme");
@@ -143,6 +160,9 @@ package body Nine_P_Integration_Tests is
       pragma Unreferenced (T);
       Marker : constant String := "coyote_integration_test_marker";
    begin
+      if not Is_Guarded ("COYOTE_TEST_9P") then
+         return;
+      end if;
       if not Acme_Running then return; end if;
       declare
          FS    : aliased Nine_P.Client.Fs := Ns_Mount ("acme");

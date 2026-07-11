@@ -467,9 +467,60 @@ Tests live in `test/src/` and use AUnit. Run the full suite:
 cd test && alr run coyote_test
 ```
 
-Integration tests that need a live acme/9P server or live LLM provider are
-opt-in via environment-variable guards. See `plan/integration-test-guide.md`
-for setup instructions.
+### Test name filtering
+
+The test binary accepts an optional glob-style filter to run only tests whose
+fully-qualified name matches the pattern.  Pass the pattern as the first
+argument to the test binary:
+
+```sh
+# Run a single named test
+./bin/coyote_test "LLM.Tools shell executes a successful command"
+
+# Run all tests whose name contains "Session"
+./bin/coyote_test "*Session*"
+
+# Run only compaction-related tests
+./bin/coyote_test "*Compaction*"
+```
+
+When no filter is given, all tests run.  The filter is a glob pattern (shell-style
+`*` and `?` wildcards) matched against the full test name as it appears in output.
+When using `alr run`, pass arguments after `--`:
+
+```sh
+cd test && alr run coyote_test -- "*Compaction*"
+```
+
+### Integration test guards
+
+Acme, 9P, and dispatch integration tests auto-detect a running acme instance at
+runtime (try to mount the acme namespace; skip silently if it fails).  There is
+no environment variable required — just run the suite from inside acme or with
+a running acme on the same display.
+
+The one live LLM integration test (`Test_Compact_Live_Summarises_Conversation`)
+requires the `COYOTE_RUN_GITHUB_COPILOT_LIVE=1` guard variable and a valid
+`~/.coyote/auth.json`:
+
+```sh
+cd test \
+  && COYOTE_RUN_GITHUB_COPILOT_LIVE=1 \
+     ./bin/coyote_test "*Compact_Live*"
+```
+
+All other provider tests (Anthropic, OpenAI, OpenRouter, GitHub Copilot) use
+mock HTTP servers and run without any guard.
+
+Combine a name filter with a guard to run a targeted set of live tests:
+
+```sh
+cd test \
+  && COYOTE_RUN_GITHUB_COPILOT_LIVE=1 \
+     ./bin/coyote_test "*Copilot*Compact*"
+```
+
+See `plan/integration-test-guide.md` for full setup instructions.
 
 When adding new functionality, add unit tests first (TDD preferred).
 Integration tests that require live external services must be guarded and

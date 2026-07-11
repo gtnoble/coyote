@@ -5,6 +5,8 @@ with Acme.Window;
 with LLM.Events;
 with LLM.Types;
 with Nine_P.Client;
+with Ada.Directories;
+with Ada.Environment_Variables;
 with Coyote_App;          use Coyote_App;
 with Coyote_App.Dispatch; use Coyote_App.Dispatch;
 with Coyote_App.Frontend.Acme_Win;
@@ -12,6 +14,20 @@ with Coyote_App.Frontend.Acme_Win;
 package body Dispatch_Tests is
 
    use AUnit.Assertions;
+
+   function Acme_Running return Boolean is
+   begin
+      return Ada.Directories.Exists (Nine_P.Client.Namespace & "/acme");
+   exception
+      when others => return False;
+   end Acme_Running;
+
+   function Is_Guarded (Name : String) return Boolean is
+   begin
+      return Ada.Environment_Variables.Value (Name, "0") = "1";
+   exception
+      when others => return False;
+   end Is_Guarded;
 
    PID : constant String := "12345";
 
@@ -60,19 +76,12 @@ package body Dispatch_Tests is
    procedure Test_Dispatch_Agent_Start (T : in out Test) is
       pragma Unreferenced (T);
    begin
-      begin
-         declare
-            Guard_FS : aliased Nine_P.Client.Fs :=
-              Nine_P.Client.Ns_Mount ("acme");
-            pragma Unreferenced (Guard_FS);
-         begin
-            null;
-         end;
-      exception
-         when others =>
-            AUnit.Assertions.Assert (True, "");
-            return;
-      end;
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
+      if not Acme_Running then
+         return;
+      end if;
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
@@ -123,19 +132,12 @@ package body Dispatch_Tests is
    procedure Test_Dispatch_Agent_End_Normal (T : in out Test) is
       pragma Unreferenced (T);
    begin
-      begin
-         declare
-            Guard_FS : aliased Nine_P.Client.Fs :=
-              Nine_P.Client.Ns_Mount ("acme");
-            pragma Unreferenced (Guard_FS);
-         begin
-            null;
-         end;
-      exception
-         when others =>
-            AUnit.Assertions.Assert (True, "");
-            return;
-      end;
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
+      if not Acme_Running then
+         return;
+      end if;
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
@@ -191,19 +193,12 @@ package body Dispatch_Tests is
    procedure Test_Dispatch_Text_Delta (T : in out Test) is
       pragma Unreferenced (T);
    begin
-      begin
-         declare
-            Guard_FS : aliased Nine_P.Client.Fs :=
-              Nine_P.Client.Ns_Mount ("acme");
-            pragma Unreferenced (Guard_FS);
-         begin
-            null;
-         end;
-      exception
-         when others =>
-            AUnit.Assertions.Assert (True, "");
-            return;
-      end;
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
+      if not Acme_Running then
+         return;
+      end if;
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
@@ -260,19 +255,12 @@ package body Dispatch_Tests is
    procedure Test_Dispatch_Thinking_Delta (T : in out Test) is
       pragma Unreferenced (T);
    begin
-      begin
-         declare
-            Guard_FS : aliased Nine_P.Client.Fs :=
-              Nine_P.Client.Ns_Mount ("acme");
-            pragma Unreferenced (Guard_FS);
-         begin
-            null;
-         end;
-      exception
-         when others =>
-            AUnit.Assertions.Assert (True, "");
-            return;
-      end;
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
+      if not Acme_Running then
+         return;
+      end if;
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
@@ -348,19 +336,12 @@ package body Dispatch_Tests is
    procedure Test_Dispatch_Tool_Start (T : in out Test) is
       pragma Unreferenced (T);
    begin
-      begin
-         declare
-            Guard_FS : aliased Nine_P.Client.Fs :=
-              Nine_P.Client.Ns_Mount ("acme");
-            pragma Unreferenced (Guard_FS);
-         begin
-            null;
-         end;
-      exception
-         when others =>
-            AUnit.Assertions.Assert (True, "");
-            return;
-      end;
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
+      if not Acme_Running then
+         return;
+      end if;
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
@@ -415,19 +396,12 @@ package body Dispatch_Tests is
    procedure Test_Dispatch_Tool_End_Success (T : in out Test) is
       pragma Unreferenced (T);
    begin
-      begin
-         declare
-            Guard_FS : aliased Nine_P.Client.Fs :=
-              Nine_P.Client.Ns_Mount ("acme");
-            pragma Unreferenced (Guard_FS);
-         begin
-            null;
-         end;
-      exception
-         when others =>
-            AUnit.Assertions.Assert (True, "");
-            return;
-      end;
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
+      if not Acme_Running then
+         return;
+      end if;
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
@@ -494,19 +468,12 @@ package body Dispatch_Tests is
    procedure Test_Dispatch_Tool_End_Error (T : in out Test) is
       pragma Unreferenced (T);
    begin
-      begin
-         declare
-            Guard_FS : aliased Nine_P.Client.Fs :=
-              Nine_P.Client.Ns_Mount ("acme");
-            pragma Unreferenced (Guard_FS);
-         begin
-            null;
-         end;
-      exception
-         when others =>
-            AUnit.Assertions.Assert (True, "");
-            return;
-      end;
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
+      if not Acme_Running then
+         return;
+      end if;
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
@@ -573,19 +540,12 @@ package body Dispatch_Tests is
    procedure Test_Dispatch_Tool_End_Cancelled (T : in out Test) is
       pragma Unreferenced (T);
    begin
-      begin
-         declare
-            Guard_FS : aliased Nine_P.Client.Fs :=
-              Nine_P.Client.Ns_Mount ("acme");
-            pragma Unreferenced (Guard_FS);
-         begin
-            null;
-         end;
-      exception
-         when others =>
-            AUnit.Assertions.Assert (True, "");
-            return;
-      end;
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
+      if not Acme_Running then
+         return;
+      end if;
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
@@ -655,19 +615,12 @@ package body Dispatch_Tests is
    procedure Test_Dispatch_Message_End_Tokens (T : in out Test) is
       pragma Unreferenced (T);
    begin
-      begin
-         declare
-            Guard_FS : aliased Nine_P.Client.Fs :=
-              Nine_P.Client.Ns_Mount ("acme");
-            pragma Unreferenced (Guard_FS);
-         begin
-            null;
-         end;
-      exception
-         when others =>
-            AUnit.Assertions.Assert (True, "");
-            return;
-      end;
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
+      if not Acme_Running then
+         return;
+      end if;
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
@@ -725,19 +678,12 @@ package body Dispatch_Tests is
       pragma Unreferenced (T);
       Session_Id : constant String := "test-session-1234";
    begin
-      begin
-         declare
-            Guard_FS : aliased Nine_P.Client.Fs :=
-              Nine_P.Client.Ns_Mount ("acme");
-            pragma Unreferenced (Guard_FS);
-         begin
-            null;
-         end;
-      exception
-         when others =>
-            AUnit.Assertions.Assert (True, "");
-            return;
-      end;
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
+      if not Acme_Running then
+         return;
+      end if;
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
@@ -803,19 +749,12 @@ package body Dispatch_Tests is
    procedure Test_Dispatch_Model_Select (T : in out Test) is
       pragma Unreferenced (T);
    begin
-      begin
-         declare
-            Guard_FS : aliased Nine_P.Client.Fs :=
-              Nine_P.Client.Ns_Mount ("acme");
-            pragma Unreferenced (Guard_FS);
-         begin
-            null;
-         end;
-      exception
-         when others =>
-            AUnit.Assertions.Assert (True, "");
-            return;
-      end;
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
+      if not Acme_Running then
+         return;
+      end if;
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
@@ -871,19 +810,12 @@ package body Dispatch_Tests is
    procedure Test_Dispatch_Session_Info (T : in out Test) is
       pragma Unreferenced (T);
    begin
-      begin
-         declare
-            Guard_FS : aliased Nine_P.Client.Fs :=
-              Nine_P.Client.Ns_Mount ("acme");
-            pragma Unreferenced (Guard_FS);
-         begin
-            null;
-         end;
-      exception
-         when others =>
-            AUnit.Assertions.Assert (True, "");
-            return;
-      end;
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
+      if not Acme_Running then
+         return;
+      end if;
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
@@ -938,19 +870,12 @@ package body Dispatch_Tests is
    procedure Test_Dispatch_Auto_Retry_Start (T : in out Test) is
       pragma Unreferenced (T);
    begin
-      begin
-         declare
-            Guard_FS : aliased Nine_P.Client.Fs :=
-              Nine_P.Client.Ns_Mount ("acme");
-            pragma Unreferenced (Guard_FS);
-         begin
-            null;
-         end;
-      exception
-         when others =>
-            AUnit.Assertions.Assert (True, "");
-            return;
-      end;
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
+      if not Acme_Running then
+         return;
+      end if;
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
@@ -1008,19 +933,12 @@ package body Dispatch_Tests is
       pragma Unreferenced (T);
       Session_Id : constant String := "dispatch-full-turn-1234";
    begin
-      begin
-         declare
-            Guard_FS : aliased Nine_P.Client.Fs :=
-              Nine_P.Client.Ns_Mount ("acme");
-            pragma Unreferenced (Guard_FS);
-         begin
-            null;
-         end;
-      exception
-         when others =>
-            AUnit.Assertions.Assert (True, "");
-            return;
-      end;
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
+      if not Acme_Running then
+         return;
+      end if;
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
@@ -1139,19 +1057,12 @@ package body Dispatch_Tests is
    is
       pragma Unreferenced (T);
    begin
-      begin
-         declare
-            Guard_FS : aliased Nine_P.Client.Fs :=
-              Nine_P.Client.Ns_Mount ("acme");
-            pragma Unreferenced (Guard_FS);
-         begin
-            null;
-         end;
-      exception
-         when others =>
-            AUnit.Assertions.Assert (True, "");
-            return;
-      end;
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
+      if not Acme_Running then
+         return;
+      end if;
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
@@ -1229,19 +1140,12 @@ package body Dispatch_Tests is
       pragma Unreferenced (T);
       Session_Id : constant String := "dispatch-retry-end-1234";
    begin
-      begin
-         declare
-            Guard_FS : aliased Nine_P.Client.Fs :=
-              Nine_P.Client.Ns_Mount ("acme");
-            pragma Unreferenced (Guard_FS);
-         begin
-            null;
-         end;
-      exception
-         when others =>
-            AUnit.Assertions.Assert (True, "");
-            return;
-      end;
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
+      if not Acme_Running then
+         return;
+      end if;
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
@@ -1377,19 +1281,12 @@ package body Dispatch_Tests is
    is
       pragma Unreferenced (T);
    begin
-      begin
-         declare
-            Guard_FS : aliased Nine_P.Client.Fs :=
-              Nine_P.Client.Ns_Mount ("acme");
-            pragma Unreferenced (Guard_FS);
-         begin
-            null;
-         end;
-      exception
-         when others =>
-            AUnit.Assertions.Assert (True, "");
-            return;
-      end;
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
+      if not Acme_Running then
+         return;
+      end if;
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
@@ -1460,19 +1357,12 @@ package body Dispatch_Tests is
    is
       pragma Unreferenced (T);
    begin
-      begin
-         declare
-            Guard_FS : aliased Nine_P.Client.Fs :=
-              Nine_P.Client.Ns_Mount ("acme");
-            pragma Unreferenced (Guard_FS);
-         begin
-            null;
-         end;
-      exception
-         when others =>
-            AUnit.Assertions.Assert (True, "");
-            return;
-      end;
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
+      if not Acme_Running then
+         return;
+      end if;
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
@@ -1533,19 +1423,12 @@ package body Dispatch_Tests is
    procedure Test_Dispatch_Agent_Paused_Event (T : in out Test) is
       pragma Unreferenced (T);
    begin
-      begin
-         declare
-            Guard_FS : aliased Nine_P.Client.Fs :=
-              Nine_P.Client.Ns_Mount ("acme");
-            pragma Unreferenced (Guard_FS);
-         begin
-            null;
-         end;
-      exception
-         when others =>
-            AUnit.Assertions.Assert (True, "");
-            return;
-      end;
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
+      if not Acme_Running then
+         return;
+      end if;
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
@@ -1602,19 +1485,12 @@ package body Dispatch_Tests is
    procedure Test_Dispatch_Agent_Resumed_Event (T : in out Test) is
       pragma Unreferenced (T);
    begin
-      begin
-         declare
-            Guard_FS : aliased Nine_P.Client.Fs :=
-              Nine_P.Client.Ns_Mount ("acme");
-            pragma Unreferenced (Guard_FS);
-         begin
-            null;
-         end;
-      exception
-         when others =>
-            AUnit.Assertions.Assert (True, "");
-            return;
-      end;
+      if not Is_Guarded ("COYOTE_TEST_ACME") then
+         return;
+      end if;
+      if not Acme_Running then
+         return;
+      end if;
 
       declare
          FS   : aliased Nine_P.Client.Fs := Nine_P.Client.Ns_Mount ("acme");
