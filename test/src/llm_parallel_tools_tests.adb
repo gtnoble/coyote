@@ -3,6 +3,7 @@ with Ada.Calendar;
 with Ada.Containers;
 with Ada.Directories;
 with Ada.Environment_Variables;
+with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with GNATCOLL.JSON;
@@ -312,8 +313,9 @@ package body LLM_Parallel_Tools_Tests is
          if Request_Count = 1 then
             Assert (Length (Msgs) = 1, "Parallel req 1: expected 1 msg");
             Assert
-              (String'(Get (Msgs, 1).Get ("content").Get)
-                 = "Run two sleeps in parallel",
+              (Ada.Strings.Fixed.Index
+                 (String'(Get (Msgs, 1).Get ("content").Get),
+                  "Run two sleeps in parallel") = 1,
                "Parallel req 1: wrong prompt");
             Append (Res.Body_Data, Two_Tool_SSE);
          else

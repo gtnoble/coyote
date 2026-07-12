@@ -186,10 +186,12 @@ package body LLM_System_Prompt_Tests is
       P         : constant String :=
         LLM.System_Prompt.Build_System_Prompt
           (Cwd              => Test_Cwd,
-           Context_Sections => "CTX",
-           Skills_Section   => "SKILL");
-      Ctx_Pos   : constant Natural := Ada.Strings.Fixed.Index (P, "CTX");
-      Skill_Pos : constant Natural := Ada.Strings.Fixed.Index (P, "SKILL");
+           Context_Sections => "=CTX_MARKER_5E3A2F=",
+           Skills_Section   => "=SKILL_MARKER_8B1D4C=");
+      Ctx_Pos   : constant Natural :=
+        Ada.Strings.Fixed.Index (P, "=CTX_MARKER_5E3A2F=");
+      Skill_Pos : constant Natural :=
+        Ada.Strings.Fixed.Index (P, "=SKILL_MARKER_8B1D4C=");
       Date_Pos  : constant Natural :=
         Ada.Strings.Fixed.Index (P, "Current date");
    begin
