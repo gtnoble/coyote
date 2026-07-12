@@ -184,11 +184,11 @@ package body LLM_Compaction_Tests is
       Disabled : constant LLM.Compaction.Compact_Settings :=
         (Enabled            => False,
          Reserve_Tokens     => 30,
-         Keep_Recent_Tokens => 20);
+         Keep_Recent_Tokens => 20, Consecutive_Failures => 0, Tripped => False);
       Enabled : constant LLM.Compaction.Compact_Settings :=
         (Enabled            => True,
          Reserve_Tokens     => 30,
-         Keep_Recent_Tokens => 20);
+         Keep_Recent_Tokens => 20, Consecutive_Failures => 0, Tripped => False);
    begin
       Assert
         (not LLM.Compaction.Should_Compact (70, 100, Disabled),
@@ -209,15 +209,15 @@ package body LLM_Compaction_Tests is
       Short_Setting : constant LLM.Compaction.Compact_Settings :=
         (Enabled            => True,
          Reserve_Tokens     => 10,
-         Keep_Recent_Tokens => 100);
+         Keep_Recent_Tokens => 100, Consecutive_Failures => 0, Tripped => False);
       Keep_Last_Turn : constant LLM.Compaction.Compact_Settings :=
         (Enabled            => True,
          Reserve_Tokens     => 10,
-         Keep_Recent_Tokens => 30);
+         Keep_Recent_Tokens => 30, Consecutive_Failures => 0, Tripped => False);
       Keep_All : constant LLM.Compaction.Compact_Settings :=
         (Enabled            => True,
          Reserve_Tokens     => 10,
-         Keep_Recent_Tokens => 200);
+         Keep_Recent_Tokens => 200, Consecutive_Failures => 0, Tripped => False);
    begin
       Short_History.Append (Make_User_Message ("short"));
       Short_History.Append (Make_Assistant_Text_Message ("reply"));
@@ -319,7 +319,7 @@ package body LLM_Compaction_Tests is
       Settings  : constant LLM.Compaction.Compact_Settings :=
         (Enabled            => True,
          Reserve_Tokens     => 100,
-         Keep_Recent_Tokens => 30);
+         Keep_Recent_Tokens => 30, Consecutive_Failures => 0, Tripped => False);
       Cut       : Natural;
       Text      : Unbounded_String;
    begin

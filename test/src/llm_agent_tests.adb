@@ -4312,11 +4312,13 @@ package body LLM_Agent_Tests is
          No_Tools   => True);
       LLM.Agent.Set_Compact_Settings
         (Agent_Session,
-         (Enabled            => False,
-          Reserve_Tokens     =>
+         (Enabled              => False,
+          Reserve_Tokens       =>
             LLM.Compaction.Default_Compact_Settings.Reserve_Tokens,
-          Keep_Recent_Tokens =>
-            LLM.Compaction.Default_Compact_Settings.Keep_Recent_Tokens));
+          Keep_Recent_Tokens   =>
+            LLM.Compaction.Default_Compact_Settings.Keep_Recent_Tokens,
+          Consecutive_Failures => 0,
+          Tripped              => False));
 
       Srv.Bind (Port);
 

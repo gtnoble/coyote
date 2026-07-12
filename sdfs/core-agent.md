@@ -170,3 +170,73 @@ Files changed:
   event loop. Consider moving it to a separate task if latency becomes an issue.
 - The 4-bytes-per-token heuristic should be validated against real session
   data once sufficient sessions are accumulated in coyote_sqc.
+
+---
+
+## PCR-040 — Enhanced System Prompt, Memory, Coordinator, Compaction Improvements (2026-07-12)
+
+### Design Rationale
+
+**New package LLM.Memory:** The memory system is implemented as a separate
+package (`LLM.Memory`) rather than being folded into `LLM.System_Prompt`
+because it has its own discovery logic (two path roots, content capping,
+truncation warnings) that is independent of prompt construction. The
+separation also allows future extensions — e.g. programmatic memory query
+APIs — without touching the prompt layer.
+
+**Personality definition in Build_System_Prompt:** The personality block is
+a constant string embedded at the top of the prompt rather than a separate
+file. This keeps the personality always present regardless of filesystem
+state and avoids a hidden configuration dependency. The content was derived
+from the agent study of Claude Code's communication patterns.
+
+**Conditional tool-use instructions:** The `Has_Editing_Tools` parameter
+allows the prompt to adapt to the session's tool set. When the agent has
+access to file-editing tools (shell), it is told to prefer them; when it
+doesn't, it is told to print code blocks as suggestions. This avoids the
+model offering `aged FILE OLD NEW` commands when tools are disabled.
+
+**Nine-section compaction prompt:** The upgrade from 6 to 9 sections came
+from the Claude Code study. The key additions are: (1) "Key Technical
+Concepts" — domain knowledge the continuation agent needs; (3) "Files and
+Code Sections" — with full code snippets, not just filenames; (6) "All User
+Messages" — verbatim quotes of every user instruction, which proved critical
+for maintaining task continuity across compaction boundaries; (8) "Current
+Work" — with verbatim quotes from the last assistant response.
+
+**Analysis-block drafting:** The `<analysis>` block gives the summarisation
+model space to reason before writing. It is stripped by `Strip_Analysis_Block`
+before storage, keeping context window usage minimal. The stripping logic
+handles both well-formed (`<analysis>...</analysis>`) and malformed blocks
+(opening tag without closing tag).
+
+**Circuit breaker:** The breaker trips after 3 consecutive failures because
+that threshold is high enough to tolerate transient provider errors but low
+enough to detect persistent problems (bad model, context overflow loop).
+Manual compaction remains available even when tripped — the breaker only
+blocks automatic compaction.
+
+**Per-turn reminders:** The reminder block is appended to every user prompt
+rather than being in the system prompt, because system-prompt instructions
+are easily forgotten over long conversations. Repetition at each turn keeps
+the guidance salient.
+
+**Partial compaction design:** The existing cut-point mechanism already
+supports partial compaction semantically: `Find_Cut_Point` determines where
+to split, and messages from the cut forward are kept verbatim. The
+`Is_Partial` flag in `Build_Compact_Prompt` adds a scoping preamble to the
+summarisation prompt when the compaction covers only the earlier portion of
+a long conversation.
+
+### Files Changed
+- `src/llm/llm-memory.ads`, `src/llm/llm-memory.adb` — new package
+- `src/llm/llm-system_prompt.ads`, `src/llm/llm-system_prompt.adb` — extended
+- `src/llm/llm-compaction.ads`, `src/llm/llm-compaction.adb` — rewritten prompts,
+  circuit breaker, analysis stripping, Build_Compact_Prompt
+- `src/llm/llm-agent.adb` — memory integration, reminder appending,
+  circuit-breaker tracking, analysis-stripping in Compact
+- `src/coyote_app.adb` — updated Compact_Settings aggregates
+- `test/src/llm_compaction_tests.adb` — updated Compact_Settings aggregates
+- `test/src/llm_agent_tests.adb` — updated Compact_Settings aggregate
+- `plan/problems.md` — PCR-040 implementation actions recorded
+- `sdfs/core-agent.md` — this log entry

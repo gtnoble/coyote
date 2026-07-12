@@ -808,12 +808,14 @@ package body Coyote_App is
             if Opts.No_Compact then
                LLM.Agent.Set_Compact_Settings
                  (Agent_Session,
-                  (Enabled            => False,
-                   Reserve_Tokens     =>
+                  (Enabled              => False,
+                   Reserve_Tokens       =>
                      LLM.Compaction.Default_Compact_Settings.Reserve_Tokens,
-                   Keep_Recent_Tokens =>
+                   Keep_Recent_Tokens   =>
                      LLM.Compaction.Default_Compact_Settings
-                       .Keep_Recent_Tokens));
+                       .Keep_Recent_Tokens,
+                   Consecutive_Failures => 0,
+                   Tripped              => False));
             end if;
             --  Publish the session ID so subagent child processes can record
             --  it as their parentSession.  COYOTE_SESSION_ID is inherited by
@@ -2323,13 +2325,15 @@ package body Coyote_App is
             if Opts.No_Compact then
                LLM.Agent.Set_Compact_Settings
                  (Agent_Session,
-                  (Enabled            => False,
-                   Reserve_Tokens     =>
+                  (Enabled              => False,
+                   Reserve_Tokens       =>
                      LLM.Compaction.Default_Compact_Settings
                        .Reserve_Tokens,
-                   Keep_Recent_Tokens =>
+                   Keep_Recent_Tokens   =>
                      LLM.Compaction.Default_Compact_Settings
-                       .Keep_Recent_Tokens));
+                       .Keep_Recent_Tokens,
+                   Consecutive_Failures => 0,
+                   Tripped              => False));
             end if;
 
             --  Publish session ID for child processes.

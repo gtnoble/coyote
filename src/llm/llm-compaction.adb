@@ -3,6 +3,7 @@
 --  Project: coyote
 --  For revision history, see the project version-control log.
 
+with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with GNATCOLL.JSON;
 
@@ -105,6 +106,10 @@ package body LLM.Compaction is
       end if;
    end Render_Tool_Call;
 
+   --  Forward declarations.
+   function Trim_Left (S : String) return String;
+   function Trim_Right (S : String) return String;
+
    function Truncate (Text : String; Max_Length : Natural) return String is
    begin
       if Text'Length <= Max_Length then
@@ -115,6 +120,132 @@ package body LLM.Compaction is
          return Text (Text'First .. Text'First + Max_Length - 1);
       end if;
    end Truncate;
+
+   --  Strip the <analysis>...</analysis> block from a compaction
+   --  summary (REQ-CORE-066).
+   function Strip_Analysis_Block (Summary : String) return String is
+      Open_Pos  : constant Natural :=
+        Ada.Strings.Fixed.Index (Summary, "<analysis>");
+      Close_Pos : Natural := 0;
+   begin
+      if Open_Pos = 0 then
+         return Summary;
+      end if;
+
+      Close_Pos := Ada.Strings.Fixed.Index
+        (Summary (Open_Pos .. Summary'Last), "</analysis>");
+
+      if Close_Pos = 0 then
+         --  Malformed: opening tag without closing tag;
+         --  strip from the opening tag to end.
+         return Summary (Summary'First .. Open_Pos - 1);
+      end if;
+
+      declare
+         Before : constant String :=
+           Summary (Summary'First .. Open_Pos - 1);
+         After  : constant String :=
+           Summary (Open_Pos + Close_Pos + 11 .. Summary'Last);
+         Result : Unbounded_String;
+      begin
+         --  Trim trailing whitespace from Before.
+         declare
+            Trimmed_Before : constant String := Trim_Right (Before);
+         begin
+            Append (Result, Trimmed_Before);
+         end;
+
+         --  Trim leading whitespace from After.
+         declare
+            Trimmed_After : constant String := Trim_Left (After);
+         begin
+            if Trimmed_After'Length > 0 then
+               if Trimmed_After (Trimmed_After'First) /= ASCII.LF then
+                  Append (Result, "" & ASCII.LF);
+               end if;
+               Append (Result, Trimmed_After);
+            end if;
+         end;
+
+         return To_String (Result);
+      end;
+   end Strip_Analysis_Block;
+
+   --  Trim leading whitespace (LF, CR, space, HT).
+   function Trim_Left (S : String) return String is
+      First : Positive := S'First;
+   begin
+      while First <= S'Last
+        and then (S (First) = ' '
+                  or else S (First) = ASCII.LF
+                  or else S (First) = ASCII.CR
+                  or else S (First) = ASCII.HT)
+      loop
+         First := First + 1;
+      end loop;
+
+      if First > S'Last then
+         return "";
+      end if;
+
+      return S (First .. S'Last);
+   end Trim_Left;
+
+   --  Trim trailing whitespace (LF, CR, space, HT).
+   function Trim_Right (S : String) return String is
+      Last : Integer := S'Last;
+   begin
+      while Last >= S'First
+        and then (S (Last) = ' '
+                  or else S (Last) = ASCII.LF
+                  or else S (Last) = ASCII.CR
+                  or else S (Last) = ASCII.HT)
+      loop
+         Last := Last - 1;
+      end loop;
+
+      if Last < S'First then
+         return "";
+      end if;
+
+      return S (S'First .. Last);
+   end Trim_Right;
+
+   function Build_Compact_Prompt
+     (Conversation     : String;
+      Previous_Summary : String := "";
+      Is_Partial       : Boolean := False) return String
+   is
+      Result : Unbounded_String;
+   begin
+      if Is_Partial then
+         Append
+           (Result,
+            "The conversation below represents the earlier portion of a"
+            & " longer session.  Summarise it as a continuation preamble."
+            & "  The continuation agent will receive this summary"
+            & " prefixed with ""This session is being continued from a"
+            & " previous conversation that ran out of context."""
+            & ASCII.LF & ASCII.LF);
+      end if;
+
+      Append (Result, "<conversation>" & ASCII.LF);
+      Append (Result, Conversation);
+      Append (Result, ASCII.LF & "</conversation>" & ASCII.LF & ASCII.LF);
+
+      if Previous_Summary'Length > 0 then
+         Append (Result, "<previous-summary>" & ASCII.LF);
+         Append (Result, Previous_Summary);
+         Append
+           (Result,
+            ASCII.LF & "</previous-summary>" & ASCII.LF & ASCII.LF);
+         Append (Result, Update_Summarization_Prompt);
+      else
+         Append (Result, Summarization_Prompt);
+      end if;
+
+      return To_String (Result);
+   end Build_Compact_Prompt;
 
    function Estimate_Tokens (Msg : LLM.Types.Message) return Natural is
       Characters : Natural := 0;
@@ -178,7 +309,9 @@ package body LLM.Compaction is
          then Context_Window - Natural (Settings.Reserve_Tokens)
          else 0);
    begin
-      return Settings.Enabled and then Context_Tokens >= Threshold;
+      return Settings.Enabled
+        and then not Settings.Tripped
+        and then Context_Tokens >= Threshold;
    end Should_Compact;
 
    function Find_Cut_Point
@@ -193,6 +326,8 @@ package body LLM.Compaction is
          return 0;
       end if;
 
+      --  Walk backward from newest to find where Keep_Recent_Tokens
+      --  tokens are covered.
       for I in reverse History.First_Index .. History.Last_Index loop
          Accumulated := Accumulated + Estimate_Tokens (History.Element (I));
          if Accumulated >= Natural (Settings.Keep_Recent_Tokens) then
@@ -206,6 +341,9 @@ package body LLM.Compaction is
          return 0;
       end if;
 
+      --  Move cut forward to the nearest user-message boundary so that
+      --  whole turns are preserved (the cut is the index of the FIRST
+      --  message to keep).
       for I in reverse History.First_Index .. Threshold_Index loop
          if History.Element (I).Role = LLM.Types.User then
             if I = History.First_Index then

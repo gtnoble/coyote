@@ -12,6 +12,7 @@ with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with GNATCOLL.JSON;
 with LLM.Compaction;
+with LLM.Memory;
 with LLM.HTTP;
 with LLM.Model_Registry;
 with LLM.Providers.Anthropic_Messages;
@@ -1225,9 +1226,15 @@ package body LLM.Agent is
 
       S.System_Prompt := To_Unbounded_String
         (LLM.System_Prompt.Build_System_Prompt
-           (Cwd           => To_String (S.Cwd),
-            No_Tools      => No_Tools,
-            Agent         => Agent));
+           (Cwd               => To_String (S.Cwd),
+            No_Tools          => No_Tools,
+            Has_Editing_Tools => not No_Tools,
+            Agent             => Agent,
+            Memory_Block      => LLM.Memory.Load_Memory_Index
+              (To_String (S.Cwd))
+            & ASCII.LF
+            & LLM.Memory.Format_Memory_Taxonomy_For_Prompt,
+            Coordinator_Mode  => not No_Tools));
       S.Session_UUID := Null_Unbounded_String;
       S.History.Clear;
       S.No_Tools := No_Tools;
@@ -1361,24 +1368,17 @@ package body LLM.Agent is
          end loop;
       end if;
 
-      Append (Prompt_Text, "<conversation>" & ASCII.LF);
-      Append
-        (Prompt_Text,
-         LLM.Compaction.Serialize_Conversation (Candidate));
-      Append
-        (Prompt_Text,
-         ASCII.LF & "</conversation>" & ASCII.LF & ASCII.LF);
-
-      if Length (Previous_Summary) > 0 then
-         Append (Prompt_Text, "<previous-summary>" & ASCII.LF);
-         Append (Prompt_Text, To_String (Previous_Summary));
-         Append
-           (Prompt_Text,
-            ASCII.LF & "</previous-summary>" & ASCII.LF & ASCII.LF);
-         Append (Prompt_Text, LLM.Compaction.Update_Summarization_Prompt);
-      else
-         Append (Prompt_Text, LLM.Compaction.Summarization_Prompt);
-      end if;
+      declare
+         Serialized : constant String :=
+           LLM.Compaction.Serialize_Conversation (Candidate);
+      begin
+         Prompt_Text := To_Unbounded_String
+           (LLM.Compaction.Build_Compact_Prompt
+              (Conversation     => Serialized,
+               Previous_Summary =>
+                 To_String (Previous_Summary),
+               Is_Partial       => False));
+      end;
 
       Summary_Request.Append (User_Message (To_String (Prompt_Text)));
 
@@ -1481,7 +1481,11 @@ package body LLM.Agent is
          return;
       end if;
 
+      --  Strip the <analysis> drafting block from the summary before
+      --  storing it in context (REQ-CORE-066).
       declare
+         Stripped_Summary : constant String :=
+           LLM.Compaction.Strip_Analysis_Block (To_String (Summary_Text));
          Tokens_Before : constant Natural :=
            (if S.Last_Context_Tokens > 0
             then S.Last_Context_Tokens
@@ -1489,16 +1493,18 @@ package body LLM.Agent is
       begin
          LLM.Session_Store.Append_Compaction
            (Session_Id       => To_String (S.Session_UUID),
-            Summary          => To_String (Summary_Text),
+            Summary          => Stripped_Summary,
             First_Kept_Index => Cut,
             Tokens_Before    => Tokens_Before);
       end;
 
       declare
+         Stripped_Summary : constant String :=
+           LLM.Compaction.Strip_Analysis_Block (To_String (Summary_Text));
          New_History : LLM.Types.Message_Vectors.Vector;
       begin
          New_History.Append
-           (Compaction_Summary_Message (To_String (Summary_Text)));
+           (Compaction_Summary_Message (Stripped_Summary));
 
          if not S.History.Is_Empty and then Cut <= S.History.Last_Index then
             for I in Cut .. S.History.Last_Index loop
@@ -1539,8 +1545,14 @@ package body LLM.Agent is
       Messages_To_Persist    : LLM.Types.Message_Vectors.Vector;
       Tools_Json             : constant String :=
         Build_Tools_Json (S.Model_Info, S.No_Tools);
+      Prompt_With_Reminder : constant String :=
+        Prompt
+        & ASCII.LF
+        & ASCII.LF
+        & LLM.System_Prompt.Build_Reminder_Instructions
+            (Has_Tools => not S.No_Tools);
       Prompt_Msg              : constant LLM.Types.Message :=
-        User_Message (Prompt);
+        User_Message (Prompt_With_Reminder);
       Was_Aborted             : Boolean := False;
       Turn_Completed_Normally : Boolean := False;
       Compact_OK              : Boolean := False;
@@ -1991,6 +2003,19 @@ package body LLM.Agent is
                  S.Compact_Settings)
             then
                Compact (S, On_Event, "threshold", Compact_OK);
+
+               if Compact_OK then
+                  S.Compact_Settings.Consecutive_Failures := 0;
+               else
+                  S.Compact_Settings.Consecutive_Failures :=
+                    S.Compact_Settings.Consecutive_Failures + 1;
+
+                  if S.Compact_Settings.Consecutive_Failures
+                    >= LLM.Compaction.Max_Consecutive_Failures
+                  then
+                     S.Compact_Settings.Tripped := True;
+                  end if;
+               end if;
             end if;
          end if;
       exception

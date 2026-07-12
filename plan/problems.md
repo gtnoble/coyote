@@ -1501,6 +1501,42 @@ The MR-chart transform block already correctly branched on
   2. Design sections updated in SDD-CORE v1.4.
   3. Demonstration tests added to Test Plan v1.4.
   4. Project Plan updated with Review 7.
-- **Status:** Open
-- **Date resolved:** (pending implementation)
+- **Implementation actions (2026-07-12):**
+  1. Created `LLM.Memory` package (ads + adb) with MEMORY.md discovery from
+     `~/.coyote/memory/` and `{CWD}/.coyote/`, content capping at 200 lines /
+     25 000 bytes, and four-type memory taxonomy formatting
+     (REQ-CORE-180..183).
+  2. Extended `LLM.System_Prompt.Build_System_Prompt` with: personality
+     definition (terse/direct/pragmatic, no cheerleading — REQ-CORE-170),
+     conditional tool-use instructions keyed to `Has_Editing_Tools`
+     (REQ-CORE-171), coordinator subagent-orchestration guidance when
+     `Coordinator_Mode` is true (REQ-CORE-190..192), and `Memory_Block`
+     integration (REQ-CORE-180..183).
+  3. Added `Build_Reminder_Instructions` function returning per-turn
+     reminder text (persist until resolved, progress updates, varied
+     phrasing — REQ-CORE-172).
+  4. Rewrote `LLM.Compaction.Summarization_Prompt` and
+     `Update_Summarization_Prompt` with nine-section format and
+     `<analysis>` drafting-block instruction (REQ-CORE-065, REQ-CORE-066).
+  5. Added `Strip_Analysis_Block` function to strip `<analysis>` from
+     stored summaries before injecting into context (REQ-CORE-066).
+  6. Added `Build_Compact_Prompt` function consolidating prompt assembly
+     with optional previous-summary and partial-compact preamble.
+  7. Added circuit breaker to `Compact_Settings`: `Consecutive_Failures`
+     counter and `Tripped` flag; `Should_Compact` returns False when
+     tripped; `Max_Consecutive_Failures = 3` (REQ-CORE-067).
+  8. Integrated per-turn reminder into `LLM.Agent.Run_Prompt`: each user
+     prompt carries the reminder block appended after the user's text.
+  9. Integrated circuit-breaker logic in `LLM.Agent.Run_Prompt`: reset
+     `Consecutive_Failures` on success; increment on failure; set `Tripped`
+     when threshold reached.
+  10. Integrated analysis-block stripping in `LLM.Agent.Compact`: summary
+      stored in session JSONL and in-memory history has `<analysis>`
+      removed.
+  11. Updated all `Compact_Settings` aggregate initializations in
+      `coyote_app.adb` and test files to include new fields.
+  12. All 560 existing AUnit tests pass (0 regressions in compaction,
+      system prompt, or agent areas).
+- **Status:** Resolved
+- **Date resolved:** 2026-07-12
 
