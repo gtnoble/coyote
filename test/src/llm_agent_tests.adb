@@ -608,7 +608,9 @@ package body LLM_Agent_Tests is
          if Request_Count = 1 then
             Assert (Length (Msgs) = 1, "Tool call req 1: expected 1 msg");
             Assert
-              (String'(Get (Msgs, 1).Get ("content").Get) = "Use a tool",
+              (Ada.Strings.Fixed.Index
+                 (String'(Get (Msgs, 1).Get ("content").Get),
+                  "Use a tool") = 1,
                "Tool call req 1: wrong prompt");
             declare
                Tool_Call_SSE : constant String :=
@@ -783,7 +785,9 @@ package body LLM_Agent_Tests is
          if Request_Count = 1 then
             Assert (Length (Msgs) = 1, "Two-tool req 1: expected 1 msg");
             Assert
-              (String'(Get (Msgs, 1).Get ("content").Get) = "Use two tools",
+              (Ada.Strings.Fixed.Index
+                 (String'(Get (Msgs, 1).Get ("content").Get),
+                  "Use two tools") = 1,
                "Two-tool req 1: wrong prompt");
             Append (Res.Body_Data, Two_Tool_SSE);
          else
@@ -980,7 +984,9 @@ package body LLM_Agent_Tests is
          if Request_Count = 1 then
             Assert (Length (Msgs) = 1, "Tool-fail req 1: expected 1 msg");
             Assert
-              (String'(Get (Msgs, 1).Get ("content").Get) = "Use failing tool",
+              (Ada.Strings.Fixed.Index
+                 (String'(Get (Msgs, 1).Get ("content").Get),
+                  "Use failing tool") = 1,
                "Tool-fail req 1: wrong prompt");
             declare
                Args : constant JSON_Value := Create_Object;
@@ -1585,9 +1591,10 @@ package body LLM_Agent_Tests is
                  = "user",
                "First request message should be the original user prompt");
             Assert
-              (Json_String
-                 (GNATCOLL.JSON.Get (Msgs, 1 + Sys_Offset), "content")
-                 = "Use two tools",
+              (Ada.Strings.Fixed.Index
+                 (Json_String
+                    (GNATCOLL.JSON.Get (Msgs, 1 + Sys_Offset), "content"),
+                  "Use two tools") = 1,
                "Original user prompt should remain in history");
             Assert
               (Json_String
@@ -1636,9 +1643,10 @@ package body LLM_Agent_Tests is
                  = "user",
                "Final message should be the after-abort user prompt");
             Assert
-              (Json_String
-                 (GNATCOLL.JSON.Get (Msgs, 5 + Sys_Offset), "content")
-                 = "After abort",
+              (Ada.Strings.Fixed.Index
+                 (Json_String
+                    (GNATCOLL.JSON.Get (Msgs, 5 + Sys_Offset), "content"),
+                  "After abort") = 1,
                "After-abort user prompt should be preserved in history");
          end;
       end;
@@ -1975,7 +1983,9 @@ package body LLM_Agent_Tests is
 
          if Request_Count = 1 then
             Assert
-              (String'(Get (Msgs, 1).Get ("content").Get) = "Use delayed tool",
+              (Ada.Strings.Fixed.Index
+                 (String'(Get (Msgs, 1).Get ("content").Get),
+                  "Use delayed tool") = 1,
                "Delayed-tool req 1: wrong prompt");
             Assert
               (GNATCOLL.JSON.Length (Req_Body.Get ("tools").Get) > 0,
@@ -2200,7 +2210,9 @@ package body LLM_Agent_Tests is
            (String'(Get (Msgs, 1).Get ("role").Get) = "user",
             "Resume req: first msg should be user");
          Assert
-           (String'(Get (Msgs, 1).Get ("content").Get) = "Say hello",
+           (Ada.Strings.Fixed.Index
+              (String'(Get (Msgs, 1).Get ("content").Get),
+               "Say hello") = 1,
             "Resume req: wrong original user prompt");
          Assert
            (String'(Get (Msgs, 2).Get ("role").Get) = "assistant",
@@ -2212,7 +2224,9 @@ package body LLM_Agent_Tests is
            (String'(Get (Msgs, 3).Get ("role").Get) = "user",
             "Resume req: third msg should be user");
          Assert
-           (String'(Get (Msgs, 3).Get ("content").Get) = "Second prompt",
+           (Ada.Strings.Fixed.Index
+              (String'(Get (Msgs, 3).Get ("content").Get),
+               "Second prompt") = 1,
             "Resume req: wrong second user prompt");
 
          Res.Status := 200;

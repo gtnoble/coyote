@@ -1,11 +1,13 @@
-Continue sessions with same model used in session
-Keep parent model when forking, if practical
-Stop should be executed immediately when thinking or outputting text
+Harness app
+	Allow for forking after every turn, including tool call turns
+	add elapsed time to tool call output
+
 
 SQC app
-	Histogram of selected points in the right panel
 	Normality and randomness tests of selected points shown in the right panel.
-	View latest point comment on hover
 	Line numbers for tool call detail stdin
-	Reload data button
 	add timestamps to sesson turns
+
+Tests
+	add elapsed time to test logging.
+	add profiling build option
