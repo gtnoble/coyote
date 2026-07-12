@@ -38,6 +38,17 @@ package Coyote_App_Tests is
    --  Empty input returns False.
    procedure Test_Parse_Fork_Token_Empty        (T : in out Test);
 
+   --  Step-level fork token parsing.
+   procedure Test_Parse_Fork_Token_With_Step     (T : in out Test);
+
+   --  Format_Turn_Footer with step-level separator.
+   procedure Test_Format_Turn_Footer_Step        (T : in out Test);
+
+   --  App_State Turn_Step counter tests.
+   procedure Test_State_Turn_Step_Increment      (T : in out Test);
+   procedure Test_State_Turn_Step_Set            (T : in out Test);
+   procedure Test_State_Turn_Step_Reset          (T : in out Test);
+
    --  App_State Turn_Count
    procedure Test_State_Turn_Count_Increment (T : in out Test);
    procedure Test_State_Turn_Count_Set       (T : in out Test);

@@ -313,6 +313,7 @@ and any failures are recorded here or in the Test Report.
 **Baseline as of 2026-06-13 (Quantile Control Chart):** 683 tests, 0 failures,
 
 **Baseline as of 2026-06-16 (Mutual Information diversity charts):** 688 tests, 0 failures,
+**Baseline as of 2026-07-12 (Step-level fork tokens throughout tool-call turns):** 694 tests, 0 failures,
 0 unexpected errors.  Added 11 MI tests for
 `Coyote_SQC.Statistics.MI` (compute values, identical calls, different calls,
 no-argument calls, missing argument, non-positive clamp, session metrics,

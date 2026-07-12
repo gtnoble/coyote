@@ -172,11 +172,13 @@ package body Coyote_App.Utils is
      (Data       : String;
       Pid_Prefix : String;
       UUID       : out Unbounded_String;
-      Turn_N     : out Positive) return Boolean
+      Turn_N     : out Positive;
+      Step_N     : out Natural) return Boolean
    is
       Prefix_End : constant Natural :=
         Data'First + Pid_Prefix'Length - 1;
       Last_Slash : Natural := 0;
+      Step_Slash : Natural := 0;
    begin
       if Data'Length <= Pid_Prefix'Length
         or else Data (Data'First .. Prefix_End) /= Pid_Prefix
@@ -184,10 +186,17 @@ package body Coyote_App.Utils is
          return False;
       end if;
 
+      --  Find the last slash (the Turn_N separator).  Walk backwards
+      --  from the end so we can then check whether there is a second
+      --  slash for an optional /Step_N suffix.
       for I in reverse Prefix_End + 1 .. Data'Last loop
          if Data (I) = '/' then
-            Last_Slash := I;
-            exit;
+            if Last_Slash = 0 then
+               Last_Slash := I;
+            else
+               Step_Slash := I;
+               exit;
+            end if;
          end if;
       end loop;
 
@@ -201,10 +210,19 @@ package body Coyote_App.Utils is
 
       declare
          UUID_Text : constant String :=
-           Data (Prefix_End + 1 .. Last_Slash - 1);
+           (if Step_Slash > 0
+            then Data (Prefix_End + 1 .. Step_Slash - 1)
+            else Data (Prefix_End + 1 .. Last_Slash - 1));
          Turn_Text : constant String :=
-           Data (Last_Slash + 1 .. Data'Last);
+           (if Step_Slash > 0
+            then Data (Step_Slash + 1 .. Last_Slash - 1)
+            else Data (Last_Slash + 1 .. Data'Last));
+         Step_Text : constant String :=
+           (if Step_Slash > 0
+            then Data (Last_Slash + 1 .. Data'Last)
+            else "");
          Turn      : Positive;
+         Step      : Natural := 0;
       begin
          if UUID_Text'Length = 0 or else Turn_Text'Length = 0 then
             return False;
@@ -217,8 +235,18 @@ package body Coyote_App.Utils is
                return False;
          end;
 
+         if Step_Text'Length > 0 then
+            begin
+               Step := Natural'Value (Step_Text);
+            exception
+               when Constraint_Error =>
+                  return False;
+            end;
+         end if;
+
          UUID   := To_Unbounded_String (UUID_Text);
          Turn_N := Turn;
+         Step_N := Step;
          return True;
       end;
    end Parse_Fork_Token;
@@ -474,7 +502,8 @@ package body Coyote_App.Utils is
       Model_Text        : String  := "";
       Turn_Cost_Dmil    : Natural := 0;
       Session_Cost_Dmil : Natural := 0;
-      Stop_Reason_Text : String  := "") return String
+      Stop_Reason_Text : String  := "";
+      Step_N            : Natural := 0) return String
    is
       Summary : constant String :=
         Format_Turn_Summary
@@ -485,12 +514,22 @@ package body Coyote_App.Utils is
            Turn_Cost_Dmil    => Turn_Cost_Dmil,
            Session_Cost_Dmil => Session_Cost_Dmil,
            Stop_Reason_Text => Stop_Reason_Text);
+      Is_Step : constant Boolean := Step_N > 0;
+      Token   : constant String :=
+        "coyote-fork+" & PID & "/" & UUID & "/"
+        & Natural_Image (Turn_N)
+        & (if Is_Step
+           then "/" & Natural_Image (Step_N)
+           else "");
+      Sep     : constant String :=
+        (if Is_Step
+         then Str_Repeat (UC_HORIZ, 60)
+         else Str_Repeat (UC_DBL_H, 60));
    begin
       return ASCII.LF & ASCII.LF
              & (if Summary'Length > 0 then Summary & " " else "")
-             & "coyote-fork+" & PID & "/" & UUID & "/"
-             & Natural_Image (Turn_N) & ASCII.LF
-             & Str_Repeat (UC_DBL_H, 60)
+             & Token & ASCII.LF
+             & Sep
              & ASCII.LF & ASCII.LF;
    end Format_Turn_Footer;
 

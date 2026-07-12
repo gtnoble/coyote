@@ -256,6 +256,26 @@ package body Coyote_App is
          P_Turn_Count := 0;
       end Reset_Turn_Count;
 
+      function Turn_Step          return Natural is (P_Turn_Step);
+      procedure Increment_Turn_Step is
+      begin
+         P_Turn_Step := P_Turn_Step + 1;
+      end Increment_Turn_Step;
+      procedure Reset_Turn_Step is
+      begin
+         P_Turn_Step := 0;
+      end Reset_Turn_Step;
+      procedure Set_Turn_Step (N : Natural) is
+      begin
+         P_Turn_Step := N;
+      end Set_Turn_Step;
+
+      function Tool_Cancelled     return Boolean is (P_Tool_Cancelled);
+      procedure Set_Tool_Cancelled (Value : Boolean) is
+      begin
+         P_Tool_Cancelled := Value;
+      end Set_Tool_Cancelled;
+
       procedure Set_One_Shot_Result (Json : String) is
       begin
          --  First write wins; ignore subsequent calls so that the exception
@@ -1802,12 +1822,14 @@ package body Coyote_App is
                         declare
                            UUID_US : Unbounded_String;
                            Turn_N  : Positive := 1;
+                           Step_N  : Natural  := 0;
                         begin
                            if Parse_Fork_Token
                              (Data,
                               Pid_Prefix,
                               UUID_US,
-                              Turn_N)
+                              Turn_N,
+                              Step_N)
                            then
                               declare
                                  Cwd      : constant String :=
@@ -1816,7 +1838,8 @@ package body Coyote_App is
                                    To_String (UUID_US);
                                  New_UUID : constant String :=
                                    Session_Lister.Fork_Session
-                                     (UUID, Turn_N, Cwd);
+                                     (UUID, Turn_N, Cwd,
+                                      After_Step => Step_N);
                                  Null_FD  : File_Descriptor;
                                  Args     : Argument_List;
                                  Handle   : Process_Handle;
@@ -1828,6 +1851,9 @@ package body Coyote_App is
                                        ASCII.LF & UC_WARN
                                        & " Fork failed (turn "
                                        & Natural_Image (Turn_N)
+                                       & (if Step_N > 0
+                                          then "/" & Natural_Image (Step_N)
+                                          else "")
                                        & " not found in session)."
                                        & ASCII.LF);
                                  else

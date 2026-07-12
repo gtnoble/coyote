@@ -108,6 +108,35 @@ package body Coyote_App.Dispatch is
             Stop_Reason_Text => Stop_Reason_Text));
    end Append_Live_Turn_Footer;
 
+   --  Append a step-level turn footer for an intermediate assistant message
+   --  (stop = toolUse) within a turn.  Does not increment Turn_Count.
+   procedure Append_Step_Footer
+     (Frontend : in out Coyote_App.Frontend.Instance'Class;
+      State    : in out App_State;
+      PID      : String)
+   is
+      Input_Tokens      : constant Natural := State.Turn_Input_Tokens;
+      Output_Tokens     : constant Natural := State.Turn_Output_Tokens;
+      Ctx_Window        : constant Natural := State.Context_Window;
+      Model_Text        : constant String  := State.Current_Model;
+      Turn_Cost_Dmil    : constant Natural := State.Turn_Cost_Dmil;
+      Stop_Reason_Text : constant String  := State.Last_Stop_Reason;
+   begin
+      Frontend.Append_Turn_Footer
+        (Format_Turn_Footer
+           (Turn_N            => State.Turn_Count + 1,
+            UUID              => State.Session_Id,
+            PID               => PID,
+            Input_Tokens      => Input_Tokens,
+            Output_Tokens     => Output_Tokens,
+            Ctx_Window        => Ctx_Window,
+            Model_Text        => Model_Text,
+            Turn_Cost_Dmil    => Turn_Cost_Dmil,
+            Session_Cost_Dmil => 0,  --  session cost unavailable at step level
+            Stop_Reason_Text => Stop_Reason_Text,
+            Step_N           => State.Turn_Step));
+   end Append_Step_Footer;
+
    --  ── Open_Sub_Window ───────────────────────────────────────────────────
 
    procedure Open_Sub_Window
@@ -165,6 +194,8 @@ package body Coyote_App.Dispatch is
          State.Set_Has_Text_Delta (False);
          State.Set_Has_Tool_In_Turn (False);
          State.Reset_Tool_Counts;
+         State.Reset_Turn_Step;
+         State.Set_Tool_Cancelled (False);
          State.Set_Last_Stop_Reason ("");
          State.Set_Last_Error_Message ("");
          Section := No_Section;
@@ -277,6 +308,7 @@ package body Coyote_App.Dispatch is
          begin
             if Ev.Is_Cancelled then
                Status := Coyote_App.Frontend.Cancelled;
+               State.Set_Tool_Cancelled (True);
             elsif Ev.Is_Error then
                Status := Coyote_App.Frontend.Error;
             else
@@ -291,6 +323,23 @@ package body Coyote_App.Dispatch is
 
       --  ── message_end ───────────────────────────────────────────────────
             State.Increment_Tools_Done;
+
+            --  When the last tool in a batch completes and the assistant
+            --  is continuing the turn (stop = toolUse), emit a step-level
+            --  fork footer so the user can branch the session at this
+            --  intermediate decision point.
+            if State.Tools_Running = 0
+              and then State.Has_Tool_In_Turn
+              and then not State.Tool_Cancelled
+              and then State.Last_Stop_Reason = "toolUse"
+            then
+               State.Increment_Turn_Step;
+               Append_Step_Footer
+                 (Frontend => Frontend,
+                  State    => State,
+                  PID      => PID);
+            end if;
+
             Frontend.Set_Status (Format_Status (State, "running"));
       elsif Event in LLM.Events.Message_End_Event then
          declare

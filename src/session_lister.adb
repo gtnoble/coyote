@@ -479,7 +479,8 @@ package body Session_Lister is
    function Fork_Session
      (Source_UUID : String;
       After_Turn  : Positive;
-      Target_Cwd  : String) return String
+      Target_Cwd  : String;
+      After_Step  : Natural := 0) return String
    is
       type Session_Format is (Legacy_Format, Native_Format);
 
@@ -495,6 +496,7 @@ package body Session_Lister is
          Seed : constant String :=
            Source_UUID & "/"
            & Positive'Image (After_Turn) & "/"
+           & Natural'Image (After_Step) & "/"
            & Duration'Image (Seconds (Clock));
          Hash : constant String := GNAT.SHA256.Digest (Seed);
          H    : constant String := Hash (Hash'First .. Hash'First + 31);
@@ -591,12 +593,15 @@ package body Session_Lister is
       --  ── Pass 2: find cut point and collect original session name ──────
 
       declare
-         Source_Format   : constant Session_Format :=
+         Source_Format    : constant Session_Format :=
            Detect_Format (To_String (Source_Lines (Source_Lines.First_Index)));
-         Turns_Complete  : Natural := 0;
-         Saw_Assistant   : Boolean := False;
-         In_Turn         : Boolean := False;
-         Cut_Index       : Integer := -1;
+         Turns_Complete   : Natural := 0;
+         Asst_In_Turn     : Natural := 0;
+         Saw_Assistant    : Boolean := False;
+         In_Turn          : Boolean := False;
+         Cut_Index        : Integer := -1;
+         Step_Triggered   : Boolean := False;  --  target step hit, waiting
+         Step_Turns_Done  : Natural := 0;       --  turns complete at trigger
       begin
          for I in Source_Lines.First_Index .. Source_Lines.Last_Index loop
             declare
@@ -630,22 +635,56 @@ package body Session_Lister is
                              Get_String (Msg, "role");
                         begin
                            if Msg_Role = "user" then
+                              --  When Step_Triggered is active, a new user
+                              --  message means we've passed our target step
+                              --  without a matching assistant; exit.
+                              if Step_Triggered
+                                and then Step_Turns_Done = Turns_Complete
+                              then
+                                 Cut_Index := I - 1;
+                                 exit;
+                              end if;
+
                               if In_Turn and then Saw_Assistant then
                                  Turns_Complete := Turns_Complete + 1;
-                                 if Turns_Complete = After_Turn then
+                                 if After_Step = 0
+                                   and then Turns_Complete = After_Turn
+                                 then
                                     Cut_Index := I - 1;
                                     exit;
                                  end if;
                               end if;
-                              In_Turn       := True;
-                              Saw_Assistant := False;
+                              In_Turn          := True;
+                              Saw_Assistant    := False;
+                              Asst_In_Turn     := 0;
 
-                           elsif Msg_Role = "assistant" then
-                              if In_Turn
-                                and then Msg.Has_Field ("content")
-                                and then Msg.Get ("content").Kind
-                                         = JSON_Array_Type
-                              then
+                           elsif Msg_Role = "assistant"
+                             and then Msg.Has_Field ("content")
+                             and then Msg.Get ("content").Kind
+                                      = JSON_Array_Type
+                           then
+                              if In_Turn then
+                                 --  When Step_Triggered is active and we hit
+                                 --  the next assistant (or user above), cut
+                                 --  right before it.
+                                 if Step_Triggered
+                                   and then Step_Turns_Done = Turns_Complete
+                                 then
+                                    Cut_Index := I - 1;
+                                    exit;
+                                 end if;
+
+                                 Asst_In_Turn := Asst_In_Turn + 1;
+
+                                 --  Check for step-level cut.
+                                 if After_Step > 0
+                                   and then Turns_Complete + 1 = After_Turn
+                                   and then Asst_In_Turn = After_Step
+                                 then
+                                    Step_Triggered  := True;
+                                    Step_Turns_Done := Turns_Complete;
+                                 end if;
+
                                  declare
                                     Content  : constant JSON_Array :=
                                       Msg.Get ("content");
@@ -664,6 +703,12 @@ package body Session_Lister is
                                     end if;
                                  end;
                               end if;
+
+                           elsif Msg_Role = "toolResult" then
+                              --  toolResult lines are included in the
+                              --  captured range when Step_Triggered is
+                              --  active; just keep walking.
+                              null;
                            end if;
                         end;
                      end if;
@@ -673,10 +718,16 @@ package body Session_Lister is
          end loop;
 
          if Cut_Index = -1 then
-            if In_Turn and then Saw_Assistant then
+            if Step_Triggered then
+               --  Target step was hit and no more messages followed;
+               --  cut at end of file.
+               Cut_Index := Source_Lines.Last_Index;
+            elsif In_Turn and then Saw_Assistant then
                Turns_Complete := Turns_Complete + 1;
             end if;
-            if Turns_Complete >= After_Turn then
+            if After_Step = 0
+              and then Turns_Complete >= After_Turn
+            then
                Cut_Index := Source_Lines.Last_Index;
             end if;
          end if;
@@ -701,7 +752,11 @@ package body Session_Lister is
                                        else Source_UUID'Last))
                       & "...")
               & " @" & Positive'Image (After_Turn)
-                         (2 .. Positive'Image (After_Turn)'Last);
+                         (2 .. Positive'Image (After_Turn)'Last)
+              & (if After_Step > 0
+                 then "/" & Natural'Image (After_Step)
+                           (2 .. Natural'Image (After_Step)'Last)
+                 else "");
             Out_Str    : Ada.Streams.Stream_IO.File_Type;
             Out_S      : Ada.Streams.Stream_IO.Stream_Access;
 

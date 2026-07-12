@@ -125,22 +125,24 @@ package Coyote_App.Utils is
    --  or "" if Text has fewer than N tokens.  Whitespace is space or HT.
    function Nth_Field (Text : String; N : Positive) return String;
 
-   --  Parse a coyote-fork+PID/UUID/N token received from the coyote-fork
-   --  plumb port.
+   --  Parse a coyote-fork+PID/UUID/N[/S] token received from the
+   --  coyote-fork plumb port.
    --
    --  Data       : the data field of the plumb message (already extracted).
    --  Pid_Prefix : the expected prefix string,
    --               e.g. "coyote-fork+" & My_PID & "/".
    --
    --  On success (token begins with Pid_Prefix and has the form
-   --  "coyote-fork+PID/UUID/N") sets UUID and Turn_N and returns True.
+   --  "coyote-fork+PID/UUID/N" or "coyote-fork+PID/UUID/N/S") sets UUID,
+   --  Turn_N, and Step_N (default 0 when /S is absent) and returns True.
    --  On any mismatch or malformed input returns False and leaves
-   --  UUID / Turn_N unchanged.
+   --  UUID / Turn_N / Step_N unchanged.
    function Parse_Fork_Token
      (Data       : String;
       Pid_Prefix : String;
       UUID       : out Ada.Strings.Unbounded.Unbounded_String;
-      Turn_N     : out Positive) return Boolean;
+      Turn_N     : out Positive;
+      Step_N     : out Natural) return Boolean;
 
    --  Return the first 16 hex characters of the SHA-256 digest of Tool_Id,
    --  matching the token computed by the Python reference implementation:
@@ -202,9 +204,14 @@ package Coyote_App.Utils is
       Session_Cost_Dmil : Natural := 0;
       Stop_Reason_Text : String  := "") return String;
 
-   --  Turn footer between completed turns.  Carries a clickable fork token
-   --  so button-3 opens a forked session.
-   --  Format: [summary ]coyote-fork+PID/UUID/N\n════...════\n\n
+   --  Turn footer between completed turns and intermediate steps.
+   --  Carries a clickable fork token so button-3 opens a forked session.
+   --
+   --  When Step_N = 0 (default): full-turn format.
+   --    Format: [summary ]coyote-fork+PID/UUID/N\n════...════\n\n
+   --  When Step_N > 0: step-level format (intermediate assistant message
+   --    within a turn).
+   --    Format: [summary ]coyote-fork+PID/UUID/N/S\n────...────\n\n
    function Format_Turn_Footer
      (Turn_N            : Positive;
       UUID              : String;
@@ -215,7 +222,8 @@ package Coyote_App.Utils is
       Model_Text        : String  := "";
       Turn_Cost_Dmil    : Natural := 0;
       Session_Cost_Dmil : Natural := 0;
-      Stop_Reason_Text : String  := "") return String;
+      Stop_Reason_Text : String  := "";
+      Step_N            : Natural := 0) return String;
 
    --  ── JSON field helpers ────────────────────────────────────────────────
 

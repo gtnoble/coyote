@@ -130,6 +130,20 @@ package Coyote_App is
       procedure Set_Turn_Count     (N     : Natural);
       procedure Reset_Turn_Count;
 
+      --  Turn step counter — tracks which assistant message within the
+      --  current agent turn (1-based).  Incremented before each step-level
+      --  fork footer; reset at agent_start alongside turn-scope state.
+      function  Turn_Step          return Natural;
+      procedure Increment_Turn_Step;
+      procedure Reset_Turn_Step;
+      procedure Set_Turn_Step      (N     : Natural);
+
+      --  True when any tool in the current batch was cancelled (aborted).
+      --  Reset at agent_start.  Used to suppress step-level fork footers
+      --  when tool results are incomplete.
+      function  Tool_Cancelled     return Boolean;
+      procedure Set_Tool_Cancelled (Value : Boolean);
+
       --  One-shot result: set once by Pi_Stdout_Task before signalling
       --  shutdown; read by Run after Wait_Shutdown returns.  Only the
       --  first call to Set_One_Shot_Result has effect (subsequent calls
@@ -179,6 +193,8 @@ package Coyote_App is
       P_Tag_Suffix    : Ada.Strings.Unbounded.Unbounded_String;
       P_Shutdown      : Boolean := False;
       P_Turn_Count    : Natural := 0;
+      P_Turn_Step     : Natural := 0;   --  step counter within turn (1-based)
+      P_Tool_Cancelled : Boolean := False;  --  any tool in current batch cancelled
       --  One-shot result (empty until set)
       P_One_Shot_Result  : Ada.Strings.Unbounded.Unbounded_String;
    end App_State;

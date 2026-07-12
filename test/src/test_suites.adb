@@ -600,6 +600,21 @@ package body Test_Suites is
         ("Parse_Fork_Token: empty input returns False",
          Coyote_App_Tests.Test_Parse_Fork_Token_Empty'Access));
       Result.Add_Test (App_State_Caller.Create
+        ("Parse_Fork_Token: with step suffix",
+         Coyote_App_Tests.Test_Parse_Fork_Token_With_Step'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_Turn_Footer: step-level separator",
+         Coyote_App_Tests.Test_Format_Turn_Footer_Step'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Turn_Step increment",
+         Coyote_App_Tests.Test_State_Turn_Step_Increment'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Turn_Step set",
+         Coyote_App_Tests.Test_State_Turn_Step_Set'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Turn_Step reset",
+         Coyote_App_Tests.Test_State_Turn_Step_Reset'Access));
+      Result.Add_Test (App_State_Caller.Create
         ("App_State Turn_Count increment",
          Coyote_App_Tests.Test_State_Turn_Count_Increment'Access));
       Result.Add_Test (App_State_Caller.Create

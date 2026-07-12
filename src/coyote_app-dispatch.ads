@@ -44,6 +44,16 @@ package Coyote_App.Dispatch is
       State    : in out App_State;
       PID      : String);
 
+   --  Append a step-level turn footer for an intermediate assistant
+   --  message (stop = toolUse) within a turn.  Uses the step-suffix
+   --  fork token format (coyote-fork+PID/UUID/N/S) and a single-line
+   --  separator to visually distinguish step boundaries from full-turn
+   --  boundaries.  Does not increment Turn_Count.
+   procedure Append_Step_Footer
+     (Frontend : in out Coyote_App.Frontend.Instance'Class;
+      State    : in out App_State;
+      PID      : String);
+
    --  Create a new acme window named Parent/Sub, write Content, mark clean.
    procedure Open_Sub_Window
      (FS      : not null access Nine_P.Client.Fs;

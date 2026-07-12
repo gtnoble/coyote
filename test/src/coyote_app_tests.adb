@@ -148,29 +148,34 @@ package body Coyote_App_Tests is
       pragma Unreferenced (T);
       UUID   : Unbounded_String;
       Turn_N : Positive := 1;
+      Step_N : Natural  := 0;
       Result : constant Boolean :=
         Parse_Fork_Token
           ("coyote-fork+42/abc1-def2-3456-789a-bcdef0123456/7",
            "coyote-fork+42/",
            UUID,
-           Turn_N);
+           Turn_N,
+           Step_N);
    begin
       Assert (Result, "Valid token should return True");
       Assert (To_String (UUID) = "abc1-def2-3456-789a-bcdef0123456",
               "UUID should be extracted correctly");
       Assert (Turn_N = 7, "Turn number should be 7");
+      Assert (Step_N = 0, "Step should default to 0 when /S absent");
    end Test_Parse_Fork_Token_Match;
 
    procedure Test_Parse_Fork_Token_Pid_Mismatch (T : in out Test) is
       pragma Unreferenced (T);
       UUID   : Unbounded_String;
       Turn_N : Positive := 1;
+      Step_N : Natural  := 0;
       Result : constant Boolean :=
         Parse_Fork_Token
           ("coyote-fork+99/abc1-def2-3456-789a-bcdef0123456/7",
            "coyote-fork+42/",
            UUID,
-           Turn_N);
+           Turn_N,
+           Step_N);
    begin
       Assert (not Result,
               "Mismatched PID prefix should return False");
@@ -180,12 +185,14 @@ package body Coyote_App_Tests is
       pragma Unreferenced (T);
       UUID   : Unbounded_String;
       Turn_N : Positive := 1;
+      Step_N : Natural  := 0;
       Result : constant Boolean :=
         Parse_Fork_Token
           ("coyote-fork+42/abc1-def2-3456-789a-bcdef0123456",
            "coyote-fork+42/",
            UUID,
-           Turn_N);
+           Turn_N,
+           Step_N);
    begin
       Assert (not Result,
               "Token without trailing /turn should return False");
@@ -195,12 +202,14 @@ package body Coyote_App_Tests is
       pragma Unreferenced (T);
       UUID   : Unbounded_String;
       Turn_N : Positive := 1;
+      Step_N : Natural  := 0;
       Result : constant Boolean :=
         Parse_Fork_Token
           ("coyote-fork+42/abc1-def2-3456-789a-bcdef0123456/not-a-number",
            "coyote-fork+42/",
            UUID,
-           Turn_N);
+           Turn_N,
+           Step_N);
    begin
       Assert (not Result,
               "Non-numeric turn field should return False");
@@ -210,9 +219,10 @@ package body Coyote_App_Tests is
       pragma Unreferenced (T);
       UUID   : Unbounded_String;
       Turn_N : Positive := 1;
+      Step_N : Natural  := 0;
       Result : constant Boolean :=
         Parse_Fork_Token
-          ("coyote-fork+42//7", "coyote-fork+42/", UUID, Turn_N);
+          ("coyote-fork+42//7", "coyote-fork+42/", UUID, Turn_N, Step_N);
    begin
       Assert (not Result,
               "Empty UUID field should return False");
@@ -222,11 +232,97 @@ package body Coyote_App_Tests is
       pragma Unreferenced (T);
       UUID   : Unbounded_String;
       Turn_N : Positive := 1;
+      Step_N : Natural  := 0;
       Result : constant Boolean :=
-        Parse_Fork_Token ("", "coyote-fork+42/", UUID, Turn_N);
+        Parse_Fork_Token ("", "coyote-fork+42/", UUID, Turn_N, Step_N);
    begin
       Assert (not Result, "Empty input should return False");
    end Test_Parse_Fork_Token_Empty;
+
+   --  ── Parse_Fork_Token with step suffix ────────────────────────────────
+
+   procedure Test_Parse_Fork_Token_With_Step (T : in out Test) is
+      pragma Unreferenced (T);
+      UUID   : Unbounded_String;
+      Turn_N : Positive := 1;
+      Step_N : Natural  := 0;
+      Result : constant Boolean :=
+        Parse_Fork_Token
+          ("coyote-fork+42/abc1-def2-3456-789a-bcdef0123456/7/3",
+           "coyote-fork+42/",
+           UUID,
+           Turn_N,
+           Step_N);
+   begin
+      Assert (Result, "Step-suffix token should return True");
+      Assert (To_String (UUID) = "abc1-def2-3456-789a-bcdef0123456",
+              "UUID should be extracted correctly");
+      Assert (Turn_N = 7, "Turn number should be 7");
+      Assert (Step_N = 3, "Step number should be 3");
+   end Test_Parse_Fork_Token_With_Step;
+
+   --  ── Format_Turn_Footer step-level ────────────────────────────────────
+
+   procedure Test_Format_Turn_Footer_Step (T : in out Test) is
+      pragma Unreferenced (T);
+      Footer : constant String :=
+        Format_Turn_Footer
+          (Turn_N        => 5,
+           UUID          => "u",
+           PID           => "99",
+           Step_N        => 2,
+           Input_Tokens  => 1000,
+           Output_Tokens => 200,
+           Stop_Reason_Text => "toolUse");
+   begin
+      --  Step footer uses /N/S format.
+      Assert
+        (Ada.Strings.Fixed.Index (Footer, "coyote-fork+99/u/5/2") > 0,
+         "Step footer must contain /N/S token");
+      --  Step footer uses single-line separator (UC_HORIZ, U+2500).
+      Assert
+        (Ada.Strings.Fixed.Index (Footer, UC_HORIZ) > 0,
+         "Step footer must use single-line separator");
+      --  Step footer must NOT use double-line separator.
+      Assert
+        (Ada.Strings.Fixed.Index (Footer, UC_DBL_H) = 0,
+         "Step footer must not use double-line separator");
+   end Test_Format_Turn_Footer_Step;
+
+   --  ── App_State Turn_Step ───────────────────────────────────────────────
+
+   procedure Test_State_Turn_Step_Increment (T : in out Test) is
+      pragma Unreferenced (T);
+      S : App_State;
+   begin
+      Assert (S.Turn_Step = 0, "Initial Turn_Step should be 0");
+      S.Increment_Turn_Step;
+      Assert (S.Turn_Step = 1,
+              "After one increment Turn_Step should be 1");
+      S.Increment_Turn_Step;
+      S.Increment_Turn_Step;
+      Assert (S.Turn_Step = 3,
+              "After three increments Turn_Step should be 3");
+   end Test_State_Turn_Step_Increment;
+
+   procedure Test_State_Turn_Step_Set (T : in out Test) is
+      pragma Unreferenced (T);
+      S : App_State;
+   begin
+      S.Set_Turn_Step (5);
+      Assert (S.Turn_Step = 5,
+              "Set_Turn_Step should store the given value");
+   end Test_State_Turn_Step_Set;
+
+   procedure Test_State_Turn_Step_Reset (T : in out Test) is
+      pragma Unreferenced (T);
+      S : App_State;
+   begin
+      S.Set_Turn_Step (5);
+      S.Reset_Turn_Step;
+      Assert (S.Turn_Step = 0,
+              "Reset_Turn_Step should return to 0");
+   end Test_State_Turn_Step_Reset;
 
    --  ── App_State Turn_Count ──────────────────────────────────────────────
 

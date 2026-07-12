@@ -54,23 +54,31 @@ package Session_Lister is
    function Find_Session_File (UUID : String) return String;
 
    --  Create a new session JSONL file containing the conversation history
-   --  from Source_UUID up to and including After_Turn complete turns.
+   --  from Source_UUID up to the specified cut point.
    --
-   --  A "complete turn" is one user message plus all subsequent assistant
-   --  and tool-result messages up to (but not including) the next user
-   --  message.  After_Turn = 1 forks after the first round-trip.
+   --  When After_Step = 0 (default): the cut point is after After_Turn
+   --  complete turns, where a complete turn is one user message plus all
+   --  subsequent assistant and tool-result messages up to (but not
+   --  including) the next user message.  After_Turn = 1 forks after the
+   --  first round-trip.
+   --
+   --  When After_Step > 0: the cut point is after the After_Step-th
+   --  assistant message within turn After_Turn, including all tool results
+   --  from that message's batch.  This captures an intermediate fork point
+   --  within a multi-step turn.
    --
    --  The new file is written to Sessions_Dir(Target_Cwd) and is named
    --  <new-uuid>.jsonl.  Its header line carries the new UUID and the
    --  current timestamp; a session_info line names it
-   --  "Fork of <original-name> @<After_Turn>".
+   --  "Fork of <original-name> @<After_Turn>[/<After_Step>]".
    --
    --  Returns the new UUID on success, "" on any error (source not found,
-   --  After_Turn exceeds the number of complete turns in the source, I/O
-   --  failure, etc.).
+   --  After_Turn exceeds the number of complete turns in the source, step
+   --  not found, I/O failure, etc.).
    function Fork_Session
      (Source_UUID : String;
       After_Turn  : Positive;
-      Target_Cwd  : String) return String;
+      Target_Cwd  : String;
+      After_Step  : Natural := 0) return String;
 
 end Session_Lister;
