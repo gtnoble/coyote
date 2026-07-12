@@ -1,7 +1,7 @@
 # Test Plan â coyote (STP)
 
-**Version:** 1.3
-**Date:** 2026-06-21
+**Version:** 1.4
+**Date:** 2026-07-12
 **Status:** Reviewed and acknowledged â M4 complete (2026-06-03)
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
@@ -203,6 +203,15 @@ behaviour. Results are recorded in a Test Report.
 | DEM-017 | REQ-CORE-142 | Send SIGTERM to a running coyote; verify clean exit and session file is intact |
 | DEM-018 | REQ-CORE-084 | Run `coyote_list_sessions` in a directory with sessions; verify output lists sessions |
 | DEM-019 | REQ-CORE-024 | Run `coyote --help` and `coyote -h`; verify usage printed to stdout and exit code 0 |
+| DEM-020 | REQ-CORE-065 | Trigger auto-compaction; inspect the session JSONL file; verify the stored summary contains 9 structured sections and the <analysis> block is absent |
+| DEM-021 | REQ-CORE-066 | Trigger auto-compaction; inspect the raw API request log; verify the compaction prompt includes an <analysis> drafting-phase instruction |
+| DEM-022 | REQ-CORE-067 | Set a tiny context window; cause 3 consecutive compaction failures; verify auto-compaction is suspended and manual compaction still works |
+| DEM-023 | REQ-CORE-170..171 | Start a coyote session; inspect the system prompt; verify personality definition, conditional tool-use instructions, and per-turn reminder sections are present |
+| DEM-024 | REQ-CORE-172 | Run a session with the GUI frontend; verify that per-turn reminder instructions appear in the prompt before each model request |
+| DEM-025 | REQ-CORE-180..181 | Create a MEMORY.md file in ~/.coyote/memory/; start coyote; verify the memory content appears in the system prompt and the taxonomy is described |
+| DEM-026 | REQ-CORE-183 | Run a session; direct the agent to save a memory; verify a new topic file is created and MEMORY.md index is updated |
+| DEM-027 | REQ-CORE-190..191 | Run a session using subagents; verify the system prompt contains coordinator instructions and subagent results include structured summary blocks |
+| DEM-028 | REQ-CORE-192 | During a subagent run, ask the coordinator about the in-flight subagent; verify the coordinator reports status without fabricating results |
 
 ### 4.4 Planned Tests â Inspection
 
@@ -259,6 +268,7 @@ These are entered as open items in the problem log (PCR-009).
 | REQ-CORE-055 | D | DEM-007 |
 | REQ-CORE-056 | T | `llm_parallel_tools_tests.adb` |
 | REQ-CORE-060â064 | T/D | `llm_compaction_tests.adb`, `llm_context_tests.adb`, DEM-008â009 |
+| REQ-CORE-065â068 | T/D | `llm_compaction_tests.adb`, `llm_context_tests.adb`, DEM-020..022, code inspection |
 | REQ-CORE-070â073 | T/D | `llm_settings_tests.adb`, `llm_model_registry_tests.adb`, DEM-010 |
 | REQ-CORE-074 | D | DEM-011 |
 | REQ-CORE-075â076 | D | DEM-012 |
@@ -271,6 +281,9 @@ These are entered as open items in the problem log (PCR-009).
 | REQ-CORE-130â131 | T/D | `session_history_tests.adb`, DEM-015 |
 | REQ-CORE-140â141 | D | DEM-016 |
 | REQ-CORE-142 | D | DEM-017 |
+| REQ-CORE-170â172 | T/D | `llm_system_prompt_tests.adb`, `llm_skills_tests.adb`, DEM-023..024, code inspection |
+| REQ-CORE-180â183 | T/D | `llm_system_prompt_tests.adb`, DEM-025..026, code inspection |
+| REQ-CORE-190â192 | T/D | `llm_system_prompt_tests.adb`, DEM-027..028, code inspection |
 | REQ-CORE-200â203 | T/I | `llm_sse_tests.adb`, `llm_openai_completions_tests.adb`, `llm_anthropic_messages_tests.adb`, code inspection |
 | REQ-CORE-210â212 | T/I | `nine_p_proto_tests.adb`, `nine_p_mock_server_tests.adb`, code inspection |
 | REQ-CORE-220â221 | I | Code inspection (GTK call sites) |

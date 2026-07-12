@@ -1,8 +1,8 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.5
-**Date:** 2026-06-28
+**Version:** 1.6
+**Date:** 2026-07-12
 **Status:** Draft
 **Project Plan:** `plan/project-plan.md`
 
@@ -14,6 +14,9 @@
 2. [Referenced Documents](#2-referenced-documents)
 3. [Requirements](#3-requirements)
    - 3.1 Capability Requirements
+     - 3.1.17 Enhanced System Prompt (REQ-CORE-170)
+     - 3.1.18 Structured Memory System (REQ-CORE-180)
+     - 3.1.19 Coordinator Subagent Orchestration (REQ-CORE-190)
    - 3.2 External Interface Requirements
    - 3.3 Internal Interface Requirements
    - 3.4 Internal Data Requirements
@@ -305,6 +308,35 @@ the user.
 
 **REQ-CORE-064** (I)
 The `--one-shot` and `--subagent` modes shall disable automatic compaction.
+
+**REQ-CORE-065** (D)
+The compaction summarisation prompt shall use a structured nine-section
+format: (1) Primary Request and Intent, (2) Key Technical Concepts,
+(3) Files and Code Sections (with full code snippets and rationale),
+(4) Errors and Fixes, (5) Problem Solving, (6) All User Messages (not
+tool results), (7) Pending Tasks, (8) Current Work (with verbatim quotes
+from the most recent conversation), and (9) Optional Next Step.
+
+**REQ-CORE-066** (D)
+The agent shall include an analysis-block drafting phase in the compaction
+prompt where the model organises its reasoning before writing the summary.
+The analysis block shall be stripped from the stored summary after
+compaction completes, retaining only the summary content in context.
+
+**REQ-CORE-067** (D)
+The agent shall implement a circuit breaker for automatic compaction:
+after three consecutive compaction failures (any cause — provider error,
+parsing failure, or empty summary), automatic compaction shall be
+suspended for the remainder of the session. Manual compaction shall
+still be available.
+
+**REQ-CORE-068** (D)
+The agent shall support partial compaction: when the conversation history
+exceeds the compaction threshold, the agent may keep the most recent N
+turns verbatim and summarise only the earlier portion. The summarised
+portion shall be presented as a continuation preamble prefixed with
+"This session is being continued from a previous conversation that ran
+out of context."
 
 ---
 
@@ -603,6 +635,91 @@ frontend selection behaviour, configuration files, and basic usage
 examples.  It shall include the standard man-page sections: NAME,
 SYNOPSIS, DESCRIPTION, OPTIONS, ENVIRONMENT, FILES, EXAMPLES, and
 SEE ALSO.
+
+
+---
+
+#### 3.1.17 Enhanced System Prompt
+
+**REQ-CORE-170** (D)
+The system prompt shall include a personality definition section that
+specifies the agent's communication style: terse, direct, pragmatic; no
+cheerleading, motivational language, or artificial reassurance; no
+conversational interjections as response openers ("Done —", "Got it",
+"Great question").
+
+**REQ-CORE-171** (D)
+The system prompt shall include conditional tool-use instructions keyed to
+the capabilities currently available in the session. When editing tools are
+available, the prompt shall instruct the agent to use them rather than
+printing code blocks. When terminal tools are available, the prompt shall
+instruct the agent to run commands rather than printing them. When no
+editing tools are available, the prompt shall instruct the agent to print
+code blocks as suggestions.
+
+**REQ-CORE-172** (D)
+Each turn's prompt shall carry a reminder instruction section appended
+to the user message. The reminder shall reinforce: persist until the task
+is completely resolved before ending the turn; report progress after
+3 to 5 tool calls with varied, concise 1-to-2-sentence updates; avoid
+repeating verbatim plans across turns; preface each tool batch with a
+one-sentence preamble stating why, what, and expected outcome.
+
+
+#### 3.1.18 Structured Memory System
+
+**REQ-CORE-180** (D)
+The agent shall discover and load MEMORY.md index files from
+~/.coyote/memory/MEMORY.md and {CWD}/.coyote/MEMORY.md, respecting
+a content cap of 200 lines or 25,000 bytes per file with a truncation
+warning when exceeded. The loaded content shall be included in the
+system prompt as persistent project context.
+
+**REQ-CORE-181** (D)
+The system prompt shall describe a four-type memory taxonomy
+(user, feedback, project, reference) with explicit when_to_save and
+how_to_use guidance for each type. Memories shall be stored as
+individual Markdown files in ~/.coyote/memory/.
+
+**REQ-CORE-182** (I)
+The feedback memory type shall require a "Why:" line capturing the reason
+behind the user's correction or confirmation, enabling future agent
+instances to judge edge cases rather than blindly following the rule.
+The project memory type shall require absolute dates (converting relative
+references like "Thursday") so they remain interpretable over time.
+
+**REQ-CORE-183** (D)
+The system prompt shall instruct the agent to search existing memories
+before writing new ones, to avoid duplicates. Memory files shall be
+indexed via a MEMORY.md file that lists topic files and their purposes;
+the agent shall write new topic files and update the index when saving
+memories.
+
+
+#### 3.1.19 Coordinator Subagent Orchestration
+
+**REQ-CORE-190** (D)
+When subagent spawning is available, the system prompt shall include a
+coordinator-mode instruction section requiring the agent to: launch
+independent subagents in parallel when possible; never delegate
+understanding — the coordinator shall read all worker results and
+synthesize them before writing follow-up prompts; write worker prompts
+with specific file paths and line numbers rather than vague "based on
+your findings" directives.
+
+**REQ-CORE-191** (D)
+Subagent results reported to the main agent shall include a structured
+summary block distinguishing: task status (completed, failed, killed),
+a human-readable summary, the agent's final text response, and usage
+statistics (token count, tool-use count, duration). This structured
+format shall help the coordinator distinguish worker completion
+notifications from user messages.
+
+**REQ-CORE-192** (I)
+The coordinator prompt shall prohibit the coordinator from fabricating
+or predicting subagent results before they arrive. When the user asks
+about an in-flight subagent, the coordinator shall report status only,
+without guessing at findings.
 
 
 ---
@@ -916,6 +1033,10 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-062 | Compaction summarises and trims history | D | TC-062 |
 | REQ-CORE-063 | Compaction failure leaves history intact | D | TC-063 |
 | REQ-CORE-064 | --one-shot/--subagent disable auto-compact | I | TC-064 |
+| REQ-CORE-065 | 9-section structured compaction prompt | D | TC-065 |
+| REQ-CORE-066 | Auto-compact circuit breaker (max 3 failures) | D | TC-066 |
+| REQ-CORE-067 | Partial compaction (keep last N turns) | D | TC-067 |
+| REQ-CORE-068 | Compaction analysis-block drafting | I | TC-068 |
 | REQ-CORE-070 | Default model from settings.json | D | TC-070 |
 | REQ-CORE-071 | Fallback to first registry model | D | TC-071 |
 | REQ-CORE-072 | All six providers supported | D | TC-072 |
@@ -943,6 +1064,16 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-140..142 | Error handling | D | TC-140..142 |
 | REQ-CORE-150..156 | Ollama Cloud provider | D/I | TC-150..156 |
 | REQ-CORE-160 | Man page for coyote executable | I | TC-160 |
+| REQ-CORE-170 | Personality and interaction rules in prompt | D | TC-170 |
+| REQ-CORE-171 | Conditional tool-use instructions by capability | D | TC-171 |
+| REQ-CORE-172 | Per-turn reminder instructions appended to prompt | D | TC-172 |
+| REQ-CORE-180 | MEMORY.md index file discovery | D | TC-180 |
+| REQ-CORE-181 | Four-type memory taxonomy in system prompt | D | TC-181 |
+| REQ-CORE-182 | Memory save/retrieval behaviour guidance | I | TC-182 |
+| REQ-CORE-183 | Memory search and content caps | D | TC-183 |
+| REQ-CORE-190 | Coordinator prompt for subagent orchestration | D | TC-190 |
+| REQ-CORE-191 | Structured subagent result reporting | D | TC-191 |
+| REQ-CORE-192 | Synthesis-before-delegation instruction | I | TC-192 |
 | REQ-CORE-200..204 | Provider API interfaces | I | TC-200..204 |
 | REQ-CORE-210..212 | acme 9P VFS interface | I | TC-210..212 |
 | REQ-CORE-220..221 | GTK3 interface | I | TC-220..221 |
@@ -976,6 +1107,10 @@ objectives stated in the Project Plan (PLAN §1 and §3):
 | Skill discovery and system prompt construction | REQ-CORE-090–094 |
 | Subagent spawning with session lineage | REQ-CORE-019–020, REQ-CORE-030–032 |
 | Error visibility and graceful shutdown | REQ-CORE-140–142, REQ-CORE-702–703 |
+| Enhanced system prompt with personality and task constraints | REQ-CORE-170–172 |
+| Structured memory system (four-type taxonomy) | REQ-CORE-180–183 |
+| Coordinator subagent orchestration | REQ-CORE-190–192 |
+| Compaction quality and robustness | REQ-CORE-065–068 |
 
 ---
 

@@ -1,8 +1,8 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.3
-**Date:** 2026-06-28
+**Version:** 1.4
+**Date:** 2026-07-12
 **Status:** Reviewed — project control (M3 complete 2026-06-02)
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
@@ -252,6 +252,7 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `LLM.Skills` | Skill discovery and system prompt formatting | `src/llm/llm-skills.ads/.adb` |
 | `LLM.System_Prompt` | System prompt construction | `src/llm/llm-system_prompt.ads/.adb` |
 | `LLM.Compaction` | Context compaction helpers | `src/llm/llm-compaction.ads/.adb` |
+| `LLM.Memory` | Memory taxonomy and MEMORY.md discovery | `src/llm/llm-memory.ads/.adb` |
 | `LLM.Session_Store` | JSONL session persistence | `src/llm/llm-session_store.ads/.adb` |
 | `LLM.Agent` | Native agentic loop | `src/llm/llm-agent.ads/.adb` |
 | `Acme` | Root; Win_File_Path helper | `src/acme.ads/.adb` |
@@ -291,7 +292,7 @@ three layers:
 [Agent layer]
   LLM.Agent ──► LLM.Providers'Class, LLM.Tools, LLM.Compaction,
                 LLM.Session_Store, LLM.Model_Registry, LLM.Skills,
-                LLM.System_Prompt, LLM.Types, LLM.Events
+                LLM.Memory, LLM.System_Prompt, LLM.Types, LLM.Events
         │
         ▼
 [Provider layer]
@@ -771,7 +772,9 @@ role, content blocks, usage, stop_reason, etc. per the session-format skill.
 
 ### 5.12 `LLM.Compaction`
 
-**Purpose:** Pure helpers for compaction decisions; no side effects.
+**Purpose:** Context compaction helpers: token estimation, cut-point
+computation, summarisation-prompt construction, and auto-compaction
+circuit-breaker control.
 
 **`Estimate_Tokens(text)`:** Returns `text'Length / 4` (conservative
 approximation; 4 bytes per token for code and prose).
@@ -781,6 +784,22 @@ Walks the history in reverse; accumulates estimated tokens until the
 `Keep_Recent_Tokens` budget is exhausted; returns the index of the oldest
 message to retain.
 
+**`Build_Compact_Prompt(History, Partial_Compact)`:** Constructs a nine-section
+structured summarisation prompt. If `Partial_Compact` is true, the prompt
+scopes to the earlier portion of history only (messages before the cut
+point), producing a summary that will serve as a continuation preamble for
+the retained verbatim tail. The prompt includes an `<analysis>` drafting
+phase instruction; the analysis block is stripped from the summary before
+it is stored or injected into context (REQ-CORE-065, REQ-CORE-066,
+REQ-CORE-068).
+
+**`Compact_Circuit_Breaker`:**
+- `Consecutive_Failures : Natural := 0` — incremented on each failed
+  compaction; reset to 0 on success.
+- `Tripped : Boolean := False` — when `Consecutive_Failures` reaches 3,
+  auto-compaction is suspended for the remaining session. Manual
+  compaction is still available (REQ-CORE-067).
+
 **`Compact_Settings`:**
 - `Enabled`: whether auto-compaction is active.
 - `Reserve_Tokens`: headroom reserved for the model's response (default 16 384).
@@ -788,7 +807,29 @@ message to retain.
 
 ---
 
-### 5.13 `LLM.Skills`
+### 5.13 `LLM.Memory`
+
+**Purpose:** Discovers and loads MEMORY.md index files, formats a four-type
+memory taxonomy into the system prompt, and provides guidance for memory
+save/retrieval behaviour (REQ-CORE-180..183).
+
+**Discovery paths:** `~/.coyote/memory/MEMORY.md` and
+`{CWD}/.coyote/MEMORY.md`. Each file is capped at 200 lines / 25 000 bytes;
+excess is truncated with a warning.
+
+**Memory taxonomy:** Four types documented in the system prompt —
+`user` (who the user is, role, preferences), `feedback` (corrections and
+confirmations with a required "Why:" line), `project` (ongoing work, goals,
+bugs — not derivable from code), `reference` (pointers to external systems).
+Each type carries `when_to_save` and `how_to_use` guidance.
+
+**`Format_Memory_Taxonomy_For_Prompt`:** Returns the taxonomy description
+block for inclusion in the system prompt, with instructions to search
+existing memories before writing and to maintain the MEMORY.md index.
+
+---
+
+### 5.14 `LLM.Skills`
 
 **Purpose:** Discovers SKILL.md files from five roots and formats them for
 inclusion in the system prompt.
@@ -807,7 +848,7 @@ block containing `<skill>` entries for each discovered skill, or `""` if none.
 
 ---
 
-### 5.14 `Coyote_GUI.Buffer`
+### 5.15 `Coyote_GUI.Buffer`
 
 **Purpose:** Wraps `GtkTextBuffer`; manages all text insertion, tagging, and
 tool-frame embedding in the GUI conversation view.
@@ -838,7 +879,7 @@ tool-frame embedding in the GUI conversation view.
 
 ---
 
-### 5.15 `Coyote_Cmark` and `coyote_cmark_c.c`
+### 5.16 `Coyote_Cmark` and `coyote_cmark_c.c`
 
 **Purpose:** Ada binding to libcmark-gfm with a C shim for enum resolution.
 
@@ -858,7 +899,7 @@ three extensions attached before parsing.
 ---
 
 
-### 5.16 `LLM.Types`
+### 5.17 `LLM.Types`
 
 **Purpose:** Defines the core data types shared across the agent, providers,
 session store, and tools.
@@ -879,7 +920,7 @@ expressions. No subprograms are declared.
 
 ---
 
-### 5.17 `LLM.Events`
+### 5.18 `LLM.Events`
 
 **Purpose:** Defines the `Agent_Event'Class` tagged-type hierarchy emitted
 by provider adapters and consumed by `Dispatch_Event`.
@@ -909,7 +950,7 @@ normal use); the `On_Event` callback receives an `Agent_Event'Class` parameter.
 
 ---
 
-### 5.18 `LLM.SSE`
+### 5.19 `LLM.SSE`
 
 **Purpose:** Pure stateless server-sent event parser. Parses raw SSE bytes
 into discrete `data:` and `event:` lines.
@@ -923,7 +964,7 @@ for each complete SSE `data:` line, stripping the `data:` prefix.
 
 ---
 
-### 5.19 `LLM.Settings`
+### 5.20 `LLM.Settings`
 
 **Purpose:** Loads and exposes the user configuration from
 `~/.coyote/settings.json` and `~/.coyote/models.json`.
@@ -945,7 +986,7 @@ default values; malformed JSON is logged to stderr and defaults are used.
 
 ---
 
-### 5.20 `LLM.Auth`
+### 5.21 `LLM.Auth`
 
 **Purpose:** Loads and caches provider authentication tokens.
 
@@ -960,7 +1001,7 @@ Called after token refresh to persist the new token.
 
 ---
 
-### 5.21 `LLM.Auth.GitHub_Copilot`
+### 5.22 `LLM.Auth.GitHub_Copilot`
 
 **Purpose:** Manages GitHub Copilot OAuth token lifecycle.
 
@@ -979,7 +1020,7 @@ a non-recoverable turn error.
 
 ---
 
-### 5.22 `LLM.Model_Registry`
+### 5.23 `LLM.Model_Registry`
 
 **Purpose:** In-memory catalogue of known models, built at session start.
 
@@ -1008,7 +1049,7 @@ catalogue has not been loaded.
 
 ---
 
-### 5.23 `LLM.Providers`
+### 5.24 `LLM.Providers`
 
 **Purpose:** Defines the abstract `Provider` tagged type and the `Send`
 interface.
@@ -1028,7 +1069,7 @@ defined in the abstract package.
 
 ---
 
-### 5.24 `LLM.Providers.OpenRouter`
+### 5.25 `LLM.Providers.OpenRouter`
 
 **Purpose:** OpenRouter adapter. Extends `OpenAI_Completions.Provider` with
 OpenRouter-specific base URL and request customisation.
@@ -1049,7 +1090,7 @@ no longer overrides `Customize_Request`; the base implementation maps
 
 ---
 
-### 5.25 `LLM.Providers.OpenCode_Go`
+### 5.26 `LLM.Providers.OpenCode_Go`
 
 **Purpose:** Routing provider for OpenCode Go. Selects wire format based on
 model ID, in the same pattern as GitHub Copilot.
@@ -1081,7 +1122,7 @@ model ID, in the same pattern as GitHub Copilot.
    (hardcoded per the Go docs endpoint table).
 
 ---
-### 5.26 `LLM.Tools`
+### 5.27 `LLM.Tools`
 
 **Purpose:** Defines tool-control flags and the tool descriptor type.
 
@@ -1105,7 +1146,7 @@ unless `No_Tools` is true.
 
 ---
 
-### 5.27 `LLM.Tools.Temp_File`
+### 5.28 `LLM.Tools.Temp_File`
 
 **Purpose:** Manages tool-result size capping and spill to temporary files.
 
@@ -1122,22 +1163,42 @@ at session end.
 
 ---
 
-### 5.28 `LLM.System_Prompt`
+### 5.29 `LLM.System_Prompt`
 
-**Purpose:** Constructs the complete system prompt string from its parts.
+**Purpose:** Constructs the complete system prompt string from its parts,
+including personality definition, conditional tool-use instructions, memory
+taxonomy, and coordinator guidance (REQ-CORE-170..172, REQ-CORE-180..183,
+REQ-CORE-190..192).
 
-**`Build (Settings, Skills_Block, Agent_Text) → String`:** Concatenates:
-1. Static preamble (role description, tool usage instructions, date, CWD).
-2. `Skills_Block` — formatted `<available_skills>` XML block from
+**`Build (Settings, Skills_Block, Memory_Block, Agent_Text, Available_Tools, Coordinator_Mode) → String`:** Concatenates:
+
+1. **Static preamble** — role description, date, CWD.
+2. **Personality definition** — terse, direct, pragmatic; no cheerleading or
+   conversational interjections; guidance on final answers and intermediary
+   updates (REQ-CORE-170).
+3. **Conditional tool-use instructions** — keyed to `Available_Tools`: when
+   editing tools exist, prefer them over printing code blocks; when terminal
+   tools exist, prefer them over printing commands; when neither exists, print
+   code blocks as suggestions (REQ-CORE-171).
+4. **Memory taxonomy** — `Memory_Block` from `LLM.Memory`; four-type taxonomy
+   with save/retrieval guidance (REQ-CORE-180..183).
+5. **Skills_Block** — formatted `<available_skills>` XML from
    `LLM.Skills.Format_Skills_For_Prompt`.
-3. `Agent_Text` — content of `--agent` argument (raw text or file content).
+6. **Coordinator guidance** — when `Coordinator_Mode` is true and subagent
+   spawning is available: parallel-launch instruction, synthesis-before-
+   delegation requirement, structured-result format specification,
+   prohibition on fabricating in-flight results (REQ-CORE-190..192).
+7. **Agent_Text** — content of `--agent` argument.
 
-Returns the concatenated string. All parts are optional; absent parts contribute
-empty strings.
+**`Build_Reminder_Instructions (Available_Tools) → String`:** Returns per-turn
+reminder text appended to each user prompt: persist until task is completely
+resolved; report progress after 3–5 tool calls with varied one-sentence
+updates; avoid repeating verbatim plans; preface each tool batch with a
+preamble (REQ-CORE-172).
 
 ---
 
-### 5.29 `Coyote_App.History`
+### 5.30 `Coyote_App.History`
 
 **Purpose:** Replays a saved session into the frontend for display.
 
@@ -1153,7 +1214,7 @@ conversation rendered before the first new prompt.
 
 ---
 
-### 5.30 `Coyote_App.Utils`
+### 5.31 `Coyote_App.Utils`
 
 **Purpose:** Formatting helpers and Unicode glyph constants for all frontends.
 
@@ -1179,7 +1240,7 @@ points > 255 cannot appear as character literals.
 
 ---
 
-### 5.31 `Coyote_App.Frontend.Acme_Win`
+### 5.32 `Coyote_App.Frontend.Acme_Win`
 
 **Purpose:** Acme frontend implementation. Renders agent events as structured
 Unicode-glyph-prefixed text in the acme window body.
@@ -1200,7 +1261,7 @@ Tracks `Current_Tool_Name` for the `End_Tool` label.
 
 ---
 
-### 5.32 `Coyote_App.Frontend.GUI`
+### 5.33 `Coyote_App.Frontend.GUI`
 
 **Purpose:** GTK3 frontend implementation. Drives the conversation view via
 the `Coyote_GUI.Updates` queue.
@@ -1223,7 +1284,7 @@ selection commands.
 
 ---
 
-### 5.33 `Coyote_App.Frontend.Plain`
+### 5.34 `Coyote_App.Frontend.Plain`
 
 **Purpose:** Plain-text frontend for `--one-shot` mode and non-TTY output.
 
@@ -1238,7 +1299,7 @@ and returns `""` (signalling shutdown) on all subsequent calls.
 
 ---
 
-### 5.34 `Coyote_GUI`
+### 5.35 `Coyote_GUI`
 
 **Purpose:** Root package for the GUI subsystem. Defines the `Update_Kind`
 enumeration and the `Update` discriminated record.
@@ -1253,7 +1314,7 @@ payload fields appropriate to that kind (e.g. `Append_Text` carries a
 
 ---
 
-### 5.35 `Coyote_GUI.Updates`
+### 5.36 `Coyote_GUI.Updates`
 
 **Purpose:** Thread-safe bounded queue from `Agent_Task` to the GTK main loop.
 
@@ -1269,7 +1330,7 @@ registered (or `False` if a `Shutdown` item was dequeued).
 
 ---
 
-### 5.36 `Coyote_GUI.Prompt_Queue`
+### 5.37 `Coyote_GUI.Prompt_Queue`
 
 **Purpose:** Thread-safe bounded queue from the GTK main loop to `Agent_Task`.
 
@@ -1280,7 +1341,7 @@ entry; `Agent_Task` waits here between turns).
 
 ---
 
-### 5.37 `Coyote_Utils`
+### 5.38 `Coyote_Utils`
 
 **Purpose:** CLI argument resolution and session prefix stripping utilities
 shared by the entry-point packages.
@@ -1311,7 +1372,7 @@ malformed; caught in `coyote.adb` and printed to stderr.
 
 ---
 
-### 5.38 `Acme`
+### 5.39 `Acme`
 
 **Purpose:** Root package for the acme subsystem. Defines the
 `Win_File_Path` helper.
@@ -1322,7 +1383,7 @@ malformed; caught in `coyote.adb` and printed to stderr.
 
 ---
 
-### 5.39 `Acme.Window`
+### 5.40 `Acme.Window`
 
 **Purpose:** High-level acme window operations over 9P.
 
@@ -1341,7 +1402,7 @@ the caller's task-local connection is used; never shares an `Fs` across tasks.
 
 ---
 
-### 5.40 `Acme.Event_Parser`
+### 5.41 `Acme.Event_Parser`
 
 **Purpose:** Parses acme event-file records into structured `Event` values.
 
@@ -1356,7 +1417,7 @@ and `C2 = 'x'` (button-2 execute in body).
 
 ---
 
-### 5.41 `Acme.Raw_Events`
+### 5.42 `Acme.Raw_Events`
 
 **Purpose:** Low-level byte accumulator for the acme event file.
 
@@ -1367,7 +1428,7 @@ calls.
 
 ---
 
-### 5.42 `Nine_P`
+### 5.43 `Nine_P`
 
 **Purpose:** Root package for the 9P2000 protocol implementation. Defines
 `Qid`, `Byte_Array`, and protocol constants (`NOTAG`, `NOFID`, version
@@ -1377,7 +1438,7 @@ string `"9P2000"`).
 
 ---
 
-### 5.43 `Nine_P.Proto`
+### 5.44 `Nine_P.Proto`
 
 **Purpose:** Encodes and decodes 9P2000 T-messages and R-messages.
 
@@ -1396,7 +1457,7 @@ R-message bytes.
 
 ---
 
-### 5.44 `Nine_P.Client`
+### 5.45 `Nine_P.Client`
 
 **Purpose:** 9P2000 client; provides mount, open, read, write, and clunk
 over a UNIX socket.
@@ -1419,7 +1480,7 @@ Each task creates its own `Fs` via `Ns_Mount`.
 
 ---
 
-### 5.45 `Session_Lister`
+### 5.46 `Session_Lister`
 
 **Purpose:** Enumerates saved sessions for the current directory and formats
 them for display.
@@ -1437,7 +1498,7 @@ menu.
 
 ---
 
-### 5.46 `LLM.Agent` — `Request_Abort`, `Request_Pause`, and `Resume`
+### 5.47 `LLM.Agent` — `Request_Abort`, `Request_Pause`, and `Resume`
 
 *(Supplement to §5.5, which covers `Create` and `Run_Prompt`.)*
 
@@ -1465,6 +1526,7 @@ blocking; `Agent_Resumed_Event` is emitted after unblocking.
 | REQ-CORE-040–046 | `LLM.Agent`, `Coyote_App.Dispatch`, all frontends |
 | REQ-CORE-050–055 | `LLM.Tools.Shell`, `LLM.Tools.Temp_File`, `LLM.Agent` |
 | REQ-CORE-060–064 | `LLM.Agent`, `LLM.Compaction`, `LLM.Session_Store` |
+| REQ-CORE-065–068 | `LLM.Agent`, `LLM.Compaction` |
 | REQ-CORE-070–076 | `LLM.Agent`, `LLM.Settings`, `LLM.Model_Registry`, all providers |
 | REQ-CORE-080–084 | `LLM.Session_Store`, `Session_Lister` |
 | REQ-CORE-090–093 | `LLM.Skills`, `LLM.System_Prompt` |
@@ -1473,6 +1535,9 @@ blocking; `Agent_Resumed_Event` is emitted after unblocking.
 | REQ-CORE-120–121 | `Coyote_App.Frontend.Plain` |
 | REQ-CORE-130–131 | `Coyote_App.History`, all frontends |
 | REQ-CORE-140–142 | `LLM.Agent`, `Coyote_App.Dispatch`, all frontends |
+| REQ-CORE-170–172 | `LLM.System_Prompt`, `LLM.Agent` |
+| REQ-CORE-180–183 | `LLM.Memory`, `LLM.System_Prompt` |
+| REQ-CORE-190–192 | `LLM.System_Prompt`, `LLM.Agent`, `LLM.Tools.Shell` |
 | REQ-CORE-200–203 | `LLM.Providers.*`, `LLM.HTTP`, `LLM.SSE` |
 | REQ-CORE-210–212 | `Nine_P.Client`, `Acme.Window`, `Coyote_App.Frontend.Acme_Win` |
 | REQ-CORE-220–221 | `Coyote_App.Frontend.GUI`, `Coyote_GUI.*` |

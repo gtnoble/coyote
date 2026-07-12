@@ -1465,3 +1465,42 @@ The MR-chart transform block already correctly branched on
   Pre-existing failure (LLM.System_Prompt preserves section order)
   is unrelated.
 
+---
+
+## PCR-040
+
+- **Date reported:** 2026-07-12
+- **Category:** Requirements
+- **Priority:** 3-Moderate
+- **Description:** Agent capability study of Claude Code (vscode-copilot-chat
+  extension) and GitHub Copilot Chat source code identified six feature areas
+  where coyote's problem-solving capabilities could be improved. No existing
+  coyote functionality is broken; these are forward-looking enhancements.
+- **Feature areas identified:**
+  1. **Enhanced system prompt** — personality definition, conditional tool-use
+     instructions, per-turn reminder instructions (REQ-CORE-170..172).
+  2. **Structured memory system** — four-type taxonomy (user/feedback/project/
+     reference) with MEMORY.md index files (REQ-CORE-180..183).
+  3. **Coordinator subagent orchestration** — synthesis-before-delegation
+     prompt guidance, structured subagent result reporting (REQ-CORE-190..192).
+  4. **Nine-section compaction prompt** — structured summary format with
+     analysis-block drafting (REQ-CORE-065, REQ-CORE-066).
+  5. **Auto-compact circuit breaker** — suspend after 3 consecutive failures
+     (REQ-CORE-067).
+  6. **Partial compaction** — keep N most recent turns verbatim, summarise
+     only the earlier portion (REQ-CORE-068).
+- **Affected work products:** SRS-CORE (14 new requirements added, v1.5→v1.6);
+  SDD-CORE (design updated for compaction, memory, system prompt, coordinator);
+  Test Plan (demonstration tests added for new requirements); Project Plan
+  (Review 7 recorded).
+- **Corrective action required:** Implement the 14 new requirements in
+  `LLM.Compaction`, `LLM.System_Prompt`, `LLM.Memory` (new package), and
+  `LLM.Agent`. Add AUnit tests for each implemented requirement.
+- **Actions taken (2026-07-12):**
+  1. Requirements added to SRS-CORE v1.6.
+  2. Design sections updated in SDD-CORE v1.4.
+  3. Demonstration tests added to Test Plan v1.4.
+  4. Project Plan updated with Review 7.
+- **Status:** Open
+- **Date resolved:** (pending implementation)
+

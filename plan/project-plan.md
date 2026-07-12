@@ -1,7 +1,7 @@
 # Project Plan — coyote
 
-**Version:** 1.11
-**Date:** 2026-06-28
+**Version:** 1.12
+**Date:** 2026-07-12
 **Status:** Active
 
 ---
@@ -68,7 +68,7 @@ separate system-level stratum.
 
 | ID | Title | Location |
 |---|---|---|
-| SRS-CORE | coyote Requirements Specification | `requirements/coyote-requirements.md` | 1.5 (2026-06-28) | Client |
+| SRS-CORE | coyote Requirements Specification | `requirements/coyote-requirements.md` | 1.6 (2026-07-12) | Client |
 | SDD-CORE | coyote Design Description | `design/coyote-design.md` |
 | SRS-SQC | coyote_sqc Requirements Specification | `requirements/coyote-sqc-requirements.md` |
 | SDD-SQC | coyote_sqc Design Specification | `design/coyote-sqc-design.md` |
@@ -573,15 +573,35 @@ acknowledged the design without comment.
 
 ---
 
+### Review 7 — SRS-CORE v1.6 Requirements Review (2026-07-12)
+
+**Review type:** Software requirements review
+**Trigger:** Agent capability study — Claude Code and GitHub Copilot Chat codebase survey (PCR-040) identified six feature areas for improvement: enhanced system prompt, structured memory system, coordinator subagent orchestration, and three compaction-quality improvements. SRS-CORE v1.6 presented for acknowledgement.
+
+| Indicator | Value |
+|---|---|
+| Requirements volatility | SRS-CORE v1.6 (2026-07-12): 140 requirements. 14 additions (REQ-CORE-065..068, REQ-CORE-170..172, REQ-CORE-180..183, REQ-CORE-190..192); 0 revisions; 0 deletions since v1.5. |
+| Component progress | coyote core: requirements updated (6 feature areas). Design and implementation pending for all new requirements. coyote_sqc: unchanged. |
+| Open problems | PCR-040 Open (priority 3-Moderate — new requirements added; implementation pending). PCR-009 Open (priority 4-Minor — deferred demonstration tests). |
+| Milestone status | M1–M6 Complete. New requirements not yet scheduled for implementation. |
+| Scope changes | 2 agreed amendments since project start: (1) Ollama Cloud provider (PCR-020), (2) Agent capability enhancements — system prompt, memory, coordinator, compaction quality (PCR-040). |
+| Test results trend | 688 AUnit tests passing; 0 failures. No test changes for this review (tests will be added during implementation). |
+
+**Issues raised at review:** None.
+
+**Independence limitation:** Developer evaluated own work. User acknowledged SRS-CORE v1.6 explicitly.
+
+---
+
 ## 9. Artifact Version Table
 
 | Artifact | ID | Location | Current Version | Control Level |
 |---|---|---|---|---|
-| Project Plan | PLAN | `plan/project-plan.md` | 1.11 (2026-06-28) | Project |
+| Project Plan | PLAN | `plan/project-plan.md` | 1.12 (2026-07-12) | Project |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
-| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.5 (2026-06-28) | Client |
-| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.3 (2026-06-28) | Project |
+| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.6 (2026-07-12) | Client |
+| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.4 (2026-07-12) | Project |
 | coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.2 (2026-06-21) | Project |
 | coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.2 (2026-06-21) | Project |
-| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.3 (2026-06-21) | Project |
+| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.4 (2026-07-12) | Project |
 | Agent Working Instructions (secondary) | AGENTS | `AGENTS.md` | active | Project |
