@@ -1,6 +1,6 @@
 # Test Plan â coyote (STP)
 
-**Version:** 1.4
+**Version:** 1.5
 **Date:** 2026-07-12
 **Status:** Reviewed and acknowledged â M4 complete (2026-06-03)
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)

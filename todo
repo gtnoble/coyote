@@ -1,10 +1,10 @@
 Harness app
 	Allow for forking after every turn, including tool call turns
 	add elapsed time to tool call output
+	separate gui and acme binaries.
 
 
 SQC app
-	Normality and randomness tests of selected points shown in the right panel.
 	Line numbers for tool call detail stdin
 	add timestamps to sesson turns
 

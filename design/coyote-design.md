@@ -1,7 +1,7 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.4
+**Version:** 1.5
 **Date:** 2026-07-12
 **Status:** Reviewed — project control (M3 complete 2026-06-02)
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
@@ -498,16 +498,21 @@ spawns `Agent_Task`, then calls `Gtk.Main.Main`.
 | `Message_Update_Event` / `Text_End` | `End_Text_Block` |
 | `Message_Update_Event` / `Thinking_Delta` | `Append_Thinking` |
 | `Tool_Execution_Start_Event` | `Begin_Tool` |
-| `Tool_Execution_End_Event` | `End_Tool` |
+| `Tool_Execution_End_Event` | `End_Tool`; on last tool in batch: `Append_Turn_Footer` (step-level) |
 | `Message_End_Event` | record stats in App_State |
-| `Session_Stats_Event` | `Append_Turn_Footer`; GUI: `Set_Stats_Summary` |
+| `Session_Stats_Event` | `Append_Turn_Footer` (full-turn); GUI: `Set_Stats_Summary` |
 | `Model_Select_Event` | `Append_Notice (Info, ...)` |
 | `Auto_Retry_Start_Event` | `Append_Notice (Warning, ...)` |
 | `Auto_Compaction_Start/End_Event` | `Append_Notice (Info/Warning, ...)` |
 | `Agent_Paused_Event` | `Set_Mode (Paused)` |
 | `Agent_Resumed_Event` | `Set_Mode (Running)` |
 
----
+**Step-level turn footers (v1.8):** After the last `Tool_Execution_End_Event`
+in a batch, the dispatch layer calls `Append_Turn_Footer` with a non-zero
+`Step_N` to emit a step-level fork token and single-line separator. The step
+counter is maintained in `App_State` alongside `Turn_Count`: incremented at
+`Agent_Start_Event`, reset at each new turn. The final full-turn footer
+(with double-line separator) is emitted from `Session_Stats_Event` as before.
 
 ---
 
@@ -1235,8 +1240,12 @@ points > 255 cannot appear as character literals.
   bracketed per-turn summary line (e.g. `[ctx 24k/400k (6%) | ^537 out | stop]`).
   The `Stop_Reason_Text` parameter (added v1.7) displays the provider stop reason
   (`stop`, `length`, `toolUse`, `aborted`, `error`, `unknown`) when non-empty.
-- `Format_Turn_Footer (Turn_N, UUID, PID, ...) → String` — wraps the summary
-  with a `coyote-fork+` plumb token and a double-line separator.
+- `Format_Turn_Footer (Turn_N, UUID, PID, Step_N, ...) → String` — wraps the
+  summary with a `coyote-fork+` plumb token and a separator. The `Step_N`
+  parameter (default 0) controls the separator style and token format:
+  `Step_N > 0` produces a step-level token (`coyote-fork+PID/UUID/N/S`)
+  with a single-line separator; `Step_N = 0` produces the full-turn token
+  (`coyote-fork+PID/UUID/N`) with a double-line separator.
 
 ---
 
@@ -1493,6 +1502,14 @@ preview), and returns the array sorted by creation time (newest first).
 **`Format_For_Display (Info : Session_Info) → String`:** Formats one entry
 as a human-readable line: `UUID  YYYY-MM-DD HH:MM  model  preview`.
 
+**`Fork_Session (Source_UUID : String; After_Turn : Positive; After_Step : Natural := 0; Target_Cwd : String) → String`:**
+Creates a new session by copying the source JSONL file up to a cut point.
+When `After_Step = 0`, the cut point is after `After_Turn` complete turns
+(user → assistant-with-text-content pairs). When `After_Step > 0`, the cut
+point is after the `After_Step`-th assistant message within turn
+`After_Turn`, including all tool results from that message's batch. Returns
+the new session UUID, or "" on failure.
+
 Used by `coyote_list_sessions` and by the GUI frontend's session-picker
 menu.
 
@@ -1530,7 +1547,9 @@ blocking; `Agent_Resumed_Event` is emitted after unblocking.
 | REQ-CORE-070–076 | `LLM.Agent`, `LLM.Settings`, `LLM.Model_Registry`, all providers |
 | REQ-CORE-080–084 | `LLM.Session_Store`, `Session_Lister` |
 | REQ-CORE-090–093 | `LLM.Skills`, `LLM.System_Prompt` |
-| REQ-CORE-100–109 | `Coyote_App.Frontend.Acme_Win`, `Coyote_App`, `Acme.Window`, `Nine_P.Client`, `LLM.Settings` |
+| REQ-CORE-100–107 | `Coyote_App.Frontend.Acme_Win`, `Coyote_App`, `Acme.Window`, `Nine_P.Client` |
+| REQ-CORE-108–108b | `Coyote_App`, `Coyote_App.Dispatch`, `Coyote_App.Utils`, `Session_Lister` |
+| REQ-CORE-109 | `LLM.Settings`, `Coyote_App.Frontend.Acme_Win` |
 | REQ-CORE-110–115 | `Coyote_App.Frontend.GUI`, `Coyote_GUI.Buffer`, `Coyote_Cmark` |
 | REQ-CORE-120–121 | `Coyote_App.Frontend.Plain` |
 | REQ-CORE-130–131 | `Coyote_App.History`, all frontends |

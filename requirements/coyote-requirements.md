@@ -1,7 +1,7 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.6
+**Version:** 1.7
 **Date:** 2026-07-12
 **Status:** Draft
 **Project Plan:** `plan/project-plan.md`
@@ -485,9 +485,29 @@ The Pause and Resume tag commands shall pause and resume the agent loop at
 the next turn boundary.
 
 **REQ-CORE-108** (D)
-In the Acme frontend, a `coyote-fork+PID/UUID/N` token sent via the
-`/coyote-fork` plumb port shall fork the session at turn N and open the
-forked session in a new coyote window.
+In the Acme frontend, a `coyote-fork+PID/UUID/N[/S]` token sent via the
+`/coyote-fork` plumb port shall fork the session at turn N (and optionally
+step S within that turn) and open the forked session in a new coyote window.
+When the optional step suffix `/S` is present, the fork shall capture the
+conversation up to and including the S-th assistant message and all tool
+results from that message's tool-call batch. When the step suffix is absent,
+the fork shall capture all complete turns up to and including turn N (the
+current behaviour).
+
+**REQ-CORE-108a** (D)
+A turn footer carrying a fork token shall be emitted after every assistant
+message — both intermediate tool-call responses (stop reason `toolUse`) and
+final text responses (stop reason `stop` or `length`). The final footer of
+each turn shall use the full-turn token format (`coyote-fork+PID/UUID/N`,
+no step suffix) and a double-line separator; intermediate footers shall use
+the step-level token format (`coyote-fork+PID/UUID/N/S`) and a single-line
+separator to visually distinguish step boundaries from turn boundaries.
+
+**REQ-CORE-108b** (D)
+Step-level footers shall be emitted after the last tool result of the
+corresponding tool-call batch, so that the forked session includes both the
+assistant's tool-call message and the tool results, forming a valid and
+loadable conversation state.
 
 **REQ-CORE-109** (D)
 The SetDefault tag command shall write the active model identifier and
@@ -1057,7 +1077,9 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-092 | Skills included in system prompt | D | TC-092 |
 | REQ-CORE-093 | Local skills shadow global | T | TC-093 |
 | REQ-CORE-094 | BASE derived from binary path | I | TC-094 |
-| REQ-CORE-100..109 | Acme frontend tag commands | D | TC-100..109 |
+| REQ-CORE-100..107 | Acme frontend tag commands (Send, Stop, New, etc.) | D | TC-100..107 |
+| REQ-CORE-108..108b | Session fork tokens and step-level turn footers | D | TC-108..108b |
+| REQ-CORE-109 | SetDefault writes to settings.json | D | TC-109 |
 | REQ-CORE-110..115 | GUI frontend capabilities | D | TC-110..115 |
 | REQ-CORE-120..121 | Plain frontend capabilities | D | TC-120..121 |
 | REQ-CORE-130..131 | Session history replay | D | TC-130..131 |

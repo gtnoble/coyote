@@ -35,7 +35,10 @@ A tree structure (to model branching from forks) was considered. The flat
 vector was chosen because:
 - Session forking is implemented by copying the JSONL file at fork time and
   loading it as a new session; the in-memory history of each session is
-  always linear.
+  always linear. Forking supports both full-turn cut points
+  (`coyote-fork+PID/UUID/N`) and step-level cut points within a turn
+  (`coyote-fork+PID/UUID/N/S`) that capture the assistant's tool-call
+  message and tool results.
 - A flat vector makes compaction cut-point calculation straightforward
   (`Find_Cut_Point` walks in reverse from the end).
 - The providers' wire formats (OpenAI, Anthropic) expect a flat ordered array.

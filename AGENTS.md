@@ -237,7 +237,7 @@ Coyote uses its own family of plumb tokens. All token strings begin with a
 | `coyote-session+UUID` | launches `coyote --frontend acme --session UUID` | Load a session; the plumber spawns a new `coyote` process |
 | `coyote-session+UUID/tool/TOKEN` | launches `bin/coyote_open` | Open a tool-call detail window; TOKEN is the first 16 hex chars of SHA-256(tool_call_id) |
 | `coyote-thinking+PID/LEVEL` | `/coyote-thinking` | Set the reasoning level in the running instance identified by PID |
-| `coyote-fork+PID/UUID/N` | `/coyote-fork` | Fork the session at turn N in the running instance identified by PID |
+| `coyote-fork+PID/UUID/N[/S]` | `/coyote-fork` | Fork the session at turn N (optionally step S within that turn) in the running instance identified by PID |
 
 **Design notes:**
 
