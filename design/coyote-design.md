@@ -818,6 +818,10 @@ REQ-CORE-068).
 memory taxonomy into the system prompt, and provides guidance for memory
 save/retrieval behaviour (REQ-CORE-180..183).
 
+**Opt-in gate:** Memory is disabled by default.  Set
+`COYOTE_ENABLE_MEMORY=1` to enable it.  When disabled, no memory index
+or taxonomy is injected into the system prompt.
+
 **Discovery paths:** `~/.coyote/memory/MEMORY.md` and
 `{CWD}/.coyote/MEMORY.md`. Each file is capped at 200 lines / 25 000 bytes;
 excess is truncated with a warning.

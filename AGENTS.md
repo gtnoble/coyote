@@ -263,6 +263,7 @@ communication and context propagation:
 | `COYOTE_NO_SESSION` | `coyote.adb` when `--no-session` is active | child coyote at startup | Propagates `--no-session` to all descendant coyote processes |
 | `COYOTE_FRONTEND` | `coyote.adb` after selecting a windowing frontend | child coyote at startup | When set to `gui`, a child selects the GUI frontend and opens its own GTK window.  When set to `acme`, a child selects the Acme frontend and opens in a new acme window.  Mirrors how `$winid` propagates the acme context. |
 | `COYOTE_THINKING_LEVEL` | `coyote_app.adb` when thinking level is set or changed | child coyote at startup (`coyote_app.adb`) and `LLM.Session_Store` | Propagates the current thinking level to child subagent sessions.  Written into the new session's JSONL header as `thinkingLevel`. |
+| `COYOTE_ENABLE_MEMORY` | user (manual) | `LLM.Agent.Create` | When set to `1`, enables the structured memory system (MEMORY.md discovery and four-type taxonomy) in the system prompt.  Disabled by default. |
 
 ## Subagent invocation (shell-based)
 

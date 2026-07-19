@@ -20,6 +20,8 @@ package LLM_Agent_Tests is
    procedure Test_Session_Resume                   (T : in out Test);
    procedure Test_Create_Without_Model_Spec_Uses_Settings_Default
      (T : in out Test);
+   procedure Test_Memory_Enabled_By_Env_Var (T : in out Test);
+   procedure Test_Memory_Disabled_By_Default (T : in out Test);
    procedure Test_Multi_Turn_Same_Session_Carries_History
      (T : in out Test);
    procedure Test_Event_Sequence_Agent_Start_Through_Session_Stats

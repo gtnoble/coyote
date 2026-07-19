@@ -6,6 +6,7 @@ with Ada.Characters.Handling;
 with Ada.Containers;
 with Ada.Containers.Vectors;
 with Ada.Directories;
+with Ada.Environment_Variables;
 with Ada.Text_IO;
 with Ada.Exceptions;
 with Ada.Strings.Fixed;
@@ -1230,10 +1231,13 @@ package body LLM.Agent is
             No_Tools          => No_Tools,
             Has_Editing_Tools => not No_Tools,
             Agent             => Agent,
-            Memory_Block      => LLM.Memory.Load_Memory_Index
-              (To_String (S.Cwd))
-            & ASCII.LF
-            & LLM.Memory.Format_Memory_Taxonomy_For_Prompt,
+            Memory_Block      =>
+              (if Ada.Environment_Variables.Value
+                    ("COYOTE_ENABLE_MEMORY", "0") = "1"
+               then LLM.Memory.Load_Memory_Index (To_String (S.Cwd))
+                    & ASCII.LF
+                    & LLM.Memory.Format_Memory_Taxonomy_For_Prompt
+               else ""),
             Coordinator_Mode  => not No_Tools));
       S.Session_UUID := Null_Unbounded_String;
       S.History.Clear;
@@ -1251,7 +1255,7 @@ package body LLM.Agent is
       LLM.Model_Registry.Refresh_Anthropic;
       LLM.Model_Registry.Refresh_OpenCode_Go;
 
-   LLM.Model_Registry.Refresh_Ollama;
+      LLM.Model_Registry.Refresh_Ollama;
       Set_Model_Internal (S, Effective_Spec);
 
       if Session_Id'Length > 0 then

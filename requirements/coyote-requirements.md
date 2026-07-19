@@ -692,8 +692,10 @@ one-sentence preamble stating why, what, and expected outcome.
 The agent shall discover and load MEMORY.md index files from
 ~/.coyote/memory/MEMORY.md and {CWD}/.coyote/MEMORY.md, respecting
 a content cap of 200 lines or 25,000 bytes per file with a truncation
-warning when exceeded. The loaded content shall be included in the
-system prompt as persistent project context.
+warning when exceeded. Memory loading shall be disabled by default
+and enabled only when the environment variable COYOTE_ENABLE_MEMORY
+is set to "1". When enabled, the loaded content shall be included in
+the system prompt as persistent project context.
 
 **REQ-CORE-181** (D)
 The system prompt shall describe a four-type memory taxonomy

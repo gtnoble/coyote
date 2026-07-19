@@ -12,4 +12,8 @@ package LLM.Agent.Testing is
      (S     : LLM.Agent.Session;
       Index :        Natural) return LLM.Types.Message;
 
+   --  Return the system prompt string for the session.
+   function System_Prompt
+     (S : LLM.Agent.Session) return String;
+
 end LLM.Agent.Testing;

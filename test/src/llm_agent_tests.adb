@@ -2435,6 +2435,104 @@ package body LLM_Agent_Tests is
          raise;
    end Test_Create_Without_Model_Spec_Uses_Settings_Default;
 
+   procedure Test_Memory_Enabled_By_Env_Var (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home           : constant String := "/tmp/coyote_llm_agent_test_10b";
+      Agent_Session  : LLM.Agent.Session;
+      Home_Was_Set   : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home       : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Mem_Was_Set    : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_ENABLE_MEMORY");
+      Old_Mem        : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_ENABLE_MEMORY", "");
+   begin
+      Prepare_Test_Home (Home);
+      Write_Settings_File
+        (Home             => Home,
+         Default_Provider => "openrouter",
+         Default_Model    => "test/default-model");
+      Write_OpenRouter_Models_File (Home, "settings-key");
+      Write_Minimal_OpenRouter_Cache
+        (Home     => Home,
+         Model_Id => "test/default-model");
+
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Set ("COYOTE_ENABLE_MEMORY", "1");
+
+      LLM.Agent.Create
+        (S          => Agent_Session,
+         Model_Spec => "",
+         No_Tools   => True);
+
+      Assert
+        (Ada.Strings.Fixed.Index
+           (LLM.Agent.Testing.System_Prompt (Agent_Session),
+            "# Memory System") > 0,
+         "COYOTE_ENABLE_MEMORY=1 should inject memory taxonomy");
+
+      Restore_Env ("COYOTE_ENABLE_MEMORY", Mem_Was_Set, Old_Mem);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("COYOTE_ENABLE_MEMORY", Mem_Was_Set, Old_Mem);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Memory_Enabled_By_Env_Var;
+
+   procedure Test_Memory_Disabled_By_Default (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home           : constant String := "/tmp/coyote_llm_agent_test_10c";
+      Agent_Session  : LLM.Agent.Session;
+      Home_Was_Set   : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home       : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Mem_Was_Set    : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_ENABLE_MEMORY");
+      Old_Mem        : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_ENABLE_MEMORY", "");
+   begin
+      Prepare_Test_Home (Home);
+      Write_Settings_File
+        (Home             => Home,
+         Default_Provider => "openrouter",
+         Default_Model    => "test/default-model");
+      Write_OpenRouter_Models_File (Home, "settings-key");
+      Write_Minimal_OpenRouter_Cache
+        (Home     => Home,
+         Model_Id => "test/default-model");
+
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Clear ("COYOTE_ENABLE_MEMORY");
+
+      LLM.Agent.Create
+        (S          => Agent_Session,
+         Model_Spec => "",
+         No_Tools   => True);
+
+      Assert
+        (Ada.Strings.Fixed.Index
+           (LLM.Agent.Testing.System_Prompt (Agent_Session),
+            "# Memory System") = 0,
+         "memory taxonomy should be absent when COYOTE_ENABLE_MEMORY is unset");
+
+      Restore_Env ("COYOTE_ENABLE_MEMORY", Mem_Was_Set, Old_Mem);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("COYOTE_ENABLE_MEMORY", Mem_Was_Set, Old_Mem);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Memory_Disabled_By_Default;
+
    procedure Test_Multi_Turn_Same_Session_Carries_History
      (T : in out Test)
    is

@@ -1053,6 +1053,12 @@ package body Test_Suites is
       Result.Add_Test (LLM_Sys_Prompt_Caller.Create
         ("LLM.System_Prompt preserves section order",
          LLM_System_Prompt_Tests.Test_Section_Order'Access));
+      Result.Add_Test (LLM_Sys_Prompt_Caller.Create
+        ("LLM.System_Prompt memory block injected when provided",
+         LLM_System_Prompt_Tests.Test_Memory_Block_Injected'Access));
+      Result.Add_Test (LLM_Sys_Prompt_Caller.Create
+        ("LLM.System_Prompt empty memory block absent from prompt",
+         LLM_System_Prompt_Tests.Test_Memory_Block_Absent_When_Empty'Access));
 
       --  LLM.System_Prompt context-loading tests
       Result.Add_Test (LLM_Context_Caller.Create
@@ -2547,6 +2553,12 @@ package body Test_Suites is
         ("LLM.Agent uses settings defaults when Model_Spec is empty",
          LLM_Agent_Tests
            .Test_Create_Without_Model_Spec_Uses_Settings_Default'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent memory enabled by COYOTE_ENABLE_MEMORY=1",
+         LLM_Agent_Tests.Test_Memory_Enabled_By_Env_Var'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent memory disabled by default (env var unset)",
+         LLM_Agent_Tests.Test_Memory_Disabled_By_Default'Access));
       Result.Add_Test (LLM_Agent_Caller.Create
         ("LLM.Agent reuses history across multiple turns in one session",
          LLM_Agent_Tests

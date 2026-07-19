@@ -206,4 +206,30 @@ package body LLM_System_Prompt_Tests is
          "context and skills sections should appear before the date block");
    end Test_Section_Order;
 
+   procedure Test_Memory_Block_Injected (T : in out Test) is
+      pragma Unreferenced (T);
+
+      P : constant String :=
+        LLM.System_Prompt.Build_System_Prompt
+          (Cwd          => Test_Cwd,
+           Memory_Block => "MEMORY_SENTINEL");
+   begin
+      Assert
+        (Ada.Strings.Fixed.Index (P, "MEMORY_SENTINEL") > 0,
+         "memory block should be injected when provided");
+   end Test_Memory_Block_Injected;
+
+   procedure Test_Memory_Block_Absent_When_Empty (T : in out Test) is
+      pragma Unreferenced (T);
+
+      P : constant String :=
+        LLM.System_Prompt.Build_System_Prompt
+          (Cwd          => Test_Cwd,
+           Memory_Block => "");
+   begin
+      Assert
+        (Ada.Strings.Fixed.Index (P, "# Memory System") = 0,
+         "empty memory block should not inject memory taxonomy");
+   end Test_Memory_Block_Absent_When_Empty;
+
 end LLM_System_Prompt_Tests;

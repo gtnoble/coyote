@@ -1,3 +1,5 @@
+with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
+
 package body LLM.Agent.Testing is
 
    function History_Length
@@ -12,5 +14,11 @@ package body LLM.Agent.Testing is
    begin
       return S.History.Element (Index);
    end History_Element;
+
+   function System_Prompt
+     (S : LLM.Agent.Session) return String is
+   begin
+      return To_String (S.System_Prompt);
+   end System_Prompt;
 
 end LLM.Agent.Testing;
