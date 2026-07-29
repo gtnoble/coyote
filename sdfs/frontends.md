@@ -189,3 +189,13 @@ instead of opening a new acme window.
 - The Acme frontend's tag-line button set is rebuilt on each `Set_Mode` call
   by overwriting the entire tag line. A diff-and-patch approach would reduce
   9P write traffic for high-frequency mode changes.
+
+### GUI follow-mode simplification (2026-07-29)
+
+The follow-mode state machine was simplified from a threshold-based
+re-engagement scheme to a two-state toggle: any user scroll disables follow
+mode; only the "New output" button re-enables it.  Previously `At_Bottom`
+would recalculate `Follow_Mode` based on a 20-pixel near-the-bottom threshold
+on every value-changed signal, which was sensitive to GTK adjustment signal
+ordering and could lose track of the tail.  The new behaviour is
+unconditional and unambiguous.  See PCR-042.

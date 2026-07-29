@@ -1299,6 +1299,24 @@ selection commands.
   to set the status-bar model/cost summary.
 - `Shutdown` — calls `Gtk.Main.Quit` from within the idle callback.
 
+**Follow mode:** The conversation scroll view auto-scrolls to the bottom as
+new content arrives when `Follow_Mode` is `True`. Follow mode starts enabled
+(`Follow_Mode := True` at `Create`).  Two GTK adjustment handlers manage it:
+
+- `On_Conv_Adj_Changed` — fires when GTK recomputes the text-view layout
+  (upper bound changes due to new content). When follow mode is active, snaps
+  the viewport to the new bottom.
+- `On_Conv_Adj_Value_Changed` — fires on any scroll-position change. If the
+  change is not programmatic (i.e. not from `On_Conv_Adj_Changed`), follow
+  mode is unconditionally disabled. There is no threshold or position-based
+  re-engagement; follow mode can only be re-enabled by clicking the "↓ New
+  output" button.
+
+A `Programmatic_Scroll` flag prevents the value-changed handler from treating
+the auto-scroll snap as a user scroll. The "↓ New output" button
+(`Scroll_Down_Btn`) is visible only when follow mode is off and hides itself
+when clicked (which also snaps to bottom and re-enables follow mode).
+
 ---
 
 ### 5.34 `Coyote_App.Frontend.Plain`

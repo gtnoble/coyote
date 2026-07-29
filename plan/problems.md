@@ -1572,3 +1572,30 @@ The MR-chart transform block already correctly branched on
     paragraph spacing, code-block background, blockquote prefix
 - **Status:** Resolved
 - **Date resolved:** 2026-07-29
+
+### PCR-042 — GUI follow mode loses track of conversation tail (2026-07-29)
+
+- **Problem:** In the GTK GUI, when a sequence of tool calls executed in
+  rapid succession, follow mode (auto-scroll to bottom) would sometimes stop
+  following. The viewport would remain at a position above the tail even
+  though Follow_Mode was still True, or Follow_Mode would re-enable itself
+  when the user hadn't clicked "New output." The root cause was the
+  `At_Bottom` threshold check in `On_Conv_Adj_Value_Changed`: GTK's
+  adjustment `changed` and `value-changed` signal ordering is sensitive to
+  layout timing (tool-frame expand/collapse, widget resizing), and a
+  20-pixel near-the-bottom threshold could flip the state incorrectly.
+  This created an unreliable state machine where follow mode could fail to
+  disengage on a small user scroll, or fail to scroll to the true bottom
+  after a layout change.
+- **Fix:** Removed the `At_Bottom` threshold function entirely.  Changed
+  `On_Conv_Adj_Value_Changed` so that *any* non-programmatic scroll change
+  unconditionally disables follow mode (no position-based re-engagement).
+  Follow mode can only be re-enabled by a deliberate user action: clicking
+  the "↓ New output" button. This simplifies the state machine to two
+  unambiguous states: on (starts on, re-engaged by button) and off (disabled
+  by any scroll).
+- **Files changed:**
+  - `src/coyote_app-frontend-gui.adb` — removed `At_Bottom`, simplified
+    `On_Conv_Adj_Value_Changed`
+- **Status:** Resolved
+- **Date resolved:** 2026-07-29
