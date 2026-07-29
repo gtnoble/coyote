@@ -212,15 +212,31 @@ package body Coyote_Renderer.Markup is
 
             elsif NT = NODE_PARAGRAPH then
                if Ev = EVENT_EXIT and then not In_Cell then
-                  Append (Out_S, "" & ASCII.LF);
+                  Append (Out_S, "" & ASCII.LF & ASCII.LF);
                end if;
 
             elsif NT = NODE_HEADING then
                if not In_Cell then
                   if Ev = EVENT_ENTER then
-                     Append (Out_S, "<b>");
+                     declare
+                        H_Level : constant Interfaces.C.int :=
+                          Node_Get_Heading_Level (Node);
+                     begin
+                        if H_Level <= 2 then
+                           Append (Out_S, ASCII.LF
+                                   & "<span weight=""bold"""
+                                   & " size=""larger"">");
+                        elsif H_Level <= 4 then
+                           Append (Out_S, ASCII.LF
+                                   & "<span weight=""bold"""
+                                   & " size=""medium"">");
+                        else
+                           Append (Out_S, ASCII.LF
+                                   & "<span weight=""bold"">");
+                        end if;
+                     end;
                   else
-                     Append (Out_S, "</b>" & ASCII.LF);
+                     Append (Out_S, "</span>" & ASCII.LF & ASCII.LF);
                   end if;
                end if;
 
@@ -264,17 +280,20 @@ package body Coyote_Renderer.Markup is
 
             elsif NT = NODE_CODE_BLOCK then
                if Ev = EVENT_ENTER and then not In_Cell then
-                  Append (Out_S, "<tt>");
+                  Append (Out_S, ASCII.LF
+                          & "<span background=""#f4f4f4""><tt>");
                   Append (Out_S, Xml_Escape (Lit (Node)));
-                  Append (Out_S, "</tt>" & ASCII.LF);
+                  Append (Out_S, "</tt></span>" & ASCII.LF);
                end if;
 
             elsif NT = NODE_BLOCK_QUOTE then
                if not In_Cell then
                   if Ev = EVENT_ENTER then
-                     Append (Out_S, "<i><span alpha=""50%%"">");
+                     Append (Out_S, ASCII.LF
+                             & "<span alpha=""50%%"" font_style=""italic"">"
+                             & UC_BOX_V & " ");
                   else
-                     Append (Out_S, "</span></i>" & ASCII.LF);
+                     Append (Out_S, "</span>" & ASCII.LF & ASCII.LF);
                   end if;
                end if;
 

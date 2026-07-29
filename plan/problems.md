@@ -1540,3 +1540,35 @@ The MR-chart transform block already correctly branched on
 - **Status:** Resolved
 - **Date resolved:** 2026-07-12
 
+
+### PCR-041 — GUI conversation view cramped layout (2026-07-29)
+
+- **Problem:** The GTK conversation view had no visual separation
+  between content blocks — turns ran together with no separators,
+  paragraphs and headings were flat, tool frames had minimal padding,
+  and code blocks/blockquotes were visually indistinguishable from
+  surrounding text.  This made long conversations hard to scan.
+- **Fix:**
+  1. **Turn separators:** `Append_Turn_Footer` re-enabled in GUI
+     frontend; now renders a dim horizontal rule (60 × `UC_HORIZ`)
+     between turns via the `footer` tag.
+  2. **Inter-block spacing:** Blank lines (`LF LF`) added at every
+     content-section transition (`End_Text_Block`, `End_Thinking`,
+     `Begin_Tool`, `Append_Notice`).
+  3. **Tool-call frame styling:** Added 6 px border width, etched-in
+     shadow, increased inner spacing from 2 → 6 px.
+  4. **Markdown rendering improvements** (in `Coyote_Renderer.Markup`):
+     headings sized by level (larger/medium/bold), paragraphs separated
+     by blank lines, code blocks given a `#f4f4f4` background,
+     blockquotes prefixed with `╎` vertical bar and rendered with a
+     single `<span>` instead of nested `<i>`/`<span>`.
+  5. **Conversation view margins** increased from 8/6 px to 16/12 px.
+- **Files changed:**
+  - `src/coyote_gui/coyote_gui-buffer.adb` — all block transitions,
+    tool frame styling, turn separators
+  - `src/coyote_app-frontend-gui.adb` — un-suppressed
+    `Append_Turn_Footer`, increased margins
+  - `src/coyote_renderer/coyote_renderer-markup.adb` — heading sizing,
+    paragraph spacing, code-block background, blockquote prefix
+- **Status:** Resolved
+- **Date resolved:** 2026-07-29

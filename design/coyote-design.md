@@ -154,9 +154,13 @@ replaced with Pango markup when the block completes (`End_Text_Block`).
   are embedded in the window body for button-3 navigation.
 
 - **GUI frontend:** GTK3 `GtkTextBuffer` with text tags for emphasis,
-  code, thinking, notices, and footers. Tool calls are embedded as
-  `GtkTextChildAnchor` widgets (GTK frames). Markdown is rendered via
-  libcmark-gfm → Pango markup → `Insert_Markup`.
+  code, thinking, notices, footers, and turn separators. Tool calls are
+  embedded as `GtkTextChildAnchor` widgets (GTK frames with etched-in
+  shadow and 6 px border). Markdown is rendered via libcmark-gfm → Pango
+  markup → `Insert_Markup` with sized headings, code-block backgrounds,
+  and blockquote vertical-bar prefixes. Conversation margins are 16/12 px
+  (left+right / top+bottom); content blocks are separated by blank lines
+  for visual rhythm.
 
 - **Plain frontend:** Plain UTF-8 to stdout. No ANSI escape codes.
 

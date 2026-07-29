@@ -101,6 +101,44 @@ variables. All comparisons in `Coyote_GUI.Buffer` use these stored integers.
 This means the Ada code is correct regardless of which installed version of
 libcmark-gfm is used — it never assumes a specific numeric value.
 
+### GUI visual spacing and layout
+
+The initial GUI conversation view felt cramped — content blocks ran into
+each other with no vertical rhythm.  The following changes were applied to
+create visual separation between distinct content regions:
+
+**Turn separators:** `Append_Turn_Footer` had been a no-op in the GUI
+frontend (the Acme frontend rendered a turn footer with fork tokens, which
+are not meaningful in a GTK window).  It now inserts a dim horizontal rule
+(60 × `UC_HORIZ` in the `footer` tag, grey `#888888`) with blank lines
+above and below, giving each turn a clear visual boundary.
+
+**Inter-block breathing room:** Blank lines (`LF LF`) are now emitted at
+every content-section transition:
+- `End_Text_Block` — blank line after assistant text
+- `End_Thinking` — blank line after thinking blocks
+- `Begin_Tool` — blank line before tool-call frame widgets
+- `Append_Notice` — blank line before notice text
+
+**Tool-call frame styling:** Tool frames now have a 6 px border
+(`Set_Border_Width`), etched-in shadow (`Shadow_Etched_In`), and the inner
+`Outer_Vbox` spacing increased from 2 → 6 px.  Pack_Start padding on the
+summary label and expander increased from 2 → 6 px.
+
+**Markdown rendering improvements** (in `Coyote_Renderer.Markup`):
+- *Headings* sized by level: `<span size="larger">` for h1–2,
+  `<span size="medium">` for h3–4, plain bold for h5–6; each preceded by
+  `LF` and followed by `LF LF`.
+- *Paragraphs* now separated by `LF LF` (blank line) instead of `LF`.
+- *Code blocks* wrapped in `<span background="#f4f4f4"><tt>…</tt></span>`
+  with a leading `LF` for visual distinction.
+- *Blockquotes* prefixed with `UC_BOX_V` (`╎`) and rendered with a single
+  `<span alpha="50%" font_style="italic">` instead of nested tags; opened
+  with `LF` and closed with `LF LF`.
+
+**Conversation view margins** increased from 8/6 px to 16/12 px
+(left/right 8→16, top/bottom 6→12) in `Coyote_App.Frontend.GUI.Create`.
+
 ---
 
 ## Key Constraints

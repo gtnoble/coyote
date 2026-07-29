@@ -16,6 +16,7 @@ with Gtk.Text_Buffer;
 with Gtk.Text_Iter;
 with Gtk.Text_Mark;
 with Gtk.Text_View;
+with Gtk.Enums;
 with Gtk.Box;
 with Gtk.Expander;
 with Gtk.Separator;
@@ -142,7 +143,7 @@ package body Coyote_GUI.Buffer is
       end if;
 
       B.The_Buf.Get_End_Iter (EI);
-      B.The_Buf.Insert (EI, "" & ASCII.LF);
+      B.The_Buf.Insert (EI, "" & ASCII.LF & ASCII.LF);
 
       B.The_Buf.Delete_Mark (B.Stream_Mark);
       B.Stream_Mark    := null;
@@ -181,7 +182,7 @@ package body Coyote_GUI.Buffer is
    begin
       if B.In_Thinking then
          if B.Prefix_Emitted then
-            Insert_Tagged (B, "" & ASCII.LF, B.Tag_Thinking);
+            Insert_Tagged (B, "" & ASCII.LF & ASCII.LF, B.Tag_Thinking);
          end if;
          B.In_Thinking        := False;
          B.Prefix_Emitted     := False;
@@ -248,7 +249,7 @@ package body Coyote_GUI.Buffer is
       --  widget anchor.  The Stream_Mark must not span the child anchor,
       --  otherwise a later End_Text_Block will delete the tool frame.
       End_Text_Block (B);
-      Insert_Plain (B, "" & ASCII.LF);
+      Insert_Plain (B, "" & ASCII.LF & ASCII.LF);
       --  Build summary prefix: header line + per-field arg lines.
       Append (Summary_Prefix_S,
               "<b>" & Xml_Escape (UC_GEAR & " " & Name) & "</b>");
@@ -285,8 +286,10 @@ package body Coyote_GUI.Buffer is
 
       Gtk.Frame.Gtk_New (Frame, To_String (Frame_Label));
       Frame.Set_Size_Request (700, -1);
+      Frame.Set_Border_Width (6);
+      Frame.Set_Shadow_Type (Gtk.Enums.Shadow_Etched_In);
       Gtk.Box.Gtk_New_Vbox
-        (Outer_Vbox, Homogeneous => False, Spacing => 2);
+        (Outer_Vbox, Homogeneous => False, Spacing => 6);
 
       --  Summary label: always visible, Pango markup.
       Gtk.Label.Gtk_New (Summary_Lab);
@@ -365,12 +368,12 @@ package body Coyote_GUI.Buffer is
         (Summary_Lab,
          Expand  => False,
          Fill    => False,
-         Padding => 2);
+         Padding => 6);
       Outer_Vbox.Pack_Start
         (Expander,
          Expand  => False,
          Fill    => False,
-         Padding => 2);
+         Padding => 6);
       Frame.Add (Outer_Vbox);
 
       B.The_View.Add_Child_At_Anchor (Frame, Anchor);
@@ -503,12 +506,18 @@ package body Coyote_GUI.Buffer is
          when Warning => Tag := B.Tag_Notice_Warn;
          when Error   => Tag := B.Tag_Notice_Error;
       end case;
-      Insert_Tagged (B, Text & ASCII.LF, Tag);
+      Insert_Tagged (B, ASCII.LF & Text & ASCII.LF, Tag);
    end Append_Notice;
 
    procedure Append_Turn_Footer (B : in out Instance; Text : String) is
+      pragma Unreferenced (Text);
    begin
-      Insert_Tagged (B, Text & ASCII.LF, B.Tag_Footer);
+      Insert_Tagged
+        (B,
+         "" & ASCII.LF
+         & Str_Repeat (UC_HORIZ, 60)
+         & ASCII.LF & ASCII.LF,
+         B.Tag_Footer);
    end Append_Turn_Footer;
 
    --  ── Scroll ───────────────────────────────────────────────────────────

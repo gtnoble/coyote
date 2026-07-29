@@ -97,20 +97,6 @@ package body Coyote_App.Frontend.GUI is
       Win.Show_All;
    end Show_Text_Window;
 
-   --  ── At_Bottom — true iff the conversation viewport is at (or very near)
-   --  the bottom.  Used to implement follow mode: auto-scroll only when the
-   --  user has not scrolled away from the end.
-   function At_Bottom (F : Instance) return Boolean is
-      use Gtk.Adjustment;
-      Adj       : constant Gtk_Adjustment := F.Conv_Scroll.Get_Vadjustment;
-      Threshold : constant Gdouble        := 20.0;  --  pixel slop
-   begin
-      if Adj = null then
-         return True;
-      end if;
-      return Adj.Get_Value + Adj.Get_Page_Size >= Adj.Get_Upper - Threshold;
-   end At_Bottom;
-
    --  ── Signal handlers for conversation-scroll follow mode ───────────────
 
    --  Called after GTK recomputes the text-view layout and updates the
@@ -138,9 +124,9 @@ package body Coyote_App.Frontend.GUI is
       end;
    end On_Conv_Adj_Changed;
 
-   --  Called whenever the scroll position changes.  When the change is not
-   --  our own programmatic update, recalculate follow mode: True iff the
-   --  viewport is at (or very near) the bottom.
+   --  Called whenever the scroll position changes.  Any non-programmatic
+   --  change (mouse wheel, scrollbar drag, keyboard) disables follow mode.
+   --  Follow mode can only be re-enabled by clicking the New Output button.
    procedure On_Conv_Adj_Value_Changed
      (Self : access Gtk.Adjustment.Gtk_Adjustment_Record'Class)
    is
@@ -149,10 +135,8 @@ package body Coyote_App.Frontend.GUI is
       if Current_Frontend /= null
         and then not Current_Frontend.Programmatic_Scroll
       then
-         Current_Frontend.Follow_Mode := At_Bottom (Current_Frontend.all);
          if Current_Frontend.Follow_Mode then
-            Current_Frontend.Scroll_Down_Btn.Hide;
-         else
+            Current_Frontend.Follow_Mode := False;
             Current_Frontend.Scroll_Down_Btn.Show;
          end if;
       end if;
@@ -1184,10 +1168,10 @@ package body Coyote_App.Frontend.GUI is
       F.Conv_View.Set_Editable (False);
       F.Conv_View.Set_Cursor_Visible (False);
       F.Conv_View.Set_Wrap_Mode (Wrap_Word_Char);
-      F.Conv_View.Set_Left_Margin (8);
-      F.Conv_View.Set_Right_Margin (8);
-      F.Conv_View.Set_Top_Margin (6);
-      F.Conv_View.Set_Bottom_Margin (6);
+      F.Conv_View.Set_Left_Margin (16);
+      F.Conv_View.Set_Right_Margin (16);
+      F.Conv_View.Set_Top_Margin (12);
+      F.Conv_View.Set_Bottom_Margin (12);
 
       F.Conv_Buf := F.Conv_View.Get_Buffer;
 
@@ -1375,10 +1359,11 @@ package body Coyote_App.Frontend.GUI is
    procedure Append_Turn_Footer
      (F : in out Instance; Text : in String)
    is
-      pragma Unreferenced (F, Text);
+      U : Coyote_GUI.Update;
    begin
-      null;  --  GUI uses the status bar; the acme separator and fork token
-             --  are not meaningful in a GTK window.
+      U.Kind := Coyote_GUI.Append_Turn_Footer;
+      U.Text := To_Unbounded_String (Text);
+      Enqueue_Update (F, U);
    end Append_Turn_Footer;
 
    overriding
