@@ -1158,7 +1158,7 @@ package body Coyote_App.Frontend.GUI is
          Gtk.Menu_Shell.Append
            (Gtk.Menu_Shell.Gtk_Menu_Shell (F.Menu_Bar), View_Item);
          Gtk.Check_Menu_Item.Gtk_New
-           (F.Render_Markdown_Item, "_Render Markdown");
+           (F.Render_Markdown_Item, "Render Markdown");
          F.Render_Markdown_Item.Set_Active (True);
          F.Render_Markdown_Item.On_Toggled
            (On_Render_Markdown_Toggled'Access);
@@ -1166,7 +1166,7 @@ package body Coyote_App.Frontend.GUI is
            (Gtk.Menu_Shell.Gtk_Menu_Shell (View_Menu),
             F.Render_Markdown_Item);
          Gtk.Check_Menu_Item.Gtk_New
-           (F.Auto_Scroll_Item, "_Auto-scroll");
+           (F.Auto_Scroll_Item, "Auto-scroll");
          F.Auto_Scroll_Item.Set_Active (True);
          F.Auto_Scroll_Item.On_Toggled
            (On_Auto_Scroll_Toggled'Access);
