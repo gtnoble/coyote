@@ -142,6 +142,35 @@ package body Coyote_App.Frontend.GUI is
       end if;
    end On_Conv_Adj_Value_Changed;
 
+   --  ── Tool-call click handler ───────────────────────────────────────────
+
+   function On_Conv_Button_Press
+     (Self  : access Gtk.Widget.Gtk_Widget_Record'Class;
+      Event : Gdk.Event.Gdk_Event_Button) return Boolean
+   is
+      pragma Unreferenced (Self);
+      use type Gdk.Event.Gdk_Event_Type;
+   begin
+      if Event.The_Type /= Gdk.Event.Button_Press
+        or else Event.Button /= 1
+        or else Current_Frontend = null
+      then
+         return False;
+      end if;
+      declare
+         Result : constant Coyote_GUI.Buffer.Tool_Click_Result :=
+           Current_Frontend.Buf.Handle_Tool_Click
+             (Glib.Gint (Event.X), Glib.Gint (Event.Y));
+      begin
+         if Result.Found then
+            Show_Text_Window
+              (To_String (Result.Title), To_String (Result.Content));
+            return True;
+         end if;
+      end;
+      return False;
+   end On_Conv_Button_Press;
+
    --  ── Apply_Update — called on the GTK main thread by Drain_Idle ────────
 
    procedure Apply_Update (F : in out Instance; U : Coyote_GUI.Update) is
@@ -1144,6 +1173,10 @@ package body Coyote_App.Frontend.GUI is
       F.Conv_View.Set_Bottom_Margin (12);
 
       F.Conv_Buf := F.Conv_View.Get_Buffer;
+
+      --  Connect tool-call click handler to the conversation view.
+      F.Conv_View.On_Button_Press_Event
+        (On_Conv_Button_Press'Access);
 
       --  ── Scroll-to-bottom button (visible when follow mode is off) ─────
 

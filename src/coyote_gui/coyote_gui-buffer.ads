@@ -9,8 +9,9 @@
 --    * Thinking blocks inserted with a dim italic span, 24 px left margin,
 --      preceded by a single "╎ " gutter character.
 --
---    * Tool calls inserted as GtkFrame child-anchor widgets embedded in
---      the text flow.  End_Tool updates the frame label.
+--    * Tool calls rendered as box-drawing text blocks with a clickable
+--      tag covering the entire block.  Clicking opens a detail window.
+--      End_Tool replaces the placeholder footer line in-place.
 --
 --    * Notices (Info / Warning / Error) are coloured single-line inserts.
 --
@@ -23,9 +24,7 @@
 with Ada.Containers.Indefinite_Hashed_Maps;
 with Ada.Strings.Hash;
 with Ada.Strings.Unbounded;        use Ada.Strings.Unbounded;
-with Gtk.Frame;
-with Gtk.Button;
-with Gtk.Label;
+with Glib;
 with Gtk.Text_Buffer;
 with Gtk.Text_Mark;
 with Gtk.Text_Tag;
@@ -67,6 +66,29 @@ package Coyote_GUI.Buffer is
       Status  :        Tool_End_Status;
       Result  :        String);
 
+   --  ── Tool click result ─────────────────────────────────────────────────
+
+   type Tool_Click_Result (Found : Boolean := False) is record
+      case Found is
+         when True =>
+            Title   : Unbounded_String;
+            Content : Unbounded_String;
+         when False =>
+            null;
+      end case;
+   end record;
+
+   --  Handle a click at buffer coordinates (X, Y).  If the click falls
+   --  within a tool-call block, returns Found => True with the formatted
+   --  detail title and content.  The caller should display the detail
+   --  (e.g. via Show_Text_Window).
+   --  Called from the frontend's button-press handler on the conversation
+   --  view, after converting widget coordinates to buffer coordinates.
+   function Handle_Tool_Click
+     (B : in out Instance;
+      X :        Glib.Gint;
+      Y :        Glib.Gint) return Tool_Click_Result;
+
    --  ── Notices and footers ───────────────────────────────────────────────
 
    procedure Append_Notice
@@ -91,20 +113,18 @@ package Coyote_GUI.Buffer is
 
 private
 
-   type Tool_Frame_Info is record
-      Frame          : Gtk.Frame.Gtk_Frame;
-      Summary_Label  : Gtk.Label.Gtk_Label;
-      Summary_Prefix : Ada.Strings.Unbounded.Unbounded_String;
-      Detail_Button  : Gtk.Button.Gtk_Button;
-      Name           : Ada.Strings.Unbounded.Unbounded_String;
-      Args           : Ada.Strings.Unbounded.Unbounded_String;
-      Result_Text    : Ada.Strings.Unbounded.Unbounded_String;
-      Result_Status  : Tool_End_Status := Success;
+   type Tool_Info is record
+      Name          : Unbounded_String;
+      Args          : Unbounded_String;
+      Result_Text   : Unbounded_String;
+      Result_Status : Tool_End_Status := Success;
+      Tag           : Gtk.Text_Tag.Gtk_Text_Tag;
+      Start_Mark    : Gtk.Text_Mark.Gtk_Text_Mark;
    end record;
 
    package Tool_Maps is new Ada.Containers.Indefinite_Hashed_Maps
      (Key_Type        => String,
-      Element_Type    => Tool_Frame_Info,
+      Element_Type    => Tool_Info,
       Hash            => Ada.Strings.Hash,
       Equivalent_Keys => "=");
 

@@ -27,10 +27,10 @@ The cost is that `Dispatch_Event` must use `App_State` for side effects
 
 See `sdfs/core-agent.md` §Design Rationale for the full motivation.
 In the frontend context: the `Begin_Tool` / `End_Tool` distinction exists
-so the GUI can create a `GtkTextChildAnchor` widget at `Begin_Tool` time and
-update it when `End_Tool` arrives. A simpler "emit text" interface would
-require the GUI to buffer the tool frame content and insert it retrospectively,
-which is harder to implement and harder to animate.
+so the GUI can insert a box-drawing text block at `Begin_Tool` time and
+replace the placeholder footer in-place when `End_Tool` arrives.  A simpler
+"emit text" interface would require the GUI to buffer the tool-call content
+and insert it retrospectively, which is harder to implement.
 
 ### 9P connection-per-task rule
 
@@ -117,24 +117,21 @@ above and below, giving each turn a clear visual boundary.
 every content-section transition:
 - `End_Text_Block` — blank line after assistant text
 - `End_Thinking` — blank line after thinking blocks
-- `Begin_Tool` — blank line before tool-call frame widgets
+- `Begin_Tool` — blank line before tool-call text block
 - `Append_Notice` — blank line before notice text
 
-**Tool-call detail button (2026-07-30):** Replaced the inline `GtkExpander`
-in tool-call frames with a `GtkButton` labelled "details..." that opens a
-non-modal `GtkWindow` displaying the tool arguments and result in read-only
-monospace text views.  The button's widget name is set to the `Tool_Id`
-string via `Gtk.Widget.Set_Name`, and the click handler (`On_Tool_Detail_Clicked`)
-looks up the entry in the `Tools` map by widget name.  This eliminates the
-inline-detail expander pattern and reduces visual clutter in the conversation
-view — the frame now shows only the summary label and the button.  Removed
-the `Collapse_All_Tools` / `Expand_All_Tools` API and the corresponding View
-menu items, as they only made sense with the expander-based design.
-
-**Tool-call frame styling (prior):** Tool frames now have a 6 px border
-(`Set_Border_Width`), etched-in shadow (`Shadow_Etched_In`), and the inner
-`Outer_Vbox` spacing increased from 2 → 6 px.  Pack_Start padding on the
-summary label and expander increased from 2 → 6 px.
+**Tool-call box-drawing text blocks (2026-07-30):** Replaced the
+`GtkFrame`/`GtkTextChildAnchor` widget-embedding approach with plain-text
+box-drawing blocks.  `Begin_Tool` inserts a text block using Unicode
+box-drawing characters (`┌ ⚙ tool_name`, `│ field  value`,
+`└ … running…`).  The entire block is tagged with a per-tool `GtkTextTag`
+(named `"tool_" & Tool_Id`) carrying an underline style to indicate
+clickability.  `End_Tool` replaces the placeholder footer line in-place
+with the status line (`└ ✓ done`, `└ ✗ error`, `└ - cancelled`).
+Clicking anywhere in a tool-call block opens a monospace detail window
+(`Show_Text_Window`) showing the tool arguments and result.  This
+eliminates all widget embedding from the conversation buffer — no
+`GtkFrame`, `GtkTextChildAnchor`, `GtkButton`, or plumb tokens.
 
 **Markdown rendering improvements** (in `Coyote_Renderer.Markup`):
 - *Headings* sized by level: `<span size="larger">` for h1–2,

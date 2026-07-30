@@ -6,42 +6,24 @@ with Ada.Strings.Unbounded;          use Ada.Strings.Unbounded;
 with Coyote_Renderer.Markup;
 with Coyote_App.Utils;               use Coyote_App.Utils;
 with GNATCOLL.JSON;
-with Coyote_Cmark;                   use Coyote_Cmark;
 with Glib;                           use Glib;
 with Glib.Properties;                use Glib.Properties;
-with Gtk.Frame;
-with Gtk.Label;
 with Gtk.Text_Buffer;
 with Gtk.Text_Iter;
 with Gtk.Text_Mark;
 with Gtk.Text_View;
 with Gtk.Enums;
-with Gtk.Box;
-with Gtk.Button;
-with Gtk.Scrolled_Window;
-with Gtk.Text_Child_Anchor;
-with Gtk.Window;
 with Gtk.Text_Tag;                   use Gtk.Text_Tag;
-with Gtk.Widget;
-with Pango.Font;
+with Pango.Enums;                    use Pango.Enums;
 
 package body Coyote_GUI.Buffer is
 
    --  ── Pango markup helper ───────────────────────────────────────────────
 
-   function Xml_Escape (S : String) return String is
-   begin
-      return Coyote_Renderer.Markup.Xml_Escape (S);
-   end Xml_Escape;
-
    function To_Pango_Markup (MD_Text : String) return String is
    begin
       return Coyote_Renderer.Markup.To_Pango_Markup (MD_Text);
    end To_Pango_Markup;
-
-   --  ── Singleton access for button signal handlers ──────────────────────
-
-   Current_Buffer : access Instance := null;
 
    --  ── Tag setup ─────────────────────────────────────────────────────────
 
@@ -53,7 +35,6 @@ package body Coyote_GUI.Buffer is
    begin
       B.The_View := View;
       B.The_Buf  := Buf;
-      Current_Buffer := B'Unchecked_Access;
 
       B.Tag_Thinking := Buf.Create_Tag ("thinking");
       Set_Property (B.Tag_Thinking, Foreground_Property, "#888888");
@@ -191,22 +172,33 @@ package body Coyote_GUI.Buffer is
    end End_Thinking;
 
    --  ── Tool call segments ────────────────────────────────────────────────
-
-   --  ── Show_Tool_Detail ──────────────────────────────────────────────────
    --
-   --  Open a non-modal window showing the tool arguments and result.
+   --  Tool calls are rendered as box-drawing text blocks:
+   --
+   --    ┌ ⚙ shell
+   --    │ command  ls -la
+   --    │ cwd      /home/gtnoble
+   --    └ … running…
+   --
+   --  On completion the footer line is replaced in-place:
+   --
+   --    └ ✓ done
+   --    └ ✗ error message (truncated)
+   --    └ - cancelled
+   --
+   --  The entire block is tagged with a per-tool GtkTextTag.  Clicking
+   --  anywhere in the block opens a detail window.
 
-   procedure Show_Tool_Detail (Info : Tool_Frame_Info) is
-      use Ada.Strings.Unbounded;
+   --  ── Format_Tool_Detail ────────────────────────────────────────────────
+   --
+   --  Build the title and content strings for a tool detail window.
+
+   procedure Format_Tool_Detail
+     (Info    : in     Tool_Info;
+      Title   :    out Unbounded_String;
+      Content :    out Unbounded_String)
+   is
       use type GNATCOLL.JSON.JSON_Value_Type;
-      use Gtk.Box;
-      use Gtk.Enums;
-      use Gtk.Frame;
-      use Gtk.Label;
-      use Gtk.Scrolled_Window;
-      use Gtk.Text_Buffer;
-      use Gtk.Text_View;
-      use Gtk.Window;
 
       Tool_Name  : constant String := To_String (Info.Name);
       Args_Str   : constant String := To_String (Info.Args);
@@ -218,202 +210,78 @@ package body Coyote_GUI.Buffer is
             when Error     => UC_CROSS,
             when Cancelled => "-");
 
-      Win   : Gtk_Window;
-      Outer : Gtk_Box;
+      Parsed   : constant GNATCOLL.JSON.Read_Result :=
+        GNATCOLL.JSON.Read (Args_Str);
+      Args_Val : constant GNATCOLL.JSON.JSON_Value  :=
+        (if Parsed.Success
+         then Parsed.Value
+         else GNATCOLL.JSON.JSON_Null);
 
-      --  Return the full display string for a JSON value.
-      function Format_Value_Full
-        (Val : GNATCOLL.JSON.JSON_Value) return String is
+      function Format_Value (Val : GNATCOLL.JSON.JSON_Value) return String is
       begin
          if Val.Kind = GNATCOLL.JSON.JSON_String_Type then
             return Val.Get;
          else
             return Val.Write;
          end if;
-      end Format_Value_Full;
+      end Format_Value;
 
+      SEP : constant String := Str_Repeat (UC_DBL_H, 60);
    begin
-      Gtk.Window.Gtk_New (Win, Window_Toplevel);
-      Win.Set_Title (Status_Icon & " " & Tool_Name & " -- details");
-      Win.Set_Default_Size (600, 500);
+      Title := To_Unbounded_String
+        (Status_Icon & " " & Tool_Name & " -- details");
 
-      Gtk.Box.Gtk_New_Vbox
-        (Outer, Homogeneous => False, Spacing => 8);
-      Outer.Set_Border_Width (8);
-      Win.Add (Outer);
+      --  Header.
+      Append (Content,
+              UC_GEAR & " " & Tool_Name & "  "
+              & (case Info.Result_Status is
+                    when Success   => UC_CHECK & " ok",
+                    when Error     => UC_CROSS & " error",
+                    when Cancelled => "- cancelled")
+              & ASCII.LF);
+      Append (Content, SEP & ASCII.LF);
 
-      --  ── Arguments section ──────────────────────────────────────────────
-      declare
-         Arg_Frame : Gtk_Frame;
-         Args_Box  : Gtk_Box;
-         Parsed    : constant GNATCOLL.JSON.Read_Result :=
-           GNATCOLL.JSON.Read (Args_Str);
-         Args_Val  : constant GNATCOLL.JSON.JSON_Value  :=
-           (if Parsed.Success
-            then Parsed.Value
-            else GNATCOLL.JSON.JSON_Null);
-      begin
-         Gtk.Frame.Gtk_New (Arg_Frame, "Arguments");
-         Gtk.Box.Gtk_New_Vbox
-           (Args_Box, Homogeneous => False, Spacing => 4);
-         Args_Box.Set_Border_Width (4);
-
-         if Args_Val.Kind = GNATCOLL.JSON.JSON_Object_Type then
-            declare
-               procedure Add_Field
-                 (Field_Name  : GNATCOLL.JSON.UTF8_String;
-                  Field_Value : GNATCOLL.JSON.JSON_Value)
-               is
-                  Hdr    : Gtk_Label;
-                  Scroll : Gtk_Scrolled_Window;
-                  TV     : Gtk_Text_View;
-                  Buf    : Gtk_Text_Buffer;
-                  Iter   : Gtk.Text_Iter.Gtk_Text_Iter;
-               begin
-                  Gtk.Label.Gtk_New (Hdr);
-                  Hdr.Set_Markup ("<b>" & Field_Name & "</b>");
-                  Hdr.Set_Xalign (0.0);
-                  Args_Box.Pack_Start (Hdr, False, False, 2);
-
-                  Gtk.Text_Buffer.Gtk_New (Buf);
-                  Gtk.Text_View.Gtk_New (TV, Buf);
-                  TV.Set_Editable (False);
-                  TV.Set_Wrap_Mode (Wrap_Word_Char);
-                  declare
-                     use Pango.Font;
-                     Fd : Pango_Font_Description :=
-                       From_String ("Monospace");
-                  begin
-                     TV.Modify_Font (Fd);
-                     Free (Fd);
-                  end;
-                  Buf.Get_End_Iter (Iter);
-                  Buf.Insert (Iter,
-                              Format_Value_Full (Field_Value));
-                  Gtk.Scrolled_Window.Gtk_New (Scroll);
-                  Scroll.Set_Policy
-                    (Policy_Never, Policy_Automatic);
-                  Scroll.Set_Size_Request (-1, 100);
-                  Scroll.Add (TV);
-                  Args_Box.Pack_Start
-                    (Scroll, False, False, 2);
-               end Add_Field;
-            begin
-               Args_Val.Map_JSON_Object (Add_Field'Access);
-            end;
-         elsif Args_Val.Kind /= GNATCOLL.JSON.JSON_Null_Type then
-            declare
-               Scroll : Gtk_Scrolled_Window;
-               TV     : Gtk_Text_View;
-               Buf    : Gtk_Text_Buffer;
-               Iter   : Gtk.Text_Iter.Gtk_Text_Iter;
-            begin
-               Gtk.Text_Buffer.Gtk_New (Buf);
-               Gtk.Text_View.Gtk_New (TV, Buf);
-               TV.Set_Editable (False);
-               TV.Set_Wrap_Mode (Wrap_Word_Char);
-               declare
-                  use Pango.Font;
-                  Fd : Pango_Font_Description :=
-                    From_String ("Monospace");
-               begin
-                  TV.Modify_Font (Fd);
-                  Free (Fd);
-               end;
-               Buf.Get_End_Iter (Iter);
-               Buf.Insert (Iter, Args_Str);
-               Gtk.Scrolled_Window.Gtk_New (Scroll);
-               Scroll.Set_Policy
-                 (Policy_Automatic, Policy_Automatic);
-               Scroll.Add (TV);
-               Args_Box.Pack_Start
-                 (Scroll, True, True, 0);
-            end;
-         end if;
-
-         Arg_Frame.Add (Args_Box);
-         Outer.Pack_Start (Arg_Frame, False, False, 0);
-      end;
-
-      --  ── Result section ─────────────────────────────────────────────────
-      declare
-         Res_Frame  : Gtk_Frame;
-         Result_Box : Gtk_Box;
-         Status_Lab : Gtk_Label;
-         Scroll     : Gtk_Scrolled_Window;
-         TV         : Gtk_Text_View;
-         Buf        : Gtk_Text_Buffer;
-         Iter       : Gtk.Text_Iter.Gtk_Text_Iter;
-         Status_Str : constant String :=
-           (case Info.Result_Status is
-               when Success   => UC_CHECK & " ok",
-               when Error     => UC_CROSS & " error",
-               when Cancelled => "- cancelled");
-      begin
-         Gtk.Frame.Gtk_New (Res_Frame, "Result");
-         Gtk.Box.Gtk_New_Vbox
-           (Result_Box, Homogeneous => False, Spacing => 4);
-         Result_Box.Set_Border_Width (4);
-
-         Gtk.Label.Gtk_New (Status_Lab, Status_Str);
-         Status_Lab.Set_Xalign (0.0);
-         Result_Box.Pack_Start
-           (Status_Lab, False, False, 2);
-
-         Gtk.Text_Buffer.Gtk_New (Buf);
-         Gtk.Text_View.Gtk_New (TV, Buf);
-         TV.Set_Editable (False);
-         TV.Set_Wrap_Mode (Wrap_Word_Char);
+      --  Arguments.
+      if Args_Val.Kind = GNATCOLL.JSON.JSON_Object_Type then
          declare
-            use Pango.Font;
-            Fd : Pango_Font_Description :=
-              From_String ("Monospace");
+            procedure Append_Arg
+              (Field_Name  : GNATCOLL.JSON.UTF8_String;
+               Field_Value : GNATCOLL.JSON.JSON_Value)
+            is
+            begin
+               Append (Content,
+                       ASCII.LF
+                       & UC_HORIZ & UC_HORIZ & " " & Field_Name
+                       & " " & UC_HORIZ & UC_HORIZ
+                       & ASCII.LF
+                       & Format_Value (Field_Value)
+                       & ASCII.LF);
+            end Append_Arg;
          begin
-            TV.Modify_Font (Fd);
-            Free (Fd);
+            Args_Val.Map_JSON_Object (Append_Arg'Access);
          end;
-         Buf.Get_End_Iter (Iter);
-         if Result_Str'Length > 0 then
-            Buf.Insert (Iter, Result_Str);
-         else
-            Buf.Insert (Iter, "(no result)");
-         end if;
-         Gtk.Scrolled_Window.Gtk_New (Scroll);
-         Scroll.Set_Policy (Policy_Automatic, Policy_Automatic);
-         Scroll.Add (TV);
-         Result_Box.Pack_Start (Scroll, True, True, 0);
-
-         Res_Frame.Add (Result_Box);
-         Outer.Pack_Start (Res_Frame, True, True, 0);
-      end;
-
-      Win.Show_All;
-   end Show_Tool_Detail;
-
-   --  ── On_Tool_Detail_Clicked ───────────────────────────────────────────
-   --
-   --  Signal handler for tool-call detail buttons.  The button's widget
-   --  name was set to the Tool_Id in Begin_Tool; we look it up in the
-   --  Tools map to retrieve the stored arguments and result.
-
-   procedure On_Tool_Detail_Clicked
-     (Self : access Gtk.Button.Gtk_Button_Record'Class)
-   is
-      use Tool_Maps;
-   begin
-      if Current_Buffer = null then
-         return;
+      elsif Args_Val.Kind /= GNATCOLL.JSON.JSON_Null_Type then
+         Append (Content,
+                 ASCII.LF
+                 & UC_HORIZ & UC_HORIZ & " arguments "
+                 & UC_HORIZ & UC_HORIZ
+                 & ASCII.LF
+                 & Format_Value (Args_Val)
+                 & ASCII.LF);
       end if;
-      declare
-         Tool_Id : constant String :=
-           Gtk.Widget.Get_Name (Gtk.Widget.Gtk_Widget (Self));
-         Pos    : constant Cursor := Current_Buffer.Tools.Find (Tool_Id);
-      begin
-         if Pos /= No_Element then
-            Show_Tool_Detail (Element (Pos));
-         end if;
-      end;
-   end On_Tool_Detail_Clicked;
+
+      --  Result.
+      Append (Content,
+              ASCII.LF
+              & UC_HORIZ & UC_HORIZ & " result " & UC_HORIZ & UC_HORIZ
+              & ASCII.LF
+              & (if Result_Str'Length > 0
+                 then Result_Str
+                 else "(no result)")
+              & ASCII.LF);
+   end Format_Tool_Detail;
+
+   --  ── Begin_Tool ───────────────────────────────────────────────────────
 
    procedure Begin_Tool
      (B          : in out Instance;
@@ -423,24 +291,14 @@ package body Coyote_GUI.Buffer is
       Tool_Id    :        String)
    is
       pragma Unreferenced (Session_Id);
-      use Ada.Strings.Unbounded;
       use type GNATCOLL.JSON.JSON_Value_Type;
-      use Gtk.Box;
-      use Gtk.Button;
-      use Gtk.Frame;
-      use Gtk.Label;
       use Gtk.Text_Iter;
-      use Gtk.Widget;
 
-      Iter   : Gtk.Text_Iter.Gtk_Text_Iter;
-      Anchor : Gtk.Text_Child_Anchor.Gtk_Text_Child_Anchor;
+      Tag_Name : constant String := "tool_" & Tool_Id;
+      Tag      : Gtk.Text_Tag.Gtk_Text_Tag;
+      SI, EI   : Gtk.Text_Iter.Gtk_Text_Iter;
+      Mark     : Gtk.Text_Mark.Gtk_Text_Mark;
 
-      Frame       : Gtk.Frame.Gtk_Frame;
-      Outer_Vbox  : Gtk.Box.Gtk_Box;
-      Summary_Lab : Gtk.Label.Gtk_Label;
-      Detail_Btn  : Gtk.Button.Gtk_Button;
-
-      --  Parse the arguments JSON.
       Args_Parsed : constant GNATCOLL.JSON.Read_Result :=
         GNATCOLL.JSON.Read (Args);
       Args_Val    : constant GNATCOLL.JSON.JSON_Value  :=
@@ -448,9 +306,7 @@ package body Coyote_GUI.Buffer is
          then Args_Parsed.Value
          else GNATCOLL.JSON.JSON_Null);
 
-      Summary_Prefix_S : Unbounded_String;
-      Summary_Full_S   : Unbounded_String;
-      Frame_Label      : Unbounded_String;
+      Block_Text : Unbounded_String;
    begin
       if B.Tools.Contains (Tool_Id) then
          return;
@@ -458,86 +314,66 @@ package body Coyote_GUI.Buffer is
       End_Text_Block (B);
       Insert_Plain (B, "" & ASCII.LF & ASCII.LF);
 
-      Append (Summary_Prefix_S,
-              "<b>" & Xml_Escape (UC_GEAR & " " & Name) & "</b>");
+      --  Build the box-drawing text block.
+      --  Header line.
+      Append (Block_Text, UC_BOX_TL & " " & UC_GEAR & " " & Name);
+
+      --  Argument lines.
       if Args_Val.Kind = GNATCOLL.JSON.JSON_Object_Type then
          declare
-            procedure Add_Summary_Field
+            procedure Add_Arg_Line
               (Field_Name  : GNATCOLL.JSON.UTF8_String;
                Field_Value : GNATCOLL.JSON.JSON_Value)
             is
             begin
-               Append (Summary_Prefix_S,
-                       ASCII.LF & "  <tt>"
-                       & Xml_Escape
-                           (Format_Tool_Field
-                              (Field_Name,
-                               JSON_Scalar_Image (Field_Value),
-                               Max_Len => 80))
-                       & "</tt>");
-            end Add_Summary_Field;
+               Append (Block_Text,
+                       ASCII.LF & UC_BOX_V & " "
+                       & Format_Tool_Field
+                           (Field_Name,
+                            JSON_Scalar_Image (Field_Value),
+                            Max_Len => 80));
+            end Add_Arg_Line;
          begin
-            Args_Val.Map_JSON_Object (Add_Summary_Field'Access);
+            Args_Val.Map_JSON_Object (Add_Arg_Line'Access);
          end;
       end if;
-      Summary_Full_S := Summary_Prefix_S;
-      Append (Summary_Full_S,
-              ASCII.LF & "  <span foreground=""#888888"">"
-              & Xml_Escape (UC_ELLIP) & " running...</span>");
-      Frame_Label := To_Unbounded_String (UC_GEAR & " " & Name);
 
-      B.The_Buf.Get_End_Iter (Iter);
-      Anchor := B.The_Buf.Create_Child_Anchor (Iter);
+      --  Footer placeholder (replaced by End_Tool).
+      Append (Block_Text,
+              ASCII.LF & UC_BOX_BL & " " & UC_ELLIP & " running"
+              & UC_ELLIP);
 
-      Gtk.Frame.Gtk_New (Frame, To_String (Frame_Label));
-      Frame.Set_Size_Request (700, -1);
-      Frame.Set_Border_Width (6);
-      Frame.Set_Shadow_Type (Gtk.Enums.Shadow_Etched_In);
-      Gtk.Box.Gtk_New_Vbox
-        (Outer_Vbox, Homogeneous => False, Spacing => 6);
+      --  Insert the block and record its start position.
+      B.The_Buf.Get_End_Iter (SI);
+      Mark := B.The_Buf.Create_Mark ("", SI, Left_Gravity => True);
+      Insert_Plain (B, To_String (Block_Text));
+      Insert_Plain (B, "" & ASCII.LF);
 
-      Gtk.Label.Gtk_New (Summary_Lab);
-      Summary_Lab.Set_Markup
-        ("<small>" & To_String (Summary_Full_S) & "</small>");
-      Summary_Lab.Set_Xalign (0.0);
-      Summary_Lab.Set_Line_Wrap (True);
-      Summary_Lab.Set_Max_Width_Chars (100);
-      Summary_Lab.Set_Selectable (True);
+      --  Create a tag for the entire block and apply it.
+      Tag := B.The_Buf.Create_Tag (Tag_Name);
+      Set_Property (Tag, Underline_Property, Pango_Underline_Single);
+      B.The_Buf.Get_Iter_At_Mark (SI, Mark);
+      B.The_Buf.Get_End_Iter (EI);
+      --  Back up one character to exclude the trailing LF we added.
+      declare
+         Dummy_BC : Boolean;
+      begin
+         Gtk.Text_Iter.Backward_Char (EI, Dummy_BC);
+      end;
+      B.The_Buf.Apply_Tag (Tag, SI, EI);
 
-      --  Details button: store Tool_Id as the widget name for later lookup.
-      Gtk.Button.Gtk_New (Detail_Btn, "details...");
-      Gtk.Widget.Set_Name
-        (Gtk.Widget.Gtk_Widget (Detail_Btn), Tool_Id);
-      Detail_Btn.On_Clicked (On_Tool_Detail_Clicked'Access);
-
-      Outer_Vbox.Pack_Start
-        (Summary_Lab,
-         Expand  => False,
-         Fill    => False,
-         Padding => 6);
-      Outer_Vbox.Pack_Start
-        (Detail_Btn,
-         Expand  => False,
-         Fill    => False,
-         Padding => 6);
-      Frame.Add (Outer_Vbox);
-
-      B.The_View.Add_Child_At_Anchor (Frame, Anchor);
-      Frame.Show_All;
-
+      --  Store tool info.
       B.Tools.Insert
         (Tool_Id,
-         (Frame          => Frame,
-          Summary_Label  => Summary_Lab,
-          Summary_Prefix => Summary_Prefix_S,
-          Detail_Button  => Detail_Btn,
-          Name           => To_Unbounded_String (Name),
-          Args           => To_Unbounded_String (Args),
-          Result_Text    => Null_Unbounded_String,
-          Result_Status  => Success));
-
-      Insert_Plain (B, "" & ASCII.LF);
+         (Name          => To_Unbounded_String (Name),
+          Args          => To_Unbounded_String (Args),
+          Result_Text   => Null_Unbounded_String,
+          Result_Status => Success,
+          Tag           => Tag,
+          Start_Mark    => Mark));
    end Begin_Tool;
+
+   --  ── End_Tool ──────────────────────────────────────────────────────────
 
    procedure End_Tool
      (B       : in out Instance;
@@ -545,8 +381,7 @@ package body Coyote_GUI.Buffer is
       Status  :        Tool_End_Status;
       Result  :        String)
    is
-      use Ada.Strings.Unbounded;
-      use Gtk.Label;
+      use Gtk.Text_Iter;
       use Tool_Maps;
       Pos : constant Cursor := B.Tools.Find (Tool_Id);
    begin
@@ -554,59 +389,133 @@ package body Coyote_GUI.Buffer is
          return;
       end if;
       declare
-         Info       : Tool_Frame_Info := Element (Pos);
-         Tool_Name  : constant String := To_String (Info.Name);
-         New_Footer : Unbounded_String;
+         Info : Tool_Info := Element (Pos);
+         SI   : Gtk.Text_Iter.Gtk_Text_Iter;
+         EI   : Gtk.Text_Iter.Gtk_Text_Iter;
+         Replacement : Unbounded_String;
       begin
          Info.Result_Text   := To_Unbounded_String (Result);
          Info.Result_Status := Status;
          B.Tools.Replace (Tool_Id, Info);
 
-         case Status is
-            when Success   =>
-               Info.Frame.Set_Label (UC_CHECK & " " & Tool_Name);
-            when Error     =>
-               Info.Frame.Set_Label (UC_CROSS & " " & Tool_Name);
-            when Cancelled =>
-               Info.Frame.Set_Label ("- " & Tool_Name);
-         end case;
-
+         --  Build the replacement footer line.
          case Status is
             when Success =>
-               Append (New_Footer,
-                       ASCII.LF
-                       & "  <span foreground=""#4a7c59""><b>"
-                       & Xml_Escape (UC_CHECK & " done")
-                       & "</b></span>");
+               Replacement := To_Unbounded_String
+                 (UC_BOX_BL & " " & UC_CHECK & " done");
             when Error =>
                declare
-                  Clip_End : constant Natural :=
+                  Preview : constant Natural :=
                     (if Result'Length > 80
                      then Result'First + 79
                      else Result'Last);
                begin
-                  Append
-                    (New_Footer,
-                     ASCII.LF
-                     & "  <span foreground=""#cc3333""><b>"
-                     & Xml_Escape
-                         (UC_CROSS & " "
-                          & Result (Result'First .. Clip_End))
-                     & "</b></span>");
+                  Replacement := To_Unbounded_String
+                    (UC_BOX_BL & " " & UC_CROSS & " "
+                     & Result (Result'First .. Preview));
                end;
             when Cancelled =>
-               Append
-                 (New_Footer,
-                  ASCII.LF
-                  & "  <span foreground=""#888888"">- cancelled</span>");
+               Replacement := To_Unbounded_String
+                 (UC_BOX_BL & " - cancelled");
          end case;
-         Info.Summary_Label.Set_Markup
-           ("<small>"
-            & To_String (Info.Summary_Prefix)
-            & To_String (New_Footer)
-            & "</small>");
+
+         --  Find the placeholder footer line (the last line of the block,
+         --  which starts with UC_BOX_BL) and replace it.
+         B.The_Buf.Get_Iter_At_Mark (SI, Info.Start_Mark);
+         --  Advance to the footer line: search forward for UC_BOX_BL.
+         loop
+            exit when Gtk.Text_Iter.Get_Char (SI)
+              = Character'Pos (UC_BOX_BL (UC_BOX_BL'First));
+            declare
+               Dummy_FC : Boolean;
+            begin
+               Gtk.Text_Iter.Forward_Char (SI, Dummy_FC);
+            end;
+            exit when Gtk.Text_Iter.Is_End (SI);
+         end loop;
+         if not Gtk.Text_Iter.Is_End (SI) then
+            --  SI is at the start of the footer line.  Find end of line.
+            EI := SI;
+            loop
+               exit when Gtk.Text_Iter.Is_End (EI);
+               exit when Gtk.Text_Iter.Get_Char (EI)
+                 = Character'Pos (ASCII.LF);
+               declare
+                  Dummy_FC2 : Boolean;
+               begin
+                  Gtk.Text_Iter.Forward_Char (EI, Dummy_FC2);
+               end;
+            end loop;
+            --  Delete the old footer and insert the replacement.
+            B.The_Buf.Delete (SI, EI);
+            B.The_Buf.Insert (SI, To_String (Replacement));
+         end if;
       end;
    end End_Tool;
+
+   --  ── Handle_Tool_Click ─────────────────────────────────────────────────
+
+   function Handle_Tool_Click
+     (B : in out Instance;
+      X :        Glib.Gint;
+      Y :        Glib.Gint) return Tool_Click_Result
+   is
+      use Gtk.Text_Iter;
+      use Tool_Maps;
+      use type Gtk.Text_Tag.Text_Tag_List.GSlist;
+
+      Iter    : aliased Gtk.Text_Iter.Gtk_Text_Iter;
+      Buf_X   : Glib.Gint;
+      Buf_Y   : Glib.Gint;
+      Tags    : Gtk.Text_Tag.Text_Tag_List.GSlist;
+      Tmp     : Gtk.Text_Tag.Text_Tag_List.GSlist;
+      Dummy   : Boolean;
+   begin
+      --  Convert widget coordinates to buffer coordinates and get the iter.
+      B.The_View.Window_To_Buffer_Coords
+        (Gtk.Enums.Text_Window_Widget, X, Y, Buf_X, Buf_Y);
+      Dummy := Gtk.Text_View.Get_Iter_At_Location
+        (B.The_View, Iter'Access, Buf_X, Buf_Y);
+
+      --  Check all tags at this position for a tool tag.
+      Tags := Gtk.Text_Iter.Get_Tags (Iter);
+      Tmp := Tags;
+      while Tmp /= Gtk.Text_Tag.Text_Tag_List.Null_List loop
+         declare
+            Tag      : constant Gtk.Text_Tag.Gtk_Text_Tag :=
+              Gtk.Text_Tag.Text_Tag_List.Get_Data (Tmp);
+            Tag_Name : constant String :=
+              Glib.Properties.Get_Property (Tag, Name_Property);
+         begin
+            if Tag_Name'Length > 5
+              and then Tag_Name (Tag_Name'First .. Tag_Name'First + 4)
+                       = "tool_"
+            then
+               declare
+                  Tool_Id : constant String :=
+                    Tag_Name (Tag_Name'First + 5 .. Tag_Name'Last);
+                  Pos : constant Cursor := B.Tools.Find (Tool_Id);
+               begin
+                  if Pos /= No_Element then
+                     Gtk.Text_Tag.Text_Tag_List.Free (Tags);
+                     declare
+                        Result : Tool_Click_Result (Found => True);
+                     begin
+                        Format_Tool_Detail
+                          (Element (Pos), Result.Title, Result.Content);
+                        return Result;
+                     end;
+                  end if;
+               end;
+               exit;
+            end if;
+         end;
+         Tmp := Gtk.Text_Tag.Text_Tag_List.Next (Tmp);
+      end loop;
+      Gtk.Text_Tag.Text_Tag_List.Free (Tags);
+
+      return (Found => False);
+   end Handle_Tool_Click;
 
    --  ── Notices and footers ───────────────────────────────────────────────
 

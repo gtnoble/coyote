@@ -864,15 +864,14 @@ block containing `<skill>` entries for each discovered skill, or `""` if none.
 ### 5.15 `Coyote_GUI.Buffer`
 
 **Purpose:** Wraps `GtkTextBuffer`; manages all text insertion, tagging, and
-tool-frame embedding in the GUI conversation view.
+tool-call display in the GUI conversation view.
 
 **Text tags defined:**
-- `thinking` — dim/italic left-gutter style for thinking blocks
+- `thinking` — dim left-gutter style for thinking blocks
 - `notice_info`, `notice_warning`, `notice_error` — coloured inline notices
-- `turn_footer` — smaller/dimmer turn statistics line
-- `code` — monospace for inline code and fenced blocks
-- `bold`, `italic`, `strikethrough`, `link` — standard GFM formatting
-- `blockquote` — reduced opacity
+- `footer` — dim horizontal-rule turn separators
+- Per-tool tags named `"tool_" & Tool_Id` — underline style for clickable
+  tool-call blocks
 
 **Markdown rendering pipeline (`Insert_Markup`):**
 1. Raw streamed text is appended as plain text by `Append_Text`.
@@ -883,16 +882,24 @@ tool-frame embedding in the GUI conversation view.
 4. A `GtkTextMark` is maintained at the start of the current text block to
    delimit the range for deletion on `End_Text_Block`.
 
-**Tool-frame embedding:**
-- `Begin_Tool` creates a `GtkTextChildAnchor` at the current insert position;
-  inserts a `GtkFrame` containing a `GtkLabel` with the tool summary and a
-  "details..." `GtkButton`.
-- `End_Tool` locates the frame by `Tool_Id` (stored in a lookup table), updates
-  the label icon (✓ / ✗ / ✕) with the status footer, and stores the result text
-  in the map entry for later retrieval.
-- Clicking the details button opens a non-modal `GtkWindow` showing the tool
-  arguments (parsed JSON fields in monospace views) and result text. The button's
-  widget name carries the `Tool_Id` for map lookup in the signal handler.
+**Tool-call display (box-drawing text blocks):**
+- `Begin_Tool` inserts a box-drawing text block into the buffer:
+  `┌ ⚙ tool_name`, `│ field  value`, `└ … running…`.  The entire block is
+  tagged with a per-tool `GtkTextTag` named `"tool_" & Tool_Id` carrying an
+  underline style to indicate clickability.  A `GtkTextMark` records the
+  block start for later in-place replacement.
+- `End_Tool` locates the placeholder footer line (starting with `└`) by
+  scanning forward from the start mark, then replaces it in-place with the
+  status line: `└ ✓ done`, `└ ✗ error_message`, or `└ - cancelled`.
+- Clicking anywhere in a tool-call block triggers the conversation view's
+  `button-press-event` handler, which converts widget coordinates to buffer
+  coordinates via `Window_To_Buffer_Coords`, retrieves the iterator at that
+  location via `Get_Iter_At_Location`, inspects the tag list for a `"tool_"`
+  prefix, looks up the stored `Tool_Info` (name, args, result), formats a
+  plain-text detail document, and opens it in a monospace `Show_Text_Window`.
+- This approach eliminates all widget embedding (`GtkFrame`, `GtkTextChildAnchor`,
+  `GtkButton`) from the conversation buffer.  Tool calls are pure text with
+  tags — no child widgets, no plumb tokens, no external processes.
 
 ---
 
