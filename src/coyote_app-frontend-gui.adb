@@ -216,13 +216,6 @@ package body Coyote_App.Frontend.GUI is
             F.PQ.Shutdown;
             Gtk.Main.Main_Quit;
 
-
-         when Coyote_GUI.Collapse_All_Tools =>
-            F.Buf.Collapse_All_Tools;
-
-         when Coyote_GUI.Expand_All_Tools =>
-            F.Buf.Expand_All_Tools;
-
       end case;
    end Apply_Update;
 
@@ -873,24 +866,6 @@ package body Coyote_App.Frontend.GUI is
       end if;
    end On_Scroll_Down_Clicked;
 
-   procedure On_Collapse_All_Activate
-     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class) is
-      pragma Unreferenced (Self);
-   begin
-      if Current_Frontend /= null then
-         Current_Frontend.Buf.Collapse_All_Tools;
-      end if;
-   end On_Collapse_All_Activate;
-
-   procedure On_Expand_All_Activate
-     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class) is
-      pragma Unreferenced (Self);
-   begin
-      if Current_Frontend /= null then
-         Current_Frontend.Buf.Expand_All_Tools;
-      end if;
-   end On_Expand_All_Activate;
-
    --  Base font size in Pango points (used by Apply_Zoom).
    Zoom_Base_Pt : constant := 11;
    --  Point-size increment per zoom step.
@@ -1138,11 +1113,6 @@ package body Coyote_App.Frontend.GUI is
          Gtk.Menu_Shell.Append
            (Gtk.Menu_Shell.Gtk_Menu_Shell (View_Menu),
             F.Render_Markdown_Item);
-         Add_Sep (View_Menu);
-         Item := Make_Item ("_Collapse All Tool Calls", View_Menu);
-         Item.On_Activate (On_Collapse_All_Activate'Access);
-         Item := Make_Item ("_Expand All Tool Calls",   View_Menu);
-         Item.On_Activate (On_Expand_All_Activate'Access);
          Add_Sep (View_Menu);
          Item := Make_Item ("Zoom _In",    View_Menu);
          Item.On_Activate (On_Zoom_In_Activate'Access);

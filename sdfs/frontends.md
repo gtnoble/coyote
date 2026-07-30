@@ -120,7 +120,18 @@ every content-section transition:
 - `Begin_Tool` — blank line before tool-call frame widgets
 - `Append_Notice` — blank line before notice text
 
-**Tool-call frame styling:** Tool frames now have a 6 px border
+**Tool-call detail button (2026-07-30):** Replaced the inline `GtkExpander`
+in tool-call frames with a `GtkButton` labelled "details..." that opens a
+non-modal `GtkWindow` displaying the tool arguments and result in read-only
+monospace text views.  The button's widget name is set to the `Tool_Id`
+string via `Gtk.Widget.Set_Name`, and the click handler (`On_Tool_Detail_Clicked`)
+looks up the entry in the `Tools` map by widget name.  This eliminates the
+inline-detail expander pattern and reduces visual clutter in the conversation
+view — the frame now shows only the summary label and the button.  Removed
+the `Collapse_All_Tools` / `Expand_All_Tools` API and the corresponding View
+menu items, as they only made sense with the expander-based design.
+
+**Tool-call frame styling (prior):** Tool frames now have a 6 px border
 (`Set_Border_Width`), etched-in shadow (`Shadow_Etched_In`), and the inner
 `Outer_Vbox` spacing increased from 2 → 6 px.  Pack_Start padding on the
 summary label and expander increased from 2 → 6 px.

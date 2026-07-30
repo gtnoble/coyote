@@ -885,10 +885,14 @@ tool-frame embedding in the GUI conversation view.
 
 **Tool-frame embedding:**
 - `Begin_Tool` creates a `GtkTextChildAnchor` at the current insert position;
-  inserts a `GtkFrame` containing a `GtkLabel` with the tool name and a
-  ⏳ pending indicator.
+  inserts a `GtkFrame` containing a `GtkLabel` with the tool summary and a
+  "details..." `GtkButton`.
 - `End_Tool` locates the frame by `Tool_Id` (stored in a lookup table), updates
-  the label icon (✓ / ✗ / ✕) and optionally shows an error preview.
+  the label icon (✓ / ✗ / ✕) with the status footer, and stores the result text
+  in the map entry for later retrieval.
+- Clicking the details button opens a non-modal `GtkWindow` showing the tool
+  arguments (parsed JSON fields in monospace views) and result text. The button's
+  widget name carries the `Tool_Id` for map lookup in the signal handler.
 
 ---
 
