@@ -146,7 +146,7 @@ SRS-CORE requirement groups.
 | `llm_types_tests.adb` | REQ-CORE-400â402 | ~20 |
 | `llm_agent_tests.adb` | REQ-CORE-040â046, 060â064 | ~80 |
 | `llm_parallel_tools_tests.adb` | REQ-CORE-056 (run_group) | ~15 |
-| `sandbox_tests.adb` | REQ-CORE-300 (sandbox profiles) | 22 |
+| `sandbox_tests.adb` | Sandbox profile subsystem | 22 |
 | `llm_context_tests.adb` | REQ-CORE-060 (compaction threshold) | ~15 |
 | `session_history_tests.adb` | REQ-CORE-130â131 | ~15 |
 | `dispatch_tests.adb` | REQ-CORE-040â046 (dispatch) | ~20 |

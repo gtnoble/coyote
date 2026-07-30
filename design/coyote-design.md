@@ -604,6 +604,7 @@ agentic loop for one prompt.
 - `Model_Info: LLM.Model_Registry.Model_Info`
 - `Settings: LLM.Settings.Config`
 - `Compact_Settings: LLM.Compaction.Compact_Settings`
+- `Sandbox_Profile: Unbounded_String` — active sandbox profile name
 - `Tools: LLM.Tools.Descriptor_Array` (empty when `No_Tools`)
 - `Abort_Flg: aliased LLM.Tools.Abort_Flag`
 
@@ -614,7 +615,9 @@ agentic loop for one prompt.
 4. Create or resume session via `LLM.Session_Store`.
 5. Load conversation history if resuming.
 6. Build the system prompt (static preamble + skills + agent arg).
-7. Emit `Session_Info_Event` and `Model_Select_Event`.
+7. Inherit sandbox profile from `COYOTE_SANDBOX_PROFILE` env var (set by
+   a parent coyote process or GUI frontend).
+8. Emit `Session_Info_Event` and `Model_Select_Event`.
 
 **`Run_Prompt` loop:**
 ```
@@ -996,7 +999,7 @@ by provider adapters and consumed by `Dispatch_Event`.
 | `Tool_Execution_Start_Event` | tool name, call_id, args JSON | Tool call started |
 | `Tool_Execution_End_Event` | call_id, result text, is_error, duration | Tool call completed |
 | `Session_Stats_Event` | turn count, cost, model info | Post-turn statistics |
-| `Session_Info_Event` | session_id, resuming flag | Session identity at startup |
+| `Session_Info_Event` | session_id, thinking_level, sandbox_profile | Session identity at startup |
 | `Model_Select_Event` | provider, model_id, context window | Model selected or changed |
 | `Auto_Retry_Start_Event` | attempt number, reason | Transient error retry |
 | `Auto_Compaction_Start_Event` | token count | Compaction beginning |

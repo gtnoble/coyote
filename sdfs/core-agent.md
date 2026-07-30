@@ -283,3 +283,16 @@ Paths are resolved relative to CWD; missing paths are silently skipped.
 - `test/src/dispatch_tests.adb` — updated `Session_Info_Event` construction.
 - `~/.coyote/sandbox/default.json` — initial profile with `allowWrite` and
   `denyRead` rules.
+
+**Test coverage (2026-07-30):** 22 unit tests in `test/src/sandbox_tests.ads/.adb`
+cover `Profiles_Dir`, `Available_Profiles` (empty/found), `Load_Profile` (valid
+JSON / missing / bad JSON), `Build_Bwrap_Args` for all four rule types
+(allowWrite→`--bind`, denyWrite/allowRead→`--ro-bind`, denyRead→`--tmpfs`),
+edge cases (empty/non-existent profile, missing paths skipped, multiple rule
+types coexist, depth sorting), path resolution (`.`, `./`, `~/`, absolute
+pass-through), and shell+sandbox integration (allowWrite succeeds,
+denyRead blocks, empty profile runs unsandboxed).  3 `coyote_app_tests`
+cover `App_State.Current_Sandbox`/`Set_Sandbox`; 3 `llm_agent_tests` cover
+`Set_Sandbox_Profile`/`Current_Sandbox` round-trip, env-var inheritance on
+`Create`, and empty default; 2 `llm_session_store_tests` cover
+`sandboxProfile` in JSONL headers.
