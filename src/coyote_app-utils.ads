@@ -204,26 +204,21 @@ package Coyote_App.Utils is
       Session_Cost_Dmil : Natural := 0;
       Stop_Reason_Text : String  := "") return String;
 
-   --  Turn footer between completed turns and intermediate steps.
-   --  Carries a clickable fork token so button-3 opens a forked session.
+   --  Turn footer display text: summary line (if any) followed by a
+   --  separator.  Fork tokens are no longer embedded here; each frontend
+   --  receives them separately via Append_Fork_Action.
    --
-   --  When Step_N = 0 (default): full-turn format.
-   --    Format: [summary ]coyote-fork+PID/UUID/N\n════...════\n\n
-   --  When Step_N > 0: step-level format (intermediate assistant message
-   --    within a turn).
-   --    Format: [summary ]coyote-fork+PID/UUID/N/S\n────...────\n\n
-   function Format_Turn_Footer
-     (Turn_N            : Positive;
-      UUID              : String;
-      PID               : String;
-      Input_Tokens      : Natural := 0;
+   --  Is_Step = False (default): full-turn double-line separator.
+   --  Is_Step = True : step-level single-line separator.
+   function Format_Turn_Footer_Display
+     (Input_Tokens      : Natural := 0;
       Output_Tokens     : Natural := 0;
       Ctx_Window        : Natural := 0;
       Model_Text        : String  := "";
       Turn_Cost_Dmil    : Natural := 0;
       Session_Cost_Dmil : Natural := 0;
       Stop_Reason_Text : String  := "";
-      Step_N            : Natural := 0) return String;
+      Is_Step           : Boolean := False) return String;
 
    --  ── JSON field helpers ────────────────────────────────────────────────
 

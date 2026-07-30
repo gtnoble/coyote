@@ -96,6 +96,14 @@ package Coyote_App.Frontend.GUI is
       Text : in     String);
 
    overriding
+   procedure Append_Fork_Action
+     (F       : in out Instance;
+      PID     : in     String;
+      UUID    : in     String;
+      Turn_N  : in     Positive;
+      Step_N  : in     Natural := 0);
+
+   overriding
    procedure Append_Notice
      (F    : in out Instance;
       Kind : in     Coyote_App.Frontend.Notice_Kind;

@@ -95,17 +95,19 @@ package body Coyote_App.Dispatch is
    begin
       State.Increment_Turn_Count;
       Frontend.Append_Turn_Footer
-        (Format_Turn_Footer
-           (Turn_N            => State.Turn_Count,
-            UUID              => State.Session_Id,
-            PID               => PID,
-            Input_Tokens      => Input_Tokens,
+        (Format_Turn_Footer_Display
+           (Input_Tokens      => Input_Tokens,
             Output_Tokens     => Output_Tokens,
             Ctx_Window        => Ctx_Window,
             Model_Text        => Model_Text,
             Turn_Cost_Dmil    => Turn_Cost_Dmil,
             Session_Cost_Dmil => Session_Cost_Dmil,
             Stop_Reason_Text => Stop_Reason_Text));
+      Frontend.Append_Fork_Action
+        (PID    => PID,
+         UUID   => State.Session_Id,
+         Turn_N => State.Turn_Count,
+         Step_N => 0);
    end Append_Live_Turn_Footer;
 
    --  Append a step-level turn footer for an intermediate assistant message
@@ -123,18 +125,20 @@ package body Coyote_App.Dispatch is
       Stop_Reason_Text : constant String  := State.Last_Stop_Reason;
    begin
       Frontend.Append_Turn_Footer
-        (Format_Turn_Footer
-           (Turn_N            => State.Turn_Count + 1,
-            UUID              => State.Session_Id,
-            PID               => PID,
-            Input_Tokens      => Input_Tokens,
+        (Format_Turn_Footer_Display
+           (Input_Tokens      => Input_Tokens,
             Output_Tokens     => Output_Tokens,
             Ctx_Window        => Ctx_Window,
             Model_Text        => Model_Text,
             Turn_Cost_Dmil    => Turn_Cost_Dmil,
             Session_Cost_Dmil => 0,  --  session cost unavailable at step level
             Stop_Reason_Text => Stop_Reason_Text,
-            Step_N           => State.Turn_Step));
+            Is_Step          => True));
+      Frontend.Append_Fork_Action
+        (PID    => PID,
+         UUID   => State.Session_Id,
+         Turn_N => State.Turn_Count + 1,
+         Step_N => State.Turn_Step);
    end Append_Step_Footer;
 
    --  ── Open_Sub_Window ───────────────────────────────────────────────────

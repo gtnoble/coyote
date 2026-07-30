@@ -505,9 +505,9 @@ spawns `Agent_Task`, then calls `Gtk.Main.Main`.
 | `Message_Update_Event` / `Text_End` | `End_Text_Block` |
 | `Message_Update_Event` / `Thinking_Delta` | `Append_Thinking` |
 | `Tool_Execution_Start_Event` | `Begin_Tool` |
-| `Tool_Execution_End_Event` | `End_Tool`; on last tool in batch: `Append_Turn_Footer` (step-level) |
+| `Tool_Execution_End_Event` | `End_Tool`; on last tool in batch: `Append_Turn_Footer` (step-level display) then `Append_Fork_Action` (step-level) |
 | `Message_End_Event` | record stats in App_State |
-| `Session_Stats_Event` | `Append_Turn_Footer` (full-turn); GUI: `Set_Stats_Summary` |
+| `Session_Stats_Event` | `Append_Turn_Footer` (full-turn display) then `Append_Fork_Action` (full-turn); GUI: `Set_Stats_Summary` |
 | `Model_Select_Event` | `Append_Notice (Info, ...)` |
 | `Auto_Retry_Start_Event` | `Append_Notice (Warning, ...)` |
 | `Auto_Compaction_Start/End_Event` | `Append_Notice (Info/Warning, ...)` |
@@ -515,11 +515,13 @@ spawns `Agent_Task`, then calls `Gtk.Main.Main`.
 | `Agent_Resumed_Event` | `Set_Mode (Running)` |
 
 **Step-level turn footers (v1.8):** After the last `Tool_Execution_End_Event`
-in a batch, the dispatch layer calls `Append_Turn_Footer` with a non-zero
-`Step_N` to emit a step-level fork token and single-line separator. The step
-counter is maintained in `App_State` alongside `Turn_Count`: incremented at
-`Agent_Start_Event`, reset at each new turn. The final full-turn footer
-(with double-line separator) is emitted from `Session_Stats_Event` as before.
+in a batch, the dispatch layer calls `Append_Turn_Footer` (display separator)
+then `Append_Fork_Action` (fork token).  The acme frontend writes a
+`coyote-fork+` plumb token for button-3 clicking; the GUI renders a clickable
+action strip with the fork data.  The step counter is maintained in `App_State`
+alongside `Turn_Count`: incremented at `Agent_Start_Event`, reset at each new
+turn.  The final full-turn fork action is emitted from `Session_Stats_Event`
+as before.
 
 ---
 
@@ -1298,12 +1300,13 @@ points > 255 cannot appear as character literals.
   bracketed per-turn summary line (e.g. `[ctx 24k/400k (6%) | ^537 out | stop]`).
   The `Stop_Reason_Text` parameter (added v1.7) displays the provider stop reason
   (`stop`, `length`, `toolUse`, `aborted`, `error`, `unknown`) when non-empty.
-- `Format_Turn_Footer (Turn_N, UUID, PID, Step_N, ...) → String` — wraps the
-  summary with a `coyote-fork+` plumb token and a separator. The `Step_N`
-  parameter (default 0) controls the separator style and token format:
-  `Step_N > 0` produces a step-level token (`coyote-fork+PID/UUID/N/S`)
-  with a single-line separator; `Step_N = 0` produces the full-turn token
-  (`coyote-fork+PID/UUID/N`) with a double-line separator.
+- `Format_Turn_Footer_Display (Input_Tokens, Output_Tokens, Ctx_Window,
+  Model_Text, Turn_Cost_Dmil, Session_Cost_Dmil, Stop_Reason_Text,
+  Is_Step) → String` — builds turn-footer display text: the summary
+  line (if any) followed by a separator.  `Is_Step = False` (default)
+  uses a double-line separator; `Is_Step = True` uses a single-line
+  separator.  Fork tokens are no longer embedded; each frontend
+  receives structured fork data via `Append_Fork_Action` instead.
 
 ---
 
@@ -1322,6 +1325,9 @@ Tracks `Current_Tool_Name` for the `End_Tool` label.
   and a plumb token (`coyote-session+UUID/tool/TOKEN`) for button-3 navigation.
 - `End_Tool` — appends check (✓) or cross (✗) and elapsed time.
 - `Append_Notice` — prefixes line with `[!]` (error), `[~]` (warning), or `[i]` (info).
+- `Append_Fork_Action` — formats and writes the `coyote-fork+PID/UUID/N[/S]`
+  plumb token as plain text in the window body.  A button-3 click on the
+  token triggers a fork via the plumber.
 - `Read_Prompt` — blocks on `App_State.Wait_Prompt` (entry called by
   `Acme_Event_Task` when the user sends a "Send" event).
 - `Shutdown` — writes a footer line; calls `App_State.Signal_Shutdown`.

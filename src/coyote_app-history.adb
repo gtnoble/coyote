@@ -315,18 +315,20 @@ package body Coyote_App.History is
                            if In_Turn and then Saw_Asst_Text then
                               Turns_Rendered := Turns_Rendered + 1;
                               Frontend.Append_Turn_Footer
-                                (Format_Turn_Footer
-                                   (Turn_N        => Turns_Rendered,
-                                    UUID          => UUID,
-                                    PID           => PID,
-                                    Input_Tokens  => Turn_Input,
-                                    Output_Tokens => Turn_Output,
-                                    Ctx_Window    =>
+                                (Format_Turn_Footer_Display
+                                   (Input_Tokens      => Turn_Input,
+                                    Output_Tokens     => Turn_Output,
+                                    Ctx_Window        =>
                                       State.Context_Window,
-                                    Model_Text    =>
+                                    Model_Text        =>
                                       To_String (Cur_Model),
                                     Stop_Reason_Text =>
                                       To_String (Turn_Stop)));
+                              Frontend.Append_Fork_Action
+                                (PID    => PID,
+                                 UUID   => UUID,
+                                 Turn_N => Turns_Rendered,
+                                 Step_N => 0);
                            end if;
                            In_Turn       := True;
                            Saw_Asst_Text := False;
@@ -525,16 +527,18 @@ package body Coyote_App.History is
       if In_Turn and then Saw_Asst_Text then
          Turns_Rendered := Turns_Rendered + 1;
          Frontend.Append_Turn_Footer
-           (Format_Turn_Footer
-              (Turn_N        => Turns_Rendered,
-               UUID          => UUID,
-               PID           => PID,
-               Input_Tokens  => Turn_Input,
-               Output_Tokens => Turn_Output,
-               Ctx_Window    => State.Context_Window,
-               Model_Text    => To_String (Cur_Model),
+           (Format_Turn_Footer_Display
+              (Input_Tokens      => Turn_Input,
+               Output_Tokens     => Turn_Output,
+               Ctx_Window        => State.Context_Window,
+               Model_Text        => To_String (Cur_Model),
                Stop_Reason_Text =>
                  To_String (Turn_Stop)));
+         Frontend.Append_Fork_Action
+           (PID    => PID,
+            UUID   => UUID,
+            Turn_N => Turns_Rendered,
+            Step_N => 0);
       end if;
       --  Restore turn count so subsequent live turns are numbered correctly.
       State.Set_Turn_Count (Turns_Rendered);

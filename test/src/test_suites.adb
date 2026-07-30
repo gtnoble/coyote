@@ -607,7 +607,7 @@ package body Test_Suites is
          Coyote_App_Tests.Test_Parse_Fork_Token_With_Step'Access));
       Result.Add_Test (App_State_Caller.Create
         ("Format_Turn_Footer: step-level separator",
-         Coyote_App_Tests.Test_Format_Turn_Footer_Step'Access));
+         Coyote_App_Tests.Test_Format_Turn_Footer_Display_Step'Access));
       Result.Add_Test (App_State_Caller.Create
         ("App_State Turn_Step increment",
          Coyote_App_Tests.Test_State_Turn_Step_Increment'Access));

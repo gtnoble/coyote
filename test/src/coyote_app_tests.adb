@@ -261,24 +261,17 @@ package body Coyote_App_Tests is
       Assert (Step_N = 3, "Step number should be 3");
    end Test_Parse_Fork_Token_With_Step;
 
-   --  ── Format_Turn_Footer step-level ────────────────────────────────────
+   --  ── Format_Turn_Footer_Display step-level separator ───────────────────
 
-   procedure Test_Format_Turn_Footer_Step (T : in out Test) is
+   procedure Test_Format_Turn_Footer_Display_Step (T : in out Test) is
       pragma Unreferenced (T);
       Footer : constant String :=
-        Format_Turn_Footer
-          (Turn_N        => 5,
-           UUID          => "u",
-           PID           => "99",
-           Step_N        => 2,
-           Input_Tokens  => 1000,
+        Format_Turn_Footer_Display
+          (Input_Tokens  => 1000,
            Output_Tokens => 200,
-           Stop_Reason_Text => "toolUse");
+           Stop_Reason_Text => "toolUse",
+           Is_Step       => True);
    begin
-      --  Step footer uses /N/S format.
-      Assert
-        (Ada.Strings.Fixed.Index (Footer, "coyote-fork+99/u/5/2") > 0,
-         "Step footer must contain /N/S token");
       --  Step footer uses single-line separator (UC_HORIZ, U+2500).
       Assert
         (Ada.Strings.Fixed.Index (Footer, UC_HORIZ) > 0,
@@ -287,7 +280,7 @@ package body Coyote_App_Tests is
       Assert
         (Ada.Strings.Fixed.Index (Footer, UC_DBL_H) = 0,
          "Step footer must not use double-line separator");
-   end Test_Format_Turn_Footer_Step;
+   end Test_Format_Turn_Footer_Display_Step;
 
    --  ── App_State Turn_Step ───────────────────────────────────────────────
 

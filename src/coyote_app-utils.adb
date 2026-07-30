@@ -492,18 +492,15 @@ package body Coyote_App.Utils is
          else "");
    end Format_Turn_Summary;
 
-   function Format_Turn_Footer
-     (Turn_N            : Positive;
-      UUID              : String;
-      PID               : String;
-      Input_Tokens      : Natural := 0;
+   function Format_Turn_Footer_Display
+     (Input_Tokens      : Natural := 0;
       Output_Tokens     : Natural := 0;
       Ctx_Window        : Natural := 0;
       Model_Text        : String  := "";
       Turn_Cost_Dmil    : Natural := 0;
       Session_Cost_Dmil : Natural := 0;
       Stop_Reason_Text : String  := "";
-      Step_N            : Natural := 0) return String
+      Is_Step           : Boolean := False) return String
    is
       Summary : constant String :=
         Format_Turn_Summary
@@ -514,13 +511,6 @@ package body Coyote_App.Utils is
            Turn_Cost_Dmil    => Turn_Cost_Dmil,
            Session_Cost_Dmil => Session_Cost_Dmil,
            Stop_Reason_Text => Stop_Reason_Text);
-      Is_Step : constant Boolean := Step_N > 0;
-      Token   : constant String :=
-        "coyote-fork+" & PID & "/" & UUID & "/"
-        & Natural_Image (Turn_N)
-        & (if Is_Step
-           then "/" & Natural_Image (Step_N)
-           else "");
       Sep     : constant String :=
         (if Is_Step
          then Str_Repeat (UC_HORIZ, 60)
@@ -528,10 +518,10 @@ package body Coyote_App.Utils is
    begin
       return ASCII.LF & ASCII.LF
              & (if Summary'Length > 0 then Summary & " " else "")
-             & Token & ASCII.LF
+             & ASCII.LF
              & Sep
              & ASCII.LF & ASCII.LF;
-   end Format_Turn_Footer;
+   end Format_Turn_Footer_Display;
 
    --  ── JSON field helpers ────────────────────────────────────────────────
 

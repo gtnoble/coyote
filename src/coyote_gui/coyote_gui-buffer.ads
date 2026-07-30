@@ -89,6 +89,44 @@ package Coyote_GUI.Buffer is
       X :        Glib.Gint;
       Y :        Glib.Gint) return Tool_Click_Result;
 
+   --  ── Action strips ──────────────────────────────────────────────────
+
+   type Action_Kind is (Fork);
+
+   type Action_Info (Kind : Action_Kind := Fork) is record
+      case Kind is
+         when Fork =>
+            Fork_UUID   : Unbounded_String;
+            Fork_Turn_N : Positive;
+            Fork_Step_N : Natural;
+      end case;
+   end record;
+
+   type Action_Click_Result (Found : Boolean := False) is record
+      case Found is
+         when True =>
+            Action : Action_Info;
+         when False =>
+            null;
+      end case;
+   end record;
+
+   --  Insert a clickable action strip with a display label.  The action
+   --  data is stored in the buffer; Handle_Action_Click returns it when
+   --  the user clicks.  Called by the GUI frontend's Append_Fork_Action.
+   procedure Append_Action_Strip
+     (B      : in out Instance;
+      Label  :        String;
+      Action :        Action_Info);
+
+   --  Handle a click at buffer coordinates (X, Y).  If the click falls
+   --  within an action strip, returns Found => True with the action data.
+   --  Called from the frontend's button-press handler.
+   function Handle_Action_Click
+     (B : in out Instance;
+      X :        Glib.Gint;
+      Y :        Glib.Gint) return Action_Click_Result;
+
    --  ── Notices and footers ───────────────────────────────────────────────
 
    procedure Append_Notice
@@ -128,6 +166,12 @@ private
       Hash            => Ada.Strings.Hash,
       Equivalent_Keys => "=");
 
+   package Action_Maps is new Ada.Containers.Indefinite_Hashed_Maps
+     (Key_Type        => String,
+      Element_Type    => Action_Info,
+      Hash            => Ada.Strings.Hash,
+      Equivalent_Keys => "=");
+
    type Instance is tagged limited record
       The_View         : Gtk.Text_View.Gtk_Text_View;
       The_Buf          : Gtk.Text_Buffer.Gtk_Text_Buffer;
@@ -136,11 +180,14 @@ private
       Tag_Notice_Warn  : Gtk.Text_Tag.Gtk_Text_Tag;
       Tag_Notice_Error : Gtk.Text_Tag.Gtk_Text_Tag;
       Tag_Footer       : Gtk.Text_Tag.Gtk_Text_Tag;
+      Tag_Action       : Gtk.Text_Tag.Gtk_Text_Tag;
       In_Text_Block    : Boolean := False;
       Stream_Mark      : Gtk.Text_Mark.Gtk_Text_Mark;
       Stream_Buf       : Unbounded_String;
       In_Thinking          : Boolean := False;
       Tools                : Tool_Maps.Map;
+      Actions              : Action_Maps.Map;
+      Action_Seq           : Natural := 0;
       Prefix_Emitted       : Boolean := False;
       Render_Markdown  : Boolean := True;
    end record;

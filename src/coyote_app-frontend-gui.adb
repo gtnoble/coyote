@@ -45,6 +45,9 @@ with Gtk.Tree_View;
 with Gtk.Tree_View_Column;
 with Gtk.Tree_Store;
 with Session_Lister;
+with Coyote_Spawn;
+with Ada.Command_Line;
+with GNATCOLL.OS.Process;
 with LLM.Agent;
 with LLM.Providers;
 with Coyote_App.Utils;
@@ -53,6 +56,7 @@ with LLM.Tools.Sandbox;
 
 package body Coyote_App.Frontend.GUI is
    use Coyote_GUI.Prompt_Queue;
+   use Coyote_App.Utils;
 
    --  ── Package-body state ────────────────────────────────────────────────
 
@@ -145,6 +149,8 @@ package body Coyote_App.Frontend.GUI is
       then
          return False;
       end if;
+
+      --  Try tool click first.
       declare
          Result : constant Coyote_GUI.Buffer.Tool_Click_Result :=
            Current_Frontend.Buf.Handle_Tool_Click
@@ -153,6 +159,39 @@ package body Coyote_App.Frontend.GUI is
          if Result.Found then
             Show_Text_Window
               (To_String (Result.Title), To_String (Result.Content));
+            return True;
+         end if;
+      end;
+
+      --  Try action strip click (e.g. fork).
+      declare
+         use type Coyote_GUI.Buffer.Action_Kind;
+         Result : constant Coyote_GUI.Buffer.Action_Click_Result :=
+           Current_Frontend.Buf.Handle_Action_Click
+             (Glib.Gint (Event.X), Glib.Gint (Event.Y));
+      begin
+         if Result.Found and then Result.Action.Kind = Coyote_GUI.Buffer.Fork then
+            declare
+               use Ada.Strings.Unbounded;
+               New_UUID : constant String :=
+                 Session_Lister.Fork_Session
+                   (Source_UUID => To_String (Result.Action.Fork_UUID),
+                    After_Turn  => Result.Action.Fork_Turn_N,
+                    Target_Cwd  => Ada.Directories.Current_Directory,
+                    After_Step  => Result.Action.Fork_Step_N);
+            begin
+               if New_UUID'Length > 0 then
+                  declare
+                     use GNATCOLL.OS.Process;
+                     Args : Argument_List;
+                  begin
+                     Args.Append (Ada.Command_Line.Command_Name);
+                     Args.Append ("--session");
+                     Args.Append (New_UUID);
+                     Coyote_Spawn.Spawn_Detached (Args);
+                  end;
+               end if;
+            end;
             return True;
          end if;
       end;
@@ -208,6 +247,31 @@ package body Coyote_App.Frontend.GUI is
 
          when Append_Turn_Footer =>
             F.Buf.Append_Turn_Footer (To_String (U.Text));
+
+         when Append_Action_Strip =>
+            declare
+               use Coyote_GUI.Buffer;
+               UUID_Str   : constant String := To_String (U.Text2);
+               Turn_Str   : constant String := To_String (U.Text3);
+               Step_Str   : constant String := To_String (U.Text4);
+               Turn_Val   : Positive;
+               Step_Val   : Natural := 0;
+            begin
+               if UUID_Str'Length > 0
+                 and then Turn_Str'Length > 0
+               then
+                  Turn_Val := Positive'Value (Turn_Str);
+                  if Step_Str'Length > 0 then
+                     Step_Val := Natural'Value (Step_Str);
+                  end if;
+                  F.Buf.Append_Action_Strip
+                    (To_String (U.Text),
+                     (Kind        => Fork,
+                      Fork_UUID   => U.Text2,
+                      Fork_Turn_N => Turn_Val,
+                      Fork_Step_N => Step_Val));
+               end if;
+            end;
 
          when Set_Status =>
             F.Status_Bar.Set_Text (To_String (U.Text));
@@ -1547,6 +1611,29 @@ package body Coyote_App.Frontend.GUI is
       U.Text := To_Unbounded_String (Text);
       Enqueue_Update (F, U);
    end Append_Turn_Footer;
+
+   overriding
+   procedure Append_Fork_Action
+     (F       : in out Instance;
+      PID     : in     String;
+      UUID    : in     String;
+      Turn_N  : in     Positive;
+      Step_N  : in     Natural := 0)
+   is
+      U : Coyote_GUI.Update;
+      pragma Unreferenced (PID);
+   begin
+      U.Kind  := Coyote_GUI.Append_Action_Strip;
+      --  Label: "Fork @ turn N" or "Fork @ turn N/S"
+      U.Text  := To_Unbounded_String
+        ("  [Fork @ " & Natural_Image (Turn_N)
+         & (if Step_N > 0 then "/" & Natural_Image (Step_N) else "")
+         & "]");
+      U.Text2 := To_Unbounded_String (UUID);
+      U.Text3 := To_Unbounded_String (Natural_Image (Turn_N));
+      U.Text4 := To_Unbounded_String (Natural_Image (Step_N));
+      Enqueue_Update (F, U);
+   end Append_Fork_Action;
 
    overriding
    procedure Append_Notice

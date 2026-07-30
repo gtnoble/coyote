@@ -48,6 +48,9 @@ package Coyote_GUI is
    --                       T_Status = status
    --    Append_Notice      Text = message; N_Kind = severity
    --    Append_Turn_Footer Text = footer line
+   --    Append_Action_Strip Text = display label;
+   --                        Text2 = action kind ("fork");
+   --                        Text3 = action data JSON (uuid, turn, step, pid)
    --    Set_Status         Text = status bar text
    --    Set_Mode           Mode = new mode
    --    Show_Detail        Text = window title; Text2 = content
@@ -64,6 +67,7 @@ package Coyote_GUI is
       End_Tool,
       Append_Notice,
       Append_Turn_Footer,
+      Append_Action_Strip,
       Set_Status,
       Set_Mode,
       Show_Detail,

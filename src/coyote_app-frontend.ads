@@ -112,11 +112,24 @@ package Coyote_App.Frontend is
    --  ── Turn footer ───────────────────────────────────────────────────────
    --
    --  Appended once per completed agent turn after session stats arrive.
-   --  Text is pre-formatted by Coyote_App.Utils.Format_Turn_Footer.
+   --  Text is pre-formatted by Coyote_App.Utils.Format_Turn_Footer_Display.
 
    procedure Append_Turn_Footer
      (F    : in out Instance;
       Text : in     String) is abstract;
+
+   --  ── Fork action ────────────────────────────────────────────────────────
+   --
+   --  Called after Append_Turn_Footer at every turn/step boundary.
+   --  The acme frontend writes a plumb token; the GUI renders a clickable
+   --  action strip; the plain frontend is a no-op.
+
+   procedure Append_Fork_Action
+     (F       : in out Instance;
+      PID     : in     String;
+      UUID    : in     String;
+      Turn_N  : in     Positive;
+      Step_N  : in     Natural := 0) is abstract;
 
    --  ── System notices ────────────────────────────────────────────────────
    --

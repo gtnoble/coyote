@@ -272,6 +272,25 @@ package body Coyote_App.Frontend.Acme_Win is
       Acme.Window.Append (F.Win_Ptr.all, F.My_FS'Access, Text);
    end Append_Turn_Footer;
 
+   --  ── Append_Fork_Action ─────────────────────────────────────────────────
+
+   procedure Append_Fork_Action
+     (F       : in out Instance;
+      PID     : in     String;
+      UUID    : in     String;
+      Turn_N  : in     Positive;
+      Step_N  : in     Natural := 0)
+   is
+      Token : constant String :=
+        "coyote-fork+" & PID & "/" & UUID & "/"
+        & Natural_Image (Turn_N)
+        & (if Step_N > 0
+           then "/" & Natural_Image (Step_N)
+           else "");
+   begin
+      Acme.Window.Append (F.Win_Ptr.all, F.My_FS'Access, Token & ASCII.LF);
+   end Append_Fork_Action;
+
    --  ── Append_Notice ─────────────────────────────────────────────────────
 
    procedure Append_Notice

@@ -42,7 +42,7 @@ package Coyote_App_Tests is
    procedure Test_Parse_Fork_Token_With_Step     (T : in out Test);
 
    --  Format_Turn_Footer with step-level separator.
-   procedure Test_Format_Turn_Footer_Step        (T : in out Test);
+   procedure Test_Format_Turn_Footer_Display_Step  (T : in out Test);
 
    --  App_State Turn_Step counter tests.
    procedure Test_State_Turn_Step_Increment      (T : in out Test);

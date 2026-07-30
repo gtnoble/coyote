@@ -53,6 +53,11 @@ package body Coyote_GUI.Buffer is
 
       B.Tag_Footer := Buf.Create_Tag ("footer");
       Set_Property (B.Tag_Footer, Foreground_Property, "#888888");
+
+      B.Tag_Action := Buf.Create_Tag ("action");
+      Set_Property (B.Tag_Action, Foreground_Property, "#2266aa");
+      Set_Property (B.Tag_Action, Underline_Property,
+                    Pango.Enums.Pango_Underline_Single);
    end Attach;
 
    --  ── Internal helpers ──────────────────────────────────────────────────
@@ -543,6 +548,79 @@ package body Coyote_GUI.Buffer is
          & ASCII.LF & ASCII.LF,
          B.Tag_Footer);
    end Append_Turn_Footer;
+
+   --  ── Action strips ──────────────────────────────────────────────────
+
+   procedure Append_Action_Strip
+     (B      : in out Instance;
+      Label  :        String;
+      Action :        Action_Info)
+   is
+      Tag_Name : constant String := "action_" & Natural_Image (B.Action_Seq);
+   begin
+      B.Action_Seq := B.Action_Seq + 1;
+
+      --  Store action info in the map keyed by tag name.
+      B.Actions.Include (Tag_Name, Action);
+
+      --  Create a tag for the click target and apply it.
+      declare
+         Tag : constant Gtk.Text_Tag.Gtk_Text_Tag :=
+           B.The_Buf.Create_Tag (Tag_Name);
+      begin
+         --  Inherit action appearance from the base Tag_Action.
+         Set_Property (Tag, Foreground_Property, "#2266aa");
+         Set_Property (Tag, Underline_Property,
+                       Pango.Enums.Pango_Underline_Single);
+         Insert_Tagged (B, Label, Tag);
+      end;
+   end Append_Action_Strip;
+
+   function Handle_Action_Click
+     (B : in out Instance;
+      X :        Glib.Gint;
+      Y :        Glib.Gint) return Action_Click_Result
+   is
+      use Gtk.Text_Iter;
+      use type Gtk.Text_Tag.Text_Tag_List.GSlist;
+
+      Iter    : aliased Gtk.Text_Iter.Gtk_Text_Iter;
+      Buf_X   : Glib.Gint;
+      Buf_Y   : Glib.Gint;
+      Tags    : Gtk.Text_Tag.Text_Tag_List.GSlist;
+      Tmp     : Gtk.Text_Tag.Text_Tag_List.GSlist;
+      Dummy   : Boolean;
+   begin
+      B.The_View.Window_To_Buffer_Coords
+        (Gtk.Enums.Text_Window_Widget, X, Y, Buf_X, Buf_Y);
+      Dummy := Gtk.Text_View.Get_Iter_At_Location
+        (B.The_View, Iter'Access, Buf_X, Buf_Y);
+
+      Tags := Gtk.Text_Iter.Get_Tags (Iter);
+      Tmp := Tags;
+      while Tmp /= Gtk.Text_Tag.Text_Tag_List.Null_List loop
+         declare
+            Tag      : constant Gtk.Text_Tag.Gtk_Text_Tag :=
+              Gtk.Text_Tag.Text_Tag_List.Get_Data (Tmp);
+            Tag_Name : constant String :=
+              Glib.Properties.Get_Property (Tag, Name_Property);
+         begin
+            if Tag_Name'Length > 7
+              and then Tag_Name (Tag_Name'First .. Tag_Name'First + 6)
+                       = "action_"
+            then
+               if B.Actions.Contains (Tag_Name) then
+                  Gtk.Text_Tag.Text_Tag_List.Free (Tags);
+                  return (Found => True, Action => B.Actions.Element (Tag_Name));
+               end if;
+               exit;
+            end if;
+         end;
+         Tmp := Gtk.Text_Tag.Text_Tag_List.Next (Tmp);
+      end loop;
+      Gtk.Text_Tag.Text_Tag_List.Free (Tags);
+      return (Found => False);
+   end Handle_Action_Click;
 
    --  ── Scroll ───────────────────────────────────────────────────────────
 
