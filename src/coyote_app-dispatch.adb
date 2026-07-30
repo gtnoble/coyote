@@ -321,7 +321,7 @@ package body Coyote_App.Dispatch is
             Section := No_Section;
          end;
 
-      --  ── message_end ───────────────────────────────────────────────────
+      --  ── tool_execution_end continued: tool-done counting ──────────────
             State.Increment_Tools_Done;
 
             --  When the last tool in a batch completes and the assistant

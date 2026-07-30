@@ -425,8 +425,7 @@ package body Coyote_GUI.Buffer is
          B.The_Buf.Get_Iter_At_Mark (SI, Info.Start_Mark);
          --  Advance to the footer line: search forward for UC_BOX_BL.
          loop
-            exit when Gtk.Text_Iter.Get_Char (SI)
-              = Character'Pos (UC_BOX_BL (UC_BOX_BL'First));
+            exit when Gtk.Text_Iter.Get_Char (SI) = Glib.Gunichar (16#2514#);
             declare
                Dummy_FC : Boolean;
             begin
