@@ -12,7 +12,6 @@ with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with GNATCOLL.JSON;          use GNATCOLL.JSON;
-with GNATCOLL.OS.FS;
 with GNATCOLL.OS.Process;
 with LLM.Compaction;
 with LLM.Agent;
@@ -434,40 +433,6 @@ package body Coyote_App is
       Provider := To_Unbounded_String (Spec (Spec'First .. Slash - 1));
       Model_Id := To_Unbounded_String (Spec (Slash + 1 .. Spec'Last));
    end Split_Model_Spec;
-
-   --  ── Process Reaper ───────────────────────────────────────────────────
-   --
-   --  Fire-and-forget process launches (New window, Fork session) spawn
-   --  subprocesses whose exit the parent does not wait for.  Without
-   --  reaping, these become zombie processes.  Process_Reaper tasks are
-   --  allocated dynamically to call Wait on the child PID in the
-   --  background; the task's master is the library unit, so the caller
-   --  continues without blocking.
-
-   task type Process_Reaper
-     (Handle : GNATCOLL.OS.Process.Process_Handle) is
-      pragma Storage_Size (16 * 1024);
-   end Process_Reaper;
-
-   task body Process_Reaper is
-      Status : Integer;
-      pragma Unreferenced (Status);
-   begin
-      Status := GNATCOLL.OS.Process.Wait (Handle);
-   exception
-      when others =>
-         null;
-   end Process_Reaper;
-
-   type Process_Reaper_Access is access Process_Reaper;
-
-   procedure Reap_Child
-     (Handle : GNATCOLL.OS.Process.Process_Handle) is
-      R : Process_Reaper_Access := new Process_Reaper (Handle);
-      pragma Unreferenced (R);
-   begin
-      null;
-   end Reap_Child;
 
    --  ── Run ───────────────────────────────────────────────────────────────
 
@@ -1763,7 +1728,6 @@ package body Coyote_App is
       --  ── Plumb_Fork_Task ───────────────────────────────────────────────
 
       task body Plumb_Fork_Task is
-         use GNATCOLL.OS.FS;
          use GNATCOLL.OS.Process;
 
          Pid_Prefix   : constant String :=
