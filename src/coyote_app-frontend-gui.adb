@@ -1163,10 +1163,10 @@ package body Coyote_App.Frontend.GUI is
       Item.On_Activate (On_Compact_Activate'Access);
       Add_Sep (Agent_Menu);
       Item := Make_Item ("Session _Stats", Agent_Menu);
+      Item.On_Activate (On_Stats_Activate'Access);
       Add_Sep (Agent_Menu);
       Item := Make_Item ("Set _Defaults", Agent_Menu);
       Item.On_Activate (On_Set_Default_Activate'Access);
-      Item.On_Activate (On_Stats_Activate'Access);
       --  ── View menu ─────────────────────────────────────────────────────
       declare
          View_Menu : Gtk.Menu.Gtk_Menu;
