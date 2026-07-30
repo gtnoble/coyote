@@ -154,7 +154,6 @@ private
       Prompt_Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
       Send_Btn    : Gtk.Button.Gtk_Button;
       Stop_Btn    : Gtk.Button.Gtk_Button;
-      Scroll_Down_Btn : Gtk.Button.Gtk_Button;
       Status_Bar  : Gtk.Label.Gtk_Label;
       Outer_Box   : Gtk.Box.Gtk_Box;
       --  State
@@ -163,12 +162,11 @@ private
       Current_Mode : Coyote_App.Frontend.Run_Mode :=
         Coyote_App.Frontend.Idle;
       Agent_Sess  : access LLM.Agent.Session := null;
-      --  Follow mode: auto-scroll to bottom when new content arrives.
-      Follow_Mode         : Boolean := True;
-      --  Incremented during programmatic vadjustment changes and idle-drain
-      --  cycles.  The value-changed handler treats any non-zero count as a
-      --  programmatic (non-user) scroll and suppresses follow-mode disable.
-      Programmatic_Scroll_Count : Natural := 0;
+      --  Auto-scroll: when True, the conversation view snaps to the bottom
+      --  whenever its adjustment changes (new content arrives).  Toggled
+      --  via View → Auto-scroll check menu item.  Enabled by default.
+      Auto_Scroll         : Boolean := True;
+      Auto_Scroll_Item    : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
       Zoom_Level          : Integer := 0;
    end record;
 

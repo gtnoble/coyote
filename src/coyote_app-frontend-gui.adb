@@ -111,7 +111,7 @@ package body Coyote_App.Frontend.GUI is
       pragma Unreferenced (Self);
    begin
       if Current_Frontend = null
-        or else not Current_Frontend.Follow_Mode
+        or else not Current_Frontend.Auto_Scroll
       then
          return;
       end if;
@@ -121,31 +121,9 @@ package body Coyote_App.Frontend.GUI is
          Target : constant Gdouble :=
            Gdouble'Max (Adj.Get_Upper - Adj.Get_Page_Size, 0.0);
       begin
-         Current_Frontend.Programmatic_Scroll_Count :=
-           Current_Frontend.Programmatic_Scroll_Count + 1;
          Adj.Set_Value (Target);
-         Current_Frontend.Programmatic_Scroll_Count :=
-           Current_Frontend.Programmatic_Scroll_Count - 1;
       end;
    end On_Conv_Adj_Changed;
-
-   --  Called whenever the scroll position changes.  Any non-programmatic
-   --  change (mouse wheel, scrollbar drag, keyboard) disables follow mode.
-   --  Follow mode can only be re-enabled by clicking the New Output button.
-   procedure On_Conv_Adj_Value_Changed
-     (Self : access Gtk.Adjustment.Gtk_Adjustment_Record'Class)
-   is
-      pragma Unreferenced (Self);
-   begin
-      if Current_Frontend /= null
-        and then Current_Frontend.Programmatic_Scroll_Count = 0
-      then
-         if Current_Frontend.Follow_Mode then
-            Current_Frontend.Follow_Mode := False;
-            Current_Frontend.Scroll_Down_Btn.Show;
-         end if;
-      end if;
-   end On_Conv_Adj_Value_Changed;
 
    --  ── Tool-call click handler ───────────────────────────────────────────
 
@@ -262,15 +240,11 @@ package body Coyote_App.Frontend.GUI is
       if Current_Frontend = null then
          return False;
       end if;
-      Current_Frontend.Programmatic_Scroll_Count :=
-        Current_Frontend.Programmatic_Scroll_Count + 1;
       loop
          Current_Frontend.Updates.Dequeue (U, Got);
          exit when not Got;
          Apply_Update (Current_Frontend.all, U);
       end loop;
-      Current_Frontend.Programmatic_Scroll_Count :=
-        Current_Frontend.Programmatic_Scroll_Count - 1;
       return False;
    end Drain_Idle;
 
@@ -882,29 +856,13 @@ package body Coyote_App.Frontend.GUI is
       end if;
    end On_Render_Markdown_Toggled;
 
-   procedure On_Scroll_Down_Clicked
-     (Self : access Gtk.Button.Gtk_Button_Record'Class)
-   is
-      pragma Unreferenced (Self);
-      use Gtk.Adjustment;
+   procedure On_Auto_Scroll_Toggled
+     (Self : access Gtk.Check_Menu_Item.Gtk_Check_Menu_Item_Record'Class) is
    begin
       if Current_Frontend /= null then
-         Current_Frontend.Follow_Mode := True;
-         Current_Frontend.Scroll_Down_Btn.Hide;
-         declare
-            Adj    : constant Gtk_Adjustment :=
-              Current_Frontend.Conv_Scroll.Get_Vadjustment;
-            Target : constant Gdouble :=
-              Gdouble'Max (Adj.Get_Upper - Adj.Get_Page_Size, 0.0);
-         begin
-            Current_Frontend.Programmatic_Scroll_Count :=
-              Current_Frontend.Programmatic_Scroll_Count + 1;
-            Adj.Set_Value (Target);
-            Current_Frontend.Programmatic_Scroll_Count :=
-              Current_Frontend.Programmatic_Scroll_Count - 1;
-         end;
+         Current_Frontend.Auto_Scroll := Self.Get_Active;
       end if;
-   end On_Scroll_Down_Clicked;
+   end On_Auto_Scroll_Toggled;
 
    --  System font family and size, read from gtk-font-name at startup.
    System_Font_Family : Ada.Strings.Unbounded.Unbounded_String;
@@ -1185,6 +1143,14 @@ package body Coyote_App.Frontend.GUI is
          Gtk.Menu_Shell.Append
            (Gtk.Menu_Shell.Gtk_Menu_Shell (View_Menu),
             F.Render_Markdown_Item);
+         Gtk.Check_Menu_Item.Gtk_New
+           (F.Auto_Scroll_Item, "_Auto-scroll");
+         F.Auto_Scroll_Item.Set_Active (True);
+         F.Auto_Scroll_Item.On_Toggled
+           (On_Auto_Scroll_Toggled'Access);
+         Gtk.Menu_Shell.Append
+           (Gtk.Menu_Shell.Gtk_Menu_Shell (View_Menu),
+            F.Auto_Scroll_Item);
          Add_Sep (View_Menu);
          Item := Make_Item ("Zoom _In",    View_Menu);
          Item.On_Activate (On_Zoom_In_Activate'Access);
@@ -1202,8 +1168,7 @@ package body Coyote_App.Frontend.GUI is
          Adj : constant Gtk.Adjustment.Gtk_Adjustment :=
            F.Conv_Scroll.Get_Vadjustment;
       begin
-         Adj.On_Changed       (On_Conv_Adj_Changed'Access);
-         Adj.On_Value_Changed (On_Conv_Adj_Value_Changed'Access);
+         Adj.On_Changed (On_Conv_Adj_Changed'Access);
       end;
 
       Gtk.Text_View.Gtk_New (F.Conv_View);
@@ -1221,20 +1186,11 @@ package body Coyote_App.Frontend.GUI is
       F.Conv_View.On_Button_Press_Event
         (On_Conv_Button_Press'Access);
 
-      --  ── Scroll-to-bottom button (visible when follow mode is off) ─────
-
-      Gtk.Button.Gtk_New (F.Scroll_Down_Btn,
-                          "" & Coyote_App.Utils.UC_ARROW_D & " New output");
-      F.Scroll_Down_Btn.On_Clicked (On_Scroll_Down_Clicked'Access);
-      F.Scroll_Down_Btn.Set_No_Show_All (True);
       F.Buf.Attach (F.Conv_View, F.Conv_Buf);
 
       F.Conv_Scroll.Add (F.Conv_View);
       F.Outer_Box.Pack_Start (F.Conv_Scroll, Expand => True, Fill => True,
                               Padding => 0);
-      F.Outer_Box.Pack_Start (F.Scroll_Down_Btn, Expand => False,
-                              Fill => False, Padding => 0);
-
       --  ── Prompt area ───────────────────────────────────────────────────
 
       Gtk.Box.Gtk_New_Vbox (Prompt_Box, Homogeneous => False, Spacing => 2);

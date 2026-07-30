@@ -1316,20 +1316,17 @@ selection commands.
   bar (all use the same family and size at zoom level 0).  Zoom (+/-)
   adjusts ±1 pt from the system baseline.  The previous hardcoded
   `"sans 11"` baseline is kept as a fallback if the system-font read fails.
-- **Scroll follow-mode** (2026-07-30): The conversation view auto-scrolls to
-  the bottom during streaming via a `Follow_Mode` flag.  User-initiated
-  scrolling (mouse wheel, scrollbar drag, keyboard navigation) disables
-  follow mode.  Programmatic scrolls are distinguished from user scrolls
-  using a `Programmatic_Scroll_Count : Natural` counter.  The counter is
-  incremented for the duration of each `Drain_Idle` batch (so all queued
-  buffer mutations are treated as one programmatic operation) and around each
-  `Set_Value` call in the `GtkAdjustment::changed` handler.  The
-  `::value-changed` handler suppresses follow-mode disable when the counter
-  is non-zero.  This counter replaces a single `Boolean` guard flag from the
-  original implementation, eliminating a race condition where the
-  delete-then-reinsert cycle in `End_Text_Block` could cause `value-changed`
-  to fire during the delete phase with no guard set, spuriously disabling
-  follow mode.
+- **Auto-scroll toggle** (2026-07-30): The conversation view auto-scrolls to
+  the bottom during streaming via an `Auto_Scroll` flag (initially `True`).
+  A `View → Auto-scroll` check menu item lets the user toggle this behaviour
+  on or off.  When enabled, the `GtkAdjustment::changed` handler snaps the
+  viewport to the bottom on every adjustment change (triggered by new content
+  arrival).  When disabled, the viewport stays wherever the user has scrolled
+  — there is no automatic detection or override of user-initiated scrolling.
+  This replaces the earlier follow-mode implementation that used
+  `Programmatic_Scroll_Count` counter guards and `::value-changed` auto-detection
+  to distinguish user from programmatic scrolls, along with a "↓ New output"
+  scroll-to-bottom button.
 ---
 
 ### 5.34 `Coyote_App.Frontend.Plain`
