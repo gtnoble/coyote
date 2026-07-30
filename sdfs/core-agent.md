@@ -243,3 +243,43 @@ a long conversation.
 - `test/src/llm_agent_tests.adb` — updated Compact_Settings aggregate
 - `plan/problems.md` — PCR-040 implementation actions recorded
 - `sdfs/core-agent.md` — this log entry
+
+## 2026-07-30 — Sandbox Shell Profiles
+
+**Context:** The shell tool previously ran commands with full filesystem access.
+There was no way to restrict what paths a shell command could read or write.
+
+**Solution:** A new `LLM.Tools.Sandbox` package discovers sandbox profiles from
+`~/.coyote/sandbox/*.json`. Each profile is a JSON object with four optional
+rule arrays: `allowWrite`, `denyWrite`, `denyRead`, `allowRead`. When a profile
+is active, `LLM.Tools.Shell.Execute` wraps the command with `bwrap`
+(bubblewrap), placing the entire root filesystem as read-only and selectively
+adding `--bind`, `--ro-bind`, or `--tmpfs` directives per the profile rules.
+Paths are resolved relative to CWD; missing paths are silently skipped.
+
+**Files touched:**
+- `src/llm/llm-tools-sandbox.ads/.adb` — new package: profile discovery,
+  rule loading, bwrap argument construction.
+- `src/llm/llm-agent.ads/.adb` — `Sandbox_Profile` field on `Session`;
+  `Set_Sandbox_Profile` and `Current_Sandbox` procedures; `COYOTE_SANDBOX_PROFILE`
+  inheritance in `Create`; `Worker_Task` gains `Sandbox_Profile` access
+  discriminant and passes it to `Shell.Execute`.
+- `src/llm/llm-tools-shell.ads/.adb` — `Execute` gains `Sandbox_Profile`
+  parameter; when non-empty, prepends `bwrap` arguments before `setsid`.
+- `src/llm/llm-events.ads` — `Session_Info_Event` gains `Sandbox_Profile` field.
+- `src/llm/llm-session_store.adb` — writes `sandboxProfile` to JSONL session
+  header.
+- `src/coyote_app.ads/.adb` — `App_State` gains `Current_Sandbox`/`Set_Sandbox`;
+  Acme path gains `Plumb_Sandbox_Task` (port `/coyote-sandbox`,
+  token `coyote-sandbox+PID/PROFILE`) and `Set_Sandbox_Command`; GUI path
+  dispatches `Set_Sandbox` prompt-queue items; `COYOTE_SANDBOX_PROFILE`
+  propagated to child processes; `Status_Label` shows profile name.
+- `src/coyote_gui/coyote_gui-prompt_queue.ads` — `Set_Sandbox` item kind with
+  `Profile_Name` payload.
+- `src/coyote_app-frontend-gui.adb` — `On_Sandbox_Profile_Activate` dialog
+  handler; `Sandbox Profile...` menu item under Agent menu.
+- `src/coyote_app-dispatch.adb` — handles `Sandbox_Profile` in
+  `Session_Info_Event` dispatch.
+- `test/src/dispatch_tests.adb` — updated `Session_Info_Event` construction.
+- `~/.coyote/sandbox/default.json` — initial profile with `allowWrite` and
+  `denyRead` rules.

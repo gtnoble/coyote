@@ -108,6 +108,7 @@ The application has two execution paths with different task structures.
 | `Plumb_Model_Task` | `/coyote-model` plumb port reader |
 | `Plumb_Thinking_Task` | `/coyote-thinking` plumb port reader |
 | `Plumb_Fork_Task` | `/coyote-fork` plumb port reader |
+| `Plumb_Sandbox_Task` | `/coyote-sandbox` plumb port reader |
 
 **GUI path** — two tasks:
 
@@ -252,6 +253,7 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `LLM.Providers.OpenCode_Go` | OpenCode Go routing provider | `src/llm/llm-providers-opencode_go.ads/.adb` |
 | `LLM.Tools` | Abort_Flag, Pause_Flag, Tool_Descriptor | `src/llm/llm-tools.ads/.adb` |
 | `LLM.Tools.Shell` | Built-in shell tool | `src/llm/llm-tools-shell.ads/.adb` |
+| `LLM.Tools.Sandbox` | Sandbox profile discovery and bwrap arg construction | `src/llm/llm-tools-sandbox.ads/.adb` |
 | `LLM.Tools.Temp_File` | Tool-result size cap and spill | `src/llm/llm-tools-temp_file.ads/.adb` |
 | `LLM.Skills` | Skill discovery and system prompt formatting | `src/llm/llm-skills.ads/.adb` |
 | `LLM.System_Prompt` | System prompt construction | `src/llm/llm-system_prompt.ads/.adb` |
@@ -331,9 +333,10 @@ three layers:
   → create Acme_Win frontend
   → spawn Agent_Task
   → spawn Acme_Event_Task   (reads /winid/event via 9P)
-  → spawn Plumb_Model_Task  (reads /coyote-model plumb port)
-  → spawn Plumb_Thinking_Task
-  → spawn Plumb_Fork_Task
+  → spawn Plumb_Model_Task    (reads /coyote-model plumb port)
+  → spawn Plumb_Thinking_Task (reads /coyote-thinking plumb port)
+  → spawn Plumb_Fork_Task     (reads /coyote-fork plumb port)
+  → spawn Plumb_Sandbox_Task  (reads /coyote-sandbox plumb port)
   → main task blocks on App_State.Wait_Shutdown
 
 [Agent_Task loop]
@@ -749,13 +752,46 @@ path).  Descendants may override to add provider-specific logic.
 **`Execute` procedure:**
 1. Parse `Args_Json`: extract `command`, `stdin` (optional), `media_type`
    (optional).
-2. Spawn `$SHELL -c command` via `GNAT.OS_Lib.Spawn_Pipe` (or equivalent).
-3. Write `stdin` content to the child's stdin if non-empty.
-4. Read combined stdout/stderr.
-5. If `media_type` non-empty: base64-encode the raw bytes; set `Media_Type`.
-6. If result exceeds `LLM.Tools.Temp_File.Result_Threshold`: call
+2. If `Sandbox_Profile` is non-empty, call
+   `LLM.Tools.Sandbox.Build_Bwrap_Args` and prepend `bwrap` with base
+   isolation (`--ro-bind / / --dev /dev --proc /proc`) and per-rule
+   binds/ro-binds/tmpfs before `--`.
+3. Spawn `$SHELL -c command` via `GNAT.OS_Lib.Spawn_Pipe` (or equivalent);
+   the command is wrapped in `setsid(1)` for abort/timeout signalling.
+4. Write `stdin` content to the child's stdin if non-empty.
+5. Read combined stdout/stderr.
+6. If `media_type` non-empty: base64-encode the raw bytes; set `Media_Type`.
+7. If result exceeds `LLM.Tools.Temp_File.Result_Threshold`: call
    `LLM.Tools.Temp_File.Truncated` before returning.
-7. Set `Is_Error := exit_code /= 0`.
+8. Set `Is_Error := exit_code /= 0`.
+
+---
+
+### 5.10a `LLM.Tools.Sandbox`
+
+**Purpose:** Discovers sandbox profiles from `~/.coyote/sandbox/*.json`,
+loads their rule sets, and constructs `bwrap` argument lists.
+
+**Profile format:** Each profile is a JSON object with four optional array
+fields: `allowWrite`, `denyWrite`, `denyRead`, `allowRead`.  Each array
+contains paths; `~` and `./` prefixes are resolved at execution time.
+
+**`Available_Profiles`:** Scans `~/.coyote/sandbox/` for `*.json` files;
+returns the stems as profile names.  Returns an empty vector when the
+directory is absent or no profiles exist.
+
+**`Load_Profile(Name)`:** Reads and parses `~/.coyote/sandbox/<Name>.json`.
+Returns `JSON_Null` when the profile is not found or parse fails.
+
+**`Build_Bwrap_Args(Profile_Name, Cwd)`:** Resolves all paths in the loaded
+profile relative to `Cwd`; skips paths that do not exist on disk; sorts
+entries by path depth (slash count, shallowest first); produces `bwrap`
+arguments: `--bind <path> <path>` for `allowWrite`, `--ro-bind <path> <path>`
+for `denyWrite` and `allowRead`, `--tmpfs <path>` for `denyRead`.
+
+**Integration:** Called by `LLM.Tools.Shell.Execute` when `Sandbox_Profile` is
+non-empty.  The `bwrap` wrapper is placed *outside* `setsid` so that
+`kill(-pid, SIGKILL)` still reaches the entire process tree.
 
 ---
 

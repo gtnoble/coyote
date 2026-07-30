@@ -238,13 +238,14 @@ Coyote uses its own family of plumb tokens. All token strings begin with a
 | `coyote-session+UUID/tool/TOKEN` | launches `bin/coyote_open` | Open a tool-call detail window; TOKEN is the first 16 hex chars of SHA-256(tool_call_id) |
 | `coyote-thinking+PID/LEVEL` | `/coyote-thinking` | Set the reasoning level in the running instance identified by PID |
 | `coyote-fork+PID/UUID/N[/S]` | `/coyote-fork` | Fork the session at turn N (optionally step S within that turn) in the running instance identified by PID |
+| `coyote-sandbox+PID/PROFILE` | `/coyote-sandbox` | Set the sandbox profile in the running instance identified by PID |
 
 **Design notes:**
 
 - Session tokens (`coyote-session+UUID`) carry **no PID**. The plumber always
   launches a fresh `coyote --session UUID` process rather than routing to a
   running instance. Consequently, there is no `Plumb_Session_Task` in coyote.
-- Model, thinking, and fork tokens are PID-tagged because they must target a
+- Model, thinking, fork, and sandbox tokens are PID-tagged because they must target a
   specific running window.
 - `bin/coyote_open` is a native Ada binary, not a shell script.
 - Plumb tokens are only meaningful in the acme frontend path; the GUI frontend
@@ -264,6 +265,7 @@ communication and context propagation:
 | `COYOTE_FRONTEND` | `coyote.adb` after selecting a windowing frontend | child coyote at startup | When set to `gui`, a child selects the GUI frontend and opens its own GTK window.  When set to `acme`, a child selects the Acme frontend and opens in a new acme window.  Mirrors how `$winid` propagates the acme context. |
 | `COYOTE_THINKING_LEVEL` | `coyote_app.adb` when thinking level is set or changed | child coyote at startup (`coyote_app.adb`) and `LLM.Session_Store` | Propagates the current thinking level to child subagent sessions.  Written into the new session's JSONL header as `thinkingLevel`. |
 | `COYOTE_ENABLE_MEMORY` | user (manual) | `LLM.Agent.Create` | When set to `1`, enables the structured memory system (MEMORY.md discovery and four-type taxonomy) in the system prompt.  Disabled by default. |
+| `COYOTE_SANDBOX_PROFILE` | `coyote_app.adb` when sandbox profile is set or changed | child coyote at startup (`coyote_app.adb`) and `LLM.Session_Store` | Propagates the current sandbox profile to child subagent sessions.  Written into the new session's JSONL header as `sandboxProfile`. |
 
 ## Subagent invocation (shell-based)
 
