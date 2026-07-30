@@ -121,9 +121,11 @@ package body Coyote_App.Frontend.GUI is
          Target : constant Gdouble :=
            Gdouble'Max (Adj.Get_Upper - Adj.Get_Page_Size, 0.0);
       begin
-         Current_Frontend.Programmatic_Scroll := True;
+         Current_Frontend.Programmatic_Scroll_Count :=
+           Current_Frontend.Programmatic_Scroll_Count + 1;
          Adj.Set_Value (Target);
-         Current_Frontend.Programmatic_Scroll := False;
+         Current_Frontend.Programmatic_Scroll_Count :=
+           Current_Frontend.Programmatic_Scroll_Count - 1;
       end;
    end On_Conv_Adj_Changed;
 
@@ -136,7 +138,7 @@ package body Coyote_App.Frontend.GUI is
       pragma Unreferenced (Self);
    begin
       if Current_Frontend /= null
-        and then not Current_Frontend.Programmatic_Scroll
+        and then Current_Frontend.Programmatic_Scroll_Count = 0
       then
          if Current_Frontend.Follow_Mode then
             Current_Frontend.Follow_Mode := False;
@@ -260,11 +262,15 @@ package body Coyote_App.Frontend.GUI is
       if Current_Frontend = null then
          return False;
       end if;
+      Current_Frontend.Programmatic_Scroll_Count :=
+        Current_Frontend.Programmatic_Scroll_Count + 1;
       loop
          Current_Frontend.Updates.Dequeue (U, Got);
          exit when not Got;
          Apply_Update (Current_Frontend.all, U);
       end loop;
+      Current_Frontend.Programmatic_Scroll_Count :=
+        Current_Frontend.Programmatic_Scroll_Count - 1;
       return False;
    end Drain_Idle;
 
@@ -891,9 +897,11 @@ package body Coyote_App.Frontend.GUI is
             Target : constant Gdouble :=
               Gdouble'Max (Adj.Get_Upper - Adj.Get_Page_Size, 0.0);
          begin
-            Current_Frontend.Programmatic_Scroll := True;
+            Current_Frontend.Programmatic_Scroll_Count :=
+              Current_Frontend.Programmatic_Scroll_Count + 1;
             Adj.Set_Value (Target);
-            Current_Frontend.Programmatic_Scroll := False;
+            Current_Frontend.Programmatic_Scroll_Count :=
+              Current_Frontend.Programmatic_Scroll_Count - 1;
          end;
       end if;
    end On_Scroll_Down_Clicked;

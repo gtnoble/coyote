@@ -156,9 +156,43 @@ eliminates all widget embedding from the conversation buffer — no
   `<span alpha="50%" font_style="italic">` instead of nested tags; opened
   with `LF` and closed with `LF LF`.
 
+---
 **Conversation view margins** increased from 8/6 px to 16/12 px
 (left/right 8→16, top/bottom 6→12) in `Coyote_App.Frontend.GUI.Create`.
 
+### Scroll follow-mode with counter guard (2026-07-30)
+
+The conversation view uses a "follow mode" pattern: new content
+automatically scrolls the viewport to the bottom so streaming text stays
+visible.  A `Follow_Mode` flag (initially `True`) controls this.
+When the user manually scrolls away (mouse wheel, scrollbar drag, keyboard
+navigation), follow mode is disabled and a scroll-to-bottom button appears.
+
+**Detection mechanism (pre-2026-07-30):** A single `Programmatic_Scroll :
+Boolean` guard flag.  The `GtkAdjustment::changed` signal handler set this
+flag to `True`, called `Set_Value` to snap to the new bottom, then cleared
+it.  The `::value-changed` handler treated any non-flagged change as a user
+scroll and disabled follow mode.
+
+**Problem:** `End_Text_Block` performs a *delete-then-reinsert* cycle
+(delete raw stream text, reinsert as Pango markup).  GTK may emit
+`value-changed` during the delete phase — before `changed` fires for the
+reinsert — with no guard flag set.  This caused a race condition where
+follow mode was spuriously disabled during large-chunk text insertion.
+
+**Fix (2026-07-30):** Replaced the Boolean guard with a
+`Programmatic_Scroll_Count : Natural` counter.  The counter is incremented:
+
+- Before the `Drain_Idle` batch loop processes queued updates, and
+  decremented after — so the entire update drain is treated as one
+  programmatic operation.
+- Around each individual `Set_Value` call in `On_Conv_Adj_Changed` and
+  `On_Scroll_Down_Clicked` (additive with the drain guard).
+
+The `::value-changed` handler now checks `Programmatic_Scroll_Count = 0`
+instead of `not Programmatic_Scroll`.  Any non-zero count suppresses
+follow-mode disable, covering both the delete+insert double-signal pattern
+and GTK's internal cursor-keeping adjustments.
 ---
 
 ## Key Constraints

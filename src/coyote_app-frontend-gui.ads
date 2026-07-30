@@ -165,9 +165,10 @@ private
       Agent_Sess  : access LLM.Agent.Session := null;
       --  Follow mode: auto-scroll to bottom when new content arrives.
       Follow_Mode         : Boolean := True;
-      --  True while we are programmatically adjusting the vadjustment so
-      --  the value-changed handler does not misinterpret it as a user scroll.
-      Programmatic_Scroll : Boolean := False;
+      --  Incremented during programmatic vadjustment changes and idle-drain
+      --  cycles.  The value-changed handler treats any non-zero count as a
+      --  programmatic (non-user) scroll and suppresses follow-mode disable.
+      Programmatic_Scroll_Count : Natural := 0;
       Zoom_Level          : Integer := 0;
    end record;
 

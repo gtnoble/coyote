@@ -1316,7 +1316,20 @@ selection commands.
   bar (all use the same family and size at zoom level 0).  Zoom (+/-)
   adjusts ±1 pt from the system baseline.  The previous hardcoded
   `"sans 11"` baseline is kept as a fallback if the system-font read fails.
-
+- **Scroll follow-mode** (2026-07-30): The conversation view auto-scrolls to
+  the bottom during streaming via a `Follow_Mode` flag.  User-initiated
+  scrolling (mouse wheel, scrollbar drag, keyboard navigation) disables
+  follow mode.  Programmatic scrolls are distinguished from user scrolls
+  using a `Programmatic_Scroll_Count : Natural` counter.  The counter is
+  incremented for the duration of each `Drain_Idle` batch (so all queued
+  buffer mutations are treated as one programmatic operation) and around each
+  `Set_Value` call in the `GtkAdjustment::changed` handler.  The
+  `::value-changed` handler suppresses follow-mode disable when the counter
+  is non-zero.  This counter replaces a single `Boolean` guard flag from the
+  original implementation, eliminating a race condition where the
+  delete-then-reinsert cycle in `End_Text_Block` could cause `value-changed`
+  to fire during the delete phase with no guard set, spuriously disabling
+  follow mode.
 ---
 
 ### 5.34 `Coyote_App.Frontend.Plain`

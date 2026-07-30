@@ -37,12 +37,13 @@ package body Coyote_GUI.Buffer is
       B.The_Buf  := Buf;
 
       B.Tag_Thinking := Buf.Create_Tag ("thinking");
-      Set_Property (B.Tag_Thinking, Foreground_Property, "#888888");
+      Set_Property (B.Tag_Thinking, Foreground_Property, "#000000");
       Set_Property (B.Tag_Thinking, Left_Margin_Property, Gint (24));
       Set_Property (B.Tag_Thinking, Background_Property, "#fffce8");
 
       B.Tag_Notice_Info := Buf.Create_Tag ("notice_info");
-      Set_Property (B.Tag_Notice_Info, Foreground_Property, "#4488cc");
+      Set_Property (B.Tag_Notice_Info, Foreground_Property, "#000000");
+      Set_Property (B.Tag_Notice_Info, Background_Property, "#e8f0ff");
 
       B.Tag_Notice_Warn := Buf.Create_Tag ("notice_warn");
       Set_Property (B.Tag_Notice_Warn, Foreground_Property, "#cc8800");
