@@ -31,6 +31,7 @@ with Acme.Window;
 with Coyote_App.Frontend.Acme_Win;
 with Coyote_App.Frontend.GUI;
 with Coyote_GUI.Prompt_Queue;
+with Coyote_Spawn;
 with Gtk.Main;
 with Coyote_App.History;    use Coyote_App.History;
 with Coyote_App.Dispatch;   use Coyote_App.Dispatch;
@@ -1221,33 +1222,22 @@ package body Coyote_App is
                                     end;
                                  elsif Text = "New" then
                                     declare
-                                       use GNATCOLL.OS.FS;
                                        use GNATCOLL.OS.Process;
                                        Model   : constant String :=
                                          LLM.Agent.Current_Model_Spec
                                            (Agent_Session);
-                                       Null_FD : File_Descriptor;
                                        Args    : Argument_List;
-                                       Handle  : Process_Handle;
                                     begin
-                                       Null_FD := Open (Null_File, Read_Mode);
                                        Args.Append
                                          (Ada.Command_Line.Command_Name);
                                        if Model'Length > 0 then
                                           Args.Append ("--model");
                                           Args.Append (Model);
                                        end if;
-                                       Handle :=
-                                         Start
-                                           (Args   => Args,
-                                            Stdin  => Null_FD,
-                                            Stdout => Null_FD,
-                                            Stderr => Null_FD,
-                                            Cwd    =>
-                                              Ada.Directories
-                                                .Current_Directory);
-                                       Close (Null_FD);
-                                       Reap_Child (Handle);
+                                       Coyote_Spawn.Spawn_Detached
+                                         (Args,
+                                          Cwd => Ada.Directories
+                                                   .Current_Directory);
                                     end;
                                  elsif Text = "Pause" then
                                     --  Arm a pause to fire at the next turn
@@ -1840,9 +1830,7 @@ package body Coyote_App is
                                    Session_Lister.Fork_Session
                                      (UUID, Turn_N, Cwd,
                                       After_Step => Step_N);
-                                 Null_FD  : File_Descriptor;
                                  Args     : Argument_List;
-                                 Handle   : Process_Handle;
                               begin
                                  if New_UUID'Length = 0 then
                                     Acme.Window.Append
@@ -1857,19 +1845,13 @@ package body Coyote_App is
                                        & " not found in session)."
                                        & ASCII.LF);
                                  else
-                                    Null_FD := Open (Null_File, Read_Mode);
                                     Args.Append
                                       (Ada.Command_Line.Command_Name);
                                     Args.Append ("--session");
                                     Args.Append (New_UUID);
-                                    Handle := Start
-                                      (Args   => Args,
-                                       Stdin  => Null_FD,
-                                       Stdout => Null_FD,
-                                       Stderr => Null_FD,
-                                       Cwd    => Cwd);
-                                    Close (Null_FD);
-                                    Reap_Child (Handle);
+                                    Coyote_Spawn.Spawn_Detached
+                                      (Args,
+                                       Cwd => Cwd);
                                     Acme.Window.Append
                                       (Win,
                                        My_FS'Access,
@@ -2471,29 +2453,19 @@ package body Coyote_App is
 
                      when Coyote_GUI.Prompt_Queue.New_Window =>
                         declare
-                           use GNATCOLL.OS.FS;
                            use GNATCOLL.OS.Process;
                            Model   : constant String :=
                              LLM.Agent.Current_Model_Spec (Agent_Session);
-                           Null_FD : File_Descriptor;
                            Args    : Argument_List;
-                           Handle  : Process_Handle;
                         begin
-                           Null_FD := Open (Null_File, Read_Mode);
                            Args.Append (Ada.Command_Line.Command_Name);
                            if Model'Length > 0 then
                               Args.Append ("--model");
                               Args.Append (Model);
                            end if;
-                           Handle := Start
-                             (Args   => Args,
-                              Stdin  => Null_FD,
-                              Stdout => Null_FD,
-                              Stderr => Null_FD,
-                              Cwd    =>
-                                Ada.Directories.Current_Directory);
-                           Close (Null_FD);
-                           Reap_Child (Handle);
+                           Coyote_Spawn.Spawn_Detached
+                             (Args,
+                              Cwd => Ada.Directories.Current_Directory);
                         end;
 
                      when Coyote_GUI.Prompt_Queue.Set_Model =>
