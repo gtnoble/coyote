@@ -352,7 +352,6 @@ package body Coyote_GUI.Buffer is
 
       --  Create a tag for the entire block and apply it.
       Tag := B.The_Buf.Create_Tag (Tag_Name);
-      Set_Property (Tag, Underline_Property, Pango_Underline_Single);
       B.The_Buf.Get_Iter_At_Mark (SI, Mark);
       B.The_Buf.Get_End_Iter (EI);
       --  Back up one character to exclude the trailing LF we added.
