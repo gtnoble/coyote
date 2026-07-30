@@ -24,6 +24,7 @@ with LLM.Agent;
 with Coyote_GUI.Buffer;
 with Coyote_GUI.Prompt_Queue;
 with Coyote_GUI.Updates;
+with Gtk.Accel_Group;
 with Gtk.Box;
 with Gtk.Button;
 with Gtk.Label;
@@ -145,6 +146,7 @@ private
       --  GTK widgets.
       Win       : Gtk.Window.Gtk_Window;
       Render_Markdown_Item : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
+      Accel_Group : Gtk.Accel_Group.Gtk_Accel_Group;
       Menu_Bar  : Gtk.Menu_Bar.Gtk_Menu_Bar;
       Conv_View : Gtk.Text_View.Gtk_Text_View;
       Conv_Buf  : Gtk.Text_Buffer.Gtk_Text_Buffer;

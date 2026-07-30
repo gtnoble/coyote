@@ -45,6 +45,7 @@ with LLM_OpenCode_Go_Catalogue_Tests;
 with LLM_Session_Store_Tests;
 with LLM_Agent_Tests;
 with LLM_Parallel_Tools_Tests;
+with Sandbox_Tests;
 
 package body Test_Suites is
 
@@ -124,6 +125,8 @@ package body Test_Suites is
      new AUnit.Test_Caller (LLM_Agent_Tests.Test);
    package LLM_Parallel_Caller is
      new AUnit.Test_Caller (LLM_Parallel_Tools_Tests.Test);
+   package Sandbox_Caller is
+     new AUnit.Test_Caller (Sandbox_Tests.Test);
    package SQC_Statistics_Caller is
      new AUnit.Test_Caller (Coyote_SQC_Statistics_Tests.Test);
    package SQC_Parser_Caller is
@@ -913,6 +916,15 @@ package body Test_Suites is
       Result.Add_Test (App_State_Caller.Create
         ("App_State Tag_Suffix round-trip via Set_Tag_Suffix",
          Coyote_App_Tests.Test_State_Tag_Suffix_Round_Trip'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Current_Sandbox initial value is empty",
+         Coyote_App_Tests.Test_State_Sandbox_Initial'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Current_Sandbox round-trip via Set_Sandbox",
+         Coyote_App_Tests.Test_State_Sandbox_Round_Trip'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Set_Sandbox to empty clears the profile",
+         Coyote_App_Tests.Test_State_Sandbox_Clear'Access));
       --  GFM (libcmark-gfm) table parsing
       Result.Add_Test (App_State_Caller.Create
         ("GFM cmark: table input produces node with type_string 'table'",
@@ -1412,6 +1424,14 @@ package body Test_Suites is
         ("LLM.Session_Store tool call with invalid args round-trips",
          LLM_Session_Store_Tests
            .Test_Assistant_Tool_Call_Invalid_Args'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store sandboxProfile written to header when set",
+         LLM_Session_Store_Tests
+           .Test_Sandbox_Profile_Written_To_Header'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store sandboxProfile absent when env var unset",
+         LLM_Session_Store_Tests
+           .Test_Sandbox_No_Profile_No_Header_Field'Access));
 
       --  LLM.SSE tests
       Result.Add_Test (LLM_SSE_Caller.Create
@@ -2659,12 +2679,89 @@ package body Test_Suites is
         ("Group order: group 1 runs before group 2",
          LLM_Parallel_Tools_Tests
            .Test_Tools_Run_In_Group_Order'Access));
+      --  Sandbox tests
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox Profiles_Dir returns path",
+         Sandbox_Tests.Test_Profiles_Dir_Returns_Path'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox Available_Profiles empty when none exist",
+         Sandbox_Tests.Test_Available_Profiles_Empty'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox Available_Profiles finds profile",
+         Sandbox_Tests.Test_Available_Profiles_Found'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox Load_Profile returns object for valid profile",
+         Sandbox_Tests.Test_Load_Profile_Found'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox Load_Profile returns JSON_Null for missing profile",
+         Sandbox_Tests.Test_Load_Profile_Not_Found'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox Load_Profile returns JSON_Null for bad JSON",
+         Sandbox_Tests.Test_Load_Profile_Bad_Json'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox Build_Bwrap_Args returns empty for empty profile",
+         Sandbox_Tests.Test_Bbuild_Empty_Profile'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox Build_Bwrap_Args returns empty for non-existent profile",
+         Sandbox_Tests.Test_Bbuild_Non_Existent_Profile'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox Build_Bwrap_Args allowWrite uses --bind",
+         Sandbox_Tests.Test_Bbuild_Allow_Write'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox Build_Bwrap_Args denyWrite uses --ro-bind",
+         Sandbox_Tests.Test_Bbuild_Deny_Write'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox Build_Bwrap_Args allowRead uses --ro-bind",
+         Sandbox_Tests.Test_Bbuild_Allow_Read'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox Build_Bwrap_Args denyRead uses --tmpfs",
+         Sandbox_Tests.Test_Bbuild_Deny_Read'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox Build_Bwrap_Args skips missing paths",
+         Sandbox_Tests.Test_Bbuild_Missing_Path_Skipped'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox Build_Bwrap_Args handles multiple rule types",
+         Sandbox_Tests.Test_Bbuild_Multiple_Rule_Types'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox Build_Bwrap_Args sorts by path depth",
+         Sandbox_Tests.Test_Bbuild_Depth_Sorted'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox resolves '.' to Cwd",
+         Sandbox_Tests.Test_Resolve_Dot_To_Cwd'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox resolves './...' relative to Cwd",
+         Sandbox_Tests.Test_Resolve_Dot_Slash'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox resolves '~/' prefix to $HOME",
+         Sandbox_Tests.Test_Resolve_Home_Prefix'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox passes absolute paths through unchanged",
+         Sandbox_Tests.Test_Resolve_Absolute_Untouched'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox shell allowWrite succeeds",
+         Sandbox_Tests.Test_Shell_Sandbox_Allow_Write'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox shell denyRead blocks access",
+         Sandbox_Tests.Test_Shell_Sandbox_Deny_Read'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox shell empty profile runs unsandboxed",
+         Sandbox_Tests.Test_Shell_Sandbox_Empty_Profile'Access));
+
       Result.Add_Test (LLM_Agent_Caller.Create
         ("LLM.Agent pause fires at turn boundary and resumes normally",
          LLM_Agent_Tests.Test_Pause_Fires_At_Turn_Boundary'Access));
       Result.Add_Test (LLM_Agent_Caller.Create
         ("LLM.Agent Request_Abort while paused exits with Was_Aborted",
          LLM_Agent_Tests.Test_Stop_While_Paused'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent Set_Sandbox_Profile and Current_Sandbox round-trip",
+         LLM_Agent_Tests.Test_Sandbox_Set_And_Get'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent COYOTE_SANDBOX_PROFILE inherited by Create",
+         LLM_Agent_Tests.Test_Sandbox_Env_Var_Inherited'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent sandbox defaults to empty without env var",
+         LLM_Agent_Tests.Test_Sandbox_Default_Empty'Access));
 
       return Result;
    end Suite;

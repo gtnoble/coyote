@@ -160,6 +160,42 @@ eliminates all widget embedding from the conversation buffer — no
 **Conversation view margins** increased from 8/6 px to 16/12 px
 (left/right 8→16, top/bottom 6→12) in `Coyote_App.Frontend.GUI.Create`.
 
+### Menu keyboard accelerators (2026-07-30)
+
+All frequently used menu items now carry GTK `Gtk_Accel_Group` accelerator
+shortcuts with `Accel_Visible` so labels render in menu text.  The accel
+group is created in `Coyote_App.Frontend.GUI.Create` and attached to the
+main `GtkWindow`.  Nine menu items that previously used a shared `Item`
+local variable were promoted to dedicated named variables so each could
+hold its own `Add_Accelerator` call.
+
+The zoom shortcuts (Ctrl++/Ctrl+-/Ctrl+0) were previously implemented as a
+raw `On_Window_Key_Press` event handler on the top-level window, which
+shadowed the menu items without showing labels.  They are now proper
+accelerators; the key-press handler is reduced to a no-op.
+
+**Shortcut assignments:**
+
+| Menu | Item | Shortcut |
+|---|---|---|
+| File | New Window | Ctrl+N |
+| File | Open Session… | Ctrl+O |
+| File | Quit | Ctrl+Q |
+| Agent | Stop | Escape |
+| Agent | Pause | Ctrl+P |
+| Agent | Resume | Ctrl+R |
+| Agent | Change Model… | Ctrl+M |
+| Agent | Compact Context | Ctrl+Shift+C |
+| View | Zoom In | Ctrl++ |
+| View | Zoom Out | Ctrl+- |
+| View | Reset Zoom | Ctrl+0 |
+
+The `Gdk.Types.Control_Mask or Gdk.Types.Shift_Mask` expression for
+Ctrl+Shift+C required a local `use type Gdk.Types.Gdk_Modifier_Type` block
+because the `or` operator on the modular type is not directly visible in the
+context where the accelerator is attached.  This follows the same pattern
+used in `Coyote_SQC.UI`.
+
 ### Auto-scroll toggle (2026-07-30)
 
 The conversation view includes an explicit `View → Auto-scroll` check menu

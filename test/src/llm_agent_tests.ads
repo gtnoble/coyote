@@ -74,4 +74,16 @@ package LLM_Agent_Tests is
    --  Was_Aborted on the Agent_End_Event.
    procedure Test_Stop_While_Paused (T : in out Test);
 
+   --  ── Sandbox ──────────────────────────────────────────────────────────
+
+   --  Set_Sandbox_Profile stores the profile; Current_Sandbox returns it.
+   procedure Test_Sandbox_Set_And_Get (T : in out Test);
+
+   --  COYOTE_SANDBOX_PROFILE environment variable is inherited by
+   --  child subagent sessions on Create.
+   procedure Test_Sandbox_Env_Var_Inherited (T : in out Test);
+
+   --  Without COYOTE_SANDBOX_PROFILE the sandbox profile defaults to empty.
+   procedure Test_Sandbox_Default_Empty (T : in out Test);
+
 end LLM_Agent_Tests;

@@ -10,6 +10,7 @@ with Glib;                       use Glib;
 with Glib.Main;
 with Gtk.Adjustment;
 with Glib.Properties;            use Glib.Properties;
+with Gtk.Accel_Group;
 with Gtk.Box;
 with Gtk.Button;
 with Gtk.Enums;
@@ -1082,28 +1083,7 @@ package body Coyote_App.Frontend.GUI is
       Event : Gdk.Event.Gdk_Event_Key) return Boolean
    is
       pragma Unreferenced (Self);
-      use type Gdk.Types.Gdk_Key_Type;
-      use type Gdk.Types.Gdk_Modifier_Type;
    begin
-      if (Event.State and Gdk.Types.Control_Mask) /= 0
-        and then Current_Frontend /= null
-      then
-         if Event.Keyval = Gdk.Types.Keysyms.GDK_plus
-           or else Event.Keyval = Gdk.Types.Keysyms.GDK_equal
-         then
-            Current_Frontend.Zoom_Level := Current_Frontend.Zoom_Level + 1;
-            Apply_Zoom (Current_Frontend.all);
-            return True;
-         elsif Event.Keyval = Gdk.Types.Keysyms.GDK_minus then
-            Current_Frontend.Zoom_Level := Current_Frontend.Zoom_Level - 1;
-            Apply_Zoom (Current_Frontend.all);
-            return True;
-         elsif Event.Keyval = Gdk.Types.Keysyms.GDK_0 then
-            Current_Frontend.Zoom_Level := 0;
-            Apply_Zoom (Current_Frontend.all);
-            return True;
-         end if;
-      end if;
       return False;
    end On_Window_Key_Press;
 
@@ -1156,11 +1136,19 @@ package body Coyote_App.Frontend.GUI is
       --  File menu
       File_Menu : Gtk_Menu;
       File_Item : Gtk_Menu_Item;
-      Item      : Gtk_Menu_Item;
+      New_Win_Item   : Gtk_Menu_Item;
+      Open_Sess_Item : Gtk_Menu_Item;
+      Quit_Item      : Gtk_Menu_Item;
+      Item           : Gtk_Menu_Item;
 
       --  Agent menu
       Agent_Menu : Gtk_Menu;
-      Agent_Item : Gtk_Menu_Item;
+      Stop_Item        : Gtk_Menu_Item;
+      Pause_Item       : Gtk_Menu_Item;
+      Resume_Item      : Gtk_Menu_Item;
+      Change_Model_Item : Gtk_Menu_Item;
+      Compact_Item     : Gtk_Menu_Item;
+      Agent_Item       : Gtk_Menu_Item;
 
    begin
       Init_System_Font;
@@ -1173,6 +1161,10 @@ package body Coyote_App.Frontend.GUI is
       F.Win.Set_Default_Size (900, 700);
       F.Win.On_Delete_Event (On_Window_Delete'Access);
       F.Win.On_Key_Press_Event (On_Window_Key_Press'Access);
+
+      --  Accel group for menu keyboard shortcuts.
+      Gtk.Accel_Group.Gtk_New (F.Accel_Group);
+      F.Win.Add_Accel_Group (F.Accel_Group);
 
       --  Outer vertical box
       Gtk.Box.Gtk_New_Vbox (F.Outer_Box, Homogeneous => False, Spacing => 0);
@@ -1191,13 +1183,28 @@ package body Coyote_App.Frontend.GUI is
       Gtk.Menu_Shell.Append
         (Gtk.Menu_Shell.Gtk_Menu_Shell (F.Menu_Bar), File_Item);
 
-      Item := Make_Item ("_New Window", File_Menu);
-      Item.On_Activate (On_New_Activate'Access);
-      Item := Make_Item ("Open _Session...", File_Menu);
-      Item.On_Activate (On_Open_Session_Activate'Access);
+      New_Win_Item := Make_Item ("_New Window", File_Menu);
+      New_Win_Item.On_Activate (On_New_Activate'Access);
+      New_Win_Item.Add_Accelerator
+        ("activate", F.Accel_Group,
+         Gdk.Types.Keysyms.GDK_LC_n,
+         Gdk.Types.Control_Mask,
+         Gtk.Accel_Group.Accel_Visible);
+      Open_Sess_Item := Make_Item ("Open _Session...", File_Menu);
+      Open_Sess_Item.On_Activate (On_Open_Session_Activate'Access);
+      Open_Sess_Item.Add_Accelerator
+        ("activate", F.Accel_Group,
+         Gdk.Types.Keysyms.GDK_LC_o,
+         Gdk.Types.Control_Mask,
+         Gtk.Accel_Group.Accel_Visible);
       Add_Sep (File_Menu);
-      Item := Make_Item ("_Quit", File_Menu);
-      Item.On_Activate (On_Quit_Activate'Access);
+      Quit_Item := Make_Item ("_Quit", File_Menu);
+      Quit_Item.On_Activate (On_Quit_Activate'Access);
+      Quit_Item.Add_Accelerator
+        ("activate", F.Accel_Group,
+         Gdk.Types.Keysyms.GDK_LC_q,
+         Gdk.Types.Control_Mask,
+         Gtk.Accel_Group.Accel_Visible);
 
       --  Agent menu
       Gtk.Menu.Gtk_New (Agent_Menu);
@@ -1206,15 +1213,35 @@ package body Coyote_App.Frontend.GUI is
       Gtk.Menu_Shell.Append
         (Gtk.Menu_Shell.Gtk_Menu_Shell (F.Menu_Bar), Agent_Item);
 
-      Item := Make_Item ("_Stop", Agent_Menu);
-      Item.On_Activate (On_Stop_Activate'Access);
-      Item := Make_Item ("_Pause", Agent_Menu);
-      Item.On_Activate (On_Pause_Activate'Access);
-      Item := Make_Item ("_Resume", Agent_Menu);
-      Item.On_Activate (On_Resume_Activate'Access);
+      Stop_Item := Make_Item ("_Stop", Agent_Menu);
+      Stop_Item.On_Activate (On_Stop_Activate'Access);
+      Stop_Item.Add_Accelerator
+        ("activate", F.Accel_Group,
+         Gdk.Types.Keysyms.GDK_Escape,
+         0,
+         Gtk.Accel_Group.Accel_Visible);
+      Pause_Item := Make_Item ("_Pause", Agent_Menu);
+      Pause_Item.On_Activate (On_Pause_Activate'Access);
+      Pause_Item.Add_Accelerator
+        ("activate", F.Accel_Group,
+         Gdk.Types.Keysyms.GDK_LC_p,
+         Gdk.Types.Control_Mask,
+         Gtk.Accel_Group.Accel_Visible);
+      Resume_Item := Make_Item ("_Resume", Agent_Menu);
+      Resume_Item.On_Activate (On_Resume_Activate'Access);
+      Resume_Item.Add_Accelerator
+        ("activate", F.Accel_Group,
+         Gdk.Types.Keysyms.GDK_LC_r,
+         Gdk.Types.Control_Mask,
+         Gtk.Accel_Group.Accel_Visible);
       Add_Sep (Agent_Menu);
-      Item := Make_Item ("Change _Model...", Agent_Menu);
-      Item.On_Activate (On_Change_Model_Activate'Access);
+      Change_Model_Item := Make_Item ("Change _Model...", Agent_Menu);
+      Change_Model_Item.On_Activate (On_Change_Model_Activate'Access);
+      Change_Model_Item.Add_Accelerator
+        ("activate", F.Accel_Group,
+         Gdk.Types.Keysyms.GDK_LC_m,
+         Gdk.Types.Control_Mask,
+         Gtk.Accel_Group.Accel_Visible);
       declare
          Thinking_Menu : Gtk.Menu.Gtk_Menu;
          Thinking_Head : Gtk.Menu_Item.Gtk_Menu_Item;
@@ -1241,8 +1268,19 @@ package body Coyote_App.Frontend.GUI is
       Item := Make_Item ("_Sandbox Profile...", Agent_Menu);
       Item.On_Activate (On_Sandbox_Profile_Activate'Access);
       Add_Sep (Agent_Menu);
-      Item := Make_Item ("_Compact Context", Agent_Menu);
-      Item.On_Activate (On_Compact_Activate'Access);
+      Compact_Item := Make_Item ("_Compact Context", Agent_Menu);
+      Compact_Item.On_Activate (On_Compact_Activate'Access);
+      declare
+         use type Gdk.Types.Gdk_Modifier_Type;
+         Mods : constant Gdk.Types.Gdk_Modifier_Type :=
+           Gdk.Types.Control_Mask or Gdk.Types.Shift_Mask;
+      begin
+         Compact_Item.Add_Accelerator
+           ("activate", F.Accel_Group,
+            Gdk.Types.Keysyms.GDK_LC_c,
+            Mods,
+            Gtk.Accel_Group.Accel_Visible);
+      end;
       Add_Sep (Agent_Menu);
       Item := Make_Item ("Session _Stats", Agent_Menu);
       Item.On_Activate (On_Stats_Activate'Access);
@@ -1278,10 +1316,25 @@ package body Coyote_App.Frontend.GUI is
          Add_Sep (View_Menu);
          Item := Make_Item ("Zoom _In",    View_Menu);
          Item.On_Activate (On_Zoom_In_Activate'Access);
+         Item.Add_Accelerator
+           ("activate", F.Accel_Group,
+            Gdk.Types.Keysyms.GDK_plus,
+            Gdk.Types.Control_Mask,
+            Gtk.Accel_Group.Accel_Visible);
          Item := Make_Item ("Zoom _Out",   View_Menu);
          Item.On_Activate (On_Zoom_Out_Activate'Access);
+         Item.Add_Accelerator
+           ("activate", F.Accel_Group,
+            Gdk.Types.Keysyms.GDK_minus,
+            Gdk.Types.Control_Mask,
+            Gtk.Accel_Group.Accel_Visible);
          Item := Make_Item ("_Reset Zoom", View_Menu);
          Item.On_Activate (On_Zoom_Reset_Activate'Access);
+         Item.Add_Accelerator
+           ("activate", F.Accel_Group,
+            Gdk.Types.Keysyms.GDK_0,
+            Gdk.Types.Control_Mask,
+            Gtk.Accel_Group.Accel_Visible);
       end;
 
       --  ── Conversation view ─────────────────────────────────────────────

@@ -1612,6 +1612,45 @@ package body Coyote_App_Tests is
       Assert (S.Tag_Suffix = "", "Tag_Suffix should update to empty string");
    end Test_State_Tag_Suffix_Round_Trip;
 
+   --  ── Sandbox ──────────────────────────────────────────────────────────
+
+   procedure Test_State_Sandbox_Initial (T : in out Test) is
+      pragma Unreferenced (T);
+      S : App_State;
+   begin
+      Assert
+        (S.Current_Sandbox = "",
+         "Current_Sandbox should be empty initially");
+   end Test_State_Sandbox_Initial;
+
+   procedure Test_State_Sandbox_Round_Trip (T : in out Test) is
+      pragma Unreferenced (T);
+      S : App_State;
+   begin
+      S.Set_Sandbox ("restricted");
+      Assert
+        (S.Current_Sandbox = "restricted",
+         "Current_Sandbox should return stored profile name");
+      S.Set_Sandbox ("full-access");
+      Assert
+        (S.Current_Sandbox = "full-access",
+         "Current_Sandbox should return updated profile name");
+   end Test_State_Sandbox_Round_Trip;
+
+   procedure Test_State_Sandbox_Clear (T : in out Test) is
+      pragma Unreferenced (T);
+      S : App_State;
+   begin
+      S.Set_Sandbox ("restricted");
+      Assert
+        (S.Current_Sandbox = "restricted",
+         "precondition: sandbox should be set");
+      S.Set_Sandbox ("");
+      Assert
+        (S.Current_Sandbox = "",
+         "Set_Sandbox ("""") should clear the profile back to empty");
+   end Test_State_Sandbox_Clear;
+
    --  ── Format_Session_List ──────────────────────────────────────────────
 
    function Make_Info

@@ -30,4 +30,14 @@ package LLM_Session_Store_Tests is
    procedure Test_Assistant_Tool_Call_Invalid_Args
      (T : in out Test);
 
+   --  ── Sandbox header field ─────────────────────────────────────────────
+
+   --  When COYOTE_SANDBOX_PROFILE is set, the header includes
+   --  sandboxProfile.
+   procedure Test_Sandbox_Profile_Written_To_Header (T : in out Test);
+
+   --  When COYOTE_SANDBOX_PROFILE is absent, the header has no
+   --  sandboxProfile field.
+   procedure Test_Sandbox_No_Profile_No_Header_Field (T : in out Test);
+
 end LLM_Session_Store_Tests;

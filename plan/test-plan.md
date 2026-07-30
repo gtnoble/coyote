@@ -146,6 +146,7 @@ SRS-CORE requirement groups.
 | `llm_types_tests.adb` | REQ-CORE-400â402 | ~20 |
 | `llm_agent_tests.adb` | REQ-CORE-040â046, 060â064 | ~80 |
 | `llm_parallel_tools_tests.adb` | REQ-CORE-056 (run_group) | ~15 |
+| `sandbox_tests.adb` | REQ-CORE-300 (sandbox profiles) | 22 |
 | `llm_context_tests.adb` | REQ-CORE-060 (compaction threshold) | ~15 |
 | `session_history_tests.adb` | REQ-CORE-130â131 | ~15 |
 | `dispatch_tests.adb` | REQ-CORE-040â046 (dispatch) | ~20 |
@@ -314,6 +315,7 @@ and any failures are recorded here or in the Test Report.
 
 **Baseline as of 2026-06-16 (Mutual Information diversity charts):** 688 tests, 0 failures,
 **Baseline as of 2026-07-12 (Step-level fork tokens throughout tool-call turns):** 694 tests, 0 failures,
+**Baseline as of 2026-07-30 (Sandbox profiles):** 772 tests, 0 failures,
 **Baseline as of 2026-07-19 (Memory opt-in gate):** 742 tests, 0 failures,
 0 unexpected errors.  Added 11 MI tests for
 `Coyote_SQC.Statistics.MI` (compute values, identical calls, different calls,

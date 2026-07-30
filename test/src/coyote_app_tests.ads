@@ -276,6 +276,17 @@ package Coyote_App_Tests is
    --  Set_Tag_Suffix stores the suffix verbatim.
    procedure Test_State_Tag_Suffix_Round_Trip    (T : in out Test);
 
+   --  ── Sandbox ──────────────────────────────────────────────────────────
+
+   --  Current_Sandbox is empty by default.
+   procedure Test_State_Sandbox_Initial          (T : in out Test);
+
+   --  Set_Sandbox stores the profile name and Current_Sandbox returns it.
+   procedure Test_State_Sandbox_Round_Trip       (T : in out Test);
+
+   --  Set_Sandbox ("") clears the profile back to empty.
+   procedure Test_State_Sandbox_Clear            (T : in out Test);
+
    --  ── Format_Session_List ──────────────────────────────────────────────
 
    --  Flat list with no subagents renders one line per session.

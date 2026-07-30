@@ -1359,6 +1359,17 @@ selection commands.
   viewport to the bottom on every adjustment change (triggered by new content
   arrival).  When disabled, the viewport stays wherever the user has scrolled
   — there is no automatic detection or override of user-initiated scrolling.
+- **Menu keyboard accelerators** (2026-07-30): All frequently used menu
+  items have GTK accelerator shortcuts attached via a `Gtk_Accel_Group`
+  on the main window, with `Accel_Visible` so shortcut labels appear in
+  menu text.  The accelerators are: Ctrl+N (New Window), Ctrl+O (Open
+  Session), Ctrl+Q (Quit), Escape (Stop), Ctrl+P (Pause), Ctrl+R (Resume),
+  Ctrl+M (Change Model), Ctrl+Shift+C (Compact Context), and Ctrl++/Ctrl+-/
+  Ctrl+0 (Zoom In/Out/Reset).  Zoom shortcuts were previously handled by a
+  raw `On_Window_Key_Press` handler; moving them to proper accelerators
+  makes them visible in menu labels and allows the key-press handler to be
+  simplified to a no-op.
+
   This replaces the earlier follow-mode implementation that used
   `Programmatic_Scroll_Count` counter guards and `::value-changed` auto-detection
   to distinguish user from programmatic scrolls, along with a "↓ New output"

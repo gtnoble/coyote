@@ -5383,4 +5383,193 @@ package body LLM_Agent_Tests is
          raise;
    end Test_Stop_While_Paused;
 
+   --  ── Sandbox ──────────────────────────────────────────────────────────
+
+   procedure Test_Sandbox_Set_And_Get (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home          : constant String :=
+        "/tmp/coyote_llm_agent_sandbox_1";
+      Agent_Session : LLM.Agent.Session;
+      Home_Was_Set  : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home      : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Sbx_Was_Set   : constant Boolean :=
+        Ada.Environment_Variables.Exists
+          ("COYOTE_SANDBOX_PROFILE");
+      Old_Sbx       : constant String :=
+        Ada.Environment_Variables.Value
+          ("COYOTE_SANDBOX_PROFILE", "");
+   begin
+      Prepare_Test_Home (Home);
+      Write_Settings_File
+        (Home             => Home,
+         Default_Provider => "openrouter",
+         Default_Model    => "test/default-model");
+      Write_OpenRouter_Models_File (Home, "settings-key");
+      Write_Minimal_OpenRouter_Cache
+        (Home     => Home,
+         Model_Id => "test/default-model");
+
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Clear ("COYOTE_SANDBOX_PROFILE");
+
+      LLM.Agent.Create
+        (S          => Agent_Session,
+         Model_Spec => "",
+         No_Tools   => True);
+
+      --  Initially empty.
+      Assert
+        (LLM.Agent.Current_Sandbox (Agent_Session) = "",
+         "sandbox should be empty initially");
+
+      --  Set a profile and verify round-trip.
+      LLM.Agent.Set_Sandbox_Profile
+        (Agent_Session, "restricted");
+      Assert
+        (LLM.Agent.Current_Sandbox (Agent_Session) = "restricted",
+         "sandbox should return ""restricted"" after set, got: "
+         & LLM.Agent.Current_Sandbox (Agent_Session));
+
+      --  Change to a different profile.
+      LLM.Agent.Set_Sandbox_Profile
+        (Agent_Session, "full-access");
+      Assert
+        (LLM.Agent.Current_Sandbox (Agent_Session) = "full-access",
+         "sandbox should return ""full-access"" after second set, got: "
+         & LLM.Agent.Current_Sandbox (Agent_Session));
+
+      --  Clear the profile.
+      LLM.Agent.Set_Sandbox_Profile
+        (Agent_Session, "");
+      Assert
+        (LLM.Agent.Current_Sandbox (Agent_Session) = "",
+         "sandbox should return """" after clearing, got: "
+         & LLM.Agent.Current_Sandbox (Agent_Session));
+
+      Restore_Env
+        ("COYOTE_SANDBOX_PROFILE", Sbx_Was_Set, Old_Sbx);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env
+           ("COYOTE_SANDBOX_PROFILE", Sbx_Was_Set, Old_Sbx);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Sandbox_Set_And_Get;
+
+   procedure Test_Sandbox_Env_Var_Inherited (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home          : constant String :=
+        "/tmp/coyote_llm_agent_sandbox_2";
+      Agent_Session : LLM.Agent.Session;
+      Home_Was_Set  : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home      : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Sbx_Was_Set   : constant Boolean :=
+        Ada.Environment_Variables.Exists
+          ("COYOTE_SANDBOX_PROFILE");
+      Old_Sbx       : constant String :=
+        Ada.Environment_Variables.Value
+          ("COYOTE_SANDBOX_PROFILE", "");
+   begin
+      Prepare_Test_Home (Home);
+      Write_Settings_File
+        (Home             => Home,
+         Default_Provider => "openrouter",
+         Default_Model    => "test/default-model");
+      Write_OpenRouter_Models_File (Home, "settings-key");
+      Write_Minimal_OpenRouter_Cache
+        (Home     => Home,
+         Model_Id => "test/default-model");
+
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Set
+        ("COYOTE_SANDBOX_PROFILE", "child-profile");
+
+      LLM.Agent.Create
+        (S          => Agent_Session,
+         Model_Spec => "",
+         No_Tools   => True);
+
+      --  The COYOTE_SANDBOX_PROFILE env var should be inherited.
+      Assert
+        (LLM.Agent.Current_Sandbox (Agent_Session)
+         = "child-profile",
+         "sandbox should inherit from COYOTE_SANDBOX_PROFILE, got: "
+         & LLM.Agent.Current_Sandbox (Agent_Session));
+
+      Restore_Env
+        ("COYOTE_SANDBOX_PROFILE", Sbx_Was_Set, Old_Sbx);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env
+           ("COYOTE_SANDBOX_PROFILE", Sbx_Was_Set, Old_Sbx);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Sandbox_Env_Var_Inherited;
+
+   procedure Test_Sandbox_Default_Empty (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home          : constant String :=
+        "/tmp/coyote_llm_agent_sandbox_3";
+      Agent_Session : LLM.Agent.Session;
+      Home_Was_Set  : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home      : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Sbx_Was_Set   : constant Boolean :=
+        Ada.Environment_Variables.Exists
+          ("COYOTE_SANDBOX_PROFILE");
+      Old_Sbx       : constant String :=
+        Ada.Environment_Variables.Value
+          ("COYOTE_SANDBOX_PROFILE", "");
+   begin
+      Prepare_Test_Home (Home);
+      Write_Settings_File
+        (Home             => Home,
+         Default_Provider => "openrouter",
+         Default_Model    => "test/default-model");
+      Write_OpenRouter_Models_File (Home, "settings-key");
+      Write_Minimal_OpenRouter_Cache
+        (Home     => Home,
+         Model_Id => "test/default-model");
+
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Clear ("COYOTE_SANDBOX_PROFILE");
+
+      LLM.Agent.Create
+        (S          => Agent_Session,
+         Model_Spec => "",
+         No_Tools   => True);
+
+      Assert
+        (LLM.Agent.Current_Sandbox (Agent_Session) = "",
+         "sandbox should be empty when COYOTE_SANDBOX_PROFILE"
+         & " is absent, got: "
+         & LLM.Agent.Current_Sandbox (Agent_Session));
+
+      Restore_Env
+        ("COYOTE_SANDBOX_PROFILE", Sbx_Was_Set, Old_Sbx);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env
+           ("COYOTE_SANDBOX_PROFILE", Sbx_Was_Set, Old_Sbx);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Sandbox_Default_Empty;
+
 end LLM_Agent_Tests;
