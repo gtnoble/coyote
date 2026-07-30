@@ -723,6 +723,18 @@ package body LLM.Session_Store is
                   end if;
                end;
 
+               --  Record sandbox profile so session replayers can reinstate
+               --  the profile on reload.
+               declare
+                  Sand_Profile : constant String :=
+                    Ada.Environment_Variables.Value
+                      ("COYOTE_SANDBOX_PROFILE", "");
+               begin
+                  if Sand_Profile'Length > 0 then
+                     Header.Set_Field ("sandboxProfile", Sand_Profile);
+                  end if;
+               end;
+
                Write_Raw_Line
                  (Path  => Path,
                   Line  => GNATCOLL.JSON.Write (Header),

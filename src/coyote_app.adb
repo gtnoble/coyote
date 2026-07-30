@@ -55,6 +55,8 @@ package body Coyote_App is
         (To_String (P_Model));
       function Current_Thinking   return String  is
         (To_String (P_Thinking));
+      function Current_Sandbox    return String  is
+        (To_String (P_Sandbox));
       function Is_Streaming       return Boolean is (P_Streaming);
       function Is_Compacting      return Boolean is (P_Compacting);
       function Was_Aborted        return Boolean is (P_Aborted);
@@ -97,6 +99,11 @@ package body Coyote_App is
       begin
          P_Thinking := To_Unbounded_String (Level);
       end Set_Thinking;
+
+      procedure Set_Sandbox (Profile : String) is
+      begin
+         P_Sandbox := To_Unbounded_String (Profile);
+      end Set_Sandbox;
 
       procedure Set_Streaming (Value : Boolean) is
       begin
@@ -310,6 +317,7 @@ package body Coyote_App is
       Switch_Session_Command,
       Set_Model_Command,
       Set_Thinking_Command,
+      Set_Sandbox_Command,
       Shutdown_Command);
 
    MAX_PENDING_COMMANDS : constant Positive := 64;
@@ -465,17 +473,18 @@ package body Coyote_App is
       Commands      : Agent_Command_Queue;
 
       function Status_Label return String is
+         Sandbox : constant String := State.Current_Sandbox;
       begin
          if State.Is_Compacting then
-            return "compacting";
+            return "compacting" & (if Sandbox'Length > 0 then " [" & Sandbox & "]" else "");
          elsif State.Is_Retrying then
-            return "retrying";
+            return "retrying" & (if Sandbox'Length > 0 then " [" & Sandbox & "]" else "");
          elsif State.Is_Paused then
-            return "paused";
+            return "paused" & (if Sandbox'Length > 0 then " [" & Sandbox & "]" else "");
          elsif State.Is_Streaming then
-            return "running";
+            return "running" & (if Sandbox'Length > 0 then " [" & Sandbox & "]" else "");
          else
-            return "ready";
+            return "ready" & (if Sandbox'Length > 0 then " [" & Sandbox & "]" else "");
          end if;
       end Status_Label;
 
@@ -497,12 +506,14 @@ package body Coyote_App is
       task Plumb_Model_Task;
       task Plumb_Thinking_Task;
       task Plumb_Fork_Task;
+      task Plumb_Sandbox_Task;
 
       --  ── Agent_Task ────────────────────────────────────────────────────
 
       task body Agent_Task is
          Section          : Section_Kind      := No_Section;
          Current_Thinking : Unbounded_String := Null_Unbounded_String;
+         Current_Sandbox  : Unbounded_String := Null_Unbounded_String;
          Current_Text     : Unbounded_String := Null_Unbounded_String;
          Final_Text       : Unbounded_String := Null_Unbounded_String;
          Final_Error      : Unbounded_String := Null_Unbounded_String;
@@ -593,9 +604,10 @@ package body Coyote_App is
             procedure Emit_Session_Info is
                Event : constant LLM.Events.Session_Info_Event :=
                  (LLM.Events.Agent_Event with
-                  Session_Id     =>
+                  Session_Id      =>
                     To_Unbounded_String (LLM.Agent.Session_Id (Agent_Session)),
-                  Thinking_Level => Current_Thinking);
+                  Thinking_Level  => Current_Thinking,
+                  Sandbox_Profile => Current_Sandbox);
             begin
                Dispatch_Event (Event);
             end Emit_Session_Info;
@@ -820,6 +832,19 @@ package body Coyote_App is
                Ada.Environment_Variables.Set
                  ("COYOTE_THINKING_LEVEL",
                   Ada.Strings.Unbounded.To_String (Current_Thinking));
+            else
+               Ada.Environment_Variables.Set
+                 ("COYOTE_THINKING_LEVEL", "");
+            end if;
+
+            --  Publish the sandbox profile for child subagent processes.
+            if Ada.Strings.Unbounded.Length (Current_Sandbox) > 0 then
+               Ada.Environment_Variables.Set
+                 ("COYOTE_SANDBOX_PROFILE",
+                  Ada.Strings.Unbounded.To_String (Current_Sandbox));
+            else
+               Ada.Environment_Variables.Set
+                 ("COYOTE_SANDBOX_PROFILE", "");
             end if;
 
 
@@ -931,6 +956,35 @@ package body Coyote_App is
                               when Ex : others =>
                                  Append_Task_Warning
                                    ("thinking change failed: "
+                                    & Ada.Exceptions.Exception_Message (Ex));
+                           end;
+
+                        when Set_Sandbox_Command =>
+                           begin
+                              Current_Sandbox := Text;
+                              if Ada.Strings.Unbounded.Length
+                                   (Current_Sandbox) > 0
+                              then
+                                 Ada.Environment_Variables.Set
+                                   ("COYOTE_SANDBOX_PROFILE",
+                                    To_String (Current_Sandbox));
+                              else
+                                 Ada.Environment_Variables.Set
+                                   ("COYOTE_SANDBOX_PROFILE", "");
+                              end if;
+                              LLM.Agent.Set_Sandbox_Profile
+                                (S       => Agent_Session,
+                                 Profile => To_String (Current_Sandbox));
+                              State.Set_Sandbox
+                                (To_String (Current_Sandbox));
+                              Acme.Window.Replace_Line1
+                                (Win,
+                                 My_FS'Access,
+                                 Format_Status (State, Status_Label));
+                           exception
+                              when Ex : others =>
+                                 Append_Task_Warning
+                                   ("sandbox profile change failed: "
                                     & Ada.Exceptions.Exception_Message (Ex));
                            end;
 
@@ -1842,6 +1896,91 @@ package body Coyote_App is
                & Ada.Exceptions.Exception_Information (Ex));
       end Plumb_Fork_Task;
 
+      --  ── Plumb_Sandbox_Task ────────────────────────────────────────────
+
+      task body Plumb_Sandbox_Task is
+         Got_Shutdown : Boolean := False;
+      begin
+         declare
+            Pl_FS       : aliased Nine_P.Client.Fs;
+            My_FS       : aliased Nine_P.Client.Fs;
+            Port        : aliased Nine_P.Client.File;
+            Max_Retries : constant Positive := 5;
+            Retry_Delay : constant Duration := 0.5;
+            Connected   : Boolean := False;
+         begin
+            Connection_Retry : for Attempt in 1 .. Max_Retries loop
+               begin
+                  Connect (Pl_FS, "plumb");
+                  Connect (My_FS, "acme");
+                  Open (Port, Pl_FS'Access, "/coyote-sandbox", O_READ);
+                  Connected := True;
+                  exit Connection_Retry;
+               exception
+                  when Nine_P.Proto.P9_Error =>
+                     exit Connection_Retry when Attempt = Max_Retries;
+                     delay Retry_Delay;
+               end;
+            end loop Connection_Retry;
+
+            if not Connected then
+               raise Nine_P.Proto.P9_Error with
+                 "Plumb_Sandbox_Task could not open /coyote-sandbox";
+            end if;
+
+            Plumb_Loop : loop
+               select
+                  State.Wait_Shutdown;
+                  Got_Shutdown := True;
+               then abort
+                  declare
+                     Raw  : constant Byte_Array :=
+                       Nine_P.Client.Read_Once (Port'Access);
+                     Data : constant String := Extract_Plumb_Data (Raw);
+                  begin
+                     exit Plumb_Loop when Raw'Length = 0;
+                     if Data'Length > 0 then
+                        declare
+                           First_Slash : Natural := 0;
+                        begin
+                           for I in Data'Range loop
+                              if Data (I) = '/' then
+                                 First_Slash := I;
+                                 exit;
+                              end if;
+                           end loop;
+                           if First_Slash > 0
+                             and then Data (Data'First .. First_Slash - 1)
+                                      = "coyote-sandbox+" & My_PID
+                           then
+                              declare
+                                 Profile : constant String :=
+                                   Data (First_Slash + 1 .. Data'Last);
+                              begin
+                                 Commands.Enqueue
+                                   (Set_Sandbox_Command, Profile);
+                                 Acme.Window.Append
+                                   (Win,
+                                    My_FS'Access,
+                                    ASCII.LF & "[Sandbox -> " & Profile
+                                    & "]" & ASCII.LF);
+                              end;
+                           end if;
+                        end;
+                     end if;
+                  end;
+               end select;
+               exit Plumb_Loop when Got_Shutdown;
+            end loop Plumb_Loop;
+         end;
+      exception
+         when Ex : others =>
+            Ada.Text_IO.Put_Line
+              (Ada.Text_IO.Standard_Error,
+               "Plumb_Sandbox_Task terminated: "
+               & Ada.Exceptions.Exception_Information (Ex));
+      end Plumb_Sandbox_Task;
+
    begin
       --  ── Initial window setup ──────────────────────────────────────────
       State.Set_Tag_Suffix
@@ -1960,17 +2099,18 @@ package body Coyote_App is
       My_Frontend   : Coyote_App.Frontend.GUI.Instance;
 
       function Status_Label return String is
+         Sandbox : constant String := State.Current_Sandbox;
       begin
          if State.Is_Compacting then
-            return "compacting";
+            return "compacting" & (if Sandbox'Length > 0 then " [" & Sandbox & "]" else "");
          elsif State.Is_Retrying then
-            return "retrying";
+            return "retrying" & (if Sandbox'Length > 0 then " [" & Sandbox & "]" else "");
          elsif State.Is_Paused then
-            return "paused";
+            return "paused" & (if Sandbox'Length > 0 then " [" & Sandbox & "]" else "");
          elsif State.Is_Streaming then
-            return "running";
+            return "running" & (if Sandbox'Length > 0 then " [" & Sandbox & "]" else "");
          else
-            return "ready";
+            return "ready" & (if Sandbox'Length > 0 then " [" & Sandbox & "]" else "");
          end if;
       end Status_Label;
 
@@ -1990,6 +2130,7 @@ package body Coyote_App is
       task body Agent_Task is
          Section          : Section_Kind    := No_Section;
          Current_Thinking : Unbounded_String := Null_Unbounded_String;
+         Current_Sandbox  : Unbounded_String := Null_Unbounded_String;
          Current_Text     : Unbounded_String := Null_Unbounded_String;
          Final_Text       : Unbounded_String := Null_Unbounded_String;
          Final_Error      : Unbounded_String := Null_Unbounded_String;
@@ -2116,10 +2257,11 @@ package body Coyote_App is
             procedure Emit_Session_Info is
                Event : constant LLM.Events.Session_Info_Event :=
                  (LLM.Events.Agent_Event with
-                  Session_Id     =>
+                  Session_Id      =>
                     To_Unbounded_String
                       (LLM.Agent.Session_Id (Agent_Session)),
-                  Thinking_Level => Current_Thinking);
+                  Thinking_Level  => Current_Thinking,
+                  Sandbox_Profile => Current_Sandbox);
             begin
                Dispatch_Event (Event);
             end Emit_Session_Info;
@@ -2323,6 +2465,19 @@ package body Coyote_App is
                Ada.Environment_Variables.Set
                  ("COYOTE_THINKING_LEVEL",
                   Ada.Strings.Unbounded.To_String (Current_Thinking));
+            else
+               Ada.Environment_Variables.Set
+                 ("COYOTE_THINKING_LEVEL", "");
+            end if;
+
+            --  Publish the sandbox profile for child subagent processes.
+            if Ada.Strings.Unbounded.Length (Current_Sandbox) > 0 then
+               Ada.Environment_Variables.Set
+                 ("COYOTE_SANDBOX_PROFILE",
+                  Ada.Strings.Unbounded.To_String (Current_Sandbox));
+            else
+               Ada.Environment_Variables.Set
+                 ("COYOTE_SANDBOX_PROFILE", "");
             end if;
 
 
@@ -2466,6 +2621,26 @@ package body Coyote_App is
                            when Ex : others =>
                               Append_Task_Warning
                                 ("thinking change failed: "
+                                 & Ada.Exceptions.Exception_Message (Ex));
+                        end;
+
+                     when Coyote_GUI.Prompt_Queue.Set_Sandbox =>
+                        begin
+                           Current_Sandbox := It.Profile_Name;
+                           LLM.Agent.Set_Sandbox_Profile
+                             (S       => Agent_Session,
+                              Profile => To_String (Current_Sandbox));
+                           State.Set_Sandbox
+                             (To_String (Current_Sandbox));
+                           Ada.Environment_Variables.Set
+                             ("COYOTE_SANDBOX_PROFILE",
+                              To_String (Current_Sandbox));
+                           My_Frontend.Set_Status
+                             (Format_Status (State, Status_Label));
+                        exception
+                           when Ex : others =>
+                              Append_Task_Warning
+                                ("sandbox profile change failed: "
                                  & Ada.Exceptions.Exception_Message (Ex));
                         end;
 

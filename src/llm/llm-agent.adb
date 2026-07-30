@@ -87,9 +87,11 @@ package body LLM.Agent is
    --  Executes one tool call and stores the result in a Results_Store.
    --  Workers never call On_Event or touch any Nine_P.Client.Fs.
    task type Worker_Task
-     (Store          : not null access Results_Store;
-      Abort_Flg      : access LLM.Tools.Abort_Flag;
-      Context_Window : Natural)
+     (Store           : not null access Results_Store;
+      Abort_Flg       : access LLM.Tools.Abort_Flag;
+      Context_Window  : Natural;
+      Sandbox_Profile : access constant
+        Ada.Strings.Unbounded.Unbounded_String)
    is
       entry Start
         (Index : Positive;
@@ -143,12 +145,14 @@ package body LLM.Agent is
          if Ada.Strings.Unbounded.To_String (My_Tool.Tool_Name) = "shell"
          then
             LLM.Tools.Shell.Execute
-              (Args_Json  => Ada.Strings.Unbounded.To_String
-                               (My_Tool.Arguments_Json),
-               Result     => Result,
-               Media_Type => Media_Type,
-               Is_Error   => Is_Error,
-               Abort_Flg  => Abort_Flg);
+              (Args_Json       => Ada.Strings.Unbounded.To_String
+                                    (My_Tool.Arguments_Json),
+               Result          => Result,
+               Media_Type      => Media_Type,
+               Is_Error        => Is_Error,
+               Abort_Flg       => Abort_Flg,
+               Sandbox_Profile => Ada.Strings.Unbounded.To_String
+                                    (Sandbox_Profile.all));
 
             --  Apply the result-size cap to plain-text results.  Image
             --  results (Media_Type non-empty) are base64-encoded binary and
@@ -1244,6 +1248,18 @@ package body LLM.Agent is
       S.No_Tools := No_Tools;
       S.Thinking := Thinking_From_String
         (To_String (Settings_Value.Default_Thinking));
+      S.Sandbox_Profile := Null_Unbounded_String;
+      --  Inherit sandbox profile from parent subagent process.
+      declare
+         Inherited : constant String :=
+           Ada.Environment_Variables.Value
+             ("COYOTE_SANDBOX_PROFILE", "");
+      begin
+         if Inherited'Length > 0 then
+            S.Sandbox_Profile :=
+              Ada.Strings.Unbounded.To_Unbounded_String (Inherited);
+         end if;
+      end;
       S.Abort_State.Clear;
       S.Streaming := False;
       S.Model_Info := EMPTY_MODEL_INFO;
@@ -1860,13 +1876,15 @@ package body LLM.Agent is
                               begin
                                  for W in 1 .. Group_Size loop
                                     Workers (W) := new Worker_Task
-                                      (Store          =>
+                                      (Store           =>
                                          Store'Unchecked_Access,
-                                       Abort_Flg      =>
+                                       Abort_Flg       =>
                                          S.Abort_State'Access,
-                                       Context_Window =>
+                                       Context_Window  =>
                                          S.Model_Info
-                                           .Context_Window);
+                                           .Context_Window,
+                                       Sandbox_Profile =>
+                                         S.Sandbox_Profile'Access);
                                     Workers (W).Start
                                       (Index => W,
                                        Tool  =>
@@ -1898,11 +1916,13 @@ package body LLM.Agent is
                              Pending_Tools.Element (I - 1);
                         begin
                            Worker := new Worker_Task
-                             (Store          => Store'Unchecked_Access,
-                              Abort_Flg      =>
+                             (Store           => Store'Unchecked_Access,
+                              Abort_Flg       =>
                                 S.Abort_State'Access,
-                              Context_Window =>
-                                S.Model_Info.Context_Window);
+                              Context_Window  =>
+                                S.Model_Info.Context_Window,
+                              Sandbox_Profile =>
+                                S.Sandbox_Profile'Access);
                            Worker.Start
                              (Index => 1, Tool => Tool);
                            Store.Wait_All;
@@ -2108,6 +2128,19 @@ package body LLM.Agent is
    begin
       S.Thinking := Level;
    end Set_Thinking;
+
+   procedure Set_Sandbox_Profile
+     (S       : in out Session;
+      Profile :        String) is
+   begin
+      S.Sandbox_Profile :=
+        Ada.Strings.Unbounded.To_Unbounded_String (Profile);
+   end Set_Sandbox_Profile;
+
+   function Current_Sandbox (S : Session) return String is
+   begin
+      return Ada.Strings.Unbounded.To_String (S.Sandbox_Profile);
+   end Current_Sandbox;
 
    procedure Set_Compact_Settings
      (S        : in out Session;

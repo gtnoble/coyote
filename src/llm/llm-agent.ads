@@ -106,6 +106,15 @@ package LLM.Agent is
      (S     : in out Session;
       Level :        LLM.Providers.Thinking_Level);
 
+   --  Change the sandbox profile for shell tool commands.
+   --  Pass "" to disable sandboxing.
+   procedure Set_Sandbox_Profile
+     (S       : in out Session;
+      Profile :        String);
+
+   --  Return the active sandbox profile name ("" when none).
+   function Current_Sandbox (S : Session) return String;
+
    --  Override the compaction settings for subsequent prompts.
    --  Pass a value with Enabled => False to disable automatic
    --  context compaction entirely (e.g. for ephemeral one-shot sessions).
@@ -153,7 +162,8 @@ private
         Ada.Strings.Unbounded.Null_Unbounded_String;
       History       : LLM.Types.Message_Vectors.Vector;
       No_Tools      : Boolean := False;
-      Thinking      : LLM.Providers.Thinking_Level := LLM.Providers.Off;
+      Thinking        : LLM.Providers.Thinking_Level := LLM.Providers.Off;
+      Sandbox_Profile : aliased Ada.Strings.Unbounded.Unbounded_String;
       Abort_State   : aliased LLM.Tools.Abort_Flag;
       Pause_State   : aliased LLM.Tools.Pause_Flag;
       Streaming     : Boolean := False;

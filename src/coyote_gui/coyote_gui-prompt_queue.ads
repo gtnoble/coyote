@@ -22,6 +22,7 @@ package Coyote_GUI.Prompt_Queue is
       New_Window,        --  spawn a fresh coyote GUI window
       Set_Model,         --  change the active model
       Set_Thinking,      --  change the reasoning level
+      Set_Sandbox,       --  change the sandbox profile
       Switch_Session,    --  load a different session by UUID
       Set_Default,       --  persist current model and thinking as defaults
       Shutdown_Item);    --  queue is closing; agent task should exit
@@ -39,6 +40,8 @@ package Coyote_GUI.Prompt_Queue is
             Model_Spec   : Ada.Strings.Unbounded.Unbounded_String;
          when Set_Thinking =>
             Level        : LLM.Providers.Thinking_Level;
+         when Set_Sandbox =>
+            Profile_Name : Ada.Strings.Unbounded.Unbounded_String;
          when Switch_Session =>
             Session_UUID : Ada.Strings.Unbounded.Unbounded_String;
          when others =>

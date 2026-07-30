@@ -43,10 +43,11 @@ package LLM.Tools.Shell is
    --  absent.  Is_Error is True when the arguments are invalid or the
    --  command exits non-zero.
    procedure Execute
-     (Args_Json  :     String;
-      Result     : out Ada.Strings.Unbounded.Unbounded_String;
-      Media_Type : out Ada.Strings.Unbounded.Unbounded_String;
-      Is_Error   : out Boolean;
-      Abort_Flg  : access LLM.Tools.Abort_Flag := null);
+     (Args_Json       :     String;
+      Result          : out Ada.Strings.Unbounded.Unbounded_String;
+      Media_Type      : out Ada.Strings.Unbounded.Unbounded_String;
+      Is_Error        : out Boolean;
+      Abort_Flg       : access LLM.Tools.Abort_Flag := null;
+      Sandbox_Profile :     String := "");
 
 end LLM.Tools.Shell;

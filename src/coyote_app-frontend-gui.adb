@@ -48,6 +48,7 @@ with LLM.Agent;
 with LLM.Providers;
 with Coyote_App.Utils;
 with LLM.Model_Registry;
+with LLM.Tools.Sandbox;
 
 package body Coyote_App.Frontend.GUI is
    use Coyote_GUI.Prompt_Queue;
@@ -849,6 +850,105 @@ package body Coyote_App.Frontend.GUI is
            ((Set_Thinking, Level => LLM.Providers.X_High));
       end if;
    end On_Thinking_X_High_Activate;
+
+   --  ── Sandbox Profile dialog ────────────────────────────────────────────
+
+   procedure On_Sandbox_Profile_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
+   is
+      pragma Unreferenced (Self);
+      use Gtk.Dialog;
+      use Gtk.List_Store;
+      use Gtk.Tree_Model;
+      use Gtk.Tree_View;
+
+      Profiles : constant LLM.Tools.Sandbox.String_Vectors.Vector :=
+        LLM.Tools.Sandbox.Available_Profiles;
+      Store   : Gtk_List_Store;
+      View    : Gtk_Tree_View;
+      Scroll  : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Content : Gtk.Box.Gtk_Box;
+      Dialog  : Gtk_Dialog;
+      Resp    : Gtk_Response_Type;
+      Sel     : Gtk.Tree_Selection.Gtk_Tree_Selection;
+      Tmodel  : Gtk_Tree_Model;
+      Iter    : Gtk_Tree_Iter;
+      Val     : Glib.Values.GValue;
+      Dummy   : Glib.Gint;
+      pragma Unreferenced (Dummy);
+      Btn     : Gtk.Widget.Gtk_Widget;
+      pragma Unreferenced (Btn);
+   begin
+      if Current_Frontend = null then
+         return;
+      end if;
+
+      Gtk.List_Store.Gtk_New
+        (Store, (0 => Glib.GType_String));
+
+      --  "None" row first.
+      Store.Append (Iter);
+      Store.Set (Iter, 0, "None (no sandbox)");
+
+      for P of Profiles loop
+         Store.Append (Iter);
+         Store.Set (Iter, 0, P);
+      end loop;
+
+      Gtk.Tree_View.Gtk_New (View, +Store);
+      View.Set_Enable_Search (True);
+      View.Set_Search_Column (0);
+      declare
+         Col      : Gtk.Tree_View_Column.Gtk_Tree_View_Column;
+         Renderer : Gtk.Cell_Renderer_Text.Gtk_Cell_Renderer_Text;
+      begin
+         Gtk.Cell_Renderer_Text.Gtk_New (Renderer);
+         Gtk.Tree_View_Column.Gtk_New (Col);
+         Col.Set_Title ("Profile");
+         Col.Pack_Start (Renderer, Expand => True);
+         Col.Add_Attribute (Renderer, "text", 0);
+         Dummy := View.Append_Column (Col);
+      end;
+
+      Gtk.Scrolled_Window.Gtk_New (Scroll);
+      Scroll.Set_Policy (Gtk.Enums.Policy_Automatic,
+                         Gtk.Enums.Policy_Automatic);
+      Scroll.Add (View);
+
+      Gtk.Dialog.Gtk_New (Dialog);
+      Dialog.Set_Title ("Select Sandbox Profile");
+      Dialog.Set_Default_Size (400, 300);
+      Dialog.Set_Transient_For (Current_Frontend.Win);
+      Btn := Dialog.Add_Button ("_Cancel", Gtk_Response_Cancel);
+      Btn := Dialog.Add_Button ("_Select", Gtk_Response_OK);
+      Dialog.Set_Default_Response (Gtk_Response_OK);
+
+      Content := Dialog.Get_Content_Area;
+      Content.Pack_Start (Scroll, Expand => True, Fill => True, Padding => 4);
+      Dialog.Show_All;
+
+      Resp := Dialog.Run;
+      if Resp = Gtk_Response_OK then
+         Sel := View.Get_Selection;
+         Sel.Get_Selected (Tmodel, Iter);
+         if Iter /= Null_Iter then
+            Gtk.Tree_Model.Get_Value (Tmodel, Iter, 0, Val);
+            declare
+               use Ada.Strings.Unbounded;
+               Name : constant String := Glib.Values.Get_String (Val);
+            begin
+               Glib.Values.Unset (Val);
+               Current_Frontend.PQ.Enqueue
+                 ((Set_Sandbox,
+                   Profile_Name =>
+                     To_Unbounded_String
+                       (if Name = "None (no sandbox)" then "" else Name)));
+            end;
+         end if;
+      end if;
+      Dialog.Destroy;
+   end On_Sandbox_Profile_Activate;
+
    --  ── Markdown rendering toggle ─────────────────────────────────────────
 
    procedure On_Render_Markdown_Toggled
@@ -1138,6 +1238,8 @@ package body Coyote_App.Frontend.GUI is
          Item := Make_Item ("_X-High",  Thinking_Menu);
          Item.On_Activate (On_Thinking_X_High_Activate'Access);
       end;
+      Item := Make_Item ("_Sandbox Profile...", Agent_Menu);
+      Item.On_Activate (On_Sandbox_Profile_Activate'Access);
       Add_Sep (Agent_Menu);
       Item := Make_Item ("_Compact Context", Agent_Menu);
       Item.On_Activate (On_Compact_Activate'Access);

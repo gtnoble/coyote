@@ -3,6 +3,7 @@
 --  Project: coyote
 --  For revision history, see the project version-control log.
 
+with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Exceptions;
 with Ada.Strings;
@@ -10,6 +11,7 @@ with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with GNATCOLL.JSON;
 with GNATCOLL.OS.FS;         use GNATCOLL.OS.FS;
+with LLM.Tools.Sandbox;
 with GNATCOLL.OS.Process;    use GNATCOLL.OS.Process;
 
 package body LLM.Tools.Shell is
@@ -206,11 +208,12 @@ package body LLM.Tools.Shell is
    end Set_Error;
 
    procedure Execute
-     (Args_Json  :     String;
-      Result     : out Ada.Strings.Unbounded.Unbounded_String;
-      Media_Type : out Ada.Strings.Unbounded.Unbounded_String;
-      Is_Error   : out Boolean;
-      Abort_Flg  : access LLM.Tools.Abort_Flag := null)
+     (Args_Json       :     String;
+      Result          : out Ada.Strings.Unbounded.Unbounded_String;
+      Media_Type      : out Ada.Strings.Unbounded.Unbounded_String;
+      Is_Error        : out Boolean;
+      Abort_Flg       : access LLM.Tools.Abort_Flag := null;
+      Sandbox_Profile :     String := "")
    is
       Parsed : constant GNATCOLL.JSON.Read_Result :=
         GNATCOLL.JSON.Read (Args_Json);
@@ -351,6 +354,33 @@ package body LLM.Tools.Shell is
                Open_Pipe (Stdin_R, Stdin_W);
             else
                Null_In := Open (Null_File, Read_Mode);
+            end if;
+
+            --  When a sandbox profile is active, wrap the command with
+            --  bubblewrap (bwrap) to restrict filesystem access.  bwrap
+            --  is placed outside setsid so that kill(-pid, SIGKILL)
+            --  still reaches the entire process tree.
+            if Sandbox_Profile'Length > 0 then
+               declare
+                  Bwrap_Args : constant
+                    LLM.Tools.Sandbox.String_Vectors.Vector :=
+                      LLM.Tools.Sandbox.Build_Bwrap_Args
+                        (Sandbox_Profile,
+                         Ada.Directories.Current_Directory);
+               begin
+                  Args.Append ("bwrap");
+                  Args.Append ("--ro-bind");
+                  Args.Append ("/");
+                  Args.Append ("/");
+                  Args.Append ("--dev");
+                  Args.Append ("/dev");
+                  Args.Append ("--proc");
+                  Args.Append ("/proc");
+                  for Arg of Bwrap_Args loop
+                     Args.Append (Arg);
+                  end loop;
+                  Args.Append ("--");
+               end;
             end if;
 
             --  Wrap the shell invocation with setsid(1) so the child

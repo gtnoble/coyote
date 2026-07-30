@@ -24,6 +24,7 @@ package Coyote_App is
       function Session_Id         return String;
       function Current_Model      return String;
       function Current_Thinking   return String;
+      function Current_Sandbox    return String;
       function Is_Streaming       return Boolean;
       function Is_Compacting      return Boolean;
       function Was_Aborted        return Boolean;
@@ -89,6 +90,7 @@ package Coyote_App is
       procedure Set_Session_Id     (Id    : String);
       procedure Set_Model          (Model : String);
       procedure Set_Thinking       (Level : String);
+      procedure Set_Sandbox        (Profile : String);
       procedure Set_Streaming      (Value : Boolean);
       procedure Set_Compacting     (Value : Boolean);
       procedure Set_Aborted        (Value : Boolean);
@@ -161,6 +163,7 @@ package Coyote_App is
       P_Session_Id    : Ada.Strings.Unbounded.Unbounded_String;
       P_Model         : Ada.Strings.Unbounded.Unbounded_String;
       P_Thinking      : Ada.Strings.Unbounded.Unbounded_String;
+      P_Sandbox       : Ada.Strings.Unbounded.Unbounded_String;
       P_Streaming     : Boolean := False;
       P_Compacting    : Boolean := False;
       P_Aborted       : Boolean := False;

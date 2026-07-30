@@ -94,8 +94,9 @@ package LLM.Events is
    end record;
 
    type Session_Info_Event is new Agent_Event with record
-      Session_Id     : Ada.Strings.Unbounded.Unbounded_String;
-      Thinking_Level : Ada.Strings.Unbounded.Unbounded_String;
+      Session_Id      : Ada.Strings.Unbounded.Unbounded_String;
+      Thinking_Level  : Ada.Strings.Unbounded.Unbounded_String;
+      Sandbox_Profile : Ada.Strings.Unbounded.Unbounded_String;
    end record;
 
    type Session_Stats_Event is new Agent_Event with record

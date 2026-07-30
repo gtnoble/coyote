@@ -506,6 +506,11 @@ package body Coyote_App.Dispatch is
             if Think_Level'Length > 0 then
                State.Set_Thinking (Think_Level);
             end if;
+            declare
+               Sandbox : constant String := To_String (Ev.Sandbox_Profile);
+            begin
+               State.Set_Sandbox (Sandbox);
+            end;
          end;
          Frontend.Set_Status (Format_Status (State, "ready"));
 

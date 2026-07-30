@@ -831,8 +831,9 @@ package body Dispatch_Tests is
          Dispatch_Event
            (Event   => LLM.Events.Session_Info_Event'
               (LLM.Events.Agent_Event with
-               Session_Id     => To_Unbounded_String ("test-uuid-1234"),
-               Thinking_Level => To_Unbounded_String ("medium")),
+               Session_Id      => To_Unbounded_String ("test-uuid-1234"),
+               Thinking_Level  => To_Unbounded_String ("medium"),
+               Sandbox_Profile => To_Unbounded_String ("")),
             Frontend => My_Frontend,
             State   => S,
             Section => Sect,
