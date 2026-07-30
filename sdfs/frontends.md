@@ -101,6 +101,18 @@ variables. All comparisons in `Coyote_GUI.Buffer` use these stored integers.
 This means the Ada code is correct regardless of which installed version of
 libcmark-gfm is used — it never assumes a specific numeric value.
 
+### System font integration (2026-07-30)
+
+The GUI frontend reads the system default proportional font from
+`Gtk.Settings.Get_Default` (`gtk-font-name`) at startup
+(`Init_System_Font`).  The conversation view, prompt `GtkTextView`, and
+status bar all use this family and size as their baseline (zoom level 0).
+Zoom adjusts ±1 pt from the system baseline.  The SQC tool-detail window
+reads the same GTK setting lazily (`Ensure_System_Font_Init`) and applies
+the point size to its monospace `GtkTextView` widgets while using the
+generic `"monospace"` family name, which Pango resolves to the users
+configured monospace font.
+
 ### GUI visual spacing and layout
 
 The initial GUI conversation view felt cramped — content blocks ran into

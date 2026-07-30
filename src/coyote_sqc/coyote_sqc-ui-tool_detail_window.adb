@@ -11,6 +11,7 @@ with Coyote_App.Utils;       use Coyote_App.Utils;
 with Gdk.Pixbuf;
 with Glib;                   use Glib;
 with Glib.Error;
+with Glib.Properties;         use Glib.Properties;
 with GNAT.OS_Lib;
 with GNATCOLL.JSON;
 with Gtk.Box;
@@ -27,12 +28,51 @@ with Gtk.Style_Provider;
 with Gtk.Text_Buffer;
 with Gtk.Text_View;
 with Gtk.Widget;
+with Gtk.Settings;
 with Gtk.Window;
+with Pango.Enums;
 with Pango.Font;
 
 package body Coyote_SQC.UI.Tool_Detail_Window is
 
    use type GNATCOLL.JSON.JSON_Value_Type;
+
+   use Pango.Enums;
+   use Pango.Font;
+
+   --  System monospace font helpers
+   --
+   --  Read the system font size from Gtk.Settings lazily so that
+   --  "monospace" resolves to the user configured monospace font.
+
+   System_Font_Size_Pt : Integer := 10;
+   System_Font_Inited  : Boolean := False;
+
+   procedure Ensure_System_Font_Init is
+      Settings : constant Gtk.Settings.Gtk_Settings :=
+        Gtk.Settings.Get_Default;
+      Font_Str : constant String :=
+        Glib.Properties.Get_Property
+          (Settings,
+           Gtk.Settings.Gtk_Font_Name_Property);
+      FD : Pango_Font_Description :=
+        Pango.Font.From_String (Font_Str);
+   begin
+      System_Font_Size_Pt :=
+        Integer (Pango.Font.Get_Size (FD)) / Pango_Scale;
+      System_Font_Inited := True;
+      Pango.Font.Free (FD);
+   exception
+      when others =>
+         null;
+   end Ensure_System_Font_Init;
+
+   function Mono_Font_Str return String is
+   begin
+      return "monospace "
+        & Integer'Image (System_Font_Size_Pt)
+            (2 .. Integer'Image (System_Font_Size_Pt)'Last);
+   end Mono_Font_Str;
 
    --  ── Base64 decoder ────────────────────────────────────────────────────
 
@@ -177,11 +217,14 @@ package body Coyote_SQC.UI.Tool_Detail_Window is
          Gtk.Text_View.Gtk_New (TV, Buf);
          TV.Set_Editable (False);
          TV.Set_Wrap_Mode (Wrap_Word_Char);
+         if not System_Font_Inited then
+            Ensure_System_Font_Init;
+         end if;
          declare
             use Pango.Font;
             Fd : Pango.Font.Pango_Font_Description;
          begin
-            Fd := From_String ("Monospace");
+            Fd := From_String (Mono_Font_Str);
             TV.Modify_Font (Fd);
             Free (Fd);
          end;
@@ -424,11 +467,14 @@ package body Coyote_SQC.UI.Tool_Detail_Window is
                Gtk.Text_View.Gtk_New (TV, Buf);
                TV.Set_Editable (False);
                TV.Set_Wrap_Mode (Wrap_Word_Char);
+               if not System_Font_Inited then
+                  Ensure_System_Font_Init;
+               end if;
                declare
                   use Pango.Font;
                   Fd : Pango.Font.Pango_Font_Description;
                begin
-                  Fd := From_String ("Monospace");
+                  Fd := From_String (Mono_Font_Str);
                   TV.Modify_Font (Fd);
                   Free (Fd);
                end;

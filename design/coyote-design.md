@@ -1309,6 +1309,13 @@ selection commands.
   from `Dispatch_Event` via a classwide `if P in GUI.Instance'Class` check
   to set the status-bar model/cost summary.
 - `Shutdown` — calls `Gtk.Main.Quit` from within the idle callback.
+- **System font integration** (2026-07-30): On startup the frontend reads the
+  system default proportional font family and point size from
+  `Gtk.Settings.Get_Default` (`gtk-font-name` property) and uses these
+  values as the baseline for the conversation view, prompt area, and status
+  bar (all use the same family and size at zoom level 0).  Zoom (+/-)
+  adjusts ±1 pt from the system baseline.  The previous hardcoded
+  `"sans 11"` baseline is kept as a fallback if the system-font read fails.
 
 ---
 

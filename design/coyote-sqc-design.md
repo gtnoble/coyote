@@ -3232,8 +3232,13 @@ built as follows:
 3. If parsing fails or the value is not a JSON object: render a single unlabelled
    `GtkTextView` containing the raw `Arguments` string.
 
-All `GtkTextView` widgets in the arguments section use a monospace font
-(`Pango.Font_Description` set to `"Monospace"`).
+All `GtkTextView` widgets in the arguments section and result section use
+a monospace font.  The font size is read from `Gtk.Settings.Get_Default`
+(`gtk-font-name` property) at first use (`Ensure_System_Font_Init`) so that
+monospace text renders at the same point size as the system proportional
+font.  The family name `"monospace"` is passed to Pango, which resolves it
+to the users configured monospace font.  Fallback defaults are
+`"monospace 10"` if the GTK settings read fails.
 
 #### Result Section
 

@@ -2,6 +2,7 @@
 --
 --  Project: coyote
 
+with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
 with Gdk.Event;
 with Gdk.Types;
 with Gdk.Types.Keysyms;
@@ -19,6 +20,7 @@ with Gtk.Menu;
 with Gtk.Menu_Item;
 with Gtk.Menu_Shell;
 with Gtk.Check_Menu_Item;
+with Gtk.Settings;
 with Gtk.Scrolled_Window;
 with Gtk.Separator_Menu_Item;
 with Gtk.Text_Buffer;
@@ -26,6 +28,7 @@ with Gtk.Text_Iter;
 with Gtk.Text_View;
 with Gtk.Widget;
 with Gtk.Window;
+with Pango.Enums;
 with Pango.Font;
 with Ada.Directories;
 with Glib.Values;
@@ -895,8 +898,31 @@ package body Coyote_App.Frontend.GUI is
       end if;
    end On_Scroll_Down_Clicked;
 
-   --  Base font size in Pango points (used by Apply_Zoom).
-   Zoom_Base_Pt : constant := 11;
+   --  System font family and size, read from gtk-font-name at startup.
+   System_Font_Family : Ada.Strings.Unbounded.Unbounded_String;
+   System_Font_Size_Pt : Integer := 11;  --  fallback default
+   System_Font_Init    : Boolean := False;
+
+   --  Init_System_Font — read the system default proportional font
+   --  family and point size once from Gtk.Settings.
+   procedure Init_System_Font is
+      Settings : constant Gtk.Settings.Gtk_Settings :=
+        Gtk.Settings.Get_Default;
+      Font_Str : constant String :=
+        Glib.Properties.Get_Property
+          (Settings,
+           Gtk.Settings.Gtk_Font_Name_Property);
+      FD : Pango.Font.Pango_Font_Description :=
+        Pango.Font.From_String (Font_Str);
+   begin
+      System_Font_Family :=
+        To_Unbounded_String (Pango.Font.Get_Family (FD));
+      System_Font_Size_Pt :=
+        Integer (Pango.Font.Get_Size (FD)) / Pango.Enums.Pango_Scale;
+      Pango.Font.Free (FD);
+      System_Font_Init := True;
+   end Init_System_Font;
+
    --  Point-size increment per zoom step.
    Zoom_Step_Pt : constant := 1;
 
@@ -905,13 +931,21 @@ package body Coyote_App.Frontend.GUI is
    procedure Apply_Zoom (F : in out Instance) is
       use Pango.Font;
       use type Gtk.Text_View.Gtk_Text_View;
-      Size_Pt  : constant Integer :=
-        Zoom_Base_Pt + F.Zoom_Level * Zoom_Step_Pt;
-      Clamped  : constant Integer :=
+      use Ada.Strings.Unbounded;
+      Base_Pt    : constant Integer :=
+        (if System_Font_Init then System_Font_Size_Pt else 11);
+      Family_Str : constant String :=
+        (if System_Font_Init
+         then To_String (System_Font_Family)
+         else "sans");
+      Size_Pt    : constant Integer :=
+        Base_Pt + F.Zoom_Level * Zoom_Step_Pt;
+      Clamped    : constant Integer :=
         (if Size_Pt < 6 then 6 elsif Size_Pt > 32 then 32 else Size_Pt);
-      Font_Str : constant String  :=
-        "sans " & Integer'Image (Clamped) (2 .. Integer'Image (Clamped)'Last);
-      FD       : Pango_Font_Description := From_String (Font_Str);
+      Font_Str   : constant String :=
+        Family_Str & " " & Integer'Image (Clamped)
+          (2 .. Integer'Image (Clamped)'Last);
+      FD : Pango_Font_Description := From_String (Font_Str);
    begin
       if F.Conv_View /= null then
          F.Conv_View.Override_Font (FD);
@@ -1041,6 +1075,7 @@ package body Coyote_App.Frontend.GUI is
       Agent_Item : Gtk_Menu_Item;
 
    begin
+      Init_System_Font;
       F.Win_Name := To_Unbounded_String (Win_Name);
       Current_Frontend := F'Unchecked_Access;
 
@@ -1245,8 +1280,16 @@ package body Coyote_App.Frontend.GUI is
       F.Status_Bar.Set_Xalign (0.0);
 
       declare
+         use Ada.Strings.Unbounded;
+         Status_Font_Str : constant String :=
+           (if System_Font_Init
+            then To_String (System_Font_Family)
+            else "sans")
+           & " "
+           & Integer'Image (System_Font_Size_Pt)
+               (2 .. Integer'Image (System_Font_Size_Pt)'Last);
          Font_Desc : Pango.Font.Pango_Font_Description :=
-           Pango.Font.From_String ("9");
+           Pango.Font.From_String (Status_Font_Str);
       begin
          F.Status_Bar.Modify_Font (Font_Desc);
          Pango.Font.Free (Font_Desc);
