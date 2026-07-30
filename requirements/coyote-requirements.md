@@ -541,14 +541,6 @@ Pause, Resume.
 The GUI frontend shall support vi-style scroll navigation (j/k/g/G/Ctrl-D/
 Ctrl-U) in the conversation view.
 
-**REQ-CORE-114a** (D)
-The GUI frontend shall provide a follow mode that auto-scrolls the
-conversation view to the bottom as new content arrives. Any user scroll
-action (mouse wheel, scrollbar drag, keyboard navigation) shall
-unconditionally disable follow mode. Follow mode shall be re-enabled only by
-clicking the "New output" button, not by repositioning the viewport to the
-bottom. Follow mode shall default to enabled at window creation.
-
 **REQ-CORE-115** (D)
 The GUI frontend shall propagate `COYOTE_FRONTEND=gui` to all child processes
 so that subagents open their own GUI windows.
