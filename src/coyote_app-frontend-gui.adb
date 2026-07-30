@@ -30,6 +30,9 @@ with Gtk.Widget;
 with Gtk.Window;
 with Pango.Enums;
 with Pango.Font;
+with Pango.Context;
+with Pango.Font_Metrics;
+with Pango.Language;
 with Ada.Directories;
 with Glib.Values;
 with Gtk.Cell_Renderer_Text;
@@ -918,6 +921,25 @@ package body Coyote_App.Frontend.GUI is
       end if;
       if F.Prompt_View /= null then
          F.Prompt_View.Override_Font (FD);
+         declare
+            use Pango.Context;
+            use Pango.Font_Metrics;
+            Ctx     : constant Pango.Context.Pango_Context :=
+              F.Prompt_View.Get_Pango_Context;
+            Metrics : constant Pango.Font_Metrics.Pango_Font_Metrics :=
+              Ctx.Get_Metrics (FD, Pango.Language.Null_Pango_Language);
+            Line_H  : constant Gint := Metrics.Get_Height;
+            --  Fall back to ascent + descent if height is 0.
+            H       : constant Gint :=
+              (if Line_H > 0 then Line_H
+               else Metrics.Get_Ascent + Metrics.Get_Descent);
+            One_Line : constant Gint :=
+              (if H > 0 then H / Pango.Enums.Pango_Scale else 18);
+         begin
+            F.Prompt_View.Set_Size_Request
+              (-1, One_Line);
+            Metrics.Unref;
+         end;
       end if;
       Free (FD);
    end Apply_Zoom;
@@ -1195,24 +1217,19 @@ package body Coyote_App.Frontend.GUI is
 
       Gtk.Box.Gtk_New_Vbox (Prompt_Box, Homogeneous => False, Spacing => 2);
 
-      Gtk.Scrolled_Window.Gtk_New (F.Prompt_Scroll);
-      F.Prompt_Scroll.Set_Policy (Policy_Never, Policy_Automatic);
-      F.Prompt_Scroll.Set_Min_Content_Height (36);
-      F.Prompt_Scroll.Set_Max_Content_Height (96);
-
       Gtk.Text_View.Gtk_New (F.Prompt_View);
       F.Prompt_View.Set_Wrap_Mode (Wrap_Word_Char);
       F.Prompt_View.Set_Left_Margin (4);
       F.Prompt_View.Set_Right_Margin (4);
+      F.Prompt_View.Set_Pixels_Above_Lines (2);
+      F.Prompt_View.Set_Pixels_Below_Lines (2);
       F.Prompt_View.On_Key_Press_Event (On_Prompt_Key_Press'Access);
       Apply_Zoom (F);
 
       F.Prompt_Buf := F.Prompt_View.Get_Buffer;
 
-      F.Prompt_Scroll.Add (F.Prompt_View);
-
       Gtk.Box.Gtk_New_Hbox (Bottom_Box, Homogeneous => False, Spacing => 4);
-      Bottom_Box.Pack_Start (F.Prompt_Scroll, Expand => True, Fill => True,
+      Bottom_Box.Pack_Start (F.Prompt_View, Expand => True, Fill => True,
                              Padding => 2);
 
       Gtk.Button.Gtk_New_From_Icon_Name

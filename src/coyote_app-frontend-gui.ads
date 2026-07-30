@@ -151,7 +151,6 @@ private
       Conv_Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
       Prompt_View : Gtk.Text_View.Gtk_Text_View;
       Prompt_Buf  : Gtk.Text_Buffer.Gtk_Text_Buffer;
-      Prompt_Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
       Send_Btn    : Gtk.Button.Gtk_Button;
       Stop_Btn    : Gtk.Button.Gtk_Button;
       Status_Bar  : Gtk.Label.Gtk_Label;
