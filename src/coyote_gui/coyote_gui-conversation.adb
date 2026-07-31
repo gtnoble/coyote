@@ -13,6 +13,9 @@ with GNATCOLL.JSON;
 with Gtk.Adjustment;
 with Gtk.Clipboard;
 with Gtk.Drawing_Area;
+with Gtk.Menu;
+with Gtk.Menu_Item;
+with Gtk.Menu_Shell;
 with Gtk.Scrolled_Window;
 with Gtk.Widget;
 with Pango.Cairo;
@@ -55,6 +58,9 @@ package body Coyote_GUI.Conversation is
    procedure On_Size_Allocate
      (Self       : access Gtk.Widget.Gtk_Widget_Record'Class;
       Allocation : Gtk.Widget.Gtk_Allocation);
+
+   procedure Copy_Menu_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
 
    --  ── Internal helpers ──────────────────────────────────────────────────
 
@@ -233,6 +239,39 @@ package body Coyote_GUI.Conversation is
          end if;
       end;
    end Attach;
+
+   --  ── Show_Copy_Menu ────────────────────────────────────────────────────
+
+   procedure Show_Copy_Menu
+     (C     : in out Instance;
+      Event : Gdk.Event.Gdk_Event_Button)
+   is
+      use Gtk.Menu;
+      use Gtk.Menu_Item;
+      Menu  : Gtk_Menu;
+      Item  : Gtk_Menu_Item;
+   begin
+      Gtk.Menu.Gtk_New (Menu);
+
+      Gtk.Menu_Item.Gtk_New_With_Mnemonic (Item, "_Copy");
+      Item.On_Activate (Copy_Menu_Activate'Access);
+      Gtk.Menu_Shell.Append (Gtk.Menu_Shell.Gtk_Menu_Shell (Menu), Item);
+
+      Menu.Show_All;
+      Menu.Popup
+        (Button        => Event.Button,
+         Activate_Time => Event.Time);
+   end Show_Copy_Menu;
+
+   procedure Copy_Menu_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
+   is
+      pragma Unreferenced (Self);
+   begin
+      if Current_Conv /= null then
+         Copy_Selection_To_Clipboard (Current_Conv.all);
+      end if;
+   end Copy_Menu_Activate;
 
    --  ── Signal: size-allocate ──────────────────────────────────────────────
 
@@ -426,6 +465,11 @@ package body Coyote_GUI.Conversation is
          --  Don't stop propagation; the frontend's handler
          --  checks for tool/action clicks after us.
          null;
+
+      elsif Event.Button = 3 and then Current_Conv.Sel_Visible then
+         --  Right-click on a selection: show Copy context menu.
+         Show_Copy_Menu (Current_Conv.all, Event);
+         return True;
       end if;
 
       return False;
