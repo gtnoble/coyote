@@ -24,7 +24,7 @@ with Gtk.Check_Menu_Item;
 with Gtk.Settings;
 with Gtk.Scrolled_Window;
 with Gtk.Separator_Menu_Item;
-with Gtk.Text_Buffer;
+with Gtk.Drawing_Area;
 with Gtk.Text_Iter;
 with Gtk.Text_View;
 with Gtk.Widget;
@@ -152,8 +152,8 @@ package body Coyote_App.Frontend.GUI is
 
       --  Try tool click first.
       declare
-         Result : constant Coyote_GUI.Buffer.Tool_Click_Result :=
-           Current_Frontend.Buf.Handle_Tool_Click
+         Result : constant Coyote_GUI.Conversation.Tool_Click_Result :=
+           Current_Frontend.Conv.Handle_Tool_Click
              (Glib.Gint (Event.X), Glib.Gint (Event.Y));
       begin
          if Result.Found then
@@ -165,12 +165,12 @@ package body Coyote_App.Frontend.GUI is
 
       --  Try action strip click (e.g. fork).
       declare
-         use type Coyote_GUI.Buffer.Action_Kind;
-         Result : constant Coyote_GUI.Buffer.Action_Click_Result :=
-           Current_Frontend.Buf.Handle_Action_Click
+         use type Coyote_GUI.Conversation.Action_Kind;
+         Result : constant Coyote_GUI.Conversation.Action_Click_Result :=
+           Current_Frontend.Conv.Handle_Action_Click
              (Glib.Gint (Event.X), Glib.Gint (Event.Y));
       begin
-         if Result.Found and then Result.Action.Kind = Coyote_GUI.Buffer.Fork then
+         if Result.Found and then Result.Action.Kind = Coyote_GUI.Conversation.Fork then
             declare
                use Ada.Strings.Unbounded;
                New_UUID : constant String :=
@@ -206,51 +206,48 @@ package body Coyote_App.Frontend.GUI is
       case U.Kind is
 
          when Append_Text =>
-            F.Buf.Append_Text (To_String (U.Text));
+            F.Conv.Append_Text (To_String (U.Text));
 
          when End_Text_Block =>
-            F.Buf.End_Text_Block;
+            F.Conv.End_Text_Block;
 
          when Begin_Thinking =>
-            F.Buf.Begin_Thinking;
+            F.Conv.Begin_Thinking;
 
          when Append_Thinking =>
-            F.Buf.Append_Thinking (To_String (U.Text));
+            F.Conv.Append_Thinking (To_String (U.Text));
 
          when End_Thinking =>
-            F.Buf.End_Thinking;
+            F.Conv.End_Thinking;
 
          when Begin_Tool =>
-            F.Buf.Begin_Tool
+            F.Conv.Begin_Tool
               (Name       => To_String (U.Text),
                Args       => To_String (U.Text2),
                Session_Id => To_String (U.Text3),
                Tool_Id    => To_String (U.Text4));
 
          when End_Tool =>
-            F.Buf.End_Tool
+            F.Conv.End_Tool
               (Tool_Id => To_String (U.Text),
-               Status  => Coyote_GUI.Tool_End_Status'Val
-                            (Coyote_App.Frontend.Tool_End_Status'Pos
-                               (Coyote_App.Frontend.Tool_End_Status'Val
-                                  (Coyote_GUI.Tool_End_Status'Pos
-                                     (U.T_Status)))),
+               Status  => Coyote_GUI.Conversation.Tool_End_Status'Val
+                            (Coyote_GUI.Tool_End_Status'Pos (U.T_Status)),
                Result  => To_String (U.Text2));
 
          when Append_Notice =>
-            F.Buf.Append_Notice
-              (Kind => Coyote_GUI.Notice_Kind'Val
-                         (Coyote_App.Frontend.Notice_Kind'Pos
-                            (Coyote_App.Frontend.Notice_Kind'Val
-                               (Coyote_GUI.Notice_Kind'Pos (U.N_Kind)))),
+            F.Conv.Append_Notice
+              (Kind => Coyote_GUI.Conversation.Line_Style'Val
+                         (Coyote_GUI.Notice_Kind'Pos (U.N_Kind)
+                          + Coyote_GUI.Conversation.Line_Style'Pos
+                              (Coyote_GUI.Conversation.Notice_Info)),
                Text => To_String (U.Text));
 
          when Append_Turn_Footer =>
-            F.Buf.Append_Turn_Footer (To_String (U.Text));
+            F.Conv.Append_Turn_Footer (To_String (U.Text));
 
          when Append_Action_Strip =>
             declare
-               use Coyote_GUI.Buffer;
+               use Coyote_GUI.Conversation;
                UUID_Str   : constant String := To_String (U.Text2);
                Turn_Str   : constant String := To_String (U.Text3);
                Step_Str   : constant String := To_String (U.Text4);
@@ -264,7 +261,7 @@ package body Coyote_App.Frontend.GUI is
                   if Step_Str'Length > 0 then
                      Step_Val := Natural'Value (Step_Str);
                   end if;
-                  F.Buf.Append_Action_Strip
+                  F.Conv.Append_Action_Strip
                     (To_String (U.Text),
                      (Kind        => Fork,
                       Fork_UUID   => U.Text2,
@@ -1020,7 +1017,7 @@ package body Coyote_App.Frontend.GUI is
      (Self : access Gtk.Check_Menu_Item.Gtk_Check_Menu_Item_Record'Class) is
    begin
       if Current_Frontend /= null then
-         Current_Frontend.Buf.Set_Render_Markdown (Self.Get_Active);
+         Current_Frontend.Conv.Set_Render_Markdown (Self.Get_Active);
       end if;
    end On_Render_Markdown_Toggled;
 
@@ -1081,9 +1078,7 @@ package body Coyote_App.Frontend.GUI is
           (2 .. Integer'Image (Clamped)'Last);
       FD : Pango_Font_Description := From_String (Font_Str);
    begin
-      if F.Conv_View /= null then
-         F.Conv_View.Override_Font (FD);
-      end if;
+      F.Conv.Invalidate_Layout;
       if F.Prompt_View /= null then
          F.Prompt_View.Override_Font (FD);
          declare
@@ -1412,24 +1407,17 @@ package body Coyote_App.Frontend.GUI is
          Adj.On_Changed (On_Conv_Adj_Changed'Access);
       end;
 
-      Gtk.Text_View.Gtk_New (F.Conv_View);
-      F.Conv_View.Set_Editable (False);
-      F.Conv_View.Set_Cursor_Visible (False);
-      F.Conv_View.Set_Wrap_Mode (Wrap_Word_Char);
-      F.Conv_View.Set_Left_Margin (16);
-      F.Conv_View.Set_Right_Margin (16);
-      F.Conv_View.Set_Top_Margin (12);
-      F.Conv_View.Set_Bottom_Margin (12);
+      Gtk.Drawing_Area.Gtk_New (F.Conv_DA);
 
-      F.Conv_Buf := F.Conv_View.Get_Buffer;
+      F.Conv.Attach (F.Conv_Scroll, F.Conv_DA);
 
-      --  Connect tool-call click handler to the conversation view.
-      F.Conv_View.On_Button_Press_Event
+      --  Connect the frontend's tool/action click handler to the drawing area.
+      --  The Conversation's own button-press handler (for selection) returns
+      --  False, so both handlers fire.
+      F.Conv_DA.On_Button_Press_Event
         (On_Conv_Button_Press'Access);
 
-      F.Buf.Attach (F.Conv_View, F.Conv_Buf);
-
-      F.Conv_Scroll.Add (F.Conv_View);
+      F.Conv_Scroll.Add (F.Conv_DA);
       F.Outer_Box.Pack_Start (F.Conv_Scroll, Expand => True, Fill => True,
                               Padding => 0);
       --  ── Prompt area ───────────────────────────────────────────────────
