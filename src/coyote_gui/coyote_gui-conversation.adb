@@ -791,7 +791,7 @@ package body Coyote_GUI.Conversation is
       Result  :        String)
    is
       use Tool_Start_Maps;
-      Pos       : constant Cursor := C.Tool_Starts.Find (Tool_Id);
+      Pos       : Cursor := C.Tool_Starts.Find (Tool_Id);
       First_Idx : Positive;
       Last_Idx  : constant Positive := Positive (C.Lines.Length);
    begin

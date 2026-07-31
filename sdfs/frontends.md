@@ -3,7 +3,7 @@
 **Components:** `Coyote_App`, `Coyote_App.Dispatch`, `Coyote_App.History`,
 `Coyote_App.Utils`, `Coyote_App.Frontend`, `Coyote_App.Frontend.Acme_Win`,
 `Coyote_App.Frontend.GUI`, `Coyote_App.Frontend.Plain`,
-`Coyote_GUI.*`, `Coyote_Cmark`, `Acme.*`, `Nine_P.*`
+`Coyote_GUI.*`, `Coyote_GUI.Conversation`, `Coyote_Cmark`, `Acme.*`, `Nine_P.*`
 
 **Source files:** `src/coyote_app*.ads/.adb`, `src/coyote_gui/*`,
 `src/coyote_cmark*.ads/.adb`, `src/coyote_cmark_c.c`,
@@ -81,15 +81,22 @@ preserve more whitespace for line-by-line thinking output).
 emits both `Thinking_Delta` and `Thinking_End` events, verifying the collapsing
 and buffer-management semantics.
 
-### Markdown re-render on `End_Text_Block`
+### Drawing_Area-based virtualized rendering (2026-07-31)
 
-Streaming markdown tokens are inserted as raw plain text. When `End_Text_Block`
-fires, the raw text is deleted from the `GtkTextBuffer` and reinserted as Pango
-markup. This approach has one drawback: a very long assistant response causes
-a visible "flicker" as the plain text is replaced. The alternative (incremental
-markup application) was considered but rejected because libcmark-gfm does not
-have a streaming mode — it requires the full document to produce a correct AST.
-The flicker is acceptable given the typical response length (< 50 KB).
+The conversation view was migrated from `GtkTextView`/`GtkTextBuffer` to a
+`Gtk.Drawing_Area` with Cairo + Pango rendering (`Coyote_GUI.Conversation`).
+The primary motivation was resize performance: `GtkTextView` reflows the entire
+document on every width change, which becomes unusably slow with large
+conversation buffers.  The Drawing_Area renders only visible lines, giving
+acme-like O(visible) resize cost regardless of document size.
+
+**Trade-offs:**
+- Markdown rendering is not yet implemented in the new renderer; text is
+  displayed as plain UTF-8.  The `Render_Markdown` toggle is wired but has
+  no effect.
+- Selection, copy-to-clipboard, tool-click detail windows, action strips,
+  thinking blocks, notices, and turn footers are all supported.
+- The old `Coyote_GUI.Buffer` package is retained as dead code for reference.
 
 ### `Coyote_Cmark` C shim for enum resolution
 
@@ -97,7 +104,7 @@ libcmark-gfm exposes `cmark_node_type`, `cmark_list_type`, and
 `cmark_event_type` as C enum values. These are resolved once at Ada package
 elaboration time by calling the C shim getter functions
 (`cmark_shim_node_paragraph()`, etc.) and storing the results in integer
-variables. All comparisons in `Coyote_GUI.Buffer` use these stored integers.
+variables. All comparisons in `Coyote_GUI.Conversation` use these stored integers.
 This means the Ada code is correct regardless of which installed version of
 libcmark-gfm is used — it never assumes a specific numeric value.
 
@@ -132,17 +139,17 @@ every content-section transition:
 - `Begin_Tool` — blank line before tool-call text block
 - `Append_Notice` — blank line before notice text
 
-**Tool-call box-drawing text blocks (2026-07-30):** Replaced the
-`GtkFrame`/`GtkTextChildAnchor` widget-embedding approach with plain-text
-box-drawing blocks.  `Begin_Tool` inserts a text block using Unicode
-box-drawing characters (`┌ ⚙ tool_name`, `│ field  value`,
-`└ … running…`).  The entire block is tagged with a per-tool `GtkTextTag`
-(named `"tool_" & Tool_Id`) carrying an underline style to indicate
-clickability.  `End_Tool` replaces the placeholder footer line in-place
+**Tool-call box-drawing text blocks (2026-07-30; revised 2026-07-31):**
+Replaced the `GtkFrame`/`GtkTextChildAnchor` widget-embedding approach with
+plain-text box-drawing blocks.  `Begin_Tool` appends box-drawing text lines
+to the logical-line vector (`┌ ⚙ tool_name`, `│ field  value`,
+`└ … running…`).  `End_Tool` replaces the placeholder footer line in-place
 with the status line (`└ ✓ done`, `└ ✗ error`, `└ - cancelled`).
 Clicking anywhere in a tool-call block opens a monospace detail window
-(`Show_Text_Window`) showing the tool arguments and result.  This
-eliminates all widget embedding from the conversation buffer — no
+(`Show_Text_Window`) showing the tool arguments and result.  In the
+Drawing_Area renderer, hit-testing maps pixel coordinates to logical-line
+indices and checks against the `Tool_Maps` vector of `Tool_Block` records.
+This eliminates all widget embedding from the conversation view — no
 `GtkFrame`, `GtkTextChildAnchor`, `GtkButton`, or plumb tokens.
 
 **Markdown rendering improvements** (in `Coyote_Renderer.Markup`):
@@ -229,9 +236,9 @@ let the user explicitly control the behaviour.
 
 ## Unit Test Coverage Notes
 
-- `Coyote_GUI.Buffer`: partially covered; the AUnit suite can create a
-  `GtkTextBuffer` without a display (headless GTK); Pango markup generation
-  is tested in isolation.
+- `Coyote_GUI.Conversation`: partially covered; the AUnit suite can create a
+  `Gtk.Drawing_Area` without a display (headless GTK); signal handlers and
+  rendering logic are exercised via integration tests.
 - `Coyote_Cmark`: covered by AUnit tests — parse round-trips for each GFM
   node type; extension handling; null-safety of `cmark_shim_get_literal`.
 - `Acme.*` / `Nine_P.*`: covered by integration tests in
