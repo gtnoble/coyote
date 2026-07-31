@@ -139,10 +139,10 @@ package body Coyote_GUI.Conversation is
       Trailing     : out Glib.Gint)
    is
       Width_Px    : constant Glib.Gint := C.DA.Get_Allocated_Width;
-      Vis_Line_Y  : constant Glib.Gint :=
-        Glib.Gint (C.Scroll.Get_Vadjustment.Get_Value) + Y;
+      --  Y is widget-relative (the drawing area's coordinate system already
+      --  accounts for the scroll offset), so we use it directly.
       Vis_Line_N  : constant Natural :=
-        Natural (Vis_Line_Y / C.Line_Height_Px);
+        Natural (Y / C.Line_Height_Px);
       Vis_Off     : Natural := 0;
       Found       : Boolean := False;
    begin
@@ -168,7 +168,7 @@ package body Coyote_GUI.Conversation is
                Logical_Idx := I;
                declare
                   Rel_Y : constant Glib.Gint :=
-                    Vis_Line_Y - Glib.Gint (Vis_Off) * C.Line_Height_Px;
+                    Y - Glib.Gint (Vis_Off) * C.Line_Height_Px;
                   Idx   : Glib.Gint;
                   Trl   : Glib.Gint;
                   Exact : Boolean;
@@ -751,6 +751,7 @@ package body Coyote_GUI.Conversation is
       --  Header line.
       C.Cur_Tool_First := Positive (C.Lines.Length) + 1;
       C.Cur_Tool_Id    := To_Unbounded_String (Tool_Id);
+      C.Tool_Starts.Include (Tool_Id, C.Cur_Tool_First);
       Append_Line (C, Plain,
                    UC_BOX_TL & " " & UC_GEAR & " " & Name);
 
@@ -789,16 +790,19 @@ package body Coyote_GUI.Conversation is
       Status  :        Tool_End_Status;
       Result  :        String)
    is
-      pragma Unreferenced (Tool_Id);
-      Last_Idx : constant Positive := Positive (C.Lines.Length);
+      use Tool_Start_Maps;
+      Pos       : constant Cursor := C.Tool_Starts.Find (Tool_Id);
+      First_Idx : Positive;
+      Last_Idx  : constant Positive := Positive (C.Lines.Length);
    begin
-      if C.Cur_Tool_First = 0 then
+      if Pos = No_Element then
          return;
       end if;
+      First_Idx := Element (Pos);
 
       --  Replace the placeholder footer line (second-to-last line, before
       --  the trailing blank line).
-      if Last_Idx > C.Cur_Tool_First + 1 then
+      if Last_Idx > First_Idx + 1 then
          declare
             Replacement : Unbounded_String;
          begin
@@ -829,17 +833,16 @@ package body Coyote_GUI.Conversation is
       declare
          TB : Tool_Block;
       begin
-         TB.First_Line := C.Cur_Tool_First;
+         TB.First_Line := First_Idx;
          TB.Last_Line  := Last_Idx;
          TB.Info.Name  := To_Unbounded_String
-           (To_String (C.Lines (C.Cur_Tool_First).Text));
+           (To_String (C.Lines (First_Idx).Text));
          TB.Info.Result_Text   := To_Unbounded_String (Result);
          TB.Info.Result_Status := Status;
          C.Tools.Append (TB);
       end;
 
-      C.Cur_Tool_First := 0;
-      C.Cur_Tool_Id    := Null_Unbounded_String;
+      C.Tool_Starts.Delete (Pos);
       Recompute_Vis_Lines (C);
       Queue_Draw (C);
    end End_Tool;

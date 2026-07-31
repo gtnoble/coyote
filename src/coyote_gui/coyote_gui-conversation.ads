@@ -15,7 +15,9 @@
 --
 --  Project: coyote
 
+with Ada.Containers.Indefinite_Hashed_Maps;
 with Ada.Containers.Vectors;
+with Ada.Strings.Hash;
 with Ada.Strings.Unbounded;        use Ada.Strings.Unbounded;
 with Glib;
 with Gtk.Drawing_Area;
@@ -176,6 +178,12 @@ private
 
    package Tool_Maps is new Ada.Containers.Vectors (Positive, Tool_Block);
 
+   package Tool_Start_Maps is new Ada.Containers.Indefinite_Hashed_Maps
+     (Key_Type        => String,
+      Element_Type    => Positive,
+      Hash            => Ada.Strings.Hash,
+      Equivalent_Keys => "=");
+
    type Instance is tagged limited record
       Scroll        : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
       DA            : Gtk.Drawing_Area.Gtk_Drawing_Area;
@@ -189,6 +197,7 @@ private
       --  Current tool being built (Begin_Tool .. End_Tool)
       Cur_Tool_First   : Natural := 0;
       Cur_Tool_Id      : Unbounded_String;
+      Tool_Starts      : Tool_Start_Maps.Map;
       --  Layout
       Line_Height_Px   : Glib.Gint := 18;
       Total_Vis_Lines  : Natural := 0;
