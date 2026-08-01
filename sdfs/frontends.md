@@ -107,9 +107,12 @@ shared automatically.  No document-sized surface allocation — the widget
 stays viewport-sized.
 
 **Trade-offs:**
-- Markdown rendering is not yet implemented in the new renderer; text is
-  displayed as plain UTF-8.  The `Render_Markdown` toggle is wired but has
-  no effect.
+- Markdown rendering is implemented via `Render_Markdown_Block` in
+  `Coyote_GUI.Conversation`.  When enabled (default), `End_Text_Block`
+  parses GFM through `Coyote_Cmark` and emits styled `Logical_Line`
+  entries with block-level `Line_Style` values and inline Pango markup
+  (`Has_Markup = True`).  Tables render as box-drawing ASCII art.
+  Selection copy strips markup tags for plain-text clipboard output.
 - Selection, copy-to-clipboard, tool-click detail windows, action strips,
   thinking blocks, notices, and turn footers are all supported.
 - The old `Coyote_GUI.Buffer` package is retained as dead code for reference.

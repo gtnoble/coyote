@@ -28,13 +28,24 @@ package Coyote_GUI.Conversation is
    --  ── Line style ────────────────────────────────────────────────────────
 
    type Line_Style is
-     (Plain,           --  assistant text
-      Thinking,        --  reasoning block
-      Notice_Info,     --  blue-background notice
-      Notice_Warn,     --  amber notice
-      Notice_Error,    --  red notice
-      Footer,          --  dim horizontal-rule turn separator
-      Action_Strip);   --  clickable fork action
+     (Plain,              --  assistant text (may contain Pango markup)
+      Heading_1,          --  level-1 heading
+      Heading_2,          --  level-2 heading
+      Heading_3,          --  level-3 heading
+      Heading_4,          --  level-4 heading
+      Heading_5,          --  level-5 heading
+      Heading_6,          --  level-6 heading
+      Code_Block,         --  fenced code block line
+      Blockquote,         --  block quote line
+      Thematic_Break,     --  horizontal rule
+      List_Item_Bullet,   --  bullet list item
+      List_Item_Ordered,  --  ordered list item
+      Thinking,           --  reasoning block
+      Notice_Info,        --  blue-background notice
+      Notice_Warn,        --  amber notice
+      Notice_Error,       --  red notice
+      Footer,             --  dim horizontal-rule turn separator
+      Action_Strip);      --  clickable fork action
 
    --  ── Tool and action metadata ──────────────────────────────────────────
 
@@ -159,7 +170,8 @@ package Coyote_GUI.Conversation is
 private
 
    type Logical_Line (Style : Line_Style := Plain) is record
-      Text : Unbounded_String;
+      Text       : Unbounded_String;
+      Has_Markup : Boolean := False;  --  Text contains Pango markup
       case Style is
          when Action_Strip =>
             Action : Action_Info;

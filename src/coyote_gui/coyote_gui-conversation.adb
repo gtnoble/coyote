@@ -2,9 +2,11 @@
 --
 --  Project: coyote
 
+with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;          use Ada.Strings.Unbounded;
 with Cairo;                          use Cairo;
 with Coyote_App.Utils;               use Coyote_App.Utils;
+with Coyote_Cmark;                   use Coyote_Cmark;
 with Glib;                           use Glib;
 with Gdk.Event;
 with Gdk.Types;
@@ -18,9 +20,12 @@ with Gtk.Menu_Item;
 with Gtk.Menu_Shell;
 with Gtk.Scrolled_Window;
 with Gtk.Widget;
+with Interfaces.C;                   use Interfaces.C;
+with Interfaces.C.Strings;
 with Pango.Cairo;
 with Pango.Enums;                    use Pango.Enums;
 with Pango.Layout;                   use Pango.Layout;
+with System;                         use System;
 
 package body Coyote_GUI.Conversation is
 
@@ -67,6 +72,9 @@ package body Coyote_GUI.Conversation is
    procedure Append_Line
      (C : in out Instance; Style : Line_Style; Text : String);
 
+   procedure Append_Markup_Line
+     (C : in out Instance; Style : Line_Style; Text : String);
+
    procedure Recompute_Vis_Lines (C : in out Instance);
 
    procedure Hit_Test
@@ -80,6 +88,18 @@ package body Coyote_GUI.Conversation is
 
    procedure Copy_Selection_To_Clipboard (C : in out Instance);
 
+   --  Escape XML special characters for Pango markup.
+   function Xml_Escape (S : String) return String;
+
+   --  Strip Pango markup tags, returning plain text.
+   function Strip_Pango_Markup (S : String) return String;
+
+   --  Return the type-string for a cmark node (never null).
+   function Cstr (N : Node_Ptr) return String;
+
+   --  Return the literal text for a cmark node (never null).
+   function Lit (N : Node_Ptr) return String;
+
    --  ── Append_Line ───────────────────────────────────────────────────────
 
    procedure Append_Line
@@ -90,6 +110,68 @@ package body Coyote_GUI.Conversation is
       L.Text := To_Unbounded_String (Text);
       C.Lines.Append (L);
    end Append_Line;
+
+   --  ── Append_Markup_Line ────────────────────────────────────────────────
+
+   procedure Append_Markup_Line
+     (C : in out Instance; Style : Line_Style; Text : String)
+   is
+      L : Logical_Line (Style);
+   begin
+      L.Text       := To_Unbounded_String (Text);
+      L.Has_Markup := True;
+      C.Lines.Append (L);
+   end Append_Markup_Line;
+
+   --  ── Xml_Escape ────────────────────────────────────────────────────────
+
+   function Xml_Escape (S : String) return String is
+      R : Unbounded_String;
+   begin
+      for C of S loop
+         case C is
+            when '&'    => Append (R, "&amp;");
+            when '<'    => Append (R, "&lt;");
+            when '>'    => Append (R, "&gt;");
+            when others => Append (R, C);
+         end case;
+      end loop;
+      return To_String (R);
+   end Xml_Escape;
+
+   --  ── Strip_Pango_Markup ────────────────────────────────────────────────
+
+   function Strip_Pango_Markup (S : String) return String is
+      R     : Unbounded_String;
+      In_Tag : Boolean := False;
+      I      : Natural := S'First;
+   begin
+      while I <= S'Last loop
+         if S (I) = '<' then
+            In_Tag := True;
+         elsif S (I) = '>' then
+            In_Tag := False;
+         elsif not In_Tag then
+            Append (R, S (I));
+         end if;
+         I := I + 1;
+      end loop;
+      return To_String (R);
+   end Strip_Pango_Markup;
+
+   --  ── Cstr / Lit ────────────────────────────────────────────────────────
+
+   function Cstr (N : Node_Ptr) return String is
+   begin
+      return Interfaces.C.Strings.Value
+        (Coyote_Cmark.Node_Get_Type_String (N));
+   end Cstr;
+
+   function Lit (N : Node_Ptr) return String is
+   begin
+      return Interfaces.C.Strings.Value
+        (Coyote_Cmark.Node_Get_Literal (N));
+   end Lit;
 
    --  ── Recompute_Vis_Lines ───────────────────────────────────────────────
 
@@ -322,10 +404,16 @@ package body Coyote_GUI.Conversation is
          declare
             L      : constant Logical_Line := Current_Conv.Lines (I);
             Text   : constant String := To_String (L.Text);
-            Layout : constant Pango_Layout :=
-              Current_Conv.Layout_W.Create_Pango_Layout (Text);
+            Layout : Pango_Layout;
             Vis_Cnt : Natural;
          begin
+            --  Create layout with or without markup.
+            if L.Has_Markup then
+               Layout := Current_Conv.Layout_W.Create_Pango_Layout ("");
+               Layout.Set_Markup (Text);
+            else
+               Layout := Current_Conv.Layout_W.Create_Pango_Layout (Text);
+            end if;
             Layout.Set_Width (Width_Px * Pango_Scale);
             Layout.Set_Wrap (Pango_Wrap_Word_Char);
             Vis_Cnt := Natural (Layout.Get_Line_Count);
@@ -359,8 +447,25 @@ package body Coyote_GUI.Conversation is
                        (Cr, 0.0, Gdouble (Y_Off),
                         Gdouble (Width_Px), Gdouble (Block_H));
                      Fill (Cr);
+                  when Code_Block =>
+                     Set_Source_Rgba (Cr, 0.96, 0.96, 0.96, 1.0);
+                     Rectangle
+                       (Cr, 0.0, Gdouble (Y_Off),
+                        Gdouble (Width_Px), Gdouble (Block_H));
+                     Fill (Cr);
+                  when Blockquote =>
+                     --  Left border bar.
+                     Set_Source_Rgba (Cr, 0.6, 0.6, 0.6, 0.5);
+                     Rectangle
+                       (Cr, 0.0, Gdouble (Y_Off),
+                        4.0, Gdouble (Block_H));
+                     Fill (Cr);
                   when Notice_Warn | Notice_Error | Footer
-                     | Action_Strip | Plain =>
+                     | Action_Strip | Plain
+                     | Heading_1 | Heading_2 | Heading_3
+                     | Heading_4 | Heading_5 | Heading_6
+                     | Thematic_Break
+                     | List_Item_Bullet | List_Item_Ordered =>
                      null;
                end case;
             end;
@@ -402,10 +507,23 @@ package body Coyote_GUI.Conversation is
                end;
             end if;
 
-            --  Set text colour by style.
+            --  Set text colour and font weight by style.
             case L.Style is
-               when Thinking | Notice_Info | Plain =>
+               when Thinking | Notice_Info | Plain
+                  | List_Item_Bullet | List_Item_Ordered =>
                   Set_Source_Rgb (Cr, 0.0, 0.0, 0.0);
+               when Heading_1 | Heading_2 =>
+                  Set_Source_Rgb (Cr, 0.0, 0.0, 0.0);
+               when Heading_3 | Heading_4 =>
+                  Set_Source_Rgb (Cr, 0.0, 0.0, 0.0);
+               when Heading_5 | Heading_6 =>
+                  Set_Source_Rgb (Cr, 0.0, 0.0, 0.0);
+               when Code_Block =>
+                  Set_Source_Rgb (Cr, 0.2, 0.2, 0.2);
+               when Blockquote =>
+                  Set_Source_Rgb (Cr, 0.3, 0.3, 0.3);
+               when Thematic_Break =>
+                  Set_Source_Rgb (Cr, 0.6, 0.6, 0.6);
                when Notice_Warn =>
                   Set_Source_Rgb (Cr, 0.8, 0.53, 0.0);
                when Notice_Error =>
@@ -614,8 +732,12 @@ package body Coyote_GUI.Conversation is
       for I in C.Sel_Start_Line .. C.Sel_End_Line loop
          if I <= Positive (C.Lines.Length) then
             declare
-               Line_Text : constant String :=
+               Raw_Text  : constant String :=
                  To_String (C.Lines (I).Text);
+               Line_Text : constant String :=
+                 (if C.Lines (I).Has_Markup
+                  then Strip_Pango_Markup (Raw_Text)
+                  else Raw_Text);
                S_Byte    : constant Natural :=
                  (if I = C.Sel_Start_Line
                   then C.Sel_Start_Byte
@@ -660,24 +782,462 @@ package body Coyote_GUI.Conversation is
       Append (C.Stream_Buf, Text);
    end Append_Text;
 
+   --  ── Render_Markdown_Block ────────────────────────────────────────────
+   --
+   --  Parse Full_Text as GFM and emit styled Logical_Line entries.
+   --  Block-level nodes become lines with appropriate Line_Style;
+   --  inline formatting within paragraphs is accumulated as Pango
+   --  markup and emitted with Has_Markup = True.
+
+   procedure Render_Markdown_Block
+     (C : in out Instance; Full_Text : String)
+   is
+      C_Text : constant Interfaces.C.char_array :=
+        Interfaces.C.To_C (Full_Text);
+      Doc    : Node_Ptr;
+      It     : Iter_Ptr;
+      Ev     : Event_Type_Int;
+      Node   : Node_Ptr;
+
+      --  Paragraph inline-accumulation state
+      In_Para     : Boolean := False;
+      Para_Buf    : Unbounded_String;
+      Para_Empty  : Boolean := True;
+
+      --  List nesting state
+      type Level_T is range 0 .. 7;
+      List_Counter  : array (Level_T) of Integer := (others => 0);
+      List_Is_Bullet : array (Level_T) of Boolean := (others => True);
+      List_Depth    : Natural := 0;
+
+      --  Table accumulation state (two-pass box-drawing)
+      Max_Table_Cols : constant := 16;
+      Max_Table_Rows : constant := 256;
+      type Col_Index is range 0 .. Max_Table_Cols - 1;
+      type Row_Index is range 0 .. Max_Table_Rows - 1;
+      In_Cell    : Boolean := False;
+      Table_Rows : Natural := 0;
+      Table_Cols : Natural := 0;
+      Cur_Row    : Natural := 0;
+      Cur_Col    : Natural := 0;
+      Table_Data : array (Row_Index, Col_Index) of Unbounded_String;
+
+      procedure Cell_Append (S : String) is
+      begin
+         if Cur_Row < Max_Table_Rows
+           and then Cur_Col < Max_Table_Cols
+         then
+            Append
+              (Table_Data (Row_Index (Cur_Row), Col_Index (Cur_Col)), S);
+         end if;
+      end Cell_Append;
+
+      procedure Flush_Para is
+      begin
+         if In_Para and then not Para_Empty then
+            Append_Markup_Line (C, Plain, To_String (Para_Buf));
+         end if;
+         In_Para    := False;
+         Para_Buf   := Null_Unbounded_String;
+         Para_Empty := True;
+      end Flush_Para;
+
+      procedure Render_Table is
+         Max_Col_Width : constant := 35;
+         Col_Widths    : array (0 .. Max_Table_Cols - 1) of Natural :=
+           (others => 0);
+
+         function Pad (S : String; W : Natural) return String is
+            L : constant Natural := Natural'Min (S'Length, W);
+            R : String (1 .. W) := (others => ' ');
+         begin
+            R (1 .. L) := S (S'First .. S'First + L - 1);
+            return R;
+         end Pad;
+
+         procedure H_Rule (L_Cap, Junction, R_Cap : String) is
+            Line : Unbounded_String;
+         begin
+            Append (Line, L_Cap);
+            for Col in 0 .. Table_Cols - 1 loop
+               for I in 1 .. Col_Widths (Col) + 2 loop
+                  Append (Line, UC_HORIZ);
+               end loop;
+               if Col < Table_Cols - 1 then
+                  Append (Line, Junction);
+               end if;
+            end loop;
+            Append (Line, R_Cap);
+            Append_Line (C, Plain, To_String (Line));
+         end H_Rule;
+
+      begin
+         if Table_Rows = 0 or else Table_Cols = 0 then
+            return;
+         end if;
+
+         for Col in 0 .. Table_Cols - 1 loop
+            for Row in 0 .. Table_Rows - 1 loop
+               declare
+                  L : constant Natural :=
+                    Length (Table_Data (Row_Index (Row), Col_Index (Col)));
+               begin
+                  if L > Col_Widths (Col) then
+                     Col_Widths (Col) := L;
+                  end if;
+               end;
+            end loop;
+            if Col_Widths (Col) > Max_Col_Width then
+               Col_Widths (Col) := Max_Col_Width;
+            end if;
+         end loop;
+
+         H_Rule (UC_BOX_TL, UC_BOX_T, UC_BOX_TR);
+
+         for Row in 0 .. Table_Rows - 1 loop
+            declare
+               Line : Unbounded_String;
+            begin
+               Append (Line, UC_BOX_V);
+               for Col in 0 .. Table_Cols - 1 loop
+                  Append (Line, " ");
+                  Append (Line,
+                    Pad (To_String
+                           (Table_Data (Row_Index (Row), Col_Index (Col))),
+                         Col_Widths (Col)));
+                  Append (Line, " " & UC_BOX_V);
+               end loop;
+               Append_Line (C, Plain, To_String (Line));
+            end;
+
+            if Row = 0 and then Table_Rows > 1 then
+               H_Rule (UC_BOX_L, UC_BOX_X, UC_BOX_R);
+            end if;
+         end loop;
+
+         H_Rule (UC_BOX_BL, UC_BOX_B, UC_BOX_BR);
+      end Render_Table;
+
+   begin
+      if Full_Text'Length = 0 then
+         return;
+      end if;
+
+      Doc := Parse_Document (C_Text, C_Text'Length - 1, OPT_DEFAULT);
+      if Doc = System.Null_Address then
+         --  Fall back to plain text.
+         declare
+            Start : Natural := Full_Text'First;
+         begin
+            for I in Full_Text'Range loop
+               if Full_Text (I) = ASCII.LF then
+                  Append_Line (C, Plain,
+                               Full_Text (Start .. I - 1));
+                  Start := I + 1;
+               end if;
+            end loop;
+            if Start <= Full_Text'Last then
+               Append_Line (C, Plain,
+                            Full_Text (Start .. Full_Text'Last));
+            end if;
+         end;
+         return;
+      end if;
+
+      It := Iter_New (Doc);
+      loop
+         Ev   := Iter_Next (It);
+         Node := Iter_Get_Node (It);
+         exit when Ev = EVENT_DONE;
+
+         declare
+            NT : constant Node_Type_Int := Node_Get_Type (Node);
+            TS : constant String := Cstr (Node);
+         begin
+            --  ── Table handling ────────────────────────────────────────
+            if TS = "table" then
+               if Ev = EVENT_ENTER then
+                  Flush_Para;
+                  Cur_Row    := 0;
+                  Cur_Col    := 0;
+                  Table_Rows := 0;
+                  Table_Cols := 0;
+               else
+                  Render_Table;
+               end if;
+
+            elsif TS = "table_row" then
+               if Ev = EVENT_EXIT then
+                  if Cur_Col > Table_Cols then
+                     Table_Cols := Cur_Col;
+                  end if;
+                  Cur_Row    := Cur_Row + 1;
+                  Table_Rows := Cur_Row;
+                  Cur_Col    := 0;
+               end if;
+
+            elsif TS = "table_cell" then
+               if Ev = EVENT_ENTER then
+                  if Cur_Row < Max_Table_Rows
+                    and then Cur_Col < Max_Table_Cols
+                  then
+                     Table_Data (Row_Index (Cur_Row),
+                                 Col_Index (Cur_Col)) :=
+                       Null_Unbounded_String;
+                  end if;
+                  In_Cell := True;
+               else
+                  In_Cell := False;
+                  Cur_Col := Cur_Col + 1;
+               end if;
+
+            --  ── Document ──────────────────────────────────────────────
+            elsif NT = NODE_DOCUMENT then
+               null;
+
+            --  ── Paragraph ─────────────────────────────────────────────
+            elsif NT = NODE_PARAGRAPH then
+               if Ev = EVENT_ENTER then
+                  Flush_Para;
+                  In_Para    := True;
+                  Para_Buf   := Null_Unbounded_String;
+                  Para_Empty := True;
+               else
+                  Flush_Para;
+               end if;
+
+            --  ── Heading ────────────────────────────────────────────────
+            elsif NT = NODE_HEADING then
+               if Ev = EVENT_ENTER then
+                  Flush_Para;
+                  In_Para    := True;
+                  Para_Buf   := Null_Unbounded_String;
+                  Para_Empty := True;
+               else
+                  declare
+                     H_Level : constant Interfaces.C.int :=
+                       Node_Get_Heading_Level (Node);
+                     Style   : Line_Style;
+                  begin
+                     case Integer (H_Level) is
+                        when 1 => Style := Heading_1;
+                        when 2 => Style := Heading_2;
+                        when 3 => Style := Heading_3;
+                        when 4 => Style := Heading_4;
+                        when 5 => Style := Heading_5;
+                        when 6 => Style := Heading_6;
+                        when others => Style := Plain;
+                     end case;
+                     if not Para_Empty then
+                        Append_Markup_Line
+                          (C, Style, To_String (Para_Buf));
+                     end if;
+                     In_Para    := False;
+                     Para_Buf   := Null_Unbounded_String;
+                     Para_Empty := True;
+                  end;
+               end if;
+
+            --  ── Code block ────────────────────────────────────────────
+            elsif NT = NODE_CODE_BLOCK then
+               if Ev = EVENT_ENTER then
+                  Flush_Para;
+                  declare
+                     Code_Text : constant String := Lit (Node);
+                     Start     : Natural := Code_Text'First;
+                  begin
+                     for I in Code_Text'Range loop
+                        if Code_Text (I) = ASCII.LF then
+                           Append_Line
+                             (C, Code_Block,
+                              Code_Text (Start .. I - 1));
+                           Start := I + 1;
+                        end if;
+                     end loop;
+                     if Start <= Code_Text'Last then
+                        Append_Line
+                          (C, Code_Block,
+                           Code_Text (Start .. Code_Text'Last));
+                     end if;
+                  end;
+               end if;
+
+            --  ── Block quote ───────────────────────────────────────────
+            elsif NT = NODE_BLOCK_QUOTE then
+               if Ev = EVENT_ENTER then
+                  Flush_Para;
+               end if;
+
+            --  ── List ───────────────────────────────────────────────────
+            elsif NT = NODE_LIST then
+               if Ev = EVENT_ENTER then
+                  Flush_Para;
+                  if List_Depth < Natural (Level_T'Last) then
+                     List_Depth := List_Depth + 1;
+                     List_Counter (Level_T (List_Depth)) := 0;
+                     List_Is_Bullet (Level_T (List_Depth)) :=
+                       (Node_Get_List_Type (Node) = LIST_BULLET);
+                  end if;
+               else
+                  if List_Depth > 0 then
+                     List_Depth := List_Depth - 1;
+                  end if;
+               end if;
+
+            --  ── List item ──────────────────────────────────────────────
+            elsif NT = NODE_ITEM then
+               if Ev = EVENT_ENTER then
+                  if List_Depth > 0 then
+                     declare
+                        Prefix : Unbounded_String;
+                     begin
+                        if List_Is_Bullet (Level_T (List_Depth)) then
+                           Append (Prefix, UC_BULLET & " ");
+                        else
+                           List_Counter (Level_T (List_Depth)) :=
+                             List_Counter (Level_T (List_Depth)) + 1;
+                           Append (Prefix,
+                             Ada.Strings.Fixed.Trim
+                               (Integer'Image
+                                  (List_Counter (Level_T (List_Depth))),
+                                Ada.Strings.Left) & ". ");
+                        end if;
+                        In_Para    := True;
+                        Para_Buf   := Prefix;
+                        Para_Empty := False;
+                     end;
+                  end if;
+               else
+                  Flush_Para;
+               end if;
+
+            --  ── Thematic break ────────────────────────────────────────
+            elsif NT = NODE_THEMATIC_BREAK then
+               if Ev = EVENT_ENTER then
+                  Flush_Para;
+                  Append_Line
+                    (C, Thematic_Break,
+                     Str_Repeat (UC_HORIZ, 12));
+               end if;
+
+            --  ── Inline formatting (within paragraph) ──────────────────
+            elsif NT = NODE_STRONG then
+               if In_Para then
+                  if Ev = EVENT_ENTER then
+                     Append (Para_Buf, "<b>");
+                  else
+                     Append (Para_Buf, "</b>");
+                  end if;
+               end if;
+
+            elsif NT = NODE_EMPH then
+               if In_Para then
+                  if Ev = EVENT_ENTER then
+                     Append (Para_Buf, "<i>");
+                  else
+                     Append (Para_Buf, "</i>");
+                  end if;
+               end if;
+
+            elsif NT = NODE_LINK then
+               if In_Para then
+                  if Ev = EVENT_ENTER then
+                     Append (Para_Buf, "<u>");
+                  else
+                     Append (Para_Buf, "</u>");
+                  end if;
+               end if;
+
+            elsif NT = NODE_CODE then
+               if Ev = EVENT_ENTER then
+                  if In_Cell then
+                     Cell_Append (Lit (Node));
+                  elsif In_Para then
+                     Append (Para_Buf, "<tt>");
+                     Append (Para_Buf, Xml_Escape (Lit (Node)));
+                     Append (Para_Buf, "</tt>");
+                  end if;
+               end if;
+
+            elsif NT = NODE_TEXT then
+               if Ev = EVENT_ENTER then
+                  if In_Cell then
+                     Cell_Append (Lit (Node));
+                  elsif In_Para then
+                     Append (Para_Buf, Xml_Escape (Lit (Node)));
+                     Para_Empty := False;
+                  end if;
+               end if;
+
+            elsif NT = NODE_SOFTBREAK then
+               if Ev = EVENT_ENTER then
+                  if In_Cell then
+                     Cell_Append (" ");
+                  elsif In_Para then
+                     Append (Para_Buf, " ");
+                  end if;
+               end if;
+
+            elsif NT = NODE_LINEBREAK then
+               if Ev = EVENT_ENTER then
+                  if In_Cell then
+                     Cell_Append (" ");
+                  elsif In_Para then
+                     --  Hard break: flush current para line,
+                     --  start a new one.
+                     Flush_Para;
+                     In_Para    := True;
+                     Para_Buf   := Null_Unbounded_String;
+                     Para_Empty := True;
+                  end if;
+               end if;
+
+            --  ── GFM strikethrough ─────────────────────────────────────
+            else
+               if TS = "strikethrough" and then In_Para then
+                  if Ev = EVENT_ENTER then
+                     Append (Para_Buf, "<s>");
+                  else
+                     Append (Para_Buf, "</s>");
+                  end if;
+               end if;
+            end if;
+         end;
+      end loop;
+
+      Flush_Para;
+      Iter_Free (It);
+      Node_Free (Doc);
+   end Render_Markdown_Block;
+
+   --  ── End_Text_Block ────────────────────────────────────────────────────
+
    procedure End_Text_Block (C : in out Instance) is
       Full_Text : constant String := To_String (C.Stream_Buf);
-      Start     : Natural := Full_Text'First;
    begin
       if not C.In_Text_Block then
          return;
       end if;
 
-      --  Split on LF, creating one logical line per line.
-      for I in Full_Text'Range loop
-         if Full_Text (I) = ASCII.LF then
-            Append_Line (C, Plain,
-                         Full_Text (Start .. I - 1));
-            Start := I + 1;
-         end if;
-      end loop;
-      if Start <= Full_Text'Last then
-         Append_Line (C, Plain, Full_Text (Start .. Full_Text'Last));
+      if C.Render_Markdown and then Full_Text'Length > 0 then
+         Render_Markdown_Block (C, Full_Text);
+      else
+         --  Plain text: split on LF.
+         declare
+            Start : Natural := Full_Text'First;
+         begin
+            for I in Full_Text'Range loop
+               if Full_Text (I) = ASCII.LF then
+                  Append_Line (C, Plain,
+                               Full_Text (Start .. I - 1));
+                  Start := I + 1;
+               end if;
+            end loop;
+            if Start <= Full_Text'Last then
+               Append_Line (C, Plain,
+                            Full_Text (Start .. Full_Text'Last));
+            end if;
+         end;
       end if;
 
       --  Blank line after text block.

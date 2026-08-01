@@ -954,9 +954,26 @@ within any tool block's line range.
 new lines), so thinking flows as a single paragraph.  The first delta gets a
 `UC_BOX_V` prefix.
 
-**Markdown rendering:** Not yet implemented in the GtkLayout renderer;
-text is displayed as plain UTF-8.  The `Render_Markdown` toggle is wired but
-has no effect.
+**Markdown rendering:** Implemented via `Render_Markdown_Block` in
+`Coyote_GUI.Conversation`.  When `Render_Markdown` is enabled (default),
+`End_Text_Block` parses the accumulated text through `Coyote_Cmark` (GFM
+with table, strikethrough, and autolink extensions) and emits styled
+`Logical_Line` entries:
+
+- **Block-level nodes** become lines with dedicated `Line_Style` values:
+  `Heading_1`–`Heading_6`, `Code_Block`, `Blockquote`, `Thematic_Break`,
+  `List_Item_Bullet`, `List_Item_Ordered`.
+- **Inline formatting** (bold, italic, code, strikethrough, links) within
+  paragraphs is accumulated as Pango markup and emitted with `Has_Markup
+  = True`.  The `On_Draw` callback uses `Pango.Layout.Set_Markup` for
+  these lines.
+- **Tables** are rendered as box-drawing ASCII art (two-pass width
+  calculation, same as the old `Coyote_Renderer.Markup`).
+- **Selection copy** strips Pango markup tags via `Strip_Pango_Markup`
+  so clipboard text is plain UTF-8.
+
+When `Render_Markdown` is disabled, text is split on LF and displayed as
+plain `Logical_Line` entries (the original behaviour).
 
 ---
 
