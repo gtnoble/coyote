@@ -185,10 +185,16 @@ package body Coyote_GUI.Conversation is
 
       for I in 1 .. Positive (C.Lines.Length) loop
          declare
-            Layout : constant Pango_Layout :=
-              C.Layout_W.Create_Pango_Layout (To_String (C.Lines (I).Text));
+            Layout : Pango_Layout;
             Vis    : Natural;
          begin
+            if C.Lines (I).Has_Markup then
+               Layout := C.Layout_W.Create_Pango_Layout ("");
+               Layout.Set_Markup (To_String (C.Lines (I).Text));
+            else
+               Layout := C.Layout_W.Create_Pango_Layout
+                 (To_String (C.Lines (I).Text));
+            end if;
             Layout.Set_Width (Width_Px * Pango_Scale);
             Layout.Set_Wrap (Pango_Wrap_Word_Char);
             Vis := Natural (Layout.Get_Line_Count);
@@ -244,10 +250,16 @@ package body Coyote_GUI.Conversation is
 
       for I in 1 .. Positive (C.Lines.Length) loop
          declare
-            Layout : constant Pango_Layout :=
-              C.Layout_W.Create_Pango_Layout (To_String (C.Lines (I).Text));
+            Layout : Pango_Layout;
             Vis_Cnt : Natural;
          begin
+            if C.Lines (I).Has_Markup then
+               Layout := C.Layout_W.Create_Pango_Layout ("");
+               Layout.Set_Markup (To_String (C.Lines (I).Text));
+            else
+               Layout := C.Layout_W.Create_Pango_Layout
+                 (To_String (C.Lines (I).Text));
+            end if;
             Layout.Set_Width (Width_Px * Pango_Scale);
             Layout.Set_Wrap (Pango_Wrap_Word_Char);
             Vis_Cnt := Natural (Layout.Get_Line_Count);
@@ -397,6 +409,19 @@ package body Coyote_GUI.Conversation is
       then
          return False;
       end if;
+
+      --  Fill entire widget background with white so plain lines
+      --  always have a white backdrop regardless of system theme.
+      Set_Source_Rgb (Cr, 1.0, 1.0, 1.0);
+      declare
+         Alloc_H : constant Glib.Gint :=
+           Current_Conv.Layout_W.Get_Allocated_Height;
+      begin
+         Rectangle
+           (Cr, 0.0, 0.0,
+            Gdouble (Width_Px), Gdouble (Alloc_H));
+         Fill (Cr);
+      end;
 
       --  Walk logical lines, drawing only those whose visual lines
       --  intersect the visible viewport.
@@ -1008,6 +1033,7 @@ package body Coyote_GUI.Conversation is
                else
                   if not In_List_Item then
                      Flush_Para;
+                     Append_Line (C, Plain, "");
                   end if;
                end if;
 
@@ -1041,6 +1067,7 @@ package body Coyote_GUI.Conversation is
                      Para_Buf   := Null_Unbounded_String;
                      Para_Empty := True;
                   end;
+                  Append_Line (C, Plain, "");
                end if;
 
             --  ── Code block ────────────────────────────────────────────
@@ -1065,12 +1092,15 @@ package body Coyote_GUI.Conversation is
                            Code_Text (Start .. Code_Text'Last));
                      end if;
                   end;
+                  Append_Line (C, Plain, "");
                end if;
 
             --  ── Block quote ───────────────────────────────────────────
             elsif NT = NODE_BLOCK_QUOTE then
                if Ev = EVENT_ENTER then
                   Flush_Para;
+               else
+                  Append_Line (C, Plain, "");
                end if;
 
             --  ── List ───────────────────────────────────────────────────
@@ -1086,6 +1116,9 @@ package body Coyote_GUI.Conversation is
                else
                   if List_Depth > 0 then
                      List_Depth := List_Depth - 1;
+                     if List_Depth = 0 then
+                        Append_Line (C, Plain, "");
+                     end if;
                   end if;
                end if;
 
@@ -1125,6 +1158,7 @@ package body Coyote_GUI.Conversation is
                   Append_Line
                     (C, Thematic_Break,
                      Str_Repeat (UC_HORIZ, 12));
+                  Append_Line (C, Plain, "");
                end if;
 
             --  ── Inline formatting (within paragraph) ──────────────────
