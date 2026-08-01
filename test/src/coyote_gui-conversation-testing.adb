@@ -63,6 +63,11 @@ package body Coyote_GUI.Conversation.Testing is
       return C.Cached_Line_Count;
    end Cached_Line_Count;
 
+   function Has_Markup_Flag (C : Instance; Index : Positive) return Boolean is
+   begin
+      return C.Lines (Index).Has_Markup;
+   end Has_Markup_Flag;
+
    function Get_Line_Text (C : Instance; Index : Positive) return String is
       Raw : constant String := To_String (C.Lines (Index).Text);
    begin

@@ -2850,6 +2850,21 @@ package body Test_Suites is
       Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
         ("Coyote.GUI.Conversation select-all extracts expected text",
          Coyote_GUI_Conversation_Tests.Test_Viewport_Select_All_Extracts_Expected_Text'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation markdown paragraph has markup flag",
+         Coyote_GUI_Conversation_Tests.Test_Markdown_Paragraph_Has_Markup_Flag'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation markdown multi-paragraph line count",
+         Coyote_GUI_Conversation_Tests.Test_Markdown_Multi_Paragraph_Line_Count'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation markdown select-all strips markup",
+         Coyote_GUI_Conversation_Tests.Test_Markdown_Select_All_Strips_Markup'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation markdown heading styles",
+         Coyote_GUI_Conversation_Tests.Test_Markdown_Heading_Styles'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation markdown bold/italic rendered to plain text",
+         Coyote_GUI_Conversation_Tests.Test_Markdown_Bold_Italic_Preserved_In_Text'Access));
 
       return Result;
    end Suite;

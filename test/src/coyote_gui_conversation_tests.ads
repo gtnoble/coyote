@@ -62,4 +62,12 @@ package Coyote_GUI_Conversation_Tests is
    procedure Test_Long_Word_Forces_Character_Break     (T : in out Test);
    procedure Test_Viewport_Select_All_Extracts_Expected_Text (T : in out Test);
 
+   --  Markdown-rendering tests
+
+   procedure Test_Markdown_Paragraph_Has_Markup_Flag      (T : in out Test);
+   procedure Test_Markdown_Multi_Paragraph_Line_Count     (T : in out Test);
+   procedure Test_Markdown_Select_All_Strips_Markup       (T : in out Test);
+   procedure Test_Markdown_Heading_Styles                 (T : in out Test);
+   procedure Test_Markdown_Bold_Italic_Preserved_In_Text   (T : in out Test);
+
 end Coyote_GUI_Conversation_Tests;

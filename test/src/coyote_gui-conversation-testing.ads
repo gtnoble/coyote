@@ -40,6 +40,9 @@ package Coyote_GUI.Conversation.Testing is
    function Cached_Line_Count (C : Instance) return Natural;
    --  Line count at which the Vis_Count cache was last computed.
 
+   function Has_Markup_Flag (C : Instance; Index : Positive) return Boolean;
+   --  True when logical line Index has Has_Markup = True.
+
    function Get_Line_Text (C : Instance; Index : Positive) return String;
    --  Raw text of logical line Index (Pango markup stripped if present).
 
