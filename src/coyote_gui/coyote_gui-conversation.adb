@@ -800,9 +800,10 @@ package body Coyote_GUI.Conversation is
       Node   : Node_Ptr;
 
       --  Paragraph inline-accumulation state
-      In_Para     : Boolean := False;
-      Para_Buf    : Unbounded_String;
-      Para_Empty  : Boolean := True;
+      In_Para      : Boolean := False;
+      Para_Buf     : Unbounded_String;
+      Para_Empty   : Boolean := True;
+      In_List_Item : Boolean := False;
 
       --  List nesting state
       type Level_T is range 0 .. 7;
@@ -998,12 +999,16 @@ package body Coyote_GUI.Conversation is
             --  ── Paragraph ─────────────────────────────────────────────
             elsif NT = NODE_PARAGRAPH then
                if Ev = EVENT_ENTER then
-                  Flush_Para;
-                  In_Para    := True;
-                  Para_Buf   := Null_Unbounded_String;
-                  Para_Empty := True;
+                  if not In_List_Item then
+                     Flush_Para;
+                     In_Para    := True;
+                     Para_Buf   := Null_Unbounded_String;
+                     Para_Empty := True;
+                  end if;
                else
-                  Flush_Para;
+                  if not In_List_Item then
+                     Flush_Para;
+                  end if;
                end if;
 
             --  ── Heading ────────────────────────────────────────────────
@@ -1102,13 +1107,15 @@ package body Coyote_GUI.Conversation is
                                   (List_Counter (Level_T (List_Depth))),
                                 Ada.Strings.Left) & ". ");
                         end if;
-                        In_Para    := True;
-                        Para_Buf   := Prefix;
-                        Para_Empty := False;
+                        In_Para      := True;
+                        Para_Buf     := Prefix;
+                        Para_Empty   := False;
+                        In_List_Item := True;
                      end;
                   end if;
                else
                   Flush_Para;
+                  In_List_Item := False;
                end if;
 
             --  ── Thematic break ────────────────────────────────────────
