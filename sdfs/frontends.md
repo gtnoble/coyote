@@ -205,6 +205,7 @@ accelerators; the key-press handler is reduced to a no-op.
 | Menu | Item | Shortcut |
 |---|---|---|
 | File | New Window | Ctrl+N |
+| File | New Session | Ctrl+Shift+N |
 | File | Open Session… | Ctrl+O |
 | File | Quit | Ctrl+Q |
 | Agent | Stop | Escape |
@@ -216,11 +217,12 @@ accelerators; the key-press handler is reduced to a no-op.
 | View | Zoom Out | Ctrl+- |
 | View | Reset Zoom | Ctrl+0 |
 
-The `Gdk.Types.Control_Mask or Gdk.Types.Shift_Mask` expression for
-Ctrl+Shift+C required a local `use type Gdk.Types.Gdk_Modifier_Type` block
-because the `or` operator on the modular type is not directly visible in the
-context where the accelerator is attached.  This follows the same pattern
-used in `Coyote_SQC.UI`.
+The `Gdk.Types.Control_Mask or Gdk.Types.Shift_Mask` expressions for
+Ctrl+Shift+C and Ctrl+Shift+N require a `use type Gdk.Types.Gdk_Modifier_Type`
+clause at the package-body level because the `or` operator on the modular
+type is not directly visible.  (Previously a local `use type` block was used
+for Ctrl+Shift+C alone; it was promoted to file scope when Ctrl+Shift+N was
+added.)
 
 ### Auto-scroll toggle (2026-07-30)
 

@@ -2587,6 +2587,60 @@ package body Coyote_App is
                               Cwd => Ada.Directories.Current_Directory);
                         end;
 
+                     when Coyote_GUI.Prompt_Queue.New_Session =>
+                        begin
+                           --  Save current model spec before Create
+                           --  overwrites the Session record.
+                           declare
+                              Saved_Model : constant String :=
+                                LLM.Agent.Current_Model_Spec (Agent_Session);
+                           begin
+                              if State.Is_Streaming then
+                                 LLM.Agent.Request_Abort (Agent_Session);
+                              end if;
+                              LLM.Agent.Create
+                                (S          => Agent_Session,
+                                 Model_Spec => Saved_Model,
+                                 Agent      => To_String (Opts.Agent),
+                                 No_Tools   => Opts.No_Tools);
+                              My_Frontend.Register_Session
+                                (Agent_Session'Unchecked_Access);
+                              if Opts.No_Compact then
+                                 LLM.Agent.Set_Compact_Settings
+                                   (Agent_Session,
+                                    (Enabled              => False,
+                                     Reserve_Tokens       =>
+                                       LLM.Compaction.Default_Compact_Settings
+                                         .Reserve_Tokens,
+                                     Keep_Recent_Tokens   =>
+                                       LLM.Compaction.Default_Compact_Settings
+                                         .Keep_Recent_Tokens,
+                                     Consecutive_Failures => 0,
+                                     Tripped              => False));
+                              end if;
+                              declare
+                                 Sess : constant String :=
+                                   LLM.Agent.Session_Id (Agent_Session);
+                              begin
+                                 if Sess'Length > 0 then
+                                    Ada.Environment_Variables.Set
+                                      ("COYOTE_SESSION_ID", Sess);
+                                 end if;
+                              end;
+                              Reset_Session_State;
+                              My_Frontend.Clear_Conversation;
+                              Emit_Bootstrap;
+                              My_Frontend.Append_Notice
+                                (Coyote_App.Frontend.Info,
+                                 "New session" & UC_ELLIP);
+                           end;
+                        exception
+                           when Ex : others =>
+                              Append_Task_Warning
+                                ("new session failed: "
+                                 & Ada.Exceptions.Exception_Message (Ex));
+                        end;
+
                      when Coyote_GUI.Prompt_Queue.Set_Model =>
                         begin
                            LLM.Agent.Set_Model

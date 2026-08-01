@@ -173,6 +173,12 @@ package Coyote_GUI.Conversation is
    --  Recompute line height and queue a redraw.  Call after font changes.
    procedure Invalidate_Layout (C : in out Instance);
 
+   --  ── Session lifecycle ─────────────────────────────────────────────────
+
+   --  Clear all displayed content and reset internal state to empty.
+   --  Used when replacing the current session with a fresh one.
+   procedure Clear (C : in out Instance);
+
 private
 
    type Logical_Line (Style : Line_Style := Plain) is record

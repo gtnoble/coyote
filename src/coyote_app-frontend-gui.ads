@@ -143,6 +143,10 @@ package Coyote_App.Frontend.GUI is
      (F : in out Instance;
       S : access LLM.Agent.Session);
 
+   --  Clear all conversation content and reset streaming state.
+   --  Called when replacing the active session with a new one.
+   procedure Clear_Conversation (F : in out Instance);
+
 private
 
    type Instance is new Coyote_App.Frontend.Instance with record

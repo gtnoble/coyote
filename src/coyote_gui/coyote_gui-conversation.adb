@@ -1747,6 +1747,34 @@ package body Coyote_GUI.Conversation is
       return C.Debug_Logging;
    end Get_Debug_Logging;
 
+   --  ── Clear ───────────────────────────────────────────────────────────────
+
+   procedure Clear (C : in out Instance) is
+   begin
+      C.Lines.Clear;
+      C.Tools.Clear;
+      C.Tool_Starts.Clear;
+      C.In_Text_Block := False;
+      C.Stream_Buf := Ada.Strings.Unbounded.Null_Unbounded_String;
+      C.Stream_First_Line := 0;
+      C.In_Thinking := False;
+      C.Prefix_Emitted := False;
+      C.Thinking_Tok.Reset;
+      C.Cur_Tool_First := 0;
+      C.Cur_Tool_Id := Ada.Strings.Unbounded.Null_Unbounded_String;
+      C.Sel_Dragging := False;
+      C.Sel_Visible := False;
+      C.Sel_Start_Line := 0;
+      C.Sel_Start_Byte := 0;
+      C.Sel_End_Line := 0;
+      C.Sel_End_Byte := 0;
+      C.Cache_Width_Px := 0;
+      C.Cached_Line_Count := 0;
+      C.Total_Vis_Lines := 0;
+      Recompute_Vis_Lines (C);
+      Queue_Draw (C);
+   end Clear;
+
    --  ── Invalidate_Layout ─────────────────────────────────────────────────
 
    procedure Invalidate_Layout (C : in out Instance) is

@@ -20,6 +20,7 @@ package Coyote_GUI.Prompt_Queue is
       Resume,            --  resume from pause
       Compact,           --  trigger manual context compaction
       New_Window,        --  spawn a fresh coyote GUI window
+      New_Session,       --  replace session with a fresh one
       Set_Model,         --  change the active model
       Set_Thinking,      --  change the reasoning level
       Set_Sandbox,       --  change the sandbox profile
@@ -30,7 +31,7 @@ package Coyote_GUI.Prompt_Queue is
    --  ── Payload variant record ────────────────────────────────────────────
    --
    --  Variants without a payload (Stop, Pause, Resume, Compact, New_Window,
-   --  Shutdown_Item) use the others branch with no fields.
+   --  New_Session, Shutdown_Item) use the others branch with no fields.
 
    type Item (Kind : Item_Kind := User_Prompt) is record
       case Kind is

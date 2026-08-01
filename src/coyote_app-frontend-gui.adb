@@ -6,6 +6,7 @@ with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
 with Gdk.Event;
 with Gdk.Types;
 with Gdk.Types.Keysyms;
+use type Gdk.Types.Gdk_Modifier_Type;
 with Glib;                       use Glib;
 with Glib.Main;
 with Gtk.Adjustment;
@@ -396,6 +397,15 @@ package body Coyote_App.Frontend.GUI is
          Current_Frontend.PQ.Enqueue ((Kind => New_Window));
       end if;
    end On_New_Activate;
+
+   procedure On_New_Session_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class) is
+      pragma Unreferenced (Self);
+   begin
+      if Current_Frontend /= null then
+         Current_Frontend.PQ.Enqueue ((Kind => New_Session));
+      end if;
+   end On_New_Session_Activate;
 
    procedure On_Quit_Activate
      (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class) is
@@ -1196,8 +1206,9 @@ package body Coyote_App.Frontend.GUI is
       --  File menu
       File_Menu : Gtk_Menu;
       File_Item : Gtk_Menu_Item;
-      New_Win_Item   : Gtk_Menu_Item;
-      Open_Sess_Item : Gtk_Menu_Item;
+      New_Win_Item    : Gtk_Menu_Item;
+      New_Sess_Item   : Gtk_Menu_Item;
+      Open_Sess_Item  : Gtk_Menu_Item;
       Quit_Item      : Gtk_Menu_Item;
       Item           : Gtk_Menu_Item;
 
@@ -1249,6 +1260,14 @@ package body Coyote_App.Frontend.GUI is
         ("activate", F.Accel_Group,
          Gdk.Types.Keysyms.GDK_LC_n,
          Gdk.Types.Control_Mask,
+         Gtk.Accel_Group.Accel_Visible);
+      New_Sess_Item := Make_Item ("New _Session", File_Menu);
+      New_Sess_Item.On_Activate (On_New_Session_Activate'Access);
+      New_Sess_Item.Add_Accelerator
+        ("activate", F.Accel_Group,
+         Gdk.Types.Keysyms.GDK_LC_n,
+         Gdk.Types.Control_Mask
+         or Gdk.Types.Shift_Mask,
          Gtk.Accel_Group.Accel_Visible);
       Open_Sess_Item := Make_Item ("Open _Session...", File_Menu);
       Open_Sess_Item.On_Activate (On_Open_Session_Activate'Access);
@@ -1700,6 +1719,12 @@ package body Coyote_App.Frontend.GUI is
    begin
       F.Agent_Sess := S;
    end Register_Session;
+
+   procedure Clear_Conversation (F : in out Instance) is
+   begin
+      F.Conv.Clear;
+   end Clear_Conversation;
+
    function Stats_Summary_Text (F : Instance) return String is
    begin
       return To_String (F.Stats_Text);

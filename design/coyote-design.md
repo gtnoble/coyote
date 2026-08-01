@@ -975,6 +975,14 @@ with table, strikethrough, and autolink extensions) and emits styled
 When `Render_Markdown` is disabled, text is split on LF and displayed as
 plain `Logical_Line` entries (the original behaviour).
 
+**`Clear` procedure:** Resets all conversation state to empty — clears the
+logical line and tool-block vectors, the tool-start map, all streaming
+state (`In_Text_Block`, `In_Thinking`, `Stream_Buf`, `Prefix_Emitted`,
+`Cur_Tool_First`, `Cur_Tool_Id`), the thinking tokenizer, the selection
+state, and the layout cache.  Calls `Recompute_Vis_Lines` and `Queue_Draw`
+to refresh the display.  Used when replacing the current session with a
+fresh one via `File → New Session`.
+
 ---
 
 ### 5.16 `Coyote_Cmark` and `coyote_cmark_c.c`
@@ -1385,6 +1393,9 @@ using Cairo + Pango (see §5.15).
   drains the queue on the GTK main-loop thread and calls the corresponding
   `Coyote_GUI.Conversation` operations.
 - `Read_Prompt` — blocks on `Coyote_GUI.Prompt_Queue.Dequeue`.
+- `Clear_Conversation` — clears the conversation view; delegates to
+  `Coyote_GUI.Conversation.Clear`. Called by `Agent_Task` when handling
+  the `New_Session` prompt-queue item.
 - `Set_Stats_Summary` — not part of the abstract interface; called directly
   from `Dispatch_Event` via a classwide `if P in GUI.Instance'Class` check
   to set the status-bar model/cost summary.
@@ -1468,12 +1479,31 @@ registered (or `False` if a `Shutdown` item was dequeued).
 
 ### 5.37 `Coyote_GUI.Prompt_Queue`
 
-**Purpose:** Thread-safe bounded queue from the GTK main loop to `Agent_Task`.
+**Purpose:** Thread-safe bounded queue from the GTK main loop to `Agent_Task`,
+carrying typed command payloads via a discriminated `Item` type.
 
-**Protected type `Queue`:** Bounded buffer of `Unbounded_String`, capacity 64.
-Operations: `Enqueue (S : String)` (non-blocking; drops if full, which is
-impossible under normal use), `Dequeue (S : out Unbounded_String)` (blocking
-entry; `Agent_Task` waits here between turns).
+**Protected type `Queue`:** Bounded buffer of `Item` values, capacity 64.
+Operations: `Enqueue (I : Item)` (non-blocking; drops if full),
+`Dequeue (I : out Item)` (blocking entry; `Agent_Task` waits here between
+turns), and `Shutdown` (unblocks any waiting `Dequeue`).
+
+**`Item_Kind` discriminant values:**
+
+| Kind | Payload | Purpose |
+|---|---|---|
+| `User_Prompt` | `Text` | Forward text to the LLM |
+| `Stop` | — | Abort the current response |
+| `Pause` | — | Pause after the current tool call |
+| `Resume` | — | Resume from pause |
+| `Compact` | — | Trigger manual context compaction |
+| `New_Window` | — | Spawn a fresh coyote GUI window |
+| `New_Session` | — | Replace the in-window session with a fresh one |
+| `Set_Model` | `Model_Spec` | Change the active model |
+| `Set_Thinking` | `Level` | Change the reasoning level |
+| `Set_Sandbox` | `Profile_Name` | Change the sandbox profile |
+| `Switch_Session` | `Session_UUID` | Load a different session by UUID |
+| `Set_Default` | — | Persist current model and thinking as defaults |
+| `Shutdown_Item` | — | Queue is closing; `Agent_Task` should exit |
 
 ---
 
