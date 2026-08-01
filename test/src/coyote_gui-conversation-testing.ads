@@ -40,4 +40,28 @@ package Coyote_GUI.Conversation.Testing is
    function Cached_Line_Count (C : Instance) return Natural;
    --  Line count at which the Vis_Count cache was last computed.
 
+   function Get_Line_Text (C : Instance; Index : Positive) return String;
+   --  Raw text of logical line Index (Pango markup stripped if present).
+
+   function Selection_Visible (C : Instance) return Boolean;
+   --  True when a selection range is active.
+
+   procedure Set_Selection
+     (C           : in out Instance;
+      Start_Line  :        Natural;
+      Start_Byte  :        Natural;
+      End_Line    :        Natural;
+      End_Byte    :        Natural);
+   --  Programmatically set the selection range (bypasses mouse events).
+
+   function Extract_Text
+     (C          : in out Instance;
+      Start_Line :        Natural;
+      Start_Byte :        Natural;
+      End_Line   :        Natural;
+      End_Byte   :        Natural) return String;
+   --  Return the text spanned by a selection range, using the same
+   --  extraction logic as Copy_Selection_To_Clipboard (LF between lines,
+   --  Pango markup stripped).
+
 end Coyote_GUI.Conversation.Testing;

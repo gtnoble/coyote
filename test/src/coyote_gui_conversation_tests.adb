@@ -1,4 +1,5 @@
 with Ada.Environment_Variables;
+with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with AUnit.Assertions;
 with Glib;         use type Glib.Gint;
 with Gtk.Enums;       use Gtk.Enums;
@@ -319,5 +320,185 @@ package body Coyote_GUI_Conversation_Tests is
       Assert (not Testing.Is_In_Thinking (Conv),
               "End_Thinking clears flag");
    end Test_End_Thinking_Clears_Flag;
+
+   --  ── Large-logical-line / viewport-overflow tests ───────────────────────
+
+   function Str_Repeat (S : String; Count : Positive) return String is
+      R : Unbounded_String;
+   begin
+      for I in 1 .. Count loop
+         Append (R, S);
+      end loop;
+      return To_String (R);
+   end Str_Repeat;
+
+   procedure Test_Long_Line_Produces_Many_Visual_Lines (T : in out Test) is
+      Conv     : Instance;
+      Scroll   : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Layout   : Gtk.Layout.Gtk_Layout;
+      Long_Str : constant String := Str_Repeat ("word ", 250);
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Make_Fresh_Conv (Conv, Scroll, Layout);
+      Conv.Append_Text (Long_Str);
+      Conv.End_Text_Block;
+      Assert (Testing.Line_Count (Conv) >= 1,
+              "logical lines present after long text block");
+      Assert (Testing.Vis_Count_At (Conv, 1) >= 5,
+              "250-word line wraps to at least 5 visual lines"
+              & " (got" & Natural'Image (Testing.Vis_Count_At (Conv, 1)) & ")");
+   end Test_Long_Line_Produces_Many_Visual_Lines;
+
+   procedure Test_Deep_Indent_Consumes_Width_And_Wraps (T : in out Test) is
+      Conv           : Instance;
+      Scroll         : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Layout         : Gtk.Layout.Gtk_Layout;
+      Pad_Width      : constant := 60;
+      Indent         : constant String := Str_Repeat (" ", Pad_Width);
+      Indented_Line  : constant String := Indent & "wrapped text wrapped text";
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Make_Fresh_Conv (Conv, Scroll, Layout);
+      --  First, an unindented line of the same text.
+      Conv.Append_Text ("wrapped text wrapped text");
+      Conv.End_Text_Block;
+      declare
+         Unindented_Vis : constant Natural :=
+           Testing.Vis_Count_At (Conv, 1);
+      begin
+         --  Now a fresh conversation with the indented version.
+         declare
+            Conv2   : Instance;
+            Scroll2 : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+            Layout2 : Gtk.Layout.Gtk_Layout;
+         begin
+            Make_Fresh_Conv (Conv2, Scroll2, Layout2);
+            Conv2.Append_Text (Indented_Line);
+            Conv2.End_Text_Block;
+            Assert (Testing.Vis_Count_At (Conv2, 1) >= Unindented_Vis,
+                    "deep-indented line produces >= visual lines "
+                    & "than unindented");
+         end;
+      end;
+   end Test_Deep_Indent_Consumes_Width_And_Wraps;
+
+   procedure Test_Visual_Lines_Exceed_Viewport_Height (T : in out Test) is
+      Conv     : Instance;
+      Scroll   : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Layout   : Gtk.Layout.Gtk_Layout;
+      Very_Long : constant String := Str_Repeat ("overflow text ", 400);
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Make_Fresh_Conv (Conv, Scroll, Layout);
+      Conv.Append_Text (Very_Long);
+      Conv.End_Text_Block;
+      declare
+         Total : constant Natural := Testing.Total_Vis_Lines (Conv);
+         VP    : constant Natural :=
+           Natural (300 / Testing.Line_Height_Px (Conv)) + 1;
+      begin
+         Assert (Total > VP,
+                 "total visual lines (" & Natural'Image (Total)
+                 & ") exceed viewport height in lines ("
+                 & Natural'Image (VP) & ")");
+      end;
+   end Test_Visual_Lines_Exceed_Viewport_Height;
+
+   procedure Test_Long_Line_Vis_Count_Consistent_On_Recompute
+     (T : in out Test)
+   is
+      Conv     : Instance;
+      Scroll   : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Layout   : Gtk.Layout.Gtk_Layout;
+      Big_Line : constant String := Str_Repeat ("word ", 80);
+      First_Vis : Natural;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Make_Fresh_Conv (Conv, Scroll, Layout);
+      Conv.Append_Text (Big_Line);
+      Conv.End_Text_Block;
+      First_Vis := Testing.Vis_Count_At (Conv, 1);
+      Assert (First_Vis > 0,
+              "80-word line has positive Vis_Count");
+      --  Invalidate_Layout zeroes the cache and forces Recompute_Vis_Lines
+      --  again at the same allocated width.  The result must be identical.
+      Conv.Invalidate_Layout;
+      Assert
+        (Testing.Vis_Count_At (Conv, 1) = First_Vis,
+         "long line Vis_Count stable across Invalidate_Layout:"
+         & Natural'Image (First_Vis)
+         & " vs" & Natural'Image (Testing.Vis_Count_At (Conv, 1)));
+   end Test_Long_Line_Vis_Count_Consistent_On_Recompute;
+
+   procedure Test_Long_Word_Forces_Character_Break (T : in out Test) is
+      Conv      : Instance;
+      Scroll    : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Layout    : Gtk.Layout.Gtk_Layout;
+      Long_Word : constant String := Str_Repeat ("x", 600);
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Make_Fresh_Conv (Conv, Scroll, Layout);
+      Conv.Append_Text (Long_Word);
+      Conv.End_Text_Block;
+      Assert (Testing.Line_Count (Conv) >= 1,
+              "long word produces at least 1 logical line");
+      Assert (Testing.Vis_Count_At (Conv, 1) > 1,
+              "600-char word without spaces wraps to >1 visual line"
+              & " (got" & Natural'Image (Testing.Vis_Count_At (Conv, 1)) & ")");
+      --  Pango_Wrap_Word_Char forces a character-level break, so the
+      --  visual line count should be roughly ceil(600 / chars_per_line).
+      Assert (Testing.Vis_Count_At (Conv, 1) >= 6,
+              "600-char word at ~100 chars/line wraps to >=6 visual lines");
+   end Test_Long_Word_Forces_Character_Break;
+
+   procedure Test_Viewport_Select_All_Extracts_Expected_Text
+     (T : in out Test)
+   is
+      Conv   : Instance;
+      Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Layout : Gtk.Layout.Gtk_Layout;
+      Last_Line   : Natural;
+      Last_Byte   : Natural;
+
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Make_Fresh_Conv (Conv, Scroll, Layout);
+      --  Disable markdown rendering so lines are stored verbatim
+      --  rather than being collapsed into a single Pango paragraph.
+      Conv.Set_Render_Markdown (False);
+      Conv.Append_Text ("line one" & ASCII.LF & "line two" & ASCII.LF & "last");
+      Conv.End_Text_Block;
+      Last_Line := Testing.Line_Count (Conv);
+      Assert (Last_Line >= 1,
+              "at least 1 logical line after text block");
+      Last_Byte := Testing.Get_Line_Text (Conv, Last_Line)'Length;
+      Testing.Set_Selection
+        (Conv,
+         Start_Line => 1,
+         Start_Byte => 0,
+         End_Line   => Last_Line,
+         End_Byte   => Last_Byte);
+      Assert (Testing.Selection_Visible (Conv),
+              "selection is active after Set_Selection");
+      declare
+         Extracted : constant String := Testing.Extract_Text
+           (Conv, 1, 0, Last_Line, Last_Byte);
+      begin
+         Assert (Extracted = "line one" & ASCII.LF & "line two" & ASCII.LF & "last",
+                 "select-all extracts expected text, got: """ & Extracted & """");
+      end;
+   end Test_Viewport_Select_All_Extracts_Expected_Text;
 
 end Coyote_GUI_Conversation_Tests;

@@ -2832,6 +2832,24 @@ package body Test_Suites is
       Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
         ("Coyote.GUI.Conversation multiple short lines each Vis_Count=1",
          Coyote_GUI_Conversation_Tests.Test_Multiple_Short_Lines_Each_Vis_Count_One'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation long line produces many visual lines",
+         Coyote_GUI_Conversation_Tests.Test_Long_Line_Produces_Many_Visual_Lines'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation deep indent consumes width and wraps",
+         Coyote_GUI_Conversation_Tests.Test_Deep_Indent_Consumes_Width_And_Wraps'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation visual lines exceed viewport height",
+         Coyote_GUI_Conversation_Tests.Test_Visual_Lines_Exceed_Viewport_Height'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation Vis_Count consistent on recompute",
+         Coyote_GUI_Conversation_Tests.Test_Long_Line_Vis_Count_Consistent_On_Recompute'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation long word forces character break",
+         Coyote_GUI_Conversation_Tests.Test_Long_Word_Forces_Character_Break'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation select-all extracts expected text",
+         Coyote_GUI_Conversation_Tests.Test_Viewport_Select_All_Extracts_Expected_Text'Access));
 
       return Result;
    end Suite;

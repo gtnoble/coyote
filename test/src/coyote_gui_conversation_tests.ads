@@ -53,4 +53,13 @@ package Coyote_GUI_Conversation_Tests is
    procedure Test_Begin_Thinking_Sets_Flag                (T : in out Test);
    procedure Test_End_Thinking_Clears_Flag                (T : in out Test);
 
+   --  Large-logical-line / viewport-overflow tests
+
+   procedure Test_Long_Line_Produces_Many_Visual_Lines (T : in out Test);
+   procedure Test_Deep_Indent_Consumes_Width_And_Wraps (T : in out Test);
+   procedure Test_Visual_Lines_Exceed_Viewport_Height  (T : in out Test);
+   procedure Test_Long_Line_Vis_Count_Consistent_On_Recompute (T : in out Test);
+   procedure Test_Long_Word_Forces_Character_Break     (T : in out Test);
+   procedure Test_Viewport_Select_All_Extracts_Expected_Text (T : in out Test);
+
 end Coyote_GUI_Conversation_Tests;
