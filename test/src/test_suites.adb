@@ -13,6 +13,7 @@ with Coyote_App_Tests;
 with Collapse_Utils_Tests;
 with Coyote_Utils_Tests;
 with Coyote_Cmark_Tests;
+with Coyote_GUI_Conversation_Tests;
 with Session_History_Tests;
 with Tool_URI_Tests;
 with Subagent_Integration_Tests;
@@ -89,6 +90,8 @@ package body Test_Suites is
      new AUnit.Test_Caller (Collapse_Utils_Tests.Test);
    package Coyote_Cmark_Caller is
      new AUnit.Test_Caller (Coyote_Cmark_Tests.Test);
+   package Coyote_GUI_Conversation_Caller is
+     new AUnit.Test_Caller (Coyote_GUI_Conversation_Tests.Test);
    package LLM_HTTP_Caller is
      new AUnit.Test_Caller (LLM_HTTP_Tests.Test);
    package LLM_Settings_Caller is
@@ -2783,6 +2786,52 @@ package body Test_Suites is
       Result.Add_Test (LLM_Agent_Caller.Create
         ("LLM.Agent sandbox defaults to empty without env var",
          LLM_Agent_Tests.Test_Sandbox_Default_Empty'Access));
+
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation Append_Notice adds logical lines",
+         Coyote_GUI_Conversation_Tests.Test_Append_Notice_Increments_Count'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation Append_Text enters text block",
+         Coyote_GUI_Conversation_Tests.Test_Append_Text_Enters_Text_Block'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation Append_Text accumulates buffer",
+         Coyote_GUI_Conversation_Tests.Test_Append_Text_Accumulates_Buffer'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation End_Text_Block exits block",
+         Coyote_GUI_Conversation_Tests.Test_End_Text_Block_Exits_Block'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation Begin_Thinking sets flag",
+         Coyote_GUI_Conversation_Tests.Test_Begin_Thinking_Sets_Flag'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation End_Thinking clears flag",
+         Coyote_GUI_Conversation_Tests.Test_End_Thinking_Clears_Flag'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation notices do not enter text block",
+         Coyote_GUI_Conversation_Tests.Test_Notice_Does_Not_Enter_Text_Block'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation footer leaves 3 lines",
+         Coyote_GUI_Conversation_Tests.Test_Footer_Leaves_Blank_Lines'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation single short line Vis_Count = 1",
+         Coyote_GUI_Conversation_Tests.Test_Single_Short_Line_Vis_Count_One'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation Total_Vis_Lines after Append_Text",
+         Coyote_GUI_Conversation_Tests.Test_Total_Vis_Lines_After_Append_Text'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation Total_Vis_Lines zero when empty",
+         Coyote_GUI_Conversation_Tests.Test_Total_Vis_Lines_Zero_When_Empty'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation cache width non-zero after recompute",
+         Coyote_GUI_Conversation_Tests.Test_Cache_Width_Non_Zero_After_Recompute'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation Invalidate_Layout recomputes cache",
+         Coyote_GUI_Conversation_Tests.Test_Invalidate_Layout_Zeroes_Cache_Width'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation Recompute_Vis_Lines updates total",
+         Coyote_GUI_Conversation_Tests.Test_Recompute_Vis_Lines_Updates_Total'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation multiple short lines each Vis_Count=1",
+         Coyote_GUI_Conversation_Tests.Test_Multiple_Short_Lines_Each_Vis_Count_One'Access));
 
       return Result;
    end Suite;

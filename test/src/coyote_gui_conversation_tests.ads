@@ -1,0 +1,56 @@
+--  Coyote_GUI_Conversation_Tests — unit tests for scrolling and layout.
+--
+--  Covers:
+--    * Streaming text-block state machine (Append_Text / End_Text_Block)
+--    * Thinking-block boundary tracking
+--    * Vis_Count computation via Pango wrapping
+--    * Total_Vis_Lines post-append
+--    * Cache invalidation on Invalidate_Layout
+--    * Logical-line accumulation
+--
+--  All tests that touch the widget (Append_Text, Append_Notice, etc.)
+--  require a display and are skipped when DISPLAY and WAYLAND_DISPLAY
+--  are both unset.  Run under xvfb-run for headless CI:
+--      xvfb-run -a bin/coyote_test "*Conversation*"
+--
+--  Project: coyote
+
+with AUnit;
+with AUnit.Test_Fixtures;
+with Gtk.Scrolled_Window;
+with Gtk.Layout;
+with Coyote_GUI.Conversation;
+
+package Coyote_GUI_Conversation_Tests is
+
+   type Test is new AUnit.Test_Fixtures.Test_Fixture with record
+      Conv              : Coyote_GUI.Conversation.Instance;
+      Scroll            : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Layout            : Gtk.Layout.Gtk_Layout;
+      Display_Available : Boolean := False;
+   end record;
+
+   overriding procedure Set_Up (T : in out Test);
+   overriding procedure Tear_Down (T : in out Test);
+
+   --  All tests below require a display (they call Append_Text,
+   --  Append_Notice, End_Text_Block, or similar operations that
+   --  trigger Recompute_Vis_Lines / Queue_Draw on the GtkLayout).
+
+   procedure Test_Total_Vis_Lines_Zero_When_Empty         (T : in out Test);
+   procedure Test_Single_Short_Line_Vis_Count_One         (T : in out Test);
+   procedure Test_Multiple_Short_Lines_Each_Vis_Count_One (T : in out Test);
+   procedure Test_Total_Vis_Lines_After_Append_Text       (T : in out Test);
+   procedure Test_Cache_Width_Non_Zero_After_Recompute    (T : in out Test);
+   procedure Test_Invalidate_Layout_Zeroes_Cache_Width    (T : in out Test);
+   procedure Test_Recompute_Vis_Lines_Updates_Total       (T : in out Test);
+   procedure Test_Append_Notice_Increments_Count          (T : in out Test);
+   procedure Test_Append_Text_Enters_Text_Block           (T : in out Test);
+   procedure Test_Append_Text_Accumulates_Buffer          (T : in out Test);
+   procedure Test_End_Text_Block_Exits_Block              (T : in out Test);
+   procedure Test_Footer_Leaves_Blank_Lines               (T : in out Test);
+   procedure Test_Notice_Does_Not_Enter_Text_Block        (T : in out Test);
+   procedure Test_Begin_Thinking_Sets_Flag                (T : in out Test);
+   procedure Test_End_Thinking_Clears_Flag                (T : in out Test);
+
+end Coyote_GUI_Conversation_Tests;
