@@ -19,6 +19,7 @@ with Ada.Containers.Indefinite_Hashed_Maps;
 with Ada.Containers.Vectors;
 with Ada.Strings.Hash;
 with Ada.Strings.Unbounded;        use Ada.Strings.Unbounded;
+with Coyote_App.Utils;
 with Glib;
 with Gtk.Layout;
 with Gtk.Scrolled_Window;
@@ -210,8 +211,10 @@ private
       --  Streaming state
       In_Text_Block    : Boolean := False;
       Stream_Buf       : Unbounded_String;
+      Stream_First_Line : Natural := 0;
       In_Thinking      : Boolean := False;
       Prefix_Emitted   : Boolean := False;
+      Thinking_Tok : Coyote_App.Utils.Thinking_Tokenizer.Instance;
       --  Current tool being built (Begin_Tool .. End_Tool)
       Cur_Tool_First   : Natural := 0;
       Cur_Tool_Id      : Unbounded_String;

@@ -99,6 +99,7 @@ package body Coyote_App.Frontend.Acme_Win is
       if not F.In_Thinking then
          F.In_Thinking        := True;
          F.Prefix_Emitted     := False;
+         F.Thinking_Tok.Reset;
       end if;
    end Begin_Thinking;
 
@@ -110,9 +111,11 @@ package body Coyote_App.Frontend.Acme_Win is
       Text : in     String)
    is
       use Coyote_App.Utils;
-      Trimmed : constant String := Collapse_Thinking_Delta (Text);
+      use Ada.Strings.Unbounded;
+      Tokenized : Unbounded_String;
    begin
-      if Trimmed'Length = 0 then
+      F.Thinking_Tok.Feed (Text, Tokenized);
+      if Length (Tokenized) = 0 then
          return;
       end if;
 
@@ -123,13 +126,26 @@ package body Coyote_App.Frontend.Acme_Win is
          F.Prefix_Emitted := True;
       end if;
 
-      Acme.Window.Append (F.Win_Ptr.all, F.My_FS'Access, Trimmed);
+      Acme.Window.Append (F.Win_Ptr.all, F.My_FS'Access, To_String (Tokenized));
    end Append_Thinking;
 
    --  ── End_Thinking ──────────────────────────────────────────────────────
 
    procedure End_Thinking (F : in out Instance) is
+      use Ada.Strings.Unbounded;
+      Remaining : Unbounded_String;
    begin
+      F.Thinking_Tok.Flush (Remaining);
+      if Length (Remaining) > 0 then
+         if not F.Prefix_Emitted then
+            Acme.Window.Append
+              (F.Win_Ptr.all, F.My_FS'Access,
+               ASCII.LF & UC_BOX_V & " ");
+            F.Prefix_Emitted := True;
+         end if;
+         Acme.Window.Append (F.Win_Ptr.all, F.My_FS'Access,
+                             To_String (Remaining));
+      end if;
       if F.In_Thinking then
          if F.Prefix_Emitted then
             Acme.Window.Append

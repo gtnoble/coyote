@@ -24,6 +24,7 @@
 with Ada.Containers.Indefinite_Hashed_Maps;
 with Ada.Strings.Hash;
 with Ada.Strings.Unbounded;        use Ada.Strings.Unbounded;
+with Coyote_App.Utils;
 with Glib;
 with Gtk.Text_Buffer;
 with Gtk.Text_Mark;
@@ -185,6 +186,7 @@ private
       Stream_Mark      : Gtk.Text_Mark.Gtk_Text_Mark;
       Stream_Buf       : Unbounded_String;
       In_Thinking          : Boolean := False;
+      Thinking_Tok : Coyote_App.Utils.Thinking_Tokenizer.Instance;
       Tools                : Tool_Maps.Map;
       Actions              : Action_Maps.Map;
       Action_Seq           : Natural := 0;

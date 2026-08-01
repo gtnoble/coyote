@@ -3,6 +3,7 @@
 --  Project: coyote
 
 with Ada.Text_IO;
+with Ada.Containers;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;          use Ada.Strings.Unbounded;
 with Cairo;                          use Cairo;
@@ -876,12 +877,35 @@ package body Coyote_GUI.Conversation is
    --  ── Streaming text ────────────────────────────────────────────────────
 
    procedure Append_Text (C : in out Instance; Text : String) is
+      Start    : Natural  := Text'First;
+      Last_Idx : Positive;
    begin
       if not C.In_Text_Block then
-         C.In_Text_Block := True;
-         C.Stream_Buf    := Null_Unbounded_String;
+         C.In_Text_Block    := True;
+         C.Stream_Buf       := Null_Unbounded_String;
+         Append_Line (C, Plain, "");
+         C.Stream_First_Line := Natural (C.Lines.Length);
       end if;
       Append (C.Stream_Buf, Text);
+
+      Last_Idx := Positive (C.Lines.Length);
+      for I in Text'Range loop
+         if Text (I) = ASCII.LF then
+            if I > Start then
+               Append (C.Lines (Last_Idx).Text,
+                       Sanitize_UTF8 (Text (Start .. I - 1)));
+            end if;
+            Append_Line (C, Plain, "");
+            Last_Idx := Positive (C.Lines.Length);
+            Start    := I + 1;
+         end if;
+      end loop;
+      if Start <= Text'Last then
+         Append (C.Lines (Last_Idx).Text,
+                 Sanitize_UTF8 (Text (Start .. Text'Last)));
+      end if;
+      Recompute_Vis_Lines (C);
+      Queue_Draw (C);
    end Append_Text;
 
    --  ── Render_Markdown_Block ────────────────────────────────────────────
@@ -1340,6 +1364,22 @@ package body Coyote_GUI.Conversation is
       Debug_Log (C, "End_Text_Block len=" & Natural'Image (Full_Text'Length)
                  & " markdown=" & Boolean'Image (C.Render_Markdown));
 
+      --  Remove the raw streaming lines that Append_Text emitted.
+      --  Stream_First_Line is the last blank line before streaming
+      --  started; streaming lines occupy positions Stream_First_Line+1
+      --  onward.  Delete the leading blank and all streamed content.
+      if C.Stream_First_Line > 0
+        and then Natural (C.Lines.Length) >= C.Stream_First_Line
+      then
+         C.Lines.Delete_Last
+           (Ada.Containers.Count_Type
+              (Natural (C.Lines.Length) - C.Stream_First_Line + 1));
+         Debug_Log
+           (C,
+            "End_Text_Block removed streaming lines, remaining="
+            & Natural'Image (Natural (C.Lines.Length)));
+      end if;
+
       if C.Render_Markdown and then Full_Text'Length > 0 then
          Render_Markdown_Block (C, Full_Text);
       else
@@ -1377,35 +1417,60 @@ package body Coyote_GUI.Conversation is
       Debug_Log (C, "Begin_Thinking");
       C.In_Thinking    := True;
       C.Prefix_Emitted := False;
+      C.Thinking_Tok.Reset;
    end Begin_Thinking;
 
    procedure Append_Thinking (C : in out Instance; Text : String) is
-      Trimmed : constant String := Collapse_Thinking_Delta (Text);
+      Tokenized : Ada.Strings.Unbounded.Unbounded_String;
    begin
-      if Trimmed'Length = 0 then
+      C.Thinking_Tok.Feed (Text, Tokenized);
+      if Length (Tokenized) = 0 then
          return;
       end if;
 
-      Debug_Log (C, "Append_Thinking len=" & Natural'Image (Trimmed'Length));
+      declare
+         Proc : constant String := To_String (Tokenized);
+      begin
+         Debug_Log (C, "Append_Thinking len=" & Natural'Image (Proc'Length));
 
-      if not C.Prefix_Emitted then
-         Append_Line (C, Thinking, UC_BOX_V & " " & Sanitize_UTF8 (Trimmed));
-         C.Prefix_Emitted := True;
-      else
-         --  Append to the last line's text so thinking flows as one
-         --  paragraph, not one line per delta.
-         declare
-            Last_Idx : constant Positive := Positive (C.Lines.Length);
-         begin
-            Append (C.Lines (Last_Idx).Text, Sanitize_UTF8 (Trimmed));
-         end;
-      end if;
+         if not C.Prefix_Emitted then
+            Append_Line (C, Thinking, UC_BOX_V & " " & Sanitize_UTF8 (Proc));
+            C.Prefix_Emitted := True;
+         else
+            declare
+               Last_Idx : constant Positive := Positive (C.Lines.Length);
+            begin
+               Append (C.Lines (Last_Idx).Text, Sanitize_UTF8 (Proc));
+            end;
+         end if;
+      end;
       Recompute_Vis_Lines (C);
       Queue_Draw (C);
    end Append_Thinking;
 
    procedure End_Thinking (C : in out Instance) is
+      use Ada.Strings.Unbounded;
+      Remaining : Unbounded_String;
    begin
+      C.Thinking_Tok.Flush (Remaining);
+      if Length (Remaining) > 0 then
+         declare
+            Proc : constant String := Sanitize_UTF8 (To_String (Remaining));
+         begin
+            if not C.Prefix_Emitted then
+               Append_Line (C, Thinking, UC_BOX_V & " " & Proc);
+               C.Prefix_Emitted := True;
+            else
+               declare
+                  Last_Idx : constant Positive := Positive (C.Lines.Length);
+               begin
+                  Append (C.Lines (Last_Idx).Text, Proc);
+               end;
+            end if;
+            Recompute_Vis_Lines (C);
+            Queue_Draw (C);
+         end;
+      end if;
       Debug_Log (C, "End_Thinking in_thinking=" & Boolean'Image (C.In_Thinking)
                  & " prefix_emitted=" & Boolean'Image (C.Prefix_Emitted));
       if C.In_Thinking then

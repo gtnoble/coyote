@@ -147,27 +147,46 @@ package body Coyote_GUI.Buffer is
       if not B.In_Thinking then
          B.In_Thinking        := True;
          B.Prefix_Emitted     := False;
+         B.Thinking_Tok.Reset;
       end if;
    end Begin_Thinking;
 
    procedure Append_Thinking (B : in out Instance; Text : String) is
       use Coyote_App.Utils;
-      Trimmed : constant String := Collapse_Thinking_Delta (Text);
+      use Ada.Strings.Unbounded;
+      Tokenized : Unbounded_String;
    begin
-      if Trimmed'Length = 0 then
+      B.Thinking_Tok.Feed (Text, Tokenized);
+      if Length (Tokenized) = 0 then
          return;
       end if;
 
-      if not B.Prefix_Emitted then
-         Insert_Tagged (B, UC_BOX_V & " " & Trimmed, B.Tag_Thinking);
-         B.Prefix_Emitted := True;
-      else
-         Insert_Tagged (B, Trimmed, B.Tag_Thinking);
-      end if;
+      declare
+         Proc : constant String := To_String (Tokenized);
+      begin
+         if not B.Prefix_Emitted then
+            Insert_Tagged (B, UC_BOX_V & " " & Proc, B.Tag_Thinking);
+            B.Prefix_Emitted := True;
+         else
+            Insert_Tagged (B, Proc, B.Tag_Thinking);
+         end if;
+      end;
    end Append_Thinking;
 
    procedure End_Thinking (B : in out Instance) is
+      use Ada.Strings.Unbounded;
+      Remaining : Unbounded_String;
    begin
+      B.Thinking_Tok.Flush (Remaining);
+      if Length (Remaining) > 0 then
+         if not B.Prefix_Emitted then
+            Insert_Tagged (B, UC_BOX_V & " " & To_String (Remaining),
+                           B.Tag_Thinking);
+            B.Prefix_Emitted := True;
+         else
+            Insert_Tagged (B, To_String (Remaining), B.Tag_Thinking);
+         end if;
+      end if;
       if B.In_Thinking then
          if B.Prefix_Emitted then
             Insert_Tagged (B, "" & ASCII.LF & ASCII.LF, B.Tag_Thinking);

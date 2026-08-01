@@ -200,7 +200,56 @@ package Coyote_App.Utils is
    --
    --  Example: " The\n user\n wants "  → " The user wants"
    --           "Para 1\n\nPara 2"      → "Para 1\n\nPara 2" (unchanged)
+   --
+   --  DEPRECATED: prefer Thinking_Tokenizer for streaming use.
    function Collapse_Thinking_Delta (Text : String) return String;
+
+   --  ── Streaming thinking tokenizer ────────────────────────────────────
+
+   --  A stateful tokenizer that feeds thinking deltas as a stream and
+   --  emits processed prose per-feed.  Unlike Collapse_Thinking_Delta,
+   --  the tokenizer maintains cross-delta state so that paragraph breaks
+   --  (\n\n) split across delta boundaries are correctly preserved.
+   --
+   --  Usage per thinking block:
+   --     Tok.Reset;
+   --     for each delta:
+   --        Tok.Feed (Delta, Output);
+   --        if Output /= "" then emit Output; end if;
+   --     Tok.Flush (Output);
+   --     if Output /= "" then emit Output; end if;
+   --
+   --  Behaviour:
+   --    * Collapses single \n / \r to spaces (word-boundary restoration).
+   --    * Preserves \n\n (and \r\n\r\n, etc.) as paragraph breaks.
+   --    * Trims leading \n / \r / HT (whitespace before any content).
+   --    * Holds at most one trailing \n across Feed calls so that a
+   --      paragraph break split across a delta boundary is not lost.
+   --    * On Flush, any trailing single \n is discarded (trimmed).
+   package Thinking_Tokenizer is
+      type Instance is tagged limited private;
+
+      procedure Reset (T : in out Instance);
+      --  Reset state for a new thinking block.
+
+      procedure Feed
+        (T      : in out Instance;
+         Delt   : in     String;
+         Output :    out Ada.Strings.Unbounded.Unbounded_String);
+      --  Feed a delta.  Output contains text ready to display.
+      --  May be empty if all input was held for cross-delta resolution.
+
+      procedure Flush
+        (T      : in out Instance;
+         Output :    out Ada.Strings.Unbounded.Unbounded_String);
+      --  Flush buffered text at end of thinking.  Discards any
+      --  trailing single newline (treated as trailing whitespace).
+   private
+      type Instance is tagged limited record
+         Buf     : Ada.Strings.Unbounded.Unbounded_String;
+         Started : Boolean := False;  --  have we emitted any content?
+      end record;
+   end Thinking_Tokenizer;
 
    --  ── Turn footer builders ─────────────────────────────────────────────
 

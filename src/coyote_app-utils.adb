@@ -905,4 +905,171 @@ package body Coyote_App.Utils is
 
       return To_String (Result);
    end Collapse_Thinking_Delta;
+   --  ── Streaming thinking tokenizer ────────────────────────────────────
+
+   package body Thinking_Tokenizer is
+
+      --  ── Feed ─────────────────────────────────────────────────────────
+
+      procedure Feed
+        (T      : in out Instance;
+         Delt   : in     String;
+         Output :    out Ada.Strings.Unbounded.Unbounded_String)
+      is
+         B : constant String := To_String (T.Buf) & Delt;
+         I : Natural := B'First;
+      begin
+         Output := Null_Unbounded_String;
+
+         if B'Length = 0 then
+            return;
+         end if;
+
+         --  Skip leading whitespace before any content has been emitted.
+         if not T.Started then
+            while I <= B'Last
+              and then (B (I) = ASCII.LF
+                        or else B (I) = ASCII.CR
+                        or else B (I) = ASCII.HT)
+            loop
+               I := I + 1;
+            end loop;
+            if I > B'Last then
+               --  All whitespace so far; buffer nothing for next call.
+               T.Buf := Null_Unbounded_String;
+               return;
+            end if;
+            T.Started := True;
+         end if;
+
+         --  Process content, stopping before a trailing single newline
+         --  that may be the first half of a paragraph break.
+         declare
+            Last_Safe : Natural := B'Last;
+         begin
+            --  If the buffer ends with a single newline (not part of
+            --  a \n\n pair), hold it back for the next Feed call.
+            if B'Last > 0
+              and then (B (B'Last) = ASCII.LF or else B (B'Last) = ASCII.CR)
+            then
+               --  Walk back to see if this is \n\n or just \n.
+               declare
+                  J : Natural := B'Last - 1;
+                  Found_Prior_LF : Boolean := False;
+               begin
+                  while J >= I
+                    and then (B (J) = ASCII.LF
+                              or else B (J) = ASCII.CR)
+                  loop
+                     if B (J) = ASCII.LF then
+                        Found_Prior_LF := True;
+                        exit;  --  \n\n or similar; keep both
+                     end if;
+                     J := J - 1;
+                  end loop;
+
+                  if not Found_Prior_LF then
+                     --  Single trailing newline: hold it back.
+                     Last_Safe := B'Last - 1;
+                     while Last_Safe >= I
+                       and then (B (Last_Safe) = ASCII.HT)
+                     loop
+                        Last_Safe := Last_Safe - 1;
+                     end loop;
+                  end if;
+               end;
+            end if;
+
+            if I > Last_Safe then
+               --  All remaining text is trailing whitespace we're holding.
+               T.Buf := To_Unbounded_String (B (I .. B'Last));
+               return;
+            end if;
+
+            --  Emit the safe range: collapse single newlines to spaces,
+            --  preserve paragraph breaks.
+            while I <= Last_Safe loop
+               if B (I) = ASCII.LF or else B (I) = ASCII.CR then
+                  declare
+                     J          : Natural := I + 1;
+                     Second_LF  : Boolean := False;
+                  begin
+                     while J <= Last_Safe
+                       and then (B (J) = ASCII.LF
+                                 or else B (J) = ASCII.CR
+                                 or else B (J) = ASCII.HT)
+                     loop
+                        if B (J) = ASCII.LF then
+                           Second_LF := True;
+                        end if;
+                        J := J + 1;
+                     end loop;
+
+                     if Second_LF then
+                        --  Paragraph break.
+                        Append (Output, "" & ASCII.LF & ASCII.LF);
+                        I := J;
+                     else
+                        --  Single newline: collapse to space.
+                        Append (Output, " ");
+                        I := I + 1;
+                     end if;
+                  end;
+               else
+                  Append (Output, B (I .. I));
+                  I := I + 1;
+               end if;
+            end loop;
+
+            --  Buffer trailing text for next call.
+            if Last_Safe < B'Last then
+               T.Buf := To_Unbounded_String (B (Last_Safe + 1 .. B'Last));
+            else
+               T.Buf := Null_Unbounded_String;
+            end if;
+         end;
+      end Feed;
+
+      --  ── Flush ────────────────────────────────────────────────────────
+
+      procedure Flush
+        (T      : in out Instance;
+         Output :    out Ada.Strings.Unbounded.Unbounded_String)
+      is
+         B : constant String := To_String (T.Buf);
+      begin
+         Output := Null_Unbounded_String;
+         if B'Length = 0 then
+            return;
+         end if;
+
+         --  Strip trailing LF, CR, and HT from the buffer.
+         --  A single trailing newline was held back from the last
+         --  Feed and should now be discarded.
+         declare
+            Last : Natural := B'Last;
+         begin
+            while Last >= B'First
+              and then (B (Last) = ASCII.LF
+                        or else B (Last) = ASCII.CR
+                        or else B (Last) = ASCII.HT)
+            loop
+               Last := Last - 1;
+            end loop;
+
+            if Last >= B'First then
+               Output := To_Unbounded_String (B (B'First .. Last));
+            end if;
+         end;
+      end Flush;
+
+      --  ── Reset ───────────────────────────────────────────────────────
+
+      procedure Reset (T : in out Instance) is
+      begin
+         T.Buf     := Null_Unbounded_String;
+         T.Started := False;
+      end Reset;
+
+   end Thinking_Tokenizer;
 end Coyote_App.Utils;

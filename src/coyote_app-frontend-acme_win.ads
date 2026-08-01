@@ -11,6 +11,7 @@
 
 with Ada.Strings.Unbounded;
 with Acme.Window;
+with Coyote_App.Utils;
 with Nine_P.Client;
 
 package Coyote_App.Frontend.Acme_Win is
@@ -120,6 +121,7 @@ private
       Win_Ptr    : access Acme.Window.Win := null;
       In_Thinking          : Boolean := False;
       Prefix_Emitted       : Boolean := False;
+      Thinking_Tok : Coyote_App.Utils.Thinking_Tokenizer.Instance;
       My_FS      : aliased Nine_P.Client.Fs;
       Tag_Suffix : Ada.Strings.Unbounded.Unbounded_String;
    end record;
