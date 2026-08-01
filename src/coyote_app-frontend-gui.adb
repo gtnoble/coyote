@@ -24,7 +24,7 @@ with Gtk.Check_Menu_Item;
 with Gtk.Settings;
 with Gtk.Scrolled_Window;
 with Gtk.Separator_Menu_Item;
-with Gtk.Drawing_Area;
+with Gtk.Layout;
 with Gtk.Text_Iter;
 with Gtk.Text_View;
 with Gtk.Widget;
@@ -1407,17 +1407,17 @@ package body Coyote_App.Frontend.GUI is
          Adj.On_Changed (On_Conv_Adj_Changed'Access);
       end;
 
-      Gtk.Drawing_Area.Gtk_New (F.Conv_DA);
+      Gtk.Layout.Gtk_New (F.Conv_Layout);
 
-      F.Conv.Attach (F.Conv_Scroll, F.Conv_DA);
+      F.Conv.Attach (F.Conv_Scroll, F.Conv_Layout);
 
-      --  Connect the frontend's tool/action click handler to the drawing area.
+      --  Connect the frontend's tool/action click handler to the layout.
       --  The Conversation's own button-press handler (for selection) returns
       --  False, so both handlers fire.
-      F.Conv_DA.On_Button_Press_Event
+      F.Conv_Layout.On_Button_Press_Event
         (On_Conv_Button_Press'Access);
 
-      F.Conv_Scroll.Add (F.Conv_DA);
+      F.Conv_Scroll.Add (F.Conv_Layout);
       F.Outer_Box.Pack_Start (F.Conv_Scroll, Expand => True, Fill => True,
                               Padding => 0);
       --  ── Prompt area ───────────────────────────────────────────────────

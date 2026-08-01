@@ -12,7 +12,7 @@ with Gdk.Types.Keysyms;
 with GNATCOLL.JSON;
 with Gtk.Adjustment;
 with Gtk.Clipboard;
-with Gtk.Drawing_Area;
+with Gtk.Layout;
 with Gtk.Menu;
 with Gtk.Menu_Item;
 with Gtk.Menu_Shell;
@@ -94,7 +94,7 @@ package body Coyote_GUI.Conversation is
    --  ── Recompute_Vis_Lines ───────────────────────────────────────────────
 
    procedure Recompute_Vis_Lines (C : in out Instance) is
-      Width_Px : constant Glib.Gint := C.DA.Get_Allocated_Width;
+      Width_Px : constant Glib.Gint := C.Layout_W.Get_Allocated_Width;
       Total    : Natural := 0;
    begin
       if Width_Px <= 0 or else C.Lines.Is_Empty then
@@ -104,7 +104,7 @@ package body Coyote_GUI.Conversation is
       for I in 1 .. Positive (C.Lines.Length) loop
          declare
             Layout : constant Pango_Layout :=
-              C.DA.Create_Pango_Layout (To_String (C.Lines (I).Text));
+              C.Layout_W.Create_Pango_Layout (To_String (C.Lines (I).Text));
             Vis    : Natural;
          begin
             Layout.Set_Width (Width_Px * Pango_Scale);
@@ -115,6 +115,12 @@ package body Coyote_GUI.Conversation is
       end loop;
 
       C.Total_Vis_Lines := Total;
+
+      --  Tell the GtkLayout the total scrollable area so it can position
+      --  its bin window correctly and drive the shared adjustments.
+      C.Layout_W.Set_Size
+        (Glib.Guint (Width_Px),
+         Glib.Guint (Integer (Total) * Integer (C.Line_Height_Px)));
 
       --  Update scrollbar range.
       declare
@@ -138,8 +144,8 @@ package body Coyote_GUI.Conversation is
       Byte_Offset  : out Natural;
       Trailing     : out Glib.Gint)
    is
-      Width_Px    : constant Glib.Gint := C.DA.Get_Allocated_Width;
-      --  Y is widget-relative (the drawing area's coordinate system already
+      Width_Px    : constant Glib.Gint := C.Layout_W.Get_Allocated_Width;
+      --  Y is widget-relative (the layout's coordinate system already
       --  accounts for the scroll offset), so we use it directly.
       Vis_Line_N  : constant Natural :=
         Natural (Y / C.Line_Height_Px);
@@ -157,7 +163,7 @@ package body Coyote_GUI.Conversation is
       for I in 1 .. Positive (C.Lines.Length) loop
          declare
             Layout : constant Pango_Layout :=
-              C.DA.Create_Pango_Layout (To_String (C.Lines (I).Text));
+              C.Layout_W.Create_Pango_Layout (To_String (C.Lines (I).Text));
             Vis_Cnt : Natural;
          begin
             Layout.Set_Width (Width_Px * Pango_Scale);
@@ -197,40 +203,40 @@ package body Coyote_GUI.Conversation is
 
    procedure Queue_Draw (C : in out Instance) is
    begin
-      C.DA.Queue_Draw;
+      C.Layout_W.Queue_Draw;
    end Queue_Draw;
 
    --  ── Attach ─────────────────────────────────────────────────────────────
 
    procedure Attach
-     (C      : in out Instance;
-      Scroll : not null access Gtk.Scrolled_Window.Gtk_Scrolled_Window_Record'Class;
-      DA     : not null access Gtk.Drawing_Area.Gtk_Drawing_Area_Record'Class)
+     (C        : in out Instance;
+      Scroll   : not null access Gtk.Scrolled_Window.Gtk_Scrolled_Window_Record'Class;
+      Layout_W : not null access Gtk.Layout.Gtk_Layout_Record'Class)
    is
    begin
-      C.Scroll := Gtk.Scrolled_Window.Gtk_Scrolled_Window (Scroll);
-      C.DA     := Gtk.Drawing_Area.Gtk_Drawing_Area (DA);
+      C.Scroll    := Gtk.Scrolled_Window.Gtk_Scrolled_Window (Scroll);
+      C.Layout_W  := Gtk.Layout.Gtk_Layout (Layout_W);
       Current_Conv := C'Unchecked_Access;
 
       --  Event mask: button press, release, motion, key press.
-      DA.Set_Events
+      Layout_W.Set_Events
         (Gdk.Event.Button_Press_Mask
          or Gdk.Event.Button_Release_Mask
          or Gdk.Event.Pointer_Motion_Mask
          or Gdk.Event.Key_Press_Mask);
-      DA.Set_Can_Focus (True);
+      Layout_W.Set_Can_Focus (True);
 
       --  Connect signals.
-      DA.On_Draw (On_Draw'Access);
-      DA.On_Button_Press_Event (On_Button_Press'Access);
-      DA.On_Button_Release_Event (On_Button_Release'Access);
-      DA.On_Motion_Notify_Event (On_Motion_Notify'Access);
-      DA.On_Key_Press_Event (On_Key_Press'Access);
-      DA.On_Size_Allocate (On_Size_Allocate'Access);
+      Layout_W.On_Draw (On_Draw'Access);
+      Layout_W.On_Button_Press_Event (On_Button_Press'Access);
+      Layout_W.On_Button_Release_Event (On_Button_Release'Access);
+      Layout_W.On_Motion_Notify_Event (On_Motion_Notify'Access);
+      Layout_W.On_Key_Press_Event (On_Key_Press'Access);
+      Layout_W.On_Size_Allocate (On_Size_Allocate'Access);
 
       --  Compute initial line height from the widget's default font.
       declare
-         Layout : constant Pango_Layout := DA.Create_Pango_Layout ("X");
+         Layout : constant Pango_Layout := Layout_W.Create_Pango_Layout ("X");
          W, H   : Glib.Gint;
       begin
          Layout.Get_Pixel_Size (W, H);
@@ -295,7 +301,7 @@ package body Coyote_GUI.Conversation is
    is
       pragma Unreferenced (Self);
 
-      Width_Px   : constant Glib.Gint := Current_Conv.DA.Get_Allocated_Width;
+      Width_Px   : constant Glib.Gint := Current_Conv.Layout_W.Get_Allocated_Width;
       Adj        : constant Gtk.Adjustment.Gtk_Adjustment :=
         Current_Conv.Scroll.Get_Vadjustment;
       Scroll_Y   : constant Glib.Gint := Glib.Gint (Adj.Get_Value);
@@ -317,7 +323,7 @@ package body Coyote_GUI.Conversation is
             L      : constant Logical_Line := Current_Conv.Lines (I);
             Text   : constant String := To_String (L.Text);
             Layout : constant Pango_Layout :=
-              Current_Conv.DA.Create_Pango_Layout (Text);
+              Current_Conv.Layout_W.Create_Pango_Layout (Text);
             Vis_Cnt : Natural;
          begin
             Layout.Set_Width (Width_Px * Pango_Scale);
@@ -331,7 +337,7 @@ package body Coyote_GUI.Conversation is
             end if;
 
             --  Stop if entirely below viewport.
-            if Y_Off >= Current_Conv.DA.Get_Allocated_Height then
+            if Y_Off >= Current_Conv.Layout_W.Get_Allocated_Height then
                exit;
             end if;
 
@@ -440,7 +446,7 @@ package body Coyote_GUI.Conversation is
       end if;
 
       --  Grab focus for keyboard events.
-      Current_Conv.DA.Grab_Focus;
+      Current_Conv.Layout_W.Grab_Focus;
 
       if Event.Button = 1 then
          --  Start selection.
@@ -965,7 +971,7 @@ package body Coyote_GUI.Conversation is
 
    procedure Invalidate_Layout (C : in out Instance) is
       Layout : constant Pango_Layout :=
-        C.DA.Create_Pango_Layout ("X");
+        C.Layout_W.Create_Pango_Layout ("X");
       W, H   : Glib.Gint;
    begin
       Layout.Get_Pixel_Size (W, H);

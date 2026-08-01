@@ -32,7 +32,7 @@ with Gtk.Menu_Bar;
 with Gtk.Check_Menu_Item;
 with Gtk.Scrolled_Window;
 with Gtk.Status_Bar;
-with Gtk.Drawing_Area;
+with Gtk.Layout;
 with Gtk.Text_Buffer;
 with Gtk.Text_View;
 with Gtk.Window;
@@ -157,7 +157,7 @@ private
       Render_Markdown_Item : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
       Accel_Group : Gtk.Accel_Group.Gtk_Accel_Group;
       Menu_Bar  : Gtk.Menu_Bar.Gtk_Menu_Bar;
-      Conv_DA    : Gtk.Drawing_Area.Gtk_Drawing_Area;
+      Conv_Layout : Gtk.Layout.Gtk_Layout;
       Conv_Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
       Prompt_View : Gtk.Text_View.Gtk_Text_View;
       Prompt_Buf  : Gtk.Text_Buffer.Gtk_Text_Buffer;

@@ -1,4 +1,4 @@
---  Coyote_GUI.Conversation — Gtk.Drawing_Area-based conversation renderer.
+--  Coyote_GUI.Conversation — Gtk.Layout-based conversation renderer.
 --
 --  Replaces Coyote_GUI.Buffer with a virtualized text renderer that only
 --  lays out and draws visible lines, giving acme-like resize performance
@@ -20,7 +20,7 @@ with Ada.Containers.Vectors;
 with Ada.Strings.Hash;
 with Ada.Strings.Unbounded;        use Ada.Strings.Unbounded;
 with Glib;
-with Gtk.Drawing_Area;
+with Gtk.Layout;
 with Gtk.Scrolled_Window;
 
 package Coyote_GUI.Conversation is
@@ -83,14 +83,14 @@ package Coyote_GUI.Conversation is
 
    type Instance is tagged limited private;
 
-   --  Attach to a Gtk.Drawing_Area inside a Gtk.Scrolled_Window.
-   --  The drawing area must already be created; this procedure connects
+   --  Attach to a Gtk.Layout inside a Gtk.Scrolled_Window.
+   --  The layout must already be created; this procedure connects
    --  the draw, button-press, motion-notify, button-release, and
    --  key-press signals and sets up event masks.
    procedure Attach
      (C      : in out Instance;
-      Scroll : not null access Gtk.Scrolled_Window.Gtk_Scrolled_Window_Record'Class;
-      DA     : not null access Gtk.Drawing_Area.Gtk_Drawing_Area_Record'Class);
+      Scroll   : not null access Gtk.Scrolled_Window.Gtk_Scrolled_Window_Record'Class;
+      Layout_W : not null access Gtk.Layout.Gtk_Layout_Record'Class);
 
    --  ── Streaming assistant text ──────────────────────────────────────────
 
@@ -186,7 +186,7 @@ private
 
    type Instance is tagged limited record
       Scroll        : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
-      DA            : Gtk.Drawing_Area.Gtk_Drawing_Area;
+      Layout_W      : Gtk.Layout.Gtk_Layout;
       Lines         : Line_Vectors.Vector;
       Tools         : Tool_Maps.Vector;
       --  Streaming state

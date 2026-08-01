@@ -233,7 +233,7 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `Coyote_GUI` | GUI root (Update_Kind, Update record) | `src/coyote_gui/coyote_gui.ads` |
 | `Coyote_GUI.Updates` | Protected agent→GTK queue | `src/coyote_gui/coyote_gui-updates.ads/.adb` |
 | `Coyote_GUI.Prompt_Queue` | Protected GTK→agent queue | `src/coyote_gui/coyote_gui-prompt_queue.ads/.adb` |
-| `Coyote_GUI.Conversation` | Drawing_Area-based virtualized conversation renderer | `src/coyote_gui/coyote_gui-conversation.ads/.adb` |
+| `Coyote_GUI.Conversation` | GtkLayout-based virtualized conversation renderer | `src/coyote_gui/coyote_gui-conversation.ads/.adb` |
 | `Coyote_Utils` | CLI arg resolution, file reading, session prefix stripping | `src/coyote_utils.ads/.adb` |
 | `LLM` | Root package | `src/llm/llm.ads` |
 | `LLM.Types` | Message, content block, usage types | `src/llm/llm-types.ads/.adb` |
@@ -904,7 +904,7 @@ block containing `<skill>` entries for each discovered skill, or `""` if none.
 
 ### 5.15 `Coyote_GUI.Conversation`
 
-**Purpose:** Virtualized conversation renderer using `Gtk.Drawing_Area` with
+**Purpose:** Virtualized conversation renderer using `Gtk.Layout` with
 Cairo + Pango.  Replaces the `GtkTextView`/`GtkTextBuffer` approach with a
 viewport-only rendering model that gives acme-like resize performance
 regardless of document size.
@@ -953,7 +953,7 @@ within any tool block's line range.
 new lines), so thinking flows as a single paragraph.  The first delta gets a
 `UC_BOX_V` prefix.
 
-**Markdown rendering:** Not yet implemented in the Drawing_Area renderer;
+**Markdown rendering:** Not yet implemented in the GtkLayout renderer;
 text is displayed as plain UTF-8.  The `Render_Markdown` toggle is wired but
 has no effect.
 
@@ -1357,7 +1357,7 @@ the `Coyote_GUI.Updates` queue.
 **State:** Holds an access to the `GtkApplicationWindow`, the
 `Coyote_GUI.Conversation.Instance`, and a reference to the `Prompt_Queue`. A
 menu-bar action map provides Compact, Pause, Resume, New Session, and model
-selection commands.  The conversation view is a `Gtk.Drawing_Area` inside a
+selection commands.  The conversation view is a `Gtk.Layout` inside a
 `Gtk.Scrolled_Window`; rendering is handled by `Coyote_GUI.Conversation`
 using Cairo + Pango (see §5.15).
 
