@@ -236,7 +236,7 @@ package body Coyote_GUI.Conversation is
       --  Y is widget-relative (the layout's coordinate system already
       --  accounts for the scroll offset), so we use it directly.
       Vis_Line_N  : constant Natural :=
-        Natural (Y / C.Line_Height_Px);
+        Natural (Glib.Gint'Max (Y, 0) / C.Line_Height_Px);
       Vis_Off     : Natural := 0;
       Found       : Boolean := False;
    begin
