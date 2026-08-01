@@ -81,7 +81,8 @@ package body Coyote_GUI.Conversation is
    procedure Append_Markup_Line
      (C : in out Instance; Style : Line_Style; Text : String);
 
-   procedure Recompute_Vis_Lines (C : in out Instance);
+   procedure Recompute_Vis_Lines
+     (C : in out Instance; Force : Boolean := False);
 
    procedure Hit_Test
      (C            : in out Instance;
@@ -187,13 +188,27 @@ package body Coyote_GUI.Conversation is
 
    --  ── Recompute_Vis_Lines ───────────────────────────────────────────────
 
-   procedure Recompute_Vis_Lines (C : in out Instance) is
+   procedure Recompute_Vis_Lines
+     (C : in out Instance; Force : Boolean := False) is
       Width_Px : constant Glib.Gint := C.Layout_W.Get_Allocated_Width;
       Total    : Natural := 0;
    begin
       if Width_Px <= 0 or else C.Lines.Is_Empty then
          Debug_Log (C, "Recompute_Vis_Lines skip width=" & Glib.Gint'Image (Width_Px)
                     & " empty=" & Boolean'Image (C.Lines.Is_Empty));
+         return;
+      end if;
+
+      --  Cache hit: width and line count unchanged.
+      if not Force
+        and then Width_Px = C.Cache_Width_Px
+        and then Natural (C.Lines.Length) = C.Cached_Line_Count
+        and then C.Total_Vis_Lines > 0
+      then
+         Debug_Log
+           (C,
+            "Recompute_Vis_Lines skip cache hit width="
+            & Glib.Gint'Image (Width_Px));
          return;
       end if;
 
@@ -212,6 +227,7 @@ package body Coyote_GUI.Conversation is
             Layout.Set_Width (Width_Px * Pango_Scale);
             Layout.Set_Wrap (Pango_Wrap_Word_Char);
             Vis := Natural (Layout.Get_Line_Count);
+            C.Lines (I).Vis_Count := Vis;
             Total := Total + Vis;
          end;
       end loop;
@@ -240,6 +256,8 @@ package body Coyote_GUI.Conversation is
       begin
          Adj.Set_Upper (New_Upper);
       end;
+      C.Cache_Width_Px    := Width_Px;
+      C.Cached_Line_Count := Natural (C.Lines.Length);
    end Recompute_Vis_Lines;
 
    --  ── Hit_Test ──────────────────────────────────────────────────────────
@@ -269,35 +287,39 @@ package body Coyote_GUI.Conversation is
 
       for I in 1 .. Positive (C.Lines.Length) loop
          declare
-            Layout : Pango_Layout;
-            Vis_Cnt : Natural;
+            Vis_Cnt : constant Natural := C.Lines (I).Vis_Count;
          begin
-            if C.Lines (I).Has_Markup then
-               Layout := C.Layout_W.Create_Pango_Layout ("");
-               Layout.Set_Markup (To_String (C.Lines (I).Text));
-            else
-               Layout := C.Layout_W.Create_Pango_Layout
-                 (To_String (C.Lines (I).Text));
-            end if;
-            Layout.Set_Width (Width_Px * Pango_Scale);
-            Layout.Set_Wrap (Pango_Wrap_Word_Char);
-            Vis_Cnt := Natural (Layout.Get_Line_Count);
-
             if Vis_Line_N < Vis_Off + Vis_Cnt then
+               --  Found the target line; create a Pango layout for
+               --  Xy_To_Index resolution only.
                Logical_Idx := I;
                declare
-                  Rel_Y : constant Glib.Gint :=
-                    Y - Glib.Gint (Vis_Off) * C.Line_Height_Px;
-                  Idx   : Glib.Gint;
-                  Trl   : Glib.Gint;
-                  Exact : Boolean;
-                  pragma Unreferenced (Exact);
+                  Layout : Pango_Layout;
                begin
-                  Layout.Xy_To_Index
-                    (X * Pango_Scale, Rel_Y * Pango_Scale,
-                     Idx, Trl, Exact);
-                  Byte_Offset := Natural (Idx);
-                  Trailing    := Trl;
+                  if C.Lines (I).Has_Markup then
+                     Layout := C.Layout_W.Create_Pango_Layout ("");
+                     Layout.Set_Markup (To_String (C.Lines (I).Text));
+                  else
+                     Layout := C.Layout_W.Create_Pango_Layout
+                       (To_String (C.Lines (I).Text));
+                  end if;
+                  Layout.Set_Width (Width_Px * Pango_Scale);
+                  Layout.Set_Wrap (Pango_Wrap_Word_Char);
+
+                  declare
+                     Rel_Y : constant Glib.Gint :=
+                       Y - Glib.Gint (Vis_Off) * C.Line_Height_Px;
+                     Idx   : Glib.Gint;
+                     Trl   : Glib.Gint;
+                     Exact : Boolean;
+                     pragma Unreferenced (Exact);
+                  begin
+                     Layout.Xy_To_Index
+                       (X * Pango_Scale, Rel_Y * Pango_Scale,
+                        Idx, Trl, Exact);
+                     Byte_Offset := Natural (Idx);
+                     Trailing    := Trl;
+                  end;
                end;
                Found := True;
                exit;
@@ -482,21 +504,9 @@ package body Coyote_GUI.Conversation is
          declare
             L      : constant Logical_Line := Current_Conv.Lines (I);
             Text   : constant String := To_String (L.Text);
-            Layout : Pango_Layout;
-            Vis_Cnt : Natural;
+            Vis_Cnt : constant Natural := L.Vis_Count;
          begin
-            --  Create layout with or without markup.
-            if L.Has_Markup then
-               Layout := Current_Conv.Layout_W.Create_Pango_Layout ("");
-               Layout.Set_Markup (Text);
-            else
-               Layout := Current_Conv.Layout_W.Create_Pango_Layout (Text);
-            end if;
-            Layout.Set_Width (Width_Px * Pango_Scale);
-            Layout.Set_Wrap (Pango_Wrap_Word_Char);
-            Vis_Cnt := Natural (Layout.Get_Line_Count);
-
-            --  Skip if entirely above viewport.
+            --  Skip if entirely above viewport, using cached visual count.
             if Vis_Off + Vis_Cnt <= First_Vis then
                Vis_Off := Vis_Off + Vis_Cnt;
                goto Continue;
@@ -507,114 +517,128 @@ package body Coyote_GUI.Conversation is
                exit;
             end if;
 
-            --  Draw background for this logical line's visual lines.
+            --  Only create a Pango layout for lines that are visible.
             declare
-               Block_H : constant Glib.Gint :=
-                 Glib.Gint (Vis_Cnt) * Current_Conv.Line_Height_Px;
+               Layout : Pango_Layout;
             begin
-               case L.Style is
-                  when Thinking =>
-                     Set_Source_Rgba (Cr, 1.0, 0.99, 0.91, 1.0);
-                     Rectangle
-                       (Cr, 0.0, Gdouble (Y_Off),
-                        Gdouble (Width_Px), Gdouble (Block_H));
-                     Fill (Cr);
-                  when Notice_Info =>
-                     Set_Source_Rgba (Cr, 0.91, 0.94, 1.0, 1.0);
-                     Rectangle
-                       (Cr, 0.0, Gdouble (Y_Off),
-                        Gdouble (Width_Px), Gdouble (Block_H));
-                     Fill (Cr);
-                  when Code_Block =>
-                     Set_Source_Rgba (Cr, 0.96, 0.96, 0.96, 1.0);
-                     Rectangle
-                       (Cr, 0.0, Gdouble (Y_Off),
-                        Gdouble (Width_Px), Gdouble (Block_H));
-                     Fill (Cr);
-                  when Blockquote =>
-                     --  Left border bar.
-                     Set_Source_Rgba (Cr, 0.6, 0.6, 0.6, 0.5);
-                     Rectangle
-                       (Cr, 0.0, Gdouble (Y_Off),
-                        4.0, Gdouble (Block_H));
-                     Fill (Cr);
-                  when Notice_Warn | Notice_Error | Footer
-                     | Action_Strip | Plain
-                     | Heading_1 | Heading_2 | Heading_3
-                     | Heading_4 | Heading_5 | Heading_6
-                     | Thematic_Break
-                     | List_Item_Bullet | List_Item_Ordered =>
-                     null;
-               end case;
-            end;
+               if L.Has_Markup then
+                  Layout := Current_Conv.Layout_W.Create_Pango_Layout ("");
+                  Layout.Set_Markup (Text);
+               else
+                  Layout := Current_Conv.Layout_W.Create_Pango_Layout (Text);
+               end if;
+               Layout.Set_Width (Width_Px * Pango_Scale);
+               Layout.Set_Wrap (Pango_Wrap_Word_Char);
 
-            --  Draw selection highlight if this line intersects selection.
-            if Current_Conv.Sel_Visible
-              and then I >= Current_Conv.Sel_Start_Line
-              and then I <= Current_Conv.Sel_End_Line
-            then
+               --  Draw background for this logical line's visual lines.
                declare
-                  Sel_Start : constant Natural :=
-                    (if I = Current_Conv.Sel_Start_Line
-                     then Current_Conv.Sel_Start_Byte
-                     else 0);
-                  Sel_End   : constant Natural :=
-                    (if I = Current_Conv.Sel_End_Line
-                     then Current_Conv.Sel_End_Byte
-                     else Text'Length);
+                  Block_H : constant Glib.Gint :=
+                    Glib.Gint (Vis_Cnt) * Current_Conv.Line_Height_Px;
                begin
-                  if Sel_Start < Sel_End then
-                     declare
-                        R1, R2 : Pango.Pango_Rectangle;
-                     begin
-                        Layout.Index_To_Pos
-                          (Glib.Gint (Sel_Start), R1);
-                        Layout.Index_To_Pos
-                          (Glib.Gint (Sel_End), R2);
-                        Set_Source_Rgba
-                          (Cr, 0.3, 0.5, 0.9, 0.3);
+                  case L.Style is
+                     when Thinking =>
+                        Set_Source_Rgba (Cr, 1.0, 0.99, 0.91, 1.0);
                         Rectangle
-                          (Cr,
-                           Gdouble (R1.X) / Gdouble (Pango_Scale),
-                           Gdouble (Y_Off),
-                           Gdouble (R2.X - R1.X) / Gdouble (Pango_Scale),
-                           Gdouble (Current_Conv.Line_Height_Px));
+                          (Cr, 0.0, Gdouble (Y_Off),
+                           Gdouble (Width_Px), Gdouble (Block_H));
                         Fill (Cr);
-                     end;
-                  end if;
+                     when Notice_Info =>
+                        Set_Source_Rgba (Cr, 0.91, 0.94, 1.0, 1.0);
+                        Rectangle
+                          (Cr, 0.0, Gdouble (Y_Off),
+                           Gdouble (Width_Px), Gdouble (Block_H));
+                        Fill (Cr);
+                     when Code_Block =>
+                        Set_Source_Rgba (Cr, 0.96, 0.96, 0.96, 1.0);
+                        Rectangle
+                          (Cr, 0.0, Gdouble (Y_Off),
+                           Gdouble (Width_Px), Gdouble (Block_H));
+                        Fill (Cr);
+                     when Blockquote =>
+                        --  Left border bar.
+                        Set_Source_Rgba (Cr, 0.6, 0.6, 0.6, 0.5);
+                        Rectangle
+                          (Cr, 0.0, Gdouble (Y_Off),
+                           4.0, Gdouble (Block_H));
+                        Fill (Cr);
+                     when Notice_Warn | Notice_Error | Footer
+                        | Action_Strip | Plain
+                        | Heading_1 | Heading_2 | Heading_3
+                        | Heading_4 | Heading_5 | Heading_6
+                        | Thematic_Break
+                        | List_Item_Bullet | List_Item_Ordered =>
+                        null;
+                  end case;
                end;
-            end if;
 
-            --  Set text colour and font weight by style.
-            case L.Style is
-               when Thinking | Notice_Info | Plain
-                  | List_Item_Bullet | List_Item_Ordered =>
-                  Set_Source_Rgb (Cr, 0.0, 0.0, 0.0);
-               when Heading_1 | Heading_2 =>
-                  Set_Source_Rgb (Cr, 0.0, 0.0, 0.0);
-               when Heading_3 | Heading_4 =>
-                  Set_Source_Rgb (Cr, 0.0, 0.0, 0.0);
-               when Heading_5 | Heading_6 =>
-                  Set_Source_Rgb (Cr, 0.0, 0.0, 0.0);
-               when Code_Block =>
-                  Set_Source_Rgb (Cr, 0.2, 0.2, 0.2);
-               when Blockquote =>
-                  Set_Source_Rgb (Cr, 0.3, 0.3, 0.3);
-               when Thematic_Break =>
-                  Set_Source_Rgb (Cr, 0.6, 0.6, 0.6);
-               when Notice_Warn =>
-                  Set_Source_Rgb (Cr, 0.8, 0.53, 0.0);
-               when Notice_Error =>
-                  Set_Source_Rgb (Cr, 0.8, 0.2, 0.2);
-               when Footer =>
-                  Set_Source_Rgb (Cr, 0.53, 0.53, 0.53);
-               when Action_Strip =>
-                  Set_Source_Rgb (Cr, 0.13, 0.4, 0.67);
-            end case;
+               --  Draw selection highlight if this line intersects selection.
+               if Current_Conv.Sel_Visible
+                 and then I >= Current_Conv.Sel_Start_Line
+                 and then I <= Current_Conv.Sel_End_Line
+               then
+                  declare
+                     Sel_Start : constant Natural :=
+                       (if I = Current_Conv.Sel_Start_Line
+                        then Current_Conv.Sel_Start_Byte
+                        else 0);
+                     Sel_End   : constant Natural :=
+                       (if I = Current_Conv.Sel_End_Line
+                        then Current_Conv.Sel_End_Byte
+                        else Text'Length);
+                  begin
+                     if Sel_Start < Sel_End then
+                        declare
+                           R1, R2 : Pango.Pango_Rectangle;
+                        begin
+                           Layout.Index_To_Pos
+                             (Glib.Gint (Sel_Start), R1);
+                           Layout.Index_To_Pos
+                             (Glib.Gint (Sel_End), R2);
+                           Set_Source_Rgba
+                             (Cr, 0.3, 0.5, 0.9, 0.3);
+                           Rectangle
+                             (Cr,
+                              Gdouble (R1.X) / Gdouble (Pango_Scale),
+                              Gdouble (Y_Off),
+                              Gdouble (R2.X - R1.X) / Gdouble (Pango_Scale),
+                              Gdouble (Current_Conv.Line_Height_Px));
+                           Fill (Cr);
+                        end;
+                     end if;
+                  end;
+               end if;
 
-            --  Render the Pango layout at the current Y offset.
-            Move_To (Cr, 0.0, Gdouble (Y_Off));
-            Pango.Cairo.Show_Layout (Cr, Layout);
+               --  Set text colour and font weight by style.
+               case L.Style is
+                  when Thinking | Notice_Info | Plain
+                     | List_Item_Bullet | List_Item_Ordered =>
+                     Set_Source_Rgb (Cr, 0.0, 0.0, 0.0);
+                  when Heading_1 | Heading_2 =>
+                     Set_Source_Rgb (Cr, 0.0, 0.0, 0.0);
+                  when Heading_3 | Heading_4 =>
+                     Set_Source_Rgb (Cr, 0.0, 0.0, 0.0);
+                  when Heading_5 | Heading_6 =>
+                     Set_Source_Rgb (Cr, 0.0, 0.0, 0.0);
+                  when Code_Block =>
+                     Set_Source_Rgb (Cr, 0.2, 0.2, 0.2);
+                  when Blockquote =>
+                     Set_Source_Rgb (Cr, 0.3, 0.3, 0.3);
+                  when Thematic_Break =>
+                     Set_Source_Rgb (Cr, 0.6, 0.6, 0.6);
+                  when Notice_Warn =>
+                     Set_Source_Rgb (Cr, 0.8, 0.53, 0.0);
+                  when Notice_Error =>
+                     Set_Source_Rgb (Cr, 0.8, 0.2, 0.2);
+                  when Footer =>
+                     Set_Source_Rgb (Cr, 0.53, 0.53, 0.53);
+                  when Action_Strip =>
+                     Set_Source_Rgb (Cr, 0.13, 0.4, 0.67);
+               end case;
+
+               --  Render the Pango layout at the current Y offset.
+               Move_To (Cr, 0.0, Gdouble (Y_Off));
+               Pango.Cairo.Show_Layout (Cr, Layout);
+            end;
 
             Vis_Off := Vis_Off + Vis_Cnt;
             Y_Off  := Y_Off + Glib.Gint (Vis_Cnt) * Current_Conv.Line_Height_Px;
@@ -1670,6 +1694,8 @@ package body Coyote_GUI.Conversation is
          C.Line_Height_Px := H;
          Debug_Log (C, "Invalidate_Layout line_height_px=" & Glib.Gint'Image (H));
       end if;
+      --  Invalidate cache: font change may alter wrapping at same width.
+      C.Cache_Width_Px := 0;
       Recompute_Vis_Lines (C);
       Queue_Draw (C);
    end Invalidate_Layout;

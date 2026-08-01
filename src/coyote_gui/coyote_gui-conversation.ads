@@ -177,6 +177,7 @@ private
    type Logical_Line (Style : Line_Style := Plain) is record
       Text       : Unbounded_String;
       Has_Markup : Boolean := False;  --  Text contains Pango markup
+      Vis_Count  : Natural := 0;       --  cached visual line count
       case Style is
          when Action_Strip =>
             Action : Action_Info;
@@ -217,6 +218,9 @@ private
       Tool_Starts      : Tool_Start_Maps.Map;
       --  Layout
       Line_Height_Px   : Glib.Gint := 18;
+      --  Cache: width and line count at which Vis_Count values are valid.
+      Cache_Width_Px    : Glib.Gint := 0;
+      Cached_Line_Count : Natural := 0;
       Total_Vis_Lines  : Natural := 0;
       Render_Markdown  : Boolean := True;
       Debug_Logging    : Boolean := True;
