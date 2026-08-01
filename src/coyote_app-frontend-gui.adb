@@ -629,6 +629,7 @@ package body Coyote_App.Frontend.GUI is
       Add_Text_Column ("",     Col_Kind);
       Add_Text_Column ("Name", Col_Name);
       Add_Text_Column ("Date", Col_Date);
+      Add_Text_Column ("Snippet", Col_Snippet);
       View.Expand_All;
 
       Gtk.Scrolled_Window.Gtk_New (Scroll);

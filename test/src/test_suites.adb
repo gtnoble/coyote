@@ -1197,6 +1197,27 @@ package body Test_Suites is
       Result.Add_Test (Coyote_Utils_Caller.Create
         ("Coyote_Utils Strip_Session_Prefix returns empty for empty input",
          Coyote_Utils_Tests.Test_Strip_Session_Prefix_Empty'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("Sanitize_UTF8 passes through pure ASCII unchanged",
+         Coyote_Utils_Tests.Test_Sanitize_UTF8_Passthrough_Pure_ASCII'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("Sanitize_UTF8 passes through valid multi-byte UTF-8",
+         Coyote_Utils_Tests.Test_Sanitize_UTF8_Passthrough_Valid_UTF8'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("Sanitize_UTF8 replaces Latin-1 text with U+FFFD",
+         Coyote_Utils_Tests.Test_Sanitize_UTF8_Replaces_Latin1_Mojibake'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("Sanitize_UTF8 replaces isolated continuation bytes",
+         Coyote_Utils_Tests.Test_Sanitize_UTF8_Replaces_Isolated_Cont'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("Sanitize_UTF8 replaces truncated multi-byte sequences",
+         Coyote_Utils_Tests.Test_Sanitize_UTF8_Replaces_Truncated_Seq'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("Sanitize_UTF8 replaces overlong encoding with U+FFFD",
+         Coyote_Utils_Tests.Test_Sanitize_UTF8_Handles_Overlong_Seq'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("Sanitize_UTF8 returns empty string unchanged",
+         Coyote_Utils_Tests.Test_Sanitize_UTF8_Handles_Empty_String'Access));
 
       --  Collapse_Utils tests
       Result.Add_Test (Collapse_Utils_Caller.Create

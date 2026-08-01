@@ -14,4 +14,12 @@ package Coyote_Utils_Tests is
    procedure Test_Strip_Session_Prefix_Without_Prefix (T : in out Test);
    procedure Test_Strip_Session_Prefix_Empty           (T : in out Test);
 
+   procedure Test_Sanitize_UTF8_Passthrough_Pure_ASCII (T : in out Test);
+   procedure Test_Sanitize_UTF8_Passthrough_Valid_UTF8  (T : in out Test);
+   procedure Test_Sanitize_UTF8_Replaces_Latin1_Mojibake (T : in out Test);
+   procedure Test_Sanitize_UTF8_Replaces_Isolated_Cont   (T : in out Test);
+   procedure Test_Sanitize_UTF8_Replaces_Truncated_Seq   (T : in out Test);
+   procedure Test_Sanitize_UTF8_Handles_Overlong_Seq     (T : in out Test);
+   procedure Test_Sanitize_UTF8_Handles_Empty_String     (T : in out Test);
+
 end Coyote_Utils_Tests;

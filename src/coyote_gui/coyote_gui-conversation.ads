@@ -162,6 +162,11 @@ package Coyote_GUI.Conversation is
    procedure Set_Render_Markdown (C : in out Instance; Enabled : Boolean);
    function Get_Render_Markdown (C : Instance) return Boolean;
 
+   --  ── Debug logging ────────────────────────────────────────────────────
+
+   procedure Set_Debug_Logging (C : in out Instance; Enabled : Boolean);
+   function Get_Debug_Logging (C : Instance) return Boolean;
+
    --  ── Zoom ──────────────────────────────────────────────────────────────
 
    --  Recompute line height and queue a redraw.  Call after font changes.
@@ -214,6 +219,7 @@ private
       Line_Height_Px   : Glib.Gint := 18;
       Total_Vis_Lines  : Natural := 0;
       Render_Markdown  : Boolean := True;
+      Debug_Logging    : Boolean := True;
       --  Selection
       Sel_Dragging     : Boolean := False;
       Sel_Visible      : Boolean := False;

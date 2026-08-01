@@ -18,6 +18,93 @@ package body Coyote_App.Utils is
 
    --  ── String utilities ─────────────────────────────────────────────────
 
+   --  ── Sanitize_UTF8 ─────────────────────────────────────────────────────
+
+   function Sanitize_UTF8 (Text : String) return String is
+      Result       : Unbounded_String;
+      I            : Natural := Text'First;
+      Replacement : constant String := Character'Val (16#EF#)
+                                      & Character'Val (16#BF#)
+                                      & Character'Val (16#BD#);  --  U+FFFD
+   begin
+      while I <= Text'Last loop
+         declare
+            C : constant Character  := Text (I);
+            B : constant Natural    := Character'Pos (C);
+         begin
+            --  ASCII (0x00..0x7F): single byte, always valid.
+            if B <= 16#7F# then
+               Append (Result, C);
+               I := I + 1;
+
+            --  2-byte sequence leader (0xC2..0xDF).
+            --  0xC0 and 0xC1 are excluded — they can only encode overlong
+            --  sequences (would represent ASCII in two bytes).
+            elsif B >= 16#C2# and then B <= 16#DF# then
+               if I + 1 <= Text'Last
+                 and then Character'Pos (Text (I + 1)) >= 16#80#
+                 and then Character'Pos (Text (I + 1)) <= 16#BF#
+               then
+                  Append (Result, C);
+                  Append (Result, Text (I + 1));
+                  I := I + 2;
+               else
+                  Append (Result, Replacement);
+                  I := I + 1;
+               end if;
+
+            --  3-byte sequence leader (0xE0..0xEF).
+            elsif B >= 16#E0# and then B <= 16#EF# then
+               if I + 2 <= Text'Last
+                 and then Character'Pos (Text (I + 1)) >= 16#80#
+                 and then Character'Pos (Text (I + 1)) <= 16#BF#
+                 and then Character'Pos (Text (I + 2)) >= 16#80#
+                 and then Character'Pos (Text (I + 2)) <= 16#BF#
+               then
+                  Append (Result, C);
+                  Append (Result, Text (I + 1));
+                  Append (Result, Text (I + 2));
+                  I := I + 3;
+               else
+                  Append (Result, Replacement);
+                  I := I + 1;
+               end if;
+
+            --  4-byte sequence leader (0xF0..0xF4).
+            --  0xF5..0xF7 would encode code points beyond U+10FFFF and are
+            --  excluded; 0xF8..0xFF are original UTF-8 spec bytes that are
+            --  never valid.
+            elsif B >= 16#F0# and then B <= 16#F4# then
+               if I + 3 <= Text'Last
+                 and then Character'Pos (Text (I + 1)) >= 16#80#
+                 and then Character'Pos (Text (I + 1)) <= 16#BF#
+                 and then Character'Pos (Text (I + 2)) >= 16#80#
+                 and then Character'Pos (Text (I + 2)) <= 16#BF#
+                 and then Character'Pos (Text (I + 3)) >= 16#80#
+                 and then Character'Pos (Text (I + 3)) <= 16#BF#
+               then
+                  Append (Result, C);
+                  Append (Result, Text (I + 1));
+                  Append (Result, Text (I + 2));
+                  Append (Result, Text (I + 3));
+                  I := I + 4;
+               else
+                  Append (Result, Replacement);
+                  I := I + 1;
+               end if;
+
+            --  Continuation byte without a leader (0x80..0xBF),
+            --  overlong leaders (0xC0, 0xC1), out-of-range leaders
+            --  (0xF5..0xFF): all invalid.
+            else
+               Append (Result, Replacement);
+               I := I + 1;
+            end if;
+         end;
+      end loop;
+      return To_String (Result);
+   end Sanitize_UTF8;
+
    function Str_Repeat (Text : String; N : Positive) return String is
       Result : String (1 .. Text'Length * N);
    begin

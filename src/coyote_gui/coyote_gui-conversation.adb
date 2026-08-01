@@ -2,6 +2,7 @@
 --
 --  Project: coyote
 
+with Ada.Text_IO;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;          use Ada.Strings.Unbounded;
 with Cairo;                          use Cairo;
@@ -64,10 +65,15 @@ package body Coyote_GUI.Conversation is
      (Self       : access Gtk.Widget.Gtk_Widget_Record'Class;
       Allocation : Gtk.Widget.Gtk_Allocation);
 
+   procedure On_Adjustment_Value_Changed
+     (Self : access Gtk.Adjustment.Gtk_Adjustment_Record'Class);
+
    procedure Copy_Menu_Activate
      (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
 
    --  ── Internal helpers ──────────────────────────────────────────────────
+
+   procedure Debug_Log (C : in out Instance; Msg : String);
 
    procedure Append_Line
      (C : in out Instance; Style : Line_Style; Text : String);
@@ -107,8 +113,11 @@ package body Coyote_GUI.Conversation is
    is
       L : Logical_Line (Style);
    begin
-      L.Text := To_Unbounded_String (Text);
+      L.Text := To_Unbounded_String (Sanitize_UTF8 (Text));
       C.Lines.Append (L);
+      Debug_Log (C, "Append_Line style=" & Line_Style'Image (Style)
+                 & " len=" & Natural'Image (Text'Length)
+                 & " total=" & Natural'Image (Natural (C.Lines.Length)));
    end Append_Line;
 
    --  ── Append_Markup_Line ────────────────────────────────────────────────
@@ -118,9 +127,12 @@ package body Coyote_GUI.Conversation is
    is
       L : Logical_Line (Style);
    begin
-      L.Text       := To_Unbounded_String (Text);
+      L.Text       := To_Unbounded_String (Sanitize_UTF8 (Text));
       L.Has_Markup := True;
       C.Lines.Append (L);
+      Debug_Log (C, "Append_Markup_Line style=" & Line_Style'Image (Style)
+                 & " len=" & Natural'Image (Text'Length)
+                 & " total=" & Natural'Image (Natural (C.Lines.Length)));
    end Append_Markup_Line;
 
    --  ── Xml_Escape ────────────────────────────────────────────────────────
@@ -180,6 +192,8 @@ package body Coyote_GUI.Conversation is
       Total    : Natural := 0;
    begin
       if Width_Px <= 0 or else C.Lines.Is_Empty then
+         Debug_Log (C, "Recompute_Vis_Lines skip width=" & Glib.Gint'Image (Width_Px)
+                    & " empty=" & Boolean'Image (C.Lines.Is_Empty));
          return;
       end if;
 
@@ -203,6 +217,11 @@ package body Coyote_GUI.Conversation is
       end loop;
 
       C.Total_Vis_Lines := Total;
+
+      Debug_Log (C, "Recompute_Vis_Lines logical="
+                 & Natural'Image (Natural (C.Lines.Length))
+                 & " visual=" & Natural'Image (Total)
+                 & " line_h=" & Glib.Gint'Image (C.Line_Height_Px));
 
       --  Tell the GtkLayout the total scrollable area so it can position
       --  its bin window correctly and drive the shared adjustments.
@@ -297,6 +316,7 @@ package body Coyote_GUI.Conversation is
 
    procedure Queue_Draw (C : in out Instance) is
    begin
+      Debug_Log (C, "Queue_Draw");
       C.Layout_W.Queue_Draw;
    end Queue_Draw;
 
@@ -327,6 +347,14 @@ package body Coyote_GUI.Conversation is
       Layout_W.On_Motion_Notify_Event (On_Motion_Notify'Access);
       Layout_W.On_Key_Press_Event (On_Key_Press'Access);
       Layout_W.On_Size_Allocate (On_Size_Allocate'Access);
+
+      --  Monitor scroll position changes.
+      declare
+         Adj : constant Gtk.Adjustment.Gtk_Adjustment :=
+           Scroll.Get_Vadjustment;
+      begin
+         Adj.On_Value_Changed (On_Adjustment_Value_Changed'Access);
+      end;
 
       --  Compute initial line height from the widget's default font.
       declare
@@ -384,8 +412,28 @@ package body Coyote_GUI.Conversation is
       if Current_Conv = null then
          return;
       end if;
+      Current_Conv.Debug_Log
+        ("On_Size_Allocate alloc_w=" & Glib.Gint'Image (Allocation.Width)
+         & " alloc_h=" & Glib.Gint'Image (Allocation.Height));
       Recompute_Vis_Lines (Current_Conv.all);
    end On_Size_Allocate;
+
+   --  ── Signal: adjustment value-changed ──────────────────────────────────
+
+   procedure On_Adjustment_Value_Changed
+     (Self : access Gtk.Adjustment.Gtk_Adjustment_Record'Class)
+   is
+   begin
+      if Current_Conv = null then
+         return;
+      end if;
+      Current_Conv.Debug_Log
+        ("On_Adjustment_Value_Changed value="
+         & Glib.Gdouble'Image (Self.Get_Value)
+         & " lower=" & Glib.Gdouble'Image (Self.Get_Lower)
+         & " upper=" & Glib.Gdouble'Image (Self.Get_Upper)
+         & " page_size=" & Glib.Gdouble'Image (Self.Get_Page_Size));
+   end On_Adjustment_Value_Changed;
 
    --  ── Signal: draw ──────────────────────────────────────────────────────
 
@@ -425,6 +473,11 @@ package body Coyote_GUI.Conversation is
 
       --  Walk logical lines, drawing only those whose visual lines
       --  intersect the visible viewport.
+      Current_Conv.Debug_Log
+        ("On_Draw logical=" & Natural'Image (Natural (Current_Conv.Lines.Length))
+         & " first_vis=" & Natural'Image (First_Vis)
+         & " scroll_y=" & Glib.Gint'Image (Scroll_Y)
+         & " line_h=" & Glib.Gint'Image (Current_Conv.Line_Height_Px));
       for I in 1 .. Positive (Current_Conv.Lines.Length) loop
          declare
             L      : constant Logical_Line := Current_Conv.Lines (I);
@@ -1260,6 +1313,9 @@ package body Coyote_GUI.Conversation is
          return;
       end if;
 
+      Debug_Log (C, "End_Text_Block len=" & Natural'Image (Full_Text'Length)
+                 & " markdown=" & Boolean'Image (C.Render_Markdown));
+
       if C.Render_Markdown and then Full_Text'Length > 0 then
          Render_Markdown_Block (C, Full_Text);
       else
@@ -1294,6 +1350,7 @@ package body Coyote_GUI.Conversation is
 
    procedure Begin_Thinking (C : in out Instance) is
    begin
+      Debug_Log (C, "Begin_Thinking");
       C.In_Thinking    := True;
       C.Prefix_Emitted := False;
    end Begin_Thinking;
@@ -1305,8 +1362,10 @@ package body Coyote_GUI.Conversation is
          return;
       end if;
 
+      Debug_Log (C, "Append_Thinking len=" & Natural'Image (Trimmed'Length));
+
       if not C.Prefix_Emitted then
-         Append_Line (C, Thinking, UC_BOX_V & " " & Trimmed);
+         Append_Line (C, Thinking, UC_BOX_V & " " & Sanitize_UTF8 (Trimmed));
          C.Prefix_Emitted := True;
       else
          --  Append to the last line's text so thinking flows as one
@@ -1314,7 +1373,7 @@ package body Coyote_GUI.Conversation is
          declare
             Last_Idx : constant Positive := Positive (C.Lines.Length);
          begin
-            Append (C.Lines (Last_Idx).Text, Trimmed);
+            Append (C.Lines (Last_Idx).Text, Sanitize_UTF8 (Trimmed));
          end;
       end if;
       Recompute_Vis_Lines (C);
@@ -1323,6 +1382,8 @@ package body Coyote_GUI.Conversation is
 
    procedure End_Thinking (C : in out Instance) is
    begin
+      Debug_Log (C, "End_Thinking in_thinking=" & Boolean'Image (C.In_Thinking)
+                 & " prefix_emitted=" & Boolean'Image (C.Prefix_Emitted));
       if C.In_Thinking then
          if C.Prefix_Emitted then
             Append_Line (C, Thinking, "");
@@ -1352,6 +1413,7 @@ package body Coyote_GUI.Conversation is
          then Args_Parsed.Value
          else GNATCOLL.JSON.JSON_Null);
    begin
+      Debug_Log (C, "Begin_Tool name=" & Name & " tool_id=" & Tool_Id);
       --  Blank line before tool block.
       Append_Line (C, Plain, "");
 
@@ -1402,6 +1464,8 @@ package body Coyote_GUI.Conversation is
       First_Idx : Positive;
       Last_Idx  : constant Positive := Positive (C.Lines.Length);
    begin
+      Debug_Log (C, "End_Tool tool_id=" & Tool_Id
+                 & " status=" & Tool_End_Status'Image (Status));
       if Pos = No_Element then
          return;
       end if;
@@ -1426,7 +1490,7 @@ package body Coyote_GUI.Conversation is
                   begin
                      Replacement := To_Unbounded_String
                        (UC_BOX_BL & " " & UC_CROSS & " "
-                        & Result (Result'First .. Preview));
+                        & Sanitize_UTF8 (Result (Result'First .. Preview)));
                   end;
                when Cancelled =>
                   Replacement := To_Unbounded_String
@@ -1525,7 +1589,8 @@ package body Coyote_GUI.Conversation is
    is
       L : Logical_Line (Action_Strip);
    begin
-      L.Text   := To_Unbounded_String (Label);
+      Debug_Log (C, "Append_Action_Strip label=" & Label);
+      L.Text   := To_Unbounded_String (Sanitize_UTF8 (Label));
       L.Action := Action;
       C.Lines.Append (L);
       Recompute_Vis_Lines (C);
@@ -1540,6 +1605,8 @@ package body Coyote_GUI.Conversation is
       Text :        String)
    is
    begin
+      Debug_Log (C, "Append_Notice kind=" & Line_Style'Image (Kind)
+                 & " len=" & Natural'Image (Text'Length));
       Append_Line (C, Kind, Text);
       Recompute_Vis_Lines (C);
       Queue_Draw (C);
@@ -1548,6 +1615,7 @@ package body Coyote_GUI.Conversation is
    procedure Append_Turn_Footer (C : in out Instance; Text : String) is
       pragma Unreferenced (Text);
    begin
+      Debug_Log (C, "Append_Turn_Footer");
       Append_Line (C, Plain, "");
       Append_Line (C, Footer,
                    Str_Repeat (UC_HORIZ, 60));
@@ -1568,6 +1636,28 @@ package body Coyote_GUI.Conversation is
       return C.Render_Markdown;
    end Get_Render_Markdown;
 
+   --  ── Debug logging ────────────────────────────────────────────────────
+
+   procedure Debug_Log (C : in out Instance; Msg : String) is
+   begin
+      if C.Debug_Logging then
+         Ada.Text_IO.Put_Line
+           (Ada.Text_IO.Standard_Error,
+            "[conv] " & Msg);
+      end if;
+   end Debug_Log;
+
+   procedure Set_Debug_Logging (C : in out Instance; Enabled : Boolean) is
+   begin
+      C.Debug_Logging := Enabled;
+      Debug_Log (C, "debug logging " & (if Enabled then "enabled" else "disabled"));
+   end Set_Debug_Logging;
+
+   function Get_Debug_Logging (C : Instance) return Boolean is
+   begin
+      return C.Debug_Logging;
+   end Get_Debug_Logging;
+
    --  ── Invalidate_Layout ─────────────────────────────────────────────────
 
    procedure Invalidate_Layout (C : in out Instance) is
@@ -1578,6 +1668,7 @@ package body Coyote_GUI.Conversation is
       Layout.Get_Pixel_Size (W, H);
       if H > 0 then
          C.Line_Height_Px := H;
+         Debug_Log (C, "Invalidate_Layout line_height_px=" & Glib.Gint'Image (H));
       end if;
       Recompute_Vis_Lines (C);
       Queue_Draw (C);

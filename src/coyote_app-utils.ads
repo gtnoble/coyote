@@ -66,6 +66,17 @@ package Coyote_App.Utils is
 
    --  ── String utilities ─────────────────────────────────────────────────
 
+   --  Replace invalid UTF-8 byte sequences in Text with U+FFFD (EF BF BF)
+   --  and strip isolated continuation bytes.  Valid UTF-8 is passed through
+   --  unchanged.
+   --
+   --  This is a defensive measure: shell-tool output and other untrusted
+   --  input streams may contain arbitrary bytes (e.g. binary payloads,
+   --  Latin-1 mojibake) that would otherwise trigger "Invalid UTF-8 string"
+   --  warnings from Pango when the text reaches a Pango_Layout.
+   function Sanitize_UTF8 (Text : String) return String;
+
+
    --  Repeat string Text exactly N times.
    function Str_Repeat (Text : String; N : Positive) return String;
 
