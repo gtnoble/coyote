@@ -90,6 +90,22 @@ document on every width change, which becomes unusably slow with large
 conversation buffers.  The Drawing_Area renders only visible lines, giving
 acme-like O(visible) resize cost regardless of document size.
 
+**Revision — GtkLayout for native GtkScrollable support (2026-07-31):**
+The `Gtk.Drawing_Area` does not implement the `GtkScrollable` interface.
+`GtkScrolledWindow` wraps a non-scrollable child in a `GtkViewport` that
+translates the entire widget surface by `(-scroll_value)`.  The virtualized
+renderer draws content at widget-relative offsets (0..viewport_height),
+so content drawn at Y=0 ends up at viewport Y=scroll_value after the
+viewport translation — scrolled entirely off-screen.  The fix: replace
+`Gtk.Drawing_Area` with `Gtk.Layout`, which natively implements
+`GtkScrollable`.  `GtkLayout` has a bin window that GTK repositions at
+`(-scroll_x, -scroll_y)` rather than translating the whole widget, so the
+`draw` callback's Cairo coordinates remain viewport-relative.  The
+`Recompute_Vis_Lines` procedure now calls `Layout_W.Set_Size (Width,
+Doc_Height)` to tell GTK the total scrollable extent; the adjustments are
+shared automatically.  No document-sized surface allocation — the widget
+stays viewport-sized.
+
 **Trade-offs:**
 - Markdown rendering is not yet implemented in the new renderer; text is
   displayed as plain UTF-8.  The `Render_Markdown` toggle is wired but has
@@ -147,7 +163,7 @@ to the logical-line vector (`┌ ⚙ tool_name`, `│ field  value`,
 with the status line (`└ ✓ done`, `└ ✗ error`, `└ - cancelled`).
 Clicking anywhere in a tool-call block opens a monospace detail window
 (`Show_Text_Window`) showing the tool arguments and result.  In the
-Drawing_Area renderer, hit-testing maps pixel coordinates to logical-line
+renderer, hit-testing maps pixel coordinates to logical-line
 indices and checks against the `Tool_Maps` vector of `Tool_Block` records.
 This eliminates all widget embedding from the conversation view — no
 `GtkFrame`, `GtkTextChildAnchor`, `GtkButton`, or plumb tokens.
@@ -237,7 +253,7 @@ let the user explicitly control the behaviour.
 ## Unit Test Coverage Notes
 
 - `Coyote_GUI.Conversation`: partially covered; the AUnit suite can create a
-  `Gtk.Drawing_Area` without a display (headless GTK); signal handlers and
+  `Gtk.Layout` without a display (headless GTK); signal handlers and
   rendering logic are exercised via integration tests.
 - `Coyote_Cmark`: covered by AUnit tests — parse round-trips for each GFM
   node type; extension handling; null-safety of `cmark_shim_get_literal`.

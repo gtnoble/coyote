@@ -154,14 +154,15 @@ replaced with Pango markup when the block completes (`End_Text_Block`).
   `Coyote_App.Utils`. Tool-call plumb tokens (`coyote-session+UUID/tool/TOKEN`)
   are embedded in the window body for button-3 navigation.
 
-- **GUI frontend:** GTK3 `GtkTextBuffer` with text tags for emphasis,
-  code, thinking, notices, footers, and turn separators. Tool calls are
-  embedded as `GtkTextChildAnchor` widgets (GTK frames with etched-in
-  shadow and 6 px border). Markdown is rendered via libcmark-gfm → Pango
-  markup → `Insert_Markup` with sized headings, code-block backgrounds,
-  and blockquote vertical-bar prefixes. Conversation margins are 16/12 px
-  (left+right / top+bottom); content blocks are separated by blank lines
-  for visual rhythm.
+- **GUI frontend:** GTK3 `Gtk.Layout` with Cairo + Pango virtualized
+  rendering via `Coyote_GUI.Conversation`.  Only visible lines are laid
+  out and drawn; resize cost is O(visible), not O(document).  Plain UTF-8
+  text is rendered directly; markdown rendering is not yet implemented in
+  the new renderer.  Tool calls are displayed as box-drawing-text blocks;
+  thinking blocks use yellow-background paragraphs.  Notices use
+  colour-coded text, and turn separators use dim horizontal rules.
+  Conversation margins are 16/12 px (left+right / top+bottom); content
+  blocks are separated by blank lines for visual rhythm.
 
 - **Plain frontend:** Plain UTF-8 to stdout. No ANSI escape codes.
 

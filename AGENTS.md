@@ -531,7 +531,7 @@ clearly marked.
 
 **GUI frontend test note:** `Coyote_App.Frontend.GUI.Instance` has no
 background task; it is driven entirely by the GTK main loop.  Unit tests that
-exercise `Coyote_GUI.Conversation` can create a `Gtk.Drawing_Area` directly (or mock
+exercise `Coyote_GUI.Conversation` can create a `Gtk.Layout` directly (or mock
 it) without starting a GTK window.
 
 When a test is added or changed, update the test-count baseline in
