@@ -147,6 +147,9 @@ package Coyote_App.Frontend.GUI is
    --  Called when replacing the active session with a new one.
    procedure Clear_Conversation (F : in out Instance);
 
+   --  Enable or disable conversation debug logging to stderr.
+   procedure Set_Debug_Logging (F : in out Instance; Enabled : Boolean);
+
 private
 
    type Instance is new Coyote_App.Frontend.Instance with record

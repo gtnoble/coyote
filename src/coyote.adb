@@ -32,6 +32,8 @@
 --                 the named frontend is used regardless of environment
 --                 variables.  Useful in plumb rules to force the Acme
 --                 frontend for session-loading links.
+--  --debug-logging        Enable conversation debug logging to stderr
+--                         (disabled by default).
 --
 --  -h, --help     Print this help message and exit.
 --  Project: coyote
@@ -71,6 +73,8 @@ procedure Coyote is
       Ada.Text_IO.Put_Line
         ("               [--frontend acme|gui|plain]");
       Ada.Text_IO.Put_Line
+        ("               [--debug-logging]");
+      Ada.Text_IO.Put_Line
         ("               [-h|--help]");
       Ada.Text_IO.New_Line;
       Ada.Text_IO.Put_Line ("Options:");
@@ -98,6 +102,8 @@ procedure Coyote is
       Ada.Text_IO.Put_Line
         ("  --frontend acme|gui|plain"
          & "   Override frontend selection");
+      Ada.Text_IO.Put_Line
+        ("  --debug-logging         Enable conv debug output to stderr");
       Ada.Text_IO.Put_Line
         ("  -h, --help              Print this help and exit");
    end Print_Usage;
@@ -195,6 +201,9 @@ begin
                end if;
                Opts.Frontend_Explicit := True;
             end;
+
+         elsif Arg = "--debug-logging" then
+            Opts.Debug_Logging := True;
 
          elsif Arg = "-h" or else Arg = "--help" then
             Print_Usage;

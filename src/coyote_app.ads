@@ -248,6 +248,8 @@ package Coyote_App is
       --  True when --frontend was explicitly set on the command line.
       --  When True, the automatic detection logic is skipped.
       Frontend_Explicit : Boolean := False;
+      --  When True, conversation debug logging is printed to stderr.
+      Debug_Logging   : Boolean := False;
    end record;
 
    --  ── Section_Kind ─────────────────────────────────────────────────────

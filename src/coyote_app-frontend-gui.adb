@@ -1725,6 +1725,11 @@ package body Coyote_App.Frontend.GUI is
       F.Conv.Clear;
    end Clear_Conversation;
 
+   procedure Set_Debug_Logging (F : in out Instance; Enabled : Boolean) is
+   begin
+      F.Conv.Set_Debug_Logging (Enabled);
+   end Set_Debug_Logging;
+
    function Stats_Summary_Text (F : Instance) return String is
    begin
       return To_String (F.Stats_Text);

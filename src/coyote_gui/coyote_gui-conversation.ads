@@ -232,7 +232,7 @@ private
       Cached_Line_Count : Natural := 0;
       Total_Vis_Lines  : Natural := 0;
       Render_Markdown  : Boolean := True;
-      Debug_Logging    : Boolean := True;
+      Debug_Logging    : Boolean := False;
       --  Selection
       Sel_Dragging     : Boolean := False;
       Sel_Visible      : Boolean := False;

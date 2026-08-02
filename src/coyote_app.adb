@@ -2768,6 +2768,10 @@ package body Coyote_App is
       Coyote_App.Frontend.GUI.Create
         (My_Frontend, Win_Name, Pop_Under => Opts.Subagent);
 
+      if Opts.Debug_Logging then
+         My_Frontend.Set_Debug_Logging (True);
+      end if;
+
       --  Enter the GTK event loop; returns when Main_Quit is called
       --  (either from the window close handler or the Shutdown update).
       Gtk.Main.Main;
