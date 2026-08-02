@@ -1093,6 +1093,16 @@ package body Coyote_GUI.Conversation is
                   Render_Table;
                end if;
 
+            elsif TS = "table_header" then
+               if Ev = EVENT_EXIT then
+                  if Cur_Col > Table_Cols then
+                     Table_Cols := Cur_Col;
+                  end if;
+                  Cur_Row    := Cur_Row + 1;
+                  Table_Rows := Cur_Row;
+                  Cur_Col    := 0;
+               end if;
+
             elsif TS = "table_row" then
                if Ev = EVENT_EXIT then
                   if Cur_Col > Table_Cols then

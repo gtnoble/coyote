@@ -60,50 +60,50 @@ procedure Coyote is
         ("coyote -- Native Ada LLM coding agent harness");
       Ada.Text_IO.New_Line;
       Ada.Text_IO.Put_Line
-        ("Usage: coyote [--session UUID] [--model PROVIDER/ID]");
+        ("Usage: coyote [-s|--session UUID] [-m|--model PROVIDER/ID]");
       Ada.Text_IO.Put_Line
-        ("               [--agent TEXT|@PATH]");
+        ("               [-a|--agent TEXT|@PATH]");
       Ada.Text_IO.Put_Line
-        ("               [--no-tools] [--no-session]");
+        ("               [-T|--no-tools] [-S|--no-session]");
       Ada.Text_IO.Put_Line
-        ("               [--prompt TEXT|-] [--one-shot]"
-         & " [--subagent] [--name LABEL]");
+        ("               [-p|--prompt TEXT|-] [-1|--one-shot]"
+         & " [-A|--subagent] [-n|--name LABEL]");
       Ada.Text_IO.Put_Line
-        ("               [--prompt-filter CMD]");
+        ("               [-f|--prompt-filter CMD]");
       Ada.Text_IO.Put_Line
-        ("               [--frontend acme|gui|plain]");
+        ("               [-F|--frontend acme|gui|plain]");
       Ada.Text_IO.Put_Line
-        ("               [--debug-logging]");
+        ("               [-d|--debug-logging]");
       Ada.Text_IO.Put_Line
         ("               [-h|--help]");
       Ada.Text_IO.New_Line;
       Ada.Text_IO.Put_Line ("Options:");
       Ada.Text_IO.New_Line;
       Ada.Text_IO.Put_Line
-        ("  --session UUID        Resume the given session");
+        ("  -s, --session UUID        Resume the given session");
       Ada.Text_IO.Put_Line
-        ("  --model ID             Select the LLM model");
+        ("  -m, --model ID             Select the LLM model");
       Ada.Text_IO.Put_Line
-        ("  --agent TEXT|@PATH     Append to system prompt");
+        ("  -a, --agent TEXT|@PATH     Append to system prompt");
       Ada.Text_IO.Put_Line
-        ("  --no-tools             Disable tool execution");
+        ("  -T, --no-tools             Disable tool execution");
       Ada.Text_IO.Put_Line
-        ("  --no-session           Do not persist this session");
+        ("  -S, --no-session           Do not persist this session");
       Ada.Text_IO.Put_Line
-        ("  --prompt TEXT|-        Send initial prompt");
+        ("  -p, --prompt TEXT|-        Send initial prompt");
       Ada.Text_IO.Put_Line
-        ("  --one-shot             Exit after one turn");
+        ("  -1, --one-shot             Exit after one turn");
       Ada.Text_IO.Put_Line
-        ("  --subagent             Like --one-shot, keeps frontend");
+        ("  -A, --subagent             Like --one-shot, keeps frontend");
       Ada.Text_IO.Put_Line
-        ("  --name LABEL            Set window name label");
+        ("  -n, --name LABEL            Set window name label");
       Ada.Text_IO.Put_Line
-        ("  --prompt-filter CMD    Filter prompts through shell");
+        ("  -f, --prompt-filter CMD    Filter prompts through shell");
       Ada.Text_IO.Put_Line
-        ("  --frontend acme|gui|plain"
+        ("  -F, --frontend acme|gui|plain"
          & "   Override frontend selection");
       Ada.Text_IO.Put_Line
-        ("  --debug-logging         Enable conv debug output to stderr");
+        ("  -d, --debug-logging         Enable conv debug output to stderr");
       Ada.Text_IO.Put_Line
         ("  -h, --help              Print this help and exit");
    end Print_Usage;
@@ -112,7 +112,7 @@ begin
       declare
          Arg : constant String := Ada.Command_Line.Argument (I);
       begin
-         if Arg = "--session"
+         if (Arg = "-s" or else Arg = "--session")
            and then I < Ada.Command_Line.Argument_Count
          then
             I := I + 1;
@@ -120,13 +120,13 @@ begin
               To_Unbounded_String
                 (Coyote_Utils.Strip_Session_Prefix
                    (Ada.Command_Line.Argument (I)));
-         elsif Arg = "--model"
+         elsif (Arg = "-m" or else Arg = "--model")
            and then I < Ada.Command_Line.Argument_Count
          then
             I := I + 1;
             Opts.Model :=
               To_Unbounded_String (Ada.Command_Line.Argument (I));
-         elsif Arg = "--agent"
+         elsif (Arg = "-a" or else Arg = "--agent")
            and then I < Ada.Command_Line.Argument_Count
          then
             I := I + 1;
@@ -134,11 +134,11 @@ begin
               To_Unbounded_String
                 (Coyote_Utils.Resolve_Text_Arg
                    (Ada.Command_Line.Argument (I)));
-         elsif Arg = "--no-tools" then
+         elsif Arg = "-T" or else Arg = "--no-tools" then
             Opts.No_Tools := True;
-         elsif Arg = "--no-session" then
+         elsif Arg = "-S" or else Arg = "--no-session" then
             Opts.No_Session := True;
-         elsif Arg = "--prompt"
+         elsif (Arg = "-p" or else Arg = "--prompt")
            and then I < Ada.Command_Line.Argument_Count
          then
             I := I + 1;
@@ -162,26 +162,26 @@ begin
                   Opts.Initial_Prompt := To_Unbounded_String (Arg_Val);
                end if;
             end;
-         elsif Arg = "--one-shot" then
+         elsif Arg = "-1" or else Arg = "--one-shot" then
             Opts.One_Shot   := True;
             Opts.No_Compact := True;
-         elsif Arg = "--subagent" then
+         elsif Arg = "-A" or else Arg = "--subagent" then
             Opts.One_Shot   := True;
             Opts.Subagent   := True;
             Opts.No_Compact := True;
-         elsif Arg = "--name"
+         elsif (Arg = "-n" or else Arg = "--name")
            and then I < Ada.Command_Line.Argument_Count
          then
             I := I + 1;
             Opts.Name :=
               To_Unbounded_String (Ada.Command_Line.Argument (I));
-         elsif Arg = "--prompt-filter"
+         elsif (Arg = "-f" or else Arg = "--prompt-filter")
            and then I < Ada.Command_Line.Argument_Count
          then
             I := I + 1;
             Opts.Prompt_Filter :=
               To_Unbounded_String (Ada.Command_Line.Argument (I));
-         elsif Arg = "--frontend"
+         elsif (Arg = "-F" or else Arg = "--frontend")
            and then I < Ada.Command_Line.Argument_Count
          then
             I := I + 1;
@@ -202,7 +202,7 @@ begin
                Opts.Frontend_Explicit := True;
             end;
 
-         elsif Arg = "--debug-logging" then
+         elsif Arg = "-d" or else Arg = "--debug-logging" then
             Opts.Debug_Logging := True;
 
          elsif Arg = "-h" or else Arg = "--help" then
