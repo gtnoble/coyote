@@ -10,6 +10,7 @@ with Cairo;                          use Cairo;
 with Coyote_App.Utils;               use Coyote_App.Utils;
 with Coyote_Cmark;                   use Coyote_Cmark;
 with Glib;                           use Glib;
+with Pango.Attributes;
 with Gdk.Event;
 with Gdk.Types;
 with Gdk.Types.Keysyms;
@@ -213,25 +214,34 @@ package body Coyote_GUI.Conversation is
          return;
       end if;
 
-      for I in 1 .. Positive (C.Lines.Length) loop
-         declare
-            Layout : Pango_Layout;
-            Vis    : Natural;
-         begin
-            if C.Lines (I).Has_Markup then
-               Layout := C.Layout_W.Create_Pango_Layout ("");
-               Layout.Set_Markup (To_String (C.Lines (I).Text));
-            else
-               Layout := C.Layout_W.Create_Pango_Layout
-                 (To_String (C.Lines (I).Text));
-            end if;
-            Layout.Set_Width (Width_Px * Pango_Scale);
-            Layout.Set_Wrap (Pango_Wrap_Word_Char);
-            Vis := Natural (Layout.Get_Line_Count);
-            C.Lines (I).Vis_Count := Vis;
-            Total := Total + Vis;
-         end;
-      end loop;
+      declare
+         Layout : Pango_Layout renames C.Measure_Layout;
+         Vis    : Natural;
+         Last_Had_Markup : Boolean := False;
+      begin
+         for I in 1 .. Positive (C.Lines.Length) loop
+            declare
+               Text : constant String := To_String (C.Lines (I).Text);
+            begin
+               if C.Lines (I).Has_Markup then
+                  Layout.Set_Markup (Text);
+                  Last_Had_Markup := True;
+               else
+                  if Last_Had_Markup then
+                     --  Clear stale markup attributes left by Set_Markup.
+                     Layout.Set_Attributes (Pango.Attributes.Null_Pango_Attr_List);
+                     Last_Had_Markup := False;
+                  end if;
+                  Layout.Set_Text (Text);
+               end if;
+               Layout.Set_Width (Width_Px * Pango_Scale);
+               Layout.Set_Wrap (Pango_Wrap_Word_Char);
+               Vis := Natural (Layout.Get_Line_Count);
+               C.Lines (I).Vis_Count := Vis;
+               Total := Total + Vis;
+            end;
+         end loop;
+      end;
 
       C.Total_Vis_Lines := Total;
 
@@ -291,18 +301,17 @@ package body Coyote_GUI.Conversation is
             Vis_Cnt : constant Natural := C.Lines (I).Vis_Count;
          begin
             if Vis_Line_N < Vis_Off + Vis_Cnt then
-               --  Found the target line; create a Pango layout for
-               --  Xy_To_Index resolution only.
+               --  Found the target line; reuse the measure layout for
+               --  Xy_To_Index resolution.
                Logical_Idx := I;
                declare
-                  Layout : Pango_Layout;
+                  Layout : Pango_Layout renames C.Measure_Layout;
+                  Text   : constant String := To_String (C.Lines (I).Text);
                begin
                   if C.Lines (I).Has_Markup then
-                     Layout := C.Layout_W.Create_Pango_Layout ("");
-                     Layout.Set_Markup (To_String (C.Lines (I).Text));
+                     Layout.Set_Markup (Text);
                   else
-                     Layout := C.Layout_W.Create_Pango_Layout
-                       (To_String (C.Lines (I).Text));
+                     Layout.Set_Text (Text);
                   end if;
                   Layout.Set_Width (Width_Px * Pango_Scale);
                   Layout.Set_Wrap (Pango_Wrap_Word_Char);
@@ -379,16 +388,19 @@ package body Coyote_GUI.Conversation is
          Adj.On_Value_Changed (On_Adjustment_Value_Changed'Access);
       end;
 
-      --  Compute initial line height from the widget's default font.
+      --  Compute initial line height from the widget's default font, and
+      --  create reusable layout objects so we never allocate PangoLayout
+      --  per line during measurement or drawing.
+      C.Measure_Layout := Layout_W.Create_Pango_Layout ("X");
       declare
-         Layout : constant Pango_Layout := Layout_W.Create_Pango_Layout ("X");
-         W, H   : Glib.Gint;
+         W, H : Glib.Gint;
       begin
-         Layout.Get_Pixel_Size (W, H);
+         C.Measure_Layout.Get_Pixel_Size (W, H);
          if H > 0 then
             C.Line_Height_Px := H;
          end if;
       end;
+      C.Draw_Layout := Layout_W.Create_Pango_Layout ("");
    end Attach;
 
    --  ── Show_Copy_Menu ────────────────────────────────────────────────────
@@ -518,15 +530,14 @@ package body Coyote_GUI.Conversation is
                exit;
             end if;
 
-            --  Only create a Pango layout for lines that are visible.
+            --  Reuse the draw layout for visible lines.
             declare
-               Layout : Pango_Layout;
+               Layout : Pango_Layout renames Current_Conv.Draw_Layout;
             begin
                if L.Has_Markup then
-                  Layout := Current_Conv.Layout_W.Create_Pango_Layout ("");
                   Layout.Set_Markup (Text);
                else
-                  Layout := Current_Conv.Layout_W.Create_Pango_Layout (Text);
+                  Layout.Set_Text (Text);
                end if;
                Layout.Set_Width (Width_Px * Pango_Scale);
                Layout.Set_Wrap (Pango_Wrap_Word_Char);
@@ -1781,6 +1792,11 @@ package body Coyote_GUI.Conversation is
       C.Cache_Width_Px := 0;
       C.Cached_Line_Count := 0;
       C.Total_Vis_Lines := 0;
+      --  Reset reusable layouts: stale attributes from Set_Markup would
+      --  affect measurement of plain-text lines in the new session.
+      C.Measure_Layout.Set_Text ("");
+      C.Measure_Layout.Set_Attributes (Pango.Attributes.Null_Pango_Attr_List);
+      C.Draw_Layout.Set_Text ("");
       Recompute_Vis_Lines (C);
       Queue_Draw (C);
    end Clear;
@@ -1788,10 +1804,10 @@ package body Coyote_GUI.Conversation is
    --  ── Invalidate_Layout ─────────────────────────────────────────────────
 
    procedure Invalidate_Layout (C : in out Instance) is
-      Layout : constant Pango_Layout :=
-        C.Layout_W.Create_Pango_Layout ("X");
+      Layout : Pango_Layout renames C.Measure_Layout;
       W, H   : Glib.Gint;
    begin
+      Layout.Set_Text ("X");
       Layout.Get_Pixel_Size (W, H);
       if H > 0 then
          C.Line_Height_Px := H;

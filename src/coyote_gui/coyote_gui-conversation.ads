@@ -21,6 +21,7 @@ with Ada.Strings.Hash;
 with Ada.Strings.Unbounded;        use Ada.Strings.Unbounded;
 with Coyote_App.Utils;
 with Glib;
+with Pango.Layout;
 with Gtk.Layout;
 with Gtk.Scrolled_Window;
 
@@ -227,6 +228,10 @@ private
       Tool_Starts      : Tool_Start_Maps.Map;
       --  Layout
       Line_Height_Px   : Glib.Gint := 18;
+      --  Reusable layout objects for measuring and drawing lines.
+      --  Created in Attach, unreffed in Clear.
+      Measure_Layout   : Pango.Layout.Pango_Layout;
+      Draw_Layout      : Pango.Layout.Pango_Layout;
       --  Cache: width and line count at which Vis_Count values are valid.
       Cache_Width_Px    : Glib.Gint := 0;
       Cached_Line_Count : Natural := 0;
