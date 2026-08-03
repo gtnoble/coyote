@@ -307,11 +307,11 @@ package body Coyote_App.Frontend.GUI is
       if Current_Frontend = null then
          return False;
       end if;
-      loop
-         Current_Frontend.Updates.Dequeue (U, Got);
-         exit when not Got;
+      Current_Frontend.Updates.Dequeue (U, Got);
+      if Got then
          Apply_Update (Current_Frontend.all, U);
-      end loop;
+         return True;
+      end if;
       return False;
    end Drain_Idle;
 
