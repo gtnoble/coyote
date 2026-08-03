@@ -929,7 +929,10 @@ concurrent tool batches.
 
 **Document height:** `total_visual_lines × line_height` — a single multiply
 with no Pango measurement of offscreen content.  The scrollbar range is
-updated in `Recompute_Vis_Lines` after every content change.
+updated in `Recompute_Vis_Lines` after every content change.  Visual-line
+counts are cached per logical line; appending to an existing streaming line
+marks that line dirty so its wrapping and the document height are recomputed
+immediately without remeasuring unchanged lines.
 
 **Resize performance:** `On_Size_Allocate` calls `Recompute_Vis_Lines`, which
 re-wraps only the visible logical lines at the new width.  Offscreen lines

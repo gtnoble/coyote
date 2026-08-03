@@ -306,6 +306,11 @@ These are entered as open items in the problem log (PCR-009).
 
 ## 7. Notes
 
+**Baseline as of 2026-08-03 (Streaming canvas cache invalidation):**
+806 tests, 0 failures, 0 unexpected errors.  Added a GUI regression test
+verifying that appending to an already-measured streaming logical line
+recomputes its visual-line count and expands the document canvas.
+
 **Dry run policy:** Before proposing a test results review to the user, a
 full `cd test && alr run coyote_test` run is performed and the pass count
 and any failures are recorded here or in the Test Report.

@@ -104,7 +104,9 @@ viewport translation — scrolled entirely off-screen.  The fix: replace
 `Recompute_Vis_Lines` procedure now calls `Layout_W.Set_Size (Width,
 Doc_Height)` to tell GTK the total scrollable extent; the adjustments are
 shared automatically.  No document-sized surface allocation — the widget
-stays viewport-sized.
+stays viewport-sized.  Visual-line counts are cached per logical line, and
+in-place streaming mutations invalidate the affected line so the canvas
+height expands as wrapping changes.
 
 **Trade-offs:**
 - Markdown rendering is implemented via `Render_Markdown_Block` in

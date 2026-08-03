@@ -2797,6 +2797,10 @@ package body Test_Suites is
         ("Coyote.GUI.Conversation Append_Text accumulates buffer",
          Coyote_GUI_Conversation_Tests.Test_Append_Text_Accumulates_Buffer'Access));
       Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation streaming append invalidates visual cache",
+         Coyote_GUI_Conversation_Tests
+           .Test_Streaming_Append_Invalidates_Vis_Cache'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
         ("Coyote.GUI.Conversation End_Text_Block exits block",
          Coyote_GUI_Conversation_Tests.Test_End_Text_Block_Exits_Block'Access));
       Result.Add_Test (Coyote_GUI_Conversation_Caller.Create

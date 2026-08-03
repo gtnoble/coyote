@@ -233,9 +233,11 @@ private
       Measure_Layout   : Pango.Layout.Pango_Layout;
       Draw_Layout      : Pango.Layout.Pango_Layout;
       --  Cache: width and line count at which Vis_Count values are valid.
+      --  A zero Vis_Count marks a line whose text must be measured again.
       Cache_Width_Px    : Glib.Gint := 0;
       Cached_Line_Count : Natural := 0;
-      Total_Vis_Lines  : Natural := 0;
+      Cache_Dirty       : Boolean := True;
+      Total_Vis_Lines   : Natural := 0;
       Render_Markdown  : Boolean := True;
       Debug_Logging    : Boolean := False;
       --  Selection

@@ -226,6 +226,28 @@ package body Coyote_GUI_Conversation_Tests is
               "stream buffer cleared after End_Text_Block");
    end Test_Append_Text_Accumulates_Buffer;
 
+   procedure Test_Streaming_Append_Invalidates_Vis_Cache
+     (T : in out Test)
+   is
+      Before_Total : Natural;
+      Before_Vis   : Natural;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Make_Fresh_Conv (T.Conv, T.Scroll, T.Layout);
+      T.Conv.Append_Text ("short");
+      Before_Total := Testing.Total_Vis_Lines (T.Conv);
+      Before_Vis := Testing.Vis_Count_At (T.Conv, 1);
+
+      T.Conv.Append_Text (Str_Repeat ("word ", 250));
+
+      Assert (Testing.Vis_Count_At (T.Conv, 1) > Before_Vis,
+              "appending to the current logical line recomputes wrapping");
+      Assert (Testing.Total_Vis_Lines (T.Conv) > Before_Total,
+              "appending to the current logical line expands the canvas");
+   end Test_Streaming_Append_Invalidates_Vis_Cache;
+
    procedure Test_End_Text_Block_Exits_Block (T : in out Test) is
       Conv   : Instance;
       Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;

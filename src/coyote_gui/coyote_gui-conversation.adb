@@ -83,6 +83,8 @@ package body Coyote_GUI.Conversation is
    procedure Append_Markup_Line
      (C : in out Instance; Style : Line_Style; Text : String);
 
+   procedure Invalidate_Line (C : in out Instance; Index : Positive);
+
    procedure Recompute_Vis_Lines
      (C : in out Instance; Force : Boolean := False);
 
@@ -118,6 +120,7 @@ package body Coyote_GUI.Conversation is
    begin
       L.Text := To_Unbounded_String (Sanitize_UTF8 (Text));
       C.Lines.Append (L);
+      C.Cache_Dirty := True;
       Debug_Log (C, "Append_Line style=" & Line_Style'Image (Style)
                  & " len=" & Natural'Image (Text'Length)
                  & " total=" & Natural'Image (Natural (C.Lines.Length)));
@@ -133,10 +136,17 @@ package body Coyote_GUI.Conversation is
       L.Text       := To_Unbounded_String (Sanitize_UTF8 (Text));
       L.Has_Markup := True;
       C.Lines.Append (L);
+      C.Cache_Dirty := True;
       Debug_Log (C, "Append_Markup_Line style=" & Line_Style'Image (Style)
                  & " len=" & Natural'Image (Text'Length)
                  & " total=" & Natural'Image (Natural (C.Lines.Length)));
    end Append_Markup_Line;
+
+   procedure Invalidate_Line (C : in out Instance; Index : Positive) is
+   begin
+      C.Lines (Index).Vis_Count := 0;
+      C.Cache_Dirty := True;
+   end Invalidate_Line;
 
    --  ── Xml_Escape ────────────────────────────────────────────────────────
 
@@ -201,10 +211,11 @@ package body Coyote_GUI.Conversation is
          return;
       end if;
 
-      --  Cache hit: width and line count unchanged.
+      --  Cache hit: width, line count, and all line contents unchanged.
       if not Force
         and then Width_Px = C.Cache_Width_Px
         and then Natural (C.Lines.Length) = C.Cached_Line_Count
+        and then not C.Cache_Dirty
         and then C.Total_Vis_Lines > 0
       then
          Debug_Log
@@ -217,29 +228,32 @@ package body Coyote_GUI.Conversation is
       declare
          Layout : Pango_Layout renames C.Measure_Layout;
          Vis    : Natural;
-         Last_Had_Markup : Boolean := False;
+         Full_Recompute : constant Boolean :=
+           Force or else Width_Px /= C.Cache_Width_Px;
       begin
          for I in 1 .. Positive (C.Lines.Length) loop
-            declare
-               Text : constant String := To_String (C.Lines (I).Text);
-            begin
-               if C.Lines (I).Has_Markup then
-                  Layout.Set_Markup (Text);
-                  Last_Had_Markup := True;
-               else
-                  if Last_Had_Markup then
-                     --  Clear stale markup attributes left by Set_Markup.
-                     Layout.Set_Attributes (Pango.Attributes.Null_Pango_Attr_List);
-                     Last_Had_Markup := False;
+            if Full_Recompute or else C.Lines (I).Vis_Count = 0 then
+               declare
+                  Text : constant String := To_String (C.Lines (I).Text);
+               begin
+                  if C.Lines (I).Has_Markup then
+                     Layout.Set_Markup (Text);
+                  else
+                     --  Clear stale markup attributes left by Set_Markup,
+                     --  including when the preceding line was cached.
+                     Layout.Set_Attributes
+                       (Pango.Attributes.Null_Pango_Attr_List);
+                     Layout.Set_Text (Text);
                   end if;
-                  Layout.Set_Text (Text);
-               end if;
-               Layout.Set_Width (Width_Px * Pango_Scale);
-               Layout.Set_Wrap (Pango_Wrap_Word_Char);
-               Vis := Natural (Layout.Get_Line_Count);
-               C.Lines (I).Vis_Count := Vis;
-               Total := Total + Vis;
-            end;
+                  Layout.Set_Width (Width_Px * Pango_Scale);
+                  Layout.Set_Wrap (Pango_Wrap_Word_Char);
+                  Vis := Natural (Layout.Get_Line_Count);
+                  C.Lines (I).Vis_Count := Vis;
+               end;
+            else
+               Vis := C.Lines (I).Vis_Count;
+            end if;
+            Total := Total + Vis;
          end loop;
       end;
 
@@ -269,6 +283,7 @@ package body Coyote_GUI.Conversation is
       end;
       C.Cache_Width_Px    := Width_Px;
       C.Cached_Line_Count := Natural (C.Lines.Length);
+      C.Cache_Dirty       := False;
    end Recompute_Vis_Lines;
 
    --  ── Hit_Test ──────────────────────────────────────────────────────────
@@ -903,6 +918,7 @@ package body Coyote_GUI.Conversation is
       for I in Text'Range loop
          if Text (I) = ASCII.LF then
             if I > Start then
+               Invalidate_Line (C, Last_Idx);
                Append (C.Lines (Last_Idx).Text,
                        Sanitize_UTF8 (Text (Start .. I - 1)));
             end if;
@@ -912,6 +928,7 @@ package body Coyote_GUI.Conversation is
          end if;
       end loop;
       if Start <= Text'Last then
+         Invalidate_Line (C, Last_Idx);
          Append (C.Lines (Last_Idx).Text,
                  Sanitize_UTF8 (Text (Start .. Text'Last)));
       end if;
@@ -1461,6 +1478,7 @@ package body Coyote_GUI.Conversation is
             declare
                Last_Idx : constant Positive := Positive (C.Lines.Length);
             begin
+               Invalidate_Line (C, Last_Idx);
                Append (C.Lines (Last_Idx).Text, Sanitize_UTF8 (Proc));
             end;
          end if;
@@ -1485,6 +1503,7 @@ package body Coyote_GUI.Conversation is
                declare
                   Last_Idx : constant Positive := Positive (C.Lines.Length);
                begin
+                  Invalidate_Line (C, Last_Idx);
                   Append (C.Lines (Last_Idx).Text, Proc);
                end;
             end if;
@@ -1606,6 +1625,7 @@ package body Coyote_GUI.Conversation is
                   Replacement := To_Unbounded_String
                     (UC_BOX_BL & " - cancelled");
             end case;
+            Invalidate_Line (C, Last_Idx - 1);
             C.Lines (Last_Idx - 1).Text := Replacement;
          end;
       end if;
@@ -1791,6 +1811,7 @@ package body Coyote_GUI.Conversation is
       C.Sel_End_Byte := 0;
       C.Cache_Width_Px := 0;
       C.Cached_Line_Count := 0;
+      C.Cache_Dirty := True;
       C.Total_Vis_Lines := 0;
       --  Reset reusable layouts: stale attributes from Set_Markup would
       --  affect measurement of plain-text lines in the new session.
