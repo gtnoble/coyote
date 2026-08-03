@@ -332,11 +332,11 @@ package body Session_Lister is
                end;
             end if;
          end;
-         --  Session-info can appear after messages, so only stop once all
-         --  three list-visible fields have been collected.
+         --  Stop once UUID and snippet are collected.  Name is
+         --  optional — session_info may be absent (Create_Session
+         --  does not write it; only Fork_Session does).
          exit when Length (Result.UUID) > 0
-           and then Length (Result.Snippet) > 0
-           and then Length (Result.Name) > 0;
+           and then Length (Result.Snippet) > 0;
       end loop;
       Ada.Text_IO.Close (File);
       return Result;
