@@ -306,8 +306,14 @@ These are entered as open items in the problem log (PCR-009).
 
 ## 7. Notes
 
+**Baseline as of 2026-08-04 (Streaming UTF-8 preservation):**
+812 tests, 0 failures, 0 unexpected errors. Added four stateful UTF-8 decoder
+unit tests and two GUI conversation tests covering codepoints split across
+text and thinking update records. The update queue now applies backpressure
+instead of silently dropping records.
+
 **Baseline as of 2026-08-03 (Streaming canvas cache invalidation):**
-806 tests, 0 failures, 0 unexpected errors.  Added a GUI regression test
+806 tests, 0 failures, 0 unexpected errors. Added a GUI regression test
 verifying that appending to an already-measured streaming logical line
 recomputes its visual-line count and expands the document canvas.
 

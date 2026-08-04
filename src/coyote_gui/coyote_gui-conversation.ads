@@ -217,11 +217,13 @@ private
       Tools         : Tool_Maps.Vector;
       --  Streaming state
       In_Text_Block    : Boolean := False;
-      Stream_Buf       : Unbounded_String;
+      Stream_Buf        : Unbounded_String;
+      Text_UTF8         : Coyote_App.Utils.UTF8_Stream.Instance;
       Stream_First_Line : Natural := 0;
-      In_Thinking      : Boolean := False;
-      Prefix_Emitted   : Boolean := False;
-      Thinking_Tok : Coyote_App.Utils.Thinking_Tokenizer.Instance;
+      In_Thinking       : Boolean := False;
+      Prefix_Emitted    : Boolean := False;
+      Thinking_UTF8     : Coyote_App.Utils.UTF8_Stream.Instance;
+      Thinking_Tok      : Coyote_App.Utils.Thinking_Tokenizer.Instance;
       --  Current tool being built (Begin_Tool .. End_Tool)
       Cur_Tool_First   : Natural := 0;
       Cur_Tool_Id      : Unbounded_String;

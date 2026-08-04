@@ -1470,8 +1470,10 @@ payload fields appropriate to that kind (e.g. `Append_Text` carries a
 
 **Protected type `Queue`:** Bounded buffer of `Coyote_GUI.Update` records,
 capacity 8 192. Operations: `Enqueue (U : Update)` (blocks when full;
-`Agent_Task` may block briefly if GTK is slow), `Dequeue (U : out Update;
-Got : out Boolean)` (non-blocking; sets `Got := False` if empty), `Is_Empty`.
+`Agent_Task` may block briefly if GTK is slow), `Stop` (closes the queue and
+releases blocked producers), `Dequeue (U : out Update; Got : out Boolean)`
+(non-blocking; sets `Got := False` if empty), and `Has_Pending`. Updates are
+never silently dropped while the queue is open.
 
 **GLib idle handler:** Registered once by `Coyote_App.Frontend.GUI.Create`
 and kept registered for the frontend lifetime.  On each idle callback, it

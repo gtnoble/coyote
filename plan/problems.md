@@ -1572,3 +1572,24 @@ The MR-chart transform block already correctly branched on
     paragraph spacing, code-block background, blockquote prefix
 - **Status:** Resolved
 - **Date resolved:** 2026-07-29
+
+
+## PCR-042 — GUI streaming UTF-8 codepoint fragmentation (2026-08-04)
+
+- **Category:** Code
+- **Priority:** 3-Moderate
+- **Description:** The GTK conversation renderer sanitized each text and thinking
+  update independently. A valid UTF-8 codepoint split across update records was
+  therefore replaced by multiple U+FFFD characters. The GUI update queue also
+  silently discarded records at capacity.
+- **Affected work products:** `Coyote_GUI.Conversation`, `Coyote_App.Utils`,
+  `Coyote_GUI.Updates`, GUI test suite, frontend design records.
+- **Corrective action:** Added stateful UTF-8 decoders for assistant text and
+  thinking streams; retained raw assistant text for final rendering; made the
+  update queue block while full and added shutdown release semantics; added
+  regression tests for two-, three-, and four-byte split sequences and GUI
+  text/thinking streams.
+- **Verification:** Development build succeeds; full AUnit suite passes with
+  812 tests, 0 failures, and 0 unexpected errors.
+- **Status:** Resolved
+- **Date resolved:** 2026-08-04

@@ -54,9 +54,15 @@ but shares the `Win` object (which contains the mutex).
 The GTK event loop and the agent loop run in separate tasks. The
 `Coyote_GUI.Updates` bounded queue (8192 items) decouples them: the agent
 task enqueues update records; a GLib idle callback drains the queue on the
-GTK thread. The 8192-item bound prevents unbounded memory use if the GTK
-thread falls behind. The idle callback is registered once at frontend creation
-and fires as long as the queue is non-empty.
+GTK thread. Enqueue applies backpressure when the queue is full rather than
+dropping an update; shutdown closes the queue and releases blocked producers.
+The idle callback is registered once at frontend creation and fires for the
+frontend lifetime.
+
+Each GUI text stream also owns a stateful UTF-8 decoder. It retains incomplete
+multibyte suffixes across update records and emits U+FFFD only for malformed
+bytes or an incomplete sequence at stream end. This applies independently to
+assistant text and thinking output.
 
 ### Thinking-text buffering and collapsing (PCR-022)
 

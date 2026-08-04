@@ -60,6 +60,10 @@ package body Coyote_App.Utils is
                  and then Character'Pos (Text (I + 1)) <= 16#BF#
                  and then Character'Pos (Text (I + 2)) >= 16#80#
                  and then Character'Pos (Text (I + 2)) <= 16#BF#
+                 and then (B /= 16#E0#
+                           or else Character'Pos (Text (I + 1)) >= 16#A0#)
+                 and then (B /= 16#ED#
+                           or else Character'Pos (Text (I + 1)) <= 16#9F#)
                then
                   Append (Result, C);
                   Append (Result, Text (I + 1));
@@ -82,6 +86,10 @@ package body Coyote_App.Utils is
                  and then Character'Pos (Text (I + 2)) <= 16#BF#
                  and then Character'Pos (Text (I + 3)) >= 16#80#
                  and then Character'Pos (Text (I + 3)) <= 16#BF#
+                 and then (B /= 16#F0#
+                           or else Character'Pos (Text (I + 1)) >= 16#90#)
+                 and then (B /= 16#F4#
+                           or else Character'Pos (Text (I + 1)) <= 16#8F#)
                then
                   Append (Result, C);
                   Append (Result, Text (I + 1));
@@ -104,6 +112,139 @@ package body Coyote_App.Utils is
       end loop;
       return To_String (Result);
    end Sanitize_UTF8;
+
+   package body UTF8_Stream is
+
+      Replacement : constant String := Character'Val (16#EF#)
+                                      & Character'Val (16#BF#)
+                                      & Character'Val (16#BD#);
+
+      function Is_Continuation (C : Character) return Boolean is
+         B : constant Natural := Character'Pos (C);
+      begin
+         return B >= 16#80# and then B <= 16#BF#;
+      end Is_Continuation;
+
+      function Sequence_Length (C : Character) return Natural is
+         B : constant Natural := Character'Pos (C);
+      begin
+         if B <= 16#7F# then
+            return 1;
+         elsif B >= 16#C2# and then B <= 16#DF# then
+            return 2;
+         elsif B >= 16#E0# and then B <= 16#EF# then
+            return 3;
+         elsif B >= 16#F0# and then B <= 16#F4# then
+            return 4;
+         else
+            return 0;
+         end if;
+      end Sequence_Length;
+
+      function Valid_Sequence
+        (Data : String; First : Positive; Length : Positive)
+         return Boolean
+      is
+         B : constant Natural := Character'Pos (Data (First));
+      begin
+         if Length = 1 then
+            return B <= 16#7F#;
+         elsif Length = 2 then
+            return Is_Continuation (Data (First + 1));
+         elsif Length = 3 then
+            return Is_Continuation (Data (First + 1))
+              and then Is_Continuation (Data (First + 2))
+              and then (B /= 16#E0#
+                        or else Character'Pos (Data (First + 1)) >= 16#A0#)
+              and then (B /= 16#ED#
+                        or else Character'Pos (Data (First + 1)) <= 16#9F#);
+         elsif Length = 4 then
+            return Is_Continuation (Data (First + 1))
+              and then Is_Continuation (Data (First + 2))
+              and then Is_Continuation (Data (First + 3))
+              and then (B /= 16#F0#
+                        or else Character'Pos (Data (First + 1)) >= 16#90#)
+              and then (B /= 16#F4#
+                        or else Character'Pos (Data (First + 1)) <= 16#8F#);
+         else
+            return False;
+         end if;
+      end Valid_Sequence;
+
+      procedure Reset (S : in out Instance) is
+      begin
+         S.Pending := Null_Unbounded_String;
+      end Reset;
+
+      procedure Feed
+        (S      : in out Instance;
+         Data   : in     String;
+         Output :    out Ada.Strings.Unbounded.Unbounded_String)
+      is
+         Combined : constant String := To_String (S.Pending) & Data;
+         I        : Natural := Combined'First;
+      begin
+         S.Pending := Null_Unbounded_String;
+         Output := Null_Unbounded_String;
+
+         while I <= Combined'Last loop
+            declare
+               Size      : constant Natural :=
+                 Sequence_Length (Combined (I));
+               Available : constant Natural := Combined'Last - I + 1;
+               Check_End : constant Natural :=
+                 (if Size > 0
+                  then Natural'Min (Combined'Last, I + Size - 1)
+                  else I);
+               Bad       : Boolean := False;
+            begin
+               if Size = 0 then
+                  Append (Output, Replacement);
+                  I := I + 1;
+               elsif Size = 1 then
+                  Append (Output, Combined (I));
+                  I := I + 1;
+               else
+                  for J in I + 1 .. Check_End loop
+                     if not Is_Continuation (Combined (J)) then
+                        Bad := True;
+                        exit;
+                     end if;
+                  end loop;
+
+                  if Bad then
+                     Append (Output, Replacement);
+                     I := I + 1;
+                  elsif Available < Size then
+                     S.Pending := To_Unbounded_String
+                       (Combined (I .. Combined'Last));
+                     exit;
+                  elsif Valid_Sequence (Combined, I, Size) then
+                     Append (Output, Combined (I .. I + Size - 1));
+                     I := I + Size;
+                  else
+                     Append (Output, Replacement);
+                     I := I + 1;
+                  end if;
+               end if;
+            end;
+         end loop;
+      end Feed;
+
+      procedure Flush
+        (S      : in out Instance;
+         Output :    out Ada.Strings.Unbounded.Unbounded_String)
+      is
+      begin
+         if Length (S.Pending) > 0 then
+            Output := To_Unbounded_String (Replacement);
+         else
+            Output := Null_Unbounded_String;
+         end if;
+         Reset (S);
+      end Flush;
+
+   end UTF8_Stream;
 
    function Str_Repeat (Text : String; N : Positive) return String is
       Result : String (1 .. Text'Length * N);

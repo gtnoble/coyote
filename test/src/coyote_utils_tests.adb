@@ -1,6 +1,7 @@
 with AUnit.Assertions;
 with Ada.Directories;
 with Ada.Strings.Fixed;
+with Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with Coyote_App.Utils;
 with Coyote_Utils;
@@ -224,5 +225,67 @@ package body Coyote_Utils_Tests is
       Assert (Output = "",
               "empty string should return empty string");
    end Test_Sanitize_UTF8_Handles_Empty_String;
+
+   procedure Test_UTF8_Stream_Reassembles_Two_Byte (T : in out Test) is
+      pragma Unreferenced (T);
+      S       : Coyote_App.Utils.UTF8_Stream.Instance;
+      Output  : Ada.Strings.Unbounded.Unbounded_String;
+      Accent  : constant String := Character'Val (16#C3#)
+                                   & Character'Val (16#A9#);
+   begin
+      S.Feed (Accent (Accent'First .. Accent'First), Output);
+      Assert (Ada.Strings.Unbounded.Length (Output) = 0,
+              "incomplete two-byte sequence should be held");
+      S.Feed (Accent (Accent'First + 1 .. Accent'Last), Output);
+      Assert (Ada.Strings.Unbounded.To_String (Output) = Accent,
+              "two-byte sequence should be reassembled");
+   end Test_UTF8_Stream_Reassembles_Two_Byte;
+
+   procedure Test_UTF8_Stream_Reassembles_Three_Byte (T : in out Test) is
+      pragma Unreferenced (T);
+      S       : Coyote_App.Utils.UTF8_Stream.Instance;
+      Output  : Ada.Strings.Unbounded.Unbounded_String;
+      Euro    : constant String := Character'Val (16#E2#)
+                                   & Character'Val (16#82#)
+                                   & Character'Val (16#AC#);
+   begin
+      S.Feed (Euro (Euro'First .. Euro'First + 1), Output);
+      Assert (Ada.Strings.Unbounded.Length (Output) = 0,
+              "incomplete three-byte sequence should be held");
+      S.Feed (Euro (Euro'First + 2 .. Euro'Last), Output);
+      Assert (Ada.Strings.Unbounded.To_String (Output) = Euro,
+              "three-byte sequence should be reassembled");
+   end Test_UTF8_Stream_Reassembles_Three_Byte;
+
+   procedure Test_UTF8_Stream_Reassembles_Four_Byte (T : in out Test) is
+      pragma Unreferenced (T);
+      S       : Coyote_App.Utils.UTF8_Stream.Instance;
+      Output  : Ada.Strings.Unbounded.Unbounded_String;
+      Smile   : constant String := Character'Val (16#F0#)
+                                   & Character'Val (16#9F#)
+                                   & Character'Val (16#98#)
+                                   & Character'Val (16#80#);
+   begin
+      S.Feed (Smile (Smile'First .. Smile'First + 2), Output);
+      Assert (Ada.Strings.Unbounded.Length (Output) = 0,
+              "incomplete four-byte sequence should be held");
+      S.Feed (Smile (Smile'First + 3 .. Smile'Last), Output);
+      Assert (Ada.Strings.Unbounded.To_String (Output) = Smile,
+              "four-byte sequence should be reassembled");
+   end Test_UTF8_Stream_Reassembles_Four_Byte;
+
+   procedure Test_UTF8_Stream_Flushes_Incomplete (T : in out Test) is
+      pragma Unreferenced (T);
+      S       : Coyote_App.Utils.UTF8_Stream.Instance;
+      Output  : Ada.Strings.Unbounded.Unbounded_String;
+      Expected : constant String := Character'Val (16#EF#)
+                                    & Character'Val (16#BF#)
+                                    & Character'Val (16#BD#);
+   begin
+      S.Feed ("" & Character'Val (16#E2#), Output);
+      S.Flush (Output);
+      Assert (Ada.Strings.Unbounded.To_String (Output) = Expected,
+              "flush should replace an incomplete sequence");
+   end Test_UTF8_Stream_Flushes_Incomplete;
 
 end Coyote_Utils_Tests;

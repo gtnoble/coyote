@@ -5,6 +5,7 @@ with Glib;         use type Glib.Gint;
 with Gtk.Enums;       use Gtk.Enums;
 with Gtk.Main;
 with Coyote_GUI.Conversation;
+with Coyote_App.Utils;
 with Coyote_GUI.Conversation.Testing;
 
 package body Coyote_GUI_Conversation_Tests is
@@ -225,6 +226,46 @@ package body Coyote_GUI_Conversation_Tests is
       Assert (Testing.Stream_Buffer (Conv) = "",
               "stream buffer cleared after End_Text_Block");
    end Test_Append_Text_Accumulates_Buffer;
+
+   procedure Test_Split_UTF8_Text_Is_Reassembled (T : in out Test) is
+      Conv   : Instance;
+      Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Layout : Gtk.Layout.Gtk_Layout;
+      Euro   : constant String := Character'Val (16#E2#)
+                                  & Character'Val (16#82#)
+                                  & Character'Val (16#AC#);
+   begin
+      if not T.Display_Available then return; end if;
+      Make_Fresh_Conv (Conv, Scroll, Layout);
+      Conv.Set_Render_Markdown (False);
+      Conv.Append_Text (Euro (Euro'First .. Euro'First));
+      Conv.Append_Text (Euro (Euro'First + 1 .. Euro'First + 1));
+      Assert (Testing.Stream_Buffer (Conv) = Euro (Euro'First .. Euro'First + 1),
+              "raw text retains split UTF-8 bytes");
+      Conv.Append_Text (Euro (Euro'First + 2 .. Euro'Last));
+      Conv.End_Text_Block;
+      Assert (Testing.Get_Line_Text (Conv, 1) = Euro,
+              "split UTF-8 text is reassembled in the rendered line");
+   end Test_Split_UTF8_Text_Is_Reassembled;
+
+   procedure Test_Split_UTF8_Thinking_Is_Reassembled (T : in out Test) is
+      Conv   : Instance;
+      Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Layout : Gtk.Layout.Gtk_Layout;
+      Euro   : constant String := Character'Val (16#E2#)
+                                  & Character'Val (16#82#)
+                                  & Character'Val (16#AC#);
+   begin
+      if not T.Display_Available then return; end if;
+      Make_Fresh_Conv (Conv, Scroll, Layout);
+      Conv.Begin_Thinking;
+      Conv.Append_Thinking (Euro (Euro'First .. Euro'First));
+      Conv.Append_Thinking (Euro (Euro'First + 1 .. Euro'First + 1));
+      Conv.Append_Thinking (Euro (Euro'First + 2 .. Euro'Last));
+      Conv.End_Thinking;
+      Assert (Testing.Get_Line_Text (Conv, 1) = Coyote_App.Utils.UC_BOX_V & " " & Euro,
+              "split UTF-8 thinking text is reassembled");
+   end Test_Split_UTF8_Thinking_Is_Reassembled;
 
    procedure Test_Streaming_Append_Invalidates_Vis_Cache
      (T : in out Test)

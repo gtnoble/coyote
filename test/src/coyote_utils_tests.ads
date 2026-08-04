@@ -21,5 +21,9 @@ package Coyote_Utils_Tests is
    procedure Test_Sanitize_UTF8_Replaces_Truncated_Seq   (T : in out Test);
    procedure Test_Sanitize_UTF8_Handles_Overlong_Seq     (T : in out Test);
    procedure Test_Sanitize_UTF8_Handles_Empty_String     (T : in out Test);
+   procedure Test_UTF8_Stream_Reassembles_Two_Byte (T : in out Test);
+   procedure Test_UTF8_Stream_Reassembles_Three_Byte (T : in out Test);
+   procedure Test_UTF8_Stream_Reassembles_Four_Byte (T : in out Test);
+   procedure Test_UTF8_Stream_Flushes_Incomplete (T : in out Test);
 
 end Coyote_Utils_Tests;

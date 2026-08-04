@@ -47,6 +47,8 @@ package Coyote_GUI_Conversation_Tests is
    procedure Test_Append_Notice_Increments_Count          (T : in out Test);
    procedure Test_Append_Text_Enters_Text_Block           (T : in out Test);
    procedure Test_Append_Text_Accumulates_Buffer          (T : in out Test);
+   procedure Test_Split_UTF8_Text_Is_Reassembled           (T : in out Test);
+   procedure Test_Split_UTF8_Thinking_Is_Reassembled       (T : in out Test);
    procedure Test_Streaming_Append_Invalidates_Vis_Cache  (T : in out Test);
    procedure Test_End_Text_Block_Exits_Block              (T : in out Test);
    procedure Test_Footer_Leaves_Blank_Lines               (T : in out Test);

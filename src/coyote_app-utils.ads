@@ -76,6 +76,31 @@ package Coyote_App.Utils is
    --  warnings from Pango when the text reaches a Pango_Layout.
    function Sanitize_UTF8 (Text : String) return String;
 
+   --  Stateful UTF-8 decoder for streaming input.  Complete codepoints are
+   --  emitted immediately; an incomplete suffix is retained for the next
+   --  Feed call.  Flush replaces an incomplete final sequence with U+FFFD.
+   package UTF8_Stream is
+      type Instance is tagged limited private;
+
+      procedure Reset (S : in out Instance);
+
+      procedure Feed
+        (S      : in out Instance;
+         Data   : in     String;
+         Output :    out Ada.Strings.Unbounded.Unbounded_String);
+      --  Emit complete UTF-8 sequences from Data, retaining an incomplete
+      --  suffix for the next call.
+
+      procedure Flush
+        (S      : in out Instance;
+         Output :    out Ada.Strings.Unbounded.Unbounded_String);
+      --  Emit U+FFFD for any incomplete suffix and reset the decoder.
+   private
+      type Instance is tagged limited record
+         Pending : Ada.Strings.Unbounded.Unbounded_String;
+      end record;
+   end UTF8_Stream;
+
 
    --  Repeat string Text exactly N times.
    function Str_Repeat (Text : String; N : Positive) return String;

@@ -334,6 +334,7 @@ package body Coyote_App.Frontend.GUI is
    begin
       if Current_Frontend /= null then
          Current_Frontend.PQ.Shutdown;
+         Current_Frontend.Updates.Stop;
       end if;
       Gtk.Main.Main_Quit;
       return True;  --  suppress default handler (window destruction)
@@ -408,6 +409,7 @@ package body Coyote_App.Frontend.GUI is
    begin
       if Current_Frontend /= null then
          Current_Frontend.PQ.Shutdown;
+         Current_Frontend.Updates.Stop;
       end if;
       Gtk.Main.Main_Quit;
    end On_Quit_Activate;

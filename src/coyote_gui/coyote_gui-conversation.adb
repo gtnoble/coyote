@@ -903,34 +903,42 @@ package body Coyote_GUI.Conversation is
    --  ── Streaming text ────────────────────────────────────────────────────
 
    procedure Append_Text (C : in out Instance; Text : String) is
-      Start    : Natural  := Text'First;
-      Last_Idx : Positive;
+      Ready : Unbounded_String;
    begin
       if not C.In_Text_Block then
          C.In_Text_Block    := True;
          C.Stream_Buf       := Null_Unbounded_String;
          Append_Line (C, Plain, "");
          C.Stream_First_Line := Natural (C.Lines.Length);
+         C.Text_UTF8.Reset;
       end if;
       Append (C.Stream_Buf, Text);
+      C.Text_UTF8.Feed (Text, Ready);
 
-      Last_Idx := Positive (C.Lines.Length);
-      for I in Text'Range loop
-         if Text (I) = ASCII.LF then
-            if I > Start then
+      if Length (Ready) > 0 then
+         declare
+            Ready_Text : constant String := To_String (Ready);
+            Start      : Natural := Ready_Text'First;
+            Last_Idx   : Positive := Positive (C.Lines.Length);
+         begin
+            for I in Ready_Text'Range loop
+               if Ready_Text (I) = ASCII.LF then
+                  if I > Start then
+                     Invalidate_Line (C, Last_Idx);
+                     Append (C.Lines (Last_Idx).Text,
+                             Ready_Text (Start .. I - 1));
+                  end if;
+                  Append_Line (C, Plain, "");
+                  Last_Idx := Positive (C.Lines.Length);
+                  Start    := I + 1;
+               end if;
+            end loop;
+            if Start <= Ready_Text'Last then
                Invalidate_Line (C, Last_Idx);
                Append (C.Lines (Last_Idx).Text,
-                       Sanitize_UTF8 (Text (Start .. I - 1)));
+                       Ready_Text (Start .. Ready_Text'Last));
             end if;
-            Append_Line (C, Plain, "");
-            Last_Idx := Positive (C.Lines.Length);
-            Start    := I + 1;
-         end if;
-      end loop;
-      if Start <= Text'Last then
-         Invalidate_Line (C, Last_Idx);
-         Append (C.Lines (Last_Idx).Text,
-                 Sanitize_UTF8 (Text (Start .. Text'Last)));
+         end;
       end if;
       Recompute_Vis_Lines (C);
       Queue_Draw (C);
@@ -1393,11 +1401,13 @@ package body Coyote_GUI.Conversation is
    --  ── End_Text_Block ────────────────────────────────────────────────────
 
    procedure End_Text_Block (C : in out Instance) is
-      Full_Text : constant String := To_String (C.Stream_Buf);
+      Full_Text : constant String := Sanitize_UTF8 (To_String (C.Stream_Buf));
+      Ignored   : Unbounded_String;
    begin
       if not C.In_Text_Block then
          return;
       end if;
+      C.Text_UTF8.Flush (Ignored);
 
       Debug_Log (C, "End_Text_Block len=" & Natural'Image (Full_Text'Length)
                  & " markdown=" & Boolean'Image (C.Render_Markdown));
@@ -1455,13 +1465,16 @@ package body Coyote_GUI.Conversation is
       Debug_Log (C, "Begin_Thinking");
       C.In_Thinking    := True;
       C.Prefix_Emitted := False;
+      C.Thinking_UTF8.Reset;
       C.Thinking_Tok.Reset;
    end Begin_Thinking;
 
    procedure Append_Thinking (C : in out Instance; Text : String) is
+      Decoded   : Unbounded_String;
       Tokenized : Ada.Strings.Unbounded.Unbounded_String;
    begin
-      C.Thinking_Tok.Feed (Text, Tokenized);
+      C.Thinking_UTF8.Feed (Text, Decoded);
+      C.Thinking_Tok.Feed (To_String (Decoded), Tokenized);
       if Length (Tokenized) = 0 then
          return;
       end if;
@@ -1489,9 +1502,14 @@ package body Coyote_GUI.Conversation is
 
    procedure End_Thinking (C : in out Instance) is
       use Ada.Strings.Unbounded;
+      Decoded   : Unbounded_String;
       Remaining : Unbounded_String;
+      Tail      : Unbounded_String;
    begin
-      C.Thinking_Tok.Flush (Remaining);
+      C.Thinking_UTF8.Flush (Decoded);
+      C.Thinking_Tok.Feed (To_String (Decoded), Remaining);
+      C.Thinking_Tok.Flush (Tail);
+      Append (Remaining, Tail);
       if Length (Remaining) > 0 then
          declare
             Proc : constant String := Sanitize_UTF8 (To_String (Remaining));
@@ -1519,6 +1537,7 @@ package body Coyote_GUI.Conversation is
          end if;
          C.In_Thinking    := False;
          C.Prefix_Emitted := False;
+         C.Thinking_UTF8.Reset;
          Recompute_Vis_Lines (C);
          Queue_Draw (C);
       end if;
@@ -1797,9 +1816,11 @@ package body Coyote_GUI.Conversation is
       C.Tool_Starts.Clear;
       C.In_Text_Block := False;
       C.Stream_Buf := Ada.Strings.Unbounded.Null_Unbounded_String;
+      C.Text_UTF8.Reset;
       C.Stream_First_Line := 0;
       C.In_Thinking := False;
       C.Prefix_Emitted := False;
+      C.Thinking_UTF8.Reset;
       C.Thinking_Tok.Reset;
       C.Cur_Tool_First := 0;
       C.Cur_Tool_Id := Ada.Strings.Unbounded.Null_Unbounded_String;

@@ -1221,6 +1221,18 @@ package body Test_Suites is
       Result.Add_Test (Coyote_Utils_Caller.Create
         ("Sanitize_UTF8 returns empty string unchanged",
          Coyote_Utils_Tests.Test_Sanitize_UTF8_Handles_Empty_String'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("UTF8_Stream reassembles two-byte sequences",
+         Coyote_Utils_Tests.Test_UTF8_Stream_Reassembles_Two_Byte'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("UTF8_Stream reassembles three-byte sequences",
+         Coyote_Utils_Tests.Test_UTF8_Stream_Reassembles_Three_Byte'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("UTF8_Stream reassembles four-byte sequences",
+         Coyote_Utils_Tests.Test_UTF8_Stream_Reassembles_Four_Byte'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("UTF8_Stream flushes incomplete sequences",
+         Coyote_Utils_Tests.Test_UTF8_Stream_Flushes_Incomplete'Access));
 
       --  Collapse_Utils tests
       Result.Add_Test (Collapse_Utils_Caller.Create
@@ -2796,6 +2808,12 @@ package body Test_Suites is
       Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
         ("Coyote.GUI.Conversation Append_Text accumulates buffer",
          Coyote_GUI_Conversation_Tests.Test_Append_Text_Accumulates_Buffer'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation reassembles split UTF-8 text",
+         Coyote_GUI_Conversation_Tests.Test_Split_UTF8_Text_Is_Reassembled'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation reassembles split UTF-8 thinking",
+         Coyote_GUI_Conversation_Tests.Test_Split_UTF8_Thinking_Is_Reassembled'Access));
       Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
         ("Coyote.GUI.Conversation streaming append invalidates visual cache",
          Coyote_GUI_Conversation_Tests

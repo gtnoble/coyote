@@ -6,15 +6,22 @@ package body Coyote_GUI.Updates is
 
    protected body Queue is
 
-      procedure Enqueue (U : Update) is
-         Tail : Positive;
+      entry Enqueue (U : Update)
+        when (Count < Max_Depth) or Stopped
+      is
+         Tail : constant Positive :=
+           (Head - 1 + Count) mod Max_Depth + 1;
       begin
-         if Count < Max_Depth then
-            Tail := (Head - 1 + Count) mod Max_Depth + 1;
+         if not Stopped then
             Items (Tail) := U;
             Count := Count + 1;
          end if;
       end Enqueue;
+
+      procedure Stop is
+      begin
+         Stopped := True;
+      end Stop;
 
       procedure Dequeue (U : out Update; Got : out Boolean) is
       begin
