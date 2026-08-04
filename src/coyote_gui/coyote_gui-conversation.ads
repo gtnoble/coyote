@@ -204,9 +204,14 @@ private
 
    package Tool_Maps is new Ada.Containers.Vectors (Positive, Tool_Block);
 
+   type Tool_Start_Info is record
+      First_Line : Positive;
+      Args       : Unbounded_String;
+   end record;
+
    package Tool_Start_Maps is new Ada.Containers.Indefinite_Hashed_Maps
      (Key_Type        => String,
-      Element_Type    => Positive,
+      Element_Type    => Tool_Start_Info,
       Hash            => Ada.Strings.Hash,
       Equivalent_Keys => "=");
 

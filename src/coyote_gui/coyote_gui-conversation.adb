@@ -1568,7 +1568,10 @@ package body Coyote_GUI.Conversation is
       --  Header line.
       C.Cur_Tool_First := Positive (C.Lines.Length) + 1;
       C.Cur_Tool_Id    := To_Unbounded_String (Tool_Id);
-      C.Tool_Starts.Include (Tool_Id, C.Cur_Tool_First);
+      C.Tool_Starts.Include
+        (Tool_Id,
+         (First_Line => C.Cur_Tool_First,
+          Args       => To_Unbounded_String (Args)));
       Append_Line (C, Plain,
                    UC_BOX_TL & " " & UC_GEAR & " " & Name);
 
@@ -1608,16 +1611,18 @@ package body Coyote_GUI.Conversation is
       Result  :        String)
    is
       use Tool_Start_Maps;
-      Pos       : Cursor := C.Tool_Starts.Find (Tool_Id);
-      First_Idx : Positive;
-      Last_Idx  : constant Positive := Positive (C.Lines.Length);
+      Pos        : Cursor := C.Tool_Starts.Find (Tool_Id);
+      Start_Info : Tool_Start_Info;
+      First_Idx  : Positive;
+      Last_Idx   : constant Positive := Positive (C.Lines.Length);
    begin
       Debug_Log (C, "End_Tool tool_id=" & Tool_Id
                  & " status=" & Tool_End_Status'Image (Status));
       if Pos = No_Element then
          return;
       end if;
-      First_Idx := Element (Pos);
+      Start_Info := Element (Pos);
+      First_Idx  := Start_Info.First_Line;
 
       --  Replace the placeholder footer line (second-to-last line, before
       --  the trailing blank line).
@@ -1657,6 +1662,7 @@ package body Coyote_GUI.Conversation is
          TB.Last_Line  := Last_Idx;
          TB.Info.Name  := To_Unbounded_String
            (To_String (C.Lines (First_Idx).Text));
+         TB.Info.Args  := Start_Info.Args;
          TB.Info.Result_Text   := To_Unbounded_String (Result);
          TB.Info.Result_Status := Status;
          C.Tools.Append (TB);

@@ -506,6 +506,37 @@ package body Coyote_GUI_Conversation_Tests is
       end;
    end Test_Viewport_Select_All_Extracts_Expected_Text;
 
+   procedure Test_Tool_Detail_Preserves_Arguments (T : in out Test) is
+      Conv   : Instance;
+      Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Layout : Gtk.Layout.Gtk_Layout;
+      Click  : Tool_Click_Result;
+   begin
+      if not T.Display_Available then return; end if;
+      Make_Fresh_Conv (Conv, Scroll, Layout);
+      Conv.Begin_Tool
+        (Name       => "shell",
+         Args       => "{""command"":""printf hello""}",
+         Session_Id => "session-1",
+         Tool_Id    => "tool-1");
+      Conv.End_Tool
+        (Tool_Id => "tool-1",
+         Status  => Success,
+         Result  => "hello");
+      Click := Conv.Handle_Tool_Click
+        (X => 1,
+         Y => 2 * Glib.Gint (Testing.Line_Height_Px (Conv)) + 1);
+      Assert (Click.Found,
+              "clicking a completed tool block returns detail");
+      if Click.Found then
+         Assert (To_String (Click.Content) =
+                   "Arguments:" & ASCII.LF
+                   & "{""command"":""printf hello""}" & ASCII.LF
+                   & ASCII.LF & "Result:" & ASCII.LF & "hello",
+                 "tool detail preserves the original arguments");
+      end if;
+   end Test_Tool_Detail_Preserves_Arguments;
+
    --  ── Markdown-rendering tests ───────────────────────────────────────────
 
    procedure Test_Markdown_Paragraph_Has_Markup_Flag (T : in out Test) is

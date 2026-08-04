@@ -55,6 +55,7 @@ package Coyote_GUI_Conversation_Tests is
    procedure Test_Notice_Does_Not_Enter_Text_Block        (T : in out Test);
    procedure Test_Begin_Thinking_Sets_Flag                (T : in out Test);
    procedure Test_End_Thinking_Clears_Flag                (T : in out Test);
+   procedure Test_Tool_Detail_Preserves_Arguments          (T : in out Test);
 
    --  Large-logical-line / viewport-overflow tests
 
