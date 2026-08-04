@@ -306,6 +306,12 @@ These are entered as open items in the problem log (PCR-009).
 
 ## 7. Notes
 
+**Baseline as of 2026-08-04 (GTK idle CPU regression):**
+818 tests, 0 failures, 0 unexpected errors for the six new
+`Coyote_GUI.Updates` queue lifecycle tests. The tests cover single wakeup
+reservation, duplicate-wakeup suppression, pending-work retention, source
+release when empty, rearming after completion, and shutdown behavior.
+
 **Baseline as of 2026-08-04 (Streaming UTF-8 preservation):**
 812 tests, 0 failures, 0 unexpected errors. Added four stateful UTF-8 decoder
 unit tests and two GUI conversation tests covering codepoints split across

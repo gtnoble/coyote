@@ -14,6 +14,7 @@ with Collapse_Utils_Tests;
 with Coyote_Utils_Tests;
 with Coyote_Cmark_Tests;
 with Coyote_GUI_Conversation_Tests;
+with Coyote_GUI_Updates_Tests;
 with Session_History_Tests;
 with Tool_URI_Tests;
 with Subagent_Integration_Tests;
@@ -92,6 +93,8 @@ package body Test_Suites is
      new AUnit.Test_Caller (Coyote_Cmark_Tests.Test);
    package Coyote_GUI_Conversation_Caller is
      new AUnit.Test_Caller (Coyote_GUI_Conversation_Tests.Test);
+   package Coyote_GUI_Updates_Caller is
+     new AUnit.Test_Caller (Coyote_GUI_Updates_Tests.Test);
    package LLM_HTTP_Caller is
      new AUnit.Test_Caller (LLM_HTTP_Tests.Test);
    package LLM_Settings_Caller is
@@ -2798,6 +2801,25 @@ package body Test_Suites is
       Result.Add_Test (LLM_Agent_Caller.Create
         ("LLM.Agent sandbox defaults to empty without env var",
          LLM_Agent_Tests.Test_Sandbox_Default_Empty'Access));
+
+      Result.Add_Test (Coyote_GUI_Updates_Caller.Create
+        ("Coyote.GUI.Updates first enqueue wakes exactly once",
+         Coyote_GUI_Updates_Tests.Test_First_Enqueue_Wakes_Exactly_Once'Access));
+      Result.Add_Test (Coyote_GUI_Updates_Caller.Create
+        ("Coyote.GUI.Updates pending enqueue does not duplicate wakeup",
+         Coyote_GUI_Updates_Tests.Test_Pending_Enqueue_Does_Not_Duplicate_Wakeup'Access));
+      Result.Add_Test (Coyote_GUI_Updates_Caller.Create
+        ("Coyote.GUI.Updates idle completion keeps source for pending work",
+         Coyote_GUI_Updates_Tests.Test_Idle_Done_Keeps_Source_For_Pending_Work'Access));
+      Result.Add_Test (Coyote_GUI_Updates_Caller.Create
+        ("Coyote.GUI.Updates idle completion clears source when empty",
+         Coyote_GUI_Updates_Tests.Test_Idle_Done_Clears_Source_When_Empty'Access));
+      Result.Add_Test (Coyote_GUI_Updates_Caller.Create
+        ("Coyote.GUI.Updates enqueue rearms after idle completion",
+         Coyote_GUI_Updates_Tests.Test_Enqueue_Rearms_After_Idle_Done'Access));
+      Result.Add_Test (Coyote_GUI_Updates_Caller.Create
+        ("Coyote.GUI.Updates stopped queue does not wake",
+         Coyote_GUI_Updates_Tests.Test_Stopped_Queue_Does_Not_Wake'Access));
 
       Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
         ("Coyote.GUI.Conversation Append_Notice adds logical lines",

@@ -56,8 +56,8 @@ The GTK event loop and the agent loop run in separate tasks. The
 task enqueues update records; a GLib idle callback drains the queue on the
 GTK thread. Enqueue applies backpressure when the queue is full rather than
 dropping an update; shutdown closes the queue and releases blocked producers.
-The idle callback is registered once at frontend creation and fires for the
-frontend lifetime.
+The idle callback is registered on demand when the update queue transitions
+from empty to non-empty and fires until the queue is empty.
 
 Each GUI text stream also owns a stateful UTF-8 decoder. It retains incomplete
 multibyte suffixes across update records and emits U+FFFD only for malformed

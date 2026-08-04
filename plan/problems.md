@@ -1593,3 +1593,29 @@ The MR-chart transform block already correctly branched on
   812 tests, 0 failures, and 0 unexpected errors.
 - **Status:** Resolved
 - **Date resolved:** 2026-08-04
+
+
+## PCR-043 — GTK idle callback CPU spin (2026-08-04)
+
+- **Category:** Code
+- **Priority:** 2-High
+- **Description:** The GTK frontend kept a GLib idle source registered for the
+  frontend lifetime. Its callback returned `True` even when the protected
+  update queue was empty, causing the GTK main loop to spin at approximately
+  100% CPU while idle.
+- **Affected work products:** `Coyote_App.Frontend.GUI`, `Coyote_GUI.Updates`,
+  GUI design and frontend development records, GUI regression tests.
+- **Corrective action:** Changed idle-source registration to be edge-triggered.
+  The protected update queue atomically reserves the source on the first
+  enqueue, keeps it active while updates remain, and releases the reservation
+  when the callback observes an empty queue. This prevents both idle spinning
+  and competing source registration during concurrent enqueue/callback
+  activity.
+- **Verification:** Development build succeeds; six focused queue lifecycle
+  tests pass. Idle runtime measurement changed from 100% CPU (`4.68s` user and
+  `3.33s` system over 8 seconds) to approximately 1% CPU (`0.10s` user and
+  `0.02s` system over 8 seconds). The complete suite was not completed because
+  provider catalogue/network activity caused the test process to stall in the
+  current environment.
+- **Status:** Resolved
+- **Date resolved:** 2026-08-04

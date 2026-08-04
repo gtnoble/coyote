@@ -1469,20 +1469,24 @@ payload fields appropriate to that kind (e.g. `Append_Text` carries a
 **Purpose:** Thread-safe bounded queue from `Agent_Task` to the GTK main loop.
 
 **Protected type `Queue`:** Bounded buffer of `Coyote_GUI.Update` records,
-capacity 8 192. Operations: `Enqueue (U : Update)` (blocks when full;
-`Agent_Task` may block briefly if GTK is slow), `Stop` (closes the queue and
-releases blocked producers), `Dequeue (U : out Update; Got : out Boolean)`
+capacity 8 192. Operations: `Enqueue (U : Update; Wake_Needed : out Boolean)`
+(blocks when full and atomically reserves the idle source when needed),
+`Idle_Done (Keep_Active : out Boolean)` (completes one idle callback and
+atomically releases the source when no work remains), `Stop` (closes the queue
+and releases blocked producers), `Dequeue (U : out Update; Got : out Boolean)`
 (non-blocking; sets `Got := False` if empty), and `Has_Pending`. Updates are
 never silently dropped while the queue is open.
 
-**GLib idle handler:** Registered once by `Coyote_App.Frontend.GUI.Create`
-and kept registered for the frontend lifetime.  On each idle callback, it
+**GLib idle handler:** Registered on demand by `Enqueue_Update` when the
+queue transitions from empty to non-empty.  On each idle callback, it
 drains exactly one item from the queue and calls the corresponding
-`Coyote_GUI.Conversation` operations.  Processing one item per invocation
-yields control to the GLib main loop between updates, allowing pending
-redraws (priority 120) to interleave with the drain (priority 200).  A
-persistent source avoids races between callback removal and concurrent
-queueing that could otherwise register competing idle sources.
+`Coyote_GUI.Conversation` operations.  The callback returns `False` when the
+queue is empty, removing the source and allowing the GTK main loop to block
+when there is no work.  Processing one item per invocation yields control to
+the GLib main loop between updates, allowing pending redraws (priority 120)
+to interleave with the drain (priority 200).  The queue-owned source state
+prevents duplicate source registration while multiple updates are pending or
+a callback is completing.
 
 ---
 
