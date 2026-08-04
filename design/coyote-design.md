@@ -1473,13 +1473,14 @@ capacity 8 192. Operations: `Enqueue (U : Update)` (blocks when full;
 `Agent_Task` may block briefly if GTK is slow), `Dequeue (U : out Update;
 Got : out Boolean)` (non-blocking; sets `Got := False` if empty), `Is_Empty`.
 
-**GLib idle handler:** Registered on demand by `Enqueue_Update` when the
-queue transitions from empty to non-empty.  On each idle callback, drains
-exactly one item from the queue and calls the corresponding
-`Coyote_GUI.Conversation` operations, then returns `True` to remain
-registered (or `False` if the queue is empty).  Processing one item per
-invocation yields control to the GLib main loop between updates, allowing
-pending redraws (priority 120) to interleave with the drain (priority 200).
+**GLib idle handler:** Registered once by `Coyote_App.Frontend.GUI.Create`
+and kept registered for the frontend lifetime.  On each idle callback, it
+drains exactly one item from the queue and calls the corresponding
+`Coyote_GUI.Conversation` operations.  Processing one item per invocation
+yields control to the GLib main loop between updates, allowing pending
+redraws (priority 120) to interleave with the drain (priority 200).  A
+persistent source avoids races between callback removal and concurrent
+queueing that could otherwise register competing idle sources.
 
 ---
 

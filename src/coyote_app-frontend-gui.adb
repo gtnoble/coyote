@@ -310,23 +310,18 @@ package body Coyote_App.Frontend.GUI is
       Current_Frontend.Updates.Dequeue (U, Got);
       if Got then
          Apply_Update (Current_Frontend.all, U);
-         return True;
       end if;
-      return False;
+      --  Keep one source registered for the frontend lifetime.  Processing
+      --  one item per invocation lets higher-priority GTK redraw sources run
+      --  between updates without creating competing idle sources.
+      return True;
    end Drain_Idle;
 
-   --  ── Enqueue_Update — enqueue and schedule idle drain if needed ────────
+   --  ── Enqueue_Update — enqueue for the persistent idle drain ────────────
 
    procedure Enqueue_Update (F : in out Instance; U : Coyote_GUI.Update) is
-      Needed  : Boolean;
-      Idle_Id : Glib.Main.G_Source_Id;
-      pragma Unreferenced (Idle_Id);
    begin
       F.Updates.Enqueue (U);
-      F.Updates.Take_Idle_Request (Needed);
-      if Needed then
-         Idle_Id := Glib.Main.Idle_Add (Drain_Idle'Access);
-      end if;
    end Enqueue_Update;
 
    --  ── Signal handlers ───────────────────────────────────────────────────
@@ -1215,6 +1210,8 @@ package body Coyote_App.Frontend.GUI is
       --  Agent menu
       Agent_Menu : Gtk_Menu;
       Stop_Item        : Gtk_Menu_Item;
+      Idle_Id          : Glib.Main.G_Source_Id;
+      pragma Unreferenced (Idle_Id);
       Pause_Item       : Gtk_Menu_Item;
       Resume_Item      : Gtk_Menu_Item;
       Change_Model_Item : Gtk_Menu_Item;
@@ -1510,6 +1507,10 @@ package body Coyote_App.Frontend.GUI is
 
       F.Win.Set_Focus_On_Map (not Pop_Under);
       F.Win.Show_All;
+
+      --  Register exactly one idle source for the frontend lifetime.  The
+      --  callback processes one queued update per main-loop invocation.
+      Idle_Id := Glib.Main.Idle_Add (Drain_Idle'Access);
 
    end Create;
 
