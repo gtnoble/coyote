@@ -11,6 +11,23 @@
 
 ## Design Rationale
 
+## 2026-08-04 — PCR-044 Sandbox Profile Restoration and Synchronization
+
+**Problem:** Sandbox profiles were persisted in session headers but ignored on
+resume and session switching. Frontend-local state could also disagree with
+the agent and the child-process environment.
+
+**Design and implementation:** Added `LLM.Session_Store.Session_Sandbox_Profile`
+to read the first header record. `LLM.Agent.Create` uses the persisted value
+for resumed sessions, and `LLM.Agent.Switch_Session` replaces its active value,
+including clearing it when the target has no profile. Both Acme and GUI agent
+tasks call a local `Synchronize_Sandbox` operation after creation, new-session
+creation, and session switching; it updates the local state, `App_State`, and
+`COYOTE_SANDBOX_PROFILE`. Session-info events query the agent directly.
+
+**Tests:** Added one session-store accessor test and two agent tests for resume,
+switch/restore, and switch/clear. Focused tests and the complete 821-test suite passed.
+
 ### Why `On_Event` is a synchronous callback, not a queue
 
 The agent loop in `LLM.Agent.Run_Prompt` invokes the `On_Event` callback
@@ -292,7 +309,8 @@ edge cases (empty/non-existent profile, missing paths skipped, multiple rule
 types coexist, depth sorting), path resolution (`.`, `./`, `~/`, absolute
 pass-through), and shell+sandbox integration (allowWrite succeeds,
 denyRead blocks, empty profile runs unsandboxed).  3 `coyote_app_tests`
-cover `App_State.Current_Sandbox`/`Set_Sandbox`; 3 `llm_agent_tests` cover
+cover `App_State.Current_Sandbox`/`Set_Sandbox`; 5 `llm_agent_tests` cover
 `Set_Sandbox_Profile`/`Current_Sandbox` round-trip, env-var inheritance on
-`Create`, and empty default; 2 `llm_session_store_tests` cover
-`sandboxProfile` in JSONL headers.
+`Create`, empty default, persisted-profile resume, and profile restore/clear
+on session switching; 3 `llm_session_store_tests` cover header write, header
+absence, and reading `sandboxProfile` from a JSONL header.

@@ -1,6 +1,6 @@
 # Test Plan â coyote (STP)
 
-**Version:** 1.6
+**Version:** 1.7
 **Date:** 2026-08-04
 
 **Status:** Reviewed and acknowledged â M4 complete (2026-06-03)
@@ -137,8 +137,8 @@ SRS-CORE requirement groups.
 | Test module | Requirements covered | Test count (approx.) |
 |---|---|---|
 | `llm_sse_tests.adb` | REQ-CORE-200 (SSE parsing) | ~30 |
-| `llm_session_store_tests.adb` | REQ-CORE-080â089, 240â241 | ~45 |
-| `llm_agent_tests.adb` | REQ-CORE-040â046, 060â064 | ~80 |
+| `llm_session_store_tests.adb` | REQ-CORE-080â089, 240â241 | ~46 |
+| `llm_agent_tests.adb` | REQ-CORE-040â046, 060â064, 085â089 | ~85 |
 | `coyote_app_tests.adb` | REQ-CORE-085â089 (frontend/agent synchronization) | ~10 |
 
 | `llm_skills_tests.adb` | REQ-CORE-090â093 | ~20 |
@@ -179,7 +179,7 @@ SRS-CORE requirement groups.
 | `acme_event_parser_tests.adb` | REQ-CORE-100â109 | ~20 |
 | `acme_raw_events_tests.adb` | REQ-CORE-100 | ~10 |
 
-**Total automated tests (current):** **688
+**Total automated tests (current):** **821**
 
 ### 4.3 Planned Tests â Demonstration
 
@@ -320,6 +320,12 @@ These are entered as open items in the problem log (PCR-009).
 
 ## 7. Notes
 
+**Baseline as of 2026-08-04 (PCR-044 sandbox profile restoration):**
+821 tests, 0 failures, 0 unexpected errors. Added one session-store accessor
+regression and two agent session resume/switch regressions. The tests verify
+header-driven restoration, clearing when the target header has no profile, and
+independence from the current process environment.
+
 **Baseline as of 2026-08-04 (GTK idle CPU regression):**
 818 tests, 0 failures, 0 unexpected errors for the six new
 `Coyote_GUI.Updates` queue lifecycle tests. The tests cover single wakeup
@@ -341,23 +347,31 @@ recomputes its visual-line count and expands the document canvas.
 full `cd test && alr run coyote_test` run is performed and the pass count
 and any failures are recorded here or in the Test Report.
 
+**PCR-044 qualification status:** The automated tests cover session-header
+profile reading, resume restoration, and profile restoration/clearing on agent
+session switching. DEM-029..032 remain manual qualification demonstrations
+for shell-command application, child-process propagation, and Acme/GUI state
+synchronization.
 
 **Baseline as of 2026-06-13 (Quantile Control Chart):** 683 tests, 0 failures,
 
 **Baseline as of 2026-06-16 (Mutual Information diversity charts):** 688 tests, 0 failures,
 **Baseline as of 2026-07-12 (Step-level fork tokens throughout tool-call turns):** 694 tests, 0 failures,
 **Baseline as of 2026-07-30 (Sandbox profiles):** 772 tests, 0 failures,
+0 unexpected errors. Historical baseline before PCR-044 restoration tests.
 **Baseline as of 2026-07-19 (Memory opt-in gate):** 742 tests, 0 failures,
-0 unexpected errors.  Added 11 MI tests for
+0 unexpected errors. Historical baseline retained for trend analysis. Added
+11 MI tests for
 `Coyote_SQC.Statistics.MI` (compute values, identical calls, different calls,
 no-argument calls, missing argument, non-positive clamp, session metrics,
 subgroup exclusion, hollow circle, Xbar/s parameter estimation,
 Sum I/MR/EWMA independence).  Six new chart kinds registered:
 `Tool_Call_MI_Xbar`, `Tool_Call_MI_S`, `Session_Tool_Call_MI_Sum_I`,
 `Session_Tool_Call_MI_Sum_MR`, `Session_Tool_Call_MI_Sum_EWMA`,
-`Tool_Call_MI_Quantile`.  Chart count advanced from 55 to 61 in SRS and SDD. Further advanced to 91 with the addition of 30 token cost charts.=1
-Test implementation pending; requirements and design are complete.
-0 unexpected errors.  Added 13 Quantile CC tests for
+`Tool_Call_MI_Quantile`.  Chart count advanced from 55 to 61 in SRS and SDD. Further advanced to 91 with the addition of 30 token cost charts.
+Historical note: the corresponding test implementation was completed in a
+later build; the current baseline is recorded above.  Added 13 Quantile CC
+tests for
 Coyote_SQC.Statistics.Quantile_CC (compute-quantiles, build-distribution,
 extract-limits, OOC-detection, cache-hit, cache-invalidation).  Two bugs
 fixed during implementation: LCG 32-bit overflow and 0-based index in

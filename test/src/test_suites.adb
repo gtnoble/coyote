@@ -1471,6 +1471,10 @@ package body Test_Suites is
         ("LLM.Session_Store sandboxProfile absent when env var unset",
          LLM_Session_Store_Tests
            .Test_Sandbox_No_Profile_No_Header_Field'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store reads sandboxProfile from session header",
+         LLM_Session_Store_Tests
+           .Test_Sandbox_Profile_Read_From_Header'Access));
 
       --  LLM.SSE tests
       Result.Add_Test (LLM_SSE_Caller.Create
@@ -2801,6 +2805,13 @@ package body Test_Suites is
       Result.Add_Test (LLM_Agent_Caller.Create
         ("LLM.Agent sandbox defaults to empty without env var",
          LLM_Agent_Tests.Test_Sandbox_Default_Empty'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent restores sandbox profile on session resume",
+         LLM_Agent_Tests.Test_Sandbox_Profile_Restored_On_Resume'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent restores and clears sandbox profile on session switch",
+         LLM_Agent_Tests
+           .Test_Sandbox_Profile_Restored_And_Cleared_On_Switch'Access));
 
       Result.Add_Test (Coyote_GUI_Updates_Caller.Create
         ("Coyote.GUI.Updates first enqueue wakes exactly once",

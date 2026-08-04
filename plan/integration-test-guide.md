@@ -6,9 +6,10 @@ plumber state unless a test is explicitly guarded.
 
 ## Current Status
 
-As of Phase 12 there are **no live LLM API integration tests checked in**.
-This guide documents how they should be written and how to run them once they
-exist.
+There are no live LLM API integration tests checked in. Acme/9P and dispatch
+integration tests are opt-in and auto-detect their live environment. PCR-044
+adds manual qualification procedures DEM-029..032 for sandbox session
+restoration, frontend synchronization, and child-process propagation.
 
 ## Principles
 
@@ -138,6 +139,49 @@ export COYOTE_RUN_OLLAMA_LIVE=1
 cd /home/gtnoble/Projects/coyote/test
 alr run coyote_test
 ```
+
+## PCR-044 Sandbox Session Qualification
+
+The automated suite verifies session-header reading and agent-level profile
+restoration. The following manual demonstrations verify the remaining
+frontend, shell, and child-process behavior. Use a disposable test profile
+under `~/.coyote/sandbox/` and a test working directory; do not use a profile
+that can modify important user data.
+
+### DEM-029 — Resume restoration
+
+1. Start coyote with a named sandbox profile selected.
+2. Complete a turn that invokes the shell tool, then record the session UUID.
+3. Exit coyote and resume with `coyote --session UUID`.
+4. Verify the frontend status shows the saved profile and a subsequent shell
+   command runs with that profile's restrictions.
+5. Repeat with a session created without a profile and verify no profile is
+   active after resume.
+
+### DEM-030 — Session switching and clearing
+
+1. Create one session with profile A and another with profile B.
+2. In one Acme or GUI instance, switch from A to B and verify the displayed
+   profile and the next shell command use B.
+3. Switch from B to a session with no `sandboxProfile` header field.
+4. Verify the displayed profile is cleared and the next shell command is
+   unsandboxed.
+
+### DEM-031 — Child-process propagation
+
+1. Run a parent session with a named sandbox profile.
+2. Use the shell-based subagent flow to start a child coyote process.
+3. Inspect the child session header and run a child shell command.
+4. Verify the child header records the effective profile and the command is
+   subject to the profile's restrictions.
+
+### DEM-032 — Frontend, agent, and environment synchronization
+
+Exercise startup/resume, explicit profile changes, new-session creation, and
+session switching in both Acme and GUI. At each boundary verify that the
+status display, the agent's next shell command, and the inherited
+`COYOTE_SANDBOX_PROFILE` value identify the same profile, including the empty
+value when sandboxing is cleared.
 
 ## Non-Goals
 

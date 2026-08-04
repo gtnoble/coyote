@@ -652,6 +652,8 @@ correctly read it back.
 9. **`Switch_Session` history load** — after `Switch_Session (UUID)`, `History`
    must be populated from `Session_Store.Load_Messages (UUID)`.  Verify that
    the messages are loaded correctly and that the session UUID is updated.
+   The PCR-044 regression suite additionally verifies that the target
+   session's `sandboxProfile` is restored or cleared during this operation.
 
 10. **`Session_Stats_Event` accuracy** — the stats event is emitted after each
     turn.  Verify the cumulative usage is summed from all assistant messages in

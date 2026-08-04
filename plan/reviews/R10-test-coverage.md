@@ -20,14 +20,18 @@ The LLM test suite exercises many important happy paths: basic HTTP streaming, S
 - `test/src/llm_tools_tests.adb` — covers bash success/failure, basic read/write/edit/find; misses the `LLM.Tools.Execute` dispatcher itself, `glob`, read offset/limit validation, bash invalid-JSON/truncation paths, and write/find/glob error cases.
 - `test/src/llm_session_store_tests.adb` — covers UUID format, header creation, single-message round trips, and fork compatibility; misses assistant messages containing both thinking and text blocks, usage/stopReason/timestamp preservation, multi-turn `Load_Messages` ordering, error tool results, and envelope-form session lines.
 - `test/src/llm_model_registry_tests.adb` — covers basic lookup/filtering and anthropic availability; misses expired-Copilot refresh during `Refresh_GitHub_Copilot`, repeated-refresh replacement/de-duplication, failure handling when catalogue refresh returns nothing, and case-insensitive provider lookup.
-- `test/src/llm_agent_tests.adb` — covers single turn, one tool loop, abort, and resume-via-`Create`; misses explicit `Switch_Session`, `New_Session`, `Set_Model`, `Set_Thinking`, retry/backoff, two-tool batches, tool failure, and `Session_Stats_Event` verification.
+- `test/src/llm_agent_tests.adb` — covers single turn, one tool loop, abort,
+  resume-via-`Create`, and PCR-044 profile restoration on resume and session
+  switching; other gaps include `New_Session`, `Set_Model`, `Set_Thinking`,
+  retry/backoff, two-tool batches, tool failure, and `Session_Stats_Event`
+  verification.
 - `test/src/llm_pi_adapter_tests.adb` — covers only `agent_start`, `text_delta`, and `tool_execution_start`; misses `message_end`, `tool_execution_end`, `model_select`, `get_state`, `get_session_stats`, auto-retry, auto-compaction, invalid-args fallback, and `agent_end`.
 
 ## Issues
 
 ### [HIGH] Protocol-critical provider and agent branches are still largely untested
 **Files:** `test/src/llm_openai_completions_tests.adb:335-510`, `src/llm/llm-providers-openai_completions.adb:218-242`, `src/llm/llm-providers-openai_completions.adb:421-475`, `src/llm/llm-providers-openai_completions.adb:488-735`, `test/src/llm_anthropic_messages_tests.adb:374-578`, `src/llm/llm-providers-anthropic_messages.adb:293-378`, `src/llm/llm-providers-anthropic_messages.adb:541-650`, `src/llm/llm-providers-anthropic_messages.adb:706-780`, `test/src/llm_github_copilot_tests.adb:523-659`, `src/llm/llm-providers-github_copilot.adb:133-208`, `test/src/llm_agent_tests.adb:438-842`, `src/llm/llm-agent.adb:537-641`, `src/llm/llm-agent.adb:707-938`
-**Description:** The provider and agent suites mostly test one happy-path stream per transport. They do not cover several branches where wire-format bugs are most likely: OpenAI non-streaming responses, `delta.reasoning`, multiple tool calls with different `index` values, Anthropic `tool_use` request/stream handling, alternate stop reasons, end-to-end Copilot token refresh during `Send`, auto-retry/backoff, multiple tool calls in one agent turn, tool execution failure, or the explicit `Switch_Session` path. These are exactly the scenarios called out by R3, R4, R5, and R9.
+**Description:** The provider and agent suites mostly test one happy-path stream per transport. They do not cover several branches where wire-format bugs are most likely: OpenAI non-streaming responses, `delta.reasoning`, multiple tool calls with different `index` values, Anthropic `tool_use` request/stream handling, alternate stop reasons, end-to-end Copilot token refresh during `Send`, auto-retry/backoff, multiple tool calls in one agent turn, tool execution failure, or several unrelated agent configuration paths. The explicit session-switch path now has regression coverage, including PCR-044 sandbox restoration and clearing. These are the remaining scenarios called out by R3, R4, R5, and R9.
 **Evidence:**
 ```ada
 --  The OpenAI tests define only two end-to-end cases:
@@ -61,7 +65,7 @@ elsif Is_Retryable_Error (Occurrence)
 then
    ... --  auto-retry path
 ```
-**Fix:** Add table-driven end-to-end cases for: (1) OpenAI non-streaming responses, reasoning deltas, and two simultaneous tool calls; (2) Anthropic `tool_use` requests and `input_json_delta` streams, plus `x-api-key` vs bearer auth; (3) expired Copilot credentials that must refresh before `Send`; and (4) agent retry, two-tool batches, tool-error handling, and explicit `Switch_Session` with pre-existing history.
+**Fix:** Add table-driven end-to-end cases for: (1) OpenAI non-streaming responses, reasoning deltas, and two simultaneous tool calls; (2) Anthropic `tool_use` requests and `input_json_delta` streams, plus `x-api-key` vs bearer auth; (3) expired Copilot credentials that must refresh before `Send`; and (4) agent retry, two-tool batches, tool-error handling, and remaining session-management paths. Explicit `Switch_Session` history and PCR-044 sandbox restoration/clearing are already covered.
 
 ### [MEDIUM] Session-store and pi-adapter compatibility coverage is too narrow
 **Files:** `test/src/llm_session_store_tests.adb:230-485`, `src/llm/llm-session_store.adb:313-477`, `src/llm/llm-session_store.adb:510-605`, `src/llm/llm-session_store.adb:672-736`, `test/src/llm_pi_adapter_tests.adb:11-99`, `src/llm/llm-agent-pi_adapter.adb:48-274`

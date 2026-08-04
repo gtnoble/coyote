@@ -607,7 +607,9 @@ package body Coyote_App is
                   Session_Id      =>
                     To_Unbounded_String (LLM.Agent.Session_Id (Agent_Session)),
                   Thinking_Level  => Current_Thinking,
-                  Sandbox_Profile => Current_Sandbox);
+                  Sandbox_Profile =>
+                    To_Unbounded_String
+                      (LLM.Agent.Current_Sandbox (Agent_Session)));
             begin
                Dispatch_Event (Event);
             end Emit_Session_Info;
@@ -645,6 +647,16 @@ package body Coyote_App is
                   PID      => My_PID,
                   State    => State);
             end Render_Loaded_Session;
+
+            procedure Synchronize_Sandbox is
+               Profile : constant String :=
+                 LLM.Agent.Current_Sandbox (Agent_Session);
+            begin
+               Current_Sandbox := To_Unbounded_String (Profile);
+               State.Set_Sandbox (Profile);
+               Ada.Environment_Variables.Set
+                 ("COYOTE_SANDBOX_PROFILE", Profile);
+            end Synchronize_Sandbox;
 
             procedure Reset_Session_State is
             begin
@@ -803,6 +815,7 @@ package body Coyote_App is
                Agent      => To_String (Opts.Agent),
                No_Tools   => Opts.No_Tools,
                Session_Id => To_String (Opts.Session_Id));
+            Synchronize_Sandbox;
             if Opts.No_Compact then
                LLM.Agent.Set_Compact_Settings
                  (Agent_Session,
@@ -915,6 +928,7 @@ package body Coyote_App is
                               LLM.Agent.Switch_Session
                                 (S    => Agent_Session,
                                  UUID => To_String (Text));
+                              Synchronize_Sandbox;
                               Reset_Session_State;
                               Render_Loaded_Session (To_String (Text));
                               Emit_Bootstrap;
@@ -2261,7 +2275,9 @@ package body Coyote_App is
                     To_Unbounded_String
                       (LLM.Agent.Session_Id (Agent_Session)),
                   Thinking_Level  => Current_Thinking,
-                  Sandbox_Profile => Current_Sandbox);
+                  Sandbox_Profile =>
+                    To_Unbounded_String
+                      (LLM.Agent.Current_Sandbox (Agent_Session)));
             begin
                Dispatch_Event (Event);
             end Emit_Session_Info;
@@ -2313,6 +2329,16 @@ package body Coyote_App is
                   Frontend => My_Frontend,
                   State    => State);
             end Render_Loaded_Session;
+
+            procedure Synchronize_Sandbox is
+               Profile : constant String :=
+                 LLM.Agent.Current_Sandbox (Agent_Session);
+            begin
+               Current_Sandbox := To_Unbounded_String (Profile);
+               State.Set_Sandbox (Profile);
+               Ada.Environment_Variables.Set
+                 ("COYOTE_SANDBOX_PROFILE", Profile);
+            end Synchronize_Sandbox;
 
             procedure Store_One_Shot_Result is
                Result : constant JSON_Value := Create_Object;
@@ -2435,6 +2461,7 @@ package body Coyote_App is
                Agent      => To_String (Opts.Agent),
                No_Tools   => Opts.No_Tools,
                Session_Id => To_String (Opts.Session_Id));
+            Synchronize_Sandbox;
             My_Frontend.Register_Session (Agent_Session'Unchecked_Access);
             if Opts.No_Compact then
                LLM.Agent.Set_Compact_Settings
@@ -2603,6 +2630,7 @@ package body Coyote_App is
                                  Model_Spec => Saved_Model,
                                  Agent      => To_String (Opts.Agent),
                                  No_Tools   => Opts.No_Tools);
+                              Synchronize_Sandbox;
                               My_Frontend.Register_Session
                                 (Agent_Session'Unchecked_Access);
                               if Opts.No_Compact then
@@ -2704,6 +2732,7 @@ package body Coyote_App is
                              (S    => Agent_Session,
                               UUID => Ada.Strings.Unbounded.To_String
                                         (It.Session_UUID));
+                           Synchronize_Sandbox;
                            Reset_Session_State;
                            Render_Loaded_Session
                              (Ada.Strings.Unbounded.To_String

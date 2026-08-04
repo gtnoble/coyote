@@ -1281,6 +1281,9 @@ package body LLM.Agent is
          end if;
 
          S.Session_UUID := To_Unbounded_String (Session_Id);
+         S.Sandbox_Profile :=
+           Ada.Strings.Unbounded.To_Unbounded_String
+             (LLM.Session_Store.Session_Sandbox_Profile (Session_Id));
          S.History := LLM.Session_Store.Load_Messages (Session_Id);
          S.Last_Context_Tokens :=
            LLM.Compaction.Estimate_Context_Tokens (S.History);
@@ -2109,6 +2112,9 @@ package body LLM.Agent is
       end if;
 
       S.Session_UUID := To_Unbounded_String (UUID);
+      S.Sandbox_Profile :=
+        Ada.Strings.Unbounded.To_Unbounded_String
+          (LLM.Session_Store.Session_Sandbox_Profile (UUID));
       S.History := LLM.Session_Store.Load_Messages (UUID);
       S.Last_Context_Tokens :=
         LLM.Compaction.Estimate_Context_Tokens (S.History);

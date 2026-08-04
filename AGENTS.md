@@ -225,6 +225,17 @@ and is applied by each frontend independently in the `End_Thinking` primitive
 `LLM.Events.Agent_Event'Class` value to the appropriate `Frontend'Class`
 calls.  Both the Acme and GUI paths share the same dispatcher.  See
 `design/coyote-design.md §5.3` for the full dispatch table.
+
+### Session and sandbox state
+
+Session headers persist the active sandbox profile as `sandboxProfile` when
+`COYOTE_SANDBOX_PROFILE` is non-empty. When resuming with `--session UUID` or
+switching sessions, the target session header is authoritative: its profile
+is restored, and an absent profile clears any previous value. The Acme and GUI
+agent tasks synchronize the effective value to the frontend status,
+`App_State`, and `COYOTE_SANDBOX_PROFILE` before bootstrap and before the next
+tool call. Child coyote processes inherit the synchronized environment value.
+
 ## Plumb Token Schema
 
 Coyote uses its own family of plumb tokens. All token strings begin with a
@@ -265,7 +276,7 @@ communication and context propagation:
 | `COYOTE_FRONTEND` | `coyote.adb` after selecting a windowing frontend | child coyote at startup | When set to `gui`, a child selects the GUI frontend and opens its own GTK window.  When set to `acme`, a child selects the Acme frontend and opens in a new acme window.  Mirrors how `$winid` propagates the acme context. |
 | `COYOTE_THINKING_LEVEL` | `coyote_app.adb` when thinking level is set or changed | child coyote at startup (`coyote_app.adb`) and `LLM.Session_Store` | Propagates the current thinking level to child subagent sessions.  Written into the new session's JSONL header as `thinkingLevel`. |
 | `COYOTE_ENABLE_MEMORY` | user (manual) | `LLM.Agent.Create` | When set to `1`, enables the structured memory system (MEMORY.md discovery and four-type taxonomy) in the system prompt.  Disabled by default. |
-| `COYOTE_SANDBOX_PROFILE` | `coyote_app.adb` when sandbox profile is set or changed | child coyote at startup (`coyote_app.adb`) and `LLM.Session_Store` | Propagates the current sandbox profile to child subagent sessions.  Written into the new session's JSONL header as `sandboxProfile`. |
+| `COYOTE_SANDBOX_PROFILE` | `coyote_app.adb` after profile changes, session resume, or session switching | child coyote at startup (`coyote_app.adb`), `LLM.Agent`, and `LLM.Session_Store` | Carries the effective sandbox profile to child sessions and records it as `sandboxProfile`; an empty value disables sandboxing. |
 
 ## Subagent invocation (shell-based)
 
@@ -463,7 +474,7 @@ conform to the guidelines it defines.
 ## Testing
 
 The Test Plan (`plan/test-plan.md`) is the governing document for test scope,
-environment, traceability, and the current test baseline (742 tests, all green).
+environment, traceability, and the current test baseline (821 tests, all green).
 
 Tests live in `test/src/` and use AUnit. Run the full suite:
 ```sh

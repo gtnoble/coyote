@@ -1,6 +1,6 @@
 # Project Plan — coyote
 
-**Version:** 1.13
+**Version:** 1.14
 **Date:** 2026-08-04
 **Status:** Active
 
@@ -601,15 +601,39 @@ acknowledged the design without comment.
 | Indicator | Value |
 |---|---|
 | Requirements volatility | SRS-CORE v1.8 (2026-08-04): 145 requirements. 5 additions (REQ-CORE-085..089); 0 revisions; 0 deletions since v1.7. |
-| Component progress | coyote core: requirements updated; implementation and tests pending for REQ-CORE-085..089. |
-| Open problems | PCR-044 In Progress (priority 2-Serious — requirements added; implementation pending). |
-| Milestone status | Requirements update complete; implementation and test work not started. |
+| Component progress | coyote core: REQ-CORE-085..089 implemented and verified; qualification demonstrations remain planned. |
+| Open problems | PCR-044 Resolved (priority 2-Serious — implementation, tests, and full-suite verification complete). |
+| Milestone status | Implementation, focused qualification tests, and full-suite verification complete; qualification demonstrations remain planned. |
 | Scope changes | 3 agreed amendments since project start. |
-| Test results trend | Existing test baseline unchanged; new qualification tests are planned but not implemented. |
+| Test results trend | 821 AUnit tests pass; 0 failures and 0 unexpected errors. |
 
 **Issues raised at review:** None
 
 **Independence limitation:** Developer evaluated own work. User authorized the requirements update; independent review remains invited.
+
+---
+
+### Review 9 — PCR-044 Implementation Verification Review (2026-08-04)
+
+**Review type:** Software design and test-results review
+**Trigger:** PCR-044 implementation completed; the session-store accessor,
+agent restoration paths, frontend synchronization paths, regression tests, and
+full development-profile test run were reviewed against REQ-CORE-085..089.
+
+| Indicator | Value |
+|---|---|
+| Requirements volatility | No change since SRS-CORE v1.8; 145 requirements. |
+| Component progress | REQ-CORE-085..089 implemented; focused regression tests and full AUnit suite complete. |
+| Open problems | PCR-044 Resolved; PCR-009 remains open for unrelated deferred demonstrations. |
+| Milestone status | Implementation verification complete; DEM-029..032 remain manual qualification demonstrations. |
+| Scope changes | 3 agreed amendments since project start. |
+| Test results trend | 821 AUnit tests pass; 0 failures and 0 unexpected errors. |
+
+**Issues raised at review:** None.
+
+**Independence limitation:** The developer evaluated the developer's own design
+and implementation. Independent user review of the code, documentation, and
+manual demonstrations remains invited.
 
 ---
 
@@ -618,11 +642,11 @@ acknowledged the design without comment.
 
 | Artifact | ID | Location | Current Version | Control Level |
 |---|---|---|---|---|
-| Project Plan | PLAN | `plan/project-plan.md` | 1.13 (2026-08-04) | Project |
+| Project Plan | PLAN | `plan/project-plan.md` | 1.14 (2026-08-04) | Project |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
 | coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.8 (2026-08-04) | Client |
-| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.6 (2026-08-04) | Project |
+| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.7 (2026-08-04) | Project |
 | coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.2 (2026-06-21) | Project |
 | coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.2 (2026-06-21) | Project |
-| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.6 (2026-08-04) | Project |
+| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.7 (2026-08-04) | Project |
 | Agent Working Instructions (secondary) | AGENTS | `AGENTS.md` | active | Project |

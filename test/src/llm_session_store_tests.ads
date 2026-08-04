@@ -40,4 +40,8 @@ package LLM_Session_Store_Tests is
    --  sandboxProfile field.
    procedure Test_Sandbox_No_Profile_No_Header_Field (T : in out Test);
 
+   --  The session-store accessor returns the persisted profile and clears
+   --  safely when the header has no profile.
+   procedure Test_Sandbox_Profile_Read_From_Header (T : in out Test);
+
 end LLM_Session_Store_Tests;

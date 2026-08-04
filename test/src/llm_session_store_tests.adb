@@ -1528,4 +1528,49 @@ package body LLM_Session_Store_Tests is
          raise;
    end Test_Sandbox_No_Profile_No_Header_Field;
 
+   procedure Test_Sandbox_Profile_Read_From_Header
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Sbx_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_SANDBOX_PROFILE");
+      Old_Sbx : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_SANDBOX_PROFILE", "");
+   begin
+      Prepare_Test_Home;
+      Ada.Environment_Variables.Set
+        ("COYOTE_SANDBOX_PROFILE", "restricted");
+
+      declare
+         Session_Id : constant String :=
+           LLM.Session_Store.Create_Session (Source_Cwd);
+      begin
+         Assert
+           (LLM.Session_Store.Session_Sandbox_Profile (Session_Id)
+              = "restricted",
+            "Session_Sandbox_Profile should read the header profile");
+
+         Ada.Environment_Variables.Clear ("COYOTE_SANDBOX_PROFILE");
+         Assert
+           (LLM.Session_Store.Session_Sandbox_Profile (Session_Id)
+              = "restricted",
+            "Session_Sandbox_Profile should not depend on the environment");
+      end;
+
+      Restore_Env ("COYOTE_SANDBOX_PROFILE", Sbx_Was_Set, Old_Sbx);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Root;
+   exception
+      when others =>
+         Restore_Env ("COYOTE_SANDBOX_PROFILE", Sbx_Was_Set, Old_Sbx);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Root;
+         raise;
+   end Test_Sandbox_Profile_Read_From_Header;
+
 end LLM_Session_Store_Tests;

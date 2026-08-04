@@ -87,5 +87,5 @@ end loop;
 - Auto-retry scope is limited to `Provider.Send` inside `Send_With_Retry`; completed tools are not retried or re-executed by the retry loop.
 - The user prompt is appended to `History` and persisted via `LLM.Session_Store.Append_Message` before the first provider call of the turn.
 - `New_Session` clears `History` and allocates a fresh UUID with `Create_Session`.
-- `Switch_Session` validates existence, updates `Session_UUID`, and reloads `History` from `LLM.Session_Store.Load_Messages (UUID)`.
+- `Switch_Session` validates existence, updates `Session_UUID`, reloads `History` from `LLM.Session_Store.Load_Messages (UUID)`, and PCR-044 coverage verifies sandbox profile restoration or clearing from the target header.
 - Usage totals in `Session_Stats` are cumulative across the full in-memory history, not just the most recent assistant turn.

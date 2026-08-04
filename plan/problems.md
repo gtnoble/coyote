@@ -1640,11 +1640,23 @@ The MR-chart transform block already correctly branched on
      `requirements/coyote-requirements.md` and advanced SRS-CORE to v1.8.
   2. Added qualification and objective traceability for the new requirements.
   3. Updated SDD-CORE traceability to REQ-CORE-080–089 and advanced it to
-     v1.6.
-  4. Updated Test Plan v1.6 with automated and demonstration coverage
+     v1.7.
+  4. Updated Test Plan v1.7 with automated and demonstration coverage
      references TC-085..089 and DEM-029..032.
   5. Updated the Project Plan artifact table for SRS-CORE, SDD-CORE, and the
      Test Plan.
-- **Status:** In Progress
-- **Next action:** Implement the requirements and add the corresponding AUnit
-  tests; then run the full development-profile test suite.
+  6. Added `Session_Sandbox_Profile` and restored profile state in
+     `LLM.Agent.Create` and `LLM.Agent.Switch_Session`.
+  7. Added Acme and GUI `Synchronize_Sandbox` orchestration for startup,
+     new-session creation, and session switching.
+  8. Added one session-store test and two agent restoration/switch tests;
+     focused tests passed.
+  9. Development build succeeded and the complete AUnit suite passed with
+     821 tests, 0 failures, and 0 unexpected errors.
+- **Status:** Resolved
+- **Date resolved:** 2026-08-04
+
+**Documentation follow-up (2026-08-04):** Updated `AGENTS.md`, the Project
+Plan, Test Plan, integration-test guide, frontend/core SDFs, review-plan notes,
+and review reports to reflect the implemented restoration and synchronization
+behavior, current test baseline, and remaining manual qualification scope.

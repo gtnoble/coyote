@@ -1,7 +1,7 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.6
+**Version:** 1.7
 **Date:** 2026-08-04
 
 **Status:** Reviewed — project control (M3 complete 2026-06-02)
@@ -619,9 +619,22 @@ agentic loop for one prompt.
 4. Create or resume session via `LLM.Session_Store`.
 5. Load conversation history if resuming.
 6. Build the system prompt (static preamble + skills + agent arg).
-7. Inherit sandbox profile from `COYOTE_SANDBOX_PROFILE` env var (set by
-   a parent coyote process or GUI frontend).
+7. For a resumed session, replace the inherited value with the
+   `sandboxProfile` value from the session header; an absent field clears the
+   profile.
 8. Emit `Session_Info_Event` and `Model_Select_Event`.
+
+**`Switch_Session` procedure:**
+1. Validate the target session UUID.
+2. Read the target header's `sandboxProfile` through
+   `LLM.Session_Store.Session_Sandbox_Profile`.
+3. Replace the active profile, allowing an absent field to clear it.
+4. Load the target history and recalculate context tokens.
+5. Clear abort state, release pause state, and stop streaming.
+
+**`Session_Sandbox_Profile` function:** Reads the first JSONL header record,
+returns its non-empty `sandboxProfile` string, and returns an empty string for
+missing files, malformed headers, or absent fields.
 
 **`Run_Prompt` loop:**
 ```
@@ -1717,6 +1730,15 @@ blocking; `Agent_Resumed_Event` is emitted after unblocking.
 | REQ-CORE-065–068 | `LLM.Agent`, `LLM.Compaction` |
 | REQ-CORE-070–076 | `LLM.Agent`, `LLM.Settings`, `LLM.Model_Registry`, all providers |
 | REQ-CORE-080–089 | `LLM.Session_Store`, `LLM.Agent`, `Coyote_App`, `Session_Lister` |
+
+**PCR-044 synchronization design:** `Coyote_App` calls its local
+`Synchronize_Sandbox` operation after agent creation and after every session
+switch. The operation copies `LLM.Agent.Current_Sandbox` into the frontend
+local state and `App_State`, and republishes the same value as
+`COYOTE_SANDBOX_PROFILE` before bootstrap or the next tool call. Session-info
+emission queries the agent directly rather than trusting stale frontend-local
+state. The Acme and GUI agent tasks use the same sequence independently because
+neither task may share mutable frontend state with the other.
 
 | REQ-CORE-090–093 | `LLM.Skills`, `LLM.System_Prompt` |
 | REQ-CORE-100–107 | `Coyote_App.Frontend.Acme_Win`, `Coyote_App`, `Acme.Window`, `Nine_P.Client` |

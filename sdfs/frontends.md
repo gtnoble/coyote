@@ -87,6 +87,21 @@ preserve more whitespace for line-by-line thinking output).
 emits both `Thinking_Delta` and `Thinking_End` events, verifying the collapsing
 and buffer-management semantics.
 
+### PCR-044 session sandbox synchronization (2026-08-04)
+
+The Acme and GUI agent tasks keep sandbox state synchronized at the frontend
+boundary. After agent creation, new-session creation, and session switching,
+they copy `LLM.Agent.Current_Sandbox` into the frontend-local state and
+`App_State`, then republish `COYOTE_SANDBOX_PROFILE` before bootstrap or the
+next tool call. Session-info events query the agent directly, avoiding stale
+frontend-local values. A resumed or switched session with no `sandboxProfile`
+field therefore clears the displayed profile as well as the agent and child
+process state.
+
+**Test status:** The agent and session-store portions are covered by the PCR-044
+AUnit regressions. End-to-end frontend and child-process behavior remains in
+manual qualification demonstrations DEM-031 and DEM-032.
+
 ### Drawing_Area-based virtualized rendering (2026-07-31)
 
 The conversation view was migrated from `GtkTextView`/`GtkTextBuffer` to a
