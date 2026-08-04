@@ -1,8 +1,9 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.5
-**Date:** 2026-07-12
+**Version:** 1.6
+**Date:** 2026-08-04
+
 **Status:** Reviewed — project control (M3 complete 2026-06-02)
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
@@ -1715,7 +1716,8 @@ blocking; `Agent_Resumed_Event` is emitted after unblocking.
 | REQ-CORE-060–064 | `LLM.Agent`, `LLM.Compaction`, `LLM.Session_Store` |
 | REQ-CORE-065–068 | `LLM.Agent`, `LLM.Compaction` |
 | REQ-CORE-070–076 | `LLM.Agent`, `LLM.Settings`, `LLM.Model_Registry`, all providers |
-| REQ-CORE-080–084 | `LLM.Session_Store`, `Session_Lister` |
+| REQ-CORE-080–089 | `LLM.Session_Store`, `LLM.Agent`, `Coyote_App`, `Session_Lister` |
+
 | REQ-CORE-090–093 | `LLM.Skills`, `LLM.System_Prompt` |
 | REQ-CORE-100–107 | `Coyote_App.Frontend.Acme_Win`, `Coyote_App`, `Acme.Window`, `Nine_P.Client` |
 | REQ-CORE-108–108b | `Coyote_App`, `Coyote_App.Dispatch`, `Coyote_App.Utils`, `Session_Lister` |

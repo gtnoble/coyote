@@ -1619,3 +1619,32 @@ The MR-chart transform block already correctly branched on
   current environment.
 - **Status:** Resolved
 - **Date resolved:** 2026-08-04
+
+
+## PCR-044 — Sandbox profile session persistence requirements (2026-08-04)
+
+- **Category:** Requirements
+- **Priority:** 2-Serious
+- **Description:** Investigation found that sandbox profiles were active only
+  in the in-memory agent, were not restored from saved sessions, were not
+  changed when switching sessions, and could become inconsistent across the
+  frontend, agent, and child-process environment. The SRS did not define the
+  required persistence, restoration, propagation, or synchronization behavior.
+- **Affected work products:** SRS-CORE, SDD-CORE, Test Plan, Project Plan.
+- **Corrective action required:** Add requirements for save/resume restoration,
+  profile restoration on session switching, clearing on switching to a session
+  without a profile, end-to-end child propagation, and synchronization between
+  frontend and agent state. Add traceability and planned tests.
+- **Actions taken (2026-08-04):**
+  1. Added REQ-CORE-085 through REQ-CORE-089 to
+     `requirements/coyote-requirements.md` and advanced SRS-CORE to v1.8.
+  2. Added qualification and objective traceability for the new requirements.
+  3. Updated SDD-CORE traceability to REQ-CORE-080–089 and advanced it to
+     v1.6.
+  4. Updated Test Plan v1.6 with automated and demonstration coverage
+     references TC-085..089 and DEM-029..032.
+  5. Updated the Project Plan artifact table for SRS-CORE, SDD-CORE, and the
+     Test Plan.
+- **Status:** In Progress
+- **Next action:** Implement the requirements and add the corresponding AUnit
+  tests; then run the full development-profile test suite.

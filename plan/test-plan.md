@@ -1,7 +1,8 @@
 # Test Plan â coyote (STP)
 
-**Version:** 1.5
-**Date:** 2026-07-12
+**Version:** 1.6
+**Date:** 2026-08-04
+
 **Status:** Reviewed and acknowledged â M4 complete (2026-06-03)
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
 **Project Plan:** `plan/project-plan.md`
@@ -136,7 +137,10 @@ SRS-CORE requirement groups.
 | Test module | Requirements covered | Test count (approx.) |
 |---|---|---|
 | `llm_sse_tests.adb` | REQ-CORE-200 (SSE parsing) | ~30 |
-| `llm_session_store_tests.adb` | REQ-CORE-080â083, 240â241 | ~40 |
+| `llm_session_store_tests.adb` | REQ-CORE-080â089, 240â241 | ~45 |
+| `llm_agent_tests.adb` | REQ-CORE-040â046, 060â064 | ~80 |
+| `coyote_app_tests.adb` | REQ-CORE-085â089 (frontend/agent synchronization) | ~10 |
+
 | `llm_skills_tests.adb` | REQ-CORE-090â093 | ~20 |
 | `llm_settings_tests.adb` | REQ-CORE-230â233, 070â073 | ~25 |
 | `llm_auth_tests.adb` | REQ-CORE-232 | ~15 |
@@ -144,8 +148,8 @@ SRS-CORE requirement groups.
 | `llm_tools_tests.adb` | REQ-CORE-050â053 | ~25 |
 | `llm_system_prompt_tests.adb` | REQ-CORE-090â092 | ~10 |
 | `llm_types_tests.adb` | REQ-CORE-400â402 | ~20 |
-| `llm_agent_tests.adb` | REQ-CORE-040â046, 060â064 | ~80 |
 | `llm_parallel_tools_tests.adb` | REQ-CORE-056 (run_group) | ~15 |
+
 | `sandbox_tests.adb` | Sandbox profile subsystem | 22 |
 | `llm_context_tests.adb` | REQ-CORE-060 (compaction threshold) | ~15 |
 | `session_history_tests.adb` | REQ-CORE-130â131 | ~15 |
@@ -213,6 +217,11 @@ behaviour. Results are recorded in a Test Report.
 | DEM-026 | REQ-CORE-183 | Run a session; direct the agent to save a memory; verify a new topic file is created and MEMORY.md index is updated |
 | DEM-027 | REQ-CORE-190..191 | Run a session using subagents; verify the system prompt contains coordinator instructions and subagent results include structured summary blocks |
 | DEM-028 | REQ-CORE-192 | During a subagent run, ask the coordinator about the in-flight subagent; verify the coordinator reports status without fabricating results |
+| DEM-029 | REQ-CORE-085 | Create a session with a sandbox profile, exit, resume it with `--session UUID`, and verify the profile is restored and applied to shell commands |
+| DEM-030 | REQ-CORE-086..087 | In one running frontend, switch between sessions with different and absent sandbox profiles; verify restoration and clearing before the next tool call |
+| DEM-031 | REQ-CORE-088 | Set a sandbox profile, spawn a child coyote process, and verify the child receives the profile and applies it to a shell command |
+| DEM-032 | REQ-CORE-089 | Exercise startup, profile change, resume, and switch in Acme and GUI; verify displayed, agent, and propagated profile values remain identical |
+
 
 ### 4.4 Planned Tests â Inspection
 
@@ -275,6 +284,11 @@ These are entered as open items in the problem log (PCR-009).
 | REQ-CORE-075â076 | D | DEM-012 |
 | REQ-CORE-080â083 | T | `llm_session_store_tests.adb` |
 | REQ-CORE-084 | T/D | `session_lister_tests.adb`, DEM-018 |
+| REQ-CORE-085 | T | `llm_session_store_tests.adb`, `llm_agent_tests.adb`, DEM-029 |
+| REQ-CORE-086..087 | T | `llm_session_store_tests.adb`, `llm_agent_tests.adb`, DEM-030 |
+| REQ-CORE-088 | T | `llm_agent_tests.adb`, `coyote_app_tests.adb`, DEM-031 |
+| REQ-CORE-089 | T | `coyote_app_tests.adb`, DEM-032 |
+
 | REQ-CORE-090â093 | T | `llm_skills_tests.adb` |
 | REQ-CORE-100â109 | T/D | `acme_event_parser_tests.adb`, `tool_uri_tests.adb`, DEM-013 |
 | REQ-CORE-110â115 | T/D | `coyote_cmark_tests.adb`, DEM-014 |

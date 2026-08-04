@@ -1,7 +1,7 @@
 # Project Plan — coyote
 
-**Version:** 1.12
-**Date:** 2026-07-12
+**Version:** 1.13
+**Date:** 2026-08-04
 **Status:** Active
 
 ---
@@ -68,7 +68,7 @@ separate system-level stratum.
 
 | ID | Title | Location |
 |---|---|---|
-| SRS-CORE | coyote Requirements Specification | `requirements/coyote-requirements.md` | 1.6 (2026-07-12) | Client |
+| SRS-CORE | coyote Requirements Specification | `requirements/coyote-requirements.md` | 1.8 (2026-08-04) | Client |
 | SDD-CORE | coyote Design Description | `design/coyote-design.md` |
 | SRS-SQC | coyote_sqc Requirements Specification | `requirements/coyote-sqc-requirements.md` |
 | SDD-SQC | coyote_sqc Design Specification | `design/coyote-sqc-design.md` |
@@ -593,15 +593,36 @@ acknowledged the design without comment.
 
 ---
 
+### Review 8 — SRS-CORE v1.8 Sandbox Persistence Requirements Review (2026-08-04)
+
+**Review type:** Software requirements review
+**Trigger:** Investigation recorded in PCR-044 found that sandbox profiles were not restored on session resume or switching and could diverge across frontend, agent, and child-process state. The user requested five requirements covering persistence, clearing, propagation, and synchronization; SRS-CORE v1.8 was updated accordingly.
+
+| Indicator | Value |
+|---|---|
+| Requirements volatility | SRS-CORE v1.8 (2026-08-04): 145 requirements. 5 additions (REQ-CORE-085..089); 0 revisions; 0 deletions since v1.7. |
+| Component progress | coyote core: requirements updated; implementation and tests pending for REQ-CORE-085..089. |
+| Open problems | PCR-044 In Progress (priority 2-Serious — requirements added; implementation pending). |
+| Milestone status | Requirements update complete; implementation and test work not started. |
+| Scope changes | 3 agreed amendments since project start. |
+| Test results trend | Existing test baseline unchanged; new qualification tests are planned but not implemented. |
+
+**Issues raised at review:** None
+
+**Independence limitation:** Developer evaluated own work. User authorized the requirements update; independent review remains invited.
+
+---
+
 ## 9. Artifact Version Table
+
 
 | Artifact | ID | Location | Current Version | Control Level |
 |---|---|---|---|---|
-| Project Plan | PLAN | `plan/project-plan.md` | 1.12 (2026-07-12) | Project |
+| Project Plan | PLAN | `plan/project-plan.md` | 1.13 (2026-08-04) | Project |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
-| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.6 (2026-07-12) | Client |
-| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.4 (2026-07-12) | Project |
+| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.8 (2026-08-04) | Client |
+| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.6 (2026-08-04) | Project |
 | coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.2 (2026-06-21) | Project |
 | coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.2 (2026-06-21) | Project |
-| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.4 (2026-07-12) | Project |
+| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.6 (2026-08-04) | Project |
 | Agent Working Instructions (secondary) | AGENTS | `AGENTS.md` | active | Project |

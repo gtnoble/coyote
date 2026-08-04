@@ -1,8 +1,8 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.7
-**Date:** 2026-07-12
+**Version:** 1.8
+**Date:** 2026-08-04
 **Status:** Draft
 **Project Plan:** `plan/project-plan.md`
 
@@ -420,6 +420,32 @@ When `--no-session` is active, no JSONL file shall be created or written.
 The `coyote_list_sessions` utility shall list all sessions saved for the
 current working directory, showing session UUID, name, and date.
 
+**REQ-CORE-085** (T)
+When a saved session is resumed with `--session UUID`, the agent shall restore
+the sandbox profile recorded in that session's header. If the header contains
+no sandbox profile, the resumed agent shall use no sandbox profile.
+
+**REQ-CORE-086** (T)
+When the active agent switches to another saved session, it shall restore the
+sandbox profile recorded in the target session's header before processing the
+next tool call.
+
+**REQ-CORE-087** (T)
+When the active agent switches to a saved session whose header contains no
+sandbox profile, it shall clear the previously active sandbox profile before
+processing the next tool call.
+
+**REQ-CORE-088** (T)
+The active sandbox profile shall propagate end-to-end to child coyote
+processes: a child process created by the agent shall receive the effective
+profile, initialize its agent session with that profile, and apply it to its
+shell tool commands.
+
+**REQ-CORE-089** (T)
+The frontend state and the agent state shall remain synchronized for the
+sandbox profile. At startup, after profile changes, and after session resume
+or switching, the displayed profile, the agent's effective profile, and the
+profile propagated to child processes shall identify the same value.
 ---
 
 #### 3.1.9 Skill Discovery
@@ -1074,6 +1100,12 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-082 | Session resume loads history | T | TC-082 |
 | REQ-CORE-083 | --no-session suppresses file | T | TC-083 |
 | REQ-CORE-084 | coyote_list_sessions lists sessions | D | TC-084 |
+| REQ-CORE-085 | Sandbox profile restored on session resume | T | TC-085 |
+| REQ-CORE-086 | Sandbox profile restored on session switch | T | TC-086 |
+| REQ-CORE-087 | Sandbox cleared when target session has none | T | TC-087 |
+| REQ-CORE-088 | Sandbox profile propagated end-to-end to child coyote | T | TC-088 |
+| REQ-CORE-089 | Frontend, agent, and child sandbox state synchronized | T | TC-089 |
+
 | REQ-CORE-090 | Skill discovery from five roots | T | TC-090 |
 | REQ-CORE-091 | Incomplete SKILL.md silently skipped | T | TC-091 |
 | REQ-CORE-092 | Skills included in system prompt | D | TC-092 |
@@ -1124,7 +1156,7 @@ objectives stated in the Project Plan (PLAN §1 and §3):
 | Multi-frontend support (acme, GTK3, plain) | REQ-CORE-001–004, REQ-CORE-100–131 |
 | Streaming output | REQ-CORE-040–046, REQ-CORE-700 |
 | Tool execution | REQ-CORE-050–056 |
-| Session persistence and resume | REQ-CORE-080–084, REQ-CORE-701 |
+| Session persistence and resume | REQ-CORE-080–089, REQ-CORE-701 |
 | Context compaction | REQ-CORE-060–064 |
 | Multi-provider LLM support | REQ-CORE-070–078, REQ-CORE-150–156, REQ-CORE-200–204 |
 | Man pages for coyote and coyote_sqc | REQ-CORE-160 |
