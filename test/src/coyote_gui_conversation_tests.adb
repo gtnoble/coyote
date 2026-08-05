@@ -541,6 +541,46 @@ package body Coyote_GUI_Conversation_Tests is
       end if;
    end Test_Tool_Detail_Preserves_Arguments;
 
+   procedure Test_Tool_Card_Lifecycle_Styles (T : in out Test) is
+      Conv   : Instance;
+      Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Layout : Gtk.Layout.Gtk_Layout;
+      Header : Positive;
+      Footer : Positive;
+   begin
+      if not T.Display_Available then return; end if;
+      Make_Fresh_Conv (Conv, Scroll, Layout);
+      Conv.Begin_Tool
+        (Name       => "shell",
+         Args       => "{""command"":""printf hello""}",
+         Session_Id => "session-1",
+         Tool_Id    => "tool-card");
+
+      Header := 2;
+      Footer := Testing.Line_Count (Conv) - 1;
+      Assert (Testing.Get_Line_Style (Conv, Header) = Tool_Header,
+              "tool header uses Tool_Header style");
+      Assert (Testing.Get_Line_Style (Conv, Header + 1) = Tool_Argument,
+              "tool argument uses Tool_Argument style");
+      Assert (Testing.Get_Line_Style (Conv, Footer) = Tool_Footer,
+              "tool footer uses Tool_Footer style");
+      Assert (Testing.Is_Line_Tool_Running (Conv, Header),
+              "tool header is marked running before completion");
+      Assert (Testing.Get_Line_Tool_Status (Conv, Footer) = Success,
+              "running tool has default status");
+
+      Conv.End_Tool
+        (Tool_Id => "tool-card",
+         Status  => Error,
+         Result  => "failure");
+      Assert (not Testing.Is_Line_Tool_Running (Conv, Header),
+              "tool header is no longer running after completion");
+      Assert (Testing.Get_Line_Tool_Status (Conv, Header) = Error,
+              "completed tool status propagates to the card");
+      Assert (Testing.Get_Line_Tool_Status (Conv, Footer) = Error,
+              "completed tool status propagates to the footer");
+   end Test_Tool_Card_Lifecycle_Styles;
+
    procedure Test_Tool_Detail_Selects_Second_Interleaved (T : in out Test) is
       Conv   : Instance;
       Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;

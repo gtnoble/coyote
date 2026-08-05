@@ -555,8 +555,10 @@ Assistant text shall be rendered with GitHub Flavored Markdown formatting
 libcmark-gfm.
 
 **REQ-CORE-112** (D)
-Tool-call frames shall be embedded in the conversation view as GTK child
-anchor widgets, showing the tool name and a status indicator.
+Tool calls shall be rendered in the conversation view as graphical cards
+using the GTK renderer, showing the tool name, argument summary, running
+state, and success, error, or cancelled status indicator.  Completed cards
+shall be clickable to open the full tool-call detail window.
 
 **REQ-CORE-113** (D)
 The GUI frontend shall support the following menu actions, equivalent to the

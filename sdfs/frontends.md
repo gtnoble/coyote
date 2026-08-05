@@ -182,24 +182,22 @@ every content-section transition:
 - `Append_Notice` — blank line before notice text
 
 **Tool-call box-drawing text blocks (2026-07-30; revised 2026-08-04):**
-Replaced the `GtkFrame`/`GtkTextChildAnchor` widget-embedding approach with
-plain-text box-drawing blocks. `Begin_Tool` appends box-drawing text lines
-to the logical-line vector (`┌ ⚙ tool_name`, `│ field  value`,
-`└ … running…`) and records each block's footer line. `End_Tool` replaces
-that tool's placeholder footer in-place with the status line (`└ ✓ done`,
-`└ ✗ error`, `└ - cancelled`), including when multiple starts precede
-multiple completions.
-Clicking anywhere in a tool-call block opens a dedicated structured,
-non-modal tool-detail window (`Coyote_GUI.Tool_Detail_Window`).  The window
-separates arguments and results, shows a status banner, parses object-valued
-JSON arguments into labelled monospace views, and keeps content selectable and
-scrollable.  Generic `Show_Text_Window` remains available for session stats.
-The renderer returns structured `Tool_Info` data and preserves the original
-tool name separately from the box-drawing display line.  Hit-testing maps
-pixel coordinates to logical-line indices and checks against the `Tool_Maps`
-vector of `Tool_Block` records.
-This eliminates all widget embedding from the conversation view — no
-`GtkFrame`, `GtkTextChildAnchor`, `GtkButton`, or plumb tokens.
+The live conversation renderer originally used plain box-drawing text blocks.
+This remains the text content for selection and copying, but the visual layer
+now draws graphical cards around those rows.
+
+**Graphical tool cards (2026-08-05):**
+The live `Coyote_GUI.Conversation` renderer now assigns typed styles to tool
+header, argument, and footer rows.  Cairo draws rounded card backgrounds,
+borders, left status accents, and status-specific fills: blue while running,
+green on success, red on error, and grey on cancellation.  Tool completion
+propagates status through all rows, while the existing compact text remains
+available for selection and copying.  Pointer motion highlights completed
+cards; clicking a completed card continues to open the structured non-modal
+detail window.  The implementation preserves the flat virtualized line model
+and the interleaved completion map; no GTK child widgets are added to the live
+conversation view.
+
 
 **Markdown rendering improvements** (in `Coyote_Renderer.Markup`):
 - *Headings* sized by level: `<span size="larger">` for h1–2,

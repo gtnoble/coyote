@@ -68,6 +68,24 @@ package body Coyote_GUI.Conversation.Testing is
       return C.Lines (Index).Has_Markup;
    end Has_Markup_Flag;
 
+   function Get_Line_Style
+     (C : Instance; Index : Positive) return Line_Style is
+   begin
+      return C.Lines (Index).Style;
+   end Get_Line_Style;
+
+   function Get_Line_Tool_Status
+     (C : Instance; Index : Positive) return Tool_End_Status is
+   begin
+      return C.Lines (Index).Tool_Status;
+   end Get_Line_Tool_Status;
+
+   function Is_Line_Tool_Running
+     (C : Instance; Index : Positive) return Boolean is
+   begin
+      return C.Lines (Index).Tool_Running;
+   end Is_Line_Tool_Running;
+
    function Get_Line_Text (C : Instance; Index : Positive) return String is
       Raw : constant String := To_String (C.Lines (Index).Text);
    begin

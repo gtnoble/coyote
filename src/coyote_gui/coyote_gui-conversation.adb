@@ -97,6 +97,25 @@ package body Coyote_GUI.Conversation is
 
    procedure Queue_Draw (C : in out Instance);
 
+   procedure Draw_Rounded_Rectangle
+     (Cr     : Cairo.Cairo_Context;
+      X      : Gdouble;
+      Y      : Gdouble;
+      Width  : Gdouble;
+      Height : Gdouble;
+      Radius : Gdouble);
+
+   procedure Draw_Tool_Background
+     (Cr     : Cairo.Cairo_Context;
+      Width  : Glib.Gint;
+      Y      : Glib.Gint;
+      Height : Glib.Gint;
+      Style   : Line_Style;
+      Status  : Tool_End_Status;
+      Running : Boolean;
+      Hover   : Boolean;
+      Text    : String);
+
    procedure Copy_Selection_To_Clipboard (C : in out Instance);
 
    --  Escape XML special characters for Pango markup.
@@ -147,6 +166,116 @@ package body Coyote_GUI.Conversation is
       C.Lines (Index).Vis_Count := 0;
       C.Cache_Dirty := True;
    end Invalidate_Line;
+
+   --  ── Draw_Rounded_Rectangle ───────────────────────────────────────────
+
+   procedure Draw_Rounded_Rectangle
+     (Cr     : Cairo_Context;
+      X      : Gdouble;
+      Y      : Gdouble;
+      Width  : Gdouble;
+      Height : Gdouble;
+      Radius : Gdouble)
+   is
+      R  : constant Gdouble := Gdouble'Min
+        (Radius, Gdouble'Min (Width / 2.0, Height / 2.0));
+      Pi : constant Gdouble := 3.14159265358979323846;
+   begin
+      Move_To (Cr, X + R, Y);
+      Line_To (Cr, X + Width - R, Y);
+      Arc (Cr, X + Width - R, Y + R, R, -Pi / 2.0, 0.0);
+      Line_To (Cr, X + Width, Y + Height - R);
+      Arc (Cr, X + Width - R, Y + Height - R, R, 0.0, Pi / 2.0);
+      Line_To (Cr, X + R, Y + Height);
+      Arc (Cr, X + R, Y + Height - R, R, Pi / 2.0, Pi);
+      Line_To (Cr, X, Y + R);
+      Arc (Cr, X + R, Y + R, R, Pi, 3.0 * Pi / 2.0);
+      Close_Path (Cr);
+   end Draw_Rounded_Rectangle;
+
+   --  ── Draw_Tool_Background ──────────────────────────────────────────────
+
+   procedure Draw_Tool_Background
+     (Cr     : Cairo_Context;
+      Width  : Glib.Gint;
+      Y      : Glib.Gint;
+      Height : Glib.Gint;
+      Style   : Line_Style;
+      Status  : Tool_End_Status;
+      Running : Boolean;
+      Hover   : Boolean;
+      Text    : String)
+   is
+      pragma Unreferenced (Text);
+      Card_X   : constant Gdouble := 8.0;
+      Card_W   : constant Gdouble := Gdouble (Width) - 16.0;
+      Card_Y   : constant Gdouble := Gdouble (Y) + 1.0;
+      Card_H   : constant Gdouble := Gdouble (Height) - 2.0;
+      Radius   : constant Gdouble :=
+        (if Style = Tool_Argument then 1.5 else 6.0);
+      Accent_R : Gdouble := 0.35;
+      Accent_G : Gdouble := 0.55;
+      Accent_B : Gdouble := 0.85;
+      Fill_R   : Gdouble := 0.96;
+      Fill_G   : Gdouble := 0.97;
+      Fill_B   : Gdouble := 0.99;
+   begin
+      if Running then
+         Accent_R := 0.25;
+         Accent_G := 0.47;
+         Accent_B := 0.78;
+         Fill_R   := 0.94;
+         Fill_G   := 0.97;
+         Fill_B   := 1.0;
+      else
+         case Status is
+         when Success =>
+            Accent_R := 0.20;
+            Accent_G := 0.58;
+            Accent_B := 0.35;
+            Fill_R   := 0.94;
+            Fill_G   := 0.98;
+            Fill_B   := 0.95;
+         when Error =>
+            Accent_R := 0.78;
+            Accent_G := 0.22;
+            Accent_B := 0.22;
+            Fill_R   := 1.0;
+            Fill_G   := 0.95;
+            Fill_B   := 0.95;
+         when Cancelled =>
+            Accent_R := 0.43;
+            Accent_G := 0.47;
+            Accent_B := 0.52;
+            Fill_R   := 0.95;
+            Fill_G   := 0.96;
+            Fill_B   := 0.97;
+         end case;
+      end if;
+
+      if Hover then
+         Fill_R := Gdouble'Min (1.0, Fill_R + 0.035);
+         Fill_G := Gdouble'Min (1.0, Fill_G + 0.035);
+         Fill_B := Gdouble'Min (1.0, Fill_B + 0.035);
+      elsif Style = Tool_Footer then
+         Fill_R := Fill_R + (1.0 - Fill_R) * 0.35;
+         Fill_G := Fill_G + (1.0 - Fill_G) * 0.35;
+         Fill_B := Fill_B + (1.0 - Fill_B) * 0.35;
+      end if;
+
+      Draw_Rounded_Rectangle (Cr, Card_X, Card_Y, Card_W, Card_H, Radius);
+      Set_Source_Rgb (Cr, Fill_R, Fill_G, Fill_B);
+      Fill (Cr);
+
+      Draw_Rounded_Rectangle (Cr, Card_X, Card_Y, Card_W, Card_H, Radius);
+      Set_Source_Rgba (Cr, Accent_R, Accent_G, Accent_B, 0.34);
+      Set_Line_Width (Cr, 1.0);
+      Stroke (Cr);
+
+      Set_Source_Rgb (Cr, Accent_R, Accent_G, Accent_B);
+      Rectangle (Cr, Card_X, Card_Y, 4.0, Card_H);
+      Fill (Cr);
+   end Draw_Tool_Background;
 
    --  ── Xml_Escape ────────────────────────────────────────────────────────
 
@@ -563,6 +692,14 @@ package body Coyote_GUI.Conversation is
                     Glib.Gint (Vis_Cnt) * Current_Conv.Line_Height_Px;
                begin
                   case L.Style is
+                     when Tool_Header | Tool_Argument | Tool_Footer =>
+                        Draw_Tool_Background
+                          (Cr, Width_Px, Y_Off, Block_H, L.Style,
+                           L.Tool_Status, L.Tool_Running,
+                           Current_Conv.Hover_Tool_First > 0
+                           and then I >= Current_Conv.Hover_Tool_First
+                           and then I <= Current_Conv.Hover_Tool_Last,
+                           Text);
                      when Thinking =>
                         Set_Source_Rgba (Cr, 1.0, 0.99, 0.91, 1.0);
                         Rectangle
@@ -638,7 +775,8 @@ package body Coyote_GUI.Conversation is
                --  Set text colour and font weight by style.
                case L.Style is
                   when Thinking | Notice_Info | Plain
-                     | List_Item_Bullet | List_Item_Ordered =>
+                     | List_Item_Bullet | List_Item_Ordered
+                     | Tool_Header | Tool_Argument | Tool_Footer =>
                      Set_Source_Rgb (Cr, 0.0, 0.0, 0.0);
                   when Heading_1 | Heading_2 =>
                      Set_Source_Rgb (Cr, 0.0, 0.0, 0.0);
@@ -736,9 +874,37 @@ package body Coyote_GUI.Conversation is
    is
       pragma Unreferenced (Self);
    begin
-      if Current_Conv = null
-        or else not Current_Conv.Sel_Dragging
-      then
+      if Current_Conv = null then
+         return False;
+      end if;
+
+      declare
+         Hover_Line : Natural;
+         Hover_Byte : Natural;
+         Hover_Trail : Glib.Gint;
+         New_First  : Natural := 0;
+         New_Last   : Natural := 0;
+      begin
+         Hit_Test (Current_Conv.all,
+                   Glib.Gint (Event.X), Glib.Gint (Event.Y),
+                   Hover_Line, Hover_Byte, Hover_Trail);
+         for TB of Current_Conv.Tools loop
+            if Hover_Line >= TB.First_Line and then Hover_Line <= TB.Last_Line then
+               New_First := TB.First_Line;
+               New_Last := TB.Last_Line;
+               exit;
+            end if;
+         end loop;
+         if New_First /= Current_Conv.Hover_Tool_First
+           or else New_Last /= Current_Conv.Hover_Tool_Last
+         then
+            Current_Conv.Hover_Tool_First := New_First;
+            Current_Conv.Hover_Tool_Last := New_Last;
+            Queue_Draw (Current_Conv.all);
+         end if;
+      end;
+
+      if not Current_Conv.Sel_Dragging then
          return False;
       end if;
 
@@ -1569,8 +1735,9 @@ package body Coyote_GUI.Conversation is
       declare
          First_Line : constant Positive := Positive (C.Lines.Length) + 1;
       begin
-         Append_Line (C, Plain,
+         Append_Line (C, Tool_Header,
                       UC_BOX_TL & " " & UC_GEAR & " " & Name);
+         C.Lines (First_Line).Tool_Id := To_Unbounded_String (Tool_Id);
 
          --  Argument lines.
          if Args_Val.Kind = GNATCOLL.JSON.JSON_Object_Type then
@@ -1580,7 +1747,7 @@ package body Coyote_GUI.Conversation is
                   Field_Value : GNATCOLL.JSON.JSON_Value)
                is
                begin
-                  Append_Line (C, Plain,
+                  Append_Line (C, Tool_Argument,
                     UC_BOX_V & " "
                     & Format_Tool_Field
                         (Field_Name,
@@ -1597,8 +1764,13 @@ package body Coyote_GUI.Conversation is
          declare
             Footer_Line : constant Positive := Positive (C.Lines.Length) + 1;
          begin
-            Append_Line (C, Plain,
+            Append_Line (C, Tool_Footer,
                          UC_BOX_BL & " " & UC_ELLIP & " running" & UC_ELLIP);
+            C.Lines (Footer_Line).Tool_Running := True;
+            for I in First_Line .. Footer_Line loop
+               C.Lines (I).Tool_Id := To_Unbounded_String (Tool_Id);
+               C.Lines (I).Tool_Running := True;
+            end loop;
             Append_Line (C, Plain, "");
             C.Tool_Starts.Include
               (Tool_Id,
@@ -1658,6 +1830,12 @@ package body Coyote_GUI.Conversation is
             end case;
             Invalidate_Line (C, Start_Info.Footer_Line);
             C.Lines (Start_Info.Footer_Line).Text := Replacement;
+            C.Lines (Start_Info.Footer_Line).Tool_Status := Status;
+            C.Lines (Start_Info.Footer_Line).Tool_Running := False;
+            for I in Start_Info.First_Line .. Start_Info.Footer_Line loop
+               C.Lines (I).Tool_Status := Status;
+               C.Lines (I).Tool_Running := False;
+            end loop;
          end;
       end if;
 
@@ -1834,6 +2012,8 @@ package body Coyote_GUI.Conversation is
       C.Sel_Start_Byte := 0;
       C.Sel_End_Line := 0;
       C.Sel_End_Byte := 0;
+      C.Hover_Tool_First := 0;
+      C.Hover_Tool_Last := 0;
       C.Cache_Width_Px := 0;
       C.Cached_Line_Count := 0;
       C.Cache_Dirty := True;

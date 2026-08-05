@@ -3,7 +3,7 @@
 --  Defines the shared Update_Kind enumeration and Update record used to
 --  pass agent events from Agent_Task to the GTK main loop via the
 --  Coyote_GUI.Updates protected queue.  The idle callback on the GTK
---  thread dequeues these updates and applies them to the GtkTextBuffer.
+--  thread dequeues these updates and applies them to the GTK conversation renderer.
 --
 --  Project: coyote
 

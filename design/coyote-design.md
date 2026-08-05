@@ -158,9 +158,10 @@ replaced with Pango markup when the block completes (`End_Text_Block`).
 - **GUI frontend:** GTK3 `Gtk.Layout` with Cairo + Pango virtualized
   rendering via `Coyote_GUI.Conversation`.  Only visible lines are laid
   out and drawn; resize cost is O(visible), not O(document).  Plain UTF-8
-  text is rendered directly; markdown rendering is not yet implemented in
-  the new renderer.  Tool calls are displayed as box-drawing-text blocks;
-  thinking blocks use yellow-background paragraphs.  Notices use
+  text is rendered directly; completed blocks are rendered through the GFM
+  markdown path.  Tool calls are displayed as Cairo-drawn graphical cards
+  containing compact box-drawing text; thinking blocks use yellow-background
+  paragraphs.  Notices use
   colour-coded text, and turn separators use dim horizontal rules.
   Conversation margins are 16/12 px (left+right / top+bottom); content
   blocks are separated by blank lines for visual rhythm.
@@ -963,15 +964,20 @@ copies to clipboard, `Escape` clears.  Right-click on a selection shows a
 "Copy" context menu.  Hit-testing uses `Pango.Layout.Xy_To_Index` to map
 pixel coordinates to logical-line/byte-offset pairs.
 
-**Tool-call display:** `Begin_Tool` appends box-drawing text lines (header, argument lines,
-placeholder footer) and stores the start and footer lines plus arguments in
-`Tool_Starts`. `End_Tool` looks up the tool record, replaces that tool's
-placeholder footer in-place, and records a non-overlapping `Tool_Block`
-range for click handling.
-`Handle_Tool_Click` hit-tests the click position and checks whether it falls
-within any tool block's line range.  It returns the complete structured
-`Tool_Info` record rather than a preformatted title and content string; the
-original tool name is retained separately from the box-drawing display text.
+**Tool-call display:** `Begin_Tool` appends typed tool-card lines
+(`Tool_Header`, `Tool_Argument`, and `Tool_Footer`) to the logical-line vector.
+The Cairo draw callback renders each card row with a rounded background, border,
+left status accent, and status-specific fill.  New cards use a blue running
+appearance; completed cards use green, red, or grey accents for success, error,
+or cancellation.  The card keeps the existing compact box-drawing text as its
+content, so copying and selection remain text-compatible.  `End_Tool` replaces
+the matching footer in-place, propagates the terminal status through the card,
+and records a non-overlapping `Tool_Block` range for click handling.  Pointer
+motion highlights the completed card under the cursor without introducing GTK
+child-widget lifetime management.  `Handle_Tool_Click` continues to return the
+complete structured `Tool_Info` record, and clicking a completed card opens the
+non-modal detail window.
+
 
 **`Coyote_GUI.Tool_Detail_Window`:** The main GTK frontend opens a dedicated
 non-modal transient window for a clicked tool call.  It presents the tool name

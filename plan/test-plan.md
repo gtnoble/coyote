@@ -93,10 +93,11 @@ and are **opt-in** (guarded by environment variable checks at test startup):
 See `plan/integration-test-guide.md` for full setup instructions.
 
 ### 3.4 Known Test Environment Constraints
-
-- GUI frontend tests that exercise `Coyote_GUI.Buffer` require GTK3 to be
-  installed, but do not require a display (GtkTextBuffer can be created
-  headlessly).
+- GUI conversation tests that exercise `Coyote_GUI.Conversation` require GTK3
+to be installed and a display (or `xvfb-run`); they create a `Gtk.Layout` and
+exercise the Cairo/Pango virtualized renderer.  Tests of the old
+`Coyote_GUI.Buffer` are no longer part of the live GUI path.  Headless
+`GtkTextBuffer` tests, when present, do not require a display.
 - Tests that require `$DISPLAY` or `$WAYLAND_DISPLAY` for window creation
   are not part of the standard automated suite.
 
@@ -319,6 +320,13 @@ These are entered as open items in the problem log (PCR-009).
 ---
 
 ## 7. Notes
+
+**Verification as of 2026-08-05 (live GTK graphical tool cards):**
+The focused GUI conversation set now runs 32 tests and includes the
+new tool-card lifecycle regression, covering typed header/argument/footer rows,
+running state, and terminal status propagation.  The production and test projects build successfully in the
+required development profile.  Display-backed test execution requires an
+available GTK display; the current environment has no DISPLAY/WAYLAND_DISPLAY.
 
 **Verification as of 2026-08-04 (live GTK interleaved tool-detail fix):**
 The focused GUI conversation set runs 31 tests with 0 failures and 0 unexpected

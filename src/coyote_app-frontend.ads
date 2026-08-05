@@ -91,8 +91,8 @@ package Coyote_App.Frontend is
    --  End_Tool closes the segment.  For status Success the Result_Text is
    --  empty (summary shown only); for Error the first ~80 chars of
    --  Result_Text are shown as a preview; for Cancelled it is ignored.
-   --  In the GUI, clicking any tool segment opens the full
-   --  detail in $PAGER regardless of status.
+   --  In the GUI, clicking any completed tool card opens the full
+   --  structured detail window regardless of status.
 
    type Tool_End_Status is (Success, Error, Cancelled);
 
@@ -150,7 +150,7 @@ package Coyote_App.Frontend is
    --  ── Supplementary detail ─────────────────────────────────────────────
    --
    --  Show a named block of content outside the main conversation view.
-   --  Acme opens a sub-window; GUI opens it in $PAGER.
+   --  Acme opens a sub-window; GUI opens a structured GTK detail window.
    --  Title is used as the sub-window name (acme) or temp-file name (GUI/plain).
 
    procedure Show_Detail

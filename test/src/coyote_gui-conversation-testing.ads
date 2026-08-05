@@ -43,6 +43,18 @@ package Coyote_GUI.Conversation.Testing is
    function Has_Markup_Flag (C : Instance; Index : Positive) return Boolean;
    --  True when logical line Index has Has_Markup = True.
 
+   function Get_Line_Style
+     (C : Instance; Index : Positive) return Line_Style;
+   --  Style assigned to logical line Index.
+
+   function Get_Line_Tool_Status
+     (C : Instance; Index : Positive) return Tool_End_Status;
+   --  Tool status assigned to logical line Index.
+
+   function Is_Line_Tool_Running
+     (C : Instance; Index : Positive) return Boolean;
+   --  True while logical line Index belongs to a running tool card.
+
    function Get_Line_Text (C : Instance; Index : Positive) return String;
    --  Raw text of logical line Index (Pango markup stripped if present).
 

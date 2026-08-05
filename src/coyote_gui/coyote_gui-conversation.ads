@@ -47,7 +47,10 @@ package Coyote_GUI.Conversation is
       Notice_Warn,        --  amber notice
       Notice_Error,       --  red notice
       Footer,             --  dim horizontal-rule turn separator
-      Action_Strip);      --  clickable fork action
+      Action_Strip,         --  clickable fork action
+      Tool_Header,          --  graphical tool-card header
+      Tool_Argument,        --  graphical tool-card argument
+      Tool_Footer);         --  graphical tool-card status
 
    --  ── Tool and action metadata ──────────────────────────────────────────
 
@@ -185,6 +188,9 @@ private
       Text       : Unbounded_String;
       Has_Markup : Boolean := False;  --  Text contains Pango markup
       Vis_Count  : Natural := 0;       --  cached visual line count
+      Tool_Id      : Unbounded_String;
+      Tool_Status  : Tool_End_Status := Success;
+      Tool_Running : Boolean := False;
       case Style is
          when Action_Strip =>
             Action : Action_Info;
@@ -252,6 +258,9 @@ private
       Sel_Start_Byte   : Natural := 0;
       Sel_End_Line     : Natural := 0;
       Sel_End_Byte     : Natural := 0;
+      --  Tool-card hover state.  Zero means no completed card is hovered.
+      Hover_Tool_First : Natural := 0;
+      Hover_Tool_Last  : Natural := 0;
       --  Action sequence for unique tag names
       Action_Seq       : Natural := 0;
    end record;
