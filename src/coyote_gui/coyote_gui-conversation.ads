@@ -205,8 +205,9 @@ private
    package Tool_Maps is new Ada.Containers.Vectors (Positive, Tool_Block);
 
    type Tool_Start_Info is record
-      First_Line : Positive;
-      Args       : Unbounded_String;
+      First_Line  : Positive;
+      Footer_Line : Positive;
+      Args        : Unbounded_String;
    end record;
 
    package Tool_Start_Maps is new Ada.Containers.Indefinite_Hashed_Maps
@@ -229,10 +230,7 @@ private
       Prefix_Emitted    : Boolean := False;
       Thinking_UTF8     : Coyote_App.Utils.UTF8_Stream.Instance;
       Thinking_Tok      : Coyote_App.Utils.Thinking_Tokenizer.Instance;
-      --  Current tool being built (Begin_Tool .. End_Tool)
-      Cur_Tool_First   : Natural := 0;
-      Cur_Tool_Id      : Unbounded_String;
-      Tool_Starts      : Tool_Start_Maps.Map;
+      Tool_Starts        : Tool_Start_Maps.Map;
       --  Layout
       Line_Height_Px   : Glib.Gint := 18;
       --  Reusable layout objects for measuring and drawing lines.

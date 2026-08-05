@@ -179,7 +179,7 @@ SRS-CORE requirement groups.
 | `acme_event_parser_tests.adb` | REQ-CORE-100â109 | ~20 |
 | `acme_raw_events_tests.adb` | REQ-CORE-100 | ~10 |
 
-**Total automated tests (current):** **822**
+**Total automated tests (current):** **823**
 
 ### 4.3 Planned Tests â Demonstration
 
@@ -320,9 +320,13 @@ These are entered as open items in the problem log (PCR-009).
 
 ## 7. Notes
 
-**Baseline as of 2026-08-04 (live GTK tool-detail arguments fix):**
-822 tests, 0 failures, 0 unexpected errors. Added a regression test verifying
-completed live tool-call details retain their arguments.
+**Verification as of 2026-08-04 (live GTK interleaved tool-detail fix):**
+The focused GUI conversation set runs 31 tests with 0 failures and 0 unexpected
+errors, including a regression test verifying that completing multiple
+interleaved tool calls preserves independent detail ranges and selects the
+second tool correctly. A full-suite run was attempted but timed out during
+existing live/network activity; the prior 822-test baseline remains the last
+completed full-suite baseline.
 
 **Baseline as of 2026-08-04 (PCR-044 sandbox profile restoration):**
 821 tests, 0 failures, 0 unexpected errors. Added one session-store accessor

@@ -928,9 +928,10 @@ regardless of document size.
 line carries a `Line_Style` discriminant (`Plain`, `Thinking`, `Notice_Info`,
 `Notice_Warn`, `Notice_Error`, `Footer`, `Action_Strip`) and optional metadata
 (tool info, action data).  Tool blocks are tracked in a `Tool_Maps.Vector` of
-`Tool_Block` records (first line, last line, tool info).  A `Tool_Start_Maps`
-hashed map keyed by `Tool_Id` stores each tool block's start line for
-concurrent tool batches.
+`Tool_Block` records (first line, last line, tool info).  A `Tool_Start_Maps` hashed map keyed by `Tool_Id` stores each tool block's
+start line, footer line, and arguments for concurrent tool batches. The
+footer line is captured when the block is appended, so completion events can
+replace the correct placeholder even when all tool starts precede all ends.
 
 **Rendering (`On_Draw`):**
 1. Compute `First_Vis` from the scroll position and line height.
@@ -959,10 +960,11 @@ copies to clipboard, `Escape` clears.  Right-click on a selection shows a
 "Copy" context menu.  Hit-testing uses `Pango.Layout.Xy_To_Index` to map
 pixel coordinates to logical-line/byte-offset pairs.
 
-**Tool-call display:** `Begin_Tool` appends box-drawing text lines (header,
-argument lines, placeholder footer) and stores the start line in
-`Tool_Starts`.  `End_Tool` looks up the start line, replaces the placeholder
-footer in-place, and records a `Tool_Block` for click handling.
+**Tool-call display:** `Begin_Tool` appends box-drawing text lines (header, argument lines,
+placeholder footer) and stores the start and footer lines plus arguments in
+`Tool_Starts`. `End_Tool` looks up the tool record, replaces that tool's
+placeholder footer in-place, and records a non-overlapping `Tool_Block`
+range for click handling.
 `Handle_Tool_Click` hit-tests the click position and checks whether it falls
 within any tool block's line range.
 
@@ -995,7 +997,7 @@ plain `Logical_Line` entries (the original behaviour).
 **`Clear` procedure:** Resets all conversation state to empty — clears the
 logical line and tool-block vectors, the tool-start map, all streaming
 state (`In_Text_Block`, `In_Thinking`, `Stream_Buf`, `Prefix_Emitted`,
-`Cur_Tool_First`, `Cur_Tool_Id`), the thinking tokenizer, the selection
+the thinking tokenizer, the selection
 state, and the layout cache.  Calls `Recompute_Vis_Lines` and `Queue_Draw`
 to refresh the display.  Used when replacing the current session with a
 fresh one via `File → New Session`.

@@ -1566,39 +1566,47 @@ package body Coyote_GUI.Conversation is
       Append_Line (C, Plain, "");
 
       --  Header line.
-      C.Cur_Tool_First := Positive (C.Lines.Length) + 1;
-      C.Cur_Tool_Id    := To_Unbounded_String (Tool_Id);
-      C.Tool_Starts.Include
-        (Tool_Id,
-         (First_Line => C.Cur_Tool_First,
-          Args       => To_Unbounded_String (Args)));
-      Append_Line (C, Plain,
-                   UC_BOX_TL & " " & UC_GEAR & " " & Name);
+      declare
+         First_Line : constant Positive := Positive (C.Lines.Length) + 1;
+      begin
+         Append_Line (C, Plain,
+                      UC_BOX_TL & " " & UC_GEAR & " " & Name);
 
-      --  Argument lines.
-      if Args_Val.Kind = GNATCOLL.JSON.JSON_Object_Type then
-         declare
-            procedure Add_Arg_Line
-              (Field_Name  : GNATCOLL.JSON.UTF8_String;
-               Field_Value : GNATCOLL.JSON.JSON_Value)
-            is
+         --  Argument lines.
+         if Args_Val.Kind = GNATCOLL.JSON.JSON_Object_Type then
+            declare
+               procedure Add_Arg_Line
+                 (Field_Name  : GNATCOLL.JSON.UTF8_String;
+                  Field_Value : GNATCOLL.JSON.JSON_Value)
+               is
+               begin
+                  Append_Line (C, Plain,
+                    UC_BOX_V & " "
+                    & Format_Tool_Field
+                        (Field_Name,
+                         JSON_Scalar_Image (Field_Value),
+                         Max_Len => 80));
+               end Add_Arg_Line;
             begin
-               Append_Line (C, Plain,
-                 UC_BOX_V & " "
-                 & Format_Tool_Field
-                     (Field_Name,
-                      JSON_Scalar_Image (Field_Value),
-                      Max_Len => 80));
-            end Add_Arg_Line;
-         begin
-            Args_Val.Map_JSON_Object (Add_Arg_Line'Access);
-         end;
-      end if;
+               Args_Val.Map_JSON_Object (Add_Arg_Line'Access);
+            end;
+         end if;
 
-      --  Footer placeholder.
-      Append_Line (C, Plain,
-                   UC_BOX_BL & " " & UC_ELLIP & " running" & UC_ELLIP);
-      Append_Line (C, Plain, "");
+         --  Store the exact footer line so interleaved tool completions can
+         --  update their own placeholders.
+         declare
+            Footer_Line : constant Positive := Positive (C.Lines.Length) + 1;
+         begin
+            Append_Line (C, Plain,
+                         UC_BOX_BL & " " & UC_ELLIP & " running" & UC_ELLIP);
+            Append_Line (C, Plain, "");
+            C.Tool_Starts.Include
+              (Tool_Id,
+               (First_Line  => First_Line,
+                Footer_Line => Footer_Line,
+                Args        => To_Unbounded_String (Args)));
+         end;
+      end;
 
       Recompute_Vis_Lines (C);
       Queue_Draw (C);
@@ -1614,7 +1622,6 @@ package body Coyote_GUI.Conversation is
       Pos        : Cursor := C.Tool_Starts.Find (Tool_Id);
       Start_Info : Tool_Start_Info;
       First_Idx  : Positive;
-      Last_Idx   : constant Positive := Positive (C.Lines.Length);
    begin
       Debug_Log (C, "End_Tool tool_id=" & Tool_Id
                  & " status=" & Tool_End_Status'Image (Status));
@@ -1624,9 +1631,8 @@ package body Coyote_GUI.Conversation is
       Start_Info := Element (Pos);
       First_Idx  := Start_Info.First_Line;
 
-      --  Replace the placeholder footer line (second-to-last line, before
-      --  the trailing blank line).
-      if Last_Idx > First_Idx + 1 then
+      --  Replace the completed tool's own footer placeholder.
+      if Start_Info.Footer_Line <= Positive (C.Lines.Length) then
          declare
             Replacement : Unbounded_String;
          begin
@@ -1649,17 +1655,17 @@ package body Coyote_GUI.Conversation is
                   Replacement := To_Unbounded_String
                     (UC_BOX_BL & " - cancelled");
             end case;
-            Invalidate_Line (C, Last_Idx - 1);
-            C.Lines (Last_Idx - 1).Text := Replacement;
+            Invalidate_Line (C, Start_Info.Footer_Line);
+            C.Lines (Start_Info.Footer_Line).Text := Replacement;
          end;
       end if;
 
-      --  Record tool block for click handling.
+      --  Record a non-overlapping range for click handling.
       declare
          TB : Tool_Block;
       begin
          TB.First_Line := First_Idx;
-         TB.Last_Line  := Last_Idx;
+         TB.Last_Line  := Start_Info.Footer_Line;
          TB.Info.Name  := To_Unbounded_String
            (To_String (C.Lines (First_Idx).Text));
          TB.Info.Args  := Start_Info.Args;
@@ -1828,8 +1834,6 @@ package body Coyote_GUI.Conversation is
       C.Prefix_Emitted := False;
       C.Thinking_UTF8.Reset;
       C.Thinking_Tok.Reset;
-      C.Cur_Tool_First := 0;
-      C.Cur_Tool_Id := Ada.Strings.Unbounded.Null_Unbounded_String;
       C.Sel_Dragging := False;
       C.Sel_Visible := False;
       C.Sel_Start_Line := 0;

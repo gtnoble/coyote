@@ -1660,3 +1660,27 @@ The MR-chart transform block already correctly branched on
 Plan, Test Plan, integration-test guide, frontend/core SDFs, review-plan notes,
 and review reports to reflect the implemented restoration and synchronization
 behavior, current test baseline, and remaining manual qualification scope.
+
+
+## PCR-045 — GUI interleaved tool-call detail selection (2026-08-04)
+
+- **Category:** Code
+- **Priority:** 2-Serious
+- **Description:** The GTK conversation renderer assigned every completed
+  tool block a range extending to the current document end and replaced the
+  document's last footer. When a turn contained multiple tool calls, all
+  completion events therefore overlapped the displayed ranges and clicking
+  later tool calls returned the first tool's detail.
+- **Affected work products:** `Coyote_GUI.Conversation`, GUI conversation
+  tests, core design description, frontend development log, Test Plan.
+- **Corrective action:** `Tool_Start_Info` now stores the exact footer line
+  when `Begin_Tool` appends a block. `End_Tool` updates that stored footer and
+  records a block range ending at the tool's own footer. Added a regression
+  test covering two starts followed by two completions and selection of the
+  second tool.
+- **Verification:** Development build succeeds. The focused GUI
+  conversation tests pass, including the new interleaved-tool regression.
+  A full-suite run was attempted but timed out during existing live/network
+  activity; no failure was attributed to this change.
+- **Status:** Resolved
+- **Date resolved:** 2026-08-04

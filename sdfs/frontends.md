@@ -181,12 +181,14 @@ every content-section transition:
 - `Begin_Tool` — blank line before tool-call text block
 - `Append_Notice` — blank line before notice text
 
-**Tool-call box-drawing text blocks (2026-07-30; revised 2026-07-31):**
+**Tool-call box-drawing text blocks (2026-07-30; revised 2026-08-04):**
 Replaced the `GtkFrame`/`GtkTextChildAnchor` widget-embedding approach with
-plain-text box-drawing blocks.  `Begin_Tool` appends box-drawing text lines
+plain-text box-drawing blocks. `Begin_Tool` appends box-drawing text lines
 to the logical-line vector (`┌ ⚙ tool_name`, `│ field  value`,
-`└ … running…`).  `End_Tool` replaces the placeholder footer line in-place
-with the status line (`└ ✓ done`, `└ ✗ error`, `└ - cancelled`).
+`└ … running…`) and records each block's footer line. `End_Tool` replaces
+that tool's placeholder footer in-place with the status line (`└ ✓ done`,
+`└ ✗ error`, `└ - cancelled`), including when multiple starts precede
+multiple completions.
 Clicking anywhere in a tool-call block opens a monospace detail window
 (`Show_Text_Window`) showing the tool arguments and result.  In the
 renderer, hit-testing maps pixel coordinates to logical-line

@@ -537,6 +537,59 @@ package body Coyote_GUI_Conversation_Tests is
       end if;
    end Test_Tool_Detail_Preserves_Arguments;
 
+   procedure Test_Tool_Detail_Selects_Second_Interleaved (T : in out Test) is
+      Conv   : Instance;
+      Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Layout : Gtk.Layout.Gtk_Layout;
+      Click          : Tool_Click_Result;
+      Found_Second   : Boolean := False;
+      Line_Height    : Glib.Gint;
+
+   begin
+      if not T.Display_Available then return; end if;
+      Make_Fresh_Conv (Conv, Scroll, Layout);
+      Line_Height := Testing.Line_Height_Px (Conv);
+      Conv.Begin_Tool
+        (Name       => "shell",
+         Args       => "{""command"":""first""}",
+         Session_Id => "session-1",
+         Tool_Id    => "tool-1");
+      Conv.Begin_Tool
+        (Name       => "shell",
+         Args       => "{""command"":""second""}",
+         Session_Id => "session-1",
+         Tool_Id    => "tool-2");
+      Conv.End_Tool
+        (Tool_Id => "tool-1",
+         Status  => Success,
+         Result  => "first result");
+      Conv.End_Tool
+        (Tool_Id => "tool-2",
+         Status  => Success,
+         Result  => "second result");
+
+      --  Search the rendered rows so the test remains independent of the
+      --  number of logical rows used to display the argument field.
+      if Testing.Total_Vis_Lines (Conv) > 0 then
+         for I in 0 .. Testing.Total_Vis_Lines (Conv) - 1 loop
+            Click := Conv.Handle_Tool_Click
+              (X => 1,
+               Y => Glib.Gint (I) * Line_Height + 1);
+            if Click.Found
+              and then To_String (Click.Content) =
+                "Arguments:" & ASCII.LF
+                & "{""command"":""second""}" & ASCII.LF & ASCII.LF
+                & "Result:" & ASCII.LF & "second result"
+            then
+               Found_Second := True;
+               exit;
+            end if;
+         end loop;
+      end if;
+      Assert (Found_Second,
+              "clicking the second completed tool block returns its detail");
+   end Test_Tool_Detail_Selects_Second_Interleaved;
+
    --  ── Markdown-rendering tests ───────────────────────────────────────────
 
    procedure Test_Markdown_Paragraph_Has_Markup_Flag (T : in out Test) is

@@ -2865,6 +2865,11 @@ package body Test_Suites is
          Coyote_GUI_Conversation_Tests
            .Test_Tool_Detail_Preserves_Arguments'Access));
       Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation selects interleaved second tool",
+         Coyote_GUI_Conversation_Tests
+           .Test_Tool_Detail_Selects_Second_Interleaved'Access));
+
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
         ("Coyote.GUI.Conversation notices do not enter text block",
          Coyote_GUI_Conversation_Tests.Test_Notice_Does_Not_Enter_Text_Block'Access));
       Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
