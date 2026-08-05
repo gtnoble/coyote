@@ -1604,6 +1604,7 @@ package body Coyote_GUI.Conversation is
               (Tool_Id,
                (First_Line  => First_Line,
                 Footer_Line => Footer_Line,
+                Name        => To_Unbounded_String (Name),
                 Args        => To_Unbounded_String (Args)));
          end;
       end;
@@ -1666,8 +1667,7 @@ package body Coyote_GUI.Conversation is
       begin
          TB.First_Line := First_Idx;
          TB.Last_Line  := Start_Info.Footer_Line;
-         TB.Info.Name  := To_Unbounded_String
-           (To_String (C.Lines (First_Idx).Text));
+         TB.Info.Name  := Start_Info.Name;
          TB.Info.Args  := Start_Info.Args;
          TB.Info.Result_Text   := To_Unbounded_String (Result);
          TB.Info.Result_Status := Status;
@@ -1700,13 +1700,7 @@ package body Coyote_GUI.Conversation is
             declare
                Result : Tool_Click_Result (Found => True);
             begin
-               Result.Title := To_Unbounded_String
-                 ("Tool: " & To_String (TB.Info.Name));
-               Result.Content := To_Unbounded_String
-                 ("Arguments:" & ASCII.LF
-                  & To_String (TB.Info.Args) & ASCII.LF & ASCII.LF
-                  & "Result:" & ASCII.LF
-                  & To_String (TB.Info.Result_Text));
+               Result.Info := TB.Info;
                return Result;
             end;
          end if;

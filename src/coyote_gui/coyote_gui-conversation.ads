@@ -76,8 +76,7 @@ package Coyote_GUI.Conversation is
    type Tool_Click_Result (Found : Boolean := False) is record
       case Found is
          when True =>
-            Title   : Unbounded_String;
-            Content : Unbounded_String;
+            Info : Tool_Info;
          when False =>
             null;
       end case;
@@ -207,6 +206,7 @@ private
    type Tool_Start_Info is record
       First_Line  : Positive;
       Footer_Line : Positive;
+      Name        : Unbounded_String;
       Args        : Unbounded_String;
    end record;
 

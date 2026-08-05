@@ -529,11 +529,15 @@ package body Coyote_GUI_Conversation_Tests is
       Assert (Click.Found,
               "clicking a completed tool block returns detail");
       if Click.Found then
-         Assert (To_String (Click.Content) =
-                   "Arguments:" & ASCII.LF
-                   & "{""command"":""printf hello""}" & ASCII.LF
-                   & ASCII.LF & "Result:" & ASCII.LF & "hello",
+         Assert (To_String (Click.Info.Name) = "shell",
+                 "tool detail preserves the original tool name");
+         Assert (To_String (Click.Info.Args) =
+                   "{""command"":""printf hello""}",
                  "tool detail preserves the original arguments");
+         Assert (To_String (Click.Info.Result_Text) = "hello",
+                 "tool detail preserves the result");
+         Assert (Click.Info.Result_Status = Success,
+                 "tool detail preserves the result status");
       end if;
    end Test_Tool_Detail_Preserves_Arguments;
 
@@ -576,10 +580,10 @@ package body Coyote_GUI_Conversation_Tests is
               (X => 1,
                Y => Glib.Gint (I) * Line_Height + 1);
             if Click.Found
-              and then To_String (Click.Content) =
-                "Arguments:" & ASCII.LF
-                & "{""command"":""second""}" & ASCII.LF & ASCII.LF
-                & "Result:" & ASCII.LF & "second result"
+              and then To_String (Click.Info.Name) = "shell"
+              and then To_String (Click.Info.Args) =
+                "{""command"":""second""}"
+              and then To_String (Click.Info.Result_Text) = "second result"
             then
                Found_Second := True;
                exit;

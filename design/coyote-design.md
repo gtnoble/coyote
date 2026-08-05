@@ -236,6 +236,7 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `Coyote_GUI.Updates` | Protected agent→GTK queue | `src/coyote_gui/coyote_gui-updates.ads/.adb` |
 | `Coyote_GUI.Prompt_Queue` | Protected GTK→agent queue | `src/coyote_gui/coyote_gui-prompt_queue.ads/.adb` |
 | `Coyote_GUI.Conversation` | GtkLayout-based virtualized conversation renderer | `src/coyote_gui/coyote_gui-conversation.ads/.adb` |
+| `Coyote_GUI.Tool_Detail_Window` | Structured GTK tool-call detail window | `src/coyote_gui/coyote_gui-tool_detail_window.ads/.adb` |
 | `Coyote_Utils` | CLI arg resolution, file reading, session prefix stripping | `src/coyote_utils.ads/.adb` |
 | `LLM` | Root package | `src/llm/llm.ads` |
 | `LLM.Types` | Message, content block, usage types | `src/llm/llm-types.ads/.adb` |
@@ -292,7 +293,9 @@ three layers:
   Coyote_App.Utils
         │
         ├─► Coyote_App.Frontend.Acme_Win ──► Acme.Window, Nine_P.Client
-        ├─► Coyote_App.Frontend.GUI ──► Coyote_GUI.Conversation, Coyote_GUI.Updates,
+        ├─► Coyote_App.Frontend.GUI ──► Coyote_GUI.Conversation,
+        │                                  Coyote_GUI.Tool_Detail_Window,
+        │                                  Coyote_GUI.Updates,
         │                                  Coyote_GUI.Prompt_Queue
         └─► Coyote_App.Frontend.Plain
         │
@@ -966,7 +969,17 @@ placeholder footer) and stores the start and footer lines plus arguments in
 placeholder footer in-place, and records a non-overlapping `Tool_Block`
 range for click handling.
 `Handle_Tool_Click` hit-tests the click position and checks whether it falls
-within any tool block's line range.
+within any tool block's line range.  It returns the complete structured
+`Tool_Info` record rather than a preformatted title and content string; the
+original tool name is retained separately from the box-drawing display text.
+
+**`Coyote_GUI.Tool_Detail_Window`:** The main GTK frontend opens a dedicated
+non-modal transient window for a clicked tool call.  It presents the tool name
+and status in a header, separates arguments from results into framed sections,
+parses top-level JSON argument fields into labelled monospace views, applies
+status-specific CSS accents, derives the monospace point size from GTK's
+system font setting, and keeps the result selectable and scrollable.  The
+existing generic text window remains in use for session statistics.
 
 **Thinking blocks:** `Append_Thinking` collapses deltas via
 `Collapse_Thinking_Delta` and appends to the last line's text (not creating

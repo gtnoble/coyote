@@ -189,10 +189,15 @@ to the logical-line vector (`┌ ⚙ tool_name`, `│ field  value`,
 that tool's placeholder footer in-place with the status line (`└ ✓ done`,
 `└ ✗ error`, `└ - cancelled`), including when multiple starts precede
 multiple completions.
-Clicking anywhere in a tool-call block opens a monospace detail window
-(`Show_Text_Window`) showing the tool arguments and result.  In the
-renderer, hit-testing maps pixel coordinates to logical-line
-indices and checks against the `Tool_Maps` vector of `Tool_Block` records.
+Clicking anywhere in a tool-call block opens a dedicated structured,
+non-modal tool-detail window (`Coyote_GUI.Tool_Detail_Window`).  The window
+separates arguments and results, shows a status banner, parses object-valued
+JSON arguments into labelled monospace views, and keeps content selectable and
+scrollable.  Generic `Show_Text_Window` remains available for session stats.
+The renderer returns structured `Tool_Info` data and preserves the original
+tool name separately from the box-drawing display line.  Hit-testing maps
+pixel coordinates to logical-line indices and checks against the `Tool_Maps`
+vector of `Tool_Block` records.
 This eliminates all widget embedding from the conversation view — no
 `GtkFrame`, `GtkTextChildAnchor`, `GtkButton`, or plumb tokens.
 
@@ -282,9 +287,10 @@ let the user explicitly control the behaviour.
 
 ## Unit Test Coverage Notes
 
-- `Coyote_GUI.Conversation`: partially covered; the AUnit suite can create a
-  `Gtk.Layout` without a display (headless GTK); signal handlers and
-  rendering logic are exercised via integration tests.
+- `Coyote_GUI.Conversation`: covered by AUnit tests for tool metadata
+  preservation, interleaved tool selection, streaming, layout, and rendering.
+- `Coyote_GUI.Tool_Detail_Window`: compiled and linked into the main GUI;
+  display-backed visual qualification remains manual.
 - `Coyote_Cmark`: covered by AUnit tests — parse round-trips for each GFM
   node type; extension handling; null-safety of `cmark_shim_get_literal`.
 - `Acme.*` / `Nine_P.*`: covered by integration tests in

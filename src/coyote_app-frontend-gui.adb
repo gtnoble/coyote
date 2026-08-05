@@ -52,6 +52,7 @@ with GNATCOLL.OS.Process;
 with LLM.Agent;
 with LLM.Providers;
 with Coyote_App.Utils;
+with Coyote_GUI.Tool_Detail_Window;
 with LLM.Model_Registry;
 with LLM.Tools.Sandbox;
 
@@ -158,8 +159,8 @@ package body Coyote_App.Frontend.GUI is
              (Glib.Gint (Event.X), Glib.Gint (Event.Y));
       begin
          if Result.Found then
-            Show_Text_Window
-              (To_String (Result.Title), To_String (Result.Content));
+            Coyote_GUI.Tool_Detail_Window.Show
+              (Result.Info, Current_Frontend.Win.all'Access);
             return True;
          end if;
       end;
