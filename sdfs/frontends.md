@@ -102,6 +102,15 @@ process state.
 AUnit regressions. End-to-end frontend and child-process behavior remains in
 manual qualification demonstrations DEM-031 and DEM-032.
 
+### PCR-046 GUI status sandbox display (2026-08-06)
+
+The shared `Coyote_App.Dispatch.Format_Status` formatter now includes the
+active `App_State.Current_Sandbox` profile. The Acme and GUI local status-label
+helpers return only the lifecycle state, preventing duplicate profile suffixes
+when explicit menu updates refresh the status. Added formatter and dispatch
+regressions; the complete AUnit suite passes with 825 tests.
+
+
 ### Drawing_Area-based virtualized rendering (2026-07-31)
 
 The conversation view was migrated from `GtkTextView`/`GtkTextBuffer` to a

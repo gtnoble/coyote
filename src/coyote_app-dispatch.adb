@@ -41,6 +41,7 @@ package body Coyote_App.Dispatch is
       Model_Text   : constant String  := State.Current_Model;
       Session_Text : constant String  := State.Session_Id;
       Think_Text   : constant String  := State.Current_Thinking;
+      Sandbox_Text : constant String  := State.Current_Sandbox;
       Input_Tokens : constant Natural := State.Turn_Input_Tokens;
       Ctx_Window   : constant Natural := State.Context_Window;
       Tools_Running_N : constant Natural := State.Tools_Running;
@@ -52,6 +53,10 @@ package body Coyote_App.Dispatch is
          else "");
       Think_Part   : constant String :=
         (if Think_Text'Length > 0 then " ~" & Think_Text else "");
+      Sandbox_Part : constant String :=
+        (if Sandbox_Text'Length > 0
+         then " [" & Sandbox_Text & "]"
+         else "");
       Session_Part : constant String :=
         (if Session_Text'Length >= 8
          then " session:"
@@ -75,7 +80,7 @@ package body Coyote_App.Dispatch is
          else "");
    begin
       return UC_BULLET & " " & Extra
-             & Model_Part & Think_Part
+             & Model_Part & Think_Part & Sandbox_Part
              & Context_Part & Tool_Part & Session_Part;
    end Format_Status;
 

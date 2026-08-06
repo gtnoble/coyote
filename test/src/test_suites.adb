@@ -855,6 +855,9 @@ package body Test_Suites is
       Result.Add_Test (App_State_Caller.Create
         ("Format_Status: thinking level shown as "" ~level""",
          Coyote_App_Tests.Test_Format_Status_With_Thinking'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_Status: sandbox profile shown as ""[profile]""",
+         Coyote_App_Tests.Test_Format_Status_With_Sandbox'Access));
 
       --  Apply_Prompt_Filter
       Result.Add_Test (App_State_Caller.Create

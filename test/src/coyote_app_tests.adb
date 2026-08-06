@@ -1364,6 +1364,17 @@ package body Coyote_App_Tests is
               "Thinking level -> "" ~medium"" in status");
    end Test_Format_Status_With_Thinking;
 
+   --  When a sandbox profile is active, its name appears in the status.
+   procedure Test_Format_Status_With_Sandbox (T : in out Test) is
+      pragma Unreferenced (T);
+      S : App_State;
+   begin
+      S.Set_Sandbox ("restricted");
+      Assert (Status_Contains (Format_Status (S, "running"),
+                               " [restricted]"),
+              "Sandbox profile should appear in the status");
+   end Test_Format_Status_With_Sandbox;
+
    --  ── Format_Model_Price ───────────────────────────────────────────────
 
    procedure Test_Format_Model_Price_All_Zeros (T : in out Test) is

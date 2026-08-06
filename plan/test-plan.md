@@ -336,6 +336,11 @@ second tool correctly. A full-suite run was attempted but timed out during
 existing live/network activity; the prior 822-test baseline remains the last
 completed full-suite baseline.
 
+**Baseline as of 2026-08-06 (PCR-046 GUI sandbox status):**
+825 tests, 0 failures, 0 unexpected errors. Added one formatter regression and
+extended one dispatch regression. The tests verify that a non-empty sandbox
+profile remains in the status text after lifecycle/status refreshes.
+
 **Baseline as of 2026-08-04 (PCR-044 sandbox profile restoration):**
 821 tests, 0 failures, 0 unexpected errors. Added one session-store accessor
 regression and two agent session resume/switch regressions. The tests verify

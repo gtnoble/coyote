@@ -833,7 +833,7 @@ package body Dispatch_Tests is
               (LLM.Events.Agent_Event with
                Session_Id      => To_Unbounded_String ("test-uuid-1234"),
                Thinking_Level  => To_Unbounded_String ("medium"),
-               Sandbox_Profile => To_Unbounded_String ("")),
+               Sandbox_Profile => To_Unbounded_String ("restricted")),
             Frontend => My_Frontend,
             State   => S,
             Section => Sect,
@@ -847,9 +847,14 @@ package body Dispatch_Tests is
                     "session_info should update Session_Id");
             Assert (S.Current_Thinking = "medium",
                     "session_info should update Current_Thinking");
+            Assert (S.Current_Sandbox = "restricted",
+                    "session_info should update Current_Sandbox");
             Assert_Contains
               (Body_Text, "medium",
                "session_info should refresh the status line");
+            Assert_Contains
+              (Body_Text, "restricted",
+               "session_info should show the sandbox profile");
          end;
 
          begin

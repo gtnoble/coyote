@@ -473,18 +473,17 @@ package body Coyote_App is
       Commands      : Agent_Command_Queue;
 
       function Status_Label return String is
-         Sandbox : constant String := State.Current_Sandbox;
       begin
          if State.Is_Compacting then
-            return "compacting" & (if Sandbox'Length > 0 then " [" & Sandbox & "]" else "");
+            return "compacting";
          elsif State.Is_Retrying then
-            return "retrying" & (if Sandbox'Length > 0 then " [" & Sandbox & "]" else "");
+            return "retrying";
          elsif State.Is_Paused then
-            return "paused" & (if Sandbox'Length > 0 then " [" & Sandbox & "]" else "");
+            return "paused";
          elsif State.Is_Streaming then
-            return "running" & (if Sandbox'Length > 0 then " [" & Sandbox & "]" else "");
+            return "running";
          else
-            return "ready" & (if Sandbox'Length > 0 then " [" & Sandbox & "]" else "");
+            return "ready";
          end if;
       end Status_Label;
 
@@ -2113,18 +2112,17 @@ package body Coyote_App is
       My_Frontend   : Coyote_App.Frontend.GUI.Instance;
 
       function Status_Label return String is
-         Sandbox : constant String := State.Current_Sandbox;
       begin
          if State.Is_Compacting then
-            return "compacting" & (if Sandbox'Length > 0 then " [" & Sandbox & "]" else "");
+            return "compacting";
          elsif State.Is_Retrying then
-            return "retrying" & (if Sandbox'Length > 0 then " [" & Sandbox & "]" else "");
+            return "retrying";
          elsif State.Is_Paused then
-            return "paused" & (if Sandbox'Length > 0 then " [" & Sandbox & "]" else "");
+            return "paused";
          elsif State.Is_Streaming then
-            return "running" & (if Sandbox'Length > 0 then " [" & Sandbox & "]" else "");
+            return "running";
          else
-            return "ready" & (if Sandbox'Length > 0 then " [" & Sandbox & "]" else "");
+            return "ready";
          end if;
       end Status_Label;
 

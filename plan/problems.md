@@ -1662,6 +1662,25 @@ and review reports to reflect the implemented restoration and synchronization
 behavior, current test baseline, and remaining manual qualification scope.
 
 
+## PCR-046 — GTK status omits active sandbox after prompt start (2026-08-06)
+
+- **Category:** Code
+- **Priority:** 2-Serious
+- **Description:** The GTK status line displayed the active sandbox profile
+  after a profile selection, but the first `Agent_Start_Event` replaced it
+  with a status string from `Format_Status` that omitted sandbox state.
+  Subsequent lifecycle events repeated the omission.
+- **Affected work products:** `Coyote_App.Dispatch`, `Coyote_App`, status
+  formatter tests, dispatch tests, Test Plan.
+- **Corrective action:** Made `Format_Status` the single status composition
+  path for sandbox text. Removed duplicate sandbox suffixing from the Acme and
+  GUI `Status_Label` helpers so explicit status updates cannot duplicate the
+  profile. Added formatter and session-info dispatch regressions.
+- **Verification:** Development build and focused/full AUnit tests.
+- **Status:** Resolved
+- **Date resolved:** 2026-08-06
+
+
 ## PCR-045 — GUI interleaved tool-call detail selection (2026-08-04)
 
 - **Category:** Code
