@@ -201,6 +201,9 @@ package body LLM.Settings is
          Default_Thinking =>
            To_Unbounded_String
              (Get_String_Field (Root, "defaultThinkingLevel")),
+         Default_Sandbox =>
+           To_Unbounded_String
+             (Get_String_Field (Root, "defaultSandboxProfile")),
          Append_System_Prompt =>
            To_Unbounded_String
              (Get_String_Field (Root, "appendSystemPrompt")),
@@ -310,4 +313,50 @@ package body LLM.Settings is
 
       Write_Atomically (Path, GNATCOLL.JSON.Write (Root));
    end Save_Defaults;
+
+   procedure Save_Preferences
+     (Provider    : String;
+      Model_Id    : String;
+      Think_Level : String;
+      Sandbox     : String)
+   is
+      Path     : constant String := Settings_Path;
+      Existing : constant GNATCOLL.JSON.JSON_Value :=
+        Load_Json_File (Path);
+      Root     : constant GNATCOLL.JSON.JSON_Value :=
+        (if Existing.Kind = GNATCOLL.JSON.JSON_Object_Type
+         then Existing
+         else GNATCOLL.JSON.Create_Object);
+   begin
+      if Path'Length = 0 then
+         raise Ada.IO_Exceptions.Use_Error with
+           "HOME is not set; cannot write settings";
+      end if;
+
+      if Provider'Length > 0 then
+         Root.Set_Field ("defaultProvider", Provider);
+      else
+         Root.Unset_Field ("defaultProvider");
+      end if;
+
+      if Model_Id'Length > 0 then
+         Root.Set_Field ("defaultModel", Model_Id);
+      else
+         Root.Unset_Field ("defaultModel");
+      end if;
+
+      if Think_Level'Length > 0 then
+         Root.Set_Field ("defaultThinkingLevel", Think_Level);
+      else
+         Root.Unset_Field ("defaultThinkingLevel");
+      end if;
+
+      if Sandbox'Length > 0 then
+         Root.Set_Field ("defaultSandboxProfile", Sandbox);
+      else
+         Root.Unset_Field ("defaultSandboxProfile");
+      end if;
+
+      Write_Atomically (Path, GNATCOLL.JSON.Write (Root));
+   end Save_Preferences;
 end LLM.Settings;

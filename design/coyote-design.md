@@ -1,7 +1,7 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.8
+**Version:** 1.9
 **Date:** 2026-08-06
 
 **Status:** Reviewed — project control (M3 complete 2026-06-02)

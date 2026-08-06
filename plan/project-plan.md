@@ -1,6 +1,6 @@
 # Project Plan — coyote
 
-**Version:** 1.15
+**Version:** 1.16
 **Date:** 2026-08-06
 **Status:** Active
 
@@ -613,21 +613,39 @@ acknowledged the design without comment.
 
 ---
 
+### Review 11 — PCR-047 GUI Preferences Implementation Verification Review (2026-08-06)
+
+**Review type:** Software design and test-results review
+**Trigger:** PCR-047 runtime implementation completed for settings persistence, typed GUI preference transport, new-session inheritance, and sandbox-default precedence.
+
+| Indicator | Value |
+|---|---|
+| Requirements volatility | No change since SRS-CORE v1.9; 150 requirements. |
+| Component progress | GUI preferences implemented and unit-tested; display-backed qualification remains pending. |
+| Open problems | PCR-047 implementation resolved; DEM-033/034 remain planned. PCR-009 remains open for unrelated demonstrations. |
+| Milestone status | Development and test builds pass; focused PCR-047 tests pass; full suite not completed because existing live/network activity timed out. |
+| Scope changes | No change since Review 10. |
+| Test results trend | 829 registered tests; focused PCR-047 tests pass with 0 failures and 0 unexpected errors. |
+
+**Issues raised at review:** Display-backed DEM-033 and DEM-034 remain pending because no GTK display is available.
+
+**Independence limitation:** The developer evaluated their own implementation and test results. Independent user review and manual qualification remain invited.
+
 ### Review 10 — SRS-CORE v1.9 GUI Preferences Requirements Review (2026-08-06)
 
 **Review type:** Software requirements and design review
-**Trigger:** User-requested GTK GUI Preferences capability. The investigation found existing runtime model, thinking, and sandbox selectors but no unified persistent-preferences workflow or documented sandbox default. SRS-CORE v1.9, SDD-CORE v1.8, and Test Plan v1.8 record the proposed capability; runtime implementation remains pending.
+**Trigger:** User-requested GTK GUI Preferences capability. The investigation found existing runtime model, thinking, and sandbox selectors but no unified persistent-preferences workflow or documented sandbox default. SRS-CORE v1.9, SDD-CORE v1.9, and Test Plan v1.9 record the implemented capability and its remaining display-backed qualification.
 
 | Indicator | Value |
 |---|---|
 | Requirements volatility | SRS-CORE v1.9 (2026-08-06): 150 requirements. 5 additions (REQ-CORE-116..119 and REQ-CORE-234); 0 revisions; 0 deletions since v1.8. |
-| Component progress | GUI preferences: requirements documented, design documented, implementation pending, qualification planned. Existing GUI runtime controls remain implemented. |
-| Open problems | PCR-047 In Progress (priority 3-Moderate — implementation and verification pending); PCR-009 remains open for unrelated deferred demonstrations. |
-| Milestone status | Documentation baseline complete; implementation and qualification remain to be scheduled in a subsequent build. |
+| Component progress | GUI preferences: requirements, design, implementation, and automated tests complete; display-backed qualification planned. Existing GUI runtime controls remain implemented. |
+| Open problems | PCR-047 implementation resolved; DEM-033/034 remain pending; PCR-009 remains open for unrelated deferred demonstrations. |
+| Milestone status | Implementation, focused qualification tests, and development/test builds complete; DEM-033/034 remain pending. |
 | Scope changes | 1 agreed amendment since the previous review: persistent GTK GUI preferences. |
-| Test results trend | No new test execution; the last recorded full baseline remains 825 tests, 0 failures, 0 unexpected errors. |
+| Test results trend | 829 registered tests; focused PCR-047 tests pass with 0 failures and 0 unexpected errors; full suite not completed due existing live/network timeout. |
 
-**Issues raised at review:** Runtime implementation is not included in this documentation-only change.
+**Issues raised at review:** Display-backed DEM-033 and DEM-034 remain pending because no GTK display is available.
 
 **Independence limitation:** The developer evaluated the developer-authored requirements, design, and test-plan updates. Independent user review and acknowledgement remain invited.
 
@@ -662,11 +680,11 @@ manual demonstrations remains invited.
 
 | Artifact | ID | Location | Current Version | Control Level |
 |---|---|---|---|---|
-| Project Plan | PLAN | `plan/project-plan.md` | 1.15 (2026-08-06) | Project |
+| Project Plan | PLAN | `plan/project-plan.md` | 1.16 (2026-08-06) | Project |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
-| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.8 (2026-08-04) | Client |
-| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.7 (2026-08-04) | Project |
+| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.9 (2026-08-06) | Client |
+| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.9 (2026-08-06) | Project |
 | coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.2 (2026-06-21) | Project |
 | coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.2 (2026-06-21) | Project |
-| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.8 (2026-08-06) | Project |
+| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.9 (2026-08-06) | Project |
 | Agent Working Instructions (secondary) | AGENTS | `AGENTS.md` | active | Project |

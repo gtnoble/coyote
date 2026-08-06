@@ -1,6 +1,6 @@
 # Test Plan â coyote (STP)
 
-**Version:** 1.8
+**Version:** 1.9
 **Date:** 2026-08-06
 
 **Status:** Reviewed and acknowledged â M4 complete (2026-06-03)
@@ -143,7 +143,8 @@ SRS-CORE requirement groups.
 | `coyote_app_tests.adb` | REQ-CORE-085â089 (frontend/agent synchronization) | ~10 |
 
 | `llm_skills_tests.adb` | REQ-CORE-090â093 | ~20 |
-| `llm_settings_tests.adb` | REQ-CORE-230â234, 070â073; planned GUI preference persistence | ~25 |
+| `llm_settings_tests.adb` | REQ-CORE-230â234, 070â073; sandbox default loading and Save_Preferences persistence | ~27 |
+| `coyote_gui_prompt_queue_tests.adb` | REQ-CORE-116â119; typed preference payload transport | 1 |
 | `llm_auth_tests.adb` | REQ-CORE-232 | ~15 |
 | `llm_compaction_tests.adb` | REQ-CORE-060â064 | ~30 |
 | `llm_tools_tests.adb` | REQ-CORE-050â053 | ~25 |
@@ -180,7 +181,7 @@ SRS-CORE requirement groups.
 | `acme_event_parser_tests.adb` | REQ-CORE-100â109 | ~20 |
 | `acme_raw_events_tests.adb` | REQ-CORE-100 | ~10 |
 
-**Total automated tests (current):** **823**
+**Total automated tests (current):** **829**
 
 ### 4.3 Planned Tests â Demonstration
 
@@ -295,6 +296,10 @@ These are entered as open items in the problem log (PCR-009).
 | REQ-CORE-090â093 | T | `llm_skills_tests.adb` |
 | REQ-CORE-100â109 | T/D | `acme_event_parser_tests.adb`, `tool_uri_tests.adb`, DEM-013 |
 | REQ-CORE-110â115 | T/D | `coyote_cmark_tests.adb`, DEM-014 |
+| REQ-CORE-116 | D | DEM-033 |
+| REQ-CORE-117 | D | DEM-033 |
+| REQ-CORE-118 | T | `llm_settings_tests.adb`, `coyote_gui_prompt_queue_tests.adb` |
+| REQ-CORE-119 | D | DEM-033 |
 | REQ-CORE-120â121 | D | DEM-001 (plain output) |
 | REQ-CORE-130â131 | T/D | `session_history_tests.adb`, DEM-015 |
 | REQ-CORE-140â141 | D | DEM-016 |
@@ -305,7 +310,7 @@ These are entered as open items in the problem log (PCR-009).
 | REQ-CORE-200â203 | T/I | `llm_sse_tests.adb`, `llm_openai_completions_tests.adb`, `llm_anthropic_messages_tests.adb`, code inspection |
 | REQ-CORE-210â212 | T/I | `nine_p_proto_tests.adb`, `nine_p_mock_server_tests.adb`, code inspection |
 | REQ-CORE-220â221 | I | Code inspection (GTK call sites) |
-| REQ-CORE-230â234 | T | `llm_settings_tests.adb`, `llm_auth_tests.adb` |
+| REQ-CORE-230â234 | T | `llm_settings_tests.adb`, `llm_auth_tests.adb`, DEM-034 |
 | REQ-CORE-240â241 | T | `llm_session_store_tests.adb`, `coyote_sqc_parser_tests.adb` |
 | REQ-CORE-300â302 | I | Code inspection |
 | REQ-CORE-400â402 | T/I | `llm_types_tests.adb`, code inspection |
@@ -337,6 +342,13 @@ interleaved tool calls preserves independent detail ranges and selects the
 second tool correctly. A full-suite run was attempted but timed out during
 existing live/network activity; the prior 822-test baseline remains the last
 completed full-suite baseline.
+
+**Verification as of 2026-08-06 (PCR-047 GUI Preferences implementation):**
+829 registered tests, including two settings persistence tests, one typed
+prompt-queue test, and one agent sandbox-default precedence test. The focused
+PCR-047 tests pass with 0 failures and 0 unexpected errors. The development
+build and test build succeed. Display-backed DEM-033 and DEM-034 remain
+pending because no GTK display is available in this environment.
 
 **Baseline as of 2026-08-06 (PCR-046 GUI sandbox status):**
 825 tests, 0 failures, 0 unexpected errors. Added one formatter regression and

@@ -86,6 +86,9 @@ package LLM_Agent_Tests is
    --  Without COYOTE_SANDBOX_PROFILE the sandbox profile defaults to empty.
    procedure Test_Sandbox_Default_Empty (T : in out Test);
 
+   --  A persistent sandbox default applies when no inherited profile exists.
+   procedure Test_Sandbox_Default_From_Settings (T : in out Test);
+
    --  A resumed session takes its persisted profile rather than the
    --  current process environment.
    procedure Test_Sandbox_Profile_Restored_On_Resume (T : in out Test);

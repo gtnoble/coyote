@@ -5518,6 +5518,58 @@ package body LLM_Agent_Tests is
          raise;
    end Test_Sandbox_Env_Var_Inherited;
 
+   procedure Test_Sandbox_Default_From_Settings (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home          : constant String :=
+        "/tmp/coyote_llm_agent_sandbox_3b";
+      Agent_Session : LLM.Agent.Session;
+      Home_Was_Set  : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home      : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Sbx_Was_Set   : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_SANDBOX_PROFILE");
+      Old_Sbx       : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_SANDBOX_PROFILE", "");
+   begin
+      Prepare_Test_Home (Home);
+      Write_Settings_File
+        (Home             => Home,
+         Default_Provider => "openrouter",
+         Default_Model    => "test/default-model");
+      Write_File
+        (Home & "/.coyote/settings.json",
+         "{""defaultProvider"":""openrouter""," &
+         """defaultModel"":""test/default-model""," &
+         """defaultThinkingLevel"":""""," &
+         """defaultSandboxProfile"":""settings-profile""}");
+      Write_OpenRouter_Models_File (Home, "settings-key");
+      Write_Minimal_OpenRouter_Cache
+        (Home     => Home,
+         Model_Id => "test/default-model");
+
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Clear ("COYOTE_SANDBOX_PROFILE");
+      LLM.Agent.Create
+        (S          => Agent_Session,
+         Model_Spec => "openrouter/test/default-model",
+         No_Tools   => True);
+      Assert
+        (LLM.Agent.Current_Sandbox (Agent_Session) = "settings-profile",
+         "sandbox should use defaultSandboxProfile from settings.json");
+
+      Restore_Env ("COYOTE_SANDBOX_PROFILE", Sbx_Was_Set, Old_Sbx);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("COYOTE_SANDBOX_PROFILE", Sbx_Was_Set, Old_Sbx);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Sandbox_Default_From_Settings;
+
    procedure Test_Sandbox_Default_Empty (T : in out Test) is
       pragma Unreferenced (T);
 

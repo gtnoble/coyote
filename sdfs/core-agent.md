@@ -11,7 +11,7 @@
 
 ## Design Rationale
 
-## 2026-08-06 — GUI Preferences Settings Schema (documentation baseline)
+## 2026-08-06 — GUI Preferences implementation and verification
 
 **Scope:** The preferences investigation identified a required extension to
 `LLM.Settings`: an optional `defaultSandboxProfile` setting alongside the
@@ -20,9 +20,16 @@ model argument, inherited runtime sandbox profile, then persistent sandbox
 default for new sessions; resumed or switched session headers remain
 authoritative.
 
-**Status:** Requirements, design, and test-plan updates are recorded. Runtime
-implementation of the Preferences dialog, `Save_Preferences`, and the
-`Set_Preferences` queue item remains pending.
+**Implementation:** `LLM.Settings` loads and atomically persists the optional
+`defaultSandboxProfile` field alongside model and thinking defaults. The GUI
+agent task consumes a typed `Set_Preferences` item and reports persistence
+failures without terminating the active session. New sessions reload persistent
+thinking and sandbox defaults; explicit inherited sandbox state and session
+headers retain their documented precedence.
+
+**Tests:** Added settings persistence, typed prompt-queue, and agent sandbox-
+default precedence regressions. Focused PCR-047 tests pass; display-backed
+DEM-033 and DEM-034 remain pending.
 
 ## 2026-08-04 — PCR-044 Sandbox Profile Restoration and Synchronization
 **Problem:** Sandbox profiles were persisted in session headers but ignored on

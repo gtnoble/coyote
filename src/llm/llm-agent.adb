@@ -1248,7 +1248,9 @@ package body LLM.Agent is
       S.No_Tools := No_Tools;
       S.Thinking := Thinking_From_String
         (To_String (Settings_Value.Default_Thinking));
-      S.Sandbox_Profile := Null_Unbounded_String;
+      S.Sandbox_Profile :=
+        Ada.Strings.Unbounded.To_Unbounded_String
+          (To_String (Settings_Value.Default_Sandbox));
       --  Inherit sandbox profile from parent subagent process.
       declare
          Inherited : constant String :=

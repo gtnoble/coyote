@@ -13,6 +13,15 @@ package Coyote_GUI.Prompt_Queue is
 
    --  ── Item discriminant ─────────────────────────────────────────────────
 
+   --  Persistent defaults selected in the Preferences dialog.  Empty
+   --  strings explicitly clear the corresponding stored preference.
+   type Preferences_Record is record
+      Provider     : Ada.Strings.Unbounded.Unbounded_String;
+      Model_Id     : Ada.Strings.Unbounded.Unbounded_String;
+      Thinking     : LLM.Providers.Thinking_Level := LLM.Providers.Off;
+      Sandbox      : Ada.Strings.Unbounded.Unbounded_String;
+   end record;
+
    type Item_Kind is
      (User_Prompt,       --  text typed by the user; forward to LLM
       Stop,              --  abort the current response
@@ -26,8 +35,8 @@ package Coyote_GUI.Prompt_Queue is
       Set_Sandbox,       --  change the sandbox profile
       Switch_Session,    --  load a different session by UUID
       Set_Default,       --  persist current model and thinking as defaults
+      Set_Preferences,   --  persist model, thinking, and sandbox defaults
       Shutdown_Item);    --  queue is closing; agent task should exit
-
    --  ── Payload variant record ────────────────────────────────────────────
    --
    --  Variants without a payload (Stop, Pause, Resume, Compact, New_Window,
@@ -45,6 +54,8 @@ package Coyote_GUI.Prompt_Queue is
             Profile_Name : Ada.Strings.Unbounded.Unbounded_String;
          when Switch_Session =>
             Session_UUID : Ada.Strings.Unbounded.Unbounded_String;
+         when Set_Preferences =>
+            Preferences   : Preferences_Record;
          when others =>
             null;
       end case;

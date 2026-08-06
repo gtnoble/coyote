@@ -15,18 +15,20 @@
 
 ### Why three frontends share one `Dispatch_Event` function
 
-### GUI Preferences documentation baseline (2026-08-06)
+### GUI Preferences implementation (2026-08-06)
 
-The planned GTK Preferences dialog is documented as an `Edit → Preferences...`
+The GTK Preferences dialog is implemented as an `Edit → Preferences...`
 workflow. It edits persistent model, thinking-level, and sandbox defaults on
-the GTK main task, then sends a typed preference payload through the protected
-prompt queue to the agent task. The agent task owns settings-file persistence
-and reports write success or failure through the frontend. Saving defaults does
-not change the active session; the existing Agent menu controls remain the
-runtime override path.
+the GTK main task, then sends a typed `Set_Preferences` payload through the
+protected prompt queue to the agent task. The agent task owns settings-file
+persistence and reports write success or failure through the frontend. Saving
+defaults does not change the active session; the existing Agent menu controls
+remain the runtime override path. New GUI sessions reload the persisted
+preferences before agent creation.
 
-This is a documentation baseline only. The dialog and queue command are not yet
-implemented.
+Automated coverage includes the typed queue round-trip, settings persistence,
+and agent sandbox-default precedence tests. Display-backed DEM-033 remains
+pending because no GTK display is available in this environment.
 
 `Coyote_App.Dispatch.Dispatch_Event` is the single function that maps
 `LLM.Events.Agent_Event'Class` values to `Frontend'Class` primitives. All

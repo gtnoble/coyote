@@ -1705,7 +1705,7 @@ behavior, current test baseline, and remaining manual qualification scope.
 - **Date resolved:** 2026-08-04
 
 
-## PCR-047 — GTK GUI Preferences documentation and implementation scope (2026-08-06)
+## PCR-047 — GTK GUI Preferences implementation and verification (2026-08-06)
 
 - **Category:** Requirements, Design, Test
 - **Priority:** 3-Moderate
@@ -1719,6 +1719,12 @@ behavior, current test baseline, and remaining manual qualification scope.
   settings schema, precedence rules, queue interaction, and qualification
   coverage. Implement and verify the capability in a subsequent build.
 - **Actions taken (2026-08-06):** Added REQ-CORE-116..119 and
-  REQ-CORE-234; updated SDD-CORE v1.8, Test Plan v1.8, and component logs.
-  Runtime implementation remains pending.
-- **Status:** In Progress
+  REQ-CORE-234; updated SDD-CORE v1.9, Test Plan v1.9, and component logs.
+  Implemented `LLM.Settings.Save_Preferences`, the persistent sandbox
+  default, the typed `Set_Preferences` queue item, the GTK Preferences dialog,
+  and GUI new-session preference inheritance. Added settings, queue, and agent
+  regressions; 829 tests are registered and the focused PCR-047 tests pass.
+- **Verification:** Development and test builds pass. Display-backed DEM-033
+  and DEM-034 remain pending because no GTK display is available; a full-suite
+  run was not completed because existing live/network activity timed out.
+- **Status:** Resolved for implementation; manual qualification pending

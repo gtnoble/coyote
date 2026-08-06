@@ -20,6 +20,7 @@ package LLM.Settings is
       Default_Provider     : Ada.Strings.Unbounded.Unbounded_String;
       Default_Model        : Ada.Strings.Unbounded.Unbounded_String;
       Default_Thinking     : Ada.Strings.Unbounded.Unbounded_String;
+      Default_Sandbox      : Ada.Strings.Unbounded.Unbounded_String;
       Append_System_Prompt : Ada.Strings.Unbounded.Unbounded_String;
       --  Shell command line through which interactive prompts are filtered
       --  before being sent to the agent.  The raw prompt is written to stdin
@@ -60,4 +61,13 @@ package LLM.Settings is
      (Provider    : String;
       Model_Id    : String;
       Think_Level : String);
+
+   --  Write model, thinking, and sandbox defaults to settings.json.
+   --  Empty values clear the corresponding preference.  Unrelated fields
+   --  are preserved and the replacement is atomic.
+   procedure Save_Preferences
+     (Provider    : String;
+      Model_Id    : String;
+      Think_Level : String;
+      Sandbox     : String);
 end LLM.Settings;

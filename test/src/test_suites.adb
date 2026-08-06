@@ -15,6 +15,7 @@ with Coyote_Utils_Tests;
 with Coyote_Cmark_Tests;
 with Coyote_GUI_Conversation_Tests;
 with Coyote_GUI_Updates_Tests;
+with Coyote_GUI_Prompt_Queue_Tests;
 with Session_History_Tests;
 with Tool_URI_Tests;
 with Subagent_Integration_Tests;
@@ -95,6 +96,8 @@ package body Test_Suites is
      new AUnit.Test_Caller (Coyote_GUI_Conversation_Tests.Test);
    package Coyote_GUI_Updates_Caller is
      new AUnit.Test_Caller (Coyote_GUI_Updates_Tests.Test);
+   package Coyote_GUI_Prompt_Queue_Caller is
+     new AUnit.Test_Caller (Coyote_GUI_Prompt_Queue_Tests.Test);
    package LLM_HTTP_Caller is
      new AUnit.Test_Caller (LLM_HTTP_Tests.Test);
    package LLM_Settings_Caller is
@@ -1350,6 +1353,12 @@ package body Test_Suites is
       Result.Add_Test (LLM_Settings_Caller.Create
         ("LLM.Settings Prompt_Filter defaults to empty when absent",
          LLM_Settings_Tests.Test_Prompt_Filter_Missing'Access));
+      Result.Add_Test (LLM_Settings_Caller.Create
+        ("LLM.Settings loads default sandbox profile",
+         LLM_Settings_Tests.Test_Default_Sandbox_Profile_Loaded'Access));
+      Result.Add_Test (LLM_Settings_Caller.Create
+        ("LLM.Settings Save_Preferences preserves and clears fields",
+         LLM_Settings_Tests.Test_Save_Preferences_Preserves_And_Clears'Access));
 
       --  LLM.Types tests
       Result.Add_Test (LLM_Types_Caller.Create
@@ -2809,6 +2818,9 @@ package body Test_Suites is
         ("LLM.Agent sandbox defaults to empty without env var",
          LLM_Agent_Tests.Test_Sandbox_Default_Empty'Access));
       Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent persistent sandbox default from settings",
+         LLM_Agent_Tests.Test_Sandbox_Default_From_Settings'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
         ("LLM.Agent restores sandbox profile on session resume",
          LLM_Agent_Tests.Test_Sandbox_Profile_Restored_On_Resume'Access));
       Result.Add_Test (LLM_Agent_Caller.Create
@@ -2834,6 +2846,9 @@ package body Test_Suites is
       Result.Add_Test (Coyote_GUI_Updates_Caller.Create
         ("Coyote.GUI.Updates stopped queue does not wake",
          Coyote_GUI_Updates_Tests.Test_Stopped_Queue_Does_Not_Wake'Access));
+      Result.Add_Test (Coyote_GUI_Prompt_Queue_Caller.Create
+        ("Coyote.GUI.Prompt_Queue Set_Preferences round trips",
+         Coyote_GUI_Prompt_Queue_Tests.Test_Set_Preferences_Round_Trips'Access));
 
       Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
         ("Coyote.GUI.Conversation Append_Notice adds logical lines",

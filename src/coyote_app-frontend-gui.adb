@@ -2,6 +2,8 @@
 --
 --  Project: coyote
 
+with Ada.Characters.Handling;
+with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
 with Gdk.Event;
 with Gdk.Types;
@@ -39,7 +41,9 @@ with Ada.Directories;
 with Glib.Values;
 with Gtk.Cell_Renderer_Text;
 with Gtk.Dialog;
+with Gtk.Combo_Box_Text;
 with Gtk.List_Store;
+with LLM.Settings;
 with Gtk.Tree_Model;
 with Gtk.Tree_Selection;
 with Gtk.Tree_View;
@@ -1025,6 +1029,165 @@ package body Coyote_App.Frontend.GUI is
       Dialog.Destroy;
    end On_Sandbox_Profile_Activate;
 
+   --  ── Persistent GUI preferences ───────────────────────────────────────
+
+   procedure On_Preferences_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
+   is
+      pragma Unreferenced (Self);
+      Settings_Value : constant LLM.Settings.Settings :=
+        LLM.Settings.Load_Settings;
+      Models         : constant LLM.Model_Registry.Model_Info_Vectors.Vector :=
+        LLM.Model_Registry.Available_Models;
+      Profiles       : constant LLM.Tools.Sandbox.String_Vectors.Vector :=
+        LLM.Tools.Sandbox.Available_Profiles;
+      Dialog         : Gtk.Dialog.Gtk_Dialog;
+      Content        : Gtk.Box.Gtk_Box;
+      Form           : Gtk.Box.Gtk_Box;
+      Model_C        : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
+      Thinking_C     : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
+      Sandbox_C      : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
+      Resp           : Gtk.Dialog.Gtk_Response_Type;
+      Btn            : Gtk.Widget.Gtk_Widget;
+      Thinking_Index : Glib.Gint := 0;
+      Sandbox_Index  : Glib.Gint := 0;
+      Target_Model   : constant String :=
+        To_String (Settings_Value.Default_Provider) & "/"
+        & To_String (Settings_Value.Default_Model);
+      use type Gtk.Dialog.Gtk_Response_Type;
+
+      function Model_Text
+        (M : LLM.Model_Registry.Model_Info) return String
+      is
+      begin
+         return To_String (M.Provider) & "/" & To_String (M.Model_Id);
+      end Model_Text;
+
+      function Model_Index_Of (Spec : String) return Glib.Gint is
+         Index : Glib.Gint := 0;
+      begin
+         for M of Models loop
+            if Model_Text (M) = Spec then
+               return Index;
+            end if;
+            Index := Index + 1;
+         end loop;
+         return -1;
+      end Model_Index_Of;
+   begin
+      if Current_Frontend = null then
+         return;
+      end if;
+      Gtk.Dialog.Gtk_New (Dialog);
+      Dialog.Set_Title ("Preferences");
+      Dialog.Set_Default_Size (560, 220);
+      Dialog.Set_Transient_For (Current_Frontend.Win);
+      Btn := Dialog.Add_Button ("_Cancel", Gtk.Dialog.Gtk_Response_Cancel);
+      Btn := Dialog.Add_Button ("_Save", Gtk.Dialog.Gtk_Response_OK);
+      Content := Dialog.Get_Content_Area;
+      Gtk.Box.Gtk_New_Vbox (Form, Homogeneous => False, Spacing => 6);
+      Form.Set_Border_Width (10);
+
+      declare
+         Row : Gtk.Box.Gtk_Box;
+         Label : Gtk.Label.Gtk_Label;
+      begin
+         Gtk.Box.Gtk_New_Hbox (Row, Homogeneous => False, Spacing => 8);
+         Gtk.Label.Gtk_New (Label, "Default model:");
+         Row.Pack_Start (Label, False, False, 0);
+         Gtk.Combo_Box_Text.Gtk_New (Model_C);
+         for M of Models loop
+            Model_C.Append_Text (Model_Text (M));
+         end loop;
+         if Model_Index_Of (Target_Model) >= 0 then
+            Model_C.Set_Active (Model_Index_Of (Target_Model));
+         elsif not Models.Is_Empty then
+            Model_C.Set_Active (0);
+         end if;
+         Row.Pack_Start (Model_C, True, True, 0);
+         Form.Pack_Start (Row, False, False, 0);
+      end;
+
+      declare
+         Row : Gtk.Box.Gtk_Box;
+         Label : Gtk.Label.Gtk_Label;
+      begin
+         Gtk.Box.Gtk_New_Hbox (Row, Homogeneous => False, Spacing => 8);
+         Gtk.Label.Gtk_New (Label, "Thinking level:");
+         Row.Pack_Start (Label, False, False, 0);
+         Gtk.Combo_Box_Text.Gtk_New (Thinking_C);
+         for Level in LLM.Providers.Thinking_Level loop
+            Thinking_C.Append_Text
+              (Ada.Characters.Handling.To_Lower
+                 (LLM.Providers.Thinking_Level'Image (Level)));
+            if Ada.Characters.Handling.To_Lower
+                 (LLM.Providers.Thinking_Level'Image (Level)) =
+              To_String (Settings_Value.Default_Thinking)
+            then
+               Thinking_Index := LLM.Providers.Thinking_Level'Pos (Level);
+            end if;
+         end loop;
+         Thinking_C.Set_Active (Thinking_Index);
+         Row.Pack_Start (Thinking_C, True, True, 0);
+         Form.Pack_Start (Row, False, False, 0);
+      end;
+
+      declare
+         Row : Gtk.Box.Gtk_Box;
+         Label : Gtk.Label.Gtk_Label;
+      begin
+         Gtk.Box.Gtk_New_Hbox (Row, Homogeneous => False, Spacing => 8);
+         Gtk.Label.Gtk_New (Label, "Default sandbox:");
+         Row.Pack_Start (Label, False, False, 0);
+         Gtk.Combo_Box_Text.Gtk_New (Sandbox_C);
+         Sandbox_C.Append_Text ("None (no sandbox)");
+         for Profile of Profiles loop
+            Sandbox_C.Append_Text (Profile);
+         end loop;
+         if Length (Settings_Value.Default_Sandbox) > 0 then
+            for Index in Profiles.First_Index .. Profiles.Last_Index loop
+               if Profiles.Element (Index) =
+                 To_String (Settings_Value.Default_Sandbox)
+               then
+                  Sandbox_Index := Glib.Gint (Index);
+               end if;
+            end loop;
+         end if;
+         Sandbox_C.Set_Active (Sandbox_Index);
+         Row.Pack_Start (Sandbox_C, True, True, 0);
+         Form.Pack_Start (Row, False, False, 0);
+      end;
+
+      Content.Pack_Start (Form, True, True, 4);
+      Dialog.Show_All;
+      Resp := Dialog.Run;
+      if Resp = Gtk.Dialog.Gtk_Response_OK then
+         declare
+            Model : constant String := Model_C.Get_Active_Text;
+            Sand  : constant String := Sandbox_C.Get_Active_Text;
+            Slash : constant Natural := Ada.Strings.Fixed.Index (Model, "/");
+         begin
+            if Model'Length > 0 and then Slash > Model'First then
+               Current_Frontend.PQ.Enqueue
+                 ((Kind => Set_Preferences,
+                   Preferences =>
+                     (Provider => To_Unbounded_String
+                        (Model (Model'First .. Slash - 1)),
+                      Model_Id => To_Unbounded_String
+                        (Model (Slash + 1 .. Model'Last)),
+                      Thinking => LLM.Providers.Thinking_Level'Val
+                        (Thinking_Index),
+                      Sandbox => To_Unbounded_String
+                        (if Sand = "None (no sandbox)" then "" else Sand))));
+            end if;
+         end;
+      end if;
+      Dialog.Destroy;
+   exception
+      when others =>
+         null;
+   end On_Preferences_Activate;
+
    --  ── Markdown rendering toggle ─────────────────────────────────────────
 
    procedure On_Render_Markdown_Toggled
@@ -1287,6 +1450,22 @@ package body Coyote_App.Frontend.GUI is
          Gdk.Types.Keysyms.GDK_LC_q,
          Gdk.Types.Control_Mask,
          Gtk.Accel_Group.Accel_Visible);
+
+      --  Edit menu
+      declare
+         Edit_Menu : Gtk_Menu;
+         Edit_Item : Gtk_Menu_Item;
+         Preferences_Item : Gtk_Menu_Item;
+      begin
+         Gtk.Menu.Gtk_New (Edit_Menu);
+         Gtk.Menu_Item.Gtk_New_With_Mnemonic (Edit_Item, "_Edit");
+         Edit_Item.Set_Submenu (Edit_Menu);
+         Gtk.Menu_Shell.Append
+           (Gtk.Menu_Shell.Gtk_Menu_Shell (F.Menu_Bar), Edit_Item);
+         Preferences_Item := Make_Item ("_Preferences...", Edit_Menu);
+         Preferences_Item.On_Activate
+           (On_Preferences_Activate'Access);
+      end;
 
       --  Agent menu
       Gtk.Menu.Gtk_New (Agent_Menu);

@@ -4,7 +4,9 @@ with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
+with GNATCOLL.JSON;
 with LLM.Settings;
+with Coyote_App.Utils;
 with LLM.System_Prompt;
 
 package body LLM_Settings_Tests is
@@ -393,5 +395,105 @@ package body LLM_Settings_Tests is
          Cleanup_Test_Home (Home);
          raise;
    end Test_Prompt_Filter_Missing;
+
+   procedure Test_Default_Sandbox_Profile_Loaded (T : in out Test) is
+      pragma Unreferenced (T);
+      Home         : constant String := "/tmp/coyote_llm_settings_test_10";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Loaded       : LLM.Settings.Settings;
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+      Write_File
+        (Home & "/.coyote/settings.json",
+         "{""defaultSandboxProfile"":""restricted""}");
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Loaded := LLM.Settings.Load_Settings;
+      Assert (To_String (Loaded.Default_Sandbox) = "restricted",
+              "defaultSandboxProfile should be loaded");
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Default_Sandbox_Profile_Loaded;
+
+   procedure Test_Save_Preferences_Preserves_And_Clears (T : in out Test) is
+      pragma Unreferenced (T);
+      Home         : constant String := "/tmp/coyote_llm_settings_test_11";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Root         : GNATCOLL.JSON.JSON_Value;
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+      Write_File
+        (Home & "/.coyote/settings.json",
+         "{""appendSystemPrompt"":""keep"",""future"":42," &
+         """defaultProvider"":""old"",""defaultModel"":""old/model""," &
+         """defaultThinkingLevel"":""low""," &
+         """defaultSandboxProfile"":""old-profile""}");
+      Ada.Environment_Variables.Set ("HOME", Home);
+
+      LLM.Settings.Save_Preferences
+        (Provider => "openrouter",
+         Model_Id => "new/model",
+         Think_Level => "high",
+         Sandbox => "restricted");
+      Root := LLM.Settings.Load_Json_File (Home & "/.coyote/settings.json");
+      Assert (Coyote_App.Utils.Get_String (Root, "defaultProvider") =
+                "openrouter",
+              "Save_Preferences should write provider");
+      Assert (Coyote_App.Utils.Get_String (Root, "defaultModel") =
+                "new/model",
+              "Save_Preferences should write model");
+      Assert (Coyote_App.Utils.Get_String (Root, "defaultThinkingLevel") =
+                "high",
+              "Save_Preferences should write thinking level");
+      Assert (Coyote_App.Utils.Get_String (Root, "defaultSandboxProfile") =
+                "restricted",
+              "Save_Preferences should write sandbox profile");
+      Assert (Coyote_App.Utils.Get_String (Root, "appendSystemPrompt") =
+                "keep",
+              "Save_Preferences should preserve unrelated fields");
+      Assert (Coyote_App.Utils.Get_Integer (Root, "future") = 42,
+              "Save_Preferences should preserve unknown fields");
+      Assert (Coyote_App.Utils.Get_String (Root, "appendSystemPrompt") =
+                "keep",
+              "clearing preferences should preserve unrelated fields");
+      Assert (not Ada.Directories.Exists
+                (Home & "/.coyote/settings.json.tmp"),
+              "atomic save should remove its temporary file");
+
+      LLM.Settings.Save_Preferences
+        (Provider => "", Model_Id => "", Think_Level => "", Sandbox => "");
+      Root := LLM.Settings.Load_Json_File (Home & "/.coyote/settings.json");
+      Assert (not Root.Has_Field ("defaultProvider"),
+              "empty provider should clear the persisted field");
+      Assert (not Root.Has_Field ("defaultModel"),
+              "empty model should clear the persisted field");
+      Assert (not Root.Has_Field ("defaultThinkingLevel"),
+              "empty thinking should clear the persisted field");
+      Assert (not Root.Has_Field ("defaultSandboxProfile"),
+              "empty sandbox should clear the persisted field");
+      Assert (Coyote_App.Utils.Get_String (Root, "appendSystemPrompt") =
+                "keep",
+              "clearing preferences should preserve unrelated fields");
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Save_Preferences_Preserves_And_Clears;
 
 end LLM_Settings_Tests;

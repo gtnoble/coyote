@@ -13,13 +13,15 @@
 
 ## Design Rationale
 
-### GUI Preferences settings schema (2026-08-06)
+### GUI Preferences settings and persistence (2026-08-06)
 
-The planned Preferences dialog extends the settings schema with the optional
-`defaultSandboxProfile` field. The existing atomic JSON replacement and
-unknown-field preservation behavior are the intended persistence basis. The
-runtime implementation is not yet present; this entry records the proposed
-interface and precedence for the subsequent build.
+`LLM.Settings` now loads the optional `defaultSandboxProfile` field and exposes
+`Save_Preferences` for model, thinking, and sandbox defaults. The save operation
+preserves unrelated JSON fields, removes empty preference fields, and uses the
+existing same-directory atomic replacement. Write failures propagate to the
+GUI agent-task command handler, which reports an error notice without changing
+the active session. Settings and agent tests cover field loading, preservation,
+clearing, atomic temporary-file cleanup, and sandbox-default precedence.
 
 ### Provider routing pattern (Copilot, OpenCode Go)
 

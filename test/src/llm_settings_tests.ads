@@ -19,4 +19,7 @@ package LLM_Settings_Tests is
    --  Absent promptFilter field defaults to the empty string.
    procedure Test_Prompt_Filter_Missing (T : in out Test);
 
+   procedure Test_Default_Sandbox_Profile_Loaded (T : in out Test);
+   procedure Test_Save_Preferences_Preserves_And_Clears (T : in out Test);
+
 end LLM_Settings_Tests;
