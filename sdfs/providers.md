@@ -13,6 +13,14 @@
 
 ## Design Rationale
 
+### GUI Preferences settings schema (2026-08-06)
+
+The planned Preferences dialog extends the settings schema with the optional
+`defaultSandboxProfile` field. The existing atomic JSON replacement and
+unknown-field preservation behavior are the intended persistence basis. The
+runtime implementation is not yet present; this entry records the proposed
+interface and precedence for the subsequent build.
+
 ### Provider routing pattern (Copilot, OpenCode Go)
 
 Both GitHub Copilot and OpenCode Go provide models on both the OpenAI

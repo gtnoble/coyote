@@ -1,7 +1,7 @@
 # Project Plan — coyote
 
-**Version:** 1.14
-**Date:** 2026-08-04
+**Version:** 1.15
+**Date:** 2026-08-06
 **Status:** Active
 
 ---
@@ -613,6 +613,26 @@ acknowledged the design without comment.
 
 ---
 
+### Review 10 — SRS-CORE v1.9 GUI Preferences Requirements Review (2026-08-06)
+
+**Review type:** Software requirements and design review
+**Trigger:** User-requested GTK GUI Preferences capability. The investigation found existing runtime model, thinking, and sandbox selectors but no unified persistent-preferences workflow or documented sandbox default. SRS-CORE v1.9, SDD-CORE v1.8, and Test Plan v1.8 record the proposed capability; runtime implementation remains pending.
+
+| Indicator | Value |
+|---|---|
+| Requirements volatility | SRS-CORE v1.9 (2026-08-06): 150 requirements. 5 additions (REQ-CORE-116..119 and REQ-CORE-234); 0 revisions; 0 deletions since v1.8. |
+| Component progress | GUI preferences: requirements documented, design documented, implementation pending, qualification planned. Existing GUI runtime controls remain implemented. |
+| Open problems | PCR-047 In Progress (priority 3-Moderate — implementation and verification pending); PCR-009 remains open for unrelated deferred demonstrations. |
+| Milestone status | Documentation baseline complete; implementation and qualification remain to be scheduled in a subsequent build. |
+| Scope changes | 1 agreed amendment since the previous review: persistent GTK GUI preferences. |
+| Test results trend | No new test execution; the last recorded full baseline remains 825 tests, 0 failures, 0 unexpected errors. |
+
+**Issues raised at review:** Runtime implementation is not included in this documentation-only change.
+
+**Independence limitation:** The developer evaluated the developer-authored requirements, design, and test-plan updates. Independent user review and acknowledgement remain invited.
+
+---
+
 ### Review 9 — PCR-044 Implementation Verification Review (2026-08-04)
 
 **Review type:** Software design and test-results review
@@ -642,11 +662,11 @@ manual demonstrations remains invited.
 
 | Artifact | ID | Location | Current Version | Control Level |
 |---|---|---|---|---|
-| Project Plan | PLAN | `plan/project-plan.md` | 1.14 (2026-08-04) | Project |
+| Project Plan | PLAN | `plan/project-plan.md` | 1.15 (2026-08-06) | Project |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
 | coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.8 (2026-08-04) | Client |
 | coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.7 (2026-08-04) | Project |
 | coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.2 (2026-06-21) | Project |
 | coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.2 (2026-06-21) | Project |
-| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.7 (2026-08-04) | Project |
+| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.8 (2026-08-06) | Project |
 | Agent Working Instructions (secondary) | AGENTS | `AGENTS.md` | active | Project |

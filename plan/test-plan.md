@@ -1,7 +1,7 @@
 # Test Plan â coyote (STP)
 
-**Version:** 1.7
-**Date:** 2026-08-05
+**Version:** 1.8
+**Date:** 2026-08-06
 
 **Status:** Reviewed and acknowledged â M4 complete (2026-06-03)
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
@@ -143,7 +143,7 @@ SRS-CORE requirement groups.
 | `coyote_app_tests.adb` | REQ-CORE-085â089 (frontend/agent synchronization) | ~10 |
 
 | `llm_skills_tests.adb` | REQ-CORE-090â093 | ~20 |
-| `llm_settings_tests.adb` | REQ-CORE-230â233, 070â073 | ~25 |
+| `llm_settings_tests.adb` | REQ-CORE-230â234, 070â073; planned GUI preference persistence | ~25 |
 | `llm_auth_tests.adb` | REQ-CORE-232 | ~15 |
 | `llm_compaction_tests.adb` | REQ-CORE-060â064 | ~30 |
 | `llm_tools_tests.adb` | REQ-CORE-050â053 | ~25 |
@@ -203,7 +203,9 @@ behaviour. Results are recorded in a Test Report.
 | DEM-011 | REQ-CORE-074 | Use an expired Copilot token; send a prompt; verify token is refreshed and request succeeds |
 | DEM-012 | REQ-CORE-075 | In Acme, plumb a `coyote-model+PID/...` token; verify model changes on next turn |
 | DEM-013 | REQ-CORE-100â109 | Exercise each Acme tag command; verify expected behaviour for each |
-| DEM-014 | REQ-CORE-110â114 | Exercise GUI window: markdown rendering, tool frames, vi scroll, menu actions |
+| DEM-014 | REQ-CORE-110â115 | Exercise GUI window: markdown rendering, tool frames, vi scroll, menu actions |
+| DEM-033 | REQ-CORE-116..117, 119 | Open GUI Preferences, save model/thinking/sandbox defaults, then create a new session and verify the active session was unchanged and the new session inherited the values |
+| DEM-034 | REQ-CORE-234 | Set and clear `defaultSandboxProfile`; verify inherited runtime and session-header precedence |
 | DEM-015 | REQ-CORE-130 | Resume a session; verify history replayed in frontend |
 | DEM-016 | REQ-CORE-140 | Inject a provider error (invalid API key); verify error notice visible in frontend |
 | DEM-017 | REQ-CORE-142 | Send SIGTERM to a running coyote; verify clean exit and session file is intact |
@@ -303,7 +305,7 @@ These are entered as open items in the problem log (PCR-009).
 | REQ-CORE-200â203 | T/I | `llm_sse_tests.adb`, `llm_openai_completions_tests.adb`, `llm_anthropic_messages_tests.adb`, code inspection |
 | REQ-CORE-210â212 | T/I | `nine_p_proto_tests.adb`, `nine_p_mock_server_tests.adb`, code inspection |
 | REQ-CORE-220â221 | I | Code inspection (GTK call sites) |
-| REQ-CORE-230â233 | T | `llm_settings_tests.adb`, `llm_auth_tests.adb` |
+| REQ-CORE-230â234 | T | `llm_settings_tests.adb`, `llm_auth_tests.adb` |
 | REQ-CORE-240â241 | T | `llm_session_store_tests.adb`, `coyote_sqc_parser_tests.adb` |
 | REQ-CORE-300â302 | I | Code inspection |
 | REQ-CORE-400â402 | T/I | `llm_types_tests.adb`, code inspection |

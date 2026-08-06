@@ -1703,3 +1703,22 @@ behavior, current test baseline, and remaining manual qualification scope.
   activity; no failure was attributed to this change.
 - **Status:** Resolved
 - **Date resolved:** 2026-08-04
+
+
+## PCR-047 — GTK GUI Preferences documentation and implementation scope (2026-08-06)
+
+- **Category:** Requirements, Design, Test
+- **Priority:** 3-Moderate
+- **Description:** The requested GTK Preferences capability was not represented
+  in the controlled requirements, design, or test-plan artifacts. Existing GUI
+  runtime selectors and the Acme SetDefault command did not define a unified
+  persistent-preferences workflow or a persistent sandbox default field.
+- **Affected work products:** SRS-CORE, SDD-CORE, Test Plan, frontend/core/
+  provider development logs, Project Plan artifact table.
+- **Corrective action required:** Record the proposed GUI Preferences dialog,
+  settings schema, precedence rules, queue interaction, and qualification
+  coverage. Implement and verify the capability in a subsequent build.
+- **Actions taken (2026-08-06):** Added REQ-CORE-116..119 and
+  REQ-CORE-234; updated SDD-CORE v1.8, Test Plan v1.8, and component logs.
+  Runtime implementation remains pending.
+- **Status:** In Progress

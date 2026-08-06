@@ -11,8 +11,20 @@
 
 ## Design Rationale
 
-## 2026-08-04 — PCR-044 Sandbox Profile Restoration and Synchronization
+## 2026-08-06 — GUI Preferences Settings Schema (documentation baseline)
 
+**Scope:** The preferences investigation identified a required extension to
+`LLM.Settings`: an optional `defaultSandboxProfile` setting alongside the
+existing model and thinking defaults. The documented precedence is explicit
+model argument, inherited runtime sandbox profile, then persistent sandbox
+default for new sessions; resumed or switched session headers remain
+authoritative.
+
+**Status:** Requirements, design, and test-plan updates are recorded. Runtime
+implementation of the Preferences dialog, `Save_Preferences`, and the
+`Set_Preferences` queue item remains pending.
+
+## 2026-08-04 — PCR-044 Sandbox Profile Restoration and Synchronization
 **Problem:** Sandbox profiles were persisted in session headers but ignored on
 resume and session switching. Frontend-local state could also disagree with
 the agent and the child-process environment.

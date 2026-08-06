@@ -1,8 +1,8 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.7
-**Date:** 2026-08-04
+**Version:** 1.8
+**Date:** 2026-08-06
 
 **Status:** Reviewed — project control (M3 complete 2026-06-02)
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
@@ -397,6 +397,9 @@ three layers:
   → Send button / Enter key → Coyote_GUI.Prompt_Queue.Enqueue(prompt_text)
   → Stop menu → LLM.Tools.Abort_Flag.Set
   → Compact / Pause / Resume menu → Coyote_GUI.Prompt_Queue.Enqueue(":compact" etc.)
+  → Edit → Preferences... → GTK dialog edits persistent defaults
+      → Coyote_GUI.Prompt_Queue.Enqueue(Set_Preferences payload)
+      → Agent_Task persists settings and reports success/failure
 ```
 
 ### 4.5 Design Decisions Affecting Multiple Units
@@ -1110,19 +1113,38 @@ for each complete SSE `data:` line, stripping the `data:` prefix.
 
 ### 5.20 `LLM.Settings`
 
-**Purpose:** Loads and exposes the user configuration from
-`~/.coyote/settings.json` and `~/.coyote/models.json`.
+**Purpose:** Loads and exposes user configuration from
+`~/.coyote/settings.json` and `~/.coyote/models.json`, and persists changes
+made by the GUI Preferences dialog or the Acme SetDefault command.
 
-**`Config` record fields:**
-- `Default_Model_Provider`, `Default_Model_Id` — from `settings.json`
-  `"model"` field.
-- `Thinking_Level` — `"auto"`, `"none"`, or a budget string; from settings.
-- `No_Tools` — boolean; from `--no-tools` flag or settings.
-- `Compact_Settings` — `LLM.Compaction.Compact_Settings`; from settings.
-- Raw model entries list from `models.json`.
+**Settings fields:**
+- `Default_Provider`, `Default_Model` — model defaults from
+  `defaultProvider` and `defaultModel`.
+- `Default_Thinking` — the configured thinking level from
+  `defaultThinkingLevel`.
+- `Default_Sandbox` — optional sandbox profile from
+  `defaultSandboxProfile`; empty means no default sandbox.
+- `Append_System_Prompt` — additional system-prompt text from
+  `appendSystemPrompt`.
+- `Prompt_Filter` — interactive prompt filter command from `promptFilter`.
+- Raw provider model entries and API-key configuration are read from
+  `models.json`.
 
-**`Load` procedure:** Reads and parses both JSON files. Missing files produce
-default values; malformed JSON is logged to stderr and defaults are used.
+**`Load_Settings` procedure:** Reads `settings.json`. Missing fields produce
+empty/default values. A malformed or absent file does not prevent startup.
+
+**`Save_Preferences` operation:** Updates the model, thinking, and sandbox
+preference fields while preserving unrelated JSON fields. The file is written
+through an atomic same-directory replacement. Empty values clear the
+corresponding preference. Write failures are reported to the caller so the
+active session can continue.
+
+**Default precedence:** For a newly created session, an explicit model
+argument overrides settings, and an inherited runtime sandbox profile
+(`COYOTE_SANDBOX_PROFILE`) overrides `defaultSandboxProfile`. When resuming or
+switching sessions, the session header's sandbox profile is authoritative;
+an absent profile clears the active value. Persistent preference changes do
+not modify the active session.
 
 **`Resolve_Api_Key (Provider : String) → String`:** Checks in order:
 (1) literal `apiKey` in models.json entry, (2) `${ENV_VAR}` interpolation,
@@ -1431,6 +1453,12 @@ using Cairo + Pango (see §5.15).
   drains the queue on the GTK main-loop thread and calls the corresponding
   `Coyote_GUI.Conversation` operations.
 - `Read_Prompt` — blocks on `Coyote_GUI.Prompt_Queue.Dequeue`.
+- **Preferences dialog:** `Edit → Preferences...` is constructed and operated
+  on the GTK main task. It edits persistent defaults for model, thinking level,
+  and sandbox profile without mutating the active `LLM.Agent.Session`.
+  The callback enqueues a typed `Set_Preferences` item; the agent task performs
+  the settings-file update and sends a success or failure notice back through
+  the frontend.
 - `Clear_Conversation` — clears the conversation view; delegates to
   `Coyote_GUI.Conversation.Clear`. Called by `Agent_Task` when handling
   the `New_Session` prompt-queue item.
@@ -1551,7 +1579,13 @@ turns), and `Shutdown` (unblocks any waiting `Dequeue`).
 | `Set_Sandbox` | `Profile_Name` | Change the sandbox profile |
 | `Switch_Session` | `Session_UUID` | Load a different session by UUID |
 | `Set_Default` | — | Persist current model and thinking as defaults |
+| `Set_Preferences` | Preferences record | Persist model, thinking, and sandbox defaults without changing the active session |
 | `Shutdown_Item` | — | Queue is closing; `Agent_Task` should exit |
+
+The `Preferences record` contains the selected provider/model, thinking level,
+and sandbox profile. Empty values represent explicit clearing of the related
+default. The GTK task never writes settings directly; persistence remains
+owned by the agent task.
 
 ---
 
@@ -1765,7 +1799,7 @@ neither task may share mutable frontend state with the other.
 | REQ-CORE-100–107 | `Coyote_App.Frontend.Acme_Win`, `Coyote_App`, `Acme.Window`, `Nine_P.Client` |
 | REQ-CORE-108–108b | `Coyote_App`, `Coyote_App.Dispatch`, `Coyote_App.Utils`, `Session_Lister` |
 | REQ-CORE-109 | `LLM.Settings`, `Coyote_App.Frontend.Acme_Win` |
-| REQ-CORE-110–115 | `Coyote_App.Frontend.GUI`, `Coyote_GUI.Conversation`, `Coyote_Cmark` |
+| REQ-CORE-110–119 | `Coyote_App.Frontend.GUI`, `Coyote_GUI.Conversation`, `Coyote_GUI.Prompt_Queue`, `Coyote_Cmark` |
 | REQ-CORE-120–121 | `Coyote_App.Frontend.Plain` |
 | REQ-CORE-130–131 | `Coyote_App.History`, all frontends |
 | REQ-CORE-140–142 | `LLM.Agent`, `Coyote_App.Dispatch`, all frontends |
@@ -1775,7 +1809,7 @@ neither task may share mutable frontend state with the other.
 | REQ-CORE-200–203 | `LLM.Providers.*`, `LLM.HTTP`, `LLM.SSE` |
 | REQ-CORE-210–212 | `Nine_P.Client`, `Acme.Window`, `Coyote_App.Frontend.Acme_Win` |
 | REQ-CORE-220–221 | `Coyote_App.Frontend.GUI`, `Coyote_GUI.*` |
-| REQ-CORE-230–233 | `LLM.Settings`, `LLM.Auth`, `LLM.Auth.GitHub_Copilot` |
+| REQ-CORE-230–234 | `LLM.Settings`, `LLM.Auth`, `LLM.Auth.GitHub_Copilot` |
 | REQ-CORE-240–241 | `LLM.Session_Store` |
 | REQ-CORE-300–302 | `Coyote_App.Frontend`, `LLM.Events`, `LLM.Tools.Temp_File` |
 | REQ-CORE-400–402 | `LLM.Types`, `LLM.Compaction`, `LLM.Agent` |

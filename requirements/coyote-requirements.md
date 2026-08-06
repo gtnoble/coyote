@@ -1,8 +1,8 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.8
-**Date:** 2026-08-04
+**Version:** 1.9
+**Date:** 2026-08-06
 **Status:** Draft
 **Project Plan:** `plan/project-plan.md`
 
@@ -573,6 +573,29 @@ Ctrl-U) in the conversation view.
 The GUI frontend shall propagate `COYOTE_FRONTEND=gui` to all child processes
 so that subagents open their own GUI windows.
 
+**REQ-CORE-116** (D)
+The GUI frontend shall provide an `Edit → Preferences...` dialog for editing
+persistent defaults without changing the active session. The dialog shall
+expose the default model, default thinking level, and default sandbox profile.
+
+**REQ-CORE-117** (D)
+When the user saves GUI preferences, the frontend shall persist the default
+model as `defaultProvider` and `defaultModel`, the thinking level as
+`defaultThinkingLevel`, and the sandbox profile as `defaultSandboxProfile` in
+`~/.coyote/settings.json`. A no-sandbox selection shall clear the persisted
+sandbox default.
+
+**REQ-CORE-118** (T)
+GUI preference persistence shall preserve unrelated fields in
+`~/.coyote/settings.json`, update the file atomically, and report a write
+failure without terminating the active session.
+
+**REQ-CORE-119** (D)
+Changing a persistent preference shall affect subsequently created sessions;
+it shall not silently change the model, thinking level, or sandbox profile of
+the active session. Existing runtime controls shall remain available for
+changing the active session.
+
 ---
 
 #### 3.1.12 Plain Frontend
@@ -856,6 +879,13 @@ GitHub Copilot OAuth tokens shall be read from and written to
 When a configuration file is absent or malformed, the agent shall proceed
 with defaults and shall not abort startup.
 
+**REQ-CORE-234** (T)
+The settings file shall support the optional `defaultSandboxProfile` string
+field. An absent or empty field shall mean that no default sandbox profile is
+selected. The session header shall remain authoritative when a session is
+resumed or switched, including clearing the active profile when the header has
+no sandbox profile.
+
 ---
 
 #### 3.2.5 Session JSONL Files
@@ -1116,7 +1146,7 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-100..107 | Acme frontend tag commands (Send, Stop, New, etc.) | D | TC-100..107 |
 | REQ-CORE-108..108b | Session fork tokens and step-level turn footers | D | TC-108..108b |
 | REQ-CORE-109 | SetDefault writes to settings.json | D | TC-109 |
-| REQ-CORE-110..115 | GUI frontend capabilities | D | TC-110..115 |
+| REQ-CORE-110..119 | GUI frontend capabilities, including Preferences | D/T | TC-110..119 |
 | REQ-CORE-120..121 | Plain frontend capabilities | D | TC-120..121 |
 | REQ-CORE-130..131 | Session history replay | D | TC-130..131 |
 | REQ-CORE-140..142 | Error handling | D | TC-140..142 |
@@ -1135,7 +1165,7 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-200..204 | Provider API interfaces | I | TC-200..204 |
 | REQ-CORE-210..212 | acme 9P VFS interface | I | TC-210..212 |
 | REQ-CORE-220..221 | GTK3 interface | I | TC-220..221 |
-| REQ-CORE-230..233 | Configuration file interface | T | TC-230..233 |
+| REQ-CORE-230..234 | Configuration file interface, including sandbox default | T | TC-230..234 |
 | REQ-CORE-240..241 | Session JSONL format | T | TC-240..241 |
 | REQ-CORE-300..302 | Internal interfaces | I | TC-300..302 |
 | REQ-CORE-400..402 | Internal data | I | TC-400..402 |
