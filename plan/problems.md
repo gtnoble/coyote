@@ -1724,8 +1724,31 @@ behavior, current test baseline, and remaining manual qualification scope.
   and DEM-034 remain pending because no GTK display is available.
 - **Status:** Resolved for implementation; manual qualification pending.
 
-## PCR-047 — GTK GUI Preferences implementation and verification (2026-08-06)
+## PCR-049 — Sandboxed shell timeout leaves GTK agent turn hung (2026-08-08)
 
+- **Category:** Code, Test
+- **Priority:** 1-Critical
+- **Description:** A shell command with a timeout could hang the GTK agent
+  indefinitely when a sandbox profile was active. The timeout task signalled
+  the PID returned by `Start` as a process-group ID, but that PID belonged to
+  the outer `bwrap` process while `setsid` created a different process group.
+- **Affected work products:** `LLM.Tools.Shell`, sandbox integration tests,
+  SDD-CORE, Test Plan, provider/core component logs.
+- **Corrective action:** Place `setsid` outside the optional `bwrap` wrapper so
+  the process handle returned by `Start` remains the process-group leader.
+  Add sandboxed timeout and abort tests that verify result delivery after
+  terminating a long-running process tree.
+- **Actions taken (2026-08-08):** Moved the wrapper ordering, corrected the
+  design description, added two registered AUnit regressions, and updated
+  sandbox test inventory and component logs.
+- **Verification:** Production and test development builds succeed. The exact
+  timeout and abort regressions pass. A full-suite run remains incomplete due
+  to pre-existing environment-dependent failures and time limits.
+- **Status:** Resolved
+- **Date resolved:** 2026-08-08
+
+
+## PCR-047 — GTK GUI Preferences implementation and verification (2026-08-06)
 - **Category:** Requirements, Design, Test
 - **Priority:** 3-Moderate
 - **Description:** The requested GTK Preferences capability was not represented

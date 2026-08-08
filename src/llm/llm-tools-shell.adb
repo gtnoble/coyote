@@ -356,10 +356,11 @@ package body LLM.Tools.Shell is
                Null_In := Open (Null_File, Read_Mode);
             end if;
 
-            --  When a sandbox profile is active, wrap the command with
-            --  bubblewrap (bwrap) to restrict filesystem access.  bwrap
-            --  is placed outside setsid so that kill(-pid, SIGKILL)
-            --  still reaches the entire process tree.
+            --  Place setsid outside the optional bwrap wrapper.  The PID
+            --  returned by Start is then the process-group leader in both
+            --  sandboxed and unsandboxed executions.
+            Args.Append ("/usr/bin/setsid");
+
             if Sandbox_Profile'Length > 0 then
                declare
                   Bwrap_Args : constant
@@ -383,13 +384,9 @@ package body LLM.Tools.Shell is
                end;
             end if;
 
-            --  Wrap the shell invocation with setsid(1) so the child
-            --  process becomes a session leader in its own process group.
-            --  This means kill(-Handle, N) kills the shell and all its
-            --  descendants, which in turn closes the write-end of the
-            --  output pipe from the kernel side and unblocks any blocked
-            --  read() immediately.
-            Args.Append ("/usr/bin/setsid");
+            --  The setsid process is the direct child started by Start and
+            --  is replaced by bwrap when sandboxing is enabled.  Its PID is
+            --  therefore the process-group leader used by kill(-Handle, N).
             Args.Append (Shell_Path);
             Args.Append ("-lc");
             Args.Append (Command);

@@ -817,8 +817,10 @@ arguments: `--bind <path> <path>` for `allowWrite`, `--ro-bind <path> <path>`
 for `denyWrite` and `allowRead`, `--tmpfs <path>` for `denyRead`.
 
 **Integration:** Called by `LLM.Tools.Shell.Execute` when `Sandbox_Profile` is
-non-empty.  The `bwrap` wrapper is placed *outside* `setsid` so that
-`kill(-pid, SIGKILL)` still reaches the entire process tree.
+non-empty.  `setsid` is the outer process started by the executor; it
+executes `bwrap` for sandboxed commands, which then executes the shell.
+Consequently the process handle returned by `Start` remains the
+process-group leader used by `kill(-pid, SIGKILL)` for the complete tree.
 
 ---
 

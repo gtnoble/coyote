@@ -6,11 +6,13 @@
 
 with Ada.Directories;
 with Ada.Environment_Variables;
+with Ada.Real_Time;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with AUnit.Assertions;
 with GNATCOLL.JSON;
+with LLM.Tools;
 with LLM.Tools.Sandbox;
 with LLM.Tools.Shell;
 
@@ -586,5 +588,95 @@ package body Sandbox_Tests is
         (Contains (To_String (Result), "no_sandbox"),
          "Output should contain 'no_sandbox'");
    end Test_Shell_Sandbox_Empty_Profile;
+
+   procedure Test_Shell_Sandbox_Timeout (T : in out Test) is
+      pragma Unreferenced (T);
+      Dir        : constant String := LLM.Tools.Sandbox.Profiles_Dir;
+      Prof_Path  : constant String := Dir & "/shell_timeout.json";
+      Result     : Unbounded_String;
+      Media_Type : Unbounded_String;
+      Is_Error   : Boolean;
+   begin
+      Write_File
+        (Prof_Path,
+         "{""allowWrite"":[],""denyWrite"":[],"
+         & """denyRead"":[],""allowRead"":[]}");
+
+      LLM.Tools.Shell.Execute
+        (Args_Json       =>
+           "{""command"":""sleep 10"",""timeout"":1}",
+         Result          => Result,
+         Media_Type      => Media_Type,
+         Is_Error        => Is_Error,
+         Sandbox_Profile => "shell_timeout");
+
+      Assert (Is_Error,
+              "sandboxed command exceeding timeout should set Is_Error");
+      Assert
+        (Contains (To_String (Result), "timed out after 1 seconds"),
+         "sandboxed timeout result should contain timeout notice, got: "
+         & To_String (Result));
+   end Test_Shell_Sandbox_Timeout;
+
+   procedure Test_Shell_Sandbox_Abort (T : in out Test) is
+      pragma Unreferenced (T);
+      Dir        : constant String := LLM.Tools.Sandbox.Profiles_Dir;
+      Prof_Path  : constant String := Dir & "/shell_abort.json";
+      Flag       : aliased LLM.Tools.Abort_Flag;
+      Result     : Unbounded_String;
+      Media_Type : Unbounded_String;
+      Is_Error   : Boolean;
+   begin
+      Write_File
+        (Prof_Path,
+         "{""allowWrite"":[],""denyWrite"":[],"
+         & """denyRead"":[],""allowRead"":[]}");
+
+      declare
+         task Executor;
+
+         task body Executor is
+         begin
+            LLM.Tools.Shell.Execute
+              (Args_Json       =>
+                 "{""command"":""echo sandbox_abort && sleep 10"","
+                 & """timeout"":30}",
+               Result          => Result,
+               Media_Type      => Media_Type,
+               Is_Error        => Is_Error,
+               Abort_Flg       => Flag'Access,
+               Sandbox_Profile => "shell_abort");
+         end Executor;
+      begin
+         delay 0.20;
+         Flag.Set;
+
+         declare
+            use Ada.Real_Time;
+            Deadline : constant Time := Clock + Milliseconds (2_000);
+         begin
+            loop
+               exit when Executor'Terminated;
+               exit when Clock >= Deadline;
+               delay 0.01;
+            end loop;
+         end;
+
+         Assert
+           (Executor'Terminated,
+            "sandboxed abort should terminate the shell process group");
+      end;
+
+      Assert (Is_Error,
+              "sandboxed aborted command should set Is_Error");
+      Assert
+        (Contains (To_String (Result), "sandbox_abort"),
+         "sandboxed abort should preserve output before termination, got: "
+         & To_String (Result));
+      Assert
+        (Contains (To_String (Result), "command was aborted"),
+         "sandboxed abort result should contain abort notice, got: "
+         & To_String (Result));
+   end Test_Shell_Sandbox_Abort;
 
 end Sandbox_Tests;

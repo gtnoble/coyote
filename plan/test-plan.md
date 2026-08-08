@@ -152,7 +152,7 @@ SRS-CORE requirement groups.
 | `llm_types_tests.adb` | REQ-CORE-400â402 | ~20 |
 | `llm_parallel_tools_tests.adb` | REQ-CORE-056 (run_group) | ~15 |
 
-| `sandbox_tests.adb` | Sandbox profile subsystem | 22 |
+| `sandbox_tests.adb` | Sandbox profile subsystem, including timeout and abort process-group termination | 24 |
 | `llm_context_tests.adb` | REQ-CORE-060 (compaction threshold) | ~15 |
 | `session_history_tests.adb` | REQ-CORE-130â131 | ~15 |
 | `dispatch_tests.adb` | REQ-CORE-040â046 (dispatch) | ~20 |
@@ -343,6 +343,14 @@ interleaved tool calls preserves independent detail ranges and selects the
 second tool correctly. A full-suite run was attempted but timed out during
 existing live/network activity; the prior 822-test baseline remains the last
 completed full-suite baseline.
+
+**Verification as of 2026-08-08 (sandbox timeout process-group correction):**
+The production and test projects build successfully in the required development
+profile. The exact sandbox timeout and abort regression tests both pass; each
+runs a long-lived command under `bwrap` and verifies prompt process-group
+termination and result delivery. The full suite was not completed because
+pre-existing environment-dependent tests failed and the run exceeded the
+available time.
 
 **Verification as of 2026-08-08 (subagent default model preference):**
 The existing settings, typed queue, and agent-default tests were extended to

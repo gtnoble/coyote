@@ -310,7 +310,8 @@ Paths are resolved relative to CWD; missing paths are silently skipped.
   inheritance in `Create`; `Worker_Task` gains `Sandbox_Profile` access
   discriminant and passes it to `Shell.Execute`.
 - `src/llm/llm-tools-shell.ads/.adb` — `Execute` gains `Sandbox_Profile`
-  parameter; when non-empty, prepends `bwrap` arguments before `setsid`.
+  parameter; when non-empty, starts `setsid` before the `bwrap` arguments so
+  timeout and abort signals target the complete sandboxed process group.
 - `src/llm/llm-events.ads` — `Session_Info_Event` gains `Sandbox_Profile` field.
 - `src/llm/llm-session_store.adb` — writes `sandboxProfile` to JSONL session
   header.
@@ -328,8 +329,11 @@ Paths are resolved relative to CWD; missing paths are silently skipped.
 - `test/src/dispatch_tests.adb` — updated `Session_Info_Event` construction.
 - `~/.coyote/sandbox/default.json` — initial profile with `allowWrite` and
   `denyRead` rules.
+- `src/llm/llm-tools-shell.adb` — corrected process-group wrapper ordering:
+  `setsid` now starts `bwrap` rather than being nested inside it.
 
-**Test coverage (2026-07-30):** 22 unit tests in `test/src/sandbox_tests.ads/.adb`
+**Test coverage (2026-07-30, extended 2026-08-08):** 24 unit tests in
+`test/src/sandbox_tests.ads/.adb`
 cover `Profiles_Dir`, `Available_Profiles` (empty/found), `Load_Profile` (valid
 JSON / missing / bad JSON), `Build_Bwrap_Args` for all four rule types
 (allowWrite→`--bind`, denyWrite/allowRead→`--ro-bind`, denyRead→`--tmpfs`),

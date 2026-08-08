@@ -56,5 +56,6 @@ package Sandbox_Tests is
    procedure Test_Shell_Sandbox_Allow_Write   (T : in out Test);
    procedure Test_Shell_Sandbox_Deny_Read     (T : in out Test);
    procedure Test_Shell_Sandbox_Empty_Profile  (T : in out Test);
-
+   procedure Test_Shell_Sandbox_Timeout         (T : in out Test);
+   procedure Test_Shell_Sandbox_Abort           (T : in out Test);
 end Sandbox_Tests;

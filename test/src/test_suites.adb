@@ -2801,6 +2801,12 @@ package body Test_Suites is
       Result.Add_Test (Sandbox_Caller.Create
         ("Sandbox shell empty profile runs unsandboxed",
          Sandbox_Tests.Test_Shell_Sandbox_Empty_Profile'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox shell timeout terminates the process group",
+         Sandbox_Tests.Test_Shell_Sandbox_Timeout'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox shell abort terminates the process group",
+         Sandbox_Tests.Test_Shell_Sandbox_Abort'Access));
 
       Result.Add_Test (LLM_Agent_Caller.Create
         ("LLM.Agent pause fires at turn boundary and resumes normally",

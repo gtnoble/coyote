@@ -127,6 +127,9 @@ and the next startup will see a non-expired token and load the catalogue.
 - `LLM.Tools.Shell.Execute` reads `$SHELL` from the environment at call time
   (not at package elaboration). This allows the user's shell to be changed
   without restarting coyote.
+- For timeout and abort signalling, `setsid` is the outer wrapper. When a
+  sandbox profile is active, it execs `bwrap`, preserving the process-group
+  leader PID returned by `Start` for signals to the entire command tree.
 
 ---
 
