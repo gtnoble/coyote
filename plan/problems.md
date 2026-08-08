@@ -1770,3 +1770,27 @@ behavior, current test baseline, and remaining manual qualification scope.
   and DEM-034 remain pending because no GTK display is available; a full-suite
   run was not completed because existing live/network activity timed out.
 - **Status:** Resolved for implementation; manual qualification pending
+
+## PCR-050 — Lasem rejects literal LaTeX relation characters (2026-08-08)
+
+- **Category:** Code, Test
+- **Priority:** 2-Serious
+- **Description:** The GTK display-math renderer passed valid LaTeX/MathJax
+  literal `<` and `>` relation characters directly to Lasem. Lasem's iTeX
+  lexer treats those characters as unknown tokens and renders the literal
+  text `Unknown Character` inside an otherwise valid math document.
+- **Affected work products:** `Coyote_Lasem`, GTK display-math rendering,
+  Lasem tests, design description, frontend SDF, and Test Plan.
+- **Corrective action:** Normalize a temporary copy of the source before
+  Lasem measurement and Cairo rendering, converting only literal relation
+  characters inside math delimiters to Lasem's supported `\lt` and `\gt`
+  commands. Preserve the original source in the GUI line model for display
+  and selection.
+- **Actions taken (2026-08-08):** Added delimiter- and `\text{...}`-aware
+  normalization in `src/coyote_lasem_c.c`. Added and registered a regression
+  test comparing the original example with its Lasem-command equivalent.
+  Updated the design description, frontend SDF, and test inventory.
+- **Verification:** Production and test development builds succeed. The new
+  focused regression passes with zero failures and zero unexpected errors.
+- **Status:** Resolved
+- **Date resolved:** 2026-08-08

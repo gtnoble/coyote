@@ -177,12 +177,13 @@ height expands as wrapping changes.
 
 `Coyote_Lasem` wraps the locally installed Lasem 0.6 library through
 `coyote_lasem_c.c`. The C shim converts Lasem `GError` values to allocated
-messages and releases the document/view GObjects before returning. The Ada
-binding exposes measurement and direct Cairo rendering for delimiter-wrapped
-display math. The primary GUI renderer stores the original iTeX source in a
-`Display_Math` logical line, uses Lasem dimensions for virtualization, and
-renders only visible math lines in the GTK draw callback. Inline math and the
-legacy shared Pango renderer remain outside this increment.
+messages and releases the document/view GObjects before returning. Before
+measurement or rendering, it copies the source and converts literal `<` and
+`>` characters inside math delimiters to Lasem's supported `\lt` and `\gt`
+commands. The primary GUI renderer retains the original iTeX source in the
+`Display_Math` logical line for display and selection, while Lasem receives
+only the temporary normalized copy. Inline math and the legacy shared Pango
+renderer remain outside this increment.
 
 ### `Coyote_Cmark` C shim for enum resolution
 
@@ -333,10 +334,10 @@ let the user explicitly control the behaviour.
   preservation, interleaved tool selection, streaming, layout, and rendering.
 - `Coyote_GUI.Tool_Detail_Window`: compiled and linked into the main GUI;
   display-backed visual qualification remains manual.
-- `Coyote_Lasem`: covered by three AUnit tests for fraction and matrix
-  measurement plus malformed iTeX error handling. `Coyote_GUI.Conversation`
-  has three display-backed tests for style selection, source preservation, and
-  visual height.
+- `Coyote_Lasem`: covered by four AUnit tests for fraction and matrix
+  measurement, literal relation normalization, and malformed iTeX error
+  handling. `Coyote_GUI.Conversation` has three display-backed tests for style
+  selection, source preservation, and visual height.
 - `Coyote_Cmark`: covered by AUnit tests — parse round-trips for each GFM
   node type; extension handling; null-safety of `cmark_shim_get_literal`.
 - `Acme.*` / `Nine_P.*`: covered by integration tests in

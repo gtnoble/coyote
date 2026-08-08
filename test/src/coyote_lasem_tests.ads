@@ -15,6 +15,7 @@ package Coyote_Lasem_Tests is
 
    procedure Test_Measure_Fraction (T : in out Test);
    procedure Test_Measure_Complex_Expression (T : in out Test);
+   procedure Test_Measure_Literal_Relations (T : in out Test);
    procedure Test_Invalid_Itex_Returns_Error (T : in out Test);
 
 end Coyote_Lasem_Tests;

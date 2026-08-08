@@ -1037,21 +1037,23 @@ fresh one via `File → New Session`.
 
 `Coyote_Lasem` wraps Lasem 0.6 through `coyote_lasem_c.c`. The C shim handles
 `GError` conversion and releases the Lasem document/view GObjects before
-returning. `Measure_Itex` returns pixel dimensions and baseline; `Render_Itex`
-draws the supported iTeX expression directly onto the GTK draw callback's
-Cairo context. Display math is currently supported only in the virtualized GUI
-conversation renderer; inline math and the legacy shared Pango renderer remain
-future work.
+returning. Before measurement or rendering, it copies the source and converts
+literal `<` and `>` characters inside display-math delimiters to Lasem's
+supported `\lt` and `\gt` commands. The original iTeX source is retained by
+the GUI for display and selection. Display math is currently supported only in
+the virtualized GUI conversation renderer; inline math and the legacy shared
+Pango renderer remain future work.
 
 ### 5.16.1 `Coyote_Lasem` binding
 
 `Coyote_Lasem` wraps Lasem 0.6 through `coyote_lasem_c.c`. The C shim handles
 `GError` conversion and releases the Lasem document/view GObjects before
-returning. `Measure_Itex` returns pixel dimensions and baseline; `Render_Itex`
-draws the supported iTeX expression directly onto the GTK draw callback's
-Cairo context. Display math is currently supported only in the virtualized GUI
-conversation renderer; inline math and the legacy shared Pango renderer remain
-future work.
+returning. Before measurement or rendering, it copies the source and converts
+literal `<` and `>` characters inside display-math delimiters to Lasem's
+supported `\lt` and `\gt` commands. The original iTeX source is retained by
+the GUI for display and selection. Display math is currently supported only in
+the virtualized GUI conversation renderer; inline math and the legacy shared
+Pango renderer remain future work.
 
 ### 5.16 `Coyote_Cmark` and `coyote_cmark_c.c`
 

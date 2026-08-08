@@ -2866,6 +2866,9 @@ package body Test_Suites is
         ("Coyote.Lasem measures a complex expression",
          Coyote_Lasem_Tests.Test_Measure_Complex_Expression'Access));
       Result.Add_Test (Coyote_Lasem_Caller.Create
+        ("Coyote.Lasem accepts literal relation characters",
+         Coyote_Lasem_Tests.Test_Measure_Literal_Relations'Access));
+      Result.Add_Test (Coyote_Lasem_Caller.Create
         ("Coyote.Lasem rejects invalid iTeX",
          Coyote_Lasem_Tests.Test_Invalid_Itex_Returns_Error'Access));
 

@@ -169,7 +169,7 @@ SRS-CORE requirement groups.
 | `llm_openrouter_tests.adb` | REQ-CORE-072 (OpenRouter) | ~15 |
 | `tool_uri_tests.adb` | REQ-CORE-100â109 (plumb token format) | ~10 |
 | `coyote_cmark_tests.adb` | REQ-CORE-111 (Markdown rendering) | ~25 |
-| `coyote_lasem_tests.adb` | Lasem iTeX measurement and error handling | 3 |
+| `coyote_lasem_tests.adb` | Lasem iTeX measurement, literal relation normalization, and error handling | 4 |
 | `coyote_gui_conversation_tests.adb` | Display-math style, source preservation, visual height | 3 |
 | `nine_p_proto_tests.adb` | REQ-CORE-210 (9P protocol) | ~20 |
 | `nine_p_mock_server_tests.adb` | REQ-CORE-210â211 | ~15 |
@@ -356,6 +356,11 @@ runs a long-lived command under `bwrap` and verifies prompt process-group
 termination and result delivery. The full suite was not completed because
 pre-existing environment-dependent tests failed and the run exceeded the
 available time.
+
+**Verification as of 2026-08-08 (PCR-050 Lasem literal-relation normalization):**
+838 registered tests, including the new Lasem literal-relation regression. The
+production and test development builds succeed, and the focused regression
+passes with zero failures and zero unexpected errors.
 
 **Verification as of 2026-08-08 (subagent default model preference):**
 The existing settings, typed queue, and agent-default tests were extended to
