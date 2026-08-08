@@ -1327,7 +1327,7 @@ package body Test_Suites is
 
       --  LLM.Settings tests
       Result.Add_Test (LLM_Settings_Caller.Create
-        ("LLM.Settings loads defaults from settings.json",
+        ("LLM.Settings loads defaults and subagent defaults from settings.json",
          LLM_Settings_Tests.Test_Load_Settings'Access));
       Result.Add_Test (LLM_Settings_Caller.Create
         ("LLM.Settings loads appendSystemPrompt from settings.json",

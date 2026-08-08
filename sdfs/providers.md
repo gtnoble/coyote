@@ -13,6 +13,14 @@
 
 ## Design Rationale
 
+### Dedicated subagent model preference (2026-08-08)
+
+`LLM.Settings` persists the optional `defaultSubagentProvider` and
+`defaultSubagentModel` fields alongside the existing GUI preferences. Empty
+values remove the fields, preserving unrelated settings through the same atomic
+replacement path. The agent resolves the dedicated model only in subagent
+mode, after an explicit model argument and before the ordinary default.
+
 ### GUI Preferences settings and persistence (2026-08-06)
 
 `LLM.Settings` now loads the optional `defaultSandboxProfile` field and exposes

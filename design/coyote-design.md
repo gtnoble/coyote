@@ -1,8 +1,8 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.9
-**Date:** 2026-08-06
+**Version:** 1.10
+**Date:** 2026-08-08
 
 **Status:** Reviewed — project control (M3 complete 2026-06-02)
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
@@ -1133,14 +1133,18 @@ made by the GUI Preferences dialog or the Acme SetDefault command.
 **`Load_Settings` procedure:** Reads `settings.json`. Missing fields produce
 empty/default values. A malformed or absent file does not prevent startup.
 
-**`Save_Preferences` operation:** Updates the model, thinking, and sandbox
-preference fields while preserving unrelated JSON fields. The file is written
-through an atomic same-directory replacement. Empty values clear the
-corresponding preference. Write failures are reported to the caller so the
-active session can continue.
+**`Save_Preferences` operation:** Updates the model, thinking, sandbox, and
+optional subagent-model preference fields while preserving unrelated JSON
+fields. The file is written through an atomic same-directory replacement.
+Empty values clear the corresponding preference. Write failures are reported
+ to the caller so the active session can continue.
 
 **Default precedence:** For a newly created session, an explicit model
-argument overrides settings, and an inherited runtime sandbox profile
+argument overrides all persistent defaults. For `--subagent`, the configured
+subagent model is selected before the ordinary default model; ordinary
+sessions ignore the subagent-only preference. An absent or incomplete
+subagent preference falls back to the ordinary default-model rules. An
+inherited runtime sandbox profile
 (`COYOTE_SANDBOX_PROFILE`) overrides `defaultSandboxProfile`. When resuming or
 switching sessions, the session header's sandbox profile is authoritative;
 an absent profile clears the active value. Persistent preference changes do

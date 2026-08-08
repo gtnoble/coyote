@@ -385,7 +385,10 @@ package body LLM.Agent is
       return To_String (Info.Provider) & "/" & To_String (Info.Model_Id);
    end Normalized_Model_Spec;
 
-   function Effective_Model_Spec (Requested : String) return String is
+   function Effective_Model_Spec
+     (Requested : String;
+      Subagent  : Boolean := False) return String
+   is
       Settings_Value : constant LLM.Settings.Settings :=
         LLM.Settings.Load_Settings;
       Available      : constant LLM.Model_Registry.Model_Info_Vectors.Vector :=
@@ -393,6 +396,15 @@ package body LLM.Agent is
    begin
       if Requested'Length > 0 then
          return Requested;
+      end if;
+
+      if Subagent
+        and then Length (Settings_Value.Default_Subagent_Provider) > 0
+        and then Length (Settings_Value.Default_Subagent_Model) > 0
+      then
+         return To_String (Settings_Value.Default_Subagent_Provider)
+           & "/"
+           & To_String (Settings_Value.Default_Subagent_Model);
       end if;
 
       if Length (Settings_Value.Default_Provider) > 0
@@ -1200,9 +1212,11 @@ package body LLM.Agent is
       Model_Spec    :        String  := "";
       Agent         :        String  := "";
       No_Tools      :        Boolean := False;
-      Session_Id    :        String  := "")
+      Session_Id    :        String  := "";
+      Subagent      :        Boolean := False)
    is
-      Effective_Spec : constant String := Effective_Model_Spec (Model_Spec);
+      Effective_Spec : constant String :=
+        Effective_Model_Spec (Model_Spec, Subagent);
       Settings_Value : constant LLM.Settings.Settings :=
         LLM.Settings.Load_Settings;
    begin

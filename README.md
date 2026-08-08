@@ -12,7 +12,7 @@ Sessions are stored in a JSONL format compatible with [pi](https://github.com/ma
 - **Context compaction** — automatic or manual summarisation of older conversation history to stay within model context windows
 - **Plumber integration** — switch model or thinking level by button-3 clicking `coyote-model+` or `coyote-thinking+` tokens in any acme window; button-3 a `coyote-session+` token to open a session in a new window; button-3 a `coyote-fork+` token at the end of any turn or after a tool-call batch to branch the session at that point
 - **Session persistence** — conversations saved to `~/.coyote/sessions/` as JSONL files
-- **Subagent support** — spawn an ephemeral coyote window by invoking coyote via the shell tool: pipe the prompt to stdin and call `coyote --one-shot --prompt -`. Use `--model provider/id`, `--agent TEXT|@path`, and `--name LABEL` to control the subagent. Session lineage is recorded automatically.
+- **Subagent support** — spawn an ephemeral coyote window by invoking coyote via the shell tool: pipe the prompt to stdin and call `coyote --subagent --prompt -`. The GUI Preferences dialog can select a dedicated subagent model; `--model provider/id` still overrides it. Use `--agent TEXT|@path` and `--name LABEL` to control the subagent. Session lineage is recorded automatically.
 
 ## Requirements
 
@@ -96,19 +96,23 @@ All configuration files live under `~/.coyote/`.
 
 ```json
 {
-  "defaultProvider": "github-copilot",
-  "defaultModel":    "claude-sonnet-4.6",
-  "defaultThinking": "low",
-  "appendSystemPrompt": "You are a helpful coding assistant.",
-  "promptFilter": "m4 -"
+  "defaultProvider":          "github-copilot",
+  "defaultModel":             "claude-sonnet-4.6",
+  "defaultSubagentProvider":  "openrouter",
+  "defaultSubagentModel":     "anthropic/claude-haiku",
+  "defaultThinkingLevel":     "low",
+  "appendSystemPrompt":       "You are a helpful coding assistant.",
+  "promptFilter":             "m4 -"
 }
 ```
 
 | Field | Description |
 |---|---|
-| `defaultProvider` | Provider to use when `--model` is not specified |
-| `defaultModel` | Model ID to use when `--model` is not specified |
-| `defaultThinking` | Reasoning level at startup (`low`, `medium`, `high`) |
+| `defaultProvider` | Provider to use for ordinary sessions when `--model` is not specified |
+| `defaultModel` | Model ID to use for ordinary sessions when `--model` is not specified |
+| `defaultSubagentProvider` | Provider to use for `--subagent` when `--model` is not specified |
+| `defaultSubagentModel` | Model ID to use for `--subagent` when `--model` is not specified; absent values fall back to the ordinary default |
+| `defaultThinkingLevel` | Reasoning level at startup (`low`, `medium`, `high`) |
 | `appendSystemPrompt` | Text appended to every system prompt |
 | `promptFilter` | Shell command through which interactive prompts (Send/Steer) are filtered. The raw prompt is written to stdin; stdout becomes the prompt sent to the agent and the text echoed in the window. Runs via `$SHELL -c CMD`. Can be overridden per-invocation with `--prompt-filter`. |
 

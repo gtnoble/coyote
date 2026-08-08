@@ -32,12 +32,14 @@ package LLM.Agent is
    --
    --  Session_Id resumes an existing session when non-empty.
    --  No_Tools disables the built-in tool set when True.
+   --  Subagent selects the dedicated default model when Model_Spec is empty.
    procedure Create
      (S             :    out Session;
       Model_Spec    :        String  := "";
       Agent         :        String  := "";
       No_Tools      :        Boolean := False;
-      Session_Id    :        String  := "");
+      Session_Id    :        String  := "";
+      Subagent      :        Boolean := False);
 
    --  Send Prompt as a new user turn and run the full agentic loop until
    --  the agent completes, is aborted, or raises an error.

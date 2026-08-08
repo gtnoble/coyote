@@ -13,6 +13,14 @@
 
 ## Design Rationale
 
+### Dedicated subagent model in GTK Preferences (2026-08-08)
+
+The Preferences dialog now provides a separate subagent model selector with a
+`Use default model` fallback. The selected provider/model is carried through
+the typed `Set_Preferences` queue item and persisted by the agent task without
+changing the active session. `--subagent` consumes the dedicated preference;
+ordinary sessions continue using the ordinary default.
+
 ### Why three frontends share one `Dispatch_Event` function
 
 ### GUI Preferences implementation (2026-08-06)

@@ -1,8 +1,8 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.9
-**Date:** 2026-08-06
+**Version:** 1.10
+**Date:** 2026-08-08
 **Status:** Draft
 **Project Plan:** `plan/project-plan.md`
 
@@ -576,14 +576,17 @@ so that subagents open their own GUI windows.
 **REQ-CORE-116** (D)
 The GUI frontend shall provide an `Edit → Preferences...` dialog for editing
 persistent defaults without changing the active session. The dialog shall
-expose the default model, default thinking level, and default sandbox profile.
+expose the default model, default thinking level, default sandbox profile, and
+optional default subagent model.
 
 **REQ-CORE-117** (D)
 When the user saves GUI preferences, the frontend shall persist the default
 model as `defaultProvider` and `defaultModel`, the thinking level as
-`defaultThinkingLevel`, and the sandbox profile as `defaultSandboxProfile` in
+`defaultThinkingLevel`, the sandbox profile as `defaultSandboxProfile`, and the
+subagent model as `defaultSubagentProvider` and `defaultSubagentModel` in
 `~/.coyote/settings.json`. A no-sandbox selection shall clear the persisted
-sandbox default.
+sandbox default, and the explicit subagent fallback selection shall clear both
+subagent preference fields.
 
 **REQ-CORE-118** (T)
 GUI preference persistence shall preserve unrelated fields in
@@ -864,8 +867,8 @@ thread-safe protected queue.
 
 **REQ-CORE-230** (T)
 The agent shall read `~/.coyote/settings.json` at startup to obtain the
-default provider, model, thinking level, compaction settings, and
-`promptFilter`.
+default provider, model, thinking level, optional subagent provider/model,
+compaction settings, and `promptFilter`.
 
 **REQ-CORE-231** (T)
 The agent shall read `~/.coyote/models.json` at startup to obtain per-provider
@@ -1080,6 +1083,7 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-011 | CWD restored on session resume | D | TC-011 |
 | REQ-CORE-012 | Warning on missing CWD | D | TC-012 |
 | REQ-CORE-013 | --model overrides default | T | TC-013 |
+| REQ-CORE-070a | Subagent default model and fallback precedence | T | TC-070a |
 | REQ-CORE-014 | --agent TEXT appended to prompt | T | TC-014 |
 | REQ-CORE-015 | --no-tools disables tools | T | TC-015 |
 | REQ-CORE-016 | --no-session suppresses file creation | T | TC-016 |

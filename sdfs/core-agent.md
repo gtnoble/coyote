@@ -11,6 +11,15 @@
 
 ## Design Rationale
 
+## 2026-08-08 — Dedicated subagent model preference
+
+`LLM.Settings` now loads and atomically persists optional
+`defaultSubagentProvider` and `defaultSubagentModel` fields. `LLM.Agent.Create`
+accepts a subagent-mode flag; explicit model arguments remain authoritative,
+then the dedicated subagent default is used, followed by the ordinary default
+model and registry fallback. Existing settings and agent regressions cover the
+new selection path.
+
 ## 2026-08-06 — GUI Preferences implementation and verification
 
 **Scope:** The preferences investigation identified a required extension to

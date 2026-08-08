@@ -17,11 +17,13 @@ package LLM.Settings is
    function Agent_Dir return String;
 
    type Settings is record
-      Default_Provider     : Ada.Strings.Unbounded.Unbounded_String;
-      Default_Model        : Ada.Strings.Unbounded.Unbounded_String;
-      Default_Thinking     : Ada.Strings.Unbounded.Unbounded_String;
-      Default_Sandbox      : Ada.Strings.Unbounded.Unbounded_String;
-      Append_System_Prompt : Ada.Strings.Unbounded.Unbounded_String;
+      Default_Provider          : Ada.Strings.Unbounded.Unbounded_String;
+      Default_Model             : Ada.Strings.Unbounded.Unbounded_String;
+      Default_Thinking          : Ada.Strings.Unbounded.Unbounded_String;
+      Default_Sandbox           : Ada.Strings.Unbounded.Unbounded_String;
+      Default_Subagent_Provider : Ada.Strings.Unbounded.Unbounded_String;
+      Default_Subagent_Model    : Ada.Strings.Unbounded.Unbounded_String;
+      Append_System_Prompt      : Ada.Strings.Unbounded.Unbounded_String;
       --  Shell command line through which interactive prompts are filtered
       --  before being sent to the agent.  The raw prompt is written to stdin
       --  and stdout is used as the filtered prompt.  Empty means no filter.
@@ -66,8 +68,10 @@ package LLM.Settings is
    --  Empty values clear the corresponding preference.  Unrelated fields
    --  are preserved and the replacement is atomic.
    procedure Save_Preferences
-     (Provider    : String;
-      Model_Id    : String;
-      Think_Level : String;
-      Sandbox     : String);
+     (Provider          : String;
+      Model_Id          : String;
+      Think_Level       : String;
+      Sandbox           : String;
+      Subagent_Provider : String := "";
+      Subagent_Model    : String := "");
 end LLM.Settings;

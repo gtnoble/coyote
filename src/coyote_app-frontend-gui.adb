@@ -1044,16 +1044,24 @@ package body Coyote_App.Frontend.GUI is
       Dialog         : Gtk.Dialog.Gtk_Dialog;
       Content        : Gtk.Box.Gtk_Box;
       Form           : Gtk.Box.Gtk_Box;
-      Model_C        : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
-      Thinking_C     : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
-      Sandbox_C      : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
-      Resp           : Gtk.Dialog.Gtk_Response_Type;
-      Btn            : Gtk.Widget.Gtk_Widget;
-      Thinking_Index : Glib.Gint := 0;
-      Sandbox_Index  : Glib.Gint := 0;
-      Target_Model   : constant String :=
+      Model_C             : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
+      Subagent_Model_C    : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
+      Thinking_C          : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
+      Sandbox_C           : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
+      Resp                : Gtk.Dialog.Gtk_Response_Type;
+      Btn                 : Gtk.Widget.Gtk_Widget;
+      Thinking_Index      : Glib.Gint := 0;
+      Sandbox_Index       : Glib.Gint := 0;
+      Subagent_Model_Index : Glib.Gint := 0;
+      Target_Model        : constant String :=
         To_String (Settings_Value.Default_Provider) & "/"
         & To_String (Settings_Value.Default_Model);
+      Target_Subagent_Model : constant String :=
+        (if Length (Settings_Value.Default_Subagent_Provider) > 0
+           and then Length (Settings_Value.Default_Subagent_Model) > 0
+         then To_String (Settings_Value.Default_Subagent_Provider) & "/"
+           & To_String (Settings_Value.Default_Subagent_Model)
+         else "");
       use type Gtk.Dialog.Gtk_Response_Type;
 
       function Model_Text
@@ -1080,7 +1088,7 @@ package body Coyote_App.Frontend.GUI is
       end if;
       Gtk.Dialog.Gtk_New (Dialog);
       Dialog.Set_Title ("Preferences");
-      Dialog.Set_Default_Size (560, 220);
+      Dialog.Set_Default_Size (560, 270);
       Dialog.Set_Transient_For (Current_Frontend.Win);
       Btn := Dialog.Add_Button ("_Cancel", Gtk.Dialog.Gtk_Response_Cancel);
       Btn := Dialog.Add_Button ("_Save", Gtk.Dialog.Gtk_Response_OK);
@@ -1105,6 +1113,29 @@ package body Coyote_App.Frontend.GUI is
             Model_C.Set_Active (0);
          end if;
          Row.Pack_Start (Model_C, True, True, 0);
+         Form.Pack_Start (Row, False, False, 0);
+      end;
+
+      declare
+         Row : Gtk.Box.Gtk_Box;
+         Label : Gtk.Label.Gtk_Label;
+      begin
+         Gtk.Box.Gtk_New_Hbox (Row, Homogeneous => False, Spacing => 8);
+         Gtk.Label.Gtk_New (Label, "Default subagent model:");
+         Row.Pack_Start (Label, False, False, 0);
+         Gtk.Combo_Box_Text.Gtk_New (Subagent_Model_C);
+         Subagent_Model_C.Append_Text ("Use default model");
+         for M of Models loop
+            Subagent_Model_C.Append_Text (Model_Text (M));
+         end loop;
+         if Target_Subagent_Model'Length > 0
+           and then Model_Index_Of (Target_Subagent_Model) >= 0
+         then
+            Subagent_Model_Index :=
+              Model_Index_Of (Target_Subagent_Model) + 1;
+         end if;
+         Subagent_Model_C.Set_Active (Subagent_Model_Index);
+         Row.Pack_Start (Subagent_Model_C, True, True, 0);
          Form.Pack_Start (Row, False, False, 0);
       end;
 
@@ -1163,23 +1194,44 @@ package body Coyote_App.Frontend.GUI is
       Resp := Dialog.Run;
       if Resp = Gtk.Dialog.Gtk_Response_OK then
          declare
-            Model : constant String := Model_C.Get_Active_Text;
-            Sand  : constant String := Sandbox_C.Get_Active_Text;
-            Slash : constant Natural := Ada.Strings.Fixed.Index (Model, "/");
+            Model          : constant String := Model_C.Get_Active_Text;
+            Subagent_Model : constant String :=
+              Subagent_Model_C.Get_Active_Text;
+            Sand           : constant String := Sandbox_C.Get_Active_Text;
+            Slash          : constant Natural := Ada.Strings.Fixed.Index
+              (Model, "/");
+            Subagent_Slash : constant Natural := Ada.Strings.Fixed.Index
+              (Subagent_Model, "/");
+            Provider       : Unbounded_String;
+            Model_Id       : Unbounded_String;
+            Subagent_Provider : Unbounded_String;
+            Subagent_Id       : Unbounded_String;
          begin
             if Model'Length > 0 and then Slash > Model'First then
-               Current_Frontend.PQ.Enqueue
-                 ((Kind => Set_Preferences,
-                   Preferences =>
-                     (Provider => To_Unbounded_String
-                        (Model (Model'First .. Slash - 1)),
-                      Model_Id => To_Unbounded_String
-                        (Model (Slash + 1 .. Model'Last)),
-                      Thinking => LLM.Providers.Thinking_Level'Val
-                        (Thinking_Index),
-                      Sandbox => To_Unbounded_String
-                        (if Sand = "None (no sandbox)" then "" else Sand))));
+               Provider := To_Unbounded_String
+                 (Model (Model'First .. Slash - 1));
+               Model_Id := To_Unbounded_String
+                 (Model (Slash + 1 .. Model'Last));
             end if;
+            if Subagent_Slash > Subagent_Model'First then
+               Subagent_Provider := To_Unbounded_String
+                 (Subagent_Model
+                    (Subagent_Model'First .. Subagent_Slash - 1));
+               Subagent_Id := To_Unbounded_String
+                 (Subagent_Model
+                    (Subagent_Slash + 1 .. Subagent_Model'Last));
+            end if;
+            Current_Frontend.PQ.Enqueue
+              ((Kind => Set_Preferences,
+                Preferences =>
+                  (Provider          => Provider,
+                   Model_Id          => Model_Id,
+                   Thinking          => LLM.Providers.Thinking_Level'Val
+                     (Thinking_Index),
+                   Sandbox           => To_Unbounded_String
+                     (if Sand = "None (no sandbox)" then "" else Sand),
+                   Subagent_Provider => Subagent_Provider,
+                   Subagent_Model    => Subagent_Id)));
          end;
       end if;
       Dialog.Destroy;

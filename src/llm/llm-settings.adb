@@ -201,10 +201,16 @@ package body LLM.Settings is
          Default_Thinking =>
            To_Unbounded_String
              (Get_String_Field (Root, "defaultThinkingLevel")),
-         Default_Sandbox =>
+         Default_Sandbox           =>
            To_Unbounded_String
              (Get_String_Field (Root, "defaultSandboxProfile")),
-         Append_System_Prompt =>
+         Default_Subagent_Provider =>
+           To_Unbounded_String
+             (Get_String_Field (Root, "defaultSubagentProvider")),
+         Default_Subagent_Model    =>
+           To_Unbounded_String
+             (Get_String_Field (Root, "defaultSubagentModel")),
+         Append_System_Prompt      =>
            To_Unbounded_String
              (Get_String_Field (Root, "appendSystemPrompt")),
          Prompt_Filter =>
@@ -315,10 +321,12 @@ package body LLM.Settings is
    end Save_Defaults;
 
    procedure Save_Preferences
-     (Provider    : String;
-      Model_Id    : String;
-      Think_Level : String;
-      Sandbox     : String)
+     (Provider          : String;
+      Model_Id          : String;
+      Think_Level       : String;
+      Sandbox           : String;
+      Subagent_Provider : String := "";
+      Subagent_Model    : String := "")
    is
       Path     : constant String := Settings_Path;
       Existing : constant GNATCOLL.JSON.JSON_Value :=
@@ -355,6 +363,18 @@ package body LLM.Settings is
          Root.Set_Field ("defaultSandboxProfile", Sandbox);
       else
          Root.Unset_Field ("defaultSandboxProfile");
+      end if;
+
+      if Subagent_Provider'Length > 0 then
+         Root.Set_Field ("defaultSubagentProvider", Subagent_Provider);
+      else
+         Root.Unset_Field ("defaultSubagentProvider");
+      end if;
+
+      if Subagent_Model'Length > 0 then
+         Root.Set_Field ("defaultSubagentModel", Subagent_Model);
+      else
+         Root.Unset_Field ("defaultSubagentModel");
       end if;
 
       Write_Atomically (Path, GNATCOLL.JSON.Write (Root));

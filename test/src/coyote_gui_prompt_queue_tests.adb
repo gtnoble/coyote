@@ -19,8 +19,10 @@ package body Coyote_GUI_Prompt_Queue_Tests is
           Preferences =>
             (Provider => To_Unbounded_String ("openrouter"),
              Model_Id => To_Unbounded_String ("test/model"),
-             Thinking => LLM.Providers.High,
-             Sandbox  => To_Unbounded_String ("restricted"))));
+             Thinking          => LLM.Providers.High,
+             Sandbox           => To_Unbounded_String ("restricted"),
+             Subagent_Provider => To_Unbounded_String ("openrouter"),
+             Subagent_Model    => To_Unbounded_String ("test/fast-model"))));
       Queue.Dequeue (Got);
 
       Assert (Got.Kind = Set_Preferences,
@@ -33,14 +35,20 @@ package body Coyote_GUI_Prompt_Queue_Tests is
               "thinking level should survive queue transport");
       Assert (To_String (Got.Preferences.Sandbox) = "restricted",
               "sandbox profile should survive queue transport");
+      Assert (To_String (Got.Preferences.Subagent_Provider) = "openrouter",
+              "subagent provider should survive queue transport");
+      Assert (To_String (Got.Preferences.Subagent_Model) = "test/fast-model",
+              "subagent model should survive queue transport");
 
       Queue.Enqueue
         ((Kind => Set_Preferences,
           Preferences =>
-            (Provider => Null_Unbounded_String,
-             Model_Id => Null_Unbounded_String,
-             Thinking => LLM.Providers.Off,
-             Sandbox  => Null_Unbounded_String)));
+            (Provider          => Null_Unbounded_String,
+             Model_Id          => Null_Unbounded_String,
+             Thinking          => LLM.Providers.Off,
+             Sandbox           => Null_Unbounded_String,
+             Subagent_Provider => Null_Unbounded_String,
+             Subagent_Model    => Null_Unbounded_String)));
       Queue.Dequeue (Got);
       Assert (Length (Got.Preferences.Provider) = 0,
               "empty provider should represent an explicit clear");
@@ -48,6 +56,10 @@ package body Coyote_GUI_Prompt_Queue_Tests is
               "empty model should represent an explicit clear");
       Assert (Length (Got.Preferences.Sandbox) = 0,
               "empty sandbox should represent an explicit clear");
+      Assert (Length (Got.Preferences.Subagent_Provider) = 0,
+              "empty subagent provider should represent an explicit clear");
+      Assert (Length (Got.Preferences.Subagent_Model) = 0,
+              "empty subagent model should represent an explicit clear");
    end Test_Set_Preferences_Round_Trips;
 
 end Coyote_GUI_Prompt_Queue_Tests;

@@ -1,7 +1,7 @@
 # Test Plan â coyote (STP)
 
-**Version:** 1.9
-**Date:** 2026-08-06
+**Version:** 1.10
+**Date:** 2026-08-08
 
 **Status:** Reviewed and acknowledged â M4 complete (2026-06-03)
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
@@ -205,7 +205,7 @@ behaviour. Results are recorded in a Test Report.
 | DEM-012 | REQ-CORE-075 | In Acme, plumb a `coyote-model+PID/...` token; verify model changes on next turn |
 | DEM-013 | REQ-CORE-100â109 | Exercise each Acme tag command; verify expected behaviour for each |
 | DEM-014 | REQ-CORE-110â115 | Exercise GUI window: markdown rendering, tool frames, vi scroll, menu actions |
-| DEM-033 | REQ-CORE-116..117, 119 | Open GUI Preferences, save model/thinking/sandbox defaults, then create a new session and verify the active session was unchanged and the new session inherited the values |
+| DEM-033 | REQ-CORE-116..117, 119 | Open GUI Preferences, save ordinary and subagent model/thinking/sandbox defaults, then create a new session and verify the active session was unchanged, ordinary sessions inherit the ordinary defaults, and `coyote --subagent` inherits the subagent model |
 | DEM-034 | REQ-CORE-234 | Set and clear `defaultSandboxProfile`; verify inherited runtime and session-header precedence |
 | DEM-015 | REQ-CORE-130 | Resume a session; verify history replayed in frontend |
 | DEM-016 | REQ-CORE-140 | Inject a provider error (invalid API key); verify error notice visible in frontend |
@@ -284,6 +284,7 @@ These are entered as open items in the problem log (PCR-009).
 | REQ-CORE-060â064 | T/D | `llm_compaction_tests.adb`, `llm_context_tests.adb`, DEM-008â009 |
 | REQ-CORE-065â068 | T/D | `llm_compaction_tests.adb`, `llm_context_tests.adb`, DEM-020..022, code inspection |
 | REQ-CORE-070â073 | T/D | `llm_settings_tests.adb`, `llm_model_registry_tests.adb`, DEM-010 |
+| REQ-CORE-070a | T | `llm_agent_tests.adb` |
 | REQ-CORE-074 | D | DEM-011 |
 | REQ-CORE-075â076 | D | DEM-012 |
 | REQ-CORE-080â083 | T | `llm_session_store_tests.adb` |
@@ -342,6 +343,12 @@ interleaved tool calls preserves independent detail ranges and selects the
 second tool correctly. A full-suite run was attempted but timed out during
 existing live/network activity; the prior 822-test baseline remains the last
 completed full-suite baseline.
+
+**Verification as of 2026-08-08 (subagent default model preference):**
+The existing settings, typed queue, and agent-default tests were extended to
+cover subagent preference loading, persistence, transport, and precedence. The
+development and test builds succeed. Display-backed DEM-033 and DEM-034
+remain pending because no GTK display is available in this environment.
 
 **Verification as of 2026-08-06 (PCR-047 GUI Preferences implementation):**
 829 registered tests, including two settings persistence tests, one typed

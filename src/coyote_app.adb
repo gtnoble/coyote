@@ -813,7 +813,8 @@ package body Coyote_App is
                Model_Spec => To_String (Opts.Model),
                Agent      => To_String (Opts.Agent),
                No_Tools   => Opts.No_Tools,
-               Session_Id => To_String (Opts.Session_Id));
+               Session_Id => To_String (Opts.Session_Id),
+               Subagent   => Opts.Subagent);
             Synchronize_Sandbox;
             if Opts.No_Compact then
                LLM.Agent.Set_Compact_Settings
@@ -2458,7 +2459,8 @@ package body Coyote_App is
                Model_Spec => To_String (Opts.Model),
                Agent      => To_String (Opts.Agent),
                No_Tools   => Opts.No_Tools,
-               Session_Id => To_String (Opts.Session_Id));
+               Session_Id => To_String (Opts.Session_Id),
+               Subagent   => Opts.Subagent);
             Synchronize_Sandbox;
             My_Frontend.Register_Session (Agent_Session'Unchecked_Access);
             if Opts.No_Compact then
@@ -2787,7 +2789,11 @@ package body Coyote_App is
                                 (LLM.Providers.Thinking_Level'Image
                                    (It.Preferences.Thinking)),
                               Sandbox     => To_String
-                                (It.Preferences.Sandbox));
+                                (It.Preferences.Sandbox),
+                              Subagent_Provider => To_String
+                                (It.Preferences.Subagent_Provider),
+                              Subagent_Model => To_String
+                                (It.Preferences.Subagent_Model));
                            My_Frontend.Append_Notice
                              (Coyote_App.Frontend.Info,
                               "Preferences saved for new sessions");

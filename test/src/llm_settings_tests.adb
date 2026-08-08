@@ -77,7 +77,9 @@ package body LLM_Settings_Tests is
         (Home & "/.coyote/settings.json",
          "{""defaultProvider"":""openrouter""," &
          """defaultModel"":""anthropic/claude-sonnet-4""," &
-         """defaultThinkingLevel"":""medium""}");
+         """defaultThinkingLevel"":""medium""," &
+         """defaultSubagentProvider"":""openrouter""," &
+         """defaultSubagentModel"":""anthropic/claude-haiku""}");
 
       Ada.Environment_Variables.Set ("HOME", Home);
       Loaded := LLM.Settings.Load_Settings;
@@ -91,6 +93,12 @@ package body LLM_Settings_Tests is
       Assert
         (To_String (Loaded.Default_Thinking) = "medium",
          "defaultThinkingLevel should be loaded from settings.json");
+      Assert
+        (To_String (Loaded.Default_Subagent_Provider) = "openrouter",
+         "defaultSubagentProvider should be loaded from settings.json");
+      Assert
+        (To_String (Loaded.Default_Subagent_Model) = "anthropic/claude-haiku",
+         "defaultSubagentModel should be loaded from settings.json");
 
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
       Cleanup_Test_Home (Home);
@@ -445,8 +453,10 @@ package body LLM_Settings_Tests is
       LLM.Settings.Save_Preferences
         (Provider => "openrouter",
          Model_Id => "new/model",
-         Think_Level => "high",
-         Sandbox => "restricted");
+         Think_Level       => "high",
+         Sandbox           => "restricted",
+         Subagent_Provider => "openrouter",
+         Subagent_Model    => "new/fast-model");
       Root := LLM.Settings.Load_Json_File (Home & "/.coyote/settings.json");
       Assert (Coyote_App.Utils.Get_String (Root, "defaultProvider") =
                 "openrouter",
@@ -483,6 +493,10 @@ package body LLM_Settings_Tests is
               "empty thinking should clear the persisted field");
       Assert (not Root.Has_Field ("defaultSandboxProfile"),
               "empty sandbox should clear the persisted field");
+      Assert (not Root.Has_Field ("defaultSubagentProvider"),
+              "empty subagent provider should clear the persisted field");
+      Assert (not Root.Has_Field ("defaultSubagentModel"),
+              "empty subagent model should clear the persisted field");
       Assert (Coyote_App.Utils.Get_String (Root, "appendSystemPrompt") =
                 "keep",
               "clearing preferences should preserve unrelated fields");

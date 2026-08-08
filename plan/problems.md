@@ -1705,6 +1705,25 @@ behavior, current test baseline, and remaining manual qualification scope.
 - **Date resolved:** 2026-08-04
 
 
+## PCR-048 — Dedicated GTK subagent model preference (2026-08-08)
+
+- **Category:** Requirements, Design, Implementation, Test
+- **Priority:** 3-Moderate
+- **Description:** The GTK Preferences dialog exposed only the ordinary
+  session default model. Subagent invocations therefore used the ordinary
+  default unless callers supplied `--model` explicitly.
+- **Affected work products:** SRS-CORE, SDD-CORE, Test Plan, README,
+  `LLM.Settings`, `LLM.Agent`, GTK Preferences, prompt queue, and regression
+  tests.
+- **Actions taken:** Added optional `defaultSubagentProvider` and
+  `defaultSubagentModel` settings, a GTK selector with an explicit fallback to
+  the ordinary default, typed queue transport, and subagent-only model
+  precedence. Explicit model arguments remain authoritative.
+- **Verification:** Development and test builds pass. Exact settings,
+  persistence, queue, and model-precedence tests pass. Display-backed DEM-033
+  and DEM-034 remain pending because no GTK display is available.
+- **Status:** Resolved for implementation; manual qualification pending.
+
 ## PCR-047 — GTK GUI Preferences implementation and verification (2026-08-06)
 
 - **Category:** Requirements, Design, Test

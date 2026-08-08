@@ -230,10 +230,12 @@ package body LLM_Agent_Tests is
    end Write_OpenRouter_Cache;
 
    procedure Write_Settings_File
-     (Home             : String;
-      Default_Provider : String := "";
-      Default_Model    : String := "";
-      Default_Thinking : String := "")
+     (Home              : String;
+      Default_Provider  : String := "";
+      Default_Model     : String := "";
+      Default_Thinking  : String := "";
+      Subagent_Provider : String := "";
+      Subagent_Model    : String := "")
    is
    begin
       Write_File
@@ -241,7 +243,11 @@ package body LLM_Agent_Tests is
          "{""defaultProvider"":""" & Default_Provider
          & """,""defaultModel"":""" & Default_Model
          & """,""defaultThinkingLevel"":"""
-         & Default_Thinking & """}");
+         & Default_Thinking
+         & """,""defaultSubagentProvider"":"""
+         & Subagent_Provider
+         & """,""defaultSubagentModel"":"""
+         & Subagent_Model & """}");
    end Write_Settings_File;
 
    procedure Write_OpenRouter_Models_File
@@ -2326,8 +2332,11 @@ package body LLM_Agent_Tests is
 
       Home           : constant String := "/tmp/coyote_llm_agent_test_10";
       Port           : constant Positive := 18_794;
-      Agent_Session  : LLM.Agent.Session;
-      Saw_Model      : Boolean := False;
+      Agent_Session      : LLM.Agent.Session;
+      Subagent_Session   : LLM.Agent.Session;
+      Explicit_Session   : LLM.Agent.Session;
+      Fallback_Session   : LLM.Agent.Session;
+      Saw_Model          : Boolean := False;
       Selected_Prov  : Unbounded_String := Null_Unbounded_String;
       Selected_Model : Unbounded_String := Null_Unbounded_String;
       Server_Stopped : Boolean := False;
@@ -2373,9 +2382,11 @@ package body LLM_Agent_Tests is
    begin
       Prepare_Test_Home (Home);
       Write_Settings_File
-        (Home             => Home,
-         Default_Provider => "openrouter",
-         Default_Model    => "test/default-model");
+        (Home              => Home,
+         Default_Provider  => "openrouter",
+         Default_Model     => "test/default-model",
+         Subagent_Provider => "openrouter",
+         Subagent_Model    => "test/subagent-model");
       Write_OpenRouter_Models_File (Home, "settings-key");
       Write_Minimal_OpenRouter_Cache
         (Home     => Home,
@@ -2396,6 +2407,40 @@ package body LLM_Agent_Tests is
         (LLM.Agent.Current_Model_Spec (Agent_Session)
            = "openrouter/test/default-model",
          "Create should use the settings.json default model");
+
+      LLM.Agent.Create
+        (S          => Subagent_Session,
+         Model_Spec => "",
+         No_Tools   => True,
+         Subagent   => True);
+      Assert
+        (LLM.Agent.Current_Model_Spec (Subagent_Session)
+           = "openrouter/test/subagent-model",
+         "Subagent should use the dedicated settings default model");
+
+      LLM.Agent.Create
+        (S          => Explicit_Session,
+         Model_Spec => "openrouter/test/default-model",
+         No_Tools   => True,
+         Subagent   => True);
+      Assert
+        (LLM.Agent.Current_Model_Spec (Explicit_Session)
+           = "openrouter/test/default-model",
+         "Explicit model should override the subagent default");
+
+      Write_Settings_File
+        (Home             => Home,
+         Default_Provider => "openrouter",
+         Default_Model    => "test/default-model");
+      LLM.Agent.Create
+        (S          => Fallback_Session,
+         Model_Spec => "",
+         No_Tools   => True,
+         Subagent   => True);
+      Assert
+        (LLM.Agent.Current_Model_Spec (Fallback_Session)
+           = "openrouter/test/default-model",
+         "Incomplete subagent preference should fall back to ordinary default");
 
       Srv.Bind (Port);
 

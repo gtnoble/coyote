@@ -16,10 +16,12 @@ package Coyote_GUI.Prompt_Queue is
    --  Persistent defaults selected in the Preferences dialog.  Empty
    --  strings explicitly clear the corresponding stored preference.
    type Preferences_Record is record
-      Provider     : Ada.Strings.Unbounded.Unbounded_String;
-      Model_Id     : Ada.Strings.Unbounded.Unbounded_String;
-      Thinking     : LLM.Providers.Thinking_Level := LLM.Providers.Off;
-      Sandbox      : Ada.Strings.Unbounded.Unbounded_String;
+      Provider          : Ada.Strings.Unbounded.Unbounded_String;
+      Model_Id          : Ada.Strings.Unbounded.Unbounded_String;
+      Thinking          : LLM.Providers.Thinking_Level := LLM.Providers.Off;
+      Sandbox           : Ada.Strings.Unbounded.Unbounded_String;
+      Subagent_Provider : Ada.Strings.Unbounded.Unbounded_String;
+      Subagent_Model    : Ada.Strings.Unbounded.Unbounded_String;
    end record;
 
    type Item_Kind is
