@@ -17,7 +17,7 @@ project Coyote_Test is
    end Binder;
 
    package Linker is
-      for Switches ("Ada") use ("-lcurl", "-lcmark-gfm", "-lcmark-gfm-extensions");
+      for Switches ("Ada") use ("-lcurl", "-lcmark-gfm", "-lcmark-gfm-extensions", "-L/usr/local/lib/x86_64-linux-gnu", "-llasem-0.6");
    end Linker;
 
    package Install is

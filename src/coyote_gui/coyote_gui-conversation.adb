@@ -9,6 +9,7 @@ with Ada.Strings.Unbounded;          use Ada.Strings.Unbounded;
 with Cairo;                          use Cairo;
 with Coyote_App.Utils;               use Coyote_App.Utils;
 with Coyote_Cmark;                   use Coyote_Cmark;
+with Coyote_Lasem;
 with Glib;                           use Glib;
 with Pango.Attributes;
 with Gdk.Event;
@@ -36,6 +37,7 @@ package body Coyote_GUI.Conversation is
    use type Gdk.Event.Gdk_Event_Mask;
    use type Gdk.Types.Gdk_Modifier_Type;
    use type GNATCOLL.JSON.JSON_Value_Type;
+   use type Interfaces.C.Strings.chars_ptr;
 
    --  ── Global pointer for signal callbacks ───────────────────────────────
 
@@ -83,7 +85,11 @@ package body Coyote_GUI.Conversation is
    procedure Append_Markup_Line
      (C : in out Instance; Style : Line_Style; Text : String);
 
+   procedure Append_Math_Line
+     (C : in out Instance; Source : String);
+
    procedure Invalidate_Line (C : in out Instance; Index : Positive);
+
 
    procedure Recompute_Vis_Lines
      (C : in out Instance; Force : Boolean := False);
@@ -166,6 +172,41 @@ package body Coyote_GUI.Conversation is
       C.Lines (Index).Vis_Count := 0;
       C.Cache_Dirty := True;
    end Invalidate_Line;
+
+   procedure Append_Math_Line
+     (C : in out Instance; Source : String)
+   is
+      C_Text : constant Interfaces.C.char_array :=
+        Interfaces.C.To_C (Source, Append_Nul => True);
+      Width    : aliased Interfaces.C.unsigned := 0;
+      Height   : aliased Interfaces.C.unsigned := 0;
+      Baseline : aliased Interfaces.C.unsigned := 0;
+      Error    : Interfaces.C.Strings.chars_ptr;
+      L        : Logical_Line (Display_Math);
+   begin
+      Error := Coyote_Lasem.Measure_Itex
+        (C_Text, Interfaces.C.long (Source'Length),
+         Width'Access, Height'Access, Baseline'Access);
+      if Error /= Interfaces.C.Strings.Null_Ptr then
+         Debug_Log
+           (C, "Lasem math parse failed: "
+            & Interfaces.C.Strings.Value (Error));
+         Coyote_Lasem.Free_Error (Error);
+         Append_Line (C, Plain, Source);
+         return;
+      end if;
+
+      L.Text          := To_Unbounded_String (Sanitize_UTF8 (Source));
+      L.Pixel_Height  := Natural (Height);
+      L.Math_Width    := Natural (Width);
+      L.Math_Baseline := Natural (Baseline);
+      L.Vis_Count     := Natural'Max
+        (1,
+         (Natural (Height) + Natural (C.Line_Height_Px) - 1)
+         / Natural (C.Line_Height_Px));
+      C.Lines.Append (L);
+      C.Cache_Dirty := True;
+   end Append_Math_Line;
 
    --  ── Draw_Rounded_Rectangle ───────────────────────────────────────────
 
@@ -361,7 +402,16 @@ package body Coyote_GUI.Conversation is
            Force or else Width_Px /= C.Cache_Width_Px;
       begin
          for I in 1 .. Positive (C.Lines.Length) loop
-            if Full_Recompute or else C.Lines (I).Vis_Count = 0 then
+            if C.Lines (I).Style = Display_Math then
+               if C.Lines (I).Vis_Count = 0 then
+                  C.Lines (I).Vis_Count := Natural'Max
+                    (1,
+                     (C.Lines (I).Pixel_Height
+                      + Natural (C.Line_Height_Px) - 1)
+                     / Natural (C.Line_Height_Px));
+               end if;
+               Vis := C.Lines (I).Vis_Count;
+            elsif Full_Recompute or else C.Lines (I).Vis_Count = 0 then
                declare
                   Text : constant String := To_String (C.Lines (I).Text);
                begin
@@ -725,6 +775,12 @@ package body Coyote_GUI.Conversation is
                           (Cr, 0.0, Gdouble (Y_Off),
                            4.0, Gdouble (Block_H));
                         Fill (Cr);
+                     when Display_Math =>
+                        Set_Source_Rgba (Cr, 0.97, 0.96, 1.0, 1.0);
+                        Rectangle
+                          (Cr, 0.0, Gdouble (Y_Off),
+                           Gdouble (Width_Px), Gdouble (Block_H));
+                        Fill (Cr);
                      when Notice_Warn | Notice_Error | Footer
                         | Action_Strip | Plain
                         | Heading_1 | Heading_2 | Heading_3
@@ -798,11 +854,36 @@ package body Coyote_GUI.Conversation is
                      Set_Source_Rgb (Cr, 0.53, 0.53, 0.53);
                   when Action_Strip =>
                      Set_Source_Rgb (Cr, 0.13, 0.4, 0.67);
+                  when Display_Math =>
+                     Set_Source_Rgb (Cr, 0.0, 0.0, 0.0);
                end case;
 
-               --  Render the Pango layout at the current Y offset.
-               Move_To (Cr, 0.0, Gdouble (Y_Off));
-               Pango.Cairo.Show_Layout (Cr, Layout);
+               if L.Style = Display_Math then
+                  declare
+                     C_Text : constant Interfaces.C.char_array :=
+                       Interfaces.C.To_C (Text, Append_Nul => True);
+                     Error  : Interfaces.C.Strings.chars_ptr;
+                     Math_X : constant Gdouble :=
+                       Gdouble'Max
+                         (0.0,
+                          (Gdouble (Width_Px) - Gdouble (L.Math_Width))
+                          / 2.0);
+                  begin
+                     Error := Coyote_Lasem.Render_Itex
+                       (C_Text, Interfaces.C.long (Text'Length), Cr,
+                        Interfaces.C.double (Math_X), Interfaces.C.double (Y_Off));
+                     if Error /= Interfaces.C.Strings.Null_Ptr then
+                        Current_Conv.Debug_Log
+                          ("Lasem math render failed: "
+                           & Interfaces.C.Strings.Value (Error));
+                        Coyote_Lasem.Free_Error (Error);
+                     end if;
+                  end;
+               else
+                  --  Render the Pango layout at the current Y offset.
+                  Move_To (Cr, 0.0, Gdouble (Y_Off));
+                  Pango.Cairo.Show_Layout (Cr, Layout);
+               end if;
             end;
 
             Vis_Off := Vis_Off + Vis_Cnt;
@@ -1120,8 +1201,110 @@ package body Coyote_GUI.Conversation is
    procedure Render_Markdown_Block
      (C : in out Instance; Full_Text : String)
    is
-      C_Text : constant Interfaces.C.char_array :=
-        Interfaces.C.To_C (Full_Text);
+      package Math_Source_Vectors is new Ada.Containers.Vectors
+        (Positive, Unbounded_String);
+
+      Math_Sources : Math_Source_Vectors.Vector;
+      Masked_Text  : Unbounded_String;
+      Math_Open    : Boolean := False;
+      Math_Delim   : Unbounded_String;
+      Math_Buffer  : Unbounded_String;
+
+      procedure Append_Masked_Line (Line : String) is
+      begin
+         Append (Masked_Text, Line);
+         Append (Masked_Text, ASCII.LF);
+      end Append_Masked_Line;
+
+      procedure Extract_Display_Math is
+         Start : Natural := Full_Text'First;
+      begin
+         if Full_Text'Length = 0 then
+            return;
+         end if;
+
+         for I in Full_Text'Range loop
+            if Full_Text (I) = ASCII.LF
+              or else I = Full_Text'Last
+            then
+               declare
+                  Last : constant Natural :=
+                    (if Full_Text (I) = ASCII.LF then I - 1 else I);
+                  Line : constant String :=
+                    (if Last >= Start then Full_Text (Start .. Last) else "");
+                  Trimmed : constant String :=
+                    Ada.Strings.Fixed.Trim (Line, Ada.Strings.Both);
+               begin
+                  if not Math_Open
+                    and then (Trimmed = "$$" or else Trimmed = "\[")
+                  then
+                     Math_Open := True;
+                     Math_Delim := To_Unbounded_String (Trimmed);
+                     Math_Buffer := Null_Unbounded_String;
+                  elsif Math_Open
+                    and then
+                      ((To_String (Math_Delim) = "$$" and then Trimmed = "$$")
+                       or else
+                       (To_String (Math_Delim) = "\["
+                        and then Trimmed = "\]"))
+                  then
+                     if Length (Math_Buffer) > 0 then
+                        declare
+                           Source : Unbounded_String := Math_Delim;
+                        begin
+                           Append (Source, ASCII.LF);
+                           Append (Source, Math_Buffer);
+                           Append (Source, Trimmed);
+                           Math_Sources.Append (Source);
+                        end;
+                        Append_Masked_Line
+                          ("COYOTE_MATH_BLOCK_"
+                           & Ada.Strings.Fixed.Trim
+                               (Natural'Image
+                                  (Natural (Math_Sources.Length)),
+                                Ada.Strings.Both)
+                           & "__");
+                     end if;
+                     Math_Open := False;
+                     Math_Delim := Null_Unbounded_String;
+                     Math_Buffer := Null_Unbounded_String;
+                  elsif Math_Open then
+                     Append (Math_Buffer, Line);
+                     Append (Math_Buffer, ASCII.LF);
+                  else
+                     Append_Masked_Line (Line);
+                  end if;
+               end;
+               Start := I + 1;
+            end if;
+         end loop;
+
+         if Math_Open then
+            --  An unmatched delimiter is not math.  Preserve the complete
+            --  source as plain Markdown rather than discarding content.
+            Append_Masked_Line (To_String (Math_Delim));
+            Append (Masked_Text, To_String (Math_Buffer));
+         end if;
+      end Extract_Display_Math;
+
+      function Math_Index (Text : String) return Natural is
+      begin
+         for I in 1 .. Natural (Math_Sources.Length) loop
+            declare
+               Token : constant String :=
+                 "COYOTE_MATH_BLOCK_"
+                 & Ada.Strings.Fixed.Trim
+                     (Natural'Image (I), Ada.Strings.Both)
+                 & "__";
+            begin
+               if Text = Token then
+                  return I;
+               end if;
+            end;
+         end loop;
+         return 0;
+      end Math_Index;
+
       Doc    : Node_Ptr;
       It     : Iter_Ptr;
       Ev     : Event_Type_Int;
@@ -1131,6 +1314,7 @@ package body Coyote_GUI.Conversation is
       In_Para      : Boolean := False;
       Para_Buf     : Unbounded_String;
       Para_Empty   : Boolean := True;
+      Math_Source  : Unbounded_String;
       In_List_Item : Boolean := False;
 
       --  List nesting state
@@ -1164,7 +1348,12 @@ package body Coyote_GUI.Conversation is
       procedure Flush_Para is
       begin
          if In_Para and then not Para_Empty then
-            Append_Markup_Line (C, Plain, To_String (Para_Buf));
+            if Length (Math_Source) > 0 then
+               Append_Math_Line (C, To_String (Math_Source));
+               Math_Source := Null_Unbounded_String;
+            else
+               Append_Markup_Line (C, Plain, To_String (Para_Buf));
+            end if;
          end if;
          In_Para    := False;
          Para_Buf   := Null_Unbounded_String;
@@ -1252,7 +1441,14 @@ package body Coyote_GUI.Conversation is
          return;
       end if;
 
-      Doc := Parse_Document (C_Text, C_Text'Length - 1, OPT_DEFAULT);
+      Extract_Display_Math;
+      declare
+         C_Text : constant Interfaces.C.char_array :=
+           Interfaces.C.To_C (To_String (Masked_Text), Append_Nul => True);
+      begin
+         Doc := Parse_Document
+           (C_Text, C_Text'Length - 1, OPT_DEFAULT);
+      end;
       if Doc = System.Null_Address then
          --  Fall back to plain text.
          declare
@@ -1515,12 +1711,20 @@ package body Coyote_GUI.Conversation is
 
             elsif NT = NODE_TEXT then
                if Ev = EVENT_ENTER then
-                  if In_Cell then
-                     Cell_Append (Lit (Node));
-                  elsif In_Para then
-                     Append (Para_Buf, Xml_Escape (Lit (Node)));
-                     Para_Empty := False;
-                  end if;
+                  declare
+                     Literal : constant String := Lit (Node);
+                     Index   : constant Natural := Math_Index (Literal);
+                  begin
+                     if Index > 0 and then In_Para then
+                        Math_Source := Math_Sources (Index);
+                        Para_Empty := False;
+                     elsif In_Cell then
+                        Cell_Append (Literal);
+                     elsif In_Para then
+                        Append (Para_Buf, Xml_Escape (Literal));
+                        Para_Empty := False;
+                     end if;
+                  end;
                end if;
 
             elsif NT = NODE_SOFTBREAK then

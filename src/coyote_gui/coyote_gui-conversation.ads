@@ -31,6 +31,7 @@ package Coyote_GUI.Conversation is
 
    type Line_Style is
      (Plain,              --  assistant text (may contain Pango markup)
+      Display_Math,       --  display math rendered by Lasem onto Cairo
       Heading_1,          --  level-1 heading
       Heading_2,          --  level-2 heading
       Heading_3,          --  level-3 heading
@@ -188,6 +189,9 @@ private
       Text       : Unbounded_String;
       Has_Markup : Boolean := False;  --  Text contains Pango markup
       Vis_Count  : Natural := 0;       --  cached visual line count
+      Pixel_Height  : Natural := 0;     --  measured height for display math
+      Math_Width    : Natural := 0;     --  measured width for display math
+      Math_Baseline : Natural := 0;     --  baseline for display math
       Tool_Id      : Unbounded_String;
       Tool_Status  : Tool_End_Status := Success;
       Tool_Running : Boolean := False;

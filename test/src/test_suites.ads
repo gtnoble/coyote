@@ -1,5 +1,6 @@
 with AUnit.Test_Suites;
 with Coyote_Cmark_Tests;
+with Coyote_Lasem_Tests;
 with Collapse_Utils_Tests;
 with Coyote_Utils_Tests;
 with Dispatch_Tests;

@@ -75,5 +75,8 @@ package Coyote_GUI_Conversation_Tests is
    procedure Test_Markdown_Select_All_Strips_Markup       (T : in out Test);
    procedure Test_Markdown_Heading_Styles                 (T : in out Test);
    procedure Test_Markdown_Bold_Italic_Preserved_In_Text   (T : in out Test);
+   procedure Test_Markdown_Display_Math_Style              (T : in out Test);
+   procedure Test_Markdown_Display_Math_Preserves_Source   (T : in out Test);
+   procedure Test_Markdown_Display_Math_Has_Visual_Lines   (T : in out Test);
 
 end Coyote_GUI_Conversation_Tests;

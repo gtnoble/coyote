@@ -7,6 +7,7 @@
 
 **Source files:** `src/coyote_app*.ads/.adb`, `src/coyote_gui/*`,
 `src/coyote_cmark*.ads/.adb`, `src/coyote_cmark_c.c`,
+`src/coyote_lasem*.ads/.adb`, `src/coyote_lasem_c.c`,
 `src/acme*.ads/.adb`, `src/nine_p*.ads/.adb`
 
 ---
@@ -172,6 +173,17 @@ height expands as wrapping changes.
   thinking blocks, notices, and turn footers are all supported.
 - The old `Coyote_GUI.Buffer` package is retained as dead code for reference.
 
+### `Coyote_Lasem` binding
+
+`Coyote_Lasem` wraps the locally installed Lasem 0.6 library through
+`coyote_lasem_c.c`. The C shim converts Lasem `GError` values to allocated
+messages and releases the document/view GObjects before returning. The Ada
+binding exposes measurement and direct Cairo rendering for delimiter-wrapped
+display math. The primary GUI renderer stores the original iTeX source in a
+`Display_Math` logical line, uses Lasem dimensions for virtualization, and
+renders only visible math lines in the GTK draw callback. Inline math and the
+legacy shared Pango renderer remain outside this increment.
+
 ### `Coyote_Cmark` C shim for enum resolution
 
 libcmark-gfm exposes `cmark_node_type`, `cmark_list_type`, and
@@ -321,6 +333,10 @@ let the user explicitly control the behaviour.
   preservation, interleaved tool selection, streaming, layout, and rendering.
 - `Coyote_GUI.Tool_Detail_Window`: compiled and linked into the main GUI;
   display-backed visual qualification remains manual.
+- `Coyote_Lasem`: covered by three AUnit tests for fraction and matrix
+  measurement plus malformed iTeX error handling. `Coyote_GUI.Conversation`
+  has three display-backed tests for style selection, source preservation, and
+  visual height.
 - `Coyote_Cmark`: covered by AUnit tests — parse round-trips for each GFM
   node type; extension handling; null-safety of `cmark_shim_get_literal`.
 - `Acme.*` / `Nine_P.*`: covered by integration tests in

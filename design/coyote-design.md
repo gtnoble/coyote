@@ -273,6 +273,7 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `Nine_P.Proto` | 9P message encode/decode | `src/nine_p-proto.ads/.adb` |
 | `Nine_P.Client` | 9P client: mount, open, read, write | `src/nine_p-client.ads/.adb` |
 | `Coyote_Cmark` | Ada binding to libcmark-gfm | `src/coyote_cmark.ads/.adb` |
+| `Coyote_Lasem` | Ada/C binding to Lasem iTeX rendering | `src/coyote_lasem.ads/.adb`, `src/coyote_lasem_c.c` |
 | `Session_Lister` | Session listing for coyote_list_sessions | `src/session_lister.ads/.adb` |
 
 ### 4.2 Static Relationships
@@ -1005,7 +1006,11 @@ with table, strikethrough, and autolink extensions) and emits styled
 
 - **Block-level nodes** become lines with dedicated `Line_Style` values:
   `Heading_1`–`Heading_6`, `Code_Block`, `Blockquote`, `Thematic_Break`,
-  `List_Item_Bullet`, `List_Item_Ordered`.
+  `List_Item_Bullet`, `List_Item_Ordered`, and `Display_Math`.
+- **Display math** delimited by standalone `$$`/`\[` and `$$`/`\]` lines is
+  extracted before cmark parsing, measured through Lasem, and rendered directly
+  to Cairo.  The original delimiter-wrapped iTeX source remains selectable and
+  is used as the fallback text when Lasem rejects an expression.
 - **Inline formatting** (bold, italic, code, strikethrough, links) within
   paragraphs is accumulated as Pango markup and emitted with `Has_Markup
   = True`.  The `On_Draw` callback uses `Pango.Layout.Set_Markup` for
@@ -1027,6 +1032,26 @@ to refresh the display.  Used when replacing the current session with a
 fresh one via `File → New Session`.
 
 ---
+
+### `Coyote_Lasem` binding
+
+`Coyote_Lasem` wraps Lasem 0.6 through `coyote_lasem_c.c`. The C shim handles
+`GError` conversion and releases the Lasem document/view GObjects before
+returning. `Measure_Itex` returns pixel dimensions and baseline; `Render_Itex`
+draws the supported iTeX expression directly onto the GTK draw callback's
+Cairo context. Display math is currently supported only in the virtualized GUI
+conversation renderer; inline math and the legacy shared Pango renderer remain
+future work.
+
+### 5.16.1 `Coyote_Lasem` binding
+
+`Coyote_Lasem` wraps Lasem 0.6 through `coyote_lasem_c.c`. The C shim handles
+`GError` conversion and releases the Lasem document/view GObjects before
+returning. `Measure_Itex` returns pixel dimensions and baseline; `Render_Itex`
+draws the supported iTeX expression directly onto the GTK draw callback's
+Cairo context. Display math is currently supported only in the virtualized GUI
+conversation renderer; inline math and the legacy shared Pango renderer remain
+future work.
 
 ### 5.16 `Coyote_Cmark` and `coyote_cmark_c.c`
 
@@ -1806,6 +1831,7 @@ neither task may share mutable frontend state with the other.
 | REQ-CORE-108–108b | `Coyote_App`, `Coyote_App.Dispatch`, `Coyote_App.Utils`, `Session_Lister` |
 | REQ-CORE-109 | `LLM.Settings`, `Coyote_App.Frontend.Acme_Win` |
 | REQ-CORE-110–119 | `Coyote_App.Frontend.GUI`, `Coyote_GUI.Conversation`, `Coyote_GUI.Prompt_Queue`, `Coyote_Cmark` |
+| REQ-CORE-124 | `Coyote_GUI.Conversation`, `Coyote_Lasem` |
 | REQ-CORE-120–121 | `Coyote_App.Frontend.Plain` |
 | REQ-CORE-130–131 | `Coyote_App.History`, all frontends |
 | REQ-CORE-140–142 | `LLM.Agent`, `Coyote_App.Dispatch`, all frontends |

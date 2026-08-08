@@ -13,6 +13,7 @@ with Coyote_App_Tests;
 with Collapse_Utils_Tests;
 with Coyote_Utils_Tests;
 with Coyote_Cmark_Tests;
+with Coyote_Lasem_Tests;
 with Coyote_GUI_Conversation_Tests;
 with Coyote_GUI_Updates_Tests;
 with Coyote_GUI_Prompt_Queue_Tests;
@@ -92,6 +93,8 @@ package body Test_Suites is
      new AUnit.Test_Caller (Collapse_Utils_Tests.Test);
    package Coyote_Cmark_Caller is
      new AUnit.Test_Caller (Coyote_Cmark_Tests.Test);
+   package Coyote_Lasem_Caller is
+     new AUnit.Test_Caller (Coyote_Lasem_Tests.Test);
    package Coyote_GUI_Conversation_Caller is
      new AUnit.Test_Caller (Coyote_GUI_Conversation_Tests.Test);
    package Coyote_GUI_Updates_Caller is
@@ -2856,6 +2859,16 @@ package body Test_Suites is
         ("Coyote.GUI.Prompt_Queue Set_Preferences round trips",
          Coyote_GUI_Prompt_Queue_Tests.Test_Set_Preferences_Round_Trips'Access));
 
+      Result.Add_Test (Coyote_Lasem_Caller.Create
+        ("Coyote.Lasem measures a fraction",
+         Coyote_Lasem_Tests.Test_Measure_Fraction'Access));
+      Result.Add_Test (Coyote_Lasem_Caller.Create
+        ("Coyote.Lasem measures a complex expression",
+         Coyote_Lasem_Tests.Test_Measure_Complex_Expression'Access));
+      Result.Add_Test (Coyote_Lasem_Caller.Create
+        ("Coyote.Lasem rejects invalid iTeX",
+         Coyote_Lasem_Tests.Test_Invalid_Itex_Returns_Error'Access));
+
       Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
         ("Coyote.GUI.Conversation Append_Notice adds logical lines",
          Coyote_GUI_Conversation_Tests.Test_Append_Notice_Increments_Count'Access));
@@ -2957,6 +2970,18 @@ package body Test_Suites is
       Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
         ("Coyote.GUI.Conversation markdown bold/italic rendered to plain text",
          Coyote_GUI_Conversation_Tests.Test_Markdown_Bold_Italic_Preserved_In_Text'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation display math has dedicated style",
+         Coyote_GUI_Conversation_Tests
+           .Test_Markdown_Display_Math_Style'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation display math preserves source",
+         Coyote_GUI_Conversation_Tests
+           .Test_Markdown_Display_Math_Preserves_Source'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation display math has visual lines",
+         Coyote_GUI_Conversation_Tests
+           .Test_Markdown_Display_Math_Has_Visual_Lines'Access));
 
       return Result;
    end Suite;

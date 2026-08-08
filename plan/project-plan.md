@@ -158,7 +158,7 @@ advances to project-level or client control.
 status throughout development.
 
 **Non-deliverable tools:** plan9port (acme, plumber), GTK3 dev headers,
-libcurl dev headers, libcmark-gfm dev headers. Operation of delivered
+libcurl dev headers, libcmark-gfm dev headers, Lasem 0.6 dev headers, and Computer Modern math fonts. Operation of delivered
 binaries does not depend on any of these tools at runtime except GTK3
 (which must be present on the user's system; this is a known dependency).
 
@@ -395,6 +395,8 @@ Subsequent builds will define their own milestone sets.
 | GTK3 + dev headers | GUI frontend | System package |
 | libcurl + dev headers | HTTP/SSE client | System package |
 | libcmark-gfm + dev headers | Markdown rendering | System package |
+| Lasem 0.6 + dev headers | Display math rendering | System package/custom install |
+| Computer Modern math fonts | Lasem glyph coverage | System font package |
 | plan9port | Acme frontend and plumber | At `/usr/local/plan9` |
 | Git | Version control / project library | Project root |
 

@@ -742,4 +742,80 @@ package body Coyote_GUI_Conversation_Tests is
       end;
    end Test_Markdown_Bold_Italic_Preserved_In_Text;
 
+   procedure Test_Markdown_Display_Math_Style (T : in out Test) is
+      Conv   : Instance;
+      Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Layout : Gtk.Layout.Gtk_Layout;
+      Found  : Boolean := False;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Make_Fresh_Conv (Conv, Scroll, Layout);
+      Conv.Append_Text
+        ("before" & ASCII.LF & ASCII.LF
+         & "$$" & ASCII.LF & "x^2 + \frac{1}{2}" & ASCII.LF & "$$"
+         & ASCII.LF & ASCII.LF & "after");
+      Conv.End_Text_Block;
+      for I in 1 .. Testing.Line_Count (Conv) loop
+         if Testing.Get_Line_Style (Conv, I) = Display_Math then
+            Found := True;
+            exit;
+         end if;
+      end loop;
+      Assert (Found, "standalone display math produces Display_Math line");
+   end Test_Markdown_Display_Math_Style;
+
+   procedure Test_Markdown_Display_Math_Preserves_Source (T : in out Test) is
+      Conv   : Instance;
+      Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Layout : Gtk.Layout.Gtk_Layout;
+      Expected : constant String :=
+        "$$" & ASCII.LF & "x^2 + \frac{1}{2}" & ASCII.LF & "$$";
+      Found  : Boolean := False;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Make_Fresh_Conv (Conv, Scroll, Layout);
+      Conv.Append_Text (Expected);
+      Conv.End_Text_Block;
+      for I in 1 .. Testing.Line_Count (Conv) loop
+         if Testing.Get_Line_Style (Conv, I) = Display_Math then
+            Assert (Testing.Get_Line_Text (Conv, I) = Expected,
+                    "display math line preserves source text");
+            Assert (not Testing.Has_Markup_Flag (Conv, I),
+                    "display math line is not Pango markup");
+            Found := True;
+            exit;
+         end if;
+      end loop;
+      Assert (Found, "display math source line is present");
+   end Test_Markdown_Display_Math_Preserves_Source;
+
+   procedure Test_Markdown_Display_Math_Has_Visual_Lines (T : in out Test) is
+      Conv   : Instance;
+      Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Layout : Gtk.Layout.Gtk_Layout;
+      Found  : Boolean := False;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Make_Fresh_Conv (Conv, Scroll, Layout);
+      Conv.Append_Text
+        ("$$" & ASCII.LF & "\begin{pmatrix}a&b\\c&d\end{pmatrix}"
+         & ASCII.LF & "$$");
+      Conv.End_Text_Block;
+      for I in 1 .. Testing.Line_Count (Conv) loop
+         if Testing.Get_Line_Style (Conv, I) = Display_Math then
+            Assert (Testing.Vis_Count_At (Conv, I) > 0,
+                    "display math line has visual height");
+            Found := True;
+            exit;
+         end if;
+      end loop;
+      Assert (Found, "complex display math line is present");
+   end Test_Markdown_Display_Math_Has_Visual_Lines;
+
 end Coyote_GUI_Conversation_Tests;

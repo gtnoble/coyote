@@ -70,6 +70,8 @@ owner) is invited to independently review test results before accepting them.
 | GTK3 runtime + dev headers | GUI frontend, coyote_sqc | â¥ 3.0 |
 | libcurl + dev headers | All providers (LLM.HTTP) | Any current |
 | libcmark-gfm + dev headers | GUI frontend markdown rendering | Any current |
+| Lasem 0.6 + shared library | GUI display-math rendering | 0.6.0 |
+| Computer Modern math fonts | Lasem glyph coverage | cmr10/cmmi10/cmex10/cmsy10 |
 | plan9port | Acme frontend and plumber | At `/usr/local/plan9` |
 | GNATCOLL | JSON processing | â¥ 25.0.0 (via Alire) |
 
@@ -167,6 +169,8 @@ SRS-CORE requirement groups.
 | `llm_openrouter_tests.adb` | REQ-CORE-072 (OpenRouter) | ~15 |
 | `tool_uri_tests.adb` | REQ-CORE-100â109 (plumb token format) | ~10 |
 | `coyote_cmark_tests.adb` | REQ-CORE-111 (Markdown rendering) | ~25 |
+| `coyote_lasem_tests.adb` | Lasem iTeX measurement and error handling | 3 |
+| `coyote_gui_conversation_tests.adb` | Display-math style, source preservation, visual height | 3 |
 | `nine_p_proto_tests.adb` | REQ-CORE-210 (9P protocol) | ~20 |
 | `nine_p_mock_server_tests.adb` | REQ-CORE-210â211 | ~15 |
 | `session_lister_tests.adb` | REQ-CORE-084 | ~10 |
@@ -181,7 +185,7 @@ SRS-CORE requirement groups.
 | `acme_event_parser_tests.adb` | REQ-CORE-100â109 | ~20 |
 | `acme_raw_events_tests.adb` | REQ-CORE-100 | ~10 |
 
-**Total automated tests (current):** **829**
+**Total automated tests (current):** **837**
 
 ### 4.3 Planned Tests â Demonstration
 
@@ -297,6 +301,7 @@ These are entered as open items in the problem log (PCR-009).
 | REQ-CORE-090â093 | T | `llm_skills_tests.adb` |
 | REQ-CORE-100â109 | T/D | `acme_event_parser_tests.adb`, `tool_uri_tests.adb`, DEM-013 |
 | REQ-CORE-110â115 | T/D | `coyote_cmark_tests.adb`, DEM-014 |
+| REQ-CORE-124 | T/D | `coyote_lasem_tests.adb`, `coyote_gui_conversation_tests.adb` |
 | REQ-CORE-116 | D | DEM-033 |
 | REQ-CORE-117 | D | DEM-033 |
 | REQ-CORE-118 | T | `llm_settings_tests.adb`, `coyote_gui_prompt_queue_tests.adb` |

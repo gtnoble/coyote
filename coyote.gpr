@@ -32,9 +32,9 @@ project Coyote is
       case Profile_Enabled is
          when "true" =>
             for Switches ("Ada") use Coyote_Config.Ada_Compiler_Switches & ("-pg");
-            for Switches ("C") use ("-O2", "-I/usr/include/x86_64-linux-gnu", "-pg");
+            for Switches ("C") use ("-O2", "-I/usr/include/x86_64-linux-gnu", "-I/usr/local/include/lasem-0.6", "-I/usr/include/glib-2.0", "-I/usr/lib/x86_64-linux-gnu/glib-2.0/include", "-I/usr/include/cairo", "-I/usr/include/gdk-pixbuf-2.0", "-I/usr/include/pango-1.0", "-I/usr/include/harfbuzz", "-I/usr/include/fribidi", "-I/usr/include/libxml2", "-pg");
          when others =>
-            for Switches ("C") use ("-O2", "-I/usr/include/x86_64-linux-gnu");
+            for Switches ("C") use ("-O2", "-I/usr/include/x86_64-linux-gnu", "-I/usr/local/include/lasem-0.6", "-I/usr/include/glib-2.0", "-I/usr/lib/x86_64-linux-gnu/glib-2.0/include", "-I/usr/include/cairo", "-I/usr/include/gdk-pixbuf-2.0", "-I/usr/include/pango-1.0", "-I/usr/include/harfbuzz", "-I/usr/include/fribidi", "-I/usr/include/libxml2");
       end case;
    end Compiler;
 
@@ -45,9 +45,9 @@ project Coyote is
    package Linker is
       case Profile_Enabled is
          when "true" =>
-            for Switches ("Ada") use ("-lcurl", "-lutil", "-lcmark-gfm", "-lcmark-gfm-extensions", "-pg");
+            for Switches ("Ada") use ("-lcurl", "-lutil", "-lcmark-gfm", "-lcmark-gfm-extensions", "-L/usr/local/lib/x86_64-linux-gnu", "-llasem-0.6", "-pg");
          when others =>
-            for Switches ("Ada") use ("-lcurl", "-lutil", "-lcmark-gfm", "-lcmark-gfm-extensions");
+            for Switches ("Ada") use ("-lcurl", "-lutil", "-lcmark-gfm", "-lcmark-gfm-extensions", "-L/usr/local/lib/x86_64-linux-gnu", "-llasem-0.6");
       end case;
    end Linker;
 

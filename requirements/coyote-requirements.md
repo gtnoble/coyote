@@ -573,6 +573,11 @@ Ctrl-U) in the conversation view.
 The GUI frontend shall propagate `COYOTE_FRONTEND=gui` to all child processes
 so that subagents open their own GUI windows.
 
+**REQ-CORE-124** (D)
+The GUI conversation view shall render standalone display-math blocks delimited
+by `$$`/`$$` or `\[`/`\]` using the supported Lasem iTeX subset. If parsing
+fails, the original source shall remain visible as text.
+
 **REQ-CORE-116** (D)
 The GUI frontend shall provide an `Edit → Preferences...` dialog for editing
 persistent defaults without changing the active session. The dialog shall
@@ -959,7 +964,7 @@ target system.
 All frontends require libcurl (HTTPS) at runtime.
 
 **REQ-CORE-504** (I)
-The GUI frontend requires libcmark-gfm at runtime for Markdown rendering.
+The GUI frontend requires libcmark-gfm at runtime for Markdown rendering and Lasem 0.6 plus Computer Modern math fonts for display-math rendering.
 
 **REQ-CORE-505** (I)
 The executable shall run on Linux. macOS support via plan9port is possible
@@ -1150,7 +1155,7 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-100..107 | Acme frontend tag commands (Send, Stop, New, etc.) | D | TC-100..107 |
 | REQ-CORE-108..108b | Session fork tokens and step-level turn footers | D | TC-108..108b |
 | REQ-CORE-109 | SetDefault writes to settings.json | D | TC-109 |
-| REQ-CORE-110..119 | GUI frontend capabilities, including Preferences | D/T | TC-110..119 |
+| REQ-CORE-110..119, 124 | GUI frontend capabilities, including Preferences and display math | D/T | TC-110..119, TC-124 |
 | REQ-CORE-120..121 | Plain frontend capabilities | D | TC-120..121 |
 | REQ-CORE-130..131 | Session history replay | D | TC-130..131 |
 | REQ-CORE-140..142 | Error handling | D | TC-140..142 |

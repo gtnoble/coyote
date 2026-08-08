@@ -78,6 +78,8 @@ the `coyote-skill-author` skill for a condensed quick-reference.
   - system `libcmark-gfm` development headers (`libcmark-gfm-dev` and
     `libcmark-gfm-extensions-dev` on Debian / Ubuntu) for GFM Markdown
     rendering in the GUI frontend
+  - system Lasem 0.6 development headers and shared library (`liblasem-0.6`) for display-math rendering
+  - Computer Modern math fonts (`cmr10`, `cmmi10`, `cmex10`, `cmsy10`) for Lasem glyph coverage
 
 ### Build commands
 
@@ -126,6 +128,7 @@ src/
   acme-event_parser.ads/.adb  -- Acme event-file parser
   nine_p*.ads/.adb      -- 9P2000 client
   coyote_cmark.ads/.adb -- Ada binding to libcmark-gfm (+ coyote_cmark_c.c shim)
+  coyote_lasem.ads/.adb + coyote_lasem_c.c -- Ada/C binding to Lasem iTeX rendering
   coyote_renderer/      -- Shared Pango markup + session-view rendering
   coyote_sqc/           -- SQC companion application packages
   coyote_sqc_main.adb   -- Entry point for coyote_sqc
