@@ -2870,6 +2870,9 @@ package body Test_Suites is
         ("Coyote.Lasem measures a MathML matrix",
          Coyote_Lasem_Tests.Test_Measure_MathML_Matrix'Access));
       Result.Add_Test (Coyote_Lasem_Caller.Create
+        ("Coyote.Lasem scales MathML measurements",
+         Coyote_Lasem_Tests.Test_Measure_MathML_Scale'Access));
+      Result.Add_Test (Coyote_Lasem_Caller.Create
         ("Coyote.Lasem accepts MathML relation entities",
          Coyote_Lasem_Tests.Test_Measure_MathML_Relations'Access));
       Result.Add_Test (Coyote_Lasem_Caller.Create
@@ -2938,6 +2941,9 @@ package body Test_Suites is
       Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
         ("Coyote.GUI.Conversation Invalidate_Layout recomputes cache",
          Coyote_GUI_Conversation_Tests.Test_Invalidate_Layout_Zeroes_Cache_Width'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation Set_Font changes line height",
+         Coyote_GUI_Conversation_Tests.Test_Set_Font_Changes_Line_Height'Access));
       Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
         ("Coyote.GUI.Conversation Recompute_Vis_Lines updates total",
          Coyote_GUI_Conversation_Tests.Test_Recompute_Vis_Lines_Updates_Total'Access));

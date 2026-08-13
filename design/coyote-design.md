@@ -1023,6 +1023,14 @@ with table, strikethrough, and autolink extensions) and emits styled
 When `Render_Markdown` is disabled, text is split on LF and displayed as
 plain `Logical_Line` entries (the original behaviour).
 
+**Zoom and font propagation:** `Set_Font` applies the frontend's effective
+Pango font description to both reusable layouts (`Measure_Layout` and
+`Draw_Layout`), invalidates wrapping caches, and recomputes line height before
+redrawing.  Display-math lines are remeasured at the same zoom factor and are
+rendered at that factor through the Lasem resolution parameter, keeping math
+geometry consistent with its visible size.  The frontend derives the factor
+from the clamped effective point size relative to the clamped baseline size.
+
 **`Clear` procedure:** Resets all conversation state to empty — clears the
 logical line and tool-block vectors, the tool-start map, all streaming
 state (`In_Text_Block`, `In_Thinking`, `Stream_Buf`, `Prefix_Emitted`,

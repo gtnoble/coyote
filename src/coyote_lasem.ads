@@ -21,7 +21,8 @@ package Coyote_Lasem is
       MathML_Len : Interfaces.C.long;
       Width      : access Interfaces.C.unsigned;
       Height     : access Interfaces.C.unsigned;
-      Baseline   : access Interfaces.C.unsigned)
+      Baseline   : access Interfaces.C.unsigned;
+      Scale      : Interfaces.C.double := 1.0)
       return Interfaces.C.Strings.chars_ptr
    with Import, Convention => C,
         External_Name => "coyote_lasem_measure_mathml";
@@ -33,7 +34,8 @@ package Coyote_Lasem is
      (MathML     : Interfaces.C.char_array;
       MathML_Len : Interfaces.C.long;
       Cr         : Cairo.Cairo_Context;
-      X, Y       : Interfaces.C.double)
+      X, Y       : Interfaces.C.double;
+      Scale      : Interfaces.C.double := 1.0)
       return Interfaces.C.Strings.chars_ptr
    with Import, Convention => C,
         External_Name => "coyote_lasem_render_mathml";

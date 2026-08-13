@@ -200,7 +200,11 @@ The GUI frontend reads the system default proportional font from
 `Gtk.Settings.Get_Default` (`gtk-font-name`) at startup
 (`Init_System_Font`).  The conversation view, prompt `GtkTextView`, and
 status bar all use this family and size as their baseline (zoom level 0).
-Zoom adjusts ±1 pt from the system baseline.  The SQC tool-detail window
+Zoom adjusts ±1 pt from the system baseline.  `Coyote_GUI.Conversation.Set_Font`
+propagates the effective font description to both reusable Pango layouts and
+invalidates wrapping and line-height caches.  Display math is remeasured and
+rendered through the Lasem resolution scale at the same factor.  The SQC
+tool-detail window
 reads the same GTK setting lazily (`Ensure_System_Font_Init`) and applies
 the point size to its monospace `GtkTextView` widgets while using the
 generic `"monospace"` family name, which Pango resolves to the users
@@ -333,10 +337,10 @@ let the user explicitly control the behaviour.
   preservation, interleaved tool selection, streaming, layout, and rendering.
 - `Coyote_GUI.Tool_Detail_Window`: compiled and linked into the main GUI;
   display-backed visual qualification remains manual.
-- `Coyote_Lasem`: covered by four AUnit tests for MathML fraction and matrix
-  measurement, relation entities, and invalid MathML error handling.
-  `Coyote_GUI.Conversation` has three display-backed tests for style
-  selection, source preservation, and visual height.
+- `Coyote_Lasem`: covered by five AUnit tests for MathML fraction and matrix
+  measurement, zoom scaling, relation entities, and invalid MathML error
+  handling.  `Coyote_GUI.Conversation` has four display-backed tests for style
+  selection, source preservation, visual height, and font propagation.
 - `Coyote_Cmark`: covered by AUnit tests — parse round-trips for each GFM
   node type; extension handling; null-safety of `cmark_shim_get_literal`.
 - `Acme.*` / `Nine_P.*`: covered by integration tests in

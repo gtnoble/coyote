@@ -169,8 +169,8 @@ SRS-CORE requirement groups.
 | `llm_openrouter_tests.adb` | REQ-CORE-072 (OpenRouter) | ~15 |
 | `tool_uri_tests.adb` | REQ-CORE-100â109 (plumb token format) | ~10 |
 | `coyote_cmark_tests.adb` | REQ-CORE-111 (Markdown rendering) | ~25 |
-| `coyote_lasem_tests.adb` | Lasem Presentation MathML measurement, relation entities, and error handling | 4 |
-| `coyote_gui_conversation_tests.adb` | Display-math style, source preservation, visual height | 3 |
+| `coyote_lasem_tests.adb` | Lasem Presentation MathML measurement, zoom scaling, relation entities, and error handling | 5 |
+| `coyote_gui_conversation_tests.adb` | Display-math style, source preservation, visual height, and font propagation | 4 |
 | `nine_p_proto_tests.adb` | REQ-CORE-210 (9P protocol) | ~20 |
 | `nine_p_mock_server_tests.adb` | REQ-CORE-210â211 | ~15 |
 | `session_lister_tests.adb` | REQ-CORE-084 | ~10 |
@@ -362,6 +362,12 @@ available time.
 Clean production and test development builds succeed. Focused Lasem and prompt
 tests pass; display-backed GUI qualification requires a GTK display. The full
 suite remains subject to existing live/network-dependent execution limits.
+
+**Verification as of 2026-08-13 (PCR-053 GTK conversation zoom):**
+841 registered tests, including the Lasem scaling and conversation font
+propagation regressions. Production and test development builds succeed.
+The exact Lasem scale and conversation font tests pass; full-suite execution
+remains subject to existing environment-dependent test constraints.
 
 **Verification as of 2026-08-08 (PCR-050 Lasem literal-relation normalization):**
 838 registered tests, including the new Lasem literal-relation regression. The

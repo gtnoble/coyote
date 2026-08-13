@@ -22,6 +22,7 @@ with Ada.Strings.Unbounded;        use Ada.Strings.Unbounded;
 with Coyote_App.Utils;
 with Glib;
 with Pango.Layout;
+with Pango.Font;
 with Gtk.Layout;
 with Gtk.Scrolled_Window;
 
@@ -174,6 +175,13 @@ package Coyote_GUI.Conversation is
 
    --  ── Zoom ──────────────────────────────────────────────────────────────
 
+   --  Apply a default Pango font and rescale display math.  Call from the
+   --  GTK main loop after changing the frontend zoom level.
+   procedure Set_Font
+     (C         : in out Instance;
+      Desc      :        Pango.Font.Pango_Font_Description;
+      Math_Scale :       Long_Float := 1.0);
+
    --  Recompute line height and queue a redraw.  Call after font changes.
    procedure Invalidate_Layout (C : in out Instance);
 
@@ -243,6 +251,7 @@ private
       Tool_Starts        : Tool_Start_Maps.Map;
       --  Layout
       Line_Height_Px   : Glib.Gint := 18;
+      Math_Scale       : Long_Float := 1.0;
       --  Reusable layout objects for measuring and drawing lines.
       --  Created in Attach, unreffed in Clear.
       Measure_Layout   : Pango.Layout.Pango_Layout;

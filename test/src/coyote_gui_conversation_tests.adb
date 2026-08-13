@@ -4,6 +4,7 @@ with AUnit.Assertions;
 with Glib;         use type Glib.Gint;
 with Gtk.Enums;       use Gtk.Enums;
 with Gtk.Main;
+with Pango.Font;
 with Coyote_GUI.Conversation;
 with Coyote_App.Utils;
 with Coyote_GUI.Conversation.Testing;
@@ -160,6 +161,35 @@ package body Coyote_GUI_Conversation_Tests is
       Assert (Testing.Cache_Width_Px (Conv) > 0,
               "cache width > 0 after Invalidate_Layout (recomputed)");
    end Test_Invalidate_Layout_Zeroes_Cache_Width;
+
+   procedure Test_Set_Font_Changes_Line_Height (T : in out Test) is
+      Conv       : Instance;
+      Scroll     : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Layout     : Gtk.Layout.Gtk_Layout;
+      Small_Font : Pango.Font.Pango_Font_Description :=
+        Pango.Font.From_String ("sans 8");
+      Large_Font : Pango.Font.Pango_Font_Description :=
+        Pango.Font.From_String ("sans 24");
+      Small_H    : Glib.Gint;
+      Large_H    : Glib.Gint;
+   begin
+      if not T.Display_Available then
+         Pango.Font.Free (Small_Font);
+         Pango.Font.Free (Large_Font);
+         return;
+      end if;
+      Make_Fresh_Conv (Conv, Scroll, Layout);
+      Conv.Append_Text ("font size regression");
+      Conv.End_Text_Block;
+      Conv.Set_Font (Small_Font);
+      Small_H := Testing.Line_Height_Px (Conv);
+      Conv.Set_Font (Large_Font);
+      Large_H := Testing.Line_Height_Px (Conv);
+      Assert (Large_H > Small_H,
+              "larger conversation font increases line height");
+      Pango.Font.Free (Small_Font);
+      Pango.Font.Free (Large_Font);
+   end Test_Set_Font_Changes_Line_Height;
 
    procedure Test_Recompute_Vis_Lines_Updates_Total (T : in out Test) is
       Conv   : Instance;

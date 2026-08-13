@@ -62,6 +62,38 @@ package body Coyote_Lasem_Tests is
               "matrix dimensions are non-zero");
    end Test_Measure_MathML_Matrix;
 
+   procedure Test_Measure_MathML_Scale (T : in out Test) is
+      pragma Unreferenced (T);
+      Source   : constant String :=
+        "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
+        & "<mfrac><mn>1</mn><mn>2</mn></mfrac></math>";
+      C_Source : constant Interfaces.C.char_array :=
+        Interfaces.C.To_C (Source, Append_Nul => True);
+      Width_1  : aliased Interfaces.C.unsigned := 0;
+      Height_1 : aliased Interfaces.C.unsigned := 0;
+      Base_1   : aliased Interfaces.C.unsigned := 0;
+      Width_2  : aliased Interfaces.C.unsigned := 0;
+      Height_2 : aliased Interfaces.C.unsigned := 0;
+      Base_2   : aliased Interfaces.C.unsigned := 0;
+      Error    : Interfaces.C.Strings.chars_ptr;
+   begin
+      Error := Coyote_Lasem.Measure_MathML
+        (C_Source, Interfaces.C.long (Source'Length),
+         Width_1'Access, Height_1'Access, Base_1'Access);
+      Assert (Error = Interfaces.C.Strings.Null_Ptr,
+              "base MathML measurement succeeds");
+      Error := Coyote_Lasem.Measure_MathML
+        (C_Source, Interfaces.C.long (Source'Length),
+         Width_2'Access, Height_2'Access, Base_2'Access,
+         Scale => 2.0);
+      Assert (Error = Interfaces.C.Strings.Null_Ptr,
+              "scaled MathML measurement succeeds");
+      Assert (Width_2 > Width_1 and then Height_2 > Height_1,
+              "Lasem dimensions increase at scale 2");
+      Assert (Base_2 > Base_1,
+              "Lasem baseline increases at scale 2");
+   end Test_Measure_MathML_Scale;
+
    procedure Test_Measure_MathML_Relations (T : in out Test) is
       pragma Unreferenced (T);
       Source   : constant String :=

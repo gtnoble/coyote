@@ -14,6 +14,7 @@ package Coyote_Lasem_Tests is
 
    procedure Test_Measure_MathML_Fraction (T : in out Test);
    procedure Test_Measure_MathML_Matrix (T : in out Test);
+   procedure Test_Measure_MathML_Scale (T : in out Test);
    procedure Test_Measure_MathML_Relations (T : in out Test);
    procedure Test_Invalid_MathML_Returns_Error (T : in out Test);
 

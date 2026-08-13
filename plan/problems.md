@@ -1842,3 +1842,24 @@ behavior, current test baseline, and remaining manual qualification scope.
   300-second execution limit.
 - **Status:** Resolved
 - **Date resolved:** 2026-08-12
+
+## PCR-053 — GTK conversation zoom did not propagate to custom renderer (2026-08-13)
+
+- **Category:** Code, Design, Test
+- **Priority:** 2-Serious
+- **Description:** The GTK View zoom actions updated the prompt `GtkTextView`,
+  but the virtualized `Coyote_GUI.Conversation` renderer retained its default
+  Pango font. Display math rendered by Lasem also retained its original size.
+- **Affected work products:** GUI frontend, conversation renderer, Lasem binding,
+  frontend design log, design description, and GUI test coverage.
+- **Corrective action:** Added `Coyote_GUI.Conversation.Set_Font`, applied the
+  font to both reusable Pango layouts, invalidated wrapping/line-height caches,
+  and added a Lasem resolution scale used consistently for math measurement and
+  Cairo rendering. The frontend derives the math scale from the effective
+  clamped zoom font size.
+- **Verification:** Production and test development builds succeed. The exact
+  conversation font regression passes with the available GTK display, and the
+  exact Lasem scaling regression passes without a display. Full-suite execution
+  remains subject to the existing environment-dependent test constraints.
+- **Status:** Resolved
+- **Date resolved:** 2026-08-13

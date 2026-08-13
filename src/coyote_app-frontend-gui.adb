@@ -1294,6 +1294,8 @@ package body Coyote_App.Frontend.GUI is
       use Ada.Strings.Unbounded;
       Base_Pt    : constant Integer :=
         (if System_Font_Init then System_Font_Size_Pt else 11);
+      Base_Clamped : constant Integer :=
+        (if Base_Pt < 6 then 6 elsif Base_Pt > 32 then 32 else Base_Pt);
       Family_Str : constant String :=
         (if System_Font_Init
          then To_String (System_Font_Family)
@@ -1307,7 +1309,9 @@ package body Coyote_App.Frontend.GUI is
           (2 .. Integer'Image (Clamped)'Last);
       FD : Pango_Font_Description := From_String (Font_Str);
    begin
-      F.Conv.Invalidate_Layout;
+      F.Conv.Set_Font
+        (FD,
+         Math_Scale => Long_Float (Clamped) / Long_Float (Base_Clamped));
       if F.Prompt_View /= null then
          F.Prompt_View.Override_Font (FD);
          declare

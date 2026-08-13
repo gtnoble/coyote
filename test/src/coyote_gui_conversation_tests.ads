@@ -43,6 +43,7 @@ package Coyote_GUI_Conversation_Tests is
    procedure Test_Total_Vis_Lines_After_Append_Text       (T : in out Test);
    procedure Test_Cache_Width_Non_Zero_After_Recompute    (T : in out Test);
    procedure Test_Invalidate_Layout_Zeroes_Cache_Width    (T : in out Test);
+   procedure Test_Set_Font_Changes_Line_Height             (T : in out Test);
    procedure Test_Recompute_Vis_Lines_Updates_Total       (T : in out Test);
    procedure Test_Append_Notice_Increments_Count          (T : in out Test);
    procedure Test_Append_Text_Enters_Text_Block           (T : in out Test);

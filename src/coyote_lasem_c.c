@@ -35,7 +35,8 @@ char *coyote_lasem_measure_mathml
    gssize            mathml_len,
    unsigned int     *width,
    unsigned int     *height,
-   unsigned int     *baseline)
+   unsigned int     *baseline,
+   double            scale)
 {
     GError         *error = NULL;
     LsmDomDocument *document;
@@ -55,6 +56,7 @@ char *coyote_lasem_measure_mathml
         return strdup ("Lasem could not create a document view");
     }
 
+    lsm_dom_view_set_resolution (view, 72.0 * (scale > 0.0 ? scale : 1.0));
     lsm_dom_view_get_size_pixels (view, width, height, baseline);
 
     g_object_unref (view);
@@ -67,7 +69,8 @@ char *coyote_lasem_render_mathml
    gssize            mathml_len,
    cairo_t          *cairo,
    double            x,
-   double            y)
+   double            y,
+   double            scale)
 {
     GError         *error = NULL;
     LsmDomDocument *document;
@@ -87,6 +90,7 @@ char *coyote_lasem_render_mathml
         return strdup ("Lasem could not create a document view");
     }
 
+    lsm_dom_view_set_resolution (view, 72.0 * (scale > 0.0 ? scale : 1.0));
     lsm_dom_view_render (view, cairo, x, y);
 
     g_object_unref (view);

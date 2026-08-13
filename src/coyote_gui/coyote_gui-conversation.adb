@@ -29,6 +29,7 @@ with Interfaces.C.Strings;
 with Pango.Cairo;
 with Pango.Enums;                    use Pango.Enums;
 with Pango.Layout;                   use Pango.Layout;
+with Pango.Font;
 with System;                         use System;
 
 package body Coyote_GUI.Conversation is
@@ -200,7 +201,8 @@ package body Coyote_GUI.Conversation is
    begin
       Error := Coyote_Lasem.Measure_MathML
         (C_Text, Interfaces.C.long (MathML'Length),
-         Width'Access, Height'Access, Baseline'Access);
+         Width'Access, Height'Access, Baseline'Access,
+         Interfaces.C.double (C.Math_Scale));
       if Error /= Interfaces.C.Strings.Null_Ptr then
          Debug_Log
            (C, "MathML parse failed: "
@@ -886,7 +888,8 @@ package body Coyote_GUI.Conversation is
                   begin
                      Error := Coyote_Lasem.Render_MathML
                        (C_Text, Interfaces.C.long (MathML'Length), Cr,
-                        Interfaces.C.double (Math_X), Interfaces.C.double (Y_Off));
+                        Interfaces.C.double (Math_X), Interfaces.C.double (Y_Off),
+                        Interfaces.C.double (Current_Conv.Math_Scale));
                      if Error /= Interfaces.C.Strings.Null_Ptr then
                         Current_Conv.Debug_Log
                           ("MathML render failed: "
@@ -2241,6 +2244,55 @@ package body Coyote_GUI.Conversation is
       Queue_Draw (C);
    end Clear;
 
+   --  ── Zoom ──────────────────────────────────────────────────────────────
+
+   procedure Set_Font
+     (C         : in out Instance;
+      Desc      :        Pango.Font.Pango_Font_Description;
+      Math_Scale :       Long_Float := 1.0)
+   is
+   begin
+      C.Measure_Layout.Set_Font_Description (Desc);
+      C.Draw_Layout.Set_Font_Description (Desc);
+      C.Math_Scale := Long_Float'Max (Math_Scale, 0.01);
+
+      if not C.Lines.Is_Empty then
+         for I in 1 .. Positive (C.Lines.Length) loop
+            if C.Lines (I).Style = Display_Math then
+               declare
+                  Source   : constant String :=
+                    To_String (C.Lines (I).Text);
+                  MathML   : constant String := MathML_Source (Source);
+                  C_Text   : constant Interfaces.C.char_array :=
+                    Interfaces.C.To_C (MathML, Append_Nul => True);
+                  Width    : aliased Interfaces.C.unsigned := 0;
+                  Height   : aliased Interfaces.C.unsigned := 0;
+                  Baseline : aliased Interfaces.C.unsigned := 0;
+                  Error    : Interfaces.C.Strings.chars_ptr;
+               begin
+                  Error := Coyote_Lasem.Measure_MathML
+                    (C_Text, Interfaces.C.long (MathML'Length),
+                     Width'Access, Height'Access, Baseline'Access,
+                     Interfaces.C.double (C.Math_Scale));
+                  if Error = Interfaces.C.Strings.Null_Ptr then
+                     C.Lines (I).Pixel_Height := Natural (Height);
+                     C.Lines (I).Math_Width := Natural (Width);
+                     C.Lines (I).Math_Baseline := Natural (Baseline);
+                  else
+                     Debug_Log
+                       (C, "MathML zoom remeasure failed: "
+                        & Interfaces.C.Strings.Value (Error));
+                     Coyote_Lasem.Free_Error (Error);
+                  end if;
+               end;
+            end if;
+            C.Lines (I).Vis_Count := 0;
+         end loop;
+      end if;
+      C.Cache_Dirty := True;
+      Invalidate_Layout (C);
+   end Set_Font;
+
    --  ── Invalidate_Layout ─────────────────────────────────────────────────
 
    procedure Invalidate_Layout (C : in out Instance) is
@@ -2251,7 +2303,8 @@ package body Coyote_GUI.Conversation is
       Layout.Get_Pixel_Size (W, H);
       if H > 0 then
          C.Line_Height_Px := H;
-         Debug_Log (C, "Invalidate_Layout line_height_px=" & Glib.Gint'Image (H));
+         Debug_Log
+           (C, "Invalidate_Layout line_height_px=" & Glib.Gint'Image (H));
       end if;
       --  Invalidate cache: font change may alter wrapping at same width.
       C.Cache_Width_Px := 0;
