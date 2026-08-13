@@ -44,6 +44,14 @@ package body Coyote_Renderer.Markup is
       Is_Bullet    : array (Level_T) of Boolean := (others => True);
       List_Depth   : Natural := 0;
 
+      function List_Indent (Depth : Natural) return String is
+      begin
+         if Depth <= 1 then
+            return "";
+         end if;
+         return Str_Repeat ("  ", Depth - 1);
+      end List_Indent;
+
       --  Table accumulation state (two-pass box-drawing renderer)
       Max_Table_Cols : constant := 16;
       Max_Table_Rows : constant := 256;
@@ -312,7 +320,8 @@ package body Coyote_Renderer.Markup is
                   if Ev = EVENT_ENTER then
                      if List_Depth < Natural (Level_T'Last) then
                         List_Depth := List_Depth + 1;
-                        List_Counter (Level_T (List_Depth)) := 0;
+                        List_Counter (Level_T (List_Depth)) :=
+                          Integer (Node_Get_List_Start (Node)) - 1;
                         Is_Bullet   (Level_T (List_Depth)) :=
                           (Node_Get_List_Type (Node) = LIST_BULLET);
                      end if;
@@ -329,6 +338,7 @@ package body Coyote_Renderer.Markup is
                  and then List_Depth > 0
                  and then not In_Cell
                then
+                  Append (Out_S, List_Indent (List_Depth));
                   if Is_Bullet (Level_T (List_Depth)) then
                      Append (Out_S, UC_BULLET & " ");
                   else

@@ -62,4 +62,8 @@ package Coyote_Cmark_Tests is
    --  Key node-type constants used by Render_Markdown are mutually distinct.
    procedure Test_Node_Constants_Are_Distinct (T : in out Test);
 
+   --  Shared Pango markup preserves two-space indentation per nested list
+   --  level.
+   procedure Test_Pango_Markup_Nested_List_Indentation (T : in out Test);
+
 end Coyote_Cmark_Tests;

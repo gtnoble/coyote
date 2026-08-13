@@ -1863,3 +1863,25 @@ behavior, current test baseline, and remaining manual qualification scope.
   remains subject to the existing environment-dependent test constraints.
 - **Status:** Resolved
 - **Date resolved:** 2026-08-13
+
+
+## PCR-054 — Nested Markdown lists rendered without indentation (2026-08-13)
+
+- **Category:** Code, Design, Test
+- **Priority:** 2-Serious
+- **Description:** Libcmark preserved nested list nodes, but both Markdown
+  renderers emitted only the list marker and discarded the nesting depth. The
+  GTK conversation view and shared Pango/session renderer therefore displayed
+  nested lists as flat lists.
+- **Affected work products:** `Coyote_GUI.Conversation`,
+  `Coyote_Renderer.Markup`, GUI and cmark tests, SDD-CORE, SDD-SQC, frontend
+  SDF, and Test Plan.
+- **Corrective action:** Convert list depth into two leading spaces per level
+  below the top-level list in both renderers. Initialize ordered-list counters
+  from libcmark's declared starting ordinal. Add shared-renderer and live GUI
+  regressions for nested and mixed bullet/ordered lists.
+- **Verification:** Production and test development builds succeed. The shared
+  renderer, GUI nested-list, and GUI mixed-list focused regressions pass. The
+  full suite remains subject to existing environment-dependent test constraints.
+- **Status:** Resolved
+- **Date resolved:** 2026-08-13

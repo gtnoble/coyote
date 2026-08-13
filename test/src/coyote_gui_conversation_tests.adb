@@ -697,6 +697,79 @@ package body Coyote_GUI_Conversation_Tests is
               & "(got" & Natural'Image (Testing.Line_Count (Conv)) & ")");
    end Test_Markdown_Multi_Paragraph_Line_Count;
 
+   procedure Test_Markdown_Nested_List_Indentation (T : in out Test) is
+      Conv   : Instance;
+      Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Layout : Gtk.Layout.Gtk_Layout;
+      MD     : constant String :=
+        "- outer" & ASCII.LF
+        & "  - inner" & ASCII.LF
+        & "    - deepest" & ASCII.LF
+        & "- sibling";
+      Found_Outer, Found_Inner : Boolean := False;
+      Found_Deepest, Found_Sibling : Boolean := False;
+   begin
+      if not T.Display_Available then return; end if;
+      Make_Fresh_Conv (Conv, Scroll, Layout);
+      Conv.Append_Text (MD);
+      Conv.End_Text_Block;
+      for I in 1 .. Testing.Line_Count (Conv) loop
+         declare
+            Text : constant String := Testing.Get_Line_Text (Conv, I);
+         begin
+            Found_Outer := Found_Outer or else Text = Coyote_App.Utils.UC_BULLET
+              & " outer";
+            Found_Inner := Found_Inner or else Text = "  "
+              & Coyote_App.Utils.UC_BULLET & " inner";
+            Found_Deepest := Found_Deepest or else Text = "    "
+              & Coyote_App.Utils.UC_BULLET & " deepest";
+            Found_Sibling := Found_Sibling or else Text = Coyote_App.Utils.UC_BULLET
+              & " sibling";
+         end;
+      end loop;
+      Assert (Found_Outer, "top-level list item is unindented");
+      Assert (Found_Inner, "second-level list item is indented two spaces");
+      Assert (Found_Deepest,
+              "third-level list item is indented four spaces");
+      Assert (Found_Sibling, "top-level sibling returns to zero indentation");
+   end Test_Markdown_Nested_List_Indentation;
+
+   procedure Test_Markdown_Mixed_List_Indentation (T : in out Test) is
+      Conv   : Instance;
+      Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Layout : Gtk.Layout.Gtk_Layout;
+      MD     : constant String :=
+        "1. outer" & ASCII.LF
+        & "   - inner" & ASCII.LF
+        & "     1. deepest" & ASCII.LF
+        & "2. sibling";
+      Found_Outer, Found_Inner : Boolean := False;
+      Found_Deepest, Found_Sibling : Boolean := False;
+   begin
+      if not T.Display_Available then return; end if;
+      Make_Fresh_Conv (Conv, Scroll, Layout);
+      Conv.Append_Text (MD);
+      Conv.End_Text_Block;
+      for I in 1 .. Testing.Line_Count (Conv) loop
+         declare
+            Text : constant String := Testing.Get_Line_Text (Conv, I);
+         begin
+            Found_Outer := Found_Outer or else Text = "1. outer";
+            Found_Inner := Found_Inner or else Text = "  "
+              & Coyote_App.Utils.UC_BULLET & " inner";
+            Found_Deepest := Found_Deepest or else Text = "    1. deepest";
+            Found_Sibling := Found_Sibling or else Text = "2. sibling";
+         end;
+      end loop;
+      Assert (Found_Outer, "top-level ordered item is unindented");
+      Assert (Found_Inner,
+              "nested bullet item retains two-space indentation");
+      Assert (Found_Deepest,
+              "nested ordered item retains four-space indentation");
+      Assert (Found_Sibling,
+              "top-level ordered sibling returns to zero indentation");
+   end Test_Markdown_Mixed_List_Indentation;
+
    procedure Test_Markdown_Select_All_Strips_Markup (T : in out Test) is
       Conv   : Instance;
       Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;

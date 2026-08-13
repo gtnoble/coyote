@@ -1320,6 +1320,9 @@ package body Test_Suites is
       Result.Add_Test (Coyote_Cmark_Caller.Create
         ("Coyote_Cmark Render_Markdown node-type constants are distinct",
          Coyote_Cmark_Tests.Test_Node_Constants_Are_Distinct'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote_Renderer.Markup nested list indentation",
+         Coyote_Cmark_Tests.Test_Pango_Markup_Nested_List_Indentation'Access));
 
       --  LLM.HTTP tests
       Result.Add_Test (LLM_HTTP_Caller.Create
@@ -2974,6 +2977,12 @@ package body Test_Suites is
       Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
         ("Coyote.GUI.Conversation markdown multi-paragraph line count",
          Coyote_GUI_Conversation_Tests.Test_Markdown_Multi_Paragraph_Line_Count'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation nested list indentation",
+         Coyote_GUI_Conversation_Tests.Test_Markdown_Nested_List_Indentation'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation mixed list indentation",
+         Coyote_GUI_Conversation_Tests.Test_Markdown_Mixed_List_Indentation'Access));
       Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
         ("Coyote.GUI.Conversation markdown select-all strips markup",
          Coyote_GUI_Conversation_Tests.Test_Markdown_Select_All_Strips_Markup'Access));

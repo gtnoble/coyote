@@ -2636,6 +2636,9 @@ Extracted from `Coyote_GUI.Buffer.To_Pango_Markup`. Public interface:
 function To_Pango_Markup (MD_Text : String) return String;
 ```
 
+Nested list markers are emitted with two leading spaces for each level below
+the top-level list; ordered-list counters begin at the cmark-declared start.
+
 Dependencies: `Coyote_Cmark`, `Glib`, standard Ada. No GTK widget types.
 
 ### 10.2 Package `Coyote_Renderer.Session_View`

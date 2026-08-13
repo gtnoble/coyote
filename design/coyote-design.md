@@ -1015,6 +1015,8 @@ with table, strikethrough, and autolink extensions) and emits styled
   paragraphs is accumulated as Pango markup and emitted with `Has_Markup
   = True`.  The `On_Draw` callback uses `Pango.Layout.Set_Markup` for
   these lines.
+- **Nested lists** retain their hierarchy in the flat logical-line model:
+  each list level adds two leading spaces before its bullet or ordered marker.
 - **Tables** are rendered as box-drawing ASCII art (two-pass width
   calculation, same as the old `Coyote_Renderer.Markup`).
 - **Selection copy** strips Pango markup tags via `Strip_Pango_Markup`

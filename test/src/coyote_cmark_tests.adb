@@ -5,6 +5,8 @@
 
 with AUnit.Assertions;
 with Coyote_Cmark;
+with Coyote_App.Utils;
+with Coyote_Renderer.Markup;
 with Ada.Characters.Latin_1;
 with Ada.Strings.Fixed;
 with Interfaces.C;
@@ -373,5 +375,36 @@ package body Coyote_Cmark_Tests is
         (Coyote_Cmark.NODE_DOCUMENT /= Coyote_Cmark.NODE_NONE,
          "NODE_DOCUMENT and NODE_NONE must be distinct");
    end Test_Node_Constants_Are_Distinct;
+
+   procedure Test_Pango_Markup_Nested_List_Indentation (T : in out Test) is
+      pragma Unreferenced (T);
+      MD : constant String :=
+        "- outer" & Ada.Characters.Latin_1.LF
+        & "  - inner" & Ada.Characters.Latin_1.LF
+        & "    - deepest" & Ada.Characters.Latin_1.LF
+        & "- sibling";
+      Markup : constant String := Coyote_Renderer.Markup.To_Pango_Markup (MD);
+      Bullet : constant String := Coyote_App.Utils.UC_BULLET;
+   begin
+      Assert (Ada.Strings.Fixed.Index (Markup, Bullet & " outer") > 0,
+              "top-level list item should have no indentation");
+      Assert
+        (Ada.Strings.Fixed.Index (Markup, "  " & Bullet & " inner") > 0,
+         "second-level list item should be indented two spaces");
+      Assert
+        (Ada.Strings.Fixed.Index (Markup, "    " & Bullet & " deepest") > 0,
+         "third-level list item should be indented four spaces");
+      Assert
+        (Ada.Strings.Fixed.Index (Markup, Bullet & " sibling") > 0,
+         "top-level sibling should return to zero indentation");
+      declare
+         Ordered : constant String :=
+           Coyote_Renderer.Markup.To_Pango_Markup ("3. starts here");
+      begin
+         Assert
+           (Ada.Strings.Fixed.Index (Ordered, "3. starts here") > 0,
+            "ordered list should preserve its starting ordinal");
+      end;
+   end Test_Pango_Markup_Nested_List_Indentation;
 
 end Coyote_Cmark_Tests;

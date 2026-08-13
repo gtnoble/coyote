@@ -1336,6 +1336,14 @@ package body Coyote_GUI.Conversation is
       List_Is_Bullet : array (Level_T) of Boolean := (others => True);
       List_Depth    : Natural := 0;
 
+      function List_Indent (Depth : Natural) return String is
+      begin
+         if Depth <= 1 then
+            return "";
+         end if;
+         return Str_Repeat ("  ", Depth - 1);
+      end List_Indent;
+
       --  Table accumulation state (two-pass box-drawing)
       Max_Table_Cols : constant := 16;
       Max_Table_Rows : constant := 256;
@@ -1631,7 +1639,8 @@ package body Coyote_GUI.Conversation is
                   Flush_Para;
                   if List_Depth < Natural (Level_T'Last) then
                      List_Depth := List_Depth + 1;
-                     List_Counter (Level_T (List_Depth)) := 0;
+                     List_Counter (Level_T (List_Depth)) :=
+                       Integer (Node_Get_List_Start (Node)) - 1;
                      List_Is_Bullet (Level_T (List_Depth)) :=
                        (Node_Get_List_Type (Node) = LIST_BULLET);
                   end if;
@@ -1651,6 +1660,7 @@ package body Coyote_GUI.Conversation is
                      declare
                         Prefix : Unbounded_String;
                      begin
+                        Append (Prefix, List_Indent (List_Depth));
                         if List_Is_Bullet (Level_T (List_Depth)) then
                            Append (Prefix, UC_BULLET & " ");
                         else

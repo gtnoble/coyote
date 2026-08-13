@@ -369,6 +369,12 @@ propagation regressions. Production and test development builds succeed.
 The exact Lasem scale and conversation font tests pass; full-suite execution
 remains subject to existing environment-dependent test constraints.
 
+**Verification as of 2026-08-13 (PCR-054 nested Markdown lists):**
+844 registered tests, including shared-renderer and GTK conversation regressions
+for two-space nested-list indentation and ordered-list starting ordinals.
+Production and test development builds succeed. All four focused list tests
+pass; the full suite remains subject to existing environment-dependent tests.
+
 **Verification as of 2026-08-08 (PCR-050 Lasem literal-relation normalization):**
 838 registered tests, including the new Lasem literal-relation regression. The
 production and test development builds succeed, and the focused regression

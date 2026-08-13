@@ -168,6 +168,8 @@ height expands as wrapping changes.
   parses GFM through `Coyote_Cmark` and emits styled `Logical_Line`
   entries with block-level `Line_Style` values and inline Pango markup
   (`Has_Markup = True`).  Tables render as box-drawing ASCII art.
+  Nested list markers receive two leading spaces for each level below the
+  top-level list, and ordered lists preserve their declared starting ordinal.
   Selection copy strips markup tags for plain-text clipboard output.
 - Selection, copy-to-clipboard, tool-click detail windows, action strips,
   thinking blocks, notices, and turn footers are all supported.
