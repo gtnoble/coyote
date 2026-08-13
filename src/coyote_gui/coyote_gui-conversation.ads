@@ -31,7 +31,7 @@ package Coyote_GUI.Conversation is
 
    type Line_Style is
      (Plain,              --  assistant text (may contain Pango markup)
-      Display_Math,       --  display math rendered by Lasem onto Cairo
+      Display_Math,       --  Presentation MathML rendered by Lasem onto Cairo
       Heading_1,          --  level-1 heading
       Heading_2,          --  level-2 heading
       Heading_3,          --  level-3 heading

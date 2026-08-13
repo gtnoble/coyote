@@ -1,8 +1,7 @@
---  Coyote_Lasem_Tests — focused tests for the Lasem iTeX binding.
+--  Coyote_Lasem_Tests — focused tests for the Lasem MathML binding.
 --
 --  These tests do not require a GTK display.  They exercise Lasem through
---  Cairo image surfaces and are skipped when the local Lasem installation
---  is unavailable at link time.
+--  its Cairo-backed document view.
 --
 --  Project: coyote
 
@@ -13,9 +12,9 @@ package Coyote_Lasem_Tests is
 
    type Test is new AUnit.Test_Fixtures.Test_Fixture with null record;
 
-   procedure Test_Measure_Fraction (T : in out Test);
-   procedure Test_Measure_Complex_Expression (T : in out Test);
-   procedure Test_Measure_Literal_Relations (T : in out Test);
-   procedure Test_Invalid_Itex_Returns_Error (T : in out Test);
+   procedure Test_Measure_MathML_Fraction (T : in out Test);
+   procedure Test_Measure_MathML_Matrix (T : in out Test);
+   procedure Test_Measure_MathML_Relations (T : in out Test);
+   procedure Test_Invalid_MathML_Returns_Error (T : in out Test);
 
 end Coyote_Lasem_Tests;

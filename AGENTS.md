@@ -128,7 +128,7 @@ src/
   acme-event_parser.ads/.adb  -- Acme event-file parser
   nine_p*.ads/.adb      -- 9P2000 client
   coyote_cmark.ads/.adb -- Ada binding to libcmark-gfm (+ coyote_cmark_c.c shim)
-  coyote_lasem.ads/.adb + coyote_lasem_c.c -- Ada/C binding to Lasem iTeX rendering
+  coyote_lasem.ads/.adb + coyote_lasem_c.c -- Ada/C binding to Lasem MathML rendering
   coyote_renderer/      -- Shared Pango markup + session-view rendering
   coyote_sqc/           -- SQC companion application packages
   coyote_sqc_main.adb   -- Entry point for coyote_sqc

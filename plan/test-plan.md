@@ -150,7 +150,7 @@ SRS-CORE requirement groups.
 | `llm_auth_tests.adb` | REQ-CORE-232 | ~15 |
 | `llm_compaction_tests.adb` | REQ-CORE-060â064 | ~30 |
 | `llm_tools_tests.adb` | REQ-CORE-050â053 | ~25 |
-| `llm_system_prompt_tests.adb` | REQ-CORE-090â092 | ~10 |
+| `llm_system_prompt_tests.adb` | REQ-CORE-090â092, REQ-CORE-173 | ~11 |
 | `llm_types_tests.adb` | REQ-CORE-400â402 | ~20 |
 | `llm_parallel_tools_tests.adb` | REQ-CORE-056 (run_group) | ~15 |
 
@@ -169,7 +169,7 @@ SRS-CORE requirement groups.
 | `llm_openrouter_tests.adb` | REQ-CORE-072 (OpenRouter) | ~15 |
 | `tool_uri_tests.adb` | REQ-CORE-100â109 (plumb token format) | ~10 |
 | `coyote_cmark_tests.adb` | REQ-CORE-111 (Markdown rendering) | ~25 |
-| `coyote_lasem_tests.adb` | Lasem iTeX measurement, literal relation normalization, and error handling | 4 |
+| `coyote_lasem_tests.adb` | Lasem Presentation MathML measurement, relation entities, and error handling | 4 |
 | `coyote_gui_conversation_tests.adb` | Display-math style, source preservation, visual height | 3 |
 | `nine_p_proto_tests.adb` | REQ-CORE-210 (9P protocol) | ~20 |
 | `nine_p_mock_server_tests.adb` | REQ-CORE-210â211 | ~15 |
@@ -310,7 +310,7 @@ These are entered as open items in the problem log (PCR-009).
 | REQ-CORE-130â131 | T/D | `session_history_tests.adb`, DEM-015 |
 | REQ-CORE-140â141 | D | DEM-016 |
 | REQ-CORE-142 | D | DEM-017 |
-| REQ-CORE-170â172 | T/D | `llm_system_prompt_tests.adb`, `llm_skills_tests.adb`, DEM-023..024, code inspection |
+| REQ-CORE-170â173 | T/D | `llm_system_prompt_tests.adb`, `llm_skills_tests.adb`, DEM-023..024, code inspection |
 | REQ-CORE-180â183 | T/D | `llm_system_prompt_tests.adb`, DEM-025..026, code inspection |
 | REQ-CORE-190â192 | T/D | `llm_system_prompt_tests.adb`, DEM-027..028, code inspection |
 | REQ-CORE-200â203 | T/I | `llm_sse_tests.adb`, `llm_openai_completions_tests.adb`, `llm_anthropic_messages_tests.adb`, code inspection |
@@ -356,6 +356,12 @@ runs a long-lived command under `bwrap` and verifies prompt process-group
 termination and result delivery. The full suite was not completed because
 pre-existing environment-dependent tests failed and the run exceeded the
 available time.
+
+**Verification as of 2026-08-12 (PCR-052 MathML display-math cutover):**
+839 registered tests, including direct MathML and display-math prompt regressions.
+Clean production and test development builds succeed. Focused Lasem and prompt
+tests pass; display-backed GUI qualification requires a GTK display. The full
+suite remains subject to existing live/network-dependent execution limits.
 
 **Verification as of 2026-08-08 (PCR-050 Lasem literal-relation normalization):**
 838 registered tests, including the new Lasem literal-relation regression. The

@@ -173,23 +173,37 @@ package body Coyote_GUI.Conversation is
       C.Cache_Dirty := True;
    end Invalidate_Line;
 
+   function MathML_Source (Source : String) return String is
+      --  The extractor stores delimiter lines with the source so that
+      --  selection and fallback preserve the original response.  Lasem
+      --  receives only the inner MathML document.
+      First_Content : constant Natural := Source'First + 3;
+      Last_Content  : constant Natural := Source'Last - 2;
+   begin
+      if Source'Length <= 5 then
+         return "";
+      end if;
+      return Source (First_Content .. Last_Content);
+   end MathML_Source;
+
    procedure Append_Math_Line
      (C : in out Instance; Source : String)
    is
+      MathML : constant String := MathML_Source (Source);
       C_Text : constant Interfaces.C.char_array :=
-        Interfaces.C.To_C (Source, Append_Nul => True);
+        Interfaces.C.To_C (MathML, Append_Nul => True);
       Width    : aliased Interfaces.C.unsigned := 0;
       Height   : aliased Interfaces.C.unsigned := 0;
       Baseline : aliased Interfaces.C.unsigned := 0;
       Error    : Interfaces.C.Strings.chars_ptr;
       L        : Logical_Line (Display_Math);
    begin
-      Error := Coyote_Lasem.Measure_Itex
-        (C_Text, Interfaces.C.long (Source'Length),
+      Error := Coyote_Lasem.Measure_MathML
+        (C_Text, Interfaces.C.long (MathML'Length),
          Width'Access, Height'Access, Baseline'Access);
       if Error /= Interfaces.C.Strings.Null_Ptr then
          Debug_Log
-           (C, "Lasem math parse failed: "
+           (C, "MathML parse failed: "
             & Interfaces.C.Strings.Value (Error));
          Coyote_Lasem.Free_Error (Error);
          Append_Line (C, Plain, Source);
@@ -860,8 +874,9 @@ package body Coyote_GUI.Conversation is
 
                if L.Style = Display_Math then
                   declare
+                     MathML : constant String := MathML_Source (Text);
                      C_Text : constant Interfaces.C.char_array :=
-                       Interfaces.C.To_C (Text, Append_Nul => True);
+                       Interfaces.C.To_C (MathML, Append_Nul => True);
                      Error  : Interfaces.C.Strings.chars_ptr;
                      Math_X : constant Gdouble :=
                        Gdouble'Max
@@ -869,12 +884,12 @@ package body Coyote_GUI.Conversation is
                           (Gdouble (Width_Px) - Gdouble (L.Math_Width))
                           / 2.0);
                   begin
-                     Error := Coyote_Lasem.Render_Itex
-                       (C_Text, Interfaces.C.long (Text'Length), Cr,
+                     Error := Coyote_Lasem.Render_MathML
+                       (C_Text, Interfaces.C.long (MathML'Length), Cr,
                         Interfaces.C.double (Math_X), Interfaces.C.double (Y_Off));
                      if Error /= Interfaces.C.Strings.Null_Ptr then
                         Current_Conv.Debug_Log
-                          ("Lasem math render failed: "
+                          ("MathML render failed: "
                            & Interfaces.C.Strings.Value (Error));
                         Coyote_Lasem.Free_Error (Error);
                      end if;
@@ -1235,18 +1250,13 @@ package body Coyote_GUI.Conversation is
                   Trimmed : constant String :=
                     Ada.Strings.Fixed.Trim (Line, Ada.Strings.Both);
                begin
-                  if not Math_Open
-                    and then (Trimmed = "$$" or else Trimmed = "\[")
-                  then
+                  if not Math_Open and then Trimmed = "$$" then
                      Math_Open := True;
                      Math_Delim := To_Unbounded_String (Trimmed);
                      Math_Buffer := Null_Unbounded_String;
                   elsif Math_Open
-                    and then
-                      ((To_String (Math_Delim) = "$$" and then Trimmed = "$$")
-                       or else
-                       (To_String (Math_Delim) = "\["
-                        and then Trimmed = "\]"))
+                    and then To_String (Math_Delim) = "$$"
+                    and then Trimmed = "$$"
                   then
                      if Length (Math_Buffer) > 0 then
                         declare

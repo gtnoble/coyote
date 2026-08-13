@@ -754,7 +754,11 @@ package body Coyote_GUI_Conversation_Tests is
       Make_Fresh_Conv (Conv, Scroll, Layout);
       Conv.Append_Text
         ("before" & ASCII.LF & ASCII.LF
-         & "$$" & ASCII.LF & "x^2 + \frac{1}{2}" & ASCII.LF & "$$"
+         & "$$" & ASCII.LF
+         & "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
+         & "<mrow><msup><mi>x</mi><mn>2</mn></msup><mo>+</mo>"
+         & "<mfrac><mn>1</mn><mn>2</mn></mfrac></mrow></math>"
+         & ASCII.LF & "$$"
          & ASCII.LF & ASCII.LF & "after");
       Conv.End_Text_Block;
       for I in 1 .. Testing.Line_Count (Conv) loop
@@ -771,7 +775,11 @@ package body Coyote_GUI_Conversation_Tests is
       Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
       Layout : Gtk.Layout.Gtk_Layout;
       Expected : constant String :=
-        "$$" & ASCII.LF & "x^2 + \frac{1}{2}" & ASCII.LF & "$$";
+        "$$" & ASCII.LF
+        & "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
+        & "<mrow><msup><mi>x</mi><mn>2</mn></msup><mo>+</mo>"
+        & "<mfrac><mn>1</mn><mn>2</mn></mfrac></mrow></math>"
+        & ASCII.LF & "$$";
       Found  : Boolean := False;
    begin
       if not T.Display_Available then
@@ -804,7 +812,11 @@ package body Coyote_GUI_Conversation_Tests is
       end if;
       Make_Fresh_Conv (Conv, Scroll, Layout);
       Conv.Append_Text
-        ("$$" & ASCII.LF & "\begin{pmatrix}a&b\\c&d\end{pmatrix}"
+        ("$$" & ASCII.LF
+         & "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
+         & "<mtable><mtr><mtd><mi>a</mi></mtd><mtd><mi>b</mi></mtd></mtr>"
+         & "<mtr><mtd><mi>c</mi></mtd><mtd><mi>d</mi></mtd></mtr></mtable>"
+         & "</math>"
          & ASCII.LF & "$$");
       Conv.End_Text_Block;
       for I in 1 .. Testing.Line_Count (Conv) loop

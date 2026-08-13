@@ -273,7 +273,7 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `Nine_P.Proto` | 9P message encode/decode | `src/nine_p-proto.ads/.adb` |
 | `Nine_P.Client` | 9P client: mount, open, read, write | `src/nine_p-client.ads/.adb` |
 | `Coyote_Cmark` | Ada binding to libcmark-gfm | `src/coyote_cmark.ads/.adb` |
-| `Coyote_Lasem` | Ada/C binding to Lasem iTeX rendering | `src/coyote_lasem.ads/.adb`, `src/coyote_lasem_c.c` |
+| `Coyote_Lasem` | Ada/C binding to Lasem Presentation MathML rendering | `src/coyote_lasem.ads/.adb`, `src/coyote_lasem_c.c` |
 | `Session_Lister` | Session listing for coyote_list_sessions | `src/session_lister.ads/.adb` |
 
 ### 4.2 Static Relationships
@@ -1007,10 +1007,10 @@ with table, strikethrough, and autolink extensions) and emits styled
 - **Block-level nodes** become lines with dedicated `Line_Style` values:
   `Heading_1`–`Heading_6`, `Code_Block`, `Blockquote`, `Thematic_Break`,
   `List_Item_Bullet`, `List_Item_Ordered`, and `Display_Math`.
-- **Display math** delimited by standalone `$$`/`\[` and `$$`/`\]` lines is
-  extracted before cmark parsing, measured through Lasem, and rendered directly
-  to Cairo.  The original delimiter-wrapped iTeX source remains selectable and
-  is used as the fallback text when Lasem rejects an expression.
+- **Display math** delimited by standalone `$$` lines is extracted before
+  cmark parsing, measured through Lasem as Presentation MathML, and rendered
+  directly to Cairo. The original delimiter-wrapped MathML source remains
+  selectable and is used as fallback text when Lasem rejects an expression.
 - **Inline formatting** (bold, italic, code, strikethrough, links) within
   paragraphs is accumulated as Pango markup and emitted with `Has_Markup
   = True`.  The `On_Draw` callback uses `Pango.Layout.Set_Markup` for
@@ -1035,25 +1035,27 @@ fresh one via `File → New Session`.
 
 ### `Coyote_Lasem` binding
 
-`Coyote_Lasem` wraps Lasem 0.6 through `coyote_lasem_c.c`. The C shim handles
-`GError` conversion and releases the Lasem document/view GObjects before
-returning. Before measurement or rendering, it copies the source and converts
-literal `<` and `>` characters inside display-math delimiters to Lasem's
-supported `\lt` and `\gt` commands. The original iTeX source is retained by
-the GUI for display and selection. Display math is currently supported only in
-the virtualized GUI conversation renderer; inline math and the legacy shared
-Pango renderer remain future work.
+`Coyote_Lasem` wraps Lasem 0.6 through `coyote_lasem_c.c`. The C shim parses
+Presentation MathML with `lsm_dom_document_new_from_memory`, converts Lasem
+`GError` values to allocated messages, and releases the document/view GObjects
+before returning. The GUI retains the original delimiter-wrapped MathML source
+for display and selection, while the shim receives only the inner MathML
+document. Display math is currently supported only in the virtualized GUI
+conversation renderer; inline math and the legacy shared Pango renderer remain
+future work. MathML element whitelisting is intentionally deferred until a
+concrete compatibility problem is observed.
 
 ### 5.16.1 `Coyote_Lasem` binding
 
-`Coyote_Lasem` wraps Lasem 0.6 through `coyote_lasem_c.c`. The C shim handles
-`GError` conversion and releases the Lasem document/view GObjects before
-returning. Before measurement or rendering, it copies the source and converts
-literal `<` and `>` characters inside display-math delimiters to Lasem's
-supported `\lt` and `\gt` commands. The original iTeX source is retained by
-the GUI for display and selection. Display math is currently supported only in
-the virtualized GUI conversation renderer; inline math and the legacy shared
-Pango renderer remain future work.
+`Coyote_Lasem` wraps Lasem 0.6 through `coyote_lasem_c.c`. The C shim parses
+Presentation MathML with `lsm_dom_document_new_from_memory`, converts Lasem
+`GError` values to allocated messages, and releases the document/view GObjects
+before returning. The GUI retains the original delimiter-wrapped MathML source
+for display and selection, while the shim receives only the inner MathML
+document. Display math is currently supported only in the virtualized GUI
+conversation renderer; inline math and the legacy shared Pango renderer remain
+future work. MathML element whitelisting is intentionally deferred until a
+concrete compatibility problem is observed.
 
 ### 5.16 `Coyote_Cmark` and `coyote_cmark_c.c`
 
@@ -1365,9 +1367,9 @@ at session end.
 ### 5.29 `LLM.System_Prompt`
 
 **Purpose:** Constructs the complete system prompt string from its parts,
-including personality definition, conditional tool-use instructions, memory
-taxonomy, and coordinator guidance (REQ-CORE-170..172, REQ-CORE-180..183,
-REQ-CORE-190..192).
+including personality definition, conditional tool-use instructions,
+Presentation MathML display-math guidance, memory taxonomy, and coordinator
+guidance (REQ-CORE-170..173, REQ-CORE-180..183, REQ-CORE-190..192).
 
 **`Build (Settings, Skills_Block, Memory_Block, Agent_Text, Available_Tools, Coordinator_Mode) → String`:** Concatenates:
 
@@ -1375,19 +1377,23 @@ REQ-CORE-190..192).
 2. **Personality definition** — terse, direct, pragmatic; no cheerleading or
    conversational interjections; guidance on final answers and intermediary
    updates (REQ-CORE-170).
-3. **Conditional tool-use instructions** — keyed to `Available_Tools`: when
+3. **Display-math guidance** — for standalone mathematics intended for the
+   GUI, require Presentation MathML inside standalone `$$` delimiters, with a
+   complete `<math>` document; unsupported expressions remain readable as
+   plain text (REQ-CORE-173).
+4. **Conditional tool-use instructions** — keyed to `Available_Tools`: when
    editing tools exist, prefer them over printing code blocks; when terminal
    tools exist, prefer them over printing commands; when neither exists, print
    code blocks as suggestions (REQ-CORE-171).
-4. **Memory taxonomy** — `Memory_Block` from `LLM.Memory`; four-type taxonomy
+5. **Memory taxonomy** — `Memory_Block` from `LLM.Memory`; four-type taxonomy
    with save/retrieval guidance (REQ-CORE-180..183).
-5. **Skills_Block** — formatted `<available_skills>` XML from
+6. **Skills_Block** — formatted `<available_skills>` XML from
    `LLM.Skills.Format_Skills_For_Prompt`.
-6. **Coordinator guidance** — when `Coordinator_Mode` is true and subagent
+7. **Coordinator guidance** — when `Coordinator_Mode` is true and subagent
    spawning is available: parallel-launch instruction, synthesis-before-
    delegation requirement, structured-result format specification,
    prohibition on fabricating in-flight results (REQ-CORE-190..192).
-7. **Agent_Text** — content of `--agent` argument.
+8. **Agent_Text** — content of `--agent` argument.
 
 **`Build_Reminder_Instructions (Available_Tools) → String`:** Returns per-turn
 reminder text appended to each user prompt: persist until task is completely

@@ -1043,6 +1043,10 @@ package body Test_Suites is
          LLM_System_Prompt_Tests
            .Test_Default_Prompt_Contains_Guidelines'Access));
       Result.Add_Test (LLM_Sys_Prompt_Caller.Create
+        ("LLM.System_Prompt default prompt contains display-math guidance",
+         LLM_System_Prompt_Tests
+           .Test_Default_Prompt_Contains_Display_Math_Guidance'Access));
+      Result.Add_Test (LLM_Sys_Prompt_Caller.Create
         ("LLM.System_Prompt default prompt contains cwd",
          LLM_System_Prompt_Tests
            .Test_Default_Prompt_Contains_Cwd'Access));
@@ -2860,17 +2864,17 @@ package body Test_Suites is
          Coyote_GUI_Prompt_Queue_Tests.Test_Set_Preferences_Round_Trips'Access));
 
       Result.Add_Test (Coyote_Lasem_Caller.Create
-        ("Coyote.Lasem measures a fraction",
-         Coyote_Lasem_Tests.Test_Measure_Fraction'Access));
+        ("Coyote.Lasem measures a MathML fraction",
+         Coyote_Lasem_Tests.Test_Measure_MathML_Fraction'Access));
       Result.Add_Test (Coyote_Lasem_Caller.Create
-        ("Coyote.Lasem measures a complex expression",
-         Coyote_Lasem_Tests.Test_Measure_Complex_Expression'Access));
+        ("Coyote.Lasem measures a MathML matrix",
+         Coyote_Lasem_Tests.Test_Measure_MathML_Matrix'Access));
       Result.Add_Test (Coyote_Lasem_Caller.Create
-        ("Coyote.Lasem accepts literal relation characters",
-         Coyote_Lasem_Tests.Test_Measure_Literal_Relations'Access));
+        ("Coyote.Lasem accepts MathML relation entities",
+         Coyote_Lasem_Tests.Test_Measure_MathML_Relations'Access));
       Result.Add_Test (Coyote_Lasem_Caller.Create
-        ("Coyote.Lasem rejects invalid iTeX",
-         Coyote_Lasem_Tests.Test_Invalid_Itex_Returns_Error'Access));
+        ("Coyote.Lasem rejects invalid MathML",
+         Coyote_Lasem_Tests.Test_Invalid_MathML_Returns_Error'Access));
 
       Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
         ("Coyote.GUI.Conversation Append_Notice adds logical lines",

@@ -8,6 +8,8 @@ package LLM_System_Prompt_Tests is
    procedure Test_Default_Prompt_Contains_Preamble (T : in out Test);
    procedure Test_Default_Prompt_Lists_Tools (T : in out Test);
    procedure Test_Default_Prompt_Contains_Guidelines (T : in out Test);
+   procedure Test_Default_Prompt_Contains_Display_Math_Guidance
+     (T : in out Test);
    procedure Test_Default_Prompt_Contains_Cwd (T : in out Test);
    procedure Test_Default_Prompt_Contains_Date (T : in out Test);
    procedure Test_Agent_Appended (T : in out Test);

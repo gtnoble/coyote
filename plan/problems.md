@@ -1794,3 +1794,51 @@ behavior, current test baseline, and remaining manual qualification scope.
   focused regression passes with zero failures and zero unexpected errors.
 - **Status:** Resolved
 - **Date resolved:** 2026-08-08
+
+## PCR-052 — Cut over GUI display math from iTeX to Presentation MathML (2026-08-12)
+
+- **Category:** Requirements, Design, Code, Test
+- **Priority:** 3-Moderate
+- **Description:** The GUI display-math path depended on Lasem's limited iTeX
+  parser. The agreed interface is now Presentation MathML inside standalone
+  `$$` blocks.
+- **Affected work products:** SRS-CORE, SDD-CORE, `Coyote_Lasem`, GTK
+  conversation rendering, system-prompt guidance, tests, and development logs.
+- **Corrective action:** Replace direct iTeX parsing and relation normalization
+  with Lasem's native `lsm_dom_document_new_from_memory` path. Strip only the
+  delimiter lines before measurement/rendering while preserving the original
+  MathML source for selection and fallback. MathML element whitelisting is
+  intentionally deferred until a concrete compatibility problem emerges.
+- **Verification:** Production and test development builds succeed. Focused
+  Lasem and system-prompt tests pass; display-backed GUI qualification requires
+  a GTK display.
+- **Status:** Resolved
+- **Date resolved:** 2026-08-12
+
+## PCR-051 — Add Lasem-compatible display-math guidance to system prompt (2026-08-12)
+
+- **Category:** Requirements, Design, Code, Test
+- **Priority:** 3-Moderate
+- **Description:** The GUI display-math renderer uses Lasem 0.6, whose iTeX
+  subset rejects some common LaTeX forms such as unbraced `\mathbb Z`.
+  The default system prompt did not tell the agent how to produce compatible
+  standalone display mathematics.
+- **Affected work products:** SRS-CORE, SDD-CORE, `LLM.System_Prompt`, core
+  agent SDF, system-prompt tests, and Test Plan.
+- **Corrective action:** Add static system-prompt guidance scoped to GUI
+  display mathematics. Require braced command arguments, standalone display
+  delimiters, supported relation commands, and readable plain text for
+  expressions outside the supported subset. Keep renderer-side fallback
+  behavior unchanged because prompt instructions cannot constrain user input,
+  custom agent instructions, or other frontends.
+- **Actions taken (2026-08-12):** Added `Display_Math_Guidance` to
+  `src/llm/llm-system_prompt.adb`, added and registered
+  `Test_Default_Prompt_Contains_Display_Math_Guidance`, and updated the
+  requirements, design, development log, and test-plan traceability.
+- **Verification:** Clean production and test development builds succeed.
+  The new focused system-prompt test passes with zero failures and zero
+  unexpected errors. The full-suite run reached the system-prompt tests and
+  later live/network-dependent tests without failures before exceeding the
+  300-second execution limit.
+- **Status:** Resolved
+- **Date resolved:** 2026-08-12

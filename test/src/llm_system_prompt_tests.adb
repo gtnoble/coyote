@@ -60,6 +60,36 @@ package body LLM_System_Prompt_Tests is
          "default prompt should include the editing guideline");
    end Test_Default_Prompt_Contains_Guidelines;
 
+   procedure Test_Default_Prompt_Contains_Display_Math_Guidance
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+
+      P : constant String :=
+        LLM.System_Prompt.Build_System_Prompt (Cwd => Test_Cwd);
+   begin
+      Assert
+        (Ada.Strings.Fixed.Index (P, "# Display Math") > 0,
+         "default prompt should include display-math guidance");
+      Assert
+        (Ada.Strings.Fixed.Index (P, "Presentation MathML") > 0,
+         "display-math guidance should require Presentation MathML");
+      Assert
+        (Ada.Strings.Fixed.Index (P, "`<math>`") > 0,
+         "display-math guidance should require a math root document");
+      Assert
+        (Ada.Strings.Fixed.Index (P, "http://www.w3.org/1998/Math/MathML") > 0,
+         "display-math guidance should require the MathML namespace");
+      Assert
+        (Ada.Strings.Fixed.Index (P, "`&lt;`") > 0,
+         "display-math guidance should require XML escaping");
+      Assert
+        (Ada.Strings.Fixed.Index (P, "LaTeX") > 0,
+         "display-math guidance should prohibit LaTeX commands");
+      Assert
+        (Ada.Strings.Fixed.Index (P, "\frac") = 0,
+         "display-math guidance should not advertise LaTeX commands");
+   end Test_Default_Prompt_Contains_Display_Math_Guidance;
    procedure Test_Default_Prompt_Contains_Cwd (T : in out Test) is
       pragma Unreferenced (T);
 

@@ -269,6 +269,14 @@ rather than being in the system prompt, because system-prompt instructions
 are easily forgotten over long conversations. Repetition at each turn keeps
 the guidance salient.
 
+**Display-math guidance (REQ-CORE-173, 2026-08-12):** `Build_System_Prompt`
+now includes a static GUI display-math section requiring Presentation MathML,
+a complete `<math>` document, and standalone `$$` delimiters. It is separate
+from the compaction summarization prompt because it governs user-facing
+assistant output, not internal summaries.
+The regression test `Test_Default_Prompt_Contains_Display_Math_Guidance`
+verifies the guidance is present.
+
 **Partial compaction design:** The existing cut-point mechanism already
 supports partial compaction semantically: `Find_Cut_Point` determines where
 to split, and messages from the cut forward are kept verbatim. The

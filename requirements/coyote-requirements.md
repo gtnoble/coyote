@@ -575,9 +575,9 @@ so that subagents open their own GUI windows.
 
 **REQ-CORE-124** (D)
 The GUI conversation view shall render standalone display-math blocks delimited
-by `$$`/`$$` or `\[`/`\]` using the supported Lasem iTeX subset. If parsing
-fails, the original source shall remain visible as text.
-
+by `$$`/`$$` and containing a complete Presentation MathML `<math>` document.
+The opening and closing `$$` delimiters shall be on standalone lines. If
+parsing fails, the original source shall remain visible as text.
 **REQ-CORE-116** (D)
 The GUI frontend shall provide an `Edit → Preferences...` dialog for editing
 persistent defaults without changing the active session. The dialog shall
@@ -743,6 +743,15 @@ is completely resolved before ending the turn; report progress after
 3 to 5 tool calls with varied, concise 1-to-2-sentence updates; avoid
 repeating verbatim plans across turns; preface each tool batch with a
 one-sentence preamble stating why, what, and expected outcome.
+
+**REQ-CORE-173** (D)
+The system prompt shall instruct the agent that standalone display
+mathematics intended for the GUI must use Presentation MathML inside
+standalone `$$` delimiter lines. The block shall contain one complete
+`<math>` document using the MathML namespace and Presentation MathML
+rather than LaTeX commands or Content MathML. The instruction shall tell
+the agent to keep unsupported expressions readable as plain text rather
+than inventing markup.
 
 
 #### 3.1.18 Structured Memory System
@@ -1164,6 +1173,7 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-170 | Personality and interaction rules in prompt | D | TC-170 |
 | REQ-CORE-171 | Conditional tool-use instructions by capability | D | TC-171 |
 | REQ-CORE-172 | Per-turn reminder instructions appended to prompt | D | TC-172 |
+| REQ-CORE-173 | Presentation MathML display-math guidance in prompt | D/T | TC-173 |
 | REQ-CORE-180 | MEMORY.md index file discovery | D | TC-180 |
 | REQ-CORE-181 | Four-type memory taxonomy in system prompt | D | TC-181 |
 | REQ-CORE-182 | Memory save/retrieval behaviour guidance | I | TC-182 |

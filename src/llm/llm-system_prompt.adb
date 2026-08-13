@@ -222,6 +222,30 @@ package body LLM.System_Prompt is
      & "- Vary your progress-update phrasing across turns; never repeat"
      & " the same template verbatim.";
 
+   --  Presentation MathML display-math guidance (REQ-CORE-173).
+   Display_Math_Guidance : constant String :=
+     "# Display Math"
+     & ASCII.LF
+     & ASCII.LF
+     & "When writing standalone display mathematics intended for the coyote"
+     & " GUI, output Presentation MathML inside a `$$` block."
+     & ASCII.LF
+     & "- Put the opening and closing `$$` delimiters on standalone lines."
+     & ASCII.LF
+     & "- Between the delimiters, output one complete `<math>` document"
+     & " with the namespace"
+     & " `http://www.w3.org/1998/Math/MathML`."
+     & ASCII.LF
+     & "- Use Presentation MathML elements such as `<mrow>`, `<mi>`,"
+     & " `<mo>`, `<mn>`, `<mfrac>`, and `<msup>`; do not output LaTeX"
+     & " commands or Content MathML."
+     & ASCII.LF
+     & "- Escape XML special characters in text and operators: use `&lt;`,"
+     & " `&gt;`, and `&amp;` where required."
+     & ASCII.LF
+     & "- If an expression cannot be represented reliably in Presentation"
+     & " MathML, keep it readable as plain text rather than inventing"
+     & " markup.";
    function Build_Reminder_Instructions
      (Has_Tools : Boolean := False) return String
    is
@@ -281,6 +305,8 @@ package body LLM.System_Prompt is
       --  Personality definition (REQ-CORE-170).
       Append (Result, ASCII.LF & ASCII.LF & Personality_Definition);
 
+      --  Presentation MathML display-math guidance (REQ-CORE-173).
+      Append (Result, ASCII.LF & ASCII.LF & Display_Math_Guidance);
       if not No_Tools then
          Append (Result, ASCII.LF & ASCII.LF & "Available tools:");
 
