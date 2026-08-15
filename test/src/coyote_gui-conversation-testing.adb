@@ -167,4 +167,29 @@ package body Coyote_GUI.Conversation.Testing is
       return To_String (Text);
    end Extract_Text;
 
+   procedure Get_Ordered_Selection
+     (C          : Instance;
+      Start_Line : out Natural;
+      Start_Byte : out Natural;
+      End_Line   : out Natural;
+      End_Byte   : out Natural)
+   is
+      Inverted : constant Boolean :=
+        C.Sel_Start_Line > C.Sel_End_Line
+        or else (C.Sel_Start_Line = C.Sel_End_Line
+                 and then C.Sel_Start_Byte > C.Sel_End_Byte);
+   begin
+      if Inverted then
+         Start_Line := C.Sel_End_Line;
+         Start_Byte := C.Sel_End_Byte;
+         End_Line   := C.Sel_Start_Line;
+         End_Byte   := C.Sel_Start_Byte;
+      else
+         Start_Line := C.Sel_Start_Line;
+         Start_Byte := C.Sel_Start_Byte;
+         End_Line   := C.Sel_End_Line;
+         End_Byte   := C.Sel_End_Byte;
+      end if;
+   end Get_Ordered_Selection;
+
 end Coyote_GUI.Conversation.Testing;

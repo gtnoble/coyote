@@ -536,6 +536,80 @@ package body Coyote_GUI_Conversation_Tests is
       end;
    end Test_Viewport_Select_All_Extracts_Expected_Text;
 
+   procedure Test_Inverted_Selection_Orders_Endpoints (T : in out Test) is
+      Conv      : Instance;
+      Scroll    : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Layout    : Gtk.Layout.Gtk_Layout;
+      Last_Line : Natural;
+      Last_Byte : Natural;
+      Hi_Line   : Natural;
+      Hi_Byte   : Natural;
+      Lo_Line   : Natural;
+      Lo_Byte   : Natural;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Make_Fresh_Conv (Conv, Scroll, Layout);
+      Conv.Set_Render_Markdown (False);
+      Conv.Append_Text
+        ("line one" & ASCII.LF & "line two" & ASCII.LF & "last");
+      Conv.End_Text_Block;
+      Last_Line := Testing.Line_Count (Conv);
+      Last_Byte := Testing.Get_Line_Text (Conv, Last_Line)'Length;
+      --  Simulate an upward drag: stored start is below stored end.
+      Testing.Set_Selection
+        (Conv, Last_Line, Last_Byte, 1, 0);
+      Testing.Get_Ordered_Selection
+        (Conv, Hi_Line, Hi_Byte, Lo_Line, Lo_Byte);
+      Assert (Hi_Line = 1 and then Hi_Byte = 0,
+              "ordered start is the earlier endpoint");
+      Assert (Lo_Line = Last_Line and then Lo_Byte = Last_Byte,
+              "ordered end is the later endpoint");
+   end Test_Inverted_Selection_Orders_Endpoints;
+
+   procedure Test_Inverted_Selection_Extracts_Expected_Text
+     (T : in out Test)
+   is
+      Conv      : Instance;
+      Scroll    : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Layout    : Gtk.Layout.Gtk_Layout;
+      Last_Line : Natural;
+      Last_Byte : Natural;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Make_Fresh_Conv (Conv, Scroll, Layout);
+      Conv.Set_Render_Markdown (False);
+      Conv.Append_Text
+        ("line one" & ASCII.LF & "line two" & ASCII.LF & "last");
+      Conv.End_Text_Block;
+      Last_Line := Testing.Line_Count (Conv);
+      Last_Byte := Testing.Get_Line_Text (Conv, Last_Line)'Length;
+      Testing.Set_Selection
+        (Conv, Last_Line, Last_Byte, 1, 0);
+      declare
+         Hi_Line   : Natural;
+         Hi_Byte   : Natural;
+         Lo_Line   : Natural;
+         Lo_Byte   : Natural;
+      begin
+         Testing.Get_Ordered_Selection
+           (Conv, Hi_Line, Hi_Byte, Lo_Line, Lo_Byte);
+         declare
+            Extracted : constant String :=
+              Testing.Extract_Text
+                (Conv, Hi_Line, Hi_Byte, Lo_Line, Lo_Byte);
+         begin
+            Assert
+              (Extracted
+               = "line one" & ASCII.LF & "line two" & ASCII.LF & "last",
+               "inverted range extracts the same text as a downward drag");
+         end;
+      end;
+   end Test_Inverted_Selection_Extracts_Expected_Text;
+
    procedure Test_Tool_Detail_Preserves_Arguments (T : in out Test) is
       Conv   : Instance;
       Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;

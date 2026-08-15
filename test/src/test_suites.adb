@@ -3037,6 +3037,12 @@ package body Test_Suites is
         ("Coyote.GUI.Conversation select-all extracts expected text",
          Coyote_GUI_Conversation_Tests.Test_Viewport_Select_All_Extracts_Expected_Text'Access));
       Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation inverted selection orders endpoints",
+         Coyote_GUI_Conversation_Tests.Test_Inverted_Selection_Orders_Endpoints'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation inverted selection extracts expected text",
+         Coyote_GUI_Conversation_Tests.Test_Inverted_Selection_Extracts_Expected_Text'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
         ("Coyote.GUI.Conversation markdown paragraph has markup flag",
          Coyote_GUI_Conversation_Tests.Test_Markdown_Paragraph_Has_Markup_Flag'Access));
       Result.Add_Test (Coyote_GUI_Conversation_Caller.Create

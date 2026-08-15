@@ -68,6 +68,8 @@ package Coyote_GUI_Conversation_Tests is
    procedure Test_Long_Line_Vis_Count_Consistent_On_Recompute (T : in out Test);
    procedure Test_Long_Word_Forces_Character_Break     (T : in out Test);
    procedure Test_Viewport_Select_All_Extracts_Expected_Text (T : in out Test);
+   procedure Test_Inverted_Selection_Orders_Endpoints        (T : in out Test);
+   procedure Test_Inverted_Selection_Extracts_Expected_Text  (T : in out Test);
 
    --  Markdown-rendering tests
 

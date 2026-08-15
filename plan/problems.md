@@ -1935,3 +1935,25 @@ behavior, current test baseline, and remaining manual qualification scope.
   over the conversation view is covered by DEM-014.
 - **Status:** Resolved
 - **Date resolved:** 2026-08-15
+
+
+## PCR-057 — GTK conversation upward drag-select invisible (2026-08-15)
+
+- **Category:** Code, Design, Test
+- **Priority:** 3-Moderate
+- **Description:** The GTK conversation view highlighted a click-drag
+  downward, but an upward or leftward drag painted no selection.  Draw and
+  copy treated `Sel_Start_*` as the earlier endpoint, while motion only
+  updated `Sel_End_*`.  Button-release swapped the inverted pair but did
+  not queue a redraw.
+- **Affected work products:** `Coyote_GUI.Conversation`, conversation
+  tests, SDD-CORE, frontend SDF, Test Plan.
+- **Corrective action:** Added `Ordered_Selection` and used it for
+  highlight drawing and clipboard extraction.  Button-release now writes
+  the ordered pair back and queues a redraw.  Added two AUnit regressions
+  for inverted endpoint ordering and inverted-range extraction.
+- **Verification:** Production and test development builds succeed.
+  The two new inverted-selection conversation regressions pass with a
+  GTK display.
+- **Status:** Resolved
+- **Date resolved:** 2026-08-15

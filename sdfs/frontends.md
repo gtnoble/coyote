@@ -432,3 +432,15 @@ single `Line_Height_Px` slab.
 `Line_Height_Px` remains the body-text metric (fallback for empty blocks,
 zoom baseline, and `Vis_Count` denominator for tests).  The public
 streaming API is unchanged.
+
+### PCR-057 — Upward drag-select invisible (2026-08-15)
+
+**Problem:** Click-drag downward highlighted text, but an upward or
+leftward drag painted nothing.  `On_Draw` and clipboard extraction treated
+`Sel_Start_*` as the earlier endpoint, while motion only updated
+`Sel_End_*`.  Button-release swapped the pair but never queued a redraw.
+
+**Fix:** `Ordered_Selection` returns the stored endpoints in document
+order.  Highlight drawing and clipboard extraction use that ordered pair
+during the drag.  Button-release writes the ordered pair back and calls
+`Queue_Draw`.

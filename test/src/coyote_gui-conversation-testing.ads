@@ -85,4 +85,12 @@ package Coyote_GUI.Conversation.Testing is
    --  extraction logic as Copy_Selection_To_Clipboard (LF between lines,
    --  Pango markup stripped).
 
+   procedure Get_Ordered_Selection
+     (C          : Instance;
+      Start_Line : out Natural;
+      Start_Byte : out Natural;
+      End_Line   : out Natural;
+      End_Byte   : out Natural);
+   --  Return the stored selection endpoints in document order.
+
 end Coyote_GUI.Conversation.Testing;

@@ -988,7 +988,12 @@ motion extends the range; release clears `Sel_Dragging` but keeps
 `Sel_Visible` so the highlight persists.  `Ctrl+A` selects all, `Ctrl+C`
 copies to clipboard, `Escape` clears.  Right-click on a selection shows a
 "Copy" context menu.  Hit-testing uses `Pango.Layout.Xy_To_Index` to map
-pixel coordinates to logical-line/byte-offset pairs.
+pixel coordinates to logical-line/byte-offset pairs.  While the pointer is
+dragging, `Sel_Start_*` remains the press point and `Sel_End_*` tracks the
+cursor, so an upward or leftward drag inverts the stored range.
+`Ordered_Selection` returns those endpoints in document order for highlight
+drawing and clipboard extraction; button-release writes the ordered pair
+back and queues a redraw.
 
 **Tool-call display:** `Begin_Tool` appends typed tool-card lines
 (`Tool_Header`, `Tool_Argument`, and `Tool_Footer`) to the logical-line vector.

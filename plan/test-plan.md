@@ -340,6 +340,11 @@ These are entered as open items in the problem log (PCR-009).
 
 ## 7. Notes
 
+**Verification as of 2026-08-15 (upward drag-select highlight):**
+861 registered tests.  Adds two `Coyote_GUI.Conversation` regressions for
+document-ordered selection endpoints and inverted-range text extraction.
+Display-backed execution requires a GTK display.
+
 **Verification as of 2026-08-15 (GTK completion notifications):**
 Focused settings, queue, and policy tests pass. Display-backed notification delivery and focus behavior remain manual qualification DEM-035; the notification daemon is an environment dependency.
 

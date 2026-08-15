@@ -126,6 +126,13 @@ package body Coyote_GUI.Conversation is
 
    procedure Copy_Selection_To_Clipboard (C : in out Instance);
 
+   procedure Ordered_Selection
+     (C          : Instance;
+      Start_Line : out Natural;
+      Start_Byte : out Natural;
+      End_Line   : out Natural;
+      End_Byte   : out Natural);
+
    --  Escape XML special characters for Pango markup.
    function Xml_Escape (S : String) return String;
 
@@ -899,93 +906,116 @@ package body Coyote_GUI.Conversation is
                   end case;
                end;
 
-               --  Draw selection highlight if this line intersects selection.
-               if Current_Conv.Sel_Visible
-                 and then I >= Current_Conv.Sel_Start_Line
-                 and then I <= Current_Conv.Sel_End_Line
-               then
-                  declare
-                     Sel_Start : constant Natural :=
-                       (if I = Current_Conv.Sel_Start_Line
-                        then Current_Conv.Sel_Start_Byte
-                        else 0);
-                     Sel_End   : constant Natural :=
-                       (if I = Current_Conv.Sel_End_Line
-                        then Current_Conv.Sel_End_Byte
-                        else Text'Length);
-                  begin
-                     if Sel_Start < Sel_End then
-                        declare
-                           R1, R2 : Pango.Pango_Rectangle;
-                           Scale  : constant Gdouble :=
-                             Gdouble (Pango_Scale);
-                           Y1     : Gdouble;
-                           Y2     : Gdouble;
-                           X1     : Gdouble;
-                           X2     : Gdouble;
-                        begin
-                           Layout.Index_To_Pos
-                             (Glib.Gint (Sel_Start), R1);
-                           Layout.Index_To_Pos
-                             (Glib.Gint (Sel_End), R2);
-                           Set_Source_Rgba
-                             (Cr, 0.3, 0.5, 0.9, 0.3);
-                           Y1 := Gdouble (Y_Off)
-                             + Gdouble (R1.Y) / Scale;
-                           Y2 := Gdouble (Y_Off)
-                             + Gdouble (R2.Y + R2.Height) / Scale;
-                           if R1.Y = R2.Y then
-                              --  Same visual row: one tight rectangle.
-                              X1 := Gdouble (R1.X) / Scale;
-                              X2 := Gdouble (R2.X) / Scale;
-                              if X2 < X1 then
-                                 declare
-                                    Tmp : constant Gdouble := X1;
-                                 begin
-                                    X1 := X2;
-                                    X2 := Tmp;
-                                 end;
-                              end if;
-                              Rectangle
-                                (Cr, X1, Y1, X2 - X1, Y2 - Y1);
-                              Fill (Cr);
-                           else
-                              --  Multi-row: cover from the start glyph
-                              --  to the right edge, full middle rows,
-                              --  then the last row up to the end glyph.
-                              Rectangle
-                                (Cr,
-                                 Gdouble (R1.X) / Scale,
-                                 Y1,
-                                 Gdouble (Width_Px)
-                                   - Gdouble (R1.X) / Scale,
-                                 Gdouble (R1.Height) / Scale);
-                              Fill (Cr);
-                              if Y2 - (Y1 + Gdouble (R1.Height) / Scale)
-                                > Gdouble (R2.Height) / Scale + 0.5
-                              then
+               --  Draw selection highlight if this line intersects
+               --  selection.  Endpoints may be inverted while the
+               --  user is dragging upward or leftward; order them
+               --  before comparing.
+               declare
+                  Ord_Start_Line : Natural;
+                  Ord_Start_Byte : Natural;
+                  Ord_End_Line   : Natural;
+                  Ord_End_Byte   : Natural;
+               begin
+                  Ordered_Selection
+                    (Current_Conv.all,
+                     Ord_Start_Line, Ord_Start_Byte,
+                     Ord_End_Line, Ord_End_Byte);
+                  if Current_Conv.Sel_Visible
+                    and then I >= Ord_Start_Line
+                    and then I <= Ord_End_Line
+                  then
+                     declare
+                        Sel_Start : constant Natural :=
+                          (if I = Ord_Start_Line
+                           then Ord_Start_Byte
+                           else 0);
+                        Sel_End   : constant Natural :=
+                          (if I = Ord_End_Line
+                           then Ord_End_Byte
+                           else Text'Length);
+                     begin
+                        if Sel_Start < Sel_End then
+                           declare
+                              R1, R2 : Pango.Pango_Rectangle;
+                              Scale  : constant Gdouble :=
+                                Gdouble (Pango_Scale);
+                              Y1     : Gdouble;
+                              Y2     : Gdouble;
+                              X1     : Gdouble;
+                              X2     : Gdouble;
+                           begin
+                              Layout.Index_To_Pos
+                                (Glib.Gint (Sel_Start), R1);
+                              Layout.Index_To_Pos
+                                (Glib.Gint (Sel_End), R2);
+                              Set_Source_Rgba
+                                (Cr, 0.3, 0.5, 0.9, 0.3);
+                              Y1 := Gdouble (Y_Off)
+                                + Gdouble (R1.Y) / Scale;
+                              Y2 := Gdouble (Y_Off)
+                                + Gdouble (R2.Y + R2.Height) / Scale;
+                              if R1.Y = R2.Y then
+                                 --  Same visual row: one tight
+                                 --  rectangle.
+                                 X1 := Gdouble (R1.X) / Scale;
+                                 X2 := Gdouble (R2.X) / Scale;
+                                 if X2 < X1 then
+                                    declare
+                                       Tmp : constant Gdouble := X1;
+                                    begin
+                                       X1 := X2;
+                                       X2 := Tmp;
+                                    end;
+                                 end if;
+                                 Rectangle
+                                   (Cr, X1, Y1, X2 - X1, Y2 - Y1);
+                                 Fill (Cr);
+                              else
+                                 --  Multi-row: start glyph to the
+                                 --  right edge, full middle rows,
+                                 --  then the last row to the end
+                                 --  glyph.
+                                 Rectangle
+                                   (Cr,
+                                    Gdouble (R1.X) / Scale,
+                                    Y1,
+                                    Gdouble (Width_Px)
+                                      - Gdouble (R1.X) / Scale,
+                                    Gdouble (R1.Height) / Scale);
+                                 Fill (Cr);
+                                 if Y2
+                                   - (Y1 + Gdouble (R1.Height)
+                                      / Scale)
+                                   > Gdouble (R2.Height)
+                                   / Scale + 0.5
+                                 then
+                                    Rectangle
+                                      (Cr,
+                                       0.0,
+                                       Y1 + Gdouble (R1.Height)
+                                         / Scale,
+                                       Gdouble (Width_Px),
+                                       (Y2 - Gdouble (R2.Height)
+                                          / Scale)
+                                         - (Y1 + Gdouble
+                                              (R1.Height)
+                                            / Scale));
+                                    Fill (Cr);
+                                 end if;
                                  Rectangle
                                    (Cr,
                                     0.0,
-                                    Y1 + Gdouble (R1.Height) / Scale,
-                                    Gdouble (Width_Px),
-                                    (Y2 - Gdouble (R2.Height) / Scale)
-                                      - (Y1 + Gdouble (R1.Height)
-                                         / Scale));
+                                    Y2 - Gdouble (R2.Height)
+                                      / Scale,
+                                    Gdouble (R2.X) / Scale,
+                                    Gdouble (R2.Height) / Scale);
                                  Fill (Cr);
                               end if;
-                              Rectangle
-                                (Cr,
-                                 0.0,
-                                 Y2 - Gdouble (R2.Height) / Scale,
-                                 Gdouble (R2.X) / Scale,
-                                 Gdouble (R2.Height) / Scale);
-                              Fill (Cr);
-                           end if;
-                        end;
-                     end if;
-                  end;
-               end if;
+                           end;
+                        end if;
+                     end;
+                  end if;
+               end;
 
                --  Set text colour and font weight by style.
                case L.Style is
@@ -1180,25 +1210,27 @@ package body Coyote_GUI.Conversation is
       end if;
 
       if Event.Button = 1 and then Current_Conv.Sel_Dragging then
-         --  Normalize selection (start < end).
-         if Current_Conv.Sel_Start_Line > Current_Conv.Sel_End_Line
-           or else (Current_Conv.Sel_Start_Line = Current_Conv.Sel_End_Line
-                    and then Current_Conv.Sel_Start_Byte
-                             > Current_Conv.Sel_End_Byte)
-         then
-            declare
-               TL : constant Natural := Current_Conv.Sel_Start_Line;
-               TB : constant Natural := Current_Conv.Sel_Start_Byte;
-            begin
-               Current_Conv.Sel_Start_Line := Current_Conv.Sel_End_Line;
-               Current_Conv.Sel_Start_Byte := Current_Conv.Sel_End_Byte;
-               Current_Conv.Sel_End_Line   := TL;
-               Current_Conv.Sel_End_Byte   := TB;
-            end;
-         end if;
+         --  Normalize selection (start < end) so later copy and
+         --  highlight walks see a document-ordered range.
+         declare
+            Ord_Start_Line : Natural;
+            Ord_Start_Byte : Natural;
+            Ord_End_Line   : Natural;
+            Ord_End_Byte   : Natural;
+         begin
+            Ordered_Selection
+              (Current_Conv.all,
+               Ord_Start_Line, Ord_Start_Byte,
+               Ord_End_Line, Ord_End_Byte);
+            Current_Conv.Sel_Start_Line := Ord_Start_Line;
+            Current_Conv.Sel_Start_Byte := Ord_Start_Byte;
+            Current_Conv.Sel_End_Line   := Ord_End_Line;
+            Current_Conv.Sel_End_Byte   := Ord_End_Byte;
+         end;
          --  Stop dragging; the highlight stays visible until the
          --  next click or Escape clears it.
          Current_Conv.Sel_Dragging := False;
+         Queue_Draw (Current_Conv.all);
       end if;
       return False;
    end On_Button_Release;
@@ -1266,47 +1298,83 @@ package body Coyote_GUI.Conversation is
          return;
       end if;
 
-      for I in C.Sel_Start_Line .. C.Sel_End_Line loop
-         if I <= Positive (C.Lines.Length) then
-            declare
-               Raw_Text  : constant String :=
-                 To_String (C.Lines (I).Text);
-               Line_Text : constant String :=
-                 (if C.Lines (I).Has_Markup
-                  then Strip_Pango_Markup (Raw_Text)
-                  else Raw_Text);
-               S_Byte    : constant Natural :=
-                 (if I = C.Sel_Start_Line
-                  then C.Sel_Start_Byte
-                  else 0);
-               E_Byte    : constant Natural :=
-                 (if I = C.Sel_End_Line
-                  then Natural'Min (C.Sel_End_Byte, Line_Text'Length)
-                  else Line_Text'Length);
-            begin
-               if S_Byte < E_Byte
-                 and then S_Byte <= Line_Text'Length
-               then
-                  if Length (Text) > 0 then
-                     Append (Text, ASCII.LF);
+      declare
+         Ord_Start_Line : Natural;
+         Ord_Start_Byte : Natural;
+         Ord_End_Line   : Natural;
+         Ord_End_Byte   : Natural;
+      begin
+         Ordered_Selection
+           (C, Ord_Start_Line, Ord_Start_Byte,
+            Ord_End_Line, Ord_End_Byte);
+
+         for I in Ord_Start_Line .. Ord_End_Line loop
+            if I <= Positive (C.Lines.Length) then
+               declare
+                  Raw_Text  : constant String :=
+                    To_String (C.Lines (I).Text);
+                  Line_Text : constant String :=
+                    (if C.Lines (I).Has_Markup
+                     then Strip_Pango_Markup (Raw_Text)
+                     else Raw_Text);
+                  S_Byte    : constant Natural :=
+                    (if I = Ord_Start_Line then Ord_Start_Byte else 0);
+                  E_Byte    : constant Natural :=
+                    (if I = Ord_End_Line
+                     then Natural'Min (Ord_End_Byte, Line_Text'Length)
+                     else Line_Text'Length);
+               begin
+                  if S_Byte < E_Byte
+                    and then S_Byte <= Line_Text'Length
+                  then
+                     if Length (Text) > 0 then
+                        Append (Text, ASCII.LF);
+                     end if;
+                     Append (Text,
+                       Line_Text
+                         (Line_Text'First + S_Byte
+                          .. Line_Text'First + E_Byte - 1));
                   end if;
-                  Append (Text,
-                    Line_Text
-                      (Line_Text'First + S_Byte
-                       .. Line_Text'First + E_Byte - 1));
-               end if;
+               end;
+            end if;
+         end loop;
+
+         if Length (Text) > 0 then
+            declare
+               Clip : constant Gtk_Clipboard := Get;
+            begin
+               Clip.Set_Text (To_String (Text));
             end;
          end if;
-      end loop;
-
-      if Length (Text) > 0 then
-         declare
-            Clip : constant Gtk_Clipboard := Get;
-         begin
-            Clip.Set_Text (To_String (Text));
-         end;
-      end if;
+      end;
    end Copy_Selection_To_Clipboard;
+
+   --  ── Ordered_Selection ─────────────────────────────────────────────────
+
+   procedure Ordered_Selection
+     (C          : Instance;
+      Start_Line : out Natural;
+      Start_Byte : out Natural;
+      End_Line   : out Natural;
+      End_Byte   : out Natural)
+   is
+      Inverted : constant Boolean :=
+        C.Sel_Start_Line > C.Sel_End_Line
+        or else (C.Sel_Start_Line = C.Sel_End_Line
+                 and then C.Sel_Start_Byte > C.Sel_End_Byte);
+   begin
+      if Inverted then
+         Start_Line := C.Sel_End_Line;
+         Start_Byte := C.Sel_End_Byte;
+         End_Line   := C.Sel_Start_Line;
+         End_Byte   := C.Sel_Start_Byte;
+      else
+         Start_Line := C.Sel_Start_Line;
+         Start_Byte := C.Sel_Start_Byte;
+         End_Line   := C.Sel_End_Line;
+         End_Byte   := C.Sel_End_Byte;
+      end if;
+   end Ordered_Selection;
 
    --  ── Streaming text ────────────────────────────────────────────────────
 
