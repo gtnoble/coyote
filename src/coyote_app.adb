@@ -30,6 +30,8 @@ with Acme.Window;
 with Coyote_App.Frontend.Acme_Win;
 with Coyote_App.Frontend.GUI;
 with Coyote_GUI.Prompt_Queue;
+with Coyote_GUI;
+with Coyote_Notify;
 with Coyote_Spawn;
 with Gtk.Main;
 with Coyote_App.History;    use Coyote_App.History;
@@ -2108,9 +2110,11 @@ package body Coyote_App is
            else "");
 
       --  Shared objects closed over by Agent_Task:
-      State         : App_State;
-      Agent_Session : aliased LLM.Agent.Session;
-      My_Frontend   : Coyote_App.Frontend.GUI.Instance;
+      State            : App_State;
+      Agent_Session    : aliased LLM.Agent.Session;
+      My_Frontend      : Coyote_App.Frontend.GUI.Instance;
+      Startup_Settings : constant LLM.Settings.Settings :=
+        LLM.Settings.Load_Settings;
 
       function Status_Label return String is
       begin
@@ -2145,8 +2149,9 @@ package body Coyote_App is
          Current_Thinking : Unbounded_String := Null_Unbounded_String;
          Current_Sandbox  : Unbounded_String := Null_Unbounded_String;
          Current_Text     : Unbounded_String := Null_Unbounded_String;
-         Final_Text       : Unbounded_String := Null_Unbounded_String;
-         Final_Error      : Unbounded_String := Null_Unbounded_String;
+         Final_Text         : Unbounded_String := Null_Unbounded_String;
+         Final_Error        : Unbounded_String := Null_Unbounded_String;
+         Completion_Pending : Boolean := False;
       begin
          declare
 
@@ -2176,6 +2181,11 @@ package body Coyote_App is
                      end if;
                      Current_Text := Null_Unbounded_String;
                   end;
+               elsif E in LLM.Events.Agent_End_Event then
+                  Completion_Pending :=
+                    not LLM.Events.Agent_End_Event (E).Was_Aborted
+                    and then not Opts.One_Shot
+                    and then not Opts.Subagent;
                elsif E in LLM.Events.Session_Stats_Event then
                   declare
                      Ev      : constant LLM.Events.Session_Stats_Event :=
@@ -2239,6 +2249,12 @@ package body Coyote_App is
                   State    => State,
                   Section  => Section,
                   PID      => My_PID);
+               if E in LLM.Events.Session_Stats_Event
+                 and then Completion_Pending
+               then
+                  My_Frontend.Notify_Completion;
+                  Completion_Pending := False;
+               end if;
             end Dispatch_Event;
 
             procedure Dispatch_Agent_Event
@@ -2412,7 +2428,7 @@ package body Coyote_App is
             --  Load settings.
             declare
                Settings_Value : constant LLM.Settings.Settings :=
-                 LLM.Settings.Load_Settings;
+                 Startup_Settings;
             begin
                Current_Thinking := Settings_Value.Default_Thinking;
                if Length (Opts.Prompt_Filter) > 0 then
@@ -2790,10 +2806,14 @@ package body Coyote_App is
                                    (It.Preferences.Thinking)),
                               Sandbox     => To_String
                                 (It.Preferences.Sandbox),
-                              Subagent_Provider => To_String
+                              Subagent_Provider        => To_String
                                 (It.Preferences.Subagent_Provider),
-                              Subagent_Model => To_String
-                                (It.Preferences.Subagent_Model));
+                              Subagent_Model           => To_String
+                                (It.Preferences.Subagent_Model),
+                              Completion_Notifications =>
+                                It.Preferences.Completion_Notifications);
+                           My_Frontend.Set_Completion_Notifications
+                             (It.Preferences.Completion_Notifications);
                            My_Frontend.Append_Notice
                              (Coyote_App.Frontend.Info,
                               "Preferences saved for new sessions");
@@ -2830,7 +2850,13 @@ package body Coyote_App is
       --  Updates queue once Gtk.Main.Main is running.
       Gtk.Main.Init;
       Coyote_App.Frontend.GUI.Create
-        (My_Frontend, Win_Name, Pop_Under => Opts.Subagent);
+        (F                          => My_Frontend,
+         Win_Name                   => Win_Name,
+         Pop_Under                  => Opts.Subagent,
+         Notifications_Allowed      =>
+           not Opts.One_Shot and then not Opts.Subagent,
+         Notifications_Enabled     =>
+           Startup_Settings.Completion_Notifications);
 
       if Opts.Debug_Logging then
          My_Frontend.Set_Debug_Logging (True);
@@ -2839,6 +2865,7 @@ package body Coyote_App is
       --  Enter the GTK event loop; returns when Main_Quit is called
       --  (either from the window close handler or the Shutdown update).
       Gtk.Main.Main;
+      Coyote_Notify.Finalize;
 
       --  For one-shot mode, wait for Agent_Task to store the result
       --  before we return (Agent_Task calls State.Signal_Shutdown just

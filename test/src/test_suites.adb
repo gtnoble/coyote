@@ -18,6 +18,7 @@ with Coyote_GUI_Conversation_Tests;
 with Coyote_GUI_Zoom_Tests;
 with Coyote_GUI_Updates_Tests;
 with Coyote_GUI_Prompt_Queue_Tests;
+with Coyote_GUI_Notification_Policy_Tests;
 with Session_History_Tests;
 with Tool_URI_Tests;
 with Subagent_Integration_Tests;
@@ -105,6 +106,8 @@ package body Test_Suites is
      new AUnit.Test_Caller (Coyote_GUI_Updates_Tests.Test);
    package Coyote_GUI_Prompt_Queue_Caller is
      new AUnit.Test_Caller (Coyote_GUI_Prompt_Queue_Tests.Test);
+   package Coyote_GUI_Notification_Policy_Caller is
+     new AUnit.Test_Caller (Coyote_GUI_Notification_Policy_Tests.Test);
    package LLM_HTTP_Caller is
      new AUnit.Test_Caller (LLM_HTTP_Tests.Test);
    package LLM_Settings_Caller is
@@ -1373,6 +1376,10 @@ package body Test_Suites is
       Result.Add_Test (LLM_Settings_Caller.Create
         ("LLM.Settings Save_Preferences preserves and clears fields",
          LLM_Settings_Tests.Test_Save_Preferences_Preserves_And_Clears'Access));
+      Result.Add_Test (LLM_Settings_Caller.Create
+        ("LLM.Settings completion notifications default and load",
+         LLM_Settings_Tests
+           .Test_Completion_Notifications_Default_Enabled'Access));
 
       --  LLM.Types tests
       Result.Add_Test (LLM_Types_Caller.Create
@@ -2869,6 +2876,22 @@ package body Test_Suites is
       Result.Add_Test (Coyote_GUI_Prompt_Queue_Caller.Create
         ("Coyote.GUI.Prompt_Queue Set_Preferences round trips",
          Coyote_GUI_Prompt_Queue_Tests.Test_Set_Preferences_Round_Trips'Access));
+      Result.Add_Test (Coyote_GUI_Notification_Policy_Caller.Create
+        ("Coyote.GUI.Notification_Policy eligibility",
+         Coyote_GUI_Notification_Policy_Tests
+           .Test_Notify_When_Allowed_Enabled_And_Inactive'Access));
+      Result.Add_Test (Coyote_GUI_Notification_Policy_Caller.Create
+        ("Coyote.GUI.Notification_Policy active window suppresses",
+         Coyote_GUI_Notification_Policy_Tests
+           .Test_Suppress_When_Window_Is_Active'Access));
+      Result.Add_Test (Coyote_GUI_Notification_Policy_Caller.Create
+        ("Coyote.GUI.Notification_Policy disabled suppresses",
+         Coyote_GUI_Notification_Policy_Tests
+           .Test_Suppress_When_Disabled'Access));
+      Result.Add_Test (Coyote_GUI_Notification_Policy_Caller.Create
+        ("Coyote.GUI.Notification_Policy noninteractive suppresses",
+         Coyote_GUI_Notification_Policy_Tests
+           .Test_Suppress_When_Not_Allowed'Access));
 
       Result.Add_Test (Coyote_Lasem_Caller.Create
         ("Coyote.Lasem measures a MathML fraction",

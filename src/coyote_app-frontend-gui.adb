@@ -16,6 +16,7 @@ with Glib.Properties;            use Glib.Properties;
 with Gtk.Accel_Group;
 with Gtk.Box;
 with Gtk.Button;
+with Gtk.Check_Button;
 with Gtk.Enums;
 with Gtk.Frame;
 with Gtk.Label;
@@ -60,6 +61,8 @@ with Coyote_GUI.Tool_Detail_Window;
 with Coyote_GUI.Zoom;
 with LLM.Model_Registry;
 with LLM.Tools.Sandbox;
+with Coyote_Notify;
+with Coyote_GUI.Notification_Policy;
 
 package body Coyote_App.Frontend.GUI is
    use Coyote_GUI.Prompt_Queue;
@@ -293,6 +296,21 @@ package body Coyote_App.Frontend.GUI is
                F.Win.Set_Title (Title);
                F.Stop_Btn.Set_Sensitive (U.Mode /= Coyote_GUI.Idle);
             end;
+
+         when Set_Completion_Notifications =>
+            F.Notifications_Enabled :=
+              F.Notifications_Allowed and then U.Enabled;
+
+         when Completion_Notification =>
+            if Coyote_GUI.Notification_Policy.Should_Notify_Completion
+              (Allowed       => F.Notifications_Allowed,
+               Enabled       => F.Notifications_Enabled,
+               Window_Active => F.Win.Is_Active)
+            then
+               if not Coyote_Notify.Show_Completion then
+                  null;
+               end if;
+            end if;
 
          when Show_Detail =>
             Show_Text_Window (To_String (U.Text), To_String (U.Text2));
@@ -1048,8 +1066,9 @@ package body Coyote_App.Frontend.GUI is
       Model_C             : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
       Subagent_Model_C    : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
       Thinking_C          : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
-      Sandbox_C           : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
-      Resp                : Gtk.Dialog.Gtk_Response_Type;
+      Sandbox_C            : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
+      Notification_C        : Gtk.Check_Button.Gtk_Check_Button;
+      Resp                  : Gtk.Dialog.Gtk_Response_Type;
       Btn                 : Gtk.Widget.Gtk_Widget;
       Thinking_Index      : Glib.Gint := 0;
       Sandbox_Index       : Glib.Gint := 0;
@@ -1089,7 +1108,7 @@ package body Coyote_App.Frontend.GUI is
       end if;
       Gtk.Dialog.Gtk_New (Dialog);
       Dialog.Set_Title ("Preferences");
-      Dialog.Set_Default_Size (560, 270);
+      Dialog.Set_Default_Size (560, 330);
       Dialog.Set_Transient_For (Current_Frontend.Win);
       Btn := Dialog.Add_Button ("_Cancel", Gtk.Dialog.Gtk_Response_Cancel);
       Btn := Dialog.Add_Button ("_Save", Gtk.Dialog.Gtk_Response_OK);
@@ -1190,6 +1209,19 @@ package body Coyote_App.Frontend.GUI is
          Form.Pack_Start (Row, False, False, 0);
       end;
 
+      declare
+         Row : Gtk.Box.Gtk_Box;
+      begin
+         Gtk.Box.Gtk_New_Hbox (Row, Homogeneous => False, Spacing => 8);
+         Gtk.Check_Button.Gtk_New
+           (Notification_C,
+            "Desktop notifications when agent completes");
+         Notification_C.Set_Active
+           (Settings_Value.Completion_Notifications);
+         Row.Pack_Start (Notification_C, True, True, 0);
+         Form.Pack_Start (Row, False, False, 0);
+      end;
+
       Content.Pack_Start (Form, True, True, 4);
       Dialog.Show_All;
       Resp := Dialog.Run;
@@ -1231,8 +1263,9 @@ package body Coyote_App.Frontend.GUI is
                      (Thinking_Index),
                    Sandbox           => To_Unbounded_String
                      (if Sand = "None (no sandbox)" then "" else Sand),
-                   Subagent_Provider => Subagent_Provider,
-                   Subagent_Model    => Subagent_Id)));
+                   Subagent_Provider        => Subagent_Provider,
+                   Subagent_Model           => Subagent_Id,
+                   Completion_Notifications => Notification_C.Get_Active)));
          end;
       end if;
       Dialog.Destroy;
@@ -1473,9 +1506,11 @@ package body Coyote_App.Frontend.GUI is
    --  ── Create ────────────────────────────────────────────────────────────
 
    procedure Create
-     (F         : in out Instance;
-      Win_Name  : String;
-      Pop_Under : Boolean := False)
+     (F                          : in out Instance;
+      Win_Name                   : String;
+      Pop_Under                  : Boolean := False;
+      Notifications_Allowed      : Boolean := True;
+      Notifications_Enabled      : Boolean := True)
    is
       use Gtk.Box;
       use Gtk.Button;
@@ -1514,6 +1549,9 @@ package body Coyote_App.Frontend.GUI is
    begin
       Init_System_Font;
       F.Win_Name := To_Unbounded_String (Win_Name);
+      F.Notifications_Allowed := Notifications_Allowed;
+      F.Notifications_Enabled :=
+        Notifications_Allowed and then Notifications_Enabled;
       Current_Frontend := F'Unchecked_Access;
 
       --  Top-level window
@@ -2040,6 +2078,23 @@ package body Coyote_App.Frontend.GUI is
    begin
       F.Conv.Set_Debug_Logging (Enabled);
    end Set_Debug_Logging;
+
+   procedure Set_Completion_Notifications
+     (F : in out Instance; Enabled : Boolean)
+   is
+      U : Coyote_GUI.Update;
+   begin
+      U.Kind := Coyote_GUI.Set_Completion_Notifications;
+      U.Enabled := Enabled;
+      Enqueue_Update (F, U);
+   end Set_Completion_Notifications;
+
+   procedure Notify_Completion (F : in out Instance) is
+      U : Coyote_GUI.Update;
+   begin
+      U.Kind := Coyote_GUI.Completion_Notification;
+      Enqueue_Update (F, U);
+   end Notify_Completion;
 
    function Stats_Summary_Text (F : Instance) return String is
    begin

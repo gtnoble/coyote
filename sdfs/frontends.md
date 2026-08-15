@@ -22,6 +22,21 @@ the typed `Set_Preferences` queue item and persisted by the agent task without
 changing the active session. `--subagent` consumes the dedicated preference;
 ordinary sessions continue using the ordinary default.
 
+### GTK completion desktop notifications (2026-08-15)
+
+The GTK Preferences dialog now persists `completionNotifications` in
+`~/.coyote/settings.json`, defaulting to enabled when absent. The existing typed
+`Set_Preferences` queue item carries the value; the agent task writes it
+atomically and applies the successful change to the current GUI through the
+agent-to-GTK update queue. Subagents and one-shot executions remain disabled by
+an independent mode gate.
+
+A non-aborted interactive GUI turn queues a completion update after the final
+`Session_Stats_Event`. The GTK idle callback checks `Gtk.Window.Is_Active` and
+calls the native `Coyote_Notify` libnotify binding only when the window is
+inactive. Notification-daemon absence or delivery failure does not affect the
+agent session.
+
 ### Why three frontends share one `Dispatch_Event` function
 
 ### GUI Preferences implementation (2026-08-06)

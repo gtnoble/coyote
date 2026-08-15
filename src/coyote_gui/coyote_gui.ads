@@ -70,6 +70,8 @@ package Coyote_GUI is
       Append_Action_Strip,
       Set_Status,
       Set_Mode,
+      Set_Completion_Notifications,
+      Completion_Notification,
       Show_Detail,
       Shutdown);
 
@@ -82,6 +84,7 @@ package Coyote_GUI is
       T_Status : Tool_End_Status := Success;
       Mode     : Run_Mode        := Idle;
       N_Kind   : Notice_Kind     := Info;
+      Enabled  : Boolean         := False;
    end record;
 
 end Coyote_GUI;

@@ -21,7 +21,8 @@ package Coyote_GUI.Prompt_Queue is
       Thinking          : LLM.Providers.Thinking_Level := LLM.Providers.Off;
       Sandbox           : Ada.Strings.Unbounded.Unbounded_String;
       Subagent_Provider : Ada.Strings.Unbounded.Unbounded_String;
-      Subagent_Model    : Ada.Strings.Unbounded.Unbounded_String;
+      Subagent_Model           : Ada.Strings.Unbounded.Unbounded_String;
+      Completion_Notifications : Boolean := True;
    end record;
 
    type Item_Kind is
@@ -37,8 +38,9 @@ package Coyote_GUI.Prompt_Queue is
       Set_Sandbox,       --  change the sandbox profile
       Switch_Session,    --  load a different session by UUID
       Set_Default,       --  persist current model and thinking as defaults
-      Set_Preferences,   --  persist model, thinking, and sandbox defaults
+      Set_Preferences,   --  persist all Preferences_Record fields
       Shutdown_Item);    --  queue is closing; agent task should exit
+
    --  ── Payload variant record ────────────────────────────────────────────
    --
    --  Variants without a payload (Stop, Pause, Resume, Compact, New_Window,

@@ -27,7 +27,9 @@ package LLM.Settings is
       --  Shell command line through which interactive prompts are filtered
       --  before being sent to the agent.  The raw prompt is written to stdin
       --  and stdout is used as the filtered prompt.  Empty means no filter.
-      Prompt_Filter        : Ada.Strings.Unbounded.Unbounded_String;
+      Prompt_Filter             : Ada.Strings.Unbounded.Unbounded_String;
+      --  Whether interactive GUI completion notifications are enabled.
+      Completion_Notifications  : Boolean := True;
    end record;
 
    --  Load ~/.coyote/settings.json.
@@ -64,14 +66,16 @@ package LLM.Settings is
       Model_Id    : String;
       Think_Level : String);
 
-   --  Write model, thinking, and sandbox defaults to settings.json.
-   --  Empty values clear the corresponding preference.  Unrelated fields
-   --  are preserved and the replacement is atomic.
+   --  Write model, thinking, sandbox, and notification defaults to
+   --  settings.json.
+   --  Empty string values clear the corresponding string preference.
+   --  Unrelated fields are preserved and the replacement is atomic.
    procedure Save_Preferences
      (Provider          : String;
       Model_Id          : String;
       Think_Level       : String;
       Sandbox           : String;
-      Subagent_Provider : String := "";
-      Subagent_Model    : String := "");
+      Subagent_Provider        : String := "";
+      Subagent_Model           : String := "";
+      Completion_Notifications : Boolean := True);
 end LLM.Settings;

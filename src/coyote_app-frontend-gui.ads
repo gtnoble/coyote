@@ -27,6 +27,7 @@ with Coyote_GUI.Updates;
 with Gtk.Accel_Group;
 with Gtk.Box;
 with Gtk.Button;
+with Gtk.Check_Button;
 with Gtk.Label;
 with Gtk.Menu_Bar;
 with Gtk.Check_Menu_Item;
@@ -44,9 +45,11 @@ package Coyote_App.Frontend.GUI is
    --  Initialise the GTK window and register the idle drain callback.
    --  Must be called from the GTK main loop thread.
    procedure Create
-     (F          : in out Instance;
-      Win_Name   : String;
-      Pop_Under  : Boolean := False);
+     (F                          : in out Instance;
+      Win_Name                   : String;
+      Pop_Under                  : Boolean := False;
+      Notifications_Allowed      : Boolean := True;
+      Notifications_Enabled      : Boolean := True);
 
    --  ── Frontend.Instance overrides ───────────────────────────────────────
 
@@ -150,6 +153,13 @@ package Coyote_App.Frontend.GUI is
    --  Enable or disable conversation debug logging to stderr.
    procedure Set_Debug_Logging (F : in out Instance; Enabled : Boolean);
 
+   --  Apply a persisted notification setting to the active GUI.
+   procedure Set_Completion_Notifications
+     (F : in out Instance; Enabled : Boolean);
+
+   --  Queue a completion notification for GTK-thread evaluation.
+   procedure Notify_Completion (F : in out Instance);
+
 private
 
    type Instance is new Coyote_App.Frontend.Instance with record
@@ -161,7 +171,10 @@ private
       Conv      : Coyote_GUI.Conversation.Instance;
       --  GTK widgets.
       Win       : Gtk.Window.Gtk_Window;
-      Render_Markdown_Item : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
+      Render_Markdown_Item  : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
+      Notification_Check    : Gtk.Check_Button.Gtk_Check_Button;
+      Notifications_Allowed : Boolean := False;
+      Notifications_Enabled : Boolean := False;
       Accel_Group : Gtk.Accel_Group.Gtk_Accel_Group;
       Menu_Bar  : Gtk.Menu_Bar.Gtk_Menu_Bar;
       Conv_Layout : Gtk.Layout.Gtk_Layout;

@@ -1,8 +1,8 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.10
-**Date:** 2026-08-08
+**Version:** 1.11
+**Date:** 2026-08-15
 **Status:** Draft
 **Project Plan:** `plan/project-plan.md`
 
@@ -613,6 +613,23 @@ it shall not silently change the model, thinking level, or sandbox profile of
 the active session. Existing runtime controls shall remain available for
 changing the active session.
 
+**REQ-CORE-126** (D)
+The interactive GTK GUI shall issue a desktop notification after a non-aborted
+agentic loop completes when its top-level window is not the active window.
+
+**REQ-CORE-127** (T/I)
+Completion notifications shall not be issued for `--subagent`, `--one-shot`,
+Acme, Plain, or other noninteractive execution modes, regardless of the
+persisted notification preference.
+
+**REQ-CORE-128** (D/T)
+The GTK Preferences dialog shall provide a persistent enable/disable control
+for completion notifications. The setting shall be stored as the boolean
+`completionNotifications` field in `~/.coyote/settings.json`; an absent or
+malformed field shall default to enabled. A successful save shall update the
+current interactive GUI and subsequently created sessions without changing the
+active agent session.
+
 ---
 
 #### 3.1.12 Plain Frontend
@@ -891,7 +908,7 @@ thread-safe protected queue.
 **REQ-CORE-230** (T)
 The agent shall read `~/.coyote/settings.json` at startup to obtain the
 default provider, model, thinking level, optional subagent provider/model,
-compaction settings, and `promptFilter`.
+compaction settings, `promptFilter`, and `completionNotifications`.
 
 **REQ-CORE-231** (T)
 The agent shall read `~/.coyote/models.json` at startup to obtain per-provider
@@ -1173,7 +1190,7 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-100..107 | Acme frontend tag commands (Send, Stop, New, etc.) | D | TC-100..107 |
 | REQ-CORE-108..108b | Session fork tokens and step-level turn footers | D | TC-108..108b |
 | REQ-CORE-109 | SetDefault writes to settings.json | D | TC-109 |
-| REQ-CORE-110..119, 124, 125 | GUI frontend capabilities, including Preferences, display math, and zoom | D/T | TC-110..119, TC-124, TC-125 |
+| REQ-CORE-110..119, 124..128 | GUI frontend capabilities, including Preferences, display math, zoom, and completion notifications | D/T/I | TC-110..119, TC-124..128 |
 | REQ-CORE-120..121 | Plain frontend capabilities | D | TC-120..121 |
 | REQ-CORE-130..131 | Session history replay | D | TC-130..131 |
 | REQ-CORE-140..142 | Error handling | D | TC-140..142 |

@@ -1887,6 +1887,26 @@ behavior, current test baseline, and remaining manual qualification scope.
 - **Date resolved:** 2026-08-13
 
 
+## PCR-056 — GTK completion desktop notifications and persisted preference (2026-08-15)
+
+- **Category:** Requirements, Design, Code, Build, Test
+- **Priority:** 4-Minor (enhancement)
+- **Description:** The GTK GUI did not notify the user when an interactive
+  agentic loop completed while its window was unfocused, and it had no persisted
+  preference for enabling or disabling that behavior.
+- **Affected work products:** SRS-CORE, SDD-CORE, `Coyote_App.Frontend.GUI`,
+  `Coyote_GUI`, `LLM.Settings`, libnotify build configuration, frontend SDF,
+  Test Plan, and AUnit tests.
+- **Corrective action:** Added a native libnotify binding, a pure notification
+  policy, GTK update-queue notification handling, active-window detection,
+  and a Preferences checkbox persisted as `completionNotifications`. The
+  feature is hard-disabled for subagents and one-shot executions, and native
+  notification failures are non-fatal.
+- **Verification:** Production and test development builds succeed. Focused
+  settings, queue, and notification-policy tests pass. Display-backed delivery
+  remains manual qualification DEM-035.
+- **Status:** Implementation complete; manual qualification pending
+
 ## PCR-055 — Ctrl+mouse-wheel zoom in the GTK GUI (2026-08-15)
 
 - **Category:** Requirements, Code, Design, Test

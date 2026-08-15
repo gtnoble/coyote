@@ -93,6 +93,22 @@ package body LLM.Settings is
       return "";
    end Get_String_Field;
 
+   function Get_Boolean_Field
+     (Value   : GNATCOLL.JSON.JSON_Value;
+      Field   : String;
+      Default : Boolean) return Boolean
+   is
+   begin
+      if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
+        and then Value.Has_Field (Field)
+        and then Value.Get (Field).Kind = GNATCOLL.JSON.JSON_Boolean_Type
+      then
+         return Value.Get (Field).Get;
+      end if;
+
+      return Default;
+   end Get_Boolean_Field;
+
    function Get_Object_Field
      (Value : GNATCOLL.JSON.JSON_Value; Field : String)
       return GNATCOLL.JSON.JSON_Value
@@ -215,7 +231,9 @@ package body LLM.Settings is
              (Get_String_Field (Root, "appendSystemPrompt")),
          Prompt_Filter =>
            To_Unbounded_String
-             (Get_String_Field (Root, "promptFilter")));
+             (Get_String_Field (Root, "promptFilter")),
+         Completion_Notifications =>
+           Get_Boolean_Field (Root, "completionNotifications", True));
    end Load_Settings;
 
    function Resolve_Api_Key (Provider : String) return String is
@@ -321,12 +339,13 @@ package body LLM.Settings is
    end Save_Defaults;
 
    procedure Save_Preferences
-     (Provider          : String;
-      Model_Id          : String;
-      Think_Level       : String;
-      Sandbox           : String;
-      Subagent_Provider : String := "";
-      Subagent_Model    : String := "")
+     (Provider                 : String;
+      Model_Id                 : String;
+      Think_Level              : String;
+      Sandbox                  : String;
+      Subagent_Provider        : String := "";
+      Subagent_Model           : String := "";
+      Completion_Notifications : Boolean := True)
    is
       Path     : constant String := Settings_Path;
       Existing : constant GNATCOLL.JSON.JSON_Value :=
@@ -376,6 +395,8 @@ package body LLM.Settings is
       else
          Root.Unset_Field ("defaultSubagentModel");
       end if;
+
+      Root.Set_Field ("completionNotifications", Completion_Notifications);
 
       Write_Atomically (Path, GNATCOLL.JSON.Write (Root));
    end Save_Preferences;

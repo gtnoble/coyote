@@ -1,7 +1,7 @@
 # Project Plan — coyote
 
-**Version:** 1.16
-**Date:** 2026-08-06
+**Version:** 1.17
+**Date:** 2026-08-15
 **Status:** Active
 
 ---
@@ -682,11 +682,11 @@ manual demonstrations remains invited.
 
 | Artifact | ID | Location | Current Version | Control Level |
 |---|---|---|---|---|
-| Project Plan | PLAN | `plan/project-plan.md` | 1.16 (2026-08-06) | Project |
+| Project Plan | PLAN | `plan/project-plan.md` | 1.17 (2026-08-15) | Project |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
-| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.9 (2026-08-06) | Client |
-| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.9 (2026-08-06) | Project |
+| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.11 (2026-08-15) | Client |
+| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.11 (2026-08-15) | Project |
 | coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.2 (2026-06-21) | Project |
 | coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.2 (2026-06-21) | Project |
-| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.9 (2026-08-06) | Project |
+| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.11 (2026-08-15) | Project |
 | Agent Working Instructions (secondary) | AGENTS | `AGENTS.md` | active | Project |

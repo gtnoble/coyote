@@ -1,8 +1,8 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.10
-**Date:** 2026-08-08
+**Version:** 1.11
+**Date:** 2026-08-15
 
 **Status:** Reviewed — project control (M3 complete 2026-06-02)
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
@@ -275,6 +275,8 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `Nine_P.Client` | 9P client: mount, open, read, write | `src/nine_p-client.ads/.adb` |
 | `Coyote_Cmark` | Ada binding to libcmark-gfm | `src/coyote_cmark.ads/.adb` |
 | `Coyote_Lasem` | Ada/C binding to Lasem Presentation MathML rendering | `src/coyote_lasem.ads/.adb`, `src/coyote_lasem_c.c` |
+| `Coyote_Notify` | Ada/C binding to libnotify desktop notifications | `src/coyote_notify.ads/.adb`, `src/coyote_notify_c.c` |
+| `Coyote_GUI.Notification_Policy` | Pure completion-notification eligibility policy | `src/coyote_gui/coyote_gui-notification_policy.ads/.adb` |
 | `Session_Lister` | Session listing for coyote_list_sessions | `src/session_lister.ads/.adb` |
 
 ### 4.2 Static Relationships
@@ -325,6 +327,7 @@ three layers:
   LLM.SSE  (pure parser, no external dependencies)
   Nine_P.Client ──► Nine_P.Proto
   Coyote_Cmark ──► coyote_cmark_c.c (C shim for libcmark-gfm)
+  Coyote_Notify ──► libnotify, GLib, GDK-Pixbuf
 ```
 
 ### 4.3 Dynamic Relationships — Acme Path Concept of Execution
@@ -399,9 +402,18 @@ three layers:
   → Send button / Enter key → Coyote_GUI.Prompt_Queue.Enqueue(prompt_text)
   → Stop menu → LLM.Tools.Abort_Flag.Set
   → Compact / Pause / Resume menu → Coyote_GUI.Prompt_Queue.Enqueue(":compact" etc.)
-  → Edit → Preferences... → GTK dialog edits persistent defaults
+  → Edit → Preferences... → GTK dialog edits persistent defaults and
+      completion-notification preference
       → Coyote_GUI.Prompt_Queue.Enqueue(Set_Preferences payload)
-      → Agent_Task persists settings and reports success/failure
+      → Agent_Task persists settings and updates the current GUI on success
+
+[completion]
+  → Agent_End_Event (non-aborted interactive GUI run)
+  → Session_Stats_Event
+  → final turn footer update
+  → Completion_Notification update
+  → GTK main task checks Gtk.Window.Is_Active
+  → Coyote_Notify calls libnotify only when the window is inactive
 ```
 
 ### 4.5 Design Decisions Affecting Multiple Units
@@ -1176,15 +1188,17 @@ made by the GUI Preferences dialog or the Acme SetDefault command.
 - `Append_System_Prompt` — additional system-prompt text from
   `appendSystemPrompt`.
 - `Prompt_Filter` — interactive prompt filter command from `promptFilter`.
+- `Completion_Notifications` — boolean `completionNotifications`; absent or
+  malformed values default to True.
 - Raw provider model entries and API-key configuration are read from
   `models.json`.
 
 **`Load_Settings` procedure:** Reads `settings.json`. Missing fields produce
 empty/default values. A malformed or absent file does not prevent startup.
 
-**`Save_Preferences` operation:** Updates the model, thinking, sandbox, and
-optional subagent-model preference fields while preserving unrelated JSON
-fields. The file is written through an atomic same-directory replacement.
+**`Save_Preferences` operation:** Updates the model, thinking, sandbox,
+optional subagent-model, and completion-notification preference fields while
+preserving unrelated JSON fields. The file is written through an atomic same-directory replacement.
 Empty values clear the corresponding preference. Write failures are reported
  to the caller so the active session can continue.
 
@@ -1512,10 +1526,17 @@ using Cairo + Pango (see §5.15).
 - `Read_Prompt` — blocks on `Coyote_GUI.Prompt_Queue.Dequeue`.
 - **Preferences dialog:** `Edit → Preferences...` is constructed and operated
   on the GTK main task. It edits persistent defaults for model, thinking level,
-  and sandbox profile without mutating the active `LLM.Agent.Session`.
-  The callback enqueues a typed `Set_Preferences` item; the agent task performs
-  the settings-file update and sends a success or failure notice back through
-  the frontend.
+  sandbox profile, subagent model, and completion notifications without
+  mutating the active `LLM.Agent.Session`. The callback enqueues a typed
+  `Set_Preferences` item; the agent task performs the atomic settings-file
+  update and sends a success or failure notice back through the frontend. On
+  successful persistence, the notification setting is applied to the current
+  GUI through `Coyote_GUI.Updates`.
+- **Completion notifications:** `Run_GUI` disables the feature for subagents and
+  one-shot executions. For eligible runs, the agent task queues a completion
+  update after `Session_Stats_Event`; the GTK idle callback checks
+  `Gtk.Window.Is_Active` and calls `Coyote_Notify` only for an inactive window.
+  Missing notification daemons and delivery failures are non-fatal.
 - `Clear_Conversation` — clears the conversation view; delegates to
   `Coyote_GUI.Conversation.Clear`. Called by `Agent_Task` when handling
   the `New_Session` prompt-queue item.

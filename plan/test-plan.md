@@ -1,7 +1,7 @@
 # Test Plan â coyote (STP)
 
-**Version:** 1.10
-**Date:** 2026-08-08
+**Version:** 1.11
+**Date:** 2026-08-15
 
 **Status:** Reviewed and acknowledged â M4 complete (2026-06-03)
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
@@ -71,6 +71,7 @@ owner) is invited to independently review test results before accepting them.
 | libcurl + dev headers | All providers (LLM.HTTP) | Any current |
 | libcmark-gfm + dev headers | GUI frontend markdown rendering | Any current |
 | Lasem 0.6 + shared library | GUI display-math rendering | 0.6.0 |
+| libnotify4 + notification daemon | GTK completion notifications | 0.8.3-compatible |
 | Computer Modern math fonts | Lasem glyph coverage | cmr10/cmmi10/cmex10/cmsy10 |
 | plan9port | Acme frontend and plumber | At `/usr/local/plan9` |
 | GNATCOLL | JSON processing | â¥ 25.0.0 (via Alire) |
@@ -172,6 +173,8 @@ SRS-CORE requirement groups.
 | `coyote_lasem_tests.adb` | Lasem Presentation MathML measurement, zoom scaling, relation entities, and error handling | 5 |
 | `coyote_gui_conversation_tests.adb` | Display-math style, source preservation, visual height, and font propagation | 4 |
 | `coyote_gui_zoom_tests.adb` | REQ-CORE-125 (zoom arithmetic: clamping, step semantics) | 12 |
+| `coyote_gui_notification_policy_tests.adb` | REQ-CORE-127 (notification eligibility policy) | 4 |
+| `coyote_gui_prompt_queue_tests.adb` | REQ-CORE-116..119, 128; typed preference payload transport | 1 |
 | `nine_p_proto_tests.adb` | REQ-CORE-210 (9P protocol) | ~20 |
 | `nine_p_mock_server_tests.adb` | REQ-CORE-210â211 | ~15 |
 | `session_lister_tests.adb` | REQ-CORE-084 | ~10 |
@@ -186,7 +189,7 @@ SRS-CORE requirement groups.
 | `acme_event_parser_tests.adb` | REQ-CORE-100â109 | ~20 |
 | `acme_raw_events_tests.adb` | REQ-CORE-100 | ~10 |
 
-**Total automated tests (current):** **837**
+**Total automated tests (current):** **864**
 
 ### 4.3 Planned Tests â Demonstration
 
@@ -211,6 +214,7 @@ behaviour. Results are recorded in a Test Report.
 | DEM-013 | REQ-CORE-100â109 | Exercise each Acme tag command; verify expected behaviour for each |
 | DEM-014 | REQ-CORE-110â115, 125 | Exercise GUI window: markdown rendering, tool frames, vi scroll, menu actions, Ctrl+wheel zoom |
 | DEM-033 | REQ-CORE-116..117, 119 | Open GUI Preferences, save ordinary and subagent model/thinking/sandbox defaults, then create a new session and verify the active session was unchanged, ordinary sessions inherit the ordinary defaults, and `coyote --subagent` inherits the subagent model |
+| DEM-035 | REQ-CORE-126..128 | Toggle desktop completion notifications in GUI Preferences; verify an unfocused ordinary GUI turn notifies, a focused turn does not, the setting persists, and subagent/one-shot runs remain silent |
 | DEM-034 | REQ-CORE-234 | Set and clear `defaultSandboxProfile`; verify inherited runtime and session-header precedence |
 | DEM-015 | REQ-CORE-130 | Resume a session; verify history replayed in frontend |
 | DEM-016 | REQ-CORE-140 | Inject a provider error (invalid API key); verify error notice visible in frontend |
@@ -335,6 +339,9 @@ These are entered as open items in the problem log (PCR-009).
 ---
 
 ## 7. Notes
+
+**Verification as of 2026-08-15 (GTK completion notifications):**
+Focused settings, queue, and policy tests pass. Display-backed notification delivery and focus behavior remain manual qualification DEM-035; the notification daemon is an environment dependency.
 
 **Verification as of 2026-08-15 (variable-height conversation blocks):**
 859 registered tests.  Adds three Coyote_GUI.Conversation regressions

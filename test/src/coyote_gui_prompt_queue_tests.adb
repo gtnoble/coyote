@@ -21,8 +21,10 @@ package body Coyote_GUI_Prompt_Queue_Tests is
              Model_Id => To_Unbounded_String ("test/model"),
              Thinking          => LLM.Providers.High,
              Sandbox           => To_Unbounded_String ("restricted"),
-             Subagent_Provider => To_Unbounded_String ("openrouter"),
-             Subagent_Model    => To_Unbounded_String ("test/fast-model"))));
+             Subagent_Provider        => To_Unbounded_String ("openrouter"),
+             Subagent_Model           => To_Unbounded_String ("test/fast-model"),
+             Completion_Notifications =>
+               False)));
       Queue.Dequeue (Got);
 
       Assert (Got.Kind = Set_Preferences,
@@ -37,8 +39,12 @@ package body Coyote_GUI_Prompt_Queue_Tests is
               "sandbox profile should survive queue transport");
       Assert (To_String (Got.Preferences.Subagent_Provider) = "openrouter",
               "subagent provider should survive queue transport");
-      Assert (To_String (Got.Preferences.Subagent_Model) = "test/fast-model",
-              "subagent model should survive queue transport");
+      Assert
+        (To_String (Got.Preferences.Subagent_Model) = "test/fast-model",
+         "subagent model should survive queue transport");
+      Assert
+        (not Got.Preferences.Completion_Notifications,
+         "disabled completion preference should survive queue transport");
 
       Queue.Enqueue
         ((Kind => Set_Preferences,
@@ -47,8 +53,9 @@ package body Coyote_GUI_Prompt_Queue_Tests is
              Model_Id          => Null_Unbounded_String,
              Thinking          => LLM.Providers.Off,
              Sandbox           => Null_Unbounded_String,
-             Subagent_Provider => Null_Unbounded_String,
-             Subagent_Model    => Null_Unbounded_String)));
+             Subagent_Provider        => Null_Unbounded_String,
+             Subagent_Model           => Null_Unbounded_String,
+             Completion_Notifications => True)));
       Queue.Dequeue (Got);
       Assert (Length (Got.Preferences.Provider) = 0,
               "empty provider should represent an explicit clear");

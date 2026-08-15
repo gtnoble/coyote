@@ -99,6 +99,9 @@ package body LLM_Settings_Tests is
       Assert
         (To_String (Loaded.Default_Subagent_Model) = "anthropic/claude-haiku",
          "defaultSubagentModel should be loaded from settings.json");
+      Assert
+        (Loaded.Completion_Notifications,
+         "completion notifications should default to enabled");
 
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
       Cleanup_Test_Home (Home);
@@ -431,6 +434,36 @@ package body LLM_Settings_Tests is
          raise;
    end Test_Default_Sandbox_Profile_Loaded;
 
+   procedure Test_Completion_Notifications_Default_Enabled
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+      Home         : constant String := "/tmp/coyote_llm_settings_test_12";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Loaded       : LLM.Settings.Settings;
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+      Write_File
+        (Home & "/.coyote/settings.json",
+         "{""completionNotifications"":false}");
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Loaded := LLM.Settings.Load_Settings;
+      Assert
+        (not Loaded.Completion_Notifications,
+         "explicit false completion notification setting should load");
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Completion_Notifications_Default_Enabled;
+
    procedure Test_Save_Preferences_Preserves_And_Clears (T : in out Test) is
       pragma Unreferenced (T);
       Home         : constant String := "/tmp/coyote_llm_settings_test_11";
@@ -455,8 +488,9 @@ package body LLM_Settings_Tests is
          Model_Id => "new/model",
          Think_Level       => "high",
          Sandbox           => "restricted",
-         Subagent_Provider => "openrouter",
-         Subagent_Model    => "new/fast-model");
+         Subagent_Provider        => "openrouter",
+         Subagent_Model           => "new/fast-model",
+         Completion_Notifications => False);
       Root := LLM.Settings.Load_Json_File (Home & "/.coyote/settings.json");
       Assert (Coyote_App.Utils.Get_String (Root, "defaultProvider") =
                 "openrouter",
@@ -470,6 +504,10 @@ package body LLM_Settings_Tests is
       Assert (Coyote_App.Utils.Get_String (Root, "defaultSandboxProfile") =
                 "restricted",
               "Save_Preferences should write sandbox profile");
+      Assert
+        (not Coyote_App.Utils.Get_Boolean
+           (Root, "completionNotifications"),
+         "Save_Preferences should write disabled completion notifications");
       Assert (Coyote_App.Utils.Get_String (Root, "appendSystemPrompt") =
                 "keep",
               "Save_Preferences should preserve unrelated fields");
