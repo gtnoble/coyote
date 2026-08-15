@@ -57,6 +57,7 @@ with LLM.Agent;
 with LLM.Providers;
 with Coyote_App.Utils;
 with Coyote_GUI.Tool_Detail_Window;
+with Coyote_GUI.Zoom;
 with LLM.Model_Registry;
 with LLM.Tools.Sandbox;
 
@@ -1283,9 +1284,6 @@ package body Coyote_App.Frontend.GUI is
       System_Font_Init := True;
    end Init_System_Font;
 
-   --  Point-size increment per zoom step.
-   Zoom_Step_Pt : constant := 1;
-
    --  Apply_Zoom — recompute the font size from Zoom_Level and push it to
    --  both the conversation and prompt text views.
    procedure Apply_Zoom (F : in out Instance) is
@@ -1295,15 +1293,13 @@ package body Coyote_App.Frontend.GUI is
       Base_Pt    : constant Integer :=
         (if System_Font_Init then System_Font_Size_Pt else 11);
       Base_Clamped : constant Integer :=
-        (if Base_Pt < 6 then 6 elsif Base_Pt > 32 then 32 else Base_Pt);
+        Coyote_GUI.Zoom.Clamped_Base_Pt (Base_Pt);
       Family_Str : constant String :=
         (if System_Font_Init
          then To_String (System_Font_Family)
          else "sans");
-      Size_Pt    : constant Integer :=
-        Base_Pt + F.Zoom_Level * Zoom_Step_Pt;
       Clamped    : constant Integer :=
-        (if Size_Pt < 6 then 6 elsif Size_Pt > 32 then 32 else Size_Pt);
+        Coyote_GUI.Zoom.Effective_Size_Pt (F.Zoom_Level, Base_Pt);
       Font_Str   : constant String :=
         Family_Str & " " & Integer'Image (Clamped)
           (2 .. Integer'Image (Clamped)'Last);
@@ -1337,14 +1333,25 @@ package body Coyote_App.Frontend.GUI is
       Free (FD);
    end Apply_Zoom;
 
+   --  Current system-font baseline used by the zoom menu handlers and the
+   --  Ctrl+wheel handler.
+   function Current_Base_Pt return Integer is
+   begin
+      return (if System_Font_Init then System_Font_Size_Pt else 11);
+   end Current_Base_Pt;
+
    procedure On_Zoom_In_Activate
      (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
    is
       pragma Unreferenced (Self);
+      Changed : Boolean;
    begin
       if Current_Frontend /= null then
-         Current_Frontend.Zoom_Level := Current_Frontend.Zoom_Level + 1;
-         Apply_Zoom (Current_Frontend.all);
+         Coyote_GUI.Zoom.Step_Zoom
+           (Current_Frontend.Zoom_Level, 1, Current_Base_Pt, Changed);
+         if Changed then
+            Apply_Zoom (Current_Frontend.all);
+         end if;
       end if;
    end On_Zoom_In_Activate;
 
@@ -1352,10 +1359,14 @@ package body Coyote_App.Frontend.GUI is
      (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
    is
       pragma Unreferenced (Self);
+      Changed : Boolean;
    begin
       if Current_Frontend /= null then
-         Current_Frontend.Zoom_Level := Current_Frontend.Zoom_Level - 1;
-         Apply_Zoom (Current_Frontend.all);
+         Coyote_GUI.Zoom.Step_Zoom
+           (Current_Frontend.Zoom_Level, -1, Current_Base_Pt, Changed);
+         if Changed then
+            Apply_Zoom (Current_Frontend.all);
+         end if;
       end if;
    end On_Zoom_Out_Activate;
 
@@ -1364,11 +1375,68 @@ package body Coyote_App.Frontend.GUI is
    is
       pragma Unreferenced (Self);
    begin
-      if Current_Frontend /= null then
+      if Current_Frontend /= null
+        and then Current_Frontend.Zoom_Level /= 0
+      then
          Current_Frontend.Zoom_Level := 0;
          Apply_Zoom (Current_Frontend.all);
       end if;
    end On_Zoom_Reset_Activate;
+
+   --  Ctrl+mouse-wheel zoom.  Connected on the conversation layout; plain
+   --  wheel events return False so the scrolled window scrolls normally.
+   --  Smooth-scroll (touchpad) deltas are accumulated until they add up
+   --  to at least one wheel notch.
+   function On_Conv_Scroll
+     (Self  : access Gtk.Widget.Gtk_Widget_Record'Class;
+      Event : Gdk.Event.Gdk_Event_Scroll) return Boolean
+   is
+      pragma Unreferenced (Self);
+      use type Gdk.Event.Gdk_Scroll_Direction;
+
+      Notch : constant Gdouble := 1.0;
+      --  Accumulated smooth-scroll delta (positive = zoom in).
+      Smooth_Acc : Gdouble := 0.0;
+
+      Changed : Boolean;
+      Steps   : Integer := 0;
+   begin
+      if Current_Frontend = null
+        or else (Event.State and Gdk.Types.Control_Mask) = 0
+      then
+         return False;
+      end if;
+
+      case Event.Direction is
+         when Gdk.Event.Scroll_Up =>
+            Steps := 1;
+         when Gdk.Event.Scroll_Down =>
+            Steps := -1;
+         when Gdk.Event.Scroll_Smooth =>
+            Smooth_Acc := Smooth_Acc - Event.Delta_Y;
+            if Smooth_Acc >= Notch then
+               Steps := Integer (Gdouble'Floor (Smooth_Acc));
+               Smooth_Acc := Smooth_Acc - Gdouble (Steps) * Notch;
+            elsif Smooth_Acc <= -Notch then
+               Steps := Integer (Gdouble'Ceiling (Smooth_Acc));
+               Smooth_Acc := Smooth_Acc - Gdouble (Steps) * Notch;
+            end if;
+         when others =>
+            null;
+      end case;
+
+      if Steps = 0 then
+         --  Swallow the event so Ctrl+wheel never scrolls the view.
+         return True;
+      end if;
+
+      Coyote_GUI.Zoom.Step_Zoom
+        (Current_Frontend.Zoom_Level, Steps, Current_Base_Pt, Changed);
+      if Changed then
+         Apply_Zoom (Current_Frontend.all);
+      end if;
+      return True;
+   end On_Conv_Scroll;
 
    function On_Window_Key_Press
      (Self  : access Gtk.Widget.Gtk_Widget_Record'Class;
@@ -1674,6 +1742,11 @@ package body Coyote_App.Frontend.GUI is
       --  False, so both handlers fire.
       F.Conv_Layout.On_Button_Press_Event
         (On_Conv_Button_Press'Access);
+
+      --  Ctrl+wheel zoom; plain wheel scroll falls through to the
+      --  scrolled window's adjustments.
+      F.Conv_Layout.On_Scroll_Event
+        (On_Conv_Scroll'Access);
 
       F.Conv_Scroll.Add (F.Conv_Layout);
       F.Outer_Box.Pack_Start (F.Conv_Scroll, Expand => True, Fill => True,

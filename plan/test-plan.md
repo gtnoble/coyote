@@ -171,6 +171,7 @@ SRS-CORE requirement groups.
 | `coyote_cmark_tests.adb` | REQ-CORE-111 (Markdown rendering) | ~25 |
 | `coyote_lasem_tests.adb` | Lasem Presentation MathML measurement, zoom scaling, relation entities, and error handling | 5 |
 | `coyote_gui_conversation_tests.adb` | Display-math style, source preservation, visual height, and font propagation | 4 |
+| `coyote_gui_zoom_tests.adb` | REQ-CORE-125 (zoom arithmetic: clamping, step semantics) | 12 |
 | `nine_p_proto_tests.adb` | REQ-CORE-210 (9P protocol) | ~20 |
 | `nine_p_mock_server_tests.adb` | REQ-CORE-210â211 | ~15 |
 | `session_lister_tests.adb` | REQ-CORE-084 | ~10 |
@@ -208,7 +209,7 @@ behaviour. Results are recorded in a Test Report.
 | DEM-011 | REQ-CORE-074 | Use an expired Copilot token; send a prompt; verify token is refreshed and request succeeds |
 | DEM-012 | REQ-CORE-075 | In Acme, plumb a `coyote-model+PID/...` token; verify model changes on next turn |
 | DEM-013 | REQ-CORE-100â109 | Exercise each Acme tag command; verify expected behaviour for each |
-| DEM-014 | REQ-CORE-110â115 | Exercise GUI window: markdown rendering, tool frames, vi scroll, menu actions |
+| DEM-014 | REQ-CORE-110â115, 125 | Exercise GUI window: markdown rendering, tool frames, vi scroll, menu actions, Ctrl+wheel zoom |
 | DEM-033 | REQ-CORE-116..117, 119 | Open GUI Preferences, save ordinary and subagent model/thinking/sandbox defaults, then create a new session and verify the active session was unchanged, ordinary sessions inherit the ordinary defaults, and `coyote --subagent` inherits the subagent model |
 | DEM-034 | REQ-CORE-234 | Set and clear `defaultSandboxProfile`; verify inherited runtime and session-header precedence |
 | DEM-015 | REQ-CORE-130 | Resume a session; verify history replayed in frontend |
@@ -301,6 +302,7 @@ These are entered as open items in the problem log (PCR-009).
 | REQ-CORE-090â093 | T | `llm_skills_tests.adb` |
 | REQ-CORE-100â109 | T/D | `acme_event_parser_tests.adb`, `tool_uri_tests.adb`, DEM-013 |
 | REQ-CORE-110â115 | T/D | `coyote_cmark_tests.adb`, DEM-014 |
+| REQ-CORE-125 | T/D | `coyote_gui_zoom_tests.adb`, DEM-014 |
 | REQ-CORE-124 | T/D | `coyote_lasem_tests.adb`, `coyote_gui_conversation_tests.adb` |
 | REQ-CORE-116 | D | DEM-033 |
 | REQ-CORE-117 | D | DEM-033 |
@@ -333,6 +335,14 @@ These are entered as open items in the problem log (PCR-009).
 ---
 
 ## 7. Notes
+
+**Verification as of 2026-08-15 (Ctrl+mouse-wheel zoom, REQ-CORE-125):**
+856 registered tests, 0 failures, 0 unexpected errors (full suite completed).
+Adds the pure-logic `Coyote_GUI.Zoom` package (12 new tests covering
+effective-size clamping, step semantics, plateau walk-back, and baseline
+clamping) and wires Ctrl+wheel zoom into the GUI frontend's conversation
+layout (`Scroll_Mask` + `On_Conv_Scroll`).  Production and test development
+builds succeed.
 
 **Verification as of 2026-08-05 (live GTK graphical tool cards):**
 The focused GUI conversation set now runs 32 tests and includes the

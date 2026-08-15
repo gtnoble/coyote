@@ -238,6 +238,7 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `Coyote_GUI.Prompt_Queue` | Protected GTK→agent queue | `src/coyote_gui/coyote_gui-prompt_queue.ads/.adb` |
 | `Coyote_GUI.Conversation` | GtkLayout-based virtualized conversation renderer | `src/coyote_gui/coyote_gui-conversation.ads/.adb` |
 | `Coyote_GUI.Tool_Detail_Window` | Structured GTK tool-call detail window | `src/coyote_gui/coyote_gui-tool_detail_window.ads/.adb` |
+| `Coyote_GUI.Zoom` | Zoom-level ↔ font-size arithmetic (pure logic) | `src/coyote_gui/coyote_gui-zoom.ads/.adb` |
 | `Coyote_Utils` | CLI arg resolution, file reading, session prefix stripping | `src/coyote_utils.ads/.adb` |
 | `LLM` | Root package | `src/llm/llm.ads` |
 | `LLM.Types` | Message, content block, usage types | `src/llm/llm-types.ads/.adb` |
@@ -1539,6 +1540,17 @@ using Cairo + Pango (see §5.15).
   raw `On_Window_Key_Press` handler; moving them to proper accelerators
   makes them visible in menu labels and allows the key-press handler to be
   simplified to a no-op.
+- **Ctrl+mouse-wheel zoom** (2026-08-15): The conversation `GtkLayout`
+  enables `Scroll_Mask` in its event mask, and the frontend connects an
+  `On_Conv_Scroll` handler to the layout's `scroll-event` signal.  When
+  Ctrl is held, wheel up/down steps the zoom level via `Coyote_GUI.Zoom.
+  Step_Zoom` and calls `Apply_Zoom`; smooth-scroll (touchpad) deltas are
+  accumulated until they reach one wheel notch.  Ctrl+wheel events are
+  always consumed (return `True`) so the viewport never scrolls while
+  zooming; plain wheel events return `False` and propagate to the
+  scrolled window for normal scrolling.  All zoom entry points (menu
+  accelerators and wheel) share the `Coyote_GUI.Zoom` arithmetic,
+  including the clamp bounds and the no-change short-circuit.
 
   This replaces the earlier follow-mode implementation that used
   `Programmatic_Scroll_Count` counter guards and `::value-changed` auto-detection
@@ -1637,6 +1649,31 @@ default. The GTK task never writes settings directly; persistence remains
 owned by the agent task.
 
 ---
+
+### 5.37a `Coyote_GUI.Zoom`
+
+**Purpose:** Pure-logic zoom arithmetic shared by the GUI frontend's zoom
+entry points (View-menu accelerators and Ctrl+mouse-wheel).  Factored into
+a display-independent package so the policy is unit-testable without GTK.
+
+**Public operations:**
+
+- `Zoom_Step_Pt`, `Min_Size_Pt`, `Max_Size_Pt` — step size and hard bounds
+  for the effective font point size.
+- `Effective_Size_Pt (Level, Base_Pt)` — effective point size for a zoom
+  level, clamped to `[Min_Size_Pt, Max_Size_Pt]`.
+- `Clamped_Base_Pt (Base_Pt)` — baseline clamped to the same range; used
+  as the reference for the display-math scale factor.
+- `Step_Zoom (Level, Steps, Base_Pt, Changed)` — advances `Level` by
+  `Steps` (positive = zoom in), then walks back out of the clamp plateau
+  so a large step request leaves the level at the first level that
+  actually maps to the clamped size.  `Changed` reports whether the
+  effective point size changed, so callers can skip the (expensive)
+  font re-application and redraw when the size is pinned at a bound.
+
+**Design notes:** the plateau walk-back keeps `Zoom_Level` finite even
+when a touchpad emits a large accumulated smooth-scroll delta, and lets
+zoom-out be immediately responsive after zooming into the clamp.
 
 ### 5.38 `Coyote_Utils`
 
@@ -1848,7 +1885,7 @@ neither task may share mutable frontend state with the other.
 | REQ-CORE-100–107 | `Coyote_App.Frontend.Acme_Win`, `Coyote_App`, `Acme.Window`, `Nine_P.Client` |
 | REQ-CORE-108–108b | `Coyote_App`, `Coyote_App.Dispatch`, `Coyote_App.Utils`, `Session_Lister` |
 | REQ-CORE-109 | `LLM.Settings`, `Coyote_App.Frontend.Acme_Win` |
-| REQ-CORE-110–119 | `Coyote_App.Frontend.GUI`, `Coyote_GUI.Conversation`, `Coyote_GUI.Prompt_Queue`, `Coyote_Cmark` |
+| REQ-CORE-110–119, 125 | `Coyote_App.Frontend.GUI`, `Coyote_GUI.Conversation`, `Coyote_GUI.Prompt_Queue`, `Coyote_GUI.Zoom`, `Coyote_Cmark` |
 | REQ-CORE-124 | `Coyote_GUI.Conversation`, `Coyote_Lasem` |
 | REQ-CORE-120–121 | `Coyote_App.Frontend.Plain` |
 | REQ-CORE-130–131 | `Coyote_App.History`, all frontends |

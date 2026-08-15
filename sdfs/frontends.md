@@ -278,6 +278,33 @@ raw `On_Window_Key_Press` event handler on the top-level window, which
 shadowed the menu items without showing labels.  They are now proper
 accelerators; the key-press handler is reduced to a no-op.
 
+### Ctrl+mouse-wheel zoom (2026-08-15, REQ-CORE-125)
+
+Ctrl+wheel over the conversation view now zooms.  The conversation
+`GtkLayout` event mask gains `Gdk.Event.Scroll_Mask`, and the frontend
+connects `On_Conv_Scroll` to the layout's `scroll-event` signal.  With
+Ctrl held, wheel up/down steps the zoom level and calls `Apply_Zoom`;
+smooth-scroll (touchpad) deltas are accumulated in a handler-local
+`Gdouble` until they reach one wheel notch (±1.0).  Ctrl+wheel events are
+always consumed (`return True`) so the viewport never scrolls mid-zoom;
+plain wheel events return `False` and fall through to the scrolled
+window.
+
+Zoom arithmetic is factored into the new pure-logic package
+`Coyote_GUI.Zoom` (`Zoom_Step_Pt`, `Min_Size_Pt`/`Max_Size_Pt`,
+`Effective_Size_Pt`, `Clamped_Base_Pt`, `Step_Zoom`).  `Step_Zoom`
+advances the level by the requested number of steps, then walks back out
+of the clamp plateau so the level never grows unboundedly behind a pinned
+font size (this also makes zoom-out immediately responsive after a large
+zoom-in).  It reports `Changed := False` when the effective size did not
+move, letting callers skip the expensive `Apply_Zoom` redraw at the
+bounds.  All three menu handlers and the wheel handler share this policy;
+`Apply_Zoom` itself is unchanged apart from delegating size computation
+to `Coyote_GUI.Zoom`.
+
+The package is display-independent and unit-tested by
+`coyote_gui_zoom_tests.adb` (12 tests, no GTK display required).
+
 **Shortcut assignments:**
 
 | Menu | Item | Shortcut |

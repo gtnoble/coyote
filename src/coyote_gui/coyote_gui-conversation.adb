@@ -574,12 +574,15 @@ package body Coyote_GUI.Conversation is
       C.Layout_W  := Gtk.Layout.Gtk_Layout (Layout_W);
       Current_Conv := C'Unchecked_Access;
 
-      --  Event mask: button press, release, motion, key press.
+      --  Event mask: button press, release, motion, key press, scroll.
+      --  Scroll events are enabled so the frontend's Ctrl+wheel zoom
+      --  handler (connected on the layout) receives them.
       Layout_W.Set_Events
         (Gdk.Event.Button_Press_Mask
          or Gdk.Event.Button_Release_Mask
          or Gdk.Event.Pointer_Motion_Mask
-         or Gdk.Event.Key_Press_Mask);
+         or Gdk.Event.Key_Press_Mask
+         or Gdk.Event.Scroll_Mask);
       Layout_W.Set_Can_Focus (True);
 
       --  Connect signals.

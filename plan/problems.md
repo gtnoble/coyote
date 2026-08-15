@@ -1885,3 +1885,33 @@ behavior, current test baseline, and remaining manual qualification scope.
   full suite remains subject to existing environment-dependent test constraints.
 - **Status:** Resolved
 - **Date resolved:** 2026-08-13
+
+
+## PCR-055 — Ctrl+mouse-wheel zoom in the GTK GUI (2026-08-15)
+
+- **Category:** Requirements, Code, Design, Test
+- **Priority:** 4-Minor (enhancement)
+- **Description:** The GTK GUI supported zoom only through the View menu
+  accelerators (Ctrl++/Ctrl+-/Ctrl+0).  Users expect the common
+  Ctrl+mouse-wheel gesture to zoom the conversation view as well.
+- **Affected work products:** SRS-CORE (new REQ-CORE-125), SDD-CORE
+  (§4.1 unit table, §5.33, new §5.37a, requirements traceability),
+  `Coyote_App.Frontend.GUI`, `Coyote_GUI.Conversation` (event mask),
+  new unit `Coyote_GUI.Zoom`, new test module `coyote_gui_zoom_tests`,
+  Test Plan, frontend SDF.
+- **Corrective action:** Added REQ-CORE-125.  Enabled
+  `Gdk.Event.Scroll_Mask` on the conversation `GtkLayout` and connected a
+  new `On_Conv_Scroll` handler in the GUI frontend: with Ctrl held, wheel
+  up/down steps the zoom level and calls `Apply_Zoom`; smooth-scroll
+  deltas are accumulated to whole notches; Ctrl+wheel events are consumed
+  so the viewport never scrolls mid-zoom, while plain wheel events
+  propagate to the scrolled window unchanged.  Zoom arithmetic (step
+  size, 6–32 pt clamping, plateau walk-back, no-change short-circuit) was
+  factored into the new display-independent package `Coyote_GUI.Zoom`,
+  shared by the menu accelerators and the wheel handler.
+- **Verification:** Production and test development builds succeed.  The
+  12 new `Coyote_GUI.Zoom` unit tests pass; the full suite completed with
+  856 tests, 0 failures, 0 unexpected errors.  Live Ctrl+wheel behaviour
+  over the conversation view is covered by DEM-014.
+- **Status:** Resolved
+- **Date resolved:** 2026-08-15

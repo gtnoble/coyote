@@ -573,6 +573,15 @@ Ctrl-U) in the conversation view.
 The GUI frontend shall propagate `COYOTE_FRONTEND=gui` to all child processes
 so that subagents open their own GUI windows.
 
+**REQ-CORE-125** (D)
+The GUI frontend shall support zooming the conversation view, prompt area,
+and status bar text via menu accelerators (Ctrl++/Ctrl+-/Ctrl+0) and via
+Ctrl+mouse-wheel over the conversation view.  Zoom steps shall adjust the
+effective font point size from the system-font baseline and shall clamp the
+effective size to a bounded range so that text remains legible and layout
+remains usable.  Plain (non-Ctrl) wheel scrolling shall retain its normal
+viewport-scrolling behaviour.
+
 **REQ-CORE-124** (D)
 The GUI conversation view shall render standalone display-math blocks delimited
 by `$$`/`$$` and containing a complete Presentation MathML `<math>` document.
@@ -1164,7 +1173,7 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-100..107 | Acme frontend tag commands (Send, Stop, New, etc.) | D | TC-100..107 |
 | REQ-CORE-108..108b | Session fork tokens and step-level turn footers | D | TC-108..108b |
 | REQ-CORE-109 | SetDefault writes to settings.json | D | TC-109 |
-| REQ-CORE-110..119, 124 | GUI frontend capabilities, including Preferences and display math | D/T | TC-110..119, TC-124 |
+| REQ-CORE-110..119, 124, 125 | GUI frontend capabilities, including Preferences, display math, and zoom | D/T | TC-110..119, TC-124, TC-125 |
 | REQ-CORE-120..121 | Plain frontend capabilities | D | TC-120..121 |
 | REQ-CORE-130..131 | Session history replay | D | TC-130..131 |
 | REQ-CORE-140..142 | Error handling | D | TC-140..142 |
