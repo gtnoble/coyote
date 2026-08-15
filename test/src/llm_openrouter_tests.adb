@@ -339,11 +339,13 @@ package body LLM_OpenRouter_Tests is
        Completion_Tokens : Natural) return String
    is
       use GNATCOLL.JSON;
-      Delta_Event : constant JSON_Value := Create_Object;
-      Completed   : constant JSON_Value := Create_Object;
-      Response    : constant JSON_Value := Create_Object;
-      Item        : constant JSON_Value := Create_Object;
-      Part        : constant JSON_Value := Create_Object;
+      Delta_Event       : constant JSON_Value := Create_Object;
+      Text_Done_Event   : constant JSON_Value := Create_Object;
+      Item_Done_Event   : constant JSON_Value := Create_Object;
+      Completed         : constant JSON_Value := Create_Object;
+      Response          : constant JSON_Value := Create_Object;
+      Item              : constant JSON_Value := Create_Object;
+      Part              : constant JSON_Value := Create_Object;
       Output      : JSON_Array := Empty_Array;
       Content     : JSON_Array := Empty_Array;
       Usage       : constant JSON_Value := Create_Object;
@@ -353,6 +355,13 @@ package body LLM_OpenRouter_Tests is
       Delta_Event.Set_Field ("output_index", Integer (0));
       Delta_Event.Set_Field ("content_index", Integer (0));
       Delta_Event.Set_Field ("delta", Text);
+      Text_Done_Event.Set_Field ("type", "response.output_text.done");
+      Text_Done_Event.Set_Field ("item_id", "msg_test");
+      Text_Done_Event.Set_Field ("output_index", Integer (0));
+      Text_Done_Event.Set_Field ("content_index", Integer (0));
+      Text_Done_Event.Set_Field ("text", Text);
+      Item_Done_Event.Set_Field ("type", "response.output_item.done");
+      Item_Done_Event.Set_Field ("output_index", Integer (0));
 
       Part.Set_Field ("type", "output_text");
       Part.Set_Field ("text", Text);
@@ -363,6 +372,7 @@ package body LLM_OpenRouter_Tests is
       Item.Set_Field ("status", "completed");
       Item.Set_Field ("content", Content);
       Append (Output, Item);
+      Item_Done_Event.Set_Field ("item", Item);
 
       Usage.Set_Field ("input_tokens", Integer (Prompt_Tokens));
       Usage.Set_Field ("output_tokens", Integer (Completion_Tokens));
@@ -378,6 +388,8 @@ package body LLM_OpenRouter_Tests is
 
       return
          SSE_Event ("response.output_text.delta", Delta_Event)
+         & SSE_Event ("response.output_text.done", Text_Done_Event)
+         & SSE_Event ("response.output_item.done", Item_Done_Event)
          & SSE_Event ("response.completed", Completed);
    end Build_Text_SSE_Payload;
 

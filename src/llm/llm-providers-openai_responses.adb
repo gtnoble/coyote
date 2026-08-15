@@ -4,8 +4,8 @@
 --  For revision history, see the project version-control log.
 
 with Ada.Containers;
+with Ada.Containers.Indefinite_Vectors;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
-with GNATCOLL.JSON;
 with LLM.Events;
 with LLM.HTTP;
 with LLM.SSE;
@@ -29,6 +29,10 @@ package body LLM.Providers.OpenAI_Responses is
       (Index_Type   => Natural,
      Element_Type => Tool_Call_State);
 
+   package Text_Item_Id_Vectors is new Ada.Containers.Indefinite_Vectors
+      (Index_Type   => Natural,
+     Element_Type => String);
+
    EMPTY_TOOL_CALL_STATE : constant Tool_Call_State :=
       (Seen           => False,
      Tool_Call_Id   => Null_Unbounded_String,
@@ -37,18 +41,21 @@ package body LLM.Providers.OpenAI_Responses is
      Arguments_Json => Null_Unbounded_String);
 
    type Response_State is record
-      Parser            : LLM.SSE.Parser;
-      Text_Started      : Boolean := False;
-      Thinking_Started  : Boolean := False;
-      Stop              : LLM.Types.Stop_Reason := LLM.Types.Unknown_Stop;
-      Saw_Function_Call : Boolean := False;
-      Tok_Usage         : LLM.Types.Usage := (others => 0);
-      Tool_Calls        : Tool_Call_State_Vectors.Vector;
-      Done              : Boolean := False;
-      Saw_Stream_Event  : Boolean := False;
-      Raw_Response_Body : Unbounded_String;
-      Thinking_Item_Id  : Unbounded_String;
-      Encrypted_Content : Unbounded_String;
+      Parser                  : LLM.SSE.Parser;
+      Text_Started            : Boolean := False;
+      Streamed_Text_Item_Ids  : Text_Item_Id_Vectors.Vector;
+      Unidentified_Text_Delta : Boolean := False;
+      Thinking_Started        : Boolean := False;
+      Stop                    : LLM.Types.Stop_Reason :=
+         LLM.Types.Unknown_Stop;
+      Saw_Function_Call       : Boolean := False;
+      Tok_Usage               : LLM.Types.Usage := (others => 0);
+      Tool_Calls              : Tool_Call_State_Vectors.Vector;
+      Done                    : Boolean := False;
+      Saw_Stream_Event        : Boolean := False;
+      Raw_Response_Body       : Unbounded_String;
+      Thinking_Item_Id        : Unbounded_String;
+      Encrypted_Content       : Unbounded_String;
    end record;
 
    function Create
@@ -713,6 +720,43 @@ package body LLM.Providers.OpenAI_Responses is
       return Integer'First;
    end Find_Tool_Index_By_Item;
 
+   procedure Mark_Streamed_Text_Item
+      (State   : in out Response_State;
+     Item_Id :        String)
+   is
+   begin
+      if Item_Id'Length = 0 then
+         State.Unidentified_Text_Delta := True;
+         return;
+      end if;
+
+      for Existing_Id of State.Streamed_Text_Item_Ids loop
+         if Existing_Id = Item_Id then
+            return;
+         end if;
+      end loop;
+
+      State.Streamed_Text_Item_Ids.Append (Item_Id);
+   end Mark_Streamed_Text_Item;
+
+   function Has_Streamed_Text_Item
+      (State   : Response_State;
+     Item_Id : String) return Boolean
+   is
+   begin
+      if Item_Id'Length = 0 then
+         return State.Unidentified_Text_Delta;
+      end if;
+
+      for Existing_Id of State.Streamed_Text_Item_Ids loop
+         if Existing_Id = Item_Id then
+            return True;
+         end if;
+      end loop;
+
+      return False;
+   end Has_Streamed_Text_Item;
+
    procedure Close_Thinking
       (State   : in out Response_State;
      Handler :        LLM.Providers.Event_Handler)
@@ -870,7 +914,8 @@ package body LLM.Providers.OpenAI_Responses is
          State.Tok_Usage := Parse_Usage (Root.Get ("usage"));
       end if;
 
-      Status := To_Unbounded_String (Get_String_Field (Response_Obj, "status"));
+      Status :=
+         To_Unbounded_String (Get_String_Field (Response_Obj, "status"));
       Incomplete := Get_Object_Field (Response_Obj, "incomplete_details");
       Reason :=
          To_Unbounded_String (Get_String_Field (Incomplete, "reason"));
@@ -937,6 +982,7 @@ package body LLM.Providers.OpenAI_Responses is
      Handler :        LLM.Providers.Event_Handler)
    is
       Item_Type : constant String := Get_String_Field (Item, "type");
+      Item_Id   : constant String := Get_String_Field (Item, "id");
    begin
       if Item_Type = "function_call" then
          Note_Function_Call (State, Item, Handler);
@@ -956,8 +1002,9 @@ package body LLM.Providers.OpenAI_Responses is
       elsif Item_Type = "message" then
          --  The text delta events already carry streamed message content;
          --  ignore the same content repeated by output_item.done and
-         --  response.completed.
-         if State.Text_Started then
+         --  response.completed.  Text_Started only tracks the frontend
+         --  block; item identity tracks whether the content was streamed.
+         if Has_Streamed_Text_Item (State, Item_Id) then
             return;
          end if;
 
@@ -1015,7 +1062,10 @@ package body LLM.Providers.OpenAI_Responses is
             (State, Get_Object_Field (Root, "item"), Handler);
       elsif Event_Typ = "response.output_text.delta" then
          declare
-            Text_Delta_Value : constant String := Get_String_Field (Root, "delta");
+            Item_Id          : constant String :=
+               Get_String_Field (Root, "item_id");
+            Text_Delta_Value : constant String :=
+               Get_String_Field (Root, "delta");
          begin
             Close_Thinking (State, Handler);
             if not State.Text_Started then
@@ -1023,6 +1073,7 @@ package body LLM.Providers.OpenAI_Responses is
                State.Text_Started := True;
             end if;
             if Text_Delta_Value'Length > 0 then
+               Mark_Streamed_Text_Item (State, Item_Id);
                Emit_Update
                   (Handler    => Handler,
                 Kind       => LLM.Events.Text_Delta,
@@ -1035,7 +1086,8 @@ package body LLM.Providers.OpenAI_Responses is
         or else Event_Typ = "response.reasoning_summary_text.delta"
       then
          declare
-            Text_Delta_Value : constant String := Get_String_Field (Root, "delta");
+            Text_Delta_Value : constant String :=
+               Get_String_Field (Root, "delta");
          begin
             if not State.Thinking_Started then
                Emit_Update (Handler, LLM.Events.Thinking_Start);
@@ -1103,17 +1155,12 @@ package body LLM.Providers.OpenAI_Responses is
                declare
                   Item : constant GNATCOLL.JSON.JSON_Value :=
                      GNATCOLL.JSON.Get (Output, I);
-                  Item_Type : constant String :=
-                     Get_String_Field (Item, "type");
                begin
-                  --  Text deltas have already delivered the streamed
-                  --  message.  The completed output is still needed for
+                  --  Text deltas have already delivered streamed message
+                  --  content.  Process_Output_Item suppresses only the
+                  --  matching completed message item, while still handling
                   --  reasoning ciphertext and function-call identity.
-                  if Item_Type /= "message"
-                    or else not State.Text_Started
-                  then
-                     Process_Output_Item (State, Item, Handler);
-                  end if;
+                  Process_Output_Item (State, Item, Handler);
                end;
             end loop;
          end;

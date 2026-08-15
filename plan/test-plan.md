@@ -349,8 +349,11 @@ HTTP errors, and stateless fields. Native `openai` dispatch and registry
 fallback/catalogue entries are covered by two additional tests. OpenRouter
 now delegates to Responses at `/api/v1/responses`; its four focused tests
 cover headers/key fallback, reasoning effort, stale-cache refresh, flat
-request fields, and omission of `store`/`previous_response_id`. Existing
-agent and parallel-tool mock fixtures now consume Responses events. Production
+request fields, and omission of `store`/`previous_response_id`. Text-stream
+fixtures also cover `response.output_text.done` followed by
+`response.output_item.done` and assert that completed output does not duplicate
+streamed text. Existing agent and parallel-tool mock fixtures now consume
+Responses events. Production
 and test development builds succeed. The complete 878-test AUnit suite passes
 with 878 successful tests, 0 failed assertions, and 0 unexpected errors.
 Chat Completions tests and compatibility providers remain in place. Live

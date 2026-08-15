@@ -165,11 +165,16 @@ package body LLM_OpenAI_Responses_Tests is
       Cache_Write   : Natural := 0) return String
    is
       use GNATCOLL.JSON;
-      Created   : constant JSON_Value := Create_Object;
-      Added     : constant JSON_Value := Create_Object;
-      Item      : constant JSON_Value := Create_Object;
-      Delta_Value : constant JSON_Value := Create_Object;
-      Completed : constant JSON_Value := Create_Object;
+      Created       : constant JSON_Value := Create_Object;
+      Added         : constant JSON_Value := Create_Object;
+      Item          : constant JSON_Value := Create_Object;
+      Delta_Value   : constant JSON_Value := Create_Object;
+      Text_Done       : constant JSON_Value := Create_Object;
+      Item_Done       : constant JSON_Value := Create_Object;
+      Item_Done_Event : constant JSON_Value := Create_Object;
+      Done_Part       : constant JSON_Value := Create_Object;
+      Done_Content    : JSON_Array := Empty_Array;
+      Completed       : constant JSON_Value := Create_Object;
    begin
       Created.Set_Field ("type", "response.created");
       Created.Set_Field ("sequence_number", Integer (0));
@@ -186,6 +191,23 @@ package body LLM_OpenAI_Responses_Tests is
       Delta_Value.Set_Field ("output_index", Integer (0));
       Delta_Value.Set_Field ("content_index", Integer (0));
       Delta_Value.Set_Field ("delta", Text);
+      Text_Done.Set_Field ("type", "response.output_text.done");
+      Text_Done.Set_Field ("item_id", "msg_test");
+      Text_Done.Set_Field ("output_index", Integer (0));
+      Text_Done.Set_Field ("content_index", Integer (0));
+      Text_Done.Set_Field ("text", Text);
+      Done_Part.Set_Field ("type", "output_text");
+      Done_Part.Set_Field ("text", Text);
+      Append (Done_Content, Done_Part);
+      Item_Done.Set_Field ("id", "msg_test");
+      Item_Done.Set_Field ("type", "message");
+      Item_Done.Set_Field ("role", "assistant");
+      Item_Done.Set_Field ("status", "completed");
+      Item_Done.Set_Field ("content", Done_Content);
+      Text_Done.Set_Field ("text", Text);
+      Item_Done_Event.Set_Field ("type", "response.output_item.done");
+      Item_Done_Event.Set_Field ("output_index", Integer (0));
+      Item_Done_Event.Set_Field ("item", Item_Done);
       Completed.Set_Field ("type", "response.completed");
       Completed.Set_Field
         ("response",
@@ -195,6 +217,8 @@ package body LLM_OpenAI_Responses_Tests is
         SSE_Event ("response.created", Created)
         & SSE_Event ("response.output_item.added", Added)
         & SSE_Event ("response.output_text.delta", Delta_Value)
+        & SSE_Event ("response.output_text.done", Text_Done)
+        & SSE_Event ("response.output_item.done", Item_Done_Event)
         & SSE_Event ("response.completed", Completed);
    end Build_Text_SSE;
 
@@ -386,6 +410,17 @@ package body LLM_OpenAI_Responses_Tests is
       return To_String (Result);
    end Sequence_Image;
 
+   function Count_Event (Value : String) return Natural is
+      Result : Natural := 0;
+   begin
+      for Item of Current_Collector.Sequence loop
+         if Item = Value then
+            Result := Result + 1;
+         end if;
+      end loop;
+      return Result;
+   end Count_Event;
+
    function Field_String
      (Value : GNATCOLL.JSON.JSON_Value;
       Field : String) return String
@@ -505,6 +540,10 @@ package body LLM_OpenAI_Responses_Tests is
       Assert
         (Current_Collector.Sequence.Find_Index ("text_delta:Hello") > 0,
          "Text delta should contain Hello: " & Sequence_Image);
+      Assert
+        (Count_Event ("text_delta:Hello") = 1,
+         "Completed output must not duplicate streamed text: "
+         & Sequence_Image);
       Assert
         (Current_Collector.Last_Stop = LLM.Types.Stop,
          "Stop reason should map to Stop");

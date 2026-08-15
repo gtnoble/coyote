@@ -29,6 +29,11 @@ Key implementation notes (do not rediscover these from the spec):
 - SSE: dispatch on `type`. No `[DONE]`. Finalize on `response.completed`
   / `failed` / `incomplete`. Usage lives on the completed event under
   `input_tokens` / `output_tokens` / `*_details`.
+- Streamed text is tracked by Responses output-item ID. The `.done` event
+  closes the frontend text block, but the completed message item is suppressed
+  only when that item already emitted a non-empty text delta; this prevents
+  duplicate assistant content without conflating parser history with block
+  state.
 - Tool identity: persist `call_id` as coyote `Tool_Call_Id`. Echo
   `function_call` items (with `call_id`, `name`, `arguments`) plus matching
   `function_call_output` items on later turns.

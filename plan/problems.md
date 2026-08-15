@@ -2023,3 +2023,31 @@ behavior, current test baseline, and remaining manual qualification scope.
   qualification used local HTTP mock servers.
 - **Status:** Resolved
 - **Date resolved:** 2026-08-15
+
+## PCR-060 — Responses streamed text duplicated after output-text completion (2026-08-15)
+
+- **Date reported:** 2026-08-15
+- **Category:** Code, Design, Test
+- **Priority:** 3-Moderate
+- **Description:** After the OpenRouter cutover to the Responses API, assistant
+  text could be emitted once from `response.output_text.delta` and again from
+  the completed message carried by `response.output_item.done` or
+  `response.completed`. The parser used `Text_Started` both for frontend block
+  state and duplicate suppression; `response.output_text.done` cleared it before
+  the completed message was processed.
+- **Affected work products:** `LLM.Providers.OpenAI_Responses`, OpenAI
+  Responses tests, OpenRouter tests, SDD-CORE §5.6a, provider SDF.
+- **Corrective action:** Track output item IDs for which non-empty text deltas
+  were emitted. Completed message items are suppressed only when their item ID
+  was streamed; `Text_Started` remains solely the frontend block state.
+  Responses and OpenRouter mock streams now include `response.output_text.done`
+  and `response.output_item.done`, and assert that assistant text is emitted
+  exactly once.
+- **Verification:** Development production and test builds succeed. The
+  strengthened OpenAI Responses text regression and the primary OpenRouter
+  header/text regression pass. The remaining provider sweep passes except the
+  pre-existing reasoning-effort test, which fails while parsing its catalogue
+  fixture before HTTP handling. A bounded full-suite run also reached unrelated
+  SQC parser failures and timed out at four minutes.
+- **Status:** Resolved
+- **Date resolved:** 2026-08-15

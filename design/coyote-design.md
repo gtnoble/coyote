@@ -767,6 +767,9 @@ OpenRouter.
 7. For each SSE event, dispatch on JSON `type` (the SSE `event:` name
    matches). Map to frontend events:
    - `response.output_text.delta` / `.done` → `Text_Start` / `Text_Delta` / `Text_End`
+     Completed message items are suppressed by output-item ID when the same
+     item already emitted streamed text; this is independent of frontend block
+     state.
    - `response.reasoning_text.delta` / `.done` and
      `response.reasoning_summary_text.delta` / `.done` → `Thinking_*`
    - `response.output_item.added` with `item.type=function_call` → `Tool_Call_Start`
