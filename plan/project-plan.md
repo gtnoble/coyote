@@ -1,6 +1,6 @@
 # Project Plan — coyote
 
-**Version:** 1.17
+**Version:** 1.18
 **Date:** 2026-08-15
 **Status:** Active
 
@@ -408,6 +408,8 @@ Subsequent builds will define their own milestone sets.
 |---|---|---|---|---|---|
 | R1 | Upstream library API changes (libcurl, GTK3, cmark-gfm) break the build | Low | Moderate | Pin Alire dependency versions; monitor library release notes | Open |
 | R2 | Provider wire-format changes (Anthropic, OpenAI, Copilot) break streaming | Medium | High | Opt-in provider integration tests (guarded by env vars); review R1–R10 review records after provider releases; isolate wire-format code in dedicated provider packages | Open |
+| R5 | OpenRouter Responses API rejects Completions-shaped payloads or `store`/`previous_response_id` after cutover | Medium | High | Keep Completions adapter intact as rollback; OpenRouter adapter must omit `store` and `previous_response_id`; mock-server tests assert `/responses` path and stateless fields; live test guarded | Open |
+| R6 | Reasoning items not replayed on later Responses turns degrade o-series / GPT-5 quality | Medium | Moderate | Persist reasoning `id` + `encrypted_content` on Thinking_Block; unit-test history encoding; request `include: reasoning.encrypted_content` | Open |
 | R3 | SDD-CORE drifts from actual implementation, misleading future development | Medium | Moderate | Treat SDD-CORE as the primary controlled design artifact; include SDD-CORE review in the Definition of Done for each build; update AGENTS.md to match SDD-CORE when it diverges; PCR raised when drift is detected | Open |
 | R4 | Process artifact maintenance overhead crowds out feature work | Low | Low | Keep all process artifacts in Markdown co-located with the code; lightweight tooling (no external tracking systems); tailor to minimum viable coverage | Open |
 
@@ -682,11 +684,11 @@ manual demonstrations remains invited.
 
 | Artifact | ID | Location | Current Version | Control Level |
 |---|---|---|---|---|
-| Project Plan | PLAN | `plan/project-plan.md` | 1.17 (2026-08-15) | Project |
+| Project Plan | PLAN | `plan/project-plan.md` | 1.18 (2026-08-15) | Project |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
-| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.11 (2026-08-15) | Client |
-| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.11 (2026-08-15) | Project |
+| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.12 (2026-08-15) | Client |
+| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.12 (2026-08-15) | Project |
 | coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.2 (2026-06-21) | Project |
 | coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.2 (2026-06-21) | Project |
-| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.11 (2026-08-15) | Project |
+| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.12 (2026-08-15) | Project |
 | Agent Working Instructions (secondary) | AGENTS | `AGENTS.md` | active | Project |

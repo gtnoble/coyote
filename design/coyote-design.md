@@ -1,7 +1,7 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.11
+**Version:** 1.12
 **Date:** 2026-08-15
 
 **Status:** Reviewed — project control (M3 complete 2026-06-02)
@@ -252,6 +252,7 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `LLM.HTTP` | libcurl-backed streaming HTTP client | `src/llm/llm-http.ads/.adb` |
 | `LLM.HTTP.Curl_Binding` | Thin libcurl binding | `src/llm/llm-http-curl_binding.ads/.adb` |
 | `LLM.Providers.OpenAI_Completions` | OpenAI Chat Completions wire | `src/llm/llm-providers-openai_completions.ads/.adb` |
+| `LLM.Providers.OpenAI_Responses` | OpenAI Responses wire | `src/llm/llm-providers-openai_responses.ads/.adb` |
 | `LLM.Providers.Anthropic_Messages` | Anthropic Messages wire | `src/llm/llm-providers-anthropic_messages.ads/.adb` |
 | `LLM.Providers.OpenRouter` | OpenRouter adapter | `src/llm/llm-providers-openrouter.ads/.adb` |
 | `LLM.Providers.GitHub_Copilot` | Copilot routing provider | `src/llm/llm-providers-github_copilot.ads/.adb` |
@@ -313,8 +314,9 @@ three layers:
         ▼
 [Provider layer]
   LLM.Providers.OpenAI_Completions ──► LLM.HTTP, LLM.SSE, LLM.Types
+  LLM.Providers.OpenAI_Responses   ──► LLM.HTTP, LLM.SSE, LLM.Types
   LLM.Providers.Anthropic_Messages ──► LLM.HTTP, LLM.SSE, LLM.Types
-  LLM.Providers.OpenRouter         ──► LLM.Providers.OpenAI_Completions
+  LLM.Providers.OpenRouter         ──► LLM.Providers.OpenAI_Responses
   LLM.Providers.GitHub_Copilot     ──► LLM.Providers.OpenAI_Completions,
                                         LLM.Providers.Anthropic_Messages,
                                         LLM.Auth.GitHub_Copilot
@@ -436,11 +438,16 @@ Agent_Task. The GUI path uses the Updates queue to cross to the GTK thread.*
 
 **Decision D-003: Routing providers delegate to wire-format providers.**
 GitHub Copilot and OpenCode Go each support multiple wire formats (OpenAI
-and Anthropic). These are implemented as *routing providers* that inspect the
-model ID, construct the appropriate delegate (`OpenAI_Completions.Provider`
-or `Anthropic_Messages.Provider`), and forward the request. *Rationale:
-Avoids duplicating SSE parsing and JSON construction; adds a new wire format
-by adding one package, not by modifying all routing providers.*
+Chat Completions and Anthropic). These are implemented as *routing
+providers* that inspect the model ID, construct the appropriate delegate
+(`OpenAI_Completions.Provider` or `Anthropic_Messages.Provider`), and
+forward the request. OpenRouter delegates to `OpenAI_Responses.Provider`.
+Native OpenAI uses `OpenAI_Responses.Provider` directly. Completions
+remains the compatibility wire for Copilot, OpenCode Go, and Ollama.
+*Rationale: Avoids duplicating SSE parsing and JSON construction; adds a
+new wire format by adding one package, not by modifying all routing
+providers. Completions is not replaced in place because existing backends
+still speak `/chat/completions`.*
 
 **Decision D-004: Session JSONL appended per message, not written at turn end.**
 Each message (user, assistant, tool result) is appended to the JSONL file
@@ -712,7 +719,8 @@ extended by `OpenRouter`.
 
 
 **`Wire_Format` field:** `"openai-completions"` — used by `LLM.Agent` to
-determine the `tools` JSON schema shape.
+determine the nested Completions `tools` JSON schema shape. Distinct from
+`"openai-responses"` (see §5.6a).
 
 **Cache breakpoints:** `Build_Request_Body` places `cache_control` markers
 on (1) the system message, (2) the last message with `role:"user"` or
@@ -729,6 +737,77 @@ When `Thinking` is `Off` this is a no-op.  This base implementation applies
 to all providers routing through the OpenAI completions wire format —
 OpenRouter, GitHub Copilot (OpenAI-wire path), and OpenCode Go (OpenAI-wire
 path).  Descendants may override to add provider-specific logic.
+---
+
+### 5.6a `LLM.Providers.OpenAI_Responses`
+
+**Purpose:** OpenAI Responses wire format implementation. Sibling of
+`OpenAI_Completions`, not a replacement. Used by native OpenAI and by
+OpenRouter.
+
+**`Send` procedure flow:**
+1. Build `input` JSON array from `History`. Role mapping:
+   - user / compaction-summary → `{type:"message", role:"user", content:[{type:"input_text", text}]}`
+   - assistant text → `{type:"message", role:"assistant", content:[{type:"output_text", text}]}`
+   - assistant tool calls → `{type:"function_call", id?, call_id, name, arguments}`
+   - assistant thinking → `{type:"reasoning", id, summary, encrypted_content?}`
+   - tool results → `{type:"function_call_output", call_id, output}`
+     (`output` is a string, or an array of `input_text` / `input_image` parts
+     when the result carries an image).
+2. Set `instructions` from `System_Prompt` (not a system-role message).
+3. Build `tools` as a flat array of `{type:"function", name, description,
+   parameters}` objects. `LLM.Agent.Build_Tools_Json` emits this shape when
+   `Wire_Format` is `"openai-responses"`.
+4. Set `max_output_tokens`, `stream: true`, and `reasoning.effort` from
+   `Thinking_Level` (`Off` → omit or `none`; `Minimal` → `minimal`; `Low` →
+   `low`; `Medium` → `medium`; `High` → `high`; `X_High` → `xhigh`).
+5. Do not send `store: true` or `previous_response_id`. Conversation state
+   remains client-owned JSONL. OpenRouter rejects both fields with HTTP 400.
+6. POST `{Base_Url}/responses` via `LLM.HTTP.Post`.
+7. For each SSE event, dispatch on JSON `type` (the SSE `event:` name
+   matches). Map to frontend events:
+   - `response.output_text.delta` / `.done` → `Text_Start` / `Text_Delta` / `Text_End`
+   - `response.reasoning_text.delta` / `.done` and
+     `response.reasoning_summary_text.delta` / `.done` → `Thinking_*`
+   - `response.output_item.added` with `item.type=function_call` → `Tool_Call_Start`
+   - `response.function_call_arguments.delta` / `.done` → `Tool_Call_Delta` / `Tool_Call_End`
+   - `response.completed` → `Message_End` + usage
+   - `response.incomplete` → `Message_End` (`Length` or `Error_Stop` from
+     `incomplete_details.reason`)
+   - `response.failed` / `error` → `Error_Stop`
+   There is no `[DONE]` sentinel. Unused event types (web search, MCP, code
+   interpreter, image gen, shell, apply_patch) are ignored.
+8. Infer `Stop_Reason`: any `function_call` in `output` → `Tool_Use`;
+   `incomplete` + `max_output_tokens` → `Length`; `failed` /
+   `content_filter` → `Error_Stop`; otherwise `Stop`.
+9. Parse usage from `response.completed.response.usage`: `input_tokens`,
+   `output_tokens`, `input_tokens_details.cached_tokens` → `Cache_Read`,
+   `input_tokens_details.cache_write_tokens` → `Cache_Write`,
+   `output_tokens_details.reasoning_tokens` → `Thinking`.
+
+**Prompt cache breakpoints:** On content parts that support it, emit
+`prompt_cache_breakpoint: {mode:"explicit"}` on the last user or
+tool-result input item, and on the last tool definition if the provider
+documents that extension. Completions-style `cache_control` markers shall
+not be sent on this wire.
+
+**Image tool results:** Native `input_image` inside `function_call_output`.
+No Completions stub-plus-follow-up-user-message split.
+
+**`Wire_Format` field:** `"openai-responses"`.
+
+**Reasoning replay:** Persist `ReasoningItem.id` and `encrypted_content`
+on the assistant `Thinking_Block` (`Signature` holds encrypted content;
+item id is stored alongside or packed into the same field per the
+implementation note in `sdfs/providers.md`). Subsequent turns must echo
+the reasoning item in `input`. Request `include:
+["reasoning.encrypted_content"]` when the provider requires it to return
+the ciphertext.
+
+**`Customize_Request`:** Same extension point as Completions so
+descendants (OpenRouter) can add provider-specific fields without
+forking the parser.
+
 ---
 
 ### 5.7 `LLM.Providers.Anthropic_Messages`
@@ -1312,16 +1391,21 @@ defined in the abstract package.
 
 ### 5.25 `LLM.Providers.OpenRouter`
 
-**Purpose:** OpenRouter adapter. Extends `OpenAI_Completions.Provider` with
-OpenRouter-specific base URL and request customisation.
+**Purpose:** OpenRouter adapter. Delegates to `OpenAI_Responses.Provider`
+(not Completions). OpenRouter's Responses endpoint is a drop-in for
+OpenAI Responses and is **stateless**: `store: true` and
+`previous_response_id` are rejected with HTTP 400.
 
-**`Create` function:** Sets base URL to `https://openrouter.ai/api/v1` and
-sets the `HTTP-Referer` and `X-Title` headers required by OpenRouter.
+**`Create` function:** Sets base URL to `https://openrouter.ai/api/v1`
+(overridable via `COYOTE_OPENROUTER_BASE_URL`) and sets the
+`HTTP-Referer` and `X-Title` headers required by OpenRouter.
+
+**`Send`:** Resolves the API key (`OPENROUTER_API_KEY` / models.json),
+refreshes the catalogue, then forwards to
+`OpenAI_Responses.Send_Request`.
 
 **`Customize_Request` (inherited):** Reasoning-effort configuration is
-inherited from the base `OpenAI_Completions` provider (§5.6).  OpenRouter
-no longer overrides `Customize_Request`; the base implementation maps
-`Thinking_Level` to `reasoning.effort` for all OpenAI-compatible providers.
+inherited from the Responses provider (§5.6a).
 
 **Catalogue package `OpenRouter.Catalogue`:** Fetches
 `https://openrouter.ai/api/v1/models`, caches to
@@ -1929,7 +2013,7 @@ neither task may share mutable frontend state with the other.
 | REQ-CORE-170–172 | `LLM.System_Prompt`, `LLM.Agent` |
 | REQ-CORE-180–183 | `LLM.Memory`, `LLM.System_Prompt` |
 | REQ-CORE-190–192 | `LLM.System_Prompt`, `LLM.Agent`, `LLM.Tools.Shell` |
-| REQ-CORE-200–203 | `LLM.Providers.*`, `LLM.HTTP`, `LLM.SSE` |
+| REQ-CORE-200–208, REQ-CORE-215–217 | `LLM.Providers.*`, `LLM.HTTP`, `LLM.SSE`, `LLM.Agent` |
 | REQ-CORE-210–212 | `Nine_P.Client`, `Acme.Window`, `Coyote_App.Frontend.Acme_Win` |
 | REQ-CORE-220–221 | `Coyote_App.Frontend.GUI`, `Coyote_GUI.*` |
 | REQ-CORE-230–234 | `LLM.Settings`, `LLM.Auth`, `LLM.Auth.GitHub_Copilot` |

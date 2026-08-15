@@ -13,6 +13,38 @@
 
 ## Design Rationale
 
+### OpenAI Responses sibling adapter (2026-08-15, PCR-059)
+
+Approach A: add `LLM.Providers.OpenAI_Responses` as a sibling of
+`OpenAI_Completions`. Completions stays the compatibility wire for Copilot,
+OpenCode Go, and Ollama. Native `"openai"` and OpenRouter move to Responses.
+
+Key implementation notes (do not rediscover these from the spec):
+
+- Endpoint `POST {base}/responses`. Auth unchanged (Bearer).
+- Request: `input[]` + `instructions` + flat tools + `max_output_tokens`.
+  Never `messages`, never nested `{type:function, function:{…}}`.
+- Never send `store: true` or `previous_response_id`. OpenRouter is
+  stateless and returns 400 if either is set. Coyote owns history in JSONL.
+- SSE: dispatch on `type`. No `[DONE]`. Finalize on `response.completed`
+  / `failed` / `incomplete`. Usage lives on the completed event under
+  `input_tokens` / `output_tokens` / `*_details`.
+- Tool identity: persist `call_id` as coyote `Tool_Call_Id`. Echo
+  `function_call` items (with `call_id`, `name`, `arguments`) plus matching
+  `function_call_output` items on later turns.
+- Reasoning replay: persist item `id` + `encrypted_content` on
+  `Thinking_Block`. `Signature` holds encrypted content. Request
+  `include: ["reasoning.encrypted_content"]` so later turns can send the
+  item back. Effort map: Off omit/`none`, Minimal `minimal`, Low `low`,
+  Medium `medium`, High `high`, X_High `xhigh`.
+- Image tool results: `input_image` inside `function_call_output.output`.
+  Do not use the Completions stub + follow-up user message.
+- Cache: `prompt_cache_breakpoint: {mode:"explicit"}` on content parts,
+  not Completions `cache_control`.
+- OpenRouter cutover is a separate build after the sibling adapter is
+  green. Until then OpenRouter remains a Completions subclass.
+
+
 ### Dedicated subagent model preference (2026-08-08)
 
 `LLM.Settings` persists the optional `defaultSubagentProvider` and
@@ -44,9 +76,10 @@ in the Anthropic SSE parser automatically benefits Copilot Claude models.
 ### Wire-format selection via `Model_Info.Wire_Format`
 
 `LLM.Model_Registry.Model_Info` carries a `Wire_Format` string
-(`"openai-completions"` or `"anthropic-messages"`). This field is used by
-`LLM.Agent` in `Build_Tools_Json` to select the appropriate tool schema
-format (OpenAI function schema vs. Anthropic tool schema). Routing providers
+(`"openai-completions"`, `"openai-responses"`, or `"anthropic-messages"`).
+This field is used by `LLM.Agent` in `Build_Tools_Json` to select the
+appropriate tool schema format (nested Completions function schema, flat
+Responses function schema, or Anthropic tool schema). Routing providers
 (Copilot, OpenCode Go) set this field dynamically at dispatch time rather
 than storing it in the catalogue, because the same model ID may map to
 different wire formats depending on the provider's current routing logic.

@@ -1,7 +1,7 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.11
+**Version:** 1.12
 **Date:** 2026-08-15
 **Status:** Draft
 **Project Plan:** `plan/project-plan.md`
@@ -351,7 +351,7 @@ When neither `--model` nor `settings.json` specifies a model, the agent shall
 select the first available model from the live model registry.
 
 **REQ-CORE-072** (D)
-The agent shall support the following LLM providers: OpenAI Chat Completions,
+The agent shall support the following LLM providers: OpenAI (Responses API),
 Anthropic Messages, GitHub Copilot, OpenRouter, OpenCode Go, and Ollama Cloud.
 
 **REQ-CORE-073** (D)
@@ -849,9 +849,12 @@ The coyote HTTP client shall communicate with LLM provider APIs using
 server-sent event (SSE) streaming over HTTPS, implemented via libcurl.
 
 **REQ-CORE-201** (I)
-The OpenAI Chat Completions wire format shall be used for: OpenAI,
-OpenRouter, GitHub Copilot (for OpenAI-compatible models), and
-OpenCode Go (for OpenAI-compatible models).
+The OpenAI Chat Completions wire format (`POST /chat/completions`,
+`Wire_Format` value `"openai-completions"`) shall be used for:
+GitHub Copilot (for OpenAI-compatible models), OpenCode Go (for
+OpenAI-compatible models), and Ollama. Completions remains a
+supported compatibility wire; it shall not be removed while any
+configured provider still requires it.
 
 **REQ-CORE-202** (I)
 The Anthropic Messages wire format shall be used for: direct Anthropic
@@ -860,16 +863,72 @@ API access, GitHub Copilot (for Claude models), and OpenCode Go
 
 **REQ-CORE-203** (D)
 When an image tool result is being sent to a provider using the OpenAI
-wire format, the image content shall be split: a plain-text stub in the
-tool message and a follow-up user message carrying the `image_url`, because
-OpenAI does not support vision content inside `role=tool` messages.
+Chat Completions wire format, the image content shall be split: a
+plain-text stub in the tool message and a follow-up user message carrying
+the `image_url`, because Chat Completions does not support vision content
+inside `role=tool` messages. This requirement does not apply to the
+OpenAI Responses wire format (see REQ-CORE-208).
 
 **REQ-CORE-204** (I)
 Ollama Cloud and locally-configured Ollama models shall use the OpenAI
 compatible chat-completions wire format (`"openai-completions"`). This
-format is identical to the one used by OpenRouter and other OpenAI-compat
+format is identical to the one used by other OpenAI-compat Completions
 providers: the chat endpoint is `POST /v1/chat/completions` and the
 response stream is standard server-sent events (SSE).
+
+**REQ-CORE-205** (I)
+The OpenAI Responses wire format shall be implemented as a sibling
+provider package distinct from Chat Completions. Requests shall be sent
+to `POST {base}/responses` using bearer authentication. The Chat
+Completions adapter shall remain in service for providers that still
+speak `/chat/completions`.
+
+**REQ-CORE-206** (I)
+The OpenAI Responses request shall encode conversation history as the
+`input` array (not Completions `messages`), place the system prompt in
+`instructions`, encode tools as flat `{type, name, description,
+parameters}` objects, and limit output with `max_output_tokens`.
+`Wire_Format` value `"openai-responses"` shall select this tool schema
+in `Build_Tools_Json`.
+
+**REQ-CORE-207** (I)
+The OpenAI Responses streaming parser shall dispatch on SSE event `type`
+values (`response.output_text.delta`, `response.reasoning_text.delta`,
+`response.function_call_arguments.delta`, `response.completed`,
+`response.failed`, `response.incomplete`, `error`, and the matching
+`.done` / `output_item.added` events). There is no `[DONE]` sentinel.
+Usage shall be taken from `response.completed` (`input_tokens`,
+`output_tokens`, `input_tokens_details.cached_tokens`,
+`input_tokens_details.cache_write_tokens`,
+`output_tokens_details.reasoning_tokens`).
+
+**REQ-CORE-208** (D)
+When an image tool result is being sent on the OpenAI Responses wire,
+the image shall be placed inside `function_call_output.output` as an
+`input_image` part. The Completions stub-plus-follow-up-user-message
+split shall not be used on this wire.
+
+**REQ-CORE-215** (D)
+The agent shall dispatch provider name `"openai"` to the OpenAI
+Responses adapter. API-key resolution shall follow REQ-CORE-073 with
+the standard environment variable `OPENAI_API_KEY`. The default base
+URL shall be `https://api.openai.com/v1`.
+
+**REQ-CORE-216** (I)
+OpenRouter shall use the OpenAI Responses wire format at
+`https://openrouter.ai/api/v1/responses` (overridable via
+`COYOTE_OPENROUTER_BASE_URL`). OpenRouter requests shall remain
+stateless: `store` shall not be true and `previous_response_id` shall
+not be sent. Existing OpenRouter headers (`HTTP-Referer`, `X-Title`)
+and API-key resolution shall be preserved.
+
+**REQ-CORE-217** (D)
+Reasoning output items produced on the Responses wire (`type:
+reasoning`, including `id` and any `encrypted_content`) shall be
+persisted on the corresponding assistant message and replayed on
+subsequent turns as input items. Thinking effort shall be sent as
+`reasoning.effort` using the Responses enum (`none`, `minimal`, `low`,
+`medium`, `high`, `xhigh`); coyote `X_High` maps to `xhigh`.
 
 ---
 
@@ -1207,7 +1266,7 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-190 | Coordinator prompt for subagent orchestration | D | TC-190 |
 | REQ-CORE-191 | Structured subagent result reporting | D | TC-191 |
 | REQ-CORE-192 | Synthesis-before-delegation instruction | I | TC-192 |
-| REQ-CORE-200..204 | Provider API interfaces | I | TC-200..204 |
+| REQ-CORE-200..208, REQ-CORE-215..217 | Provider API interfaces | I | TC-200..208, TC-215..217 |
 | REQ-CORE-210..212 | acme 9P VFS interface | I | TC-210..212 |
 | REQ-CORE-220..221 | GTK3 interface | I | TC-220..221 |
 | REQ-CORE-230..234 | Configuration file interface, including sandbox default | T | TC-230..234 |
@@ -1235,7 +1294,7 @@ objectives stated in the Project Plan (PLAN §1 and §3):
 | Tool execution | REQ-CORE-050–056 |
 | Session persistence and resume | REQ-CORE-080–089, REQ-CORE-701 |
 | Context compaction | REQ-CORE-060–064 |
-| Multi-provider LLM support | REQ-CORE-070–078, REQ-CORE-150–156, REQ-CORE-200–204 |
+| Multi-provider LLM support | REQ-CORE-070–078, REQ-CORE-150–156, REQ-CORE-200–208, REQ-CORE-215–217 |
 | Man pages for coyote and coyote_sqc | REQ-CORE-160 |
 | Skill discovery and system prompt construction | REQ-CORE-090–094 |
 | Subagent spawning with session lineage | REQ-CORE-019–020, REQ-CORE-030–032 |

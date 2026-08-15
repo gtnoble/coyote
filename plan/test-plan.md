@@ -1,6 +1,6 @@
 # Test Plan â coyote (STP)
 
-**Version:** 1.11
+**Version:** 1.12
 **Date:** 2026-08-15
 
 **Status:** Reviewed and acknowledged â M4 complete (2026-06-03)
@@ -339,6 +339,17 @@ These are entered as open items in the problem log (PCR-009).
 ---
 
 ## 7. Notes
+
+**Planned (PCR-059 OpenAI Responses):** New AUnit module
+`llm_openai_responses_tests` covering `/responses` path, `input`/`instructions`
+encoding, flat function tools, typed SSE events (text, reasoning, function
+call), usage field names including `cache_write_tokens`, image tool results
+as `input_image` inside `function_call_output`, reasoning-item replay, and
+HTTP error propagation. OpenRouter tests switch expected path from
+`/api/v1/chat/completions` to `/api/v1/responses` and assert absence of
+`store` / `previous_response_id`. Completions tests remain unchanged.
+Baseline count will be updated when the suite is implemented.
+
 
 **Verification as of 2026-08-15 (GTK tool-detail argument sizing):**
 Production and test development builds succeed after replacing fixed argument

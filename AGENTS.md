@@ -357,10 +357,11 @@ To add a new provider (e.g. `my-provider`), touch these files in order:
    `Find_Provider_Config` or add a dedicated resolution function.)
 
 2. **`src/llm/llm-providers-my_provider.ads/.adb`** — Provider package. Either:
-   - A thin routing provider that delegates to `OpenAI_Completions` and/or
-     `Anthropic_Messages` (like `GitHub_Copilot` or `OpenCode_Go` does), **or**
-   - A direct subclass of `OpenAI_Completions.Provider` with `Create` and
-     `Customize_Request` overrides (like `OpenRouter`), **or**
+   - A thin routing provider that delegates to `OpenAI_Completions`,
+     `OpenAI_Responses`, and/or `Anthropic_Messages` (like `GitHub_Copilot`
+     or `OpenCode_Go` does), **or**
+   - A direct subclass or composing adapter of `OpenAI_Responses.Provider`
+     (like `OpenRouter`) or `OpenAI_Completions.Provider`, **or**
    - A standalone `Provider` descendant with its own wire format.
 
 3. **`src/llm/llm-providers-my_provider-catalogue.ads/.adb`** (optional) — If
@@ -393,14 +394,18 @@ GitHub Copilot and OpenCode Go) use a routing pattern: the provider's `Send`
 checks the model ID against a known set, constructs the appropriate delegate
 (`OpenAI_Completions.Provider` or `Anthropic_Messages.Provider`), and forwards
 the request. See `LLM.Providers.GitHub_Copilot.Send` for the reference
-implementation.
+implementation. OpenRouter is not a dual-wire router: it delegates only to
+`OpenAI_Responses.Provider` at `/api/v1/responses`.
 
 ### Model_Info fields
 
 `LLM.Model_Registry.Model_Info` records carry a `Wire_Format` field
-(`"openai-completions"` or `"anthropic-messages"`) that determines tool JSON
-shape in `Build_Tools_Json` (llm-agent.adb ≈line 497). Catalogue packages
-must set this field; routing providers set it dynamically.
+(`"openai-completions"`, `"openai-responses"`, or `"anthropic-messages"`)
+that determines tool JSON shape in `Build_Tools_Json` (llm-agent.adb
+≈line 617). Completions uses nested `{type, function:{…}}`; Responses uses
+flat `{type, name, description, parameters}`; Anthropic uses
+`{name, description, input_schema}`. Catalogue packages must set this
+field; routing providers set it dynamically.
 
 ### API key resolution
 

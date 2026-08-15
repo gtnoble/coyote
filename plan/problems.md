@@ -1979,3 +1979,34 @@ behavior, current test baseline, and remaining manual qualification scope.
   GTK display.
 - **Status:** Resolved
 - **Date resolved:** 2026-08-15
+
+## PCR-059 — OpenAI Responses API sibling adapter and OpenRouter cutover (2026-08-15)
+
+- **Date reported:** 2026-08-15
+- **Category:** Requirements, Design, Code, Test, Plans
+- **Priority:** 4-Minor (enhancement)
+- **Description:** OpenAI now steers new integrations to the Responses API
+  (`POST /v1/responses`). Coyote's only OpenAI-family adapter is
+  `LLM.Providers.OpenAI_Completions` (`POST /chat/completions`), shared by
+  OpenRouter, GitHub Copilot, OpenCode Go, and Ollama. Native OpenAI has
+  no agent dispatch branch. Chat Completions remains supported and must
+  not be replaced in place. The user selected approach A: add a sibling
+  Responses adapter, keep Completions unchanged, then migrate OpenRouter
+  to `https://openrouter.ai/api/v1/responses`.
+- **Affected work products:** SRS-CORE (REQ-CORE-072, REQ-CORE-201,
+  REQ-CORE-203, new REQ-CORE-205–208 and REQ-CORE-215–217), SDD-CORE (§4.1, new §5.6a, §5.25,
+  D-003, traceability), `LLM.Providers.OpenAI_Responses` (new),
+  `LLM.Providers.OpenRouter`, `LLM.Agent` (`Build_Tools_Json` + dispatch),
+  `LLM.Model_Registry`, `LLM.Types` (thinking replay fields if required),
+  AGENTS.md, `sdfs/providers.md`, Test Plan, new AUnit module
+  `llm_openai_responses_tests`, Project Plan risk register.
+- **Corrective action required:** Two evolutionary builds.
+  Build N+1 — sibling Responses adapter + native `openai` dispatch;
+  Completions and all current callers unchanged.
+  Build N+2 — OpenRouter switches from subclassing Completions to
+  composing/delegating to Responses; OpenRouter remains stateless
+  (`store` / `previous_response_id` must not be sent).
+- **Actions taken to date:** Spec reconnaissance against OpenAPI 2.3.0
+  and OpenRouter Responses docs; approach A agreed.
+- **Status:** Open
+- **Date resolved:**
