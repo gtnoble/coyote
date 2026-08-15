@@ -336,6 +336,12 @@ These are entered as open items in the problem log (PCR-009).
 
 ## 7. Notes
 
+**Verification as of 2026-08-15 (variable-height conversation blocks):**
+859 registered tests.  Adds three Coyote_GUI.Conversation regressions
+for document-height summation, heading vs body pixel height, and
+natural-height display math.  Display-backed execution requires a GTK
+display.
+
 **Verification as of 2026-08-15 (Ctrl+mouse-wheel zoom, REQ-CORE-125):**
 856 registered tests, 0 failures, 0 unexpected errors (full suite completed).
 Adds the pure-logic `Coyote_GUI.Zoom` package (12 new tests covering

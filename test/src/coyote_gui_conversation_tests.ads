@@ -83,4 +83,10 @@ package Coyote_GUI_Conversation_Tests is
    procedure Test_Markdown_Display_Math_Preserves_Source   (T : in out Test);
    procedure Test_Markdown_Display_Math_Has_Visual_Lines   (T : in out Test);
 
+   --  Variable-height block layout
+
+   procedure Test_Document_Height_Is_Sum_Of_Block_Heights (T : in out Test);
+   procedure Test_Heading_Taller_Than_Body                (T : in out Test);
+   procedure Test_Math_Uses_Natural_Pixel_Height          (T : in out Test);
+
 end Coyote_GUI_Conversation_Tests;

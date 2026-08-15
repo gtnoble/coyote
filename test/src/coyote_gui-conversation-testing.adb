@@ -33,11 +33,20 @@ package body Coyote_GUI.Conversation.Testing is
       return C.Total_Vis_Lines;
    end Total_Vis_Lines;
 
+   function Total_Height_Px (C : Instance) return Natural is
+   begin
+      return C.Total_Height_Px;
+   end Total_Height_Px;
+
+   function Pixel_Height_At (C : Instance; Index : Positive) return Natural is
+   begin
+      return C.Lines (Index).Pixel_Height;
+   end Pixel_Height_At;
+
    function Line_Height_Px (C : Instance) return Glib.Gint is
    begin
       return C.Line_Height_Px;
    end Line_Height_Px;
-
    function Is_In_Text_Block (C : Instance) return Boolean is
    begin
       return C.In_Text_Block;

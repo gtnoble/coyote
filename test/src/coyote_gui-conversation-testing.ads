@@ -20,8 +20,14 @@ package Coyote_GUI.Conversation.Testing is
    function Total_Vis_Lines (C : Instance) return Natural;
    --  Sum of Vis_Count across all logical lines.
 
+   function Total_Height_Px (C : Instance) return Natural;
+   --  Sum of Pixel_Height across all logical lines.
+
+   function Pixel_Height_At (C : Instance; Index : Positive) return Natural;
+   --  Cached pixel height of logical line Index.
+
    function Line_Height_Px (C : Instance) return Glib.Gint;
-   --  Pixel height of one visual line.
+   --  Body-text metric used as the empty-block fallback.
 
    function Is_In_Text_Block (C : Instance) return Boolean;
    --  True while streaming assistant text (between first Append_Text

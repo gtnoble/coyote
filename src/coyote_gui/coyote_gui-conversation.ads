@@ -1,12 +1,14 @@
 --  Coyote_GUI.Conversation — Gtk.Layout-based conversation renderer.
 --
 --  Replaces Coyote_GUI.Buffer with a virtualized text renderer that only
---  lays out and draws visible lines, giving acme-like resize performance
+--  lays out and draws visible blocks, giving acme-like resize performance
 --  regardless of document size.
 --
---  Data model: a flat vector of Logical_Line records.  Each line carries
---  a style tag and optional metadata (tool info, action data).  On draw,
---  only the visible slice is wrapped and rendered via Cairo + Pango.
+--  Data model: a flat vector of Logical_Line records.  Each line is a
+--  variable-height block (paragraph, heading, math, tool-card row, etc.)
+--  carrying a style tag, a cached Pixel_Height, and optional metadata.
+--  Document height is the sum of block pixel heights.  On draw, only the
+--  visible slice is wrapped and rendered via Cairo + Pango.
 --
 --  Selection is supported: click-drag to select, Ctrl+C to copy,
 --  Ctrl+A to select all, Escape to clear.
@@ -182,7 +184,8 @@ package Coyote_GUI.Conversation is
       Desc      :        Pango.Font.Pango_Font_Description;
       Math_Scale :       Long_Float := 1.0);
 
-   --  Recompute line height and queue a redraw.  Call after font changes.
+   --  Recompute the body-text line height, invalidate cached block
+   --  heights, and queue a redraw.  Call after font changes.
    procedure Invalidate_Layout (C : in out Instance);
 
    --  ── Session lifecycle ─────────────────────────────────────────────────
@@ -194,12 +197,12 @@ package Coyote_GUI.Conversation is
 private
 
    type Logical_Line (Style : Line_Style := Plain) is record
-      Text       : Unbounded_String;
-      Has_Markup : Boolean := False;  --  Text contains Pango markup
-      Vis_Count  : Natural := 0;       --  cached visual line count
-      Pixel_Height  : Natural := 0;     --  measured height for display math
-      Math_Width    : Natural := 0;     --  measured width for display math
-      Math_Baseline : Natural := 0;     --  baseline for display math
+      Text          : Unbounded_String;
+      Has_Markup    : Boolean := False;  --  Text contains Pango markup
+      Vis_Count     : Natural := 0;      --  cached wrap rows (tests / debug)
+      Pixel_Height  : Natural := 0;      --  cached block height in pixels
+      Math_Width    : Natural := 0;      --  measured width for display math
+      Math_Baseline : Natural := 0;      --  baseline for display math
       Tool_Id      : Unbounded_String;
       Tool_Status  : Tool_End_Status := Success;
       Tool_Running : Boolean := False;
@@ -249,19 +252,23 @@ private
       Thinking_UTF8     : Coyote_App.Utils.UTF8_Stream.Instance;
       Thinking_Tok      : Coyote_App.Utils.Thinking_Tokenizer.Instance;
       Tool_Starts        : Tool_Start_Maps.Map;
-      --  Layout
+      --  Layout.  Line_Height_Px is the body-text metric used as a
+      --  fallback for empty blocks and as a zoom-sensitive baseline.
+      --  Document height is Total_Height_Px, the sum of Pixel_Height.
       Line_Height_Px   : Glib.Gint := 18;
       Math_Scale       : Long_Float := 1.0;
       --  Reusable layout objects for measuring and drawing lines.
       --  Created in Attach, unreffed in Clear.
       Measure_Layout   : Pango.Layout.Pango_Layout;
       Draw_Layout      : Pango.Layout.Pango_Layout;
-      --  Cache: width and line count at which Vis_Count values are valid.
-      --  A zero Vis_Count marks a line whose text must be measured again.
+      --  Cache: width and line count at which Pixel_Height values
+      --  are valid.  A zero Pixel_Height marks a line that must be
+      --  measured again.
       Cache_Width_Px    : Glib.Gint := 0;
       Cached_Line_Count : Natural := 0;
       Cache_Dirty       : Boolean := True;
       Total_Vis_Lines   : Natural := 0;
+      Total_Height_Px   : Natural := 0;
       Render_Markdown  : Boolean := True;
       Debug_Logging    : Boolean := False;
       --  Selection

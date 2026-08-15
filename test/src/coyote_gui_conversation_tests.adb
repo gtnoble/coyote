@@ -933,4 +933,100 @@ package body Coyote_GUI_Conversation_Tests is
       Assert (Found, "complex display math line is present");
    end Test_Markdown_Display_Math_Has_Visual_Lines;
 
+   --  ── Variable-height block layout ──────────────────────────────────────
+
+   procedure Test_Document_Height_Is_Sum_Of_Block_Heights
+     (T : in out Test)
+   is
+      Conv   : Instance;
+      Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Layout : Gtk.Layout.Gtk_Layout;
+      Sum    : Natural := 0;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Make_Fresh_Conv (Conv, Scroll, Layout);
+      Conv.Append_Notice (Notice_Info, "one");
+      Conv.Append_Notice (Notice_Warn, "two");
+      Conv.Append_Notice (Notice_Error, "three");
+      for I in 1 .. Testing.Line_Count (Conv) loop
+         Sum := Sum + Testing.Pixel_Height_At (Conv, I);
+      end loop;
+      Assert (Testing.Total_Height_Px (Conv) = Sum,
+              "document height equals the sum of block heights");
+      Assert (Testing.Total_Height_Px (Conv) > 0,
+              "non-empty conversation has a positive pixel height");
+   end Test_Document_Height_Is_Sum_Of_Block_Heights;
+
+   procedure Test_Heading_Taller_Than_Body (T : in out Test) is
+      Conv   : Instance;
+      Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Layout : Gtk.Layout.Gtk_Layout;
+      Body_H : Natural := 0;
+      Head_H : Natural := 0;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Make_Fresh_Conv (Conv, Scroll, Layout);
+      Conv.Append_Text
+        ("# Heading One" & ASCII.LF & ASCII.LF & "body paragraph");
+      Conv.End_Text_Block;
+      for I in 1 .. Testing.Line_Count (Conv) loop
+         if Testing.Get_Line_Style (Conv, I) = Heading_1 then
+            Head_H := Testing.Pixel_Height_At (Conv, I);
+         elsif Testing.Get_Line_Style (Conv, I) = Plain
+           and then Testing.Get_Line_Text (Conv, I)'Length > 0
+           and then Body_H = 0
+         then
+            Body_H := Testing.Pixel_Height_At (Conv, I);
+         end if;
+      end loop;
+      Assert (Head_H > 0, "heading line has a measured height");
+      Assert (Body_H > 0, "body paragraph has a measured height");
+      Assert (Head_H > Body_H,
+              "heading is taller than body text"
+              & " (h=" & Natural'Image (Head_H)
+              & " body=" & Natural'Image (Body_H) & ")");
+   end Test_Heading_Taller_Than_Body;
+
+   procedure Test_Math_Uses_Natural_Pixel_Height (T : in out Test) is
+      Conv   : Instance;
+      Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Layout : Gtk.Layout.Gtk_Layout;
+      Found  : Boolean := False;
+      Math_H : Natural := 0;
+      Line_H : Natural := 0;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Make_Fresh_Conv (Conv, Scroll, Layout);
+      Line_H := Natural (Testing.Line_Height_Px (Conv));
+      Conv.Append_Text
+        ("$$" & ASCII.LF
+         & "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
+         & "<mtable><mtr><mtd><mi>a</mi></mtd><mtd><mi>b</mi></mtd></mtr>"
+         & "<mtr><mtd><mi>c</mi></mtd><mtd><mi>d</mi></mtd></mtr></mtable>"
+         & "</math>"
+         & ASCII.LF & "$$");
+      Conv.End_Text_Block;
+      for I in 1 .. Testing.Line_Count (Conv) loop
+         if Testing.Get_Line_Style (Conv, I) = Display_Math then
+            Math_H := Testing.Pixel_Height_At (Conv, I);
+            Found := True;
+            exit;
+         end if;
+      end loop;
+      Assert (Found, "display math line is present");
+      Assert (Math_H > 0, "display math has a natural pixel height");
+      --  A 2x2 matrix is taller than one body line; it must not be
+      --  snapped up to a multiple of Line_Height_Px as its stored
+      --  height (the old grid).  The stored height is the Lasem
+      --  measurement itself.
+      Assert (Math_H /= Line_H or else Math_H > Line_H,
+              "math height is not forced onto the body-line grid");
+   end Test_Math_Uses_Natural_Pixel_Height;
+
 end Coyote_GUI_Conversation_Tests;

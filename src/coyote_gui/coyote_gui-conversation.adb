@@ -11,6 +11,7 @@ with Coyote_App.Utils;               use Coyote_App.Utils;
 with Coyote_Cmark;                   use Coyote_Cmark;
 with Coyote_Lasem;
 with Glib;                           use Glib;
+with Pango;
 with Pango.Attributes;
 with Gdk.Event;
 with Gdk.Types;
@@ -154,12 +155,40 @@ package body Coyote_GUI.Conversation is
 
    --  ── Append_Markup_Line ────────────────────────────────────────────────
 
+   function Heading_Size_Attr (Style : Line_Style) return String is
+   begin
+      case Style is
+         when Heading_1 =>
+            return " size=""xx-large""";
+         when Heading_2 =>
+            return " size=""x-large""";
+         when Heading_3 =>
+            return " size=""large""";
+         when Heading_4 =>
+            return " size=""medium""";
+         when others =>
+            return "";
+      end case;
+   end Heading_Size_Attr;
+
    procedure Append_Markup_Line
      (C : in out Instance; Style : Line_Style; Text : String)
    is
-      L : Logical_Line (Style);
+      L      : Logical_Line (Style);
+      Markup : Unbounded_String;
    begin
-      L.Text       := To_Unbounded_String (Sanitize_UTF8 (Text));
+      case Style is
+         when Heading_1 | Heading_2 | Heading_3
+            | Heading_4 | Heading_5 | Heading_6 =>
+            Markup := To_Unbounded_String ("<span weight=""bold""");
+            Append (Markup, Heading_Size_Attr (Style));
+            Append (Markup, ">");
+            Append (Markup, Text);
+            Append (Markup, "</span>");
+            L.Text := Markup;
+         when others =>
+            L.Text := To_Unbounded_String (Sanitize_UTF8 (Text));
+      end case;
       L.Has_Markup := True;
       C.Lines.Append (L);
       C.Cache_Dirty := True;
@@ -167,10 +196,10 @@ package body Coyote_GUI.Conversation is
                  & " len=" & Natural'Image (Text'Length)
                  & " total=" & Natural'Image (Natural (C.Lines.Length)));
    end Append_Markup_Line;
-
    procedure Invalidate_Line (C : in out Instance; Index : Positive) is
    begin
-      C.Lines (Index).Vis_Count := 0;
+      C.Lines (Index).Vis_Count    := 0;
+      C.Lines (Index).Pixel_Height := 0;
       C.Cache_Dirty := True;
    end Invalidate_Line;
 
@@ -213,13 +242,17 @@ package body Coyote_GUI.Conversation is
       end if;
 
       L.Text          := To_Unbounded_String (Sanitize_UTF8 (Source));
-      L.Pixel_Height  := Natural (Height);
+      L.Pixel_Height  := Natural'Max (1, Natural (Height));
       L.Math_Width    := Natural (Width);
       L.Math_Baseline := Natural (Baseline);
-      L.Vis_Count     := Natural'Max
-        (1,
-         (Natural (Height) + Natural (C.Line_Height_Px) - 1)
-         / Natural (C.Line_Height_Px));
+      if C.Line_Height_Px > 0 then
+         L.Vis_Count := Natural'Max
+           (1,
+            (L.Pixel_Height + Natural (C.Line_Height_Px) - 1)
+            / Natural (C.Line_Height_Px));
+      else
+         L.Vis_Count := 1;
+      end if;
       C.Lines.Append (L);
       C.Cache_Dirty := True;
    end Append_Math_Line;
@@ -386,13 +419,107 @@ package body Coyote_GUI.Conversation is
 
    --  ── Recompute_Vis_Lines ───────────────────────────────────────────────
 
+   --  Measure every dirty (or all, on width change) logical line and
+   --  store Pixel_Height / Vis_Count.  Document height is the sum of
+   --  Pixel_Height, not a multiple of Line_Height_Px.
+
+   function Fallback_Height (C : Instance) return Natural is
+   begin
+      if C.Line_Height_Px > 0 then
+         return Natural (C.Line_Height_Px);
+      end if;
+      return 1;
+   end Fallback_Height;
+
+   procedure Prepare_Measure_Layout
+     (C        : in out Instance;
+      Index    :        Positive;
+      Width_Px :        Glib.Gint)
+   is
+      Layout : Pango_Layout renames C.Measure_Layout;
+      Text   : constant String := To_String (C.Lines (Index).Text);
+   begin
+      if C.Lines (Index).Has_Markup then
+         Layout.Set_Markup (Text);
+      else
+         --  Clear stale markup attributes left by Set_Markup,
+         --  including when the preceding line was cached.
+         Layout.Set_Attributes
+           (Pango.Attributes.Null_Pango_Attr_List);
+         Layout.Set_Text (Text);
+      end if;
+      Layout.Set_Width (Width_Px * Pango_Scale);
+      Layout.Set_Wrap (Pango_Wrap_Word_Char);
+   end Prepare_Measure_Layout;
+
+   procedure Measure_Line
+     (C        : in out Instance;
+      Index    :        Positive;
+      Width_Px :        Glib.Gint)
+   is
+      Layout : Pango_Layout renames C.Measure_Layout;
+      Vis    : Natural;
+      H      : Natural;
+   begin
+      if C.Lines (Index).Style = Display_Math then
+         H := C.Lines (Index).Pixel_Height;
+         if H = 0 then
+            H := Fallback_Height (C);
+            C.Lines (Index).Pixel_Height := H;
+         end if;
+         Vis := Natural'Max
+           (1, (H + Fallback_Height (C) - 1) / Fallback_Height (C));
+         C.Lines (Index).Vis_Count := Vis;
+         return;
+      end if;
+
+      Prepare_Measure_Layout (C, Index, Width_Px);
+      declare
+         Unused_W : Glib.Gint;
+         Pixel_H  : Glib.Gint;
+      begin
+         Layout.Get_Pixel_Size (Unused_W, Pixel_H);
+         if Pixel_H <= 0 then
+            H := Fallback_Height (C);
+         else
+            H := Natural (Pixel_H);
+         end if;
+      end;
+      Vis := Natural (Layout.Get_Line_Count);
+      if Vis = 0 then
+         Vis := 1;
+      end if;
+      C.Lines (Index).Pixel_Height := H;
+      C.Lines (Index).Vis_Count    := Vis;
+   end Measure_Line;
+
+   function Line_Needs_Measure
+     (C              : Instance;
+      Index          : Positive;
+      Full_Recompute : Boolean) return Boolean
+   is
+   begin
+      if C.Lines (Index).Style = Display_Math then
+         return C.Lines (Index).Pixel_Height = 0
+           or else C.Lines (Index).Vis_Count = 0;
+      end if;
+      return Full_Recompute
+        or else C.Lines (Index).Pixel_Height = 0
+        or else C.Lines (Index).Vis_Count = 0;
+   end Line_Needs_Measure;
+
    procedure Recompute_Vis_Lines
-     (C : in out Instance; Force : Boolean := False) is
+     (C : in out Instance; Force : Boolean := False)
+   is
       Width_Px : constant Glib.Gint := C.Layout_W.Get_Allocated_Width;
-      Total    : Natural := 0;
+      Total_Vis : Natural := 0;
+      Total_Px  : Natural := 0;
    begin
       if Width_Px <= 0 or else C.Lines.Is_Empty then
-         Debug_Log (C, "Recompute_Vis_Lines skip width=" & Glib.Gint'Image (Width_Px)
+         C.Total_Vis_Lines := 0;
+         C.Total_Height_Px := 0;
+         Debug_Log (C, "Recompute_Vis_Lines skip width="
+                    & Glib.Gint'Image (Width_Px)
                     & " empty=" & Boolean'Image (C.Lines.Is_Empty));
          return;
       end if;
@@ -402,7 +529,7 @@ package body Coyote_GUI.Conversation is
         and then Width_Px = C.Cache_Width_Px
         and then Natural (C.Lines.Length) = C.Cached_Line_Count
         and then not C.Cache_Dirty
-        and then C.Total_Vis_Lines > 0
+        and then C.Total_Height_Px > 0
       then
          Debug_Log
            (C,
@@ -412,66 +539,39 @@ package body Coyote_GUI.Conversation is
       end if;
 
       declare
-         Layout : Pango_Layout renames C.Measure_Layout;
-         Vis    : Natural;
          Full_Recompute : constant Boolean :=
            Force or else Width_Px /= C.Cache_Width_Px;
       begin
          for I in 1 .. Positive (C.Lines.Length) loop
-            if C.Lines (I).Style = Display_Math then
-               if C.Lines (I).Vis_Count = 0 then
-                  C.Lines (I).Vis_Count := Natural'Max
-                    (1,
-                     (C.Lines (I).Pixel_Height
-                      + Natural (C.Line_Height_Px) - 1)
-                     / Natural (C.Line_Height_Px));
-               end if;
-               Vis := C.Lines (I).Vis_Count;
-            elsif Full_Recompute or else C.Lines (I).Vis_Count = 0 then
-               declare
-                  Text : constant String := To_String (C.Lines (I).Text);
-               begin
-                  if C.Lines (I).Has_Markup then
-                     Layout.Set_Markup (Text);
-                  else
-                     --  Clear stale markup attributes left by Set_Markup,
-                     --  including when the preceding line was cached.
-                     Layout.Set_Attributes
-                       (Pango.Attributes.Null_Pango_Attr_List);
-                     Layout.Set_Text (Text);
-                  end if;
-                  Layout.Set_Width (Width_Px * Pango_Scale);
-                  Layout.Set_Wrap (Pango_Wrap_Word_Char);
-                  Vis := Natural (Layout.Get_Line_Count);
-                  C.Lines (I).Vis_Count := Vis;
-               end;
-            else
-               Vis := C.Lines (I).Vis_Count;
+            if Line_Needs_Measure (C, I, Full_Recompute) then
+               Measure_Line (C, I, Width_Px);
             end if;
-            Total := Total + Vis;
+            Total_Vis := Total_Vis + C.Lines (I).Vis_Count;
+            Total_Px  := Total_Px  + C.Lines (I).Pixel_Height;
          end loop;
       end;
 
-      C.Total_Vis_Lines := Total;
+      C.Total_Vis_Lines := Total_Vis;
+      C.Total_Height_Px := Total_Px;
 
       Debug_Log (C, "Recompute_Vis_Lines logical="
                  & Natural'Image (Natural (C.Lines.Length))
-                 & " visual=" & Natural'Image (Total)
+                 & " visual=" & Natural'Image (Total_Vis)
+                 & " height_px=" & Natural'Image (Total_Px)
                  & " line_h=" & Glib.Gint'Image (C.Line_Height_Px));
 
       --  Tell the GtkLayout the total scrollable area so it can position
       --  its bin window correctly and drive the shared adjustments.
       C.Layout_W.Set_Size
         (Glib.Guint (Width_Px),
-         Glib.Guint (Integer (Total) * Integer (C.Line_Height_Px)));
+         Glib.Guint (Total_Px));
 
       --  Update scrollbar range.
       declare
-         Adj      : constant Gtk.Adjustment.Gtk_Adjustment :=
+         Adj       : constant Gtk.Adjustment.Gtk_Adjustment :=
            C.Scroll.Get_Vadjustment;
-         Doc_H    : constant Gdouble :=
-           Gdouble (Total) * Gdouble (C.Line_Height_Px);
-         Page_H   : constant Gdouble := Adj.Get_Page_Size;
+         Doc_H     : constant Gdouble := Gdouble (Total_Px);
+         Page_H    : constant Gdouble := Adj.Get_Page_Size;
          New_Upper : constant Gdouble := Gdouble'Max (Doc_H, Page_H);
       begin
          Adj.Set_Upper (New_Upper);
@@ -480,7 +580,6 @@ package body Coyote_GUI.Conversation is
       C.Cached_Line_Count := Natural (C.Lines.Length);
       C.Cache_Dirty       := False;
    end Recompute_Vis_Lines;
-
    --  ── Hit_Test ──────────────────────────────────────────────────────────
 
    procedure Hit_Test
@@ -490,13 +589,12 @@ package body Coyote_GUI.Conversation is
       Byte_Offset  : out Natural;
       Trailing     : out Glib.Gint)
    is
-      Width_Px    : constant Glib.Gint := C.Layout_W.Get_Allocated_Width;
+      Width_Px : constant Glib.Gint := C.Layout_W.Get_Allocated_Width;
       --  Y is widget-relative (the layout's coordinate system already
       --  accounts for the scroll offset), so we use it directly.
-      Vis_Line_N  : constant Natural :=
-        Natural (Glib.Gint'Max (Y, 0) / C.Line_Height_Px);
-      Vis_Off     : Natural := 0;
-      Found       : Boolean := False;
+      Target_Y : constant Natural := Natural (Glib.Gint'Max (Y, 0));
+      Y_Off    : Natural := 0;
+      Found    : Boolean := False;
    begin
       Logical_Idx := 0;
       Byte_Offset := 0;
@@ -508,43 +606,37 @@ package body Coyote_GUI.Conversation is
 
       for I in 1 .. Positive (C.Lines.Length) loop
          declare
-            Vis_Cnt : constant Natural := C.Lines (I).Vis_Count;
+            Block_H : constant Natural :=
+              (if C.Lines (I).Pixel_Height > 0
+               then C.Lines (I).Pixel_Height
+               else Fallback_Height (C));
          begin
-            if Vis_Line_N < Vis_Off + Vis_Cnt then
-               --  Found the target line; reuse the measure layout for
-               --  Xy_To_Index resolution.
+            if Target_Y < Y_Off + Block_H then
                Logical_Idx := I;
-               declare
-                  Layout : Pango_Layout renames C.Measure_Layout;
-                  Text   : constant String := To_String (C.Lines (I).Text);
-               begin
-                  if C.Lines (I).Has_Markup then
-                     Layout.Set_Markup (Text);
-                  else
-                     Layout.Set_Text (Text);
-                  end if;
-                  Layout.Set_Width (Width_Px * Pango_Scale);
-                  Layout.Set_Wrap (Pango_Wrap_Word_Char);
-
+               if C.Lines (I).Style = Display_Math then
+                  Byte_Offset := 0;
+                  Trailing    := 0;
+               else
+                  Prepare_Measure_Layout (C, I, Width_Px);
                   declare
                      Rel_Y : constant Glib.Gint :=
-                       Y - Glib.Gint (Vis_Off) * C.Line_Height_Px;
+                       Glib.Gint (Target_Y - Y_Off);
                      Idx   : Glib.Gint;
                      Trl   : Glib.Gint;
                      Exact : Boolean;
                      pragma Unreferenced (Exact);
                   begin
-                     Layout.Xy_To_Index
+                     C.Measure_Layout.Xy_To_Index
                        (X * Pango_Scale, Rel_Y * Pango_Scale,
                         Idx, Trl, Exact);
                      Byte_Offset := Natural (Idx);
                      Trailing    := Trl;
                   end;
-               end;
+               end if;
                Found := True;
                exit;
             end if;
-            Vis_Off := Vis_Off + Vis_Cnt;
+            Y_Off := Y_Off + Block_H;
          end;
       end loop;
 
@@ -553,7 +645,6 @@ package body Coyote_GUI.Conversation is
          Byte_Offset := Natural (Length (C.Lines (Logical_Idx).Text));
       end if;
    end Hit_Test;
-
    --  ── Queue_Draw ────────────────────────────────────────────────────────
 
    procedure Queue_Draw (C : in out Instance) is
@@ -691,58 +782,58 @@ package body Coyote_GUI.Conversation is
    is
       pragma Unreferenced (Self);
 
-      Width_Px   : constant Glib.Gint := Current_Conv.Layout_W.Get_Allocated_Width;
+      Width_Px   : constant Glib.Gint :=
+        Current_Conv.Layout_W.Get_Allocated_Width;
       Adj        : constant Gtk.Adjustment.Gtk_Adjustment :=
         Current_Conv.Scroll.Get_Vadjustment;
       Scroll_Y   : constant Glib.Gint := Glib.Gint (Adj.Get_Value);
-      First_Vis  : constant Natural :=
-        Natural (Scroll_Y / Current_Conv.Line_Height_Px);
-      Vis_Off    : Natural := 0;
-      Y_Off      : Glib.Gint := - (Scroll_Y mod Current_Conv.Line_Height_Px);
+      Alloc_H    : constant Glib.Gint :=
+        Current_Conv.Layout_W.Get_Allocated_Height;
+      Doc_Y      : Glib.Gint := 0;
+      Y_Off      : Glib.Gint := -Scroll_Y;
    begin
       if Current_Conv = null or else Width_Px <= 0
         or else Current_Conv.Lines.Is_Empty
       then
          return False;
       end if;
-
       --  Fill entire widget background with white so plain lines
       --  always have a white backdrop regardless of system theme.
       Set_Source_Rgb (Cr, 1.0, 1.0, 1.0);
-      declare
-         Alloc_H : constant Glib.Gint :=
-           Current_Conv.Layout_W.Get_Allocated_Height;
-      begin
-         Rectangle
-           (Cr, 0.0, 0.0,
-            Gdouble (Width_Px), Gdouble (Alloc_H));
-         Fill (Cr);
-      end;
+      Rectangle
+        (Cr, 0.0, 0.0,
+         Gdouble (Width_Px), Gdouble (Alloc_H));
+      Fill (Cr);
 
-      --  Walk logical lines, drawing only those whose visual lines
+      --  Walk logical lines, drawing only those whose pixel boxes
       --  intersect the visible viewport.
       Current_Conv.Debug_Log
-        ("On_Draw logical=" & Natural'Image (Natural (Current_Conv.Lines.Length))
-         & " first_vis=" & Natural'Image (First_Vis)
+        ("On_Draw logical="
+         & Natural'Image (Natural (Current_Conv.Lines.Length))
          & " scroll_y=" & Glib.Gint'Image (Scroll_Y)
-         & " line_h=" & Glib.Gint'Image (Current_Conv.Line_Height_Px));
+         & " height_px="
+         & Natural'Image (Current_Conv.Total_Height_Px));
       for I in 1 .. Positive (Current_Conv.Lines.Length) loop
          declare
-            L      : constant Logical_Line := Current_Conv.Lines (I);
-            Text   : constant String := To_String (L.Text);
-            Vis_Cnt : constant Natural := L.Vis_Count;
+            L       : constant Logical_Line := Current_Conv.Lines (I);
+            Text    : constant String := To_String (L.Text);
+            Block_H : constant Glib.Gint :=
+              Glib.Gint
+                (if L.Pixel_Height > 0
+                 then L.Pixel_Height
+                 else Fallback_Height (Current_Conv.all));
          begin
-            --  Skip if entirely above viewport, using cached visual count.
-            if Vis_Off + Vis_Cnt <= First_Vis then
-               Vis_Off := Vis_Off + Vis_Cnt;
+            --  Skip if entirely above viewport.
+            if Doc_Y + Block_H <= Scroll_Y then
+               Doc_Y := Doc_Y + Block_H;
+               Y_Off := Y_Off + Block_H;
                goto Continue;
             end if;
 
             --  Stop if entirely below viewport.
-            if Y_Off >= Current_Conv.Layout_W.Get_Allocated_Height then
+            if Y_Off >= Alloc_H then
                exit;
             end if;
-
             --  Reuse the draw layout for visible lines.
             declare
                Layout : Pango_Layout renames Current_Conv.Draw_Layout;
@@ -755,10 +846,8 @@ package body Coyote_GUI.Conversation is
                Layout.Set_Width (Width_Px * Pango_Scale);
                Layout.Set_Wrap (Pango_Wrap_Word_Char);
 
-               --  Draw background for this logical line's visual lines.
+               --  Draw background for this logical line's pixel box.
                declare
-                  Block_H : constant Glib.Gint :=
-                    Glib.Gint (Vis_Cnt) * Current_Conv.Line_Height_Px;
                begin
                   case L.Style is
                      when Tool_Header | Tool_Argument | Tool_Footer =>
@@ -828,6 +917,12 @@ package body Coyote_GUI.Conversation is
                      if Sel_Start < Sel_End then
                         declare
                            R1, R2 : Pango.Pango_Rectangle;
+                           Scale  : constant Gdouble :=
+                             Gdouble (Pango_Scale);
+                           Y1     : Gdouble;
+                           Y2     : Gdouble;
+                           X1     : Gdouble;
+                           X2     : Gdouble;
                         begin
                            Layout.Index_To_Pos
                              (Glib.Gint (Sel_Start), R1);
@@ -835,13 +930,58 @@ package body Coyote_GUI.Conversation is
                              (Glib.Gint (Sel_End), R2);
                            Set_Source_Rgba
                              (Cr, 0.3, 0.5, 0.9, 0.3);
-                           Rectangle
-                             (Cr,
-                              Gdouble (R1.X) / Gdouble (Pango_Scale),
-                              Gdouble (Y_Off),
-                              Gdouble (R2.X - R1.X) / Gdouble (Pango_Scale),
-                              Gdouble (Current_Conv.Line_Height_Px));
-                           Fill (Cr);
+                           Y1 := Gdouble (Y_Off)
+                             + Gdouble (R1.Y) / Scale;
+                           Y2 := Gdouble (Y_Off)
+                             + Gdouble (R2.Y + R2.Height) / Scale;
+                           if R1.Y = R2.Y then
+                              --  Same visual row: one tight rectangle.
+                              X1 := Gdouble (R1.X) / Scale;
+                              X2 := Gdouble (R2.X) / Scale;
+                              if X2 < X1 then
+                                 declare
+                                    Tmp : constant Gdouble := X1;
+                                 begin
+                                    X1 := X2;
+                                    X2 := Tmp;
+                                 end;
+                              end if;
+                              Rectangle
+                                (Cr, X1, Y1, X2 - X1, Y2 - Y1);
+                              Fill (Cr);
+                           else
+                              --  Multi-row: cover from the start glyph
+                              --  to the right edge, full middle rows,
+                              --  then the last row up to the end glyph.
+                              Rectangle
+                                (Cr,
+                                 Gdouble (R1.X) / Scale,
+                                 Y1,
+                                 Gdouble (Width_Px)
+                                   - Gdouble (R1.X) / Scale,
+                                 Gdouble (R1.Height) / Scale);
+                              Fill (Cr);
+                              if Y2 - (Y1 + Gdouble (R1.Height) / Scale)
+                                > Gdouble (R2.Height) / Scale + 0.5
+                              then
+                                 Rectangle
+                                   (Cr,
+                                    0.0,
+                                    Y1 + Gdouble (R1.Height) / Scale,
+                                    Gdouble (Width_Px),
+                                    (Y2 - Gdouble (R2.Height) / Scale)
+                                      - (Y1 + Gdouble (R1.Height)
+                                         / Scale));
+                                 Fill (Cr);
+                              end if;
+                              Rectangle
+                                (Cr,
+                                 0.0,
+                                 Y2 - Gdouble (R2.Height) / Scale,
+                                 Gdouble (R2.X) / Scale,
+                                 Gdouble (R2.Height) / Scale);
+                              Fill (Cr);
+                           end if;
                         end;
                      end if;
                   end;
@@ -907,8 +1047,8 @@ package body Coyote_GUI.Conversation is
                end if;
             end;
 
-            Vis_Off := Vis_Off + Vis_Cnt;
-            Y_Off  := Y_Off + Glib.Gint (Vis_Cnt) * Current_Conv.Line_Height_Px;
+            Doc_Y := Doc_Y + Block_H;
+            Y_Off := Y_Off + Block_H;
          end;
          <<Continue>>
       end loop;
@@ -2248,6 +2388,7 @@ package body Coyote_GUI.Conversation is
       C.Cached_Line_Count := 0;
       C.Cache_Dirty := True;
       C.Total_Vis_Lines := 0;
+      C.Total_Height_Px := 0;
       --  Reset reusable layouts: stale attributes from Set_Markup would
       --  affect measurement of plain-text lines in the new session.
       C.Measure_Layout.Set_Text ("");
@@ -2300,6 +2441,9 @@ package body Coyote_GUI.Conversation is
                end;
             end if;
             C.Lines (I).Vis_Count := 0;
+            if C.Lines (I).Style /= Display_Math then
+               C.Lines (I).Pixel_Height := 0;
+            end if;
          end loop;
       end if;
       C.Cache_Dirty := True;

@@ -3046,6 +3046,18 @@ package body Test_Suites is
         ("Coyote.GUI.Conversation display math has visual lines",
          Coyote_GUI_Conversation_Tests
            .Test_Markdown_Display_Math_Has_Visual_Lines'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation document height is sum of blocks",
+         Coyote_GUI_Conversation_Tests
+           .Test_Document_Height_Is_Sum_Of_Block_Heights'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation heading taller than body",
+         Coyote_GUI_Conversation_Tests
+           .Test_Heading_Taller_Than_Body'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation math uses natural pixel height",
+         Coyote_GUI_Conversation_Tests
+           .Test_Math_Uses_Natural_Pixel_Height'Access));
 
       return Result;
    end Suite;

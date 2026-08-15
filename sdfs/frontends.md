@@ -400,3 +400,20 @@ instead of opening a new acme window.
 - The Acme frontend's tag-line button set is rebuilt on each `Set_Mode` call
   by overwriting the entire tag line. A diff-and-patch approach would reduce
   9P write traffic for high-frequency mode changes.
+
+### Variable-height block layout (2026-08-15)
+
+`Coyote_GUI.Conversation` no longer places every logical line on a uniform
+`Line_Height_Px` grid.  Each `Logical_Line` caches a real `Pixel_Height`
+from Pango (`Get_Pixel_Size`) or Lasem.  Document height is the sum of
+those heights; `On_Draw` and `Hit_Test` walk pixel boxes rather than
+`visual_line_index × Line_Height_Px`.  Headings wrap their already-escaped
+inline markup in a bold / sized `<span>` so they measure and draw taller
+than body text.  Display math keeps its Lasem measurement instead of being
+rounded up to the next body-line multiple.  Wrapped-line selection uses
+`Index_To_Pos` rectangles for the start and end glyphs rather than a
+single `Line_Height_Px` slab.
+
+`Line_Height_Px` remains the body-text metric (fallback for empty blocks,
+zoom baseline, and `Vis_Count` denominator for tests).  The public
+streaming API is unchanged.

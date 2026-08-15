@@ -936,8 +936,10 @@ viewport-only rendering model that gives acme-like resize performance
 regardless of document size.
 
 **Data model:** A flat `Line_Vectors.Vector` of `Logical_Line` records.  Each
-line carries a `Line_Style` discriminant (`Plain`, `Thinking`, `Notice_Info`,
-`Notice_Warn`, `Notice_Error`, `Footer`, `Action_Strip`) and optional metadata
+line is a variable-height block carrying a `Line_Style` discriminant
+(`Plain`, `Heading_1`–`Heading_6`, `Display_Math`, `Thinking`,
+`Notice_Info`, `Notice_Warn`, `Notice_Error`, `Footer`, `Action_Strip`,
+tool-card styles) plus a cached `Pixel_Height` and optional metadata
 (tool info, action data).  Tool blocks are tracked in a `Tool_Maps.Vector` of
 `Tool_Block` records (first line, last line, tool info).  A `Tool_Start_Maps` hashed map keyed by `Tool_Id` stores each tool block's
 start line, footer line, and arguments for concurrent tool batches. The
@@ -945,24 +947,29 @@ footer line is captured when the block is appended, so completion events can
 replace the correct placeholder even when all tool starts precede all ends.
 
 **Rendering (`On_Draw`):**
-1. Compute `First_Vis` from the scroll position and line height.
-2. Walk logical lines; for each, create a `Pango_Layout`, set width and wrap
-   mode, and get the visual line count.
-3. Skip lines entirely above or below the viewport.
-4. For visible lines: draw background (yellow for thinking, blue for info
-   notices), draw selection highlight if the line intersects the selection
-   range, set text colour by style, and render via `Pango.Cairo.Show_Layout`.
+1. Walk logical lines, accumulating each block's `Pixel_Height`.
+2. Skip blocks whose pixel box is entirely above or below the viewport.
+3. For visible blocks: draw background (yellow for thinking, blue for info
+   notices), draw a selection highlight from Pango `Index_To_Pos`
+   rectangles (covering wrapped rows), set text colour by style, and
+   render via `Pango.Cairo.Show_Layout` or Lasem.
+4. Headings wrap their text in a bold / sized Pango span so their
+   measured height is larger than body text.
 
-**Document height:** `total_visual_lines × line_height` — a single multiply
-with no Pango measurement of offscreen content.  The scrollbar range is
-updated in `Recompute_Vis_Lines` after every content change.  Visual-line
-counts are cached per logical line; appending to an existing streaming line
-marks that line dirty so its wrapping and the document height are recomputed
-immediately without remeasuring unchanged lines.
+**Document height:** the sum of per-block `Pixel_Height` values, not a
+multiple of the body-text line height.  The scrollbar range is updated in
+`Recompute_Vis_Lines` after every content change.  Block heights are
+cached per logical line; appending to an existing streaming line marks
+that line dirty so its wrapping and the document height are recomputed
+immediately without remeasuring unchanged lines.  `Line_Height_Px`
+remains the body-text metric used as a fallback for empty blocks and as
+the zoom-sensitive baseline.
 
 **Resize performance:** `On_Size_Allocate` calls `Recompute_Vis_Lines`, which
-re-wraps only the visible logical lines at the new width.  Offscreen lines
-are not measured.  This is O(visible lines), not O(document size).
+re-measures every logical line at the new width via one reused
+`Pango_Layout`.  Offscreen lines are measured for height only (no draw).
+This is O(document lines) of Pango measure calls, not O(document size)
+of GTK widget allocation.
 
 **Selection:** Click-drag (button 1) sets `Sel_Dragging` and `Sel_Visible`;
 motion extends the range; release clears `Sel_Dragging` but keeps
