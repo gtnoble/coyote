@@ -2006,7 +2006,20 @@ behavior, current test baseline, and remaining manual qualification scope.
   Build N+2 — OpenRouter switches from subclassing Completions to
   composing/delegating to Responses; OpenRouter remains stateless
   (`store` / `previous_response_id` must not be sent).
-- **Actions taken to date:** Spec reconnaissance against OpenAPI 2.3.0
-  and OpenRouter Responses docs; approach A agreed.
-- **Status:** Open
-- **Date resolved:**
+- **Actions taken to date:** Spec reconnaissance against OpenAPI 2.3.0 and
+  OpenRouter Responses docs; approach A acknowledged by the user. Added
+  `LLM.Providers.OpenAI_Responses`, native `openai` dispatch, the
+  `openai-responses` wire-format tool schema, native OpenAI registry defaults,
+  reasoning/encrypted-content replay, and Responses-focused AUnit coverage.
+  Switched OpenRouter to `/api/v1/responses`, preserved metadata/key handling,
+  omitted `store` and `previous_response_id`, updated its tests, and migrated
+  agent/parallel mock fixtures to the Responses event format.
+- **Verification:** Production and test development builds succeed. The complete
+  878-test AUnit suite passes with 878 successful tests, 0 failed assertions,
+  and 0 unexpected errors. Focused Responses, OpenRouter, registry, agent, and
+  parallel-tool tests also pass. Chat Completions compatibility tests and
+  providers remain in place. Live OpenAI/OpenRouter qualification was not run
+  because no live-provider guard and credentials were enabled; automated
+  qualification used local HTTP mock servers.
+- **Status:** Resolved
+- **Date resolved:** 2026-08-15

@@ -25,7 +25,8 @@ package LLM.Model_Registry is
     Supports_Images     : Boolean := False;
     Max_Thinking_Budget : Natural := 0;
     Min_Thinking_Budget : Natural := 0;
-    --  Wire format: "anthropic-messages" or "openai-completions".
+    --  Wire format: "anthropic-messages", "openai-completions",
+    --  or "openai-responses".
     Wire_Format         : Ada.Strings.Unbounded.Unbounded_String;
     Cost                : LLM.Types.Model_Cost;
   end record;
@@ -76,12 +77,13 @@ package LLM.Model_Registry is
   --  catalogue data is appended. When no OpenCode Go API key is configured,
   --  the OpenCode Go portion of the registry becomes empty.
   procedure Refresh_OpenCode_Go;
+  procedure Refresh_OpenAI;
   procedure Refresh_Ollama;
 
   --  Look up one model by provider and model identifier.
   --
   --  For "openrouter", an unknown Model_Id returns a default record with
-  --  OpenAI-completions wire format and conservative limits rather than
+  --  OpenAI-Responses wire format and conservative limits rather than
   --  raising an exception.
   --
   --  For "opencode-go", an unknown Model_Id returns a default record with
@@ -90,6 +92,9 @@ package LLM.Model_Registry is
   --  For "github-copilot", a missing Model_Id returns a default record
   --  with conservative limits and a wire-format heuristic (Claude models
   --  use "anthropic-messages", all others "openai-completions").
+  --
+  --  For "openai", a missing Model_Id returns a default record with
+  --  the Responses wire format and conservative limits.
   --
   --  Unknown providers also raise Not_Found.
   function Lookup

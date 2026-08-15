@@ -1,6 +1,6 @@
 # Project Plan — coyote
 
-**Version:** 1.18
+**Version:** 1.19
 **Date:** 2026-08-15
 **Status:** Active
 
@@ -120,7 +120,9 @@ closed when the planned capability set has been implemented and tested.
 
 **Current build:** Build N (ongoing). Scope: formalise process artifacts
 (this Project Plan, SRS-CORE, SDD-CORE, Test Plan) while continuing active
-development on both components.
+development on both components. PCR-059 Responses implementation and
+OpenRouter cutover are complete and verified; the Chat Completions compatibility
+path remains available.
 
 **Approach to rationale:** Key design decisions — architecture choices,
 algorithm selections, interface conventions, provider wire-format decisions —
@@ -408,8 +410,8 @@ Subsequent builds will define their own milestone sets.
 |---|---|---|---|---|---|
 | R1 | Upstream library API changes (libcurl, GTK3, cmark-gfm) break the build | Low | Moderate | Pin Alire dependency versions; monitor library release notes | Open |
 | R2 | Provider wire-format changes (Anthropic, OpenAI, Copilot) break streaming | Medium | High | Opt-in provider integration tests (guarded by env vars); review R1–R10 review records after provider releases; isolate wire-format code in dedicated provider packages | Open |
-| R5 | OpenRouter Responses API rejects Completions-shaped payloads or `store`/`previous_response_id` after cutover | Medium | High | Keep Completions adapter intact as rollback; OpenRouter adapter must omit `store` and `previous_response_id`; mock-server tests assert `/responses` path and stateless fields; live test guarded | Open |
-| R6 | Reasoning items not replayed on later Responses turns degrade o-series / GPT-5 quality | Medium | Moderate | Persist reasoning `id` + `encrypted_content` on Thinking_Block; unit-test history encoding; request `include: reasoning.encrypted_content` | Open |
+| R5 | OpenRouter Responses API rejects Completions-shaped payloads or `store`/`previous_response_id` after cutover | Medium | High | Keep Completions adapter intact as rollback; OpenRouter adapter omits `store` and `previous_response_id`; mock-server tests assert `/responses` path and stateless fields; live test remains guarded | Mitigated; monitor live use |
+| R6 | Reasoning items not replayed on later Responses turns degrade o-series / GPT-5 quality | Medium | Moderate | Pack reasoning `id` + `encrypted_content` in the existing signature field; unit-test history encoding; request `include: reasoning.encrypted_content` | Mitigated; monitor live use |
 | R3 | SDD-CORE drifts from actual implementation, misleading future development | Medium | Moderate | Treat SDD-CORE as the primary controlled design artifact; include SDD-CORE review in the Definition of Done for each build; update AGENTS.md to match SDD-CORE when it diverges; PCR raised when drift is detected | Open |
 | R4 | Process artifact maintenance overhead crowds out feature work | Low | Low | Keep all process artifacts in Markdown co-located with the code; lightweight tooling (no external tracking systems); tailor to minimum viable coverage | Open |
 
@@ -679,16 +681,37 @@ manual demonstrations remains invited.
 
 ---
 
+### Review 12 — PCR-059 Responses Implementation and Closure Review (2026-08-15)
+
+**Review type:** Software design, test-readiness, and test-results review
+**Trigger:** PCR-059 implementation and verification completed.
+
+| Indicator | Value |
+|---|---|
+| Requirements volatility | SRS-CORE v1.12: 157 requirements. 9 new/changed Responses and provider-interface requirements (REQ-CORE-205–208, 215–217 plus amendments to 072, 201, and 203); 0 deletions. |
+| Component progress | `LLM.Providers.OpenAI_Responses`: designed, implemented, unit-tested, and integrated. Native `openai` dispatch and registry defaults: implemented and tested. OpenRouter Responses cutover: implemented and tested. Chat Completions compatibility path: retained. |
+| Open problems | PCR-059 resolved (priority 4-Minor). R5/R6 mitigated by mock assertions and focused tests; live-provider qualification remains optional and guarded. PCR-009 and previously deferred manual demonstrations remain open as recorded. |
+| Milestone status | Build N+1 and N+2 implementation and verification complete. |
+| Scope changes | 1 acknowledged amendment: OpenAI Responses sibling adapter and OpenRouter Responses cutover. |
+| Test results trend | 878 registered tests; 878 successful, 0 failed assertions, and 0 unexpected errors. Production and test development builds succeed. |
+
+**Issues raised at review:** Live OpenAI/OpenRouter qualification was not enabled because no live-provider guard and credentials were configured. Automated qualification used local HTTP mock servers.
+
+**Independence limitation:** The developer evaluated their own implementation, documentation, and test results. Independent user review of the changed source and documentation remains invited.
+
+**Disposition:** PCR-059 is resolved. Guarded live-provider qualification and manual demonstrations remain optional follow-up activities.
+
+
 ## 9. Artifact Version Table
 
 
 | Artifact | ID | Location | Current Version | Control Level |
 |---|---|---|---|---|
-| Project Plan | PLAN | `plan/project-plan.md` | 1.18 (2026-08-15) | Project |
+| Project Plan | PLAN | `plan/project-plan.md` | 1.19 (2026-08-15) | Project |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
 | coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.12 (2026-08-15) | Client |
-| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.12 (2026-08-15) | Project |
+| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.13 (2026-08-15) | Project |
 | coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.2 (2026-06-21) | Project |
 | coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.2 (2026-06-21) | Project |
-| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.12 (2026-08-15) | Project |
+| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.13 (2026-08-15) | Project |
 | Agent Working Instructions (secondary) | AGENTS | `AGENTS.md` | active | Project |

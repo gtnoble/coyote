@@ -22,6 +22,7 @@ with LLM.Providers.OpenCode_Go;
 with LLM.Providers.OpenRouter;
 with LLM.Session_Store;
 with LLM.Providers.OpenAI_Completions;
+with LLM.Providers.OpenAI_Responses;
 with LLM.Settings;
 with LLM.System_Prompt;
 with LLM.Tools;
@@ -640,6 +641,21 @@ package body LLM.Agent is
                  ("description", To_String (Descriptor.Description));
                Tool_Object.Set_Field
                  ("input_schema", Descriptor.Schema_Json);
+               GNATCOLL.JSON.Append (Tools, Tool_Object);
+            end;
+         elsif Lowercase (To_String (Info.Wire_Format)) =
+           "openai-responses"
+         then
+            declare
+               Tool_Object : constant GNATCOLL.JSON.JSON_Value :=
+                 GNATCOLL.JSON.Create_Object;
+            begin
+               Tool_Object.Set_Field ("type", "function");
+               Tool_Object.Set_Field ("name", To_String (Descriptor.Name));
+               Tool_Object.Set_Field
+                 ("description", To_String (Descriptor.Description));
+               Tool_Object.Set_Field
+                 ("parameters", Descriptor.Schema_Json);
                GNATCOLL.JSON.Append (Tools, Tool_Object);
             end;
          else
@@ -1286,6 +1302,7 @@ package body LLM.Agent is
       LLM.Model_Registry.Refresh_OpenRouter;
       LLM.Model_Registry.Refresh_Anthropic;
       LLM.Model_Registry.Refresh_OpenCode_Go;
+      LLM.Model_Registry.Refresh_OpenAI;
 
       LLM.Model_Registry.Refresh_Ollama;
       Set_Model_Internal (S, Effective_Spec);
@@ -1475,6 +1492,23 @@ package body LLM.Agent is
             Provider : LLM.Providers.OpenAI_Completions.Provider :=
               LLM.Providers.OpenAI_Completions.Create
                 ("https://ollama.com/v1/", Api_Key);
+         begin
+            Provider.Send
+              (Model_Id      => To_String (S.Model_Info.Model_Id),
+               System_Prompt => LLM.Compaction.Summarization_System_Prompt,
+               Messages      => Summary_Request,
+               Tools_Json    => "",
+               Thinking      => LLM.Providers.Off,
+               Max_Tokens    => Summary_Max_Tokens,
+               Handler       => Summary_Event_Handler'Unrestricted_Access);
+         end;
+      elsif Lowercase (To_String (S.Model_Info.Provider)) = "openai" then
+         declare
+            Api_Key  : constant String :=
+              LLM.Settings.Resolve_Api_Key ("openai");
+            Provider : LLM.Providers.OpenAI_Responses.Provider :=
+              LLM.Providers.OpenAI_Responses.Create
+                ("https://api.openai.com/v1", Api_Key);
          begin
             Provider.Send
               (Model_Id      => To_String (S.Model_Info.Model_Id),
@@ -1735,6 +1769,24 @@ package body LLM.Agent is
                   Provider : LLM.Providers.OpenAI_Completions.Provider :=
                     LLM.Providers.OpenAI_Completions.Create
                       ("https://ollama.com/v1/", Api_Key);
+               begin
+                  Send_With_Retry
+                    (S             => S,
+                     Provider      => Provider,
+                     Tools_Json    => Tools_Json,
+                     Builder       => Builder,
+                     Pending_Tools => Pending_Tools,
+                     On_Event      => On_Event);
+               end;
+            elsif Lowercase (To_String (S.Model_Info.Provider)) =
+              "openai"
+            then
+               declare
+                  Api_Key  : constant String :=
+                    LLM.Settings.Resolve_Api_Key ("openai");
+                  Provider : LLM.Providers.OpenAI_Responses.Provider :=
+                    LLM.Providers.OpenAI_Responses.Create
+                      ("https://api.openai.com/v1", Api_Key);
                begin
                   Send_With_Retry
                     (S             => S,

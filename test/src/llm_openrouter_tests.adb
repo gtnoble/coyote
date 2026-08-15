@@ -322,40 +322,63 @@ package body LLM_OpenRouter_Tests is
       return SSE_Record (GNATCOLL.JSON.Write (Data));
    end SSE_Record;
 
+   function SSE_Event
+      (Event_Type : String;
+       Data       : GNATCOLL.JSON.JSON_Value) return String
+   is
+   begin
+      return
+         "event: " & Event_Type & ASCII.LF
+         & "data: " & GNATCOLL.JSON.Write (Data)
+         & ASCII.LF & ASCII.LF;
+   end SSE_Event;
+
    function Build_Text_SSE_Payload
       (Text              : String;
        Prompt_Tokens     : Natural;
        Completion_Tokens : Natural) return String
    is
       use GNATCOLL.JSON;
-
-      Delta_Event  : constant JSON_Value := Create_Object;
-      Delta_Choice : constant JSON_Value := Create_Object;
-      Delta_Value        : constant JSON_Value := Create_Object;
-      Finish_Event : constant JSON_Value := Create_Object;
-      Finish_Choice : constant JSON_Value := Create_Object;
-      Finish_Delta : constant JSON_Value := Create_Object;
-      Usage        : constant JSON_Value := Create_Object;
-      Choices      : JSON_Array := Empty_Array;
+      Delta_Event : constant JSON_Value := Create_Object;
+      Completed   : constant JSON_Value := Create_Object;
+      Response    : constant JSON_Value := Create_Object;
+      Item        : constant JSON_Value := Create_Object;
+      Part        : constant JSON_Value := Create_Object;
+      Output      : JSON_Array := Empty_Array;
+      Content     : JSON_Array := Empty_Array;
+      Usage       : constant JSON_Value := Create_Object;
    begin
-      Delta_Value.Set_Field ("content", Text);
-      Delta_Choice.Set_Field ("delta", Delta_Value);
-      Delta_Choice.Set_Field ("finish_reason", JSON_Null);
-      Append (Choices, Delta_Choice);
-      Delta_Event.Set_Field ("choices", Choices);
+      Delta_Event.Set_Field ("type", "response.output_text.delta");
+      Delta_Event.Set_Field ("item_id", "msg_test");
+      Delta_Event.Set_Field ("output_index", Integer (0));
+      Delta_Event.Set_Field ("content_index", Integer (0));
+      Delta_Event.Set_Field ("delta", Text);
 
-      Choices := Empty_Array;
-      Finish_Choice.Set_Field ("delta", Finish_Delta);
-      Finish_Choice.Set_Field ("finish_reason", "stop");
-      Append (Choices, Finish_Choice);
-      Finish_Event.Set_Field ("choices", Choices);
-      Usage.Set_Field ("prompt_tokens", Integer (Prompt_Tokens));
-      Usage.Set_Field ("completion_tokens", Integer (Completion_Tokens));
-      Finish_Event.Set_Field ("usage", Usage);
+      Part.Set_Field ("type", "output_text");
+      Part.Set_Field ("text", Text);
+      Append (Content, Part);
+      Item.Set_Field ("id", "msg_test");
+      Item.Set_Field ("type", "message");
+      Item.Set_Field ("role", "assistant");
+      Item.Set_Field ("status", "completed");
+      Item.Set_Field ("content", Content);
+      Append (Output, Item);
 
-      return SSE_Record (Delta_Event)
-         & SSE_Record (Finish_Event)
-         & SSE_Record ("[DONE]");
+      Usage.Set_Field ("input_tokens", Integer (Prompt_Tokens));
+      Usage.Set_Field ("output_tokens", Integer (Completion_Tokens));
+      Usage.Set_Field
+         ("total_tokens", Integer (Prompt_Tokens + Completion_Tokens));
+      Response.Set_Field ("id", "resp_test");
+      Response.Set_Field ("object", "response");
+      Response.Set_Field ("status", "completed");
+      Response.Set_Field ("output", Output);
+      Response.Set_Field ("usage", Usage);
+      Completed.Set_Field ("type", "response.completed");
+      Completed.Set_Field ("response", Response);
+
+      return
+         SSE_Event ("response.output_text.delta", Delta_Event)
+         & SSE_Event ("response.completed", Completed);
    end Build_Text_SSE_Payload;
 
    function Build_Live_Models_Body return String is
@@ -438,8 +461,8 @@ package body LLM_OpenRouter_Tests is
          Body_JS : GNATCOLL.JSON.JSON_Value;
       begin
          Assert
-            (To_String (Req.Path) = "/api/v1/chat/completions",
-             "Expected path /api/v1/chat/completions");
+            (To_String (Req.Path) = "/api/v1/responses",
+             "Expected path /api/v1/responses");
          Assert
             (Test_HTTP_Server.Get_Header
                 (Req.Headers, "Authorization") = "Bearer env-test-key",
@@ -455,6 +478,26 @@ package body LLM_OpenRouter_Tests is
              "Expected X-Title: coyote");
          Assert (Parsed.Success, "Failed to parse request body as JSON");
          Body_JS := Parsed.Value;
+         Assert
+            (not Body_JS.Has_Field ("messages"),
+             "Responses request must not contain messages");
+         Assert
+            (Body_JS.Has_Field ("input"),
+             "Responses request must contain input");
+         Assert
+            (not Body_JS.Has_Field ("store"),
+             "OpenRouter Responses request must omit store");
+         Assert
+            (not Body_JS.Has_Field ("previous_response_id"),
+             "OpenRouter Responses request must omit previous_response_id");
+         Assert
+            (not Body_JS.Has_Field ("instructions")
+             or else Body_JS.Get ("instructions").Kind
+               = GNATCOLL.JSON.JSON_String_Type,
+             "Responses instructions field has an unexpected shape");
+         Assert
+            (Body_JS.Has_Field ("max_output_tokens"),
+             "Responses request must contain max_output_tokens");
          Assert
             (Body_JS.Has_Field ("model")
              and then Body_JS.Get ("model").Kind
@@ -527,8 +570,8 @@ package body LLM_OpenRouter_Tests is
          Body_JS : GNATCOLL.JSON.JSON_Value;
       begin
          Assert
-            (To_String (Req.Path) = "/api/v1/chat/completions",
-             "Expected path /api/v1/chat/completions");
+            (To_String (Req.Path) = "/api/v1/responses",
+             "Expected path /api/v1/responses");
          Assert
             (Test_HTTP_Server.Get_Header
                 (Req.Headers, "Authorization") = "Bearer reasoning-key",
@@ -627,21 +670,21 @@ package body LLM_OpenRouter_Tests is
       Cache_Text : Unbounded_String;
 
       --  Protected object to track which endpoints have been served.
-      --  Also accumulates captured fields for the chat POST request.
+      --  Also accumulates captured fields for the Responses POST request.
       protected type Endpoint_State is
          procedure Set_Models_Served;
-         procedure Set_Chat_Served
+         procedure Set_Response_Served
             (Auth    : String;
              Effort  : String;
              Model   : String);
          function Models_Calls return Natural;
-         function Chat_Calls   return Natural;
-         function Chat_Authorization return String;
+         function Response_Calls   return Natural;
+         function Response_Authorization return String;
          function Reasoning_Effort    return String;
-         function Chat_Model          return String;
+         function Response_Model          return String;
       private
          Models_Count : Natural := 0;
-         Chat_Count   : Natural := 0;
+         Response_Count   : Natural := 0;
          Auth_Val     : Unbounded_String;
          Effort_Val   : Unbounded_String;
          Model_Val    : Unbounded_String;
@@ -653,42 +696,42 @@ package body LLM_OpenRouter_Tests is
             Models_Count := Models_Count + 1;
          end Set_Models_Served;
 
-         procedure Set_Chat_Served
+         procedure Set_Response_Served
             (Auth    : String;
              Effort  : String;
              Model   : String)
          is
          begin
-            Chat_Count   := Chat_Count + 1;
+            Response_Count   := Response_Count + 1;
             Auth_Val     := To_Unbounded_String (Auth);
             Effort_Val   := To_Unbounded_String (Effort);
             Model_Val    := To_Unbounded_String (Model);
-         end Set_Chat_Served;
+         end Set_Response_Served;
 
          function Models_Calls return Natural is
          begin
             return Models_Count;
          end Models_Calls;
 
-         function Chat_Calls return Natural is
+         function Response_Calls return Natural is
          begin
-            return Chat_Count;
-         end Chat_Calls;
+            return Response_Count;
+         end Response_Calls;
 
-         function Chat_Authorization return String is
+         function Response_Authorization return String is
          begin
             return To_String (Auth_Val);
-         end Chat_Authorization;
+         end Response_Authorization;
 
          function Reasoning_Effort return String is
          begin
             return To_String (Effort_Val);
          end Reasoning_Effort;
 
-         function Chat_Model return String is
+         function Response_Model return String is
          begin
             return To_String (Model_Val);
-         end Chat_Model;
+         end Response_Model;
       end Endpoint_State;
 
       State : Endpoint_State;
@@ -713,7 +756,7 @@ package body LLM_OpenRouter_Tests is
             Append (Res.Body_Data, Live_Models_Body);
 
          elsif Method = "POST"
-               and then Path = "/api/v1/chat/completions"
+               and then Path = "/api/v1/responses"
          then
             declare
                Parsed : constant GNATCOLL.JSON.Read_Result :=
@@ -751,7 +794,7 @@ package body LLM_OpenRouter_Tests is
                   end;
                end if;
 
-               State.Set_Chat_Served
+               State.Set_Response_Served
                   (Auth   => Auth,
                    Effort => To_String (Effort),
                    Model  => To_String (Model));
@@ -781,17 +824,17 @@ package body LLM_OpenRouter_Tests is
                ("models_calls",
                 Integer (State.Models_Calls));
             Capture_JS.Set_Field
-               ("chat_calls",
-                Integer (State.Chat_Calls));
+               ("response_calls",
+                Integer (State.Response_Calls));
             Capture_JS.Set_Field
-               ("chat_authorization",
-                State.Chat_Authorization);
+               ("response_authorization",
+                State.Response_Authorization);
             Capture_JS.Set_Field
                ("reasoning_effort",
                 State.Reasoning_Effort);
             Capture_JS.Set_Field
                ("model",
-                State.Chat_Model);
+                State.Response_Model);
             Ada.Text_IO.Create
                (File, Ada.Text_IO.Out_File, Capture_Path);
             Ada.Text_IO.Put
@@ -854,12 +897,12 @@ package body LLM_OpenRouter_Tests is
          (Get_Natural_Field (Capture, "models_calls") = 1,
           "A stale cache should trigger one live catalogue fetch");
       Assert
-         (Get_Natural_Field (Capture, "chat_calls") = 1,
-          "Provider should send one OpenRouter chat request");
+         (Get_Natural_Field (Capture, "response_calls") = 1,
+          "Provider should send one OpenRouter Responses request");
       Assert
-         (Get_String_Field (Capture, "chat_authorization")
+         (Get_String_Field (Capture, "response_authorization")
             = "Bearer live-openrouter-key",
-          "The chat request should use the configured API key");
+          "The Responses request should use the configured API key");
       Assert
          (Get_String_Field (Capture, "reasoning_effort") = "medium",
           "A reasoning send should use the refreshed live catalogue");
@@ -928,7 +971,7 @@ package body LLM_OpenRouter_Tests is
          Model  : Unbounded_String;
          File   : Ada.Text_IO.File_Type;
       begin
-         if To_String (Req.Path) /= "/api/v1/chat/completions" then
+         if To_String (Req.Path) /= "/api/v1/responses" then
             Res.Status := 404;
             return;
          end if;

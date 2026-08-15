@@ -1,6 +1,6 @@
 # Test Plan â coyote (STP)
 
-**Version:** 1.12
+**Version:** 1.13
 **Date:** 2026-08-15
 
 **Status:** Reviewed and acknowledged â M4 complete (2026-06-03)
@@ -340,15 +340,23 @@ These are entered as open items in the problem log (PCR-009).
 
 ## 7. Notes
 
-**Planned (PCR-059 OpenAI Responses):** New AUnit module
-`llm_openai_responses_tests` covering `/responses` path, `input`/`instructions`
-encoding, flat function tools, typed SSE events (text, reasoning, function
-call), usage field names including `cache_write_tokens`, image tool results
-as `input_image` inside `function_call_output`, reasoning-item replay, and
-HTTP error propagation. OpenRouter tests switch expected path from
-`/api/v1/chat/completions` to `/api/v1/responses` and assert absence of
-`store` / `previous_response_id`. Completions tests remain unchanged.
-Baseline count will be updated when the suite is implemented.
+**Verification as of 2026-08-15 (PCR-059 OpenAI Responses):**
+The sibling `LLM.Providers.OpenAI_Responses` adapter is implemented and
+registered with 10 focused provider tests covering `/responses`,
+`input`/`instructions`, flat tools, typed SSE text/reasoning/function-call
+events, Responses usage fields, image output, encrypted reasoning replay,
+HTTP errors, and stateless fields. Native `openai` dispatch and registry
+fallback/catalogue entries are covered by two additional tests. OpenRouter
+now delegates to Responses at `/api/v1/responses`; its four focused tests
+cover headers/key fallback, reasoning effort, stale-cache refresh, flat
+request fields, and omission of `store`/`previous_response_id`. Existing
+agent and parallel-tool mock fixtures now consume Responses events. Production
+and test development builds succeed. The complete 878-test AUnit suite passes
+with 878 successful tests, 0 failed assertions, and 0 unexpected errors.
+Chat Completions tests and compatibility providers remain in place. Live
+OpenAI/OpenRouter qualification was not enabled because no live-provider guard
+and credentials were configured; the automated qualification uses local HTTP
+mock servers.
 
 
 **Verification as of 2026-08-15 (GTK tool-detail argument sizing):**

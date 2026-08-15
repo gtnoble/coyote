@@ -371,8 +371,8 @@ package body LLM_Model_Registry_Tests is
       (To_String (Model.Model_Id) = "some/new-model-not-in-registry",
        "Default OpenRouter fallback should preserve the requested id");
     Assert
-      (To_String (Model.Wire_Format) = "openai-completions",
-       "Default OpenRouter fallback should use OpenAI completions");
+      (To_String (Model.Wire_Format) = "openai-responses",
+       "Default OpenRouter fallback should use OpenAI Responses");
   end Test_OpenRouter_Default_Fallback;
 
   procedure Test_Unknown_Provider_Not_Found (T : in out Test) is
@@ -725,5 +725,41 @@ package body LLM_Model_Registry_Tests is
       Cleanup_Test_Home (Home);
       raise;
   end Test_OpenCode_Go_Available_With_Key;
+
+
+  procedure Test_OpenAI_Default_Fallback (T : in out Test) is
+    pragma Unreferenced (T);
+    Model : constant LLM.Model_Registry.Model_Info :=
+      LLM.Model_Registry.Lookup ("openai", "unknown-model");
+  begin
+    Assert
+      (To_String (Model.Provider) = "openai",
+       "OpenAI fallback should keep the provider name");
+    Assert
+      (To_String (Model.Wire_Format) = "openai-responses",
+       "OpenAI fallback should use Responses wire format");
+    Assert (Model.Supports_Images, "OpenAI Responses supports images");
+  end Test_OpenAI_Default_Fallback;
+
+  procedure Test_OpenAI_Available_With_Key (T : in out Test) is
+    pragma Unreferenced (T);
+    Key_Was_Set : constant Boolean :=
+      Ada.Environment_Variables.Exists ("OPENAI_API_KEY");
+    Old_Key : constant String :=
+      Ada.Environment_Variables.Value ("OPENAI_API_KEY", "");
+    Available : LLM.Model_Registry.Model_Info_Vectors.Vector;
+  begin
+    Ada.Environment_Variables.Set ("OPENAI_API_KEY", "fixture-openai-key");
+    LLM.Model_Registry.Refresh_OpenAI;
+    Available := LLM.Model_Registry.Available_Models;
+    Assert
+      (Count_Provider (Available, "openai") = 3,
+       "OpenAI models should appear when OPENAI_API_KEY is configured");
+    Restore_Env ("OPENAI_API_KEY", Key_Was_Set, Old_Key);
+  exception
+    when others =>
+      Restore_Env ("OPENAI_API_KEY", Key_Was_Set, Old_Key);
+      raise;
+  end Test_OpenAI_Available_With_Key;
 
 end LLM_Model_Registry_Tests;

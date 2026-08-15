@@ -41,8 +41,11 @@ Key implementation notes (do not rediscover these from the spec):
   Do not use the Completions stub + follow-up user message.
 - Cache: `prompt_cache_breakpoint: {mode:"explicit"}` on content parts,
   not Completions `cache_control`.
-- OpenRouter cutover is a separate build after the sibling adapter is
-  green. Until then OpenRouter remains a Completions subclass.
+- Native OpenAI sibling adapter and OpenRouter Responses cutover are
+  implemented. The complete 878-test AUnit regression suite passes with no
+  failures or unexpected errors; focused provider, registry, agent, and
+  parallel-tool tests also pass. Live-provider qualification remains an
+  optional guarded activity and was not enabled in this environment.
 
 
 ### Dedicated subagent model preference (2026-08-08)

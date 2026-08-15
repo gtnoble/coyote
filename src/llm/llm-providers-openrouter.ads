@@ -1,18 +1,17 @@
---  LLM.Providers.OpenRouter — OpenRouter chat-completions adapter.
+--  LLM.Providers.OpenRouter — OpenRouter Responses API adapter.
 --
---  Extends the base OpenAI chat-completions provider with OpenRouter's
---  default base URL, metadata headers, and API-key resolution.
---  Reasoning-effort configuration is inherited from the base
---  OpenAI_Completions provider.
+--  Uses the OpenAI Responses provider with OpenRouter's default base URL,
+--  metadata headers, and API-key resolution. Reasoning-effort configuration
+--  is inherited from the Responses provider.
 --
 --  Project: coyote
 --  For revision history, see the project version-control log.
-with LLM.Providers.OpenAI_Completions;
+with LLM.Providers.OpenAI_Responses;
 with LLM.Types;
 
 package LLM.Providers.OpenRouter is
 
-   type Provider is new LLM.Providers.OpenAI_Completions.Provider with private;
+   type Provider is new LLM.Providers.OpenAI_Responses.Provider with private;
 
    --  Construct an OpenRouter provider.
    --
@@ -33,6 +32,6 @@ package LLM.Providers.OpenRouter is
 
 private
 
-   type Provider is new LLM.Providers.OpenAI_Completions.Provider with null record;
+   type Provider is new LLM.Providers.OpenAI_Responses.Provider with null record;
 
 end LLM.Providers.OpenRouter;

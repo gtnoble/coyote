@@ -40,6 +40,7 @@ with Coyote_SQC_Quantile_CC_Tests;
 with LLM_SSE_Tests;
 with LLM_Tools_Tests;
 with LLM_OpenAI_Completions_Tests;
+with LLM_OpenAI_Responses_Tests;
 with LLM_Auth_Tests;
 with LLM_Catalogue_Tests;
 with LLM_OpenRouter_Tests;
@@ -122,6 +123,8 @@ package body Test_Suites is
      new AUnit.Test_Caller (LLM_Tools_Tests.Test);
    package LLM_OpenAI_Completions_Caller is
      new AUnit.Test_Caller (LLM_OpenAI_Completions_Tests.Test);
+   package LLM_OpenAI_Responses_Caller is
+     new AUnit.Test_Caller (LLM_OpenAI_Responses_Tests.Test);
    package LLM_Auth_Caller is
      new AUnit.Test_Caller (LLM_Auth_Tests.Test);
    package LLM_Catalogue_Caller is
@@ -1691,6 +1694,38 @@ package body Test_Suites is
         ("OpenAI tool_result image uses image_url data URI format",
          LLM_OpenAI_Completions_Tests
            .Test_Tool_Result_Image_Serialised'Access));
+      Result.Add_Test (LLM_OpenAI_Responses_Caller.Create
+        ("LLM.OpenAI_Responses streams text SSE responses",
+         LLM_OpenAI_Responses_Tests.Test_Stream_Text_Response'Access));
+      Result.Add_Test (LLM_OpenAI_Responses_Caller.Create
+        ("LLM.OpenAI_Responses streams function_call items",
+         LLM_OpenAI_Responses_Tests.Test_Stream_Tool_Call_Response'Access));
+      Result.Add_Test (LLM_OpenAI_Responses_Caller.Create
+        ("LLM.OpenAI_Responses emits thinking and encrypted signature",
+         LLM_OpenAI_Responses_Tests.Test_Stream_Thinking_Response'Access));
+      Result.Add_Test (LLM_OpenAI_Responses_Caller.Create
+        ("LLM.OpenAI_Responses encodes compaction summaries as user",
+         LLM_OpenAI_Responses_Tests
+           .Test_Compaction_Summary_Encodes_As_User'Access));
+      Result.Add_Test (LLM_OpenAI_Responses_Caller.Create
+        ("LLM.OpenAI_Responses parses non-streaming JSON responses",
+         LLM_OpenAI_Responses_Tests.Test_Non_Streaming_Response'Access));
+      Result.Add_Test (LLM_OpenAI_Responses_Caller.Create
+        ("LLM.OpenAI_Responses propagates HTTP errors",
+         LLM_OpenAI_Responses_Tests.Test_HTTP_Error_Propagates'Access));
+      Result.Add_Test (LLM_OpenAI_Responses_Caller.Create
+        ("LLM.OpenAI_Responses parses cache_write_tokens",
+         LLM_OpenAI_Responses_Tests.Test_Usage_Includes_Cache_Write'Access));
+      Result.Add_Test (LLM_OpenAI_Responses_Caller.Create
+        ("LLM.OpenAI_Responses encodes image tool results as input_image",
+         LLM_OpenAI_Responses_Tests.Test_Tool_Result_Image_Serialised'Access));
+      Result.Add_Test (LLM_OpenAI_Responses_Caller.Create
+        ("LLM.OpenAI_Responses replays reasoning items",
+         LLM_OpenAI_Responses_Tests.Test_Reasoning_Item_Replayed'Access));
+      Result.Add_Test (LLM_OpenAI_Responses_Caller.Create
+        ("LLM.OpenAI_Responses omits store and previous_response_id",
+         LLM_OpenAI_Responses_Tests
+           .Test_Omits_Store_And_Previous_Response'Access));
       Result.Add_Test (LLM_Auth_Caller.Create
         ("LLM.Auth loads GitHub Copilot credentials from auth.json",
          LLM_Auth_Tests.Test_Load_Credentials'Access));
@@ -2597,6 +2632,12 @@ package body Test_Suites is
         ("LLM.Model_Registry OpenCode Go models available with key",
          LLM_Model_Registry_Tests
            .Test_OpenCode_Go_Available_With_Key'Access));
+      Result.Add_Test (LLM_Model_Registry_Caller.Create
+        ("LLM.Model_Registry defaults unknown OpenAI ids to Responses",
+         LLM_Model_Registry_Tests.Test_OpenAI_Default_Fallback'Access));
+      Result.Add_Test (LLM_Model_Registry_Caller.Create
+        ("LLM.Model_Registry OpenAI models available with key",
+         LLM_Model_Registry_Tests.Test_OpenAI_Available_With_Key'Access));
 
       --  LLM.Providers.OpenCode_Go.Catalogue tests
       Result.Add_Test (LLM_OpenCode_Go_Catalogue_Caller.Create

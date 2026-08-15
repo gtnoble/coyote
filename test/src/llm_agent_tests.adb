@@ -285,31 +285,165 @@ package body LLM_Agent_Tests is
    end Write_Minimal_OpenRouter_Cache;
 
    --  Build a two-event SSE payload that streams Text then closes with stop.
-   --  The payload matches the OpenAI chat-completions streaming format:
+   --  The payload matches the OpenAI Responses streaming format:
    --    data: <delta-content event>\n\n
    --    data: <finish event with usage>\n\n
    --    data: [DONE]\n\n
+   function Legacy_Message_Array
+      (Request : GNATCOLL.JSON.JSON_Value)
+      return GNATCOLL.JSON.JSON_Array
+   is
+      use GNATCOLL.JSON;
+      Result        : JSON_Array := Empty_Array;
+      Pending_Calls : JSON_Array := Empty_Array;
+      Pending_Has   : Boolean := False;
+      Input         : constant JSON_Array := Request.Get ("input").Get;
+
+      procedure Flush_Pending_Calls is
+         Legacy : constant JSON_Value := Create_Object;
+      begin
+         if not Pending_Has then
+            return;
+         end if;
+         Legacy.Set_Field ("role", "assistant");
+         Legacy.Set_Field ("content", JSON_Null);
+         Legacy.Set_Field ("tool_calls", Pending_Calls);
+         Append (Result, Legacy);
+         Pending_Calls := Empty_Array;
+         Pending_Has := False;
+      end Flush_Pending_Calls;
+   begin
+      if Request.Has_Field ("instructions") then
+         declare
+            Item : constant JSON_Value := Create_Object;
+         begin
+            Item.Set_Field
+              ("content", String'(Request.Get ("instructions").Get));
+            Item.Set_Field ("role", "system");
+            Append (Result, Item);
+         end;
+      end if;
+
+      for I in 1 .. GNATCOLL.JSON.Length (Input) loop
+         declare
+            Item      : constant JSON_Value :=
+              GNATCOLL.JSON.Get (Input, I);
+            Item_Type : constant String :=
+              (if Item.Has_Field ("type")
+               then String'(Item.Get ("type").Get)
+               else "");
+         begin
+            if Item_Type = "message" then
+               Flush_Pending_Calls;
+               declare
+                  Legacy  : constant JSON_Value := Create_Object;
+                  Content : constant JSON_Value := Item.Get ("content");
+                  Text    : constant String :=
+                    (if Content.Kind = JSON_String_Type
+                     then Content.Get
+                     elsif Content.Kind = JSON_Array_Type
+                       and then GNATCOLL.JSON.Length (Content.Get) > 0
+                     then String'
+                       (GNATCOLL.JSON.Get (Content.Get, 1)
+                          .Get ("text").Get)
+                     else "");
+               begin
+                  Legacy.Set_Field
+                    ("role", String'(Item.Get ("role").Get));
+                  Legacy.Set_Field ("content", Text);
+                  Append (Result, Legacy);
+               end;
+            elsif Item_Type = "function_call" then
+               declare
+                  Call : constant JSON_Value := Create_Object;
+                  Func : constant JSON_Value := Create_Object;
+               begin
+                  Call.Set_Field
+                    ("id", String'(Item.Get ("call_id").Get));
+                  Call.Set_Field ("type", "function");
+                  Func.Set_Field
+                    ("name", String'(Item.Get ("name").Get));
+                  Func.Set_Field
+                    ("arguments", String'(Item.Get ("arguments").Get));
+                  Call.Set_Field ("function", Func);
+                  Append (Pending_Calls, Call);
+                  Pending_Has := True;
+               end;
+            elsif Item_Type = "function_call_output" then
+               Flush_Pending_Calls;
+               declare
+                  Legacy : constant JSON_Value := Create_Object;
+                  Output : constant JSON_Value := Item.Get ("output");
+                  Text   : constant String :=
+                    (if Output.Kind = JSON_String_Type
+                     then Output.Get
+                     elsif Output.Kind = JSON_Array_Type
+                       and then GNATCOLL.JSON.Length (Output.Get) > 0
+                     then String'
+                       (GNATCOLL.JSON.Get (Output.Get, 1)
+                          .Get ("text").Get)
+                     else "");
+               begin
+                  Legacy.Set_Field ("role", "tool");
+                  Legacy.Set_Field
+                    ("tool_call_id", String'(Item.Get ("call_id").Get));
+                  Legacy.Set_Field ("content", Text);
+                  Append (Result, Legacy);
+               end;
+            end if;
+         end;
+      end loop;
+      Flush_Pending_Calls;
+      return Result;
+   end Legacy_Message_Array;
+
    function Text_SSE_Payload
      (Text              : String;
       Prompt_Tokens     : Natural := 8;
       Completion_Tokens : Natural := 3) return String
    is
+      use GNATCOLL.JSON;
+      Delta_Event : constant JSON_Value := Create_Object;
+      Completed   : constant JSON_Value := Create_Object;
+      Response    : constant JSON_Value := Create_Object;
+      Item        : constant JSON_Value := Create_Object;
+      Part        : constant JSON_Value := Create_Object;
+      Output      : JSON_Array := Empty_Array;
+      Content     : JSON_Array := Empty_Array;
+      Usage       : constant JSON_Value := Create_Object;
    begin
+      Delta_Event.Set_Field ("type", "response.output_text.delta");
+      Delta_Event.Set_Field ("item_id", "msg_test");
+      Delta_Event.Set_Field ("output_index", Integer (0));
+      Delta_Event.Set_Field ("content_index", Integer (0));
+      Delta_Event.Set_Field ("delta", Text);
+      Part.Set_Field ("type", "output_text");
+      Part.Set_Field ("text", Text);
+      Append (Content, Part);
+      Item.Set_Field ("id", "msg_test");
+      Item.Set_Field ("type", "message");
+      Item.Set_Field ("role", "assistant");
+      Item.Set_Field ("status", "completed");
+      Item.Set_Field ("content", Content);
+      Append (Output, Item);
+      Usage.Set_Field ("input_tokens", Integer (Prompt_Tokens));
+      Usage.Set_Field ("output_tokens", Integer (Completion_Tokens));
+      Usage.Set_Field
+        ("total_tokens", Integer (Prompt_Tokens + Completion_Tokens));
+      Response.Set_Field ("id", "resp_test");
+      Response.Set_Field ("object", "response");
+      Response.Set_Field ("status", "completed");
+      Response.Set_Field ("output", Output);
+      Response.Set_Field ("usage", Usage);
+      Completed.Set_Field ("type", "response.completed");
+      Completed.Set_Field ("response", Response);
       return
-        "data: {""choices"":[{""delta"":{""content"":"
-        & GNATCOLL.JSON.Write (GNATCOLL.JSON.Create (Text))
-        & "},""finish_reason"":null}]}"
-        & ASCII.LF & ASCII.LF
-        & "data: {""choices"":[{""delta"":{},""finish_reason"":""stop""}],"
-        & """usage"":{""prompt_tokens"":"
-        & Natural_Image (Prompt_Tokens)
-        & ",""completion_tokens"":"
-        & Natural_Image (Completion_Tokens)
-        & "}}"
-        & ASCII.LF & ASCII.LF
-        & "data: [DONE]"
-        & ASCII.LF & ASCII.LF;
+        "event: response.output_text.delta" & ASCII.LF
+        & "data: " & Write (Delta_Event) & ASCII.LF & ASCII.LF
+        & "event: response.completed" & ASCII.LF
+        & "data: " & Write (Completed) & ASCII.LF & ASCII.LF;
    end Text_SSE_Payload;
+
 
    --  Append a Content-Type: text/event-stream header to a response.
    procedure Add_SSE_Header (Res : in out Test_HTTP_Server.Response) is
@@ -346,59 +480,43 @@ package body LLM_Agent_Tests is
       Completion_Tokens : Natural := 6) return String
    is
       use GNATCOLL.JSON;
-
-      Start_Event  : constant JSON_Value := Create_Object;
-      Start_Choice : constant JSON_Value := Create_Object;
-      Start_Delta  : constant JSON_Value := Create_Object;
-      Start_Calls  : JSON_Array          := Empty_Array;
-      End_Event    : constant JSON_Value := Create_Object;
-      End_Choice   : constant JSON_Value := Create_Object;
-      End_Delta    : constant JSON_Value := Create_Object;
-      End_Usage    : constant JSON_Value := Create_Object;
-      Choices      : JSON_Array          := Empty_Array;
+      Completed : constant JSON_Value := Create_Object;
+      Response  : constant JSON_Value := Create_Object;
+      Output    : JSON_Array := Empty_Array;
+      Usage     : constant JSON_Value := Create_Object;
    begin
       for I in Calls'Range loop
          declare
-            Tool_Call      : constant JSON_Value := Create_Object;
-            Function_Value : constant JSON_Value := Create_Object;
+            Item : constant JSON_Value := Create_Object;
          begin
-            Tool_Call.Set_Field ("index", Integer (I - Calls'First));
-            Tool_Call.Set_Field
-              ("id", To_String (Calls (I).Tool_Call_Id));
-            Tool_Call.Set_Field ("type", "function");
-            Function_Value.Set_Field
-              ("name", To_String (Calls (I).Tool_Name));
-            Function_Value.Set_Field
+            Item.Set_Field
+              ("id", "fc_" & To_String (Calls (I).Tool_Call_Id));
+            Item.Set_Field ("type", "function_call");
+            Item.Set_Field
+              ("call_id", To_String (Calls (I).Tool_Call_Id));
+            Item.Set_Field ("name", To_String (Calls (I).Tool_Name));
+            Item.Set_Field
               ("arguments", To_String (Calls (I).Arguments_Json));
-            Tool_Call.Set_Field ("function", Function_Value);
-            Append (Start_Calls, Tool_Call);
+            Item.Set_Field ("status", "completed");
+            Append (Output, Item);
          end;
       end loop;
-
-      Start_Delta.Set_Field ("tool_calls", Start_Calls);
-      Start_Choice.Set_Field ("delta", Start_Delta);
-      Start_Choice.Set_Field ("finish_reason", JSON_Null);
-      Append (Choices, Start_Choice);
-      Start_Event.Set_Field ("choices", Choices);
-
-      Choices := Empty_Array;
-      End_Choice.Set_Field ("delta", End_Delta);
-      End_Choice.Set_Field ("finish_reason", "tool_calls");
-      Append (Choices, End_Choice);
-      End_Event.Set_Field ("choices", Choices);
-      End_Usage.Set_Field ("prompt_tokens", Integer (Prompt_Tokens));
-      End_Usage.Set_Field
-        ("completion_tokens", Integer (Completion_Tokens));
-      End_Event.Set_Field ("usage", End_Usage);
-
+      Usage.Set_Field ("input_tokens", Integer (Prompt_Tokens));
+      Usage.Set_Field ("output_tokens", Integer (Completion_Tokens));
+      Usage.Set_Field
+        ("total_tokens", Integer (Prompt_Tokens + Completion_Tokens));
+      Response.Set_Field ("id", "resp_tool");
+      Response.Set_Field ("object", "response");
+      Response.Set_Field ("status", "completed");
+      Response.Set_Field ("output", Output);
+      Response.Set_Field ("usage", Usage);
+      Completed.Set_Field ("type", "response.completed");
+      Completed.Set_Field ("response", Response);
       return
-        "data: " & Write (Start_Event)
-        & ASCII.LF & ASCII.LF
-        & "data: " & Write (End_Event)
-        & ASCII.LF & ASCII.LF
-        & "data: [DONE]"
-        & ASCII.LF & ASCII.LF;
+        "event: response.completed" & ASCII.LF
+        & "data: " & Write (Completed) & ASCII.LF & ASCII.LF;
    end Tool_Call_SSE_Payload;
+
 
    function Assistant_Text (Msg : LLM.Types.Message) return String is
       Result : Unbounded_String;
@@ -592,7 +710,7 @@ package body LLM_Agent_Tests is
          Parsed : constant Read_Result :=
            Read (To_String (Req.Body_Data));
          Req_Body : constant JSON_Value := Parsed.Value;
-         All_Msgs : constant JSON_Array := Req_Body.Get ("messages").Get;
+         All_Msgs : constant JSON_Array := Legacy_Message_Array (Req_Body);
 
          function Is_System (M : JSON_Value) return Boolean is
          begin
@@ -769,7 +887,7 @@ package body LLM_Agent_Tests is
          Parsed   : constant Read_Result :=
            Read (To_String (Req.Body_Data));
          Req_Body : constant JSON_Value := Parsed.Value;
-         All_Msgs : constant JSON_Array := Req_Body.Get ("messages").Get;
+         All_Msgs : constant JSON_Array := Legacy_Message_Array (Req_Body);
 
          function Is_System (M : JSON_Value) return Boolean is
          begin
@@ -968,7 +1086,7 @@ package body LLM_Agent_Tests is
          Parsed   : constant Read_Result :=
            Read (To_String (Req.Body_Data));
          Req_Body : constant JSON_Value := Parsed.Value;
-         All_Msgs : constant JSON_Array := Req_Body.Get ("messages").Get;
+         All_Msgs : constant JSON_Array := Legacy_Message_Array (Req_Body);
 
          function Is_System (M : JSON_Value) return Boolean is
          begin
@@ -1577,7 +1695,7 @@ package body LLM_Agent_Tests is
 
             Request    : constant GNATCOLL.JSON.JSON_Value := Parsed.Value;
             Msgs       : constant GNATCOLL.JSON.JSON_Array :=
-              Request.Get ("messages").Get;
+              Legacy_Message_Array (Request);
             Sys_Offset : constant Natural :=
               (if GNATCOLL.JSON.Length (Msgs) > 0
                  and then Json_String
@@ -1968,7 +2086,7 @@ package body LLM_Agent_Tests is
          Parsed   : constant Read_Result :=
            Read (To_String (Req.Body_Data));
          Req_Body : constant JSON_Value := Parsed.Value;
-         All_Msgs : constant JSON_Array := Req_Body.Get ("messages").Get;
+         All_Msgs : constant JSON_Array := Legacy_Message_Array (Req_Body);
 
          function Is_System (M : JSON_Value) return Boolean is
          begin
@@ -2196,7 +2314,7 @@ package body LLM_Agent_Tests is
          Parsed   : constant Read_Result :=
            Read (To_String (Req.Body_Data));
          Req_Body : constant JSON_Value := Parsed.Value;
-         All_Msgs : constant JSON_Array := Req_Body.Get ("messages").Get;
+         All_Msgs : constant JSON_Array := Legacy_Message_Array (Req_Body);
 
          function Is_System (M : JSON_Value) return Boolean is
          begin
@@ -2885,19 +3003,13 @@ package body LLM_Agent_Tests is
       is
          pragma Unreferenced (Req);
          Tool_SSE : constant String :=
-           "data: {""choices"":[{""delta"":{""tool_calls"":[{""index"":0,"
-           & """id"":""call_1"",""type"":""function"","
-           & """function"":{""name"":""nonexistent_tool_xyz"","
-           & """arguments"":""{}""}}"
-           & "]},"
-           & """finish_reason"":null}]}"
-           & ASCII.LF & ASCII.LF
-           & "data: {""choices"":[{""delta"":{},"
-           & """finish_reason"":""tool_calls""}],"
-           & """usage"":{""prompt_tokens"":11,""completion_tokens"":5}}"
-           & ASCII.LF & ASCII.LF
-           & "data: [DONE]"
-           & ASCII.LF & ASCII.LF;
+           Tool_Call_SSE_Payload
+             ((1 => Tool_Call_Def
+                (Tool_Call_Id   => "call_1",
+                 Tool_Name      => "nonexistent_tool_xyz",
+                 Arguments_Json => "{}")),
+              Prompt_Tokens     => 11,
+              Completion_Tokens => 5);
       begin
          Request_Count := Request_Count + 1;
          Res.Status := 200;

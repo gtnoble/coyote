@@ -6,6 +6,7 @@
 with Ada.Environment_Variables;
 with LLM.HTTP;
 with LLM.Providers.OpenRouter.Catalogue;
+with LLM.Providers.OpenAI_Responses;
 with LLM.Settings;
 
 package body LLM.Providers.OpenRouter is
@@ -90,7 +91,7 @@ package body LLM.Providers.OpenRouter is
 
       Set_Api_Key (P, Api_Key);
 
-      LLM.Providers.OpenAI_Completions.Send_Request
+      LLM.Providers.OpenAI_Responses.Send_Request
          (P             => P,
           Model_Id      => Model_Id,
           System_Prompt => System_Prompt,

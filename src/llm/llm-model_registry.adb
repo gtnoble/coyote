@@ -49,6 +49,11 @@ package body LLM.Model_Registry is
     return LLM.Settings.Resolve_Api_Key ("opencode-go")'Length > 0;
   end Has_OpenCode_Go_Key;
 
+  function Has_OpenAI_Key return Boolean is
+  begin
+    return LLM.Settings.Resolve_Api_Key ("openai")'Length > 0;
+  end Has_OpenAI_Key;
+
   function Is_Ollama_Configured_Internal return Boolean is
     Root : constant GNATCOLL.JSON.JSON_Value :=
       LLM.Settings.Load_Json_File (LLM.Settings.Models_Path);
@@ -180,7 +185,7 @@ package body LLM.Model_Registry is
        Supports_Images     => Item.Supports_Images,
        Max_Thinking_Budget => 0,
        Min_Thinking_Budget => 0,
-       Wire_Format         => To_Unbounded_String ("openai-completions"),
+       Wire_Format         => To_Unbounded_String ("openai-responses"),
        Cost                =>
          (Input       => Item.Cost_Input,
           Output      => Item.Cost_Output,
@@ -225,6 +230,23 @@ package body LLM.Model_Registry is
        Cost                => (others => 0.0));
   end Default_Ollama_Model;
 
+  function Default_OpenAI_Model (Model_Id : String) return Model_Info is
+  begin
+    return
+      (Model_Id            => To_Unbounded_String (Model_Id),
+       Name                => To_Unbounded_String (Model_Id),
+       Provider            => To_Unbounded_String ("openai"),
+       Context_Window      => 128_000,
+       Max_Tokens          => 16_384,
+       Reasoning           => True,
+       Supports_Tools      => True,
+       Supports_Images     => True,
+       Max_Thinking_Budget => 0,
+       Min_Thinking_Budget => 0,
+       Wire_Format         => To_Unbounded_String ("openai-responses"),
+       Cost                => (others => 0.0));
+  end Default_OpenAI_Model;
+
   function Default_OpenRouter_Model (Model_Id : String) return Model_Info is
   begin
     return
@@ -238,7 +260,7 @@ package body LLM.Model_Registry is
        Supports_Images     => False,
        Max_Thinking_Budget => 0,
        Min_Thinking_Budget => 0,
-       Wire_Format         => To_Unbounded_String ("openai-completions"),
+       Wire_Format         => To_Unbounded_String ("openai-responses"),
        Cost                => (others => 0.0));
   end Default_OpenRouter_Model;
 
@@ -263,6 +285,17 @@ package body LLM.Model_Registry is
         Wire_Format         => To_Unbounded_String ("anthropic-messages"),
         Cost                => (others => 0.0)));
   end Add_Anthropic_Model;
+
+   procedure Refresh_OpenAI is
+   begin
+     Remove_Provider_Entries ("openai");
+
+     if Has_OpenAI_Key then
+       Registry.Append (Default_OpenAI_Model ("gpt-5.4"));
+       Registry.Append (Default_OpenAI_Model ("gpt-4.1"));
+       Registry.Append (Default_OpenAI_Model ("o4-mini"));
+     end if;
+   end Refresh_OpenAI;
 
    procedure Refresh_Ollama is
      Models : LLM.Providers.Ollama.Catalogue.Catalogue_Vectors.Vector;
@@ -459,6 +492,8 @@ procedure Refresh_GitHub_Copilot is
       raise Not_Found with "Anthropic model not found: " & Model_Id;
     elsif Want_Provider = "ollama" then
       return Default_Ollama_Model (Model_Id);
+    elsif Want_Provider = "openai" then
+      return Default_OpenAI_Model (Model_Id);
     else
       raise Not_Found with "Unknown provider: " & Provider;
     end if;
@@ -491,8 +526,9 @@ procedure Refresh_GitHub_Copilot is
       Has_GitHub_Copilot_Credentials;
     Include_OpenRouter : constant Boolean := Has_OpenRouter_Key;
     Include_Anthropic  : constant Boolean := Has_Anthropic_Key;
-    Include_OpenCode   : constant Boolean := Has_OpenCode_Go_Key;
+    Include_OpenCode : constant Boolean := Has_OpenCode_Go_Key;
     Include_Ollama   : constant Boolean := Is_Ollama_Configured;
+    Include_OpenAI   : constant Boolean := Has_OpenAI_Key;
   begin
     for Item of Registry loop
       declare
@@ -507,6 +543,8 @@ procedure Refresh_GitHub_Copilot is
             (Provider_Name = "opencode-go" and then Include_OpenCode)
           or else
             (Provider_Name = "ollama" and then Include_Ollama)
+          or else
+            (Provider_Name = "openai" and then Include_OpenAI)
         then
           Result.Append (Item);
         end if;

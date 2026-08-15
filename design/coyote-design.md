@@ -1,7 +1,7 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.12
+**Version:** 1.13
 **Date:** 2026-08-15
 
 **Status:** Reviewed — project control (M3 complete 2026-06-02)
@@ -642,7 +642,8 @@ agentic loop for one prompt.
 
 **`Create` procedure:**
 1. Load settings from `~/.coyote/settings.json` and `~/.coyote/models.json`.
-2. Refresh each provider's model catalogue (Copilot, OpenRouter, OpenCode).
+2. Refresh each configured provider's model catalogue or curated defaults
+   (Copilot, OpenRouter, Anthropic, OpenCode Go, native OpenAI, Ollama).
 3. Select the model: `--model` arg → settings → first registry entry.
 4. Create or resume session via `LLM.Session_Store`.
 5. Load conversation history if resuming.
@@ -703,7 +704,7 @@ emit Session_Stats_Event
 ### 5.6 `LLM.Providers.OpenAI_Completions`
 
 **Purpose:** OpenAI Chat Completions wire format implementation. Base class
-extended by `OpenRouter`.
+used by GitHub Copilot, OpenCode Go, and Ollama compatibility paths.
 
 **`Send` procedure flow:**
 1. Build `messages` JSON array from `History` (role mapping: user/assistant/tool).
@@ -726,17 +727,16 @@ determine the nested Completions `tools` JSON schema shape. Distinct from
 on (1) the system message, (2) the last message with `role:"user"` or
 `role:"tool"`, and (3) the last tool definition.  The user/tool message
 breakpoint advances each turn to encompass the entire conversation prefix,
-yielding near-zero cache miss rates for providers that honour the
-`cache_control` field (OpenRouter routing to Anthropic backends, GitHub
-Copilot).  Providers that do not support `cache_control` retain automatic
-prefix caching with no change in behaviour.
+yielding near-zero cache miss rates for legacy Completions providers that
+honour the `cache_control` field (for example GitHub Copilot). Responses
+providers use `prompt_cache_breakpoint` instead.
 
 **`Customize_Request` (non-overriding):** Maps `Thinking_Level` to the
 OpenAI `reasoning.effort` request field (`"low"`, `"medium"`, `"high"`).
 When `Thinking` is `Off` this is a no-op.  This base implementation applies
 to all providers routing through the OpenAI completions wire format —
-OpenRouter, GitHub Copilot (OpenAI-wire path), and OpenCode Go (OpenAI-wire
-path).  Descendants may override to add provider-specific logic.
+GitHub Copilot (OpenAI-wire path) and OpenCode Go (OpenAI-wire path).
+Descendants may override to add provider-specific logic.
 ---
 
 ### 5.6a `LLM.Providers.OpenAI_Responses`
@@ -796,13 +796,10 @@ No Completions stub-plus-follow-up-user-message split.
 
 **`Wire_Format` field:** `"openai-responses"`.
 
-**Reasoning replay:** Persist `ReasoningItem.id` and `encrypted_content`
-on the assistant `Thinking_Block` (`Signature` holds encrypted content;
-item id is stored alongside or packed into the same field per the
-implementation note in `sdfs/providers.md`). Subsequent turns must echo
-the reasoning item in `input`. Request `include:
-["reasoning.encrypted_content"]` when the provider requires it to return
-the ciphertext.
+**Reasoning replay:** The existing `Thinking_Block.Signature` field carries
+an encoded object containing `id` and `encrypted_content`; ordinary opaque
+signatures remain backward-compatible. Subsequent turns echo both fields in
+`input`. The request includes `reasoning.encrypted_content`.
 
 **`Customize_Request`:** Same extension point as Completions so
 descendants (OpenRouter) can add provider-specific fields without
@@ -1391,8 +1388,8 @@ defined in the abstract package.
 
 ### 5.25 `LLM.Providers.OpenRouter`
 
-**Purpose:** OpenRouter adapter. Delegates to `OpenAI_Responses.Provider`
-(not Completions). OpenRouter's Responses endpoint is a drop-in for
+**Purpose:** OpenRouter adapter. Delegates to
+`OpenAI_Responses.Provider` (not Completions). OpenRouter's Responses endpoint is a drop-in for
 OpenAI Responses and is **stateless**: `store: true` and
 `previous_response_id` are rejected with HTTP 400.
 
