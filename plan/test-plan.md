@@ -340,6 +340,13 @@ These are entered as open items in the problem log (PCR-009).
 
 ## 7. Notes
 
+**Verification as of 2026-08-15 (GTK tool-detail argument sizing):**
+Production and test development builds succeed after replacing fixed argument
+minimum heights with bounded content-aware sizing, suppressing empty raw
+argument views, and making the result view the expanding child. The full AUnit
+suite passes with 866 tests, 0 failures, and 0 unexpected errors. Detail-window
+visual qualification remains manual.
+
 **Verification as of 2026-08-15 (upward drag-select highlight):**
 861 registered tests.  Adds two `Coyote_GUI.Conversation` regressions for
 document-ordered selection endpoints and inverted-range text extraction.

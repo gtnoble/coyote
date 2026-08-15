@@ -1015,8 +1015,11 @@ non-modal transient window for a clicked tool call.  It presents the tool name
 and status in a header, separates arguments from results into framed sections,
 parses top-level JSON argument fields into labelled monospace views, applies
 status-specific CSS accents, derives the monospace point size from GTK's
-system font setting, and keeps the result selectable and scrollable.  The
-existing generic text window remains in use for session statistics.
+system font setting, and keeps the result selectable and scrollable.  Argument
+views use bounded content-aware minimum heights and remain non-expanding;
+empty raw arguments omit the text view, while the result view is the sole
+expanding text widget.  The existing generic text window remains in use for
+session statistics.
 
 **Thinking blocks:** `Append_Thinking` collapses deltas via
 `Collapse_Thinking_Delta` and appends to the last line's text (not creating

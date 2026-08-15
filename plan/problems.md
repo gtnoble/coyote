@@ -1937,6 +1937,28 @@ behavior, current test baseline, and remaining manual qualification scope.
 - **Date resolved:** 2026-08-15
 
 
+## PCR-058 — GTK tool-detail arguments consumed excessive vertical space (2026-08-15)
+
+- **Category:** Code, Design, Test
+- **Priority:** 3-Moderate
+- **Description:** The GTK tool-call detail window assigned fixed 76 px or
+  110 px minimum heights to every argument text view, including one-line and
+  empty values. Empty arguments also created a blank 110 px raw-arguments
+  view. The result text view was not an expanding child, so extra window
+  height was not reliably assigned to the result content.
+- **Affected work products:** `Coyote_GUI.Tool_Detail_Window`, SDD-CORE,
+  frontend SDF, Test Plan.
+- **Corrective action:** Added bounded content-aware height estimation for
+  argument views, suppresses the raw argument view when the argument string is
+  empty, keeps argument views non-expanding, and makes the result view the
+  expanding child. Visual qualification remains display-backed because the
+  detail-window construction API does not expose its private widget tree.
+- **Verification:** Production and test development builds succeed. The full
+  AUnit suite passes with 866 tests, 0 failures, and 0 unexpected errors.
+  Display-backed visual qualification of the detail window remains manual.
+- **Status:** Resolved
+- **Date resolved:** 2026-08-15
+
 ## PCR-057 — GTK conversation upward drag-select invisible (2026-08-15)
 
 - **Category:** Code, Design, Test

@@ -380,7 +380,9 @@ let the user explicitly control the behaviour.
 - `Coyote_GUI.Conversation`: covered by AUnit tests for tool metadata
   preservation, interleaved tool selection, streaming, layout, and rendering.
 - `Coyote_GUI.Tool_Detail_Window`: compiled and linked into the main GUI;
-  display-backed visual qualification remains manual.
+  argument views use bounded content-aware minimum heights, empty raw
+  arguments omit the text view, and the result view is the sole expanding text
+  widget. Display-backed visual qualification remains manual.
 - `Coyote_Lasem`: covered by five AUnit tests for MathML fraction and matrix
   measurement, zoom scaling, relation entities, and invalid MathML error
   handling.  `Coyote_GUI.Conversation` has four display-backed tests for style
@@ -432,6 +434,14 @@ single `Line_Height_Px` slab.
 `Line_Height_Px` remains the body-text metric (fallback for empty blocks,
 zoom baseline, and `Vis_Count` denominator for tests).  The public
 streaming API is unchanged.
+
+### PCR-058 — Tool-detail argument sizing (2026-08-15)
+
+The GTK tool-call detail window previously assigned fixed 76 px or 110 px
+minimum heights to every argument text view. The implementation now estimates
+height from explicit and conservatively estimated wrapped lines, clamps it to
+30–120 px, suppresses empty raw argument views, and makes the result view the
+expanding child. Display-backed qualification remains manual.
 
 ### PCR-057 — Upward drag-select invisible (2026-08-15)
 

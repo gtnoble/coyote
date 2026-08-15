@@ -92,7 +92,8 @@ package body Coyote_GUI.Tool_Detail_Window is
    procedure Add_Text_View
      (Container      : not null access Gtk.Box.Gtk_Box_Record'Class;
       Value          : String;
-      Minimum_Height : Glib.Gint)
+      Minimum_Height : Glib.Gint;
+      Expand         : Boolean)
    is
       Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
       View   : Gtk.Text_View.Gtk_Text_View;
@@ -114,8 +115,43 @@ package body Coyote_GUI.Tool_Detail_Window is
         (Gtk.Enums.Policy_Automatic, Gtk.Enums.Policy_Automatic);
       Scroll.Set_Size_Request (-1, Minimum_Height);
       Scroll.Add (View);
-      Container.Pack_Start (Scroll, False, True, 0);
+      Container.Pack_Start (Scroll, Expand, True, 0);
    end Add_Text_View;
+
+   function Text_View_Height
+     (Value          : String;
+      Minimum_Height : Glib.Gint;
+      Maximum_Height : Glib.Gint) return Glib.Gint
+   is
+      Characters_Per_Line : constant Positive := 72;
+      Line_Height         : constant Positive := 18;
+      Vertical_Padding    : constant Positive := 12;
+      Lines               : Natural := 1;
+      Column              : Natural := 0;
+      Height              : Glib.Gint;
+   begin
+      for C of Value loop
+         if C = ASCII.LF then
+            Lines := Lines + 1;
+            Column := 0;
+         else
+            if Column >= Characters_Per_Line then
+               Lines := Lines + 1;
+               Column := 0;
+            end if;
+            Column := Column + 1;
+         end if;
+      end loop;
+
+      Height := Glib.Gint (Lines * Line_Height + Vertical_Padding);
+      if Height < Minimum_Height then
+         return Minimum_Height;
+      elsif Height > Maximum_Height then
+         return Maximum_Height;
+      else
+         return Height;
+      end if;
+   end Text_View_Height;
 
    procedure Apply_Status_Css
      (Label  : not null access Gtk.Label.Gtk_Label_Record'Class;
@@ -180,7 +216,9 @@ package body Coyote_GUI.Tool_Detail_Window is
       Header.Set_Markup ("<b>" & Escape_Markup (Name) & "</b>");
       Header.Set_Xalign (0.0);
       Container.Pack_Start (Header, False, False, 3);
-      Add_Text_View (Container, Value, 76);
+      Add_Text_View
+        (Container, Value,
+         Text_View_Height (Value, 30, 120), Expand => False);
    end Add_Argument_Field;
 
    procedure Build_Arguments
@@ -190,7 +228,9 @@ package body Coyote_GUI.Tool_Detail_Window is
       Parsed : constant GNATCOLL.JSON.Read_Result :=
         GNATCOLL.JSON.Read (Arguments);
    begin
-      if Parsed.Success
+      if Arguments'Length = 0 then
+         return;
+      elsif Parsed.Success
         and then Parsed.Value.Kind = GNATCOLL.JSON.JSON_Object_Type
       then
          declare
@@ -209,7 +249,9 @@ package body Coyote_GUI.Tool_Detail_Window is
             Parsed.Value.Map_JSON_Object (Add_Field'Access);
          end;
       else
-         Add_Text_View (Container, Arguments, 110);
+         Add_Text_View
+           (Container, Arguments,
+            Text_View_Height (Arguments, 30, 120), Expand => False);
       end if;
    end Build_Arguments;
 
@@ -288,7 +330,7 @@ package body Coyote_GUI.Tool_Detail_Window is
       Banner.Set_Xalign (0.0);
       Apply_Status_Css (Banner, Info.Result_Status);
       Result_Box.Pack_Start (Banner, False, False, 0);
-      Add_Text_View (Result_Box, Result, 170);
+      Add_Text_View (Result_Box, Result, 170, Expand => True);
       Frame.Add (Result_Box);
       Outer.Pack_Start (Frame, True, True, 0);
 
