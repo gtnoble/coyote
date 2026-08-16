@@ -2051,3 +2051,26 @@ behavior, current test baseline, and remaining manual qualification scope.
   SQC parser failures and timed out at four minutes.
 - **Status:** Resolved
 - **Date resolved:** 2026-08-15
+
+## PCR-061 — Require Unicode inline mathematics in assistant messages (2026-08-16)
+
+- **Date reported:** 2026-08-16
+- **Category:** Requirements, Design, Code, Test, Documentation
+- **Priority:** 3-Moderate
+- **Description:** Agents were using LaTeX notation in assistant messages.
+  The existing system prompt required Presentation MathML for standalone GUI
+  display mathematics but gave no explicit format for inline mathematics.
+- **Affected work products:** SRS-CORE REQ-CORE-173, SDD-CORE §5.29,
+  `LLM.System_Prompt`, system-prompt tests, core-agent SDF, and Test Plan.
+- **Corrective action:** Extend the system prompt with an inline-math section
+  requiring direct Unicode math symbols in ordinary text and prohibiting
+  LaTeX-style inline delimiters and backslash commands. Keep standalone
+  blocks on the existing Presentation MathML path.
+- **Actions taken (2026-08-16):** Updated the prompt, strengthened the
+  existing math-formatting regression, and updated requirements, design,
+  development-log, and test-plan traceability.
+- **Verification:** Production and test development builds succeed. The
+  exact math-formatting regression passes, and the complete AUnit suite passes
+  with 878 successful tests, 0 failed assertions, and 0 unexpected errors.
+- **Status:** Resolved
+- **Date resolved:** 2026-08-16

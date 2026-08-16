@@ -1492,8 +1492,9 @@ at session end.
 
 **Purpose:** Constructs the complete system prompt string from its parts,
 including personality definition, conditional tool-use instructions,
-Presentation MathML display-math guidance, memory taxonomy, and coordinator
-guidance (REQ-CORE-170..173, REQ-CORE-180..183, REQ-CORE-190..192).
+Presentation MathML display-math guidance with Unicode inline-math guidance,
+memory taxonomy, and coordinator guidance (REQ-CORE-170..173,
+REQ-CORE-180..183, REQ-CORE-190..192).
 
 **`Build (Settings, Skills_Block, Memory_Block, Agent_Text, Available_Tools, Coordinator_Mode) → String`:** Concatenates:
 
@@ -1501,10 +1502,12 @@ guidance (REQ-CORE-170..173, REQ-CORE-180..183, REQ-CORE-190..192).
 2. **Personality definition** — terse, direct, pragmatic; no cheerleading or
    conversational interjections; guidance on final answers and intermediary
    updates (REQ-CORE-170).
-3. **Display-math guidance** — for standalone mathematics intended for the
+3. **Math-formatting guidance** — for standalone mathematics intended for the
    GUI, require Presentation MathML inside standalone `$$` delimiters, with a
    complete `<math>` document; unsupported expressions remain readable as
-   plain text (REQ-CORE-173).
+   plain text. For inline mathematics, require Unicode math symbols in
+   ordinary text rather than LaTeX notation or backslash commands
+   (REQ-CORE-173).
 4. **Conditional tool-use instructions** — keyed to `Available_Tools`: when
    editing tools exist, prefer them over printing code blocks; when terminal
    tools exist, prefer them over printing commands; when neither exists, print

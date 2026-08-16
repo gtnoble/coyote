@@ -354,3 +354,22 @@ cover `App_State.Current_Sandbox`/`Set_Sandbox`; 5 `llm_agent_tests` cover
 `Create`, empty default, persisted-profile resume, and profile restore/clear
 on session switching; 3 `llm_session_store_tests` cover header write, header
 absence, and reading `sandboxProfile` from a JSONL header.
+
+## 2026-08-16 — Inline Unicode math guidance in system prompt
+
+**Requirement:** REQ-CORE-173 now covers both GUI display mathematics and
+inline mathematics in assistant messages.
+
+**Implementation:** Extended `Display_Math_Guidance` in
+`src/llm/llm-system_prompt.adb` with an `# Inline Math` section. The prompt
+requires direct Unicode math symbols in ordinary text and prohibits
+LaTeX-style inline delimiters and backslash commands, while retaining the
+Presentation MathML rules for standalone display blocks.
+
+**Verification:** Extended the existing system-prompt regression to assert the
+inline section and the Unicode-symbol instruction.
+The registered test count is unchanged.
+
+**Design rationale:** Display math requires structured Presentation MathML for
+reliable GUI rendering; inline math is kept lightweight and readable by using
+Unicode symbols directly instead of introducing a second markup syntax.

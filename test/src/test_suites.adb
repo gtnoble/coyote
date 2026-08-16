@@ -1053,7 +1053,7 @@ package body Test_Suites is
          LLM_System_Prompt_Tests
            .Test_Default_Prompt_Contains_Guidelines'Access));
       Result.Add_Test (LLM_Sys_Prompt_Caller.Create
-        ("LLM.System_Prompt default prompt contains display-math guidance",
+        ("LLM.System_Prompt default prompt contains math-formatting guidance",
          LLM_System_Prompt_Tests
            .Test_Default_Prompt_Contains_Display_Math_Guidance'Access));
       Result.Add_Test (LLM_Sys_Prompt_Caller.Create

@@ -151,7 +151,7 @@ SRS-CORE requirement groups.
 | `llm_auth_tests.adb` | REQ-CORE-232 | ~15 |
 | `llm_compaction_tests.adb` | REQ-CORE-060â064 | ~30 |
 | `llm_tools_tests.adb` | REQ-CORE-050â053 | ~25 |
-| `llm_system_prompt_tests.adb` | REQ-CORE-090â092, REQ-CORE-173 | ~11 |
+| `llm_system_prompt_tests.adb` | REQ-CORE-090â092, REQ-CORE-173 (display and inline math guidance) | ~11 |
 | `llm_types_tests.adb` | REQ-CORE-400â402 | ~20 |
 | `llm_parallel_tools_tests.adb` | REQ-CORE-056 (run_group) | ~15 |
 

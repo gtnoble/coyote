@@ -777,8 +777,9 @@ standalone `$$` delimiter lines. The block shall contain one complete
 `<math>` document using the MathML namespace and Presentation MathML
 rather than LaTeX commands or Content MathML. The instruction shall tell
 the agent to keep unsupported expressions readable as plain text rather
-than inventing markup.
-
+than inventing markup. It shall also instruct the agent to write inline
+mathematics with Unicode math symbols directly in ordinary text rather than
+LaTeX notation or backslash commands.
 
 #### 3.1.18 Structured Memory System
 

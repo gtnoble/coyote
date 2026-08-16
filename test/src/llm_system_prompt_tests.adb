@@ -89,6 +89,12 @@ package body LLM_System_Prompt_Tests is
       Assert
         (Ada.Strings.Fixed.Index (P, "\frac") = 0,
          "display-math guidance should not advertise LaTeX commands");
+      Assert
+        (Ada.Strings.Fixed.Index (P, "# Inline Math") > 0,
+         "default prompt should include inline-math guidance");
+      Assert
+        (Ada.Strings.Fixed.Index (P, "Unicode math symbols directly") > 0,
+         "inline-math guidance should require Unicode math symbols");
    end Test_Default_Prompt_Contains_Display_Math_Guidance;
    procedure Test_Default_Prompt_Contains_Cwd (T : in out Test) is
       pragma Unreferenced (T);

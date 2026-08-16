@@ -245,7 +245,20 @@ package body LLM.System_Prompt is
      & ASCII.LF
      & "- If an expression cannot be represented reliably in Presentation"
      & " MathML, keep it readable as plain text rather than inventing"
-     & " markup.";
+     & " markup."
+     & ASCII.LF
+     & ASCII.LF
+     & "# Inline Math"
+     & ASCII.LF
+     & ASCII.LF
+     & "When writing inline mathematics, use Unicode math symbols directly"
+     & " (for example, Unicode comparison, multiplication, root, arrow, and"
+     & " Greek-letter symbols) rather than LaTeX"
+     & " notation or backslash commands."
+     & ASCII.LF
+     & "- Keep inline mathematics readable in ordinary text; do not use"
+     & " LaTeX-style inline delimiters or commands.";
+
    function Build_Reminder_Instructions
      (Has_Tools : Boolean := False) return String
    is
