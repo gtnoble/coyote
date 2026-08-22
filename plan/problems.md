@@ -2186,6 +2186,34 @@ behavior, current test baseline, and remaining manual qualification scope.
 - **Date resolved:** 2026-08-22
 
 
+## PCR-066 — Complete keyboard accelerators for GTK main-menu actions
+
+- **Date reported:** 2026-08-22
+- **Category:** Requirements, Design, Code, Test, Documentation
+- **Priority:** 4-Minor (enhancement)
+- **Description:** The main GTK menu exposed visible accelerators for only
+  frequently used actions. Preferences, Thinking Level choices, Sandbox
+  Profile, Session Stats, Set Defaults, Render Markdown, and Auto-scroll had
+  no direct keyboard accelerators.
+- **Affected work products:** SRS-CORE REQ-CORE-132, SDD-CORE §5.33,
+  `Coyote_App.Frontend.GUI`, frontend SDF, Test Plan, and GUI demonstration
+  coverage.
+- **Corrective action:** Add visible GTK accelerators through the existing
+  window `Gtk_Accel_Group`: Ctrl+, for Preferences; Ctrl+1 through Ctrl+6
+  for Thinking Level choices; Ctrl+Shift+S/I/D/M/A for Sandbox Profile,
+  Session Stats, Set Defaults, Render Markdown, and Auto-scroll.
+- **Actions taken (2026-08-22):** Added all 12 accelerator registrations in
+  `Coyote_App.Frontend.GUI.Create`, added REQ-CORE-132 and updated the design,
+  frontend SDF, and Test Plan traceability. Automated test count is unchanged;
+  activation and visible labels require display-backed qualification through
+  DEM-014.
+- **Verification:** Production and test development builds succeed.
+  No accelerator-specific automated tests were added; existing GUI unit tests
+  remain unaffected. Display-backed accelerator activation remains pending
+  under DEM-014 because it requires a GTK display.
+- **Status:** Resolved for implementation; manual qualification pending
+
+
 ## PCR-065 — OpenRouter Broadcast session tracking (2026-08-22)
 
 - **Date reported:** 2026-08-22

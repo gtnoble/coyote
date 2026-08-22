@@ -1788,6 +1788,11 @@ package body Coyote_App.Frontend.GUI is
          Preferences_Item := Make_Item ("_Preferences...", Edit_Menu);
          Preferences_Item.On_Activate
            (On_Preferences_Activate'Access);
+         Preferences_Item.Add_Accelerator
+           ("activate", F.Accel_Group,
+            Gdk.Types.Keysyms.GDK_comma,
+            Gdk.Types.Control_Mask,
+            Gtk.Accel_Group.Accel_Visible);
       end;
 
       --  Agent menu
@@ -1838,19 +1843,54 @@ package body Coyote_App.Frontend.GUI is
            (Gtk.Menu_Shell.Gtk_Menu_Shell (Agent_Menu), Thinking_Head);
          Item := Make_Item ("_Off",     Thinking_Menu);
          Item.On_Activate (On_Thinking_Off_Activate'Access);
+         Item.Add_Accelerator
+           ("activate", F.Accel_Group,
+            Gdk.Types.Keysyms.GDK_1,
+            Gdk.Types.Control_Mask,
+            Gtk.Accel_Group.Accel_Visible);
          Item := Make_Item ("M_inimal", Thinking_Menu);
          Item.On_Activate (On_Thinking_Minimal_Activate'Access);
+         Item.Add_Accelerator
+           ("activate", F.Accel_Group,
+            Gdk.Types.Keysyms.GDK_2,
+            Gdk.Types.Control_Mask,
+            Gtk.Accel_Group.Accel_Visible);
          Item := Make_Item ("_Low",     Thinking_Menu);
          Item.On_Activate (On_Thinking_Low_Activate'Access);
+         Item.Add_Accelerator
+           ("activate", F.Accel_Group,
+            Gdk.Types.Keysyms.GDK_3,
+            Gdk.Types.Control_Mask,
+            Gtk.Accel_Group.Accel_Visible);
          Item := Make_Item ("M_edium",  Thinking_Menu);
          Item.On_Activate (On_Thinking_Medium_Activate'Access);
+         Item.Add_Accelerator
+           ("activate", F.Accel_Group,
+            Gdk.Types.Keysyms.GDK_4,
+            Gdk.Types.Control_Mask,
+            Gtk.Accel_Group.Accel_Visible);
          Item := Make_Item ("_High",    Thinking_Menu);
          Item.On_Activate (On_Thinking_High_Activate'Access);
+         Item.Add_Accelerator
+           ("activate", F.Accel_Group,
+            Gdk.Types.Keysyms.GDK_5,
+            Gdk.Types.Control_Mask,
+            Gtk.Accel_Group.Accel_Visible);
          Item := Make_Item ("_X-High",  Thinking_Menu);
          Item.On_Activate (On_Thinking_X_High_Activate'Access);
+         Item.Add_Accelerator
+           ("activate", F.Accel_Group,
+            Gdk.Types.Keysyms.GDK_6,
+            Gdk.Types.Control_Mask,
+            Gtk.Accel_Group.Accel_Visible);
       end;
       Item := Make_Item ("_Sandbox Profile...", Agent_Menu);
       Item.On_Activate (On_Sandbox_Profile_Activate'Access);
+      Item.Add_Accelerator
+        ("activate", F.Accel_Group,
+         Gdk.Types.Keysyms.GDK_LC_s,
+         Gdk.Types.Control_Mask or Gdk.Types.Shift_Mask,
+         Gtk.Accel_Group.Accel_Visible);
       Add_Sep (Agent_Menu);
       Compact_Item := Make_Item ("_Compact Context", Agent_Menu);
       Compact_Item.On_Activate (On_Compact_Activate'Access);
@@ -1868,9 +1908,19 @@ package body Coyote_App.Frontend.GUI is
       Add_Sep (Agent_Menu);
       Item := Make_Item ("Session _Stats", Agent_Menu);
       Item.On_Activate (On_Stats_Activate'Access);
+      Item.Add_Accelerator
+        ("activate", F.Accel_Group,
+         Gdk.Types.Keysyms.GDK_LC_i,
+         Gdk.Types.Control_Mask or Gdk.Types.Shift_Mask,
+         Gtk.Accel_Group.Accel_Visible);
       Add_Sep (Agent_Menu);
       Item := Make_Item ("Set _Defaults", Agent_Menu);
       Item.On_Activate (On_Set_Default_Activate'Access);
+      Item.Add_Accelerator
+        ("activate", F.Accel_Group,
+         Gdk.Types.Keysyms.GDK_LC_d,
+         Gdk.Types.Control_Mask or Gdk.Types.Shift_Mask,
+         Gtk.Accel_Group.Accel_Visible);
       --  ── View menu ─────────────────────────────────────────────────────
       declare
          View_Menu : Gtk.Menu.Gtk_Menu;
@@ -1886,6 +1936,11 @@ package body Coyote_App.Frontend.GUI is
          F.Render_Markdown_Item.Set_Active (True);
          F.Render_Markdown_Item.On_Toggled
            (On_Render_Markdown_Toggled'Access);
+         F.Render_Markdown_Item.Add_Accelerator
+           ("activate", F.Accel_Group,
+            Gdk.Types.Keysyms.GDK_LC_m,
+            Gdk.Types.Control_Mask or Gdk.Types.Shift_Mask,
+            Gtk.Accel_Group.Accel_Visible);
          Gtk.Menu_Shell.Append
            (Gtk.Menu_Shell.Gtk_Menu_Shell (View_Menu),
             F.Render_Markdown_Item);
@@ -1894,6 +1949,11 @@ package body Coyote_App.Frontend.GUI is
          F.Auto_Scroll_Item.Set_Active (True);
          F.Auto_Scroll_Item.On_Toggled
            (On_Auto_Scroll_Toggled'Access);
+         F.Auto_Scroll_Item.Add_Accelerator
+           ("activate", F.Accel_Group,
+            Gdk.Types.Keysyms.GDK_LC_a,
+            Gdk.Types.Control_Mask or Gdk.Types.Shift_Mask,
+            Gtk.Accel_Group.Accel_Visible);
          Gtk.Menu_Shell.Append
            (Gtk.Menu_Shell.Gtk_Menu_Shell (View_Menu),
             F.Auto_Scroll_Item);

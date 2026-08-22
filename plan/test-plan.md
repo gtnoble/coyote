@@ -212,7 +212,7 @@ behaviour. Results are recorded in a Test Report.
 | DEM-011 | REQ-CORE-074 | Use an expired Copilot token; send a prompt; verify token is refreshed and request succeeds |
 | DEM-012 | REQ-CORE-075 | In Acme, plumb a `coyote-model+PID/...` token; verify model changes on next turn |
 | DEM-013 | REQ-CORE-100â109 | Exercise each Acme tag command; verify expected behaviour for each |
-| DEM-014 | REQ-CORE-110â115, 125 | Exercise GUI window: markdown rendering, tool frames, vi scroll, menu actions, Ctrl+wheel zoom |
+| DEM-014 | REQ-CORE-110â115, 125, 132 | Exercise GUI window: markdown rendering, tool frames, vi scroll, all main-menu accelerators, and Ctrl+wheel zoom. Verify each visible accelerator activates its corresponding menu action. |
 | DEM-033 | REQ-CORE-116..117, 119 | Open GUI Preferences, save ordinary and subagent model/thinking/sandbox defaults, then create a new session and verify the active session was unchanged, ordinary sessions inherit the ordinary defaults, and `coyote --subagent` inherits the subagent model |
 | DEM-035 | REQ-CORE-126..128 | Toggle desktop completion notifications in GUI Preferences; verify an unfocused ordinary GUI turn notifies, a focused turn does not, the setting persists, and subagent/one-shot runs remain silent |
 | DEM-034 | REQ-CORE-234 | Set and clear `defaultSandboxProfile`; verify inherited runtime and session-header precedence |
@@ -307,6 +307,7 @@ These are entered as open items in the problem log (PCR-009).
 | REQ-CORE-100â109 | T/D | `acme_event_parser_tests.adb`, `tool_uri_tests.adb`, DEM-013 |
 | REQ-CORE-110â115 | T/D | `coyote_cmark_tests.adb`, DEM-014 |
 | REQ-CORE-125 | T/D | `coyote_gui_zoom_tests.adb`, DEM-014 |
+| REQ-CORE-132 | D | DEM-014 |
 | REQ-CORE-124 | T/D | `coyote_lasem_tests.adb`, `coyote_gui_conversation_tests.adb` |
 | REQ-CORE-116 | D | DEM-033 |
 | REQ-CORE-117 | D | DEM-033 |

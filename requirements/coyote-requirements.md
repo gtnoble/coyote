@@ -638,6 +638,16 @@ or whitespace-only query shall show all models. The dialog shall display
 the number of visible rows. Escape shall clear a non-empty query; Escape
 on an empty query shall cancel the dialog.
 
+**REQ-CORE-132** (D)
+The interactive GTK GUI shall provide visible keyboard accelerators for every
+actionable item in the main menu bar. The accelerators shall include Ctrl+,
+for Preferences; Ctrl+1 through Ctrl+6 for Thinking Level choices in order
+from Off through X-High; Ctrl+Shift+S for Sandbox Profile; Ctrl+Shift+I
+for Session Stats; Ctrl+Shift+D for Set Defaults; Ctrl+Shift+M for Render
+Markdown; and Ctrl+Shift+A for Auto-scroll. Existing menu accelerators shall
+remain available, including Ctrl+N, Ctrl+Shift+N, Ctrl+O, Ctrl+Q, Escape,
+Ctrl+P, Ctrl+R, Ctrl+M, Ctrl+Shift+C, Ctrl++, Ctrl+-, and Ctrl+0.
+
 ---
 
 #### 3.1.12 Plain Frontend
@@ -1269,6 +1279,7 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-108..108b | Session fork tokens and step-level turn footers | D | TC-108..108b |
 | REQ-CORE-109 | SetDefault writes to settings.json | D | TC-109 |
 | REQ-CORE-110..119, 124..129 | GUI frontend capabilities, including Preferences, display math, zoom, completion notifications, and Change Model search | D/T/I | TC-110..119, TC-124..129 |
+| REQ-CORE-132 | Complete visible accelerators for main GTK menu items | D | DEM-014 |
 | REQ-CORE-120..121 | Plain frontend capabilities | D | TC-120..121 |
 | REQ-CORE-130..131 | Session history replay | D | TC-130..131 |
 | REQ-CORE-140..142 | Error handling | D | TC-140..142 |

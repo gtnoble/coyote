@@ -1687,13 +1687,17 @@ using Cairo + Pango (see §5.15).
 - **Menu keyboard accelerators** (2026-07-30): All frequently used menu
   items have GTK accelerator shortcuts attached via a `Gtk_Accel_Group`
   on the main window, with `Accel_Visible` so shortcut labels appear in
-  menu text.  The accelerators are: Ctrl+N (New Window), Ctrl+O (Open
-  Session), Ctrl+Q (Quit), Escape (Stop), Ctrl+P (Pause), Ctrl+R (Resume),
-  Ctrl+M (Change Model), Ctrl+Shift+C (Compact Context), and Ctrl++/Ctrl+-/
-  Ctrl+0 (Zoom In/Out/Reset).  Zoom shortcuts were previously handled by a
-  raw `On_Window_Key_Press` handler; moving them to proper accelerators
-  makes them visible in menu labels and allows the key-press handler to be
-  simplified to a no-op.
+  menu text.  The accelerators are: Ctrl+N (New Window), Ctrl+Shift+N (New
+  Session), Ctrl+O (Open Session), Ctrl+Q (Quit), Escape (Stop), Ctrl+P
+  (Pause), Ctrl+R (Resume), Ctrl+M (Change Model), Ctrl+1 through Ctrl+6
+  (Thinking Level: Off through X-High), Ctrl+Shift+S (Sandbox Profile),
+  Ctrl+Shift+C (Compact Context), Ctrl+Shift+I (Session Stats), Ctrl+Shift+D
+  (Set Defaults), Ctrl+Shift+M (Render Markdown), Ctrl+Shift+A (Auto-scroll),
+  and Ctrl++/Ctrl+-/Ctrl+0 (Zoom In/Out/Reset).  Ctrl+, opens Preferences.
+  Every actionable item in the main menu bar has a visible accelerator.
+  Zoom shortcuts were previously handled by a raw `On_Window_Key_Press`
+  handler; moving them to proper accelerators makes them visible in menu
+  labels and allows the key-press handler to be simplified to a no-op.
 - **Ctrl+mouse-wheel zoom** (2026-08-15): The conversation `GtkLayout`
   enables `Scroll_Mask` in its event mask, and the frontend connects an
   `On_Conv_Scroll` handler to the layout's `scroll-event` signal.  When
@@ -2039,7 +2043,7 @@ neither task may share mutable frontend state with the other.
 | REQ-CORE-100–107 | `Coyote_App.Frontend.Acme_Win`, `Coyote_App`, `Acme.Window`, `Nine_P.Client` |
 | REQ-CORE-108–108b | `Coyote_App`, `Coyote_App.Dispatch`, `Coyote_App.Utils`, `Session_Lister` |
 | REQ-CORE-109 | `LLM.Settings`, `Coyote_App.Frontend.Acme_Win` |
-| REQ-CORE-110–119, 125, 129 | `Coyote_App.Frontend.GUI`, `Coyote_GUI.Conversation`, `Coyote_GUI.Prompt_Queue`, `Coyote_GUI.Zoom`, `Coyote_Cmark`, `Coyote_App.Utils` |
+| REQ-CORE-110–119, 125, 129, 132 | `Coyote_App.Frontend.GUI`, `Coyote_GUI.Conversation`, `Coyote_GUI.Prompt_Queue`, `Coyote_GUI.Zoom`, `Coyote_Cmark`, `Coyote_App.Utils` |
 | REQ-CORE-124 | `Coyote_GUI.Conversation`, `Coyote_Lasem` |
 | REQ-CORE-120–121 | `Coyote_App.Frontend.Plain` |
 | REQ-CORE-130–131 | `Coyote_App.History`, all frontends |

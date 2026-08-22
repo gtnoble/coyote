@@ -291,6 +291,24 @@ conversation view.
 **Conversation view margins** increased from 8/6 px to 16/12 px
 (left/right 8→16, top/bottom 6→12) in `Coyote_App.Frontend.GUI.Create`.
 
+### Menu keyboard accelerators (2026-08-22, REQ-CORE-132)
+
+Every actionable item in the main GTK menu bar now has a visible accelerator
+through the window's `Gtk_Accel_Group`: Ctrl+N (New Window), Ctrl+Shift+N
+(New Session), Ctrl+O (Open Session), Ctrl+Q (Quit), Ctrl+, (Preferences),
+Escape (Stop), Ctrl+P (Pause), Ctrl+R (Resume), Ctrl+M (Change Model),
+Ctrl+1 through Ctrl+6 (Thinking Level: Off through X-High), Ctrl+Shift+S
+(Sandbox Profile), Ctrl+Shift+C (Compact Context), Ctrl+Shift+I (Session
+Stats), Ctrl+Shift+D (Set Defaults), Ctrl+Shift+M (Render Markdown),
+Ctrl+Shift+A (Auto-scroll), and Ctrl++/Ctrl+-/Ctrl+0 (Zoom In/Out/Reset).
+All entries use `Accel_Visible`, so GTK renders the shortcut labels beside
+the menu items.  The separate conversation context-menu Copy item and
+Preferences dialog combo-box choices are intentionally outside this
+main-menu requirement.
+
+The zoom shortcuts remain proper GTK accelerators rather than raw window
+key handling; the top-level key-press callback remains a no-op.
+
 ### Menu keyboard accelerators (2026-07-30)
 
 All frequently used menu items now carry GTK `Gtk_Accel_Group` accelerator
