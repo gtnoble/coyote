@@ -1506,7 +1506,8 @@ package body LLM.Agent is
       elsif Lowercase (To_String (S.Model_Info.Provider)) = "openrouter" then
          declare
             Provider : LLM.Providers.OpenRouter.Provider :=
-              LLM.Providers.OpenRouter.Create;
+              LLM.Providers.OpenRouter.Create
+                (Session_Id => To_String (S.Session_UUID));
          begin
             Provider.Send
               (Model_Id      => To_String (S.Model_Info.Model_Id),
@@ -1805,7 +1806,8 @@ package body LLM.Agent is
             then
                declare
                   Provider : LLM.Providers.OpenRouter.Provider :=
-                    LLM.Providers.OpenRouter.Create;
+                    LLM.Providers.OpenRouter.Create
+                      (Session_Id => To_String (S.Session_UUID));
                begin
                   Send_With_Retry
                     (S             => S,

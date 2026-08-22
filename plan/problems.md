@@ -2184,3 +2184,30 @@ behavior, current test baseline, and remaining manual qualification scope.
   tests, 0 failed assertions, and 0 unexpected errors.
 - **Status:** Resolved
 - **Date resolved:** 2026-08-22
+
+
+## PCR-065 — OpenRouter Broadcast session tracking (2026-08-22)
+
+- **Date reported:** 2026-08-22
+- **Category:** Requirements, Design, Code, Test, Documentation
+- **Priority:** 3-Moderate
+- **Description:** OpenRouter Broadcast supports an optional `session_id` request
+  field for grouping related observability traces. Coyote did not pass its
+  existing session UUID to OpenRouter requests.
+- **Affected work products:** SRS-CORE REQ-CORE-218, SDD-CORE §5.25,
+  `LLM.Providers.OpenRouter`, `LLM.Agent`, OpenRouter AUnit tests, provider SDF,
+  and Test Plan.
+- **Corrective action required:** Add optional session identity to the
+  OpenRouter provider, emit it in the request body for non-empty coyote
+  sessions, propagate it through normal and compaction calls, and verify it
+  without changing the Responses wire or stateless request behavior.
+- **Actions taken:** Added `Session_Id` to `OpenRouter.Create` and provider
+  state. The OpenRouter `Customize_Request` override delegates to the Responses
+  implementation and adds `session_id` when non-empty. Normal and compaction
+  agent paths pass `S.Session_UUID`. Added a local mock-server assertion.
+- **Verification:** Production and test development builds succeed in the
+  mandated development profile. All five OpenRouter tests pass, including the
+  session payload assertion. The complete 891-test AUnit suite passes with 891
+  successful tests, 0 failed assertions, and 0 unexpected errors.
+- **Status:** Resolved
+- **Date resolved:** 2026-08-22

@@ -1,8 +1,8 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.13
-**Date:** 2026-08-15
+**Version:** 1.14
+**Date:** 2026-08-22
 
 **Status:** Reviewed — project control (M3 complete 2026-06-02)
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
@@ -1419,8 +1419,12 @@ OpenAI Responses and is **stateless**: `store: true` and
 refreshes the catalogue, then forwards to
 `OpenAI_Responses.Send_Request`.
 
-**`Customize_Request` (inherited):** Reasoning-effort configuration is
-inherited from the Responses provider (§5.6a).
+**`Customize_Request`:** Delegates first to the Responses provider's
+reasoning-effort customization, then adds `session_id` when the provider was
+constructed with a non-empty coyote session UUID. The field groups Broadcast
+observability traces and does not change the stateless Responses request
+semantics. The agent supplies `S.Session_UUID` to the provider for both normal
+agent turns and compaction requests.
 
 **Catalogue package `OpenRouter.Catalogue`:** Fetches
 `https://openrouter.ai/api/v1/models`, caches to

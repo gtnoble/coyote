@@ -1,7 +1,7 @@
 # Test Plan â coyote (STP)
 
-**Version:** 1.13
-**Date:** 2026-08-15
+**Version:** 1.14
+**Date:** 2026-08-22
 
 **Status:** Reviewed and acknowledged â M4 complete (2026-06-03)
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
@@ -167,7 +167,7 @@ SRS-CORE requirement groups.
 | `llm_http_tests.adb` | REQ-CORE-200 (HTTP streaming) | ~20 |
 | `llm_openai_completions_tests.adb` | REQ-CORE-201 | ~30 |
 | `llm_anthropic_messages_tests.adb` | REQ-CORE-202 | ~30 |
-| `llm_openrouter_tests.adb` | REQ-CORE-072 (OpenRouter) | ~15 |
+| `llm_openrouter_tests.adb` | REQ-CORE-072, REQ-CORE-216, REQ-CORE-218 (OpenRouter) | ~17 |
 | `tool_uri_tests.adb` | REQ-CORE-100â109 (plumb token format) | ~10 |
 | `coyote_cmark_tests.adb` | REQ-CORE-111 (Markdown rendering) | ~25 |
 | `coyote_lasem_tests.adb` | Lasem Presentation MathML measurement, zoom scaling, relation entities, and error handling | 5 |
@@ -358,6 +358,14 @@ bounded full-suite run executed the new tests and the existing core
 suite; it then hit pre-existing SQC parser/workspace fixture failures
 and two `LLM.Auth` credential-file failures and timed out at five
 minutes. Dialog wiring remains display-backed (DEM-033).
+
+**Verification as of 2026-08-22 (PCR-065 OpenRouter Broadcast session tracking):**
+The production and test development builds succeed. The focused OpenRouter
+regression passes and verifies that a configured coyote session UUID is emitted
+as the JSON `session_id` field while `/responses` remains stateless. The complete
+891-test AUnit suite passes with 891 successful tests, 0 failed assertions, and
+0 unexpected errors.
+
 
 **Verification as of 2026-08-15 (PCR-059 OpenAI Responses):**
 The sibling `LLM.Providers.OpenAI_Responses` adapter is implemented and

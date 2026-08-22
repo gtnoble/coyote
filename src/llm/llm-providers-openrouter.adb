@@ -4,12 +4,16 @@
 --  For revision history, see the project version-control log.
 
 with Ada.Environment_Variables;
+with Ada.Strings.Unbounded;
+with GNATCOLL.JSON;
 with LLM.HTTP;
 with LLM.Providers.OpenRouter.Catalogue;
 with LLM.Providers.OpenAI_Responses;
 with LLM.Settings;
 
 package body LLM.Providers.OpenRouter is
+
+   MAX_SESSION_ID_LENGTH : constant Positive := 256;
 
    function Default_Base_Url return String is
    begin
@@ -27,11 +31,21 @@ package body LLM.Providers.OpenRouter is
       return "https://openrouter.ai/api/v1";
    end Default_Base_Url;
 
-   function Create (Api_Key : String := "") return Provider is
+   function Create
+      (Api_Key    : String := "";
+       Session_Id : String := "") return Provider
+   is
    begin
+      if Session_Id'Length > MAX_SESSION_ID_LENGTH then
+         raise Constraint_Error with
+            "OpenRouter session_id exceeds 256 characters";
+      end if;
+
       return Result : Provider do
          Set_Base_Url (Result, Default_Base_Url);
          Set_Api_Key (Result, Api_Key);
+         Result.Session_Id :=
+           Ada.Strings.Unbounded.To_Unbounded_String (Session_Id);
          Add_Header (Result, "HTTP-Referer", "https://github.com/gtnoble/coyote");
          Add_Header (Result, "X-Title", "coyote");
       end return;
@@ -59,15 +73,36 @@ package body LLM.Providers.OpenRouter is
    end Resolve_Api_Key;
 
    overriding
+   procedure Customize_Request
+      (P        : in out Provider;
+       Model_Id :        String;
+       Thinking :        LLM.Providers.Thinking_Level;
+       Request  :        GNATCOLL.JSON.JSON_Value)
+   is
+   begin
+      LLM.Providers.OpenAI_Responses.Customize_Request
+         (LLM.Providers.OpenAI_Responses.Provider (P),
+          Model_Id,
+          Thinking,
+          Request);
+
+      if Ada.Strings.Unbounded.Length (P.Session_Id) > 0 then
+         Request.Set_Field
+            ("session_id",
+             Ada.Strings.Unbounded.To_String (P.Session_Id));
+      end if;
+   end Customize_Request;
+
+   overriding
    procedure Send
       (P             : in out Provider;
-     Model_Id      :        String;
-     System_Prompt :        String;
-     Messages      :        LLM.Types.Message_Vectors.Vector;
-     Tools_Json    :        String;
-     Thinking      :        LLM.Providers.Thinking_Level;
-     Max_Tokens    :        Positive;
-     Handler       :        LLM.Providers.Event_Handler)
+       Model_Id      :        String;
+       System_Prompt :        String;
+       Messages      :        LLM.Types.Message_Vectors.Vector;
+       Tools_Json    :        String;
+       Thinking      :        LLM.Providers.Thinking_Level;
+       Max_Tokens    :        Positive;
+       Handler       :        LLM.Providers.Event_Handler)
    is
       Api_Key : constant String := Resolve_Api_Key (P);
    begin

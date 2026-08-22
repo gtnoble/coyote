@@ -458,7 +458,8 @@ package body LLM_OpenRouter_Tests is
       Messages    : constant LLM.Types.Message_Vectors.Vector :=
          Build_Messages;
       Provider    : LLM.Providers.OpenRouter.Provider :=
-         LLM.Providers.OpenRouter.Create;
+         LLM.Providers.OpenRouter.Create
+            (Session_Id => "test-session-123");
       Key_Was_Set : constant Boolean :=
          Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
       Old_Key     : constant String :=
@@ -490,6 +491,13 @@ package body LLM_OpenRouter_Tests is
              "Expected X-Title: coyote");
          Assert (Parsed.Success, "Failed to parse request body as JSON");
          Body_JS := Parsed.Value;
+         Assert
+            (Body_JS.Has_Field ("session_id")
+             and then Body_JS.Get ("session_id").Kind
+                = GNATCOLL.JSON.JSON_String_Type
+             and then String'(Body_JS.Get ("session_id").Get)
+                = "test-session-123",
+             "Expected OpenRouter broadcast session_id");
          Assert
             (not Body_JS.Has_Field ("messages"),
              "Responses request must not contain messages");
@@ -1088,5 +1096,32 @@ package body LLM_OpenRouter_Tests is
          Delete_If_Exists (Capture_Path);
          raise;
    end Test_OpenRouter_Settings_Api_Key_Fallback;
+
+   procedure Test_OpenRouter_Session_Id_Length (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      declare
+         Provider : LLM.Providers.OpenRouter.Provider :=
+            LLM.Providers.OpenRouter.Create
+              (Session_Id => (1 .. 256 => 'x'));
+      begin
+         null;
+      end;
+
+      begin
+         declare
+            Provider : LLM.Providers.OpenRouter.Provider :=
+               LLM.Providers.OpenRouter.Create
+                 (Session_Id => (1 .. 257 => 'x'));
+         begin
+            Assert
+               (False,
+                "OpenRouter must reject session_id longer than 256 characters");
+         end;
+      exception
+         when Constraint_Error =>
+            null;
+      end;
+   end Test_OpenRouter_Session_Id_Length;
 
 end LLM_OpenRouter_Tests;

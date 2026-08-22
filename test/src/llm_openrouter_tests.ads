@@ -11,5 +11,6 @@ package LLM_OpenRouter_Tests is
       (T : in out Test);
    procedure Test_OpenRouter_Settings_Api_Key_Fallback
       (T : in out Test);
+   procedure Test_OpenRouter_Session_Id_Length (T : in out Test);
 
 end LLM_OpenRouter_Tests;

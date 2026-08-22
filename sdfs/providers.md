@@ -333,3 +333,20 @@ signatures from other wires no longer become reasoning input items.
 
 Focused same-model replay, opaque-signature omission, cross-model filtering,
 switch-back, explicit persistence, and legacy-inference tests pass.
+
+
+### OpenRouter Broadcast session tracking (2026-08-22, PCR-065)
+
+OpenRouter's Broadcast documentation defines an optional `session_id` request
+field, up to 256 characters, for grouping related observability traces. It may
+also be supplied through the `x-session-id` header. Coyote uses the request-body
+field because the requested integration is payload-based. The current provider
+uses OpenRouter's Responses endpoint rather than the Chat Completions endpoint
+shown in the API example, so the field is added through the Responses provider's
+existing customization hook without changing wire format or enabling server-side
+conversation state.
+
+The active coyote session UUID is passed into OpenRouter for normal agent turns
+and compaction requests. Empty identifiers are omitted. A local HTTP mock test
+asserts the exact JSON field while preserving the existing `store` and
+`previous_response_id` omissions.

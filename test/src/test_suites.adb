@@ -2505,7 +2505,7 @@ package body Test_Suites is
 
       --  LLM.Providers.OpenRouter tests
       Result.Add_Test (LLM_OpenRouter_Caller.Create
-        ("LLM.OpenRouter sends the OpenRouter auth and metadata headers",
+        ("LLM.OpenRouter sends auth, metadata headers, and the broadcast session ID",
          LLM_OpenRouter_Tests.Test_Send_Adds_OpenRouter_Headers'Access));
       Result.Add_Test (LLM_OpenRouter_Caller.Create
         ("LLM.OpenRouter adds reasoning.effort for reasoning models",
@@ -2518,6 +2518,10 @@ package body Test_Suites is
         ("LLM.OpenRouter falls back to models.json for the API key",
          LLM_OpenRouter_Tests
            .Test_OpenRouter_Settings_Api_Key_Fallback'Access));
+      Result.Add_Test (LLM_OpenRouter_Caller.Create
+        ("LLM.OpenRouter enforces the 256-character session ID limit",
+         LLM_OpenRouter_Tests
+           .Test_OpenRouter_Session_Id_Length'Access));
 
       --  LLM.Providers.OpenRouter.Catalogue tests
       Result.Add_Test (LLM_OpenRouter_Catalogue_Caller.Create

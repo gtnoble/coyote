@@ -1,8 +1,8 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.12
-**Date:** 2026-08-15
+**Version:** 1.13
+**Date:** 2026-08-22
 **Status:** Draft
 **Project Plan:** `plan/project-plan.md`
 
@@ -941,6 +941,14 @@ shall remain persisted but shall be omitted from provider input. Thinking effort
 shall be sent as `reasoning.effort` using the Responses enum (`none`, `minimal`,
 `low`, `medium`, `high`, `xhigh`); coyote `X_High` maps to `xhigh`.
 
+**REQ-CORE-218** (I/T)
+For each non-empty coyote session UUID, OpenRouter shall include that UUID as
+the optional `session_id` string in every `/responses` request. This field is
+used only to group OpenRouter Broadcast traces; it shall not enable server-side
+conversation state. Empty session identifiers shall omit the field, and the
+identifier shall be limited to OpenRouter's documented maximum of 256
+characters.
+
 ---
 
 #### 3.2.2 acme 9P VFS
@@ -1277,7 +1285,7 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-190 | Coordinator prompt for subagent orchestration | D | TC-190 |
 | REQ-CORE-191 | Structured subagent result reporting | D | TC-191 |
 | REQ-CORE-192 | Synthesis-before-delegation instruction | I | TC-192 |
-| REQ-CORE-200..208, REQ-CORE-215..217 | Provider API interfaces | I | TC-200..208, TC-215..217 |
+| REQ-CORE-200..208, REQ-CORE-215..218 | Provider API interfaces | I/T | TC-200..208, TC-215..218 |
 | REQ-CORE-210..212 | acme 9P VFS interface | I | TC-210..212 |
 | REQ-CORE-220..221 | GTK3 interface | I | TC-220..221 |
 | REQ-CORE-230..234 | Configuration file interface, including sandbox default | T | TC-230..234 |
@@ -1305,7 +1313,7 @@ objectives stated in the Project Plan (PLAN §1 and §3):
 | Tool execution | REQ-CORE-050–056 |
 | Session persistence and resume | REQ-CORE-080–089, REQ-CORE-701 |
 | Context compaction | REQ-CORE-060–064 |
-| Multi-provider LLM support | REQ-CORE-070–078, REQ-CORE-150–156, REQ-CORE-200–208, REQ-CORE-215–217 |
+| Multi-provider LLM support | REQ-CORE-070–078, REQ-CORE-150–156, REQ-CORE-200–208, REQ-CORE-215–218 |
 | Man pages for coyote and coyote_sqc | REQ-CORE-160 |
 | Skill discovery and system prompt construction | REQ-CORE-090–094 |
 | Subagent spawning with session lineage | REQ-CORE-019–020, REQ-CORE-030–032 |
