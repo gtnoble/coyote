@@ -190,15 +190,17 @@ package body LLM.Agent is
    type Open_Block_Kind is (No_Open_Block, Open_Text, Open_Thinking);
 
    type Assistant_Builder is record
-      Content      : LLM.Types.Content_Block_Vectors.Vector;
-      Open_Kind    : Open_Block_Kind := No_Open_Block;
-      Open_Text    : Unbounded_String;
-      Open_Sig     : Unbounded_String;
-      Stop         : LLM.Types.Stop_Reason := LLM.Types.Unknown_Stop;
-      Tok_Usage    : LLM.Types.Usage := (others => 0);
-      Error_Text   : Unbounded_String;
-      Saw_Content  : Boolean := False;
-      Saw_Msg_End  : Boolean := False;
+      Content         : LLM.Types.Content_Block_Vectors.Vector;
+      Open_Kind       : Open_Block_Kind := No_Open_Block;
+      Open_Text       : Unbounded_String;
+      Open_Sig        : Unbounded_String;
+      Origin_Provider : Unbounded_String;
+      Origin_Model    : Unbounded_String;
+      Stop            : LLM.Types.Stop_Reason := LLM.Types.Unknown_Stop;
+      Tok_Usage       : LLM.Types.Usage := (others => 0);
+      Error_Text      : Unbounded_String;
+      Saw_Content     : Boolean := False;
+      Saw_Msg_End     : Boolean := False;
    end record;
 
    procedure Emit
@@ -465,9 +467,11 @@ package body LLM.Agent is
          Builder.Saw_Content := True;
       elsif Builder.Open_Kind = Open_Thinking then
          Builder.Content.Append
-           ((Kind      => LLM.Types.Thinking_Block,
-             Thinking  => Builder.Open_Text,
-             Signature => Builder.Open_Sig));
+           ((Kind            => LLM.Types.Thinking_Block,
+             Thinking        => Builder.Open_Text,
+             Signature       => Builder.Open_Sig,
+             Origin_Provider => Builder.Origin_Provider,
+             Origin_Model    => Builder.Origin_Model));
          Builder.Saw_Content := True;
       end if;
 
@@ -980,6 +984,46 @@ package body LLM.Agent is
         To_Unbounded_String (Normalized_Model_Spec (S.Model_Info));
    end Set_Model_Internal;
 
+   function Compatible_History
+     (History  : LLM.Types.Message_Vectors.Vector;
+      Provider : String;
+      Model_Id : String) return LLM.Types.Message_Vectors.Vector
+   is
+      Result : LLM.Types.Message_Vectors.Vector;
+   begin
+      for Msg of History loop
+         if Msg.Role /= LLM.Types.Assistant then
+            Result.Append (Msg);
+         else
+            declare
+               Compatible_Content : LLM.Types.Content_Block_Vectors.Vector;
+            begin
+               for Block of Msg.Content loop
+                  if Block.Kind /= LLM.Types.Thinking_Block
+                    or else
+                      (Lowercase (To_String (Block.Origin_Provider)) =
+                         Lowercase (Provider)
+                       and then To_String (Block.Origin_Model) = Model_Id)
+                  then
+                     Compatible_Content.Append (Block);
+                  end if;
+               end loop;
+
+               if not Compatible_Content.Is_Empty then
+                  Result.Append
+                    ((Role      => Msg.Role,
+                      Content   => Compatible_Content,
+                      Tok_Usage => Msg.Tok_Usage,
+                      Stop      => Msg.Stop,
+                      Timestamp => Msg.Timestamp));
+               end if;
+            end;
+         end if;
+      end loop;
+
+      return Result;
+   end Compatible_History;
+
    procedure Send_With_Retry
      (S             : in out Session;
       Provider      : in out LLM.Providers.Provider'Class;
@@ -1000,15 +1044,17 @@ package body LLM.Agent is
       procedure Reset_Attempt_State is
       begin
          Builder :=
-           (Content      => <>,
-            Open_Kind    => No_Open_Block,
-            Open_Text    => Null_Unbounded_String,
-            Open_Sig     => Null_Unbounded_String,
-            Stop         => LLM.Types.Unknown_Stop,
-            Tok_Usage    => (others => 0),
-            Error_Text   => Null_Unbounded_String,
-            Saw_Content  => False,
-            Saw_Msg_End  => False);
+           (Content         => <>,
+            Open_Kind       => No_Open_Block,
+            Open_Text       => Null_Unbounded_String,
+            Open_Sig        => Null_Unbounded_String,
+            Origin_Provider => S.Model_Info.Provider,
+            Origin_Model    => S.Model_Info.Model_Id,
+            Stop            => LLM.Types.Unknown_Stop,
+            Tok_Usage       => (others => 0),
+            Error_Text      => Null_Unbounded_String,
+            Saw_Content     => False,
+            Saw_Msg_End     => False);
          Pending_Tools.Clear;
       end Reset_Attempt_State;
 
@@ -1092,7 +1138,10 @@ package body LLM.Agent is
                   Provider.Send
                     (Model_Id      => To_String (S.Model_Info.Model_Id),
                      System_Prompt => To_String (S.System_Prompt),
-                     Messages      => S.History,
+                     Messages      => Compatible_History
+                       (History  => S.History,
+                        Provider => To_String (S.Model_Info.Provider),
+                        Model_Id => To_String (S.Model_Info.Model_Id)),
                      Tools_Json    => Tools_Json,
                      Thinking      => S.Thinking,
                      Max_Tokens    => Max_Tokens_For (S.Model_Info),
@@ -1629,6 +1678,7 @@ package body LLM.Agent is
       Was_Aborted             : Boolean := False;
       Turn_Completed_Normally : Boolean := False;
       Compact_OK              : Boolean := False;
+      Had_Submitted_Prompts   : constant Boolean := S.Has_Submitted_Prompts;
 
       procedure Append_Pending_Message (Msg : LLM.Types.Message) is
       begin
@@ -1647,11 +1697,29 @@ package body LLM.Agent is
 
       procedure Flush_Pending_Messages is
       begin
-         for Msg of Messages_To_Persist loop
+         while not Messages_To_Persist.Is_Empty loop
             LLM.Session_Store.Append_Message
-              (To_String (S.Session_UUID), Msg);
+              (To_String (S.Session_UUID),
+               Messages_To_Persist.First_Element);
+            Messages_To_Persist.Delete_First;
          end loop;
       end Flush_Pending_Messages;
+
+      procedure Roll_Back_Pending_Messages is
+         Pending_Count : constant Ada.Containers.Count_Type :=
+           Messages_To_Persist.Length;
+      begin
+         while not Messages_To_Persist.Is_Empty loop
+            if not S.History.Is_Empty then
+               S.History.Delete_Last;
+            end if;
+            Messages_To_Persist.Delete_Last;
+         end loop;
+
+         if Pending_Count > 0 and then S.History.Is_Empty then
+            S.Has_Submitted_Prompts := Had_Submitted_Prompts;
+         end if;
+      end Roll_Back_Pending_Messages;
    begin
       S.Abort_State.Clear;
       S.History.Append (Prompt_Msg);
@@ -1681,15 +1749,17 @@ package body LLM.Agent is
          Agentic_Loop :
          loop
             Builder :=
-              (Content      => <>,
-               Open_Kind    => No_Open_Block,
-               Open_Text    => Null_Unbounded_String,
-               Open_Sig     => Null_Unbounded_String,
-               Stop         => LLM.Types.Unknown_Stop,
-               Tok_Usage    => (others => 0),
-               Error_Text   => Null_Unbounded_String,
-               Saw_Content  => False,
-               Saw_Msg_End  => False);
+              (Content         => <>,
+               Open_Kind       => No_Open_Block,
+               Open_Text       => Null_Unbounded_String,
+               Open_Sig        => Null_Unbounded_String,
+               Origin_Provider => S.Model_Info.Provider,
+               Origin_Model    => S.Model_Info.Model_Id,
+               Stop            => LLM.Types.Unknown_Stop,
+               Tok_Usage       => (others => 0),
+               Error_Text      => Null_Unbounded_String,
+               Saw_Content     => False,
+               Saw_Msg_End     => False);
             Pending_Tools.Clear;
 
             if S.Abort_State.Requested then
@@ -2116,6 +2186,7 @@ package body LLM.Agent is
       exception
          when Occurrence : others =>
             Was_Aborted := S.Abort_State.Requested;
+            Roll_Back_Pending_Messages;
             S.Streaming := False;
             declare
                End_Event : constant LLM.Events.Agent_End_Event :=

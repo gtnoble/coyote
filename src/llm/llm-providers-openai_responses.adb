@@ -397,10 +397,8 @@ package body LLM.Providers.OpenAI_Responses is
          return Get_String_Field (Parsed.Value, Field);
       end if;
 
-      --  Preserve compatibility with ordinary opaque signatures.
-      if Field = "encrypted_content" then
-         return Signature;
-      end if;
+      --  Opaque signatures from other provider wires are not Responses
+      --  encrypted_content and must never be reinterpreted as such.
       return "";
    end Unpack_Reasoning_Signature;
 
@@ -460,30 +458,29 @@ package body LLM.Providers.OpenAI_Responses is
                      Unpack_Reasoning_Signature
                        (To_String (Block.Signature), "encrypted_content");
                begin
-                  --  Signature holds encrypted_content when the provider
-                  --  returned it.  Visible thinking text is replayed as
-                  --  a summary_text part.  Item ids are not stored
-                  --  separately; encrypted_content is sufficient for
-                  --  later-turn replay.
-                  Item.Set_Field ("type", "reasoning");
-                  if Item_Id'Length > 0 then
-                     Item.Set_Field ("id", Item_Id);
+                  --  Only recognized Responses envelopes are valid replay
+                  --  items.  Other provider wires also use opaque signatures.
+                  if Item_Id'Length > 0 or else Encrypted'Length > 0 then
+                     Item.Set_Field ("type", "reasoning");
+                     if Item_Id'Length > 0 then
+                        Item.Set_Field ("id", Item_Id);
+                     end if;
+                     if Encrypted'Length > 0 then
+                        Item.Set_Field ("encrypted_content", Encrypted);
+                     end if;
+                     if Thinking'Length > 0 then
+                        declare
+                           Part : constant GNATCOLL.JSON.JSON_Value :=
+                              GNATCOLL.JSON.Create_Object;
+                        begin
+                           Part.Set_Field ("type", "summary_text");
+                           Part.Set_Field ("text", Thinking);
+                           GNATCOLL.JSON.Append (Summary, Part);
+                        end;
+                     end if;
+                     Item.Set_Field ("summary", Summary);
+                     GNATCOLL.JSON.Append (Input, Item);
                   end if;
-                  if Encrypted'Length > 0 then
-                     Item.Set_Field ("encrypted_content", Encrypted);
-                  end if;
-                  if Thinking'Length > 0 then
-                     declare
-                        Part : constant GNATCOLL.JSON.JSON_Value :=
-                           GNATCOLL.JSON.Create_Object;
-                     begin
-                        Part.Set_Field ("type", "summary_text");
-                        Part.Set_Field ("text", Thinking);
-                        GNATCOLL.JSON.Append (Summary, Part);
-                     end;
-                  end if;
-                  Item.Set_Field ("summary", Summary);
-                  GNATCOLL.JSON.Append (Input, Item);
                end;
             when LLM.Types.Tool_Call_Block =>
                declare

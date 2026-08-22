@@ -12,6 +12,8 @@ package LLM_Session_Store_Tests is
    procedure Test_Assistant_Tool_Call             (T : in out Test);
    procedure Test_Assistant_Thinking_Text_Round_Trip
      (T : in out Test);
+   procedure Test_Legacy_Model_Change_Infers_Thinking_Origin
+     (T : in out Test);
    procedure Test_Tool_Result_Round_Trip          (T : in out Test);
    procedure Test_Fork_Session_Native_Source      (T : in out Test);
    procedure Test_Load_Legacy_Pi_Envelope_Lines   (T : in out Test);

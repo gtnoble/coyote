@@ -320,3 +320,16 @@ support from a small hardcoded family-name table.
 **Result:** Net -841 lines (1,073 deleted, 232 added).  Build clean.  All
 existing tests pass.  Ollama models now share the mature, well-tested OpenAI
 SSE streaming pipeline.
+
+## 2026-08-22 — Responses reasoning ownership (PCR-063)
+
+Responses encrypted reasoning is owned by the provider/model identity that
+produced it. `Thinking_Block` provenance is persisted explicitly, with legacy
+session inference from the preceding `model_change` record. The agent filters
+foreign and unknown thinking before every provider call without deleting it,
+so switching back remains lossless. `OpenAI_Responses` now interprets only JSON
+signatures containing Responses `id` or `encrypted_content`; arbitrary opaque
+signatures from other wires no longer become reasoning input items.
+
+Focused same-model replay, opaque-signature omission, cross-model filtering,
+switch-back, explicit persistence, and legacy-inference tests pass.

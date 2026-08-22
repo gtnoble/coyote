@@ -1480,6 +1480,10 @@ package body Test_Suites is
          LLM_Session_Store_Tests
            .Test_Assistant_Thinking_Text_Round_Trip'Access));
       Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store infers legacy thinking model provenance",
+         LLM_Session_Store_Tests
+           .Test_Legacy_Model_Change_Infers_Thinking_Origin'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
         ("LLM.Session_Store tool results round-trip through disk",
          LLM_Session_Store_Tests.Test_Tool_Result_Round_Trip'Access));
       Result.Add_Test (LLM_Session_Store_Caller.Create
@@ -2741,6 +2745,18 @@ package body Test_Suites is
         ("LLM.Agent retries HTTP 500 errors and succeeds on retry",
          LLM_Agent_Tests
            .Test_Auto_Retry_On_HTTP_500_Then_Success'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent filters encrypted thinking across model switches",
+         LLM_Agent_Tests
+           .Test_Compatible_History_Filters_Foreign_Thinking'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent rolls back prompts after non-retryable errors",
+         LLM_Agent_Tests
+           .Test_Non_Retryable_Error_Rolls_Back_Prompt'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent rolls back prompts after retry exhaustion",
+         LLM_Agent_Tests
+           .Test_Retry_Exhaustion_Rolls_Back_Prompt'Access));
       Result.Add_Test (LLM_Agent_Caller.Create
         ("LLM.Agent detects known context-overflow error phrases",
          LLM_Agent_Tests

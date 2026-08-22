@@ -934,10 +934,12 @@ and API-key resolution shall be preserved.
 **REQ-CORE-217** (D)
 Reasoning output items produced on the Responses wire (`type:
 reasoning`, including `id` and any `encrypted_content`) shall be
-persisted on the corresponding assistant message and replayed on
-subsequent turns as input items. Thinking effort shall be sent as
-`reasoning.effort` using the Responses enum (`none`, `minimal`, `low`,
-`medium`, `high`, `xhigh`); coyote `X_High` maps to `xhigh`.
+persisted on the corresponding assistant message with their origin provider and
+model. They shall be replayed on subsequent turns only when that origin matches
+the active provider and model. Incompatible or unknown-origin reasoning items
+shall remain persisted but shall be omitted from provider input. Thinking effort
+shall be sent as `reasoning.effort` using the Responses enum (`none`, `minimal`,
+`low`, `medium`, `high`, `xhigh`); coyote `X_High` maps to `xhigh`.
 
 ---
 

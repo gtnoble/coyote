@@ -3216,6 +3216,334 @@ package body LLM_Agent_Tests is
          raise;
    end Test_Auto_Retry_On_HTTP_500_Then_Success;
 
+   procedure Test_Compatible_History_Filters_Foreign_Thinking
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+
+      History      : LLM.Types.Message_Vectors.Vector;
+      User_Content : LLM.Types.Content_Block_Vectors.Vector;
+      Grok_Content : LLM.Types.Content_Block_Vectors.Vector;
+      Luna_Content    : LLM.Types.Content_Block_Vectors.Vector;
+      Unknown_Content : LLM.Types.Content_Block_Vectors.Vector;
+      Grok_View       : LLM.Types.Message_Vectors.Vector;
+      Luna_View    : LLM.Types.Message_Vectors.Vector;
+
+      function Thinking_Count
+        (Messages : LLM.Types.Message_Vectors.Vector) return Natural
+      is
+         Result : Natural := 0;
+      begin
+         for Msg of Messages loop
+            for Block of Msg.Content loop
+               if Block.Kind = LLM.Types.Thinking_Block then
+                  Result := Result + 1;
+               end if;
+            end loop;
+         end loop;
+         return Result;
+      end Thinking_Count;
+   begin
+      User_Content.Append
+        ((Kind => LLM.Types.Text_Block,
+          Text => To_Unbounded_String ("question")));
+      History.Append
+        ((Role      => LLM.Types.User,
+          Content   => User_Content,
+          Tok_Usage => (others => 0),
+          Stop      => LLM.Types.Unknown_Stop,
+          Timestamp => Null_Unbounded_String));
+
+      Grok_Content.Append
+        ((Kind            => LLM.Types.Thinking_Block,
+          Thinking        => To_Unbounded_String ("grok reasoning"),
+          Signature       => To_Unbounded_String ("grok-ciphertext"),
+          Origin_Provider => To_Unbounded_String ("openrouter"),
+          Origin_Model    => To_Unbounded_String ("x-ai/grok-4.6")));
+      Grok_Content.Append
+        ((Kind => LLM.Types.Text_Block,
+          Text => To_Unbounded_String ("grok answer")));
+      History.Append
+        ((Role      => LLM.Types.Assistant,
+          Content   => Grok_Content,
+          Tok_Usage => (others => 0),
+          Stop      => LLM.Types.Stop,
+          Timestamp => Null_Unbounded_String));
+
+      Luna_Content.Append
+        ((Kind            => LLM.Types.Thinking_Block,
+          Thinking        => To_Unbounded_String ("luna reasoning"),
+          Signature       => To_Unbounded_String ("luna-ciphertext"),
+          Origin_Provider => To_Unbounded_String ("openrouter"),
+          Origin_Model    => To_Unbounded_String ("openai/gpt-5.6-luna")));
+      Luna_Content.Append
+        ((Kind => LLM.Types.Text_Block,
+          Text => To_Unbounded_String ("luna answer")));
+      History.Append
+        ((Role      => LLM.Types.Assistant,
+          Content   => Luna_Content,
+          Tok_Usage => (others => 0),
+          Stop      => LLM.Types.Stop,
+          Timestamp => Null_Unbounded_String));
+
+      Unknown_Content.Append
+        ((Kind            => LLM.Types.Thinking_Block,
+          Thinking        => To_Unbounded_String ("unknown reasoning"),
+          Signature       => To_Unbounded_String ("unknown-ciphertext"),
+          Origin_Provider => Null_Unbounded_String,
+          Origin_Model    => Null_Unbounded_String));
+      History.Append
+        ((Role      => LLM.Types.Assistant,
+          Content   => Unknown_Content,
+          Tok_Usage => (others => 0),
+          Stop      => LLM.Types.Stop,
+          Timestamp => Null_Unbounded_String));
+
+      Grok_View := LLM.Agent.Testing.Compatible_History
+        (History  => History,
+         Provider => "openrouter",
+         Model_Id => "x-ai/grok-4.6");
+      Luna_View := LLM.Agent.Testing.Compatible_History
+        (History  => History,
+         Provider => "openrouter",
+         Model_Id => "openai/gpt-5.6-luna");
+
+      Assert
+        (Thinking_Count (Grok_View) = 1,
+         "switching back to Grok should restore only Grok reasoning");
+      Assert
+        (Thinking_Count (Luna_View) = 1,
+         "switching to Luna should retain only Luna reasoning");
+      Assert
+        (Assistant_Text (Grok_View.Element (1)) = "grok answer",
+         "Grok view should retain ordinary Grok assistant text");
+      Assert
+        (Assistant_Text (Grok_View.Element (2)) = "luna answer",
+         "Grok view should retain ordinary Luna assistant text");
+      Assert
+        (Grok_View.Length = 3 and then Luna_View.Length = 3,
+         "unknown-origin thinking-only messages must be omitted");
+      Assert
+        (History.Element (1).Content.Length = 2
+         and then History.Element (2).Content.Length = 2
+         and then History.Element (3).Content.Length = 1,
+         "request filtering must not mutate durable history");
+   end Test_Compatible_History_Filters_Foreign_Thinking;
+
+   procedure Test_Non_Retryable_Error_Rolls_Back_Prompt
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+
+      Home           : constant String :=
+        "/tmp/coyote_llm_agent_non_retryable_rollback";
+      Port           : constant Positive := 18_840;
+      Agent_Session  : LLM.Agent.Session;
+      Server_Stopped : Boolean := False;
+      Raised         : Boolean := False;
+      Home_Was_Set   : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home       : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Key_Was_Set    : constant Boolean :=
+        Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
+      Old_Key        : constant String :=
+        Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
+      Url_Was_Set    : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
+      Old_Url        : constant String :=
+        Ada.Environment_Variables.Value
+          ("COYOTE_OPENROUTER_BASE_URL", "");
+
+      procedure Ignore_Event (E : LLM.Events.Agent_Event'Class) is
+         pragma Unreferenced (E);
+      begin
+         null;
+      end Ignore_Event;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Res.Status := 404;
+         Append
+           (Res.Body_Data,
+            "{""error"":{"
+            & """message"":""encrypted content from another model""}}");
+      end Handle_Request;
+
+      Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
+   begin
+      Prepare_Test_Home (Home);
+      Write_Minimal_OpenRouter_Cache
+        (Home     => Home,
+         Model_Id => "openai/gpt-5.6-luna");
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Set ("OPENROUTER_API_KEY", "test-key");
+      Ada.Environment_Variables.Set
+        ("COYOTE_OPENROUTER_BASE_URL",
+         "http://127.0.0.1:" & Natural_Image (Port) & "/api/v1");
+
+      LLM.Agent.Create
+        (S          => Agent_Session,
+         Model_Spec => "openrouter/openai/gpt-5.6-luna",
+         No_Tools   => True);
+      Srv.Bind (Port);
+
+      begin
+         LLM.Agent.Run_Prompt
+           (S        => Agent_Session,
+            Prompt   => "This prompt must roll back",
+            On_Event => Ignore_Event'Access);
+      exception
+         when others =>
+            Raised := True;
+      end;
+
+      Srv.Stop;
+      Server_Stopped := True;
+
+      Assert (Raised, "HTTP 404 should propagate as non-retryable");
+      Assert
+        (LLM.Agent.Testing.History_Length (Agent_Session) = 0,
+         "failed prompt should be removed from in-memory history");
+      Assert
+        (not LLM.Agent.Has_Submitted_Prompts (Agent_Session),
+         "failed first prompt should restore submitted-state flag");
+      Assert
+        (LLM.Session_Store.Load_Messages
+           (LLM.Agent.Session_Id (Agent_Session)).Length = 0,
+         "failed prompt should remain absent from persisted history");
+
+      Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
+      Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         if not Server_Stopped then
+            begin
+               Srv.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
+         Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
+         Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Non_Retryable_Error_Rolls_Back_Prompt;
+
+   procedure Test_Retry_Exhaustion_Rolls_Back_Prompt
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+
+      Home           : constant String :=
+        "/tmp/coyote_llm_agent_retry_exhaustion_rollback";
+      Port           : constant Positive := 18_841;
+      Agent_Session  : LLM.Agent.Session;
+      Server_Stopped : Boolean := False;
+      Raised         : Boolean := False;
+      Request_Count  : Natural := 0;
+      Home_Was_Set   : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home       : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Key_Was_Set    : constant Boolean :=
+        Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
+      Old_Key        : constant String :=
+        Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
+      Url_Was_Set    : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
+      Old_Url        : constant String :=
+        Ada.Environment_Variables.Value
+          ("COYOTE_OPENROUTER_BASE_URL", "");
+
+      procedure Ignore_Event (E : LLM.Events.Agent_Event'Class) is
+         pragma Unreferenced (E);
+      begin
+         null;
+      end Ignore_Event;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Request_Count := Request_Count + 1;
+         Res.Status := 500;
+         Append (Res.Body_Data, "{""error"":""server error""}");
+      end Handle_Request;
+
+      Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
+   begin
+      Prepare_Test_Home (Home);
+      Write_Minimal_OpenRouter_Cache
+        (Home     => Home,
+         Model_Id => "openai/gpt-5.6-luna");
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Set ("OPENROUTER_API_KEY", "test-key");
+      Ada.Environment_Variables.Set
+        ("COYOTE_OPENROUTER_BASE_URL",
+         "http://127.0.0.1:" & Natural_Image (Port) & "/api/v1");
+
+      LLM.Agent.Create
+        (S          => Agent_Session,
+         Model_Spec => "openrouter/openai/gpt-5.6-luna",
+         No_Tools   => True);
+      Srv.Bind (Port);
+
+      begin
+         LLM.Agent.Run_Prompt
+           (S        => Agent_Session,
+            Prompt   => "This exhausted prompt must roll back",
+            On_Event => Ignore_Event'Access);
+      exception
+         when others =>
+            Raised := True;
+      end;
+
+      Srv.Stop;
+      Server_Stopped := True;
+
+      Assert (Raised, "exhausted HTTP 500 retries should propagate");
+      Assert (Request_Count = 4, "HTTP 500 should use all four attempts");
+      Assert
+        (LLM.Agent.Testing.History_Length (Agent_Session) = 0,
+         "retry-exhausted prompt should leave in-memory history empty");
+      Assert
+        (not LLM.Agent.Has_Submitted_Prompts (Agent_Session),
+         "retry exhaustion should restore submitted-state flag");
+      Assert
+        (LLM.Session_Store.Load_Messages
+           (LLM.Agent.Session_Id (Agent_Session)).Length = 0,
+         "retry-exhausted prompt should remain absent from JSONL history");
+
+      Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
+      Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         if not Server_Stopped then
+            begin
+               Srv.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
+         Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
+         Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Retry_Exhaustion_Rolls_Back_Prompt;
+
    procedure Test_Is_Context_Overflow_Error_Detects_Known_Phrases
      (T : in out Test)
    is

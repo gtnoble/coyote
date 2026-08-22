@@ -16,4 +16,10 @@ package LLM.Agent.Testing is
    function System_Prompt
      (S : LLM.Agent.Session) return String;
 
+   --  Return the request history compatible with Provider and Model_Id.
+   function Compatible_History
+     (History  : LLM.Types.Message_Vectors.Vector;
+      Provider : String;
+      Model_Id : String) return LLM.Types.Message_Vectors.Vector;
+
 end LLM.Agent.Testing;

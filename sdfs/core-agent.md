@@ -373,3 +373,23 @@ The registered test count is unchanged.
 **Design rationale:** Display math requires structured Presentation MathML for
 reliable GUI rendering; inline math is kept lightweight and readable by using
 Unicode symbols directly instead of introducing a second markup syntax.
+
+## 2026-08-22 — Model-bound thinking provenance and failed-turn rollback
+
+**Problem:** PCR-063 showed that a runtime model switch retained encrypted
+reasoning produced by the prior model. PCR-064 showed that a non-retryable
+provider failure left the unpersisted user prompt in memory but absent from
+JSONL.
+
+**Design:** `Thinking_Block` now records `Origin_Provider` and `Origin_Model`.
+`LLM.Agent.Compatible_History` derives a temporary provider request view,
+omitting foreign or unknown model-bound thinking while preserving durable
+history, ordinary assistant text, tool calls, and tool results. Switching back
+to the origin model therefore restores its reasoning continuity. Pending
+messages are removed from the persistence queue only after each append succeeds;
+an escaping provider or persistence exception removes only the remaining
+unpersisted history suffix and restores first-prompt submitted state.
+
+**Verification:** Added agent regressions for Grok/Luna-compatible views,
+switch-back restoration, durable-history non-mutation, and HTTP 404 rollback
+agreement between in-memory and loaded JSONL history. Focused tests pass.

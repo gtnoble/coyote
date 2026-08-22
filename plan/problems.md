@@ -2105,3 +2105,82 @@ behavior, current test baseline, and remaining manual qualification scope.
   qualification remains manual.
 - **Status:** Resolved
 - **Date resolved:** 2026-08-22
+
+## PCR-063 — Cross-model replay of encrypted reasoning is rejected (2026-08-22)
+
+- **Date reported:** 2026-08-22
+- **Category:** Requirements, Design, Code, Test
+- **Priority:** 3-Moderate
+- **Description:** After an OpenRouter conversation generated encrypted
+  Responses reasoning with one model, changing to another model caused the next
+  prompt to fail with HTTP 404: the encrypted reasoning or compaction content
+  was produced under a different model. `LLM.Agent.Set_Model` changes only the
+  active `Model_Info`; it retains the complete history. The Responses encoder
+  then replays every historical thinking signature as a `reasoning` input item,
+  without knowing which model produced it. The issue is reproducible when
+  switching from `openrouter/x-ai/grok-4.6` to
+  `openrouter/openai/gpt-5.6-luna`. The affected local sessions contain
+  model-bound Grok `id` and `encrypted_content` pairs and no Coyote compaction
+  record, so encrypted reasoning is the concrete trigger in this report.
+- **Affected work products:** SRS-CORE REQ-CORE-075 and REQ-CORE-217,
+  SDD-CORE §§5.5 and 5.6a, `LLM.Types`, `LLM.Agent`,
+  `LLM.Session_Store`, `LLM.Providers.OpenAI_Responses`, provider and core-agent
+  SDFs, OpenAI Responses and agent/session-store AUnit tests, and Test Plan.
+- **Corrective action required:** Record the origin provider and model for each
+  assistant message and restore that provenance from session files and
+  `model_change` records. The Responses request encoder shall replay opaque
+  encrypted reasoning only when its origin model matches the request model;
+  incompatible encrypted items shall be omitted without deleting them from
+  history or persistence, so switching back to the originating model remains
+  possible. Existing sessions with reconstructable `model_change` records shall
+  be handled safely. Qualify REQ-CORE-217's replay rule accordingly. Add
+  regressions for same-model replay, live cross-model switching, switching back,
+  mixed-model session resume, and legacy sessions without explicit message
+  provenance.
+- **Actions taken:** Added provider/model provenance to thinking blocks and
+  persisted it in content-block and assistant compatibility fields. Session
+  loading restores explicit provenance and infers legacy provenance from the
+  latest preceding `model_change`. The agent derives a non-mutating compatible
+  request view that omits foreign or unknown thinking while preserving text,
+  tools, results, and durable encrypted state for switch-back. The Responses
+  adapter no longer treats arbitrary opaque signatures as encrypted content.
+- **Verification:** Production and test development builds succeed. Focused
+  same-model replay, opaque-signature omission, cross-model filtering,
+  switch-back, explicit persistence, and legacy-inference regressions pass. The
+  complete suite passes with 889 successful tests, 0 failed assertions, and 0
+  unexpected errors.
+- **Status:** Resolved
+- **Date resolved:** 2026-08-22
+
+## PCR-064 — Failed provider request leaves unpersisted user prompt in memory (2026-08-22)
+
+- **Date reported:** 2026-08-22
+- **Category:** Design, Code, Test
+- **Priority:** 3-Moderate
+- **Description:** `LLM.Agent.Run_Prompt` appends the new user message to
+  `S.History` before calling the provider, while persistence is deferred until
+  the turn completes. If the provider raises, including the cross-model
+  encrypted-reasoning rejection in PCR-063, the exception path emits events and
+  reraises but does not remove the uncommitted prompt from `S.History`. The
+  running process therefore sends that failed prompt on later requests even
+  though it is absent from the JSONL session; a resumed process reconstructs a
+  different history.
+- **Affected work products:** SDD-CORE §5.5, `LLM.Agent`, core-agent SDF,
+  agent AUnit tests, and Test Plan.
+- **Corrective action required:** Define and implement transactional prompt
+  failure semantics. On a provider failure before a completed assistant turn,
+  either remove the uncommitted prompt from in-memory history or persist an
+  explicit failed-turn representation that reloads identically. Add regressions
+  comparing live in-memory history with `Load_Messages` after non-retryable and
+  retry-exhausted provider failures.
+- **Actions taken:** Pending messages are now consumed from the persistence
+  queue only after each append succeeds. An escaping provider or persistence
+  exception removes the remaining unpersisted suffix from in-memory history
+  and restores first-prompt submitted state; already-persisted tool history is
+  retained.
+- **Verification:** A mock non-retryable HTTP 404 regression verifies exception
+  propagation, empty in-memory history, restored submitted state, and equality
+  with reloaded JSONL history. The complete suite passes with 889 successful
+  tests, 0 failed assertions, and 0 unexpected errors.
+- **Status:** Resolved
+- **Date resolved:** 2026-08-22

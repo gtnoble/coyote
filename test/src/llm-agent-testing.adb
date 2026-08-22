@@ -21,4 +21,15 @@ package body LLM.Agent.Testing is
       return To_String (S.System_Prompt);
    end System_Prompt;
 
+   function Compatible_History
+     (History  : LLM.Types.Message_Vectors.Vector;
+      Provider : String;
+      Model_Id : String) return LLM.Types.Message_Vectors.Vector is
+   begin
+      return LLM.Agent.Compatible_History
+        (History  => History,
+         Provider => Provider,
+         Model_Id => Model_Id);
+   end Compatible_History;
+
 end LLM.Agent.Testing;

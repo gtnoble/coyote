@@ -379,6 +379,11 @@ package body LLM.Session_Store is
                           ("thinking", To_String (Block.Thinking));
                         Item.Set_Field
                           ("signature", To_String (Block.Signature));
+                        Item.Set_Field
+                          ("originProvider",
+                           To_String (Block.Origin_Provider));
+                        Item.Set_Field
+                          ("originModel", To_String (Block.Origin_Model));
                         GNATCOLL.JSON.Append (Result, Item);
                      end;
                   when LLM.Types.Tool_Call_Block =>
@@ -522,8 +527,20 @@ package body LLM.Session_Store is
 
             Result.Set_Field ("role", "assistant");
             Result.Set_Field ("content", Content_To_Array (Msg));
-            Result.Set_Field ("model", "");
-            Result.Set_Field ("provider", "");
+            declare
+               Provider : Unbounded_String;
+               Model_Id : Unbounded_String;
+            begin
+               for Block of Msg.Content loop
+                  if Block.Kind = LLM.Types.Thinking_Block then
+                     Provider := Block.Origin_Provider;
+                     Model_Id := Block.Origin_Model;
+                     exit;
+                  end if;
+               end loop;
+               Result.Set_Field ("model", To_String (Model_Id));
+               Result.Set_Field ("provider", To_String (Provider));
+            end;
             Result.Set_Field ("stopReason", Stop_Reason_Image (Msg.Stop));
             Result.Set_Field ("usage", Usage);
             Result.Set_Field ("timestamp", Ms);
@@ -566,14 +583,24 @@ package body LLM.Session_Store is
    end Parse_User_Message;
 
    function Parse_Assistant_Message
-     (Envelope : GNATCOLL.JSON.JSON_Value;
-      Msg      : GNATCOLL.JSON.JSON_Value) return LLM.Types.Message
+     (Envelope         : GNATCOLL.JSON.JSON_Value;
+      Msg              : GNATCOLL.JSON.JSON_Value;
+      Default_Provider : String;
+      Default_Model    : String) return LLM.Types.Message
    is
-      Content : LLM.Types.Content_Block_Vectors.Vector;
-      Blocks  : constant GNATCOLL.JSON.JSON_Array :=
+      Content  : LLM.Types.Content_Block_Vectors.Vector;
+      Blocks   : constant GNATCOLL.JSON.JSON_Array :=
         Get_Array_Field (Msg, "content");
-      Usage   : constant GNATCOLL.JSON.JSON_Value :=
+      Usage    : constant GNATCOLL.JSON.JSON_Value :=
         Get_Object_Field (Msg, "usage");
+      Provider : constant String :=
+        (if Get_String_Field (Msg, "provider")'Length > 0
+         then Get_String_Field (Msg, "provider")
+         else Default_Provider);
+      Model_Id : constant String :=
+        (if Get_String_Field (Msg, "model")'Length > 0
+         then Get_String_Field (Msg, "model")
+         else Default_Model);
    begin
       for I in 1 .. GNATCOLL.JSON.Length (Blocks) loop
          declare
@@ -588,11 +615,19 @@ package body LLM.Session_Store is
                      (Get_String_Field (Block, "text"))));
             elsif Kind = "thinking" then
                Content.Append
-                 ((Kind      => LLM.Types.Thinking_Block,
-                   Thinking  => To_Unbounded_String
+                 ((Kind            => LLM.Types.Thinking_Block,
+                   Thinking        => To_Unbounded_String
                      (Get_String_Field (Block, "thinking")),
-                   Signature => To_Unbounded_String
-                     (Get_String_Field (Block, "signature"))));
+                   Signature       => To_Unbounded_String
+                     (Get_String_Field (Block, "signature")),
+                   Origin_Provider => To_Unbounded_String
+                     ((if Get_String_Field (Block, "originProvider")'Length > 0
+                       then Get_String_Field (Block, "originProvider")
+                       else Provider)),
+                   Origin_Model    => To_Unbounded_String
+                     ((if Get_String_Field (Block, "originModel")'Length > 0
+                       then Get_String_Field (Block, "originModel")
+                       else Model_Id))));
             elsif Kind = "toolCall" then
                declare
                   Arguments : constant GNATCOLL.JSON.JSON_Value :=
@@ -926,6 +961,8 @@ package body LLM.Session_Store is
       Compaction_Found   : Boolean := False;
       Compaction_Summary : Unbounded_String;
       First_Kept         : Natural := 0;
+      Current_Provider   : Unbounded_String;
+      Current_Model      : Unbounded_String;
    begin
       if Path'Length = 0 or else not Ada.Directories.Exists (Path) then
          return Result;
@@ -968,13 +1005,22 @@ package body LLM.Session_Store is
                              (Get_String_Field (Envelope, "summary"));
                            First_Kept := Get_Natural_Field
                              (Envelope, "firstKeptMessageIndex");
+                        elsif Record_Type = "model_change" then
+                           Current_Provider := To_Unbounded_String
+                             (Get_String_Field (Envelope, "provider"));
+                           Current_Model := To_Unbounded_String
+                             (Get_String_Field (Envelope, "modelId"));
                         elsif Msg.Kind = GNATCOLL.JSON.JSON_Object_Type then
                            declare
                               Parsed_Message : constant LLM.Types.Message :=
                                 (if Role = "user"
                                  then Parse_User_Message (Envelope, Msg)
                                  elsif Role = "assistant"
-                                 then Parse_Assistant_Message (Envelope, Msg)
+                                 then Parse_Assistant_Message
+                                   (Envelope,
+                                    Msg,
+                                    To_String (Current_Provider),
+                                    To_String (Current_Model))
                                  elsif Role = "toolResult"
                                  then Parse_Tool_Result_Message (Envelope, Msg)
                                  else (Role      => LLM.Types.User,

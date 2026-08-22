@@ -141,8 +141,8 @@ SRS-CORE requirement groups.
 | Test module | Requirements covered | Test count (approx.) |
 |---|---|---|
 | `llm_sse_tests.adb` | REQ-CORE-200 (SSE parsing) | ~30 |
-| `llm_session_store_tests.adb` | REQ-CORE-080â089, 240â241 | ~46 |
-| `llm_agent_tests.adb` | REQ-CORE-040â046, 060â064, 085â089 | ~85 |
+| `llm_session_store_tests.adb` | REQ-CORE-080â089, 217, 240â241 | ~47 |
+| `llm_agent_tests.adb` | REQ-CORE-040â046, 060â064, 075, 085â089, 217 | ~87 |
 | `coyote_app_tests.adb` | REQ-CORE-085â089 (frontend/agent synchronization) | ~10 |
 
 | `llm_skills_tests.adb` | REQ-CORE-090â093 | ~20 |
@@ -295,7 +295,7 @@ These are entered as open items in the problem log (PCR-009).
 | REQ-CORE-070â073 | T/D | `llm_settings_tests.adb`, `llm_model_registry_tests.adb`, DEM-010 |
 | REQ-CORE-070a | T | `llm_agent_tests.adb` |
 | REQ-CORE-074 | D | DEM-011 |
-| REQ-CORE-075â076 | D | DEM-012 |
+| REQ-CORE-075â076 | T/D | `llm_agent_tests.adb`, DEM-012 |
 | REQ-CORE-080â083 | T | `llm_session_store_tests.adb` |
 | REQ-CORE-084 | T/D | `session_lister_tests.adb`, DEM-018 |
 | REQ-CORE-085 | T | `llm_session_store_tests.adb`, `llm_agent_tests.adb`, DEM-029 |
@@ -320,6 +320,7 @@ These are entered as open items in the problem log (PCR-009).
 | REQ-CORE-180â183 | T/D | `llm_system_prompt_tests.adb`, DEM-025..026, code inspection |
 | REQ-CORE-190â192 | T/D | `llm_system_prompt_tests.adb`, DEM-027..028, code inspection |
 | REQ-CORE-200â203 | T/I | `llm_sse_tests.adb`, `llm_openai_completions_tests.adb`, `llm_anthropic_messages_tests.adb`, code inspection |
+| REQ-CORE-205â208, 215â217 | T/I | `llm_openai_responses_tests.adb`, `llm_agent_tests.adb`, `llm_session_store_tests.adb`, code inspection |
 | REQ-CORE-210â212 | T/I | `nine_p_proto_tests.adb`, `nine_p_mock_server_tests.adb`, code inspection |
 | REQ-CORE-220â221 | I | Code inspection (GTK call sites) |
 | REQ-CORE-230â234 | T | `llm_settings_tests.adb`, `llm_auth_tests.adb`, DEM-034 |
@@ -339,6 +340,14 @@ These are entered as open items in the problem log (PCR-009).
 ---
 
 ## 7. Notes
+
+**Verification as of 2026-08-22 (PCR-063/064 model-bound reasoning):**
+Production and test development builds succeed. Three new tests cover
+cross-model encrypted-thinking filtering with switch-back, legacy provenance
+inference from `model_change`, and non-retryable HTTP 404 prompt rollback.
+Existing same-model replay and explicit thinking-provenance round-trip tests
+were strengthened. The complete 889-test suite passes with 889 successful
+tests, 0 failed assertions, and 0 unexpected errors.
 
 **Verification as of 2026-08-22 (PCR-062 GTK Change Model filter):**
 Production and test development builds succeed. Eight new

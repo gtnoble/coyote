@@ -155,6 +155,13 @@ private
       Wire_Format         => Ada.Strings.Unbounded.Null_Unbounded_String,
       Cost                => (others => 0.0));
 
+   --  Return a provider request view that excludes model-bound thinking
+   --  blocks not owned by Provider and Model_Id.
+   function Compatible_History
+     (History  : LLM.Types.Message_Vectors.Vector;
+      Provider : String;
+      Model_Id : String) return LLM.Types.Message_Vectors.Vector;
+
    type Session is limited record
       Model_Spec    : Ada.Strings.Unbounded.Unbounded_String :=
         Ada.Strings.Unbounded.Null_Unbounded_String;

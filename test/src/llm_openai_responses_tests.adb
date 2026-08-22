@@ -1053,8 +1053,9 @@ package body LLM_OpenAI_Responses_Tests is
       is
          Parsed : constant GNATCOLL.JSON.Read_Result :=
            GNATCOLL.JSON.Read (To_String (Req.Body_Data));
-         Input  : GNATCOLL.JSON.JSON_Array;
-         Found  : Boolean := False;
+         Input           : GNATCOLL.JSON.JSON_Array;
+         Found           : Boolean := False;
+         Reasoning_Count : Natural := 0;
       begin
          Assert (Parsed.Success, "parse");
          Input := Parsed.Value.Get ("input").Get;
@@ -1067,6 +1068,7 @@ package body LLM_OpenAI_Responses_Tests is
                  and then Item.Get ("type").Kind = GNATCOLL.JSON.JSON_String_Type
                  and then String'(Item.Get ("type").Get) = "reasoning"
                then
+                  Reasoning_Count := Reasoning_Count + 1;
                   Assert
                     (Item.Has_Field ("encrypted_content"),
                      "encrypted_content should be replayed");
@@ -1082,6 +1084,9 @@ package body LLM_OpenAI_Responses_Tests is
             end;
          end loop;
          Assert (Found, "reasoning item missing from input");
+         Assert
+           (Reasoning_Count = 1,
+            "opaque signatures must not become Responses reasoning items");
          Replayed := True;
          Res.Status := 200;
          Ada.Strings.Unbounded.Append (Res.Body_Data, Build_Text_SSE ("ok", 1, 1));
@@ -1102,10 +1107,19 @@ package body LLM_OpenAI_Responses_Tests is
           Stop      => LLM.Types.Unknown_Stop,
           Timestamp => Null_Unbounded_String));
       Asst_C.Append
-        ((Kind      => LLM.Types.Thinking_Block,
-          Thinking  => To_Unbounded_String ("because"),
-          Signature => To_Unbounded_String
-            ("{""id"":""rs_test"",""encrypted_content"":""enc-secret""}")));
+        ((Kind            => LLM.Types.Thinking_Block,
+          Thinking        => To_Unbounded_String ("because"),
+          Signature       => To_Unbounded_String
+            ("{""id"":""rs_test"",""encrypted_content"":""enc-secret""}"),
+          Origin_Provider => To_Unbounded_String ("openrouter"),
+          Origin_Model    => To_Unbounded_String ("test-model")));
+      Asst_C.Append
+        ((Kind            => LLM.Types.Thinking_Block,
+          Thinking        => To_Unbounded_String ("foreign thinking"),
+          Signature       => To_Unbounded_String
+            ("opaque-anthropic-signature"),
+          Origin_Provider => To_Unbounded_String ("anthropic"),
+          Origin_Model    => To_Unbounded_String ("claude-test")));
       Asst_C.Append
         ((Kind => LLM.Types.Text_Block,
           Text => To_Unbounded_String ("answer")));

@@ -30,6 +30,12 @@ package LLM_Agent_Tests is
      (T : in out Test);
    procedure Test_Auto_Retry_On_HTTP_500_Then_Success
      (T : in out Test);
+   procedure Test_Compatible_History_Filters_Foreign_Thinking
+     (T : in out Test);
+   procedure Test_Non_Retryable_Error_Rolls_Back_Prompt
+     (T : in out Test);
+   procedure Test_Retry_Exhaustion_Rolls_Back_Prompt
+     (T : in out Test);
    procedure Test_Is_Context_Overflow_Error_Detects_Known_Phrases
      (T : in out Test);
    procedure Test_Overflow_Triggers_Compact_And_Retry

@@ -370,9 +370,11 @@ package body LLM_Session_Store_Tests is
       Content : LLM.Types.Content_Block_Vectors.Vector;
    begin
       Content.Append
-        ((Kind      => LLM.Types.Thinking_Block,
-          Thinking  => To_Unbounded_String ("trace this"),
-          Signature => Ada.Strings.Unbounded.To_Unbounded_String ("sig-abc")));
+        ((Kind            => LLM.Types.Thinking_Block,
+          Thinking        => To_Unbounded_String ("trace this"),
+          Signature       => To_Unbounded_String ("sig-abc"),
+          Origin_Provider => To_Unbounded_String ("openrouter"),
+          Origin_Model    => To_Unbounded_String ("test-model")));
       Content.Append
         ((Kind => LLM.Types.Text_Block,
           Text => To_Unbounded_String ("Final answer")));
@@ -636,6 +638,15 @@ package body LLM_Session_Store_Tests is
               = "sig-abc",
             "Thinking block signature should round-trip");
          Assert
+           (To_String
+              (Messages.Element (0).Content.Element (0).Origin_Provider)
+              = "openrouter",
+            "Thinking block provider provenance should round-trip");
+         Assert
+           (To_String (Messages.Element (0).Content.Element (0).Origin_Model)
+              = "test-model",
+            "Thinking block model provenance should round-trip");
+         Assert
            (Messages.Element (0).Content.Element (1).Kind
               = LLM.Types.Text_Block,
             "Second block should round-trip as Text_Block");
@@ -653,6 +664,58 @@ package body LLM_Session_Store_Tests is
          Cleanup_Test_Root;
          raise;
    end Test_Assistant_Thinking_Text_Round_Trip;
+
+   procedure Test_Legacy_Model_Change_Infers_Thinking_Origin
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+   begin
+      Prepare_Test_Home;
+      declare
+         Session_Id : constant String :=
+           LLM.Session_Store.Create_Session (Source_Cwd);
+         Path       : constant String :=
+           LLM.Session_Store.Session_File_Path (Session_Id);
+         Messages   : LLM.Types.Message_Vectors.Vector;
+      begin
+         Append_Raw_Line
+           (Path,
+            "{""type"":""model_change"",""provider"":""openrouter"","
+            & """modelId"":""x-ai/grok-4.6""}");
+         Append_Raw_Line
+           (Path,
+            "{""role"":""assistant"",""content"":[{"
+            & """type"":""thinking"",""thinking"":""legacy"","
+            & """signature"":""legacy-ciphertext""}],"
+            & """usage"":{},""stopReason"":""stop""}");
+
+         Messages := LLM.Session_Store.Load_Messages (Session_Id);
+
+         Assert (Messages.Length = 1, "legacy assistant should load");
+         Assert
+           (To_String
+              (Messages.Element (0).Content.Element (0).Origin_Provider)
+              = "openrouter",
+            "preceding model_change should infer legacy provider provenance");
+         Assert
+           (To_String (Messages.Element (0).Content.Element (0).Origin_Model)
+              = "x-ai/grok-4.6",
+            "preceding model_change should infer legacy model provenance");
+      end;
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Root;
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Root;
+         raise;
+   end Test_Legacy_Model_Change_Infers_Thinking_Origin;
 
    procedure Test_Tool_Result_Round_Trip (T : in out Test) is
       pragma Unreferenced (T);

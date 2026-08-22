@@ -231,6 +231,12 @@ calls.  Both the Acme and GUI paths share the same dispatcher.  See
 
 ### Session and sandbox state
 
+Thinking blocks persist the provider/model identity that produced their opaque
+signature. Provider requests replay such blocks only to the matching active
+provider/model; foreign or unknown thinking remains in durable history but is
+omitted from request context. Do not clear signatures on model switch, because
+switching back must restore same-model reasoning continuity.
+
 Session headers persist the active sandbox profile as `sandboxProfile` when
 `COYOTE_SANDBOX_PROFILE` is non-empty. When resuming with `--session UUID` or
 switching sessions, the target session header is authoritative: its profile

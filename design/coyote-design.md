@@ -668,14 +668,13 @@ missing files, malformed headers, or absent fields.
 **`Run_Prompt` loop:**
 ```
 append user message to History
-persist user message
 loop:
-  build request JSON (History + tools + system prompt)
+  derive request history, omitting foreign/unknown model-bound thinking
+  build request JSON (compatible history + tools + system prompt)
   call provider.Send(request, On_Event callback)
   -- provider invokes On_Event synchronously for each streamed event
   if was_aborted: exit
   append assistant message to History
-  persist assistant message
   if no tool calls in response: exit
   --  Phase 1: emit Tool_Execution_Start_Event for every tool in call order.
   --  Phase 2: execute tools.  If all tools carry a run_group > 0 then
@@ -683,13 +682,19 @@ loop:
   --    tools concurrently within the group; otherwise execute every tool
   --    sequentially in call order.
   --  Phase 3: emit Tool_Execution_End_Event for every tool in call order;
-  --    append each tool result to History and persist.
+  --    append each tool result to History.
   --  The run_group field is stripped from arguments JSON before the tool
   --  executor sees it.
+  persist the pending user/assistant/tool-result batch
 end loop
 -- check compaction threshold; compact if needed
 emit Session_Stats_Event
 ```
+
+Pending messages are consumed from the persistence queue only after each JSONL
+append succeeds. If a provider or persistence exception escapes, the remaining
+unpersisted suffix is removed from in-memory history. Already-persisted tool
+calls/results remain intact, preserving external side-effect history.
 
 **`Compact` procedure:**
 1. Compute cut-point using `LLM.Compaction.Find_Cut_Point`.
@@ -799,10 +804,14 @@ No Completions stub-plus-follow-up-user-message split.
 
 **`Wire_Format` field:** `"openai-responses"`.
 
-**Reasoning replay:** The existing `Thinking_Block.Signature` field carries
-an encoded object containing `id` and `encrypted_content`; ordinary opaque
-signatures remain backward-compatible. Subsequent turns echo both fields in
-`input`. The request includes `reasoning.encrypted_content`.
+**Reasoning replay:** `Thinking_Block` carries `Origin_Provider`,
+`Origin_Model`, and a `Signature` encoded object containing `id` and
+`encrypted_content`. `LLM.Agent.Compatible_History` derives a non-mutating
+request view that retains only thinking blocks owned by the active provider and
+model; ordinary text, tool calls, and tool results remain portable. Switching
+back therefore restores the originating model's encrypted reasoning. The
+Responses adapter emits only recognized encoded signatures and requests
+`reasoning.encrypted_content`.
 
 **`Customize_Request`:** Same extension point as Completions so
 descendants (OpenRouter) can add provider-specific fields without
@@ -934,6 +943,12 @@ role, content blocks, usage, stop_reason, etc. per the session-format skill.
 **Compaction record format:** `{"type":"compaction","summary":"...","firstKeptIndex":N,"tokensBefore":N}\n`
 
 **Model-change record format:** `{"type":"model_change","provider":"...","modelId":"..."}\n`
+
+**Thinking provenance:** Thinking content blocks persist `originProvider` and
+`originModel`; assistant-level `provider` and `model` fields mirror the first
+thinking block for compatibility. On load, explicit block fields take
+precedence, followed by assistant fields, then the latest preceding
+`model_change` record for legacy sessions. Missing provenance remains unknown.
 
 ---
 

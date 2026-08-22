@@ -1379,9 +1379,11 @@ package body LLM_Anthropic_Messages_Tests is
               Timestamp => Null_Unbounded_String));
 
          Asst_Content.Append
-            ((Kind      => LLM.Types.Thinking_Block,
-              Thinking  => To_Unbounded_String ("Let me add these."),
-              Signature => To_Unbounded_String ("opaque-sig-abc")));
+            ((Kind            => LLM.Types.Thinking_Block,
+              Thinking        => To_Unbounded_String ("Let me add these."),
+              Signature       => To_Unbounded_String ("opaque-sig-abc"),
+              Origin_Provider => To_Unbounded_String ("anthropic"),
+              Origin_Model    => To_Unbounded_String ("test-model")));
          Asst_Content.Append
             ((Kind => LLM.Types.Text_Block,
               Text => To_Unbounded_String ("The answer is 4.")));
