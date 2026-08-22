@@ -3,7 +3,10 @@
 --  Project: coyote
 --  For revision history, see the project version-control log.
 
+with Ada.Characters.Handling;
 with Ada.Environment_Variables;
+with Ada.Strings;
+with Ada.Strings.Fixed;
 with Ada.Exceptions;
 with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
 with GNAT.SHA256;
@@ -1213,4 +1216,51 @@ package body Coyote_App.Utils is
       end Reset;
 
    end Thinking_Tokenizer;
+
+   function Model_Row_Matches
+     (Provider : String;
+      Name     : String;
+      Spec     : String;
+      Query    : String) return Boolean
+   is
+      Needle : constant String :=
+        Ada.Characters.Handling.To_Lower
+          (Ada.Strings.Fixed.Trim (Query, Ada.Strings.Both));
+
+      function Contains (Haystack : String) return Boolean is
+         Folded : constant String :=
+           Ada.Characters.Handling.To_Lower (Haystack);
+      begin
+         return Ada.Strings.Fixed.Index (Folded, Needle) > 0;
+      end Contains;
+   begin
+      if Needle'Length = 0 then
+         return True;
+      end if;
+
+      return Contains (Provider)
+        or else Contains (Name)
+        or else Contains (Spec);
+   end Model_Row_Matches;
+
+   function Format_Model_Picker_Count
+     (Visible  : Natural;
+      Filtered : Boolean) return String
+   is
+      Count_Image : constant String :=
+        Ada.Strings.Fixed.Trim
+          (Natural'Image (Visible), Ada.Strings.Left);
+   begin
+      if not Filtered then
+         if Visible = 1 then
+            return "1 model";
+         end if;
+         return Count_Image & " models";
+      elsif Visible = 1 then
+         return "1 match";
+      else
+         return Count_Image & " matches";
+      end if;
+   end Format_Model_Picker_Count;
+
 end Coyote_App.Utils;

@@ -630,6 +630,14 @@ malformed field shall default to enabled. A successful save shall update the
 current interactive GUI and subsequently created sessions without changing the
 active agent session.
 
+**REQ-CORE-129** (T)
+The GTK Change Model dialog shall provide a search field that filters the
+model list to rows whose provider, display name, or `provider/id`
+specification contain the query as a case-insensitive substring. An empty
+or whitespace-only query shall show all models. The dialog shall display
+the number of visible rows. Escape shall clear a non-empty query; Escape
+on an empty query shall cancel the dialog.
+
 ---
 
 #### 3.1.12 Plain Frontend
@@ -1250,7 +1258,7 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-100..107 | Acme frontend tag commands (Send, Stop, New, etc.) | D | TC-100..107 |
 | REQ-CORE-108..108b | Session fork tokens and step-level turn footers | D | TC-108..108b |
 | REQ-CORE-109 | SetDefault writes to settings.json | D | TC-109 |
-| REQ-CORE-110..119, 124..128 | GUI frontend capabilities, including Preferences, display math, zoom, and completion notifications | D/T/I | TC-110..119, TC-124..128 |
+| REQ-CORE-110..119, 124..129 | GUI frontend capabilities, including Preferences, display math, zoom, completion notifications, and Change Model search | D/T/I | TC-110..119, TC-124..129 |
 | REQ-CORE-120..121 | Plain frontend capabilities | D | TC-120..121 |
 | REQ-CORE-130..131 | Session history replay | D | TC-130..131 |
 | REQ-CORE-140..142 | Error handling | D | TC-140..142 |

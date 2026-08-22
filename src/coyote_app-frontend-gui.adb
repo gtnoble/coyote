@@ -3,6 +3,7 @@
 --  Project: coyote
 
 with Ada.Characters.Handling;
+with Ada.Strings;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
 with Gdk.Event;
@@ -45,7 +46,10 @@ with Gtk.Dialog;
 with Gtk.Combo_Box_Text;
 with Gtk.List_Store;
 with LLM.Settings;
+with Gtk.Search_Entry;
 with Gtk.Tree_Model;
+with Gtk.Tree_Model_Filter;
+with Gtk.Tree_Model_Sort;
 with Gtk.Tree_Selection;
 with Gtk.Tree_View;
 with Gtk.Tree_View_Column;
@@ -72,6 +76,123 @@ package body Coyote_App.Frontend.GUI is
 
    --  Global access for signal callbacks (single window per process).
    Current_Frontend : access Instance := null;
+
+   use type Gtk.Dialog.Gtk_Dialog;
+   use type Gtk.Label.Gtk_Label;
+   use type Gtk.Tree_Model_Filter.Gtk_Tree_Model_Filter;
+   use type Gtk.Tree_View.Gtk_Tree_View;
+
+   --  Transient widgets for the modal Change Model dialog.  Dialog.Run
+   --  is modal, so at most one picker is live at a time.
+   type Model_Picker_State is record
+      Store  : Gtk.List_Store.Gtk_List_Store := null;
+      Filter : Gtk.Tree_Model_Filter.Gtk_Tree_Model_Filter := null;
+      Sort   : Gtk.Tree_Model_Sort.Gtk_Tree_Model_Sort := null;
+      View   : Gtk.Tree_View.Gtk_Tree_View := null;
+      Search : Gtk.Search_Entry.Gtk_Search_Entry := null;
+      Count  : Gtk.Label.Gtk_Label := null;
+      Dialog : Gtk.Dialog.Gtk_Dialog := null;
+      Query  : Unbounded_String := Null_Unbounded_String;
+   end record;
+
+   Picker : Model_Picker_State;
+
+   procedure Clear_Model_Picker is
+   begin
+      Picker := (others => <>);
+   end Clear_Model_Picker;
+
+   function Model_Picker_Row_Visible
+     (Model : Gtk.Tree_Model.Gtk_Tree_Model;
+      Iter  : Gtk.Tree_Model.Gtk_Tree_Iter) return Boolean
+   is
+      use Gtk.Tree_Model;
+   begin
+      if Iter = Null_Iter then
+         return False;
+      end if;
+      return Model_Row_Matches
+        (Provider => Get_String (Model, Iter, 0),
+         Name     => Get_String (Model, Iter, 1),
+         Spec     => Get_String (Model, Iter, 7),
+         Query    => To_String (Picker.Query));
+   end Model_Picker_Row_Visible;
+
+   procedure Update_Model_Picker_Count is
+      use Gtk.Tree_Model;
+      use Gtk.Tree_Model_Filter;
+      Needle  : constant String :=
+        Ada.Strings.Fixed.Trim
+          (To_String (Picker.Query), Ada.Strings.Both);
+      Visible : Natural := 0;
+   begin
+      if Picker.Filter = null or else Picker.Count = null then
+         return;
+      end if;
+      Visible := Natural (N_Children (+Picker.Filter));
+      Picker.Count.Set_Text
+        (Format_Model_Picker_Count
+           (Visible  => Visible,
+            Filtered => Needle'Length > 0));
+   end Update_Model_Picker_Count;
+
+   procedure Ensure_Model_Picker_Selection is
+      use Gtk.Tree_Model;
+      use Gtk.Tree_Model_Sort;
+      Sel    : Gtk.Tree_Selection.Gtk_Tree_Selection;
+      Model  : Gtk_Tree_Model;
+      Iter   : Gtk_Tree_Iter;
+      Path   : Gtk_Tree_Path;
+      Needle : constant String :=
+        Ada.Strings.Fixed.Trim
+          (To_String (Picker.Query), Ada.Strings.Both);
+   begin
+      if Picker.View = null or else Needle'Length = 0 then
+         return;
+      end if;
+      Sel := Picker.View.Get_Selection;
+      Sel.Get_Selected (Model, Iter);
+      if Iter /= Null_Iter then
+         return;
+      end if;
+      Iter := Get_Iter_First (+Picker.Sort);
+      if Iter = Null_Iter then
+         return;
+      end if;
+      Sel.Select_Iter (Iter);
+      Path := Get_Path (+Picker.Sort, Iter);
+      Picker.View.Scroll_To_Cell (Path, null, False, 0.0, 0.0);
+      Path_Free (Path);
+   end Ensure_Model_Picker_Selection;
+
+   procedure Apply_Model_Picker_Filter is
+   begin
+      if Picker.Filter = null then
+         return;
+      end if;
+      Picker.Filter.Refilter;
+      Update_Model_Picker_Count;
+      Ensure_Model_Picker_Selection;
+   end Apply_Model_Picker_Filter;
+
+   procedure On_Model_Search_Changed
+     (Self : access Gtk.Search_Entry.Gtk_Search_Entry_Record'Class) is
+   begin
+      Picker.Query := To_Unbounded_String (Self.Get_Text);
+      Apply_Model_Picker_Filter;
+   end On_Model_Search_Changed;
+
+   procedure On_Model_Search_Stop
+     (Self : access Gtk.Search_Entry.Gtk_Search_Entry_Record'Class) is
+   begin
+      if Self.Get_Text_Length > 0 then
+         Self.Set_Text ("");
+         Picker.Query := Null_Unbounded_String;
+         Apply_Model_Picker_Filter;
+      elsif Picker.Dialog /= null then
+         Picker.Dialog.Response (Gtk.Dialog.Gtk_Response_Cancel);
+      end if;
+   end On_Model_Search_Stop;
 
    --  Prefix character used by menu-item handlers to pass commands through
 
@@ -718,15 +839,18 @@ package body Coyote_App.Frontend.GUI is
       use Gtk.Dialog;
       use Gtk.List_Store;
       use Gtk.Tree_Model;
+      use Gtk.Tree_Model_Filter;
+      use Gtk.Tree_Model_Sort;
       use Gtk.Tree_View;
 
       Models  : constant LLM.Model_Registry.Model_Info_Vectors.Vector :=
                   LLM.Model_Registry.Available_Models;
-      Store   : Gtk_List_Store;
-      View    : Gtk_Tree_View;
-      Scroll  : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
-      Content : Gtk.Box.Gtk_Box;
-      Dialog  : Gtk_Dialog;
+      Store      : Gtk_List_Store;
+      View       : Gtk_Tree_View;
+      Scroll     : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Search_Row : Gtk.Box.Gtk_Box;
+      Content    : Gtk.Box.Gtk_Box;
+      Dialog     : Gtk_Dialog;
       Resp    : Gtk_Response_Type;
       Sel     : Gtk.Tree_Selection.Gtk_Tree_Selection;
       Tmodel  : Gtk_Tree_Model;
@@ -837,10 +961,17 @@ package body Coyote_App.Frontend.GUI is
          end;
       end loop;
 
-      --  Tree view: interactive typeahead search on the Name column.
-      Gtk.Tree_View.Gtk_New (View, +Store);
-      View.Set_Enable_Search (True);
-      View.Set_Search_Column (1);
+      Clear_Model_Picker;
+
+      Gtk.Tree_Model_Filter.Gtk_New (Picker.Filter, +Store);
+      Picker.Filter.Set_Visible_Func (Model_Picker_Row_Visible'Access);
+      Gtk.Tree_Model_Sort.Gtk_New_With_Model
+        (Picker.Sort, +Picker.Filter);
+
+      --  View the sortable filter; typeahead is replaced by the
+      --  search-entry filter above the list.
+      Gtk.Tree_View.Gtk_New (View, +Picker.Sort);
+      View.Set_Enable_Search (False);
       Add_Text_Column ("Provider",   0, Sort_Col => 0);
       Add_Text_Column ("Name",       1, Sort_Col => 1);
       Add_Text_Column ("Context",    2, Sort_Col => 8);
@@ -862,9 +993,38 @@ package body Coyote_App.Frontend.GUI is
       Btn := Dialog.Add_Button ("_Select", Gtk_Response_OK);
       Dialog.Set_Default_Response (Gtk_Response_OK);
 
+      Gtk.Search_Entry.Gtk_New (Picker.Search);
+      Picker.Search.Set_Placeholder_Text ("Filter models");
+      Picker.Search.On_Search_Changed
+        (On_Model_Search_Changed'Access);
+      Picker.Search.On_Stop_Search
+        (On_Model_Search_Stop'Access);
+
+      Gtk.Label.Gtk_New (Picker.Count, "");
+      Picker.Count.Set_Xalign (1.0);
+      Picker.Count.Set_Width_Chars (12);
+
+      Gtk.Box.Gtk_New_Hbox
+        (Search_Row, Homogeneous => False, Spacing => 8);
+      Search_Row.Set_Border_Width (4);
+      Search_Row.Pack_Start
+        (Picker.Search, Expand => True, Fill => True, Padding => 0);
+      Search_Row.Pack_Start
+        (Picker.Count, Expand => False, Fill => False, Padding => 0);
+
+      Picker.Store  := Store;
+      Picker.View   := View;
+      Picker.Dialog := Dialog;
+      Picker.Query  := Null_Unbounded_String;
+      Update_Model_Picker_Count;
+
       Content := Dialog.Get_Content_Area;
-      Content.Pack_Start (Scroll, Expand => True, Fill => True, Padding => 4);
+      Content.Pack_Start
+        (Search_Row, Expand => False, Fill => True, Padding => 0);
+      Content.Pack_Start
+        (Scroll, Expand => True, Fill => True, Padding => 4);
       Dialog.Show_All;
+      Picker.Search.Grab_Focus;
 
       Resp := Dialog.Run;
       if Resp = Gtk_Response_OK then
@@ -886,6 +1046,7 @@ package body Coyote_App.Frontend.GUI is
          end if;
       end if;
       Dialog.Destroy;
+      Clear_Model_Picker;
    end On_Change_Model_Activate;
 
    --  ── Thinking level handlers ───────────────────────────────────────────

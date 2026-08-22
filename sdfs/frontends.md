@@ -14,6 +14,18 @@
 
 ## Design Rationale
 
+### GTK Change Model dialog filter (2026-08-22)
+
+The Change Model dialog wraps the registry `GtkListStore` in
+`GtkTreeModelFilter` + `GtkTreeModelSort` so column-header sort survives
+filtering. A `GtkSearchEntry` drives `Refilter` via library-level callbacks
+and package-level picker state (no `Unrestricted_Access`). Matching is a
+case-insensitive substring of provider, display name, and hidden
+`provider/id`, implemented as the display-free `Model_Row_Matches` helper.
+The count label shows `N models` when unfiltered and `N matches` when a
+query is active. Escape clears a non-empty query, then cancels the dialog.
+Typeahead search is disabled so it does not fight the filter.
+
 ### Dedicated subagent model in GTK Preferences (2026-08-08)
 
 The Preferences dialog now provides a separate subagent model selector with a

@@ -340,6 +340,16 @@ These are entered as open items in the problem log (PCR-009).
 
 ## 7. Notes
 
+**Verification as of 2026-08-22 (PCR-062 GTK Change Model filter):**
+Production and test development builds succeed. Eight new
+`Model_Row_Matches` / `Format_Model_Picker_Count` unit tests pass
+(empty/whitespace query, case-insensitive name/provider/spec substring,
+non-match, and count wording). The suite now registers 886 tests. A
+bounded full-suite run executed the new tests and the existing core
+suite; it then hit pre-existing SQC parser/workspace fixture failures
+and two `LLM.Auth` credential-file failures and timed out at five
+minutes. Dialog wiring remains display-backed (DEM-033).
+
 **Verification as of 2026-08-15 (PCR-059 OpenAI Responses):**
 The sibling `LLM.Providers.OpenAI_Responses` adapter is implemented and
 registered with 10 focused provider tests covering `/responses`,

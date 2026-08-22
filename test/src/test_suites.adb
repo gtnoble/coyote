@@ -11,6 +11,7 @@ with Dispatch_Tests;
 with Session_Lister_Tests;
 with Coyote_App_Tests;
 with Collapse_Utils_Tests;
+with Model_Row_Match_Tests;
 with Coyote_Utils_Tests;
 with Coyote_Cmark_Tests;
 with Coyote_Lasem_Tests;
@@ -94,6 +95,8 @@ package body Test_Suites is
      new AUnit.Test_Caller (Coyote_Utils_Tests.Test);
    package Collapse_Utils_Caller is
      new AUnit.Test_Caller (Collapse_Utils_Tests.Test);
+   package Model_Row_Match_Caller is
+     new AUnit.Test_Caller (Model_Row_Match_Tests.Test);
    package Coyote_Cmark_Caller is
      new AUnit.Test_Caller (Coyote_Cmark_Tests.Test);
    package Coyote_Lasem_Caller is
@@ -1285,6 +1288,32 @@ package body Test_Suites is
       Result.Add_Test (Collapse_Utils_Caller.Create
         ("Collapse_Thinking_Delta: OpenAI mid-stream LFs become spaces",
          Collapse_Utils_Tests.Test_Collapse_OpenAI_Mid_Stream'Access));
+
+      --  Model picker filter helpers
+      Result.Add_Test (Model_Row_Match_Caller.Create
+        ("Model_Row_Matches: empty query matches any row",
+         Model_Row_Match_Tests.Test_Empty_Query_Matches'Access));
+      Result.Add_Test (Model_Row_Match_Caller.Create
+        ("Model_Row_Matches: whitespace query matches any row",
+         Model_Row_Match_Tests.Test_Whitespace_Query_Matches'Access));
+      Result.Add_Test (Model_Row_Match_Caller.Create
+        ("Model_Row_Matches: case-insensitive name substring",
+         Model_Row_Match_Tests.Test_Name_Substring_Casefold'Access));
+      Result.Add_Test (Model_Row_Match_Caller.Create
+        ("Model_Row_Matches: provider substring",
+         Model_Row_Match_Tests.Test_Provider_Match'Access));
+      Result.Add_Test (Model_Row_Match_Caller.Create
+        ("Model_Row_Matches: spec substring",
+         Model_Row_Match_Tests.Test_Spec_Match'Access));
+      Result.Add_Test (Model_Row_Match_Caller.Create
+        ("Model_Row_Matches: unrelated query rejected",
+         Model_Row_Match_Tests.Test_No_Match'Access));
+      Result.Add_Test (Model_Row_Match_Caller.Create
+        ("Format_Model_Picker_Count: unfiltered wording",
+         Model_Row_Match_Tests.Test_Count_Unfiltered'Access));
+      Result.Add_Test (Model_Row_Match_Caller.Create
+        ("Format_Model_Picker_Count: filtered wording",
+         Model_Row_Match_Tests.Test_Count_Filtered'Access));
 
 
       --  Coyote_Cmark binding tests

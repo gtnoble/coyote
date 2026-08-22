@@ -2074,3 +2074,34 @@ behavior, current test baseline, and remaining manual qualification scope.
   with 878 successful tests, 0 failed assertions, and 0 unexpected errors.
 - **Status:** Resolved
 - **Date resolved:** 2026-08-16
+
+
+## PCR-062 — GTK Change Model dialog filter search (2026-08-22)
+
+- **Date reported:** 2026-08-22
+- **Category:** Requirements, Design, Code, Test, Documentation
+- **Priority:** 3-Moderate
+- **Description:** The GTK Change Model dialog listed hundreds of models
+  with only prefix typeahead on the Name column. Common queries such as
+  `sonnet` found nothing, and there was no way to see how many rows
+  remained after a search.
+- **Affected work products:** SRS-CORE REQ-CORE-129, SDD-CORE §5.31 and
+  §5.33, `Coyote_App.Utils`, `Coyote_App.Frontend.GUI`, model-row-match
+  tests, frontends SDF, Test Plan.
+- **Corrective action:** Add a search entry that filters the list through
+  `GtkTreeModelFilter` + `GtkTreeModelSort`. Match provider, name, and
+  `provider/id` as a case-insensitive substring. Show a visible-row count.
+  Escape clears a non-empty query, then cancels.
+- **Actions taken (2026-08-22):** Added `Model_Row_Matches` and
+  `Format_Model_Picker_Count` in `Coyote_App.Utils`. The Change Model
+  dialog now uses `GtkSearchEntry` + `GtkTreeModelFilter` +
+  `GtkTreeModelSort`, with library-level callbacks and package-level
+  picker state. Eight unit tests cover the matcher and count wording.
+  SRS-CORE, SDD-CORE, the frontends SDF, and the Test Plan were updated.
+- **Verification:** Production and test development builds succeed. The
+  eight new tests pass. The suite registers 886 tests. A bounded
+  full-suite run reached pre-existing SQC parser/workspace and auth
+  failures and timed out at five minutes. Display-backed dialog
+  qualification remains manual.
+- **Status:** Resolved
+- **Date resolved:** 2026-08-22

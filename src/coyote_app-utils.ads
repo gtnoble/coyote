@@ -384,5 +384,19 @@ package Coyote_App.Utils is
    function Format_Session_List
      (Sessions : Session_Lister.Session_Vectors.Vector) return String;
 
+   --  True when Query is empty or whitespace, or occurs as a
+   --  case-insensitive substring of Provider, Name, or Spec.
+   function Model_Row_Matches
+     (Provider : String;
+      Name     : String;
+      Spec     : String;
+      Query    : String) return Boolean;
+
+   --  Status text for the Change Model filter label.
+   --  Unfiltered: "N model" / "N models".
+   --  Filtered: "N match" / "N matches".
+   function Format_Model_Picker_Count
+     (Visible  : Natural;
+      Filtered : Boolean) return String;
 
 end Coyote_App.Utils;

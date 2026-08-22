@@ -1574,6 +1574,11 @@ points > 255 cannot appear as character literals.
   uses a double-line separator; `Is_Step = True` uses a single-line
   separator.  Fork tokens are no longer embedded; each frontend
   receives structured fork data via `Append_Fork_Action` instead.
+- `Model_Row_Matches (Provider, Name, Spec, Query) → Boolean` — case-insensitive
+  substring match used by the GTK Change Model filter. An empty or
+  whitespace-only query matches every row.
+- `Format_Model_Picker_Count (Visible, Filtered) → String` — status text for
+  the Change Model filter label (`N models` unfiltered, `N matches` filtered).
 
 ---
 
@@ -1627,6 +1632,13 @@ using Cairo + Pango (see §5.15).
   update and sends a success or failure notice back through the frontend. On
   successful persistence, the notification setting is applied to the current
   GUI through `Coyote_GUI.Updates`.
+- **Change Model dialog:** `Agent → Change Model…` (`Ctrl+M`) lists the live
+  registry in a sortable `GtkTreeView`. A `GtkSearchEntry` filters rows through
+  `GtkTreeModelFilter` + `GtkTreeModelSort` using `Model_Row_Matches` on
+  provider, display name, and hidden `provider/id`. Typeahead is disabled.
+  A count label shows `N models` or `N matches`. Escape clears a non-empty
+  query, then cancels the dialog. Library-level callbacks plus package-level
+  picker state avoid `Unrestricted_Access`.
 - **Completion notifications:** `Run_GUI` disables the feature for subagents and
   one-shot executions. For eligible runs, the agent task queues a completion
   update after `Session_Stats_Event`; the GTK idle callback checks
@@ -2008,7 +2020,7 @@ neither task may share mutable frontend state with the other.
 | REQ-CORE-100–107 | `Coyote_App.Frontend.Acme_Win`, `Coyote_App`, `Acme.Window`, `Nine_P.Client` |
 | REQ-CORE-108–108b | `Coyote_App`, `Coyote_App.Dispatch`, `Coyote_App.Utils`, `Session_Lister` |
 | REQ-CORE-109 | `LLM.Settings`, `Coyote_App.Frontend.Acme_Win` |
-| REQ-CORE-110–119, 125 | `Coyote_App.Frontend.GUI`, `Coyote_GUI.Conversation`, `Coyote_GUI.Prompt_Queue`, `Coyote_GUI.Zoom`, `Coyote_Cmark` |
+| REQ-CORE-110–119, 125, 129 | `Coyote_App.Frontend.GUI`, `Coyote_GUI.Conversation`, `Coyote_GUI.Prompt_Queue`, `Coyote_GUI.Zoom`, `Coyote_Cmark`, `Coyote_App.Utils` |
 | REQ-CORE-124 | `Coyote_GUI.Conversation`, `Coyote_Lasem` |
 | REQ-CORE-120–121 | `Coyote_App.Frontend.Plain` |
 | REQ-CORE-130–131 | `Coyote_App.History`, all frontends |
