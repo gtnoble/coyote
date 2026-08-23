@@ -210,6 +210,8 @@ private
       Auto_Scroll_Item    : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
       Zoom_Level          : Integer := 0;
       Smooth_Zoom_Accumulator : Gdouble := 0.0;
+      --  True after Shift+F1 until the next click selects a help target.
+      Help_Mode : Boolean := False;
    end record;
 
 end Coyote_App.Frontend.GUI;

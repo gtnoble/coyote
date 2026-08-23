@@ -1658,8 +1658,15 @@ using Cairo + Pango (see §5.15).
   support windows use application-prefixed titles and are transient for the
   main window; the status area carries lifecycle state.
 - **Help menu:** Overview, Keys & Shortcuts, and Product Information open
-  modeless, transient information windows. Context-sensitive Click for Help
-  remains deferred until a GTK question-mark pointer implementation exists.
+  modeless, transient information windows. F1 opens Overview. Shift+F1 arms
+  a question-mark cursor on the conversation canvas; its next left click is
+  consumed and opens the Overview help window without activating a tool or
+  action. Full control-area context help remains deferred.
+- **Selection transfer:** The conversation renderer derives one plain-text
+  selection value for both Ctrl+C and the desktop PRIMARY selection. Mouse
+  selection and Ctrl+A publish PRIMARY without changing CLIPBOARD. A middle
+  click in the prompt converts the pointer to a buffer iterator and pastes
+  PRIMARY asynchronously at that position without selecting the inserted text.
 - **Change Model dialog:** `Agent → Change Model…` (`Ctrl+M`) lists the live
   registry in a sortable `GtkTreeView`. A `GtkSearchEntry` filters rows through
   `GtkTreeModelFilter` + `GtkTreeModelSort` using `Model_Row_Matches` on

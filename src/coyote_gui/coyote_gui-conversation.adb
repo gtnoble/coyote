@@ -22,6 +22,7 @@ with Gtk.Clipboard;
 with Gtk.Layout;
 with Gtk.Menu;
 with Gtk.Menu_Item;
+with Gtk.Selection_Data;
 with Gtk.Menu_Shell;
 with Gtk.Scrolled_Window;
 with Gtk.Settings;
@@ -146,6 +147,8 @@ package body Coyote_GUI.Conversation is
       Start_Byte : out Natural;
       End_Line   : out Natural;
       End_Byte   : out Natural);
+
+   function Extract_Selection_Text (C : Instance) return String;
 
    --  Escape XML special characters for Pango markup.
    function Xml_Escape (S : String) return String;
@@ -1208,6 +1211,7 @@ package body Coyote_GUI.Conversation is
                Current_Conv.Sel_Start_Byte := B_Off;
                Current_Conv.Sel_End_Line   := L_Idx;
                Current_Conv.Sel_End_Byte   := B_Off;
+               Current_Conv.Publish_Primary_Selection;
                Queue_Draw (Current_Conv.all);
             end if;
          end;
@@ -1277,6 +1281,7 @@ package body Coyote_GUI.Conversation is
          if L_Idx > 0 then
             Current_Conv.Sel_End_Line := L_Idx;
             Current_Conv.Sel_End_Byte := B_Off;
+            Current_Conv.Publish_Primary_Selection;
             Queue_Draw (Current_Conv.all);
          end if;
       end;
@@ -1442,6 +1447,11 @@ package body Coyote_GUI.Conversation is
       return To_String (Result);
    end Transcript_Text;
 
+   function Selected_Text (C : Instance) return String is
+   begin
+      return Extract_Selection_Text (C);
+   end Selected_Text;
+
    --  ── Signal: key-press ─────────────────────────────────────────────────
 
    function On_Key_Press
@@ -1477,6 +1487,7 @@ package body Coyote_GUI.Conversation is
               Natural (Length
                 (Current_Conv.Lines
                    (Positive (Current_Conv.Lines.Length)).Text));
+            Current_Conv.Publish_Primary_Selection;
             Queue_Draw (Current_Conv.all);
          end if;
          return True;
@@ -1487,6 +1498,7 @@ package body Coyote_GUI.Conversation is
       if Event.Keyval = Gdk.Types.Keysyms.GDK_Escape then
          if Current_Conv.Sel_Visible then
             Current_Conv.Sel_Visible := False;
+            Current_Conv.Publish_Primary_Selection;
             Queue_Draw (Current_Conv.all);
             return True;
          end if;
@@ -1553,30 +1565,25 @@ package body Coyote_GUI.Conversation is
       return False;
    end On_Key_Press;
 
-   --  ── Copy_Selection_To_Clipboard ────────────────────────────────────────
-
-   procedure Copy_Selection_To_Clipboard (C : in out Instance) is
-      use Gtk.Clipboard;
+   function Extract_Selection_Text (C : Instance) return String is
       Text : Unbounded_String;
    begin
       if not C.Sel_Visible
         or else C.Sel_Start_Line = 0
         or else C.Sel_End_Line = 0
       then
-         return;
+         return "";
       end if;
 
       declare
-         Ord_Start_Line : Natural;
-         Ord_Start_Byte : Natural;
-         Ord_End_Line   : Natural;
-         Ord_End_Byte   : Natural;
+         Start_Line : Natural;
+         Start_Byte : Natural;
+         End_Line   : Natural;
+         End_Byte   : Natural;
       begin
          Ordered_Selection
-           (C, Ord_Start_Line, Ord_Start_Byte,
-            Ord_End_Line, Ord_End_Byte);
-
-         for I in Ord_Start_Line .. Ord_End_Line loop
+           (C, Start_Line, Start_Byte, End_Line, End_Byte);
+         for I in Start_Line .. End_Line loop
             if I <= Positive (C.Lines.Length) then
                declare
                   Raw_Text  : constant String :=
@@ -1586,10 +1593,10 @@ package body Coyote_GUI.Conversation is
                      then Strip_Pango_Markup (Raw_Text)
                      else Raw_Text);
                   S_Byte    : constant Natural :=
-                    (if I = Ord_Start_Line then Ord_Start_Byte else 0);
+                    (if I = Start_Line then Start_Byte else 0);
                   E_Byte    : constant Natural :=
-                    (if I = Ord_End_Line
-                     then Natural'Min (Ord_End_Byte, Line_Text'Length)
+                    (if I = End_Line
+                     then Natural'Min (End_Byte, Line_Text'Length)
                      else Line_Text'Length);
                begin
                   if S_Byte < E_Byte
@@ -1598,23 +1605,43 @@ package body Coyote_GUI.Conversation is
                      if Length (Text) > 0 then
                         Append (Text, ASCII.LF);
                      end if;
-                     Append (Text,
-                       Line_Text
-                         (Line_Text'First + S_Byte
-                          .. Line_Text'First + E_Byte - 1));
+                     Append
+                       (Text,
+                        Line_Text
+                          (Line_Text'First + S_Byte
+                           .. Line_Text'First + E_Byte - 1));
                   end if;
                end;
             end if;
          end loop;
-
-         if Length (Text) > 0 then
-            declare
-               Clip : constant Gtk_Clipboard := Get;
-            begin
-               Clip.Set_Text (To_String (Text));
-            end;
-         end if;
       end;
+      return To_String (Text);
+   end Extract_Selection_Text;
+
+   procedure Publish_Primary_Selection (C : in out Instance) is
+      use Gtk.Clipboard;
+      Primary : constant Gtk_Clipboard :=
+        Get (Gtk.Selection_Data.Selection_Primary);
+      Text : constant String := Extract_Selection_Text (C);
+   begin
+      if Text'Length > 0 then
+         Primary.Set_Text (Text);
+         C.Primary_Owner := True;
+      elsif C.Primary_Owner then
+         Primary.Clear;
+         C.Primary_Owner := False;
+      end if;
+   end Publish_Primary_Selection;
+
+   --  ── Copy_Selection_To_Clipboard ────────────────────────────────────────
+
+   procedure Copy_Selection_To_Clipboard (C : in out Instance) is
+      use Gtk.Clipboard;
+      Text : constant String := Extract_Selection_Text (C);
+   begin
+      if Text'Length > 0 then
+         Get.Set_Text (Text);
+      end if;
    end Copy_Selection_To_Clipboard;
 
    --  ── Ordered_Selection ─────────────────────────────────────────────────
@@ -2714,11 +2741,13 @@ package body Coyote_GUI.Conversation is
       C.Thinking_Tok.Reset;
       C.Sel_Dragging := False;
       C.Sel_Visible := False;
+      Publish_Primary_Selection (C);
       C.Sel_Start_Line := 0;
       C.Sel_Start_Byte := 0;
       C.Sel_End_Line := 0;
       C.Sel_End_Byte := 0;
       C.Interactive_Focus := 0;
+      C.Primary_Owner := False;
       C.Hover_Tool_First := 0;
       C.Hover_Tool_Last := 0;
       C.Cache_Width_Px := 0;

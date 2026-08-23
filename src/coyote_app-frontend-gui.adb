@@ -6,10 +6,13 @@ with Ada.Characters.Handling;
 with Ada.Strings;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
+with Gdk.Cursor;
 with Gdk.Event;
 with Gdk.Types;
 with Gdk.Types.Keysyms;
+with Gdk.Window;
 use type Gdk.Types.Gdk_Modifier_Type;
+use type Gdk.Event.Gdk_Event_Type;
 with Glib;                       use Glib;
 with Glib.Main;
 with Gtk.Adjustment;
@@ -18,6 +21,7 @@ with Gtk.Accel_Group;
 with Gtk.Box;
 with Gtk.Button;
 with Gtk.Check_Button;
+with Gtk.Clipboard;
 with Gtk.Enums;
 with Gtk.Frame;
 with Gtk.Label;
@@ -28,6 +32,7 @@ with Gtk.Menu_Shell;
 with Gtk.Check_Menu_Item;
 with Gtk.Settings;
 with Gtk.Scrolled_Window;
+with Gtk.Selection_Data;
 with Gtk.Separator_Menu_Item;
 with Gtk.Layout;
 with Gtk.Text_Iter;
@@ -101,6 +106,16 @@ package body Coyote_App.Frontend.GUI is
 
    procedure On_Change_Model_Activate
      (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
+
+   procedure On_Overview_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
+
+   function On_Prompt_Button_Press
+     (Self  : access Gtk.Widget.Gtk_Widget_Record'Class;
+      Event : Gdk.Event.Gdk_Event_Button) return Boolean;
+
+   procedure Arm_Click_For_Help (F : in out Instance);
+   procedure Reset_Click_For_Help (F : in out Instance);
 
    --  Transient widgets for the modal Change Model dialog.  Dialog.Run
    --  is modal, so at most one picker is live at a time.
@@ -265,6 +280,55 @@ package body Coyote_App.Frontend.GUI is
       Win.Show_All;
    end Show_Text_Window;
 
+   procedure Arm_Click_For_Help (F : in out Instance) is
+      Cursor : Gdk.Gdk_Cursor;
+   begin
+      F.Help_Mode := True;
+      Cursor := Gdk.Cursor.Gdk_Cursor_New (Gdk.Cursor.Question_Arrow);
+      Gdk.Window.Set_Cursor (F.Conv_Layout.Get_Window, Cursor);
+      Gdk.Cursor.Unref (Cursor);
+   end Arm_Click_For_Help;
+
+   procedure Reset_Click_For_Help (F : in out Instance) is
+   begin
+      F.Help_Mode := False;
+      Gdk.Window.Set_Cursor (F.Conv_Layout.Get_Window, null);
+   end Reset_Click_For_Help;
+
+   function On_Prompt_Button_Press
+     (Self  : access Gtk.Widget.Gtk_Widget_Record'Class;
+      Event : Gdk.Event.Gdk_Event_Button) return Boolean
+   is
+      pragma Unreferenced (Self);
+      use Gtk.Enums;
+      use Gtk.Selection_Data;
+      use Gtk.Clipboard;
+      Buffer_X : Glib.Gint;
+      Buffer_Y : Glib.Gint;
+      Iter     : aliased Gtk.Text_Iter.Gtk_Text_Iter;
+   begin
+      if Current_Frontend = null
+        or else Event.The_Type /= Gdk.Event.Button_Press
+        or else Glib.Gint (Event.Button) /= Gdk.Event.Button_Middle
+      then
+         return False;
+      end if;
+
+      Current_Frontend.Prompt_View.Window_To_Buffer_Coords
+        (Text_Window_Widget,
+         Glib.Gint (Event.X), Glib.Gint (Event.Y), Buffer_X, Buffer_Y);
+      if Current_Frontend.Prompt_View.Get_Iter_At_Location
+        (Iter'Access, Buffer_X, Buffer_Y)
+      then
+         Current_Frontend.Prompt_Buf.Place_Cursor (Iter);
+         Current_Frontend.Prompt_Buf.Paste_Clipboard
+           (Get (Selection_Primary));
+         Current_Frontend.Prompt_View.Grab_Focus;
+         return True;
+      end if;
+      return False;
+   end On_Prompt_Button_Press;
+
    --  ── Signal handlers for conversation-scroll follow mode ───────────────
 
    --  Called after GTK recomputes the text-view layout and updates the
@@ -304,6 +368,12 @@ package body Coyote_App.Frontend.GUI is
         or else Current_Frontend = null
       then
          return False;
+      end if;
+
+      if Current_Frontend.Help_Mode then
+         Reset_Click_For_Help (Current_Frontend.all);
+         On_Overview_Activate (null);
+         return True;
       end if;
 
       --  Try tool click first.
@@ -1828,8 +1898,20 @@ package body Coyote_App.Frontend.GUI is
       Event : Gdk.Event.Gdk_Event_Key) return Boolean
    is
       pragma Unreferenced (Self);
+      use type Gdk.Types.Gdk_Key_Type;
    begin
-      return False;
+      if Current_Frontend = null
+        or else Event.Keyval /= Gdk.Types.Keysyms.GDK_F1
+      then
+         return False;
+      end if;
+
+      if (Event.State and Gdk.Types.Shift_Mask) /= 0 then
+         Arm_Click_For_Help (Current_Frontend.all);
+      else
+         On_Overview_Activate (null);
+      end if;
+      return True;
    end On_Window_Key_Press;
 
 
@@ -2269,6 +2351,8 @@ package body Coyote_App.Frontend.GUI is
       F.Prompt_View.Set_Pixels_Above_Lines (2);
       F.Prompt_View.Set_Pixels_Below_Lines (2);
       F.Prompt_View.On_Key_Press_Event (On_Prompt_Key_Press'Access);
+      F.Prompt_View.On_Button_Press_Event
+        (On_Prompt_Button_Press'Access);
       Apply_Zoom (F);
 
       F.Prompt_Buf := F.Prompt_View.Get_Buffer;

@@ -574,15 +574,19 @@ menu, and persistent preferences shall be grouped under Options.
 **REQ-CORE-113a** (D)
 The GUI frontend shall provide a rightmost Help menu containing Overview,
 Keys & Shortcuts, and Product Information entries.  These entries shall open
-modeless information windows transient for the main application window.
-Context-sensitive Click for Help remains deferred until a GTK question-mark
-pointer implementation is available.
+modeless information windows transient for the main application window. F1
+shall open Overview; Shift+F1 shall arm Click for Help with the question-mark
+pointer, and the next click in the conversation area shall open contextual
+help without activating the clicked control.
 
 **REQ-CORE-113b** (D)
 GUI dialogs and support windows shall use application-identifying titles,
 shall be transient for the main window, and shall place the affirmative
 specific action before Cancel where both actions are present.  Lifecycle
 status shall be displayed in the status area rather than the window title.
+The conversation selection shall own the desktop PRIMARY selection without
+changing the ordinary clipboard. Middle-button transfer into the prompt
+shall insert PRIMARY text at the pointer location without highlighting it.
 
 **REQ-CORE-114** (D)
 The GUI frontend shall support vi-style scroll navigation (j/k/g/G/Ctrl-D/
@@ -1298,7 +1302,7 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-108..108b | Session fork tokens and step-level turn footers | D | TC-108..108b |
 | REQ-CORE-109 | SetDefault writes to settings.json | D | TC-109 |
 | REQ-CORE-110..119, 124..129 | GUI frontend capabilities, including Preferences, display math, zoom, completion notifications, and Change Model search | D/T/I | TC-110..119, TC-124..129; GUI regression tests |
-| REQ-CORE-113a..113b | GUI Help menu, menu taxonomy, title, dialog, support-window, and lifecycle-status conventions | D/I | DEM-036; source inspection |
+| REQ-CORE-113a..113b | GUI Help menu, menu taxonomy, title, dialog, support-window, lifecycle-status, and desktop interaction conventions | D/T/I | DEM-036..037; GUI conversation regressions; source inspection |
 | REQ-CORE-132 | Complete visible accelerators for main GTK menu items | D/T | DEM-014; GUI regression tests |
 | REQ-CORE-120..121 | Plain frontend capabilities | D | TC-120..121 |
 | REQ-CORE-130..131 | Session history replay | D | TC-130..131 |

@@ -91,6 +91,8 @@ package Coyote_GUI_Conversation_Tests is
    procedure Test_Heading_Taller_Than_Body                (T : in out Test);
    procedure Test_Math_Uses_Natural_Pixel_Height          (T : in out Test);
    procedure Test_Transcript_Text_Uses_Plain_Text         (T : in out Test);
+   procedure Test_Selected_Text_Uses_Selection_Order      (T : in out Test);
+   procedure Test_Primary_Selection_Round_Trip            (T : in out Test);
    procedure Test_Interactive_Focus_Cycles               (T : in out Test);
 
 end Coyote_GUI_Conversation_Tests;

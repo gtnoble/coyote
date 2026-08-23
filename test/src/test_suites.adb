@@ -3200,6 +3200,14 @@ package body Test_Suites is
          Coyote_GUI_Conversation_Tests
            .Test_Transcript_Text_Uses_Plain_Text'Access));
       Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation selected text uses selection order",
+         Coyote_GUI_Conversation_Tests
+           .Test_Selected_Text_Uses_Selection_Order'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation primary selection round trip",
+         Coyote_GUI_Conversation_Tests
+           .Test_Primary_Selection_Round_Trip'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
         ("Coyote.GUI.Conversation interactive focus cycles",
          Coyote_GUI_Conversation_Tests
            .Test_Interactive_Focus_Cycles'Access));

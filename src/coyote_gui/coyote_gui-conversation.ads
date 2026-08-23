@@ -163,8 +163,15 @@ package Coyote_GUI.Conversation is
    --  Return a plain-text transcript suitable for native accessibility tools.
    function Transcript_Text (C : Instance) return String;
 
-   --  ── Action strips ─────────────────────────────────────────────────────
+   --  Return the current selection as plain UTF-8 text.  This is independent
+   --  of the global clipboard and is also the value offered through PRIMARY.
+   function Selected_Text (C : Instance) return String;
 
+   --  Publish the current selection through the desktop PRIMARY selection.
+   --  The ordinary clipboard remains unchanged.  Call from the GTK thread.
+   procedure Publish_Primary_Selection (C : in out Instance);
+
+   --  ── Action strips ─────────────────────────────────────────────────────
    procedure Append_Action_Strip
      (C      : in out Instance;
       Label  :        String;
@@ -294,6 +301,8 @@ private
       Sel_End_Byte     : Natural := 0;
       --  Keyboard focus for tool cards and action strips.  Zero means none.
       Interactive_Focus : Natural := 0;
+      --  True while this instance owns the desktop PRIMARY selection.
+      Primary_Owner    : Boolean := False;
       --  Tool-card hover state.  Zero means no completed card is hovered.
       Hover_Tool_First : Natural := 0;
       Hover_Tool_Last  : Natural := 0;

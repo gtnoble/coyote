@@ -2304,13 +2304,18 @@ behavior, current test baseline, and remaining manual qualification scope.
   Ctrl+Shift+P; resolved duplicate menu mnemonics; removed the popup Copy
   mnemonic; parent-normalized generic detail/statistics windows; normalized
   dialog and tool-detail titles; and placed affirmative dialog actions before
-  Cancel. Updated requirements, design, SDF, and Test Plan traceability.
-- **Verification:** Development build succeeds after the implementation.
-  DEM-036 provides display-backed manual qualification for menu order, Help,
-  titles, transient parenting, dialog buttons, and status placement. Full
-  GTK event-level qualification remains pending because the available test
-  environment does not provide a runnable display-backed GUI fixture.
-- **Open follow-up:** Implement context-sensitive Click for Help, primary
-  selection and middle-button transfer, desktop icon/session integration, and
-  full GTK/AT-SPI/color-contrast qualification.
-- **Status:** In Progress
+  Cancel. Added F1 Overview and Shift+F1 conversation-area Click for Help with
+  a question-mark cursor. Conversation selection now publishes plain text via
+  PRIMARY independently of CLIPBOARD, and prompt middle-click inserts PRIMARY
+  at the pointer without selecting the result. Added two GUI regressions and
+  updated requirements, design, SDF, and Test Plan traceability.
+- **Verification:** Production and test development builds succeed. The
+  selected-text and PRIMARY round-trip tests are registered. The focused GUI
+  command executed 0 tests because no `DISPLAY`/`WAYLAND_DISPLAY` is available
+  and `xvfb-run` is not installed. DEM-014, DEM-036, and DEM-037 plus
+  AT-SPI/color-contrast qualification remain display-backed manual activities.
+- **Open follow-up:** Extend Click for Help to all control areas, implement
+  desktop icon/session integration, and complete display-backed GTK/AT-SPI/
+  color-contrast qualification.
+- **Status:** In Progress — automated coverage added; display qualification
+  pending

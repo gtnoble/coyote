@@ -26,9 +26,12 @@ Information modeless information windows. Pause uses Ctrl+Shift+P so the
 reserved Ctrl+P accelerator remains available for Print. Help entries omit
 mnemonics as required for Help-menu task entries.
 
-This slice intentionally does not claim complete IRIX conformance. Context-
-sensitive Click for Help, primary-selection/middle-button transfer, desktop
-icon/session integration, and display-backed GTK qualification remain deferred.
+This slice intentionally does not claim complete IRIX conformance. F1 opens
+Overview and Shift+F1 provides question-mark Click for Help in the conversation
+area; full control-area context help, desktop icon/session integration, and
+display-backed GTK qualification remain deferred. Conversation selection
+publishes plain text through PRIMARY independently of CLIPBOARD, and a prompt
+middle click inserts PRIMARY at the pointer without highlighting the result.
 
 ### GTK Change Model dialog filter (2026-08-22)
 

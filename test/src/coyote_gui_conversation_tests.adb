@@ -5,6 +5,8 @@ with AUnit.Assertions;
 with Glib;         use type Glib.Gint;
 with Gtk.Enums;       use Gtk.Enums;
 with Gtk.Main;
+with Gtk.Clipboard;
+with Gtk.Selection_Data;
 with Pango.Font;
 with Coyote_GUI.Conversation;
 with Coyote_App.Utils;
@@ -1125,6 +1127,57 @@ package body Coyote_GUI_Conversation_Tests is
                  "transcript should strip display markup");
       end;
    end Test_Transcript_Text_Uses_Plain_Text;
+
+   procedure Test_Selected_Text_Uses_Selection_Order (T : in out Test) is
+      Conv      : Instance;
+      Scroll    : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Layout    : Gtk.Layout.Gtk_Layout;
+      Last_Line : Natural;
+      Last_Byte : Natural;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Make_Fresh_Conv (Conv, Scroll, Layout);
+      Conv.Set_Render_Markdown (False);
+      Conv.Append_Text
+        ("first line" & ASCII.LF & "second line");
+      Conv.End_Text_Block;
+      Last_Line := Testing.Line_Count (Conv);
+      Last_Byte := Testing.Get_Line_Text (Conv, Last_Line)'Length;
+      Testing.Set_Selection
+        (Conv, Last_Line, Last_Byte, 1, 0);
+      Assert
+        (Conv.Selected_Text = "first line" & ASCII.LF & "second line",
+         "Selected_Text returns document-ordered primary text");
+   end Test_Selected_Text_Uses_Selection_Order;
+
+   procedure Test_Primary_Selection_Round_Trip (T : in out Test) is
+      Conv      : Instance;
+      Scroll    : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Layout    : Gtk.Layout.Gtk_Layout;
+      Last_Line : Natural;
+      Last_Byte : Natural;
+      Primary   : Gtk.Clipboard.Gtk_Clipboard;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Make_Fresh_Conv (Conv, Scroll, Layout);
+      Conv.Set_Render_Markdown (False);
+      Conv.Append_Text
+        ("primary one" & ASCII.LF & "primary two");
+      Conv.End_Text_Block;
+      Last_Line := Testing.Line_Count (Conv);
+      Last_Byte := Testing.Get_Line_Text (Conv, Last_Line)'Length;
+      Testing.Set_Selection (Conv, 1, 0, Last_Line, Last_Byte);
+      Conv.Publish_Primary_Selection;
+      Primary := Gtk.Clipboard.Get
+        (Gtk.Selection_Data.Selection_Primary);
+      Assert
+        (Primary.Wait_For_Text = "primary one" & ASCII.LF & "primary two",
+         "PRIMARY contains the current conversation selection");
+   end Test_Primary_Selection_Round_Trip;
 
    procedure Test_Interactive_Focus_Cycles (T : in out Test) is
       Conv   : Instance;

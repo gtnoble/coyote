@@ -172,7 +172,7 @@ SRS-CORE requirement groups.
 | `tool_uri_tests.adb` | REQ-CORE-100â109 (plumb token format) | ~10 |
 | `coyote_cmark_tests.adb` | REQ-CORE-111 (Markdown rendering) | ~25 |
 | `coyote_lasem_tests.adb` | Lasem Presentation MathML measurement, zoom scaling, relation entities, and error handling | 5 |
-| `coyote_gui_conversation_tests.adb` | Display-math style, source preservation, visual height, and font propagation | 4 |
+| `coyote_gui_conversation_tests.adb` | Display-math style, source preservation, visual height, font propagation, selection text, and PRIMARY transfer | 6 |
 | `coyote_gui_zoom_tests.adb` | REQ-CORE-125 (zoom arithmetic: clamping, step semantics) | 12 |
 | `coyote_gui_notification_policy_tests.adb` | REQ-CORE-127 (notification eligibility policy) | 4 |
 | `coyote_gui_prompt_queue_tests.adb` | REQ-CORE-116..119, 128; typed preference payload transport | 1 |
@@ -217,6 +217,7 @@ behaviour. Results are recorded in a Test Report.
 | DEM-033 | REQ-CORE-116..117, 119 | Open GUI Preferences, save ordinary and subagent model/thinking/sandbox defaults, then create a new session and verify the active session was unchanged, ordinary sessions inherit the ordinary defaults, and `coyote --subagent` inherits the subagent model |
 | DEM-035 | REQ-CORE-126..128 | Toggle desktop completion notifications in GUI Preferences; verify an unfocused ordinary GUI turn notifies, a focused turn does not, the setting persists, and subagent/one-shot runs remain silent |
 | DEM-036 | REQ-CORE-113a..113b | Exercise the GUI menu bar and support windows: verify top-level order `File`, `View`, `Agent`, `Options`, `Help`; activate Overview, Keys & Shortcuts, and Product Information; verify application-prefixed titles, transient parenting, dialog button order, and lifecycle status in the status area rather than the title |
+| DEM-037 | REQ-CORE-113a..113b | In a display-backed GUI, press F1 and verify Overview opens; press Shift+F1 and verify the pointer becomes a question mark; click the conversation canvas and verify contextual help opens without activating the clicked control; select and extend conversation text, verify PRIMARY changes independently of CLIPBOARD; middle-click in the prompt and verify PRIMARY text is inserted at the pointer without selecting the result |
 | DEM-034 | REQ-CORE-234 | Set and clear `defaultSandboxProfile`; verify inherited runtime and session-header precedence |
 | DEM-015 | REQ-CORE-130 | Resume a session; verify history replayed in frontend |
 | DEM-016 | REQ-CORE-140 | Inject a provider error (invalid API key); verify error notice visible in frontend |
@@ -307,7 +308,8 @@ These are entered as open items in the problem log (PCR-009).
 
 | REQ-CORE-090â093 | T | `llm_skills_tests.adb` |
 | REQ-CORE-100â109 | T/D | `acme_event_parser_tests.adb`, `tool_uri_tests.adb`, DEM-013 |
-| REQ-CORE-110â115 | T/D | `coyote_cmark_tests.adb`, `coyote_gui_conversation_tests.adb`, DEM-014 |
+| REQ-CORE-110â115 | T/D | `coyote_cmark_tests.adb`, `coyote_gui_conversation_tests.adb`, DEM-014, DEM-036..037 |
+| REQ-CORE-113a..113b | D/T/I | `coyote_gui_conversation_tests.adb`, DEM-036..037, source inspection |
 | REQ-CORE-125 | T/D | `coyote_gui_zoom_tests.adb`, DEM-014 |
 | REQ-CORE-132 | D/T | `coyote_gui_navigation_tests.adb`, `coyote_gui_prompt_queue_tests.adb`, DEM-014 |
 | REQ-CORE-124 | T/D | `coyote_lasem_tests.adb`, `coyote_gui_conversation_tests.adb` |
@@ -669,6 +671,14 @@ Requirements and design documents updated.  Implementation complete
 0 regressions.  Dedicated cost-unit tests deferred â cost chart formulas
 are identical to their token-count counterparts and the pricing data path
 is transparent to the statistical layer.
+
+**Baseline as of 2026-08-23 (PCR-068 GTK GUI IRIX interaction continuation):**
+900 registered tests. Production and test development builds succeed. The
+selected-text and PRIMARY transfer regressions are registered. The focused GUI
+command executed 0 tests because no `DISPLAY`/`WAYLAND_DISPLAY` is available
+and `xvfb-run` is not installed. DEM-014, DEM-036, DEM-037, AT-SPI inspection,
+and full color-contrast measurement remain display-backed manual
+qualification activities.
 
 **Baseline as of 2026-08-23 (PCR-067 keyboard-driven GTK GUI):**
 898 registered tests. The application and test development builds succeed.
