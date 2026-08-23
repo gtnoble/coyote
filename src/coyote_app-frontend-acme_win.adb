@@ -73,6 +73,22 @@ package body Coyote_App.Frontend.Acme_Win is
       Acme.Window.Append_Tag (F.Win_Ptr.all, F.My_FS'Access, Text);
    end Set_Mode;
 
+   procedure Begin_Request
+     (F    : in out Instance;
+      Text : in     String;
+      Kind : in     Coyote_App.Frontend.Request_Kind :=
+        Coyote_App.Frontend.Prompt)
+   is
+      Prefix : constant String :=
+        (if Kind = Coyote_App.Frontend.Steer
+         then UC_HOOK_L & " Steer: "
+         else UC_TRI_R & " ");
+   begin
+      Acme.Window.Append
+        (F.Win_Ptr.all, F.My_FS'Access,
+         ASCII.LF & Prefix & Text & ASCII.LF);
+   end Begin_Request;
+
    --  ── Append_Text ───────────────────────────────────────────────────────
 
    procedure Append_Text
@@ -291,8 +307,11 @@ package body Coyote_App.Frontend.Acme_Win is
 
    procedure Append_Turn_Footer
      (F    : in out Instance;
-      Text : in     String)
+      Text : in     String;
+      Kind : in     Coyote_App.Frontend.Footer_Kind :=
+        Coyote_App.Frontend.Final_Footer)
    is
+      pragma Unreferenced (Kind);
    begin
       Acme.Window.Append (F.Win_Ptr.all, F.My_FS'Access, Text);
    end Append_Turn_Footer;

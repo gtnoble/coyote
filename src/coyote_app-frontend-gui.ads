@@ -23,6 +23,7 @@ with Ada.Strings.Unbounded;        use Ada.Strings.Unbounded;
 with Glib;                          use Glib;
 with LLM.Agent;
 with Coyote_GUI.Conversation;
+with Coyote_GUI.Conversation_Stack;
 with Coyote_GUI.Prompt_Queue;
 with Coyote_GUI.Session_Stats_Window;
 with Coyote_GUI.Updates;
@@ -68,6 +69,13 @@ package Coyote_App.Frontend.GUI is
       Mode : in     Coyote_App.Frontend.Run_Mode);
 
    overriding
+   procedure Begin_Request
+     (F    : in out Instance;
+      Text : in     String;
+      Kind : in     Coyote_App.Frontend.Request_Kind :=
+        Coyote_App.Frontend.Prompt);
+
+   overriding
    procedure Append_Text
      (F    : in out Instance;
       Text : in     String);
@@ -105,7 +113,14 @@ package Coyote_App.Frontend.GUI is
    overriding
    procedure Append_Turn_Footer
      (F    : in out Instance;
-      Text : in     String);
+      Text : in     String;
+      Kind : in     Coyote_App.Frontend.Footer_Kind :=
+        Coyote_App.Frontend.Final_Footer);
+
+   overriding
+   procedure Complete_Request
+     (F      : in out Instance;
+      Status : in     Coyote_App.Frontend.Completion_Status);
 
    overriding
    procedure Append_Fork_Action
@@ -192,6 +207,10 @@ private
       PQ        : aliased Coyote_GUI.Prompt_Queue.Queue;
       --  Text buffer wrapper.
       Conv      : Coyote_GUI.Conversation.Instance;
+      --  Native component-stack presentation.  The legacy conversation
+      --  renderer remains the default until qualification completes.
+      Stack     : Coyote_GUI.Conversation_Stack.Instance;
+      Stack_Enabled : Boolean := False;
       --  GTK widgets.
       Win       : Gtk.Window.Gtk_Window;
       Render_Markdown_Item  : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;

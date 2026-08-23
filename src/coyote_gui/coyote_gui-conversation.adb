@@ -2719,8 +2719,12 @@ package body Coyote_GUI.Conversation is
       Queue_Draw (C);
    end Append_Notice;
 
-   procedure Append_Turn_Footer (C : in out Instance; Text : String) is
-      pragma Unreferenced (Text);
+   procedure Append_Turn_Footer
+     (C    : in out Instance;
+      Text : in     String;
+      Kind : in     Footer_Kind := Final_Footer)
+   is
+      pragma Unreferenced (Text, Kind);
    begin
       Debug_Log (C, "Append_Turn_Footer");
       Append_Line (C, Plain, "");

@@ -2546,10 +2546,9 @@ package body Coyote_App is
             --  Initiate_Shutdown after the turn, which marks the prompt
             --  queue for shutdown so Prompt_Loop exits immediately.
             if Length (Opts.Initial_Prompt) > 0 then
-               My_Frontend.Append_Notice
-                 (Coyote_App.Frontend.Info,
-                  ASCII.LF & UC_TRI_R & " "
-                  & To_String (Opts.Initial_Prompt) & ASCII.LF);
+               My_Frontend.Begin_Request
+                 (Text => To_String (Opts.Initial_Prompt),
+                  Kind => Coyote_App.Frontend.Prompt);
                Run_Queued_Prompt
                  (Prompt   => To_String (Opts.Initial_Prompt),
                   Is_Steer => False);
@@ -2573,19 +2572,13 @@ package body Coyote_App is
                            Prompt : constant String :=
                              Ada.Strings.Unbounded.To_String (It.Text);
                         begin
-                           if Is_Steer then
-                              My_Frontend.Append_Notice
-                                (Coyote_App.Frontend.Info,
-                                 ASCII.LF & UC_HOOK_L & " Steer: "
-                                 & Prompt & ASCII.LF);
-                              Run_Queued_Prompt (Prompt, True);
-                           else
-                              My_Frontend.Append_Notice
-                                (Coyote_App.Frontend.Info,
-                                 ASCII.LF & UC_TRI_R & " "
-                                 & Prompt & ASCII.LF);
-                              Run_Queued_Prompt (Prompt, False);
-                           end if;
+                           My_Frontend.Begin_Request
+                             (Text => Prompt,
+                              Kind =>
+                                (if Is_Steer
+                                 then Coyote_App.Frontend.Steer
+                                 else Coyote_App.Frontend.Prompt));
+                           Run_Queued_Prompt (Prompt, Is_Steer);
                         end;
 
                      when Coyote_GUI.Prompt_Queue.Stop =>

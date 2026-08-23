@@ -138,7 +138,8 @@ package body Coyote_App.Dispatch is
             Turn_Cost_Dmil    => Turn_Cost_Dmil,
             Session_Cost_Dmil => 0,  --  session cost unavailable at step level
             Stop_Reason_Text => Stop_Reason_Text,
-            Is_Step          => True));
+            Is_Step          => True),
+         Kind => Coyote_App.Frontend.Step_Footer);
       Frontend.Append_Fork_Action
         (PID    => PID,
          UUID   => State.Session_Id,
@@ -222,6 +223,9 @@ package body Coyote_App.Dispatch is
             Frontend.Append_Notice
               (Coyote_App.Frontend.Info,
                ASCII.LF & "[STOP] Aborted." & ASCII.LF);
+            Frontend.Complete_Request
+              (Coyote_App.Frontend.Aborted);
+            State.Set_Pending_Stats (False);
             State.Set_Aborted (False);
          else
             declare
@@ -235,6 +239,9 @@ package body Coyote_App.Dispatch is
                      & (if Err_Msg'Length > 0
                         then ": " & Err_Msg
                         else ""));
+                  Frontend.Complete_Request
+                    (Coyote_App.Frontend.Failed);
+                  State.Set_Pending_Stats (False);
                elsif not State.Text_Emitted
                  and then not State.Is_Retrying
                then
@@ -245,10 +252,16 @@ package body Coyote_App.Dispatch is
                         then ": " & Err_Msg
                         else " -- context may be too long, or a temporary"
                              & " error occurred. Try New."));
+                  Frontend.Complete_Request
+                    (Coyote_App.Frontend.Failed);
                end if;
             end;
          end if;
-         State.Set_Pending_Stats (True);
+         if State.Last_Stop_Reason = "stop"
+           or else State.Last_Stop_Reason = "length"
+         then
+            State.Set_Pending_Stats (True);
+         end if;
          Frontend.Set_Status (Format_Status (State, "ready"));
          Frontend.Set_Mode (Coyote_App.Frontend.Idle);
 
@@ -553,6 +566,8 @@ package body Coyote_App.Dispatch is
               (Frontend => Frontend,
                State    => State,
                PID      => PID);
+            Frontend.Complete_Request
+              (Coyote_App.Frontend.Completed);
          end if;
          Frontend.Set_Status (Format_Status (State, "ready"));
 

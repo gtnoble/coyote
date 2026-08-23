@@ -17,6 +17,7 @@ with Coyote_Utils_Tests;
 with Coyote_Cmark_Tests;
 with Coyote_Lasem_Tests;
 with Coyote_GUI_Conversation_Tests;
+with Coyote_GUI_Conversation_Stack_Tests;
 with Coyote_GUI_Navigation_Tests;
 with Coyote_GUI_Zoom_Tests;
 with Coyote_GUI_Updates_Tests;
@@ -109,6 +110,9 @@ package body Test_Suites is
      new AUnit.Test_Caller (Coyote_Lasem_Tests.Test);
    package Coyote_GUI_Conversation_Caller is
      new AUnit.Test_Caller (Coyote_GUI_Conversation_Tests.Test);
+   package Coyote_GUI_Conversation_Stack_Caller is
+     new AUnit.Test_Caller
+       (Coyote_GUI_Conversation_Stack_Tests.Test);
    package Coyote_GUI_Navigation_Caller is
      new AUnit.Test_Caller (Coyote_GUI_Navigation_Tests.Test);
 
@@ -3094,6 +3098,27 @@ package body Test_Suites is
       Result.Add_Test (Coyote_GUI_Zoom_Caller.Create
         ("Coyote.GUI.Zoom baseline clamps to valid range",
          Coyote_GUI_Zoom_Tests.Test_Clamped_Base_Pt'Access));
+
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack creates single outer host",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Creates_Single_Outer_Host'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack streams incrementally",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Request_And_Streaming_Are_Incremental'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack updates tools by stable ID",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Tool_Updates_By_Stable_Id'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack keeps footer kind explicit",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Footer_Kind_And_Completion_Are_Explicit'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack clears exchange state",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Clear_Removes_Exchange_State'Access));
 
       Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
         ("Coyote.GUI.Conversation Append_Notice adds logical lines",

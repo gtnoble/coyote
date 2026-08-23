@@ -202,12 +202,17 @@ package Coyote_GUI.Conversation is
 
    --  ── Notices and footers ───────────────────────────────────────────────
 
+   type Footer_Kind is (Step_Footer, Final_Footer);
+
    procedure Append_Notice
      (C    : in out Instance;
       Kind :        Line_Style;  --  Notice_Info / Notice_Warn / Notice_Error
       Text :        String);
 
-   procedure Append_Turn_Footer (C : in out Instance; Text : String);
+   procedure Append_Turn_Footer
+     (C    : in out Instance;
+      Text :        String;
+      Kind :        Footer_Kind := Final_Footer);
 
    --  ── Markdown rendering toggle ─────────────────────────────────────────
 

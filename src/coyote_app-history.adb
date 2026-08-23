@@ -336,7 +336,8 @@ package body Coyote_App.History is
                                     Model_Text        =>
                                       To_String (Cur_Model),
                                     Stop_Reason_Text =>
-                                      To_String (Turn_Stop)));
+                                      To_String (Turn_Stop)),
+                               Kind => Coyote_App.Frontend.Final_Footer);
                               Frontend.Append_Fork_Action
                                 (PID    => PID,
                                  UUID   => UUID,
@@ -374,12 +375,10 @@ package body Coyote_App.History is
                                                  (Text, Ada.Strings.Both);
                                           begin
                                              if Trimmed'Length > 0 then
-                                                Frontend.Append_Notice
-                                                  (Coyote_App.Frontend.Info,
-                                                   ASCII.LF
-                                                   & UC_TRI_R & " "
-                                                   & Trimmed
-                                                   & ASCII.LF);
+                                                Frontend.Begin_Request
+                                                  (Text => Trimmed,
+                                                   Kind =>
+                                                     Coyote_App.Frontend.Prompt);
                                              end if;
                                           end;
                                        end if;
@@ -569,6 +568,8 @@ package body Coyote_App.History is
             UUID   => UUID,
             Turn_N => Turns_Rendered,
             Step_N => 0);
+         Frontend.Complete_Request
+           (Coyote_App.Frontend.Completed);
       end if;
       --  Restore turn count so subsequent live turns are numbered correctly.
       State.Set_Turn_Count (Turns_Rendered);

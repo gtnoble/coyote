@@ -2445,3 +2445,46 @@ behavior, current test baseline, and remaining manual qualification scope.
   display-backed qualification.
 - **Status:** Resolved
 - **Date resolved:** 2026-08-23
+
+## PCR-073 — Native GTK component-stack conversation presentation
+
+- **Date reported:** 2026-08-23
+- **Category:** Requirements, Design, Plans, Test, Manuals
+- **Priority:** 3-Moderate
+- **Description:** The GTK GUI currently presents the conversation through one
+  custom `Gtk.Layout`/Cairo/Pango renderer. The approved next-build direction
+  is to represent each request-response pair as one vertically stacked exchange
+  container, with separate native GTK elements for the user request, thinking,
+  assistant response blocks, tool calls, footers, fork actions, notices, and
+  display math. Selection is intentionally local to one semantic component.
+  The current requirements, design, test plan, and frontend development log did
+  not define this target or its lifecycle and qualification gates.
+- **Affected work products:** SRS-CORE v1.14; SDD-CORE v1.15; TEST-PLAN
+  v1.16; `sdfs/frontends.md`; Project Plan v1.20; future
+  `Coyote_GUI.Conversation_Stack`, `Coyote_GUI.Exchange_View`,
+  `Coyote_GUI.Text_Element`, `Coyote_GUI.Tool_Card`,
+  `Coyote_GUI.Math_Element`, and `Coyote_GUI.Footer_Element` units.
+- **Corrective action required:** Define one exchange container per submitted
+  request through its final footer; retain intermediate step footers inside the
+  exchange; use one outer vertical GTK scroller; use native widgets for
+  semantic components; add explicit request-start, footer-kind, and terminal
+  exchange semantics; preserve stable `Tool_Id` updates; require live/replay
+  parity, local selection, and performance qualification before replacing the
+  current renderer.
+- **Actions taken:** Added REQ-CORE-133..139 to SRS-CORE; implemented the
+  additive request-start, footer-kind, and terminal-completion protocol; added
+  `Coyote_GUI.Conversation_Stack` with one outer GTK scroller, native
+  selectable text components, focusable tool/fork controls, stable Tool_Id
+  updates, local selection, reset-safe exchange ownership, and auto-scroll;
+  integrated live and replay lifecycle calls; retained GtkLayout as the default
+  fallback and made the native stack opt-in with `COYOTE_NATIVE_STACK=1`.
+  Added five display-backed AUnit tests, updated SDD/SDF/test-plan traceability,
+  and recorded the verified regression baseline.
+- **Verification:** Production and test development builds succeed. The full
+  AUnit suite passes 916/916 with zero failed assertions and zero unexpected
+  errors. The five native-stack tests execute successfully on the available GTK
+  display, including reset without GTK warnings. DEM-042 and DEM-043 manual
+  component/replay demonstrations and DEM-044 performance qualification for
+  100, 500, and 2,000 exchanges remain outstanding; separate component-unit
+  extraction and MathML native realization remain deferred.
+- **Status:** In progress — implementation slice complete; qualification pending.

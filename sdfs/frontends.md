@@ -614,3 +614,71 @@ first display, and clears that snapshot with the report.  Snapshot retention,
 clear behavior, and idempotent construction are covered by three AUnit tests;
 the construction test is display-backed and the other two are display
 independent.
+
+### Native component-stack conversation migration (2026-08-23, PCR-073)
+
+The approved target for the next GUI build is a native component stack rather
+than the current single `Gtk.Layout` canvas. One `Exchange_View` represents one
+submitted request and its complete agent response, bounded by the final turn
+footer. Each exchange is a vertical GTK container stacked in one outer
+vertical `Gtk.Scrolled_Window`/`Gtk.Box` host.
+
+The exchange contains separate graphic elements for the user request,
+thinking blocks, assistant response blocks, tool calls, step and final footers,
+fork actions, notices, and display math. Text-bearing elements use native
+read-only `Gtk.Text_View`/`Gtk.Text_Buffer` widgets with local selection where
+applicable. Tool cards and fork actions use native focusable controls. Math
+remains a localized Lasem-backed child widget or cached image with readable
+source/fallback content.
+
+The current `Coyote_GUI.Conversation` GtkLayout/Cairo/Pango renderer remains
+the implementation baseline until the native stack is implemented and
+qualified. Its existing Markdown, UTF-8, thinking, tool-ID, and MathML logic
+will be extracted or adapted rather than duplicated. The existing
+`Coyote_GUI.Buffer` and `Coyote_Renderer.Markup` units provide native text-tag
+and Markdown precedents.
+
+An exchange remains open across multiple assistant/tool steps. Intermediate
+step footers remain inside the exchange; only the final turn footer completes
+it. Tool cards are updated by `Tool_Id`, so starts-before-completions and
+multiple tool steps do not depend on visual order. Abort and error termination
+preserve partial content and mark the exchange terminal without inventing a
+normal completion footer.
+
+Selection is intentionally local to one semantic component. The GUI does not
+require a range spanning assistant text, thinking, tools, footers, or exchanges.
+Copy, Select All, and PRIMARY operate on the focused or most recently selected
+text component; CLIPBOARD and PRIMARY remain independent. This removes the
+previous global selection/hit-testing model as a migration requirement.
+
+The presentation interface must gain an explicit request-start operation, an
+explicit distinction between step and final footers, and an exchange-completion
+state. Prompt echoes must not be overloaded as generic notices for determining
+exchange boundaries. Live and replayed sessions must construct equivalent
+hierarchies. All widget mutation remains on the GTK main task through the
+existing `Coyote_GUI.Updates` queue.
+
+The initial realization strategy is one native GTK hierarchy per exchange in a
+vertical `Gtk.Box`; no component creates a nested scrolling region for ordinary
+content. Text and thinking deltas update existing widgets rather than creating
+widgets per token. If large histories make full realization unacceptable,
+qualification may select lazy realization or retain the current renderer as a
+large-history fallback.
+
+The first implementation slice is now present in
+`Coyote_GUI.Conversation_Stack`. It realizes one outer vertical scrolled window,
+one exchange container per request, native selectable text views for request,
+thinking, and response content, native focusable fork/tool controls, stable
+`Tool_Id` card updates, explicit step/final footer labels, terminal completion
+states, and reset-safe callback ownership. The stack is selected only when
+`COYOTE_NATIVE_STACK=1`; the existing `Coyote_GUI.Conversation` renderer remains
+the default baseline and fallback until display-backed qualification completes.
+
+The separately named `Exchange_View`, `Text_Element`, `Tool_Card`,
+`Math_Element`, and `Footer_Element` units remain deferred because this slice
+keeps their ownership private to `Conversation_Stack` while preserving the
+required semantic boundaries. Required qualification still covers 100, 500,
+and 2,000 exchanges; streaming first-token latency; widget count and memory;
+resize and zoom; auto-scroll; local selection and PRIMARY; tool-card activation;
+clear/session-switch callback invalidation; replay/live parity; and keyboard
+focus traversal. No production default switch has been made.

@@ -1,7 +1,7 @@
 # Project Plan — coyote
 
-**Version:** 1.19
-**Date:** 2026-08-15
+**Version:** 1.20
+**Date:** 2026-08-23
 **Status:** Active
 
 ---
@@ -68,7 +68,7 @@ separate system-level stratum.
 
 | ID | Title | Location |
 |---|---|---|
-| SRS-CORE | coyote Requirements Specification | `requirements/coyote-requirements.md` | 1.8 (2026-08-04) | Client |
+| SRS-CORE | coyote Requirements Specification | `requirements/coyote-requirements.md` | 1.14 (2026-08-23) | Client |
 | SDD-CORE | coyote Design Description | `design/coyote-design.md` |
 | SRS-SQC | coyote_sqc Requirements Specification | `requirements/coyote-sqc-requirements.md` |
 | SDD-SQC | coyote_sqc Design Specification | `design/coyote-sqc-design.md` |
@@ -120,9 +120,11 @@ closed when the planned capability set has been implemented and tested.
 
 **Current build:** Build N (ongoing). Scope: formalise process artifacts
 (this Project Plan, SRS-CORE, SDD-CORE, Test Plan) while continuing active
-development on both components. PCR-059 Responses implementation and
-OpenRouter cutover are complete and verified; the Chat Completions compatibility
-path remains available.
+development on both components. The native GTK component-stack conversation
+migration is documented for the next implementation build; no production
+source changes are included in this documentation update. PCR-059 Responses
+implementation and OpenRouter cutover are complete and verified; the Chat
+Completions compatibility path remains available.
 
 **Approach to rationale:** Key design decisions — architecture choices,
 algorithm selections, interface conventions, provider wire-format decisions —
@@ -414,6 +416,7 @@ Subsequent builds will define their own milestone sets.
 | R6 | Reasoning items not replayed on later Responses turns degrade o-series / GPT-5 quality | Medium | Moderate | Pack reasoning `id` + `encrypted_content` in the existing signature field; unit-test history encoding; request `include: reasoning.encrypted_content` | Mitigated; monitor live use |
 | R3 | SDD-CORE drifts from actual implementation, misleading future development | Medium | Moderate | Treat SDD-CORE as the primary controlled design artifact; include SDD-CORE review in the Definition of Done for each build; update AGENTS.md to match SDD-CORE when it diverges; PCR raised when drift is detected | Open |
 | R4 | Process artifact maintenance overhead crowds out feature work | Low | Low | Keep all process artifacts in Markdown co-located with the code; lightweight tooling (no external tracking systems); tailor to minimum viable coverage | Open |
+| R7 | Native GTK component-stack migration regresses streaming latency, memory, resize, or session-reset correctness | Medium | High | Implement behind current GtkLayout baseline; qualify 100, 500, and 2,000 exchanges; measure first-token latency, widget count, memory, resize, zoom, replay, and reset; retain baseline fallback until gates pass | Open |
 
 ---
 
@@ -445,7 +448,6 @@ acknowledged the plan independently.
 
 ---
 
-
 ### Review 2 — M2 Requirements Review (2026-06-02)
 
 **Review type:** Software requirements review
@@ -466,7 +468,6 @@ before acknowledgement.
 
 **Independence limitation:** Developer evaluated own work. User reviewed and
 acknowledged the specification independently.
-
 
 ### Review 2 — M3 Design Review (2026-06-02)
 
@@ -489,8 +490,6 @@ acknowledged the design without comment.
 
 ---
 
-
-
 ### Review 3 — M4 Test Readiness Review (2026-06-03)
 
 **Review type:** Test readiness review
@@ -511,7 +510,6 @@ acknowledged the design without comment.
 
 ---
 
-
 ### Review 4 — M5 Requirements Coverage Review (2026-06-03)
 
 **Review type:** Requirements traceability review
@@ -531,8 +529,6 @@ acknowledged the design without comment.
 **Issues raised at review:** None.
 
 **Independence limitation:** Developer evaluated own work. User invited to review traceability table independently.
-
-
 
 ### Review 5 — M6 Acceptance Test Results Review (2026-06-03)
 
@@ -555,7 +551,6 @@ acknowledged the design without comment.
 **Independence limitation:** Developer evaluated own work. User invited to review test report and results independently before accepting M6.
 
 ---
-
 
 ---
 
@@ -701,17 +696,43 @@ manual demonstrations remains invited.
 
 **Disposition:** PCR-059 is resolved. Guarded live-provider qualification and manual demonstrations remain optional follow-up activities.
 
+### Review 13 — PCR-073 Native GTK component-stack documentation review (2026-08-23)
+
+**Review type:** Software requirements, design, and test-plan review
+**Trigger:** The approved migration direction replaces the current single
+`Gtk.Layout`/Cairo/Pango conversation renderer with vertically stacked native
+GTK exchange containers and separate semantic component widgets. This review
+records the requirements, design, qualification, risk, and implementation
+preparation artifacts before source changes begin.
+
+| Indicator | Value |
+|---|---|
+| Requirements volatility | SRS-CORE v1.14: 164 requirements; 7 additions (REQ-CORE-133..139), 0 deletions. |
+| Component progress | Native component-stack: implementation slice complete and unit-tested; full display-backed qualification pending. GtkLayout renderer remains implemented as the default fallback. |
+| Open problems | PCR-073 open for DEM-042..044 and R7 open; automated regression suite is green. |
+| Milestone status | Implementation slice and unit-test build complete; native-stack test readiness and manual performance qualification remain pending. |
+| Scope changes | 1 documented GUI presentation architecture change; additive lifecycle protocol and opt-in native stack implemented. |
+| Test results trend | Production and test development builds succeed; full suite passes 916/916 with zero failed assertions and zero unexpected errors. |
+
+**Issues raised at review:** Native widget realization performance, local component
+selection semantics, explicit request/footer lifecycle, and live/replay parity must
+be qualified before the current renderer is retired.
+
+**Independence limitation:** The developer evaluated their own requirements, design,
+test-plan, and project-plan updates. Independent user review and acknowledgement
+remain invited.
+
+**Disposition:** PCR-073 remains open pending implementation and qualification.
 
 ## 9. Artifact Version Table
 
-
 | Artifact | ID | Location | Current Version | Control Level |
 |---|---|---|---|---|
-| Project Plan | PLAN | `plan/project-plan.md` | 1.19 (2026-08-15) | Project |
+| Project Plan | PLAN | `plan/project-plan.md` | 1.20 (2026-08-23) | Project |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
-| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.12 (2026-08-15) | Client |
-| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.13 (2026-08-15) | Project |
+| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.14 (2026-08-23) | Client |
+| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.15 (2026-08-23) | Project |
 | coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.2 (2026-06-21) | Project |
 | coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.2 (2026-06-21) | Project |
-| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.13 (2026-08-15) | Project |
+| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.16 (2026-08-23) | Project |
 | Agent Working Instructions (secondary) | AGENTS | `AGENTS.md` | active | Project |

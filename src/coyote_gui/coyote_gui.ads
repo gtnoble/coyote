@@ -26,6 +26,14 @@ package Coyote_GUI is
    function Resume_Available (Mode : Run_Mode) return Boolean
      is (Mode = Paused);
 
+   --  ── Request lifecycle ─────────────────────────────────────────────────
+   --  These types mirror the abstract frontend lifecycle values while
+   --  keeping the update queue independent of frontend implementation types.
+
+   type Request_Kind is (Prompt, Steer);
+   type Footer_Kind is (Step_Footer, Final_Footer);
+   type Completion_Status is (Completed, Aborted, Failed);
+
    --  ── Tool end status ───────────────────────────────────────────────────
    --  Mirrors Coyote_App.Frontend.Tool_End_Status.
 
@@ -44,6 +52,8 @@ package Coyote_GUI is
    --
    --  Field usage by Kind:
    --
+   --    Begin_Request      Text = submitted prompt; R_Kind = request kind
+   --    Complete_Request   C_Status = terminal exchange state
    --    Append_Text        Text = chunk text
    --    End_Text_Block     (no extra fields)
    --    Begin_Thinking     (no extra fields)
@@ -62,7 +72,7 @@ package Coyote_GUI is
    --                       Text3 = media type
    --                       T_Status = status
    --    Append_Notice      Text = message; N_Kind = severity
-   --    Append_Turn_Footer Text = footer line
+   --    Append_Turn_Footer Text = footer line; F_Kind = step or final
    --    Append_Action_Strip Text = display label;
    --                        Text2 = action kind ("fork");
    --                        Text3 = action data JSON (uuid, turn, step, pid)
@@ -95,7 +105,9 @@ package Coyote_GUI is
 
 
    type Update_Kind is
-     (Append_Text,
+     (Begin_Request,
+      Complete_Request,
+      Append_Text,
       End_Text_Block,
       Begin_Thinking,
       Append_Thinking,
@@ -132,6 +144,9 @@ package Coyote_GUI is
       T_Status : Tool_End_Status := Success;
       Mode     : Run_Mode        := Idle;
       N_Kind   : Notice_Kind     := Info;
+      R_Kind   : Request_Kind    := Prompt;
+      F_Kind   : Footer_Kind     := Final_Footer;
+      C_Status : Completion_Status := Completed;
       Enabled  : Boolean         := False;
    end record;
 

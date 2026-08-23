@@ -56,6 +56,18 @@ package Coyote_App.Frontend is
      (F    : in out Instance;
       Mode : in     Run_Mode) is abstract;
 
+   --  ── Request lifecycle ─────────────────────────────────────────────────
+   --
+   --  Begin_Request identifies the semantic start of a submitted request.
+   --  The default is a no-op so existing frontends retain their behavior.
+
+   type Request_Kind is (Prompt, Steer);
+
+   procedure Begin_Request
+     (F    : in out Instance;
+      Text : in     String;
+      Kind : in     Request_Kind := Prompt) is null;
+
    --  ── Assistant text stream ─────────────────────────────────────────────
    --
    --  Called for each Text_Delta event.  Text is raw UTF-8; may contain
@@ -117,12 +129,24 @@ package Coyote_App.Frontend is
 
    --  ── Turn footer ───────────────────────────────────────────────────────
    --
-   --  Appended once per completed agent turn after session stats arrive.
+   --  Appended at a turn boundary after session stats arrive.  Step footers
+   --  remain inside the active request; final footers complete the turn.
    --  Text is pre-formatted by Coyote_App.Utils.Format_Turn_Footer_Display.
+
+   type Footer_Kind is (Step_Footer, Final_Footer);
 
    procedure Append_Turn_Footer
      (F    : in out Instance;
-      Text : in     String) is abstract;
+      Text : in     String;
+      Kind : in     Footer_Kind := Final_Footer) is abstract;
+
+   --  Explicitly close the active request without requiring display-text
+   --  parsing.  The default is a no-op for legacy frontends.
+   type Completion_Status is (Completed, Aborted, Failed);
+
+   procedure Complete_Request
+     (F      : in out Instance;
+      Status : in     Completion_Status) is null;
 
    --  ── Fork action ────────────────────────────────────────────────────────
    --

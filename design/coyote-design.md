@@ -1,8 +1,8 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.14
-**Date:** 2026-08-22
+**Version:** 1.15
+**Date:** 2026-08-23
 
 **Status:** Reviewed — project control (M3 complete 2026-06-02)
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
@@ -184,7 +184,6 @@ replaced with Pango markup when the block completes (`End_Text_Block`).
 
 ---
 
-
 ### 3.7 Memory and Processing Allocation
 
 **Queue bounds:**
@@ -236,7 +235,13 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `Coyote_GUI` | GUI root (Update_Kind, Update record) | `src/coyote_gui/coyote_gui.ads` |
 | `Coyote_GUI.Updates` | Protected agent→GTK queue | `src/coyote_gui/coyote_gui-updates.ads/.adb` |
 | `Coyote_GUI.Prompt_Queue` | Protected GTK→agent queue | `src/coyote_gui/coyote_gui-prompt_queue.ads/.adb` |
-| `Coyote_GUI.Conversation` | GtkLayout-based virtualized conversation renderer | `src/coyote_gui/coyote_gui-conversation.ads/.adb` |
+| `Coyote_GUI.Conversation` | Current GtkLayout-based virtualized conversation renderer (migration baseline) | `src/coyote_gui/coyote_gui-conversation.ads/.adb` |
+| `Coyote_GUI.Conversation_Stack` | Native GTK vertical exchange host and update router | `src/coyote_gui/coyote_gui-conversation_stack.ads/.adb` |
+| `Coyote_GUI.Exchange_View` | Deferred; exchange realization is owned by `Conversation_Stack` in this build | Not separate in qualification build |
+| `Coyote_GUI.Text_Element` | Deferred; native text-element realization is owned by `Conversation_Stack` in this build | Not separate in qualification build |
+| `Coyote_GUI.Tool_Card` | Deferred; native tool-card realization is owned by `Conversation_Stack` in this build | Not separate in qualification build |
+| `Coyote_GUI.Math_Element` | Deferred to the math qualification increment | Not separate in qualification build |
+| `Coyote_GUI.Footer_Element` | Deferred; typed footer realization is owned by `Conversation_Stack` in this build | Not separate in qualification build |
 | `Coyote_GUI.Tool_Detail_Window` | Structured GTK tool-call detail window | `src/coyote_gui/coyote_gui-tool_detail_window.ads/.adb` |
 | `Coyote_GUI.Session_Stats_Window` | Reusable live session-statistics support window | `src/coyote_gui/coyote_gui-session_stats_window.ads/.adb` |
 | `Coyote_GUI.Zoom` | Zoom-level ↔ font-size arithmetic (pure logic) | `src/coyote_gui/coyote_gui-zoom.ads/.adb` |
@@ -302,8 +307,14 @@ three layers:
         │
         ├─► Coyote_App.Frontend.Acme_Win ──► Acme.Window, Nine_P.Client
         ├─► Coyote_App.Frontend.GUI ──► Coyote_GUI.Conversation,
+        │                                  Coyote_GUI.Conversation_Stack,
+        │                                  Coyote_GUI.Exchange_View,
         │                                  Coyote_GUI.Tool_Detail_Window,
         │                                  Coyote_GUI.Session_Stats_Window,
+        │                                  Coyote_GUI.Text_Element,
+        │                                  Coyote_GUI.Tool_Card,
+        │                                  Coyote_GUI.Math_Element,
+        │                                  Coyote_GUI.Footer_Element,
         │                                  Coyote_GUI.Updates,
         │                                  Coyote_GUI.Prompt_Queue
         └─► Coyote_App.Frontend.Plain
@@ -401,7 +412,7 @@ three layers:
            → On_Event → Dispatch_Event
                 → Coyote_GUI.Updates.Enqueue(update)
            → GTK idle callback drains Updates queue
-                → Coyote_GUI.Conversation operations on the line vector
+                → Coyote_GUI.Conversation_Stack routes updates to the active Exchange_View
 
 [GTK callbacks]
   → Send button / Enter key → Coyote_GUI.Prompt_Queue.Enqueue(prompt_text)
@@ -726,7 +737,6 @@ used by GitHub Copilot, OpenCode Go, and Ollama compatibility paths.
 6. Special case for image tool results: split into text stub + follow-up
    user message with `image_url` (OAI does not accept vision in role=tool).
 
-
 **`Wire_Format` field:** `"openai-completions"` — used by `LLM.Agent` to
 determine the nested Completions `tools` JSON schema shape. Distinct from
 `"openai-responses"` (see §5.6a).
@@ -1039,10 +1049,12 @@ block containing `<skill>` entries for each discovered skill, or `""` if none.
 
 ### 5.15 `Coyote_GUI.Conversation`
 
-**Purpose:** Virtualized conversation renderer using `Gtk.Layout` with
-Cairo + Pango.  Replaces the `GtkTextView`/`GtkTextBuffer` approach with a
-viewport-only rendering model that gives acme-like resize performance
-regardless of document size.
+**Purpose:** Current implementation baseline: virtualized conversation renderer
+using `Gtk.Layout` with Cairo + Pango. It replaces the earlier
+`GtkTextView`/`GtkTextBuffer` approach with a viewport-oriented rendering model
+and remains in service until the planned native component-stack design in
+§5.15b is implemented and qualified. The current data model, rendering,
+selection, and tool-card behaviour are specified below.
 
 **Data model:** A flat `Line_Vectors.Vector` of `Logical_Line` records.  Each
 line is a variable-height block carrying a `Line_Style` discriminant
@@ -1105,7 +1117,6 @@ motion highlights the completed card under the cursor without introducing GTK
 child-widget lifetime management.  `Handle_Tool_Click` continues to return the
 complete structured `Tool_Info` record, and clicking a completed card opens the
 non-modal detail window.
-
 
 **`Coyote_GUI.Tool_Detail_Window`:** The main GTK frontend opens an independent
 modeless transient support window titled `coyote : Tool Call Details` for each
@@ -1177,7 +1188,7 @@ fresh one via `File → New Session`.
 
 ---
 
-### `Coyote_Lasem` binding
+### 5.15a `Coyote_Lasem` binding
 
 `Coyote_Lasem` wraps Lasem 0.6 through `coyote_lasem_c.c`. The C shim parses
 Presentation MathML with `lsm_dom_document_new_from_memory`, converts Lasem
@@ -1189,17 +1200,62 @@ conversation renderer; inline math and the legacy shared Pango renderer remain
 future work. MathML element whitelisting is intentionally deferred until a
 concrete compatibility problem is observed.
 
-### 5.16.1 `Coyote_Lasem` binding
+### 5.15b Planned native component-stack conversation presentation
 
-`Coyote_Lasem` wraps Lasem 0.6 through `coyote_lasem_c.c`. The C shim parses
-Presentation MathML with `lsm_dom_document_new_from_memory`, converts Lasem
-`GError` values to allocated messages, and releases the document/view GObjects
-before returning. The GUI retains the original delimiter-wrapped MathML source
-for display and selection, while the shim receives only the inner MathML
-document. Display math is currently supported only in the virtualized GUI
-conversation renderer; inline math and the legacy shared Pango renderer remain
-future work. MathML element whitelisting is intentionally deferred until a
-concrete compatibility problem is observed.
+**Status:** The first native qualification slice is implemented in
+`Coyote_GUI.Conversation_Stack` and is selected with `COYOTE_NATIVE_STACK=1`.
+The current `Coyote_GUI.Conversation` GtkLayout renderer remains the default
+fallback until the performance and display-backed acceptance gates are complete.
+
+**Purpose:** Replace the single custom conversation canvas with a native GTK
+component hierarchy. One `Exchange_View` represents one submitted request and
+its complete agent response, bounded by the final turn footer. Thinking blocks,
+assistant response blocks, tool cards, step/final footers, fork actions, notices,
+and display-math elements are separate children of that exchange.
+
+**Host hierarchy:** The main GUI retains one `Gtk.Scrolled_Window` containing
+one vertical `Gtk.Box`. The box contains one `Exchange_View` per completed or
+active request-response pair. Ordinary components do not create nested scrolling
+regions; the outer adjustment owns transcript scrolling and auto-scroll.
+
+**Exchange lifecycle:** A request-start operation creates the exchange and
+renders the user request. `Begin_Thinking`/`End_Thinking` create and finalize a
+thinking element. `Append_Text`/`End_Text_Block` update and finalize an assistant
+response element. `Begin_Tool` creates a native `Tool_Card`; `End_Tool` updates
+it by `Tool_Id`. An intermediate step footer and fork action remain inside the
+exchange. The final footer and final fork action complete the exchange. Abort and
+error termination preserve partial content and mark the exchange terminal without
+inventing a normal completion footer.
+
+**Component widgets:** Substantial text uses read-only native `Gtk.Text_View`
+and `Gtk.Text_Buffer` widgets with GTK text tags and local selection. Tool cards
+and fork actions use native focusable controls. Math uses a localized child
+widget or cached image backed by `Coyote_Lasem`, with source/fallback text
+retained for readable failure and accessibility. Markdown parsing remains in
+`Coyote_Cmark`/`Coyote_Renderer.Markup`; rendering converts the semantic block
+output to native widget content rather than Cairo-painted conversation lines.
+
+**Selection:** Selection is local to one semantic component. Copy, Select All,
+and PRIMARY publication operate on the focused or most recently selected text
+component; CLIPBOARD and PRIMARY remain independent. The design intentionally
+does not require a range spanning multiple components or exchanges.
+
+**Tool ownership and reset:** Each exchange owns its tool-card map and callback
+state. Clearing or switching sessions removes exchange widgets and invalidates
+their callbacks before new content is inserted. No package-global conversation or
+tool callback pointer is permitted in the native implementation.
+
+**Live/replay parity:** Live updates and session replay construct equivalent
+exchange/component hierarchies. Replay uses the same request, component, tool, and
+footer operations as live rendering. The update queue remains the only agent-to-
+GTK boundary; all widget operations execute on the GTK main task.
+
+**Performance qualification:** The native tree is initially realized with one
+vertical `Gtk.Box` child per exchange. Qualification measures first-token latency,
+widget count, memory, resize, zoom, replay, and session reset for 100, 500, and
+2,000 exchanges. Lazy realization or retention of the current renderer as a
+large-history fallback is permitted only if measurements show that full native
+realization is unacceptable.
 
 ### 5.16 `Coyote_Cmark` and `coyote_cmark_c.c`
 
@@ -1219,7 +1275,6 @@ Enabled by `cmark_shim_parse_document_gfm`, which creates a parser with all
 three extensions attached before parsing.
 
 ---
-
 
 ### 5.17 `LLM.Types`
 
@@ -1642,12 +1697,13 @@ Tracks `Current_Tool_Name` for the `End_Tool` label.
 **Purpose:** GTK3 frontend implementation. Drives the conversation view via
 the `Coyote_GUI.Updates` queue.
 
-**State:** Holds an access to the `GtkApplicationWindow`, the
-`Coyote_GUI.Conversation.Instance`, and a reference to the `Prompt_Queue`. A
+**State:** Holds an access to the `GtkApplicationWindow`, the current
+`Coyote_GUI.Conversation` migration-baseline instance, the planned
+`Coyote_GUI.Conversation_Stack`, and a reference to the `Prompt_Queue`. A
 menu-bar action map provides Compact, Pause, Resume, New Session, and model
-selection commands.  The conversation view is a `Gtk.Layout` inside a
-`Gtk.Scrolled_Window`; rendering is handled by `Coyote_GUI.Conversation`
-using Cairo + Pango (see §5.15).
+selection commands. The current conversation view is a `Gtk.Layout` inside a
+`Gtk.Scrolled_Window`; the planned implementation replaces it with a vertical
+`Gtk.Box` of native `Exchange_View` containers (see §5.15b).
 
 **Key rendering choices:**
 - All `Append_Text`, `Begin_Tool`, `End_Tool`, etc. calls enqueue a
@@ -1951,7 +2007,6 @@ zoom-out be immediately responsive after zooming into the clamp.
 **Purpose:** CLI argument resolution and session prefix stripping utilities
 shared by the entry-point packages.
 
-
 **`Read_Whole_File (Path : String) → String`:** Reads the entire contents
 of `Path` as a `String` using `Stream_IO` chunk-based reading (8 KB buffer).
 Unlike `Ada.Text_IO.Get_Line` which recurses linearly with line length, this
@@ -2156,25 +2211,25 @@ neither task may share mutable frontend state with the other.
 | REQ-CORE-100–107 | `Coyote_App.Frontend.Acme_Win`, `Coyote_App`, `Acme.Window`, `Nine_P.Client` |
 | REQ-CORE-108–108b | `Coyote_App`, `Coyote_App.Dispatch`, `Coyote_App.Utils`, `Session_Lister` |
 | REQ-CORE-109 | `LLM.Settings`, `Coyote_App.Frontend.Acme_Win` |
-| REQ-CORE-110–119, 125, 129, 132 | `Coyote_App.Frontend.GUI`, `Coyote_GUI.Conversation`, `Coyote_GUI.Prompt_Queue`, `Coyote_GUI.Zoom`, `Coyote_Cmark`, `Coyote_App.Utils` |
-| REQ-CORE-124 | `Coyote_GUI.Conversation`, `Coyote_Lasem` |
+| REQ-CORE-110–119, 125, 129, 132, 133–139 | `Coyote_App.Frontend.GUI`, `Coyote_GUI.Conversation`, `Coyote_GUI.Conversation_Stack`, `Coyote_GUI.Exchange_View`, `Coyote_GUI.Text_Element`, `Coyote_GUI.Tool_Card`, `Coyote_GUI.Footer_Element`, `Coyote_GUI.Math_Element`, `Coyote_GUI.Prompt_Queue`, `Coyote_GUI.Zoom`, `Coyote_Cmark`, `Coyote_App.Utils` |
+| REQ-CORE-124 | `Coyote_GUI.Conversation`, `Coyote_GUI.Math_Element`, `Coyote_Lasem` |
 | REQ-CORE-120–121 | `Coyote_App.Frontend.Plain` |
-| REQ-CORE-130–131 | `Coyote_App.History`, all frontends |
+| REQ-CORE-130–131, 137 | `Coyote_App.History`, `Coyote_GUI.Conversation_Stack`, `Coyote_GUI.Exchange_View`, all frontends |
 | REQ-CORE-140–142 | `LLM.Agent`, `Coyote_App.Dispatch`, all frontends |
 | REQ-CORE-170–172 | `LLM.System_Prompt`, `LLM.Agent` |
 | REQ-CORE-180–183 | `LLM.Memory`, `LLM.System_Prompt` |
 | REQ-CORE-190–192 | `LLM.System_Prompt`, `LLM.Agent`, `LLM.Tools.Shell` |
 | REQ-CORE-200–208, REQ-CORE-215–217 | `LLM.Providers.*`, `LLM.HTTP`, `LLM.SSE`, `LLM.Agent` |
 | REQ-CORE-210–212 | `Nine_P.Client`, `Acme.Window`, `Coyote_App.Frontend.Acme_Win` |
-| REQ-CORE-220–221 | `Coyote_App.Frontend.GUI`, `Coyote_GUI.*` |
+| REQ-CORE-220–221, 133–139 | `Coyote_App.Frontend.GUI`, `Coyote_GUI.Conversation_Stack`, `Coyote_GUI.Exchange_View`, `Coyote_GUI.*` |
 | REQ-CORE-504a | `Coyote_Help`, `share/help/C/coyote/` Mallard documentation |
 | REQ-CORE-230–234 | `LLM.Settings`, `LLM.Auth`, `LLM.Auth.GitHub_Copilot` |
 | REQ-CORE-240–241 | `LLM.Session_Store` |
 | REQ-CORE-300–302 | `Coyote_App.Frontend`, `LLM.Events`, `LLM.Tools.Temp_File` |
 | REQ-CORE-400–402 | `LLM.Types`, `LLM.Compaction`, `LLM.Agent` |
 | REQ-CORE-500–505 | Build system (Alire/GPRbuild); runtime dependencies |
-| REQ-CORE-600–601 | `LLM.Compaction` (unbounded growth prevention); `Coyote_App` (GTK threading) |
-| REQ-CORE-700–704 | `LLM.HTTP` (streaming latency); `LLM.Session_Store` (persistence); all frontends (error visibility) |
+| REQ-CORE-600–601, 135, 138 | `LLM.Compaction` (unbounded growth prevention); `Coyote_App` (GTK threading); `Coyote_GUI.Conversation_Stack` |
+| REQ-CORE-700–704, 138 | `LLM.HTTP` (streaming latency); `LLM.Session_Store` (persistence); `Coyote_GUI.Conversation_Stack`, `Coyote_GUI.Exchange_View` |
 | REQ-CORE-800–805 | Build system; `Coyote_App.Utils` (UC_* constants); all packages (.ads/.adb split) |
 | REQ-CORE-160 | `share/man/man1/coyote.1` (static man page) |
 

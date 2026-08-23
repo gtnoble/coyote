@@ -46,6 +46,7 @@ with Pango.Context;
 with Pango.Font_Metrics;
 with Pango.Language;
 with Ada.Directories;
+with Ada.Environment_Variables;
 with Glib.Values;
 with Gtk.Cell_Renderer_Text;
 with Gtk.Dialog;
@@ -433,7 +434,10 @@ package body Coyote_App.Frontend.GUI is
       end if;
       Prompt_Sel := Current_Frontend.Prompt_Buf /= null
         and then Current_Frontend.Prompt_Buf.Get_Has_Selection;
-      Conv_Sel := Current_Frontend.Conv.Has_Selection;
+      Conv_Sel :=
+        (if Current_Frontend.Stack_Enabled
+         then Current_Frontend.Stack.Has_Selection
+         else Current_Frontend.Conv.Has_Selection);
       Clip := Gtk.Clipboard.Get;
       if Current_Frontend.Cut_Item /= null then
          Current_Frontend.Cut_Item.Set_Sensitive (Prompt_Sel);
@@ -490,7 +494,11 @@ package body Coyote_App.Frontend.GUI is
          end if;
          return;
       end if;
-      Current_Frontend.Conv.Copy_Selection;
+      if Current_Frontend.Stack_Enabled then
+         Current_Frontend.Stack.Copy_Selection;
+      else
+         Current_Frontend.Conv.Copy_Selection;
+      end if;
    end On_Copy_Activate;
 
    procedure On_Paste_Activate
@@ -529,7 +537,11 @@ package body Coyote_App.Frontend.GUI is
            (Start_Iter, End_Iter);
          return;
       end if;
-      Current_Frontend.Conv.Select_All;
+      if Current_Frontend.Stack_Enabled then
+         Current_Frontend.Stack.Select_All;
+      else
+         Current_Frontend.Conv.Select_All;
+      end if;
    end On_Select_All_Activate;
 
    procedure On_Deselect_Activate
@@ -548,7 +560,11 @@ package body Coyote_App.Frontend.GUI is
            (Insert, Current_Frontend.Prompt_Buf.Get_Insert);
          Current_Frontend.Prompt_Buf.Place_Cursor (Insert);
       end if;
-      Current_Frontend.Conv.Clear_Selection;
+      if Current_Frontend.Stack_Enabled then
+         Current_Frontend.Stack.Clear_Selection;
+      else
+         Current_Frontend.Conv.Clear_Selection;
+      end if;
    end On_Deselect_Activate;
 
    function On_Prompt_Button_Press
@@ -743,22 +759,75 @@ package body Coyote_App.Frontend.GUI is
    begin
       case U.Kind is
 
+         when Begin_Request =>
+            if F.Stack_Enabled then
+               F.Stack.Begin_Request
+                 (Text => To_String (U.Text),
+                  Kind => Coyote_GUI.Request_Kind (U.R_Kind));
+            else
+               F.Conv.Append_Notice
+                 (Coyote_GUI.Conversation.Notice_Info,
+                  ASCII.LF
+                  & (if U.R_Kind = Coyote_GUI.Steer
+                     then UC_HOOK_L & " Steer: "
+                     else UC_TRI_R & " ")
+                  & To_String (U.Text) & ASCII.LF);
+            end if;
+
+         when Complete_Request =>
+            if F.Stack_Enabled then
+               F.Stack.Complete_Request
+                 (Coyote_GUI.Completion_Status (U.C_Status));
+            end if;
+
          when Append_Text =>
-            F.Conv.Append_Text (To_String (U.Text));
+            if F.Stack_Enabled then
+               F.Stack.Append_Text (To_String (U.Text));
+            else
+               F.Conv.Append_Text (To_String (U.Text));
+            end if;
 
          when End_Text_Block =>
-            F.Conv.End_Text_Block;
+            if F.Stack_Enabled then
+               F.Stack.End_Text_Block;
+            else
+               F.Conv.End_Text_Block;
+            end if;
 
          when Begin_Thinking =>
-            F.Conv.Begin_Thinking;
+            if F.Stack_Enabled then
+               F.Stack.Begin_Thinking;
+            else
+               F.Conv.Begin_Thinking;
+            end if;
 
          when Append_Thinking =>
-            F.Conv.Append_Thinking (To_String (U.Text));
+            if F.Stack_Enabled then
+               F.Stack.Append_Thinking (To_String (U.Text));
+            else
+               F.Conv.Append_Thinking (To_String (U.Text));
+            end if;
 
          when End_Thinking =>
-            F.Conv.End_Thinking;
+            if F.Stack_Enabled then
+               F.Stack.End_Thinking;
+            else
+               F.Conv.End_Thinking;
+            end if;
 
          when Begin_Tool =>
+            if F.Stack_Enabled then
+               F.Stack.Begin_Tool
+                 (Name             => To_String (U.Text),
+                  Args             => To_String (U.Text2),
+                  Session_Id       => To_String (U.Text3),
+                  Tool_Id          => To_String (U.Text4),
+                  Model            => To_String (U.Text5),
+                  Source_Directory => To_String (U.Text6),
+                  Session_Start   => To_String (U.Text7),
+                  Turn_Index       => Positive'Max (U.Tool_Turn, 1),
+                  Call_In_Turn     => Positive'Max (U.Tool_Call, 1));
+            else
             F.Conv.Begin_Tool
               (Name             => To_String (U.Text),
                Args             => To_String (U.Text2),
@@ -769,47 +838,78 @@ package body Coyote_App.Frontend.GUI is
                Session_Start    => To_String (U.Text7),
                Turn_Index       => Positive'Max (U.Tool_Turn, 1),
                Call_In_Turn     => Positive'Max (U.Tool_Call, 1));
+            end if;
 
          when End_Tool =>
+            if F.Stack_Enabled then
+               F.Stack.End_Tool
+                 (Tool_Id    => To_String (U.Text),
+                  Status     => Coyote_GUI.Tool_End_Status (U.T_Status),
+                  Result     => To_String (U.Text2),
+                  Media_Type => To_String (U.Text3));
+            else
             F.Conv.End_Tool
               (Tool_Id    => To_String (U.Text),
                Status     => Coyote_GUI.Conversation.Tool_End_Status'Val
                                (Coyote_GUI.Tool_End_Status'Pos (U.T_Status)),
                Result     => To_String (U.Text2),
                Media_Type => To_String (U.Text3));
+            end if;
+
          when Append_Notice =>
-            F.Conv.Append_Notice
-              (Kind => Coyote_GUI.Conversation.Line_Style'Val
-                         (Coyote_GUI.Notice_Kind'Pos (U.N_Kind)
-                          + Coyote_GUI.Conversation.Line_Style'Pos
-                              (Coyote_GUI.Conversation.Notice_Info)),
-               Text => To_String (U.Text));
+            if F.Stack_Enabled then
+               F.Stack.Append_Notice
+                 (Kind => Coyote_GUI.Notice_Kind (U.N_Kind),
+                  Text => To_String (U.Text));
+            else
+               F.Conv.Append_Notice
+                 (Kind => Coyote_GUI.Conversation.Line_Style'Val
+                            (Coyote_GUI.Notice_Kind'Pos (U.N_Kind)
+                             + Coyote_GUI.Conversation.Line_Style'Pos
+                                 (Coyote_GUI.Conversation.Notice_Info)),
+                  Text => To_String (U.Text));
+            end if;
 
          when Append_Turn_Footer =>
-            F.Conv.Append_Turn_Footer (To_String (U.Text));
+            if F.Stack_Enabled then
+               F.Stack.Append_Turn_Footer
+                 (Text => To_String (U.Text),
+                  Kind => Coyote_GUI.Footer_Kind (U.F_Kind));
+            else
+               F.Conv.Append_Turn_Footer
+                 (To_String (U.Text),
+                  (if U.F_Kind = Coyote_GUI.Step_Footer
+                   then Coyote_GUI.Conversation.Step_Footer
+                   else Coyote_GUI.Conversation.Final_Footer));
+            end if;
 
          when Append_Action_Strip =>
             declare
-               use Coyote_GUI.Conversation;
-               UUID_Str   : constant String := To_String (U.Text2);
-               Turn_Str   : constant String := To_String (U.Text3);
-               Step_Str   : constant String := To_String (U.Text4);
-               Turn_Val   : Positive;
-               Step_Val   : Natural := 0;
+               UUID_Str : constant String := To_String (U.Text2);
+               Turn_Str : constant String := To_String (U.Text3);
+               Step_Str : constant String := To_String (U.Text4);
+               Turn_Val : Positive;
+               Step_Val : Natural := 0;
             begin
-               if UUID_Str'Length > 0
-                 and then Turn_Str'Length > 0
-               then
+               if UUID_Str'Length > 0 and then Turn_Str'Length > 0 then
                   Turn_Val := Positive'Value (Turn_Str);
                   if Step_Str'Length > 0 then
                      Step_Val := Natural'Value (Step_Str);
                   end if;
-                  F.Conv.Append_Action_Strip
-                    (To_String (U.Text),
-                     (Kind        => Fork,
-                      Fork_UUID   => U.Text2,
-                      Fork_Turn_N => Turn_Val,
-                      Fork_Step_N => Step_Val));
+                  if F.Stack_Enabled then
+                     F.Stack.Append_Fork_Action
+                       (Label  => To_String (U.Text),
+                        UUID   => UUID_Str,
+                        Turn_N => Turn_Val,
+                        Step_N => Step_Val);
+                  else
+                     F.Conv.Append_Action_Strip
+                       (To_String (U.Text),
+                        (Kind        => Coyote_GUI.Conversation.Fork,
+                         Fork_UUID   => U.Text2,
+                         Fork_Turn_N => Turn_Val,
+                         Fork_Step_N => Step_Val));
+                  end if;
                end if;
             end;
 
@@ -831,6 +931,9 @@ package body Coyote_App.Frontend.GUI is
 
          when Clear_Conversation =>
             F.Conv.Clear;
+            if F.Stack_Enabled then
+               F.Stack.Clear;
+            end if;
             if F.Transcript_Buf /= null then
                F.Transcript_Buf.Set_Text ("");
             end if;
@@ -870,12 +973,18 @@ package body Coyote_App.Frontend.GUI is
             Gtk.Main.Main_Quit;
 
       end case;
+      if F.Stack_Enabled and then F.Auto_Scroll then
+         F.Stack.Scroll_To_End;
+      end if;
       if F.Transcript_Buf /= null
         and then U.Kind /= Set_Stats
         and then U.Kind /= Clear_Stats
         and then U.Kind /= Set_Transcript
       then
-         F.Transcript_Buf.Set_Text (F.Conv.Transcript_Text);
+         F.Transcript_Buf.Set_Text
+           (if F.Stack_Enabled
+            then F.Stack.Transcript_Text
+            else F.Conv.Transcript_Text);
       end if;
    end Apply_Update;
 
@@ -2297,6 +2406,8 @@ package body Coyote_App.Frontend.GUI is
       F.Notifications_Allowed := Notifications_Allowed;
       F.Notifications_Enabled :=
         Notifications_Allowed and then Notifications_Enabled;
+      F.Stack_Enabled :=
+        Ada.Environment_Variables.Value ("COYOTE_NATIVE_STACK", "") = "1";
       Current_Frontend := F'Unchecked_Access;
 
       --  Top-level window
@@ -2680,6 +2791,11 @@ package body Coyote_App.Frontend.GUI is
 
       --  ── Conversation view ─────────────────────────────────────────────
 
+      --  The native stack is constructed now but remains disabled until its
+      --  display-backed qualification gates pass.  The legacy renderer below
+      --  remains the active baseline and fallback.
+      Coyote_GUI.Conversation_Stack.Create (F.Stack);
+
       Gtk.Scrolled_Window.Gtk_New (F.Conv_Scroll);
       F.Conv_Scroll.Set_Policy (Policy_Never, Policy_Automatic);
       declare
@@ -2707,8 +2823,13 @@ package body Coyote_App.Frontend.GUI is
         (On_Conv_Scroll'Access);
 
       F.Conv_Scroll.Add (F.Conv_Layout);
-      F.Outer_Box.Pack_Start (F.Conv_Scroll, Expand => True, Fill => True,
-                              Padding => 0);
+      if F.Stack_Enabled then
+         F.Outer_Box.Pack_Start
+           (F.Stack.Widget, Expand => True, Fill => True, Padding => 0);
+      else
+         F.Outer_Box.Pack_Start
+           (F.Conv_Scroll, Expand => True, Fill => True, Padding => 0);
+      end if;
 
       --  Native transcript for keyboard selection and assistive technology.
       Gtk.Expander.Gtk_New (F.Transcript_Expander, "Accessible transcript");
@@ -2836,6 +2957,22 @@ package body Coyote_App.Frontend.GUI is
    end Set_Mode;
 
    overriding
+   procedure Begin_Request
+     (F    : in out Instance;
+      Text : in     String;
+      Kind : in     Coyote_App.Frontend.Request_Kind :=
+        Coyote_App.Frontend.Prompt)
+   is
+      U : Coyote_GUI.Update;
+   begin
+      U.Kind := Coyote_GUI.Begin_Request;
+      U.Text := To_Unbounded_String (Text);
+      U.R_Kind := Coyote_GUI.Request_Kind'Val
+        (Coyote_App.Frontend.Request_Kind'Pos (Kind));
+      Enqueue_Update (F, U);
+   end Begin_Request;
+
+   overriding
    procedure Append_Text (F : in out Instance; Text : in String) is
       U : Coyote_GUI.Update;
    begin
@@ -2925,14 +3062,32 @@ package body Coyote_App.Frontend.GUI is
 
    overriding
    procedure Append_Turn_Footer
-     (F : in out Instance; Text : in String)
+     (F    : in out Instance;
+      Text : in     String;
+      Kind : in     Coyote_App.Frontend.Footer_Kind :=
+        Coyote_App.Frontend.Final_Footer)
    is
       U : Coyote_GUI.Update;
    begin
       U.Kind := Coyote_GUI.Append_Turn_Footer;
       U.Text := To_Unbounded_String (Text);
+      U.F_Kind := Coyote_GUI.Footer_Kind'Val
+        (Coyote_App.Frontend.Footer_Kind'Pos (Kind));
       Enqueue_Update (F, U);
    end Append_Turn_Footer;
+
+   overriding
+   procedure Complete_Request
+     (F      : in out Instance;
+      Status : in     Coyote_App.Frontend.Completion_Status)
+   is
+      U : Coyote_GUI.Update;
+   begin
+      U.Kind := Coyote_GUI.Complete_Request;
+      U.C_Status := Coyote_GUI.Completion_Status'Val
+        (Coyote_App.Frontend.Completion_Status'Pos (Status));
+      Enqueue_Update (F, U);
+   end Complete_Request;
 
    overriding
    procedure Append_Fork_Action

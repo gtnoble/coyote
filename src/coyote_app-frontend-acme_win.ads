@@ -50,6 +50,13 @@ package Coyote_App.Frontend.Acme_Win is
       Mode : in     Coyote_App.Frontend.Run_Mode);
 
    overriding
+   procedure Begin_Request
+     (F    : in out Instance;
+      Text : in     String;
+      Kind : in     Coyote_App.Frontend.Request_Kind :=
+        Coyote_App.Frontend.Prompt);
+
+   overriding
    procedure Append_Text
      (F    : in out Instance;
       Text : in     String);
@@ -90,7 +97,9 @@ package Coyote_App.Frontend.Acme_Win is
    overriding
    procedure Append_Turn_Footer
      (F    : in out Instance;
-      Text : in     String);
+      Text : in     String;
+      Kind : in     Coyote_App.Frontend.Footer_Kind :=
+        Coyote_App.Frontend.Final_Footer);
 
    overriding
    procedure Append_Fork_Action

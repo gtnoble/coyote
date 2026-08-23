@@ -1,8 +1,8 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.13
-**Date:** 2026-08-22
+**Version:** 1.14
+**Date:** 2026-08-23
 **Status:** Draft
 **Project Plan:** `plan/project-plan.md`
 
@@ -712,6 +712,63 @@ remain available, including Ctrl+N, Ctrl+Shift+N, Ctrl+O, Ctrl+Q, Escape,
 Ctrl+X, Ctrl+C, Ctrl+V, Ctrl+A, Ctrl+Shift+P, Ctrl+R, Ctrl+M, Ctrl+Shift+C,
 Ctrl++, Ctrl+-, and Ctrl+0.
 
+
+**REQ-CORE-133** (D)
+The interactive GTK conversation work area shall represent each submitted
+request and its complete agent response as one vertically stacked exchange
+container. An exchange shall remain open across thinking blocks, assistant
+response blocks, tool calls and results, retries, and intermediate tool-step
+footers. Only the final turn footer shall complete the exchange; an
+intermediate step footer shall remain within it.
+
+**REQ-CORE-134** (D/T/I)
+Each exchange container shall present its semantic content as separate
+native GTK graphic elements. At minimum, the design shall provide distinct
+elements for the user request, thinking output, each assistant response
+block, each tool call, step and final footers, and fork actions. Text-bearing
+elements shall use native selectable GTK text widgets where selection is
+applicable; tool calls and fork actions shall use native focusable controls.
+
+**REQ-CORE-135** (D/T/I)
+The GTK conversation work area shall stack exchange containers in one
+vertical host inside one outer vertical scrolled window. Individual
+conversation components shall not introduce nested scrolling regions for
+ordinary content. The host shall preserve normal wheel scrolling and
+maintain auto-scroll behaviour while the active exchange grows when
+auto-scroll is enabled.
+
+**REQ-CORE-136** (D/T/I)
+Selection in the GTK conversation work area shall be local to the selected
+semantic component. The GUI shall not require selection ranges to span the
+user request, thinking output, assistant response, tool card, footer, or
+another exchange. Copy, Select All, and PRIMARY publication shall operate
+on the focused or most recently selected component, while CLIPBOARD and
+PRIMARY remain independent.
+
+**REQ-CORE-137** (D/T/I)
+Live and replayed GUI conversations shall construct equivalent exchange and
+component hierarchies. Tool cards shall be updated by stable tool-call ID,
+including when tool starts precede completions or when multiple tool steps
+occur in one exchange. Clearing or switching sessions shall remove the old
+exchange hierarchy, active selections, and component callbacks before new
+content is displayed.
+
+**REQ-CORE-138** (D/T/I)
+The GUI component-stack implementation shall preserve incremental streaming:
+text and thinking deltas shall update an existing active component rather
+than create a widget per token. The implementation shall preserve the
+200-ms first-token display objective, and shall qualify widget count, memory,
+resize, zoom, replay, and repeated session-reset behaviour for histories of
+at least 100, 500, and 2,000 exchanges.
+
+**REQ-CORE-139** (D/T/I)
+The GUI presentation interface shall identify the start of a submitted
+request and shall distinguish an intermediate step footer from a final turn
+footer without parsing formatted display text. The interface shall provide
+an explicit exchange-completion state for normal completion, abort, and
+error termination. Existing Acme and Plain frontends shall retain their
+current output semantics.
+
 ---
 
 #### 3.1.12 Plain Frontend
@@ -1348,11 +1405,12 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-100..107 | Acme frontend tag commands (Send, Stop, New, etc.) | D | TC-100..107 |
 | REQ-CORE-108..108b | Session fork tokens and step-level turn footers | D | TC-108..108b |
 | REQ-CORE-109 | SetDefault writes to settings.json | D | TC-109 |
-| REQ-CORE-110..119, 124..129 | GUI frontend capabilities, including Preferences, display math, zoom, completion notifications, and Change Model search | D/T/I | TC-110..119, TC-124..129; GUI regression tests |
+| REQ-CORE-110..119, 124..129, 133..139 | GUI frontend capabilities, including Preferences, display math, zoom, component-stack conversation presentation, completion notifications, and Change Model search | D/T/I | TC-110..119, TC-124..129, TC-133..139; GUI regression tests; DEM-042..044 |
 | REQ-CORE-113a..113c | GUI Help menu, Yelp topics, Edit menu, Product Information dialog, menu taxonomy, title, dialog, support-window, lifecycle-status, and desktop interaction conventions | D/T/I | DEM-036..039; Coyote_Help tests; Mallard validation; source inspection |
 | REQ-CORE-113d | Live structured Session Stats support window and session-reset currency | D/T/I | `coyote_gui_session_stats_window_tests.adb`; DEM-040; source inspection |
 | REQ-CORE-113e | Structured GTK tool-call detail support window | D/T/I | `coyote_gui_conversation_tests.adb`; `llm_session_store_tests.adb`; DEM-041; source inspection |
 | REQ-CORE-132 | Complete visible accelerators for main GTK menu items | D/T | DEM-014; GUI regression tests |
+| REQ-CORE-133..139 | Native GTK exchange/component stack, local component selection, lifecycle, parity, and qualification | D/T/I | `coyote_gui_exchange_tests.adb`; DEM-042..044; source inspection; performance analysis |
 | REQ-CORE-120..121 | Plain frontend capabilities | D | TC-120..121 |
 | REQ-CORE-130..131 | Session history replay | D | TC-130..131 |
 | REQ-CORE-140..142 | Error handling | D | TC-140..142 |
@@ -1393,8 +1451,8 @@ objectives stated in the Project Plan (PLAN §1 and §3):
 | Objective | Derived Requirements |
 |---|---|
 | Self-contained Ada LLM agent with no Node.js dependency | REQ-CORE-024, REQ-CORE-500–505, REQ-CORE-800–805 |
-| Multi-frontend support (acme, GTK3, plain) | REQ-CORE-001–004, REQ-CORE-100–131 |
-| Streaming output | REQ-CORE-040–046, REQ-CORE-700 |
+| Multi-frontend support (acme, GTK3, plain) | REQ-CORE-001–004, REQ-CORE-100–139 |
+| Streaming output | REQ-CORE-040–046, REQ-CORE-700, REQ-CORE-138 |
 | Tool execution | REQ-CORE-050–056 |
 | Session persistence and resume | REQ-CORE-080–089, REQ-CORE-701 |
 | Context compaction | REQ-CORE-060–064 |
@@ -1402,7 +1460,7 @@ objectives stated in the Project Plan (PLAN §1 and §3):
 | Man pages for coyote and coyote_sqc | REQ-CORE-160 |
 | Skill discovery and system prompt construction | REQ-CORE-090–094 |
 | Subagent spawning with session lineage | REQ-CORE-019–020, REQ-CORE-030–032 |
-| Error visibility and graceful shutdown | REQ-CORE-140–142, REQ-CORE-702–703 |
+| Error visibility and graceful shutdown | REQ-CORE-140–142, REQ-CORE-139, REQ-CORE-702–703 |
 | Enhanced system prompt with personality and task constraints | REQ-CORE-170–172 |
 | Structured memory system (four-type taxonomy) | REQ-CORE-180–183 |
 | Coordinator subagent orchestration | REQ-CORE-190–192 |

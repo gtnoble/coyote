@@ -1,6 +1,6 @@
 # Test Plan â coyote (STP)
 
-**Version:** 1.15
+**Version:** 1.16
 **Date:** 2026-08-23
 
 **Status:** Reviewed and acknowledged â M4 complete (2026-06-03)
@@ -96,11 +96,13 @@ and are **opt-in** (guarded by environment variable checks at test startup):
 See `plan/integration-test-guide.md` for full setup instructions.
 
 ### 3.4 Known Test Environment Constraints
-- GUI conversation tests that exercise `Coyote_GUI.Conversation` require GTK3
-to be installed and a display (or `xvfb-run`); they create a `Gtk.Layout` and
-exercise the Cairo/Pango virtualized renderer.  Tests of the old
-`Coyote_GUI.Buffer` are no longer part of the live GUI path.  Headless
-`GtkTextBuffer` tests, when present, do not require a display.
+- GUI conversation tests cover both the GtkLayout baseline and the opt-in
+  `Coyote_GUI.Conversation_Stack` implementation with GTK3 and a display (or
+  `xvfb-run`). The native tests construct one outer scroller and a vertical box
+  of exchange widgets with native text/control components. Performance and
+  large-history qualification remain manual DEM-044 activities.
+Tests of the old `Coyote_GUI.Buffer` are not part of the current live GUI path.
+Headless `GtkTextBuffer` tests, when present, do not require a display.
 - Tests that require `$DISPLAY` or `$WAYLAND_DISPLAY` for window creation
   are not part of the standard automated suite.
 
@@ -178,6 +180,8 @@ SRS-CORE requirement groups.
 | `coyote_gui_notification_policy_tests.adb` | REQ-CORE-127 (notification eligibility policy) | 4 |
 | `coyote_gui_mode_tests.adb` | REQ-CORE-113 Agent-menu availability by run mode | 1 |
 | `coyote_gui_session_stats_window_tests.adb` | REQ-CORE-113d; typed snapshot retention, reset, and idempotent support-window creation | 3 |
+| `coyote_gui_conversation_stack_tests.adb` | REQ-CORE-133..139; native stack host, incremental text, stable tool IDs, explicit footer/completion lifecycle, and reset | 5 |
+
 | `coyote_gui_prompt_queue_tests.adb` | REQ-CORE-116..119, 128; typed preference payload transport | 1 |
 | `coyote_help_tests.adb` | REQ-CORE-113a, REQ-CORE-504a; Yelp URI construction, area mapping, executable detection, and Product Information text | 4 |
 | `nine_p_proto_tests.adb` | REQ-CORE-210 (9P protocol) | ~20 |
@@ -226,6 +230,9 @@ behaviour. Results are recorded in a Test Report.
 | DEM-039 | REQ-CORE-113a, REQ-CORE-504a | In a display-backed GUI, activate Overview, task entries, Index, and Keys & Shortcuts and verify Yelp opens the corresponding `help:coyote` or `help:coyote/<topic>` document. Verify Product Information opens an in-process dialog that remains available when Yelp is missing. Verify Mallard navigation, Index links, task links, contextual area topics, and the visible error notice when Yelp is unavailable. |
 | DEM-040 | REQ-CORE-113d | In a display-backed GUI, open Session Stats repeatedly and verify only one modeless transient `coyote : Session Stats` support window exists. Verify grouped selectable values, system-font sizing, scrollable report area, visible Close, Ctrl+W, live refresh after a completed turn, and clearing after New Session and session switch. |
 | DEM-041 | REQ-CORE-113e | In a display-backed GUI, click completed tool cards and verify each opens an independent `coyote : Tool Call Details` transient support window. Verify selectable header metadata, labelled monospace argument views, full selectable results, outer vertical scrolling, visible Close and Help actions, deterministic focus, Ctrl+W, non-color status meaning, image display/fallback, light/dark theme behavior, replay parity, and correct multi-window independence. |
+| DEM-042 | REQ-CORE-133..134, 139 | In a display-backed GUI using the native component-stack build, submit a request that produces thinking, assistant text, a tool call, and a final response. Verify one exchange container is created, each semantic component is a separate native widget, tool and fork actions are focusable, and the request-start, step-footer, final-footer, and terminal lifecycle transitions are explicit. |
+| DEM-043 | REQ-CORE-135..137 | In a display-backed GUI using the native component-stack build, submit requests with multiple tool steps and replay the resulting session. Verify exchange widgets are vertically ordered in one outer scroller, intermediate footers remain inside their exchange, tool cards update by tool-call ID, local component selection/copy/PRIMARY works independently for separate components, and clear/session switching removes stale widgets and callbacks. |
+| DEM-044 | REQ-CORE-138 | On a development build using the native component stack, qualify first-token latency, widget count, memory, resize, zoom, auto-scroll, replay, and repeated reset behavior for histories of 100, 500, and 2,000 exchanges. Compare against the Gtk.Layout baseline and retain the baseline renderer if native realization fails the measured performance objective. |
 | DEM-034 | REQ-CORE-234 | Set and clear `defaultSandboxProfile`; verify inherited runtime and session-header precedence |
 | DEM-015 | REQ-CORE-130 | Resume a session; verify history replayed in frontend |
 | DEM-016 | REQ-CORE-140 | Inject a provider error (invalid API key); verify error notice visible in frontend |
@@ -245,7 +252,6 @@ behaviour. Results are recorded in a Test Report.
 | DEM-030 | REQ-CORE-086..087 | In one running frontend, switch between sessions with different and absent sandbox profiles; verify restoration and clearing before the next tool call |
 | DEM-031 | REQ-CORE-088 | Set a sandbox profile, spawn a child coyote process, and verify the child receives the profile and applies it to a shell command |
 | DEM-032 | REQ-CORE-089 | Exercise startup, profile change, resume, and switch in Acme and GUI; verify displayed, agent, and propagated profile values remain identical |
-
 
 ### 4.4 Planned Tests â Inspection
 
@@ -320,6 +326,7 @@ These are entered as open items in the problem log (PCR-009).
 | REQ-CORE-113a..113c | D/T/I | `coyote_gui_conversation_tests.adb`, `coyote_help_tests.adb`, `coyote_gui_mode_tests.adb`, DEM-036..039, Mallard validation, source inspection |
 | REQ-CORE-113d | D/T/I | `coyote_gui_session_stats_window_tests.adb`, DEM-040, source inspection |
 | REQ-CORE-113e | D/T/I | `coyote_gui_conversation_tests.adb`, `llm_session_store_tests.adb`, DEM-041, source inspection |
+| REQ-CORE-133..139 | D/T/I/A | `coyote_gui_conversation_stack_tests.adb`, DEM-042..044, source inspection, performance analysis |
 | REQ-CORE-504a | I/T | `coyote_help_tests.adb`, `yelp-check`, DEM-039 |
 | REQ-CORE-125 | T/D | `coyote_gui_zoom_tests.adb`, DEM-014 |
 | REQ-CORE-132 | D/T | `coyote_gui_navigation_tests.adb`, `coyote_gui_prompt_queue_tests.adb`, DEM-014 |
@@ -382,7 +389,6 @@ as the JSON `session_id` field while `/responses` remains stateless. The complet
 891-test AUnit suite passes with 891 successful tests, 0 failed assertions, and
 0 unexpected errors.
 
-
 **Verification as of 2026-08-15 (PCR-059 OpenAI Responses):**
 The sibling `LLM.Providers.OpenAI_Responses` adapter is implemented and
 registered with 10 focused provider tests covering `/responses`,
@@ -403,7 +409,6 @@ Chat Completions tests and compatibility providers remain in place. Live
 OpenAI/OpenRouter qualification was not enabled because no live-provider guard
 and credentials were configured; the automated qualification uses local HTTP
 mock servers.
-
 
 **Verification as of 2026-08-15 (GTK tool-detail argument sizing):**
 Production and test development builds succeed after replacing fixed argument
@@ -646,7 +651,6 @@ Requirements updated in SRS-SQC Â§5.18 (new Log Y-Axis Scaling
 subsection), Â§7.3.2a (Log Y mode rendering), and Â§15.6 (two new test
 requirements).  No regressions.
 
-
 **Baseline as of 2026-06-14 (Quantile CC interpolation):**
 690 tests, 0 failures, 0 unexpected errors.  Fixed Bonferroni_Rank to
 compute from B_Replicates (formerly hardcoded 27 for B=100 000; now 2 for
@@ -659,7 +663,6 @@ new tests for `Interpolate_Limits` (anchor match, between-anchor shrinkage,
 n=1 fallback).  Added `Interpolate_Quantile_Limits` boolean to workspace data
 model, serialization, and workspace settings dialog.  Requirements and design
 documents updated.
-
 
 **Coverage gap PCR:** The gaps identified in Â§4.5 are logged in
 `plan/problems.md` as PCR-009. They are accepted as deferred for the current
@@ -731,3 +734,13 @@ session creation timestamp and Tool_Info metadata/media regressions; live and
 replayed tool-detail payloads now preserve metadata and image state. The full
 suite passes 911/911 with zero failed assertions and zero unexpected errors.
 Display-backed DEM-041 remains manual qualification.
+
+**Baseline as of 2026-08-23 (PCR-073 native stack implementation slice):**
+916 registered tests. Production and test development builds succeed. Added
+five display-backed native-stack tests covering the single outer host,
+incremental streaming, stable Tool_Id updates, explicit step/final footer and
+completion states, and reset. Live/replay request-start and terminal lifecycle
+metadata are explicit. `COYOTE_NATIVE_STACK=1` selects the native stack;
+the GtkLayout renderer remains the default fallback. DEM-042 and DEM-043
+component/replay demonstrations and DEM-044 100/500/2,000-exchange performance
+qualification remain deferred pending manual execution.
