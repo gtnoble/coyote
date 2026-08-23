@@ -2772,6 +2772,9 @@ package body Coyote_App.Frontend.GUI is
       elsif Area = "status" then
          return "Status area: reports lifecycle state and non-critical"
            & " session information.";
+      elsif Area = "transcript" then
+         return "Transcript area: read the plain-text conversation"
+           & " with keyboard selection and assistive technology support.";
       else
          return "Conversation area: read the transcript, select text,"
            & " and activate tool or fork controls.";

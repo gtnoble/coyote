@@ -1210,23 +1210,35 @@ package body Coyote_GUI_Conversation_Tests is
 
    procedure Test_Context_Help_Covers_Main_Areas (T : in out Test) is
       pragma Unreferenced (T);
-      Areas : constant array (1 .. 6) of String (1 .. 12) :=
-        ("menu        ", "prompt      ", "controls    ",
-         "status      ", "transcript  ", "conversation");
+      type Area_Case is record
+         Name   : Unbounded_String;
+         Marker : Unbounded_String;
+      end record;
+      Areas : constant array (1 .. 6) of Area_Case :=
+        ((To_Unbounded_String ("menu"),
+          To_Unbounded_String ("Main menu: ")),
+         (To_Unbounded_String ("prompt"),
+          To_Unbounded_String ("Prompt area")),
+         (To_Unbounded_String ("controls"),
+          To_Unbounded_String ("Control area")),
+         (To_Unbounded_String ("status"),
+          To_Unbounded_String ("Status area")),
+         (To_Unbounded_String ("transcript"),
+          To_Unbounded_String ("Transcript area")),
+         (To_Unbounded_String ("conversation"),
+          To_Unbounded_String ("Conversation area")));
    begin
       for Area of Areas loop
          declare
             Text : constant String :=
               Coyote_App.Frontend.GUI.Context_Help_Text
-                (Ada.Strings.Fixed.Trim (Area, Ada.Strings.Both));
+                (To_String (Area.Name));
          begin
-            Assert (Text'Length > 0, "context help text is not empty");
+            Assert
+              (Ada.Strings.Fixed.Index (Text, To_String (Area.Marker)) > 0,
+               "context help identifies " & To_String (Area.Name));
          end;
       end loop;
-      Assert
-        (Coyote_App.Frontend.GUI.Context_Help_Text ("prompt")
-        'Length > 0,
-         "prompt help is available");
    end Test_Context_Help_Covers_Main_Areas;
 
 end Coyote_GUI_Conversation_Tests;

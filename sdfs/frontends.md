@@ -39,6 +39,11 @@ remain deferred. Conversation selection publishes plain text through PRIMARY
 independently of CLIPBOARD, and a prompt middle click inserts PRIMARY at the
 pointer without highlighting the result.
 
+The contextual-help mapping was verified independently for all six supported
+areas. The transcript area now has dedicated help text rather than falling
+through to the conversation-area description; the regression checks a
+content-specific marker for each area.
+
 ### GTK Change Model dialog filter (2026-08-22)
 
 The Change Model dialog wraps the registry `GtkListStore` in
