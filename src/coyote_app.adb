@@ -2284,16 +2284,19 @@ package body Coyote_App is
             end Emit_Model_Select;
 
             procedure Emit_Session_Info is
+               Session_Id : constant String :=
+                 LLM.Agent.Session_Id (Agent_Session);
                Event : constant LLM.Events.Session_Info_Event :=
                  (LLM.Events.Agent_Event with
-                  Session_Id      =>
-                    To_Unbounded_String
-                      (LLM.Agent.Session_Id (Agent_Session)),
+                  Session_Id      => To_Unbounded_String (Session_Id),
                   Thinking_Level  => Current_Thinking,
                   Sandbox_Profile =>
                     To_Unbounded_String
                       (LLM.Agent.Current_Sandbox (Agent_Session)));
             begin
+               if Session_Id'Length > 0 then
+                  My_Frontend.Set_Session_Identity (Session_Id);
+               end if;
                Dispatch_Event (Event);
             end Emit_Session_Info;
 

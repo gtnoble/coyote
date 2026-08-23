@@ -218,6 +218,7 @@ behaviour. Results are recorded in a Test Report.
 | DEM-035 | REQ-CORE-126..128 | Toggle desktop completion notifications in GUI Preferences; verify an unfocused ordinary GUI turn notifies, a focused turn does not, the setting persists, and subagent/one-shot runs remain silent |
 | DEM-036 | REQ-CORE-113a..113b | Exercise the GUI menu bar and support windows: verify top-level order `File`, `View`, `Agent`, `Options`, `Help`; activate Overview, Keys & Shortcuts, and Product Information; verify application-prefixed titles, transient parenting, dialog button order, and lifecycle status in the status area rather than the title |
 | DEM-037 | REQ-CORE-113a..113b | In a display-backed GUI, press F1 and verify Overview opens; press Shift+F1 and verify the pointer becomes a question mark; click the conversation canvas and verify contextual help opens without activating the clicked control; select and extend conversation text, verify PRIMARY changes independently of CLIPBOARD; middle-click in the prompt and verify PRIMARY text is inserted at the pointer without selecting the result |
+| DEM-038 | REQ-CORE-113a, 113b, 115 | In a display-backed GUI, use Help → Click for Help and click one widget in each main area (menu item, prompt, Send/Stop, transcript, status, conversation). Verify a contextual Help window opens, the selected action is not activated, Escape cancels the armed mode, the window role changes to `coyote-session-<UUID>` after session bootstrap/switch, and the launcher/icon identity is `coyote`. |
 | DEM-034 | REQ-CORE-234 | Set and clear `defaultSandboxProfile`; verify inherited runtime and session-header precedence |
 | DEM-015 | REQ-CORE-130 | Resume a session; verify history replayed in frontend |
 | DEM-016 | REQ-CORE-140 | Inject a provider error (invalid API key); verify error notice visible in frontend |
@@ -309,7 +310,7 @@ These are entered as open items in the problem log (PCR-009).
 | REQ-CORE-090â093 | T | `llm_skills_tests.adb` |
 | REQ-CORE-100â109 | T/D | `acme_event_parser_tests.adb`, `tool_uri_tests.adb`, DEM-013 |
 | REQ-CORE-110â115 | T/D | `coyote_cmark_tests.adb`, `coyote_gui_conversation_tests.adb`, DEM-014, DEM-036..037 |
-| REQ-CORE-113a..113b | D/T/I | `coyote_gui_conversation_tests.adb`, DEM-036..037, source inspection |
+| REQ-CORE-113a..113b | D/T/I | `coyote_gui_conversation_tests.adb`, DEM-036..038, source inspection |
 | REQ-CORE-125 | T/D | `coyote_gui_zoom_tests.adb`, DEM-014 |
 | REQ-CORE-132 | D/T | `coyote_gui_navigation_tests.adb`, `coyote_gui_prompt_queue_tests.adb`, DEM-014 |
 | REQ-CORE-124 | T/D | `coyote_lasem_tests.adb`, `coyote_gui_conversation_tests.adb` |
@@ -673,12 +674,12 @@ are identical to their token-count counterparts and the pricing data path
 is transparent to the statistical layer.
 
 **Baseline as of 2026-08-23 (PCR-068 GTK GUI IRIX interaction continuation):**
-900 registered tests. Production and test development builds succeed. The
-selected-text and PRIMARY transfer regressions are registered. The focused GUI
-command executed 0 tests because no `DISPLAY`/`WAYLAND_DISPLAY` is available
-and `xvfb-run` is not installed. DEM-014, DEM-036, DEM-037, AT-SPI inspection,
-and full color-contrast measurement remain display-backed manual
-qualification activities.
+901 registered tests. Production and test development builds succeed. The
+contextual Help content regression is registered and display-independent.
+DEM-014, DEM-036, DEM-037, and DEM-038, AT-SPI inspection, color-contrast
+measurement, and native desktop session-manager restoration remain
+display-backed or platform-specific manual qualification activities; this
+environment has no `DISPLAY`/`WAYLAND_DISPLAY` and no `xvfb-run`.
 
 **Baseline as of 2026-08-23 (PCR-067 keyboard-driven GTK GUI):**
 898 registered tests. The application and test development builds succeed.

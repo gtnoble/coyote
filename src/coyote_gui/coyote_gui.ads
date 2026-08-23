@@ -55,8 +55,9 @@ package Coyote_GUI is
    --    Set_Mode           Mode = new mode
    --    Set_Stats          Text = session statistics text
    --    Clear_Conversation (no extra fields)
-   --    Set_Transcript     Text = accessible transcript text
-   --    Show_Detail        Text = window title; Text2 = content
+   --    Set_Transcript       Text = accessible transcript text
+   --    Set_Session_Identity Text = session identifier for window role
+   --    Show_Detail          Text = window title; Text2 = content
    --    Shutdown           (no extra fields)
 
 
@@ -76,6 +77,7 @@ package Coyote_GUI is
       Set_Stats,
       Clear_Conversation,
       Set_Transcript,
+      Set_Session_Identity,
       Set_Completion_Notifications,
       Completion_Notification,
       Show_Detail,

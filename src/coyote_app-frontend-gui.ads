@@ -162,6 +162,16 @@ package Coyote_App.Frontend.GUI is
    --  Queue a completion notification for GTK-thread evaluation.
    procedure Notify_Completion (F : in out Instance);
 
+   --  Return contextual help text for a named GUI area.  This pure helper
+   --  keeps the help wording independently testable without a display.
+   function Context_Help_Text (Area : String) return String;
+
+   --  Update the window-manager identity for the active session.  The
+   --  request is queued so the GTK window is changed only on the GTK task.
+   procedure Set_Session_Identity
+     (F : in out Instance;
+      Session_Id : String);
+
 private
 
    protected type Session_Reference is

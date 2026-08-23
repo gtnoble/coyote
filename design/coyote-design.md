@@ -1657,11 +1657,19 @@ using Cairo + Pango (see §5.15).
   coyote and an optional instance label without lifecycle status. Dialogs and
   support windows use application-prefixed titles and are transient for the
   main window; the status area carries lifecycle state.
-- **Help menu:** Overview, Keys & Shortcuts, and Product Information open
-  modeless, transient information windows. F1 opens Overview. Shift+F1 arms
-  a question-mark cursor on the conversation canvas; its next left click is
-  consumed and opens the Overview help window without activating a tool or
-  action. Full control-area context help remains deferred.
+- **Help menu:** Click for Help, Overview, Keys & Shortcuts, and Product
+  Information open the applicable modeless, transient information windows.
+  F1 opens Overview. Shift+F1 and Help → Click for Help arm a question-mark
+  cursor on the whole main window; a generic GTK event handler consumes the
+  next left click before widget activation and opens area-specific help.
+  Conversation tool/action handling remains a separate canvas callback.
+- **Desktop identity and session roles:** The GUI sets the themed `coyote`
+  icon name and a stable main-window role. After session creation, resume, or
+  switch, the agent queues the session identifier through `Coyote_GUI.Updates`;
+  the GTK idle drain sets role `coyote-session-<UUID>`. This uses GTK/GDK
+  window-manager identity without sharing GTK widgets across tasks. Native
+  session-manager command serialization is not available through the GTK3
+  API used by this build and remains a documented qualification limitation.
 - **Selection transfer:** The conversation renderer derives one plain-text
   selection value for both Ctrl+C and the desktop PRIMARY selection. Mouse
   selection and Ctrl+A publish PRIMARY without changing CLIPBOARD. A middle

@@ -572,12 +572,14 @@ Pause, Resume.  The runtime actions shall be grouped under a custom Agent
 menu, and persistent preferences shall be grouped under Options.
 
 **REQ-CORE-113a** (D)
-The GUI frontend shall provide a rightmost Help menu containing Overview,
-Keys & Shortcuts, and Product Information entries.  These entries shall open
-modeless information windows transient for the main application window. F1
-shall open Overview; Shift+F1 shall arm Click for Help with the question-mark
-pointer, and the next click in the conversation area shall open contextual
-help without activating the clicked control.
+The GUI frontend shall provide a rightmost Help menu containing Click for
+Help, Overview, Keys & Shortcuts, and Product Information entries. These
+entries shall open modeless information windows transient for the main
+application window, except Click for Help, which shall arm contextual help.
+F1 shall open Overview; Shift+F1 shall arm Click for Help with the
+question-mark pointer; and the next left click in any main-window control
+area, menu, prompt, transcript, status area, or conversation area shall open
+contextual help without activating the clicked control.
 
 **REQ-CORE-113b** (D)
 GUI dialogs and support windows shall use application-identifying titles,
@@ -594,7 +596,10 @@ Ctrl-U) in the conversation view.
 
 **REQ-CORE-115** (D)
 The GUI frontend shall propagate `COYOTE_FRONTEND=gui` to all child processes
-so that subagents open their own GUI windows.
+so that subagents open their own GUI windows. The GUI shall publish the
+application identity `coyote` for desktop launchers and use a distinct
+window-manager role for each active session so session windows are
+interchangeable only when they represent the same session.
 
 **REQ-CORE-125** (D)
 The GUI frontend shall support zooming the conversation view, prompt area,
@@ -1302,7 +1307,7 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-108..108b | Session fork tokens and step-level turn footers | D | TC-108..108b |
 | REQ-CORE-109 | SetDefault writes to settings.json | D | TC-109 |
 | REQ-CORE-110..119, 124..129 | GUI frontend capabilities, including Preferences, display math, zoom, completion notifications, and Change Model search | D/T/I | TC-110..119, TC-124..129; GUI regression tests |
-| REQ-CORE-113a..113b | GUI Help menu, menu taxonomy, title, dialog, support-window, lifecycle-status, and desktop interaction conventions | D/T/I | DEM-036..037; GUI conversation regressions; source inspection |
+| REQ-CORE-113a..113b | GUI Help menu, menu taxonomy, title, dialog, support-window, lifecycle-status, and desktop interaction conventions | D/T/I | DEM-036..038; GUI conversation regressions; source inspection |
 | REQ-CORE-132 | Complete visible accelerators for main GTK menu items | D/T | DEM-014; GUI regression tests |
 | REQ-CORE-120..121 | Plain frontend capabilities | D | TC-120..121 |
 | REQ-CORE-130..131 | Session history replay | D | TC-130..131 |

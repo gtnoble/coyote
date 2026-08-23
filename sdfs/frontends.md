@@ -6,6 +6,8 @@
 `Coyote_GUI.*`, `Coyote_GUI.Conversation`, `Coyote_Cmark`, `Acme.*`, `Nine_P.*`
 
 **Source files:** `src/coyote_app*.ads/.adb`, `src/coyote_gui/*`,
+`share/applications/coyote.desktop`, and
+`share/icons/hicolor/scalable/apps/coyote.svg`,
 `src/coyote_cmark*.ads/.adb`, `src/coyote_cmark_c.c`,
 `src/coyote_lasem*.ads/.adb`, `src/coyote_lasem_c.c`,
 `src/acme*.ads/.adb`, `src/nine_p*.ads/.adb`
@@ -21,17 +23,21 @@ The GTK main menu now follows the implemented desktop order `File`, `View`,
 rightmost. The main window and transient support/dialog windows use
 application-identifying titles without lifecycle status, and lifecycle state
 remains in the status area. Generic information windows are transient for the
-main window. The Help menu provides Overview, Keys & Shortcuts, and Product
+main window. The Help menu provides Click for Help, Overview, Keys & Shortcuts, and Product
 Information modeless information windows. Pause uses Ctrl+Shift+P so the
 reserved Ctrl+P accelerator remains available for Print. Help entries omit
 mnemonics as required for Help-menu task entries.
 
-This slice intentionally does not claim complete IRIX conformance. F1 opens
-Overview and Shift+F1 provides question-mark Click for Help in the conversation
-area; full control-area context help, desktop icon/session integration, and
-display-backed GTK qualification remain deferred. Conversation selection
-publishes plain text through PRIMARY independently of CLIPBOARD, and a prompt
-middle click inserts PRIMARY at the pointer without highlighting the result.
+The implementation does not claim complete IRIX conformance. F1 and Help →
+Click for Help arm a question-mark pointer for the whole main window. The
+next left click in a menu, prompt, control, transcript, status, or
+conversation area is consumed before activation and opens area-specific help.
+The GUI publishes the themed `coyote` icon identity and queues a distinct
+`coyote-session-<UUID>` window role for each active session. Native desktop
+session-manager command serialization and display-backed GTK qualification
+remain deferred. Conversation selection publishes plain text through PRIMARY
+independently of CLIPBOARD, and a prompt middle click inserts PRIMARY at the
+pointer without highlighting the result.
 
 ### GTK Change Model dialog filter (2026-08-22)
 

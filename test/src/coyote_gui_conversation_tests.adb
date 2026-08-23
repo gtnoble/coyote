@@ -11,6 +11,7 @@ with Pango.Font;
 with Coyote_GUI.Conversation;
 with Coyote_App.Utils;
 with Coyote_GUI.Conversation.Testing;
+with Coyote_App.Frontend.GUI;
 
 package body Coyote_GUI_Conversation_Tests is
 
@@ -1206,5 +1207,26 @@ package body Coyote_GUI_Conversation_Tests is
       Assert (Conv.Focused_Tool.Found,
               "reverse focus should return to the tool card");
    end Test_Interactive_Focus_Cycles;
+
+   procedure Test_Context_Help_Covers_Main_Areas (T : in out Test) is
+      pragma Unreferenced (T);
+      Areas : constant array (1 .. 6) of String (1 .. 12) :=
+        ("menu        ", "prompt      ", "controls    ",
+         "status      ", "transcript  ", "conversation");
+   begin
+      for Area of Areas loop
+         declare
+            Text : constant String :=
+              Coyote_App.Frontend.GUI.Context_Help_Text
+                (Ada.Strings.Fixed.Trim (Area, Ada.Strings.Both));
+         begin
+            Assert (Text'Length > 0, "context help text is not empty");
+         end;
+      end loop;
+      Assert
+        (Coyote_App.Frontend.GUI.Context_Help_Text ("prompt")
+        'Length > 0,
+         "prompt help is available");
+   end Test_Context_Help_Covers_Main_Areas;
 
 end Coyote_GUI_Conversation_Tests;

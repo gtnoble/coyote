@@ -3211,6 +3211,10 @@ package body Test_Suites is
         ("Coyote.GUI.Conversation interactive focus cycles",
          Coyote_GUI_Conversation_Tests
            .Test_Interactive_Focus_Cycles'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Context_Help covers main areas",
+         Coyote_GUI_Conversation_Tests
+           .Test_Context_Help_Covers_Main_Areas'Access));
 
       return Result;
    end Suite;

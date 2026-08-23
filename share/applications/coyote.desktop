@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=coyote
+GenericName=LLM Coding Agent
+Comment=Native Ada LLM coding agent
+Exec=coyote --frontend gui
+Icon=coyote
+Terminal=false
+Categories=Development;
+StartupWMClass=coyote

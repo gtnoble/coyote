@@ -2314,8 +2314,8 @@ behavior, current test baseline, and remaining manual qualification scope.
   command executed 0 tests because no `DISPLAY`/`WAYLAND_DISPLAY` is available
   and `xvfb-run` is not installed. DEM-014, DEM-036, and DEM-037 plus
   AT-SPI/color-contrast qualification remain display-backed manual activities.
-- **Open follow-up:** Extend Click for Help to all control areas, implement
-  desktop icon/session integration, and complete display-backed GTK/AT-SPI/
-  color-contrast qualification.
-- **Status:** In Progress — automated coverage added; display qualification
-  pending
+- **Continuation actions (2026-08-23):** Added Help → Click for Help and generic pre-activation GTK event interception for menu, prompt, Send/Stop, transcript, status, and conversation areas. Contextual help text is area-specific, Escape cancels the armed mode, and one display-independent regression covers all areas. Added the `coyote` freedesktop desktop entry and scalable SVG icon. The GUI publishes a distinct `coyote-session-<UUID>` window role through the GTK update queue after session bootstrap, creation, and switching; no GTK widget is accessed from the agent task.
+- **Open follow-up:** Complete display-backed GTK/AT-SPI/color-contrast and
+  native desktop session-manager qualification.
+- **Status:** In Progress — implementation and automated coverage added;
+  display/platform qualification pending
