@@ -122,7 +122,7 @@ package body Coyote_App.Frontend.GUI is
 
    function On_Help_Event
      (Self  : access Gtk.Widget.Gtk_Widget_Record'Class;
-      Event : Gdk.Event.Gdk_Event) return Boolean;
+      Event : Gdk.Event.Gdk_Event_Button) return Boolean;
 
    procedure On_Click_For_Help_Activate
      (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
@@ -322,14 +322,13 @@ package body Coyote_App.Frontend.GUI is
 
    function On_Help_Event
      (Self  : access Gtk.Widget.Gtk_Widget_Record'Class;
-      Event : Gdk.Event.Gdk_Event) return Boolean
+      Event : Gdk.Event.Gdk_Event_Button) return Boolean
    is
    begin
       if Current_Frontend = null
-        or else Event = null
-        or else Gdk.Event.Get_Event_Type (Event) /= Gdk.Event.Button_Press
-        or else Gdk.Event.Get_Button (Event) /= 1
         or else not Current_Frontend.Help_Mode
+        or else Event.The_Type /= Gdk.Event.Button_Press
+        or else Event.Button /= 1
       then
          return False;
       end if;
@@ -2011,7 +2010,7 @@ package body Coyote_App.Frontend.GUI is
    begin
       Gtk.Menu_Item.Gtk_New_With_Mnemonic (Item, Label);
       Item.Set_Name ("coyote-help-menu");
-      Item.On_Event (On_Help_Event'Access);
+      Item.On_Button_Press_Event (On_Help_Event'Access);
       Gtk.Menu_Shell.Append (Gtk.Menu_Shell.Gtk_Menu_Shell (Menu), Item);
       return Item;
    end Make_Item;
@@ -2094,7 +2093,7 @@ package body Coyote_App.Frontend.GUI is
       F.Win.Set_Role ("coyote-main");
       F.Win.On_Delete_Event (On_Window_Delete'Access);
       F.Win.On_Key_Press_Event (On_Window_Key_Press'Access);
-      F.Win.On_Event (On_Help_Event'Access);
+      F.Win.On_Button_Press_Event (On_Help_Event'Access);
 
       --  Accel group for menu keyboard shortcuts.
       Gtk.Accel_Group.Gtk_New (F.Accel_Group);
@@ -2108,7 +2107,7 @@ package body Coyote_App.Frontend.GUI is
 
       Gtk.Menu_Bar.Gtk_New (F.Menu_Bar);
       F.Menu_Bar.Set_Name ("coyote-help-menu");
-      F.Menu_Bar.On_Event (On_Help_Event'Access);
+      F.Menu_Bar.On_Button_Press_Event (On_Help_Event'Access);
       F.Outer_Box.Pack_Start (F.Menu_Bar, Expand => False, Fill => False,
                               Padding => 0);
 
@@ -2116,7 +2115,7 @@ package body Coyote_App.Frontend.GUI is
       Gtk.Menu.Gtk_New (File_Menu);
       Gtk.Menu_Item.Gtk_New_With_Mnemonic (File_Item, "_File");
       File_Item.Set_Name ("coyote-help-menu");
-      File_Item.On_Event (On_Help_Event'Access);
+      File_Item.On_Button_Press_Event (On_Help_Event'Access);
       File_Item.Set_Submenu (File_Menu);
       Gtk.Menu_Shell.Append
         (Gtk.Menu_Shell.Gtk_Menu_Shell (F.Menu_Bar), File_Item);
@@ -2156,7 +2155,7 @@ package body Coyote_App.Frontend.GUI is
       Gtk.Menu.Gtk_New (Options_Menu);
       Gtk.Menu_Item.Gtk_New_With_Mnemonic (Options_Item, "_Options");
       Options_Item.Set_Name ("coyote-help-menu");
-      Options_Item.On_Event (On_Help_Event'Access);
+      Options_Item.On_Button_Press_Event (On_Help_Event'Access);
       Options_Item.Set_Submenu (Options_Menu);
       Preferences_Item := Make_Item ("_Preferences...", Options_Menu);
       Preferences_Item.On_Activate
@@ -2171,7 +2170,7 @@ package body Coyote_App.Frontend.GUI is
       Gtk.Menu.Gtk_New (Agent_Menu);
       Gtk.Menu_Item.Gtk_New_With_Mnemonic (Agent_Item, "_Agent");
       Agent_Item.Set_Name ("coyote-help-menu");
-      Agent_Item.On_Event (On_Help_Event'Access);
+      Agent_Item.On_Button_Press_Event (On_Help_Event'Access);
       Agent_Item.Set_Submenu (Agent_Menu);
       Send_Item := Make_Item ("_Send", Agent_Menu);
       Send_Item.On_Activate (On_Send_Menu_Activate'Access);
@@ -2314,7 +2313,7 @@ package body Coyote_App.Frontend.GUI is
          Gtk.Menu.Gtk_New (View_Menu);
          Gtk.Menu_Item.Gtk_New_With_Mnemonic (View_Item, "_View");
          View_Item.Set_Name ("coyote-help-menu");
-         View_Item.On_Event (On_Help_Event'Access);
+         View_Item.On_Button_Press_Event (On_Help_Event'Access);
          View_Item.Set_Submenu (View_Menu);
          Gtk.Menu_Shell.Append
            (Gtk.Menu_Shell.Gtk_Menu_Shell (F.Menu_Bar), View_Item);
@@ -2378,32 +2377,32 @@ package body Coyote_App.Frontend.GUI is
       Gtk.Menu.Gtk_New (Help_Menu);
       Gtk.Menu_Item.Gtk_New_With_Mnemonic (Help_Item, "_Help");
       Help_Item.Set_Name ("coyote-help-menu");
-      Help_Item.On_Event (On_Help_Event'Access);
+      Help_Item.On_Button_Press_Event (On_Help_Event'Access);
       Help_Item.Set_Submenu (Help_Menu);
       Gtk.Menu_Shell.Append
         (Gtk.Menu_Shell.Gtk_Menu_Shell (F.Menu_Bar), Help_Item);
 
       Gtk.Menu_Item.Gtk_New (Item, "Click for Help");
       Item.Set_Name ("coyote-help-menu");
-      Item.On_Event (On_Help_Event'Access);
+      Item.On_Button_Press_Event (On_Help_Event'Access);
       Gtk.Menu_Shell.Append
         (Gtk.Menu_Shell.Gtk_Menu_Shell (Help_Menu), Item);
       Item.On_Activate (On_Click_For_Help_Activate'Access);
       Gtk.Menu_Item.Gtk_New (Item, "Overview");
       Item.Set_Name ("coyote-help-menu");
-      Item.On_Event (On_Help_Event'Access);
+      Item.On_Button_Press_Event (On_Help_Event'Access);
       Gtk.Menu_Shell.Append
         (Gtk.Menu_Shell.Gtk_Menu_Shell (Help_Menu), Item);
       Item.On_Activate (On_Overview_Activate'Access);
       Gtk.Menu_Item.Gtk_New (Item, "Keys & Shortcuts");
       Item.Set_Name ("coyote-help-menu");
-      Item.On_Event (On_Help_Event'Access);
+      Item.On_Button_Press_Event (On_Help_Event'Access);
       Gtk.Menu_Shell.Append
         (Gtk.Menu_Shell.Gtk_Menu_Shell (Help_Menu), Item);
       Item.On_Activate (On_Keys_Activate'Access);
       Gtk.Menu_Item.Gtk_New (Item, "Product Information");
       Item.Set_Name ("coyote-help-menu");
-      Item.On_Event (On_Help_Event'Access);
+      Item.On_Button_Press_Event (On_Help_Event'Access);
       Gtk.Menu_Shell.Append
         (Gtk.Menu_Shell.Gtk_Menu_Shell (Help_Menu), Item);
       Item.On_Activate (On_Product_Information_Activate'Access);
@@ -2444,7 +2443,7 @@ package body Coyote_App.Frontend.GUI is
       Gtk.Expander.Gtk_New (F.Transcript_Expander, "Accessible transcript");
       Gtk.Text_View.Gtk_New (F.Transcript_View);
       F.Transcript_View.Set_Name ("coyote-help-transcript");
-      F.Transcript_View.On_Event (On_Help_Event'Access);
+      F.Transcript_View.On_Button_Press_Event (On_Help_Event'Access);
       F.Transcript_View.Set_Editable (False);
       F.Transcript_View.Set_Wrap_Mode (Wrap_Word_Char);
       F.Transcript_View.Set_Cursor_Visible (False);
@@ -2462,7 +2461,7 @@ package body Coyote_App.Frontend.GUI is
 
       Gtk.Text_View.Gtk_New (F.Prompt_View);
       F.Prompt_View.Set_Name ("coyote-help-prompt");
-      F.Prompt_View.On_Event (On_Help_Event'Access);
+      F.Prompt_View.On_Button_Press_Event (On_Help_Event'Access);
       F.Prompt_View.Set_Wrap_Mode (Wrap_Word_Char);
       F.Prompt_View.Set_Left_Margin (4);
       F.Prompt_View.Set_Right_Margin (4);
@@ -2483,7 +2482,7 @@ package body Coyote_App.Frontend.GUI is
       Gtk.Button.Gtk_New_From_Icon_Name
          (F.Send_Btn, "mail-send", Gtk.Enums.Icon_Size_Button);
       F.Send_Btn.Set_Name ("coyote-help-controls");
-      F.Send_Btn.On_Event (On_Help_Event'Access);
+      F.Send_Btn.On_Button_Press_Event (On_Help_Event'Access);
       F.Send_Btn.Set_Label ("Send");
       F.Send_Btn.Set_Always_Show_Image (True);
       F.Send_Btn.On_Clicked (On_Send_Clicked'Access);
@@ -2495,7 +2494,7 @@ package body Coyote_App.Frontend.GUI is
       Gtk.Button.Gtk_New_From_Icon_Name
          (F.Stop_Btn, "process-stop", Gtk.Enums.Icon_Size_Button);
       F.Stop_Btn.Set_Name ("coyote-help-controls");
-      F.Stop_Btn.On_Event (On_Help_Event'Access);
+      F.Stop_Btn.On_Button_Press_Event (On_Help_Event'Access);
       F.Stop_Btn.Set_Label ("Stop");
       F.Stop_Btn.Set_Always_Show_Image (True);
       F.Stop_Btn.On_Clicked (On_Stop_Btn_Clicked'Access);
@@ -2514,7 +2513,7 @@ package body Coyote_App.Frontend.GUI is
       Gtk.Label.Gtk_New (F.Status_Bar, "");
       F.Status_Bar.Set_Name ("coyote-help-status");
       F.Status_Bar.Set_Events (Gdk.Event.Button_Press_Mask);
-      F.Status_Bar.On_Event (On_Help_Event'Access);
+      F.Status_Bar.On_Button_Press_Event (On_Help_Event'Access);
       F.Status_Bar.Set_Xalign (0.0);
 
       declare
