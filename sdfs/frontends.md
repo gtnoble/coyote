@@ -585,3 +585,25 @@ AT-SPI qualification and full color-contrast measurement remain manual work.
 
 Automated coverage added three navigation-policy tests, two prompt-queue
 acceptance/overflow tests, and conversation transcript/focus-cycle tests.
+
+### Live Session Stats support window (2026-08-23, REQ-CORE-113d)
+
+The GTK `Agent → Session Stats` action now owns one reusable modeless support
+window, titled `coyote : Session Stats` and transient for the main window.
+`Coyote_GUI.Session_Stats_Window` renders selectable read-only values in
+Session, Last Turn, and Session Totals frames, uses the GTK desktop font
+family and size, places the report in a vertical scrolled area, and provides
+both a visible Close button and Ctrl+W.  Repeated activations present the
+same window instead of creating duplicate snapshots.
+
+The agent-to-GTK update record carries a typed `Session_Stats_Record`; the
+GTK idle callback updates the visible labels in place.  `Clear_Stats` is a
+separate update kind used after new-session and session-switch resets, so an
+old session's report cannot remain visible.  Ordinary Clear Conversation
+leaves session statistics unchanged.
+
+The support-window package retains the latest typed snapshot even before its
+first display, and clears that snapshot with the report.  Snapshot retention,
+clear behavior, and idempotent construction are covered by three AUnit tests;
+the construction test is display-backed and the other two are display
+independent.

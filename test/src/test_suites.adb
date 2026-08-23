@@ -23,6 +23,7 @@ with Coyote_GUI_Updates_Tests;
 with Coyote_GUI_Prompt_Queue_Tests;
 with Coyote_GUI_Notification_Policy_Tests;
 with Coyote_GUI_Mode_Tests;
+with Coyote_GUI_Session_Stats_Window_Tests;
 with Session_History_Tests;
 with Tool_URI_Tests;
 with Subagent_Integration_Tests;
@@ -121,6 +122,8 @@ package body Test_Suites is
      new AUnit.Test_Caller (Coyote_GUI_Notification_Policy_Tests.Test);
    package Coyote_GUI_Mode_Caller is
      new AUnit.Test_Caller (Coyote_GUI_Mode_Tests.Test);
+   package Coyote_GUI_Session_Stats_Window_Caller is
+     new AUnit.Test_Caller (Coyote_GUI_Session_Stats_Window_Tests.Test);
    package LLM_HTTP_Caller is
      new AUnit.Test_Caller (LLM_HTTP_Tests.Test);
    package LLM_Settings_Caller is
@@ -3022,6 +3025,18 @@ package body Test_Suites is
       Result.Add_Test (Coyote_GUI_Mode_Caller.Create
         ("Coyote.GUI agent actions follow run mode",
          Coyote_GUI_Mode_Tests.Test_Agent_Actions_Follow_Run_Mode'Access));
+      Result.Add_Test (Coyote_GUI_Session_Stats_Window_Caller.Create
+        ("Coyote.GUI session stats snapshot round trip",
+         Coyote_GUI_Session_Stats_Window_Tests
+           .Test_Snapshot_Round_Trip'Access));
+      Result.Add_Test (Coyote_GUI_Session_Stats_Window_Caller.Create
+        ("Coyote.GUI session stats clear resets snapshot",
+         Coyote_GUI_Session_Stats_Window_Tests
+           .Test_Clear_Resets_Snapshot'Access));
+      Result.Add_Test (Coyote_GUI_Session_Stats_Window_Caller.Create
+        ("Coyote.GUI session stats window creation is idempotent",
+         Coyote_GUI_Session_Stats_Window_Tests
+           .Test_Create_Is_Idempotent'Access));
 
       Result.Add_Test (Coyote_Lasem_Caller.Create
         ("Coyote.Lasem measures a MathML fraction",

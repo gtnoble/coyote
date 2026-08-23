@@ -24,6 +24,7 @@ with Glib;                          use Glib;
 with LLM.Agent;
 with Coyote_GUI.Conversation;
 with Coyote_GUI.Prompt_Queue;
+with Coyote_GUI.Session_Stats_Window;
 with Coyote_GUI.Updates;
 with Gtk.Accel_Group;
 with Gtk.Box;
@@ -136,11 +137,13 @@ package Coyote_App.Frontend.GUI is
 
    --  ── GUI-specific (not in abstract interface) ──────────────────────────
 
-   --  Store formatted session stats; shown by Agent > Session Stats menu item.
-   procedure Set_Stats_Summary (F : in out Instance; Text : String);
+   --  Queue a typed session-statistics snapshot for the support window.
+   procedure Set_Stats_Summary
+     (F     : in out Instance;
+      Stats : Coyote_GUI.Session_Stats_Record);
 
-   --  Read (and clear) stats text for display.
-   function Stats_Summary_Text (F : Instance) return String;
+   --  Clear the support-window report for a new or switched session.
+   procedure Clear_Stats (F : in out Instance);
 
    --  Register the agent session so that Stop can call Request_Abort
    --  directly from the GTK callback thread, bypassing the prompt queue.
@@ -213,8 +216,8 @@ private
       Transcript_Buf      : Gtk.Text_Buffer.Gtk_Text_Buffer;
       Outer_Box   : Gtk.Box.Gtk_Box;
       --  State
-      Win_Name    : Unbounded_String;
-      Stats_Text  : Unbounded_String;
+      Win_Name     : Unbounded_String;
+      Stats_Window : Coyote_GUI.Session_Stats_Window.Instance;
       Current_Mode : Coyote_App.Frontend.Run_Mode :=
         Coyote_App.Frontend.Idle;
       Agent_Sess  : Session_Reference;

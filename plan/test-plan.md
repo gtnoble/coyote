@@ -176,6 +176,7 @@ SRS-CORE requirement groups.
 | `coyote_gui_zoom_tests.adb` | REQ-CORE-125 (zoom arithmetic: clamping, step semantics) | 12 |
 | `coyote_gui_notification_policy_tests.adb` | REQ-CORE-127 (notification eligibility policy) | 4 |
 | `coyote_gui_mode_tests.adb` | REQ-CORE-113 Agent-menu availability by run mode | 1 |
+| `coyote_gui_session_stats_window_tests.adb` | REQ-CORE-113d; typed snapshot retention, reset, and idempotent support-window creation | 3 |
 | `coyote_gui_prompt_queue_tests.adb` | REQ-CORE-116..119, 128; typed preference payload transport | 1 |
 | `coyote_help_tests.adb` | REQ-CORE-113a, REQ-CORE-504a; Yelp URI construction, area mapping, executable detection, and Product Information text | 4 |
 | `nine_p_proto_tests.adb` | REQ-CORE-210 (9P protocol) | ~20 |
@@ -222,6 +223,7 @@ behaviour. Results are recorded in a Test Report.
 | DEM-037 | REQ-CORE-113a..113b | In a display-backed GUI, press F1 and verify Overview opens; press Shift+F1 and verify the pointer becomes a question mark; click the conversation canvas and verify contextual help opens without activating the clicked control; select and extend conversation text, verify PRIMARY changes independently of CLIPBOARD; middle-click in the prompt and verify PRIMARY text is inserted at the pointer without selecting the result |
 | DEM-038 | REQ-CORE-113a, 113b, 115 | In a display-backed GUI, use Help → Click for Help and click one widget in each main area (menu item, prompt, Send/Stop, transcript, status, conversation). Verify a contextual Help window opens, the selected action is not activated, Escape cancels the armed mode, the window role changes to `coyote-session-<UUID>` after session bootstrap/switch, and the launcher/icon identity is `coyote`. |
 | DEM-039 | REQ-CORE-113a, REQ-CORE-504a | In a display-backed GUI, activate Overview, task entries, Index, and Keys & Shortcuts and verify Yelp opens the corresponding `help:coyote` or `help:coyote/<topic>` document. Verify Product Information opens an in-process dialog that remains available when Yelp is missing. Verify Mallard navigation, Index links, task links, contextual area topics, and the visible error notice when Yelp is unavailable. |
+| DEM-040 | REQ-CORE-113d | In a display-backed GUI, open Session Stats repeatedly and verify only one modeless transient `coyote : Session Stats` support window exists. Verify grouped selectable values, system-font sizing, scrollable report area, visible Close, Ctrl+W, live refresh after a completed turn, and clearing after New Session and session switch. |
 | DEM-034 | REQ-CORE-234 | Set and clear `defaultSandboxProfile`; verify inherited runtime and session-header precedence |
 | DEM-015 | REQ-CORE-130 | Resume a session; verify history replayed in frontend |
 | DEM-016 | REQ-CORE-140 | Inject a provider error (invalid API key); verify error notice visible in frontend |
@@ -314,6 +316,7 @@ These are entered as open items in the problem log (PCR-009).
 | REQ-CORE-100â109 | T/D | `acme_event_parser_tests.adb`, `tool_uri_tests.adb`, DEM-013 |
 | REQ-CORE-110â115 | T/D | `coyote_cmark_tests.adb`, `coyote_gui_conversation_tests.adb`, DEM-014, DEM-036..037 |
 | REQ-CORE-113a..113c | D/T/I | `coyote_gui_conversation_tests.adb`, `coyote_help_tests.adb`, `coyote_gui_mode_tests.adb`, DEM-036..039, Mallard validation, source inspection |
+| REQ-CORE-113d | D/T/I | `coyote_gui_session_stats_window_tests.adb`, DEM-040, source inspection |
 | REQ-CORE-504a | I/T | `coyote_help_tests.adb`, `yelp-check`, DEM-039 |
 | REQ-CORE-125 | T/D | `coyote_gui_zoom_tests.adb`, DEM-014 |
 | REQ-CORE-132 | D/T | `coyote_gui_navigation_tests.adb`, `coyote_gui_prompt_queue_tests.adb`, DEM-014 |
@@ -677,11 +680,18 @@ Requirements and design documents updated.  Implementation complete
 are identical to their token-count counterparts and the pricing data path
 is transparent to the statistical layer.
 
+**Baseline as of 2026-08-23 (PCR-071 live GTK Session Stats window):**
+910 registered tests. Production and test development builds succeed.
+Added three `Coyote_GUI.Session_Stats_Window` tests covering typed snapshot
+retention, reset behavior, and idempotent support-window construction. The
+first two are display-independent; the construction test passes with the
+available GTK display. The full suite passes 910/910 with zero failed
+assertions and zero unexpected errors.
+
 **Baseline as of 2026-08-23 (PCR-070 GTK IRIX usability increment):**
 907 registered tests. Production and test development builds succeed.
 New coverage: Product Information text, Agent-menu availability by run
 mode, and conversation Select_All/Clear_Selection. Full suite 907/907.
-
 **Baseline as of 2026-08-23 (Yelp/Mallard Help integration):**
 904 registered tests. Production and test development builds succeed. The
 Yelp URI, topic-mapping, and executable-detection tests are registered.

@@ -2385,3 +2385,33 @@ behavior, current test baseline, and remaining manual qualification scope.
 - **Verification:** Production and test development builds succeed.
   Full suite 907/907. Display-backed DEM-036..039 remain manual.
 - **Status:** Implementation complete; display-backed qualification pending.
+
+
+## PCR-071 — Live structured GTK Session Stats support window
+
+- **Date reported:** 2026-08-23
+- **Category:** Requirements, Design, Code, Test, Manuals
+- **Priority:** 3-Moderate
+- **Description:** The GTK Session Stats action created a new generic text
+  snapshot window for each invocation. An open window did not refresh after
+  later turns, and its cached report survived new-session and session-switch
+  resets. The terminal-style report also ignored the desktop font and lacked
+  a visible Close action.
+- **Affected work products:** SRS-CORE REQ-CORE-113d; SDD-CORE §5.33 and
+  §5.34; `Coyote_App.Frontend.GUI`, `Coyote_GUI`, and the new
+  `Coyote_GUI.Session_Stats_Window` unit; frontend SDF; Test Plan.
+- **Corrective action required:** Replace the generic snapshot with one
+  reusable transient support window; use grouped selectable read-only values,
+  desktop font settings, a scrollable report area, visible Close and Ctrl+W;
+  refresh it on each statistics update and clear it on session replacement.
+- **Actions taken:** Added typed `Session_Stats_Record` transport and
+  `Clear_Stats` update; implemented the reusable structured support window;
+  wired live refresh and new/switch clearing; added three regression tests;
+  updated requirements, design, SDF, and qualification procedures.
+- **Verification:** Production and test development builds succeed. The
+  three focused Session Stats tests pass, including the display-backed
+  idempotent-construction test. The full suite passes 910/910 with zero
+  failed assertions and zero unexpected errors. DEM-040 remains manual
+  display-backed qualification.
+- **Status:** Resolved
+- **Date resolved:** 2026-08-23

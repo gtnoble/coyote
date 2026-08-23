@@ -604,6 +604,15 @@ Copy and Select All shall operate on the prompt when it has focus and on
 the conversation otherwise. Unavailable Edit actions shall be disabled
 rather than removed.
 
+**REQ-CORE-113d** (D)
+The GUI Session Stats action shall open one reusable, modeless support window
+transient for the main window, titled `coyote : Session Stats`. The window
+shall present selectable read-only values grouped into Session, Last Turn,
+and Session Totals sections, use the desktop font settings, provide a
+scrollable report area and a visible Close action, and close on Ctrl+W. New
+statistics shall refresh an open window, and starting or switching sessions
+shall clear the previous session's statistics.
+
 **REQ-CORE-114** (D)
 The GUI frontend shall support vi-style scroll navigation (j/k/g/G/Ctrl-D/
 Ctrl-U) in the conversation view.
@@ -1329,6 +1338,7 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-109 | SetDefault writes to settings.json | D | TC-109 |
 | REQ-CORE-110..119, 124..129 | GUI frontend capabilities, including Preferences, display math, zoom, completion notifications, and Change Model search | D/T/I | TC-110..119, TC-124..129; GUI regression tests |
 | REQ-CORE-113a..113c | GUI Help menu, Yelp topics, Edit menu, Product Information dialog, menu taxonomy, title, dialog, support-window, lifecycle-status, and desktop interaction conventions | D/T/I | DEM-036..039; Coyote_Help tests; Mallard validation; source inspection |
+| REQ-CORE-113d | Live structured Session Stats support window and session-reset currency | D/T/I | `coyote_gui_session_stats_window_tests.adb`; DEM-040; source inspection |
 | REQ-CORE-132 | Complete visible accelerators for main GTK menu items | D/T | DEM-014; GUI regression tests |
 | REQ-CORE-120..121 | Plain frontend capabilities | D | TC-120..121 |
 | REQ-CORE-130..131 | Session history replay | D | TC-130..131 |

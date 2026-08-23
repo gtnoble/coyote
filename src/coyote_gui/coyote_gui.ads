@@ -63,8 +63,26 @@ package Coyote_GUI is
    --                        Text3 = action data JSON (uuid, turn, step, pid)
    --    Set_Status         Text = status bar text
    --    Set_Mode           Mode = new mode
-   --    Set_Stats          Text = session statistics text
+   --    Set_Stats          Stats = typed session statistics snapshot
+   --    Clear_Stats        (no extra fields)
    --    Clear_Conversation (no extra fields)
+
+   --  Session statistics transported from the agent task to the GTK task.
+   --  Strings identify the active session; counters are cumulative unless
+   --  explicitly labelled as last-turn values.
+   type Session_Stats_Record is record
+      Model              : Ada.Strings.Unbounded.Unbounded_String;
+      Session_Id         : Ada.Strings.Unbounded.Unbounded_String;
+      Turn_Count         : Natural := 0;
+      Last_Input         : Natural := 0;
+      Last_Output        : Natural := 0;
+      Last_Cost_Dmil     : Natural := 0;
+      Input              : Natural := 0;
+      Cache_Read         : Natural := 0;
+      Cache_Write        : Natural := 0;
+      Output             : Natural := 0;
+      Cost_Dmil          : Natural := 0;
+   end record;
    --    Set_Transcript       Text = accessible transcript text
    --    Set_Session_Identity Text = session identifier for window role
    --    Show_Detail          Text = window title; Text2 = content
@@ -85,6 +103,7 @@ package Coyote_GUI is
       Set_Status,
       Set_Mode,
       Set_Stats,
+      Clear_Stats,
       Clear_Conversation,
       Set_Transcript,
       Set_Session_Identity,
@@ -99,6 +118,7 @@ package Coyote_GUI is
       Text2    : Ada.Strings.Unbounded.Unbounded_String;
       Text3    : Ada.Strings.Unbounded.Unbounded_String;
       Text4    : Ada.Strings.Unbounded.Unbounded_String;
+      Stats    : Session_Stats_Record;
       T_Status : Tool_End_Status := Success;
       Mode     : Run_Mode        := Idle;
       N_Kind   : Notice_Kind     := Info;

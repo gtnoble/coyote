@@ -238,6 +238,7 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `Coyote_GUI.Prompt_Queue` | Protected GTK→agent queue | `src/coyote_gui/coyote_gui-prompt_queue.ads/.adb` |
 | `Coyote_GUI.Conversation` | GtkLayout-based virtualized conversation renderer | `src/coyote_gui/coyote_gui-conversation.ads/.adb` |
 | `Coyote_GUI.Tool_Detail_Window` | Structured GTK tool-call detail window | `src/coyote_gui/coyote_gui-tool_detail_window.ads/.adb` |
+| `Coyote_GUI.Session_Stats_Window` | Reusable live session-statistics support window | `src/coyote_gui/coyote_gui-session_stats_window.ads/.adb` |
 | `Coyote_GUI.Zoom` | Zoom-level ↔ font-size arithmetic (pure logic) | `src/coyote_gui/coyote_gui-zoom.ads/.adb` |
 | `Coyote_GUI.Navigation` | Clamped keyboard viewport navigation policy | `src/coyote_gui/coyote_gui-navigation.ads/.adb` |
 | `Coyote_Utils` | CLI arg resolution, file reading, session prefix stripping | `src/coyote_utils.ads/.adb` |
@@ -302,6 +303,7 @@ three layers:
         ├─► Coyote_App.Frontend.Acme_Win ──► Acme.Window, Nine_P.Client
         ├─► Coyote_App.Frontend.GUI ──► Coyote_GUI.Conversation,
         │                                  Coyote_GUI.Tool_Detail_Window,
+        │                                  Coyote_GUI.Session_Stats_Window,
         │                                  Coyote_GUI.Updates,
         │                                  Coyote_GUI.Prompt_Queue
         └─► Coyote_App.Frontend.Plain
@@ -538,7 +540,7 @@ spawns `Agent_Task`, then calls `Gtk.Main.Main`.
 | `Tool_Execution_Start_Event` | `Begin_Tool` |
 | `Tool_Execution_End_Event` | `End_Tool`; on last tool in batch: `Append_Turn_Footer` (step-level display) then `Append_Fork_Action` (step-level) |
 | `Message_End_Event` | record stats in App_State |
-| `Session_Stats_Event` | `Append_Turn_Footer` (full-turn display) then `Append_Fork_Action` (full-turn); GUI: `Set_Stats_Summary` |
+| `Session_Stats_Event` | `Append_Turn_Footer` (full-turn display) then `Append_Fork_Action` (full-turn); GUI: typed `Set_Stats_Summary` snapshot |
 | `Model_Select_Event` | `Append_Notice (Info, ...)` |
 | `Auto_Retry_Start_Event` | `Append_Notice (Warning, ...)` |
 | `Auto_Compaction_Start/End_Event` | `Append_Notice (Info/Warning, ...)` |
@@ -1698,9 +1700,14 @@ using Cairo + Pango (see §5.15).
 - `Clear_Conversation` — queues a `Clear_Conversation` update; the GTK idle
   callback clears `Coyote_GUI.Conversation` and the native transcript. The
   agent task uses this when handling the `New_Session` or `Clear` command.
-- `Set_Stats_Summary` — not part of the abstract interface; queues a
-  `Set_Stats` update so the status-bar statistics are written on the GTK
-  main-loop thread.
+- `Set_Stats_Summary` — not part of the abstract interface; queues a typed
+  `Set_Stats` snapshot so `Coyote_GUI.Session_Stats_Window` refreshes its
+  reusable modeless support window on the GTK main-loop thread.  The window
+  is transient for the main window, grouped into selectable read-only Session,
+  Last Turn, and Session Totals values, uses desktop font settings, keeps the
+  report area scrollable, and provides Close and Ctrl+W.  `Clear_Stats` resets
+  the report after a new session or session switch; ordinary conversation
+  clearing does not alter session totals.
 - **Keyboard navigation:** The conversation canvas handles vi-style
   `j`/`k`/`g`/`Shift+g`, Ctrl+D/Ctrl+U, and Home/End/Page Up/Page Down.
   Tab and Shift+Tab cycle custom tool/action controls; Enter, keypad Enter,
@@ -1759,7 +1766,30 @@ using Cairo + Pango (see §5.15).
   scroll-to-bottom button.
 ---
 
-### 5.34 `Coyote_Help`
+### 5.34 `Coyote_GUI.Session_Stats_Window`
+
+**Purpose:** Reusable live GTK support window for cumulative and last-turn
+session statistics.
+
+**Window model:** The package creates one modeless `GtkWindow`, transient for
+`Coyote_App.Frontend.GUI`'s main window, titled `coyote : Session Stats`. It
+has a 420×360 minimum and 560×430 default size, keeps the report area in a
+vertical `Gtk.Scrolled_Window`, and places a visible Close button below the
+scroll strip. Window-manager delete, Close, and Ctrl+W hide the window rather
+than destroying it; later Session Stats commands present and reuse it.
+
+**Presentation:** Session, Last Turn, and Session Totals are grouped in
+frames. Each value is a selectable, read-only GTK label so users can copy
+identifiers and measurements without entering an edit mode. Labels use the
+GTK desktop font family and point size. `Update` changes all values in place;
+`Clear` resets the retained snapshot and visible values.
+
+**Currency:** `Coyote_GUI.Session_Stats_Record` is carried by `Set_Stats` in
+the agent-to-GTK update queue. The record is retained even if the support
+window has not yet been shown. `Clear_Stats` is queued after New Session and
+Switch Session; ordinary Clear Conversation does not change statistics.
+
+### 5.35 `Coyote_Help`
 
 **Purpose:** Opens the installed Mallard application documentation in Yelp.
 
@@ -1808,13 +1838,14 @@ enumeration and the `Update` discriminated record.
 
 **`Update_Kind` values:** `Append_Text`, `End_Text_Block`, `Append_Thinking`,
 `Begin_Thinking`, `End_Thinking`, `Begin_Tool`, `End_Tool`, `Append_Notice`,
-`Append_Turn_Footer`, `Set_Mode`, `Set_Stats`, `Clear_Conversation`,
-`Set_Transcript`, `Set_Completion_Notifications`, `Completion_Notification`,
-`Show_Detail`, and `Shutdown`.
+`Append_Turn_Footer`, `Set_Mode`, `Set_Stats`, `Clear_Stats`,
+`Clear_Conversation`, `Set_Transcript`, `Set_Completion_Notifications`,
+`Completion_Notification`, `Show_Detail`, and `Shutdown`.
 
 **`Update` record:** Discriminant is `Update_Kind`. Each variant carries the
-payload fields appropriate to that kind (e.g. `Append_Text` carries a
-`Text : Unbounded_String`; `Begin_Tool` carries `Tool_Id`, `Tool_Name`).
+payload fields appropriate to that kind. `Set_Stats` carries a typed
+`Session_Stats_Record` containing session/model identity, last-turn values,
+and cumulative token/cost totals; `Clear_Stats` carries no payload.
 
 ---
 

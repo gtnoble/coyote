@@ -2188,52 +2188,23 @@ package body Coyote_App is
                     and then not Opts.Subagent;
                elsif E in LLM.Events.Session_Stats_Event then
                   declare
-                     Ev      : constant LLM.Events.Session_Stats_Event :=
+                     Ev : constant LLM.Events.Session_Stats_Event :=
                        LLM.Events.Session_Stats_Event (E);
-                     LF      : constant Character := Character'Val (10);
-                     Ruler   : constant String    :=
-                       "----------------------------" & LF;
-                     Sid     : constant String    := State.Session_Id;
-                     Sid_Pfx : constant String    :=
-                       (if Sid'Length >= 8
-                        then Sid (Sid'First .. Sid'First + 7) & "..."
-                        else Sid);
                   begin
                      My_Frontend.Set_Stats_Summary
-                       ("Session stats" & LF
-                        & Ruler
-                        & "Model:         " & State.Current_Model & LF
-                        & "Session:       " & Sid_Pfx & LF
-                        & "Turn:          "
-                        & Coyote_App.Utils.Format_SI_Count
-                            (State.Turn_Count) & LF
-                        & Ruler
-                        & "Last turn" & LF
-                        & "  Input:       "
-                        & Coyote_App.Utils.Format_SI_Count
-                            (State.Turn_Input_Tokens) & " tok" & LF
-                        & "  Output:      "
-                        & Coyote_App.Utils.Format_SI_Count
-                            (State.Turn_Output_Tokens) & " tok" & LF
-                        & "  Cost:        "
-                        & Coyote_App.Utils.Format_Cost
-                            (State.Turn_Cost_Dmil) & LF
-                        & Ruler
-                        & "Session totals" & LF
-                        & "  Input:       "
-                        & Coyote_App.Utils.Format_SI_Count (Ev.Input)
-                        & " tok" & LF
-                        & "  Cache read:  "
-                        & Coyote_App.Utils.Format_SI_Count (Ev.Cache_Read)
-                        & " tok" & LF
-                        & "  Cache write: "
-                        & Coyote_App.Utils.Format_SI_Count (Ev.Cache_Write)
-                        & " tok" & LF
-                        & "  Output:      "
-                        & Coyote_App.Utils.Format_SI_Count (Ev.Output)
-                        & " tok" & LF
-                        & "  Cost:        "
-                        & Coyote_App.Utils.Format_Cost (Ev.Cost_Dmil) & LF);
+                       ((Model          =>
+                           To_Unbounded_String (State.Current_Model),
+                         Session_Id     =>
+                           To_Unbounded_String (State.Session_Id),
+                         Turn_Count     => State.Turn_Count,
+                         Last_Input     => State.Turn_Input_Tokens,
+                         Last_Output    => State.Turn_Output_Tokens,
+                         Last_Cost_Dmil => State.Turn_Cost_Dmil,
+                         Input          => Ev.Input,
+                         Cache_Read     => Ev.Cache_Read,
+                         Cache_Write    => Ev.Cache_Write,
+                         Output         => Ev.Output,
+                         Cost_Dmil      => Ev.Cost_Dmil));
                   end;
                end if;
             end Track_Event;
@@ -2683,6 +2654,7 @@ package body Coyote_App is
                               end if;
                            end;
                            Reset_Session_State;
+                           My_Frontend.Clear_Stats;
                            My_Frontend.Clear_Conversation;
                            Emit_Bootstrap;
                            My_Frontend.Append_Notice
@@ -2760,6 +2732,8 @@ package body Coyote_App is
                                         (It.Session_UUID));
                            Synchronize_Sandbox;
                            Reset_Session_State;
+                           My_Frontend.Clear_Stats;
+                           My_Frontend.Clear_Conversation;
                            Render_Loaded_Session
                              (Ada.Strings.Unbounded.To_String
                                 (It.Session_UUID));

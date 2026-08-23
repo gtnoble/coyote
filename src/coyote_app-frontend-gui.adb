@@ -68,6 +68,7 @@ with LLM.Agent;
 with LLM.Providers;
 with Coyote_App.Utils;
 with Coyote_Help;
+with Coyote_GUI.Session_Stats_Window;
 with Coyote_GUI.Tool_Detail_Window;
 with Coyote_GUI.Zoom;
 with LLM.Model_Registry;
@@ -817,7 +818,11 @@ package body Coyote_App.Frontend.GUI is
             Apply_Agent_Menu_Sensitivity (F);
 
          when Set_Stats =>
-            F.Stats_Text := To_Unbounded_String (To_String (U.Text));
+            Coyote_GUI.Session_Stats_Window.Update
+              (F.Stats_Window, U.Stats);
+
+         when Clear_Stats =>
+            Coyote_GUI.Session_Stats_Window.Clear (F.Stats_Window);
 
          when Clear_Conversation =>
             F.Conv.Clear;
@@ -862,6 +867,7 @@ package body Coyote_App.Frontend.GUI is
       end case;
       if F.Transcript_Buf /= null
         and then U.Kind /= Set_Stats
+        and then U.Kind /= Clear_Stats
         and then U.Kind /= Set_Transcript
       then
          F.Transcript_Buf.Set_Text (F.Conv.Transcript_Text);
@@ -1075,10 +1081,15 @@ package body Coyote_App.Frontend.GUI is
       pragma Unreferenced (Self);
    begin
       if Current_Frontend /= null then
-         Show_Text_Window
-           (Current_Frontend.Win.all'Access,
-            "coyote : Session Stats",
-            To_String (Current_Frontend.Stats_Text));
+         if not Coyote_GUI.Session_Stats_Window.Is_Created
+           (Current_Frontend.Stats_Window)
+         then
+            Coyote_GUI.Session_Stats_Window.Create
+              (Current_Frontend.Stats_Window,
+               Current_Frontend.Win.all'Access);
+         end if;
+         Coyote_GUI.Session_Stats_Window.Show
+           (Current_Frontend.Stats_Window);
       end if;
    end On_Stats_Activate;
 
@@ -2290,6 +2301,8 @@ package body Coyote_App.Frontend.GUI is
       F.Win.Set_Icon_Name ("coyote");
       F.Win.Set_Role ("coyote-main");
       F.Win.On_Delete_Event (On_Window_Delete'Access);
+      Coyote_GUI.Session_Stats_Window.Create
+        (F.Stats_Window, F.Win.all'Access);
       F.Win.On_Key_Press_Event (On_Window_Key_Press'Access);
       F.Win.On_Button_Press_Event (On_Help_Event'Access);
 
@@ -2992,11 +3005,14 @@ package body Coyote_App.Frontend.GUI is
 
    --  ── GUI-specific ──────────────────────────────────────────────────────
 
-   procedure Set_Stats_Summary (F : in out Instance; Text : String) is
+   procedure Set_Stats_Summary
+     (F     : in out Instance;
+      Stats : Coyote_GUI.Session_Stats_Record)
+   is
       U : Coyote_GUI.Update;
    begin
       U.Kind := Coyote_GUI.Set_Stats;
-      U.Text := To_Unbounded_String (Text);
+      U.Stats := Stats;
       Enqueue_Update (F, U);
    end Set_Stats_Summary;
 
@@ -3017,6 +3033,13 @@ package body Coyote_App.Frontend.GUI is
       U.Text := To_Unbounded_String (Session_Id);
       Enqueue_Update (F, U);
    end Set_Session_Identity;
+
+   procedure Clear_Stats (F : in out Instance) is
+      U : Coyote_GUI.Update;
+   begin
+      U.Kind := Coyote_GUI.Clear_Stats;
+      Enqueue_Update (F, U);
+   end Clear_Stats;
 
    procedure Clear_Conversation (F : in out Instance) is
       U : Coyote_GUI.Update;
@@ -3046,10 +3069,5 @@ package body Coyote_App.Frontend.GUI is
       U.Kind := Coyote_GUI.Completion_Notification;
       Enqueue_Update (F, U);
    end Notify_Completion;
-
-   function Stats_Summary_Text (F : Instance) return String is
-   begin
-      return To_String (F.Stats_Text);
-   end Stats_Summary_Text;
 
 end Coyote_App.Frontend.GUI;
