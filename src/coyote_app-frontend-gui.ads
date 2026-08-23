@@ -31,6 +31,7 @@ with Gtk.Button;
 with Gtk.Check_Button;
 with Gtk.Label;
 with Gtk.Menu_Bar;
+with Gtk.Menu_Item;
 with Gtk.Check_Menu_Item;
 with Gtk.Scrolled_Window;
 with Gtk.Status_Bar;
@@ -187,6 +188,14 @@ private
       --  GTK widgets.
       Win       : Gtk.Window.Gtk_Window;
       Render_Markdown_Item  : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
+      Stop_Item             : Gtk.Menu_Item.Gtk_Menu_Item;
+      Pause_Item            : Gtk.Menu_Item.Gtk_Menu_Item;
+      Resume_Item           : Gtk.Menu_Item.Gtk_Menu_Item;
+      Cut_Item              : Gtk.Menu_Item.Gtk_Menu_Item;
+      Copy_Item             : Gtk.Menu_Item.Gtk_Menu_Item;
+      Paste_Item            : Gtk.Menu_Item.Gtk_Menu_Item;
+      Select_All_Item       : Gtk.Menu_Item.Gtk_Menu_Item;
+      Deselect_Item         : Gtk.Menu_Item.Gtk_Menu_Item;
       Notification_Check    : Gtk.Check_Button.Gtk_Check_Button;
       Notifications_Allowed : Boolean := False;
       Notifications_Enabled : Boolean := False;

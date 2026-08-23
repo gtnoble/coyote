@@ -20,15 +20,28 @@
       <item><title><key>Ctrl</key>+<key>Shift</key>+<key>N</key></title><p>Create a new session.</p></item>
       <item><title><key>Ctrl</key>+<key>O</key></title><p>Open a session.</p></item>
       <item><title><key>Ctrl</key>+<key>Q</key></title><p>Exit coyote.</p></item>
+      <item><title><key>Ctrl</key>+<key>X</key></title><p>Cut the prompt selection.</p></item>
+      <item><title><key>Ctrl</key>+<key>C</key></title><p>Copy the focused selection.</p></item>
+      <item><title><key>Ctrl</key>+<key>V</key></title><p>Paste into the prompt.</p></item>
+      <item><title><key>Ctrl</key>+<key>A</key></title><p>Select all in the focused area.</p></item>
       <item><title><key>Ctrl</key>+<key>,</key></title><p>Open Preferences.</p></item>
       <item><title><key>Ctrl</key>+<key>Return</key></title><p>Send the prompt.</p></item>
+      <item><title><key>Ctrl</key>+<key>Shift</key>+<key>P</key></title><p>Pause the session.</p></item>
       <item><title><key>Ctrl</key>+<key>R</key></title><p>Resume the session.</p></item>
+      <item><title><key>Ctrl</key>+<key>M</key></title><p>Change the model.</p></item>
+      <item><title><key>Ctrl</key>+<key>1</key> … <key>Ctrl</key>+<key>6</key></title><p>Set thinking level Off through X-High.</p></item>
+      <item><title><key>Ctrl</key>+<key>Shift</key>+<key>S</key></title><p>Choose a sandbox profile.</p></item>
       <item><title><key>Ctrl</key>+<key>Shift</key>+<key>C</key></title><p>Compact context.</p></item>
+      <item><title><key>Ctrl</key>+<key>Shift</key>+<key>I</key></title><p>Show session stats.</p></item>
+      <item><title><key>Ctrl</key>+<key>Shift</key>+<key>D</key></title><p>Set current values as defaults.</p></item>
+      <item><title><key>Ctrl</key>+<key>W</key></title><p>Close a support window.</p></item>
     </terms>
   </section>
   <section id="view">
     <title>View</title>
     <terms>
+      <item><title><key>Ctrl</key>+<key>Shift</key>+<key>M</key></title><p>Toggle markdown rendering.</p></item>
+      <item><title><key>Ctrl</key>+<key>Shift</key>+<key>A</key></title><p>Toggle auto-scroll.</p></item>
       <item><title><key>Ctrl</key>+<key>+</key> / <key>Ctrl</key>+<key>-</key></title><p>Zoom in or out.</p></item>
       <item><title><key>Ctrl</key>+<key>0</key></title><p>Reset zoom.</p></item>
       <item><title><key>j</key> / <key>k</key></title><p>Scroll down or up in the conversation.</p></item>

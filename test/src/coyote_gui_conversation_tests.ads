@@ -95,5 +95,6 @@ package Coyote_GUI_Conversation_Tests is
    procedure Test_Primary_Selection_Round_Trip            (T : in out Test);
    procedure Test_Interactive_Focus_Cycles               (T : in out Test);
    procedure Test_Context_Help_Covers_Main_Areas         (T : in out Test);
+   procedure Test_Select_All_And_Clear_Selection         (T : in out Test);
 
 end Coyote_GUI_Conversation_Tests;

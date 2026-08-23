@@ -548,8 +548,8 @@ sessions inherit the current configuration as their default.
 **REQ-CORE-110** (D)
 The GUI frontend shall open a GTK3 application window containing a
 conversation view, a prompt input area, a menu bar, and a status bar.  The
-main menu bar shall use the top-level order `File`, `View`, custom agent
-controls, `Options`, and `Help`; `Help` shall be the rightmost menu.  The
+main menu bar shall use the top-level order `File`, `Edit`, `View`, custom
+agent controls, `Options`, and `Help`; `Help` shall be the rightmost menu.  The
 window title shall identify the application and optional instance label,
 shall use spaces around the colon separator, and shall not contain
 transient lifecycle status.
@@ -569,14 +569,18 @@ shall be clickable to open the full tool-call detail window.
 The GUI frontend shall support the following menu actions, equivalent to the
 Acme tag commands: Send, Stop, New, Clear, Models, Session Stats, Compact,
 Pause, Resume.  The runtime actions shall be grouped under a custom Agent
-menu, and persistent preferences shall be grouped under Options.
+menu, and persistent preferences shall be grouped under Options. Stop, Pause,
+and Resume shall be disabled in the Agent menu when they cannot apply to the
+current run mode.
 
 **REQ-CORE-113a** (D)
 The GUI frontend shall provide a rightmost Help menu containing Click for
 Help, Overview, task-oriented Help entries, Index, Keys & Shortcuts, and
-Product Information. Help topics shall be opened in the external Yelp
-viewer using the `help:coyote` URI scheme; the Help viewer is not required to
-be a GTK transient child of the coyote window. Click for Help shall arm
+Product Information. Overview, task entries, Index, and Keys & Shortcuts
+shall be opened in the external Yelp viewer using the `help:coyote` URI
+scheme; the Help viewer is not required to be a GTK transient child of the
+coyote window. Product Information shall be an in-process dialog that shows
+the application name, version, and license even when Yelp is unavailable. Click for Help shall arm
 contextual help rather than open a topic immediately. F1 shall open Overview;
 Shift+F1 shall arm Click for Help with the question-mark pointer; and the next
 left click in any main-window control area, menu, prompt, transcript, status
@@ -585,12 +589,20 @@ Yelp without activating the clicked control.
 
 **REQ-CORE-113b** (D)
 GUI dialogs and support windows shall use application-identifying titles,
-shall be transient for the main window, and shall place the affirmative
-specific action before Cancel where both actions are present.  Lifecycle
-status shall be displayed in the status area rather than the window title.
-The conversation selection shall own the desktop PRIMARY selection without
-changing the ordinary clipboard. Middle-button transfer into the prompt
-shall insert PRIMARY text at the pointer location without highlighting it.
+shall be transient for the main window, shall close on Ctrl+W, and shall
+place the affirmative specific action before Cancel where both actions are
+present. Lifecycle status shall be displayed in the status area rather than
+the window title. The conversation selection shall own the desktop PRIMARY
+selection without changing the ordinary clipboard. Middle-button transfer
+into the prompt shall insert PRIMARY text at the pointer location without
+highlighting it.
+
+**REQ-CORE-113c** (D)
+The GUI frontend shall provide an Edit menu containing Cut, Copy, Paste,
+Select All, and Deselect All. Cut and Paste shall operate on the prompt.
+Copy and Select All shall operate on the prompt when it has focus and on
+the conversation otherwise. Unavailable Edit actions shall be disabled
+rather than removed.
 
 **REQ-CORE-114** (D)
 The GUI frontend shall support vi-style scroll navigation (j/k/g/G/Ctrl-D/
@@ -676,7 +688,8 @@ from Off through X-High; Ctrl+Shift+S for Sandbox Profile; Ctrl+Shift+I
 for Session Stats; Ctrl+Shift+D for Set Defaults; Ctrl+Shift+M for Render
 Markdown; and Ctrl+Shift+A for Auto-scroll. Existing menu accelerators shall
 remain available, including Ctrl+N, Ctrl+Shift+N, Ctrl+O, Ctrl+Q, Escape,
-Ctrl+Shift+P, Ctrl+R, Ctrl+M, Ctrl+Shift+C, Ctrl++, Ctrl+-, and Ctrl+0.
+Ctrl+X, Ctrl+C, Ctrl+V, Ctrl+A, Ctrl+Shift+P, Ctrl+R, Ctrl+M, Ctrl+Shift+C,
+Ctrl++, Ctrl+-, and Ctrl+0.
 
 ---
 
@@ -1315,7 +1328,7 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-108..108b | Session fork tokens and step-level turn footers | D | TC-108..108b |
 | REQ-CORE-109 | SetDefault writes to settings.json | D | TC-109 |
 | REQ-CORE-110..119, 124..129 | GUI frontend capabilities, including Preferences, display math, zoom, completion notifications, and Change Model search | D/T/I | TC-110..119, TC-124..129; GUI regression tests |
-| REQ-CORE-113a..113b | GUI Help menu, Yelp topics, menu taxonomy, title, dialog, support-window, lifecycle-status, and desktop interaction conventions | D/T/I | DEM-036..039; Coyote_Help tests; Mallard validation; source inspection |
+| REQ-CORE-113a..113c | GUI Help menu, Yelp topics, Edit menu, Product Information dialog, menu taxonomy, title, dialog, support-window, lifecycle-status, and desktop interaction conventions | D/T/I | DEM-036..039; Coyote_Help tests; Mallard validation; source inspection |
 | REQ-CORE-132 | Complete visible accelerators for main GTK menu items | D/T | DEM-014; GUI regression tests |
 | REQ-CORE-120..121 | Plain frontend capabilities | D | TC-120..121 |
 | REQ-CORE-130..131 | Session history replay | D | TC-130..131 |

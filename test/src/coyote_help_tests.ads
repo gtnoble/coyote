@@ -12,5 +12,6 @@ package Coyote_Help_Tests is
    procedure Test_Root_URI (T : in out Test);
    procedure Test_Topic_URI (T : in out Test);
    procedure Test_Yelp_Is_Available (T : in out Test);
+   procedure Test_Product_Information_Text (T : in out Test);
 
 end Coyote_Help_Tests;

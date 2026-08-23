@@ -1652,15 +1652,20 @@ using Cairo + Pango (see §5.15).
   update and sends a success or failure notice back through the frontend. On
   successful persistence, the notification setting is applied to the current
   GUI through `Coyote_GUI.Updates`.
-- **Menu and window conventions:** The main menu is ordered `File`, `View`,
-  `Agent`, `Options`, `Help`, with Help rightmost. The main title identifies
+- **Menu and window conventions:** The main menu is ordered `File`, `Edit`,
+  `View`, `Agent`, `Options`, `Help`, with Help rightmost. The Edit menu
+  provides Cut, Copy, Paste, Select All, and Deselect All. Agent Stop, Pause,
+  and Resume are disabled when they cannot apply. Support windows close on
+  Ctrl+W. The main title identifies
   coyote and an optional instance label without lifecycle status. Dialogs and
   support windows use application-prefixed titles and are transient for the
   main window; the status area carries lifecycle state.
-- **Help menu:** Click for Help, Overview, task topics, Index, Keys &
-  Shortcuts, and Product Information launch the corresponding Mallard topic
-  in Yelp. The root URI is `help:coyote`; topic URIs use
-  `help:coyote/<topic>`. F1 opens Overview. Shift+F1 and Help → Click for
+- **Help menu:** Click for Help, Overview, task topics, Index, and Keys &
+  Shortcuts launch the corresponding Mallard topic in Yelp. Product
+  Information is an in-process dialog built from
+  `Coyote_Help.Product_Information_Text` so name, version, and license remain
+  available when Yelp is missing. The root URI is `help:coyote`; topic URIs
+  use `help:coyote/<topic>`. F1 opens Overview. Shift+F1 and Help → Click for
   Help arm a question-mark cursor on the whole main window; a generic GTK
   event handler consumes the next left click before widget activation and
   opens the mapped contextual topic. If Yelp is unavailable, the frontend
@@ -1725,7 +1730,8 @@ using Cairo + Pango (see §5.15).
   items have GTK accelerator shortcuts attached via a `Gtk_Accel_Group`
   on the main window, with `Accel_Visible` so shortcut labels appear in
   menu text.  The accelerators are: Ctrl+N (New Window), Ctrl+Shift+N (New
-  Session), Ctrl+O (Open Session), Ctrl+Q (Exit), Escape (Stop), Ctrl+Shift+P
+  Session), Ctrl+O (Open Session), Ctrl+Q (Exit), Ctrl+X/C/V/A (Cut, Copy,
+  Paste, Select All), Escape (Stop), Ctrl+Shift+P
   (Pause), Ctrl+R (Resume), Ctrl+M (Change Model), Ctrl+1 through Ctrl+6
   (Thinking Level: Off through X-High), Ctrl+Shift+S (Sandbox Profile),
   Ctrl+Shift+C (Compact Context), Ctrl+Shift+I (Session Stats), Ctrl+Shift+D
@@ -1770,6 +1776,10 @@ stable Mallard topic ID: `menu` to `ui-menu`, `prompt` to `ui-prompt`,
 **`Open (Topic)`:** Locates Yelp, launches it detached with the Help URI, and
 returns False when Yelp cannot be located or the launch fails. The GUI converts
 that result into a visible error notice.
+
+**`Product_Information_Text`:** Returns the in-process Product Information
+body (application name, crate version, and license) so the Help menu entry
+works when Yelp is unavailable.
 
 Mallard source files are installed below `share/help/C/coyote/`. Yelp owns the
 Help window, so it is not a GTK transient child of the coyote main window.

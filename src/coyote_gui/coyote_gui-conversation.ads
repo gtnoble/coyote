@@ -167,6 +167,19 @@ package Coyote_GUI.Conversation is
    --  of the global clipboard and is also the value offered through PRIMARY.
    function Selected_Text (C : Instance) return String;
 
+   --  True when a conversation selection range is active.
+   function Has_Selection (C : Instance) return Boolean;
+
+   --  Select the entire conversation and publish PRIMARY.
+   procedure Select_All (C : in out Instance);
+
+   --  Clear the conversation selection and release PRIMARY if owned.
+   procedure Clear_Selection (C : in out Instance);
+
+   --  Copy the current conversation selection to CLIPBOARD.  PRIMARY is
+   --  left unchanged.
+   procedure Copy_Selection (C : in out Instance);
+
    --  Publish the current selection through the desktop PRIMARY selection.
    --  The ordinary clipboard remains unchanged.  Call from the GTK thread.
    procedure Publish_Primary_Selection (C : in out Instance);

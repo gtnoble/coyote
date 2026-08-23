@@ -4,6 +4,7 @@
 
 with GNAT.OS_Lib;
 with GNATCOLL.OS.Process;
+with Coyote_Config;
 with Coyote_Spawn;
 
 package body Coyote_Help is
@@ -73,5 +74,14 @@ package body Coyote_Help is
          end if;
          return False;
    end Open;
+
+   function Product_Information_Text return String is
+   begin
+      return
+        "coyote " & Coyote_Config.Crate_Version & ASCII.LF & ASCII.LF
+        & "coyote is a native Ada LLM coding agent with GTK, Acme, "
+        & "and plain-text frontends." & ASCII.LF
+        & "License: MIT OR Apache-2.0 WITH LLVM-exception.";
+   end Product_Information_Text;
 
 end Coyote_Help;

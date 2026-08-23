@@ -768,7 +768,7 @@ package body Coyote_GUI.Conversation is
       pragma Unreferenced (Self);
    begin
       if Current_Conv /= null then
-         Copy_Selection_To_Clipboard (Current_Conv.all);
+         Current_Conv.Copy_Selection;
       end if;
    end Copy_Menu_Activate;
 
@@ -1456,6 +1456,36 @@ package body Coyote_GUI.Conversation is
       return Extract_Selection_Text (C);
    end Selected_Text;
 
+   function Has_Selection (C : Instance) return Boolean is
+   begin
+      return C.Sel_Visible;
+   end Has_Selection;
+
+   procedure Select_All (C : in out Instance) is
+   begin
+      if C.Lines.Is_Empty then
+         return;
+      end if;
+      C.Sel_Visible    := True;
+      C.Sel_Start_Line := 1;
+      C.Sel_Start_Byte := 0;
+      C.Sel_End_Line   := Positive (C.Lines.Length);
+      C.Sel_End_Byte   := Natural (Length
+        (C.Lines (Positive (C.Lines.Length)).Text));
+      C.Publish_Primary_Selection;
+      Queue_Draw (C);
+   end Select_All;
+
+   procedure Clear_Selection (C : in out Instance) is
+   begin
+      if not C.Sel_Visible then
+         return;
+      end if;
+      C.Sel_Visible := False;
+      C.Publish_Primary_Selection;
+      Queue_Draw (C);
+   end Clear_Selection;
+
    --  ── Signal: key-press ─────────────────────────────────────────────────
 
    function On_Key_Press
@@ -1473,7 +1503,7 @@ package body Coyote_GUI.Conversation is
       if Event.Keyval = Gdk.Types.Keysyms.GDK_LC_c
         and then (Event.State and Gdk.Types.Control_Mask) /= 0
       then
-         Copy_Selection_To_Clipboard (Current_Conv.all);
+         Current_Conv.Copy_Selection;
          return True;
       end if;
 
@@ -1481,29 +1511,15 @@ package body Coyote_GUI.Conversation is
       if Event.Keyval = Gdk.Types.Keysyms.GDK_LC_a
         and then (Event.State and Gdk.Types.Control_Mask) /= 0
       then
-         if not Current_Conv.Lines.Is_Empty then
-            Current_Conv.Sel_Visible    := True;
-            Current_Conv.Sel_Start_Line := 1;
-            Current_Conv.Sel_Start_Byte := 0;
-            Current_Conv.Sel_End_Line   :=
-              Positive (Current_Conv.Lines.Length);
-            Current_Conv.Sel_End_Byte   :=
-              Natural (Length
-                (Current_Conv.Lines
-                   (Positive (Current_Conv.Lines.Length)).Text));
-            Current_Conv.Publish_Primary_Selection;
-            Queue_Draw (Current_Conv.all);
-         end if;
+         Current_Conv.Select_All;
          return True;
       end if;
 
       --  Escape clears a selection; otherwise it reaches the window Stop
       --  accelerator so Escape has a predictable global meaning.
       if Event.Keyval = Gdk.Types.Keysyms.GDK_Escape then
-         if Current_Conv.Sel_Visible then
-            Current_Conv.Sel_Visible := False;
-            Current_Conv.Publish_Primary_Selection;
-            Queue_Draw (Current_Conv.all);
+         if Current_Conv.Has_Selection then
+            Current_Conv.Clear_Selection;
             return True;
          end if;
          return False;
@@ -1647,6 +1663,11 @@ package body Coyote_GUI.Conversation is
          Get.Set_Text (Text);
       end if;
    end Copy_Selection_To_Clipboard;
+
+   procedure Copy_Selection (C : in out Instance) is
+   begin
+      Copy_Selection_To_Clipboard (C);
+   end Copy_Selection;
 
    --  ── Ordered_Selection ─────────────────────────────────────────────────
 

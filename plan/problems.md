@@ -2360,3 +2360,28 @@ behavior, current test baseline, and remaining manual qualification scope.
   Three display-independent Help tests are registered. Full display-backed
   Yelp launch and missing-Yelp behavior remain manual DEM-039 qualification.
 - **Status:** Implementation complete; display-backed qualification pending.
+
+
+## PCR-070 — GTK IRIX usability increment
+
+- **Date reported:** 2026-08-23
+- **Category:** Requirements, Design, Code, Test, Manuals
+- **Priority:** 4-Minor
+- **Description:** The GTK UI followed a tailored IRIX subset that omitted
+  an Edit menu, left File/Agent mnemonics colliding, opened Overview and
+  Keys as hard-coded text, and required Yelp for Product Information.
+- **Affected work products:** SRS-CORE REQ-CORE-110, 113, 113a..113c, 132;
+  SDD-CORE §5.33–§5.34; `Coyote_App.Frontend.GUI`, `Coyote_GUI`,
+  `Coyote_GUI.Conversation`, `Coyote_Help`; Mallard pages; Test Plan.
+- **Corrective action required:** Add an Edit menu and unique mnemonics;
+  open Overview/Keys in Yelp; show Product Information in-process; disable
+  unavailable Agent actions; close support windows with Ctrl+W; update the
+  SRS where the change improves usability.
+- **Actions taken:** Implemented the Edit menu with focus-aware
+  Cut/Copy/Paste/Select All/Deselect All; unique File/Agent/View/Help
+  mnemonics; Yelp Overview and Keys; Product Information dialog; Agent
+  menu sensitivity; Ctrl+W on support and tool-detail windows; tests for
+  selection ops, product-information text, and run-mode availability.
+- **Verification:** Production and test development builds succeed.
+  Full suite 907/907. Display-backed DEM-036..039 remain manual.
+- **Status:** Implementation complete; display-backed qualification pending.

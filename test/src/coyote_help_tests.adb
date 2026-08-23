@@ -2,7 +2,9 @@
 --
 --  Project: coyote
 
+with Ada.Strings.Fixed;
 with AUnit.Assertions;
+with Coyote_Config;
 with Coyote_Help;
 
 package body Coyote_Help_Tests is
@@ -32,5 +34,21 @@ package body Coyote_Help_Tests is
         (Coyote_Help.Yelp_Available,
          "Yelp is a required runtime dependency for Help");
    end Test_Yelp_Is_Available;
+
+   procedure Test_Product_Information_Text (T : in out Test) is
+      pragma Unreferenced (T);
+      Text : constant String := Coyote_Help.Product_Information_Text;
+   begin
+      Assert
+        (Ada.Strings.Fixed.Index (Text, "coyote") > 0,
+         "Product Information names the application");
+      Assert
+        (Ada.Strings.Fixed.Index
+           (Text, Coyote_Config.Crate_Version) > 0,
+         "Product Information includes the crate version");
+      Assert
+        (Ada.Strings.Fixed.Index (Text, "License") > 0,
+         "Product Information includes the license");
+   end Test_Product_Information_Text;
 
 end Coyote_Help_Tests;

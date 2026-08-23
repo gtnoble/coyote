@@ -19,14 +19,15 @@
 
 ### GTK IRIX alignment slice (2026-08-23)
 
-The GTK main menu now follows the implemented desktop order `File`, `View`,
-`Agent`, `Options`, `Help`; Preferences is under Options and Help is
-rightmost. The main window and transient support/dialog windows use
+The GTK main menu now follows the implemented desktop order `File`, `Edit`,
+`View`, `Agent`, `Options`, `Help`; Preferences is under Options and Help is
+rightmost. Edit provides Cut, Copy, Paste, Select All, and Deselect All. The main window and transient support/dialog windows use
 application-identifying titles without lifecycle status, and lifecycle state
 remains in the status area. The Help menu launches Yelp topics for Overview,
-task help, Index, Keys & Shortcuts, Product Information, and Click for Help.
-Pause uses Ctrl+Shift+P so the reserved Ctrl+P accelerator remains available
-for Print. Help entries omit mnemonics as required for Help-menu task entries.
+task help, Index, and Keys & Shortcuts. Product Information is an in-process
+dialog. Click for Help arms contextual help. Pause uses Ctrl+Shift+P so the
+reserved Ctrl+P accelerator remains available for Print. Help task entries
+omit mnemonics; standard Help entries have mnemonics and F1 / Shift+F1.
 
 The implementation does not claim complete IRIX conformance. F1 and Help →
 Click for Help arm a question-mark pointer for the whole main window. The
@@ -55,6 +56,16 @@ Mallard guide root, task topics, Index, keyboard shortcuts, and product
 information. `Coyote_Help` locates Yelp on `PATH`, launches it detached, and
 converts launch failure into a visible frontend error notice. Mallard pages
 are validated with `yelp-check validate` and `yelp-check links`.
+
+### GTK IRIX usability increment (2026-08-23)
+
+Added an Edit menu (Cut/Copy/Paste/Select All/Deselect All) with
+focus-aware prompt vs conversation behaviour. File, Agent, View, and
+standard Help mnemonics are unique within each menu. Overview and Keys
+open Yelp; Product Information uses `Coyote_Help.Product_Information_Text`.
+Agent Stop/Pause/Resume follow `Coyote_GUI.Stop_Available` /
+`Pause_Available` / `Resume_Available`. Support and tool-detail windows
+close on Ctrl+W.
 
 ### Yelp/Mallard Help integration (2026-08-23)
 

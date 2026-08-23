@@ -1236,4 +1236,30 @@ package body Coyote_GUI_Conversation_Tests is
       end loop;
    end Test_Context_Help_Covers_Main_Areas;
 
+   procedure Test_Select_All_And_Clear_Selection (T : in out Test) is
+      Conv   : Instance;
+      Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Layout : Gtk.Layout.Gtk_Layout;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Make_Fresh_Conv (Conv, Scroll, Layout);
+      Conv.Set_Render_Markdown (False);
+      Conv.Append_Text
+        ("alpha line" & ASCII.LF & "beta line");
+      Conv.End_Text_Block;
+      Assert (not Conv.Has_Selection,
+              "a fresh conversation has no selection");
+      Conv.Select_All;
+      Assert (Conv.Has_Selection,
+              "Select_All marks a visible selection");
+      Assert
+        (Conv.Selected_Text = "alpha line" & ASCII.LF & "beta line",
+         "Select_All spans the whole conversation");
+      Conv.Clear_Selection;
+      Assert (not Conv.Has_Selection,
+              "Clear_Selection removes the conversation selection");
+   end Test_Select_All_And_Clear_Selection;
+
 end Coyote_GUI_Conversation_Tests;

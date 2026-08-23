@@ -17,4 +17,9 @@ package Coyote_Help is
    --  Yelp cannot be found or the detached launch cannot be started.
    function Open (Topic : String := "") return Boolean;
 
+   --  In-process Product Information body: name, version, and license.
+   --  Independent of Yelp so the Help menu entry still works when the
+   --  viewer or Mallard files are missing.
+   function Product_Information_Text return String;
+
 end Coyote_Help;

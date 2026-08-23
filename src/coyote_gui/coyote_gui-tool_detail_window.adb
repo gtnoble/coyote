@@ -21,6 +21,10 @@ with Gtk.Style_Provider;
 with Gtk.Text_Buffer;
 with Gtk.Text_Iter;
 with Gtk.Text_View;
+with Gdk.Event;
+with Gdk.Types;
+with Gdk.Types.Keysyms;
+with Gtk.Widget;
 with Gtk.Window;
 with Pango.Enums;
 with Pango.Font;
@@ -28,8 +32,24 @@ with Pango.Font;
 package body Coyote_GUI.Tool_Detail_Window is
 
    use type GNATCOLL.JSON.JSON_Value_Type;
+   use type Gdk.Types.Gdk_Modifier_Type;
    use Pango.Enums;
    use Pango.Font;
+
+   function On_Detail_Key_Press
+     (Self  : access Gtk.Widget.Gtk_Widget_Record'Class;
+      Event : Gdk.Event.Gdk_Event_Key) return Boolean
+   is
+      use type Gdk.Types.Gdk_Key_Type;
+   begin
+      if Event.Keyval = Gdk.Types.Keysyms.GDK_LC_w
+        and then (Event.State and Gdk.Types.Control_Mask) /= 0
+      then
+         Self.Destroy;
+         return True;
+      end if;
+      return False;
+   end On_Detail_Key_Press;
 
    System_Font_Size_Pt : Integer := 10;
    System_Font_Inited  : Boolean := False;
@@ -290,6 +310,7 @@ package body Coyote_GUI.Tool_Detail_Window is
       Win.Set_Transient_For (Main_Window);
       Win.Set_Default_Size (760, 600);
       Win.Set_Size_Request (600, 400);
+      Win.On_Key_Press_Event (On_Detail_Key_Press'Access);
 
       Gtk.Box.Gtk_New_Vbox (Outer, Homogeneous => False, Spacing => 10);
       Outer.Set_Border_Width (14);

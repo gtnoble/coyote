@@ -101,6 +101,8 @@ package body Coyote_App.Frontend.GUI is
    use type Gtk.Dialog.Gtk_Dialog;
    use type Gtk.Label.Gtk_Label;
    use type Gtk.Text_Buffer.Gtk_Text_Buffer;
+   use type Gtk.Menu_Item.Gtk_Menu_Item;
+   use type Gtk.Text_View.Gtk_Text_View;
    use type Coyote_GUI.Conversation.Action_Kind;
    use type Gtk.Tree_Model_Filter.Gtk_Tree_Model_Filter;
    use type Gtk.Tree_View.Gtk_Tree_View;
@@ -126,6 +128,26 @@ package body Coyote_App.Frontend.GUI is
       Event : Gdk.Event.Gdk_Event_Button) return Boolean;
 
    procedure On_Click_For_Help_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
+
+   function On_Support_Window_Key_Press
+     (Self  : access Gtk.Widget.Gtk_Widget_Record'Class;
+      Event : Gdk.Event.Gdk_Event_Key) return Boolean;
+
+   procedure Apply_Agent_Menu_Sensitivity (F : in out Instance);
+
+   procedure On_Edit_Menu_Show
+     (Self : access Gtk.Widget.Gtk_Widget_Record'Class);
+
+   procedure On_Cut_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
+   procedure On_Copy_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
+   procedure On_Paste_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
+   procedure On_Select_All_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
+   procedure On_Deselect_Activate
      (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
 
    --  Transient widgets for the modal Change Model dialog.  Dialog.Run
@@ -265,6 +287,7 @@ package body Coyote_App.Frontend.GUI is
       Win.Set_Title (Title);
       Win.Set_Transient_For (Main_Window);
       Win.Set_Default_Size (700, 500);
+      Win.On_Key_Press_Event (On_Support_Window_Key_Press'Access);
 
       Gtk.Scrolled_Window.Gtk_New (Scroll);
       Scroll.Set_Policy (Gtk.Enums.Policy_Automatic,
@@ -363,6 +386,169 @@ package body Coyote_App.Frontend.GUI is
       F.Help_Mode := False;
       Gdk.Window.Set_Cursor (F.Win.Get_Window, null);
    end Reset_Click_For_Help;
+
+   function On_Support_Window_Key_Press
+     (Self  : access Gtk.Widget.Gtk_Widget_Record'Class;
+      Event : Gdk.Event.Gdk_Event_Key) return Boolean
+   is
+      use type Gdk.Types.Gdk_Key_Type;
+   begin
+      if Event.Keyval = Gdk.Types.Keysyms.GDK_LC_w
+        and then (Event.State and Gdk.Types.Control_Mask) /= 0
+      then
+         Self.Destroy;
+         return True;
+      end if;
+      return False;
+   end On_Support_Window_Key_Press;
+
+   procedure Apply_Agent_Menu_Sensitivity (F : in out Instance) is
+      Mode : constant Coyote_GUI.Run_Mode :=
+        Coyote_GUI.Run_Mode'Val
+          (Coyote_App.Frontend.Run_Mode'Pos (F.Current_Mode));
+   begin
+      F.Stop_Btn.Set_Sensitive (Coyote_GUI.Stop_Available (Mode));
+      if F.Stop_Item /= null then
+         F.Stop_Item.Set_Sensitive (Coyote_GUI.Stop_Available (Mode));
+      end if;
+      if F.Pause_Item /= null then
+         F.Pause_Item.Set_Sensitive (Coyote_GUI.Pause_Available (Mode));
+      end if;
+      if F.Resume_Item /= null then
+         F.Resume_Item.Set_Sensitive (Coyote_GUI.Resume_Available (Mode));
+      end if;
+   end Apply_Agent_Menu_Sensitivity;
+
+   procedure On_Edit_Menu_Show
+     (Self : access Gtk.Widget.Gtk_Widget_Record'Class)
+   is
+      pragma Unreferenced (Self);
+      Prompt_Sel : Boolean;
+      Conv_Sel   : Boolean;
+      Clip       : Gtk.Clipboard.Gtk_Clipboard;
+   begin
+      if Current_Frontend = null then
+         return;
+      end if;
+      Prompt_Sel := Current_Frontend.Prompt_Buf /= null
+        and then Current_Frontend.Prompt_Buf.Get_Has_Selection;
+      Conv_Sel := Current_Frontend.Conv.Has_Selection;
+      Clip := Gtk.Clipboard.Get;
+      if Current_Frontend.Cut_Item /= null then
+         Current_Frontend.Cut_Item.Set_Sensitive (Prompt_Sel);
+      end if;
+      if Current_Frontend.Copy_Item /= null then
+         Current_Frontend.Copy_Item.Set_Sensitive
+           (Prompt_Sel or else Conv_Sel);
+      end if;
+      if Current_Frontend.Paste_Item /= null then
+         Current_Frontend.Paste_Item.Set_Sensitive
+           (Clip.Wait_Is_Text_Available);
+      end if;
+      if Current_Frontend.Select_All_Item /= null then
+         Current_Frontend.Select_All_Item.Set_Sensitive (True);
+      end if;
+      if Current_Frontend.Deselect_Item /= null then
+         Current_Frontend.Deselect_Item.Set_Sensitive
+           (Prompt_Sel or else Conv_Sel);
+      end if;
+   end On_Edit_Menu_Show;
+
+   procedure On_Cut_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
+   is
+      pragma Unreferenced (Self);
+   begin
+      if Current_Frontend = null
+        or else Current_Frontend.Prompt_Buf = null
+      then
+         return;
+      end if;
+      if Current_Frontend.Prompt_Buf.Get_Has_Selection then
+         Current_Frontend.Prompt_Buf.Cut_Clipboard
+           (Gtk.Clipboard.Get, True);
+      end if;
+   end On_Cut_Activate;
+
+   procedure On_Copy_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
+   is
+      pragma Unreferenced (Self);
+   begin
+      if Current_Frontend = null then
+         return;
+      end if;
+      if Current_Frontend.Prompt_View /= null
+        and then Current_Frontend.Prompt_View.Has_Focus
+      then
+         if Current_Frontend.Prompt_Buf /= null
+           and then Current_Frontend.Prompt_Buf.Get_Has_Selection
+         then
+            Current_Frontend.Prompt_Buf.Copy_Clipboard
+              (Gtk.Clipboard.Get);
+         end if;
+         return;
+      end if;
+      Current_Frontend.Conv.Copy_Selection;
+   end On_Copy_Activate;
+
+   procedure On_Paste_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
+   is
+      pragma Unreferenced (Self);
+   begin
+      if Current_Frontend = null
+        or else Current_Frontend.Prompt_Buf = null
+      then
+         return;
+      end if;
+      if Current_Frontend.Prompt_View /= null then
+         Current_Frontend.Prompt_View.Grab_Focus;
+      end if;
+      Current_Frontend.Prompt_Buf.Paste_Clipboard (Gtk.Clipboard.Get);
+   end On_Paste_Activate;
+
+   procedure On_Select_All_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
+   is
+      pragma Unreferenced (Self);
+      Start_Iter : Gtk.Text_Iter.Gtk_Text_Iter;
+      End_Iter   : Gtk.Text_Iter.Gtk_Text_Iter;
+   begin
+      if Current_Frontend = null then
+         return;
+      end if;
+      if Current_Frontend.Prompt_View /= null
+        and then Current_Frontend.Prompt_View.Has_Focus
+        and then Current_Frontend.Prompt_Buf /= null
+      then
+         Current_Frontend.Prompt_Buf.Get_Start_Iter (Start_Iter);
+         Current_Frontend.Prompt_Buf.Get_End_Iter (End_Iter);
+         Current_Frontend.Prompt_Buf.Select_Range
+           (Start_Iter, End_Iter);
+         return;
+      end if;
+      Current_Frontend.Conv.Select_All;
+   end On_Select_All_Activate;
+
+   procedure On_Deselect_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
+   is
+      pragma Unreferenced (Self);
+      Insert : Gtk.Text_Iter.Gtk_Text_Iter;
+   begin
+      if Current_Frontend = null then
+         return;
+      end if;
+      if Current_Frontend.Prompt_Buf /= null
+        and then Current_Frontend.Prompt_Buf.Get_Has_Selection
+      then
+         Current_Frontend.Prompt_Buf.Get_Iter_At_Mark
+           (Insert, Current_Frontend.Prompt_Buf.Get_Insert);
+         Current_Frontend.Prompt_Buf.Place_Cursor (Insert);
+      end if;
+      Current_Frontend.Conv.Clear_Selection;
+   end On_Deselect_Activate;
 
    function On_Prompt_Button_Press
      (Self  : access Gtk.Widget.Gtk_Widget_Record'Class;
@@ -628,7 +814,7 @@ package body Coyote_App.Frontend.GUI is
             F.Current_Mode :=
               Coyote_App.Frontend.Run_Mode'Val
                 (Coyote_GUI.Run_Mode'Pos (U.Mode));
-            F.Stop_Btn.Set_Sensitive (U.Mode /= Coyote_GUI.Idle);
+            Apply_Agent_Menu_Sensitivity (F);
 
          when Set_Stats =>
             F.Stats_Text := To_Unbounded_String (To_String (U.Text));
@@ -909,54 +1095,47 @@ package body Coyote_App.Frontend.GUI is
      (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class) is
       pragma Unreferenced (Self);
    begin
-      if Current_Frontend /= null then
-         Show_Text_Window
-           (Current_Frontend.Win.all'Access,
-            "coyote : Overview",
-            "coyote is a native LLM coding agent." & ASCII.LF & ASCII.LF
-            & "The conversation view shows assistant responses, "
-            & "reasoning, and tool activity. Enter a prompt below "
-            & "the conversation and choose Send." & ASCII.LF & ASCII.LF
-            & "Use Agent for runtime controls, View for presentation "
-            & "options, Options for persistent defaults, and Help "
-            & "for this information.");
-      end if;
+      Open_Help_Topic ("overview");
    end On_Overview_Activate;
 
    procedure On_Keys_Activate
      (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class) is
       pragma Unreferenced (Self);
    begin
-      if Current_Frontend /= null then
-         Show_Text_Window
-           (Current_Frontend.Win.all'Access,
-            "coyote : Keys & Shortcuts",
-            "Main window" & ASCII.LF
-            & "  Ctrl+N              New window" & ASCII.LF
-            & "  Ctrl+Shift+N        New session" & ASCII.LF
-            & "  Ctrl+O              Open session" & ASCII.LF
-            & "  Ctrl+Q              Exit" & ASCII.LF
-            & "  Ctrl+,              Preferences" & ASCII.LF
-            & "  Ctrl+Return         Send" & ASCII.LF
-            & "  Escape              Stop or clear selection" & ASCII.LF
-            & "  Ctrl+R              Resume" & ASCII.LF
-            & "  Ctrl+Shift+C        Compact context" & ASCII.LF
-            & "  Ctrl+Plus/Minus     Zoom in/out" & ASCII.LF
-            & "  Ctrl+0              Reset zoom" & ASCII.LF & ASCII.LF
-            & "Conversation view" & ASCII.LF
-            & "  j / k               Scroll down/up" & ASCII.LF
-            & "  g / Shift+g         Scroll to top/bottom" & ASCII.LF
-            & "  Ctrl+D / Ctrl+U     Page down/up" & ASCII.LF
-            & "  Home / End          Scroll to top/bottom" & ASCII.LF
-            & "  Ctrl+A / Ctrl+C     Select all / copy");
-      end if;
+      Open_Help_Topic ("keyboard-shortcuts");
    end On_Keys_Activate;
 
    procedure On_Product_Information_Activate
      (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class) is
       pragma Unreferenced (Self);
+      Dialog  : Gtk.Dialog.Gtk_Dialog;
+      Label   : Gtk.Label.Gtk_Label;
+      Btn     : Gtk.Widget.Gtk_Widget;
+      Content : Gtk.Box.Gtk_Box;
+      Resp    : Gtk.Dialog.Gtk_Response_Type;
+      pragma Unreferenced (Btn, Resp);
    begin
-      Open_Help_Topic ("product-information");
+      if Current_Frontend = null then
+         return;
+      end if;
+      Gtk.Dialog.Gtk_New (Dialog);
+      Dialog.Set_Title ("coyote : Product Information");
+      Dialog.Set_Transient_For (Current_Frontend.Win);
+      Dialog.Set_Default_Size (420, 180);
+      Btn := Dialog.Add_Button ("_OK", Gtk.Dialog.Gtk_Response_OK);
+      Dialog.Set_Default_Response (Gtk.Dialog.Gtk_Response_OK);
+      Content := Dialog.Get_Content_Area;
+      Gtk.Label.Gtk_New (Label, Coyote_Help.Product_Information_Text);
+      Label.Set_Line_Wrap (True);
+      Label.Set_Xalign (0.0);
+      Label.Set_Margin_Start (12);
+      Label.Set_Margin_End (12);
+      Label.Set_Margin_Top (10);
+      Label.Set_Margin_Bottom (10);
+      Content.Pack_Start (Label, True, True, 0);
+      Dialog.Show_All;
+      Resp := Dialog.Run;
+      Dialog.Destroy;
    end On_Product_Information_Activate;
 
    procedure On_Index_Activate
@@ -2013,16 +2192,7 @@ package body Coyote_App.Frontend.GUI is
          return True;
       end if;
 
-      if Event.Keyval /= Gdk.Types.Keysyms.GDK_F1 then
-         return False;
-      end if;
-
-      if (Event.State and Gdk.Types.Shift_Mask) /= 0 then
-         Arm_Click_For_Help (Current_Frontend.all);
-      else
-         On_Overview_Activate (null);
-      end if;
-      return True;
+      return False;
    end On_Window_Key_Press;
 
 
@@ -2086,11 +2256,12 @@ package body Coyote_App.Frontend.GUI is
       Send_Item       : Gtk_Menu_Item;
       Clear_Item      : Gtk_Menu_Item;
 
+      --  Edit menu
+      Edit_Menu : Gtk_Menu;
+      Edit_Item : Gtk_Menu_Item;
+
       --  Agent menu
       Agent_Menu : Gtk_Menu;
-      Stop_Item        : Gtk_Menu_Item;
-      Pause_Item       : Gtk_Menu_Item;
-      Resume_Item      : Gtk_Menu_Item;
       Change_Model_Item : Gtk_Menu_Item;
       Compact_Item     : Gtk_Menu_Item;
       Agent_Item       : Gtk_Menu_Item;
@@ -2162,7 +2333,7 @@ package body Coyote_App.Frontend.GUI is
          Gdk.Types.Control_Mask
          or Gdk.Types.Shift_Mask,
          Gtk.Accel_Group.Accel_Visible);
-      Open_Sess_Item := Make_Item ("Open _Session...", File_Menu);
+      Open_Sess_Item := Make_Item ("_Open Session...", File_Menu);
       Open_Sess_Item.On_Activate (On_Open_Session_Activate'Access);
       Open_Sess_Item.Add_Accelerator
         ("activate", F.Accel_Group,
@@ -2170,13 +2341,54 @@ package body Coyote_App.Frontend.GUI is
          Gdk.Types.Control_Mask,
          Gtk.Accel_Group.Accel_Visible);
       Add_Sep (File_Menu);
-      Quit_Item := Make_Item ("_Exit", File_Menu);
+      Quit_Item := Make_Item ("E_xit", File_Menu);
       Quit_Item.On_Activate (On_Quit_Activate'Access);
       Quit_Item.Add_Accelerator
         ("activate", F.Accel_Group,
          Gdk.Types.Keysyms.GDK_LC_q,
          Gdk.Types.Control_Mask,
          Gtk.Accel_Group.Accel_Visible);
+
+      --  Edit menu
+      Gtk.Menu.Gtk_New (Edit_Menu);
+      Gtk.Menu_Item.Gtk_New_With_Mnemonic (Edit_Item, "_Edit");
+      Edit_Item.Set_Name ("coyote-help-menu");
+      Edit_Item.On_Button_Press_Event (On_Help_Event'Access);
+      Edit_Item.Set_Submenu (Edit_Menu);
+      Gtk.Menu_Shell.Append
+        (Gtk.Menu_Shell.Gtk_Menu_Shell (F.Menu_Bar), Edit_Item);
+      Edit_Menu.On_Show (On_Edit_Menu_Show'Access);
+      F.Cut_Item := Make_Item ("Cu_t", Edit_Menu);
+      F.Cut_Item.On_Activate (On_Cut_Activate'Access);
+      F.Cut_Item.Add_Accelerator
+        ("activate", F.Accel_Group,
+         Gdk.Types.Keysyms.GDK_LC_x,
+         Gdk.Types.Control_Mask,
+         Gtk.Accel_Group.Accel_Visible);
+      F.Copy_Item := Make_Item ("_Copy", Edit_Menu);
+      F.Copy_Item.On_Activate (On_Copy_Activate'Access);
+      F.Copy_Item.Add_Accelerator
+        ("activate", F.Accel_Group,
+         Gdk.Types.Keysyms.GDK_LC_c,
+         Gdk.Types.Control_Mask,
+         Gtk.Accel_Group.Accel_Visible);
+      F.Paste_Item := Make_Item ("_Paste", Edit_Menu);
+      F.Paste_Item.On_Activate (On_Paste_Activate'Access);
+      F.Paste_Item.Add_Accelerator
+        ("activate", F.Accel_Group,
+         Gdk.Types.Keysyms.GDK_LC_v,
+         Gdk.Types.Control_Mask,
+         Gtk.Accel_Group.Accel_Visible);
+      Add_Sep (Edit_Menu);
+      F.Select_All_Item := Make_Item ("Select _All", Edit_Menu);
+      F.Select_All_Item.On_Activate (On_Select_All_Activate'Access);
+      F.Select_All_Item.Add_Accelerator
+        ("activate", F.Accel_Group,
+         Gdk.Types.Keysyms.GDK_LC_a,
+         Gdk.Types.Control_Mask,
+         Gtk.Accel_Group.Accel_Visible);
+      F.Deselect_Item := Make_Item ("D_eselect All", Edit_Menu);
+      F.Deselect_Item.On_Activate (On_Deselect_Activate'Access);
 
       --  Options menu
       Gtk.Menu.Gtk_New (Options_Menu);
@@ -2206,30 +2418,30 @@ package body Coyote_App.Frontend.GUI is
          Gdk.Types.Keysyms.GDK_Return,
          Gdk.Types.Control_Mask,
          Gtk.Accel_Group.Accel_Visible);
-      Clear_Item := Make_Item ("_Clear Conversation", Agent_Menu);
+      Clear_Item := Make_Item ("C_lear Conversation", Agent_Menu);
       Clear_Item.On_Activate (On_Clear_Activate'Access);
       Clear_Item.Add_Accelerator
         ("activate", F.Accel_Group,
          Gdk.Types.Keysyms.GDK_LC_l,
          Gdk.Types.Control_Mask,
          Gtk.Accel_Group.Accel_Visible);
-      Stop_Item := Make_Item ("St_op", Agent_Menu);
-      Stop_Item.On_Activate (On_Stop_Activate'Access);
-      Stop_Item.Add_Accelerator
+      F.Stop_Item := Make_Item ("St_op", Agent_Menu);
+      F.Stop_Item.On_Activate (On_Stop_Activate'Access);
+      F.Stop_Item.Add_Accelerator
         ("activate", F.Accel_Group,
          Gdk.Types.Keysyms.GDK_Escape,
          0,
          Gtk.Accel_Group.Accel_Visible);
-      Pause_Item := Make_Item ("_Pause", Agent_Menu);
-      Pause_Item.On_Activate (On_Pause_Activate'Access);
-      Pause_Item.Add_Accelerator
+      F.Pause_Item := Make_Item ("_Pause", Agent_Menu);
+      F.Pause_Item.On_Activate (On_Pause_Activate'Access);
+      F.Pause_Item.Add_Accelerator
         ("activate", F.Accel_Group,
          Gdk.Types.Keysyms.GDK_LC_p,
          Gdk.Types.Control_Mask or Gdk.Types.Shift_Mask,
          Gtk.Accel_Group.Accel_Visible);
-      Resume_Item := Make_Item ("_Resume", Agent_Menu);
-      Resume_Item.On_Activate (On_Resume_Activate'Access);
-      Resume_Item.Add_Accelerator
+      F.Resume_Item := Make_Item ("_Resume", Agent_Menu);
+      F.Resume_Item.On_Activate (On_Resume_Activate'Access);
+      F.Resume_Item.Add_Accelerator
         ("activate", F.Accel_Group,
          Gdk.Types.Keysyms.GDK_LC_r,
          Gdk.Types.Control_Mask,
@@ -2317,7 +2529,7 @@ package body Coyote_App.Frontend.GUI is
             Gtk.Accel_Group.Accel_Visible);
       end;
       Add_Sep (Agent_Menu);
-      Item := Make_Item ("Session _Stats", Agent_Menu);
+      Item := Make_Item ("Session Sta_ts", Agent_Menu);
       Item.On_Activate (On_Stats_Activate'Access);
       Item.Add_Accelerator
         ("activate", F.Accel_Group,
@@ -2344,8 +2556,8 @@ package body Coyote_App.Frontend.GUI is
          View_Item.Set_Submenu (View_Menu);
          Gtk.Menu_Shell.Append
            (Gtk.Menu_Shell.Gtk_Menu_Shell (F.Menu_Bar), View_Item);
-         Gtk.Check_Menu_Item.Gtk_New
-           (F.Render_Markdown_Item, "Render Markdown");
+         Gtk.Check_Menu_Item.Gtk_New_With_Mnemonic
+           (F.Render_Markdown_Item, "_Render Markdown");
          F.Render_Markdown_Item.Set_Active (True);
          F.Render_Markdown_Item.On_Toggled
            (On_Render_Markdown_Toggled'Access);
@@ -2357,8 +2569,8 @@ package body Coyote_App.Frontend.GUI is
          Gtk.Menu_Shell.Append
            (Gtk.Menu_Shell.Gtk_Menu_Shell (View_Menu),
             F.Render_Markdown_Item);
-         Gtk.Check_Menu_Item.Gtk_New
-           (F.Auto_Scroll_Item, "Auto-scroll");
+         Gtk.Check_Menu_Item.Gtk_New_With_Mnemonic
+           (F.Auto_Scroll_Item, "_Auto-scroll");
          F.Auto_Scroll_Item.Set_Active (True);
          F.Auto_Scroll_Item.On_Toggled
            (On_Auto_Scroll_Toggled'Access);
@@ -2385,7 +2597,7 @@ package body Coyote_App.Frontend.GUI is
             Gdk.Types.Keysyms.GDK_minus,
             Gdk.Types.Control_Mask,
             Gtk.Accel_Group.Accel_Visible);
-         Item := Make_Item ("_Reset Zoom", View_Menu);
+         Item := Make_Item ("Reset _Zoom", View_Menu);
          Item.On_Activate (On_Zoom_Reset_Activate'Access);
          Item.Add_Accelerator
            ("activate", F.Accel_Group,
@@ -2395,7 +2607,7 @@ package body Coyote_App.Frontend.GUI is
       end;
 
       --  Attach custom menus after View so the top-level order is
-      --  File, View, Agent, Options, Help.
+      --  File, Edit, View, Agent, Options, Help.
       Gtk.Menu_Shell.Append
         (Gtk.Menu_Shell.Gtk_Menu_Shell (F.Menu_Bar), Agent_Item);
       Gtk.Menu_Shell.Append
@@ -2409,18 +2621,20 @@ package body Coyote_App.Frontend.GUI is
       Gtk.Menu_Shell.Append
         (Gtk.Menu_Shell.Gtk_Menu_Shell (F.Menu_Bar), Help_Item);
 
-      Gtk.Menu_Item.Gtk_New (Item, "Click for Help");
-      Item.Set_Name ("coyote-help-menu");
-      Item.On_Button_Press_Event (On_Help_Event'Access);
-      Gtk.Menu_Shell.Append
-        (Gtk.Menu_Shell.Gtk_Menu_Shell (Help_Menu), Item);
+      Item := Make_Item ("_Click for Help", Help_Menu);
       Item.On_Activate (On_Click_For_Help_Activate'Access);
-      Gtk.Menu_Item.Gtk_New (Item, "Overview");
-      Item.Set_Name ("coyote-help-menu");
-      Item.On_Button_Press_Event (On_Help_Event'Access);
-      Gtk.Menu_Shell.Append
-        (Gtk.Menu_Shell.Gtk_Menu_Shell (Help_Menu), Item);
+      Item.Add_Accelerator
+        ("activate", F.Accel_Group,
+         Gdk.Types.Keysyms.GDK_F1,
+         Gdk.Types.Shift_Mask,
+         Gtk.Accel_Group.Accel_Visible);
+      Item := Make_Item ("_Overview", Help_Menu);
       Item.On_Activate (On_Overview_Activate'Access);
+      Item.Add_Accelerator
+        ("activate", F.Accel_Group,
+         Gdk.Types.Keysyms.GDK_F1,
+         0,
+         Gtk.Accel_Group.Accel_Visible);
       Gtk.Menu_Item.Gtk_New (Item, "Send a Prompt");
       Item.Set_Name ("coyote-help-menu");
       Item.On_Button_Press_Event (On_Help_Event'Access);
@@ -2439,23 +2653,11 @@ package body Coyote_App.Frontend.GUI is
       Gtk.Menu_Shell.Append
         (Gtk.Menu_Shell.Gtk_Menu_Shell (Help_Menu), Item);
       Item.On_Activate (On_Controls_Help_Activate'Access);
-      Gtk.Menu_Item.Gtk_New (Item, "Index");
-      Item.Set_Name ("coyote-help-menu");
-      Item.On_Button_Press_Event (On_Help_Event'Access);
-      Gtk.Menu_Shell.Append
-        (Gtk.Menu_Shell.Gtk_Menu_Shell (Help_Menu), Item);
+      Item := Make_Item ("_Index", Help_Menu);
       Item.On_Activate (On_Index_Activate'Access);
-      Gtk.Menu_Item.Gtk_New (Item, "Keys & Shortcuts");
-      Item.Set_Name ("coyote-help-menu");
-      Item.On_Button_Press_Event (On_Help_Event'Access);
-      Gtk.Menu_Shell.Append
-        (Gtk.Menu_Shell.Gtk_Menu_Shell (Help_Menu), Item);
+      Item := Make_Item ("_Keys & Shortcuts", Help_Menu);
       Item.On_Activate (On_Keys_Activate'Access);
-      Gtk.Menu_Item.Gtk_New (Item, "Product Information");
-      Item.Set_Name ("coyote-help-menu");
-      Item.On_Button_Press_Event (On_Help_Event'Access);
-      Gtk.Menu_Shell.Append
-        (Gtk.Menu_Shell.Gtk_Menu_Shell (Help_Menu), Item);
+      Item := Make_Item ("_Product Information", Help_Menu);
       Item.On_Activate (On_Product_Information_Activate'Access);
 
       --  ── Conversation view ─────────────────────────────────────────────
@@ -2550,7 +2752,7 @@ package body Coyote_App.Frontend.GUI is
       F.Stop_Btn.Set_Always_Show_Image (True);
       F.Stop_Btn.On_Clicked (On_Stop_Btn_Clicked'Access);
       F.Stop_Btn.Set_Tooltip_Text ("Stop agent (Agent > Stop)");
-      F.Stop_Btn.Set_Sensitive (False);
+      Apply_Agent_Menu_Sensitivity (F);
       Bottom_Box.Pack_Start (F.Stop_Btn, Expand => False, Fill => False,
                              Padding => 2);
 

@@ -22,6 +22,7 @@ with Coyote_GUI_Zoom_Tests;
 with Coyote_GUI_Updates_Tests;
 with Coyote_GUI_Prompt_Queue_Tests;
 with Coyote_GUI_Notification_Policy_Tests;
+with Coyote_GUI_Mode_Tests;
 with Session_History_Tests;
 with Tool_URI_Tests;
 with Subagent_Integration_Tests;
@@ -118,6 +119,8 @@ package body Test_Suites is
      new AUnit.Test_Caller (Coyote_GUI_Prompt_Queue_Tests.Test);
    package Coyote_GUI_Notification_Policy_Caller is
      new AUnit.Test_Caller (Coyote_GUI_Notification_Policy_Tests.Test);
+   package Coyote_GUI_Mode_Caller is
+     new AUnit.Test_Caller (Coyote_GUI_Mode_Tests.Test);
    package LLM_HTTP_Caller is
      new AUnit.Test_Caller (LLM_HTTP_Tests.Test);
    package LLM_Settings_Caller is
@@ -3013,6 +3016,12 @@ package body Test_Suites is
       Result.Add_Test (Coyote_Help_Caller.Create
         ("Coyote.Help detects Yelp",
          Coyote_Help_Tests.Test_Yelp_Is_Available'Access));
+      Result.Add_Test (Coyote_Help_Caller.Create
+        ("Coyote.Help product information text",
+         Coyote_Help_Tests.Test_Product_Information_Text'Access));
+      Result.Add_Test (Coyote_GUI_Mode_Caller.Create
+        ("Coyote.GUI agent actions follow run mode",
+         Coyote_GUI_Mode_Tests.Test_Agent_Actions_Follow_Run_Mode'Access));
 
       Result.Add_Test (Coyote_Lasem_Caller.Create
         ("Coyote.Lasem measures a MathML fraction",
@@ -3228,6 +3237,10 @@ package body Test_Suites is
         ("Coyote.GUI.Context_Help maps main areas to topics",
          Coyote_GUI_Conversation_Tests
            .Test_Context_Help_Covers_Main_Areas'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation select all and clear selection",
+         Coyote_GUI_Conversation_Tests
+           .Test_Select_All_And_Clear_Selection'Access));
 
       return Result;
    end Suite;

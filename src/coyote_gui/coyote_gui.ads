@@ -16,6 +16,16 @@ package Coyote_GUI is
 
    type Run_Mode is (Idle, Running, Armed, Paused);
 
+   --  Agent-menu availability.  Stop applies to any live turn; Pause
+   --  applies only while a turn is running; Resume applies only while
+   --  paused.  Armed means Pause has been requested but not yet taken.
+   function Stop_Available (Mode : Run_Mode) return Boolean
+     is (Mode /= Idle);
+   function Pause_Available (Mode : Run_Mode) return Boolean
+     is (Mode = Running);
+   function Resume_Available (Mode : Run_Mode) return Boolean
+     is (Mode = Paused);
+
    --  ── Tool end status ───────────────────────────────────────────────────
    --  Mirrors Coyote_App.Frontend.Tool_End_Status.
 
