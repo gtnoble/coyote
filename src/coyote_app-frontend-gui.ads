@@ -20,6 +20,7 @@
 --  Project: coyote
 
 with Ada.Strings.Unbounded;        use Ada.Strings.Unbounded;
+with Glib;                          use Glib;
 with LLM.Agent;
 with Coyote_GUI.Conversation;
 with Coyote_GUI.Prompt_Queue;
@@ -36,6 +37,7 @@ with Gtk.Status_Bar;
 with Gtk.Layout;
 with Gtk.Text_Buffer;
 with Gtk.Text_View;
+with Gtk.Expander;
 with Gtk.Window;
 
 package Coyote_App.Frontend.GUI is
@@ -162,6 +164,13 @@ package Coyote_App.Frontend.GUI is
 
 private
 
+   protected type Session_Reference is
+      procedure Set (Value : access LLM.Agent.Session);
+      procedure Request_Abort;
+   private
+      Value : access LLM.Agent.Session := null;
+   end Session_Reference;
+
    type Instance is new Coyote_App.Frontend.Instance with record
       --  Update queue: agent task → GTK idle drain.
       Updates   : aliased Coyote_GUI.Updates.Queue;
@@ -184,19 +193,23 @@ private
       Send_Btn    : Gtk.Button.Gtk_Button;
       Stop_Btn    : Gtk.Button.Gtk_Button;
       Status_Bar  : Gtk.Label.Gtk_Label;
+      Transcript_Expander : Gtk.Expander.Gtk_Expander;
+      Transcript_View     : Gtk.Text_View.Gtk_Text_View;
+      Transcript_Buf      : Gtk.Text_Buffer.Gtk_Text_Buffer;
       Outer_Box   : Gtk.Box.Gtk_Box;
       --  State
       Win_Name    : Unbounded_String;
       Stats_Text  : Unbounded_String;
       Current_Mode : Coyote_App.Frontend.Run_Mode :=
         Coyote_App.Frontend.Idle;
-      Agent_Sess  : access LLM.Agent.Session := null;
+      Agent_Sess  : Session_Reference;
       --  Auto-scroll: when True, the conversation view snaps to the bottom
       --  whenever its adjustment changes (new content arrives).  Toggled
       --  via View → Auto-scroll check menu item.  Enabled by default.
       Auto_Scroll         : Boolean := True;
       Auto_Scroll_Item    : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
       Zoom_Level          : Integer := 0;
+      Smooth_Zoom_Accumulator : Gdouble := 0.0;
    end record;
 
 end Coyote_App.Frontend.GUI;

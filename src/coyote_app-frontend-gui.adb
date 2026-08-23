@@ -77,10 +77,29 @@ package body Coyote_App.Frontend.GUI is
    --  Global access for signal callbacks (single window per process).
    Current_Frontend : access Instance := null;
 
+   protected body Session_Reference is
+      procedure Set (Value : access LLM.Agent.Session) is
+      begin
+         Session_Reference.Value := Value;
+      end Set;
+
+      procedure Request_Abort is
+      begin
+         if Session_Reference.Value /= null then
+            LLM.Agent.Request_Abort (Session_Reference.Value.all);
+         end if;
+      end Request_Abort;
+   end Session_Reference;
+
    use type Gtk.Dialog.Gtk_Dialog;
    use type Gtk.Label.Gtk_Label;
+   use type Gtk.Text_Buffer.Gtk_Text_Buffer;
+   use type Coyote_GUI.Conversation.Action_Kind;
    use type Gtk.Tree_Model_Filter.Gtk_Tree_Model_Filter;
    use type Gtk.Tree_View.Gtk_Tree_View;
+
+   procedure On_Change_Model_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
 
    --  Transient widgets for the modal Change Model dialog.  Dialog.Run
    --  is modal, so at most one picker is live at a time.
@@ -329,6 +348,62 @@ package body Coyote_App.Frontend.GUI is
       return False;
    end On_Conv_Button_Press;
 
+   function On_Conv_Key_Press
+     (Self  : access Gtk.Widget.Gtk_Widget_Record'Class;
+      Event : Gdk.Event.Gdk_Event_Key) return Boolean
+   is
+      pragma Unreferenced (Self);
+      use type Gdk.Types.Gdk_Key_Type;
+      Result : Coyote_GUI.Conversation.Tool_Click_Result;
+   begin
+      if Current_Frontend = null
+        or else (Event.Keyval not in Gdk.Types.Keysyms.GDK_Return
+                 | Gdk.Types.Keysyms.GDK_KP_Enter
+                 | Gdk.Types.Keysyms.GDK_space)
+      then
+         return False;
+      end if;
+
+      Result := Current_Frontend.Conv.Focused_Tool;
+      if Result.Found then
+         Coyote_GUI.Tool_Detail_Window.Show
+           (Result.Info, Current_Frontend.Win.all'Access);
+         return True;
+      end if;
+
+      declare
+         Action : constant Coyote_GUI.Conversation.Action_Click_Result :=
+           Current_Frontend.Conv.Focused_Action;
+      begin
+         if Action.Found
+           and then Action.Action.Kind = Coyote_GUI.Conversation.Fork
+         then
+            declare
+               New_UUID : constant String :=
+                 Session_Lister.Fork_Session
+                   (Source_UUID => To_String (Action.Action.Fork_UUID),
+                    After_Turn  => Action.Action.Fork_Turn_N,
+                    Target_Cwd  => Ada.Directories.Current_Directory,
+                    After_Step  => Action.Action.Fork_Step_N);
+            begin
+               if New_UUID'Length > 0 then
+                  declare
+                     use GNATCOLL.OS.Process;
+                     Args : Argument_List;
+                  begin
+                     Args.Append (Ada.Command_Line.Command_Name);
+                     Args.Append ("--session");
+                     Args.Append (New_UUID);
+                     Coyote_Spawn.Spawn_Detached (Args);
+                  end;
+               end if;
+            end;
+            return True;
+         end if;
+      end;
+      return False;
+   end On_Conv_Key_Press;
+
    --  ── Apply_Update — called on the GTK main thread by Drain_Idle ────────
 
    procedure Apply_Update (F : in out Instance; U : Coyote_GUI.Update) is
@@ -418,6 +493,20 @@ package body Coyote_App.Frontend.GUI is
                F.Stop_Btn.Set_Sensitive (U.Mode /= Coyote_GUI.Idle);
             end;
 
+         when Set_Stats =>
+            F.Stats_Text := To_Unbounded_String (To_String (U.Text));
+
+         when Clear_Conversation =>
+            F.Conv.Clear;
+            if F.Transcript_Buf /= null then
+               F.Transcript_Buf.Set_Text ("");
+            end if;
+
+         when Set_Transcript =>
+            if F.Transcript_Buf /= null then
+               F.Transcript_Buf.Set_Text (To_String (U.Text));
+            end if;
+
          when Set_Completion_Notifications =>
             F.Notifications_Enabled :=
               F.Notifications_Allowed and then U.Enabled;
@@ -441,6 +530,12 @@ package body Coyote_App.Frontend.GUI is
             Gtk.Main.Main_Quit;
 
       end case;
+      if F.Transcript_Buf /= null
+        and then U.Kind /= Set_Stats
+        and then U.Kind /= Set_Transcript
+      then
+         F.Transcript_Buf.Set_Text (F.Conv.Transcript_Text);
+      end if;
    end Apply_Update;
 
    --  ── GLib idle drain callback ──────────────────────────────────────────
@@ -505,12 +600,20 @@ package body Coyote_App.Frontend.GUI is
       declare
          Text : constant String :=
            Current_Frontend.Prompt_Buf.Get_Text (SI, EI);
+         Accepted : Boolean;
       begin
-         if Text'Length > 0 then
-            Current_Frontend.PQ.Enqueue
-              ((User_Prompt,
-                Text => To_Unbounded_String (Text)));
+         if Ada.Strings.Fixed.Trim (Text, Ada.Strings.Both)'Length = 0 then
+            return;
+         end if;
+         Current_Frontend.PQ.Enqueue
+           ((User_Prompt,
+             Text => To_Unbounded_String (Text)), Accepted);
+         if Accepted then
             Current_Frontend.Prompt_Buf.Set_Text ("");
+         else
+            Current_Frontend.Append_Notice
+              (Coyote_App.Frontend.Warning,
+               "Input queue is full; prompt retained.");
          end if;
       end;
    end On_Send_Clicked;
@@ -553,6 +656,23 @@ package body Coyote_App.Frontend.GUI is
       end if;
    end On_New_Session_Activate;
 
+   procedure On_Clear_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class) is
+      pragma Unreferenced (Self);
+      Accepted : Boolean;
+   begin
+      if Current_Frontend /= null then
+         Current_Frontend.PQ.Enqueue ((Kind => Clear), Accepted);
+      end if;
+   end On_Clear_Activate;
+
+   procedure On_Send_Menu_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class) is
+      pragma Unreferenced (Self);
+   begin
+      On_Send_Clicked (null);
+   end On_Send_Menu_Activate;
+
    procedure On_Quit_Activate
      (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class) is
       pragma Unreferenced (Self);
@@ -569,9 +689,7 @@ package body Coyote_App.Frontend.GUI is
       pragma Unreferenced (Self);
    begin
       if Current_Frontend /= null then
-         if Current_Frontend.Agent_Sess /= null then
-            LLM.Agent.Request_Abort (Current_Frontend.Agent_Sess.all);
-         end if;
+         Current_Frontend.Agent_Sess.Request_Abort;
          Current_Frontend.PQ.Enqueue ((Kind => Stop));
       end if;
    end On_Stop_Activate;
@@ -582,9 +700,7 @@ package body Coyote_App.Frontend.GUI is
       pragma Unreferenced (Self);
    begin
       if Current_Frontend /= null then
-         if Current_Frontend.Agent_Sess /= null then
-            LLM.Agent.Request_Abort (Current_Frontend.Agent_Sess.all);
-         end if;
+         Current_Frontend.Agent_Sess.Request_Abort;
          Current_Frontend.PQ.Enqueue ((Kind => Stop));
       end if;
    end On_Stop_Btn_Clicked;
@@ -805,6 +921,7 @@ package body Coyote_App.Frontend.GUI is
       Content := Dialog.Get_Content_Area;
       Content.Pack_Start (Scroll, Expand => True, Fill => True, Padding => 4);
       Dialog.Show_All;
+      View.Grab_Focus;
 
       Resp := Dialog.Run;
       if Resp = Gtk_Response_OK then
@@ -1186,6 +1303,7 @@ package body Coyote_App.Frontend.GUI is
       Content := Dialog.Get_Content_Area;
       Content.Pack_Start (Scroll, Expand => True, Fill => True, Padding => 4);
       Dialog.Show_All;
+      View.Grab_Focus;
 
       Resp := Dialog.Run;
       if Resp = Gtk_Response_OK then
@@ -1385,6 +1503,7 @@ package body Coyote_App.Frontend.GUI is
 
       Content.Pack_Start (Form, True, True, 4);
       Dialog.Show_All;
+      Model_C.Grab_Focus;
       Resp := Dialog.Run;
       if Resp = Gtk.Dialog.Gtk_Response_OK then
          declare
@@ -1589,9 +1708,6 @@ package body Coyote_App.Frontend.GUI is
       use type Gdk.Event.Gdk_Scroll_Direction;
 
       Notch : constant Gdouble := 1.0;
-      --  Accumulated smooth-scroll delta (positive = zoom in).
-      Smooth_Acc : Gdouble := 0.0;
-
       Changed : Boolean;
       Steps   : Integer := 0;
    begin
@@ -1607,13 +1723,22 @@ package body Coyote_App.Frontend.GUI is
          when Gdk.Event.Scroll_Down =>
             Steps := -1;
          when Gdk.Event.Scroll_Smooth =>
-            Smooth_Acc := Smooth_Acc - Event.Delta_Y;
-            if Smooth_Acc >= Notch then
-               Steps := Integer (Gdouble'Floor (Smooth_Acc));
-               Smooth_Acc := Smooth_Acc - Gdouble (Steps) * Notch;
-            elsif Smooth_Acc <= -Notch then
-               Steps := Integer (Gdouble'Ceiling (Smooth_Acc));
-               Smooth_Acc := Smooth_Acc - Gdouble (Steps) * Notch;
+            Current_Frontend.Smooth_Zoom_Accumulator :=
+              Current_Frontend.Smooth_Zoom_Accumulator - Event.Delta_Y;
+            if Current_Frontend.Smooth_Zoom_Accumulator >= Notch then
+               Steps := Integer
+                 (Gdouble'Floor
+                    (Current_Frontend.Smooth_Zoom_Accumulator));
+               Current_Frontend.Smooth_Zoom_Accumulator :=
+                 Current_Frontend.Smooth_Zoom_Accumulator
+                 - Gdouble (Steps) * Notch;
+            elsif Current_Frontend.Smooth_Zoom_Accumulator <= -Notch then
+               Steps := Integer
+                 (Gdouble'Ceiling
+                    (Current_Frontend.Smooth_Zoom_Accumulator));
+               Current_Frontend.Smooth_Zoom_Accumulator :=
+                 Current_Frontend.Smooth_Zoom_Accumulator
+                 - Gdouble (Steps) * Notch;
             end if;
          when others =>
             null;
@@ -1697,6 +1822,8 @@ package body Coyote_App.Frontend.GUI is
       Open_Sess_Item  : Gtk_Menu_Item;
       Quit_Item      : Gtk_Menu_Item;
       Item           : Gtk_Menu_Item;
+      Send_Item       : Gtk_Menu_Item;
+      Clear_Item      : Gtk_Menu_Item;
 
       --  Agent menu
       Agent_Menu : Gtk_Menu;
@@ -1802,6 +1929,20 @@ package body Coyote_App.Frontend.GUI is
       Gtk.Menu_Shell.Append
         (Gtk.Menu_Shell.Gtk_Menu_Shell (F.Menu_Bar), Agent_Item);
 
+      Send_Item := Make_Item ("_Send", Agent_Menu);
+      Send_Item.On_Activate (On_Send_Menu_Activate'Access);
+      Send_Item.Add_Accelerator
+        ("activate", F.Accel_Group,
+         Gdk.Types.Keysyms.GDK_Return,
+         Gdk.Types.Control_Mask,
+         Gtk.Accel_Group.Accel_Visible);
+      Clear_Item := Make_Item ("_Clear Conversation", Agent_Menu);
+      Clear_Item.On_Activate (On_Clear_Activate'Access);
+      Clear_Item.Add_Accelerator
+        ("activate", F.Accel_Group,
+         Gdk.Types.Keysyms.GDK_LC_l,
+         Gdk.Types.Control_Mask,
+         Gtk.Accel_Group.Accel_Visible);
       Stop_Item := Make_Item ("_Stop", Agent_Menu);
       Stop_Item.On_Activate (On_Stop_Activate'Access);
       Stop_Item.Add_Accelerator
@@ -1824,7 +1965,7 @@ package body Coyote_App.Frontend.GUI is
          Gdk.Types.Control_Mask,
          Gtk.Accel_Group.Accel_Visible);
       Add_Sep (Agent_Menu);
-      Change_Model_Item := Make_Item ("Change _Model...", Agent_Menu);
+      Change_Model_Item := Make_Item ("_Models...", Agent_Menu);
       Change_Model_Item.On_Activate (On_Change_Model_Activate'Access);
       Change_Model_Item.Add_Accelerator
         ("activate", F.Accel_Group,
@@ -2001,6 +2142,8 @@ package body Coyote_App.Frontend.GUI is
       --  False, so both handlers fire.
       F.Conv_Layout.On_Button_Press_Event
         (On_Conv_Button_Press'Access);
+      F.Conv_Layout.On_Key_Press_Event
+        (On_Conv_Key_Press'Access);
 
       --  Ctrl+wheel zoom; plain wheel scroll falls through to the
       --  scrolled window's adjustments.
@@ -2010,6 +2153,21 @@ package body Coyote_App.Frontend.GUI is
       F.Conv_Scroll.Add (F.Conv_Layout);
       F.Outer_Box.Pack_Start (F.Conv_Scroll, Expand => True, Fill => True,
                               Padding => 0);
+
+      --  Native transcript for keyboard selection and assistive technology.
+      Gtk.Expander.Gtk_New (F.Transcript_Expander, "Accessible transcript");
+      Gtk.Text_View.Gtk_New (F.Transcript_View);
+      F.Transcript_View.Set_Editable (False);
+      F.Transcript_View.Set_Wrap_Mode (Wrap_Word_Char);
+      F.Transcript_View.Set_Cursor_Visible (False);
+      F.Transcript_View.Set_Tooltip_Text
+        ("Read-only plain-text conversation transcript");
+      F.Transcript_Buf := F.Transcript_View.Get_Buffer;
+      F.Transcript_Expander.Add (F.Transcript_View);
+      F.Transcript_Expander.Set_Expanded (False);
+      F.Outer_Box.Pack_Start
+        (F.Transcript_Expander, Expand => False, Fill => True, Padding => 2);
+
       --  ── Prompt area ───────────────────────────────────────────────────
 
       Gtk.Box.Gtk_New_Vbox (Prompt_Box, Homogeneous => False, Spacing => 2);
@@ -2031,6 +2189,7 @@ package body Coyote_App.Frontend.GUI is
 
       Gtk.Button.Gtk_New_From_Icon_Name
          (F.Send_Btn, "mail-send", Gtk.Enums.Icon_Size_Button);
+      F.Send_Btn.Set_Label ("Send");
       F.Send_Btn.Set_Always_Show_Image (True);
       F.Send_Btn.On_Clicked (On_Send_Clicked'Access);
       F.Send_Btn.Set_Tooltip_Text
@@ -2040,6 +2199,7 @@ package body Coyote_App.Frontend.GUI is
 
       Gtk.Button.Gtk_New_From_Icon_Name
          (F.Stop_Btn, "process-stop", Gtk.Enums.Icon_Size_Button);
+      F.Stop_Btn.Set_Label ("Stop");
       F.Stop_Btn.Set_Always_Show_Image (True);
       F.Stop_Btn.On_Clicked (On_Stop_Btn_Clicked'Access);
       F.Stop_Btn.Set_Tooltip_Text ("Stop agent (Agent > Stop)");
@@ -2080,6 +2240,9 @@ package body Coyote_App.Frontend.GUI is
 
       F.Win.Set_Focus_On_Map (not Pop_Under);
       F.Win.Show_All;
+      if not Pop_Under then
+         F.Prompt_View.Grab_Focus;
+      end if;
 
    end Create;
 
@@ -2278,21 +2441,25 @@ package body Coyote_App.Frontend.GUI is
    --  ── GUI-specific ──────────────────────────────────────────────────────
 
    procedure Set_Stats_Summary (F : in out Instance; Text : String) is
+      U : Coyote_GUI.Update;
    begin
-      F.Stats_Text := To_Unbounded_String (Text);
+      U.Kind := Coyote_GUI.Set_Stats;
+      U.Text := To_Unbounded_String (Text);
+      Enqueue_Update (F, U);
    end Set_Stats_Summary;
-
 
    procedure Register_Session
      (F : in out Instance;
       S : access LLM.Agent.Session) is
    begin
-      F.Agent_Sess := S;
+      F.Agent_Sess.Set (S);
    end Register_Session;
 
    procedure Clear_Conversation (F : in out Instance) is
+      U : Coyote_GUI.Update;
    begin
-      F.Conv.Clear;
+      U.Kind := Coyote_GUI.Clear_Conversation;
+      Enqueue_Update (F, U);
    end Clear_Conversation;
 
    procedure Set_Debug_Logging (F : in out Instance; Enabled : Boolean) is

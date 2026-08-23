@@ -239,6 +239,7 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `Coyote_GUI.Conversation` | GtkLayout-based virtualized conversation renderer | `src/coyote_gui/coyote_gui-conversation.ads/.adb` |
 | `Coyote_GUI.Tool_Detail_Window` | Structured GTK tool-call detail window | `src/coyote_gui/coyote_gui-tool_detail_window.ads/.adb` |
 | `Coyote_GUI.Zoom` | Zoom-level ↔ font-size arithmetic (pure logic) | `src/coyote_gui/coyote_gui-zoom.ads/.adb` |
+| `Coyote_GUI.Navigation` | Clamped keyboard viewport navigation policy | `src/coyote_gui/coyote_gui-navigation.ads/.adb` |
 | `Coyote_Utils` | CLI arg resolution, file reading, session prefix stripping | `src/coyote_utils.ads/.adb` |
 | `LLM` | Root package | `src/llm/llm.ads` |
 | `LLM.Types` | Message, content block, usage types | `src/llm/llm-types.ads/.adb` |
@@ -1663,12 +1664,22 @@ using Cairo + Pango (see §5.15).
   update after `Session_Stats_Event`; the GTK idle callback checks
   `Gtk.Window.Is_Active` and calls `Coyote_Notify` only for an inactive window.
   Missing notification daemons and delivery failures are non-fatal.
-- `Clear_Conversation` — clears the conversation view; delegates to
-  `Coyote_GUI.Conversation.Clear`. Called by `Agent_Task` when handling
-  the `New_Session` prompt-queue item.
-- `Set_Stats_Summary` — not part of the abstract interface; called directly
-  from `Dispatch_Event` via a classwide `if P in GUI.Instance'Class` check
-  to set the status-bar model/cost summary.
+- `Clear_Conversation` — queues a `Clear_Conversation` update; the GTK idle
+  callback clears `Coyote_GUI.Conversation` and the native transcript. The
+  agent task uses this when handling the `New_Session` or `Clear` command.
+- `Set_Stats_Summary` — not part of the abstract interface; queues a
+  `Set_Stats` update so the status-bar statistics are written on the GTK
+  main-loop thread.
+- **Keyboard navigation:** The conversation canvas handles vi-style
+  `j`/`k`/`g`/`Shift+g`, Ctrl+D/Ctrl+U, and Home/End/Page Up/Page Down.
+  Tab and Shift+Tab cycle custom tool/action controls; Enter, keypad Enter,
+  and Space activate the focused control. Escape clears selection only when
+  a selection exists, otherwise it reaches the Stop accelerator.
+- **Accessibility:** Send and Stop use text labels as well as icons. A
+  collapsed native read-only transcript mirrors the plain text of the custom
+  renderer for GTK accessibility and keyboard selection. The canvas uses
+  GTK's dark-theme preference to select contrasting colors.
+
 - `Shutdown` — calls `Gtk.Main.Quit` from within the idle callback.
 - **System font integration** (2026-07-30): On startup the frontend reads the
   system default proportional font family and point size from
@@ -1738,7 +1749,9 @@ enumeration and the `Update` discriminated record.
 
 **`Update_Kind` values:** `Append_Text`, `End_Text_Block`, `Append_Thinking`,
 `Begin_Thinking`, `End_Thinking`, `Begin_Tool`, `End_Tool`, `Append_Notice`,
-`Append_Turn_Footer`, `Set_Mode`, `Shutdown`, `Set_Stats`.
+`Append_Turn_Footer`, `Set_Mode`, `Set_Stats`, `Clear_Conversation`,
+`Set_Transcript`, `Set_Completion_Notifications`, `Completion_Notification`,
+`Show_Detail`, and `Shutdown`.
 
 **`Update` record:** Discriminant is `Update_Kind`. Each variant carries the
 payload fields appropriate to that kind (e.g. `Append_Text` carries a
@@ -1778,7 +1791,8 @@ a callback is completing.
 carrying typed command payloads via a discriminated `Item` type.
 
 **Protected type `Queue`:** Bounded buffer of `Item` values, capacity 64.
-Operations: `Enqueue (I : Item)` (non-blocking; drops if full),
+Operations: `Enqueue (I : Item; Accepted : out Boolean)` (non-blocking;
+reports rejection when full), `Enqueue (I : Item)` (compatibility wrapper),
 `Dequeue (I : out Item)` (blocking entry; `Agent_Task` waits here between
 turns), and `Shutdown` (unblocks any waiting `Dequeue`).
 

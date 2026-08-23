@@ -16,6 +16,7 @@ with Coyote_Utils_Tests;
 with Coyote_Cmark_Tests;
 with Coyote_Lasem_Tests;
 with Coyote_GUI_Conversation_Tests;
+with Coyote_GUI_Navigation_Tests;
 with Coyote_GUI_Zoom_Tests;
 with Coyote_GUI_Updates_Tests;
 with Coyote_GUI_Prompt_Queue_Tests;
@@ -103,6 +104,8 @@ package body Test_Suites is
      new AUnit.Test_Caller (Coyote_Lasem_Tests.Test);
    package Coyote_GUI_Conversation_Caller is
      new AUnit.Test_Caller (Coyote_GUI_Conversation_Tests.Test);
+   package Coyote_GUI_Navigation_Caller is
+     new AUnit.Test_Caller (Coyote_GUI_Navigation_Tests.Test);
 
    package Coyote_GUI_Zoom_Caller is
      new AUnit.Test_Caller (Coyote_GUI_Zoom_Tests.Test);
@@ -2966,10 +2969,25 @@ package body Test_Suites is
       Result.Add_Test (Coyote_GUI_Prompt_Queue_Caller.Create
         ("Coyote.GUI.Prompt_Queue Set_Preferences round trips",
          Coyote_GUI_Prompt_Queue_Tests.Test_Set_Preferences_Round_Trips'Access));
+      Result.Add_Test (Coyote_GUI_Prompt_Queue_Caller.Create
+        ("Coyote.GUI.Prompt_Queue reports acceptance",
+         Coyote_GUI_Prompt_Queue_Tests.Test_Enqueue_Reports_Acceptance'Access));
+      Result.Add_Test (Coyote_GUI_Prompt_Queue_Caller.Create
+        ("Coyote.GUI.Prompt_Queue rejects overflow",
+         Coyote_GUI_Prompt_Queue_Tests.Test_Enqueue_Rejects_Overflow'Access));
       Result.Add_Test (Coyote_GUI_Notification_Policy_Caller.Create
         ("Coyote.GUI.Notification_Policy eligibility",
          Coyote_GUI_Notification_Policy_Tests
            .Test_Notify_When_Allowed_Enabled_And_Inactive'Access));
+      Result.Add_Test (Coyote_GUI_Navigation_Caller.Create
+        ("Coyote.GUI.Navigation line movement",
+         Coyote_GUI_Navigation_Tests.Test_Line_Movement'Access));
+      Result.Add_Test (Coyote_GUI_Navigation_Caller.Create
+        ("Coyote.GUI.Navigation page movement",
+         Coyote_GUI_Navigation_Tests.Test_Page_Movement'Access));
+      Result.Add_Test (Coyote_GUI_Navigation_Caller.Create
+        ("Coyote.GUI.Navigation top bottom clamp",
+         Coyote_GUI_Navigation_Tests.Test_Top_Bottom_And_Clamp'Access));
       Result.Add_Test (Coyote_GUI_Notification_Policy_Caller.Create
         ("Coyote.GUI.Notification_Policy active window suppresses",
          Coyote_GUI_Notification_Policy_Tests
@@ -3177,6 +3195,14 @@ package body Test_Suites is
         ("Coyote.GUI.Conversation math uses natural pixel height",
          Coyote_GUI_Conversation_Tests
            .Test_Math_Uses_Natural_Pixel_Height'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation transcript uses plain text",
+         Coyote_GUI_Conversation_Tests
+           .Test_Transcript_Text_Uses_Plain_Text'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation interactive focus cycles",
+         Coyote_GUI_Conversation_Tests
+           .Test_Interactive_Focus_Cycles'Access));
 
       return Result;
    end Suite;

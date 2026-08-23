@@ -149,6 +149,20 @@ package Coyote_GUI.Conversation is
       X :        Glib.Gint;
       Y :        Glib.Gint) return Action_Click_Result;
 
+   --  Move keyboard focus to the next or previous interactive item.
+   procedure Move_Interactive_Focus
+     (C       : in out Instance;
+      Forward :        Boolean := True);
+
+   --  Return the currently focused tool card, if any.
+   function Focused_Tool (C : Instance) return Tool_Click_Result;
+
+   --  Return the currently focused action strip, if any.
+   function Focused_Action (C : Instance) return Action_Click_Result;
+
+   --  Return a plain-text transcript suitable for native accessibility tools.
+   function Transcript_Text (C : Instance) return String;
+
    --  ── Action strips ─────────────────────────────────────────────────────
 
    procedure Append_Action_Strip
@@ -278,9 +292,13 @@ private
       Sel_Start_Byte   : Natural := 0;
       Sel_End_Line     : Natural := 0;
       Sel_End_Byte     : Natural := 0;
+      --  Keyboard focus for tool cards and action strips.  Zero means none.
+      Interactive_Focus : Natural := 0;
       --  Tool-card hover state.  Zero means no completed card is hovered.
       Hover_Tool_First : Natural := 0;
       Hover_Tool_Last  : Natural := 0;
+      --  Use the GTK dark-theme preference for canvas colors.
+      Dark_Theme       : Boolean := False;
       --  Action sequence for unique tag names
       Action_Seq       : Natural := 0;
    end record;

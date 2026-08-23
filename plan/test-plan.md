@@ -147,7 +147,8 @@ SRS-CORE requirement groups.
 
 | `llm_skills_tests.adb` | REQ-CORE-090â093 | ~20 |
 | `llm_settings_tests.adb` | REQ-CORE-230â234, 070â073; sandbox default loading and Save_Preferences persistence | ~27 |
-| `coyote_gui_prompt_queue_tests.adb` | REQ-CORE-116â119; typed preference payload transport | 1 |
+| `coyote_gui_prompt_queue_tests.adb` | REQ-CORE-116â119; typed preference payload, acceptance, and overflow transport | 3 |
+| `coyote_gui_navigation_tests.adb` | REQ-CORE-114; clamped keyboard viewport navigation | 3 |
 | `llm_auth_tests.adb` | REQ-CORE-232 | ~15 |
 | `llm_compaction_tests.adb` | REQ-CORE-060â064 | ~30 |
 | `llm_tools_tests.adb` | REQ-CORE-050â053 | ~25 |
@@ -305,9 +306,9 @@ These are entered as open items in the problem log (PCR-009).
 
 | REQ-CORE-090â093 | T | `llm_skills_tests.adb` |
 | REQ-CORE-100â109 | T/D | `acme_event_parser_tests.adb`, `tool_uri_tests.adb`, DEM-013 |
-| REQ-CORE-110â115 | T/D | `coyote_cmark_tests.adb`, DEM-014 |
+| REQ-CORE-110â115 | T/D | `coyote_cmark_tests.adb`, `coyote_gui_conversation_tests.adb`, DEM-014 |
 | REQ-CORE-125 | T/D | `coyote_gui_zoom_tests.adb`, DEM-014 |
-| REQ-CORE-132 | D | DEM-014 |
+| REQ-CORE-132 | D/T | `coyote_gui_navigation_tests.adb`, `coyote_gui_prompt_queue_tests.adb`, DEM-014 |
 | REQ-CORE-124 | T/D | `coyote_lasem_tests.adb`, `coyote_gui_conversation_tests.adb` |
 | REQ-CORE-116 | D | DEM-033 |
 | REQ-CORE-117 | D | DEM-033 |
@@ -667,3 +668,12 @@ Requirements and design documents updated.  Implementation complete
 0 regressions.  Dedicated cost-unit tests deferred â cost chart formulas
 are identical to their token-count counterparts and the pricing data path
 is transparent to the statistical layer.
+
+**Baseline as of 2026-08-23 (PCR-067 keyboard-driven GTK GUI):**
+898 registered tests. The application and test development builds succeed.
+The focused GUI qualification passes 45 tests with 0 failures and 0
+unexpected errors, covering navigation policy, prompt queue acceptance and
+overflow, transcript plain-text exposure, and custom interactive focus.
+The complete suite was executed with a 900-second limit; display-backed
+DEM-014, AT-SPI accessibility inspection, and full color-contrast measurement
+remain manual qualification activities.

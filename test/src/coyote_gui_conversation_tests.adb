@@ -1,4 +1,5 @@
 with Ada.Environment_Variables;
+with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with AUnit.Assertions;
 with Glib;         use type Glib.Gint;
@@ -1102,5 +1103,55 @@ package body Coyote_GUI_Conversation_Tests is
       Assert (Math_H /= Line_H or else Math_H > Line_H,
               "math height is not forced onto the body-line grid");
    end Test_Math_Uses_Natural_Pixel_Height;
+
+   procedure Test_Transcript_Text_Uses_Plain_Text (T : in out Test) is
+      Conv   : Instance;
+      Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Layout : Gtk.Layout.Gtk_Layout;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Make_Fresh_Conv (Conv, Scroll, Layout);
+      Conv.Append_Text ("**bold** transcript");
+      Conv.End_Text_Block;
+      declare
+         Transcript : constant String := Transcript_Text (Conv);
+      begin
+         Assert (Ada.Strings.Fixed.Index
+                   (Transcript, "bold transcript") > 0,
+                 "transcript should expose plain text");
+         Assert (Ada.Strings.Fixed.Index (Transcript, "<b>") = 0,
+                 "transcript should strip display markup");
+      end;
+   end Test_Transcript_Text_Uses_Plain_Text;
+
+   procedure Test_Interactive_Focus_Cycles (T : in out Test) is
+      Conv   : Instance;
+      Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Layout : Gtk.Layout.Gtk_Layout;
+      Action : Action_Info (Fork);
+      Tool   : Tool_Click_Result;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Make_Fresh_Conv (Conv, Scroll, Layout);
+      Conv.Begin_Tool ("shell", "{}", "session", "tool");
+      Conv.End_Tool ("tool", Success, "ok");
+      Action.Fork_UUID := To_Unbounded_String ("session");
+      Action.Fork_Turn_N := 1;
+      Action.Fork_Step_N := 0;
+      Conv.Append_Action_Strip ("Fork", Action);
+      Conv.Move_Interactive_Focus;
+      Tool := Conv.Focused_Tool;
+      Assert (Tool.Found, "first interactive focus should be the tool card");
+      Conv.Move_Interactive_Focus;
+      Assert (Conv.Focused_Action.Found,
+              "second interactive focus should be the action strip");
+      Conv.Move_Interactive_Focus (Forward => False);
+      Assert (Conv.Focused_Tool.Found,
+              "reverse focus should return to the tool card");
+   end Test_Interactive_Focus_Cycles;
 
 end Coyote_GUI_Conversation_Tests;

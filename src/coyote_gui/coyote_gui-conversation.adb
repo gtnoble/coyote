@@ -24,8 +24,11 @@ with Gtk.Menu;
 with Gtk.Menu_Item;
 with Gtk.Menu_Shell;
 with Gtk.Scrolled_Window;
+with Gtk.Settings;
+with Glib.Properties;
 with Gtk.Widget;
 with Interfaces.C;                   use Interfaces.C;
+with Coyote_GUI.Navigation;
 with Interfaces.C.Strings;
 with Pango.Cairo;
 with Pango.Enums;                    use Pango.Enums;
@@ -125,6 +128,17 @@ package body Coyote_GUI.Conversation is
       Text    : String);
 
    procedure Copy_Selection_To_Clipboard (C : in out Instance);
+
+   procedure Apply_Keyboard_Scroll
+     (C    : in out Instance;
+      Move : Coyote_GUI.Navigation.Movement);
+
+   function Is_Interactive_Line (C : Instance; Index : Positive) return Boolean;
+
+   function Interactive_Line_At
+     (C     : Instance;
+      Start : Positive;
+      Step  : Integer) return Natural;
 
    procedure Ordered_Selection
      (C          : Instance;
@@ -671,6 +685,14 @@ package body Coyote_GUI.Conversation is
       C.Scroll    := Gtk.Scrolled_Window.Gtk_Scrolled_Window (Scroll);
       C.Layout_W  := Gtk.Layout.Gtk_Layout (Layout_W);
       Current_Conv := C'Unchecked_Access;
+      declare
+         Settings : constant Gtk.Settings.Gtk_Settings :=
+           Gtk.Settings.Get_Default;
+      begin
+         C.Dark_Theme := Glib.Properties.Get_Property
+           (Settings,
+            Gtk.Settings.Gtk_Application_Prefer_Dark_Theme_Property);
+      end;
 
       --  Event mask: button press, release, motion, key press, scroll.
       --  Scroll events are enabled so the frontend's Ctrl+wheel zoom
@@ -804,9 +826,12 @@ package body Coyote_GUI.Conversation is
       then
          return False;
       end if;
-      --  Fill entire widget background with white so plain lines
-      --  always have a white backdrop regardless of system theme.
-      Set_Source_Rgb (Cr, 1.0, 1.0, 1.0);
+      --  Use a neutral palette that remains readable in both GTK theme modes.
+      if Current_Conv.Dark_Theme then
+         Set_Source_Rgb (Cr, 0.12, 0.12, 0.14);
+      else
+         Set_Source_Rgb (Cr, 1.0, 1.0, 1.0);
+      end if;
       Rectangle
         (Cr, 0.0, 0.0,
          Gdouble (Width_Px), Gdouble (Alloc_H));
@@ -861,37 +886,58 @@ package body Coyote_GUI.Conversation is
                         Draw_Tool_Background
                           (Cr, Width_Px, Y_Off, Block_H, L.Style,
                            L.Tool_Status, L.Tool_Running,
-                           Current_Conv.Hover_Tool_First > 0
+                           (Current_Conv.Hover_Tool_First > 0
                            and then I >= Current_Conv.Hover_Tool_First
-                           and then I <= Current_Conv.Hover_Tool_Last,
+                           and then I <= Current_Conv.Hover_Tool_Last)
+                           or else I = Current_Conv.Interactive_Focus,
                            Text);
                      when Thinking =>
-                        Set_Source_Rgba (Cr, 1.0, 0.99, 0.91, 1.0);
+                        if Current_Conv.Dark_Theme then
+                           Set_Source_Rgba (Cr, 0.20, 0.18, 0.12, 1.0);
+                        else
+                           Set_Source_Rgba (Cr, 1.0, 0.99, 0.91, 1.0);
+                        end if;
                         Rectangle
                           (Cr, 0.0, Gdouble (Y_Off),
                            Gdouble (Width_Px), Gdouble (Block_H));
                         Fill (Cr);
                      when Notice_Info =>
-                        Set_Source_Rgba (Cr, 0.91, 0.94, 1.0, 1.0);
+                        if Current_Conv.Dark_Theme then
+                           Set_Source_Rgba (Cr, 0.12, 0.18, 0.28, 1.0);
+                        else
+                           Set_Source_Rgba (Cr, 0.91, 0.94, 1.0, 1.0);
+                        end if;
                         Rectangle
                           (Cr, 0.0, Gdouble (Y_Off),
                            Gdouble (Width_Px), Gdouble (Block_H));
                         Fill (Cr);
                      when Code_Block =>
-                        Set_Source_Rgba (Cr, 0.96, 0.96, 0.96, 1.0);
+                        if Current_Conv.Dark_Theme then
+                           Set_Source_Rgba (Cr, 0.18, 0.18, 0.20, 1.0);
+                        else
+                           Set_Source_Rgba (Cr, 0.96, 0.96, 0.96, 1.0);
+                        end if;
                         Rectangle
                           (Cr, 0.0, Gdouble (Y_Off),
                            Gdouble (Width_Px), Gdouble (Block_H));
                         Fill (Cr);
                      when Blockquote =>
                         --  Left border bar.
-                        Set_Source_Rgba (Cr, 0.6, 0.6, 0.6, 0.5);
+                        if Current_Conv.Dark_Theme then
+                           Set_Source_Rgba (Cr, 0.55, 0.58, 0.64, 0.75);
+                        else
+                           Set_Source_Rgba (Cr, 0.6, 0.6, 0.6, 0.5);
+                        end if;
                         Rectangle
                           (Cr, 0.0, Gdouble (Y_Off),
                            4.0, Gdouble (Block_H));
                         Fill (Cr);
                      when Display_Math =>
-                        Set_Source_Rgba (Cr, 0.97, 0.96, 1.0, 1.0);
+                        if Current_Conv.Dark_Theme then
+                           Set_Source_Rgba (Cr, 0.16, 0.14, 0.22, 1.0);
+                        else
+                           Set_Source_Rgba (Cr, 0.97, 0.96, 1.0, 1.0);
+                        end if;
                         Rectangle
                           (Cr, 0.0, Gdouble (Y_Off),
                            Gdouble (Width_Px), Gdouble (Block_H));
@@ -1022,29 +1068,69 @@ package body Coyote_GUI.Conversation is
                   when Thinking | Notice_Info | Plain
                      | List_Item_Bullet | List_Item_Ordered
                      | Tool_Header | Tool_Argument | Tool_Footer =>
-                     Set_Source_Rgb (Cr, 0.0, 0.0, 0.0);
+                     if Current_Conv.Dark_Theme then
+                        Set_Source_Rgb (Cr, 0.94, 0.94, 0.96);
+                     else
+                        Set_Source_Rgb (Cr, 0.0, 0.0, 0.0);
+                     end if;
                   when Heading_1 | Heading_2 =>
-                     Set_Source_Rgb (Cr, 0.0, 0.0, 0.0);
+                     if Current_Conv.Dark_Theme then
+                        Set_Source_Rgb (Cr, 0.96, 0.96, 0.98);
+                     else
+                        Set_Source_Rgb (Cr, 0.0, 0.0, 0.0);
+                     end if;
                   when Heading_3 | Heading_4 =>
-                     Set_Source_Rgb (Cr, 0.0, 0.0, 0.0);
+                     if Current_Conv.Dark_Theme then
+                        Set_Source_Rgb (Cr, 0.90, 0.90, 0.94);
+                     else
+                        Set_Source_Rgb (Cr, 0.0, 0.0, 0.0);
+                     end if;
                   when Heading_5 | Heading_6 =>
-                     Set_Source_Rgb (Cr, 0.0, 0.0, 0.0);
+                     if Current_Conv.Dark_Theme then
+                        Set_Source_Rgb (Cr, 0.86, 0.86, 0.90);
+                     else
+                        Set_Source_Rgb (Cr, 0.0, 0.0, 0.0);
+                     end if;
                   when Code_Block =>
-                     Set_Source_Rgb (Cr, 0.2, 0.2, 0.2);
+                     if Current_Conv.Dark_Theme then
+                        Set_Source_Rgb (Cr, 0.85, 0.85, 0.88);
+                     else
+                        Set_Source_Rgb (Cr, 0.2, 0.2, 0.2);
+                     end if;
                   when Blockquote =>
-                     Set_Source_Rgb (Cr, 0.3, 0.3, 0.3);
+                     if Current_Conv.Dark_Theme then
+                        Set_Source_Rgb (Cr, 0.78, 0.80, 0.84);
+                     else
+                        Set_Source_Rgb (Cr, 0.3, 0.3, 0.3);
+                     end if;
                   when Thematic_Break =>
                      Set_Source_Rgb (Cr, 0.6, 0.6, 0.6);
                   when Notice_Warn =>
-                     Set_Source_Rgb (Cr, 0.8, 0.53, 0.0);
+                     if Current_Conv.Dark_Theme then
+                        Set_Source_Rgb (Cr, 1.0, 0.75, 0.20);
+                     else
+                        Set_Source_Rgb (Cr, 0.8, 0.53, 0.0);
+                     end if;
                   when Notice_Error =>
-                     Set_Source_Rgb (Cr, 0.8, 0.2, 0.2);
+                     if Current_Conv.Dark_Theme then
+                        Set_Source_Rgb (Cr, 1.0, 0.45, 0.45);
+                     else
+                        Set_Source_Rgb (Cr, 0.8, 0.2, 0.2);
+                     end if;
                   when Footer =>
                      Set_Source_Rgb (Cr, 0.53, 0.53, 0.53);
                   when Action_Strip =>
-                     Set_Source_Rgb (Cr, 0.13, 0.4, 0.67);
+                     if Current_Conv.Dark_Theme then
+                        Set_Source_Rgb (Cr, 0.45, 0.75, 1.0);
+                     else
+                        Set_Source_Rgb (Cr, 0.13, 0.4, 0.67);
+                     end if;
                   when Display_Math =>
-                     Set_Source_Rgb (Cr, 0.0, 0.0, 0.0);
+                     if Current_Conv.Dark_Theme then
+                        Set_Source_Rgb (Cr, 0.95, 0.95, 0.98);
+                     else
+                        Set_Source_Rgb (Cr, 0.0, 0.0, 0.0);
+                     end if;
                end case;
 
                if L.Style = Display_Math then
@@ -1235,6 +1321,127 @@ package body Coyote_GUI.Conversation is
       return False;
    end On_Button_Release;
 
+   procedure Apply_Keyboard_Scroll
+     (C    : in out Instance;
+      Move : Coyote_GUI.Navigation.Movement)
+   is
+      Adj : constant Gtk.Adjustment.Gtk_Adjustment := C.Scroll.Get_Vadjustment;
+      Target : constant Glib.Gdouble :=
+        Coyote_GUI.Navigation.Target_Value
+          (Current   => Adj.Get_Value,
+           Lower     => Adj.Get_Lower,
+           Upper     => Adj.Get_Upper,
+           Page_Size => Adj.Get_Page_Size,
+           Line_Size => Glib.Gdouble'Max
+             (Glib.Gdouble (C.Line_Height_Px), 1.0),
+           Move      => Move);
+   begin
+      Adj.Set_Value (Target);
+   end Apply_Keyboard_Scroll;
+
+   function Is_Interactive_Line (C : Instance; Index : Positive) return Boolean is
+   begin
+      return C.Lines (Index).Style in Tool_Header | Action_Strip;
+   end Is_Interactive_Line;
+
+   function Interactive_Line_At
+     (C     : Instance;
+      Start : Positive;
+      Step  : Integer) return Natural
+   is
+      Index : Integer := Integer (Start);
+   begin
+      while Index >= C.Lines.First_Index
+        and then Index <= C.Lines.Last_Index
+      loop
+         if Is_Interactive_Line (C, Positive (Index)) then
+            return Natural (Index);
+         end if;
+         Index := Index + Step;
+      end loop;
+      return 0;
+   end Interactive_Line_At;
+
+   procedure Move_Interactive_Focus
+     (C       : in out Instance;
+      Forward :        Boolean := True)
+   is
+      Start : Positive := 1;
+      Step  : constant Integer := (if Forward then 1 else -1);
+      Found : Natural;
+   begin
+      if C.Lines.Is_Empty then
+         C.Interactive_Focus := 0;
+         return;
+      end if;
+      if C.Interactive_Focus > 0 then
+         Start := Positive (C.Interactive_Focus);
+         if Forward then
+            if Start < C.Lines.Last_Index then
+               Start := Start + 1;
+            else
+               Start := C.Lines.First_Index;
+            end if;
+         elsif Start > C.Lines.First_Index then
+            Start := Start - 1;
+         else
+            Start := C.Lines.Last_Index;
+         end if;
+      elsif not Forward then
+         Start := C.Lines.Last_Index;
+      end if;
+      Found := Interactive_Line_At (C, Start, Step);
+      if Found = 0 then
+         Found := Interactive_Line_At
+           (C, (if Forward then C.Lines.First_Index else C.Lines.Last_Index), Step);
+      end if;
+      C.Interactive_Focus := Found;
+      Queue_Draw (C);
+   end Move_Interactive_Focus;
+
+   function Focused_Tool (C : Instance) return Tool_Click_Result is
+   begin
+      if C.Interactive_Focus = 0 then
+         return (Found => False);
+      end if;
+      for TB of C.Tools loop
+         if C.Interactive_Focus >= TB.First_Line
+           and then C.Interactive_Focus <= TB.Last_Line
+         then
+            return (Found => True, Info => TB.Info);
+         end if;
+      end loop;
+      return (Found => False);
+   end Focused_Tool;
+
+   function Focused_Action (C : Instance) return Action_Click_Result is
+   begin
+      if C.Interactive_Focus > 0
+        and then C.Interactive_Focus <= C.Lines.Last_Index
+        and then C.Lines (C.Interactive_Focus).Style = Action_Strip
+      then
+         return
+           (Found  => True,
+            Action => C.Lines (C.Interactive_Focus).Action);
+      end if;
+      return (Found => False);
+   end Focused_Action;
+
+   function Transcript_Text (C : Instance) return String is
+      Result : Unbounded_String;
+   begin
+      if C.Lines.Is_Empty then
+         return "";
+      end if;
+      for I in C.Lines.First_Index .. C.Lines.Last_Index loop
+         if I > C.Lines.First_Index then
+            Append (Result, ASCII.LF);
+         end if;
+         Append (Result, Strip_Pango_Markup (To_String (C.Lines (I).Text)));
+      end loop;
+      return To_String (Result);
+   end Transcript_Text;
+
    --  ── Signal: key-press ─────────────────────────────────────────────────
 
    function On_Key_Press
@@ -1275,10 +1482,71 @@ package body Coyote_GUI.Conversation is
          return True;
       end if;
 
-      --  Escape: clear selection.
+      --  Escape clears a selection; otherwise it reaches the window Stop
+      --  accelerator so Escape has a predictable global meaning.
       if Event.Keyval = Gdk.Types.Keysyms.GDK_Escape then
-         Current_Conv.Sel_Visible := False;
-         Queue_Draw (Current_Conv.all);
+         if Current_Conv.Sel_Visible then
+            Current_Conv.Sel_Visible := False;
+            Queue_Draw (Current_Conv.all);
+            return True;
+         end if;
+         return False;
+      end if;
+
+      --  Tab and Shift+Tab traverse custom tool/action controls.
+      if Event.Keyval = Gdk.Types.Keysyms.GDK_Tab then
+         Move_Interactive_Focus
+           (Current_Conv.all,
+            Forward => (Event.State and Gdk.Types.Shift_Mask) = 0);
+         return True;
+      end if;
+
+      --  Enter and Space activate the focused custom control.  The frontend
+      --  click handler is also connected to this widget and observes focus.
+      if Event.Keyval in Gdk.Types.Keysyms.GDK_Return
+         | Gdk.Types.Keysyms.GDK_KP_Enter
+         | Gdk.Types.Keysyms.GDK_space
+      then
+         --  The frontend callback performs the action side effect.
+         return False;
+      end if;
+
+      --  Vi-style and conventional viewport navigation.
+      if (Event.State and Gdk.Types.Control_Mask) /= 0 then
+         if Event.Keyval = Gdk.Types.Keysyms.GDK_LC_d then
+            Apply_Keyboard_Scroll (Current_Conv.all, Coyote_GUI.Navigation.Page_Down);
+            return True;
+         elsif Event.Keyval = Gdk.Types.Keysyms.GDK_LC_u then
+            Apply_Keyboard_Scroll (Current_Conv.all, Coyote_GUI.Navigation.Page_Up);
+            return True;
+         end if;
+      elsif Event.Keyval = Gdk.Types.Keysyms.GDK_LC_j then
+         Apply_Keyboard_Scroll (Current_Conv.all, Coyote_GUI.Navigation.Line_Down);
+         return True;
+      elsif Event.Keyval = Gdk.Types.Keysyms.GDK_LC_k then
+         Apply_Keyboard_Scroll (Current_Conv.all, Coyote_GUI.Navigation.Line_Up);
+         return True;
+      elsif Event.Keyval = Gdk.Types.Keysyms.GDK_LC_g
+        and then (Event.State and Gdk.Types.Shift_Mask) = 0
+      then
+         Apply_Keyboard_Scroll (Current_Conv.all, Coyote_GUI.Navigation.To_Top);
+         return True;
+      elsif Event.Keyval = Gdk.Types.Keysyms.GDK_LC_g
+        and then (Event.State and Gdk.Types.Shift_Mask) /= 0
+      then
+         Apply_Keyboard_Scroll (Current_Conv.all, Coyote_GUI.Navigation.To_Bottom);
+         return True;
+      elsif Event.Keyval = Gdk.Types.Keysyms.GDK_Home then
+         Apply_Keyboard_Scroll (Current_Conv.all, Coyote_GUI.Navigation.To_Top);
+         return True;
+      elsif Event.Keyval = Gdk.Types.Keysyms.GDK_End then
+         Apply_Keyboard_Scroll (Current_Conv.all, Coyote_GUI.Navigation.To_Bottom);
+         return True;
+      elsif Event.Keyval = Gdk.Types.Keysyms.GDK_Page_Up then
+         Apply_Keyboard_Scroll (Current_Conv.all, Coyote_GUI.Navigation.Page_Up);
+         return True;
+      elsif Event.Keyval = Gdk.Types.Keysyms.GDK_Page_Down then
+         Apply_Keyboard_Scroll (Current_Conv.all, Coyote_GUI.Navigation.Page_Down);
          return True;
       end if;
 
@@ -2450,6 +2718,7 @@ package body Coyote_GUI.Conversation is
       C.Sel_Start_Byte := 0;
       C.Sel_End_Line := 0;
       C.Sel_End_Byte := 0;
+      C.Interactive_Focus := 0;
       C.Hover_Tool_First := 0;
       C.Hover_Tool_Last := 0;
       C.Cache_Width_Px := 0;

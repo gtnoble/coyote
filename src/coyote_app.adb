@@ -2613,6 +2613,9 @@ package body Coyote_App is
                            end;
                         end if;
 
+                     when Coyote_GUI.Prompt_Queue.Clear =>
+                        My_Frontend.Clear_Conversation;
+
                      when Coyote_GUI.Prompt_Queue.New_Window =>
                         declare
                            use GNATCOLL.OS.Process;

@@ -69,4 +69,36 @@ package body Coyote_GUI_Prompt_Queue_Tests is
               "empty subagent model should represent an explicit clear");
    end Test_Set_Preferences_Round_Trips;
 
+   procedure Test_Enqueue_Reports_Acceptance (T : in out Test) is
+      pragma Unreferenced (T);
+      Queue    : Coyote_GUI.Prompt_Queue.Queue;
+      Accepted : Boolean;
+      Got      : Coyote_GUI.Prompt_Queue.Item;
+   begin
+      Queue.Enqueue
+        ((Kind => User_Prompt, Text => To_Unbounded_String ("hello")),
+         Accepted);
+      Assert (Accepted, "available queue should accept an item");
+      Queue.Dequeue (Got);
+      Assert (To_String (Got.Text) = "hello",
+              "accepted prompt should be delivered");
+   end Test_Enqueue_Reports_Acceptance;
+
+   procedure Test_Enqueue_Rejects_Overflow (T : in out Test) is
+      pragma Unreferenced (T);
+      Queue    : Coyote_GUI.Prompt_Queue.Queue;
+      Accepted : Boolean;
+   begin
+      for I in 1 .. Max_Depth loop
+         Queue.Enqueue
+           ((Kind => User_Prompt,
+             Text => To_Unbounded_String ("prompt")), Accepted);
+         Assert (Accepted, "queue should accept items through capacity");
+      end loop;
+      Queue.Enqueue
+        ((Kind => User_Prompt, Text => To_Unbounded_String ("lost")),
+         Accepted);
+      Assert (not Accepted, "full queue should reject an item");
+   end Test_Enqueue_Rejects_Overflow;
+
 end Coyote_GUI_Prompt_Queue_Tests;

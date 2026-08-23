@@ -329,8 +329,8 @@ Ctrl+wheel over the conversation view now zooms.  The conversation
 `GtkLayout` event mask gains `Gdk.Event.Scroll_Mask`, and the frontend
 connects `On_Conv_Scroll` to the layout's `scroll-event` signal.  With
 Ctrl held, wheel up/down steps the zoom level and calls `Apply_Zoom`;
-smooth-scroll (touchpad) deltas are accumulated in a handler-local
-`Gdouble` until they reach one wheel notch (±1.0).  Ctrl+wheel events are
+smooth-scroll (touchpad) deltas are accumulated in persistent frontend
+state until they reach one wheel notch (±1.0).  Ctrl+wheel events are
 always consumed (`return True`) so the viewport never scrolls mid-zoom;
 plain wheel events return `False` and fall through to the scrolled
 window.
@@ -484,3 +484,36 @@ leftward drag painted nothing.  `On_Draw` and clipboard extraction treated
 order.  Highlight drawing and clipboard extraction use that ordered pair
 during the drag.  Button-release writes the ordered pair back and calls
 `Queue_Draw`.
+
+### Keyboard-driven GUI and accessibility (2026-08-23)
+
+The GTK conversation canvas now implements vi-style viewport navigation:
+`j`/`k` move by one body line, `Ctrl+D`/`Ctrl+U` move by one page, and
+`g`/`Shift+g` move to the top/bottom. Home, End, Page Up, and Page Down are
+also supported. The pure `Coyote_GUI.Navigation` package clamps movement to
+the adjustment bounds and is unit tested.
+
+Custom tool cards and fork action strips participate in keyboard traversal.
+Tab and Shift+Tab select an interactive item; Enter, keypad Enter, or Space
+activates it. Escape clears a selection only when one exists; otherwise it is
+left for the global Stop accelerator.
+
+The prompt queue now reports whether an enqueue was accepted. Prompt text is
+cleared only after acceptance, and full-queue rejection leaves the text intact
+and emits a visible notice. GUI stats and conversation clearing are marshalled
+through the GTK update queue. The session reference used by Stop is protected.
+
+The GUI exposes explicit Send and Clear Conversation actions and renames the
+model action to Models, with visible accelerators. Send and Stop buttons have
+text labels as well as icons. Normal windows focus the prompt on startup;
+Open Session, Sandbox Profile, Preferences, and model dialogs establish
+initial keyboard focus explicitly.
+
+A collapsed native read-only Accessible transcript expander mirrors the plain
+text of the custom-rendered conversation, providing a GTK/AT-SPI semantic text
+surface without duplicating the visual renderer. The canvas selects a dark
+background and light primary text when GTK requests a dark theme. Display-backed
+AT-SPI qualification and full color-contrast measurement remain manual work.
+
+Automated coverage added three navigation-policy tests, two prompt-queue
+acceptance/overflow tests, and conversation transcript/focus-cycle tests.

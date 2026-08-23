@@ -53,6 +53,9 @@ package Coyote_GUI is
    --                        Text3 = action data JSON (uuid, turn, step, pid)
    --    Set_Status         Text = status bar text
    --    Set_Mode           Mode = new mode
+   --    Set_Stats          Text = session statistics text
+   --    Clear_Conversation (no extra fields)
+   --    Set_Transcript     Text = accessible transcript text
    --    Show_Detail        Text = window title; Text2 = content
    --    Shutdown           (no extra fields)
 
@@ -70,6 +73,9 @@ package Coyote_GUI is
       Append_Action_Strip,
       Set_Status,
       Set_Mode,
+      Set_Stats,
+      Clear_Conversation,
+      Set_Transcript,
       Set_Completion_Notifications,
       Completion_Notification,
       Show_Detail,

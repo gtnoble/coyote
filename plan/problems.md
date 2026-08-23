@@ -2239,3 +2239,39 @@ behavior, current test baseline, and remaining manual qualification scope.
   successful tests, 0 failed assertions, and 0 unexpected errors.
 - **Status:** Resolved
 - **Date resolved:** 2026-08-22
+
+## PCR-067 — Keyboard-driven GTK GUI completion (2026-08-23)
+
+- **Date reported:** 2026-08-23
+- **Category:** Requirements, Design, Code, Test, Documentation
+- **Priority:** 3-Moderate
+- **Description:** The GTK frontend met only part of its keyboard-driven
+  requirements. Vi-style conversation navigation was absent; Escape could
+  clear selection instead of stopping the agent; prompt submission could lose
+  text when the bounded queue was full; custom tool/action controls were
+  mouse-only; focus targets and dialog traversal were implicit; the custom
+  canvas bypassed GTK theme contrast and native accessibility semantics; and
+  several GUI state mutations bypassed the GTK update queue.
+- **Affected work products:** REQ-CORE-113, REQ-CORE-114, REQ-CORE-125,
+  REQ-CORE-132; SDD-CORE GUI design; `Coyote_App.Frontend.GUI`,
+  `Coyote_GUI.Conversation`, `Coyote_GUI.Prompt_Queue`, test sources, and
+  frontend SDF.
+- **Corrective action required:** Implement keyboard navigation and activation,
+  make prompt delivery lossless, marshal GUI state through the GTK queue,
+  establish deterministic focus, provide native accessible transcript and
+  control labels, honor dark-theme contrast, and add automated regressions.
+- **Actions taken:** Added `Coyote_GUI.Navigation`; implemented
+  `j`/`k`/`g`/`Shift+g`, Ctrl+D/Ctrl+U, Home/End/Page Up/Page Down, custom
+  Tab/Shift+Tab focus and Enter/Space activation, Escape precedence, explicit
+  Send/Clear/Models actions, persistent smooth-wheel accumulation, protected
+  Stop session access, queued stats/clear/transcript updates, labeled buttons,
+  deterministic dialog focus, native transcript exposure, and dark-theme
+  palettes. Added seven AUnit tests and updated traceability and design logs.
+- **Verification:** Development application and test builds succeed. The
+  focused GUI qualification passes 45/45 tests, including navigation, queue
+  acceptance/overflow, transcript, and interactive-focus regressions.
+  The complete suite was run with a 900-second limit; see the final
+  verification record in `plan/test-plan.md`. Display-backed DEM-014 and
+  AT-SPI/color-contrast qualification remain manual.
+- **Status:** Resolved for automated implementation coverage; display-backed
+  qualification remains pending.

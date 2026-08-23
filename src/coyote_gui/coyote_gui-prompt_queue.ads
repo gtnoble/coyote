@@ -31,6 +31,7 @@ package Coyote_GUI.Prompt_Queue is
       Pause,             --  pause after the current tool call
       Resume,            --  resume from pause
       Compact,           --  trigger manual context compaction
+      Clear,             --  clear the displayed conversation
       New_Window,        --  spawn a fresh coyote GUI window
       New_Session,       --  replace session with a fresh one
       Set_Model,         --  change the active model
@@ -71,7 +72,9 @@ package Coyote_GUI.Prompt_Queue is
    type Item_Array is array (1 .. Max_Depth) of Item;
 
    protected type Queue is
-      --  Enqueue an item.  Silently drops if already at capacity.
+      --  Enqueue an item.  Does not block; Accepted is False when full.
+      procedure Enqueue (I : Item; Accepted : out Boolean);
+      --  Enqueue an item, retaining the historical fire-and-forget API.
       procedure Enqueue (I : Item);
       --  Block until an item is available or Shutdown has been called.
       --  Returns an Item with Kind = Shutdown_Item when the queue is closing.
