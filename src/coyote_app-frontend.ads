@@ -97,17 +97,23 @@ package Coyote_App.Frontend is
    type Tool_End_Status is (Success, Error, Cancelled);
 
    procedure Begin_Tool
-     (F          : in out Instance;
-      Name       : in     String;
-      Args_Json  : in     String;
-      Session_Id : in     String;
-      Tool_Id    : in     String) is abstract;
+     (F               : in out Instance;
+      Name            : in     String;
+      Args_Json       : in     String;
+      Session_Id      : in     String;
+      Tool_Id          : in     String;
+      Model           : in     String := "";
+      Source_Directory : in     String := "";
+      Session_Start   : in     String := "";
+      Turn_Index      : in     Positive := 1;
+      Call_In_Turn    : in     Positive := 1) is abstract;
 
    procedure End_Tool
      (F           : in out Instance;
       Tool_Id     : in     String;
       Status      : in     Tool_End_Status;
-      Result_Text : in     String := "") is abstract;
+      Result_Text : in     String := "";
+      Media_Type  : in     String := "") is abstract;
 
    --  ── Turn footer ───────────────────────────────────────────────────────
    --

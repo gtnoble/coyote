@@ -290,6 +290,7 @@ package body Coyote_App.Dispatch is
       elsif Event in LLM.Events.Tool_Execution_Start_Event then
          State.Set_Text_Emitted (True);
          State.Set_Has_Tool_In_Turn (True);
+         State.Increment_Tool_Call;
          State.Increment_Tools_Running;
          Frontend.Set_Status (Format_Status (State, "running"));
          declare
@@ -300,10 +301,15 @@ package body Coyote_App.Dispatch is
             Sess    : constant String := State.Session_Id;
          begin
             Frontend.Begin_Tool
-              (Name       => Tool,
-               Args_Json  => To_String (Ev.Args_Json),
-               Session_Id => Sess,
-               Tool_Id    => Tool_Id);
+              (Name             => Tool,
+               Args_Json        => To_String (Ev.Args_Json),
+               Session_Id       => Sess,
+               Tool_Id           => Tool_Id,
+               Model            => State.Current_Model,
+               Source_Directory => State.Source_Directory,
+               Session_Start    => State.Session_Start,
+               Turn_Index       => State.Turn_Count + 1,
+               Call_In_Turn     => State.Current_Tool_Call);
             Section := Tool_Section;
          end;
 
@@ -326,7 +332,8 @@ package body Coyote_App.Dispatch is
             Frontend.End_Tool
               (Tool_Id     => Tool_Id,
                Status      => Status,
-               Result_Text => To_String (Ev.Result_Text));
+               Result_Text => To_String (Ev.Result_Text),
+               Media_Type  => To_String (Ev.Media_Type));
             Section := No_Section;
          end;
 
@@ -515,6 +522,9 @@ package body Coyote_App.Dispatch is
             if Think_Level'Length > 0 then
                State.Set_Thinking (Think_Level);
             end if;
+            State.Set_Model (To_String (Ev.Model));
+            State.Set_Source_Directory (To_String (Ev.Source_Directory));
+            State.Set_Session_Start (To_String (Ev.Session_Start));
             declare
                Sandbox : constant String := To_String (Ev.Sandbox_Profile);
             begin

@@ -624,13 +624,19 @@ package body Coyote_GUI_Conversation_Tests is
       Make_Fresh_Conv (Conv, Scroll, Layout);
       Conv.Begin_Tool
         (Name       => "shell",
-         Args       => "{""command"":""printf hello""}",
-         Session_Id => "session-1",
-         Tool_Id    => "tool-1");
+         Args             => "{""command"":""printf hello""}",
+         Session_Id       => "session-1",
+         Tool_Id           => "tool-1",
+         Model            => "provider/model",
+         Source_Directory => "/tmp/project",
+         Session_Start    => "2026-08-23 12:00:00",
+         Turn_Index       => 3,
+         Call_In_Turn     => 2);
       Conv.End_Tool
-        (Tool_Id => "tool-1",
-         Status  => Success,
-         Result  => "hello");
+        (Tool_Id    => "tool-1",
+         Status     => Success,
+         Result     => "hello",
+         Media_Type => "image/png");
       Click := Conv.Handle_Tool_Click
         (X => 1,
          Y => 2 * Glib.Gint (Testing.Line_Height_Px (Conv)) + 1);
@@ -644,8 +650,21 @@ package body Coyote_GUI_Conversation_Tests is
                  "tool detail preserves the original arguments");
          Assert (To_String (Click.Info.Result_Text) = "hello",
                  "tool detail preserves the result");
+         Assert (To_String (Click.Info.Media_Type) = "image/png",
+                 "tool detail preserves result media type");
          Assert (Click.Info.Result_Status = Success,
                  "tool detail preserves the result status");
+         Assert (To_String (Click.Info.Model) = "provider/model",
+                 "tool detail preserves model metadata");
+         Assert (To_String (Click.Info.Source_Directory) = "/tmp/project",
+                 "tool detail preserves source directory metadata");
+         Assert (To_String (Click.Info.Session_Start) =
+                   "2026-08-23 12:00:00",
+                 "tool detail preserves session start metadata");
+         Assert (Click.Info.Turn_Index = 3,
+                 "tool detail preserves turn position");
+         Assert (Click.Info.Call_In_Turn = 2,
+                 "tool detail preserves call position");
       end if;
    end Test_Tool_Detail_Preserves_Arguments;
 

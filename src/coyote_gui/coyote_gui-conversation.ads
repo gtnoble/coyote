@@ -61,12 +61,17 @@ package Coyote_GUI.Conversation is
    type Tool_End_Status is (Success, Error, Cancelled);
 
    type Tool_Info is record
-      Name          : Unbounded_String;
-      Args          : Unbounded_String;
-      Result_Text   : Unbounded_String;
-      Result_Status : Tool_End_Status := Success;
+      Name             : Unbounded_String;
+      Args             : Unbounded_String;
+      Result_Text      : Unbounded_String;
+      Media_Type       : Unbounded_String;
+      Result_Status    : Tool_End_Status := Success;
+      Model            : Unbounded_String;
+      Source_Directory : Unbounded_String;
+      Session_Start    : Unbounded_String;
+      Turn_Index       : Positive := 1;
+      Call_In_Turn     : Positive := 1;
    end record;
-
    type Action_Kind is (Fork);
 
    type Action_Info (Kind : Action_Kind := Fork) is record
@@ -125,18 +130,23 @@ package Coyote_GUI.Conversation is
    --  ── Tool call segments ────────────────────────────────────────────────
 
    procedure Begin_Tool
-     (C          : in out Instance;
-      Name       :        String;
-      Args       :        String;
-      Session_Id :        String;
-      Tool_Id    :        String);
+     (C               : in out Instance;
+      Name            :        String;
+      Args            :        String;
+      Session_Id      :        String;
+      Tool_Id          :        String;
+      Model           :        String := "";
+      Source_Directory :        String := "";
+      Session_Start   :        String := "";
+      Turn_Index      :        Positive := 1;
+      Call_In_Turn    :        Positive := 1);
 
    procedure End_Tool
-     (C       : in out Instance;
-      Tool_Id :        String;
-      Status  :        Tool_End_Status;
-      Result  :        String);
-
+     (C          : in out Instance;
+      Tool_Id    :        String;
+      Status     :        Tool_End_Status;
+      Result     :        String;
+      Media_Type :        String := "");
    --  ── Click handling ────────────────────────────────────────────────────
 
    function Handle_Tool_Click
@@ -259,12 +269,16 @@ private
    package Tool_Maps is new Ada.Containers.Vectors (Positive, Tool_Block);
 
    type Tool_Start_Info is record
-      First_Line  : Positive;
-      Footer_Line : Positive;
-      Name        : Unbounded_String;
-      Args        : Unbounded_String;
+      First_Line       : Positive;
+      Footer_Line      : Positive;
+      Name             : Unbounded_String;
+      Args             : Unbounded_String;
+      Model            : Unbounded_String;
+      Source_Directory : Unbounded_String;
+      Session_Start    : Unbounded_String;
+      Turn_Index       : Positive := 1;
+      Call_In_Turn     : Positive := 1;
    end record;
-
    package Tool_Start_Maps is new Ada.Containers.Indefinite_Hashed_Maps
      (Key_Type        => String,
       Element_Type    => Tool_Start_Info,

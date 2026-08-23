@@ -71,6 +71,9 @@ package LLM.Session_Store is
    --  parsed, or the header contains no "workDir" field.
    function Session_Work_Dir (Session_Id : String) return String;
 
+   --  Return the session creation timestamp in local time as
+   --  YYYY-MM-DD HH:MM:SS, or "" when unavailable.
+   function Session_Created_At (Session_Id : String) return String;
    --  Return the sandbox profile recorded in the session header.
    --  Returns "" when the session or field is absent or malformed.
    function Session_Sandbox_Profile (Session_Id : String) return String;

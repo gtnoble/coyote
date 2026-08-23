@@ -2098,6 +2098,8 @@ package body LLM.Agent is
                                   Tool_Block.Tool_Name,
                                 Result_Text  =>
                                   Slot.Result_Text,
+                                Media_Type   =>
+                                  Slot.Media_Type,
                                 Is_Error     =>
                                   Slot.Is_Error,
                                 Is_Cancelled =>

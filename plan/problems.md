@@ -2387,6 +2387,36 @@ behavior, current test baseline, and remaining manual qualification scope.
 - **Status:** Implementation complete; display-backed qualification pending.
 
 
+## PCR-072 — GTK tool-call detail view IRIX and metadata alignment
+
+- **Date reported:** 2026-08-23
+- **Category:** Requirements, Design, Code, Test, Manuals
+- **Priority:** 3-Moderate
+- **Description:** The GTK tool-call detail view used a constant title, exposed
+  only tool/status text, lacked selectable header values and an outer scroll
+  area, had no explicit Close/Help actions or deterministic focus, used a
+  private status palette, and dropped live/replayed session metadata and image
+  result state before the detail window was opened.
+- **Affected work products:** SRS-CORE REQ-CORE-113e; SDD-CORE; `Coyote_App`,
+  `Coyote_GUI.Conversation`, `Coyote_GUI.Tool_Detail_Window`,
+  `LLM.Events`, `LLM.Session_Store`; frontend SDF; Test Plan; AUnit tests.
+- **Corrective action:** Adopt the approved IRIX-compatible functional title;
+  capture metadata and media at render time; make header values selectable;
+  add outer vertical scrolling, explicit Close/Help actions, deterministic
+  focus, theme-neutral status emphasis, image decoding/fallback, and replay
+  parity. Keep abstract frontend additions defaulted so Acme/plain behavior is
+  unchanged.
+- **Actions taken:** Implemented the enriched Tool_Info/update/event path,
+  session creation timestamp accessor, live and replay metadata/media capture,
+  scrollable/selectable detail window, Close/Help/Ctrl+W behavior, image
+  decoding fallback, and regressions for Tool_Info metadata and timestamp
+  formatting.
+- **Verification:** Production and test development builds succeed. Full
+  AUnit suite passes 911/911 with zero failed assertions and zero unexpected
+  errors. Display-backed visual, keyboard, theme, image, and multi-window
+  qualification remains manual DEM-041.
+- **Status:** Implementation complete; display-backed qualification pending.
+
 ## PCR-071 — Live structured GTK Session Stats support window
 
 - **Date reported:** 2026-08-23

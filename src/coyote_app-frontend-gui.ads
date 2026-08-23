@@ -85,19 +85,23 @@ package Coyote_App.Frontend.GUI is
 
    overriding
    procedure Begin_Tool
-     (F          : in out Instance;
-      Name       : in     String;
-      Args_Json  : in     String;
-      Session_Id : in     String;
-      Tool_Id    : in     String);
-
+     (F               : in out Instance;
+      Name            : in     String;
+      Args_Json       : in     String;
+      Session_Id      : in     String;
+      Tool_Id          : in     String;
+      Model           : in     String := "";
+      Source_Directory : in     String := "";
+      Session_Start   : in     String := "";
+      Turn_Index      : in     Positive := 1;
+      Call_In_Turn    : in     Positive := 1);
    overriding
    procedure End_Tool
      (F           : in out Instance;
       Tool_Id     : in     String;
       Status      : in     Coyote_App.Frontend.Tool_End_Status;
-      Result_Text : in     String := "");
-
+      Result_Text : in     String := "";
+      Media_Type  : in     String := "");
    overriding
    procedure Append_Turn_Footer
      (F    : in out Instance;

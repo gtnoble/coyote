@@ -59,10 +59,11 @@ package LLM.Events is
       Tool_Call_Id : Ada.Strings.Unbounded.Unbounded_String;
       Tool_Name    : Ada.Strings.Unbounded.Unbounded_String;
       Result_Text  : Ada.Strings.Unbounded.Unbounded_String;
+      Media_Type   : Ada.Strings.Unbounded.Unbounded_String :=
+        Ada.Strings.Unbounded.Null_Unbounded_String;
       Is_Error     : Boolean := False;
       Is_Cancelled : Boolean := False;
    end record;
-
    type Model_Select_Event is new Agent_Event with record
       Provider       : Ada.Strings.Unbounded.Unbounded_String;
       Model_Id       : Ada.Strings.Unbounded.Unbounded_String;
@@ -94,11 +95,16 @@ package LLM.Events is
    end record;
 
    type Session_Info_Event is new Agent_Event with record
-      Session_Id      : Ada.Strings.Unbounded.Unbounded_String;
-      Thinking_Level  : Ada.Strings.Unbounded.Unbounded_String;
-      Sandbox_Profile : Ada.Strings.Unbounded.Unbounded_String;
+      Session_Id       : Ada.Strings.Unbounded.Unbounded_String;
+      Thinking_Level   : Ada.Strings.Unbounded.Unbounded_String;
+      Sandbox_Profile  : Ada.Strings.Unbounded.Unbounded_String;
+      Model            : Ada.Strings.Unbounded.Unbounded_String :=
+        Ada.Strings.Unbounded.Null_Unbounded_String;
+      Source_Directory : Ada.Strings.Unbounded.Unbounded_String :=
+        Ada.Strings.Unbounded.Null_Unbounded_String;
+      Session_Start    : Ada.Strings.Unbounded.Unbounded_String :=
+        Ada.Strings.Unbounded.Null_Unbounded_String;
    end record;
-
    type Session_Stats_Event is new Agent_Event with record
       Cost_Dmil   : Natural := 0;
       Input       : Natural := 0;

@@ -474,10 +474,17 @@ let the user explicitly control the behaviour.
 
 - `Coyote_GUI.Conversation`: covered by AUnit tests for tool metadata
   preservation, interleaved tool selection, streaming, layout, and rendering.
-- `Coyote_GUI.Tool_Detail_Window`: compiled and linked into the main GUI;
-  argument views use bounded content-aware minimum heights, empty raw
-  arguments omit the text view, and the result view is the sole expanding text
-  widget. Display-backed visual qualification remains manual.
+- `Coyote_GUI.Tool_Detail_Window`: compiled and linked into the main GUI.
+  The modeless transient support window now uses the IRIX functional title,
+  selectable render-time metadata, a vertically scrollable content area,
+  visible Close and Help actions, deterministic focus, theme-neutral status
+  emphasis, and image-result decoding with an explicit fallback.  Live and
+  replayed tool cards carry model, source directory, session timestamp,
+  turn/call position, result media type, and cancelled-on-missing-result
+  semantics.  The abstract frontend uses defaulted metadata parameters so
+  Acme and plain output remain unchanged.  Focused and full automated tests
+  pass; display-backed visual, keyboard, theme, and image qualification remain
+  manual DEM-041.
 - `Coyote_Lasem`: covered by five AUnit tests for MathML fraction and matrix
   measurement, zoom scaling, relation entities, and invalid MathML error
   handling.  `Coyote_GUI.Conversation` has four display-backed tests for style

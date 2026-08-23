@@ -613,6 +613,18 @@ scrollable report area and a visible Close action, and close on Ctrl+W. New
 statistics shall refresh an open window, and starting or switching sessions
 shall clear the previous session's statistics.
 
+**REQ-CORE-113e** (D/T/I)
+Each completed GUI tool card shall open an independent, non-modal transient
+support window titled `coyote : Tool Call Details` when activated. The window
+shall display the tool name, status, session timestamp, model, source
+directory, turn number, and call position in a selectable header; render
+arguments as labelled read-only monospace views; render the full result in a
+read-only selectable view or decode an image result into a GTK image; and
+provide outer vertical scrolling, a visible Close action, Help action, and
+Ctrl+W closure. The view shall capture all detail data at render time and
+shall not re-read the session file when opened. Missing result records shall
+be shown as cancelled. Status shall remain understandable without color.
+
 **REQ-CORE-114** (D)
 The GUI frontend shall support vi-style scroll navigation (j/k/g/G/Ctrl-D/
 Ctrl-U) in the conversation view.
@@ -1339,6 +1351,7 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-110..119, 124..129 | GUI frontend capabilities, including Preferences, display math, zoom, completion notifications, and Change Model search | D/T/I | TC-110..119, TC-124..129; GUI regression tests |
 | REQ-CORE-113a..113c | GUI Help menu, Yelp topics, Edit menu, Product Information dialog, menu taxonomy, title, dialog, support-window, lifecycle-status, and desktop interaction conventions | D/T/I | DEM-036..039; Coyote_Help tests; Mallard validation; source inspection |
 | REQ-CORE-113d | Live structured Session Stats support window and session-reset currency | D/T/I | `coyote_gui_session_stats_window_tests.adb`; DEM-040; source inspection |
+| REQ-CORE-113e | Structured GTK tool-call detail support window | D/T/I | `coyote_gui_conversation_tests.adb`; `llm_session_store_tests.adb`; DEM-041; source inspection |
 | REQ-CORE-132 | Complete visible accelerators for main GTK menu items | D/T | DEM-014; GUI regression tests |
 | REQ-CORE-120..121 | Plain frontend capabilities | D | TC-120..121 |
 | REQ-CORE-130..131 | Session history replay | D | TC-130..131 |
@@ -1413,9 +1426,8 @@ objectives stated in the Project Plan (PLAN §1 and §3):
 - coyote_sqc requirements are in `requirements/coyote-sqc-requirements.md` (SRS-SQC).
 - The shared `coyote_renderer` library requirements are covered implicitly
   under the GUI frontend and coyote_sqc requirements.
-- `coyote_open` (tool-call detail window) requirements are noted under
-  REQ-CORE-084 only; a full specification is deferred.
-
+- `coyote_open` remains a separate native tool-inspection utility; the GTK
+  tool-detail window is specified by REQ-CORE-113e.
 **Independence limitation:**
 This specification was authored by the developer. The user (product owner)
 is invited to review it and raise any issues before it advances to

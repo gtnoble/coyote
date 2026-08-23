@@ -1347,6 +1347,44 @@ package body LLM_Session_Store_Tests is
          raise;
    end Test_Session_Work_Dir;
 
+   procedure Test_Session_Created_At (T : in out Test) is
+      pragma Unreferenced (T);
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+   begin
+      Prepare_Test_Home;
+      declare
+         Session_Id : constant String :=
+           LLM.Session_Store.Create_Session (Source_Cwd);
+         Created_At : constant String :=
+           LLM.Session_Store.Session_Created_At (Session_Id);
+      begin
+         Assert (Created_At'Length = 19,
+                 "created-at accessor returns second-precision timestamp");
+         Assert (Created_At (Created_At'First + 4) = '-',
+                 "created-at timestamp has year separator");
+         Assert (Created_At (Created_At'First + 7) = '-',
+                 "created-at timestamp has month separator");
+         Assert (Created_At (Created_At'First + 10) = ' ',
+                 "created-at timestamp separates date and time");
+         Assert (Created_At (Created_At'First + 13) = ':',
+                 "created-at timestamp has hour separator");
+         Assert (Created_At (Created_At'First + 16) = ':',
+                 "created-at timestamp has minute separator");
+      end;
+      Assert (LLM.Session_Store.Session_Created_At ("no-such-uuid") = "",
+              "created-at accessor returns empty for unknown UUID");
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Root;
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Root;
+         raise;
+   end Test_Session_Created_At;
+
    procedure Test_Large_Tool_Result_Round_Trip (T : in out Test) is
       --  Regression test for a secondary-stack overflow in Write_Raw_Line.
       --  Before the fix, Append_Message raised Storage_Error (SIGSEGV) when

@@ -1107,17 +1107,26 @@ complete structured `Tool_Info` record, and clicking a completed card opens the
 non-modal detail window.
 
 
-**`Coyote_GUI.Tool_Detail_Window`:** The main GTK frontend opens a dedicated
-non-modal transient window for a clicked tool call.  It presents the tool name
-and status in a header, separates arguments from results into framed sections,
-parses top-level JSON argument fields into labelled monospace views, applies
-status-specific CSS accents, derives the monospace point size from GTK's
-system font setting, and keeps the result selectable and scrollable.  Argument
-views use bounded content-aware minimum heights and remain non-expanding;
-empty raw arguments omit the text view, while the result view is the sole
-expanding text widget.  The existing generic text window remains in use for
-session statistics.
+**`Coyote_GUI.Tool_Detail_Window`:** The main GTK frontend opens an independent
+modeless transient support window titled `coyote : Tool Call Details` for each
+completed tool card.  `Tool_Info` captures name, raw arguments, result text,
+result media type, status, model, source directory, session-start timestamp,
+and 1-based turn/call position before the click; opening the window never
+re-parses a session file.  Saved-session replay supplies the same payload and
+marks a missing result as cancelled.
 
+The window contains a vertically scrollable content area with a selectable
+header, framed Arguments and Result sections, a visible Close/Help response
+area, and Ctrl+W handling.  Header values are selectable labels.  Top-level
+JSON object fields become labelled read-only monospace text views with bounded
+content-aware heights; malformed or non-object arguments use one raw view.
+The full text result remains selectable and scrollable.  Image results are
+base64-decoded into a GTK image when possible, with an explicit text fallback
+on decode failure.  Status uses a text/icon indicator and theme-neutral
+emphasis rather than a private color palette.  The outer scroller keeps all
+sections reachable when many fields exceed the minimum 600 x 400 pixel window.
+The abstract frontend carries these additions through defaulted parameters so
+Acme and plain rendering retain their existing behavior.
 **Thinking blocks:** `Append_Thinking` collapses deltas via
 `Collapse_Thinking_Delta` and appends to the last line's text (not creating
 new lines), so thinking flows as a single paragraph.  The first delta gets a

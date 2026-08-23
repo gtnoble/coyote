@@ -2470,14 +2470,18 @@ package body Coyote_GUI.Conversation is
    --  ── Tool call segments ────────────────────────────────────────────────
 
    procedure Begin_Tool
-     (C          : in out Instance;
-      Name       :        String;
-      Args       :        String;
-      Session_Id :        String;
-      Tool_Id    :        String)
+     (C               : in out Instance;
+      Name            :        String;
+      Args            :        String;
+      Session_Id      :        String;
+      Tool_Id          :        String;
+      Model           :        String := "";
+      Source_Directory :        String := "";
+      Session_Start   :        String := "";
+      Turn_Index      :        Positive := 1;
+      Call_In_Turn    :        Positive := 1)
    is
       pragma Unreferenced (Session_Id);
-
       Args_Parsed : constant GNATCOLL.JSON.Read_Result :=
         GNATCOLL.JSON.Read (Args);
       Args_Val    : constant GNATCOLL.JSON.JSON_Value  :=
@@ -2532,10 +2536,15 @@ package body Coyote_GUI.Conversation is
             Append_Line (C, Plain, "");
             C.Tool_Starts.Include
               (Tool_Id,
-               (First_Line  => First_Line,
-                Footer_Line => Footer_Line,
-                Name        => To_Unbounded_String (Name),
-                Args        => To_Unbounded_String (Args)));
+               (First_Line       => First_Line,
+                Footer_Line      => Footer_Line,
+                Name             => To_Unbounded_String (Name),
+                Args             => To_Unbounded_String (Args),
+                Model            => To_Unbounded_String (Model),
+                Source_Directory => To_Unbounded_String (Source_Directory),
+                Session_Start    => To_Unbounded_String (Session_Start),
+                Turn_Index       => Turn_Index,
+                Call_In_Turn     => Call_In_Turn));
          end;
       end;
 
@@ -2544,10 +2553,11 @@ package body Coyote_GUI.Conversation is
    end Begin_Tool;
 
    procedure End_Tool
-     (C       : in out Instance;
-      Tool_Id :        String;
-      Status  :        Tool_End_Status;
-      Result  :        String)
+     (C          : in out Instance;
+      Tool_Id    :        String;
+      Status     :        Tool_End_Status;
+      Result     :        String;
+      Media_Type :        String := "")
    is
       use Tool_Start_Maps;
       Pos        : Cursor := C.Tool_Starts.Find (Tool_Id);
@@ -2603,10 +2613,16 @@ package body Coyote_GUI.Conversation is
       begin
          TB.First_Line := First_Idx;
          TB.Last_Line  := Start_Info.Footer_Line;
-         TB.Info.Name  := Start_Info.Name;
-         TB.Info.Args  := Start_Info.Args;
-         TB.Info.Result_Text   := To_Unbounded_String (Result);
-         TB.Info.Result_Status := Status;
+         TB.Info.Name             := Start_Info.Name;
+         TB.Info.Args             := Start_Info.Args;
+         TB.Info.Result_Text      := To_Unbounded_String (Result);
+         TB.Info.Media_Type       := To_Unbounded_String (Media_Type);
+         TB.Info.Result_Status    := Status;
+         TB.Info.Model            := Start_Info.Model;
+         TB.Info.Source_Directory := Start_Info.Source_Directory;
+         TB.Info.Session_Start    := Start_Info.Session_Start;
+         TB.Info.Turn_Index       := Start_Info.Turn_Index;
+         TB.Info.Call_In_Turn     := Start_Info.Call_In_Turn;
          C.Tools.Append (TB);
       end;
 

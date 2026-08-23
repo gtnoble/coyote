@@ -156,12 +156,19 @@ package body Coyote_App.Frontend.Acme_Win is
       end if;
    end End_Thinking;
    procedure Begin_Tool
-     (F          : in out Instance;
-      Name       : in     String;
-      Args_Json  : in     String;
-      Session_Id : in     String;
-      Tool_Id    : in     String)
+     (F               : in out Instance;
+      Name            : in     String;
+      Args_Json       : in     String;
+      Session_Id      : in     String;
+      Tool_Id          : in     String;
+      Model           : in     String := "";
+      Source_Directory : in     String := "";
+      Session_Start   : in     String := "";
+      Turn_Index      : in     Positive := 1;
+      Call_In_Turn    : in     Positive := 1)
    is
+      pragma Unreferenced
+        (Model, Source_Directory, Session_Start, Turn_Index, Call_In_Turn);
       Tok         : constant String :=
         (if Tool_Id'Length > 0 then Hash_Tool_Id (Tool_Id) else "");
       Args_Parsed : constant GNATCOLL.JSON.Read_Result :=
@@ -215,8 +222,10 @@ package body Coyote_App.Frontend.Acme_Win is
      (F           : in out Instance;
       Tool_Id     : in     String;
       Status      : in     Coyote_App.Frontend.Tool_End_Status;
-      Result_Text : in     String := "")
+      Result_Text : in     String := "";
+      Media_Type  : in     String := "")
    is
+      pragma Unreferenced (Media_Type);
       use Coyote_App.Frontend;
       Tok : constant String :=
         (if Tool_Id'Length > 0 then Hash_Tool_Id (Tool_Id) else "");

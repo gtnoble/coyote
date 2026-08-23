@@ -4,6 +4,8 @@
 --  For revision history, see the project version-control log.
 
 with Ada.Calendar;
+with Ada.Calendar.Formatting;
+with Ada.Calendar.Time_Zones;
 with Ada.Environment_Variables;
 with Ada.Directories;
 with Ada.Exceptions;
@@ -918,6 +920,51 @@ package body LLM.Session_Store is
          end if;
          return "";
    end Session_Work_Dir;
+
+   function Session_Created_At (Session_Id : String) return String is
+      Path : constant String := Session_File_Path (Session_Id);
+      File : Ada.Text_IO.File_Type;
+   begin
+      if Path'Length = 0 or else not Ada.Directories.Exists (Path) then
+         return "";
+      end if;
+
+      Ada.Text_IO.Open (File, Ada.Text_IO.In_File, Path);
+      declare
+         Line   : constant String := To_String (Read_Line (File));
+         Parsed : constant GNATCOLL.JSON.Read_Result :=
+           GNATCOLL.JSON.Read (Line);
+      begin
+         Ada.Text_IO.Close (File);
+         if Parsed.Success
+           and then Parsed.Value.Has_Field ("createdAt")
+           and then Parsed.Value.Get ("createdAt").Kind =
+                        GNATCOLL.JSON.JSON_Int_Type
+         then
+            declare
+               use Ada.Calendar;
+               Epoch : constant Ada.Calendar.Time :=
+                 Ada.Calendar.Formatting.Value
+                   ("1970-01-01 00:00:00",
+                    Ada.Calendar.Time_Zones.Time_Offset (0));
+               Created_Ms : constant Long_Integer :=
+                 Parsed.Value.Get ("createdAt").Get;
+               Created : constant Ada.Calendar.Time :=
+                 Epoch + Duration (Long_Float (Created_Ms) / 1000.0);
+            begin
+               return Ada.Calendar.Formatting.Local_Image
+                 (Created, Include_Time_Fraction => False);
+            end;
+         end if;
+      end;
+      return "";
+   exception
+      when others =>
+         if Ada.Text_IO.Is_Open (File) then
+            Ada.Text_IO.Close (File);
+         end if;
+         return "";
+   end Session_Created_At;
 
    function Session_Sandbox_Profile (Session_Id : String) return String is
       Path : constant String := Session_File_Path (Session_Id);

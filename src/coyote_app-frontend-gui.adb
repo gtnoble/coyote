@@ -760,18 +760,23 @@ package body Coyote_App.Frontend.GUI is
 
          when Begin_Tool =>
             F.Conv.Begin_Tool
-              (Name       => To_String (U.Text),
-               Args       => To_String (U.Text2),
-               Session_Id => To_String (U.Text3),
-               Tool_Id    => To_String (U.Text4));
+              (Name             => To_String (U.Text),
+               Args             => To_String (U.Text2),
+               Session_Id       => To_String (U.Text3),
+               Tool_Id           => To_String (U.Text4),
+               Model            => To_String (U.Text5),
+               Source_Directory => To_String (U.Text6),
+               Session_Start    => To_String (U.Text7),
+               Turn_Index       => Positive'Max (U.Tool_Turn, 1),
+               Call_In_Turn     => Positive'Max (U.Tool_Call, 1));
 
          when End_Tool =>
             F.Conv.End_Tool
-              (Tool_Id => To_String (U.Text),
-               Status  => Coyote_GUI.Conversation.Tool_End_Status'Val
-                            (Coyote_GUI.Tool_End_Status'Pos (U.T_Status)),
-               Result  => To_String (U.Text2));
-
+              (Tool_Id    => To_String (U.Text),
+               Status     => Coyote_GUI.Conversation.Tool_End_Status'Val
+                               (Coyote_GUI.Tool_End_Status'Pos (U.T_Status)),
+               Result     => To_String (U.Text2),
+               Media_Type => To_String (U.Text3));
          when Append_Notice =>
             F.Conv.Append_Notice
               (Kind => Coyote_GUI.Conversation.Line_Style'Val
@@ -2874,11 +2879,16 @@ package body Coyote_App.Frontend.GUI is
 
    overriding
    procedure Begin_Tool
-     (F          : in out Instance;
-      Name       : in     String;
-      Args_Json  : in     String;
-      Session_Id : in     String;
-      Tool_Id    : in     String)
+     (F               : in out Instance;
+      Name            : in     String;
+      Args_Json       : in     String;
+      Session_Id      : in     String;
+      Tool_Id          : in     String;
+      Model           : in     String := "";
+      Source_Directory : in     String := "";
+      Session_Start   : in     String := "";
+      Turn_Index      : in     Positive := 1;
+      Call_In_Turn    : in     Positive := 1)
    is
       U : Coyote_GUI.Update;
    begin
@@ -2887,21 +2897,27 @@ package body Coyote_App.Frontend.GUI is
       U.Text2 := To_Unbounded_String (Args_Json);
       U.Text3 := To_Unbounded_String (Session_Id);
       U.Text4 := To_Unbounded_String (Tool_Id);
+      U.Text5 := To_Unbounded_String (Model);
+      U.Text6 := To_Unbounded_String (Source_Directory);
+      U.Text7 := To_Unbounded_String (Session_Start);
+      U.Tool_Turn := Turn_Index;
+      U.Tool_Call := Call_In_Turn;
       Enqueue_Update (F, U);
    end Begin_Tool;
-
    overriding
    procedure End_Tool
      (F           : in out Instance;
       Tool_Id     : in     String;
       Status      : in     Tool_End_Status;
-      Result_Text : in     String := "")
+      Result_Text : in     String := "";
+      Media_Type  : in     String := "")
    is
       U : Coyote_GUI.Update;
    begin
       U.Kind     := Coyote_GUI.End_Tool;
       U.Text     := To_Unbounded_String (Tool_Id);
       U.Text2    := To_Unbounded_String (Result_Text);
+      U.Text3    := To_Unbounded_String (Media_Type);
       U.T_Status :=
         Coyote_GUI.Tool_End_Status'Val (Tool_End_Status'Pos (Status));
       Enqueue_Update (F, U);

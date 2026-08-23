@@ -172,7 +172,8 @@ SRS-CORE requirement groups.
 | `tool_uri_tests.adb` | REQ-CORE-100â109 (plumb token format) | ~10 |
 | `coyote_cmark_tests.adb` | REQ-CORE-111 (Markdown rendering) | ~25 |
 | `coyote_lasem_tests.adb` | Lasem Presentation MathML measurement, zoom scaling, relation entities, and error handling | 5 |
-| `coyote_gui_conversation_tests.adb` | Display-math style, source preservation, visual height, font propagation, selection text, and PRIMARY transfer | 6 |
+| `coyote_gui_conversation_tests.adb` | Display-math style, source preservation, visual height, font propagation, selection text, PRIMARY transfer, and tool-detail metadata/media capture | 6 |
+| `llm_session_store_tests.adb` | Session-store header/accessor coverage, including local session creation timestamp | ~48 |
 | `coyote_gui_zoom_tests.adb` | REQ-CORE-125 (zoom arithmetic: clamping, step semantics) | 12 |
 | `coyote_gui_notification_policy_tests.adb` | REQ-CORE-127 (notification eligibility policy) | 4 |
 | `coyote_gui_mode_tests.adb` | REQ-CORE-113 Agent-menu availability by run mode | 1 |
@@ -224,6 +225,7 @@ behaviour. Results are recorded in a Test Report.
 | DEM-038 | REQ-CORE-113a, 113b, 115 | In a display-backed GUI, use Help → Click for Help and click one widget in each main area (menu item, prompt, Send/Stop, transcript, status, conversation). Verify a contextual Help window opens, the selected action is not activated, Escape cancels the armed mode, the window role changes to `coyote-session-<UUID>` after session bootstrap/switch, and the launcher/icon identity is `coyote`. |
 | DEM-039 | REQ-CORE-113a, REQ-CORE-504a | In a display-backed GUI, activate Overview, task entries, Index, and Keys & Shortcuts and verify Yelp opens the corresponding `help:coyote` or `help:coyote/<topic>` document. Verify Product Information opens an in-process dialog that remains available when Yelp is missing. Verify Mallard navigation, Index links, task links, contextual area topics, and the visible error notice when Yelp is unavailable. |
 | DEM-040 | REQ-CORE-113d | In a display-backed GUI, open Session Stats repeatedly and verify only one modeless transient `coyote : Session Stats` support window exists. Verify grouped selectable values, system-font sizing, scrollable report area, visible Close, Ctrl+W, live refresh after a completed turn, and clearing after New Session and session switch. |
+| DEM-041 | REQ-CORE-113e | In a display-backed GUI, click completed tool cards and verify each opens an independent `coyote : Tool Call Details` transient support window. Verify selectable header metadata, labelled monospace argument views, full selectable results, outer vertical scrolling, visible Close and Help actions, deterministic focus, Ctrl+W, non-color status meaning, image display/fallback, light/dark theme behavior, replay parity, and correct multi-window independence. |
 | DEM-034 | REQ-CORE-234 | Set and clear `defaultSandboxProfile`; verify inherited runtime and session-header precedence |
 | DEM-015 | REQ-CORE-130 | Resume a session; verify history replayed in frontend |
 | DEM-016 | REQ-CORE-140 | Inject a provider error (invalid API key); verify error notice visible in frontend |
@@ -317,6 +319,7 @@ These are entered as open items in the problem log (PCR-009).
 | REQ-CORE-110â115 | T/D | `coyote_cmark_tests.adb`, `coyote_gui_conversation_tests.adb`, DEM-014, DEM-036..037 |
 | REQ-CORE-113a..113c | D/T/I | `coyote_gui_conversation_tests.adb`, `coyote_help_tests.adb`, `coyote_gui_mode_tests.adb`, DEM-036..039, Mallard validation, source inspection |
 | REQ-CORE-113d | D/T/I | `coyote_gui_session_stats_window_tests.adb`, DEM-040, source inspection |
+| REQ-CORE-113e | D/T/I | `coyote_gui_conversation_tests.adb`, `llm_session_store_tests.adb`, DEM-041, source inspection |
 | REQ-CORE-504a | I/T | `coyote_help_tests.adb`, `yelp-check`, DEM-039 |
 | REQ-CORE-125 | T/D | `coyote_gui_zoom_tests.adb`, DEM-014 |
 | REQ-CORE-132 | D/T | `coyote_gui_navigation_tests.adb`, `coyote_gui_prompt_queue_tests.adb`, DEM-014 |
@@ -721,3 +724,10 @@ overflow, transcript plain-text exposure, and custom interactive focus.
 The complete suite was executed with a 900-second limit; display-backed
 DEM-014, AT-SPI accessibility inspection, and full color-contrast measurement
 remain manual qualification activities.
+
+**Baseline as of 2026-08-23 (PCR-072 GTK tool-detail alignment):**
+911 registered tests. Production and test development builds succeed. Added
+session creation timestamp and Tool_Info metadata/media regressions; live and
+replayed tool-detail payloads now preserve metadata and image state. The full
+suite passes 911/911 with zero failed assertions and zero unexpected errors.
+Display-backed DEM-041 remains manual qualification.

@@ -53,8 +53,13 @@ package Coyote_GUI is
    --                       Text2 = args JSON
    --                       Text3 = session id
    --                       Text4 = tool id
+   --                       Text5 = model
+   --                       Text6 = source directory
+   --                       Text7 = session start
+   --                       Tool_Turn / Tool_Call = position
    --    End_Tool           Text  = tool id
    --                       Text2 = result text
+   --                       Text3 = media type
    --                       T_Status = status
    --    Append_Notice      Text = message; N_Kind = severity
    --    Append_Turn_Footer Text = footer line
@@ -118,6 +123,11 @@ package Coyote_GUI is
       Text2    : Ada.Strings.Unbounded.Unbounded_String;
       Text3    : Ada.Strings.Unbounded.Unbounded_String;
       Text4    : Ada.Strings.Unbounded.Unbounded_String;
+      Text5    : Ada.Strings.Unbounded.Unbounded_String;
+      Text6    : Ada.Strings.Unbounded.Unbounded_String;
+      Text7    : Ada.Strings.Unbounded.Unbounded_String;
+      Tool_Turn : Natural := 0;
+      Tool_Call : Natural := 0;
       Stats    : Session_Stats_Record;
       T_Status : Tool_End_Status := Success;
       Mode     : Run_Mode        := Idle;

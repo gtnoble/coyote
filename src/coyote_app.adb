@@ -59,6 +59,12 @@ package body Coyote_App is
         (To_String (P_Thinking));
       function Current_Sandbox    return String  is
         (To_String (P_Sandbox));
+      function Source_Directory   return String is
+        (To_String (P_Source_Directory));
+      function Session_Start      return String is
+        (To_String (P_Session_Start));
+      function Current_Tool_Call  return Natural is
+        (P_Tool_Call);
       function Is_Streaming       return Boolean is (P_Streaming);
       function Is_Compacting      return Boolean is (P_Compacting);
       function Was_Aborted        return Boolean is (P_Aborted);
@@ -106,6 +112,16 @@ package body Coyote_App is
       begin
          P_Sandbox := To_Unbounded_String (Profile);
       end Set_Sandbox;
+
+      procedure Set_Source_Directory (Directory : String) is
+      begin
+         P_Source_Directory := To_Unbounded_String (Directory);
+      end Set_Source_Directory;
+
+      procedure Set_Session_Start (Start : String) is
+      begin
+         P_Session_Start := To_Unbounded_String (Start);
+      end Set_Session_Start;
 
       procedure Set_Streaming (Value : Boolean) is
       begin
@@ -167,10 +183,16 @@ package body Coyote_App is
          end if;
       end Increment_Tools_Done;
 
+      procedure Increment_Tool_Call is
+      begin
+         P_Tool_Call := P_Tool_Call + 1;
+      end Increment_Tool_Call;
+
       procedure Reset_Tool_Counts is
       begin
          P_Tools_Running := 0;
          P_Tools_Done    := 0;
+         P_Tool_Call     := 0;
       end Reset_Tool_Counts;
 
       function Last_Stop_Reason return String is
@@ -603,14 +625,21 @@ package body Coyote_App is
             end Emit_Model_Select;
 
             procedure Emit_Session_Info is
+               Session_Id : constant String :=
+                 LLM.Agent.Session_Id (Agent_Session);
                Event : constant LLM.Events.Session_Info_Event :=
                  (LLM.Events.Agent_Event with
-                  Session_Id      =>
-                    To_Unbounded_String (LLM.Agent.Session_Id (Agent_Session)),
-                  Thinking_Level  => Current_Thinking,
-                  Sandbox_Profile =>
+                  Session_Id       => To_Unbounded_String (Session_Id),
+                  Thinking_Level   => Current_Thinking,
+                  Sandbox_Profile  =>
                     To_Unbounded_String
-                      (LLM.Agent.Current_Sandbox (Agent_Session)));
+                      (LLM.Agent.Current_Sandbox (Agent_Session)),
+                  Model            => To_Unbounded_String
+                    (LLM.Agent.Current_Model_Spec (Agent_Session)),
+                  Source_Directory => To_Unbounded_String
+                    (LLM.Session_Store.Session_Work_Dir (Session_Id)),
+                  Session_Start    => To_Unbounded_String
+                    (LLM.Session_Store.Session_Created_At (Session_Id)));
             begin
                Dispatch_Event (Event);
             end Emit_Session_Info;
@@ -2259,11 +2288,17 @@ package body Coyote_App is
                  LLM.Agent.Session_Id (Agent_Session);
                Event : constant LLM.Events.Session_Info_Event :=
                  (LLM.Events.Agent_Event with
-                  Session_Id      => To_Unbounded_String (Session_Id),
-                  Thinking_Level  => Current_Thinking,
-                  Sandbox_Profile =>
+                  Session_Id       => To_Unbounded_String (Session_Id),
+                  Thinking_Level   => Current_Thinking,
+                  Sandbox_Profile  =>
                     To_Unbounded_String
-                      (LLM.Agent.Current_Sandbox (Agent_Session)));
+                      (LLM.Agent.Current_Sandbox (Agent_Session)),
+                  Model            => To_Unbounded_String
+                    (LLM.Agent.Current_Model_Spec (Agent_Session)),
+                  Source_Directory => To_Unbounded_String
+                    (LLM.Session_Store.Session_Work_Dir (Session_Id)),
+                  Session_Start    => To_Unbounded_String
+                    (LLM.Session_Store.Session_Created_At (Session_Id)));
             begin
                if Session_Id'Length > 0 then
                   My_Frontend.Set_Session_Identity (Session_Id);

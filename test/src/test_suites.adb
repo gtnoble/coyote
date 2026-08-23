@@ -1536,6 +1536,9 @@ package body Test_Suites is
          & "string for missing session or missing field",
          LLM_Session_Store_Tests.Test_Session_Work_Dir'Access));
       Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store.Session_Created_At returns local timestamp",
+         LLM_Session_Store_Tests.Test_Session_Created_At'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
         ("LLM.Session_Store.Append_Message handles large tool result without "
          & "secondary-stack overflow",
          LLM_Session_Store_Tests

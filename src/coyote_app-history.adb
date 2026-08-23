@@ -10,6 +10,7 @@ with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with GNATCOLL.JSON;          use GNATCOLL.JSON;
 with Coyote_App.Utils;      use Coyote_App.Utils;
+with LLM.Session_Store;
 with Session_Lister;         use Session_Lister;
 
 package body Coyote_App.History is
@@ -20,11 +21,11 @@ package body Coyote_App.History is
    --  during the first (collection) pass over a session JSONL file.
 
    type Tool_Result_Entry is record
-      Id     : Unbounded_String;
-      Text   : Unbounded_String;
-      Is_Err : Boolean := False;
+      Id         : Unbounded_String;
+      Text       : Unbounded_String;
+      Media_Type : Unbounded_String;
+      Is_Err     : Boolean := False;
    end record;
-
    package TR_Vectors is new Ada.Containers.Vectors
      (Index_Type   => Natural,
       Element_Type => Tool_Result_Entry);
@@ -78,6 +79,7 @@ package body Coyote_App.History is
       Last_Output  : Natural         := 0;
       Turn_Input   : Natural         := 0;
       Turn_Output  : Natural         := 0;
+      Call_In_Turn : Natural         := 0;
       Cur_Model    : Unbounded_String :=
         To_Unbounded_String (State.Current_Model);
       Turns_Rendered : Natural         := 0;
@@ -94,9 +96,10 @@ package body Coyote_App.History is
                return TR;
             end if;
          end loop;
-         return (Id     => Null_Unbounded_String,
-                 Text   => Null_Unbounded_String,
-                 Is_Err => False);
+         return (Id         => Null_Unbounded_String,
+                 Text       => Null_Unbounded_String,
+                 Media_Type => Null_Unbounded_String,
+                 Is_Err     => False);
       end Find_TR;
 
       --  Return the direct message object for either supported session
@@ -153,7 +156,8 @@ package body Coyote_App.History is
                              Get_String (Msg, "toolCallId");
                            Is_Err : constant Boolean :=
                              Get_Boolean (Msg, "isError");
-                           Parts  : Unbounded_String;
+                           Parts      : Unbounded_String;
+                           Media_Type : Unbounded_String;
                         begin
                            if Msg.Has_Field ("content")
                              and then
@@ -178,6 +182,14 @@ package body Coyote_App.History is
                                           Append
                                             (Parts,
                                              Get_String (Block, "text"));
+                                       elsif Block.Kind = JSON_Object_Type
+                                         and then
+                                           Get_String (Block, "type") = "image"
+                                       then
+                                          Parts := To_Unbounded_String
+                                            (Get_String (Block, "data"));
+                                          Media_Type := To_Unbounded_String
+                                            (Get_String (Block, "media_type"));
                                        end if;
                                     end;
                                  end loop;
@@ -185,9 +197,10 @@ package body Coyote_App.History is
                            end if;
                            if Tid'Length > 0 then
                               Tool_Results.Append
-                                ((Id     => To_Unbounded_String (Tid),
-                                  Text   => Parts,
-                                  Is_Err => Is_Err));
+                                ((Id         => To_Unbounded_String (Tid),
+                                  Text       => Parts,
+                                  Media_Type => Media_Type,
+                                  Is_Err     => Is_Err));
                            end if;
                         end;
                      end if;
@@ -334,6 +347,7 @@ package body Coyote_App.History is
                            Saw_Asst_Text := False;
                            Turn_Input    := 0;
                            Turn_Output   := 0;
+                           Call_In_Turn := 0;
                            Turn_Stop    := Null_Unbounded_String;
                            if Msg.Has_Field ("content")
                              and then
@@ -476,22 +490,38 @@ package body Coyote_App.History is
                                                    Coyote_App.Frontend
                                                      .Success;
                                           begin
-                                             if TR.Is_Err then
+                                             Call_In_Turn := Call_In_Turn + 1;
+                                             if To_String (TR.Id) = "" then
+                                                Status :=
+                                                  Coyote_App.Frontend.Cancelled;
+                                             elsif TR.Is_Err then
                                                 Status :=
                                                   Coyote_App.Frontend.Error;
                                              end if;
                                              Frontend.Append_Text
                                                ("" & ASCII.LF);
                                              Frontend.Begin_Tool
-                                               (Name       => Tool_Name,
-                                                Args_Json  => Args_Json,
-                                                Session_Id => UUID,
-                                                Tool_Id    => Tool_Id);
+                                               (Name             => Tool_Name,
+                                                Args_Json        => Args_Json,
+                                                Session_Id       => UUID,
+                                                Tool_Id           => Tool_Id,
+                                                Model            => To_String
+                                                  (Cur_Model),
+                                                Source_Directory =>
+                                                  LLM.Session_Store.Session_Work_Dir
+                                                    (UUID),
+                                                Session_Start    =>
+                                                  LLM.Session_Store.Session_Created_At
+                                                    (UUID),
+                                                Turn_Index       => Turns_Rendered + 1,
+                                                Call_In_Turn     => Call_In_Turn);
                                              Frontend.End_Tool
                                                (Tool_Id     => Tool_Id,
                                                 Status      => Status,
                                                 Result_Text =>
-                                                  To_String (TR.Text));
+                                                  To_String (TR.Text),
+                                                Media_Type  => To_String
+                                                  (TR.Media_Type));
                                           end;
                                        end if;
                                     end;

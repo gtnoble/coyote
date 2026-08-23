@@ -25,6 +25,9 @@ package Coyote_App is
       function Current_Model      return String;
       function Current_Thinking   return String;
       function Current_Sandbox    return String;
+      function Source_Directory   return String;
+      function Session_Start      return String;
+      function Current_Tool_Call  return Natural;
       function Is_Streaming       return Boolean;
       function Is_Compacting      return Boolean;
       function Was_Aborted        return Boolean;
@@ -91,6 +94,8 @@ package Coyote_App is
       procedure Set_Model          (Model : String);
       procedure Set_Thinking       (Level : String);
       procedure Set_Sandbox        (Profile : String);
+      procedure Set_Source_Directory (Directory : String);
+      procedure Set_Session_Start    (Start : String);
       procedure Set_Streaming      (Value : Boolean);
       procedure Set_Compacting     (Value : Boolean);
       procedure Set_Aborted        (Value : Boolean);
@@ -102,6 +107,7 @@ package Coyote_App is
       procedure Set_Has_Tool_In_Turn (Value : Boolean);
       procedure Increment_Tools_Running;
       procedure Increment_Tools_Done;
+      procedure Increment_Tool_Call;
       procedure Reset_Tool_Counts;
       procedure Set_Last_Stop_Reason  (Value : String);
       procedure Set_Last_Error_Message (Value : String);
@@ -164,6 +170,8 @@ package Coyote_App is
       P_Model         : Ada.Strings.Unbounded.Unbounded_String;
       P_Thinking      : Ada.Strings.Unbounded.Unbounded_String;
       P_Sandbox       : Ada.Strings.Unbounded.Unbounded_String;
+      P_Source_Directory : Ada.Strings.Unbounded.Unbounded_String;
+      P_Session_Start : Ada.Strings.Unbounded.Unbounded_String;
       P_Streaming     : Boolean := False;
       P_Compacting    : Boolean := False;
       P_Aborted       : Boolean := False;
@@ -197,6 +205,7 @@ package Coyote_App is
       P_Shutdown      : Boolean := False;
       P_Turn_Count    : Natural := 0;
       P_Turn_Step     : Natural := 0;   --  step counter within turn (1-based)
+      P_Tool_Call     : Natural := 0;   --  1-based call ordinal within turn
       P_Tool_Cancelled : Boolean := False;  --  any tool in current batch cancelled
       --  One-shot result (empty until set)
       P_One_Shot_Result  : Ada.Strings.Unbounded.Unbounded_String;
