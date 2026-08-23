@@ -34,10 +34,19 @@ next left click in a menu, prompt, control, transcript, status, or
 conversation area is consumed before activation and opens area-specific help.
 The GUI publishes the themed `coyote` icon identity and queues a distinct
 `coyote-session-<UUID>` window role for each active session. Native desktop
-session-manager command serialization and display-backed GTK qualification
-remain deferred. Conversation selection publishes plain text through PRIMARY
-independently of CLIPBOARD, and a prompt middle click inserts PRIMARY at the
-pointer without highlighting the result.
+session-manager command serialization remains unavailable through the GTK3
+API used by this build. Conversation selection publishes plain text through
+PRIMARY independently of CLIPBOARD, and a prompt middle click inserts PRIMARY
+at the pointer without highlighting the result.
+
+On the available X11 host, live checks verified the session-specific window
+role, F1 Overview, transient support-window parenting, Shift+F1 contextual
+help, and Escape cancellation. The light-theme warning and footer colors are
+selected for measured contrast of 5.98:1 and 5.74:1 against white; the
+corresponding dark-theme values are 9.96:1 and 4.57:1. The desktop entry
+passes `desktop-file-validate`. AT-SPI inspection is blocked because the host
+has accessibility disabled, and native session-manager restoration remains a
+platform-specific follow-up.
 
 The contextual-help mapping was verified independently for all six supported
 areas. The transcript area now has dedicated help text rather than falling

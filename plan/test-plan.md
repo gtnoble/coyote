@@ -676,10 +676,16 @@ is transparent to the statistical layer.
 **Baseline as of 2026-08-23 (PCR-068 GTK GUI IRIX interaction continuation):**
 901 registered tests. Production and test development builds succeed. The
 contextual Help content regression is registered and display-independent.
-DEM-014, DEM-036, DEM-037, and DEM-038, AT-SPI inspection, color-contrast
-measurement, and native desktop session-manager restoration remain
-display-backed or platform-specific manual qualification activities; this
-environment has no `DISPLAY`/`WAYLAND_DISPLAY` and no `xvfb-run`.
+On X11 `DISPLAY=:0.0`, live qualification verified the session-specific
+`coyote-session-<UUID>` role, F1 Overview, transient support-window parenting,
+Shift+F1 conversation contextual help, and Escape cancellation. The explicit
+light-theme warning and footer palettes measure 5.98:1 and 5.74:1 against
+white; dark-theme warning and footer palettes measure 9.96:1 and 4.57:1.
+The desktop file validates successfully. AT-SPI is disabled on this host and
+the native desktop session-manager restoration interface is unavailable, so
+those platform-specific qualifications remain deferred. DEM-014, DEM-036,
+DEM-037, and the complete Help-menu click path remain manual qualification
+activities.
 
 **Baseline as of 2026-08-23 (PCR-067 keyboard-driven GTK GUI):**
 898 registered tests. The application and test development builds succeed.

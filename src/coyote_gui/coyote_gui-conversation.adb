@@ -1112,7 +1112,7 @@ package body Coyote_GUI.Conversation is
                      if Current_Conv.Dark_Theme then
                         Set_Source_Rgb (Cr, 1.0, 0.75, 0.20);
                      else
-                        Set_Source_Rgb (Cr, 0.8, 0.53, 0.0);
+                        Set_Source_Rgb (Cr, 0.54, 0.35, 0.0);
                      end if;
                   when Notice_Error =>
                      if Current_Conv.Dark_Theme then
@@ -1121,7 +1121,11 @@ package body Coyote_GUI.Conversation is
                         Set_Source_Rgb (Cr, 0.8, 0.2, 0.2);
                      end if;
                   when Footer =>
-                     Set_Source_Rgb (Cr, 0.53, 0.53, 0.53);
+                     if Current_Conv.Dark_Theme then
+                        Set_Source_Rgb (Cr, 0.53, 0.53, 0.53);
+                     else
+                        Set_Source_Rgb (Cr, 0.40, 0.40, 0.40);
+                     end if;
                   when Action_Strip =>
                      if Current_Conv.Dark_Theme then
                         Set_Source_Rgb (Cr, 0.45, 0.75, 1.0);

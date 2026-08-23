@@ -2316,8 +2316,20 @@ behavior, current test baseline, and remaining manual qualification scope.
   AT-SPI/color-contrast qualification remain display-backed manual activities.
 - **Continuation actions (2026-08-23):** Added Help → Click for Help and generic pre-activation GTK event interception for menu, prompt, Send/Stop, transcript, status, and conversation areas. Contextual help text is area-specific, including a dedicated transcript-area description; Escape cancels the armed mode, and the display-independent regression now asserts a distinct marker for every supported area. Added the `coyote` freedesktop desktop entry and scalable SVG icon. The GUI publishes a distinct `coyote-session-<UUID>` window role through the GTK update queue after session bootstrap, creation, and switching; no GTK widget is accessed from the agent task.
 - **Corrective finding:** The audit found that `Help_Area` classified the transcript separately but `Context_Help_Text` fell through to conversation text. Added the missing transcript branch and strengthened `Test_Context_Help_Covers_Main_Areas` to detect any area-to-content regression.
-- **Verification:** Production and test development builds succeed; the exact contextual-help regression passes 1/1 and the complete suite passes 901/901. Display-backed GTK/AT-SPI/color-contrast and native desktop session-manager qualification remain open.
-- **Open follow-up:** Complete display-backed GTK/AT-SPI/color-contrast and
-  native desktop session-manager qualification.
-- **Status:** In Progress — implementation and automated coverage added;
-  display/platform qualification pending
+- **Corrective finding:** The audit also found that the light-theme warning
+  (2.99:1) and footer (3.59:1) Cairo text colors failed the 4.5:1 normal-text
+  contrast criterion. Light-theme warning and footer colors were changed to
+  `#8a5900` and `#666666`; measured contrast is 5.98:1 and 5.74:1. Dark-theme
+  palettes remain above 4.5:1.
+- **Verification:** Production and test development builds succeed; the
+  contextual-help regression passes 1/1 and the complete suite passes 901/901.
+  On X11 `DISPLAY=:0.0`, live qualification verified the session-specific
+  `coyote-session-<UUID>` role, F1 Overview, transient support-window parenting,
+  Shift+F1 conversation contextual help, and Escape cancellation. Desktop-file
+  validation passes. The host has AT-SPI disabled and its session-manager
+  restoration interface is unavailable; those platform-specific qualifications
+  remain deferred.
+- **Open follow-up:** Run AT-SPI inspection and native desktop session-manager
+  restoration qualification on a host where those facilities are enabled.
+- **Status:** In Progress — implementation and available display-backed
+  qualification complete; platform-specific qualification pending
