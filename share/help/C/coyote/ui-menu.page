@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<page xmlns="http://projectmallard.org/1.0/" type="topic" id="ui-menu">
+  <info>
+    <link type="guide" xref="index"/>
+    <desc>Use the coyote main menu.</desc>
+  </info>
+  <title>Main Menu</title>
+  <p>The main menu provides access to file and session operations, view settings, agent controls, persistent options, and Help.</p>
+  <p>Choose <link xref="send-prompt">Send a Prompt</link> for the main interaction task, or <link xref="keyboard-shortcuts">Keys &amp; Shortcuts</link> for keyboard access.</p>
+</page>

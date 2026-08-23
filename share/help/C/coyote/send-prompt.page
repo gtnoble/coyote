@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<page xmlns="http://projectmallard.org/1.0/" type="task" id="send-prompt">
+  <info>
+    <link type="guide" xref="index"/>
+    <desc>Enter a request and send it to the active model.</desc>
+  </info>
+  <title>Send a Prompt</title>
+  <p>Enter a coding request in the prompt area and submit it to the active model. The response appears in the conversation area as it streams.</p>
+  <steps>
+    <item><p>Click in the prompt area and enter your request.</p></item>
+    <item><p>Choose <gui style="button">Send</gui>, or press <key>Ctrl</key>+<key>Return</key>.</p></item>
+    <item><p>Read the response and any tool activity in the conversation area.</p></item>
+  </steps>
+  <note><p>Press <key>Shift</key>+<key>Return</key> to insert a new line instead of sending.</p></note>
+</page>

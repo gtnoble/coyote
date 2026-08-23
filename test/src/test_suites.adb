@@ -12,6 +12,7 @@ with Session_Lister_Tests;
 with Coyote_App_Tests;
 with Collapse_Utils_Tests;
 with Model_Row_Match_Tests;
+with Coyote_Help_Tests;
 with Coyote_Utils_Tests;
 with Coyote_Cmark_Tests;
 with Coyote_Lasem_Tests;
@@ -98,6 +99,8 @@ package body Test_Suites is
      new AUnit.Test_Caller (Collapse_Utils_Tests.Test);
    package Model_Row_Match_Caller is
      new AUnit.Test_Caller (Model_Row_Match_Tests.Test);
+   package Coyote_Help_Caller is
+     new AUnit.Test_Caller (Coyote_Help_Tests.Test);
    package Coyote_Cmark_Caller is
      new AUnit.Test_Caller (Coyote_Cmark_Tests.Test);
    package Coyote_Lasem_Caller is
@@ -3001,6 +3004,16 @@ package body Test_Suites is
          Coyote_GUI_Notification_Policy_Tests
            .Test_Suppress_When_Not_Allowed'Access));
 
+      Result.Add_Test (Coyote_Help_Caller.Create
+        ("Coyote.Help root URI",
+         Coyote_Help_Tests.Test_Root_URI'Access));
+      Result.Add_Test (Coyote_Help_Caller.Create
+        ("Coyote.Help topic URI",
+         Coyote_Help_Tests.Test_Topic_URI'Access));
+      Result.Add_Test (Coyote_Help_Caller.Create
+        ("Coyote.Help detects Yelp",
+         Coyote_Help_Tests.Test_Yelp_Is_Available'Access));
+
       Result.Add_Test (Coyote_Lasem_Caller.Create
         ("Coyote.Lasem measures a MathML fraction",
          Coyote_Lasem_Tests.Test_Measure_MathML_Fraction'Access));
@@ -3212,7 +3225,7 @@ package body Test_Suites is
          Coyote_GUI_Conversation_Tests
            .Test_Interactive_Focus_Cycles'Access));
       Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Context_Help covers main areas",
+        ("Coyote.GUI.Context_Help maps main areas to topics",
          Coyote_GUI_Conversation_Tests
            .Test_Context_Help_Covers_Main_Areas'Access));
 

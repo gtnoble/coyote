@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<page xmlns="http://projectmallard.org/1.0/" type="topic" id="ui-prompt">
+  <info>
+    <link type="guide" xref="index"/>
+    <desc>Enter and submit a request to the active model.</desc>
+  </info>
+  <title>Prompt Area</title>
+  <p>Enter a request in the prompt area and choose <gui style="button">Send</gui>. Press <key>Shift</key>+<key>Return</key> to insert a new line.</p>
+  <p>See <link xref="send-prompt">Send a Prompt</link> for the complete task.</p>
+</page>

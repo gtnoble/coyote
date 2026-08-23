@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<page xmlns="http://projectmallard.org/1.0/" type="topic" id="ui-conversation">
+  <info>
+    <link type="guide" xref="index"/>
+    <desc>Read, select, and interact with conversation content.</desc>
+  </info>
+  <title>Conversation Area</title>
+  <p>The conversation area displays assistant responses, reasoning, notices, tool activity, and turn summaries.</p>
+  <p>Select text to publish it through the desktop PRIMARY selection. Completed tool cards and fork controls can be activated with the mouse or keyboard.</p>
+  <p>See <link xref="keyboard-shortcuts">Keys &amp; Shortcuts</link> for navigation and selection commands.</p>
+</page>

@@ -6,6 +6,7 @@
 `Coyote_GUI.*`, `Coyote_GUI.Conversation`, `Coyote_Cmark`, `Acme.*`, `Nine_P.*`
 
 **Source files:** `src/coyote_app*.ads/.adb`, `src/coyote_gui/*`,
+`src/coyote_help.ads/.adb`, `share/help/C/coyote/*.page`,
 `share/applications/coyote.desktop`, and
 `share/icons/hicolor/scalable/apps/coyote.svg`,
 `src/coyote_cmark*.ads/.adb`, `src/coyote_cmark_c.c`,
@@ -22,11 +23,10 @@ The GTK main menu now follows the implemented desktop order `File`, `View`,
 `Agent`, `Options`, `Help`; Preferences is under Options and Help is
 rightmost. The main window and transient support/dialog windows use
 application-identifying titles without lifecycle status, and lifecycle state
-remains in the status area. Generic information windows are transient for the
-main window. The Help menu provides Click for Help, Overview, Keys & Shortcuts, and Product
-Information modeless information windows. Pause uses Ctrl+Shift+P so the
-reserved Ctrl+P accelerator remains available for Print. Help entries omit
-mnemonics as required for Help-menu task entries.
+remains in the status area. The Help menu launches Yelp topics for Overview,
+task help, Index, Keys & Shortcuts, Product Information, and Click for Help.
+Pause uses Ctrl+Shift+P so the reserved Ctrl+P accelerator remains available
+for Print. Help entries omit mnemonics as required for Help-menu task entries.
 
 The implementation does not claim complete IRIX conformance. F1 and Help →
 Click for Help arm a question-mark pointer for the whole main window. The
@@ -49,9 +49,24 @@ has accessibility disabled, and native session-manager restoration remains a
 platform-specific follow-up.
 
 The contextual-help mapping was verified independently for all six supported
-areas. The transcript area now has dedicated help text rather than falling
-through to the conversation-area description; the regression checks a
-content-specific marker for each area.
+areas. Contextual requests now map to stable Mallard topic IDs and launch the
+corresponding `help:coyote/<topic>` URI in Yelp. The Help menu also exposes the
+Mallard guide root, task topics, Index, keyboard shortcuts, and product
+information. `Coyote_Help` locates Yelp on `PATH`, launches it detached, and
+converts launch failure into a visible frontend error notice. Mallard pages
+are validated with `yelp-check validate` and `yelp-check links`.
+
+### Yelp/Mallard Help integration (2026-08-23)
+
+The GTK Help menu now launches the external Yelp viewer for the Mallard
+application guide. `Coyote_Help` owns URI construction, contextual area
+mapping, executable detection, and detached launch. Documentation is installed
+under `share/help/C/coyote/`, with `index.page` as the root and task/topic
+pages for overview, prompts, sessions, controls, shortcuts, product
+information, and each main-window area. Yelp is a required GUI runtime
+dependency; `yelp-tools` and `itstool` are contributor-time validation and
+translation dependencies. Because Yelp owns its window, Help windows are not
+GTK transient children of the coyote window.
 
 ### GTK Change Model dialog filter (2026-08-22)
 
@@ -458,6 +473,9 @@ let the user explicitly control the behaviour.
   selection, source preservation, visual height, and font propagation.
 - `Coyote_Cmark`: covered by AUnit tests — parse round-trips for each GFM
   node type; extension handling; null-safety of `cmark_shim_get_literal`.
+- `Coyote_Help`: covered by display-independent AUnit tests for root/topic URI
+  construction, contextual-area mapping, and Yelp executable detection.
+  Mallard syntax and cross-page links are checked with `yelp-check`.
 - `Acme.*` / `Nine_P.*`: covered by integration tests in
   `test/src/acme_integration_tests.adb` and `nine_p_integration_tests.adb`
   (require a live acme instance; opt-in).

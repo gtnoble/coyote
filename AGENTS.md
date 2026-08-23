@@ -73,6 +73,10 @@ the `coyote-skill-author` skill for a condensed quick-reference.
   project (`coyote.gpr`)
 - **Dependencies:**
   - `gnatcoll` ≥ 25.0.0 (JSON, OS, process utilities)
+  - Yelp Help viewer at runtime for the GTK Help menu; Mallard documentation
+    is installed under `share/help/C/coyote/`
+  - `yelp-tools` and `itstool` for contributor-time Mallard validation and
+    translation tooling
   - system `libcurl` development headers (`libcurl4-openssl-dev` on Debian /
     Ubuntu) for the native HTTP/SSE client
   - system `libcmark-gfm` development headers (`libcmark-gfm-dev` and
@@ -121,6 +125,7 @@ src/
   coyote_app-frontend-*.ads/.adb -- Concrete frontends (Acme_Win, GUI, Plain)
   coyote_app-history.ads/.adb   -- Session JSONL replay
   coyote_app-utils.ads/.adb     -- Formatting helpers; UC_* Unicode constants
+  coyote_help.ads/.adb          -- Yelp/Mallard Help URI and launcher
   coyote_gui/           -- GTK3 GUI subsystem (Updates queue, Buffer, Prompt_Queue)
   llm/                  -- LLM agent, providers, HTTP/SSE, settings, tools, skills
   acme.ads/.adb         -- Acme window helpers

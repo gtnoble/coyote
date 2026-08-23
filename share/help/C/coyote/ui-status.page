@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<page xmlns="http://projectmallard.org/1.0/" type="topic" id="ui-status">
+  <info>
+    <link type="guide" xref="index"/>
+    <desc>Interpret the coyote status area.</desc>
+  </info>
+  <title>Status Area</title>
+  <p>The status area reports lifecycle state, active model information, and non-critical session information. Errors and warnings are also reported visibly in the conversation.</p>
+</page>

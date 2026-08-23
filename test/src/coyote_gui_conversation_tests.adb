@@ -11,7 +11,7 @@ with Pango.Font;
 with Coyote_GUI.Conversation;
 with Coyote_App.Utils;
 with Coyote_GUI.Conversation.Testing;
-with Coyote_App.Frontend.GUI;
+with Coyote_Help;
 
 package body Coyote_GUI_Conversation_Tests is
 
@@ -1212,32 +1212,27 @@ package body Coyote_GUI_Conversation_Tests is
       pragma Unreferenced (T);
       type Area_Case is record
          Name   : Unbounded_String;
-         Marker : Unbounded_String;
+         Topic  : Unbounded_String;
       end record;
       Areas : constant array (1 .. 6) of Area_Case :=
         ((To_Unbounded_String ("menu"),
-          To_Unbounded_String ("Main menu: ")),
+          To_Unbounded_String ("ui-menu")),
          (To_Unbounded_String ("prompt"),
-          To_Unbounded_String ("Prompt area")),
+          To_Unbounded_String ("ui-prompt")),
          (To_Unbounded_String ("controls"),
-          To_Unbounded_String ("Control area")),
+          To_Unbounded_String ("ui-controls")),
          (To_Unbounded_String ("status"),
-          To_Unbounded_String ("Status area")),
+          To_Unbounded_String ("ui-status")),
          (To_Unbounded_String ("transcript"),
-          To_Unbounded_String ("Transcript area")),
+          To_Unbounded_String ("ui-transcript")),
          (To_Unbounded_String ("conversation"),
-          To_Unbounded_String ("Conversation area")));
+          To_Unbounded_String ("ui-conversation")));
    begin
       for Area of Areas loop
-         declare
-            Text : constant String :=
-              Coyote_App.Frontend.GUI.Context_Help_Text
-                (To_String (Area.Name));
-         begin
-            Assert
-              (Ada.Strings.Fixed.Index (Text, To_String (Area.Marker)) > 0,
-               "context help identifies " & To_String (Area.Name));
-         end;
+         Assert
+           (Coyote_Help.Topic_For_Area (To_String (Area.Name)) =
+              To_String (Area.Topic),
+            "context help maps " & To_String (Area.Name));
       end loop;
    end Test_Context_Help_Covers_Main_Areas;
 

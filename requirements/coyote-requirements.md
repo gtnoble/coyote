@@ -573,13 +573,15 @@ menu, and persistent preferences shall be grouped under Options.
 
 **REQ-CORE-113a** (D)
 The GUI frontend shall provide a rightmost Help menu containing Click for
-Help, Overview, Keys & Shortcuts, and Product Information entries. These
-entries shall open modeless information windows transient for the main
-application window, except Click for Help, which shall arm contextual help.
-F1 shall open Overview; Shift+F1 shall arm Click for Help with the
-question-mark pointer; and the next left click in any main-window control
-area, menu, prompt, transcript, status area, or conversation area shall open
-contextual help without activating the clicked control.
+Help, Overview, task-oriented Help entries, Index, Keys & Shortcuts, and
+Product Information. Help topics shall be opened in the external Yelp
+viewer using the `help:coyote` URI scheme; the Help viewer is not required to
+be a GTK transient child of the coyote window. Click for Help shall arm
+contextual help rather than open a topic immediately. F1 shall open Overview;
+Shift+F1 shall arm Click for Help with the question-mark pointer; and the next
+left click in any main-window control area, menu, prompt, transcript, status
+area, or conversation area shall open the corresponding contextual topic in
+Yelp without activating the clicked control.
 
 **REQ-CORE-113b** (D)
 GUI dialogs and support windows shall use application-identifying titles,
@@ -1117,6 +1119,12 @@ All frontends require libcurl (HTTPS) at runtime.
 **REQ-CORE-504** (I)
 The GUI frontend requires libcmark-gfm at runtime for Markdown rendering and Lasem 0.6 plus Computer Modern math fonts for display-math rendering.
 
+**REQ-CORE-504a** (I)
+The GUI frontend requires the Yelp Help viewer at runtime. The installed
+application shall provide Mallard documentation under `share/help/C/coyote/`
+and shall open the root and topic documents through `help:coyote` and
+`help:coyote/<topic>` URIs.
+
 **REQ-CORE-505** (I)
 The executable shall run on Linux. macOS support via plan9port is possible
 but is not a stated requirement.
@@ -1307,7 +1315,7 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-108..108b | Session fork tokens and step-level turn footers | D | TC-108..108b |
 | REQ-CORE-109 | SetDefault writes to settings.json | D | TC-109 |
 | REQ-CORE-110..119, 124..129 | GUI frontend capabilities, including Preferences, display math, zoom, completion notifications, and Change Model search | D/T/I | TC-110..119, TC-124..129; GUI regression tests |
-| REQ-CORE-113a..113b | GUI Help menu, menu taxonomy, title, dialog, support-window, lifecycle-status, and desktop interaction conventions | D/T/I | DEM-036..038; GUI conversation regressions; source inspection |
+| REQ-CORE-113a..113b | GUI Help menu, Yelp topics, menu taxonomy, title, dialog, support-window, lifecycle-status, and desktop interaction conventions | D/T/I | DEM-036..039; Coyote_Help tests; Mallard validation; source inspection |
 | REQ-CORE-132 | Complete visible accelerators for main GTK menu items | D/T | DEM-014; GUI regression tests |
 | REQ-CORE-120..121 | Plain frontend capabilities | D | TC-120..121 |
 | REQ-CORE-130..131 | Session history replay | D | TC-130..131 |
@@ -1333,6 +1341,7 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-300..302 | Internal interfaces | I | TC-300..302 |
 | REQ-CORE-400..402 | Internal data | I | TC-400..402 |
 | REQ-CORE-500..505 | Environment requirements | I | TC-500..505 |
+| REQ-CORE-504a | Yelp runtime dependency and installed Mallard Help | I/T | TC-504a; DEM-039 |
 | REQ-CORE-600..601 | Resource requirements | A | TC-600..601 |
 | REQ-CORE-700..704 | Quality factors | D/I | TC-700..704 |
 | REQ-CORE-800..805 | Constraints | I | TC-800..805 |

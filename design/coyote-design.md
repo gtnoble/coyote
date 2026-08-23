@@ -1657,12 +1657,15 @@ using Cairo + Pango (see §5.15).
   coyote and an optional instance label without lifecycle status. Dialogs and
   support windows use application-prefixed titles and are transient for the
   main window; the status area carries lifecycle state.
-- **Help menu:** Click for Help, Overview, Keys & Shortcuts, and Product
-  Information open the applicable modeless, transient information windows.
-  F1 opens Overview. Shift+F1 and Help → Click for Help arm a question-mark
-  cursor on the whole main window; a generic GTK event handler consumes the
-  next left click before widget activation and opens area-specific help.
-  Conversation tool/action handling remains a separate canvas callback.
+- **Help menu:** Click for Help, Overview, task topics, Index, Keys &
+  Shortcuts, and Product Information launch the corresponding Mallard topic
+  in Yelp. The root URI is `help:coyote`; topic URIs use
+  `help:coyote/<topic>`. F1 opens Overview. Shift+F1 and Help → Click for
+  Help arm a question-mark cursor on the whole main window; a generic GTK
+  event handler consumes the next left click before widget activation and
+  opens the mapped contextual topic. If Yelp is unavailable, the frontend
+  emits an error notice. Conversation tool/action handling remains a separate
+  canvas callback.
 - **Desktop identity and session roles:** The GUI sets the themed `coyote`
   icon name and a stable main-window role. After session creation, resume, or
   switch, the agent queues the session identifier through `Coyote_GUI.Updates`;
@@ -1750,7 +1753,30 @@ using Cairo + Pango (see §5.15).
   scroll-to-bottom button.
 ---
 
-### 5.34 `Coyote_App.Frontend.Plain`
+### 5.34 `Coyote_Help`
+
+**Purpose:** Opens the installed Mallard application documentation in Yelp.
+
+**`Help_URI (Topic)`:** Returns `help:coyote` for an empty topic and
+`help:coyote/<topic>` otherwise.
+
+**`Topic_For_Area (Area)`:** Maps each main-window contextual-help area to a
+stable Mallard topic ID: `menu` to `ui-menu`, `prompt` to `ui-prompt`,
+`controls` to `ui-controls`, `status` to `ui-status`, `transcript` to
+`ui-transcript`, and all other areas to `ui-conversation`.
+
+**`Yelp_Available`:** Locates the `yelp` executable on `PATH`.
+
+**`Open (Topic)`:** Locates Yelp, launches it detached with the Help URI, and
+returns False when Yelp cannot be located or the launch fails. The GUI converts
+that result into a visible error notice.
+
+Mallard source files are installed below `share/help/C/coyote/`. Yelp owns the
+Help window, so it is not a GTK transient child of the coyote main window.
+
+---
+
+### 5.35 `Coyote_App.Frontend.Plain`
 
 **Purpose:** Plain-text frontend for `--one-shot` mode and non-TTY output.
 
@@ -2091,6 +2117,7 @@ neither task may share mutable frontend state with the other.
 | REQ-CORE-200–208, REQ-CORE-215–217 | `LLM.Providers.*`, `LLM.HTTP`, `LLM.SSE`, `LLM.Agent` |
 | REQ-CORE-210–212 | `Nine_P.Client`, `Acme.Window`, `Coyote_App.Frontend.Acme_Win` |
 | REQ-CORE-220–221 | `Coyote_App.Frontend.GUI`, `Coyote_GUI.*` |
+| REQ-CORE-504a | `Coyote_Help`, `share/help/C/coyote/` Mallard documentation |
 | REQ-CORE-230–234 | `LLM.Settings`, `LLM.Auth`, `LLM.Auth.GitHub_Copilot` |
 | REQ-CORE-240–241 | `LLM.Session_Store` |
 | REQ-CORE-300–302 | `Coyote_App.Frontend`, `LLM.Events`, `LLM.Tools.Temp_File` |

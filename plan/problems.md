@@ -2333,3 +2333,30 @@ behavior, current test baseline, and remaining manual qualification scope.
   restoration qualification on a host where those facilities are enabled.
 - **Status:** In Progress — implementation and available display-backed
   qualification complete; platform-specific qualification pending
+
+
+## PCR-069 — Yelp-based GUI Help integration
+
+- **Date reported:** 2026-08-23
+- **Category:** Requirements, Design, Code, Test, Manuals
+- **Priority:** 3-Moderate
+- **Description:** The GUI Help implementation used hard-coded GTK text
+  windows and did not provide structured task help, topic navigation, or an
+  index comparable to the project’s IRIX Help target.
+- **Affected work products:** SRS-CORE REQ-CORE-113a and REQ-CORE-504a;
+  SDD-CORE §5.33–§5.34; `Coyote_App.Frontend.GUI`; new `Coyote_Help` unit;
+  Mallard documentation under `share/help/C/coyote/`; frontend SDF and Test
+  Plan.
+- **Corrective action required:** Use the required Yelp desktop Help viewer,
+  provide Mallard topic pages, map context-help areas to stable topics, and
+  qualify URI construction, documentation links, and launch failure behavior.
+- **Actions taken:** Added `Coyote_Help` with `help:coyote[/topic]` URI
+  construction, area mapping, Yelp detection, detached launch, and visible GUI
+  error reporting. Replaced the four hard-coded Help windows, added Index and
+  task entries, added 13 validated Mallard pages, and updated traceability and
+  qualification procedures.
+- **Verification:** Production and test development builds succeed.
+  `yelp-check validate` and `yelp-check links` pass for all Mallard pages.
+  Three display-independent Help tests are registered. Full display-backed
+  Yelp launch and missing-Yelp behavior remain manual DEM-039 qualification.
+- **Status:** Implementation complete; display-backed qualification pending.

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<page xmlns="http://projectmallard.org/1.0/" type="topic" id="keyboard-shortcuts">
+  <info>
+    <link type="guide" xref="index"/>
+    <desc>Keyboard shortcuts for the coyote application.</desc>
+  </info>
+  <title>Keys &amp; Shortcuts</title>
+  <section id="help">
+    <title>Help</title>
+    <terms>
+      <item><title><key>F1</key></title><p>Open the Overview.</p></item>
+      <item><title><key>Shift</key>+<key>F1</key></title><p>Arm Click for Help.</p></item>
+      <item><title><key>Escape</key></title><p>Cancel Click for Help, stop an active turn, or clear a selection.</p></item>
+    </terms>
+  </section>
+  <section id="application">
+    <title>Application</title>
+    <terms>
+      <item><title><key>Ctrl</key>+<key>N</key></title><p>Open a new window.</p></item>
+      <item><title><key>Ctrl</key>+<key>Shift</key>+<key>N</key></title><p>Create a new session.</p></item>
+      <item><title><key>Ctrl</key>+<key>O</key></title><p>Open a session.</p></item>
+      <item><title><key>Ctrl</key>+<key>Q</key></title><p>Exit coyote.</p></item>
+      <item><title><key>Ctrl</key>+<key>,</key></title><p>Open Preferences.</p></item>
+      <item><title><key>Ctrl</key>+<key>Return</key></title><p>Send the prompt.</p></item>
+      <item><title><key>Ctrl</key>+<key>R</key></title><p>Resume the session.</p></item>
+      <item><title><key>Ctrl</key>+<key>Shift</key>+<key>C</key></title><p>Compact context.</p></item>
+    </terms>
+  </section>
+  <section id="view">
+    <title>View</title>
+    <terms>
+      <item><title><key>Ctrl</key>+<key>+</key> / <key>Ctrl</key>+<key>-</key></title><p>Zoom in or out.</p></item>
+      <item><title><key>Ctrl</key>+<key>0</key></title><p>Reset zoom.</p></item>
+      <item><title><key>j</key> / <key>k</key></title><p>Scroll down or up in the conversation.</p></item>
+      <item><title><key>g</key> / <key>Shift</key>+<key>g</key></title><p>Scroll to the top or bottom.</p></item>
+      <item><title><key>Ctrl</key>+<key>D</key> / <key>Ctrl</key>+<key>U</key></title><p>Scroll one page down or up.</p></item>
+      <item><title><key>Home</key> / <key>End</key></title><p>Scroll to the top or bottom.</p></item>
+      <item><title><key>Ctrl</key>+<key>A</key> / <key>Ctrl</key>+<key>C</key></title><p>Select all or copy conversation text.</p></item>
+    </terms>
+  </section>
+</page>

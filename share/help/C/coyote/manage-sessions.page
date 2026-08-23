@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<page xmlns="http://projectmallard.org/1.0/" type="task" id="manage-sessions">
+  <info>
+    <link type="guide" xref="index"/>
+    <desc>Create, open, and continue persistent coyote sessions.</desc>
+  </info>
+  <title>Manage Sessions</title>
+  <p>Sessions preserve conversation history and configuration so work can continue later.</p>
+  <steps>
+    <item><p>Choose <gui>File</gui> and then choose <gui>New Session</gui> to replace the current session.</p></item>
+    <item><p>Choose <gui>File</gui> and then choose <gui>Open Session...</gui> to select a saved session.</p></item>
+    <item><p>Use <gui>File</gui> and <gui>New Window</gui> when a separate coyote window is needed.</p></item>
+  </steps>
+  <p>See <link xref="ui-menu">Main menu</link> for menu navigation and <link xref="keyboard-shortcuts">Keys &amp; Shortcuts</link> for keyboard access.</p>
+</page>

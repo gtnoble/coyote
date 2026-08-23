@@ -20,6 +20,7 @@ Sessions are stored in a JSONL format compatible with [pi](https://github.com/ma
 - [Alire](https://alire.ada.dev/) package manager (`alr`)
 - [plan9port](https://9fans.github.io/plan9port/) — acme, plumber, and 9P utilities (expected at `/usr/local/plan9`)
 - `libcurl` development headers (e.g. `libcurl4-openssl-dev` on Debian/Ubuntu)
+- Yelp Help viewer (required by the GTK Help menu)
 - `gnatcoll` ≥ 25.0.0 (pulled automatically by Alire)
 
 ## Building
@@ -292,6 +293,17 @@ Button-3 any matching token in any acme window to trigger the action.
 | `Plumb_Fork_Task` | Reads the `/coyote-fork` plumb port; forks the session at the requested turn (and optional step) and spawns a new coyote window |
 
 All shared mutable state lives in `App_State`, a protected object. Each task opens its own 9P connection to avoid cross-task contention.
+
+## Help
+
+The GTK frontend uses Yelp as its required Help viewer. Mallard documentation
+is installed under `share/help/C/coyote/` and is opened with `help:coyote` topic
+URIs. The Help menu provides Overview, task topics, Index, Keys & Shortcuts,
+Product Information, and Click for Help. F1 opens Overview; Shift+F1 and Click
+for Help arm contextual Help for the next main-window click.
+
+For contributors, `yelp-tools` and `itstool` provide Mallard validation and
+translation tooling.
 
 ## Testing
 

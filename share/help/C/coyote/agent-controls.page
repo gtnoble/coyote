@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<page xmlns="http://projectmallard.org/1.0/" type="task" id="agent-controls">
+  <info>
+    <link type="guide" xref="index"/>
+    <desc>Control an active coyote turn and its runtime settings.</desc>
+  </info>
+  <title>Agent Controls</title>
+  <p>The <gui>Agent</gui> menu controls the active turn and session-level behavior.</p>
+  <terms>
+    <item><title><gui>Stop</gui></title><p>Abort the active turn or tool invocation.</p></item>
+    <item><title><gui>Pause</gui></title><p>Pause at the next turn boundary.</p></item>
+    <item><title><gui>Resume</gui></title><p>Continue a paused session.</p></item>
+    <item><title><gui>Compact Context</gui></title><p>Summarize older conversation content to make room in the model context.</p></item>
+    <item><title><gui>Models</gui></title><p>Select the active provider and model.</p></item>
+  </terms>
+</page>

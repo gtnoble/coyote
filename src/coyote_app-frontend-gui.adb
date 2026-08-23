@@ -67,7 +67,7 @@ with GNATCOLL.OS.Process;
 with LLM.Agent;
 with LLM.Providers;
 with Coyote_App.Utils;
-with Coyote_Config;
+with Coyote_Help;
 with Coyote_GUI.Tool_Detail_Window;
 with Coyote_GUI.Zoom;
 with LLM.Model_Registry;
@@ -118,6 +118,7 @@ package body Coyote_App.Frontend.GUI is
    procedure Arm_Click_For_Help (F : in out Instance);
    procedure Reset_Click_For_Help (F : in out Instance);
 
+   procedure Open_Help_Topic (Topic : String);
    procedure Show_Context_Help (Area : String);
 
    function On_Help_Event
@@ -310,14 +311,20 @@ package body Coyote_App.Frontend.GUI is
       end if;
    end Help_Area;
 
+   procedure Open_Help_Topic (Topic : String) is
+   begin
+      if Current_Frontend /= null
+        and then not Coyote_Help.Open (Topic)
+      then
+         Current_Frontend.Append_Notice
+           (Coyote_App.Frontend.Error,
+            "Unable to open Help: Yelp is not available.");
+      end if;
+   end Open_Help_Topic;
+
    procedure Show_Context_Help (Area : String) is
    begin
-      if Current_Frontend /= null then
-         Show_Text_Window
-           (Current_Frontend.Win.all'Access,
-            "coyote : Help",
-            Context_Help_Text (Area));
-      end if;
+      Open_Help_Topic (Coyote_Help.Topic_For_Area (Area));
    end Show_Context_Help;
 
    function On_Help_Event
@@ -949,16 +956,36 @@ package body Coyote_App.Frontend.GUI is
      (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class) is
       pragma Unreferenced (Self);
    begin
-      if Current_Frontend /= null then
-         Show_Text_Window
-           (Current_Frontend.Win.all'Access,
-            "coyote : Product Information",
-            "coyote" & ASCII.LF
-            & "Version " & Coyote_Config.Crate_Version & ASCII.LF & ASCII.LF
-            & "Native Ada LLM coding agent with GTK3, Acme, "
-            & "and plain-text frontends.");
-      end if;
+      Open_Help_Topic ("product-information");
    end On_Product_Information_Activate;
+
+   procedure On_Index_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class) is
+      pragma Unreferenced (Self);
+   begin
+      Open_Help_Topic ("");
+   end On_Index_Activate;
+
+   procedure On_Send_Help_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class) is
+      pragma Unreferenced (Self);
+   begin
+      Open_Help_Topic ("send-prompt");
+   end On_Send_Help_Activate;
+
+   procedure On_Session_Help_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class) is
+      pragma Unreferenced (Self);
+   begin
+      Open_Help_Topic ("manage-sessions");
+   end On_Session_Help_Activate;
+
+   procedure On_Controls_Help_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class) is
+      pragma Unreferenced (Self);
+   begin
+      Open_Help_Topic ("agent-controls");
+   end On_Controls_Help_Activate;
 
    --  ── Open Session dialog ───────────────────────────────────────────────
 
@@ -2394,6 +2421,30 @@ package body Coyote_App.Frontend.GUI is
       Gtk.Menu_Shell.Append
         (Gtk.Menu_Shell.Gtk_Menu_Shell (Help_Menu), Item);
       Item.On_Activate (On_Overview_Activate'Access);
+      Gtk.Menu_Item.Gtk_New (Item, "Send a Prompt");
+      Item.Set_Name ("coyote-help-menu");
+      Item.On_Button_Press_Event (On_Help_Event'Access);
+      Gtk.Menu_Shell.Append
+        (Gtk.Menu_Shell.Gtk_Menu_Shell (Help_Menu), Item);
+      Item.On_Activate (On_Send_Help_Activate'Access);
+      Gtk.Menu_Item.Gtk_New (Item, "Manage Sessions");
+      Item.Set_Name ("coyote-help-menu");
+      Item.On_Button_Press_Event (On_Help_Event'Access);
+      Gtk.Menu_Shell.Append
+        (Gtk.Menu_Shell.Gtk_Menu_Shell (Help_Menu), Item);
+      Item.On_Activate (On_Session_Help_Activate'Access);
+      Gtk.Menu_Item.Gtk_New (Item, "Agent Controls");
+      Item.Set_Name ("coyote-help-menu");
+      Item.On_Button_Press_Event (On_Help_Event'Access);
+      Gtk.Menu_Shell.Append
+        (Gtk.Menu_Shell.Gtk_Menu_Shell (Help_Menu), Item);
+      Item.On_Activate (On_Controls_Help_Activate'Access);
+      Gtk.Menu_Item.Gtk_New (Item, "Index");
+      Item.Set_Name ("coyote-help-menu");
+      Item.On_Button_Press_Event (On_Help_Event'Access);
+      Gtk.Menu_Shell.Append
+        (Gtk.Menu_Shell.Gtk_Menu_Shell (Help_Menu), Item);
+      Item.On_Activate (On_Index_Activate'Access);
       Gtk.Menu_Item.Gtk_New (Item, "Keys & Shortcuts");
       Item.Set_Name ("coyote-help-menu");
       Item.On_Button_Press_Event (On_Help_Event'Access);
@@ -2753,33 +2804,6 @@ package body Coyote_App.Frontend.GUI is
    begin
       F.Agent_Sess.Set (S);
    end Register_Session;
-
-   function Context_Help_Text (Area : String) return String is
-   begin
-      if Area = "menu" then
-         return "Main menu: choose File, View, Agent, Options, or Help."
-           & ASCII.LF
-           & "Use Help for Overview, shortcuts, and product information.";
-      elsif Area = "prompt" then
-         return "Prompt area: enter a request and choose Send."
-           & ASCII.LF
-           & "Enter sends; Shift+Enter inserts a new line."
-           & ASCII.LF
-           & "Middle-click inserts the desktop PRIMARY selection.";
-      elsif Area = "controls" then
-         return "Control area: Send submits the prompt; Stop aborts the"
-           & " active turn.";
-      elsif Area = "status" then
-         return "Status area: reports lifecycle state and non-critical"
-           & " session information.";
-      elsif Area = "transcript" then
-         return "Transcript area: read the plain-text conversation"
-           & " with keyboard selection and assistive technology support.";
-      else
-         return "Conversation area: read the transcript, select text,"
-           & " and activate tool or fork controls.";
-      end if;
-   end Context_Help_Text;
 
    procedure Set_Session_Identity
      (F : in out Instance;
