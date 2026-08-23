@@ -405,7 +405,7 @@ three layers:
   → Send button / Enter key → Coyote_GUI.Prompt_Queue.Enqueue(prompt_text)
   → Stop menu → LLM.Tools.Abort_Flag.Set
   → Compact / Pause / Resume menu → Coyote_GUI.Prompt_Queue.Enqueue(":compact" etc.)
-  → Edit → Preferences... → GTK dialog edits persistent defaults and
+  → Options → Preferences... → GTK dialog edits persistent defaults and
       completion-notification preference
       → Coyote_GUI.Prompt_Queue.Enqueue(Set_Preferences payload)
       → Agent_Task persists settings and updates the current GUI on success
@@ -1644,7 +1644,7 @@ using Cairo + Pango (see §5.15).
   drains the queue on the GTK main-loop thread and calls the corresponding
   `Coyote_GUI.Conversation` operations.
 - `Read_Prompt` — blocks on `Coyote_GUI.Prompt_Queue.Dequeue`.
-- **Preferences dialog:** `Edit → Preferences...` is constructed and operated
+- **Preferences dialog:** `Options → Preferences...` is constructed and operated
   on the GTK main task. It edits persistent defaults for model, thinking level,
   sandbox profile, subagent model, and completion notifications without
   mutating the active `LLM.Agent.Session`. The callback enqueues a typed
@@ -1652,6 +1652,14 @@ using Cairo + Pango (see §5.15).
   update and sends a success or failure notice back through the frontend. On
   successful persistence, the notification setting is applied to the current
   GUI through `Coyote_GUI.Updates`.
+- **Menu and window conventions:** The main menu is ordered `File`, `View`,
+  `Agent`, `Options`, `Help`, with Help rightmost. The main title identifies
+  coyote and an optional instance label without lifecycle status. Dialogs and
+  support windows use application-prefixed titles and are transient for the
+  main window; the status area carries lifecycle state.
+- **Help menu:** Overview, Keys & Shortcuts, and Product Information open
+  modeless, transient information windows. Context-sensitive Click for Help
+  remains deferred until a GTK question-mark pointer implementation exists.
 - **Change Model dialog:** `Agent → Change Model…` (`Ctrl+M`) lists the live
   registry in a sortable `GtkTreeView`. A `GtkSearchEntry` filters rows through
   `GtkTreeModelFilter` + `GtkTreeModelSort` using `Model_Row_Matches` on
@@ -1699,7 +1707,7 @@ using Cairo + Pango (see §5.15).
   items have GTK accelerator shortcuts attached via a `Gtk_Accel_Group`
   on the main window, with `Accel_Visible` so shortcut labels appear in
   menu text.  The accelerators are: Ctrl+N (New Window), Ctrl+Shift+N (New
-  Session), Ctrl+O (Open Session), Ctrl+Q (Quit), Escape (Stop), Ctrl+P
+  Session), Ctrl+O (Open Session), Ctrl+Q (Exit), Escape (Stop), Ctrl+Shift+P
   (Pause), Ctrl+R (Resume), Ctrl+M (Change Model), Ctrl+1 through Ctrl+6
   (Thinking Level: Off through X-High), Ctrl+Shift+S (Sandbox Profile),
   Ctrl+Shift+C (Compact Context), Ctrl+Shift+I (Session Stats), Ctrl+Shift+D

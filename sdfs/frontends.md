@@ -14,6 +14,22 @@
 
 ## Design Rationale
 
+### GTK IRIX alignment slice (2026-08-23)
+
+The GTK main menu now follows the implemented desktop order `File`, `View`,
+`Agent`, `Options`, `Help`; Preferences is under Options and Help is
+rightmost. The main window and transient support/dialog windows use
+application-identifying titles without lifecycle status, and lifecycle state
+remains in the status area. Generic information windows are transient for the
+main window. The Help menu provides Overview, Keys & Shortcuts, and Product
+Information modeless information windows. Pause uses Ctrl+Shift+P so the
+reserved Ctrl+P accelerator remains available for Print. Help entries omit
+mnemonics as required for Help-menu task entries.
+
+This slice intentionally does not claim complete IRIX conformance. Context-
+sensitive Click for Help, primary-selection/middle-button transfer, desktop
+icon/session integration, and display-backed GTK qualification remain deferred.
+
 ### GTK Change Model dialog filter (2026-08-22)
 
 The Change Model dialog wraps the registry `GtkListStore` in
@@ -53,7 +69,7 @@ agent session.
 
 ### GUI Preferences implementation (2026-08-06)
 
-The GTK Preferences dialog is implemented as an `Edit → Preferences...`
+The GTK Preferences dialog is implemented as an `Options → Preferences...`
 workflow. It edits persistent model, thinking-level, and sandbox defaults on
 the GTK main task, then sends a typed `Set_Preferences` payload through the
 protected prompt queue to the agent task. The agent task owns settings-file
@@ -295,8 +311,8 @@ conversation view.
 
 Every actionable item in the main GTK menu bar now has a visible accelerator
 through the window's `Gtk_Accel_Group`: Ctrl+N (New Window), Ctrl+Shift+N
-(New Session), Ctrl+O (Open Session), Ctrl+Q (Quit), Ctrl+, (Preferences),
-Escape (Stop), Ctrl+P (Pause), Ctrl+R (Resume), Ctrl+M (Change Model),
+(New Session), Ctrl+O (Open Session), Ctrl+Q (Exit), Ctrl+, (Preferences),
+Escape (Stop), Ctrl+Shift+P (Pause), Ctrl+R (Resume), Ctrl+M (Change Model),
 Ctrl+1 through Ctrl+6 (Thinking Level: Off through X-High), Ctrl+Shift+S
 (Sandbox Profile), Ctrl+Shift+C (Compact Context), Ctrl+Shift+I (Session
 Stats), Ctrl+Shift+D (Set Defaults), Ctrl+Shift+M (Render Markdown),
@@ -357,9 +373,9 @@ The package is display-independent and unit-tested by
 | File | New Window | Ctrl+N |
 | File | New Session | Ctrl+Shift+N |
 | File | Open Session… | Ctrl+O |
-| File | Quit | Ctrl+Q |
+| File | Exit | Ctrl+Q |
 | Agent | Stop | Escape |
-| Agent | Pause | Ctrl+P |
+| Agent | Pause | Ctrl+Shift+P |
 | Agent | Resume | Ctrl+R |
 | Agent | Change Model… | Ctrl+M |
 | Agent | Compact Context | Ctrl+Shift+C |

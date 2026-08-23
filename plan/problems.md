@@ -2275,3 +2275,42 @@ behavior, current test baseline, and remaining manual qualification scope.
   AT-SPI/color-contrast qualification remain manual.
 - **Status:** Resolved for automated implementation coverage; display-backed
   qualification remains pending.
+
+
+## PCR-068 — Initial GTK GUI IRIX alignment
+
+- **Date reported:** 2026-08-23
+- **Category:** Requirements, Design, Code, Test, Manuals
+- **Priority:** 3-Moderate
+- **Description:** A source and documentation audit found that the GTK GUI
+  did not follow several applicable IRIX desktop conventions: the main menu
+  order and taxonomy were nonstandard, Help was absent, lifecycle status was
+  embedded in the window title, generic support windows were unparented,
+  dialogs used nonstandard titles and response ordering, Pause occupied the
+  reserved Ctrl+P accelerator, and menu mnemonics were ambiguous.
+- **Affected work products:** SRS-CORE REQ-CORE-110, REQ-CORE-113,
+  REQ-CORE-113a..113b, and REQ-CORE-132; SDD-CORE §5.33; `Coyote_App`,
+  `Coyote_App.Frontend.GUI`, `Coyote_GUI.Tool_Detail_Window`, frontend SDF,
+  and Test Plan.
+- **Corrective action required:** Align the implemented GUI with the
+  applicable IRIX menu, window, dialog, and interaction conventions; add
+  qualification procedures; retain explicit exceptions for behavior not yet
+  implemented.
+- **Actions taken (2026-08-23):** Changed the GUI title to `coyote` with an
+  optional spaced instance label and removed lifecycle suffixes from titles.
+  Reordered the top-level menus to File, View, Agent, Options, Help; moved
+  Preferences under Options; added Overview, Keys & Shortcuts, and Product
+  Information Help entries; changed Quit to Exit; moved Pause to
+  Ctrl+Shift+P; resolved duplicate menu mnemonics; removed the popup Copy
+  mnemonic; parent-normalized generic detail/statistics windows; normalized
+  dialog and tool-detail titles; and placed affirmative dialog actions before
+  Cancel. Updated requirements, design, SDF, and Test Plan traceability.
+- **Verification:** Development build succeeds after the implementation.
+  DEM-036 provides display-backed manual qualification for menu order, Help,
+  titles, transient parenting, dialog buttons, and status placement. Full
+  GTK event-level qualification remains pending because the available test
+  environment does not provide a runnable display-backed GUI fixture.
+- **Open follow-up:** Implement context-sensitive Click for Help, primary
+  selection and middle-button transfer, desktop icon/session integration, and
+  full GTK/AT-SPI/color-contrast qualification.
+- **Status:** In Progress

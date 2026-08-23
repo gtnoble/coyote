@@ -2104,9 +2104,9 @@ package body Coyote_App is
 
       My_PID   : constant String := Natural_Image (Natural (Getpid));
       Win_Name : constant String :=
-        Ada.Directories.Current_Directory & "/+coyote"
+        "coyote"
         & (if Length (Opts.Name) > 0
-           then ":" & To_String (Opts.Name)
+           then " : " & To_String (Opts.Name)
            else "");
 
       --  Shared objects closed over by Agent_Task:

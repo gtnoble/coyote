@@ -749,7 +749,7 @@ package body Coyote_GUI.Conversation is
    begin
       Gtk.Menu.Gtk_New (Menu);
 
-      Gtk.Menu_Item.Gtk_New_With_Mnemonic (Item, "_Copy");
+      Gtk.Menu_Item.Gtk_New (Item, "Copy");
       Item.On_Activate (Copy_Menu_Activate'Access);
       Gtk.Menu_Shell.Append (Gtk.Menu_Shell.Gtk_Menu_Shell (Menu), Item);
 

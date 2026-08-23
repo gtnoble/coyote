@@ -1,7 +1,7 @@
 # Test Plan â coyote (STP)
 
-**Version:** 1.14
-**Date:** 2026-08-22
+**Version:** 1.15
+**Date:** 2026-08-23
 
 **Status:** Reviewed and acknowledged â M4 complete (2026-06-03)
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
@@ -216,6 +216,7 @@ behaviour. Results are recorded in a Test Report.
 | DEM-014 | REQ-CORE-110â115, 125, 132 | Exercise GUI window: markdown rendering, tool frames, vi scroll, all main-menu accelerators, and Ctrl+wheel zoom. Verify each visible accelerator activates its corresponding menu action. |
 | DEM-033 | REQ-CORE-116..117, 119 | Open GUI Preferences, save ordinary and subagent model/thinking/sandbox defaults, then create a new session and verify the active session was unchanged, ordinary sessions inherit the ordinary defaults, and `coyote --subagent` inherits the subagent model |
 | DEM-035 | REQ-CORE-126..128 | Toggle desktop completion notifications in GUI Preferences; verify an unfocused ordinary GUI turn notifies, a focused turn does not, the setting persists, and subagent/one-shot runs remain silent |
+| DEM-036 | REQ-CORE-113a..113b | Exercise the GUI menu bar and support windows: verify top-level order `File`, `View`, `Agent`, `Options`, `Help`; activate Overview, Keys & Shortcuts, and Product Information; verify application-prefixed titles, transient parenting, dialog button order, and lifecycle status in the status area rather than the title |
 | DEM-034 | REQ-CORE-234 | Set and clear `defaultSandboxProfile`; verify inherited runtime and session-header precedence |
 | DEM-015 | REQ-CORE-130 | Resume a session; verify history replayed in frontend |
 | DEM-016 | REQ-CORE-140 | Inject a provider error (invalid API key); verify error notice visible in frontend |

@@ -547,7 +547,12 @@ sessions inherit the current configuration as their default.
 
 **REQ-CORE-110** (D)
 The GUI frontend shall open a GTK3 application window containing a
-conversation view, a prompt input area, a menu bar, and a status bar.
+conversation view, a prompt input area, a menu bar, and a status bar.  The
+main menu bar shall use the top-level order `File`, `View`, custom agent
+controls, `Options`, and `Help`; `Help` shall be the rightmost menu.  The
+window title shall identify the application and optional instance label,
+shall use spaces around the colon separator, and shall not contain
+transient lifecycle status.
 
 **REQ-CORE-111** (D)
 Assistant text shall be rendered with GitHub Flavored Markdown formatting
@@ -563,7 +568,21 @@ shall be clickable to open the full tool-call detail window.
 **REQ-CORE-113** (D)
 The GUI frontend shall support the following menu actions, equivalent to the
 Acme tag commands: Send, Stop, New, Clear, Models, Session Stats, Compact,
-Pause, Resume.
+Pause, Resume.  The runtime actions shall be grouped under a custom Agent
+menu, and persistent preferences shall be grouped under Options.
+
+**REQ-CORE-113a** (D)
+The GUI frontend shall provide a rightmost Help menu containing Overview,
+Keys & Shortcuts, and Product Information entries.  These entries shall open
+modeless information windows transient for the main application window.
+Context-sensitive Click for Help remains deferred until a GTK question-mark
+pointer implementation is available.
+
+**REQ-CORE-113b** (D)
+GUI dialogs and support windows shall use application-identifying titles,
+shall be transient for the main window, and shall place the affirmative
+specific action before Cancel where both actions are present.  Lifecycle
+status shall be displayed in the status area rather than the window title.
 
 **REQ-CORE-114** (D)
 The GUI frontend shall support vi-style scroll navigation (j/k/g/G/Ctrl-D/
@@ -588,7 +607,7 @@ by `$$`/`$$` and containing a complete Presentation MathML `<math>` document.
 The opening and closing `$$` delimiters shall be on standalone lines. If
 parsing fails, the original source shall remain visible as text.
 **REQ-CORE-116** (D)
-The GUI frontend shall provide an `Edit → Preferences...` dialog for editing
+The GUI frontend shall provide an `Options → Preferences...` dialog for editing
 persistent defaults without changing the active session. The dialog shall
 expose the default model, default thinking level, default sandbox profile, and
 optional default subagent model.
@@ -646,7 +665,7 @@ from Off through X-High; Ctrl+Shift+S for Sandbox Profile; Ctrl+Shift+I
 for Session Stats; Ctrl+Shift+D for Set Defaults; Ctrl+Shift+M for Render
 Markdown; and Ctrl+Shift+A for Auto-scroll. Existing menu accelerators shall
 remain available, including Ctrl+N, Ctrl+Shift+N, Ctrl+O, Ctrl+Q, Escape,
-Ctrl+P, Ctrl+R, Ctrl+M, Ctrl+Shift+C, Ctrl++, Ctrl+-, and Ctrl+0.
+Ctrl+Shift+P, Ctrl+R, Ctrl+M, Ctrl+Shift+C, Ctrl++, Ctrl+-, and Ctrl+0.
 
 ---
 
@@ -1279,6 +1298,7 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-108..108b | Session fork tokens and step-level turn footers | D | TC-108..108b |
 | REQ-CORE-109 | SetDefault writes to settings.json | D | TC-109 |
 | REQ-CORE-110..119, 124..129 | GUI frontend capabilities, including Preferences, display math, zoom, completion notifications, and Change Model search | D/T/I | TC-110..119, TC-124..129; GUI regression tests |
+| REQ-CORE-113a..113b | GUI Help menu, menu taxonomy, title, dialog, support-window, and lifecycle-status conventions | D/I | DEM-036; source inspection |
 | REQ-CORE-132 | Complete visible accelerators for main GTK menu items | D/T | DEM-014; GUI regression tests |
 | REQ-CORE-120..121 | Plain frontend capabilities | D | TC-120..121 |
 | REQ-CORE-130..131 | Session history replay | D | TC-130..131 |

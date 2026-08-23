@@ -183,17 +183,6 @@ package body Coyote_GUI.Tool_Detail_Window is
          Guint (Priority_Application));
    end Apply_Status_Css;
 
-   function Status_Icon
-     (Status : Coyote_GUI.Conversation.Tool_End_Status) return String
-   is
-   begin
-      case Status is
-         when Coyote_GUI.Conversation.Success => return UC_CHECK;
-         when Coyote_GUI.Conversation.Error => return UC_CROSS;
-         when Coyote_GUI.Conversation.Cancelled => return "-";
-      end case;
-   end Status_Icon;
-
    function Status_Text
      (Status : Coyote_GUI.Conversation.Tool_End_Status) return String
    is
@@ -294,9 +283,7 @@ package body Coyote_GUI.Tool_Detail_Window is
       Name       : constant String := To_String (Info.Name);
       Arguments  : constant String := To_String (Info.Args);
       Result     : constant String := To_String (Info.Result_Text);
-      Title      : constant String :=
-        Status_Icon (Info.Result_Status) & " " & Name
-        & " -- tool call details";
+      Title      : constant String := "coyote : Tool Call Details";
    begin
       Gtk.Window.Gtk_New (Win, Gtk.Enums.Window_Toplevel);
       Win.Set_Title (Title);
