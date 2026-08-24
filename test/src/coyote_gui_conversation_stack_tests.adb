@@ -8,10 +8,12 @@ with Coyote_GUI;
 with Coyote_GUI.Conversation_Stack.Testing;
 with Gtk.Main;
 with Gtk.Scrolled_Window;
+with Gtk.Text_View;
 
 package body Coyote_GUI_Conversation_Stack_Tests is
 
    use type Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+   use type Gtk.Text_View.Gtk_Text_View;
    use AUnit.Assertions;
    use Coyote_GUI;
    use Coyote_GUI.Conversation_Stack;
@@ -61,6 +63,9 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Append_Text (T.Stack, " second");
       End_Text_Block (T.Stack);
       Assert (Has_Exchange (T.Stack), "request creates an exchange");
+      Assert (Active_Text_View (T.Stack) /= null
+              and then Active_Text_View (T.Stack).Get_Visible,
+              "dynamically-created native text is visible");
       Assert (Transcript_Text (T.Stack) = "request" & ASCII.LF
               & "first second" & ASCII.LF & ASCII.LF,
               "streaming updates one native text component");

@@ -59,6 +59,13 @@ package body Coyote_GUI.Conversation_Stack is
       View.Set_Pixels_Below_Lines (2);
    end Configure_Text_View;
 
+   procedure Show_Contents (C : in Instance) is
+   begin
+      if C.Scroll /= null then
+         C.Scroll.Show_All;
+      end if;
+   end Show_Contents;
+
    procedure Add_Text_Element
      (C       : in out Instance;
       Caption : String;
@@ -82,6 +89,7 @@ package body Coyote_GUI.Conversation_Stack is
       end if;
       Section.Pack_Start (View, Expand => False, Fill => True, Padding => 2);
       C.Exchange.Pack_Start (Section, Expand => False, Fill => True, Padding => 4);
+      Show_Contents (C);
    end Add_Text_Element;
 
    procedure Create (C : in out Instance) is
@@ -256,6 +264,7 @@ package body Coyote_GUI.Conversation_Stack is
       Configure_Text_View (Result_View);
       Box.Pack_Start (Result_View, Expand => False, Fill => True, Padding => 2);
       C.Exchange.Pack_Start (Frame, Expand => False, Fill => True, Padding => 4);
+      Show_Contents (C);
       C.Tools.Insert
         (Tool_Id,
          (Header    => Header,
@@ -311,6 +320,7 @@ package body Coyote_GUI.Conversation_Stack is
       Label.Set_Line_Wrap (True);
       Label.Set_Selectable (True);
       C.Exchange.Pack_Start (Label, Expand => False, Fill => True, Padding => 2);
+      Show_Contents (C);
       Append (C.Transcript, Prefix & Text & ASCII.LF);
    end Append_Notice;
 
@@ -330,6 +340,7 @@ package body Coyote_GUI.Conversation_Stack is
       Label.Set_Xalign (0.0);
       Label.Set_Selectable (True);
       C.Exchange.Pack_Start (Label, Expand => False, Fill => True, Padding => 2);
+      Show_Contents (C);
       Append (C.Transcript, Prefix & Text & ASCII.LF);
    end Append_Turn_Footer;
 
@@ -350,6 +361,7 @@ package body Coyote_GUI.Conversation_Stack is
       Button.Set_Can_Focus (True);
       C.Exchange.Pack_Start
         (Button, Expand => False, Fill => False, Padding => 2);
+      Show_Contents (C);
       Append (C.Transcript, Label & ASCII.LF);
    end Append_Fork_Action;
 
@@ -372,6 +384,7 @@ package body Coyote_GUI.Conversation_Stack is
       Label.Set_Selectable (True);
       C.Exchange.Pack_Start
         (Label, Expand => False, Fill => False, Padding => 2);
+      Show_Contents (C);
       Append (C.Transcript, Text & ASCII.LF);
       C.Last_Status := Status;
       C.Completed := True;

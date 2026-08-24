@@ -41,4 +41,12 @@ package body Coyote_GUI.Conversation_Stack.Testing is
       return C.Scroll;
    end Host_Widget;
 
+   function Active_Text_View
+     (C : Coyote_GUI.Conversation_Stack.Instance)
+      return Gtk.Text_View.Gtk_Text_View
+   is
+   begin
+      return C.Active_View;
+   end Active_Text_View;
+
 end Coyote_GUI.Conversation_Stack.Testing;

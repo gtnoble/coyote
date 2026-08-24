@@ -5,6 +5,7 @@
 with Coyote_GUI;
 with Coyote_GUI.Conversation_Stack;
 with Gtk.Scrolled_Window;
+with Gtk.Text_View;
 
 package Coyote_GUI.Conversation_Stack.Testing is
 
@@ -24,5 +25,9 @@ package Coyote_GUI.Conversation_Stack.Testing is
    function Host_Widget
      (C : Coyote_GUI.Conversation_Stack.Instance)
       return Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+
+   function Active_Text_View
+     (C : Coyote_GUI.Conversation_Stack.Instance)
+      return Gtk.Text_View.Gtk_Text_View;
 
 end Coyote_GUI.Conversation_Stack.Testing;
