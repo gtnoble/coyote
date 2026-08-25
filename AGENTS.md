@@ -493,7 +493,7 @@ conform to the guidelines it defines.
 ## Testing
 
 The Test Plan (`plan/test-plan.md`) is the governing document for test scope,
-environment, traceability, and the current test baseline (907 tests; see plan/test-plan.md §7).
+environment, traceability, and the current test baseline (919 tests; see plan/test-plan.md §7). The default test runner uses short retry backoff and skips repeated model catalogue refreshes; set `COYOTE_TEST_FAST_RETRY=0` or `COYOTE_TEST_NO_CATALOGUE_REFRESH=0` to restore the corresponding production-style behavior when needed.
 
 Tests live in `test/src/` and use AUnit. Run the full suite:
 ```sh

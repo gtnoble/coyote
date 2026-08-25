@@ -1034,7 +1034,10 @@ package body LLM.Agent is
         (E : LLM.Events.Agent_Event'Class))
    is
       Delays_Ms   : constant array (Positive range 1 .. 3) of Natural :=
-        (2_000, 4_000, 8_000);
+        (if Ada.Environment_Variables.Value
+              ("COYOTE_TEST_FAST_RETRY", "") = "1"
+         then (50, 100, 200)
+         else (2_000, 4_000, 8_000));
       Succeeded   : Boolean := False;
       Attempt     : Positive := 1;
       Retry_Used  : Boolean := False;
@@ -1347,13 +1350,17 @@ package body LLM.Agent is
       S.Compact_Settings := LLM.Compaction.Default_Compact_Settings;
       S.Last_Context_Tokens := 0;
 
-      LLM.Model_Registry.Refresh_GitHub_Copilot;
-      LLM.Model_Registry.Refresh_OpenRouter;
-      LLM.Model_Registry.Refresh_Anthropic;
-      LLM.Model_Registry.Refresh_OpenCode_Go;
-      LLM.Model_Registry.Refresh_OpenAI;
+      if Ada.Environment_Variables.Value
+           ("COYOTE_TEST_NO_CATALOGUE_REFRESH", "") /= "1"
+      then
+         LLM.Model_Registry.Refresh_GitHub_Copilot;
+         LLM.Model_Registry.Refresh_OpenRouter;
+         LLM.Model_Registry.Refresh_Anthropic;
+         LLM.Model_Registry.Refresh_OpenCode_Go;
+         LLM.Model_Registry.Refresh_OpenAI;
 
-      LLM.Model_Registry.Refresh_Ollama;
+         LLM.Model_Registry.Refresh_Ollama;
+      end if;
       Set_Model_Internal (S, Effective_Spec);
 
       if Session_Id'Length > 0 then

@@ -748,3 +748,13 @@ steps now use visible titled Gtk.Frame containers. DEM-042 and DEM-043 revised
 component/replay demonstrations and DEM-044 100/500/2,000-exchange performance
 qualification remain deferred pending manual execution; visible border
 appearance and large-history frame overhead remain unqualified.
+
+**Runtime optimization verification (PCR-074, 2026-08-25):** The default
+`coyote_test` runner enables `COYOTE_TEST_FAST_RETRY=1` and
+`COYOTE_TEST_NO_CATALOGUE_REFRESH=1` unless explicitly overridden. Agent
+retry delays are 50/100/200 ms in this mode; production 2/4/8 second delays
+remain available with `COYOTE_TEST_FAST_RETRY=0`. The retry-exhaustion
+regression passes in 0.49 seconds with all four attempts, versus 14.22 seconds
+with production delays. Two sequential full-suite runs completed in 32.26 and
+31.84 seconds, each with 919 tests, 917 successful assertions, 2 pre-existing
+PCR-073 native-stack failures, and 0 unexpected errors.

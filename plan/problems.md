@@ -2519,3 +2519,32 @@ behavior, current test baseline, and remaining manual qualification scope.
   native-stack test execution and display-backed DEM-042/043 verification are
   pending; DEM-044 frame overhead and large-history qualification remain open.
 - **Status:** In progress — implementation started; qualification pending.
+
+## PCR-074 — Test-suite runtime and repeatability
+
+- **Date reported:** 2026-08-25
+- **Category:** Code, Test, Plans
+- **Priority:** 3-Moderate
+- **Description:** The 919-test AUnit executable took 149–210+ seconds and
+  intermittently exceeded the documented execution timeout. Most agent tests
+  used real HTTP mock servers, and retry-exhaustion tests slept for 2, 4, and
+  8 seconds before the final attempt. Agent construction also refreshed all
+  provider catalogues repeatedly.
+- **Affected work products:** `src/llm/llm-agent.adb`; `test/src/coyote_test.adb`;
+  `plan/test-plan.md`; `sdfs/core-agent.md`.
+- **Corrective action required:** Preserve production retry behavior while
+  providing a deterministic fast test policy, and avoid repeated catalogue
+  refreshes during the default test run.
+- **Actions taken:** Added `COYOTE_TEST_FAST_RETRY`. The default test runner
+  uses 50/100/200 ms retry delays; production 2/4/8 second delays remain
+  available with `COYOTE_TEST_FAST_RETRY=0`. Added
+  `COYOTE_TEST_NO_CATALOGUE_REFRESH`; the default test runner enables it,
+  while explicit catalogue tests continue to call refresh routines directly.
+- **Verification:** `cd test && alr build` succeeds. The retry-exhaustion
+  regression passes in 0.49 seconds with all four attempts. Explicit
+  production-delay mode passes in 14.22 seconds. The full suite passes
+  917/919 assertions in 31.84–32.26 seconds, with the same two pre-existing
+  PCR-073 native-stack failures and zero unexpected errors. Two sequential
+  optimized full-suite runs completed within 32.26 seconds and 31.84 seconds.
+- **Status:** Resolved
+- **Date resolved:** 2026-08-25

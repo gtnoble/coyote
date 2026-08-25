@@ -393,3 +393,32 @@ unpersisted history suffix and restores first-prompt submitted state.
 **Verification:** Added agent regressions for Grok/Luna-compatible views,
 switch-back restoration, durable-history non-mutation, and HTTP 404 rollback
 agreement between in-memory and loaded JSONL history. Focused tests pass.
+
+## 2026-08-25 — Test-suite runtime controls
+
+**Problem:** The monolithic 919-test executable used production retry
+backoff during mock-provider tests and refreshed provider catalogues during
+every `LLM.Agent.Create`. The resulting suite took 149–210+ seconds and
+occasionally exceeded its execution timeout.
+
+**Design:** Preserve production behavior by making both optimizations
+explicitly test-runner scoped. `test/src/coyote_test.adb` defaults
+`COYOTE_TEST_FAST_RETRY` and `COYOTE_TEST_NO_CATALOGUE_REFRESH` to `1`,
+without overwriting caller-provided values. `LLM.Agent.Send_With_Retry` uses
+50/100/200 ms delays when the first flag is enabled and retains the production
+2/4/8 second schedule otherwise. `LLM.Agent.Create` skips startup catalogue
+refreshes only when the second flag is enabled. Direct catalogue and model
+registry tests remain able to invoke refresh operations explicitly.
+
+**Rationale:** Zero-delay retries were rejected because the serial TCP mock
+server could not reliably accept all four requests. Small nonzero delays keep
+the retry test's four-attempt assertion deterministic while removing nearly
+all artificial wait time. Environment controls avoid adding a production API
+solely for test performance.
+
+**Verification:** `cd test && alr build` succeeds. The retry-exhaustion test
+passes in 0.49 seconds with all four attempts. With
+`COYOTE_TEST_FAST_RETRY=0`, the same test passes in 14.22 seconds, confirming
+the production schedule remains available. The full suite passes 917/919
+assertions in 31.84–32.26 seconds with zero unexpected errors; the two
+remaining failures are the pre-existing PCR-073 native-stack assertions.

@@ -1,4 +1,5 @@
 with Ada.Command_Line;
+with Ada.Environment_Variables;
 with AUnit.Options;
 with AUnit.Run;
 with AUnit.Reporter.Text;
@@ -18,6 +19,14 @@ procedure Coyote_Test is
    Filter   : aliased AUnit.Test_Filters.Name_Filter;
    Options  : AUnit.Options.AUnit_Options;
 begin
+   Ada.Environment_Variables.Set
+     ("COYOTE_TEST_FAST_RETRY",
+      Ada.Environment_Variables.Value ("COYOTE_TEST_FAST_RETRY", "1"));
+   Ada.Environment_Variables.Set
+     ("COYOTE_TEST_NO_CATALOGUE_REFRESH",
+      Ada.Environment_Variables.Value
+        ("COYOTE_TEST_NO_CATALOGUE_REFRESH", "1"));
+
    if Ada.Command_Line.Argument_Count > 0 then
       Filter.Set_Name (Ada.Command_Line.Argument (1));
       Options.Filter := Filter'Unchecked_Access;
