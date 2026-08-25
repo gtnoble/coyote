@@ -115,6 +115,11 @@ package body Coyote_App.Frontend.GUI is
    procedure On_Overview_Activate
      (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
 
+   procedure On_Native_Fork
+     (UUID   : String;
+      Turn_N : Positive;
+      Step_N : Natural);
+
    function On_Prompt_Button_Press
      (Self  : access Gtk.Widget.Gtk_Widget_Record'Class;
       Event : Gdk.Event.Gdk_Event_Button) return Boolean;
@@ -695,6 +700,31 @@ package body Coyote_App.Frontend.GUI is
       end;
       return False;
    end On_Conv_Button_Press;
+
+   procedure On_Native_Fork
+     (UUID   : String;
+      Turn_N : Positive;
+      Step_N : Natural)
+   is
+      New_UUID : constant String :=
+        Session_Lister.Fork_Session
+          (Source_UUID => UUID,
+           After_Turn  => Turn_N,
+           Target_Cwd  => Ada.Directories.Current_Directory,
+           After_Step  => Step_N);
+   begin
+      if New_UUID'Length > 0 then
+         declare
+            use GNATCOLL.OS.Process;
+            Args : Argument_List;
+         begin
+            Args.Append (Ada.Command_Line.Command_Name);
+            Args.Append ("--session");
+            Args.Append (New_UUID);
+            Coyote_Spawn.Spawn_Detached (Args);
+         end;
+      end if;
+   end On_Native_Fork;
 
    function On_Conv_Key_Press
      (Self  : access Gtk.Widget.Gtk_Widget_Record'Class;
@@ -2796,6 +2826,8 @@ package body Coyote_App.Frontend.GUI is
       --  remains the active baseline and fallback.
       Coyote_GUI.Conversation_Stack.Create
         (F.Stack, F.Win.all'Access);
+      Coyote_GUI.Conversation_Stack.Set_Fork_Handler
+        (F.Stack, On_Native_Fork'Access);
 
       Gtk.Scrolled_Window.Gtk_New (F.Conv_Scroll);
       F.Conv_Scroll.Set_Policy (Policy_Never, Policy_Automatic);
@@ -3063,10 +3095,11 @@ package body Coyote_App.Frontend.GUI is
 
    overriding
    procedure Append_Turn_Footer
-     (F    : in out Instance;
-      Text : in     String;
-      Kind : in     Coyote_App.Frontend.Footer_Kind :=
-        Coyote_App.Frontend.Final_Footer)
+     (F       : in out Instance;
+      Text    : in     String;
+      Kind    : in     Coyote_App.Frontend.Footer_Kind :=
+        Coyote_App.Frontend.Final_Footer;
+      Summary : in     String := "")
    is
       U : Coyote_GUI.Update;
    begin

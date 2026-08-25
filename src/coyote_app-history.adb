@@ -341,7 +341,13 @@ package body Coyote_App.History is
                                       To_String (Cur_Model),
                                     Stop_Reason_Text =>
                                       To_String (Turn_Stop)),
-                               Kind => Coyote_App.Frontend.Final_Footer);
+                               Kind    => Coyote_App.Frontend.Final_Footer,
+                               Summary => Format_Turn_Summary
+                                 (Input_Tokens      => Turn_Input,
+                                  Output_Tokens     => Turn_Output,
+                                  Ctx_Window        => State.Context_Window,
+                                  Model_Text        => To_String (Cur_Model),
+                                  Stop_Reason_Text  => To_String (Turn_Stop)));
                               Frontend.Append_Fork_Action
                                 (PID    => PID,
                                  UUID   => UUID,
@@ -543,7 +549,13 @@ package body Coyote_App.History is
                                     Model_Text        => To_String (Cur_Model),
                                     Stop_Reason_Text => To_String (Turn_Stop),
                                     Is_Step          => True),
-                                 Kind => Coyote_App.Frontend.Step_Footer);
+                                 Kind    => Coyote_App.Frontend.Step_Footer,
+                                 Summary => Format_Turn_Summary
+                                   (Input_Tokens     => Turn_Input,
+                                    Output_Tokens    => Turn_Output,
+                                    Ctx_Window       => State.Context_Window,
+                                    Model_Text       => To_String (Cur_Model),
+                                    Stop_Reason_Text => To_String (Turn_Stop)));
                               Frontend.Append_Fork_Action
                                 (PID    => PID,
                                  UUID   => UUID,
@@ -586,7 +598,13 @@ package body Coyote_App.History is
                Ctx_Window        => State.Context_Window,
                Model_Text        => To_String (Cur_Model),
                Stop_Reason_Text =>
-                 To_String (Turn_Stop)));
+                 To_String (Turn_Stop)),
+            Summary => Format_Turn_Summary
+              (Input_Tokens     => Turn_Input,
+               Output_Tokens    => Turn_Output,
+               Ctx_Window       => State.Context_Window,
+               Model_Text       => To_String (Cur_Model),
+               Stop_Reason_Text => To_String (Turn_Stop)));
          Frontend.Append_Fork_Action
            (PID    => PID,
             UUID   => UUID,

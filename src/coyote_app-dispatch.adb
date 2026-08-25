@@ -96,7 +96,16 @@ package body Coyote_App.Dispatch is
       Model_Text        : constant String  := State.Current_Model;
       Turn_Cost_Dmil    : constant Natural := State.Turn_Cost_Dmil;
       Session_Cost_Dmil : constant Natural := State.Session_Cost_Dmil;
-      Stop_Reason_Text : constant String  := State.Last_Stop_Reason;
+      Stop_Reason_Text  : constant String  := State.Last_Stop_Reason;
+      Footer_Summary    : constant String :=
+        Format_Turn_Summary
+          (Input_Tokens      => Input_Tokens,
+           Output_Tokens     => Output_Tokens,
+           Ctx_Window        => Ctx_Window,
+           Model_Text        => Model_Text,
+           Turn_Cost_Dmil    => Turn_Cost_Dmil,
+           Session_Cost_Dmil => Session_Cost_Dmil,
+           Stop_Reason_Text  => Stop_Reason_Text);
    begin
       State.Increment_Turn_Count;
       Frontend.Append_Turn_Footer
@@ -107,7 +116,8 @@ package body Coyote_App.Dispatch is
             Model_Text        => Model_Text,
             Turn_Cost_Dmil    => Turn_Cost_Dmil,
             Session_Cost_Dmil => Session_Cost_Dmil,
-            Stop_Reason_Text => Stop_Reason_Text));
+            Stop_Reason_Text => Stop_Reason_Text),
+         Summary => Footer_Summary);
       Frontend.Append_Fork_Action
         (PID    => PID,
          UUID   => State.Session_Id,
@@ -127,7 +137,15 @@ package body Coyote_App.Dispatch is
       Ctx_Window        : constant Natural := State.Context_Window;
       Model_Text        : constant String  := State.Current_Model;
       Turn_Cost_Dmil    : constant Natural := State.Turn_Cost_Dmil;
-      Stop_Reason_Text : constant String  := State.Last_Stop_Reason;
+      Stop_Reason_Text  : constant String  := State.Last_Stop_Reason;
+      Footer_Summary    : constant String :=
+        Format_Turn_Summary
+          (Input_Tokens      => Input_Tokens,
+           Output_Tokens     => Output_Tokens,
+           Ctx_Window        => Ctx_Window,
+           Model_Text        => Model_Text,
+           Turn_Cost_Dmil    => Turn_Cost_Dmil,
+           Stop_Reason_Text  => Stop_Reason_Text);
    begin
       Frontend.Append_Turn_Footer
         (Format_Turn_Footer_Display
@@ -139,7 +157,8 @@ package body Coyote_App.Dispatch is
             Session_Cost_Dmil => 0,  --  session cost unavailable at step level
             Stop_Reason_Text => Stop_Reason_Text,
             Is_Step          => True),
-         Kind => Coyote_App.Frontend.Step_Footer);
+         Kind    => Coyote_App.Frontend.Step_Footer,
+         Summary => Footer_Summary);
       Frontend.Append_Fork_Action
         (PID    => PID,
          UUID   => State.Session_Id,

@@ -17,6 +17,9 @@ package Coyote_GUI_Conversation_Stack_Tests is
       Stack             : Coyote_GUI.Conversation_Stack.Instance;
    end record;
 
+   procedure Test_Native_Footer_Uses_Status_Row_And_Fork_Button
+     (T : in out Test);
+
    overriding procedure Set_Up (T : in out Test);
    overriding procedure Tear_Down (T : in out Test);
 

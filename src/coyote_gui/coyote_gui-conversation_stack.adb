@@ -19,6 +19,7 @@ with Gtk.Frame;
 with Gtk.Grid;
 with Gtk.Label;
 with Gtk.Scrolled_Window;
+with Gtk.Separator;
 with Gtk.Text_Buffer;
 with Gtk.Text_Iter;
 with Gtk.Text_View;
@@ -42,9 +43,35 @@ package body Coyote_GUI.Conversation_Stack is
    package Detail_Callback is new Gtk.Handlers.User_Callback
      (Gtk.Button.Gtk_Button_Record, Detail_Context);
 
+   type Fork_Context is record
+      Handler : Coyote_GUI.Conversation_Stack.Fork_Handler;
+      UUID    : Unbounded_String;
+      Turn_N  : Positive;
+      Step_N  : Natural;
+   end record;
+
+   package Fork_Callback is new Gtk.Handlers.User_Callback
+     (Gtk.Button.Gtk_Button_Record, Fork_Context);
+
    procedure On_Detail_Clicked
      (Button : access Gtk.Button.Gtk_Button_Record'Class;
       Data   : Detail_Context);
+
+   procedure On_Fork_Clicked
+     (Button : access Gtk.Button.Gtk_Button_Record'Class;
+      Data   : Fork_Context);
+
+   procedure On_Fork_Clicked
+     (Button : access Gtk.Button.Gtk_Button_Record'Class;
+      Data   : Fork_Context)
+   is
+      pragma Unreferenced (Button);
+   begin
+      if Data.Handler /= null then
+         Data.Handler.all
+           (To_String (Data.UUID), Data.Turn_N, Data.Step_N);
+      end if;
+   end On_Fork_Clicked;
 
    procedure Log (C : Instance; Text : String) is
    begin
@@ -262,6 +289,14 @@ package body Coyote_GUI.Conversation_Stack is
       return C.Scroll;
    end Widget;
 
+   procedure Set_Fork_Handler
+     (C       : in out Instance;
+      Handler : Fork_Handler)
+   is
+   begin
+      C.Fork_Callback := Handler;
+   end Set_Fork_Handler;
+
    procedure Clear (C : in out Instance) is
    begin
       if not C.Exchanges.Is_Empty then
@@ -289,7 +324,10 @@ package body Coyote_GUI.Conversation_Stack is
       C.Text_Open      := False;
       C.Thinking_Open  := False;
       C.Completed      := False;
-      C.Last_Status    := Coyote_GUI.Completed;
+      C.Last_Status      := Coyote_GUI.Completed;
+      C.Footer_Separator := null;
+      C.Footer_Label     := null;
+      C.Fork_Button      := null;
       Log (C, "cleared stack and invalidated callbacks");
    end Clear;
 
@@ -578,24 +616,40 @@ package body Coyote_GUI.Conversation_Stack is
    end Append_Notice;
 
    procedure Append_Turn_Footer
-     (C    : in out Instance;
-      Text : String;
-      Kind : Coyote_GUI.Footer_Kind)
+     (C       : in out Instance;
+      Text    : String;
+      Kind    : Coyote_GUI.Footer_Kind;
+      Summary : String := "")
    is
-      Label : Gtk.Label.Gtk_Label;
-      Prefix : constant String :=
-        (if Kind = Coyote_GUI.Step_Footer then "Step: " else "Turn: ");
+      Footer_Box : Gtk.Box.Gtk_Box;
+      Prefix     : constant String :=
+        (if Kind = Coyote_GUI.Step_Footer then "Step " else "Turn ");
    begin
       if not C.Has_Exchange then
          return;
       end if;
       Ensure_Active_Step (C);
-      Gtk.Label.Gtk_New (Label, Prefix & Text);
-      Label.Set_Xalign (0.0);
-      Label.Set_Selectable (True);
-      C.Step_Box.Pack_Start (Label, Expand => False, Fill => True, Padding => 2);
+
+      Gtk.Box.Gtk_New_Vbox (Footer_Box, Homogeneous => False, Spacing => 4);
+      Footer_Box.Set_Border_Width (4);
+      Gtk.Separator.Gtk_New_Hseparator (C.Footer_Separator);
+      Footer_Box.Pack_Start
+        (C.Footer_Separator, Expand => False, Fill => True, Padding => 0);
+
+      Gtk.Label.Gtk_New (C.Footer_Label, Summary);
+      C.Footer_Label.Set_Xalign (0.0);
+      C.Footer_Label.Set_Line_Wrap (True);
+      C.Footer_Label.Set_Selectable (False);
+      C.Footer_Label.Set_Tooltip_Text
+        ("Token, context, cost, and completion information for " & Prefix
+         & Natural_Image (C.Step_Number));
+      Footer_Box.Pack_Start
+        (C.Footer_Label, Expand => False, Fill => True, Padding => 0);
+      C.Step_Box.Pack_Start
+        (Footer_Box, Expand => False, Fill => True, Padding => 2);
       Show_Contents (C);
-      Append (C.Transcript, Prefix & Text & ASCII.LF);
+      Append (C.Transcript, (if Summary'Length > 0 then Summary else Text)
+              & ASCII.LF);
       C.Footer_Pending := True;
    end Append_Turn_Footer;
 
@@ -606,18 +660,41 @@ package body Coyote_GUI.Conversation_Stack is
       Turn_N  : Positive;
       Step_N  : Natural)
    is
-      pragma Unreferenced (UUID, Turn_N, Step_N);
-      Button : Gtk.Button.Gtk_Button;
+      pragma Unreferenced (Label);
+      Action_Box : Gtk.Box.Gtk_Box;
+      Point      : Gtk.Label.Gtk_Label;
    begin
       if not C.Has_Exchange or else not C.Step_Open then
          return;
       end if;
-      Gtk.Button.Gtk_New (Button, Label);
-      Button.Set_Can_Focus (True);
+      Gtk.Box.Gtk_New_Hbox (Action_Box, Homogeneous => False, Spacing => 6);
+      Gtk.Label.Gtk_New
+        (Point, "Fork point: turn " & Natural_Image (Turn_N)
+         & (if Step_N > 0
+            then ", step " & Natural_Image (Step_N)
+            else ""));
+      Point.Set_Xalign (0.0);
+      Action_Box.Pack_Start
+        (Point, Expand => True, Fill => True, Padding => 0);
+      Gtk.Button.Gtk_New (C.Fork_Button, "Fork");
+      C.Fork_Button.Set_Can_Focus (True);
+      C.Fork_Button.Set_Tooltip_Text
+        ("Create a new session from turn " & Natural_Image (Turn_N)
+         & (if Step_N > 0 then ", step " & Natural_Image (Step_N) else ""));
+      Fork_Callback.Connect
+        (C.Fork_Button,
+         Gtk.Button.Signal_Clicked,
+         On_Fork_Clicked'Access,
+         (Handler => C.Fork_Callback,
+          UUID    => To_Unbounded_String (UUID),
+          Turn_N  => Turn_N,
+          Step_N  => Step_N));
+      Action_Box.Pack_End
+        (C.Fork_Button, Expand => False, Fill => False, Padding => 0);
       C.Step_Box.Pack_Start
-        (Button, Expand => False, Fill => False, Padding => 2);
+        (Action_Box, Expand => False, Fill => True, Padding => 0);
       Show_Contents (C);
-      Append (C.Transcript, Label & ASCII.LF);
+      Append (C.Transcript, "Fork" & ASCII.LF);
       if C.Footer_Pending then
          Finalize_Active_Step (C);
       end if;
@@ -627,8 +704,7 @@ package body Coyote_GUI.Conversation_Stack is
      (C      : in out Instance;
       Status : Coyote_GUI.Completion_Status)
    is
-      Label : Gtk.Label.Gtk_Label;
-      Text  : constant String :=
+      Text : constant String :=
         (case Status is
             when Coyote_GUI.Completed => "completed",
             when Coyote_GUI.Aborted   => "aborted",
@@ -637,17 +713,8 @@ package body Coyote_GUI.Conversation_Stack is
       if not C.Has_Exchange or else C.Completed then
          return;
       end if;
-      Gtk.Label.Gtk_New (Label, Text);
-      Label.Set_Xalign (0.0);
-      Label.Set_Selectable (True);
-      if C.Step_Open then
-         C.Step_Box.Pack_Start
-           (Label, Expand => False, Fill => False, Padding => 2);
-         Show_Contents (C);
-      else
-         C.Exchange.Pack_Start
-           (Label, Expand => False, Fill => False, Padding => 2);
-      end if;
+      --  The footer and lifecycle status area already carry normal completion
+      --  currency; do not append a second standalone status widget.
       Append (C.Transcript, Text & ASCII.LF);
       C.Last_Status := Status;
       C.Completed := True;

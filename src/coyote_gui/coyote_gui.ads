@@ -72,7 +72,8 @@ package Coyote_GUI is
    --                       Text3 = media type
    --                       T_Status = status
    --    Append_Notice      Text = message; N_Kind = severity
-   --    Append_Turn_Footer Text = footer line; F_Kind = step or final
+   --    Append_Turn_Footer Text = formatted footer; Text2 = typed summary;
+   --                       F_Kind = step or final
    --    Append_Action_Strip Text = display label;
    --                        Text2 = action kind ("fork");
    --                        Text3 = action data JSON (uuid, turn, step, pid)

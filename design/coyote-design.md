@@ -1287,6 +1287,18 @@ button shall be equivalent in both paths, and each shall use the complete
 render-time payload for the detail window. The update queue remains the only
 agent-to-GTK boundary; all widget operations execute on the GTK main task.
 
+**Native footer realization:** The native stack renders each step or final
+footer as a compact GTK status area: a native horizontal separator, a
+non-selectable summary label containing the usage/cost/stop-reason currency,
+and a right-aligned action row. The action row uses a stable `Fork` pushbutton
+with a static fork-point label. The button captures the structured session UUID,
+turn, and step and invokes the registered frontend callback on the GTK main
+thread. Native rendering does not display the text formatter's Unicode
+separator, `Step:`/`Turn:` prefix, or a duplicate standalone completion label.
+The summary is carried as typed data through the GUI update queue rather than
+recovered by parsing formatted display text. Acme, Plain, and the legacy
+GtkLayout renderer retain their existing text semantics.
+
 **Performance qualification:** The native tree is initially realized with one
 vertical `Gtk.Box` child per exchange and one visible `Gtk.Frame` per
 assistant/tool step. Qualification measures first-token latency,

@@ -699,14 +699,24 @@ enabled after completion. Stable `Tool_Id` updates modify the existing summary
 and retained payload rather than adding argument/result widgets. The stack is
 selected only when `COYOTE_NATIVE_STACK=1`; the existing
 `Coyote_GUI.Conversation` renderer remains the default baseline and fallback
-until display-backed qualification completes. The implementation is verified
-by the 919-test development suite; manual qualification remains pending.
+until display-backed qualification completes. The native footer status-row
+regression is covered by the focused test suite. The optimized 920-test
+development suite completes with 918/920 tests because the two pre-existing
+PCR-073 step-frame tests fail only in the combined run and pass individually;
+manual display qualification remains pending.
 
 The separately named `Exchange_View`, `Text_Element`, `Tool_Card`,
 `Math_Element`, and `Footer_Element` units remain deferred because this slice
 keeps their ownership private to `Conversation_Stack` while preserving the
-required semantic boundaries. Required qualification still covers 100, 500,
-and 2,000 exchanges; streaming first-token latency; widget count and memory;
-resize and zoom; auto-scroll; local selection and PRIMARY; tool-card activation;
+required semantic boundaries. Native footers now use a GTK separator, a
+non-selectable summary label, and a right-aligned action row with a stable
+`Fork` pushbutton. The button captures UUID/turn/step data and invokes the
+registered GUI fork handler; normal completion does not add a duplicate
+standalone status widget. The typed summary travels separately from the
+formatted text through the GUI update queue, so native rendering does not parse
+frontend display text. Acme/plain output and the legacy Cairo renderer are
+unchanged. Required qualification still covers 100, 500, and 2,000 exchanges;
+streaming first-token latency; widget count and memory; resize and zoom;
+auto-scroll; local selection and PRIMARY; tool-card activation;
 clear/session-switch callback invalidation; replay/live parity; and keyboard
 focus traversal. No production default switch has been made.

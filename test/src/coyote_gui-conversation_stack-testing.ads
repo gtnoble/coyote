@@ -5,8 +5,10 @@
 with Coyote_GUI;
 with Coyote_GUI.Conversation;
 with Coyote_GUI.Conversation_Stack;
+with Gtk.Button;
 with Gtk.Frame;
 with Gtk.Scrolled_Window;
+with Gtk.Separator;
 with Gtk.Text_View;
 
 package Coyote_GUI.Conversation_Stack.Testing is
@@ -54,5 +56,19 @@ package Coyote_GUI.Conversation_Stack.Testing is
    function Details_Enabled
      (C       : Coyote_GUI.Conversation_Stack.Instance;
       Tool_Id : String) return Boolean;
+
+   function Footer_Separator
+     (C : Coyote_GUI.Conversation_Stack.Instance)
+      return Gtk.Separator.Gtk_Separator;
+
+   function Footer_Summary
+     (C : Coyote_GUI.Conversation_Stack.Instance) return String;
+
+   function Footer_Summary_Selectable
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean;
+
+   function Fork_Button
+     (C : Coyote_GUI.Conversation_Stack.Instance)
+      return Gtk.Button.Gtk_Button;
 
 end Coyote_GUI.Conversation_Stack.Testing;

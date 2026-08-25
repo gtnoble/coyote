@@ -132,13 +132,16 @@ package Coyote_App.Frontend is
    --  Appended at a turn boundary after session stats arrive.  Step footers
    --  remain inside the active request; final footers complete the turn.
    --  Text is pre-formatted by Coyote_App.Utils.Format_Turn_Footer_Display.
+   --  Summary is the unseparated turn summary for native GUI rendering;
+   --  legacy frontends may ignore it.
 
    type Footer_Kind is (Step_Footer, Final_Footer);
 
    procedure Append_Turn_Footer
-     (F    : in out Instance;
-      Text : in     String;
-      Kind : in     Footer_Kind := Final_Footer) is abstract;
+     (F       : in out Instance;
+      Text    : in     String;
+      Kind    : in     Footer_Kind := Final_Footer;
+      Summary : in     String := "") is abstract;
 
    --  Explicitly close the active request without requiring display-text
    --  parsing.  The default is a no-op for legacy frontends.

@@ -3129,6 +3129,10 @@ package body Test_Suites is
          Coyote_GUI_Conversation_Stack_Tests
            .Test_Footer_Kind_And_Completion_Are_Explicit'Access));
       Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack uses native footer status row",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Native_Footer_Uses_Status_Row_And_Fork_Button'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
         ("Coyote.GUI.Conversation_Stack clears exchange state",
          Coyote_GUI_Conversation_Stack_Tests
            .Test_Clear_Removes_Exchange_State'Access));

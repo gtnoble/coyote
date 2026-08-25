@@ -2568,3 +2568,34 @@ behavior, current test baseline, and remaining manual qualification scope.
   optimized full-suite runs completed within 32.26 seconds and 31.84 seconds.
 - **Status:** Resolved
 - **Date resolved:** 2026-08-25
+
+---
+
+## PCR-075 — Native GTK footer status row and fork action
+
+- **Date reported:** 2026-08-25
+- **Category:** Requirements, Design, Code, Test, Plans
+- **Priority:** 4-Minor (enhancement)
+- **Description:** The opt-in native GTK conversation stack rendered step and
+  turn footers as selectable terminal-style text, including Unicode separator
+  rows and `Step:`/`Turn:` prefixes. Its visible fork control was a button but
+  did not retain or invoke the structured fork payload.
+- **Affected work products:** `Coyote_GUI.Conversation_Stack`, GTK frontend,
+  native-stack tests, SDD-CORE, `sdfs/frontends.md`, and Test Plan.
+- **Corrective action required:** Render native footers as GTK status/control
+  components, preserve the existing Acme/plain and legacy GTK text semantics,
+  and make the native fork action functional and keyboard focusable.
+- **Actions taken:** Added a GTK separator, non-selectable native summary label,
+  and right-aligned action row with a stable `Fork` pushbutton. Added a typed
+  fork callback registered by the GUI frontend; the button now passes UUID,
+  turn, and step to the existing session-fork launcher. Removed the duplicate
+  standalone native completion label and added a focused regression for the
+  status row and callback payload.
+- **Verification:** Production and test development builds succeed. The exact
+  native-footer regression passes with zero failed assertions and zero
+  unexpected errors. The optimized full suite completes with 918/920 tests;
+  the two failures are the pre-existing PCR-073 step-frame tests, which pass
+  when run individually. Display-backed DEM-042..044 qualification remains
+  pending; Acme/plain and legacy GtkLayout paths are unchanged.
+- **Status:** In progress — implementation complete; display qualification
+  pending.

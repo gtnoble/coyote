@@ -112,10 +112,11 @@ package Coyote_App.Frontend.GUI is
       Media_Type  : in     String := "");
    overriding
    procedure Append_Turn_Footer
-     (F    : in out Instance;
-      Text : in     String;
-      Kind : in     Coyote_App.Frontend.Footer_Kind :=
-        Coyote_App.Frontend.Final_Footer);
+     (F       : in out Instance;
+      Text    : in     String;
+      Kind    : in     Coyote_App.Frontend.Footer_Kind :=
+        Coyote_App.Frontend.Final_Footer;
+      Summary : in     String := "");
 
    overriding
    procedure Complete_Request

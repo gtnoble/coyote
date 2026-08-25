@@ -4,6 +4,8 @@
 
 package body Coyote_GUI.Conversation_Stack.Testing is
 
+   use type Gtk.Label.Gtk_Label;
+
    function Has_Exchange
      (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean
    is
@@ -101,5 +103,41 @@ package body Coyote_GUI.Conversation_Stack.Testing is
       end if;
       return False;
    end Details_Enabled;
+
+   function Footer_Separator
+     (C : Coyote_GUI.Conversation_Stack.Instance)
+      return Gtk.Separator.Gtk_Separator
+   is
+   begin
+      return C.Footer_Separator;
+   end Footer_Separator;
+
+   function Footer_Summary
+     (C : Coyote_GUI.Conversation_Stack.Instance) return String
+   is
+   begin
+      if C.Footer_Label = null then
+         return "";
+      end if;
+      return C.Footer_Label.Get_Text;
+   end Footer_Summary;
+
+   function Footer_Summary_Selectable
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean
+   is
+   begin
+      if C.Footer_Label = null then
+         return False;
+      end if;
+      return C.Footer_Label.Get_Selectable;
+   end Footer_Summary_Selectable;
+
+   function Fork_Button
+     (C : Coyote_GUI.Conversation_Stack.Instance)
+      return Gtk.Button.Gtk_Button
+   is
+   begin
+      return C.Fork_Button;
+   end Fork_Button;
 
 end Coyote_GUI.Conversation_Stack.Testing;

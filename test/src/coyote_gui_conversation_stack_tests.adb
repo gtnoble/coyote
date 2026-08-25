@@ -6,6 +6,7 @@ with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
 with AUnit.Assertions;
+with Gtk.Button;
 with Coyote_App.Utils;
 with Coyote_GUI;
 with Coyote_GUI.Conversation;
@@ -14,6 +15,7 @@ with Gtk.Enums;
 with Gtk.Frame;
 with Gtk.Main;
 with Gtk.Scrolled_Window;
+with Gtk.Separator;
 with Gtk.Text_View;
 with Gtk.Window;
 
@@ -22,8 +24,27 @@ package body Coyote_GUI_Conversation_Stack_Tests is
    use type Gtk.Frame.Gtk_Frame;
    use type Gtk.Scrolled_Window.Gtk_Scrolled_Window;
    use type Gtk.Text_View.Gtk_Text_View;
+   use type Gtk.Separator.Gtk_Separator;
+   use type Gtk.Button.Gtk_Button;
    use Ada.Strings.Fixed;
    use Ada.Strings.Unbounded;
+
+   Fork_Called : Boolean := False;
+   Fork_UUID   : Unbounded_String;
+   Fork_Turn   : Positive := 1;
+   Fork_Step   : Natural := 0;
+
+   procedure Capture_Fork
+     (UUID   : String;
+      Turn_N : Positive;
+      Step_N : Natural)
+   is
+   begin
+      Fork_Called := True;
+      Fork_UUID := To_Unbounded_String (UUID);
+      Fork_Turn := Turn_N;
+      Fork_Step := Step_N;
+   end Capture_Fork;
    use AUnit.Assertions;
    use Coyote_GUI;
    use Coyote_GUI.Conversation_Stack;
@@ -52,6 +73,56 @@ package body Coyote_GUI_Conversation_Stack_Tests is
    begin
       null;
    end Tear_Down;
+
+   procedure Test_Native_Footer_Uses_Status_Row_And_Fork_Button
+     (T : in out Test)
+   is
+      Summary : constant String :=
+        "[ctx 24k/400k (6%) | ^537 out | stop]";
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Fork_Called := False;
+      Fork_UUID := Null_Unbounded_String;
+      Fork_Turn := 1;
+      Fork_Step := 0;
+      Set_Fork_Handler (T.Stack, Capture_Fork'Access);
+      Begin_Request (T.Stack, "request", Prompt);
+      Append_Text (T.Stack, "response");
+      End_Text_Block (T.Stack);
+      Append_Turn_Footer
+        (C       => T.Stack,
+         Text    => "formatted footer" & ASCII.LF
+                    & Coyote_App.Utils.UC_HORIZ,
+         Kind    => Final_Footer,
+         Summary => Summary);
+      Append_Fork_Action
+        (T.Stack, "legacy label", "session-42", 3, 2);
+
+      Assert (Footer_Separator (T.Stack) /= null,
+              "footer uses a native GTK separator widget");
+      Assert (Footer_Summary (T.Stack) = Summary,
+              "footer summary is rendered as a native label");
+      Assert (not Footer_Summary_Selectable (T.Stack),
+              "footer status label is not a selectable text control");
+      Assert (Index (Footer_Summary (T.Stack),
+                     Coyote_App.Utils.UC_HORIZ) = 0,
+              "footer summary does not contain a terminal separator");
+      Assert (Fork_Button (T.Stack) /= null,
+              "footer provides a native Fork button");
+      Assert (Fork_Button (T.Stack).Get_Label = "Fork",
+              "fork action uses a stable active-verb label");
+      Assert (Fork_Button (T.Stack).Get_Can_Focus,
+              "fork action is keyboard focusable");
+
+      Fork_Button (T.Stack).Clicked;
+      Assert (Fork_Called, "Fork button invokes the registered callback");
+      Assert (To_String (Fork_UUID) = "session-42",
+              "Fork callback receives the session UUID");
+      Assert (Fork_Turn = 3 and then Fork_Step = 2,
+              "Fork callback receives the turn and step");
+   end Test_Native_Footer_Uses_Status_Row_And_Fork_Button;
 
    procedure Test_Creates_Single_Outer_Host (T : in out Test) is
    begin

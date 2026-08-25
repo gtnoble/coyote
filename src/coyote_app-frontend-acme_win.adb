@@ -306,12 +306,13 @@ package body Coyote_App.Frontend.Acme_Win is
    --  ── Append_Turn_Footer ────────────────────────────────────────────────
 
    procedure Append_Turn_Footer
-     (F    : in out Instance;
-      Text : in     String;
-      Kind : in     Coyote_App.Frontend.Footer_Kind :=
-        Coyote_App.Frontend.Final_Footer)
+     (F       : in out Instance;
+      Text    : in     String;
+      Kind    : in     Coyote_App.Frontend.Footer_Kind :=
+        Coyote_App.Frontend.Final_Footer;
+      Summary : in     String := "")
    is
-      pragma Unreferenced (Kind);
+      pragma Unreferenced (Kind, Summary);
    begin
       Acme.Window.Append (F.Win_Ptr.all, F.My_FS'Access, Text);
    end Append_Turn_Footer;

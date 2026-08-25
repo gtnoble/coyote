@@ -182,7 +182,7 @@ SRS-CORE requirement groups.
 | `coyote_gui_notification_policy_tests.adb` | REQ-CORE-127 (notification eligibility policy) | 4 |
 | `coyote_gui_mode_tests.adb` | REQ-CORE-113 Agent-menu availability by run mode | 1 |
 | `coyote_gui_session_stats_window_tests.adb` | REQ-CORE-113d; typed snapshot retention, reset, and idempotent support-window creation | 3 |
-| `coyote_gui_conversation_stack_tests.adb` | REQ-CORE-133..139; native stack host, visible per-step frames, incremental text, stable tool IDs, explicit footer/completion lifecycle, and reset | 8 |
+| `coyote_gui_conversation_stack_tests.adb` | REQ-CORE-133..139; native stack host, visible per-step frames, incremental text, stable tool IDs, native status-row footers, functional fork buttons, explicit completion lifecycle, and reset | 9 |
 
 | `coyote_gui_prompt_queue_tests.adb` | REQ-CORE-116..119, 128; typed preference payload transport | 1 |
 | `coyote_help_tests.adb` | REQ-CORE-113a, REQ-CORE-504a; Yelp URI construction, area mapping, executable detection, and Product Information text | 4 |
@@ -758,3 +758,13 @@ regression passes in 0.49 seconds with all four attempts, versus 14.22 seconds
 with production delays. Two sequential full-suite runs completed in 32.26 and
 31.84 seconds, each with 919 tests, 917 successful assertions, 2 pre-existing
 PCR-073 native-stack failures, and 0 unexpected errors.
+
+**Baseline as of 2026-08-25 (native GTK footer status row):** 920 registered
+tests. Production and test development builds succeed. The focused native
+footer regression passes with zero failed assertions and zero unexpected
+errors; it verifies the native separator, non-selectable status label,
+terminal-separator removal, stable `Fork` label/focus, and callback
+UUID/turn/step propagation. The optimized full suite completes with 918/920
+tests; the two failures are the pre-existing PCR-073 step-frame tests, which
+pass when run individually. Display-backed qualification remains pending under
+DEM-042..044.
