@@ -80,6 +80,17 @@ package body Coyote_GUI.Conversation_Stack.Testing is
       return C.Tool_Detail (Tool_Id);
    end Tool_Detail;
 
+   function Details_Label
+     (C       : Coyote_GUI.Conversation_Stack.Instance;
+      Tool_Id : String) return String
+   is
+   begin
+      if C.Tools.Contains (Tool_Id) then
+         return C.Tools.Element (Tool_Id).Details.Get_Label;
+      end if;
+      return "";
+   end Details_Label;
+
    function Details_Enabled
      (C       : Coyote_GUI.Conversation_Stack.Instance;
       Tool_Id : String) return Boolean

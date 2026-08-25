@@ -647,11 +647,12 @@ The exchange contains separate graphic elements for the user request,
 thinking blocks, assistant response blocks, tool calls, step and final footers,
 fork actions, notices, and display math. Text-bearing elements use native
 read-only `Gtk.Text_View`/`Gtk.Text_Buffer` widgets with local selection where
-applicable. Native tool cards use one selectable compact summary component
-showing the same tool name, top-level argument-field summaries, and running or
-terminal status as the established custom Pango renderer. They do not show raw
+applicable. Native tool cards use a titled `Gtk.Frame` containing native labels and a
+`Gtk.Grid` of top-level argument fields
+showing the tool name, individually selectable top-level argument-field labels, and
+textual running or terminal status. They do not show raw
 argument JSON, full results, or image result content. Each completed card has a
-focusable Details button that opens the existing `coyote : Tool Call Details`
+focusable `View Details` pushbutton that opens the existing `coyote : Tool Call Details`
 window. Math remains a localized Lasem-backed child widget or cached image with
 readable source/fallback content.
 
@@ -692,8 +693,8 @@ large-history fallback.
 The revised implementation is now present in
 `Coyote_GUI.Conversation_Stack`. It realizes one outer vertical scrolled window,
 one exchange container per request, native selectable text views for request,
-thinking, and response content, native focusable fork controls, compact native
-tool summaries, retained `Tool_Info` payloads, and Details buttons that are
+thinking, and response content, native focusable fork controls, structured native
+tool-card labels, retained `Tool_Info` payloads, and `View Details` buttons that are
 enabled after completion. Stable `Tool_Id` updates modify the existing summary
 and retained payload rather than adding argument/result widgets. The stack is
 selected only when `COYOTE_NATIVE_STACK=1`; the existing

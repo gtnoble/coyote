@@ -115,11 +115,11 @@ package Coyote_GUI.Conversation_Stack is
 private
 
    type Tool_Entry is record
-      Summary     : Gtk.Text_Buffer.Gtk_Text_Buffer;
-      Summary_View : Gtk.Text_View.Gtk_Text_View;
-      Details     : Gtk.Button.Gtk_Button;
-      Info        : Coyote_GUI.Conversation.Tool_Info;
-      Completed   : Boolean := False;
+      Summary_Text : Ada.Strings.Unbounded.Unbounded_String;
+      Status       : Gtk.Label.Gtk_Label;
+      Details      : Gtk.Button.Gtk_Button;
+      Info         : Coyote_GUI.Conversation.Tool_Info;
+      Completed    : Boolean := False;
    end record;
 
    package Tool_Maps is new Ada.Containers.Indefinite_Hashed_Maps

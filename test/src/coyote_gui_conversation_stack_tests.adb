@@ -6,6 +6,7 @@ with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
 with AUnit.Assertions;
+with Coyote_App.Utils;
 with Coyote_GUI;
 with Coyote_GUI.Conversation;
 with Coyote_GUI.Conversation_Stack.Testing;
@@ -156,7 +157,7 @@ package body Coyote_GUI_Conversation_Stack_Tests is
               "tool completion updates existing card by ID");
    end Test_Tool_Updates_By_Stable_Id;
 
-   procedure Test_Tool_Card_Uses_Summary_And_Details (T : in out Test) is
+   procedure Test_Tool_Card_Uses_Native_Labels (T : in out Test) is
       Summary : String (1 .. 4096);
       Summary_Length : Natural;
       Info : Coyote_GUI.Conversation.Tool_Info;
@@ -177,7 +178,9 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          Turn_Index       => 3,
          Call_In_Turn     => 2);
       Assert (not Details_Enabled (T.Stack, "tool-summary"),
-              "Details is disabled while the tool is running");
+              "View Details is disabled while the tool is running");
+      Assert (Details_Label (T.Stack, "tool-summary") = "View Details",
+              "tool action uses an active verb");
       declare
          Summary_Text : constant String :=
            Coyote_GUI.Conversation_Stack.Testing.Tool_Summary
@@ -186,6 +189,8 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          Summary_Length := Summary_Text'Length;
          Summary (1 .. Summary_Length) := Summary_Text;
       end;
+      Assert (Index (Summary (1 .. Summary_Length), "Status: Running") > 0,
+              "summary exposes running status text");
       Assert (Index (Summary (1 .. Summary_Length), "shell") > 0,
               "summary contains the tool name");
       Assert (Index (Summary (1 .. Summary_Length), "command: printf hello") > 0,
@@ -198,6 +203,12 @@ package body Coyote_GUI_Conversation_Stack_Tests is
               "summary does not contain the full result");
       Assert (Index (Summary (1 .. Summary_Length), "{""command""") = 0,
               "summary does not contain raw argument JSON");
+      Assert
+        (Index (Summary (1 .. Summary_Length), Coyote_App.Utils.UC_BOX_TL) = 0,
+         "summary does not use top box-drawing decoration");
+      Assert
+        (Index (Summary (1 .. Summary_Length), Coyote_App.Utils.UC_BOX_BL) = 0,
+         "summary does not use bottom box-drawing decoration");
 
       End_Tool
         (C          => T.Stack,
@@ -226,7 +237,7 @@ package body Coyote_GUI_Conversation_Stack_Tests is
               "retained details preserve session metadata");
       Assert (Info.Turn_Index = 3 and then Info.Call_In_Turn = 2,
               "retained details preserve call position");
-   end Test_Tool_Card_Uses_Summary_And_Details;
+   end Test_Tool_Card_Uses_Native_Labels;
 
    procedure Test_Footer_Kind_And_Completion_Are_Explicit
      (T : in out Test)

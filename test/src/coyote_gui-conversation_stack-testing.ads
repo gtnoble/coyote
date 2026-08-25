@@ -47,6 +47,10 @@ package Coyote_GUI.Conversation_Stack.Testing is
      (C       : Coyote_GUI.Conversation_Stack.Instance;
       Tool_Id : String) return Coyote_GUI.Conversation.Tool_Info;
 
+   function Details_Label
+     (C       : Coyote_GUI.Conversation_Stack.Instance;
+      Tool_Id : String) return String;
+
    function Details_Enabled
      (C       : Coyote_GUI.Conversation_Stack.Instance;
       Tool_Id : String) return Boolean;

@@ -1255,15 +1255,15 @@ independently.
 
 **Component widgets:** Substantial text uses read-only native `Gtk.Text_View`
 and `Gtk.Text_Buffer` widgets with GTK text tags and local selection. Native
-tool cards use one compact selectable summary component containing the tool
-name, the top-level argument-field summaries produced by
-`Coyote_App.Utils.Format_Tool_Field` and `JSON_Scalar_Image`, and the running
-or terminal status. They do not realize raw argument, full-result, or image
-content widgets. Each completed card has a focusable Details button. The
-button callback resolves the card's stable `Tool_Id` to its retained
-`Coyote_GUI.Conversation.Tool_Info` payload and invokes
-`Coyote_GUI.Tool_Detail_Window.Show` on the GTK main task. Math uses a
-localized child widget or cached image backed by `Coyote_Lasem`, with
+tool cards use a titled `Gtk.Frame` containing a native header label, a
+plain-text status label, and a `Gtk.Grid` of top-level argument-field labels.
+Argument values are individually selectable; the card does not use a text
+field or box-drawing characters for visual framing. It does not realize raw
+argument, full-result, or image content widgets. Each completed card has a
+focusable `View Details` pushbutton. The button callback resolves the card's
+stable `Tool_Id` to its retained `Coyote_GUI.Conversation.Tool_Info` payload
+and invokes `Coyote_GUI.Tool_Detail_Window.Show` on the GTK main task. Math
+uses a localized child widget or cached image backed by `Coyote_Lasem`, with
 source/fallback text retained for readable failure and accessibility.
 Markdown parsing remains in `Coyote_Cmark`/`Coyote_Renderer.Markup`; rendering
 converts the semantic block output to native widget content rather than

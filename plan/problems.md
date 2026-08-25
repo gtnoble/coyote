@@ -2520,6 +2520,26 @@ behavior, current test baseline, and remaining manual qualification scope.
   pending; DEM-044 frame overhead and large-history qualification remain open.
 - **Status:** In progress — implementation started; qualification pending.
 
+### PCR-073 amendment — structured native tool-card labels (2026-08-25)
+
+- **Category:** Requirements, Design, Code, Test, Plans
+- **Priority:** 3-Moderate
+- **Description:** User clarification removed the requirement to copy a complete
+  compact tool summary as one block and approved an action-oriented button label.
+  The native GTK card's text-field-like summary was therefore refined into a
+  structured native presentation.
+- **Actions taken:** Replaced the native summary `Gtk.Text_View` with a titled
+  `Gtk.Frame` containing a tool-name label, textual status label, and
+  individually selectable top-level argument labels in a `Gtk.Grid`. Removed
+  box-drawing characters from the native presentation and renamed the action to
+  `View Details`. Acme/plain output and the legacy Cairo renderer are unchanged.
+- **Verification:** The exact native-card AUnit regression passes with 1 test,
+  0 failed assertions, and 0 unexpected errors. Production and test
+  development builds succeed. Display-backed visual and large-history
+  qualification remain pending under DEM-042..044.
+- **Status:** In progress — implementation and focused regression complete;
+  display qualification pending.
+
 ## PCR-074 — Test-suite runtime and repeatability
 
 - **Date reported:** 2026-08-25

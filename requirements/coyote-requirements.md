@@ -614,11 +614,11 @@ statistics shall refresh an open window, and starting or switching sessions
 shall clear the previous session's statistics.
 
 **REQ-CORE-113e** (D/T/I)
-Each completed GUI tool card shall provide a Details action that opens an
+Each completed GUI tool card shall provide a `View Details` action that opens an
 independent, non-modal transient support window titled `coyote : Tool Call
 Details`. The conversation card shall display only the compact tool summary
 and status; it shall not display raw arguments, full results, or image result
-content. The Details action shall open a window that displays the tool name,
+content. The `View Details` action shall open a window that displays the tool name,
 status, session timestamp, model, source directory, turn number, and call
 position in a selectable header; renders arguments as labelled read-only
 monospace views; renders the full result in a read-only selectable view or
@@ -737,9 +737,9 @@ distinct frames. A native tool card shall display only the same compact
 tool-name, top-level argument-field, and status summary information as the
 established custom Pango renderer; it shall not display raw argument JSON,
 full tool results, or image result content. Each completed card shall provide
-a focusable Details action that opens the existing tool-call detail window.
+a focusable `View Details` action that opens the existing tool-call detail window.
 Text-bearing elements shall use native selectable GTK text widgets where
-selection is applicable; tool calls, the Details action, and fork actions
+selection is applicable; tool calls, the `View Details` action, and fork actions
 shall use native focusable controls.
 
 **REQ-CORE-135** (D/T/I)
@@ -764,7 +764,7 @@ component hierarchies. Tool cards shall be updated by stable tool-call ID,
 including when tool starts precede completions or when multiple tool steps
 occur in one exchange. Each stable tool-call ID shall retain the complete
 captured detail payload while its card displays only the compact summary, and
-the Details action shall use that payload consistently for live and replayed
+the `View Details` action shall use that payload consistently for live and replayed
 cards. Clearing or switching sessions shall remove the old exchange
 hierarchy, active selections, and component callbacks before new content is
 displayed.
@@ -1426,7 +1426,7 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-110..119, 124..129, 133..139 | GUI frontend capabilities, including Preferences, display math, zoom, component-stack conversation presentation, completion notifications, and Change Model search | D/T/I | TC-110..119, TC-124..129, TC-133..139; GUI regression tests; DEM-042..044 |
 | REQ-CORE-113a..113c | GUI Help menu, Yelp topics, Edit menu, Product Information dialog, menu taxonomy, title, dialog, support-window, lifecycle-status, and desktop interaction conventions | D/T/I | DEM-036..039; Coyote_Help tests; Mallard validation; source inspection |
 | REQ-CORE-113d | Live structured Session Stats support window and session-reset currency | D/T/I | `coyote_gui_session_stats_window_tests.adb`; DEM-040; source inspection |
-| REQ-CORE-113e | Compact tool-card summary and Details action opening the structured GTK tool-call detail window | D/T/I | `coyote_gui_conversation_tests.adb`, `coyote_gui_conversation_stack_tests.adb`, `llm_session_store_tests.adb`; DEM-041..043; source inspection |
+| REQ-CORE-113e | Compact tool-card summary and View Details action opening the structured GTK tool-call detail window | D/T/I | `coyote_gui_conversation_tests.adb`, `coyote_gui_conversation_stack_tests.adb`, `llm_session_store_tests.adb`; DEM-041..043; source inspection |
 | REQ-CORE-132 | Complete visible accelerators for main GTK menu items | D/T | DEM-014; GUI regression tests |
 | REQ-CORE-133..139 | Native GTK exchange/component stack, local component selection, lifecycle, parity, and qualification | D/T/I | `coyote_gui_conversation_stack_tests.adb`; DEM-042..044; source inspection; performance analysis |
 | REQ-CORE-120..121 | Plain frontend capabilities | D | TC-120..121 |
