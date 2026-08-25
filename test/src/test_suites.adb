@@ -3115,6 +3115,10 @@ package body Test_Suites is
         ("Coyote.GUI.Conversation_Stack separates assistant steps",
          Coyote_GUI_Conversation_Stack_Tests
            .Test_Footer_Closes_Step_Before_Next_Step'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack resets step frames for new requests",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_New_Request_Resets_Step_Frames'Access));
 
       Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
         ("Coyote.GUI.Conversation_Stack updates tools by stable ID",

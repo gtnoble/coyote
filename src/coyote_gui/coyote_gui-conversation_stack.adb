@@ -344,6 +344,7 @@ package body Coyote_GUI.Conversation_Stack is
       C.Host.Pack_Start
         (C.Exchange, Expand => False, Fill => True, Padding => 4);
       C.Exchanges.Append (C.Exchange);
+      C.Step_Frames.Clear;
       C.Tools.Clear;
       Add_Text_Element
         (C, C.Exchange, Caption, Text, C.Active_Text, C.Active_View);

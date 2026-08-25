@@ -419,6 +419,7 @@ solely for test performance.
 **Verification:** `cd test && alr build` succeeds. The retry-exhaustion test
 passes in 0.49 seconds with all four attempts. With
 `COYOTE_TEST_FAST_RETRY=0`, the same test passes in 14.22 seconds, confirming
-the production schedule remains available. The full suite passes 917/919
-assertions in 31.84–32.26 seconds with zero unexpected errors; the two
-remaining failures are the pre-existing PCR-073 native-stack assertions.
+the production schedule remains available. The historical full-suite runs
+passed 917/919 assertions in 31.84–32.26 seconds with zero unexpected errors;
+the PCR-073 native-stack fixture-isolation and exchange-reset correction now
+brings the current full suite to 921/921.

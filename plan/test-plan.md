@@ -182,7 +182,7 @@ SRS-CORE requirement groups.
 | `coyote_gui_notification_policy_tests.adb` | REQ-CORE-127 (notification eligibility policy) | 4 |
 | `coyote_gui_mode_tests.adb` | REQ-CORE-113 Agent-menu availability by run mode | 1 |
 | `coyote_gui_session_stats_window_tests.adb` | REQ-CORE-113d; typed snapshot retention, reset, and idempotent support-window creation | 3 |
-| `coyote_gui_conversation_stack_tests.adb` | REQ-CORE-133..139; native stack host, visible per-step frames, incremental text, stable tool IDs, native status-row footers, functional fork buttons, explicit completion lifecycle, and reset | 9 |
+| `coyote_gui_conversation_stack_tests.adb` | REQ-CORE-133..139; native stack host, visible per-step frames, incremental text, stable tool IDs, native status-row footers, functional fork buttons, explicit completion lifecycle, and reset | 10 |
 
 | `coyote_gui_prompt_queue_tests.adb` | REQ-CORE-116..119, 128; typed preference payload transport | 1 |
 | `coyote_help_tests.adb` | REQ-CORE-113a, REQ-CORE-504a; Yelp URI construction, area mapping, executable detection, and Product Information text | 4 |
@@ -768,3 +768,12 @@ UUID/turn/step propagation. The optimized full suite completes with 918/920
 tests; the two failures are the pre-existing PCR-073 step-frame tests, which
 pass when run individually. Display-backed qualification remains pending under
 DEM-042..044.
+
+**Current PCR-073 corrective verification (2026-08-25):** The native-stack
+fixture now clears its reusable stack between tests, and `Begin_Request`
+clears prior step-frame bookkeeping. The 10 native-stack tests pass 10/10,
+including a consecutive-request reset regression. The complete development
+suite passes 921/921 tests with 0 failed assertions and 0 unexpected errors.
+Automated step-frame failures are resolved; display-backed DEM-042 and
+DEM-043 plus DEM-044 qualification for 100, 500, and 2,000 exchanges remain
+pending.

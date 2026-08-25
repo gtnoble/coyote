@@ -64,14 +64,20 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       if Display_Available then
          Gtk.Main.Init;
          T.Display_Available := True;
-         Gtk.Window.Gtk_New (T.Parent, Gtk.Enums.Window_Toplevel);
-         Create (T.Stack, T.Parent.all'Access);
+         if Widget (T.Stack) = null then
+            Gtk.Window.Gtk_New (T.Parent, Gtk.Enums.Window_Toplevel);
+            Create (T.Stack, T.Parent.all'Access);
+         else
+            Clear (T.Stack);
+         end if;
       end if;
    end Set_Up;
 
    overriding procedure Tear_Down (T : in out Test) is
    begin
-      null;
+      if T.Display_Available then
+         Clear (T.Stack);
+      end if;
    end Tear_Down;
 
    procedure Test_Native_Footer_Uses_Status_Row_And_Fork_Button
@@ -201,6 +207,28 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Assert (Is_Completed (T.Stack),
               "final completion closes the exchange after its step");
    end Test_Footer_Closes_Step_Before_Next_Step;
+
+   procedure Test_New_Request_Resets_Step_Frames
+     (T : in out Test)
+   is
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Begin_Request (T.Stack, "first request", Prompt);
+      Append_Text (T.Stack, "first response");
+      End_Text_Block (T.Stack);
+      Assert (Step_Frame_Count (T.Stack) = 1,
+              "first request creates one step frame");
+
+      Begin_Request (T.Stack, "second request", Prompt);
+      Assert (Step_Frame_Count (T.Stack) = 0,
+              "new request clears prior step-frame bookkeeping");
+      Append_Text (T.Stack, "second response");
+      End_Text_Block (T.Stack);
+      Assert (Step_Frame_Count (T.Stack) = 1,
+              "second request creates a fresh step frame");
+   end Test_New_Request_Resets_Step_Frames;
 
    procedure Test_Tool_Updates_By_Stable_Id (T : in out Test) is
    begin

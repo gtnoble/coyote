@@ -2540,6 +2540,24 @@ behavior, current test baseline, and remaining manual qualification scope.
 - **Status:** In progress — implementation and focused regression complete;
   display qualification pending.
 
+### PCR-073 corrective verification — test isolation and exchange reset (2026-08-25)
+
+- **Problem confirmed:** The two step-frame regressions failed only when the
+  native-stack fixture ran as a group. AUnit reused the fixture's `Stack`
+  object, `Tear_Down` performed no cleanup, and `Begin_Request` did not clear
+  the prior exchange's `Step_Frames` vector.
+- **Corrective action:** Native `Begin_Request` now clears `Step_Frames` before
+  initializing the new exchange. The native-stack fixture clears the stack in
+  setup and teardown while retaining its reusable GTK host. Added a regression
+  covering two consecutive requests on one stack instance.
+- **Verification:** Production and test development builds succeed. The
+  complete native-stack group passes 10/10 tests. The full development suite
+  passes 921/921 tests with 0 failed assertions and 0 unexpected errors.
+- **Disposition:** The automated PCR-073 regression failures are resolved.
+  Display-backed DEM-042 and DEM-043, plus DEM-044 qualification for 100,
+  500, and 2,000 exchanges, remain open. The native stack remains opt-in and
+  the legacy GtkLayout, Acme, and Plain paths are unchanged.
+
 ## PCR-074 — Test-suite runtime and repeatability
 
 - **Date reported:** 2026-08-25

@@ -762,7 +762,34 @@ stack implementation and focused tests were started.
 **Independence limitation:** Developer evaluated own implementation; the user is
 invited to independently review the visible frame behavior and acceptance results.
 
+### Review 16 — PCR-073 automated regression correction (2026-08-25)
+
+**Review type:** Test results and corrective-action review
+**Trigger:** Investigation of the two native-stack step-frame failures
+reported in the combined test suite.
+
+| Indicator | Value |
+|---|---|
+| Requirements volatility | No requirement changes; PCR-073 corrective implementation and test-isolation change only. |
+| Component progress | Native stack implementation and automated regression complete; display-backed qualification remains pending. |
+| Open problems | PCR-073 remains open only for DEM-042..044 visual, replay, and large-history qualification; R7 remains open. |
+| Milestone status | Automated corrective action complete and verified on 2026-08-25. |
+| Scope changes | No scope change; fixture isolation and exchange bookkeeping correction within PCR-073. |
+| Test results trend | Production and test development builds succeed; native-stack group passes 10/10 and full suite passes 921/921 with 0 failed assertions and 0 unexpected errors. |
+
+**Finding:** AUnit reused the native-stack fixture object between test methods.
+The fixture did not clear the stack, and `Begin_Request` did not clear the
+prior exchange's `Step_Frames` vector. The resulting failures were test-order
+dependent and did not indicate failure to create or realize GTK frames.
+
+**Disposition:** The production exchange reset and fixture cleanup are
+implemented. Automated PCR-073 failures are resolved. DEM-042 and DEM-043
+component/replay demonstrations and DEM-044 qualification for 100, 500, and
+2,000 exchanges remain pending. The developer evaluated their own corrective
+work; independent user review remains invited.
+
 ## 9. Artifact Version Table
+
 
 | Artifact | ID | Location | Current Version | Control Level |
 |---|---|---|---|---|
