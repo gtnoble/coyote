@@ -3,17 +3,24 @@
 --  Project: coyote
 
 with Ada.Environment_Variables;
+with Ada.Strings.Fixed;
+with Ada.Strings.Unbounded;
 with AUnit.Assertions;
 with Coyote_GUI;
+with Coyote_GUI.Conversation;
 with Coyote_GUI.Conversation_Stack.Testing;
+with Gtk.Enums;
 with Gtk.Main;
 with Gtk.Scrolled_Window;
 with Gtk.Text_View;
+with Gtk.Window;
 
 package body Coyote_GUI_Conversation_Stack_Tests is
 
    use type Gtk.Scrolled_Window.Gtk_Scrolled_Window;
    use type Gtk.Text_View.Gtk_Text_View;
+   use Ada.Strings.Fixed;
+   use Ada.Strings.Unbounded;
    use AUnit.Assertions;
    use Coyote_GUI;
    use Coyote_GUI.Conversation_Stack;
@@ -33,7 +40,8 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       if Display_Available then
          Gtk.Main.Init;
          T.Display_Available := True;
-         Create (T.Stack);
+         Gtk.Window.Gtk_New (T.Parent, Gtk.Enums.Window_Toplevel);
+         Create (T.Stack, T.Parent.all'Access);
       end if;
    end Set_Up;
 
@@ -96,6 +104,78 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Assert (Tool_Count (T.Stack) = 2,
               "tool completion updates existing card by ID");
    end Test_Tool_Updates_By_Stable_Id;
+
+   procedure Test_Tool_Card_Uses_Summary_And_Details (T : in out Test) is
+      Summary : String (1 .. 4096);
+      Summary_Length : Natural;
+      Info : Coyote_GUI.Conversation.Tool_Info;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Begin_Request (T.Stack, "request", Prompt);
+      Begin_Tool
+        (C                => T.Stack,
+         Name             => "shell",
+         Args             => "{""command"":""printf hello"",""timeout"":5}",
+         Session_Id      => "session-1",
+         Tool_Id         => "tool-summary",
+         Model            => "provider/model",
+         Source_Directory => "/tmp/project",
+         Session_Start    => "2026-08-24 12:00:00",
+         Turn_Index       => 3,
+         Call_In_Turn     => 2);
+      Assert (not Details_Enabled (T.Stack, "tool-summary"),
+              "Details is disabled while the tool is running");
+      declare
+         Summary_Text : constant String :=
+           Coyote_GUI.Conversation_Stack.Testing.Tool_Summary
+             (T.Stack, "tool-summary");
+      begin
+         Summary_Length := Summary_Text'Length;
+         Summary (1 .. Summary_Length) := Summary_Text;
+      end;
+      Assert (Index (Summary (1 .. Summary_Length), "shell") > 0,
+              "summary contains the tool name");
+      Assert (Index (Summary (1 .. Summary_Length), "command: printf hello") > 0,
+              "summary contains compact argument fields");
+      Assert (Index (Summary (1 .. Summary_Length), "timeout: 5") > 0,
+              "summary contains each top-level argument field");
+      Assert (Index (Summary (1 .. Summary_Length), "printf hello") > 0,
+              "summary contains argument value");
+      Assert (Index (Summary (1 .. Summary_Length), "full-result-sentinel") = 0,
+              "summary does not contain the full result");
+      Assert (Index (Summary (1 .. Summary_Length), "{""command""") = 0,
+              "summary does not contain raw argument JSON");
+
+      End_Tool
+        (C          => T.Stack,
+         Tool_Id    => "tool-summary",
+         Status     => Success,
+         Result     => "full-result-sentinel",
+         Media_Type => "image/png");
+      Assert (Details_Enabled (T.Stack, "tool-summary"),
+              "Details is enabled after tool completion");
+      Info := Coyote_GUI.Conversation_Stack.Testing.Tool_Detail
+        (T.Stack, "tool-summary");
+      Assert (To_String (Info.Name) = "shell",
+              "retained details preserve the tool name");
+      Assert (To_String (Info.Args) =
+                "{""command"":""printf hello"",""timeout"":5}",
+              "retained details preserve raw arguments");
+      Assert (To_String (Info.Result_Text) = "full-result-sentinel",
+              "retained details preserve the full result");
+      Assert (To_String (Info.Media_Type) = "image/png",
+              "retained details preserve result media type");
+      Assert (To_String (Info.Model) = "provider/model",
+              "retained details preserve model metadata");
+      Assert (To_String (Info.Source_Directory) = "/tmp/project",
+              "retained details preserve source metadata");
+      Assert (To_String (Info.Session_Start) = "2026-08-24 12:00:00",
+              "retained details preserve session metadata");
+      Assert (Info.Turn_Index = 3 and then Info.Call_In_Turn = 2,
+              "retained details preserve call position");
+   end Test_Tool_Card_Uses_Summary_And_Details;
 
    procedure Test_Footer_Kind_And_Completion_Are_Explicit
      (T : in out Test)

@@ -615,7 +615,7 @@ clear behavior, and idempotent construction are covered by three AUnit tests;
 the construction test is display-backed and the other two are display
 independent.
 
-### Native component-stack conversation migration (2026-08-23, PCR-073)
+### Native component-stack conversation migration (2026-08-24, PCR-073 tool-summary amendment)
 
 The approved target for the next GUI build is a native component stack rather
 than the current single `Gtk.Layout` canvas. One `Exchange_View` represents one
@@ -627,9 +627,13 @@ The exchange contains separate graphic elements for the user request,
 thinking blocks, assistant response blocks, tool calls, step and final footers,
 fork actions, notices, and display math. Text-bearing elements use native
 read-only `Gtk.Text_View`/`Gtk.Text_Buffer` widgets with local selection where
-applicable. Tool cards and fork actions use native focusable controls. Math
-remains a localized Lasem-backed child widget or cached image with readable
-source/fallback content.
+applicable. Native tool cards use one selectable compact summary component
+showing the same tool name, top-level argument-field summaries, and running or
+terminal status as the established custom Pango renderer. They do not show raw
+argument JSON, full results, or image result content. Each completed card has a
+focusable Details button that opens the existing `coyote : Tool Call Details`
+window. Math remains a localized Lasem-backed child widget or cached image with
+readable source/fallback content.
 
 The current `Coyote_GUI.Conversation` GtkLayout/Cairo/Pango renderer remains
 the implementation baseline until the native stack is implemented and
@@ -665,14 +669,17 @@ widgets per token. If large histories make full realization unacceptable,
 qualification may select lazy realization or retain the current renderer as a
 large-history fallback.
 
-The first implementation slice is now present in
+The revised implementation is now present in
 `Coyote_GUI.Conversation_Stack`. It realizes one outer vertical scrolled window,
 one exchange container per request, native selectable text views for request,
-thinking, and response content, native focusable fork/tool controls, stable
-`Tool_Id` card updates, explicit step/final footer labels, terminal completion
-states, and reset-safe callback ownership. The stack is selected only when
-`COYOTE_NATIVE_STACK=1`; the existing `Coyote_GUI.Conversation` renderer remains
-the default baseline and fallback until display-backed qualification completes.
+thinking, and response content, native focusable fork controls, compact native
+tool summaries, retained `Tool_Info` payloads, and Details buttons that are
+enabled after completion. Stable `Tool_Id` updates modify the existing summary
+and retained payload rather than adding argument/result widgets. The stack is
+selected only when `COYOTE_NATIVE_STACK=1`; the existing
+`Coyote_GUI.Conversation` renderer remains the default baseline and fallback
+until display-backed qualification completes. The implementation is verified
+by the 917-test development suite; manual qualification remains pending.
 
 The separately named `Exchange_View`, `Text_Element`, `Tool_Card`,
 `Math_Element`, and `Footer_Element` units remain deferred because this slice

@@ -1,8 +1,8 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.14
-**Date:** 2026-08-23
+**Version:** 1.15
+**Date:** 2026-08-24
 **Status:** Draft
 **Project Plan:** `plan/project-plan.md`
 
@@ -614,16 +614,19 @@ statistics shall refresh an open window, and starting or switching sessions
 shall clear the previous session's statistics.
 
 **REQ-CORE-113e** (D/T/I)
-Each completed GUI tool card shall open an independent, non-modal transient
-support window titled `coyote : Tool Call Details` when activated. The window
-shall display the tool name, status, session timestamp, model, source
-directory, turn number, and call position in a selectable header; render
-arguments as labelled read-only monospace views; render the full result in a
-read-only selectable view or decode an image result into a GTK image; and
-provide outer vertical scrolling, a visible Close action, Help action, and
-Ctrl+W closure. The view shall capture all detail data at render time and
-shall not re-read the session file when opened. Missing result records shall
-be shown as cancelled. Status shall remain understandable without color.
+Each completed GUI tool card shall provide a Details action that opens an
+independent, non-modal transient support window titled `coyote : Tool Call
+Details`. The conversation card shall display only the compact tool summary
+and status; it shall not display raw arguments, full results, or image result
+content. The Details action shall open a window that displays the tool name,
+status, session timestamp, model, source directory, turn number, and call
+position in a selectable header; renders arguments as labelled read-only
+monospace views; renders the full result in a read-only selectable view or
+decodes an image result into a GTK image; and provides outer vertical
+scrolling, a visible Close action, Help action, and Ctrl+W closure. The view
+shall capture all detail data at render time and shall not re-read the session
+file when opened. Missing result records shall be shown as cancelled. Status
+shall remain understandable without color.
 
 **REQ-CORE-114** (D)
 The GUI frontend shall support vi-style scroll navigation (j/k/g/G/Ctrl-D/
@@ -725,9 +728,14 @@ intermediate step footer shall remain within it.
 Each exchange container shall present its semantic content as separate
 native GTK graphic elements. At minimum, the design shall provide distinct
 elements for the user request, thinking output, each assistant response
-block, each tool call, step and final footers, and fork actions. Text-bearing
-elements shall use native selectable GTK text widgets where selection is
-applicable; tool calls and fork actions shall use native focusable controls.
+block, each tool call, step and final footers, and fork actions. A native tool
+card shall display only the same compact tool-name, top-level argument-field,
+and status summary information as the established custom Pango renderer; it
+shall not display raw argument JSON, full tool results, or image result
+content. Each completed card shall provide a focusable Details action that
+opens the existing tool-call detail window. Text-bearing elements shall use
+native selectable GTK text widgets where selection is applicable; tool calls,
+the Details action, and fork actions shall use native focusable controls.
 
 **REQ-CORE-135** (D/T/I)
 The GTK conversation work area shall stack exchange containers in one
@@ -749,17 +757,22 @@ PRIMARY remain independent.
 Live and replayed GUI conversations shall construct equivalent exchange and
 component hierarchies. Tool cards shall be updated by stable tool-call ID,
 including when tool starts precede completions or when multiple tool steps
-occur in one exchange. Clearing or switching sessions shall remove the old
-exchange hierarchy, active selections, and component callbacks before new
-content is displayed.
+occur in one exchange. Each stable tool-call ID shall retain the complete
+captured detail payload while its card displays only the compact summary, and
+the Details action shall use that payload consistently for live and replayed
+cards. Clearing or switching sessions shall remove the old exchange
+hierarchy, active selections, and component callbacks before new content is
+displayed.
 
 **REQ-CORE-138** (D/T/I)
 The GUI component-stack implementation shall preserve incremental streaming:
 text and thinking deltas shall update an existing active component rather
-than create a widget per token. The implementation shall preserve the
-200-ms first-token display objective, and shall qualify widget count, memory,
-resize, zoom, replay, and repeated session-reset behaviour for histories of
-at least 100, 500, and 2,000 exchanges.
+than create a widget per token. Native tool cards shall update one existing
+compact summary component per tool call rather than creating raw argument or
+full-result widgets for streamed or completed content. The implementation
+shall preserve the 200-ms first-token display objective, and shall qualify
+widget count, memory, resize, zoom, replay, and repeated session-reset
+behaviour for histories of at least 100, 500, and 2,000 exchanges.
 
 **REQ-CORE-139** (D/T/I)
 The GUI presentation interface shall identify the start of a submitted
@@ -1408,7 +1421,7 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-110..119, 124..129, 133..139 | GUI frontend capabilities, including Preferences, display math, zoom, component-stack conversation presentation, completion notifications, and Change Model search | D/T/I | TC-110..119, TC-124..129, TC-133..139; GUI regression tests; DEM-042..044 |
 | REQ-CORE-113a..113c | GUI Help menu, Yelp topics, Edit menu, Product Information dialog, menu taxonomy, title, dialog, support-window, lifecycle-status, and desktop interaction conventions | D/T/I | DEM-036..039; Coyote_Help tests; Mallard validation; source inspection |
 | REQ-CORE-113d | Live structured Session Stats support window and session-reset currency | D/T/I | `coyote_gui_session_stats_window_tests.adb`; DEM-040; source inspection |
-| REQ-CORE-113e | Structured GTK tool-call detail support window | D/T/I | `coyote_gui_conversation_tests.adb`; `llm_session_store_tests.adb`; DEM-041; source inspection |
+| REQ-CORE-113e | Compact tool-card summary and Details action opening the structured GTK tool-call detail window | D/T/I | `coyote_gui_conversation_tests.adb`, `coyote_gui_conversation_stack_tests.adb`, `llm_session_store_tests.adb`; DEM-041..043; source inspection |
 | REQ-CORE-132 | Complete visible accelerators for main GTK menu items | D/T | DEM-014; GUI regression tests |
 | REQ-CORE-133..139 | Native GTK exchange/component stack, local component selection, lifecycle, parity, and qualification | D/T/I | `coyote_gui_exchange_tests.adb`; DEM-042..044; source inspection; performance analysis |
 | REQ-CORE-120..121 | Plain frontend capabilities | D | TC-120..121 |

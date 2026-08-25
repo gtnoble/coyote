@@ -2794,7 +2794,8 @@ package body Coyote_App.Frontend.GUI is
       --  The native stack is constructed now but remains disabled until its
       --  display-backed qualification gates pass.  The legacy renderer below
       --  remains the active baseline and fallback.
-      Coyote_GUI.Conversation_Stack.Create (F.Stack);
+      Coyote_GUI.Conversation_Stack.Create
+        (F.Stack, F.Win.all'Access);
 
       Gtk.Scrolled_Window.Gtk_New (F.Conv_Scroll);
       F.Conv_Scroll.Set_Policy (Policy_Never, Policy_Automatic);

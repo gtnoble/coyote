@@ -6,8 +6,11 @@ with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with Coyote_App.Utils;       use Coyote_App.Utils;
 with Coyote_GUI;
+with Coyote_GUI.Tool_Detail_Window;
 with Glib;                   use Glib;
 with Gtk.Adjustment;
+with Gtk.Handlers;
+with GNATCOLL.JSON;
 with Gtk.Box;
 with Gtk.Button;
 with Gtk.Clipboard;
@@ -26,6 +29,21 @@ package body Coyote_GUI.Conversation_Stack is
    use type Gtk.Scrolled_Window.Gtk_Scrolled_Window;
    use type Gtk.Text_Buffer.Gtk_Text_Buffer;
    use type Gtk.Text_View.Gtk_Text_View;
+   use type Gtk.Window.Gtk_Window;
+
+   type Instance_Access is access all Instance;
+
+   type Detail_Context is record
+      Stack   : Instance_Access;
+      Tool_Id : Unbounded_String;
+   end record;
+
+   package Detail_Callback is new Gtk.Handlers.User_Callback
+     (Gtk.Button.Gtk_Button_Record, Detail_Context);
+
+   procedure On_Detail_Clicked
+     (Button : access Gtk.Button.Gtk_Button_Record'Class;
+      Data   : Detail_Context);
 
    procedure Log (C : Instance; Text : String) is
    begin
@@ -66,6 +84,68 @@ package body Coyote_GUI.Conversation_Stack is
       end if;
    end Show_Contents;
 
+   function Format_Tool_Summary
+     (Name    : String;
+      Args    : String;
+      Status  : Coyote_GUI.Tool_End_Status;
+      Result  : String;
+      Running : Boolean) return String
+   is
+      use type GNATCOLL.JSON.JSON_Value_Type;
+      Parsed : constant GNATCOLL.JSON.Read_Result :=
+        GNATCOLL.JSON.Read (Args);
+      Args_Val : constant GNATCOLL.JSON.JSON_Value :=
+        (if Parsed.Success
+         then Parsed.Value
+         else GNATCOLL.JSON.JSON_Null);
+      Summary : Unbounded_String;
+      Footer  : Unbounded_String;
+   begin
+      Append (Summary, UC_BOX_TL & " " & UC_GEAR & " " & Name);
+      if Args_Val.Kind = GNATCOLL.JSON.JSON_Object_Type then
+         declare
+            procedure Add_Argument
+              (Field_Name  : GNATCOLL.JSON.UTF8_String;
+               Field_Value : GNATCOLL.JSON.JSON_Value)
+            is
+            begin
+               Append
+                 (Summary,
+                  ASCII.LF
+                  & Format_Tool_Field
+                      (String (Field_Name),
+                       JSON_Scalar_Image (Field_Value),
+                       Max_Len => 80));
+            end Add_Argument;
+         begin
+            Args_Val.Map_JSON_Object (Add_Argument'Access);
+         end;
+      end if;
+
+      if Running then
+         Footer := To_Unbounded_String
+           (UC_BOX_BL & " " & UC_ELLIP & " running" & UC_ELLIP);
+      else
+         case Status is
+            when Coyote_GUI.Success =>
+               Footer := To_Unbounded_String
+                 (UC_BOX_BL & " " & UC_CHECK & " done");
+            when Coyote_GUI.Error =>
+               Footer := To_Unbounded_String
+                 (UC_BOX_BL & " " & UC_CROSS & " "
+                  & Sanitize_UTF8
+                      ((if Result'Length > 80
+                        then Result (Result'First .. Result'First + 79)
+                        else Result)));
+            when Coyote_GUI.Cancelled =>
+               Footer := To_Unbounded_String
+                 (UC_BOX_BL & " - cancelled");
+         end case;
+      end if;
+      Append (Summary, ASCII.LF & Footer);
+      return To_String (Summary);
+   end Format_Tool_Summary;
+
    procedure Add_Text_Element
      (C       : in out Instance;
       Caption : String;
@@ -92,11 +172,15 @@ package body Coyote_GUI.Conversation_Stack is
       Show_Contents (C);
    end Add_Text_Element;
 
-   procedure Create (C : in out Instance) is
+   procedure Create
+     (C           : in out Instance;
+      Main_Window : not null access Gtk.Window.Gtk_Window_Record'Class)
+   is
    begin
       if C.Scroll /= null then
          return;
       end if;
+      C.Main_Window := Gtk.Window.Gtk_Window (Main_Window);
       Gtk.Scrolled_Window.Gtk_New (C.Scroll);
       C.Scroll.Set_Policy
         (Gtk.Enums.Policy_Never, Gtk.Enums.Policy_Automatic);
@@ -104,6 +188,21 @@ package body Coyote_GUI.Conversation_Stack is
       C.Scroll.Add (C.Host);
       Log (C, "created outer scroll host");
    end Create;
+
+   procedure On_Detail_Clicked
+     (Button : access Gtk.Button.Gtk_Button_Record'Class;
+      Data   : Detail_Context)
+   is
+      pragma Unreferenced (Button);
+   begin
+      if Data.Stack /= null
+        and then Data.Stack.Main_Window /= null
+      then
+         Coyote_GUI.Tool_Detail_Window.Show
+           (Tool_Detail (Data.Stack.all, To_String (Data.Tool_Id)),
+            Data.Stack.Main_Window.all'Access);
+      end if;
+   end On_Detail_Clicked;
 
    function Widget (C : Instance)
      return Gtk.Scrolled_Window.Gtk_Scrolled_Window
@@ -145,7 +244,7 @@ package body Coyote_GUI.Conversation_Stack is
       Caption : constant String :=
         (if Kind = Coyote_GUI.Steer then "Steer" else "Request");
    begin
-      Create (C);
+      Create (C, C.Main_Window.all'Access);
       Gtk.Box.Gtk_New_Vbox (C.Exchange, Homogeneous => False, Spacing => 3);
       C.Host.Pack_Start
         (C.Exchange, Expand => False, Fill => True, Padding => 4);
@@ -226,17 +325,15 @@ package body Coyote_GUI.Conversation_Stack is
       Turn_Index      : Positive := 1;
       Call_In_Turn    : Positive := 1)
    is
-      pragma Unreferenced
-        (Session_Id, Model, Source_Directory, Session_Start,
-         Turn_Index, Call_In_Turn);
       Frame       : Gtk.Frame.Gtk_Frame;
       Box         : Gtk.Box.Gtk_Box;
-      Header      : Gtk.Button.Gtk_Button;
-      Status      : Gtk.Label.Gtk_Label;
-      Args_Buffer : Gtk.Text_Buffer.Gtk_Text_Buffer;
-      Args_View   : Gtk.Text_View.Gtk_Text_View;
-      Result_Buf  : Gtk.Text_Buffer.Gtk_Text_Buffer;
-      Result_View : Gtk.Text_View.Gtk_Text_View;
+      Summary     : Gtk.Text_Buffer.Gtk_Text_Buffer;
+      Summary_View : Gtk.Text_View.Gtk_Text_View;
+      Details     : Gtk.Button.Gtk_Button;
+      Info        : Coyote_GUI.Conversation.Tool_Info;
+      Summary_Text : constant String :=
+        Format_Tool_Summary
+          (Name, Args, Coyote_GUI.Success, "", Running => True);
    begin
       if not C.Has_Exchange then
          Begin_Request (C, "", Coyote_GUI.Prompt);
@@ -244,34 +341,44 @@ package body Coyote_GUI.Conversation_Stack is
       if C.Tools.Contains (Tool_Id) then
          return;
       end if;
+
+      Info.Name             := To_Unbounded_String (Name);
+      Info.Args             := To_Unbounded_String (Args);
+      Info.Model            := To_Unbounded_String (Model);
+      Info.Source_Directory := To_Unbounded_String (Source_Directory);
+      Info.Session_Start    := To_Unbounded_String (Session_Start);
+      Info.Turn_Index       := Turn_Index;
+      Info.Call_In_Turn     := Call_In_Turn;
+
       Gtk.Frame.Gtk_New (Frame, "Tool: " & Name);
       Gtk.Box.Gtk_New_Vbox (Box, Homogeneous => False, Spacing => 2);
       Frame.Add (Box);
-      Gtk.Button.Gtk_New (Header, Name & " " & UC_ELLIP & " running");
-      Header.Set_Can_Focus (True);
-      Box.Pack_Start (Header, Expand => False, Fill => False, Padding => 2);
-      Gtk.Label.Gtk_New (Status, "running");
-      Status.Set_Xalign (0.0);
-      Status.Set_Selectable (True);
-      Box.Pack_Start (Status, Expand => False, Fill => False, Padding => 2);
-      Gtk.Text_Buffer.Gtk_New (Args_Buffer);
-      Gtk.Text_View.Gtk_New (Args_View, Args_Buffer);
-      Configure_Text_View (Args_View);
-      Args_Buffer.Set_Text (Args);
-      Box.Pack_Start (Args_View, Expand => False, Fill => True, Padding => 2);
-      Gtk.Text_Buffer.Gtk_New (Result_Buf);
-      Gtk.Text_View.Gtk_New (Result_View, Result_Buf);
-      Configure_Text_View (Result_View);
-      Box.Pack_Start (Result_View, Expand => False, Fill => True, Padding => 2);
+      Gtk.Text_Buffer.Gtk_New (Summary);
+      Gtk.Text_View.Gtk_New (Summary_View, Summary);
+      Configure_Text_View (Summary_View);
+      Summary.Set_Text (Summary_Text);
+      Box.Pack_Start (Summary_View, Expand => False, Fill => True, Padding => 2);
+      Gtk.Button.Gtk_New (Details, "Details");
+      Details.Set_Can_Focus (True);
+      Details.Set_Sensitive (False);
+      Details.Set_Tooltip_Text ("View complete tool call details");
+      Detail_Callback.Connect
+        (Details,
+         Gtk.Button.Signal_Clicked,
+         On_Detail_Clicked'Access,
+         (Stack   => C'Unchecked_Access,
+          Tool_Id => To_Unbounded_String (Tool_Id)));
+      Box.Pack_Start (Details, Expand => False, Fill => False, Padding => 2);
       C.Exchange.Pack_Start (Frame, Expand => False, Fill => True, Padding => 4);
       Show_Contents (C);
       C.Tools.Insert
         (Tool_Id,
-         (Header    => Header,
-          Status    => Status,
-          Arguments => Args_Buffer,
-          Result    => Result_Buf));
-      Append (C.Transcript, ASCII.LF & "Tool: " & Name & ASCII.LF);
+         (Summary      => Summary,
+          Summary_View => Summary_View,
+          Details      => Details,
+          Info         => Info,
+          Completed    => False));
+      Append (C.Transcript, ASCII.LF & Summary_Text & ASCII.LF);
    end Begin_Tool;
 
    procedure End_Tool
@@ -281,23 +388,34 @@ package body Coyote_GUI.Conversation_Stack is
       Result     : String;
       Media_Type : String := "")
    is
-      pragma Unreferenced (Media_Type);
       Tool_Value : Tool_Entry;
-      Label : constant String :=
-        (case Status is
-            when Coyote_GUI.Success   => "ok",
-            when Coyote_GUI.Error     => "error",
-            when Coyote_GUI.Cancelled => "cancelled");
    begin
       if not C.Tools.Contains (Tool_Id) then
          return;
       end if;
       Tool_Value := C.Tools.Element (Tool_Id);
-      Tool_Value.Status.Set_Text (Label);
-      Tool_Value.Header.Set_Label ("tool " & UC_ELLIP & " " & Label);
-      Tool_Value.Result.Set_Text (Result);
+      Tool_Value.Info.Result_Text   := To_Unbounded_String (Result);
+      Tool_Value.Info.Media_Type    := To_Unbounded_String (Media_Type);
+      Tool_Value.Info.Result_Status :=
+        Coyote_GUI.Conversation.Tool_End_Status'Val
+          (Coyote_GUI.Tool_End_Status'Pos (Status));
+      Tool_Value.Summary.Set_Text
+        (Format_Tool_Summary
+           (To_String (Tool_Value.Info.Name),
+            To_String (Tool_Value.Info.Args),
+            Status,
+            Result,
+            Running => False));
+      Tool_Value.Details.Set_Sensitive (True);
+      Tool_Value.Completed := True;
       C.Tools.Replace (Tool_Id, Tool_Value);
-      Append (C.Transcript, Label & ASCII.LF);
+      Append
+        (C.Transcript,
+         (case Status is
+             when Coyote_GUI.Success   => "ok",
+             when Coyote_GUI.Error     => "error",
+             when Coyote_GUI.Cancelled => "cancelled")
+         & ASCII.LF);
    end End_Tool;
 
    procedure Append_Notice
@@ -396,6 +514,36 @@ package body Coyote_GUI.Conversation_Stack is
    begin
       return To_String (C.Transcript);
    end Transcript_Text;
+
+   function Tool_Summary
+     (C       : Instance;
+      Tool_Id : String) return String
+   is
+      Tool_Value : Tool_Entry;
+      Start_Iter : Gtk.Text_Iter.Gtk_Text_Iter;
+      End_Iter   : Gtk.Text_Iter.Gtk_Text_Iter;
+   begin
+      if not C.Tools.Contains (Tool_Id) then
+         return "";
+      end if;
+      Tool_Value := C.Tools.Element (Tool_Id);
+      Tool_Value.Summary.Get_Start_Iter (Start_Iter);
+      Tool_Value.Summary.Get_End_Iter (End_Iter);
+      return Tool_Value.Summary.Get_Text (Start_Iter, End_Iter);
+   end Tool_Summary;
+
+   function Tool_Detail
+     (C       : Instance;
+      Tool_Id : String) return Coyote_GUI.Conversation.Tool_Info
+   is
+      Tool_Value : Tool_Entry;
+   begin
+      if C.Tools.Contains (Tool_Id) then
+         Tool_Value := C.Tools.Element (Tool_Id);
+         return Tool_Value.Info;
+      end if;
+      return (others => <>);
+   end Tool_Detail;
 
    procedure Scroll_To_End (C : in out Instance) is
    begin

@@ -1,7 +1,7 @@
 # Project Plan — coyote
 
-**Version:** 1.20
-**Date:** 2026-08-23
+**Version:** 1.21
+**Date:** 2026-08-24
 **Status:** Active
 
 ---
@@ -724,15 +724,37 @@ remain invited.
 
 **Disposition:** PCR-073 remains open pending implementation and qualification.
 
+### Review 14 — PCR-073 native tool-card summary amendment (2026-08-24)
+
+**Review type:** Requirements, design, implementation, and test-plan review
+**Trigger:** User-confirmed native-stack live demonstration established that
+native tool cards should match the compact legacy Pango summary while full
+arguments/results remain available through the existing detail window.
+
+| Indicator | Value |
+|---|---|
+| Requirements volatility | SRS-CORE v1.15: revised REQ-CORE-113e, 134, 137, and 138; no requirement IDs added or removed. |
+| Component progress | Native summary/detail implementation complete and unit-tested; legacy GtkLayout renderer remains the default fallback. |
+| Open problems | PCR-073 remains open for revised DEM-042..044 qualification; R7 remains open. |
+| Milestone status | Requirements/design/test-plan amendment, implementation, and regression testing complete; display-backed replay/performance qualification remains pending. |
+| Scope changes | 1 presentation refinement within the PCR-073 GUI architecture change; no change to Acme or Plain semantics. |
+| Test results trend | Production and test development builds succeed; full suite passes 917/917 with zero failed assertions and zero unexpected errors. |
+
+**Disposition:** The requirements/design amendment and implementation are
+complete behind `COYOTE_NATIVE_STACK=1`. The user-confirmed live demonstration
+and the 917-test regression baseline are recorded; revised replay and
+performance qualification remain pending. The developer is evaluating their own
+work, so independent user review remains invited.
+
 ## 9. Artifact Version Table
 
 | Artifact | ID | Location | Current Version | Control Level |
 |---|---|---|---|---|
-| Project Plan | PLAN | `plan/project-plan.md` | 1.20 (2026-08-23) | Project |
+| Project Plan | PLAN | `plan/project-plan.md` | 1.21 (2026-08-24) | Project |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
-| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.14 (2026-08-23) | Client |
-| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.15 (2026-08-23) | Project |
+| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.15 (2026-08-24) | Client |
+| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.16 (2026-08-24) | Project |
 | coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.2 (2026-06-21) | Project |
 | coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.2 (2026-06-21) | Project |
-| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.16 (2026-08-23) | Project |
+| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.17 (2026-08-24) | Project |
 | Agent Working Instructions (secondary) | AGENTS | `AGENTS.md` | active | Project |

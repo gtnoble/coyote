@@ -3112,6 +3112,10 @@ package body Test_Suites is
          Coyote_GUI_Conversation_Stack_Tests
            .Test_Tool_Updates_By_Stable_Id'Access));
       Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack uses summary and Details action",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Tool_Card_Uses_Summary_And_Details'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
         ("Coyote.GUI.Conversation_Stack keeps footer kind explicit",
          Coyote_GUI_Conversation_Stack_Tests
            .Test_Footer_Kind_And_Completion_Are_Explicit'Access));

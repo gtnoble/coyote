@@ -10,12 +10,14 @@ with Ada.Containers.Vectors;
 with Ada.Strings.Hash;
 with Ada.Strings.Unbounded;
 with Coyote_GUI;
+with Coyote_GUI.Conversation;
 with Gtk.Box;
 with Gtk.Button;
 with Gtk.Label;
 with Gtk.Scrolled_Window;
 with Gtk.Text_Buffer;
 with Gtk.Text_View;
+with Gtk.Window;
 with Pango.Font;
 
 package Coyote_GUI.Conversation_Stack is
@@ -24,7 +26,9 @@ package Coyote_GUI.Conversation_Stack is
 
    type Instance is tagged limited private;
 
-   procedure Create (C : in out Instance);
+   procedure Create
+     (C           : in out Instance;
+      Main_Window : not null access Gtk.Window.Gtk_Window_Record'Class);
    function Widget (C : Instance)
      return Gtk.Scrolled_Window.Gtk_Scrolled_Window;
    procedure Clear (C : in out Instance);
@@ -82,6 +86,16 @@ package Coyote_GUI.Conversation_Stack is
 
    function Transcript_Text (C : Instance) return String;
 
+   --  Return the compact summary rendered for Tool_Id.
+   function Tool_Summary
+     (C       : Instance;
+      Tool_Id : String) return String;
+
+   --  Return the complete detail payload retained for Tool_Id.
+   function Tool_Detail
+     (C       : Instance;
+      Tool_Id : String) return Coyote_GUI.Conversation.Tool_Info;
+
    --  Keep the active exchange at the bottom of the outer host.
    procedure Scroll_To_End (C : in out Instance);
 
@@ -99,10 +113,11 @@ package Coyote_GUI.Conversation_Stack is
 private
 
    type Tool_Entry is record
-      Header    : Gtk.Button.Gtk_Button;
-      Status    : Gtk.Label.Gtk_Label;
-      Arguments : Gtk.Text_Buffer.Gtk_Text_Buffer;
-      Result    : Gtk.Text_Buffer.Gtk_Text_Buffer;
+      Summary     : Gtk.Text_Buffer.Gtk_Text_Buffer;
+      Summary_View : Gtk.Text_View.Gtk_Text_View;
+      Details     : Gtk.Button.Gtk_Button;
+      Info        : Coyote_GUI.Conversation.Tool_Info;
+      Completed   : Boolean := False;
    end record;
 
    package Tool_Maps is new Ada.Containers.Indefinite_Hashed_Maps
@@ -117,6 +132,7 @@ private
 
    type Instance is tagged limited record
       Scroll         : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Main_Window    : Gtk.Window.Gtk_Window;
       Host           : Gtk.Box.Gtk_Box;
       Exchange       : Gtk.Box.Gtk_Box;
       Exchanges      : Exchange_Vectors.Vector;

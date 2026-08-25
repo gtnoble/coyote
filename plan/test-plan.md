@@ -230,9 +230,9 @@ behaviour. Results are recorded in a Test Report.
 | DEM-039 | REQ-CORE-113a, REQ-CORE-504a | In a display-backed GUI, activate Overview, task entries, Index, and Keys & Shortcuts and verify Yelp opens the corresponding `help:coyote` or `help:coyote/<topic>` document. Verify Product Information opens an in-process dialog that remains available when Yelp is missing. Verify Mallard navigation, Index links, task links, contextual area topics, and the visible error notice when Yelp is unavailable. |
 | DEM-040 | REQ-CORE-113d | In a display-backed GUI, open Session Stats repeatedly and verify only one modeless transient `coyote : Session Stats` support window exists. Verify grouped selectable values, system-font sizing, scrollable report area, visible Close, Ctrl+W, live refresh after a completed turn, and clearing after New Session and session switch. |
 | DEM-041 | REQ-CORE-113e | In a display-backed GUI, click completed tool cards and verify each opens an independent `coyote : Tool Call Details` transient support window. Verify selectable header metadata, labelled monospace argument views, full selectable results, outer vertical scrolling, visible Close and Help actions, deterministic focus, Ctrl+W, non-color status meaning, image display/fallback, light/dark theme behavior, replay parity, and correct multi-window independence. |
-| DEM-042 | REQ-CORE-133..134, 139 | In a display-backed GUI using the native component-stack build, submit a request that produces thinking, assistant text, a tool call, and a final response. Verify one exchange container is created, each semantic component is a separate native widget, tool and fork actions are focusable, and the request-start, step-footer, final-footer, and terminal lifecycle transitions are explicit. |
-| DEM-043 | REQ-CORE-135..137 | In a display-backed GUI using the native component-stack build, submit requests with multiple tool steps and replay the resulting session. Verify exchange widgets are vertically ordered in one outer scroller, intermediate footers remain inside their exchange, tool cards update by tool-call ID, local component selection/copy/PRIMARY works independently for separate components, and clear/session switching removes stale widgets and callbacks. |
-| DEM-044 | REQ-CORE-138 | On a development build using the native component stack, qualify first-token latency, widget count, memory, resize, zoom, auto-scroll, replay, and repeated reset behavior for histories of 100, 500, and 2,000 exchanges. Compare against the Gtk.Layout baseline and retain the baseline renderer if native realization fails the measured performance objective. |
+| DEM-042 | REQ-CORE-133..134, 139 | In a display-backed GUI using the native component-stack build, submit a request that produces thinking, assistant text, a tool call, and a final response. Verify one exchange container is created, each semantic component is a separate native widget, the tool card contains only the legacy-equivalent compact summary and status, raw arguments and full results are absent, the Details button is focusable and opens `coyote : Tool Call Details` after completion, and the request-start, step-footer, final-footer, and terminal lifecycle transitions are explicit. |
+| DEM-043 | REQ-CORE-135..137 | In a display-backed GUI using the native component-stack build, submit requests with multiple tool steps and replay the resulting session. Verify exchange widgets are vertically ordered in one outer scroller, intermediate footers remain inside their exchange, compact summaries are live/replay equivalent, cards update by stable tool-call ID without exposing raw arguments or full results, the Details button opens the correct retained payload, local component selection/copy/PRIMARY works independently for separate components, and clear/session switching removes stale widgets and callbacks. |
+| DEM-044 | REQ-CORE-138 | On a development build using the native component stack, qualify first-token latency, widget count, memory, resize, zoom, auto-scroll, replay, and repeated reset behavior, and Details-button activation for histories of 100, 500, and 2,000 exchanges. Confirm that compact tool cards do not create argument/result text widgets per call. Compare against the Gtk.Layout baseline and retain the baseline renderer if native realization fails the measured performance objective. |
 | DEM-034 | REQ-CORE-234 | Set and clear `defaultSandboxProfile`; verify inherited runtime and session-header precedence |
 | DEM-015 | REQ-CORE-130 | Resume a session; verify history replayed in frontend |
 | DEM-016 | REQ-CORE-140 | Inject a provider error (invalid API key); verify error notice visible in frontend |
@@ -325,7 +325,7 @@ These are entered as open items in the problem log (PCR-009).
 | REQ-CORE-110â115 | T/D | `coyote_cmark_tests.adb`, `coyote_gui_conversation_tests.adb`, DEM-014, DEM-036..037 |
 | REQ-CORE-113a..113c | D/T/I | `coyote_gui_conversation_tests.adb`, `coyote_help_tests.adb`, `coyote_gui_mode_tests.adb`, DEM-036..039, Mallard validation, source inspection |
 | REQ-CORE-113d | D/T/I | `coyote_gui_session_stats_window_tests.adb`, DEM-040, source inspection |
-| REQ-CORE-113e | D/T/I | `coyote_gui_conversation_tests.adb`, `llm_session_store_tests.adb`, DEM-041, source inspection |
+| REQ-CORE-113e | D/T/I | `coyote_gui_conversation_tests.adb`, `coyote_gui_conversation_stack_tests.adb`, `llm_session_store_tests.adb`, DEM-041..043, source inspection |
 | REQ-CORE-133..139 | D/T/I/A | `coyote_gui_conversation_stack_tests.adb`, DEM-042..044, source inspection, performance analysis |
 | REQ-CORE-504a | I/T | `coyote_help_tests.adb`, `yelp-check`, DEM-039 |
 | REQ-CORE-125 | T/D | `coyote_gui_zoom_tests.adb`, DEM-014 |
@@ -735,12 +735,12 @@ replayed tool-detail payloads now preserve metadata and image state. The full
 suite passes 911/911 with zero failed assertions and zero unexpected errors.
 Display-backed DEM-041 remains manual qualification.
 
-**Baseline as of 2026-08-23 (PCR-073 native stack implementation slice):**
-916 registered tests. Production and test development builds succeed. Added
-five display-backed native-stack tests covering the single outer host,
-incremental streaming, stable Tool_Id updates, explicit step/final footer and
-completion states, and reset. Live/replay request-start and terminal lifecycle
-metadata are explicit. `COYOTE_NATIVE_STACK=1` selects the native stack;
-the GtkLayout renderer remains the default fallback. DEM-042 and DEM-043
-component/replay demonstrations and DEM-044 100/500/2,000-exchange performance
-qualification remain deferred pending manual execution.
+**Baseline as of 2026-08-24 (PCR-073 native stack tool-summary implementation):**
+917 registered tests. Production and test development builds succeed. The full
+suite passes 917/917 with zero failed assertions and zero unexpected errors.
+Native tool cards render only the compact legacy-equivalent summary and a
+Details action; complete detail payloads remain available to the existing
+support window. The new focused native summary/detail regression passes.
+DEM-042 and DEM-043 revised component/replay demonstrations and DEM-044
+100/500/2,000-exchange performance qualification remain deferred pending manual
+execution.

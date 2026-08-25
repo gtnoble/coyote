@@ -49,4 +49,31 @@ package body Coyote_GUI.Conversation_Stack.Testing is
       return C.Active_View;
    end Active_Text_View;
 
+   function Tool_Summary
+     (C       : Coyote_GUI.Conversation_Stack.Instance;
+      Tool_Id : String) return String
+   is
+   begin
+      return C.Tool_Summary (Tool_Id);
+   end Tool_Summary;
+
+   function Tool_Detail
+     (C       : Coyote_GUI.Conversation_Stack.Instance;
+      Tool_Id : String) return Coyote_GUI.Conversation.Tool_Info
+   is
+   begin
+      return C.Tool_Detail (Tool_Id);
+   end Tool_Detail;
+
+   function Details_Enabled
+     (C       : Coyote_GUI.Conversation_Stack.Instance;
+      Tool_Id : String) return Boolean
+   is
+   begin
+      if C.Tools.Contains (Tool_Id) then
+         return C.Tools.Element (Tool_Id).Details.Get_Sensitive;
+      end if;
+      return False;
+   end Details_Enabled;
+
 end Coyote_GUI.Conversation_Stack.Testing;

@@ -1,8 +1,8 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.15
-**Date:** 2026-08-23
+**Version:** 1.16
+**Date:** 2026-08-24
 
 **Status:** Reviewed — project control (M3 complete 2026-06-02)
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
@@ -1228,34 +1228,47 @@ error termination preserve partial content and mark the exchange terminal withou
 inventing a normal completion footer.
 
 **Component widgets:** Substantial text uses read-only native `Gtk.Text_View`
-and `Gtk.Text_Buffer` widgets with GTK text tags and local selection. Tool cards
-and fork actions use native focusable controls. Math uses a localized child
-widget or cached image backed by `Coyote_Lasem`, with source/fallback text
-retained for readable failure and accessibility. Markdown parsing remains in
-`Coyote_Cmark`/`Coyote_Renderer.Markup`; rendering converts the semantic block
-output to native widget content rather than Cairo-painted conversation lines.
+and `Gtk.Text_Buffer` widgets with GTK text tags and local selection. Native
+tool cards use one compact selectable summary component containing the tool
+name, the top-level argument-field summaries produced by
+`Coyote_App.Utils.Format_Tool_Field` and `JSON_Scalar_Image`, and the running
+or terminal status. They do not realize raw argument, full-result, or image
+content widgets. Each completed card has a focusable Details button. The
+button callback resolves the card's stable `Tool_Id` to its retained
+`Coyote_GUI.Conversation.Tool_Info` payload and invokes
+`Coyote_GUI.Tool_Detail_Window.Show` on the GTK main task. Math uses a
+localized child widget or cached image backed by `Coyote_Lasem`, with
+source/fallback text retained for readable failure and accessibility.
+Markdown parsing remains in `Coyote_Cmark`/`Coyote_Renderer.Markup`; rendering
+converts the semantic block output to native widget content rather than
+Cairo-painted conversation lines.
 
 **Selection:** Selection is local to one semantic component. Copy, Select All,
 and PRIMARY publication operate on the focused or most recently selected text
 component; CLIPBOARD and PRIMARY remain independent. The design intentionally
 does not require a range spanning multiple components or exchanges.
 
-**Tool ownership and reset:** Each exchange owns its tool-card map and callback
-state. Clearing or switching sessions removes exchange widgets and invalidates
-their callbacks before new content is inserted. No package-global conversation or
-tool callback pointer is permitted in the native implementation.
+**Tool ownership and reset:** Each exchange owns its tool-card map, retained
+`Tool_Info` payloads, and Details-button callback state. Clearing or switching
+sessions removes exchange widgets and invalidates callbacks before new content
+is inserted. No package-global conversation or tool callback pointer is
+permitted in the native implementation.
 
 **Live/replay parity:** Live updates and session replay construct equivalent
 exchange/component hierarchies. Replay uses the same request, component, tool, and
-footer operations as live rendering. The update queue remains the only agent-to-
-GTK boundary; all widget operations execute on the GTK main task.
+footer operations as live rendering. The compact tool summary and Details
+button shall be equivalent in both paths, and each shall use the complete
+render-time payload for the detail window. The update queue remains the only
+agent-to-GTK boundary; all widget operations execute on the GTK main task.
 
 **Performance qualification:** The native tree is initially realized with one
 vertical `Gtk.Box` child per exchange. Qualification measures first-token latency,
-widget count, memory, resize, zoom, replay, and session reset for 100, 500, and
-2,000 exchanges. Lazy realization or retention of the current renderer as a
-large-history fallback is permitted only if measurements show that full native
-realization is unacceptable.
+widget count, memory, resize, zoom, replay, session reset, and Details-button
+activation for 100, 500, and 2,000 exchanges. The measurements shall confirm
+that compact tool cards do not create per-call argument/result views. Lazy
+realization or retention of the current renderer as a large-history fallback is
+permitted only if measurements show that full native realization is
+unacceptable.
 
 ### 5.16 `Coyote_Cmark` and `coyote_cmark_c.c`
 
