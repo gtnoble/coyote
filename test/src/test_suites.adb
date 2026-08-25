@@ -2982,6 +2982,9 @@ package body Test_Suites is
       Result.Add_Test (Coyote_GUI_Updates_Caller.Create
         ("Coyote.GUI.Updates stopped queue does not wake",
          Coyote_GUI_Updates_Tests.Test_Stopped_Queue_Does_Not_Wake'Access));
+      Result.Add_Test (Coyote_GUI_Updates_Caller.Create
+        ("Coyote.GUI.Updates preserves footer summary",
+         Coyote_GUI_Updates_Tests.Test_Footer_Summary_Round_Trips'Access));
       Result.Add_Test (Coyote_GUI_Prompt_Queue_Caller.Create
         ("Coyote.GUI.Prompt_Queue Set_Preferences round trips",
          Coyote_GUI_Prompt_Queue_Tests.Test_Set_Preferences_Round_Trips'Access));
@@ -3188,6 +3191,9 @@ package body Test_Suites is
       Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
         ("Coyote.GUI.Conversation footer leaves 3 lines",
          Coyote_GUI_Conversation_Tests.Test_Footer_Leaves_Blank_Lines'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
+        ("Coyote.GUI.Conversation footer renders summary",
+         Coyote_GUI_Conversation_Tests.Test_Footer_Renders_Summary'Access));
       Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
         ("Coyote.GUI.Conversation single short line Vis_Count = 1",
          Coyote_GUI_Conversation_Tests.Test_Single_Short_Line_Vis_Count_One'Access));

@@ -2724,13 +2724,17 @@ package body Coyote_GUI.Conversation is
       Text : in     String;
       Kind : in     Footer_Kind := Final_Footer)
    is
-      pragma Unreferenced (Text, Kind);
+      pragma Unreferenced (Kind);
    begin
       Debug_Log (C, "Append_Turn_Footer");
-      Append_Line (C, Plain, "");
-      Append_Line (C, Footer,
-                   Str_Repeat (UC_HORIZ, 60));
-      Append_Line (C, Plain, "");
+      if Text'Length > 0 then
+         Append_Line (C, Footer, Text);
+      else
+         Append_Line (C, Plain, "");
+         Append_Line (C, Footer,
+                      Str_Repeat (UC_HORIZ, 60));
+         Append_Line (C, Plain, "");
+      end if;
       Recompute_Vis_Lines (C);
       Queue_Draw (C);
    end Append_Turn_Footer;

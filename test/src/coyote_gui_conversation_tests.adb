@@ -354,6 +354,28 @@ package body Coyote_GUI_Conversation_Tests is
               "Append_Turn_Footer adds 3 lines (blank, rule, blank)");
    end Test_Footer_Leaves_Blank_Lines;
 
+   procedure Test_Footer_Renders_Summary (T : in out Test) is
+      Conv    : Instance;
+      Scroll  : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Layout  : Gtk.Layout.Gtk_Layout;
+      Summary : constant String := "[ctx 24k/400k (6%) | ^537 out | stop]";
+      Last    : Natural;
+   begin
+      if not T.Display_Available then return; end if;
+      Make_Fresh_Conv (Conv, Scroll, Layout);
+      Conv.Append_Notice (Notice_Info, "content");
+      Conv.Append_Turn_Footer (ASCII.LF & Summary & ASCII.LF
+                               & Coyote_App.Utils.UC_HORIZ);
+      Last := Testing.Line_Count (Conv);
+      Assert (Last > 0,
+              "summary footer creates a logical line");
+      Assert (Testing.Get_Line_Style (Conv, Last) = Footer,
+              "summary footer uses Footer style");
+      Assert (Ada.Strings.Fixed.Index
+                (Testing.Get_Line_Text (Conv, Last), Summary) > 0,
+              "summary footer text is visible in the legacy renderer");
+   end Test_Footer_Renders_Summary;
+
    procedure Test_Notice_Does_Not_Enter_Text_Block (T : in out Test) is
       Conv   : Instance;
       Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;

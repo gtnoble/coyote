@@ -2617,3 +2617,26 @@ behavior, current test baseline, and remaining manual qualification scope.
   pending; Acme/plain and legacy GtkLayout paths are unchanged.
 - **Status:** In progress — implementation complete; display qualification
   pending.
+
+## PCR-076 — GTK step-footer statistics not visible
+
+- **Date reported:** 2026-08-25
+- **Category:** Code, Test
+- **Priority:** 3-Moderate
+- **Description:** The dispatcher generated per-step statistics summaries, but
+  the native GTK frontend discarded the typed summary before rendering. The
+  default legacy GtkLayout renderer also ignored its formatted footer payload,
+  so neither GTK presentation displayed step statistics.
+- **Affected work products:** `Coyote_App.Frontend.GUI`,
+  `Coyote_GUI.Conversation`, GUI update-queue tests, frontend SDF, and Test
+  Plan.
+- **Corrective action required:** Preserve the typed summary in `Update.Text2`,
+  forward it to `Conversation_Stack.Append_Turn_Footer`, and render the
+  formatted footer payload in the legacy GtkLayout path.
+- **Actions taken:** Implemented all three corrections. Added regressions for
+  update-queue summary preservation and legacy footer-summary visibility.
+- **Verification:** Production and test development builds succeed. The full
+  suite passes 923/923 tests with zero failed assertions and zero unexpected
+  errors. The native footer status-row regression continues to pass.
+- **Status:** Resolved
+- **Date resolved:** 2026-08-25

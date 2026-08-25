@@ -903,8 +903,9 @@ package body Coyote_App.Frontend.GUI is
          when Append_Turn_Footer =>
             if F.Stack_Enabled then
                F.Stack.Append_Turn_Footer
-                 (Text => To_String (U.Text),
-                  Kind => Coyote_GUI.Footer_Kind (U.F_Kind));
+                 (Text    => To_String (U.Text),
+                  Kind    => Coyote_GUI.Footer_Kind (U.F_Kind),
+                  Summary => To_String (U.Text2));
             else
                F.Conv.Append_Turn_Footer
                  (To_String (U.Text),
@@ -3105,6 +3106,7 @@ package body Coyote_App.Frontend.GUI is
    begin
       U.Kind := Coyote_GUI.Append_Turn_Footer;
       U.Text := To_Unbounded_String (Text);
+      U.Text2 := To_Unbounded_String (Summary);
       U.F_Kind := Coyote_GUI.Footer_Kind'Val
         (Coyote_App.Frontend.Footer_Kind'Pos (Kind));
       Enqueue_Update (F, U);

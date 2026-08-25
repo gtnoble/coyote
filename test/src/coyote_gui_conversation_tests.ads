@@ -53,6 +53,7 @@ package Coyote_GUI_Conversation_Tests is
    procedure Test_Streaming_Append_Invalidates_Vis_Cache  (T : in out Test);
    procedure Test_End_Text_Block_Exits_Block              (T : in out Test);
    procedure Test_Footer_Leaves_Blank_Lines               (T : in out Test);
+   procedure Test_Footer_Renders_Summary                  (T : in out Test);
    procedure Test_Notice_Does_Not_Enter_Text_Block        (T : in out Test);
    procedure Test_Begin_Thinking_Sets_Flag                (T : in out Test);
    procedure Test_End_Thinking_Clears_Flag                (T : in out Test);

@@ -112,4 +112,22 @@ package body Coyote_GUI_Updates_Tests is
       Assert (not Got, "stopped queue must not retain a new update");
    end Test_Stopped_Queue_Does_Not_Wake;
 
+   procedure Test_Footer_Summary_Round_Trips (T : in out Test) is
+      pragma Unreferenced (T);
+      Queue : Coyote_GUI.Updates.Queue;
+      Input : Coyote_GUI.Update;
+      Output : Coyote_GUI.Update;
+      Got : Boolean;
+      Wake : Boolean;
+   begin
+      Input.Kind := Coyote_GUI.Append_Turn_Footer;
+      Input.Text := To_Unbounded_String ("formatted footer");
+      Input.Text2 := To_Unbounded_String ("[ctx 24k/400k (6%)]");
+      Queue.Enqueue (Input, Wake);
+      Queue.Dequeue (Output, Got);
+      Assert (Got, "footer update must be dequeued");
+      Assert (To_String (Output.Text2) = To_String (Input.Text2),
+              "footer summary must survive the update queue");
+   end Test_Footer_Summary_Round_Trips;
+
 end Coyote_GUI_Updates_Tests;

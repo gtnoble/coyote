@@ -777,3 +777,9 @@ suite passes 921/921 tests with 0 failed assertions and 0 unexpected errors.
 Automated step-frame failures are resolved; display-backed DEM-042 and
 DEM-043 plus DEM-044 qualification for 100, 500, and 2,000 exchanges remain
 pending.
+
+**Baseline as of 2026-08-25 (GTK footer-summary propagation correction):**
+923 registered tests. Added coverage for legacy GtkLayout footer-summary
+rendering and preservation of the typed native-footer summary through the
+GTK update queue. Display-backed native and legacy GUI qualification remains
+pending under DEM-042..044.

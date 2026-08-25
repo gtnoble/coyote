@@ -724,3 +724,11 @@ streaming first-token latency; widget count and memory; resize and zoom;
 auto-scroll; local selection and PRIMARY; tool-card activation;
 clear/session-switch callback invalidation; replay/live parity; and keyboard
 focus traversal. No production default switch has been made.
+
+### GTK footer-summary propagation correction (2026-08-25)
+
+The GUI frontend now preserves the typed footer summary in `Update.Text2` and
+passes it to the native conversation stack. The legacy GtkLayout fallback now
+renders the formatted footer payload as a styled footer line while retaining
+its blank-line separator behavior for empty payloads. Added regressions cover
+both the update-queue payload round trip and legacy summary visibility.

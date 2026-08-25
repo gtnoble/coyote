@@ -15,5 +15,6 @@ package Coyote_GUI_Updates_Tests is
    procedure Test_Idle_Done_Clears_Source_When_Empty (T : in out Test);
    procedure Test_Enqueue_Rearms_After_Idle_Done (T : in out Test);
    procedure Test_Stopped_Queue_Does_Not_Wake (T : in out Test);
+   procedure Test_Footer_Summary_Round_Trips (T : in out Test);
 
 end Coyote_GUI_Updates_Tests;
