@@ -1,7 +1,7 @@
 # Project Plan — coyote
 
-**Version:** 1.21
-**Date:** 2026-08-24
+**Version:** 1.22
+**Date:** 2026-08-25
 **Status:** Active
 
 ---
@@ -68,7 +68,7 @@ separate system-level stratum.
 
 | ID | Title | Location |
 |---|---|---|
-| SRS-CORE | coyote Requirements Specification | `requirements/coyote-requirements.md` | 1.14 (2026-08-23) | Client |
+| SRS-CORE | coyote Requirements Specification | `requirements/coyote-requirements.md` | 1.16 (2026-08-25) | Client |
 | SDD-CORE | coyote Design Description | `design/coyote-design.md` |
 | SRS-SQC | coyote_sqc Requirements Specification | `requirements/coyote-sqc-requirements.md` |
 | SDD-SQC | coyote_sqc Design Specification | `design/coyote-sqc-design.md` |
@@ -416,7 +416,7 @@ Subsequent builds will define their own milestone sets.
 | R6 | Reasoning items not replayed on later Responses turns degrade o-series / GPT-5 quality | Medium | Moderate | Pack reasoning `id` + `encrypted_content` in the existing signature field; unit-test history encoding; request `include: reasoning.encrypted_content` | Mitigated; monitor live use |
 | R3 | SDD-CORE drifts from actual implementation, misleading future development | Medium | Moderate | Treat SDD-CORE as the primary controlled design artifact; include SDD-CORE review in the Definition of Done for each build; update AGENTS.md to match SDD-CORE when it diverges; PCR raised when drift is detected | Open |
 | R4 | Process artifact maintenance overhead crowds out feature work | Low | Low | Keep all process artifacts in Markdown co-located with the code; lightweight tooling (no external tracking systems); tailor to minimum viable coverage | Open |
-| R7 | Native GTK component-stack migration regresses streaming latency, memory, resize, or session-reset correctness | Medium | High | Implement behind current GtkLayout baseline; qualify 100, 500, and 2,000 exchanges; measure first-token latency, widget count, memory, resize, zoom, replay, and reset; retain baseline fallback until gates pass | Open |
+| R7 | Native GTK component-stack migration, including visible per-step frames, regresses streaming latency, memory, resize, or session-reset correctness, or frames are not visually distinct under a theme | Medium | High | Implement behind current GtkLayout baseline; qualify frame visibility, 100, 500, and 2,000 exchanges; measure first-token latency, widget count, memory, resize, zoom, replay, and reset; retain baseline fallback until gates pass | Open |
 
 ---
 
@@ -746,15 +746,31 @@ and the 917-test regression baseline are recorded; revised replay and
 performance qualification remain pending. The developer is evaluating their own
 work, so independent user review remains invited.
 
+### Review 15 — PCR-073 visible per-step frame implementation (2026-08-25)
+
+**Trigger:** User-requested refinement to make the assistant/tool steps that
+are currently delineated by footers visibly distinct in the native GTK stack.
+The SRS, SDD, SDF, Test Plan, and PCR-073 records were amended; the native
+stack implementation and focused tests were started.
+
+| Requirements volatility | SRS-CORE v1.16: no new requirement ID; REQ-CORE-134 amended to require a visible native frame per assistant/tool step. |
+| Component progress | Step-frame implementation compiles; focused frame lifecycle tests added; replay step boundaries amended; display-backed qualification pending. |
+| Open problems | PCR-073 and R7 remain open for visual, replay, and 100/500/2,000-exchange qualification. |
+| Scope changes | One refinement within the existing native GTK presentation change; Acme and Plain semantics unchanged. |
+| Test results trend | Production/test development builds succeed; full regression run was interrupted by command timeout during the existing long-running suite; focused native-stack result is recorded separately. |
+
+**Independence limitation:** Developer evaluated own implementation; the user is
+invited to independently review the visible frame behavior and acceptance results.
+
 ## 9. Artifact Version Table
 
 | Artifact | ID | Location | Current Version | Control Level |
 |---|---|---|---|---|
-| Project Plan | PLAN | `plan/project-plan.md` | 1.21 (2026-08-24) | Project |
+| Project Plan | PLAN | `plan/project-plan.md` | 1.22 (2026-08-25) | Project |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
-| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.15 (2026-08-24) | Client |
-| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.16 (2026-08-24) | Project |
+| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.16 (2026-08-25) | Client |
+| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.17 (2026-08-25) | Project |
 | coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.2 (2026-06-21) | Project |
 | coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.2 (2026-06-21) | Project |
-| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.17 (2026-08-24) | Project |
+| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.18 (2026-08-25) | Project |
 | Agent Working Instructions (secondary) | AGENTS | `AGENTS.md` | active | Project |

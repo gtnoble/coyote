@@ -80,6 +80,7 @@ package body Coyote_App.History is
       Turn_Input   : Natural         := 0;
       Turn_Output  : Natural         := 0;
       Call_In_Turn : Natural         := 0;
+      Turn_Step    : Natural         := 0;
       Cur_Model    : Unbounded_String :=
         To_Unbounded_String (State.Current_Model);
       Turns_Rendered : Natural         := 0;
@@ -325,7 +326,10 @@ package body Coyote_App.History is
                         if Role = "user" then
                            --  If the previous turn was complete, emit its
                            --  footer before this user message.
-                           if In_Turn and then Saw_Asst_Text then
+                           if In_Turn
+                             and then Saw_Asst_Text
+                             and then To_String (Turn_Stop) /= "toolUse"
+                           then
                               Turns_Rendered := Turns_Rendered + 1;
                               Frontend.Append_Turn_Footer
                                 (Format_Turn_Footer_Display
@@ -349,6 +353,7 @@ package body Coyote_App.History is
                            Turn_Input    := 0;
                            Turn_Output   := 0;
                            Call_In_Turn := 0;
+                           Turn_Step    := 0;
                            Turn_Stop    := Null_Unbounded_String;
                            if Msg.Has_Field ("content")
                              and then
@@ -528,6 +533,23 @@ package body Coyote_App.History is
 
                               end;
                            end if;
+                           if To_String (Turn_Stop) = "toolUse" then
+                              Turn_Step := Turn_Step + 1;
+                              Frontend.Append_Turn_Footer
+                                (Format_Turn_Footer_Display
+                                   (Input_Tokens      => Turn_Input,
+                                    Output_Tokens     => Turn_Output,
+                                    Ctx_Window        => State.Context_Window,
+                                    Model_Text        => To_String (Cur_Model),
+                                    Stop_Reason_Text => To_String (Turn_Stop),
+                                    Is_Step          => True),
+                                 Kind => Coyote_App.Frontend.Step_Footer);
+                              Frontend.Append_Fork_Action
+                                (PID    => PID,
+                                 UUID   => UUID,
+                                 Turn_N => Turns_Rendered + 1,
+                                 Step_N => Turn_Step);
+                           end if;
                         end if;
                         --  toolResult role: skip (consumed in pass 1).
                      end if;
@@ -553,7 +575,9 @@ package body Coyote_App.History is
       end;
 
       --  Emit footer for the final rendered turn (if any).
-      if In_Turn and then Saw_Asst_Text then
+      if In_Turn and then Saw_Asst_Text
+        and then To_String (Turn_Stop) /= "toolUse"
+      then
          Turns_Rendered := Turns_Rendered + 1;
          Frontend.Append_Turn_Footer
            (Format_Turn_Footer_Display

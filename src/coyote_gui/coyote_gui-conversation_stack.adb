@@ -146,8 +146,42 @@ package body Coyote_GUI.Conversation_Stack is
       return To_String (Summary);
    end Format_Tool_Summary;
 
+   procedure Finalize_Active_Step (C : in out Instance) is
+   begin
+      C.Step_Frame     := null;
+      C.Step_Box       := null;
+      C.Step_Open      := False;
+      C.Footer_Pending := False;
+      C.Text_Open      := False;
+      C.Thinking_Open  := False;
+   end Finalize_Active_Step;
+
+   procedure Ensure_Active_Step (C : in out Instance) is
+   begin
+      if C.Footer_Pending then
+         Finalize_Active_Step (C);
+      end if;
+      if not C.Step_Open then
+         C.Step_Number := C.Step_Number + 1;
+         Gtk.Frame.Gtk_New
+           (C.Step_Frame, "Step " & Natural_Image (C.Step_Number));
+         C.Step_Frame.Set_Shadow_Type (Gtk.Enums.Shadow_In);
+         Gtk.Box.Gtk_New_Vbox
+           (C.Step_Box, Homogeneous => False, Spacing => 3);
+         C.Step_Box.Set_Border_Width (6);
+         C.Step_Frame.Add (C.Step_Box);
+         C.Exchange.Pack_Start
+           (C.Step_Frame, Expand => False, Fill => True, Padding => 4);
+         C.Step_Frames.Append (C.Step_Frame);
+         C.Step_Open := True;
+         Show_Contents (C);
+         Log (C, "began step frame");
+      end if;
+   end Ensure_Active_Step;
+
    procedure Add_Text_Element
      (C       : in out Instance;
+      Parent  : not null access Gtk.Box.Gtk_Box_Record'Class;
       Caption : String;
       Text    : String;
       Buffer  : out Gtk.Text_Buffer.Gtk_Text_Buffer;
@@ -168,7 +202,7 @@ package body Coyote_GUI.Conversation_Stack is
          Buffer.Set_Text (Text);
       end if;
       Section.Pack_Start (View, Expand => False, Fill => True, Padding => 2);
-      C.Exchange.Pack_Start (Section, Expand => False, Fill => True, Padding => 4);
+      Parent.Pack_Start (Section, Expand => False, Fill => True, Padding => 4);
       Show_Contents (C);
    end Add_Text_Element;
 
@@ -221,14 +255,20 @@ package body Coyote_GUI.Conversation_Stack is
          end loop;
       end if;
       C.Exchanges.Clear;
+      C.Step_Frames.Clear;
       C.Tools.Clear;
       C.Exchange       := null;
+      C.Step_Frame     := null;
+      C.Step_Box       := null;
       C.Active_Text    := null;
       C.Active_View    := null;
       C.Thinking       := null;
       C.Thinking_View  := null;
       C.Transcript     := Null_Unbounded_String;
       C.Has_Exchange   := False;
+      C.Step_Open      := False;
+      C.Footer_Pending := False;
+      C.Step_Number    := 0;
       C.Text_Open      := False;
       C.Thinking_Open  := False;
       C.Completed      := False;
@@ -251,13 +291,16 @@ package body Coyote_GUI.Conversation_Stack is
       C.Exchanges.Append (C.Exchange);
       C.Tools.Clear;
       Add_Text_Element
-        (C, Caption, Text, C.Active_Text, C.Active_View);
+        (C, C.Exchange, Caption, Text, C.Active_Text, C.Active_View);
       Append (C.Transcript, Text & ASCII.LF);
-      C.Has_Exchange  := True;
-      C.Text_Open     := False;
-      C.Thinking_Open := False;
-      C.Completed     := False;
-      C.Last_Status   := Coyote_GUI.Completed;
+      C.Has_Exchange   := True;
+      C.Step_Open      := False;
+      C.Footer_Pending := False;
+      C.Step_Number    := 0;
+      C.Text_Open      := False;
+      C.Thinking_Open  := False;
+      C.Completed      := False;
+      C.Last_Status    := Coyote_GUI.Completed;
       Log (C, "began exchange");
    end Begin_Request;
 
@@ -266,8 +309,10 @@ package body Coyote_GUI.Conversation_Stack is
       if not C.Has_Exchange then
          Begin_Request (C, "", Coyote_GUI.Prompt);
       end if;
+      Ensure_Active_Step (C);
       if not C.Text_Open then
-         Add_Text_Element (C, "Response", "", C.Active_Text, C.Active_View);
+         Add_Text_Element
+           (C, C.Step_Box, "Response", "", C.Active_Text, C.Active_View);
          C.Text_Open := True;
       end if;
       Append_Buffer (C.Active_Text, Text);
@@ -288,9 +333,10 @@ package body Coyote_GUI.Conversation_Stack is
       if not C.Has_Exchange then
          Begin_Request (C, "", Coyote_GUI.Prompt);
       end if;
+      Ensure_Active_Step (C);
       if not C.Thinking_Open then
          Add_Text_Element
-           (C, "Thinking", "", C.Thinking, C.Thinking_View);
+           (C, C.Step_Box, "Thinking", "", C.Thinking, C.Thinking_View);
          C.Thinking_Open := True;
       end if;
    end Begin_Thinking;
@@ -338,6 +384,7 @@ package body Coyote_GUI.Conversation_Stack is
       if not C.Has_Exchange then
          Begin_Request (C, "", Coyote_GUI.Prompt);
       end if;
+      Ensure_Active_Step (C);
       if C.Tools.Contains (Tool_Id) then
          return;
       end if;
@@ -369,7 +416,7 @@ package body Coyote_GUI.Conversation_Stack is
          (Stack   => C'Unchecked_Access,
           Tool_Id => To_Unbounded_String (Tool_Id)));
       Box.Pack_Start (Details, Expand => False, Fill => False, Padding => 2);
-      C.Exchange.Pack_Start (Frame, Expand => False, Fill => True, Padding => 4);
+      C.Step_Box.Pack_Start (Frame, Expand => False, Fill => True, Padding => 4);
       Show_Contents (C);
       C.Tools.Insert
         (Tool_Id,
@@ -454,12 +501,14 @@ package body Coyote_GUI.Conversation_Stack is
       if not C.Has_Exchange then
          return;
       end if;
+      Ensure_Active_Step (C);
       Gtk.Label.Gtk_New (Label, Prefix & Text);
       Label.Set_Xalign (0.0);
       Label.Set_Selectable (True);
-      C.Exchange.Pack_Start (Label, Expand => False, Fill => True, Padding => 2);
+      C.Step_Box.Pack_Start (Label, Expand => False, Fill => True, Padding => 2);
       Show_Contents (C);
       Append (C.Transcript, Prefix & Text & ASCII.LF);
+      C.Footer_Pending := True;
    end Append_Turn_Footer;
 
    procedure Append_Fork_Action
@@ -472,15 +521,18 @@ package body Coyote_GUI.Conversation_Stack is
       pragma Unreferenced (UUID, Turn_N, Step_N);
       Button : Gtk.Button.Gtk_Button;
    begin
-      if not C.Has_Exchange then
+      if not C.Has_Exchange or else not C.Step_Open then
          return;
       end if;
       Gtk.Button.Gtk_New (Button, Label);
       Button.Set_Can_Focus (True);
-      C.Exchange.Pack_Start
+      C.Step_Box.Pack_Start
         (Button, Expand => False, Fill => False, Padding => 2);
       Show_Contents (C);
       Append (C.Transcript, Label & ASCII.LF);
+      if C.Footer_Pending then
+         Finalize_Active_Step (C);
+      end if;
    end Append_Fork_Action;
 
    procedure Complete_Request
@@ -500,14 +552,18 @@ package body Coyote_GUI.Conversation_Stack is
       Gtk.Label.Gtk_New (Label, Text);
       Label.Set_Xalign (0.0);
       Label.Set_Selectable (True);
-      C.Exchange.Pack_Start
-        (Label, Expand => False, Fill => False, Padding => 2);
-      Show_Contents (C);
+      if C.Step_Open then
+         C.Step_Box.Pack_Start
+           (Label, Expand => False, Fill => False, Padding => 2);
+         Show_Contents (C);
+      else
+         C.Exchange.Pack_Start
+           (Label, Expand => False, Fill => False, Padding => 2);
+      end if;
       Append (C.Transcript, Text & ASCII.LF);
       C.Last_Status := Status;
       C.Completed := True;
-      C.Text_Open := False;
-      C.Thinking_Open := False;
+      Finalize_Active_Step (C);
    end Complete_Request;
 
    function Transcript_Text (C : Instance) return String is

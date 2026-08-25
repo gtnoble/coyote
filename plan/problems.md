@@ -2486,8 +2486,8 @@ behavior, current test baseline, and remaining manual qualification scope.
   gating.
 - **Verification:** Production and test development builds succeed. The full
   AUnit suite passes 917/917 with zero failed assertions and zero unexpected
-  errors. The five existing native-stack tests and the new summary/detail
-  regression execute successfully on the available GTK display. Native cards
+  errors. The six existing native-stack tests and the two new step-frame regressions
+  execute successfully on the available GTK display. Native cards
   render compact summaries, hide raw arguments and full results, retain the
   complete detail payload, and gate the Details action until completion.
   The user confirmed the live native-stack demonstration works. Revised
@@ -2495,3 +2495,27 @@ behavior, current test baseline, and remaining manual qualification scope.
   qualification for 100, 500, and 2,000 exchanges remain outstanding; separate
   component-unit extraction and MathML native realization remain deferred.
 - **Status:** In progress — implementation slice complete; qualification pending.
+
+### PCR-073 amendment — visible per-step frames (2026-08-25)
+
+- **Category:** Requirements, Design, Code, Test, Plans
+- **Priority:** 3-Moderate
+- **Description:** The native stack implemented one exchange container and
+  individual tool-card frames, but assistant/tool steps delineated by the
+  existing step footers were not themselves visually enclosed.
+- **Affected work products:** SRS-CORE v1.16; SDD-CORE v1.17; TEST-PLAN
+  v1.18; `sdfs/frontends.md`; Project Plan v1.22;
+  `Coyote_GUI.Conversation_Stack`; replay rendering; native-stack tests.
+- **Corrective action required:** Enclose each assistant/tool step in a visible
+  titled `Gtk.Frame` inside its exchange. Keep thinking, assistant response,
+  nested tool cards, step/final footer, and fork action in that frame. Close the
+  frame after the fork action, preserve partial frames on abort/error, and make
+  replay emit equivalent step boundaries.
+- **Actions taken:** Added private step-frame state and lifecycle to
+  `Coyote_GUI.Conversation_Stack`; added frame-count/visibility test
+  observables and two focused lifecycle tests; amended replay for persisted
+  `toolUse` assistant messages; updated governed documentation.
+- **Verification:** Production and test development builds succeed. Focused
+  native-stack test execution and display-backed DEM-042/043 verification are
+  pending; DEM-044 frame overhead and large-history qualification remain open.
+- **Status:** In progress — implementation started; qualification pending.

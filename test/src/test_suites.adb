@@ -3108,6 +3108,15 @@ package body Test_Suites is
          Coyote_GUI_Conversation_Stack_Tests
            .Test_Request_And_Streaming_Are_Incremental'Access));
       Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack uses visible step frames",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Assistant_Content_Uses_Visible_Step_Frame'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack separates assistant steps",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Footer_Closes_Step_Before_Next_Step'Access));
+
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
         ("Coyote.GUI.Conversation_Stack updates tools by stable ID",
          Coyote_GUI_Conversation_Stack_Tests
            .Test_Tool_Updates_By_Stable_Id'Access));

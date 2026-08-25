@@ -10,6 +10,7 @@ with Coyote_GUI;
 with Coyote_GUI.Conversation;
 with Coyote_GUI.Conversation_Stack.Testing;
 with Gtk.Enums;
+with Gtk.Frame;
 with Gtk.Main;
 with Gtk.Scrolled_Window;
 with Gtk.Text_View;
@@ -17,6 +18,7 @@ with Gtk.Window;
 
 package body Coyote_GUI_Conversation_Stack_Tests is
 
+   use type Gtk.Frame.Gtk_Frame;
    use type Gtk.Scrolled_Window.Gtk_Scrolled_Window;
    use type Gtk.Text_View.Gtk_Text_View;
    use Ada.Strings.Fixed;
@@ -78,6 +80,55 @@ package body Coyote_GUI_Conversation_Stack_Tests is
               & "first second" & ASCII.LF & ASCII.LF,
               "streaming updates one native text component");
    end Test_Request_And_Streaming_Are_Incremental;
+
+   procedure Test_Assistant_Content_Uses_Visible_Step_Frame
+     (T : in out Test)
+   is
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Begin_Request (T.Stack, "request", Prompt);
+      Begin_Thinking (T.Stack);
+      Append_Thinking (T.Stack, "thinking");
+      End_Thinking (T.Stack);
+      Append_Text (T.Stack, "response");
+      End_Text_Block (T.Stack);
+      Assert (Step_Frame_Count (T.Stack) = 1,
+              "assistant content creates one step frame");
+      Assert (Active_Step_Frame (T.Stack) /= null
+              and then Active_Step_Frame (T.Stack).Get_Visible,
+              "step frame is visible while streaming");
+   end Test_Assistant_Content_Uses_Visible_Step_Frame;
+
+   procedure Test_Footer_Closes_Step_Before_Next_Step
+     (T : in out Test)
+   is
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Begin_Request (T.Stack, "request", Prompt);
+      Append_Text (T.Stack, "first response");
+      End_Text_Block (T.Stack);
+      Append_Turn_Footer (T.Stack, "step", Step_Footer);
+      Append_Fork_Action
+        (T.Stack, "fork step", "session", 1, 1);
+      Assert (Step_Frame_Count (T.Stack) = 1,
+              "step footer and fork remain in the first frame");
+      Assert (Active_Step_Frame (T.Stack) = null,
+              "completed step is no longer the active target");
+      Append_Text (T.Stack, "final response");
+      End_Text_Block (T.Stack);
+      Assert (Step_Frame_Count (T.Stack) = 2,
+              "next assistant response creates a second step frame");
+      Append_Turn_Footer (T.Stack, "final", Final_Footer);
+      Append_Fork_Action
+        (T.Stack, "fork turn", "session", 1, 0);
+      Complete_Request (T.Stack, Completed);
+      Assert (Is_Completed (T.Stack),
+              "final completion closes the exchange after its step");
+   end Test_Footer_Closes_Step_Before_Next_Step;
 
    procedure Test_Tool_Updates_By_Stable_Id (T : in out Test) is
    begin

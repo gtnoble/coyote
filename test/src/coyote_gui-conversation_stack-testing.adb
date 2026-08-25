@@ -49,6 +49,21 @@ package body Coyote_GUI.Conversation_Stack.Testing is
       return C.Active_View;
    end Active_Text_View;
 
+   function Step_Frame_Count
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Natural
+   is
+   begin
+      return Natural (C.Step_Frames.Length);
+   end Step_Frame_Count;
+
+   function Active_Step_Frame
+     (C : Coyote_GUI.Conversation_Stack.Instance)
+      return Gtk.Frame.Gtk_Frame
+   is
+   begin
+      return C.Step_Frame;
+   end Active_Step_Frame;
+
    function Tool_Summary
      (C       : Coyote_GUI.Conversation_Stack.Instance;
       Tool_Id : String) return String

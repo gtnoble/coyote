@@ -1,8 +1,8 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.16
-**Date:** 2026-08-24
+**Version:** 1.17
+**Date:** 2026-08-25
 
 **Status:** Reviewed — project control (M3 complete 2026-06-02)
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
@@ -236,7 +236,7 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `Coyote_GUI.Updates` | Protected agent→GTK queue | `src/coyote_gui/coyote_gui-updates.ads/.adb` |
 | `Coyote_GUI.Prompt_Queue` | Protected GTK→agent queue | `src/coyote_gui/coyote_gui-prompt_queue.ads/.adb` |
 | `Coyote_GUI.Conversation` | Current GtkLayout-based virtualized conversation renderer (migration baseline) | `src/coyote_gui/coyote_gui-conversation.ads/.adb` |
-| `Coyote_GUI.Conversation_Stack` | Native GTK vertical exchange host and update router | `src/coyote_gui/coyote_gui-conversation_stack.ads/.adb` |
+| `Coyote_GUI.Conversation_Stack` | Native GTK exchange and per-step frame host/update router | `src/coyote_gui/coyote_gui-conversation_stack.ads/.adb` |
 | `Coyote_GUI.Exchange_View` | Deferred; exchange realization is owned by `Conversation_Stack` in this build | Not separate in qualification build |
 | `Coyote_GUI.Text_Element` | Deferred; native text-element realization is owned by `Conversation_Stack` in this build | Not separate in qualification build |
 | `Coyote_GUI.Tool_Card` | Deferred; native tool-card realization is owned by `Conversation_Stack` in this build | Not separate in qualification build |
@@ -1209,9 +1209,30 @@ fallback until the performance and display-backed acceptance gates are complete.
 
 **Purpose:** Replace the single custom conversation canvas with a native GTK
 component hierarchy. One `Exchange_View` represents one submitted request and
-its complete agent response, bounded by the final turn footer. Thinking blocks,
-assistant response blocks, tool cards, step/final footers, fork actions, notices,
-and display-math elements are separate children of that exchange.
+its complete agent response, bounded by the final turn footer. The submitted
+request is an exchange-level child. Each assistant/tool step is represented by
+a visible, titled `Gtk.Frame` containing a vertical `Gtk.Box`; thinking blocks,
+assistant response blocks, tool cards, the corresponding step or final footer,
+and its fork action are children of that step box. Notices remain exchange-level
+children unless they are emitted while a step is active.
+
+The resulting hierarchy is:
+
+```text
+Gtk.Scrolled_Window
+  └─ Host Gtk.Box
+       └─ Exchange Gtk.Box
+            ├─ Request element
+            ├─ Step Gtk.Frame (Step 1)
+            │    └─ Step Gtk.Box
+            │         ├─ Thinking/response elements
+            │         ├─ Tool Gtk.Frame(s)
+            │         └─ Step footer and fork action
+            └─ Step Gtk.Frame (Step 2/final)
+                 └─ Step Gtk.Box
+                      ├─ Response elements
+                      └─ Final footer and fork action
+```
 
 **Host hierarchy:** The main GUI retains one `Gtk.Scrolled_Window` containing
 one vertical `Gtk.Box`. The box contains one `Exchange_View` per completed or
@@ -1219,13 +1240,18 @@ active request-response pair. Ordinary components do not create nested scrolling
 regions; the outer adjustment owns transcript scrolling and auto-scroll.
 
 **Exchange lifecycle:** A request-start operation creates the exchange and
-renders the user request. `Begin_Thinking`/`End_Thinking` create and finalize a
-thinking element. `Append_Text`/`End_Text_Block` update and finalize an assistant
-response element. `Begin_Tool` creates a native `Tool_Card`; `End_Tool` updates
-it by `Tool_Id`. An intermediate step footer and fork action remain inside the
-exchange. The final footer and final fork action complete the exchange. Abort and
-error termination preserve partial content and mark the exchange terminal without
-inventing a normal completion footer.
+renders the user request. The first `Begin_Thinking`, `Append_Text`, or
+`Begin_Tool` operation lazily creates Step 1. `Begin_Thinking`/`End_Thinking`
+create and finalize a thinking element, while `Append_Text`/`End_Text_Block`
+update and finalize an assistant response element. `Begin_Tool` creates a
+native `Tool_Card`; `End_Tool` updates it by `Tool_Id`. An intermediate step
+footer and fork action are packed into the active step frame; the frame closes
+after the fork action. The next assistant/tool content creates the next step
+frame. The final footer and final fork action remain in the final step frame,
+then `Complete_Request` marks the enclosing exchange complete. Abort and error
+termination preserve the partial step frame and mark the exchange terminal
+without inventing a normal completion footer. Step frames are never scrolled
+independently.
 
 **Component widgets:** Substantial text uses read-only native `Gtk.Text_View`
 and `Gtk.Text_Buffer` widgets with GTK text tags and local selection. Native
@@ -1262,7 +1288,8 @@ render-time payload for the detail window. The update queue remains the only
 agent-to-GTK boundary; all widget operations execute on the GTK main task.
 
 **Performance qualification:** The native tree is initially realized with one
-vertical `Gtk.Box` child per exchange. Qualification measures first-token latency,
+vertical `Gtk.Box` child per exchange and one visible `Gtk.Frame` per
+assistant/tool step. Qualification measures first-token latency,
 widget count, memory, resize, zoom, replay, session reset, and Details-button
 activation for 100, 500, and 2,000 exchanges. The measurements shall confirm
 that compact tool cards do not create per-call argument/result views. Lazy

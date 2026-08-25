@@ -615,6 +615,26 @@ clear behavior, and idempotent construction are covered by three AUnit tests;
 the construction test is display-backed and the other two are display
 independent.
 
+### Visible per-step frame amendment (2026-08-25)
+
+The native stack now distinguishes the exchange container from the assistant/tool
+steps inside it. The submitted request remains an exchange-level native text
+component. The first assistant thinking, response, or tool operation lazily
+creates a titled visible `Gtk.Frame` with an inner vertical `Gtk.Box`. Thinking,
+assistant response blocks, nested tool-card frames, and the corresponding step or
+final footer and fork action are packed into that step box. The frame closes after
+the footer's fork action; subsequent assistant/tool content creates a new step
+frame. `Complete_Request` closes the enclosing exchange and preserves the partial
+step on abort or error.
+
+This is implemented privately by `Coyote_GUI.Conversation_Stack` using
+`Step_Frame`, `Step_Box`, `Step_Frames`, `Step_Open`, and `Footer_Pending`. Replay
+now emits step footer/fork boundaries for persisted assistant messages with
+`stopReason` `toolUse`, so replay can construct the same step hierarchy as live
+rendering. The native stack remains selected by `COYOTE_NATIVE_STACK=1`; the
+GtkLayout renderer remains the fallback pending display-backed and performance
+qualification.
+
 ### Native component-stack conversation migration (2026-08-24, PCR-073 tool-summary amendment)
 
 The approved target for the next GUI build is a native component stack rather
@@ -679,7 +699,7 @@ and retained payload rather than adding argument/result widgets. The stack is
 selected only when `COYOTE_NATIVE_STACK=1`; the existing
 `Coyote_GUI.Conversation` renderer remains the default baseline and fallback
 until display-backed qualification completes. The implementation is verified
-by the 917-test development suite; manual qualification remains pending.
+by the 919-test development suite; manual qualification remains pending.
 
 The separately named `Exchange_View`, `Text_Element`, `Tool_Card`,
 `Math_Element`, and `Footer_Element` units remain deferred because this slice

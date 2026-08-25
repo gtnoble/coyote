@@ -12,6 +12,7 @@ with Ada.Strings.Unbounded;
 with Coyote_GUI;
 with Coyote_GUI.Conversation;
 with Gtk.Box;
+with Gtk.Frame;
 with Gtk.Button;
 with Gtk.Label;
 with Gtk.Scrolled_Window;
@@ -23,6 +24,7 @@ with Pango.Font;
 package Coyote_GUI.Conversation_Stack is
 
    use type Gtk.Box.Gtk_Box;
+   use type Gtk.Frame.Gtk_Frame;
 
    type Instance is tagged limited private;
 
@@ -130,12 +132,19 @@ private
      (Index_Type   => Positive,
       Element_Type => Gtk.Box.Gtk_Box);
 
+   package Frame_Vectors is new Ada.Containers.Vectors
+     (Index_Type   => Positive,
+      Element_Type => Gtk.Frame.Gtk_Frame);
+
    type Instance is tagged limited record
       Scroll         : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
       Main_Window    : Gtk.Window.Gtk_Window;
       Host           : Gtk.Box.Gtk_Box;
       Exchange       : Gtk.Box.Gtk_Box;
       Exchanges      : Exchange_Vectors.Vector;
+      Step_Frame     : Gtk.Frame.Gtk_Frame;
+      Step_Box       : Gtk.Box.Gtk_Box;
+      Step_Frames    : Frame_Vectors.Vector;
       Active_Text    : Gtk.Text_Buffer.Gtk_Text_Buffer;
       Active_View    : Gtk.Text_View.Gtk_Text_View;
       Thinking       : Gtk.Text_Buffer.Gtk_Text_Buffer;
@@ -143,11 +152,13 @@ private
       Tools          : Tool_Maps.Map;
       Transcript     : Ada.Strings.Unbounded.Unbounded_String;
       Has_Exchange   : Boolean := False;
+      Step_Open      : Boolean := False;
+      Footer_Pending : Boolean := False;
+      Step_Number    : Natural := 0;
       Text_Open      : Boolean := False;
       Thinking_Open  : Boolean := False;
       Completed      : Boolean := False;
       Last_Status    : Coyote_GUI.Completion_Status := Coyote_GUI.Completed;
       Debug_Logging  : Boolean := False;
    end record;
-
 end Coyote_GUI.Conversation_Stack;

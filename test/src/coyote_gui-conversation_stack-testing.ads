@@ -5,6 +5,7 @@
 with Coyote_GUI;
 with Coyote_GUI.Conversation;
 with Coyote_GUI.Conversation_Stack;
+with Gtk.Frame;
 with Gtk.Scrolled_Window;
 with Gtk.Text_View;
 
@@ -30,6 +31,13 @@ package Coyote_GUI.Conversation_Stack.Testing is
    function Active_Text_View
      (C : Coyote_GUI.Conversation_Stack.Instance)
       return Gtk.Text_View.Gtk_Text_View;
+
+   function Step_Frame_Count
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Natural;
+
+   function Active_Step_Frame
+     (C : Coyote_GUI.Conversation_Stack.Instance)
+      return Gtk.Frame.Gtk_Frame;
 
    function Tool_Summary
      (C       : Coyote_GUI.Conversation_Stack.Instance;
