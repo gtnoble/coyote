@@ -44,15 +44,98 @@ with Ada.Command_Line;
 with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Exceptions;
+with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with Coyote_App;
 with Coyote_Utils;
 with LLM.Session_Store;
+with LLM.Settings;
 
 procedure Coyote is
    Opts : Coyote_App.Options;
    I    : Positive := 1;
+
+   function Parse_Natural (Text : String) return Natural is
+      Value : Long_Long_Integer := 0;
+   begin
+      if Text'Length = 0 then
+         raise Constraint_Error with "empty recursion depth";
+      end if;
+
+      for Character_Value of Text loop
+         declare
+            Digit : Long_Long_Integer;
+         begin
+            if Character_Value not in '0' .. '9' then
+               raise Constraint_Error with
+                 "recursion depth is not a nonnegative integer";
+            end if;
+            Digit := Long_Long_Integer
+              (Character'Pos (Character_Value) - Character'Pos ('0'));
+            if Value >
+              (Long_Long_Integer (Natural'Last) - Digit) / 10
+            then
+               raise Constraint_Error with
+                 "recursion depth is too large";
+            end if;
+            Value := Value * 10 + Digit;
+         end;
+      end loop;
+
+      return Natural (Value);
+   end Parse_Natural;
+
+   procedure Initialize_Recursion_Depth is
+      Depth_Is_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_RECURSION_DEPTH");
+      Current_Text : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_RECURSION_DEPTH", "");
+      Current_Depth  : Natural := 0;
+      Next_Depth     : Natural := 0;
+      Settings_Value : constant LLM.Settings.Settings :=
+        LLM.Settings.Load_Settings;
+   begin
+      if Depth_Is_Set then
+         begin
+            Current_Depth := Parse_Natural (Current_Text);
+         exception
+            when E : Constraint_Error =>
+               raise Coyote_Utils.Bad_Arg_Error with
+                 "invalid COYOTE_RECURSION_DEPTH: "
+                 & Current_Text
+                 & " ("
+                 & Ada.Exceptions.Exception_Message (E)
+                 & ")";
+         end;
+      end if;
+
+      if Opts.Subagent then
+         if Current_Depth = Natural'Last then
+            raise Coyote_Utils.Bad_Arg_Error with
+              "COYOTE_RECURSION_DEPTH cannot be incremented";
+         end if;
+         Next_Depth := Current_Depth + 1;
+         if Next_Depth > Settings_Value.Max_Recursion_Depth then
+            raise Coyote_Utils.Bad_Arg_Error with
+              "maximum subagent recursion depth exceeded (depth "
+              & Ada.Strings.Fixed.Trim
+                  (Natural'Image (Next_Depth), Ada.Strings.Both)
+              & ", maximum "
+              & Ada.Strings.Fixed.Trim
+                  (Natural'Image (Settings_Value.Max_Recursion_Depth),
+                   Ada.Strings.Both)
+              & ")";
+         end if;
+      else
+         Next_Depth := Current_Depth;
+      end if;
+
+      Ada.Environment_Variables.Set
+        ("COYOTE_RECURSION_DEPTH",
+         Ada.Strings.Fixed.Trim
+           (Natural'Image (Next_Depth), Ada.Strings.Both));
+   end Initialize_Recursion_Depth;
 
    procedure Print_Usage is
    begin
@@ -217,6 +300,12 @@ begin
       end;
       I := I + 1;
    end loop;
+
+   --  Establish the inherited process depth before any frontend, session,
+   --  or provider initialization.  A rejected subagent must not open a
+   --  window or create a session.
+   Initialize_Recursion_Depth;
+
    --  Inherit No_Session from the parent process when spawned as a
    --  subagent.  The parent sets COYOTE_NO_SESSION=1 before spawning
    --  so that --no-session propagates to all descendants automatically.

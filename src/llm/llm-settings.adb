@@ -109,6 +109,26 @@ package body LLM.Settings is
       return Default;
    end Get_Boolean_Field;
 
+   function Get_Natural_Field
+     (Value   : GNATCOLL.JSON.JSON_Value;
+      Field   : String;
+      Default : Natural) return Natural
+   is
+      Raw : Long_Integer;
+   begin
+      if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
+        and then Value.Has_Field (Field)
+        and then Value.Get (Field).Kind = GNATCOLL.JSON.JSON_Int_Type
+      then
+         Raw := Value.Get (Field).Get;
+         if Raw >= 0 and then Raw <= Long_Integer (Natural'Last) then
+            return Natural (Raw);
+         end if;
+      end if;
+
+      return Default;
+   end Get_Natural_Field;
+
    function Get_Object_Field
      (Value : GNATCOLL.JSON.JSON_Value; Field : String)
       return GNATCOLL.JSON.JSON_Value
@@ -226,6 +246,8 @@ package body LLM.Settings is
          Default_Subagent_Model    =>
            To_Unbounded_String
              (Get_String_Field (Root, "defaultSubagentModel")),
+         Max_Recursion_Depth       =>
+           Get_Natural_Field (Root, "maxRecursionDepth", 1),
          Append_System_Prompt      =>
            To_Unbounded_String
              (Get_String_Field (Root, "appendSystemPrompt")),

@@ -1,6 +1,6 @@
 # Test Plan â coyote (STP)
 
-**Version:** 1.18
+**Version:** 1.19
 **Date:** 2026-08-25
 
 **Status:** Reviewed and acknowledged â M4 complete (2026-06-03)
@@ -150,7 +150,8 @@ SRS-CORE requirement groups.
 | `coyote_app_tests.adb` | REQ-CORE-085â089 (frontend/agent synchronization) | ~10 |
 
 | `llm_skills_tests.adb` | REQ-CORE-090â093 | ~20 |
-| `llm_settings_tests.adb` | REQ-CORE-230â234, 070â073; sandbox default loading and Save_Preferences persistence | ~27 |
+| `llm_settings_tests.adb` | REQ-CORE-025, 230â234, 070â073; sandbox and recursion-depth setting loading, plus Save_Preferences persistence | ~28 |
+| `subagent_integration_tests.adb` | REQ-CORE-025, 019â020; subprocess startup and one-shot behavior | 4 |
 | `coyote_gui_prompt_queue_tests.adb` | REQ-CORE-116â119; typed preference payload, acceptance, and overflow transport | 3 |
 | `coyote_gui_navigation_tests.adb` | REQ-CORE-114; clamped keyboard viewport navigation | 3 |
 | `llm_auth_tests.adb` | REQ-CORE-232 | ~15 |
@@ -215,6 +216,7 @@ behaviour. Results are recorded in a Test Report.
 | DEM-003 | REQ-CORE-003 | Run coyote with $DISPLAY set, no $winid; verify GUI window opens |
 | DEM-004 | REQ-CORE-019 | `coyote --one-shot --prompt "echo hello"` exits after one turn; check exit code 0 and JSON on stdout |
 | DEM-005 | REQ-CORE-020 | `coyote --subagent --prompt "hello"` opens a window (does not force Plain) |
+| DEM-045 | REQ-CORE-025 | Set `maxRecursionDepth` to 1; invoke coyote with inherited `COYOTE_RECURSION_DEPTH=1` and `--subagent`; verify it exits non-zero before opening a frontend and reports the limit on stderr |
 | DEM-006 | REQ-CORE-040â044 | Start a GUI session; send a prompt; verify streaming text, thinking, tool events, and stats appear |
 | DEM-007 | REQ-CORE-055 | Start a long tool execution; press Stop; verify tool is cancelled and agent exits cleanly |
 | DEM-008 | REQ-CORE-060 | Configure a small context window; send prompts until threshold reached; verify auto-compaction notice appears |
@@ -299,6 +301,7 @@ These are entered as open items in the problem log (PCR-009).
 | REQ-CORE-005 | I | Code inspection |
 | REQ-CORE-010â018 | T | `coyote_app_tests.adb` |
 | REQ-CORE-019â020 | D | DEM-004, DEM-005 |
+| REQ-CORE-025 | T/D | `subagent_integration_tests.adb`, `llm_settings_tests.adb`, DEM-045 |
 | REQ-CORE-021 | D | DEM-013 (Acme window name) |
 | REQ-CORE-022 | D | DEM (TBD) |
 | REQ-CORE-023 | T | `coyote_utils_tests.adb` |
@@ -348,7 +351,7 @@ These are entered as open items in the problem log (PCR-009).
 | REQ-CORE-205â208, 215â217 | T/I | `llm_openai_responses_tests.adb`, `llm_agent_tests.adb`, `llm_session_store_tests.adb`, code inspection |
 | REQ-CORE-210â212 | T/I | `nine_p_proto_tests.adb`, `nine_p_mock_server_tests.adb`, code inspection |
 | REQ-CORE-220â221 | I | Code inspection (GTK call sites) |
-| REQ-CORE-230â234 | T | `llm_settings_tests.adb`, `llm_auth_tests.adb`, DEM-034 |
+| REQ-CORE-025, 230â234 | T | `llm_settings_tests.adb`, `subagent_integration_tests.adb`, `llm_auth_tests.adb`, DEM-034, DEM-045 |
 | REQ-CORE-240â241 | T | `llm_session_store_tests.adb`, `coyote_sqc_parser_tests.adb` |
 | REQ-CORE-300â302 | I | Code inspection |
 | REQ-CORE-400â402 | T/I | `llm_types_tests.adb`, code inspection |
@@ -783,3 +786,10 @@ pending.
 rendering and preservation of the typed native-footer summary through the
 GTK update queue. Display-backed native and legacy GUI qualification remains
 pending under DEM-042..044.
+
+**Baseline as of 2026-08-25 (PCR-077 subagent recursion-depth limit):**
+925 registered tests. Added settings parsing and process-level early-rejection
+coverage for `maxRecursionDepth` and `COYOTE_RECURSION_DEPTH`. Production and
+test development builds succeed; the complete suite passes 925/925 with zero
+failed assertions and zero unexpected errors. DEM-045 remains the manual
+qualification procedure for user-visible startup rejection.

@@ -150,6 +150,13 @@ propagates
 .B \-\-no\-session
 behaviour to all descendant coyote processes.
 .TP
+.B COYOTE_RECURSION_DEPTH
+Tracks the inherited --subagent nesting depth.  A top-level process uses
+zero; each --subagent increments the value.  A child is rejected before
+startup when the incremented value exceeds the maxRecursionDepth setting,
+which defaults to 1.  This variable is process context, not a security
+boundary.
+.TP
 .B winid
 When set to a non-zero integer (by acme's
 .BR exec (1)
@@ -175,8 +182,8 @@ command execution.  Defaults to
 .SH FILES
 .TP
 .I ~/.coyote/settings.json
-Default provider, model, thinking level, compaction settings, and
-prompt filter.
+Default provider, model, thinking level, compaction settings, prompt filter,
+and the maximum subagent recursion depth (`maxRecursionDepth`, default 1).
 .TP
 .I ~/.coyote/models.json
 Per-provider model overrides and API key configuration.

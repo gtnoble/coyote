@@ -291,6 +291,7 @@ communication and context propagation:
 | `COYOTE_THINKING_LEVEL` | `coyote_app.adb` when thinking level is set or changed | child coyote at startup (`coyote_app.adb`) and `LLM.Session_Store` | Propagates the current thinking level to child subagent sessions.  Written into the new session's JSONL header as `thinkingLevel`. |
 | `COYOTE_ENABLE_MEMORY` | user (manual) | `LLM.Agent.Create` | When set to `1`, enables the structured memory system (MEMORY.md discovery and four-type taxonomy) in the system prompt.  Disabled by default. |
 | `COYOTE_SANDBOX_PROFILE` | `coyote_app.adb` after profile changes, session resume, or session switching | child coyote at startup (`coyote_app.adb`), `LLM.Agent`, and `LLM.Session_Store` | Carries the effective sandbox profile to child sessions and records it as `sandboxProfile`; an empty value disables sandboxing. |
+| `COYOTE_RECURSION_DEPTH` | `coyote.adb` at process startup | child coyote at startup | Tracks inherited `--subagent` nesting. Top-level processes use depth 0; each `--subagent` increments it and is rejected when it exceeds `maxRecursionDepth` (default 1). This is context propagation, not a security boundary. |
 
 ## Subagent invocation (shell-based)
 

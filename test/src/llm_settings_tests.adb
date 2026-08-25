@@ -434,6 +434,54 @@ package body LLM_Settings_Tests is
          raise;
    end Test_Default_Sandbox_Profile_Loaded;
 
+   procedure Test_Max_Recursion_Depth_Invalid_Defaults (T : in out Test) is
+      pragma Unreferenced (T);
+      Home         : constant String := "/tmp/coyote_llm_settings_test_13";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Loaded       : LLM.Settings.Settings;
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+      Write_File
+        (Home & "/.coyote/settings.json",
+         "{""maxRecursionDepth"":3}");
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Loaded := LLM.Settings.Load_Settings;
+      Assert (Loaded.Max_Recursion_Depth = 3,
+              "maxRecursionDepth should load as a nonnegative integer");
+
+      Write_File
+        (Home & "/.coyote/settings.json", "{}");
+      Loaded := LLM.Settings.Load_Settings;
+      Assert (Loaded.Max_Recursion_Depth = 1,
+              "absent maxRecursionDepth should use the default");
+
+      Write_File
+        (Home & "/.coyote/settings.json",
+         "{""maxRecursionDepth"":-1}");
+      Loaded := LLM.Settings.Load_Settings;
+      Assert (Loaded.Max_Recursion_Depth = 1,
+              "negative maxRecursionDepth should use the default");
+
+      Write_File
+        (Home & "/.coyote/settings.json",
+         "{""maxRecursionDepth"":""bad""}");
+      Loaded := LLM.Settings.Load_Settings;
+      Assert (Loaded.Max_Recursion_Depth = 1,
+              "non-integer maxRecursionDepth should use the default");
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Max_Recursion_Depth_Invalid_Defaults;
+
    procedure Test_Completion_Notifications_Default_Enabled
      (T : in out Test)
    is

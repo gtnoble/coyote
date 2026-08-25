@@ -2618,6 +2618,30 @@ behavior, current test baseline, and remaining manual qualification scope.
 - **Status:** In progress — implementation complete; display qualification
   pending.
 
+## PCR-077 — Subagent recursion-depth limit
+
+- **Date reported:** 2026-08-25
+- **Category:** Requirements, Design, Code, Test, Manuals
+- **Priority:** 3-Moderate
+- **Description:** Coyote allowed a subagent to recursively launch further
+  `--subagent` processes without a configurable depth limit, allowing
+  accidental unbounded delegation.
+- **Affected work products:** `src/coyote.adb`, `src/llm/llm-settings.ads`,
+  `src/llm/llm-settings.adb`, subagent/settings tests, SRS-CORE, SDD-CORE,
+  TEST-PLAN, `AGENTS.md`, and `share/man/man1/coyote.1`.
+- **Corrective action required:** Add a persistent `maxRecursionDepth` setting,
+  propagate depth through `COYOTE_RECURSION_DEPTH`, reject over-limit children
+  before startup, and cover valid, invalid, boundary, and process-level cases.
+- **Actions taken:** Implemented default depth 1, strict inherited-depth parsing,
+  child-side increment/rejection, settings parsing, regression tests, and
+  documentation updates. Ordinary forks and New Window launches do not add
+  recursion depth.
+- **Verification:** Production and test development builds succeed. The full
+  development suite passes 925/925 tests with zero failed assertions and zero
+  unexpected errors.
+- **Status:** Resolved
+- **Date resolved:** 2026-08-25
+
 ## PCR-076 — GTK step-footer statistics not visible
 
 - **Date reported:** 2026-08-25

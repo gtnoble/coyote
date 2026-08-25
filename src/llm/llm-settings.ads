@@ -23,6 +23,9 @@ package LLM.Settings is
       Default_Sandbox           : Ada.Strings.Unbounded.Unbounded_String;
       Default_Subagent_Provider : Ada.Strings.Unbounded.Unbounded_String;
       Default_Subagent_Model    : Ada.Strings.Unbounded.Unbounded_String;
+      --  Maximum number of nested --subagent processes.  A value of zero
+      --  disables subagent spawning; the default permits one child level.
+      Max_Recursion_Depth       : Natural := 1;
       Append_System_Prompt      : Ada.Strings.Unbounded.Unbounded_String;
       --  Shell command line through which interactive prompts are filtered
       --  before being sent to the agent.  The raw prompt is written to stdin

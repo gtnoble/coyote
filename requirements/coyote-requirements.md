@@ -1,7 +1,7 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.16
+**Version:** 1.17
 **Date:** 2026-08-25
 **Status:** Draft
 **Project Plan:** `plan/project-plan.md`
@@ -166,6 +166,17 @@ The executable shall accept a `--subagent` flag. When set, the executable
 shall behave as `--one-shot` but shall not force the Plain frontend — the
 inherited display context (`COYOTE_FRONTEND` or `$winid`) governs frontend
 selection, allowing a headful window to open.
+
+**REQ-CORE-025** (T)
+When `--subagent` is given, the executable shall read the optional
+`maxRecursionDepth` nonnegative integer from `~/.coyote/settings.json`,
+where the default value is 1. It shall read the inherited
+`COYOTE_RECURSION_DEPTH` value as a nonnegative integer, treating an absent
+value as 0, increment it for the new subagent, and reject the invocation with
+a non-zero exit status before frontend or session startup when the incremented
+value exceeds the configured maximum. A successful invocation shall export the
+incremented value for descendant processes. Invalid inherited depth values
+shall be rejected with an error.
 
 **REQ-CORE-021** (D)
 The executable shall accept a `--name LABEL` argument. When provided, the
@@ -892,8 +903,9 @@ A man page for the `coyote` executable shall be provided in standard
 troff/nroff man(7) format, installed as `coyote.1` in the appropriate
 man directory.  The man page shall document all command-line arguments,
 environment variables used by coyote (`COYOTE_SESSION_ID`,
-`COYOTE_PARENT_SESSION`, `COYOTE_NO_SESSION`, `COYOTE_FRONTEND`),
-frontend selection behaviour, configuration files, and basic usage
+`COYOTE_PARENT_SESSION`, `COYOTE_NO_SESSION`, `COYOTE_FRONTEND`,
+`COYOTE_RECURSION_DEPTH`), frontend selection behaviour, configuration files,
+and basic usage
 examples.  It shall include the standard man-page sections: NAME,
 SYNOPSIS, DESCRIPTION, OPTIONS, ENVIRONMENT, FILES, EXAMPLES, and
 SEE ALSO.
@@ -1135,7 +1147,9 @@ thread-safe protected queue.
 **REQ-CORE-230** (T)
 The agent shall read `~/.coyote/settings.json` at startup to obtain the
 default provider, model, thinking level, optional subagent provider/model,
-compaction settings, `promptFilter`, and `completionNotifications`.
+compaction settings, `promptFilter`, `completionNotifications`, and the
+optional nonnegative `maxRecursionDepth` setting. An absent or invalid
+`maxRecursionDepth` shall default to 1.
 
 **REQ-CORE-231** (T)
 The agent shall read `~/.coyote/models.json` at startup to obtain per-provider
@@ -1364,6 +1378,7 @@ Traceability from requirements to test cases. Test Plan reference:
 | REQ-CORE-018 | --prompt - reads from stdin | T | TC-018 |
 | REQ-CORE-019 | --one-shot exits and prints JSON | D | TC-019 |
 | REQ-CORE-020 | --subagent opens headful window | D | TC-020 |
+| REQ-CORE-025 | maxRecursionDepth limits inherited --subagent depth | T | TC-025 |
 | REQ-CORE-021 | --name LABEL appended to window | D | TC-021 |
 | REQ-CORE-022 | --prompt-filter applied to prompts | D | TC-022 |
 | REQ-CORE-023 | Unknown arg → error + non-zero exit | D | TC-023 |

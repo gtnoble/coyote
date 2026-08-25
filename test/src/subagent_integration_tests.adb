@@ -3,6 +3,7 @@ with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
+with Ada.Text_IO;
 with GNATCOLL.JSON;           use GNATCOLL.JSON;
 with GNATCOLL.OS.FS;
 with GNATCOLL.OS.Process;     use GNATCOLL.OS.Process;
@@ -554,5 +555,159 @@ package body Subagent_Integration_Tests is
          end;
       end;
    end Test_One_Shot_Prompt_Failure_Has_Session_Id;
+
+   procedure Test_Subagent_Recursion_Limit (T : in out Test) is
+      pragma Unreferenced (T);
+      Coyote     : constant String := Find_Coyote;
+      Stdout_Out : Unbounded_String;
+      Stderr_Out : Unbounded_String;
+      Exit_Code  : Integer := 0;
+      Home       : constant String :=
+        "/tmp/coyote_subagent_depth_test_" & PID_Image;
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Depth_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_RECURSION_DEPTH");
+      Old_Depth     : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_RECURSION_DEPTH", "");
+      Max_Depth_Path : constant String := Home & "/.coyote/settings.json";
+      File       : Ada.Text_IO.File_Type;
+   begin
+      if Coyote'Length = 0 then
+         Assert (False, "coyote binary not found at ../bin/coyote");
+         return;
+      end if;
+
+      Ada.Directories.Create_Path (Home & "/.coyote");
+      Ada.Text_IO.Create (File, Ada.Text_IO.Out_File, Max_Depth_Path);
+      Ada.Text_IO.Put
+        (File, "{""maxRecursionDepth"":1}");
+      Ada.Text_IO.Close (File);
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Set ("COYOTE_RECURSION_DEPTH", "1");
+
+      declare
+         use GNATCOLL.OS.FS;
+         Args : Argument_List;
+         Env  : Environment_Dict;
+         Null_In : File_Descriptor;
+         Out_R, Out_W : File_Descriptor;
+         Err_R, Err_W : File_Descriptor;
+         Handle : Process_Handle;
+      begin
+         Open_Pipe (Out_R, Out_W);
+         Open_Pipe (Err_R, Err_W);
+         Null_In := Open (Null_File, Read_Mode);
+         Args.Append (Coyote);
+         Args.Append ("--subagent");
+         Args.Append ("--frontend");
+         Args.Append ("invalid");
+         Handle := Start
+           (Args        => Args,
+            Env         => Env,
+            Stdin       => Null_In,
+            Stdout      => Out_W,
+            Stderr      => Err_W,
+            Cwd         => Ada.Directories.Current_Directory,
+            Inherit_Env => True);
+         Close (Null_In);
+         Close (Out_W);
+         Close (Err_W);
+         Stdout_Out := Read (Out_R);
+         Stderr_Out := Read (Err_R);
+         Close (Out_R);
+         Close (Err_R);
+         Exit_Code := Wait (Handle);
+      end;
+
+      Assert (Exit_Code /= 0,
+              "subagent at the configured depth must fail");
+      Assert
+        (Ada.Strings.Fixed.Index
+           (To_String (Stderr_Out),
+            "maximum subagent recursion depth exceeded")
+           > 0,
+         "recursion-limit error should be reported on stderr");
+      Assert (To_String (Stdout_Out)'Length = 0,
+              "rejected subagent must not print help or start a frontend");
+
+      Ada.Environment_Variables.Set ("COYOTE_RECURSION_DEPTH", "bad");
+      declare
+         use GNATCOLL.OS.FS;
+         Args : Argument_List;
+         Env  : Environment_Dict;
+         Null_In : File_Descriptor;
+         Out_R, Out_W : File_Descriptor;
+         Err_R, Err_W : File_Descriptor;
+         Handle : Process_Handle;
+      begin
+         Open_Pipe (Out_R, Out_W);
+         Open_Pipe (Err_R, Err_W);
+         Null_In := Open (Null_File, Read_Mode);
+         Args.Append (Coyote);
+         Args.Append ("--subagent");
+         Args.Append ("--frontend");
+         Args.Append ("invalid");
+         Handle := Start
+           (Args        => Args,
+            Env         => Env,
+            Stdin       => Null_In,
+            Stdout      => Out_W,
+            Stderr      => Err_W,
+            Cwd         => Ada.Directories.Current_Directory,
+            Inherit_Env => True);
+         Close (Null_In);
+         Close (Out_W);
+         Close (Err_W);
+         Stdout_Out := Read (Out_R);
+         Stderr_Out := Read (Err_R);
+         Close (Out_R);
+         Close (Err_R);
+         Exit_Code := Wait (Handle);
+      end;
+
+      Assert (Exit_Code /= 0,
+              "malformed inherited depth must fail");
+      Assert
+        (Ada.Strings.Fixed.Index
+           (To_String (Stderr_Out), "invalid COYOTE_RECURSION_DEPTH")
+           > 0,
+         "malformed depth error should be reported on stderr");
+
+      Ada.Environment_Variables.Set ("HOME", Old_Home);
+      if not Home_Was_Set then
+         Ada.Environment_Variables.Clear ("HOME");
+      end if;
+      if Depth_Was_Set then
+         Ada.Environment_Variables.Set
+           ("COYOTE_RECURSION_DEPTH", Old_Depth);
+      else
+         Ada.Environment_Variables.Clear ("COYOTE_RECURSION_DEPTH");
+      end if;
+      if Ada.Directories.Exists (Home) then
+         Ada.Directories.Delete_Tree (Home);
+      end if;
+   exception
+      when others =>
+         if Ada.Text_IO.Is_Open (File) then
+            Ada.Text_IO.Close (File);
+         end if;
+         Ada.Environment_Variables.Set ("HOME", Old_Home);
+         if not Home_Was_Set then
+            Ada.Environment_Variables.Clear ("HOME");
+         end if;
+         if Depth_Was_Set then
+            Ada.Environment_Variables.Set
+              ("COYOTE_RECURSION_DEPTH", Old_Depth);
+         else
+            Ada.Environment_Variables.Clear ("COYOTE_RECURSION_DEPTH");
+         end if;
+         if Ada.Directories.Exists (Home) then
+            Ada.Directories.Delete_Tree (Home);
+         end if;
+         raise;
+   end Test_Subagent_Recursion_Limit;
 
 end Subagent_Integration_Tests;

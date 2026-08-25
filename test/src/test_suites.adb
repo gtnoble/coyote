@@ -1057,6 +1057,9 @@ package body Test_Suites is
         ("[subagent] Prompt-failure one-shot still returns session_id",
          Subagent_Integration_Tests
            .Test_One_Shot_Prompt_Failure_Has_Session_Id'Access));
+      Result.Add_Test (Subagent_Int_Caller.Create
+        ("[subagent] Recursion limit rejects nested invocation",
+         Subagent_Integration_Tests.Test_Subagent_Recursion_Limit'Access));
 
       --  LLM.System_Prompt tests
       Result.Add_Test (LLM_Sys_Prompt_Caller.Create
@@ -1421,6 +1424,9 @@ package body Test_Suites is
       Result.Add_Test (LLM_Settings_Caller.Create
         ("LLM.Settings loads default sandbox profile",
          LLM_Settings_Tests.Test_Default_Sandbox_Profile_Loaded'Access));
+      Result.Add_Test (LLM_Settings_Caller.Create
+        ("LLM.Settings loads and validates max recursion depth",
+         LLM_Settings_Tests.Test_Max_Recursion_Depth_Invalid_Defaults'Access));
       Result.Add_Test (LLM_Settings_Caller.Create
         ("LLM.Settings Save_Preferences preserves and clears fields",
          LLM_Settings_Tests.Test_Save_Preferences_Preserves_And_Clears'Access));

@@ -11,6 +11,33 @@
 
 ## Design Rationale
 
+## 2026-08-25 — Subagent recursion-depth limit
+
+**Requirement:** REQ-CORE-025 limits nested `--subagent` processes using the
+persistent `maxRecursionDepth` setting and inherited `COYOTE_RECURSION_DEPTH`
+context.
+
+**Design:** `coyote.adb` initializes an absent depth to zero, increments it
+only when `--subagent` is present, rejects an incremented value above the
+configured maximum before frontend/session/provider startup, and exports the
+successful value for descendants. The setting defaults to 1 and invalid or
+out-of-range JSON values fall back to that default. Ordinary processes,
+including forks and New Window launches, preserve the inherited value because
+they do not use `--subagent`.
+
+**Rationale:** Enforcing the limit in the child process avoids mutating the
+parent's process-global environment before parallel shell calls. Environment
+inheritance makes the value available through shell commands without changes
+to the shell tool or detached-window launcher. This is an accidental-recursion
+control, not a security boundary, because a command can explicitly override
+its environment.
+
+**Verification:** Added settings and process-level regressions covering valid,
+missing, negative, and non-integer settings plus early rejection with a
+nonzero exit and stderr error, including malformed inherited depth. Production
+and test development builds succeed; the complete suite passes 925/925 with
+zero failed assertions and zero unexpected errors.
+
 ## 2026-08-08 — Dedicated subagent model preference
 
 `LLM.Settings` now loads and atomically persists optional

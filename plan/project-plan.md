@@ -1,6 +1,6 @@
 # Project Plan — coyote
 
-**Version:** 1.22
+**Version:** 1.23
 **Date:** 2026-08-25
 **Status:** Active
 
@@ -788,6 +788,28 @@ component/replay demonstrations and DEM-044 qualification for 100, 500, and
 2,000 exchanges remain pending. The developer evaluated their own corrective
 work; independent user review remains invited.
 
+### Review 17 — PCR-077 Subagent Recursion-Depth Limit (2026-08-25)
+
+**Review type:** Software requirements, design, implementation, and test-results review
+**Trigger:** User-approved implementation of a configurable maximum recursion
+limit for shell-launched `--subagent` processes.
+
+| Indicator | Value |
+|---|---|
+| Requirements volatility | SRS-CORE v1.17: one new requirement (REQ-CORE-025); configuration requirement amended. |
+| Component progress | Recursion-depth setting, startup enforcement, regression tests, and documentation complete. |
+| Open problems | PCR-077 resolved; DEM-045 remains for manual user-visible qualification. |
+| Milestone status | Implementation and automated qualification complete. |
+| Scope changes | One approved subagent recursion-control enhancement. |
+| Test results trend | Production and test development builds succeed; full suite passes 925/925 with zero failed assertions and zero unexpected errors. |
+
+**Disposition:** `maxRecursionDepth` defaults to 1. `COYOTE_RECURSION_DEPTH`
+is inherited through shell-launched processes and incremented only by
+`--subagent`. Over-limit children are rejected before frontend/session startup.
+Fork and New Window launches do not add recursion depth. The developer
+performed the self-evaluation; independent user review and DEM-045 remain
+invited.
+
 ## 9. Artifact Version Table
 
 
@@ -795,9 +817,9 @@ work; independent user review remains invited.
 |---|---|---|---|---|
 | Project Plan | PLAN | `plan/project-plan.md` | 1.22 (2026-08-25) | Project |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
-| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.16 (2026-08-25) | Client |
-| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.17 (2026-08-25) | Project |
+| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.17 (2026-08-25) | Client |
+| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.18 (2026-08-25) | Project |
 | coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.2 (2026-06-21) | Project |
 | coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.2 (2026-06-21) | Project |
-| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.18 (2026-08-25) | Project |
+| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.19 (2026-08-25) | Project |
 | Agent Working Instructions (secondary) | AGENTS | `AGENTS.md` | active | Project |

@@ -1,7 +1,7 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.17
+**Version:** 1.18
 **Date:** 2026-08-25
 
 **Status:** Reviewed — project control (M3 complete 2026-06-02)
@@ -486,7 +486,8 @@ simple and auditable.*
 
 **Inputs:** `Ada.Command_Line.Argument_Count` / `Argument`; environment
 variables `$winid`, `$DISPLAY`, `$WAYLAND_DISPLAY`, `COYOTE_FRONTEND`,
-`COYOTE_NO_SESSION`, `COYOTE_SESSION_ID`, `COYOTE_PARENT_SESSION`, `COYOTE_THINKING_LEVEL`.
+`COYOTE_NO_SESSION`, `COYOTE_SESSION_ID`, `COYOTE_PARENT_SESSION`,
+`COYOTE_THINKING_LEVEL`, `COYOTE_RECURSION_DEPTH`.
 
 **Outputs:** `Coyote_App.Options` record passed to `Run` or `Run_GUI`;
 environment variable `COYOTE_FRONTEND` set when the frontend is a windowing kind (Acme or GUI).
@@ -494,6 +495,13 @@ environment variable `COYOTE_FRONTEND` set when the frontend is a windowing kind
 **Control flow:**
 1. Parse arguments sequentially. Each recognised flag sets the corresponding
    field in `Opts`. Unknown arguments trigger `Put_Line (Standard_Error, ...)`.
+2. Before frontend, session, or provider startup, load `maxRecursionDepth`
+   (default 1) and parse the inherited `COYOTE_RECURSION_DEPTH` (default 0).
+   Increment only for `--subagent`; reject an incremented value above the
+   maximum, or malformed inherited text, through `Bad_Arg_Error`. Export the
+   resulting depth for descendants. Ordinary coyote processes preserve the
+   inherited value; forks and New Window processes do not add a level because
+   they do not use `--subagent`.
 2a. If `$COYOTE_THINKING_LEVEL` is set, `Coyote_App.Run` inherits the
     parent's thinking level, overriding the `defaultThinkingLevel` from
     `settings.json`.
@@ -1411,6 +1419,8 @@ made by the GUI Preferences dialog or the Acme SetDefault command.
 - `Prompt_Filter` — interactive prompt filter command from `promptFilter`.
 - `Completion_Notifications` — boolean `completionNotifications`; absent or
   malformed values default to True.
+- `Max_Recursion_Depth` — nonnegative `maxRecursionDepth`; absent, negative,
+  non-integer, or out-of-range values default to 1.
 - Raw provider model entries and API-key configuration are read from
   `models.json`.
 
@@ -2275,7 +2285,7 @@ neither task may share mutable frontend state with the other.
 | REQ-CORE-210–212 | `Nine_P.Client`, `Acme.Window`, `Coyote_App.Frontend.Acme_Win` |
 | REQ-CORE-220–221, 133–139 | `Coyote_App.Frontend.GUI`, `Coyote_GUI.Conversation_Stack`, `Coyote_GUI.Exchange_View`, `Coyote_GUI.*` |
 | REQ-CORE-504a | `Coyote_Help`, `share/help/C/coyote/` Mallard documentation |
-| REQ-CORE-230–234 | `LLM.Settings`, `LLM.Auth`, `LLM.Auth.GitHub_Copilot` |
+| REQ-CORE-025, 230–234 | `Coyote`, `LLM.Settings`, `LLM.Auth`, `LLM.Auth.GitHub_Copilot` |
 | REQ-CORE-240–241 | `LLM.Session_Store` |
 | REQ-CORE-300–302 | `Coyote_App.Frontend`, `LLM.Events`, `LLM.Tools.Temp_File` |
 | REQ-CORE-400–402 | `LLM.Types`, `LLM.Compaction`, `LLM.Agent` |
