@@ -7,6 +7,7 @@ with Ada.Text_IO;
 with Coyote_App.Utils;       use Coyote_App.Utils;
 with Coyote_GUI;
 with Coyote_GUI.Tool_Detail_Window;
+with Coyote_Renderer.Markup;
 with Glib;                   use Glib;
 with Gtk.Adjustment;
 with Gtk.Handlers;
@@ -30,6 +31,7 @@ package body Coyote_GUI.Conversation_Stack is
    use type Gtk.Box.Gtk_Box;
    use type Gtk.Scrolled_Window.Gtk_Scrolled_Window;
    use type Gtk.Text_Buffer.Gtk_Text_Buffer;
+   use type Gtk.Text_Mark.Gtk_Text_Mark;
    use type Gtk.Text_View.Gtk_Text_View;
    use type Gtk.Window.Gtk_Window;
 
@@ -90,6 +92,28 @@ package body Coyote_GUI.Conversation_Stack is
       Buffer.Get_End_Iter (Iter);
       Buffer.Insert (Iter, Text);
    end Append_Buffer;
+
+   procedure Replace_Streamed_Text (C : in out Instance) is
+      Start_Iter : Gtk.Text_Iter.Gtk_Text_Iter;
+      End_Iter   : Gtk.Text_Iter.Gtk_Text_Iter;
+      Full_Text  : constant String :=
+        Sanitize_UTF8 (To_String (C.Stream_Buf));
+      Markup     : constant String :=
+        Coyote_Renderer.Markup.To_Pango_Markup (Full_Text);
+   begin
+      if C.Active_Text = null or else C.Stream_Mark = null then
+         return;
+      end if;
+      C.Active_Text.Get_Iter_At_Mark (Start_Iter, C.Stream_Mark);
+      C.Active_Text.Get_End_Iter (End_Iter);
+      C.Active_Text.Delete (Start_Iter, End_Iter);
+      C.Active_Text.Get_Iter_At_Mark (Start_Iter, C.Stream_Mark);
+      if Markup'Length > 0 then
+         C.Active_Text.Insert_Markup (Start_Iter, Markup, -1);
+      else
+         C.Active_Text.Insert (Start_Iter, Full_Text);
+      end if;
+   end Replace_Streamed_Text;
 
    procedure Configure_Text_View
      (View : not null access Gtk.Text_View.Gtk_Text_View_Record'Class)
@@ -314,6 +338,8 @@ package body Coyote_GUI.Conversation_Stack is
       C.Step_Box       := null;
       C.Active_Text    := null;
       C.Active_View    := null;
+      C.Stream_Mark    := null;
+      C.Stream_Buf     := Null_Unbounded_String;
       C.Thinking       := null;
       C.Thinking_View  := null;
       C.Transcript     := Null_Unbounded_String;
@@ -370,7 +396,16 @@ package body Coyote_GUI.Conversation_Stack is
          Add_Text_Element
            (C, C.Step_Box, "Response", "", C.Active_Text, C.Active_View);
          C.Text_Open := True;
+         C.Stream_Buf := Null_Unbounded_String;
+         declare
+            Iter : Gtk.Text_Iter.Gtk_Text_Iter;
+         begin
+            C.Active_Text.Get_End_Iter (Iter);
+            C.Stream_Mark := C.Active_Text.Create_Mark
+              ("", Iter, Left_Gravity => True);
+         end;
       end if;
+      Append (C.Stream_Buf, Text);
       Append_Buffer (C.Active_Text, Text);
       Append (C.Transcript, Text);
    end Append_Text;
@@ -378,9 +413,17 @@ package body Coyote_GUI.Conversation_Stack is
    procedure End_Text_Block (C : in out Instance) is
    begin
       if C.Text_Open then
+         if C.Render_Markdown then
+            Replace_Streamed_Text (C);
+         end if;
          Append_Buffer (C.Active_Text, ASCII.LF & ASCII.LF);
          Append (C.Transcript, ASCII.LF & ASCII.LF);
-         C.Text_Open := False;
+         if C.Stream_Mark /= null then
+            C.Active_Text.Delete_Mark (C.Stream_Mark);
+         end if;
+         C.Stream_Mark := null;
+         C.Stream_Buf  := Null_Unbounded_String;
+         C.Text_Open   := False;
       end if;
    end End_Text_Block;
 
@@ -803,6 +846,16 @@ package body Coyote_GUI.Conversation_Stack is
         (Insert_Iter, C.Active_Text.Get_Insert);
       C.Active_Text.Place_Cursor (Insert_Iter);
    end Clear_Selection;
+
+   procedure Set_Render_Markdown (C : in out Instance; Enabled : Boolean) is
+   begin
+      C.Render_Markdown := Enabled;
+   end Set_Render_Markdown;
+
+   function Get_Render_Markdown (C : Instance) return Boolean is
+   begin
+      return C.Render_Markdown;
+   end Get_Render_Markdown;
 
    procedure Set_Font
      (C    : in out Instance;

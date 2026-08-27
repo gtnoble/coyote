@@ -25,6 +25,8 @@ package Coyote_GUI_Conversation_Stack_Tests is
 
    procedure Test_Creates_Single_Outer_Host (T : in out Test);
    procedure Test_Request_And_Streaming_Are_Incremental (T : in out Test);
+   procedure Test_Native_Markdown_Renders_After_Streaming (T : in out Test);
+   procedure Test_Native_Markdown_Toggle_Disables_Rendering (T : in out Test);
    procedure Test_Assistant_Content_Uses_Visible_Step_Frame
      (T : in out Test);
    procedure Test_Footer_Closes_Step_Before_Next_Step

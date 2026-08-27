@@ -156,7 +156,12 @@ without a `"thinking"` key are parsed correctly with a zero thinking token count
 ### 2.5 Shared Renderer Extraction
 
 **Files affected:** `src/coyote_gui/coyote_gui-buffer.ads/.adb`,
-`src/coyote_app/coyote_app-frontend-gui.adb`, new `src/coyote_renderer/`.
+`src/coyote_gui/coyote_gui-conversation_stack.ads/.adb`,
+`src/coyote_app-frontend-gui.adb`, new `src/coyote_renderer/`.
+
+The shared converter is used by the native stack for completed response
+blocks and by the text-buffer replay path; the legacy GtkLayout renderer keeps
+its specialized cmark/Lasem adapter for virtualization and display math.
 
 The markdown-to-Pango-markup function `To_Pango_Markup` and its helpers (`Xml_Escape`,
 the cmark tree-walk, and table rendering) shall be extracted from `Coyote_GUI.Buffer`

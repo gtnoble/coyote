@@ -2,9 +2,13 @@
 --
 --  Project: coyote
 
+with Gtk.Text_Buffer;
+with Gtk.Text_Iter;
+
 package body Coyote_GUI.Conversation_Stack.Testing is
 
    use type Gtk.Label.Gtk_Label;
+   use type Gtk.Text_Buffer.Gtk_Text_Buffer;
 
    function Has_Exchange
      (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean
@@ -50,6 +54,20 @@ package body Coyote_GUI.Conversation_Stack.Testing is
    begin
       return C.Active_View;
    end Active_Text_View;
+
+   function Active_Text
+     (C : Coyote_GUI.Conversation_Stack.Instance) return String
+   is
+      Start_Iter : Gtk.Text_Iter.Gtk_Text_Iter;
+      End_Iter   : Gtk.Text_Iter.Gtk_Text_Iter;
+   begin
+      if C.Active_Text = null then
+         return "";
+      end if;
+      C.Active_Text.Get_Start_Iter (Start_Iter);
+      C.Active_Text.Get_End_Iter (End_Iter);
+      return C.Active_Text.Get_Text (Start_Iter, End_Iter);
+   end Active_Text;
 
    function Step_Frame_Count
      (C : Coyote_GUI.Conversation_Stack.Instance) return Natural

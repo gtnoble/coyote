@@ -3,7 +3,8 @@
 **Components:** `Coyote_App`, `Coyote_App.Dispatch`, `Coyote_App.History`,
 `Coyote_App.Utils`, `Coyote_App.Frontend`, `Coyote_App.Frontend.Acme_Win`,
 `Coyote_App.Frontend.GUI`, `Coyote_App.Frontend.Plain`,
-`Coyote_GUI.*`, `Coyote_GUI.Conversation`, `Coyote_Cmark`, `Acme.*`, `Nine_P.*`
+`Coyote_GUI.*`, `Coyote_GUI.Conversation`, `Coyote_Renderer.*`,
+`Coyote_Cmark`, `Acme.*`, `Nine_P.*`
 
 **Source files:** `src/coyote_app*.ads/.adb`, `src/coyote_gui/*`,
 `src/coyote_help.ads/.adb`, `share/help/C/coyote/*.page`,
@@ -11,6 +12,7 @@
 `share/icons/hicolor/scalable/apps/coyote.svg`,
 `src/coyote_cmark*.ads/.adb`, `src/coyote_cmark_c.c`,
 `src/coyote_lasem*.ads/.adb`, `src/coyote_lasem_c.c`,
+`src/coyote_renderer/*.ads/.adb`,
 `src/acme*.ads/.adb`, `src/nine_p*.ads/.adb`
 
 ---
@@ -266,6 +268,29 @@ height expands as wrapping changes.
 - Selection, copy-to-clipboard, tool-click detail windows, action strips,
   thinking blocks, notices, and turn footers are all supported.
 - The old `Coyote_GUI.Buffer` package is retained as dead code for reference.
+
+### Native Markdown response rendering (2026-08-27)
+
+The native `Coyote_GUI.Conversation_Stack` now retains each streamed assistant
+response block and replaces the temporary plain text at `End_Text_Block` with
+GFM-to-Pango markup from `Coyote_Renderer.Markup`. The Render Markdown toggle
+and zoom route to whichever GUI renderer is selected. Native GTK selection
+continues to expose visible plain text, while the accessibility transcript
+remains unchanged. This increment covers basic Markdown conversion only;
+native display MathML, live/replay Markdown qualification, and large-history
+qualification remain open. The legacy GtkLayout renderer, Acme, and Plain
+frontends retain their existing semantics.
+
+Renderer parity for this increment is defined by supported content and
+interaction, not pixel-identical layout:
+
+| Capability | GtkLayout | Native stack | Acme/Plain | SQC replay |
+|---|---|---|---|---|
+| GFM Markdown response content | Implemented | Implemented | Plain text | Implemented |
+| Markdown toggle | Implemented | Implemented | N/A | N/A |
+| Display MathML | Implemented | Deferred | Plain text | Separate |
+| Live/replay native hierarchy | Legacy model | Qualification pending | N/A | Replay model |
+| Large-history qualification | Baseline | Pending | N/A | Separate |
 
 ### `Coyote_Lasem` binding
 
@@ -657,9 +682,9 @@ window. Math remains a localized Lasem-backed child widget or cached image with
 readable source/fallback content.
 
 The current `Coyote_GUI.Conversation` GtkLayout/Cairo/Pango renderer remains
-the implementation baseline until the native stack is implemented and
-qualified. Its existing Markdown, UTF-8, thinking, tool-ID, and MathML logic
-will be extracted or adapted rather than duplicated. The existing
+the implementation baseline until native-stack qualification completes. Its
+existing Markdown, UTF-8, thinking, tool-ID, and MathML logic remains the
+legacy adapter; basic native Markdown now uses `Coyote_Renderer.Markup`. The
 `Coyote_GUI.Buffer` and `Coyote_Renderer.Markup` units provide native text-tag
 and Markdown precedents.
 
@@ -703,11 +728,14 @@ until display-backed qualification completes. The native footer status-row
 regression is covered by the focused test suite. The fixture-isolation and
 exchange-reset correction is now implemented: the native-stack fixture clears
 its reusable stack between tests, and `Begin_Request` clears the prior
-exchange's step-frame bookkeeping. The 10 native-stack tests pass 10/10, and
-the complete 921-test development suite passes 921/921 with zero failed
-assertions and zero unexpected errors. The automated step-frame failures are
-resolved; display-backed DEM-042/043 and DEM-044 large-history qualification
-remain pending.
+exchange's step-frame bookkeeping. The 12 native-stack tests are registered;
+the two Markdown regressions cover post-stream conversion and disabled-rendering
+source preservation. Production
+and test development builds succeed. The complete suite was attempted under
+`xvfb-run` but timed out with unrelated environment-dependent failures, so no
+full-suite acceptance claim is made. Display-backed DEM-042/043, native
+Markdown DEM-046/047, native MathML DEM-048, and DEM-044 large-history
+qualification remain pending.
 
 The separately named `Exchange_View`, `Text_Element`, `Tool_Card`,
 `Math_Element`, and `Footer_Element` units remain deferred because this slice

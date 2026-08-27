@@ -18,6 +18,7 @@ with Gtk.Label;
 with Gtk.Scrolled_Window;
 with Gtk.Separator;
 with Gtk.Text_Buffer;
+with Gtk.Text_Mark;
 with Gtk.Text_View;
 with Gtk.Window;
 with Pango.Font;
@@ -121,6 +122,10 @@ package Coyote_GUI.Conversation_Stack is
    procedure Select_All (C : in out Instance);
    procedure Clear_Selection (C : in out Instance);
 
+   --  Enable or disable Markdown rendering for completed response blocks.
+   procedure Set_Render_Markdown (C : in out Instance; Enabled : Boolean);
+   function Get_Render_Markdown (C : Instance) return Boolean;
+
    procedure Set_Font
      (C    : in out Instance;
       Desc : Pango.Font.Pango_Font_Description);
@@ -162,6 +167,8 @@ private
       Step_Frames       : Frame_Vectors.Vector;
       Active_Text       : Gtk.Text_Buffer.Gtk_Text_Buffer;
       Active_View       : Gtk.Text_View.Gtk_Text_View;
+      Stream_Mark       : Gtk.Text_Mark.Gtk_Text_Mark;
+      Stream_Buf        : Ada.Strings.Unbounded.Unbounded_String;
       Thinking          : Gtk.Text_Buffer.Gtk_Text_Buffer;
       Thinking_View     : Gtk.Text_View.Gtk_Text_View;
       Tools             : Tool_Maps.Map;
@@ -176,6 +183,7 @@ private
       Last_Status       : Coyote_GUI.Completion_Status := Coyote_GUI.Completed;
       Debug_Logging     : Boolean := False;
       Fork_Callback     : Fork_Handler;
+      Render_Markdown   : Boolean := True;
       Footer_Separator  : Gtk.Separator.Gtk_Separator;
       Footer_Label      : Gtk.Label.Gtk_Label;
       Fork_Button       : Gtk.Button.Gtk_Button;

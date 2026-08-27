@@ -2664,3 +2664,36 @@ behavior, current test baseline, and remaining manual qualification scope.
   errors. The native footer status-row regression continues to pass.
 - **Status:** Resolved
 - **Date resolved:** 2026-08-25
+
+## PCR-078 — Native GTK Markdown parity scope and qualification
+
+- **Date reported:** 2026-08-27
+- **Category:** Requirements, Design, Code, Test, Plans
+- **Priority:** 3-Moderate
+- **Description:** The opt-in native GTK component stack had native text
+  widgets but inserted assistant Markdown as raw text. Core and SQC documents
+  also did not clearly distinguish the common Markdown content contract from
+  renderer-specific GTK/layout realization or from native display MathML.
+- **Affected work products:** `Coyote_GUI.Conversation_Stack`,
+  `Coyote_App.Frontend.GUI`, SRS-CORE, SDD-CORE, TEST-PLAN,
+  `sdfs/frontends.md`, SRS-SQC, and `sdfs/coyote-sqc.md`.
+- **Corrective action required:** Retain streamed response text, convert
+  completed native response blocks through `Coyote_Renderer.Markup`, route the
+  Markdown toggle and zoom to the selected renderer, add native regression
+  coverage, define content versus pixel parity, and track native MathML and
+  live/replay qualification separately.
+- **Actions taken:** Implemented native response-block replacement with shared
+  GFM-to-Pango markup, native Markdown preference accessors, selected-renderer
+  toggle and zoom routing, a native buffer test accessor, and two native
+  Markdown regressions. Updated requirements, design, test-plan, frontend and
+  SQC development logs, and added DEM-046 through DEM-048 for display-backed
+  Markdown, replay parity, and deferred native MathML qualification.
+- **Verification:** Production and test development builds succeed with
+  `alr build` and `cd test && alr build`. Twelve native-stack tests are
+  registered, including the two new Markdown tests. The two new tests pass
+  individually with the available GTK display. The complete suite was
+  attempted without `xvfb-run` because it is unavailable in this environment,
+  then timed out with unrelated environment-dependent failures; native
+  Markdown acceptance and display-backed qualification remain open.
+- **Status:** In progress — basic implementation complete; qualification
+  pending.

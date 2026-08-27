@@ -3117,6 +3117,14 @@ package body Test_Suites is
          Coyote_GUI_Conversation_Stack_Tests
            .Test_Request_And_Streaming_Are_Incremental'Access));
       Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack renders Markdown",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Native_Markdown_Renders_After_Streaming'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack toggles Markdown rendering",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Native_Markdown_Toggle_Disables_Rendering'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
         ("Coyote.GUI.Conversation_Stack uses visible step frames",
          Coyote_GUI_Conversation_Stack_Tests
            .Test_Assistant_Content_Uses_Visible_Step_Frame'Access));

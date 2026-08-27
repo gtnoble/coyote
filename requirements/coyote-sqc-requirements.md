@@ -97,7 +97,9 @@ were recorded. Corresponds to Coyote's concept of a "project directory."
 
 **Session replay**  
 A read-only rendered view of a session's conversation — assistant text, thinking
-blocks, and tool call frames — as rendered in the Coyote GUI.
+blocks, and tool call frames — using the same supported assistant Markdown
+content contract as the Coyote GUI. Renderer-specific widget structure,
+spacing, tool-card realization, and display-math support may differ.
 
 ---
 
@@ -3431,8 +3433,10 @@ The session replay renderer shall be implemented as a standalone Ada package,
 `Coyote_Renderer`, that is compiled into both the Coyote GUI application and
 `coyote_sqc`. This package encapsulates:
 
-- Markdown to Pango markup conversion (via libcmark-gfm with GFM extensions).
-- Thinking block rendering (collapsible or inline, matching Coyote GUI appearance).
+- Markdown to Pango markup conversion for the shared text-buffer replay path,
+  using libcmark-gfm with GFM extensions and the common GUI Markdown contract.
+- Thinking block rendering (collapsible or inline, with equivalent readable
+  content; exact widget appearance may differ from either main-GUI renderer).
 - Tool call frame rendering as embedded GtkFrame widgets via GtkTextChildAnchor.
 - Text tag definitions for thinking, notices, and footers.
 

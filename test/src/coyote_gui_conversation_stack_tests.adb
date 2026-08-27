@@ -70,6 +70,7 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          else
             Clear (T.Stack);
          end if;
+         Set_Render_Markdown (T.Stack, True);
       end if;
    end Set_Up;
 
@@ -158,6 +159,49 @@ package body Coyote_GUI_Conversation_Stack_Tests is
               & "first second" & ASCII.LF & ASCII.LF,
               "streaming updates one native text component");
    end Test_Request_And_Streaming_Are_Incremental;
+
+   procedure Test_Native_Markdown_Renders_After_Streaming
+     (T : in out Test)
+   is
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Begin_Request (T.Stack, "request", Prompt);
+      Append_Text (T.Stack, "**bold** and `code`");
+      End_Text_Block (T.Stack);
+      declare
+         Text : constant String := Active_Text (T.Stack);
+      begin
+         Assert (Index (Text, "bold and code") > 0,
+                 "native Markdown renders visible text after streaming");
+         Assert (Index (Text, "**") = 0,
+                 "native Markdown removes strong delimiters");
+         Assert (Index (Text, "`") = 0,
+                 "native Markdown removes code delimiters");
+      end;
+   end Test_Native_Markdown_Renders_After_Streaming;
+
+   procedure Test_Native_Markdown_Toggle_Disables_Rendering
+     (T : in out Test)
+   is
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Set_Render_Markdown (T.Stack, False);
+      Assert (not Get_Render_Markdown (T.Stack),
+              "native Markdown rendering can be disabled");
+      Begin_Request (T.Stack, "request", Prompt);
+      Append_Text (T.Stack, "**bold**");
+      End_Text_Block (T.Stack);
+      declare
+         Text : constant String := Active_Text (T.Stack);
+      begin
+         Assert (Index (Text, "**bold**") > 0,
+                 "disabled native Markdown preserves source text");
+      end;
+   end Test_Native_Markdown_Toggle_Disables_Rendering;
 
    procedure Test_Assistant_Content_Uses_Visible_Step_Frame
      (T : in out Test)

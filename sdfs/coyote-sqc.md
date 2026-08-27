@@ -55,8 +55,11 @@ back-transformed values so the scale is interpretable.
 
 `Coyote_Renderer.Markup` (Pango markup generation) and
 `Coyote_Renderer.Session_View` (session replay rendering) are shared between
-the main coyote GUI frontend and coyote_sqc's detail panel. This avoids
-duplicating the libcmark-gfm integration and the session JSONL replay logic.
+the native text-buffer replay path and coyote_sqc's detail panel. The legacy
+GtkLayout renderer retains its specialized logical-line adapter for virtualized
+layout and Lasem display math. Shared replay guarantees the common supported
+Markdown content contract; widget structure and display-math realization may
+differ between renderers.
 
 
 ### Percentile bootstrap for two-set CI

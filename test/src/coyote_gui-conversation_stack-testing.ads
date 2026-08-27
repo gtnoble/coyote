@@ -34,6 +34,9 @@ package Coyote_GUI.Conversation_Stack.Testing is
      (C : Coyote_GUI.Conversation_Stack.Instance)
       return Gtk.Text_View.Gtk_Text_View;
 
+   function Active_Text
+     (C : Coyote_GUI.Conversation_Stack.Instance) return String;
+
    function Step_Frame_Count
      (C : Coyote_GUI.Conversation_Stack.Instance) return Natural;
 

@@ -79,8 +79,9 @@ owner) is invited to independently review test results before accepting them.
 ### 3.3 Test Infrastructure
 
 **AUnit automated tests:** `test/src/` contains the full AUnit suite.
-The suite is self-contained: all non-integration tests run without a live
-acme instance, live LLM provider, or display. Fixtures are in `test/fixtures/`.
+The suite is self-contained except for GTK widget tests, which require GTK3
+and a display or `xvfb-run`. Non-GUI tests run without a live acme instance,
+live LLM provider, or display. Fixtures are in `test/fixtures/`.
 
 **Integration tests:** Tests in the following files require a live environment
 and are **opt-in** (guarded by environment variable checks at test startup):
@@ -183,7 +184,7 @@ SRS-CORE requirement groups.
 | `coyote_gui_notification_policy_tests.adb` | REQ-CORE-127 (notification eligibility policy) | 4 |
 | `coyote_gui_mode_tests.adb` | REQ-CORE-113 Agent-menu availability by run mode | 1 |
 | `coyote_gui_session_stats_window_tests.adb` | REQ-CORE-113d; typed snapshot retention, reset, and idempotent support-window creation | 3 |
-| `coyote_gui_conversation_stack_tests.adb` | REQ-CORE-133..139; native stack host, visible per-step frames, incremental text, stable tool IDs, native status-row footers, functional fork buttons, explicit completion lifecycle, and reset | 10 |
+| `coyote_gui_conversation_stack_tests.adb` | REQ-CORE-111, 133..139; native stack host, visible per-step frames, incremental text, native GFM Markdown replacement, Markdown toggle, stable tool IDs, native status-row footers, functional fork buttons, explicit completion lifecycle, and reset | 12 |
 
 | `coyote_gui_prompt_queue_tests.adb` | REQ-CORE-116..119, 128; typed preference payload transport | 1 |
 | `coyote_help_tests.adb` | REQ-CORE-113a, REQ-CORE-504a; Yelp URI construction, area mapping, executable detection, and Product Information text | 4 |
@@ -201,7 +202,7 @@ SRS-CORE requirement groups.
 | `acme_event_parser_tests.adb` | REQ-CORE-100â109 | ~20 |
 | `acme_raw_events_tests.adb` | REQ-CORE-100 | ~10 |
 
-**Total automated tests (current):** **864**
+**Total automated tests (current):** **927**
 
 ### 4.3 Planned Tests â Demonstration
 
@@ -217,6 +218,9 @@ behaviour. Results are recorded in a Test Report.
 | DEM-004 | REQ-CORE-019 | `coyote --one-shot --prompt "echo hello"` exits after one turn; check exit code 0 and JSON on stdout |
 | DEM-005 | REQ-CORE-020 | `coyote --subagent --prompt "hello"` opens a window (does not force Plain) |
 | DEM-045 | REQ-CORE-025 | Set `maxRecursionDepth` to 1; invoke coyote with inherited `COYOTE_RECURSION_DEPTH=1` and `--subagent`; verify it exits non-zero before opening a frontend and reports the limit on stderr |
+| DEM-046 | REQ-CORE-111, 125 | In a display-backed native-stack GUI (`COYOTE_NATIVE_STACK=1`), render a fixture containing headings, inline formatting, code, lists, tables, links, strikethrough, and a thematic break. Verify conversion occurs after streaming, local selection exposes plain text, the Render Markdown toggle preserves source text when disabled, and zoom changes native response font size. |
+| DEM-047 | REQ-CORE-111, 131, 137 | Render the same Markdown response live and by session replay in the native GUI. Verify equivalent supported visible content and response-block boundaries, and verify Acme/Plain replay remains plain text. |
+| DEM-048 | REQ-CORE-124 | In a display-backed native-stack GUI, exercise valid and invalid standalone Presentation MathML blocks. Verify native realization, readable source/fallback on parse failure, local selection, and zoom. This procedure remains deferred until native MathML is implemented. |
 | DEM-006 | REQ-CORE-040â044 | Start a GUI session; send a prompt; verify streaming text, thinking, tool events, and stats appear |
 | DEM-007 | REQ-CORE-055 | Start a long tool execution; press Stop; verify tool is cancelled and agent exits cleanly |
 | DEM-008 | REQ-CORE-060 | Configure a small context window; send prompts until threshold reached; verify auto-compaction notice appears |
@@ -276,8 +280,16 @@ and must be demonstrated or inspected:
 - REQ-CORE-107 â Acme Pause/Resume (partial; pause mechanics tested in AUnit
   via `llm_agent_tests.adb`)
 - REQ-CORE-142 â SIGTERM handling (requires OS signal; manual test)
+- REQ-CORE-131, 137 â native live/replay Markdown parity (DEM-047)
+- REQ-CORE-124 â native display MathML realization and fallback (DEM-048)
+- REQ-CORE-138 â native large-history performance and display-backed zoom
+  qualification (DEM-044)
 
-These are entered as open items in the problem log (PCR-009).
+The native Markdown unit tests cover the basic conversion and toggle paths;
+these remaining items require display-backed demonstration or implementation
+of the deferred native MathML element.
+
+These are entered as open items in the problem log (PCR-009 and PCR-078).
 
 ---
 
@@ -328,14 +340,15 @@ These are entered as open items in the problem log (PCR-009).
 | REQ-CORE-090â093 | T | `llm_skills_tests.adb` |
 | REQ-CORE-100â109 | T/D | `acme_event_parser_tests.adb`, `tool_uri_tests.adb`, DEM-013 |
 | REQ-CORE-110â115 | T/D | `coyote_cmark_tests.adb`, `coyote_gui_conversation_tests.adb`, DEM-014, DEM-036..037 |
+| REQ-CORE-111 | T/D | `coyote_cmark_tests.adb`, `coyote_gui_conversation_tests.adb`, `coyote_gui_conversation_stack_tests.adb`, DEM-014, DEM-046..047 |
 | REQ-CORE-113a..113c | D/T/I | `coyote_gui_conversation_tests.adb`, `coyote_help_tests.adb`, `coyote_gui_mode_tests.adb`, DEM-036..039, Mallard validation, source inspection |
 | REQ-CORE-113d | D/T/I | `coyote_gui_session_stats_window_tests.adb`, DEM-040, source inspection |
 | REQ-CORE-113e | D/T/I | `coyote_gui_conversation_tests.adb`, `coyote_gui_conversation_stack_tests.adb`, `llm_session_store_tests.adb`, DEM-041..043, source inspection |
 | REQ-CORE-133..139 | D/T/I/A | `coyote_gui_conversation_stack_tests.adb`, DEM-042..044, source inspection, performance analysis |
 | REQ-CORE-504a | I/T | `coyote_help_tests.adb`, `yelp-check`, DEM-039 |
-| REQ-CORE-125 | T/D | `coyote_gui_zoom_tests.adb`, DEM-014 |
+| REQ-CORE-125 | T/D | `coyote_gui_zoom_tests.adb`, DEM-014, DEM-046 |
 | REQ-CORE-132 | D/T | `coyote_gui_navigation_tests.adb`, `coyote_gui_prompt_queue_tests.adb`, DEM-014 |
-| REQ-CORE-124 | T/D | `coyote_lasem_tests.adb`, `coyote_gui_conversation_tests.adb` |
+| REQ-CORE-124 | T/D | `coyote_lasem_tests.adb`, `coyote_gui_conversation_tests.adb`, DEM-048 (deferred native qualification) |
 | REQ-CORE-116 | D | DEM-033 |
 | REQ-CORE-117 | D | DEM-033 |
 | REQ-CORE-118 | T | `llm_settings_tests.adb`, `coyote_gui_prompt_queue_tests.adb` |
@@ -793,3 +806,11 @@ coverage for `maxRecursionDepth` and `COYOTE_RECURSION_DEPTH`. Production and
 test development builds succeed; the complete suite passes 925/925 with zero
 failed assertions and zero unexpected errors. DEM-045 remains the manual
 qualification procedure for user-visible startup rejection.
+
+**Baseline as of 2026-08-27 (PCR-078 native GTK Markdown):** 927 registered
+tests. Added native response-block Markdown replacement and toggle regressions.
+Production and test development builds succeed, and both new native Markdown
+tests pass individually with the available GTK display. Full-suite execution
+was attempted but timed out with unrelated environment-dependent failures.
+Native live/replay parity, display MathML, and large-history qualification
+remain pending under DEM-047, DEM-048, and DEM-044.

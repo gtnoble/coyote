@@ -2133,7 +2133,11 @@ package body Coyote_App.Frontend.GUI is
      (Self : access Gtk.Check_Menu_Item.Gtk_Check_Menu_Item_Record'Class) is
    begin
       if Current_Frontend /= null then
-         Current_Frontend.Conv.Set_Render_Markdown (Self.Get_Active);
+         if Current_Frontend.Stack_Enabled then
+            Current_Frontend.Stack.Set_Render_Markdown (Self.Get_Active);
+         else
+            Current_Frontend.Conv.Set_Render_Markdown (Self.Get_Active);
+         end if;
       end if;
    end On_Render_Markdown_Toggled;
 
@@ -2191,9 +2195,13 @@ package body Coyote_App.Frontend.GUI is
           (2 .. Integer'Image (Clamped)'Last);
       FD : Pango_Font_Description := From_String (Font_Str);
    begin
-      F.Conv.Set_Font
-        (FD,
-         Math_Scale => Long_Float (Clamped) / Long_Float (Base_Clamped));
+      if F.Stack_Enabled then
+         F.Stack.Set_Font (FD);
+      else
+         F.Conv.Set_Font
+           (FD,
+            Math_Scale => Long_Float (Clamped) / Long_Float (Base_Clamped));
+      end if;
       if F.Prompt_View /= null then
          F.Prompt_View.Override_Font (FD);
          declare

@@ -566,9 +566,20 @@ shall use spaces around the colon separator, and shall not contain
 transient lifecycle status.
 
 **REQ-CORE-111** (D)
-Assistant text shall be rendered with GitHub Flavored Markdown formatting
-(bold, italic, code spans, fenced code, tables, strikethrough, links) using
-libcmark-gfm.
+Completed assistant response blocks in every GUI conversation renderer shall
+be rendered with the supported GitHub Flavored Markdown contract using
+libcmark-gfm. The contract includes headings, bold, italic, inline code,
+fenced code, links, strikethrough, block quotes, bullet and ordered lists,
+nested-list indentation, ordered-list starting values, tables, and thematic
+breaks. A response may be displayed as plain text while it is streaming; the
+completed block shall be converted at block termination. Conversion failure
+shall preserve the source as visible escaped or plain text. Copying rendered
+text shall not expose Pango markup.
+
+When `COYOTE_NATIVE_STACK=1`, the native component-stack renderer shall apply
+the same content contract to assistant response blocks. This is content and
+interaction parity, not a requirement for pixel-identical layout between the
+native GTK widget hierarchy and the legacy GtkLayout renderer.
 
 **REQ-CORE-112** (D)
 Tool calls shall be rendered in the conversation view as graphical cards
@@ -663,7 +674,11 @@ viewport-scrolling behaviour.
 The GUI conversation view shall render standalone display-math blocks delimited
 by `$$`/`$$` and containing a complete Presentation MathML `<math>` document.
 The opening and closing `$$` delimiters shall be on standalone lines. If
-parsing fails, the original source shall remain visible as text.
+parsing fails, the original source shall remain visible as text. The current
+GtkLayout renderer satisfies this requirement; native component-stack
+realization is a separate qualification increment and shall not be claimed
+until its localized GTK/Lasem realization, fallback, selection, and zoom
+behaviour are demonstrated.
 **REQ-CORE-116** (D)
 The GUI frontend shall provide an `Options → Preferences...` dialog for editing
 persistent defaults without changing the active session. The dialog shall
@@ -819,8 +834,11 @@ When a session is resumed, the agent shall replay the stored conversation
 history into the active frontend so the user can see the prior exchange.
 
 **REQ-CORE-131** (D)
-The history replay shall render assistant messages with Markdown formatting
-in the GUI frontend and as plain text in the Acme and Plain frontends.
+History replay shall render assistant messages with the same supported
+Markdown content contract as live GUI rendering. The native component-stack
+and legacy GtkLayout renderers may use different GTK/layout structures, but
+shall present equivalent supported content and applicable selection behavior.
+Acme and Plain history replay shall remain plain text.
 
 ---
 
@@ -1355,10 +1373,14 @@ qualification requirements are identified.
 
 ## 4. Qualification Provisions
 
-Traceability from requirements to test cases. Test Plan reference:
-`plan/test-plan.md` (to be authored).
+Traceability from requirements to test cases. Current test procedures and
+status are maintained in `plan/test-plan.md`; the automated baseline is 927
+registered tests. Display-backed native GUI procedures remain separately
+identified in the Test Plan. The table below is the original qualification
+matrix and retains historical `TC-*` identifiers; the current mappings are in
+`plan/test-plan.md` §6.
 
-| Requirement ID | Description (abbreviated) | Verification | Test Case (TBD) |
+| Requirement ID | Description (abbreviated) | Verification | Historical Test Case |
 |---|---|---|---|
 | REQ-CORE-001 | Plain frontend on --one-shot | D | TC-001 |
 | REQ-CORE-002 | Acme frontend on $winid or COYOTE_FRONTEND=acme | D | TC-002 |

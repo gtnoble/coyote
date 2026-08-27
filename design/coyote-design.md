@@ -283,6 +283,9 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `Nine_P.Client` | 9P client: mount, open, read, write | `src/nine_p-client.ads/.adb` |
 | `Coyote_Cmark` | Ada binding to libcmark-gfm | `src/coyote_cmark.ads/.adb` |
 | `Coyote_Lasem` | Ada/C binding to Lasem Presentation MathML rendering | `src/coyote_lasem.ads/.adb`, `src/coyote_lasem_c.c` |
+| `Coyote_Renderer` | Shared GTK text/replay rendering root | `src/coyote_renderer/coyote_renderer.ads` |
+| `Coyote_Renderer.Markup` | GFM Markdown to Pango markup converter | `src/coyote_renderer/coyote_renderer-markup.ads/.adb` |
+| `Coyote_Renderer.Session_View` | Read-only session replay renderer | `src/coyote_renderer/coyote_renderer-session_view.ads/.adb` |
 | `Coyote_Notify` | Ada/C binding to libnotify desktop notifications | `src/coyote_notify.ads/.adb`, `src/coyote_notify_c.c` |
 | `Coyote_GUI.Notification_Policy` | Pure completion-notification eligibility policy | `src/coyote_gui/coyote_gui-notification_policy.ads/.adb` |
 | `Session_Lister` | Session listing for coyote_list_sessions | `src/session_lister.ads/.adb` |
@@ -412,7 +415,11 @@ three layers:
            → On_Event → Dispatch_Event
                 → Coyote_GUI.Updates.Enqueue(update)
            → GTK idle callback drains Updates queue
-                → Coyote_GUI.Conversation_Stack routes updates to the active Exchange_View
+                → Coyote_App.Frontend.GUI routes updates to either
+                  Coyote_GUI.Conversation or Coyote_GUI.Conversation_Stack
+                  according to COYOTE_NATIVE_STACK
+                → the selected renderer performs all GTK operations on the
+                  GTK main task
 
 [GTK callbacks]
   → Send button / Enter key → Coyote_GUI.Prompt_Queue.Enqueue(prompt_text)
@@ -1060,9 +1067,9 @@ block containing `<skill>` entries for each discovered skill, or `""` if none.
 **Purpose:** Current implementation baseline: virtualized conversation renderer
 using `Gtk.Layout` with Cairo + Pango. It replaces the earlier
 `GtkTextView`/`GtkTextBuffer` approach with a viewport-oriented rendering model
-and remains in service until the planned native component-stack design in
-§5.15b is implemented and qualified. The current data model, rendering,
-selection, and tool-card behaviour are specified below.
+and remains in service while the native component-stack design in
+§5.15b completes implementation and qualification. The current data model,
+rendering, selection, and tool-card behaviour are specified below.
 
 **Data model:** A flat `Line_Vectors.Vector` of `Logical_Line` records.  Each
 line is a variable-height block carrying a `Line_Style` discriminant
@@ -1208,12 +1215,17 @@ conversation renderer; inline math and the legacy shared Pango renderer remain
 future work. MathML element whitelisting is intentionally deferred until a
 concrete compatibility problem is observed.
 
-### 5.15b Planned native component-stack conversation presentation
+### 5.15b Native component-stack conversation presentation
 
-**Status:** The first native qualification slice is implemented in
+**Status:** The native component-stack slice is implemented in
 `Coyote_GUI.Conversation_Stack` and is selected with `COYOTE_NATIVE_STACK=1`.
 The current `Coyote_GUI.Conversation` GtkLayout renderer remains the default
 fallback until the performance and display-backed acceptance gates are complete.
+Basic GFM Markdown conversion for native response text is now implemented by
+retaining streamed text and replacing it at `End_Text_Block` with markup from
+`Coyote_Renderer.Markup`. The `Render Markdown` toggle and zoom route to the
+selected renderer. Native display MathML, live/replay Markdown qualification,
+and large-history qualification remain open.
 
 **Purpose:** Replace the single custom conversation canvas with a native GTK
 component hierarchy. One `Exchange_View` represents one submitted request and
@@ -1262,7 +1274,14 @@ without inventing a normal completion footer. Step frames are never scrolled
 independently.
 
 **Component widgets:** Substantial text uses read-only native `Gtk.Text_View`
-and `Gtk.Text_Buffer` widgets with GTK text tags and local selection. Native
+and `Gtk.Text_Buffer` widgets with GTK text tags and local selection. Completed
+native response blocks retain their raw streamed text while streaming and
+replace that range at `End_Text_Block` with `Coyote_Renderer.Markup`
+GFM-to-Pango markup. Disabled Markdown rendering leaves the source text
+unchanged. The conversion runs on the GTK main task and preserves plain
+visible text for native selection.
+
+Native
 tool cards use a titled `Gtk.Frame` containing a native header label, a
 plain-text status label, and a `Gtk.Grid` of top-level argument-field labels.
 Argument values are individually selectable; the card does not use a text
@@ -1759,19 +1778,20 @@ Tracks `Current_Tool_Name` for the `End_Tool` label.
 **Purpose:** GTK3 frontend implementation. Drives the conversation view via
 the `Coyote_GUI.Updates` queue.
 
-**State:** Holds an access to the `GtkApplicationWindow`, the current
-`Coyote_GUI.Conversation` migration-baseline instance, the planned
+**State:** Holds an access to the `GtkApplicationWindow`, the legacy
+`Coyote_GUI.Conversation` instance, the opt-in
 `Coyote_GUI.Conversation_Stack`, and a reference to the `Prompt_Queue`. A
 menu-bar action map provides Compact, Pause, Resume, New Session, and model
-selection commands. The current conversation view is a `Gtk.Layout` inside a
-`Gtk.Scrolled_Window`; the planned implementation replaces it with a vertical
-`Gtk.Box` of native `Exchange_View` containers (see §5.15b).
+selection commands. The conversation view is selected at startup: the legacy
+`Gtk.Layout` renderer is used by default, while `COYOTE_NATIVE_STACK=1` selects
+the native vertical `Gtk.Box` stack (see §5.15b).
 
 **Key rendering choices:**
 - All `Append_Text`, `Begin_Tool`, `End_Tool`, etc. calls enqueue a
   `Coyote_GUI.Update` record onto `Coyote_GUI.Updates`. A GLib idle handler
-  drains the queue on the GTK main-loop thread and calls the corresponding
-  `Coyote_GUI.Conversation` operations.
+  drains the queue on the GTK main-loop thread and dispatches it to the
+  selected `Coyote_GUI.Conversation` or `Coyote_GUI.Conversation_Stack`
+  renderer. Markdown parsing and widget mutation occur on the GTK main task.
 - `Read_Prompt` — blocks on `Coyote_GUI.Prompt_Queue.Dequeue`.
 - **Preferences dialog:** `Options → Preferences...` is constructed and operated
   on the GTK main task. It edits persistent defaults for model, thinking level,
@@ -1991,8 +2011,8 @@ never silently dropped while the queue is open.
 
 **GLib idle handler:** Registered on demand by `Enqueue_Update` when the
 queue transitions from empty to non-empty.  On each idle callback, it
-drains exactly one item from the queue and calls the corresponding
-`Coyote_GUI.Conversation` operations.  The callback returns `False` when the
+drains exactly one item from the queue and dispatches it to the selected
+conversation renderer. The callback returns `False` when the
 queue is empty, removing the source and allowing the GTK main loop to block
 when there is no work.  Processing one item per invocation yields control to
 the GLib main loop between updates, allowing pending redraws (priority 120)
@@ -2273,10 +2293,10 @@ neither task may share mutable frontend state with the other.
 | REQ-CORE-100–107 | `Coyote_App.Frontend.Acme_Win`, `Coyote_App`, `Acme.Window`, `Nine_P.Client` |
 | REQ-CORE-108–108b | `Coyote_App`, `Coyote_App.Dispatch`, `Coyote_App.Utils`, `Session_Lister` |
 | REQ-CORE-109 | `LLM.Settings`, `Coyote_App.Frontend.Acme_Win` |
-| REQ-CORE-110–119, 125, 129, 132, 133–139 | `Coyote_App.Frontend.GUI`, `Coyote_GUI.Conversation`, `Coyote_GUI.Conversation_Stack`, `Coyote_GUI.Exchange_View`, `Coyote_GUI.Text_Element`, `Coyote_GUI.Tool_Card`, `Coyote_GUI.Footer_Element`, `Coyote_GUI.Math_Element`, `Coyote_GUI.Prompt_Queue`, `Coyote_GUI.Zoom`, `Coyote_Cmark`, `Coyote_App.Utils` |
-| REQ-CORE-124 | `Coyote_GUI.Conversation`, `Coyote_GUI.Math_Element`, `Coyote_Lasem` |
+| REQ-CORE-110–119, 125, 129, 132 | `Coyote_App.Frontend.GUI`, `Coyote_GUI.Conversation`, `Coyote_GUI.Conversation_Stack`, `Coyote_GUI.Prompt_Queue`, `Coyote_GUI.Zoom`, `Coyote_Cmark`, `Coyote_Renderer.Markup`, `Coyote_App.Utils` |
+| REQ-CORE-124 | `Coyote_GUI.Conversation`, `Coyote_Lasem`; native realization deferred in `Coyote_GUI.Conversation_Stack` |
 | REQ-CORE-120–121 | `Coyote_App.Frontend.Plain` |
-| REQ-CORE-130–131, 137 | `Coyote_App.History`, `Coyote_GUI.Conversation_Stack`, `Coyote_GUI.Exchange_View`, all frontends |
+| REQ-CORE-130–131, 137 | `Coyote_App.History`, `Coyote_GUI.Conversation`, `Coyote_GUI.Conversation_Stack`, `Coyote_Renderer.Markup`, `Coyote_Renderer.Session_View` |
 | REQ-CORE-140–142 | `LLM.Agent`, `Coyote_App.Dispatch`, all frontends |
 | REQ-CORE-170–172 | `LLM.System_Prompt`, `LLM.Agent` |
 | REQ-CORE-180–183 | `LLM.Memory`, `LLM.System_Prompt` |
@@ -2314,6 +2334,5 @@ owner) is invited to review it before it advances to client-control status.
 
 **Excluded scope:**
 - `coyote_sqc` design: see `design/coyote-sqc-design.md`.
-- `coyote_renderer` design: covered implicitly in `design/coyote-sqc-design.md §10`.
 - Detailed design for catalogue packages (`OpenRouter.Catalogue`, etc.):
   deferred; covered adequately by AGENTS.md §Adding a New LLM Provider.
