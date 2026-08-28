@@ -277,9 +277,12 @@ GFM-to-Pango markup from `Coyote_Renderer.Markup`. The Render Markdown toggle
 and zoom route to whichever GUI renderer is selected. Native GTK selection
 continues to expose visible plain text, while the accessibility transcript
 remains unchanged. This increment covers basic Markdown conversion only;
-native display MathML, live/replay Markdown qualification, and large-history
-qualification remain open. The legacy GtkLayout renderer, Acme, and Plain
-frontends retain their existing semantics.
+user acceptance of DEM-046 confirmed the native Markdown content and
+interaction behavior on 2026-08-28. User acceptance of DEM-047 confirmed
+live/replay native Markdown parity on 2026-08-28. Native display MathML and
+large-history qualification remain open under DEM-048 and DEM-044. The
+legacy GtkLayout renderer, Acme, and Plain frontends retain their existing
+semantics.
 
 Renderer parity for this increment is defined by supported content and
 interaction, not pixel-identical layout:
@@ -289,7 +292,7 @@ interaction, not pixel-identical layout:
 | GFM Markdown response content | Implemented | Implemented | Plain text | Implemented |
 | Markdown toggle | Implemented | Implemented | N/A | N/A |
 | Display MathML | Implemented | Deferred | Plain text | Separate |
-| Live/replay native hierarchy | Legacy model | Qualification pending | N/A | Replay model |
+| Live/replay native hierarchy | Legacy model | Accepted (DEM-047) | N/A | Replay model |
 | Large-history qualification | Baseline | Pending | N/A | Separate |
 
 ### `Coyote_Lasem` binding
@@ -733,9 +736,9 @@ the two Markdown regressions cover post-stream conversion and disabled-rendering
 source preservation. Production
 and test development builds succeed. The complete suite was attempted under
 `xvfb-run` but timed out with unrelated environment-dependent failures, so no
-full-suite acceptance claim is made. Display-backed DEM-042/043, native
-Markdown DEM-046/047, native MathML DEM-048, and DEM-044 large-history
-qualification remain pending.
+full-suite acceptance claim is made. Display-backed DEM-042/043, native MathML
+DEM-048, and DEM-044 large-history qualification remain pending. DEM-047
+live/replay Markdown parity was accepted by the user on 2026-08-28.
 
 The separately named `Exchange_View`, `Text_Element`, `Tool_Card`,
 `Math_Element`, and `Footer_Element` units remain deferred because this slice

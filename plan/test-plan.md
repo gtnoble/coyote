@@ -1,7 +1,7 @@
 # Test Plan â coyote (STP)
 
-**Version:** 1.19
-**Date:** 2026-08-25
+**Version:** 1.20
+**Date:** 2026-08-28
 
 **Status:** Reviewed and acknowledged â M4 complete (2026-06-03)
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
@@ -280,14 +280,14 @@ and must be demonstrated or inspected:
 - REQ-CORE-107 â Acme Pause/Resume (partial; pause mechanics tested in AUnit
   via `llm_agent_tests.adb`)
 - REQ-CORE-142 â SIGTERM handling (requires OS signal; manual test)
-- REQ-CORE-131, 137 â native live/replay Markdown parity (DEM-047)
 - REQ-CORE-124 â native display MathML realization and fallback (DEM-048)
 - REQ-CORE-138 â native large-history performance and display-backed zoom
   qualification (DEM-044)
 
 The native Markdown unit tests cover the basic conversion and toggle paths;
-these remaining items require display-backed demonstration or implementation
-of the deferred native MathML element.
+DEM-047 live/replay parity was accepted by the user on 2026-08-28. The
+remaining items require display-backed implementation or qualification of the
+deferred native MathML element and large-history behavior.
 
 These are entered as open items in the problem log (PCR-009 and PCR-078).
 
@@ -810,7 +810,9 @@ qualification procedure for user-visible startup rejection.
 **Baseline as of 2026-08-27 (PCR-078 native GTK Markdown):** 927 registered
 tests. Added native response-block Markdown replacement and toggle regressions.
 Production and test development builds succeed, and both new native Markdown
-tests pass individually with the available GTK display. Full-suite execution
-was attempted but timed out with unrelated environment-dependent failures.
-Native live/replay parity, display MathML, and large-history qualification
-remain pending under DEM-047, DEM-048, and DEM-044.
+tests pass individually with the available GTK display. The user reviewed the
+native Markdown demonstration and accepted DEM-046 on 2026-08-28. The user also
+confirmed live/replay native Markdown parity and accepted DEM-047 on 2026-08-28.
+Full-suite execution was attempted but timed out with unrelated environment-
+dependent failures. Native display MathML and large-history qualification
+remain pending under DEM-048 and DEM-044.

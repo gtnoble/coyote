@@ -2691,9 +2691,12 @@ behavior, current test baseline, and remaining manual qualification scope.
 - **Verification:** Production and test development builds succeed with
   `alr build` and `cd test && alr build`. Twelve native-stack tests are
   registered, including the two new Markdown tests. The two new tests pass
-  individually with the available GTK display. The complete suite was
-  attempted without `xvfb-run` because it is unavailable in this environment,
-  then timed out with unrelated environment-dependent failures; native
-  Markdown acceptance and display-backed qualification remain open.
-- **Status:** In progress — basic implementation complete; qualification
-  pending.
+  individually with the available GTK display. The user reviewed the native
+  Markdown demonstration and accepted DEM-046 on 2026-08-28. The user also
+  confirmed live/replay native Markdown parity and accepted DEM-047 on
+  2026-08-28. Native display MathML and large-history qualification remain open
+  under DEM-048 and DEM-044. The complete suite was attempted without
+  `xvfb-run` because it is unavailable in this environment, then timed out
+  with unrelated environment-dependent failures.
+- **Status:** In progress — basic implementation complete; DEM-046 and
+  DEM-047 accepted; DEM-048 and DEM-044 qualification pending.

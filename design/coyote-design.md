@@ -1,8 +1,8 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.18
-**Date:** 2026-08-25
+**Version:** 1.19
+**Date:** 2026-08-28
 
 **Status:** Reviewed — project control (M3 complete 2026-06-02)
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
@@ -1224,8 +1224,9 @@ fallback until the performance and display-backed acceptance gates are complete.
 Basic GFM Markdown conversion for native response text is now implemented by
 retaining streamed text and replacing it at `End_Text_Block` with markup from
 `Coyote_Renderer.Markup`. The `Render Markdown` toggle and zoom route to the
-selected renderer. Native display MathML, live/replay Markdown qualification,
-and large-history qualification remain open.
+selected renderer. User acceptance of DEM-047 confirmed live/replay Markdown
+parity on 2026-08-28. Native display MathML and large-history qualification
+remain open under DEM-048 and DEM-044.
 
 **Purpose:** Replace the single custom conversation canvas with a native GTK
 component hierarchy. One `Exchange_View` represents one submitted request and

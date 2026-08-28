@@ -1,7 +1,7 @@
 # Project Plan — coyote
 
-**Version:** 1.23
-**Date:** 2026-08-25
+**Version:** 1.24
+**Date:** 2026-08-28
 **Status:** Active
 
 ---
@@ -810,16 +810,57 @@ Fork and New Window launches do not add recursion depth. The developer
 performed the self-evaluation; independent user review and DEM-045 remain
 invited.
 
+### Review 18 — PCR-078 DEM-046 Native Markdown Acceptance (2026-08-28)
+
+**Review type:** Test-results and user-acceptance review
+**Trigger:** User review of the native GTK Markdown demonstration fixture
+
+| Indicator | Value |
+|---|---|
+| Requirements volatility | No requirement changes; DEM-046 acceptance recorded for REQ-CORE-111 and REQ-CORE-125. |
+| Component progress | Native response-block Markdown conversion, toggle routing, zoom routing, and focused regressions complete; DEM-046 accepted. |
+| Open problems | PCR-078 remains in progress for DEM-047 native live/replay parity, DEM-048 native MathML, and DEM-044 large-history qualification. |
+| Milestone status | DEM-046 accepted on 2026-08-28; remaining native qualification gates pending. |
+| Scope changes | No scope change. |
+| Test results trend | 927 tests registered; focused native Markdown tests pass individually; full-suite run remains unaccepted because the prior execution timed out with unrelated environment-dependent failures. |
+
+**Disposition:** The user reviewed the sample native Markdown rendering and
+accepted DEM-046. This closes the DEM-046 acceptance gate for supported GFM
+content, post-stream conversion, source-preserving toggle behavior, selection,
+and zoom. It does not close PCR-078. DEM-047, DEM-048, and DEM-044 remain open.
+The developer recorded and evaluated the result; independent review remains
+invited.
+
+### Review 19 — PCR-078 DEM-047 Native Live/Replay Markdown Acceptance (2026-08-28)
+
+**Review type:** Test-results and user-acceptance review
+**Trigger:** User confirmation of native live/replay Markdown parity
+
+| Indicator | Value |
+|---|---|
+| Requirements volatility | No requirement changes; DEM-047 acceptance recorded for REQ-CORE-111, REQ-CORE-131, and REQ-CORE-137. |
+| Component progress | Native live/replay Markdown content and component-hierarchy parity accepted; DEM-046 and DEM-047 complete. |
+| Open problems | PCR-078 remains in progress for DEM-048 native MathML and DEM-044 large-history qualification. |
+| Milestone status | DEM-047 accepted on 2026-08-28; remaining native qualification gates pending. |
+| Scope changes | No scope change. |
+| Test results trend | 927 tests registered; focused native Markdown tests pass individually; full-suite run remains unaccepted because the prior execution timed out with unrelated environment-dependent failures. |
+
+**Disposition:** The user confirmed equivalent native live and replayed Markdown
+content and response boundaries and accepted DEM-047. This closes the DEM-047
+acceptance gate for native live/replay Markdown parity. It does not close
+PCR-078. DEM-048 and DEM-044 remain open. The developer recorded and evaluated
+the result; independent review remains invited.
+
 ## 9. Artifact Version Table
 
 
 | Artifact | ID | Location | Current Version | Control Level |
 |---|---|---|---|---|
-| Project Plan | PLAN | `plan/project-plan.md` | 1.22 (2026-08-25) | Project |
+| Project Plan | PLAN | `plan/project-plan.md` | 1.24 (2026-08-28) | Project |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
 | coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.17 (2026-08-25) | Client |
-| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.18 (2026-08-25) | Project |
+| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.19 (2026-08-28) | Project |
 | coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.2 (2026-06-21) | Project |
 | coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.2 (2026-06-21) | Project |
-| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.19 (2026-08-25) | Project |
+| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.21 (2026-08-28) | Project |
 | Agent Working Instructions (secondary) | AGENTS | `AGENTS.md` | active | Project |
