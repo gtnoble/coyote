@@ -81,6 +81,17 @@ dependency; `yelp-tools` and `itstool` are contributor-time validation and
 translation dependencies. Because Yelp owns its window, Help windows are not
 GTK transient children of the coyote window.
 
+### Help data-path correction (2026-08-29)
+
+The initial implementation shipped Mallard pages in the repository but did not
+make them discoverable by Yelp from the built checkout or installed binary.
+`Coyote_Help.Open` now derives `$BASE/share` from the running `bin/coyote`
+path, prepends it to `XDG_DATA_DIRS` when `share/help/C/coyote` exists, launches
+Yelp, and restores the coyote process environment. The existing GPR `Install`
+artifact declaration installs the complete `share/` tree; use `alr install` to
+install under Alire's default prefix. The new Help data-directory regression
+covers standard and non-standard executable layouts.
+
 ### GTK Change Model dialog filter (2026-08-22)
 
 The Change Model dialog wraps the registry `GtkListStore` in

@@ -1959,16 +1959,25 @@ stable Mallard topic ID: `menu` to `ui-menu`, `prompt` to `ui-prompt`,
 
 **`Yelp_Available`:** Locates the `yelp` executable on `PATH`.
 
-**`Open (Topic)`:** Locates Yelp, launches it detached with the Help URI, and
-returns False when Yelp cannot be located or the launch fails. The GUI converts
-that result into a visible error notice.
+**`Open (Topic)`:** Locates Yelp, prepends the executable-relative
+`$BASE/share` directory to `XDG_DATA_DIRS` when the installed Mallard tree is
+present, launches Yelp detached with the Help URI, and restores the parent
+process environment. It returns False when Yelp cannot be located or the
+launch cannot be started. The GUI converts that result into a visible error
+notice.
+
+**`Help_Data_Directory (Executable)`:** Returns `$BASE/share`, using the same
+`$BASE` derivation as `LLM.Skills.Install_Base`; it returns an empty string for
+an executable outside a `bin/` layout.
 
 **`Product_Information_Text`:** Returns the in-process Product Information
 body (application name, crate version, and license) so the Help menu entry
 works when Yelp is unavailable.
 
-Mallard source files are installed below `share/help/C/coyote/`. Yelp owns the
-Help window, so it is not a GTK transient child of the coyote main window.
+Mallard source files are installed below `share/help/C/coyote/` by the existing
+GPR `Install` artifact declaration. Use `alr install` to install the project
+under Alire's default prefix. Yelp owns the Help window, so it is not a GTK
+transient child of the coyote main window.
 
 ---
 

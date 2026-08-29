@@ -304,6 +304,18 @@ URIs. The Help menu provides Overview, task topics, Index, Keys & Shortcuts,
 Product Information, and Click for Help. F1 opens Overview; Shift+F1 and Click
 for Help arm contextual Help for the next main-window click.
 
+The development checkout also resolves Help pages relative to `bin/coyote`.
+The existing GPR `Install` artifact declaration installs the built binaries and
+all application data under Alire's default installation prefix:
+
+```sh
+alr install
+```
+
+The launcher adds the executable-relative `share` directory to Yelp's XDG data
+search path before starting Yelp, so the standard `help:coyote` URI works in
+both installed and checkout layouts.
+
 For contributors, `yelp-tools` and `itstool` provide Mallard validation and
 translation tooling.
 

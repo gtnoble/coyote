@@ -2750,3 +2750,32 @@ behavior, current test baseline, and remaining manual qualification scope.
   failed only because its relative `../bin/coyote` test path was invalid.
 - **Status:** Resolved
 - **Date resolved:** 2026-08-29
+
+## PCR-081 — Yelp cannot resolve bundled coyote Help pages
+
+- **Date reported:** 2026-08-29
+- **Category:** Code, Test, Manuals
+- **Priority:** 2-Serious
+- **Description:** GTK Help launched valid `help:coyote/<topic>` URIs, but Yelp
+  could not find the pages because the repository `share/help/C/coyote/` tree
+  was neither installed nor added to Yelp's XDG data search path.
+- **Affected work products:** `Coyote_Help`, Mallard Help data, installation
+  procedure, README, SDD-CORE, frontend SDF, and TEST-PLAN.
+- **Root cause:** The GPR `Install` package declared `share` as an artifact,
+  but no usable installation command deployed the artifact and the launcher
+  passed no executable-relative data path to Yelp.
+- **Corrective action:** Derive `$BASE/share` from the running `bin/coyote`
+  path, temporarily prepend it to `XDG_DATA_DIRS` when the Mallard tree is
+  present, and restore the parent environment after detached launch. The
+  existing GPR `Install` artifact declaration provides deployment through
+  `alr install`.
+- **Verification:** The Help data-directory regression covers standard and
+  non-standard executable layouts. `alr build` and `cd test && alr build`
+  succeed in development profiles, and the complete test suite passes 929/929
+  with zero failed assertions and zero unexpected errors. Native GPR
+  installation is supported by the existing `package Install` declaration;
+  the sandbox prevented writing a native install prefix during this review.
+  A direct Yelp probe resolves `help:coyote/overview` when the checkout `share`
+  root is supplied as an XDG data directory.
+- **Status:** Resolved
+- **Date resolved:** 2026-08-29

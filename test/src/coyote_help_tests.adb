@@ -27,6 +27,21 @@ package body Coyote_Help_Tests is
          "topic URIs should append the Mallard topic ID");
    end Test_Topic_URI;
 
+   procedure Test_Help_Data_Directory (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      Assert
+        (Coyote_Help.Help_Data_Directory
+           (Executable => "/opt/coyote/bin/coyote")
+         = "/opt/coyote/share",
+         "Help data should be relative to the installation prefix");
+      Assert
+        (Coyote_Help.Help_Data_Directory
+           (Executable => "/usr/local/coyote")
+         = "",
+         "Help data should be empty for a non-standard executable path");
+   end Test_Help_Data_Directory;
+
    procedure Test_Yelp_Is_Available (T : in out Test) is
       pragma Unreferenced (T);
    begin

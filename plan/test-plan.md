@@ -187,7 +187,7 @@ SRS-CORE requirement groups.
 | `coyote_gui_conversation_stack_tests.adb` | REQ-CORE-111, 133..139; native stack host, visible per-step frames, incremental text, native GFM Markdown replacement, Markdown toggle, stable tool IDs, native status-row footers, functional fork buttons, explicit completion lifecycle, and reset | 12 |
 
 | `coyote_gui_prompt_queue_tests.adb` | REQ-CORE-116..119, 128; typed preference payload transport | 1 |
-| `coyote_help_tests.adb` | REQ-CORE-113a, REQ-CORE-504a; Yelp URI construction, area mapping, executable detection, and Product Information text | 4 |
+| `coyote_help_tests.adb` | REQ-CORE-113a, REQ-CORE-504a; Yelp URI construction, area mapping, executable detection, Help data path, and Product Information text | 5 |
 | `nine_p_proto_tests.adb` | REQ-CORE-210 (9P protocol) | ~20 |
 | `nine_p_mock_server_tests.adb` | REQ-CORE-210â211 | ~15 |
 | `session_lister_tests.adb` | REQ-CORE-084 | ~10 |
@@ -831,3 +831,12 @@ regressions to cover maximum subagent recursion depths 3 and 0. Production and
 test development builds succeed; the complete suite passes 928/928 with zero
 failed assertions and zero unexpected errors. DEM-033 remains the manual
 qualification procedure for display-backed Preferences interaction.
+
+**Baseline as of 2026-08-29 (PCR-081 Yelp Help deployment):**
+929 registered tests. Added executable-relative Help data-directory coverage.
+Production and test development builds succeed in the development profile; the
+complete suite passes 929/929 with zero failed assertions and zero unexpected
+errors. The existing GPR `Install` artifact declaration supports installing
+`share/help/C/coyote/overview.page` under the selected prefix with
+`alr install`, and the checkout-relative Yelp data path resolves
+`help:coyote/overview`.

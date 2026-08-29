@@ -3036,6 +3036,9 @@ package body Test_Suites is
         ("Coyote.Help topic URI",
          Coyote_Help_Tests.Test_Topic_URI'Access));
       Result.Add_Test (Coyote_Help_Caller.Create
+        ("Coyote.Help data directory follows executable prefix",
+         Coyote_Help_Tests.Test_Help_Data_Directory'Access));
+      Result.Add_Test (Coyote_Help_Caller.Create
         ("Coyote.Help detects Yelp",
          Coyote_Help_Tests.Test_Yelp_Is_Available'Access));
       Result.Add_Test (Coyote_Help_Caller.Create
