@@ -23,5 +23,6 @@ package LLM_Settings_Tests is
    procedure Test_Max_Recursion_Depth_Invalid_Defaults (T : in out Test);
    procedure Test_Completion_Notifications_Default_Enabled (T : in out Test);
    procedure Test_Save_Preferences_Preserves_And_Clears (T : in out Test);
+   procedure Test_Skill_Paths_Loaded (T : in out Test);
 
 end LLM_Settings_Tests;

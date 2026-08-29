@@ -1051,14 +1051,14 @@ existing memories before writing and to maintain the MEMORY.md index.
 
 ### 5.14 `LLM.Skills`
 
-**Purpose:** Discovers SKILL.md files from five roots and formats them for
-inclusion in the system prompt.
+**Purpose:** Discovers SKILL.md files from the built-in and configured roots
+and formats them for inclusion in the system prompt.
 
 **Discovery order:** `~/.coyote/skills/`, `~/.agents/skills/`,
-`$BASE/share/agents/skills/`,
-`{CWD}/.coyote/skills/`, `{CWD}/.agents/skills/`. Within each root, all
-`*/SKILL.md` paths are enumerated. Project-local skills shadow global skills
-of the same `name` field.
+`$BASE/share/agents/skills/`, configured `skillPaths` roots in saved array
+order, `{CWD}/.coyote/skills/`, and `{CWD}/.agents/skills/`. Within each root,
+all `*/SKILL.md` paths are enumerated. Later roots replace earlier entries
+with the same `name`, so project-local skills retain the highest precedence.
 
 **YAML frontmatter parsing:** Only `name` and `description` fields are
 extracted. Skills missing either are silently skipped.
@@ -1447,6 +1447,8 @@ made by the GUI Preferences dialog or the Acme SetDefault command.
   malformed values default to True.
 - `Max_Recursion_Depth` — nonnegative `maxRecursionDepth`; absent, negative,
   non-integer, or out-of-range values default to 1.
+- `Skill_Paths` — ordered additional absolute skill roots from the optional
+  `skillPaths` JSON array; malformed or non-string entries are ignored.
 - Raw provider model entries and API-key configuration are read from
   `models.json`.
 
@@ -1454,12 +1456,13 @@ made by the GUI Preferences dialog or the Acme SetDefault command.
 empty/default values. A malformed or absent file does not prevent startup.
 
 **`Save_Preferences` operation:** Updates the model, thinking, sandbox,
-optional subagent-model, maximum recursion depth, and completion-notification
-preference fields while preserving unrelated JSON fields. The file is written
-through an atomic same-directory replacement. Empty values clear the
-corresponding string preference; recursion depth is persisted as a nonnegative
-integer, with zero disabling subagent spawning. Write failures are reported
- to the caller so the active session can continue.
+optional subagent-model, maximum recursion depth, completion-notification, and
+`skillPaths` preference fields while preserving unrelated JSON fields. The
+file is written through an atomic same-directory replacement. Empty values
+clear the corresponding string preference; an empty skill-path vector removes
+`skillPaths`. Recursion depth is persisted as a nonnegative integer, with zero
+disabling subagent spawning. Write failures are reported to the caller so the
+active session can continue.
 
 **Default precedence:** For a newly created session, an explicit model
 argument overrides all persistent defaults. For `--subagent`, the configured
@@ -1807,9 +1810,12 @@ the native vertical `Gtk.Box` stack (see §5.15b).
 - `Read_Prompt` — blocks on `Coyote_GUI.Prompt_Queue.Dequeue`.
 - **Preferences dialog:** `Options → Preferences...` is constructed and operated
   on the GTK main task. It edits persistent defaults for model, thinking level,
-  sandbox profile, subagent model, maximum subagent recursion depth, and
-  completion notifications without mutating the active `LLM.Agent.Session`.
-  The callback enqueues a typed `Set_Preferences` item; the agent task performs
+  sandbox profile, subagent model, maximum subagent recursion depth,
+  completion notifications, and the ordered additional skill-directory list
+  without mutating the active `LLM.Agent.Session`. The directory list uses a
+  single-selection list, a folder chooser for `Add Directory...`, and explicit
+  `Remove Selected`, `Move Up`, and `Move Down` actions. The callback enqueues
+  a typed `Set_Preferences` item; the agent task performs
   the atomic settings-file update and sends a success or failure notice back
   through the frontend. On
   successful persistence, the notification setting is applied to the current
@@ -2071,13 +2077,14 @@ turns), and `Shutdown` (unblocks any waiting `Dequeue`).
 | `Set_Sandbox` | `Profile_Name` | Change the sandbox profile |
 | `Switch_Session` | `Session_UUID` | Load a different session by UUID |
 | `Set_Default` | — | Persist current model and thinking as defaults |
-| `Set_Preferences` | Preferences record | Persist model, thinking, sandbox, recursion-depth, and notification defaults without changing the active session |
+| `Set_Preferences` | Preferences record | Persist model, thinking, sandbox, recursion-depth, notification, and skill-path defaults without changing the active session |
 | `Shutdown_Item` | — | Queue is closing; `Agent_Task` should exit |
 
 The `Preferences record` contains the selected provider/model, thinking level,
-sandbox profile, maximum subagent recursion depth, and completion-notification
-setting. Empty strings represent explicit clearing of string defaults; zero
-recursion depth disables subagent spawning. The GTK task never writes settings
+sandbox profile, maximum subagent recursion depth, completion-notification,
+and the ordered Skill_Paths vector. Empty strings represent explicit clearing
+of string defaults; zero recursion depth disables subagent spawning. An empty
+Skill_Paths vector clears `skillPaths`. The GTK task never writes settings
 directly; persistence remains owned by the agent task.
 
 ---
@@ -2317,7 +2324,7 @@ emission queries the agent directly rather than trusting stale frontend-local
 state. The Acme and GUI agent tasks use the same sequence independently because
 neither task may share mutable frontend state with the other.
 
-| REQ-CORE-090–093 | `LLM.Skills`, `LLM.System_Prompt` |
+| REQ-CORE-090, 090a–094 | `LLM.Skills`, `LLM.Settings`, `LLM.System_Prompt` |
 | REQ-CORE-100–107 | `Coyote_App.Frontend.Acme_Win`, `Coyote_App`, `Acme.Window`, `Nine_P.Client` |
 | REQ-CORE-108–108b | `Coyote_App`, `Coyote_App.Dispatch`, `Coyote_App.Utils`, `Session_Lister` |
 | REQ-CORE-109 | `LLM.Settings`, `Coyote_App.Frontend.Acme_Win` |

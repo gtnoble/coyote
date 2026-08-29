@@ -104,7 +104,8 @@ All configuration files live under `~/.coyote/`.
   "defaultThinkingLevel":     "low",
   "maxRecursionDepth":        1,
   "appendSystemPrompt":       "You are a helpful coding assistant.",
-  "promptFilter":             "m4 -"
+  "promptFilter":             "m4 -",
+  "skillPaths":               ["/opt/company/skills", "/home/user/project-skills"]
 }
 ```
 
@@ -118,6 +119,7 @@ All configuration files live under `~/.coyote/`.
 | `maxRecursionDepth` | Maximum nested `--subagent` depth; zero disables subagent spawning and the default is 1 |
 | `appendSystemPrompt` | Text appended to every system prompt |
 | `promptFilter` | Shell command through which interactive prompts (Send/Steer) are filtered. The raw prompt is written to stdin; stdout becomes the prompt sent to the agent and the text echoed in the window. Runs via `$SHELL -c CMD`. Can be overridden per-invocation with `--prompt-filter`. |
+| `skillPaths` | Optional JSON array of additional absolute skill-root directories. Each root contains child directories with `SKILL.md`; entries are searched in listed order before project-local roots. |
 
 ### `~/.coyote/models.json`
 
@@ -224,12 +226,21 @@ description: "One or two sentence description of what this skill covers and
 Full reference content here...
 ```
 
-Coyote scans four directories at startup (in this order):
+Coyote scans the built-in roots and any configured `skillPaths` roots at startup
+in this order:
 
 1. `~/.coyote/skills/` — global, coyote-specific
 2. `~/.agents/skills/` — global, provider-agnostic (shared across agents)
-3. `{Cwd}/.coyote/skills/` — project-local, coyote-specific
-4. `{Cwd}/.agents/skills/` — project-local, provider-agnostic
+3. `$BASE/share/agents/skills/` — installation-relative, provider-agnostic
+4. Configured `skillPaths` roots, in JSON-array order
+5. `{Cwd}/.coyote/skills/` — project-local, coyote-specific
+6. `{Cwd}/.agents/skills/` — project-local, provider-agnostic
+
+Later roots shadow earlier skills with the same `name`. The GTK `Options →
+Preferences...` dialog edits the additional roots with an ordered list,
+`Add Directory...`, `Remove Selected`, `Move Up`, and `Move Down` controls.
+`Add Directory...` uses a folder chooser. The saved paths affect subsequently
+created sessions.
 
 Skills that are found are listed in the system prompt as an `<available_skills>` block. The agent reads a skill's file with the `read` tool when the current task matches its description — skills are **lazy-loaded** so only relevant content consumes context tokens.
 

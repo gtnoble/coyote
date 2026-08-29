@@ -428,6 +428,108 @@ package body LLM_Skills_Tests is
          raise;
    end Test_Global_Agents_Skills_Loaded;
 
+   procedure Test_Configured_Skills_Loaded (T : in out Test) is
+      pragma Unreferenced (T);
+      Home         : constant String := "/tmp/coyote_skills_test_cfg";
+      Cwd          : constant String := "/tmp/coyote_skills_test_cfg_cwd";
+      Root_One     : constant String := "/tmp/coyote_skills_test_cfg_one";
+      Root_Two     : constant String := "/tmp/coyote_skills_test_cfg_two";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+   begin
+      Cleanup (Home);
+      Cleanup (Cwd);
+      Cleanup (Root_One);
+      Cleanup (Root_Two);
+      Mkdir (Home & "/.coyote");
+      Write_File
+        (Root_One & "/first/SKILL.md",
+         Valid_Skill_Content ("configured-one", "First configured skill."));
+      Write_File
+        (Root_Two & "/second/SKILL.md",
+         Valid_Skill_Content ("configured-two", "Second configured skill."));
+      Write_File
+        (Home & "/.coyote/settings.json",
+         "{""skillPaths"" : ["""
+         & Root_One
+         & ""","""
+         & Root_Two
+         & """]}");
+      Ada.Environment_Variables.Set ("HOME", Home);
+      declare
+         Skills : constant LLM.Skills.Skill_Vectors.Vector :=
+           LLM.Skills.Load_Skills (Cwd);
+      begin
+         Assert (Skills.Length = 2,
+                 "configured skill roots should be searched");
+         Assert (To_String (Skills (0).Name) = "configured-one",
+                 "configured roots should retain listed order");
+         Assert (To_String (Skills (1).Name) = "configured-two",
+                 "all configured roots should contribute skills");
+      end;
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup (Cwd);
+      Cleanup (Home);
+      Cleanup (Root_One);
+      Cleanup (Root_Two);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup (Cwd);
+         Cleanup (Home);
+         Cleanup (Root_One);
+         Cleanup (Root_Two);
+         raise;
+   end Test_Configured_Skills_Loaded;
+
+   procedure Test_Configured_Skill_Shadowed_By_Project (T : in out Test) is
+      pragma Unreferenced (T);
+      Home         : constant String := "/tmp/coyote_skills_test_shadow";
+      Cwd          : constant String := "/tmp/coyote_skills_test_shadow_cwd";
+      Root         : constant String := "/tmp/coyote_skills_test_shadow_root";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+   begin
+      Cleanup (Home);
+      Cleanup (Cwd);
+      Cleanup (Root);
+      Mkdir (Home & "/.coyote");
+      Write_File
+        (Root & "/same/SKILL.md",
+         Valid_Skill_Content ("same-name", "Configured description."));
+      Write_File
+        (Cwd & "/.coyote/skills/same/SKILL.md",
+         Valid_Skill_Content ("same-name", "Project description."));
+      Write_File
+        (Home & "/.coyote/settings.json",
+         "{""skillPaths"":[""" & Root & """]}");
+      Ada.Environment_Variables.Set ("HOME", Home);
+      declare
+         Skills : constant LLM.Skills.Skill_Vectors.Vector :=
+           LLM.Skills.Load_Skills (Cwd);
+      begin
+         Assert (Skills.Length = 1,
+                 "same-named skills should be shadowed, not duplicated");
+         Assert (To_String (Skills (0).Description) = "Project description.",
+                 "project skill should shadow configured skill");
+      end;
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup (Cwd);
+      Cleanup (Home);
+      Cleanup (Root);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup (Cwd);
+         Cleanup (Home);
+         Cleanup (Root);
+         raise;
+   end Test_Configured_Skill_Shadowed_By_Project;
+
    procedure Test_Project_Agents_Skills_Loaded (T : in out Test) is
       pragma Unreferenced (T);
 

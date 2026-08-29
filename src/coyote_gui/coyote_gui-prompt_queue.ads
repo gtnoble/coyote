@@ -8,6 +8,7 @@
 
 with Ada.Strings.Unbounded;
 with LLM.Providers;
+with LLM.Settings;
 
 package Coyote_GUI.Prompt_Queue is
 
@@ -24,6 +25,7 @@ package Coyote_GUI.Prompt_Queue is
       Subagent_Model           : Ada.Strings.Unbounded.Unbounded_String;
       Max_Recursion_Depth      : Natural := 1;
       Completion_Notifications : Boolean := True;
+      Skill_Paths               : LLM.Settings.String_Vectors.Vector;
    end record;
 
    type Item_Kind is

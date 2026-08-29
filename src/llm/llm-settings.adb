@@ -109,6 +109,21 @@ package body LLM.Settings is
       return Default;
    end Get_Boolean_Field;
 
+   function Get_Array_Field
+     (Value : GNATCOLL.JSON.JSON_Value; Field : String)
+      return GNATCOLL.JSON.JSON_Array
+   is
+   begin
+      if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
+        and then Value.Has_Field (Field)
+        and then Value.Get (Field).Kind = GNATCOLL.JSON.JSON_Array_Type
+      then
+         return Value.Get (Field).Get;
+      end if;
+
+      return GNATCOLL.JSON.Empty_Array;
+   end Get_Array_Field;
+
    function Get_Natural_Field
      (Value   : GNATCOLL.JSON.JSON_Value;
       Field   : String;
@@ -225,6 +240,32 @@ package body LLM.Settings is
       return "";
    end Interpolated_Env_Name;
 
+   function Get_Skill_Paths
+     (Root : GNATCOLL.JSON.JSON_Value) return String_Vectors.Vector
+   is
+      Paths : String_Vectors.Vector;
+      Items : constant GNATCOLL.JSON.JSON_Array :=
+        Get_Array_Field (Root, "skillPaths");
+   begin
+      for I in 1 .. GNATCOLL.JSON.Length (Items) loop
+         declare
+            Item : constant GNATCOLL.JSON.JSON_Value :=
+              GNATCOLL.JSON.Get (Items, I);
+         begin
+            if Item.Kind = GNATCOLL.JSON.JSON_String_Type then
+               declare
+                  Item_Text : constant String := Item.Get;
+               begin
+                  if Item_Text'Length > 0 then
+                     Paths.Append (Item_Text);
+                  end if;
+               end;
+            end if;
+         end;
+      end loop;
+      return Paths;
+   end Get_Skill_Paths;
+
    function Load_Settings return Settings is
       Root : constant GNATCOLL.JSON.JSON_Value :=
         Load_Json_File (Settings_Path);
@@ -255,7 +296,8 @@ package body LLM.Settings is
            To_Unbounded_String
              (Get_String_Field (Root, "promptFilter")),
          Completion_Notifications =>
-           Get_Boolean_Field (Root, "completionNotifications", True));
+           Get_Boolean_Field (Root, "completionNotifications", True),
+         Skill_Paths => Get_Skill_Paths (Root));
    end Load_Settings;
 
    function Resolve_Api_Key (Provider : String) return String is
@@ -368,7 +410,9 @@ package body LLM.Settings is
       Subagent_Provider        : String := "";
       Subagent_Model           : String := "";
       Max_Recursion_Depth      : Natural := 1;
-      Completion_Notifications : Boolean := True)
+      Completion_Notifications : Boolean := True;
+      Skill_Paths               : String_Vectors.Vector :=
+        String_Vectors.Empty_Vector)
    is
       Path     : constant String := Settings_Path;
       Existing : constant GNATCOLL.JSON.JSON_Value :=
@@ -422,6 +466,19 @@ package body LLM.Settings is
       Root.Set_Field
         ("maxRecursionDepth", Long_Integer (Max_Recursion_Depth));
       Root.Set_Field ("completionNotifications", Completion_Notifications);
+
+      if Skill_Paths.Is_Empty then
+         Root.Unset_Field ("skillPaths");
+      else
+         declare
+            Paths : GNATCOLL.JSON.JSON_Array := GNATCOLL.JSON.Empty_Array;
+         begin
+            for Path_Name of Skill_Paths loop
+               GNATCOLL.JSON.Append (Paths, GNATCOLL.JSON.Create (Path_Name));
+            end loop;
+            Root.Set_Field ("skillPaths", Paths);
+         end;
+      end if;
 
       Write_Atomically (Path, GNATCOLL.JSON.Write (Root));
    end Save_Preferences;

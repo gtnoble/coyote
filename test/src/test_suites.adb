@@ -1181,6 +1181,12 @@ package body Test_Suites is
         ("LLM.Skills loads global ~/.agents/skills",
          LLM_Skills_Tests.Test_Global_Agents_Skills_Loaded'Access));
       Result.Add_Test (LLM_Skills_Caller.Create
+        ("LLM.Skills loads configured skill roots",
+         LLM_Skills_Tests.Test_Configured_Skills_Loaded'Access));
+      Result.Add_Test (LLM_Skills_Caller.Create
+        ("LLM.Skills project roots shadow configured skills",
+         LLM_Skills_Tests.Test_Configured_Skill_Shadowed_By_Project'Access));
+      Result.Add_Test (LLM_Skills_Caller.Create
         ("LLM.Skills loads project .agents/skills",
          LLM_Skills_Tests.Test_Project_Agents_Skills_Loaded'Access));
       Result.Add_Test (LLM_Skills_Caller.Create
@@ -1427,6 +1433,9 @@ package body Test_Suites is
       Result.Add_Test (LLM_Settings_Caller.Create
         ("LLM.Settings loads default sandbox profile",
          LLM_Settings_Tests.Test_Default_Sandbox_Profile_Loaded'Access));
+      Result.Add_Test (LLM_Settings_Caller.Create
+        ("LLM.Settings loads skillPaths array",
+         LLM_Settings_Tests.Test_Skill_Paths_Loaded'Access));
       Result.Add_Test (LLM_Settings_Caller.Create
         ("LLM.Settings loads and validates max recursion depth",
          LLM_Settings_Tests.Test_Max_Recursion_Depth_Invalid_Defaults'Access));

@@ -2,7 +2,10 @@ with AUnit.Assertions;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Coyote_GUI.Prompt_Queue;
 with LLM.Providers;
+with LLM.Settings;
+with Ada.Containers;
 use type LLM.Providers.Thinking_Level;
+use type Ada.Containers.Count_Type;
 
 package body Coyote_GUI_Prompt_Queue_Tests is
 
@@ -26,7 +29,9 @@ package body Coyote_GUI_Prompt_Queue_Tests is
                ("test/fast-model"),
              Max_Recursion_Depth      => 3,
              Completion_Notifications =>
-               False)));
+               False,
+             Skill_Paths =>
+               LLM.Settings.String_Vectors.Empty_Vector)));
       Queue.Dequeue (Got);
 
       Assert (Got.Kind = Set_Preferences,
@@ -50,6 +55,31 @@ package body Coyote_GUI_Prompt_Queue_Tests is
       Assert
         (not Got.Preferences.Completion_Notifications,
          "disabled completion preference should survive queue transport");
+      declare
+         Paths : LLM.Settings.String_Vectors.Vector;
+      begin
+         Paths.Append ("/one/skills");
+         Paths.Append ("/two/skills");
+         Queue.Enqueue
+           ((Kind => Set_Preferences,
+             Preferences =>
+               (Provider => Null_Unbounded_String,
+                Model_Id => Null_Unbounded_String,
+                Thinking => LLM.Providers.Off,
+                Sandbox => Null_Unbounded_String,
+                Subagent_Provider => Null_Unbounded_String,
+                Subagent_Model => Null_Unbounded_String,
+                Max_Recursion_Depth => 1,
+                Completion_Notifications => True,
+                Skill_Paths => Paths)));
+         Queue.Dequeue (Got);
+         Assert (Got.Preferences.Skill_Paths.Length = 2,
+                 "skill paths should survive queue transport");
+         Assert (Got.Preferences.Skill_Paths.Element (1) = "/one/skills",
+                 "first skill path should survive queue transport");
+         Assert (Got.Preferences.Skill_Paths.Element (2) = "/two/skills",
+                 "second skill path should survive queue transport");
+      end;
 
       Queue.Enqueue
         ((Kind => Set_Preferences,
@@ -61,7 +91,9 @@ package body Coyote_GUI_Prompt_Queue_Tests is
              Subagent_Provider        => Null_Unbounded_String,
              Subagent_Model           => Null_Unbounded_String,
              Max_Recursion_Depth      => 0,
-             Completion_Notifications => True)));
+             Completion_Notifications => True,
+             Skill_Paths               =>
+               LLM.Settings.String_Vectors.Empty_Vector)));
       Queue.Dequeue (Got);
       Assert (Length (Got.Preferences.Provider) = 0,
               "empty provider should represent an explicit clear");

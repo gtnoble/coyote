@@ -150,10 +150,10 @@ SRS-CORE requirement groups.
 | `llm_agent_tests.adb` | REQ-CORE-040â046, 060â064, 075, 085â089, 217, 219 | ~88 |
 | `coyote_app_tests.adb` | REQ-CORE-085â089 (frontend/agent synchronization) | ~10 |
 
-| `llm_skills_tests.adb` | REQ-CORE-090â093 | ~20 |
-| `llm_settings_tests.adb` | REQ-CORE-025, 230â234, 070â073; sandbox and recursion-depth setting loading, plus Save_Preferences persistence | ~28 |
+| `llm_skills_tests.adb` | REQ-CORE-090, 090a, 091â094 | ~22; configured roots, malformed entries, and shadowing |
+| `llm_settings_tests.adb` | REQ-CORE-025, 090a, 230â234, 070â073; skillPaths loading and Save_Preferences persistence | ~29 |
 | `subagent_integration_tests.adb` | REQ-CORE-025, 019â020; subprocess startup and one-shot behavior | 4 |
-| `coyote_gui_prompt_queue_tests.adb` | REQ-CORE-116â119; typed preference payload, acceptance, and overflow transport | 3 |
+| `coyote_gui_prompt_queue_tests.adb` | REQ-CORE-116â119; typed preference and skill-path payload, acceptance, and overflow transport | 3 |
 | `coyote_gui_navigation_tests.adb` | REQ-CORE-114; clamped keyboard viewport navigation | 3 |
 | `llm_auth_tests.adb` | REQ-CORE-232 | ~15 |
 | `llm_compaction_tests.adb` | REQ-CORE-060â064 | ~30 |
@@ -230,7 +230,7 @@ behaviour. Results are recorded in a Test Report.
 | DEM-012 | REQ-CORE-075 | In Acme, plumb a `coyote-model+PID/...` token; verify model changes on next turn |
 | DEM-013 | REQ-CORE-100â109 | Exercise each Acme tag command; verify expected behaviour for each |
 | DEM-014 | REQ-CORE-110â115, 125, 132 | Exercise GUI window: markdown rendering, tool frames, vi scroll, all main-menu accelerators, and Ctrl+wheel zoom. Verify each visible accelerator activates its corresponding menu action. |
-| DEM-033 | REQ-CORE-116..117, 119 | Open GUI Preferences, save ordinary and subagent model/thinking/sandbox defaults and a maximum subagent recursion depth, then create a new session and verify the active session was unchanged, ordinary sessions inherit the ordinary defaults, and `coyote --subagent` uses the saved recursion limit and subagent model |
+| DEM-033 | REQ-CORE-116..117, 119, 090a | Open GUI Preferences, save ordinary and subagent model/thinking/sandbox defaults, recursion depth, and ordered additional skill directories. Verify Add Directory uses a folder chooser, Remove Selected and Move Up/Down change the list, saved paths persist in `skillPaths`, the active session is unchanged, and new sessions inherit the paths. |
 | DEM-035 | REQ-CORE-126..128 | Toggle desktop completion notifications in GUI Preferences; verify an unfocused ordinary GUI turn notifies, a focused turn does not, the setting persists, and subagent/one-shot runs remain silent |
 | DEM-036 | REQ-CORE-113a..113c | Exercise the GUI menu bar and support windows: verify top-level order `File`, `Edit`, `View`, `Agent`, `Options`, `Help`; activate Overview, Keys & Shortcuts, and Product Information; verify application-prefixed titles for in-process support windows, Yelp ownership for Overview/Keys topics, an in-process Product Information dialog, dialog button order, and lifecycle status in the status area rather than the title |
 | DEM-037 | REQ-CORE-113a..113b | In a display-backed GUI, press F1 and verify Overview opens; press Shift+F1 and verify the pointer becomes a question mark; click the conversation canvas and verify contextual help opens without activating the clicked control; select and extend conversation text, verify PRIMARY changes independently of CLIPBOARD; middle-click in the prompt and verify PRIMARY text is inserted at the pointer without selecting the result |
@@ -847,3 +847,10 @@ errors. The existing GPR `Install` artifact declaration supports installing
 ordinary-session fallback coverage. Production and test development builds
 succeed; the complete suite passes 930/930 with zero failed assertions and zero
 unexpected errors.
+
+**Baseline as of 2026-08-29 (PCR-083 configurable skill roots):**
+933 registered tests. Added settings, skill-discovery, shadowing, and typed
+GTK preference queue coverage for ordered `skillPaths`. Production and test
+development builds succeed; the complete suite passes 933/933 with zero failed
+assertions and zero unexpected errors. Display-backed Preferences interaction,
+including folder selection and list reordering, remains pending under DEM-033.

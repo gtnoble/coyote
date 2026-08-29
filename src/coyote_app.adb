@@ -2845,7 +2845,8 @@ package body Coyote_App is
                               Max_Recursion_Depth      =>
                                 It.Preferences.Max_Recursion_Depth,
                               Completion_Notifications =>
-                                It.Preferences.Completion_Notifications);
+                                It.Preferences.Completion_Notifications,
+                              Skill_Paths => It.Preferences.Skill_Paths);
                            My_Frontend.Set_Completion_Notifications
                              (It.Preferences.Completion_Notifications);
                            My_Frontend.Append_Notice

@@ -506,3 +506,21 @@ session startup.
 **Verification:** Extended settings persistence and GTK prompt-queue tests to
 cover non-default depth 3 and zero. The focused tests pass; display-backed
 DEM-033 remains the qualification procedure for the complete Preferences flow.
+
+## 2026-08-29 — Configurable skill roots
+
+**Requirement:** Persist optional additional skill roots in `settings.json` and
+make them available to the shared skill-discovery path.
+
+**Design:** `LLM.Settings` exposes `Skill_Paths` as an ordered string vector,
+loaded from the `skillPaths` JSON array and atomically persisted by
+`Save_Preferences`. `LLM.Skills.Load_Skills` scans configured roots after the
+built-in global/installation roots and before project-local roots. Later roots
+replace earlier entries with the same skill name, preserving documented
+shadowing semantics. Invalid array elements and unavailable directories are
+ignored without aborting startup.
+
+**Verification:** Added settings and skill-discovery regressions for ordered
+array loading, malformed elements, serialization/clearing, configured-root
+loading, and project-local shadowing. Focused tests and the full development
+suite pass.

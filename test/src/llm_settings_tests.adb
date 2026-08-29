@@ -1,4 +1,5 @@
 with AUnit.Assertions;
+with Ada.Containers;
 with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
@@ -12,6 +13,8 @@ with LLM.System_Prompt;
 package body LLM_Settings_Tests is
 
    use AUnit.Assertions;
+   use type Ada.Containers.Count_Type;
+   use type GNATCOLL.JSON.JSON_Value_Type;
 
    procedure Restore_Env (Name : String; Was_Set : Boolean; Value : String) is
    begin
@@ -512,6 +515,37 @@ package body LLM_Settings_Tests is
          raise;
    end Test_Completion_Notifications_Default_Enabled;
 
+   procedure Test_Skill_Paths_Loaded (T : in out Test) is
+      pragma Unreferenced (T);
+      Home         : constant String := "/tmp/coyote_llm_settings_test_paths";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Loaded       : LLM.Settings.Settings;
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+      Write_File
+        (Home & "/.coyote/settings.json",
+         "{""skillPaths"":[""/opt/skills"",42,"""" ,""/srv/skills""]}");
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Loaded := LLM.Settings.Load_Settings;
+      Assert (Loaded.Skill_Paths.Length = 2,
+              "skillPaths should load only non-empty strings");
+      Assert (Loaded.Skill_Paths.Element (1) = "/opt/skills",
+              "skillPaths should preserve JSON array order");
+      Assert (Loaded.Skill_Paths.Element (2) = "/srv/skills",
+              "skillPaths should skip malformed entries");
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Skill_Paths_Loaded;
+
    procedure Test_Save_Preferences_Preserves_And_Clears (T : in out Test) is
       pragma Unreferenced (T);
       Home         : constant String := "/tmp/coyote_llm_settings_test_11";
@@ -539,7 +573,10 @@ package body LLM_Settings_Tests is
          Subagent_Provider        => "openrouter",
          Subagent_Model           => "new/fast-model",
          Max_Recursion_Depth      => 3,
-         Completion_Notifications => False);
+         Completion_Notifications => False,
+         Skill_Paths =>
+           (LLM.Settings.String_Vectors.To_Vector
+              ("/opt/skills", 1)));
       Root := LLM.Settings.Load_Json_File (Home & "/.coyote/settings.json");
       Assert (Coyote_App.Utils.Get_String (Root, "defaultProvider") =
                 "openrouter",
@@ -553,6 +590,20 @@ package body LLM_Settings_Tests is
       Assert (Coyote_App.Utils.Get_String (Root, "defaultSandboxProfile") =
                 "restricted",
               "Save_Preferences should write sandbox profile");
+      declare
+         Skill_Items : constant GNATCOLL.JSON.JSON_Array :=
+           Root.Get ("skillPaths").Get;
+         First_Path : constant String :=
+           GNATCOLL.JSON.Get (Skill_Items, 1).Get;
+      begin
+         Assert
+           (Root.Has_Field ("skillPaths")
+            and then Root.Get ("skillPaths").Kind =
+              GNATCOLL.JSON.JSON_Array_Type
+            and then GNATCOLL.JSON.Length (Skill_Items) = 1
+            and then First_Path = "/opt/skills",
+            "Save_Preferences should write skillPaths as an ordered array");
+      end;
       Assert
         (not Coyote_App.Utils.Get_Boolean
            (Root, "completionNotifications"),
@@ -574,7 +625,8 @@ package body LLM_Settings_Tests is
          Model_Id            => "",
          Think_Level         => "",
          Sandbox             => "",
-         Max_Recursion_Depth => 0);
+         Max_Recursion_Depth => 0,
+         Skill_Paths         => LLM.Settings.String_Vectors.Empty_Vector);
       Root := LLM.Settings.Load_Json_File (Home & "/.coyote/settings.json");
       Assert (Coyote_App.Utils.Get_Integer (Root, "maxRecursionDepth") = 0,
               "zero recursion depth should be persisted");
@@ -590,6 +642,8 @@ package body LLM_Settings_Tests is
               "empty subagent provider should clear the persisted field");
       Assert (not Root.Has_Field ("defaultSubagentModel"),
               "empty subagent model should clear the persisted field");
+      Assert (not Root.Has_Field ("skillPaths"),
+              "empty skill paths should clear the persisted field");
       Assert (Coyote_App.Utils.Get_String (Root, "appendSystemPrompt") =
                 "keep",
               "clearing preferences should preserve unrelated fields");

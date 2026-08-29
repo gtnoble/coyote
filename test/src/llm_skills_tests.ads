@@ -13,6 +13,8 @@ package LLM_Skills_Tests is
    procedure Test_Global_Skills_Loaded            (T : in out Test);
    procedure Test_Project_Skills_Loaded           (T : in out Test);
    procedure Test_Global_Agents_Skills_Loaded     (T : in out Test);
+   procedure Test_Configured_Skills_Loaded        (T : in out Test);
+   procedure Test_Configured_Skill_Shadowed_By_Project (T : in out Test);
    procedure Test_Project_Agents_Skills_Loaded    (T : in out Test);
    procedure Test_Format_Contains_Skill_Name      (T : in out Test);
    procedure Test_Format_Contains_Description     (T : in out Test);

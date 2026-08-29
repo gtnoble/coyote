@@ -233,6 +233,8 @@ package body LLM.Skills is
 
    function Load_Skills (Cwd : String) return Skill_Vectors.Vector is
       Result              : Skill_Vectors.Vector;
+      Settings_Value      : constant LLM.Settings.Settings :=
+        LLM.Settings.Load_Settings;
       Agent_Dir           : constant String := LLM.Settings.Agent_Dir;
       Home                : constant String :=
         Ada.Environment_Variables.Value ("HOME", "");
@@ -245,12 +247,37 @@ package body LLM.Skills is
         (if Cwd'Length > 0 then Cwd & "/.coyote/skills" else "");
       Project_Agents_Root : constant String :=
         (if Cwd'Length > 0 then Cwd & "/.agents/skills" else "");
+
+      procedure Add_Skill (Candidate : Skill) is
+      begin
+         if not Result.Is_Empty then
+            for Index in Result.First_Index .. Result.Last_Index loop
+               if Result.Element (Index).Name = Candidate.Name then
+                  Result.Replace_Element (Index, Candidate);
+                  return;
+               end if;
+            end loop;
+         end if;
+         Result.Append (Candidate);
+      end Add_Skill;
+
+      procedure Collect_Root (Root : String) is
+         Found : Skill_Vectors.Vector;
+      begin
+         Collect_Skills_From_Root (Root, Found);
+         for Candidate of Found loop
+            Add_Skill (Candidate);
+         end loop;
+      end Collect_Root;
    begin
-      Collect_Skills_From_Root (Global_Coyote_Root, Result);
-      Collect_Skills_From_Root (Global_Agents_Root, Result);
-      Collect_Skills_From_Root (Install_Root, Result);
-      Collect_Skills_From_Root (Project_Coyote_Root, Result);
-      Collect_Skills_From_Root (Project_Agents_Root, Result);
+      Collect_Root (Global_Coyote_Root);
+      Collect_Root (Global_Agents_Root);
+      Collect_Root (Install_Root);
+      for Root of Settings_Value.Skill_Paths loop
+         Collect_Root (Root);
+      end loop;
+      Collect_Root (Project_Coyote_Root);
+      Collect_Root (Project_Agents_Root);
       return Result;
    end Load_Skills;
 

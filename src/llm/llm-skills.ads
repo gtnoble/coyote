@@ -4,6 +4,7 @@
 --    ~/.coyote/skills/*/SKILL.md       (global, coyote-specific)
 --    ~/.agents/skills/*/SKILL.md       (global, provider-agnostic)
 --    $BASE/share/agents/skills/*/SKILL.md  (installation-relative)
+--    configured skillPaths roots, in JSON array order
 --    {Cwd}/.coyote/skills/*/SKILL.md   (project-local, coyote-specific)
 --    {Cwd}/.agents/skills/*/SKILL.md   (project-local, provider-agnostic)
 --
@@ -26,7 +27,8 @@ package LLM.Skills is
      (Index_Type   => Natural,
       Element_Type => Skill);
 
-   --  Scan all five skill roots (see package header) for SKILL.md files.
+   --  Scan the built-in roots and configured skillPaths roots (see package
+   --  header) for SKILL.md files. Later roots shadow earlier names.
    --  Returns an empty vector when no skills are found.
    --  Skills missing a name or description are silently skipped.
    function Load_Skills (Cwd : String) return Skill_Vectors.Vector;

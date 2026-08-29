@@ -464,11 +464,18 @@ profile propagated to child processes shall identify the same value.
 #### 3.1.9 Skill Discovery
 
 **REQ-CORE-090** (T)
-The agent shall discover SKILL.md files from the following roots, in order:
+The agent shall discover SKILL.md files from the following root groups, in order:
 `~/.coyote/skills/*/SKILL.md`, `~/.agents/skills/*/SKILL.md`,
-`$BASE/share/agents/skills/*/SKILL.md`
-(where `$BASE` is the installation prefix derived from the binary path),
-`{CWD}/.coyote/skills/*/SKILL.md`, `{CWD}/.agents/skills/*/SKILL.md`.
+`$BASE/share/agents/skills/*/SKILL.md`, the configured `skillPaths` roots
+in JSON-array order, `{CWD}/.coyote/skills/*/SKILL.md`, and
+`{CWD}/.agents/skills/*/SKILL.md`. Each configured root shall contain child
+skill directories with `SKILL.md` files.
+
+**REQ-CORE-090a** (T)
+The optional `skillPaths` setting shall be a JSON array of additional absolute
+skill-root directory paths in `~/.coyote/settings.json`. Missing, malformed,
+empty, or non-string entries shall result in no entry for that element without
+preventing startup. Later roots shall shadow earlier skills with the same name.
 
 **REQ-CORE-091** (T)
 A SKILL.md file that is missing a `name` or `description` YAML frontmatter
@@ -685,7 +692,8 @@ behaviour are demonstrated.
 The GUI frontend shall provide an `Options → Preferences...` dialog for editing
 persistent defaults without changing the active session. The dialog shall
 expose the default model, default thinking level, default sandbox profile,
-optional default subagent model, and maximum subagent recursion depth.
+optional default subagent model, maximum subagent recursion depth, and the
+ordered list of additional skill directories.
 
 **REQ-CORE-117** (D)
 When the user saves GUI preferences, the frontend shall persist the default
@@ -696,7 +704,10 @@ subagent model as `defaultSubagentProvider` and `defaultSubagentModel` in
 sandbox default, and the explicit subagent fallback selection shall clear both
 subagent preference fields. The maximum subagent recursion depth shall be
 persisted as the nonnegative integer `maxRecursionDepth`, with zero disabling
-subagent spawning.
+subagent spawning. The additional skill directories shall be persisted as the
+ordered `skillPaths` JSON array; an empty list shall clear that field.
+The dialog shall provide Add Directory, Remove Selected, Move Up, and Move Down
+controls, and Add Directory shall use a folder-selection dialog.
 
 **REQ-CORE-118** (T)
 GUI preference persistence shall preserve unrelated fields in
@@ -1179,9 +1190,10 @@ thread-safe protected queue.
 **REQ-CORE-230** (T)
 The agent shall read `~/.coyote/settings.json` at startup to obtain the
 default provider, model, thinking level, optional subagent provider/model,
-compaction settings, `promptFilter`, `completionNotifications`, and the
-optional nonnegative `maxRecursionDepth` setting. An absent or invalid
-`maxRecursionDepth` shall default to 1.
+compaction settings, `promptFilter`, `completionNotifications`, the
+optional nonnegative `maxRecursionDepth` setting, and the optional `skillPaths`
+array. An absent or invalid `maxRecursionDepth` shall default to 1. An absent
+or malformed `skillPaths` value shall be treated as empty.
 
 **REQ-CORE-231** (T)
 The agent shall read `~/.coyote/models.json` at startup to obtain per-provider
@@ -1467,7 +1479,7 @@ matrix and retains historical `TC-*` identifiers; the current mappings are in
 | REQ-CORE-088 | Sandbox profile propagated end-to-end to child coyote | T | TC-088 |
 | REQ-CORE-089 | Frontend, agent, and child sandbox state synchronized | T | TC-089 |
 
-| REQ-CORE-090 | Skill discovery from five roots | T | TC-090 |
+| REQ-CORE-090, 090a | Skill discovery from built-in and configured roots; malformed configured entries ignored | T | TC-090, TC-090a |
 | REQ-CORE-091 | Incomplete SKILL.md silently skipped | T | TC-091 |
 | REQ-CORE-092 | Skills included in system prompt | D | TC-092 |
 | REQ-CORE-093 | Local skills shadow global | T | TC-093 |
@@ -1475,7 +1487,7 @@ matrix and retains historical `TC-*` identifiers; the current mappings are in
 | REQ-CORE-100..107 | Acme frontend tag commands (Send, Stop, New, etc.) | D | TC-100..107 |
 | REQ-CORE-108..108b | Session fork tokens and step-level turn footers | D | TC-108..108b |
 | REQ-CORE-109 | SetDefault writes to settings.json | D | TC-109 |
-| REQ-CORE-110..119, 124..129, 133..139 | GUI frontend capabilities, including Preferences, display math, zoom, component-stack conversation presentation, completion notifications, and Change Model search | D/T/I | TC-110..119, TC-124..129, TC-133..139; GUI regression tests; DEM-042..044 |
+| REQ-CORE-110..119, 124..129, 133..139 | GUI frontend capabilities, including Preferences, ordered skill-directory editing, display math, zoom, component-stack conversation presentation, completion notifications, and Change Model search | D/T/I | TC-110..119, TC-124..129, TC-133..139; GUI regression tests; DEM-033, DEM-042..044 |
 | REQ-CORE-113a..113c | GUI Help menu, Yelp topics, Edit menu, Product Information dialog, menu taxonomy, title, dialog, support-window, lifecycle-status, and desktop interaction conventions | D/T/I | DEM-036..039; Coyote_Help tests; Mallard validation; source inspection |
 | REQ-CORE-113d | Live structured Session Stats support window and session-reset currency | D/T/I | `coyote_gui_session_stats_window_tests.adb`; DEM-040; source inspection |
 | REQ-CORE-113e | Compact tool-card summary and View Details action opening the structured GTK tool-call detail window | D/T/I | `coyote_gui_conversation_tests.adb`, `coyote_gui_conversation_stack_tests.adb`, `llm_session_store_tests.adb`; DEM-041..043; source inspection |
@@ -1500,7 +1512,7 @@ matrix and retains historical `TC-*` identifiers; the current mappings are in
 | REQ-CORE-200..208, REQ-CORE-215..219 | Provider API interfaces | I/T | TC-200..208, TC-215..219 |
 | REQ-CORE-210..212 | acme 9P VFS interface | I | TC-210..212 |
 | REQ-CORE-220..221 | GTK3 interface | I | TC-220..221 |
-| REQ-CORE-230..234 | Configuration file interface, including sandbox default | T | TC-230..234 |
+| REQ-CORE-090a, 230..234 | Configuration file interface, including skillPaths and sandbox default | T | TC-090a, TC-230..234 |
 | REQ-CORE-240..241 | Session JSONL format | T | TC-240..241 |
 | REQ-CORE-300..302 | Internal interfaces | I | TC-300..302 |
 | REQ-CORE-400..402 | Internal data | I | TC-400..402 |
@@ -1528,7 +1540,7 @@ objectives stated in the Project Plan (PLAN §1 and §3):
 | Context compaction | REQ-CORE-060–064 |
 | Multi-provider LLM support | REQ-CORE-070–078, REQ-CORE-150–156, REQ-CORE-200–208, REQ-CORE-215–219 |
 | Man pages for coyote and coyote_sqc | REQ-CORE-160 |
-| Skill discovery and system prompt construction | REQ-CORE-090–094 |
+| Skill discovery, configurable roots, and system prompt construction | REQ-CORE-090, 090a–094 |
 | Subagent spawning with session lineage | REQ-CORE-019–020, REQ-CORE-030–032 |
 | Error visibility and graceful shutdown | REQ-CORE-140–142, REQ-CORE-139, REQ-CORE-702–703 |
 | Enhanced system prompt with personality and task constraints | REQ-CORE-170–172 |

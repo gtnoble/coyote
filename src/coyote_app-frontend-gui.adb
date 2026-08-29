@@ -53,6 +53,10 @@ with Gtk.Dialog;
 with Gtk.Combo_Box_Text;
 with Gtk.Spin_Button;
 with Gtk.List_Store;
+with Gtk.List_Box;
+with Gtk.List_Box_Row;
+with Gtk.File_Chooser;
+with Gtk.File_Chooser_Dialog;
 with LLM.Settings;
 with Gtk.Search_Entry;
 with Gtk.Tree_Model;
@@ -109,6 +113,10 @@ package body Coyote_App.Frontend.GUI is
    use type Coyote_GUI.Conversation.Action_Kind;
    use type Gtk.Tree_Model_Filter.Gtk_Tree_Model_Filter;
    use type Gtk.Tree_View.Gtk_Tree_View;
+   use type Gtk.List_Box.Gtk_List_Box;
+   use type Gtk.List_Box_Row.Gtk_List_Box_Row;
+   use type Gtk.Button.Gtk_Button;
+   use type Gtk.Dialog.Gtk_Response_Type;
 
    procedure On_Change_Model_Activate
      (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
@@ -1901,6 +1909,203 @@ package body Coyote_App.Frontend.GUI is
 
    --  ── Persistent GUI preferences ───────────────────────────────────────
 
+   type Skill_Path_Editor_State is record
+      List    : Gtk.List_Box.Gtk_List_Box := null;
+      Paths   : LLM.Settings.String_Vectors.Vector;
+      Dialog  : Gtk.Dialog.Gtk_Dialog := null;
+      Up      : Gtk.Button.Gtk_Button := null;
+      Down    : Gtk.Button.Gtk_Button := null;
+      Remove  : Gtk.Button.Gtk_Button := null;
+   end record;
+
+   Skill_Editor : aliased Skill_Path_Editor_State;
+
+   procedure Refresh_Skill_Path_List is
+      use Gtk.List_Box;
+      use Gtk.List_Box_Row;
+      use Gtk.Label;
+      Selected : Glib.Gint := -1;
+   begin
+      if Skill_Editor.List = null then
+         return;
+      end if;
+      declare
+         Row : constant Gtk_List_Box_Row := Skill_Editor.List.Get_Selected_Row;
+      begin
+         if Row /= null then
+            Selected := Row.Get_Index;
+         end if;
+      end;
+
+      declare
+         Row : Gtk_List_Box_Row;
+      begin
+         loop
+            Row := Skill_Editor.List.Get_Row_At_Index (0);
+            exit when Row = null;
+            Skill_Editor.List.Remove (Row);
+         end loop;
+      end;
+
+      for Path of Skill_Editor.Paths loop
+         declare
+            Row : Gtk_List_Box_Row;
+            Lbl : Gtk.Label.Gtk_Label;
+         begin
+            Gtk.List_Box_Row.Gtk_New (Row);
+            Gtk.Label.Gtk_New (Lbl, Path);
+            Lbl.Set_Halign (Gtk.Widget.Align_Start);
+            Row.Add (Lbl);
+            Skill_Editor.List.Add (Row);
+            Row.Show_All;
+         end;
+      end loop;
+
+      if Selected >= 0 and then Selected < Glib.Gint (Skill_Editor.Paths.Length) then
+         Skill_Editor.List.Select_Row
+           (Skill_Editor.List.Get_Row_At_Index (Selected));
+      end if;
+   end Refresh_Skill_Path_List;
+
+   procedure Update_Skill_Path_Button_State is
+      Row   : Gtk.List_Box_Row.Gtk_List_Box_Row;
+      Index : Integer := -1;
+   begin
+      if Skill_Editor.List = null then
+         return;
+      end if;
+      Row := Skill_Editor.List.Get_Selected_Row;
+      if Row /= null then
+         Index := Integer (Row.Get_Index);
+      end if;
+      if Skill_Editor.Up /= null then
+         Skill_Editor.Up.Set_Sensitive (Index > 0);
+      end if;
+      if Skill_Editor.Down /= null then
+         Skill_Editor.Down.Set_Sensitive
+           (Index >= 0
+            and then Index < Integer (Skill_Editor.Paths.Length) - 1);
+      end if;
+      if Skill_Editor.Remove /= null then
+         Skill_Editor.Remove.Set_Sensitive (Index >= 0);
+      end if;
+   end Update_Skill_Path_Button_State;
+
+   procedure On_Skill_Path_Selected
+     (List : access Gtk.List_Box.Gtk_List_Box_Record'Class;
+      Row  : not null access Gtk.List_Box_Row.Gtk_List_Box_Row_Record'Class)
+   is
+      pragma Unreferenced (List, Row);
+   begin
+      Update_Skill_Path_Button_State;
+   end On_Skill_Path_Selected;
+
+   procedure On_Add_Skill_Path_Clicked
+     (Button : access Gtk.Button.Gtk_Button_Record'Class)
+   is
+      pragma Unreferenced (Button);
+      use Gtk.File_Chooser_Dialog;
+      use Gtk.File_Chooser;
+      Dialog : Gtk_File_Chooser_Dialog;
+      Response : Gtk.Dialog.Gtk_Response_Type;
+      Dummy : Gtk.Widget.Gtk_Widget;
+      pragma Unreferenced (Dummy);
+   begin
+      Gtk.File_Chooser_Dialog.Gtk_New
+        (Dialog,
+         Title  => "Add Skill Directory",
+         Parent => Skill_Editor.Dialog,
+         Action => Gtk.File_Chooser.Action_Select_Folder);
+      Dummy := Gtk.Dialog.Gtk_Dialog (Dialog).Add_Button
+        ("_Add", Gtk.Dialog.Gtk_Response_OK);
+      Dummy := Gtk.Dialog.Gtk_Dialog (Dialog).Add_Button
+        ("_Cancel", Gtk.Dialog.Gtk_Response_Cancel);
+      Dialog.Show_All;
+      Response := Gtk.Dialog.Gtk_Dialog (Dialog).Run;
+      if Response = Gtk.Dialog.Gtk_Response_OK then
+         declare
+            Path : constant String := Dialog.Get_Filename;
+            Is_Duplicate : Boolean := False;
+         begin
+            for Existing of Skill_Editor.Paths loop
+               if Existing = Path then
+                  Is_Duplicate := True;
+               end if;
+            end loop;
+            if Path'Length > 0 and then not Is_Duplicate then
+               Skill_Editor.Paths.Append (Path);
+               Refresh_Skill_Path_List;
+               Skill_Editor.List.Select_Row
+                 (Skill_Editor.List.Get_Row_At_Index
+                    (Glib.Gint (Natural (Skill_Editor.Paths.Length) - 1)));
+               Update_Skill_Path_Button_State;
+            end if;
+         end;
+      end if;
+      Dialog.Destroy;
+   end On_Add_Skill_Path_Clicked;
+
+   procedure On_Remove_Skill_Path_Clicked
+     (Button : access Gtk.Button.Gtk_Button_Record'Class)
+   is
+      pragma Unreferenced (Button);
+      Row : Gtk.List_Box_Row.Gtk_List_Box_Row;
+      Index : Integer;
+   begin
+      Row := Skill_Editor.List.Get_Selected_Row;
+      if Row = null then
+         return;
+      end if;
+      Index := Integer (Row.Get_Index);
+      Skill_Editor.Paths.Delete (Positive (Index + 1));
+      Refresh_Skill_Path_List;
+      Update_Skill_Path_Button_State;
+   end On_Remove_Skill_Path_Clicked;
+
+   procedure Move_Skill_Path (Offset : Integer) is
+      Row : Gtk.List_Box_Row.Gtk_List_Box_Row;
+      Index : Integer;
+      Other : Unbounded_String;
+   begin
+      Row := Skill_Editor.List.Get_Selected_Row;
+      if Row = null then
+         return;
+      end if;
+      Index := Integer (Row.Get_Index);
+      if Index + Offset < 0
+        or else Index + Offset >= Integer (Skill_Editor.Paths.Length)
+      then
+         return;
+      end if;
+      Other := To_Unbounded_String
+        (Skill_Editor.Paths.Element (Positive (Index + Offset + 1)));
+      Skill_Editor.Paths.Replace_Element
+        (Positive (Index + Offset + 1),
+         Skill_Editor.Paths.Element (Positive (Index + 1)));
+      Skill_Editor.Paths.Replace_Element
+        (Positive (Index + 1), To_String (Other));
+      Refresh_Skill_Path_List;
+      Skill_Editor.List.Select_Row
+        (Skill_Editor.List.Get_Row_At_Index (Glib.Gint (Index + Offset)));
+      Update_Skill_Path_Button_State;
+   end Move_Skill_Path;
+
+   procedure On_Move_Skill_Path_Up_Clicked
+     (Button : access Gtk.Button.Gtk_Button_Record'Class)
+   is
+      pragma Unreferenced (Button);
+   begin
+      Move_Skill_Path (-1);
+   end On_Move_Skill_Path_Up_Clicked;
+
+   procedure On_Move_Skill_Path_Down_Clicked
+     (Button : access Gtk.Button.Gtk_Button_Record'Class)
+   is
+      pragma Unreferenced (Button);
+   begin
+      Move_Skill_Path (1);
+   end On_Move_Skill_Path_Down_Clicked;
+
    procedure On_Preferences_Activate
      (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
    is
@@ -1920,6 +2125,7 @@ package body Coyote_App.Frontend.GUI is
       Sandbox_C            : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
       Recursion_C         : Gtk.Spin_Button.Gtk_Spin_Button;
       Notification_C       : Gtk.Check_Button.Gtk_Check_Button;
+      Skill_Paths_Scroll   : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
       Resp                 : Gtk.Dialog.Gtk_Response_Type;
       Btn                 : Gtk.Widget.Gtk_Widget;
       Thinking_Index      : Glib.Gint := 0;
@@ -1960,7 +2166,7 @@ package body Coyote_App.Frontend.GUI is
       end if;
       Gtk.Dialog.Gtk_New (Dialog);
       Dialog.Set_Title ("coyote : Preferences");
-      Dialog.Set_Default_Size (560, 370);
+      Dialog.Set_Default_Size (620, 500);
       Dialog.Set_Transient_For (Current_Frontend.Win);
       Btn := Dialog.Add_Button ("_Save", Gtk.Dialog.Gtk_Response_OK);
       Btn := Dialog.Add_Button ("_Cancel", Gtk.Dialog.Gtk_Response_Cancel);
@@ -2078,6 +2284,50 @@ package body Coyote_App.Frontend.GUI is
       end;
 
       declare
+         Label : Gtk.Label.Gtk_Label;
+         Actions : Gtk.Box.Gtk_Box;
+         Add_B, Remove_B, Up_B, Down_B : Gtk.Button.Gtk_Button;
+      begin
+         Gtk.Label.Gtk_New (Label, "Additional skill directories:");
+         Label.Set_Halign (Gtk.Widget.Align_Start);
+         Form.Pack_Start (Label, False, False, 0);
+
+         Gtk.List_Box.Gtk_New (Skill_Editor.List);
+         Skill_Editor.List.Set_Selection_Mode (Gtk.Enums.Selection_Single);
+         Skill_Editor.List.On_Row_Selected
+           (On_Skill_Path_Selected'Access);
+         Skill_Editor.Paths := Settings_Value.Skill_Paths;
+         Skill_Editor.Dialog := Dialog;
+         Gtk.Scrolled_Window.Gtk_New (Skill_Paths_Scroll);
+         Skill_Paths_Scroll.Set_Policy
+           (Gtk.Enums.Policy_Never, Gtk.Enums.Policy_Automatic);
+         Skill_Paths_Scroll.Set_Size_Request (-1, 110);
+         Skill_Paths_Scroll.Add (Skill_Editor.List);
+         Form.Pack_Start
+           (Skill_Paths_Scroll, True, True, 0);
+         Refresh_Skill_Path_List;
+
+         Gtk.Box.Gtk_New_Hbox (Actions, Homogeneous => False, Spacing => 4);
+         Gtk.Button.Gtk_New (Add_B, "_Add Directory...");
+         Gtk.Button.Gtk_New (Remove_B, "_Remove Selected");
+         Gtk.Button.Gtk_New (Up_B, "Move _Up");
+         Gtk.Button.Gtk_New (Down_B, "Move _Down");
+         Add_B.On_Clicked (On_Add_Skill_Path_Clicked'Access);
+         Remove_B.On_Clicked (On_Remove_Skill_Path_Clicked'Access);
+         Up_B.On_Clicked (On_Move_Skill_Path_Up_Clicked'Access);
+         Down_B.On_Clicked (On_Move_Skill_Path_Down_Clicked'Access);
+         Actions.Pack_Start (Add_B, False, False, 0);
+         Actions.Pack_Start (Remove_B, False, False, 0);
+         Actions.Pack_Start (Up_B, False, False, 0);
+         Actions.Pack_Start (Down_B, False, False, 0);
+         Form.Pack_Start (Actions, False, False, 0);
+         Skill_Editor.Up := Up_B;
+         Skill_Editor.Down := Down_B;
+         Skill_Editor.Remove := Remove_B;
+         Update_Skill_Path_Button_State;
+      end;
+
+      declare
          Row : Gtk.Box.Gtk_Box;
       begin
          Gtk.Box.Gtk_New_Hbox (Row, Homogeneous => False, Spacing => 8);
@@ -2136,7 +2386,8 @@ package body Coyote_App.Frontend.GUI is
                    Subagent_Model           => Subagent_Id,
                    Max_Recursion_Depth      => Natural
                      (Recursion_C.Get_Value),
-                   Completion_Notifications => Notification_C.Get_Active)));
+                   Completion_Notifications => Notification_C.Get_Active,
+                   Skill_Paths               => Skill_Editor.Paths)));
          end;
       end if;
       Dialog.Destroy;

@@ -49,16 +49,19 @@ find them.
 
 ## Discovery & Shadowing
 
-Coyote scans five roots in order.  Later roots shadow earlier ones when two
+Coyote scans six root groups in order. Later roots shadow earlier ones when two
 skills share the same name, so project-local skills override global ones.
+The fourth group contains the configured `skillPaths` entries in their saved
+array order.
 
 | Priority | Path | Scope |
 |---|---|---|
 | 1 (lowest) | `~/.coyote/skills/*/SKILL.md` | Global, coyote-specific |
 | 2 | `~/.agents/skills/*/SKILL.md` | Global, provider-agnostic |
 | 3 | `$BASE/share/agents/skills/*/SKILL.md` | Installation-relative, provider-agnostic |
-| 4 | `{cwd}/.coyote/skills/*/SKILL.md` | Project-local, coyote-specific |
-| 5 (highest) | `{cwd}/.agents/skills/*/SKILL.md` | Project-local, provider-agnostic |
+| 4 | `skillPaths/*/SKILL.md` | Configured roots, in saved array order |
+| 5 | `{cwd}/.coyote/skills/*/SKILL.md` | Project-local, coyote-specific |
+| 6 (highest) | `{cwd}/.agents/skills/*/SKILL.md` | Project-local, provider-agnostic |
 
 ---
 

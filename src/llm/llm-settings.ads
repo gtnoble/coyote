@@ -8,6 +8,7 @@ with GNATCOLL.JSON;
 --  Project: coyote
 --  For revision history, see the project version-control log.
 
+with Ada.Containers.Indefinite_Vectors;
 with Ada.Strings.Unbounded;
 
 package LLM.Settings is
@@ -15,6 +16,10 @@ package LLM.Settings is
    --  Base configuration directory for coyote.
    --  Returns $HOME/.coyote, or "" when $HOME is not set.
    function Agent_Dir return String;
+
+   package String_Vectors is new Ada.Containers.Indefinite_Vectors
+     (Index_Type   => Positive,
+      Element_Type => String);
 
    type Settings is record
       Default_Provider          : Ada.Strings.Unbounded.Unbounded_String;
@@ -33,6 +38,8 @@ package LLM.Settings is
       Prompt_Filter             : Ada.Strings.Unbounded.Unbounded_String;
       --  Whether interactive GUI completion notifications are enabled.
       Completion_Notifications  : Boolean := True;
+      --  Additional skill roots from the skillPaths JSON array.
+      Skill_Paths               : String_Vectors.Vector;
    end record;
 
    --  Load ~/.coyote/settings.json.
@@ -69,8 +76,8 @@ package LLM.Settings is
       Model_Id    : String;
       Think_Level : String);
 
-   --  Write model, thinking, sandbox, recursion, and notification defaults
-   --  to settings.json.
+   --  Write model, thinking, sandbox, recursion, notification, and skill-path
+   --  defaults to settings.json.
    --  Empty string values clear the corresponding string preference.
    --  Unrelated fields are preserved and the replacement is atomic.
    procedure Save_Preferences
@@ -81,5 +88,7 @@ package LLM.Settings is
       Subagent_Provider        : String := "";
       Subagent_Model           : String := "";
       Max_Recursion_Depth      : Natural := 1;
-      Completion_Notifications : Boolean := True);
+      Completion_Notifications : Boolean := True;
+      Skill_Paths               : String_Vectors.Vector :=
+        String_Vectors.Empty_Vector);
 end LLM.Settings;

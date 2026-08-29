@@ -784,3 +784,15 @@ passes it to the native conversation stack. The legacy GtkLayout fallback now
 renders the formatted footer payload as a styled footer line while retaining
 its blank-line separator behavior for empty payloads. Added regressions cover
 both the update-queue payload round trip and legacy summary visibility.
+
+### Configurable skill directories in GTK Preferences (2026-08-29)
+
+The GTK `Options → Preferences...` dialog now edits additional skill roots with
+a single-selection scrollable list. `Add Directory...` opens a folder chooser;
+`Remove Selected`, `Move Up`, and `Move Down` are explicit keyboard-accessible
+actions. The pending ordered vector travels through the typed
+`Set_Preferences` queue item; the agent task persists it as `skillPaths` without
+changing the active session. The dialog default size was increased to provide
+room for the resizable directory list. Queue, settings, and skill-discovery
+regressions cover the transport and persistence behavior; display-backed
+interaction remains part of the Preferences qualification procedure DEM-033.
