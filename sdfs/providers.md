@@ -131,6 +131,18 @@ was chosen because:
 - The 200 KB ceiling prevents runaway memory use if the heuristic overestimates
   for an unusually large model.
 
+### libcurl cancellation for streaming requests
+
+`LLM.HTTP.Post` and `LLM.HTTP.Get` accept an optional protected
+`LLM.Tools.Abort_Flag_Access`. When supplied, the native binding enables
+`CURLOPT_XFERINFOFUNCTION` and passes the abort flag's atomic C mirror to a
+C callback. The callback returns nonzero when the flag is set, so a blocked
+`curl_easy_perform` exits without waiting for a response-body write callback.
+Provider adapters forward this optional value through all wire-format and
+routing delegates, including compaction requests. Existing direct HTTP and
+provider callers remain source-compatible because the parameter defaults to
+null.
+
 ### libcurl binding: no CURLOPT_TIMEOUT_MS on streaming requests
 
 The libcurl binding does not set a per-request timeout (`CURLOPT_TIMEOUT_MS`)
@@ -173,6 +185,15 @@ and the next startup will see a non-expired token and load the catalogue.
   leader PID returned by `Start` for signals to the entire command tree.
 
 ---
+
+## 2026-08-28 — Cancellable provider transfers
+
+Added optional abort-flag propagation to the provider interface and all
+OpenAI, Anthropic, GitHub Copilot, OpenRouter, and OpenCode Go routing paths.
+The HTTP binding uses a C-native libcurl transfer-info callback and an atomic
+mirror maintained by `LLM.Tools.Abort_Flag`; no Ada nested callback crosses the
+C ABI. `test/src/llm_http_tests.adb` verifies that an idle response terminates
+promptly after the flag is set. The development suite passes 928/928 tests.
 
 ## Unit Test Coverage Notes
 

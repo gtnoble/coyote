@@ -1171,7 +1171,6 @@ package body Coyote_App.Frontend.GUI is
    begin
       if Current_Frontend /= null then
          Current_Frontend.Agent_Sess.Request_Abort;
-         Current_Frontend.PQ.Enqueue ((Kind => Stop));
       end if;
    end On_Stop_Activate;
 
@@ -1182,7 +1181,6 @@ package body Coyote_App.Frontend.GUI is
    begin
       if Current_Frontend /= null then
          Current_Frontend.Agent_Sess.Request_Abort;
-         Current_Frontend.PQ.Enqueue ((Kind => Stop));
       end if;
    end On_Stop_Btn_Clicked;
 

@@ -1149,7 +1149,8 @@ package body LLM.Agent is
                      Thinking      => S.Thinking,
                      Max_Tokens    => Max_Tokens_For (S.Model_Info),
                      Handler =>
-                       Provider_Event_Handler'Unrestricted_Access);
+                       Provider_Event_Handler'Unrestricted_Access,
+                     Abort_Check => S.Abort_State'Unchecked_Access);
 
                   if Retry_Used then
                      declare
@@ -1508,7 +1509,8 @@ package body LLM.Agent is
                Tools_Json    => "",
                Thinking      => LLM.Providers.Off,
                Max_Tokens    => Summary_Max_Tokens,
-               Handler       => Summary_Event_Handler'Unrestricted_Access);
+               Handler       => Summary_Event_Handler'Unrestricted_Access,
+               Abort_Check  => S.Abort_State'Unchecked_Access);
          end;
       elsif Lowercase (To_String (S.Model_Info.Provider)) = "openrouter" then
          declare
@@ -1523,7 +1525,8 @@ package body LLM.Agent is
                Tools_Json    => "",
                Thinking      => LLM.Providers.Off,
                Max_Tokens    => Summary_Max_Tokens,
-               Handler       => Summary_Event_Handler'Unrestricted_Access);
+               Handler       => Summary_Event_Handler'Unrestricted_Access,
+               Abort_Check  => S.Abort_State'Unchecked_Access);
          end;
       elsif Lowercase (To_String (S.Model_Info.Provider)) = "anthropic" then
          declare
@@ -1540,7 +1543,8 @@ package body LLM.Agent is
                Tools_Json    => "",
                Thinking      => LLM.Providers.Off,
                Max_Tokens    => Summary_Max_Tokens,
-               Handler       => Summary_Event_Handler'Unrestricted_Access);
+               Handler       => Summary_Event_Handler'Unrestricted_Access,
+               Abort_Check  => S.Abort_State'Unchecked_Access);
          end;
       elsif Lowercase (To_String (S.Model_Info.Provider)) = "ollama" then
          declare
@@ -1557,7 +1561,8 @@ package body LLM.Agent is
                Tools_Json    => "",
                Thinking      => LLM.Providers.Off,
                Max_Tokens    => Summary_Max_Tokens,
-               Handler       => Summary_Event_Handler'Unrestricted_Access);
+               Handler       => Summary_Event_Handler'Unrestricted_Access,
+               Abort_Check  => S.Abort_State'Unchecked_Access);
          end;
       elsif Lowercase (To_String (S.Model_Info.Provider)) = "openai" then
          declare
@@ -1574,7 +1579,8 @@ package body LLM.Agent is
                Tools_Json    => "",
                Thinking      => LLM.Providers.Off,
                Max_Tokens    => Summary_Max_Tokens,
-               Handler       => Summary_Event_Handler'Unrestricted_Access);
+               Handler       => Summary_Event_Handler'Unrestricted_Access,
+               Abort_Check  => S.Abort_State'Unchecked_Access);
          end;
       elsif Lowercase (To_String (S.Model_Info.Provider)) = "opencode-go" then
          declare
@@ -1588,7 +1594,8 @@ package body LLM.Agent is
                Tools_Json    => "",
                Thinking      => LLM.Providers.Off,
                Max_Tokens    => Summary_Max_Tokens,
-               Handler       => Summary_Event_Handler'Unrestricted_Access);
+               Handler       => Summary_Event_Handler'Unrestricted_Access,
+               Abort_Check  => S.Abort_State'Unchecked_Access);
          end;
       else
          raise Constraint_Error with
@@ -1729,7 +1736,6 @@ package body LLM.Agent is
          end if;
       end Roll_Back_Pending_Messages;
    begin
-      S.Abort_State.Clear;
       S.History.Append (Prompt_Msg);
       S.Has_Submitted_Prompts := True;
       Messages_To_Persist.Append (Prompt_Msg);

@@ -238,6 +238,14 @@ package body Coyote_App.Dispatch is
          State.Set_Pause_Armed (False);
          State.Set_Is_Retrying (False);
          Section := No_Section;
+         declare
+            Ev : constant LLM.Events.Agent_End_Event :=
+              LLM.Events.Agent_End_Event (Event);
+         begin
+            if Ev.Was_Aborted then
+               State.Set_Aborted (True);
+            end if;
+         end;
          if State.Was_Aborted then
             Frontend.Append_Notice
               (Coyote_App.Frontend.Info,

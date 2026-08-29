@@ -49,9 +49,9 @@ package body LLM.HTTP.Curl_Binding is
       exception
          when E : others =>
             Ctx.Exception_Occurred := True;
-            Ctx.Exception_Message  :=
-               Ada.Strings.Unbounded.To_Unbounded_String
-                  (Ada.Exceptions.Exception_Information (E));
+            Ctx.Exception_Message :=
+              Ada.Strings.Unbounded.To_Unbounded_String
+                (Ada.Exceptions.Exception_Information (E));
             return 0;
       end;
    end Ada_Write_Callback;

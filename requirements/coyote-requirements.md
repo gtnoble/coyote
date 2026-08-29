@@ -282,7 +282,9 @@ return an error result to the model rather than executing the tool.
 **REQ-CORE-055** (D)
 Tool execution shall be abortable: when the user triggers an abort (via the
 Stop tag command in Acme or equivalent in GUI), a running tool invocation
-shall be cancelled and the agent loop shall terminate cleanly.
+shall be cancelled and the agent loop shall terminate cleanly. A running
+provider HTTP/SSE request shall also be interruptible without waiting for the
+next response-body chunk.
 
 **REQ-CORE-056** (I)
 The shell tool shall accept an optional integer `run_group` argument. When
@@ -503,8 +505,8 @@ The Send tag command shall read the window body text below the last prompt
 separator and send it as a new user prompt.
 
 **REQ-CORE-103** (D)
-The Stop tag command shall abort the currently running agent turn and cancel
-any in-progress tool execution.
+The Stop tag command shall abort the currently running agent turn, cancel
+any in-progress tool execution, and interrupt a blocked provider request.
 
 **REQ-CORE-104** (D)
 The New tag command shall spawn a new coyote instance in a new acme window.

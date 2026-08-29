@@ -1109,7 +1109,6 @@ package body Dispatch_Tests is
             Section => Sect,
             PID     => PID);
 
-         S.Set_Aborted (True);
          Dispatch_Event
            (Event   => LLM.Events.Agent_End_Event'
               (LLM.Events.Agent_Event with

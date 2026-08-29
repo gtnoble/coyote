@@ -62,7 +62,8 @@ package body LLM.Providers.OpenCode_Go is
       Tools_Json    :        String;
       Thinking      :        LLM.Providers.Thinking_Level;
       Max_Tokens    :        Positive;
-      Handler       :        LLM.Providers.Event_Handler)
+      Handler       :        LLM.Providers.Event_Handler;
+      Abort_Check   :        LLM.Providers.Abort_Callback := null)
    is
       pragma Unreferenced (P);
 
@@ -95,7 +96,8 @@ package body LLM.Providers.OpenCode_Go is
                Tools_Json    => Tools_Json,
                Thinking      => Thinking,
                Max_Tokens    => Max_Tokens,
-               Handler       => Handler);
+               Handler       => Handler,
+               Abort_Check  => Abort_Check);
          end;
       else
          declare
@@ -120,7 +122,8 @@ package body LLM.Providers.OpenCode_Go is
                Tools_Json    => Tools_Json,
                Thinking      => Thinking,
                Max_Tokens    => Max_Tokens,
-               Handler       => Handler);
+               Handler       => Handler,
+               Abort_Check  => Abort_Check);
          end;
       end if;
    end Send;

@@ -160,6 +160,28 @@ boundaries from normal user messages.
 
 ---
 
+## 2026-08-28 — GTK Stop and blocked-provider cancellation
+
+**Problem:** The GTK Stop callback set the agent abort flag but also queued a
+Stop command that could not be consumed while the GUI agent task was inside
+synchronous `Run_Prompt`. Provider cancellation was checked only from the
+response-body write callback, so an idle libcurl transfer could remain blocked.
+GTK dispatch also classified completion from delayed application state instead
+of the authoritative `Agent_End_Event.Was_Aborted` field.
+
+**Fix:** GTK Stop now calls the protected session abort operation directly
+without queueing a Stop item. `LLM.Tools.Abort_Flag` maintains an atomic C
+mirror, and `LLM.HTTP.Curl_Binding` installs a native libcurl transfer-info
+callback that polls that mirror while the request is blocked. The callback is
+forwarded through every provider and compaction route. `Dispatch_Event` now
+uses the end-event abort field, and `Run_Prompt` no longer clears a concurrent
+abort request at prompt entry.
+
+**Verification:** Added a stalled-response HTTP regression and changed the
+Acme dispatch regression to rely on `Was_Aborted` alone. Production and test
+development builds succeed; the complete suite passes 928/928 tests with zero
+failed assertions and zero unexpected errors.
+
 ## Unit Test Coverage Notes
 
 - `LLM.Compaction`: covered by AUnit tests in `test/src/` —

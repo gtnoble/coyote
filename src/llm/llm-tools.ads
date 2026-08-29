@@ -9,9 +9,15 @@
 --  For revision history, see the project version-control log.
 
 with Ada.Strings.Unbounded;
+with Interfaces.C;
+with System;
 with GNATCOLL.JSON;
 
 package LLM.Tools is
+
+   --  Typed access used to share an abort flag with blocking transports.
+   type Atomic_C_Int is new Interfaces.C.int;
+   pragma Atomic (Atomic_C_Int);
 
    --  Cancellation flag passed to long-running tools.
    --
@@ -26,10 +32,14 @@ package LLM.Tools is
       procedure Set;
       procedure Clear;
       function Requested return Boolean;
+      function C_Flag_Address return System.Address;
       entry Wait_Requested;
    private
       Value : Boolean := False;
+      C_Value : aliased Atomic_C_Int := 0;
    end Abort_Flag;
+
+   type Abort_Flag_Access is access all Abort_Flag;
 
    --  Pause / resume flag for the agentic loop.
    --

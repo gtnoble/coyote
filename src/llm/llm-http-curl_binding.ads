@@ -1,7 +1,7 @@
 --  LLM.HTTP.Curl_Binding — thin Ada import layer over libcurl easy API.
 --
 --  Exposes the subset of libcurl needed by LLM.HTTP plus the exported
---  Ada write callback used for streaming response chunks back into Ada.
+--  Ada callbacks used for streaming response chunks and cancellation.
 --
 --  Project: coyote
 --  For revision history, see the project version-control log.
@@ -18,12 +18,12 @@ package LLM.HTTP.Curl_Binding is
    type Handle is new System.Address;
    type Slist is new System.Address;
 
-   NULL_HANDLE         : constant Handle            :=
+   NULL_HANDLE              : constant Handle :=
      Handle (System.Null_Address);
-   NULL_SLIST          : constant Slist             :=
+   NULL_SLIST               : constant Slist :=
      Slist (System.Null_Address);
-   CURLE_OK            : constant Code              := 0;
-   CURL_GLOBAL_DEFAULT : constant Interfaces.C.long := 3;
+   CURLE_OK                 : constant Code := 0;
+   CURL_GLOBAL_DEFAULT      : constant Interfaces.C.long := 3;
 
    --  C-convention write callback type.
    type Write_Func is
@@ -31,6 +31,16 @@ package LLM.HTTP.Curl_Binding is
        (Buffer    : System.Address; Size : Size_T; NMemb : Size_T;
         User_Data : System.Address) return Size_T with
      Convention => C;
+
+   --  C-convention transfer progress callback type.
+   type Xfer_Info_Func is
+     access function
+       (Clientp : System.Address;
+        Dltotal : Interfaces.C.long_long;
+        Dlnow   : Interfaces.C.long_long;
+        Ultotal : Interfaces.C.long_long;
+        Ulnow   : Interfaces.C.long_long) return Interfaces.C.int
+       with Convention => C;
 
    --  Process-wide libcurl initialization.
    function Global_Init (Flags : Interfaces.C.long) return Code with
@@ -76,6 +86,16 @@ package LLM.HTTP.Curl_Binding is
    function Set_No_Signal (H : Handle; V : Interfaces.C.long) return Code with
      Import, Convention => C, External_Name => "curl_set_nosignal";
 
+   function Set_No_Progress (H : Handle; V : Interfaces.C.long) return Code
+     with Import, Convention => C, External_Name => "curl_set_noprogress";
+
+   function Set_Xfer_Info_Function (H : Handle; V : Xfer_Info_Func)
+     return Code with
+     Import, Convention => C, External_Name => "curl_set_xferinfofunction";
+
+   function Set_Xfer_Info_Data (H : Handle; V : System.Address) return Code
+     with Import, Convention => C, External_Name => "curl_set_xferinfodata";
+
    function Get_Response_Code
      (H : Handle; Out_Code : access Interfaces.C.long) return Code with
      Import, Convention => C, External_Name => "curl_get_response_code";
@@ -91,11 +111,20 @@ package LLM.HTTP.Curl_Binding is
    function Strerror (C : Code) return Interfaces.C.Strings.chars_ptr with
      Import, Convention => C, External_Name => "curl_easy_strerror";
 
-   --  The single library-level C-convention write callback.
-   --  User_Data must point to an LLM.HTTP.Write_Context value.
+   --  The library-level C-convention streaming callback.
    function Ada_Write_Callback
      (Buffer    : System.Address; Size : Size_T; NMemb : Size_T;
       User_Data : System.Address) return Size_T with
      Export, Convention => C, External_Name => "ada_curl_write_cb";
+
+   --  The C-native cancellation callback. Clientp points to an atomic
+   --  integer maintained by LLM.Tools.Abort_Flag.
+   function Coyote_Abort_Xfer_Info
+     (Clientp : System.Address;
+      Dltotal : Interfaces.C.long_long;
+      Dlnow   : Interfaces.C.long_long;
+      Ultotal : Interfaces.C.long_long;
+      Ulnow   : Interfaces.C.long_long) return Interfaces.C.int
+     with Import, Convention => C, External_Name => "coyote_abort_xfer_info";
 
 end LLM.HTTP.Curl_Binding;

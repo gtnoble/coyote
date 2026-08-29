@@ -816,3 +816,11 @@ confirmed live/replay native Markdown parity and accepted DEM-047 on 2026-08-28.
 Full-suite execution was attempted but timed out with unrelated environment-
 dependent failures. Native display MathML and large-history qualification
 remain pending under DEM-048 and DEM-044.
+
+
+**Baseline as of 2026-08-28 (PCR-079 GTK Stop cancellation):** 928 registered
+tests. Added an HTTP stalled-response cancellation regression and corrected the
+Acme dispatch abort regression to use `Agent_End_Event.Was_Aborted` as the
+source of truth. Production and test development builds succeed; the complete
+development suite passes 928/928 with zero failed assertions and zero
+unexpected errors.

@@ -42,7 +42,8 @@ package LLM.Providers.Anthropic_Messages is
      Tools_Json    :        String;
      Thinking      :        LLM.Providers.Thinking_Level;
      Max_Tokens    :        Positive;
-     Handler       :        LLM.Providers.Event_Handler);
+     Handler       :        LLM.Providers.Event_Handler;
+     Abort_Check   :        LLM.Providers.Abort_Callback := null);
 
 private
 

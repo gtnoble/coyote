@@ -889,7 +889,8 @@ package body LLM.Providers.Anthropic_Messages is
      Tools_Json    :        String;
      Thinking      :        LLM.Providers.Thinking_Level;
      Max_Tokens    :        Positive;
-     Handler       :        LLM.Providers.Event_Handler)
+     Handler       :        LLM.Providers.Event_Handler;
+     Abort_Check   :        LLM.Providers.Abort_Callback := null)
    is
       Headers        : LLM.HTTP.Header_List;
       Status         : Natural := 0;
@@ -941,7 +942,8 @@ package body LLM.Providers.Anthropic_Messages is
        Headers  => Headers,
        Payload  => Request_Body,
        On_Chunk => On_Chunk'Access,
-       Status   => Status);
+       Status   => Status,
+       Abort_Check => Abort_Check);
 
       if Status /= 200 then
          raise Constraint_Error with

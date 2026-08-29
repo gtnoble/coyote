@@ -1392,6 +1392,9 @@ package body Test_Suites is
       Result.Add_Test (LLM_HTTP_Caller.Create
         ("LLM.HTTP POST non-200 returns status and body",
          LLM_HTTP_Tests.Test_HTTP_Non_200_Returns_Status_And_Body'Access));
+      Result.Add_Test (LLM_HTTP_Caller.Create
+        ("LLM.HTTP aborts a stalled response promptly",
+         LLM_HTTP_Tests.Test_HTTP_Abort_During_Stalled_Response'Access));
 
       --  LLM.Settings tests
       Result.Add_Test (LLM_Settings_Caller.Create

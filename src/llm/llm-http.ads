@@ -8,6 +8,7 @@
 
 with Ada.Containers.Indefinite_Vectors;
 with Ada.Strings.Unbounded;
+with LLM.Tools;
 with System;
 
 package LLM.HTTP is
@@ -20,21 +21,32 @@ package LLM.HTTP is
 
    --  POST URL with a streaming response callback.
    --  On_Chunk is called for each chunk of response bytes received.
+   --  Abort_Check identifies a protected abort flag polled by libcurl while
+   --  the request is blocked. When it is set, the request terminates with
+   --  Curl_Error.
    --  Status receives the HTTP response code.
-   --  Raises Curl_Error on transport or TLS failures.
+   --  Raises Curl_Error on transport, TLS, or cancellation failures.
    procedure Post
-     (URL      :     String; Headers : Header_List; Payload : String;
-      On_Chunk :     not null access procedure (Data : String);
-      Status   : out Natural);
+     (URL         :     String;
+      Headers     :     Header_List;
+      Payload     :     String;
+      On_Chunk    :     not null access procedure (Data : String);
+      Status      : out Natural;
+      Abort_Check :     LLM.Tools.Abort_Flag_Access := null);
 
    --  GET URL with a streaming response callback.
    --  On_Chunk is called for each chunk of response bytes received.
+   --  Abort_Check identifies a protected abort flag polled by libcurl while
+   --  the request is blocked. When it is set, the request terminates with
+   --  Curl_Error.
    --  Status receives the HTTP response code.
-   --  Raises Curl_Error on transport or TLS failures.
+   --  Raises Curl_Error on transport, TLS, or cancellation failures.
    procedure Get
-     (URL      :     String; Headers : Header_List;
-      On_Chunk :     not null access procedure (Data : String);
-      Status   : out Natural);
+     (URL         :     String;
+      Headers     :     Header_List;
+      On_Chunk    :     not null access procedure (Data : String);
+      Status      : out Natural;
+      Abort_Check :     LLM.Tools.Abort_Flag_Access := null);
 
    Curl_Error : exception;
 
@@ -47,14 +59,11 @@ private
       Headers : Header_Vectors.Vector;
    end record;
 
-   --  Passed as CURLOPT_WRITEDATA; shared between Perform_Request and the
-   --  C-convention write callback.  If the chunk handler raises an exception,
-   --  the callback stores it here rather than letting libcurl see a non-zero
-   --  return (which would report the uninformative CURLE_WRITE_ERROR instead).
+   --  Passed as CURLOPT_WRITEDATA for the Ada streaming callback. The
+   --  transfer callback receives the abort mirror address separately.
    type Write_Context is record
-      On_Chunk_Address   : System.Address                          :=
-        System.Null_Address;
-      Exception_Occurred : Boolean                                 := False;
+      On_Chunk_Address : System.Address := System.Null_Address;
+      Exception_Occurred : Boolean := False;
       Exception_Message  : Ada.Strings.Unbounded.Unbounded_String :=
         Ada.Strings.Unbounded.Null_Unbounded_String;
    end record;

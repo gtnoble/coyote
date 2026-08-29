@@ -133,7 +133,10 @@ idle callback drains `Updates` on the GTK thread.
 **HTTP and SSE:** The HTTP client is a native libcurl binding
 (`LLM.HTTP.Curl_Binding`). Streaming is driven by the libcurl write callback
 in the calling task; the SSE parser is called synchronously from that callback.
-No additional thread is created for HTTP I/O.
+No additional thread is created for HTTP I/O. The active session's protected
+`Abort_Flag` maintains an atomic C mirror. Requests install a native
+`CURLOPT_XFERINFOFUNCTION` callback that polls that mirror while libcurl is
+blocked, returning nonzero to terminate the transfer promptly.
 
 **9P (acme):** The acme window and plumb ports are accessed via the plan9port
 9P client (`Nine_P.Client`). Each connection is established by calling
@@ -896,9 +899,11 @@ forking the parser.
 3. Call `curl_easy_perform` (blocks until stream is complete or aborted).
 4. The write callback is called for each chunk; it feeds bytes to the SSE
    parser, which calls the provider's event callback synchronously.
-5. Abort is checked in the write callback; if `Abort_Flg` is set, the
-   callback returns 0 (libcurl interprets this as `CURLE_WRITE_ERROR`
-   and terminates the transfer).
+5. When an abort flag is supplied, `CURLOPT_XFERINFOFUNCTION` is enabled and
+   receives the flag's atomic C mirror as userdata. The native callback returns
+   nonzero when the flag is set, causing libcurl to terminate a blocked
+   transfer without waiting for response data. The provider callback still
+   checks the protected flag before dispatching each event.
 
 ---
 
@@ -2254,9 +2259,13 @@ menu.
 *(Supplement to §5.5, which covers `Create` and `Run_Prompt`.)*
 
 **`Request_Abort (S : in out Session)`:** Sets `S.Abort_Flg`. The libcurl
-write callback and the tool executor both poll this flag; the current
-operation terminates at the next check point. `Run_Prompt` detects the flag
-at the top of its outer loop and exits cleanly.
+transfer-info callback and the tool executor both poll this flag; a blocked
+provider request is interrupted by libcurl and a running tool is terminated
+by its process-group watcher. `Run_Prompt` detects the flag at the top of its
+outer loop and exits cleanly. The GUI Stop callback requests the abort directly
+through its protected session reference rather than queueing a stale Stop item.
+`Dispatch_Event` treats `Agent_End_Event.Was_Aborted` as authoritative when
+classifying completion.
 
 **`Request_Pause (S : in out Session)`:** Sets `S.Pause_Flg`. After the
 current tool call completes (or immediately if no tool call is active),

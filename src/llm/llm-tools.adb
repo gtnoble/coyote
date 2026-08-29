@@ -10,17 +10,24 @@ package body LLM.Tools is
       procedure Set is
       begin
          Value := True;
+         C_Value := 1;
       end Set;
 
       procedure Clear is
       begin
          Value := False;
+         C_Value := 0;
       end Clear;
 
       function Requested return Boolean is
       begin
          return Value;
       end Requested;
+
+      function C_Flag_Address return System.Address is
+      begin
+         return C_Value'Address;
+      end C_Flag_Address;
 
       entry Wait_Requested when Value is
       begin

@@ -2700,3 +2700,28 @@ behavior, current test baseline, and remaining manual qualification scope.
   with unrelated environment-dependent failures.
 - **Status:** In progress — basic implementation complete; DEM-046 and
   DEM-047 accepted; DEM-048 and DEM-044 qualification pending.
+
+## PCR-079 — GTK Stop delayed during blocked provider requests
+
+- **Date reported:** 2026-08-28
+- **Category:** Code, Design, Test
+- **Priority:** 2-Serious
+- **Description:** GTK Stop set the agent abort flag, but provider requests
+  remained inside synchronous `curl_easy_perform` until response data arrived.
+  The GUI also queued a Stop item that could not be consumed during the active
+  synchronous prompt, and dispatch classified completion from delayed GUI state.
+- **Root cause:** Cancellation was observed only from the libcurl write callback;
+  no transfer-info callback interrupted idle transfers. The queued Stop was
+  processed only after `Run_Prompt` returned.
+- **Affected work products:** `LLM.Tools`, `LLM.HTTP`, `LLM.HTTP.Curl_Binding`,
+  provider adapters, `LLM.Agent`, GTK frontend, dispatch tests, HTTP tests,
+  SRS-CORE, SDD-CORE, SDFs, and TEST-PLAN.
+- **Corrective action:** Added an atomic C mirror to `Abort_Flag`, installed a
+  native `CURLOPT_XFERINFOFUNCTION` callback, forwarded protected abort flags
+  through all provider and compaction routes, removed queued GTK Stop items,
+  and made `Agent_End_Event.Was_Aborted` authoritative for completion.
+- **Verification:** Production and test development builds succeed. The full
+  development suite passes 928/928 tests with zero failed assertions and zero
+  unexpected errors, including the stalled-response regression.
+- **Status:** Resolved
+- **Date resolved:** 2026-08-28
