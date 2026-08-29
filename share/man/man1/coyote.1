@@ -143,6 +143,11 @@ is not already set), recorded as the
 .I parentSession
 field in the new session's JSONL header.
 .TP
+.B COYOTE_OPENROUTER_SESSION_ID
+Stable OpenRouter Broadcast grouping identity.  Subagents inherit this
+value unchanged recursively; it is separate from the durable coyote
+session-lineage variables.
+.TP
 .B COYOTE_NO_SESSION
 When set to
 .BR 1 ,

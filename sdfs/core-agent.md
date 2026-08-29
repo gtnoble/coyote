@@ -11,6 +11,23 @@
 
 ## Design Rationale
 
+## 2026-08-29 — Recursive OpenRouter Broadcast identity (REQ-CORE-219)
+
+**Requirement:** Subagents and recursively spawned subagents must share the
+parent's OpenRouter Broadcast session identifier while retaining distinct
+coyote session files and durable lineage.
+
+**Design:** `LLM.Agent.Session` stores a dedicated Broadcast identifier. Root
+and ordinary sessions initialize it from their own coyote UUID. Subagent
+sessions adopt `COYOTE_OPENROUTER_SESSION_ID` when present and fall back to
+their own UUID otherwise. Both normal and compaction OpenRouter calls use the
+dedicated value; `COYOTE_SESSION_ID` remains the durable per-process lineage
+identity.
+
+**Verification:** Added a recursive in-process agent regression covering root,
+child, grandchild, and missing-inheritance fallback. Production and test
+projects build successfully; full-suite qualification is pending.
+
 ## 2026-08-25 — Subagent recursion-depth limit
 
 **Requirement:** REQ-CORE-025 limits nested `--subagent` processes using the

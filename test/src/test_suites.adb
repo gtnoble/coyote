@@ -2752,6 +2752,10 @@ package body Test_Suites is
         ("LLM.Agent resumes persisted session history",
          LLM_Agent_Tests.Test_Session_Resume'Access));
       Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent preserves OpenRouter Broadcast ID across subagents",
+         LLM_Agent_Tests
+           .Test_OpenRouter_Session_Id_Inherited_By_Subagents'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
         ("LLM.Agent uses settings defaults when Model_Spec is empty",
          LLM_Agent_Tests
            .Test_Create_Without_Model_Spec_Uses_Settings_Default'Access));

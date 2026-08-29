@@ -2751,6 +2751,31 @@ behavior, current test baseline, and remaining manual qualification scope.
 - **Status:** Resolved
 - **Date resolved:** 2026-08-29
 
+## PCR-082 — Recursive OpenRouter Broadcast session identity
+
+- **Date reported:** 2026-08-29
+- **Category:** Requirements, Design, Code, Test, Manuals
+- **Priority:** 3-Moderate
+- **Description:** OpenRouter Broadcast traces used each subagent's newly
+  created coyote session UUID, preventing parent and descendant requests from
+  being grouped under one provider session identity.
+- **Affected work products:** `LLM.Agent`, `Coyote_App`, OpenRouter request
+  paths, agent tests, SRS-CORE REQ-CORE-219, SDD-CORE, TEST-PLAN, AGENTS.md,
+  man page, and provider/core SDFs.
+- **Corrective action required:** Introduce a separate recursively inherited
+  Broadcast identity without changing durable `COYOTE_SESSION_ID` or
+  `COYOTE_PARENT_SESSION` semantics. Use it for normal and compaction
+  OpenRouter requests and cover nested inheritance and fallback behavior.
+- **Actions taken:** Added `COYOTE_OPENROUTER_SESSION_ID`, dedicated agent
+  session state/accessor, inheritance for `Subagent` sessions, publication
+  after Acme/GUI startup and session changes, both OpenRouter call-site
+  updates, recursive regression coverage, and documentation updates.
+- **Verification:** Focused recursive identity test passes. Production and
+  test development builds succeed. The complete development suite passes
+  930/930 with zero failed assertions and zero unexpected errors.
+- **Status:** Resolved
+- **Date resolved:** 2026-08-29
+
 ## PCR-081 — Yelp cannot resolve bundled coyote Help pages
 
 - **Date reported:** 2026-08-29

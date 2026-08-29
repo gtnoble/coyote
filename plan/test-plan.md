@@ -147,7 +147,7 @@ SRS-CORE requirement groups.
 |---|---|---|
 | `llm_sse_tests.adb` | REQ-CORE-200 (SSE parsing) | ~30 |
 | `llm_session_store_tests.adb` | REQ-CORE-080â089, 217, 240â241 | ~47 |
-| `llm_agent_tests.adb` | REQ-CORE-040â046, 060â064, 075, 085â089, 217 | ~87 |
+| `llm_agent_tests.adb` | REQ-CORE-040â046, 060â064, 075, 085â089, 217, 219 | ~88 |
 | `coyote_app_tests.adb` | REQ-CORE-085â089 (frontend/agent synchronization) | ~10 |
 
 | `llm_skills_tests.adb` | REQ-CORE-090â093 | ~20 |
@@ -174,7 +174,7 @@ SRS-CORE requirement groups.
 | `llm_http_tests.adb` | REQ-CORE-200 (HTTP streaming) | ~20 |
 | `llm_openai_completions_tests.adb` | REQ-CORE-201 | ~30 |
 | `llm_anthropic_messages_tests.adb` | REQ-CORE-202 | ~30 |
-| `llm_openrouter_tests.adb` | REQ-CORE-072, REQ-CORE-216, REQ-CORE-218 (OpenRouter) | ~17 |
+| `llm_openrouter_tests.adb` | REQ-CORE-072, REQ-CORE-216, REQ-CORE-218, REQ-CORE-219 (OpenRouter) | ~17 |
 | `tool_uri_tests.adb` | REQ-CORE-100â109 (plumb token format) | ~10 |
 | `coyote_cmark_tests.adb` | REQ-CORE-111 (Markdown rendering) | ~25 |
 | `coyote_lasem_tests.adb` | Lasem Presentation MathML measurement, zoom scaling, relation entities, and error handling | 5 |
@@ -319,6 +319,7 @@ These are entered as open items in the problem log (PCR-009 and PCR-078).
 | REQ-CORE-023 | T | `coyote_utils_tests.adb` |
 | REQ-CORE-024 | D | TC-024 (DEM-019) |
 | REQ-CORE-030â032 | T/I | `coyote_app_tests.adb`, code inspection |
+| REQ-CORE-219 | T/I | `llm_agent_tests.adb`, code inspection |
 | REQ-CORE-040â046 | T/D | `dispatch_tests.adb`, `llm_agent_tests.adb`, DEM-006 |
 | REQ-CORE-050â053 | T | `llm_tools_tests.adb` |
 | REQ-CORE-054 | D | DEM (--no-tools with tool model) |
@@ -840,3 +841,9 @@ errors. The existing GPR `Install` artifact declaration supports installing
 `share/help/C/coyote/overview.page` under the selected prefix with
 `alr install`, and the checkout-relative Yelp data path resolves
 `help:coyote/overview`.
+
+**Baseline as of 2026-08-29 (PCR-082 recursive OpenRouter Broadcast identity):**
+930 registered tests. Added recursive subagent Broadcast-ID inheritance and
+ordinary-session fallback coverage. Production and test development builds
+succeed; the complete suite passes 930/930 with zero failed assertions and zero
+unexpected errors.

@@ -2443,6 +2443,107 @@ package body LLM_Agent_Tests is
          raise;
    end Test_Session_Resume;
 
+   procedure Test_OpenRouter_Session_Id_Inherited_By_Subagents
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+
+      Home          : constant String :=
+        "/tmp/coyote_llm_agent_openrouter_session_id";
+      Root_Session   : LLM.Agent.Session;
+      Child_Session  : LLM.Agent.Session;
+      Grandchild     : LLM.Agent.Session;
+      Fallback       : LLM.Agent.Session;
+      Home_Was_Set   : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home       : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Id_Was_Set     : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_SESSION_ID");
+      Old_Id         : constant String :=
+        Ada.Environment_Variables.Value
+          ("COYOTE_OPENROUTER_SESSION_ID", "");
+   begin
+      Prepare_Test_Home (Home);
+      Write_Settings_File
+        (Home             => Home,
+         Default_Provider => "openrouter",
+         Default_Model    => "test/default-model");
+      Write_OpenRouter_Models_File (Home, "settings-key");
+      Write_Minimal_OpenRouter_Cache
+        (Home     => Home,
+         Model_Id => "test/default-model");
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Clear ("COYOTE_OPENROUTER_SESSION_ID");
+
+      LLM.Agent.Create
+        (S          => Root_Session,
+         Model_Spec => "openrouter/test/default-model",
+         No_Tools   => True);
+
+      Assert
+        (LLM.Agent.OpenRouter_Session_Id (Root_Session)
+         = LLM.Agent.Session_Id (Root_Session),
+         "root Broadcast ID should default to its durable session UUID");
+
+      Ada.Environment_Variables.Set
+        ("COYOTE_OPENROUTER_SESSION_ID",
+         LLM.Agent.OpenRouter_Session_Id (Root_Session));
+      LLM.Agent.Create
+        (S          => Child_Session,
+         Model_Spec => "openrouter/test/default-model",
+         No_Tools   => True,
+         Subagent   => True);
+      Assert
+        (LLM.Agent.Session_Id (Child_Session)
+         /= LLM.Agent.Session_Id (Root_Session),
+         "subagent should have a distinct durable session UUID");
+      Assert
+        (LLM.Agent.OpenRouter_Session_Id (Child_Session)
+         = LLM.Agent.OpenRouter_Session_Id (Root_Session),
+         "subagent should inherit the root Broadcast session ID");
+
+      Ada.Environment_Variables.Set
+        ("COYOTE_OPENROUTER_SESSION_ID",
+         LLM.Agent.OpenRouter_Session_Id (Child_Session));
+      LLM.Agent.Create
+        (S          => Grandchild,
+         Model_Spec => "openrouter/test/default-model",
+         No_Tools   => True,
+         Subagent   => True);
+      Assert
+        (LLM.Agent.Session_Id (Grandchild)
+         /= LLM.Agent.Session_Id (Child_Session),
+         "grandchild should have a distinct durable session UUID");
+      Assert
+        (LLM.Agent.OpenRouter_Session_Id (Grandchild)
+         = LLM.Agent.OpenRouter_Session_Id (Root_Session),
+         "grandchild should preserve the root Broadcast session ID");
+
+      Ada.Environment_Variables.Clear ("COYOTE_OPENROUTER_SESSION_ID");
+      LLM.Agent.Create
+        (S          => Fallback,
+         Model_Spec => "openrouter/test/default-model",
+         No_Tools   => True,
+         Subagent   => True);
+      Assert
+        (LLM.Agent.OpenRouter_Session_Id (Fallback)
+         = LLM.Agent.Session_Id (Fallback),
+         "subagent without inherited ID should use its own UUID");
+
+      Restore_Env
+        ("COYOTE_OPENROUTER_SESSION_ID", Id_Was_Set, Old_Id);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env
+           ("COYOTE_OPENROUTER_SESSION_ID", Id_Was_Set, Old_Id);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_OpenRouter_Session_Id_Inherited_By_Subagents;
+
    procedure Test_Create_Without_Model_Spec_Uses_Settings_Default
      (T : in out Test)
    is

@@ -925,8 +925,9 @@ A man page for the `coyote` executable shall be provided in standard
 troff/nroff man(7) format, installed as `coyote.1` in the appropriate
 man directory.  The man page shall document all command-line arguments,
 environment variables used by coyote (`COYOTE_SESSION_ID`,
-`COYOTE_PARENT_SESSION`, `COYOTE_NO_SESSION`, `COYOTE_FRONTEND`,
-`COYOTE_RECURSION_DEPTH`), frontend selection behaviour, configuration files,
+`COYOTE_PARENT_SESSION`, `COYOTE_OPENROUTER_SESSION_ID`, `COYOTE_NO_SESSION`,
+`COYOTE_FRONTEND`, `COYOTE_RECURSION_DEPTH`), frontend selection behaviour,
+configuration files,
 and basic usage
 examples.  It shall include the standard man-page sections: NAME,
 SYNOPSIS, DESCRIPTION, OPTIONS, ENVIRONMENT, FILES, EXAMPLES, and
@@ -1131,6 +1132,15 @@ used only to group OpenRouter Broadcast traces; it shall not enable server-side
 conversation state. Empty session identifiers shall omit the field, and the
 identifier shall be limited to OpenRouter's documented maximum of 256
 characters.
+
+**REQ-CORE-219** (I/T)
+A subagent and all recursively spawned subagents shall reuse the parent's
+OpenRouter Broadcast session identifier in every OpenRouter `/responses`
+request. This observability identifier shall be propagated separately from
+`COYOTE_SESSION_ID` and `COYOTE_PARENT_SESSION`, which retain their durable
+coyote session-lineage semantics. A root or ordinary session shall use its own
+coyote session UUID as its Broadcast identifier when no inherited identifier
+exists.
 
 ---
 
@@ -1412,6 +1422,7 @@ matrix and retains historical `TC-*` identifiers; the current mappings are in
 | REQ-CORE-030 | COYOTE_SESSION_ID exported | I | TC-030 |
 | REQ-CORE-031 | Parent session lineage recorded | I | TC-031 |
 | REQ-CORE-032 | COYOTE_NO_SESSION propagated | T | TC-032 |
+| REQ-CORE-219 | OpenRouter Broadcast ID inherited recursively | T/I | Agent identity regression; code inspection |
 | REQ-CORE-040 | Streaming assistant text | D | TC-040 |
 | REQ-CORE-041 | Streaming thinking blocks | D | TC-041 |
 | REQ-CORE-042 | Tool call events displayed | D | TC-042 |
@@ -1486,7 +1497,7 @@ matrix and retains historical `TC-*` identifiers; the current mappings are in
 | REQ-CORE-190 | Coordinator prompt for subagent orchestration | D | TC-190 |
 | REQ-CORE-191 | Structured subagent result reporting | D | TC-191 |
 | REQ-CORE-192 | Synthesis-before-delegation instruction | I | TC-192 |
-| REQ-CORE-200..208, REQ-CORE-215..218 | Provider API interfaces | I/T | TC-200..208, TC-215..218 |
+| REQ-CORE-200..208, REQ-CORE-215..219 | Provider API interfaces | I/T | TC-200..208, TC-215..219 |
 | REQ-CORE-210..212 | acme 9P VFS interface | I | TC-210..212 |
 | REQ-CORE-220..221 | GTK3 interface | I | TC-220..221 |
 | REQ-CORE-230..234 | Configuration file interface, including sandbox default | T | TC-230..234 |
@@ -1515,7 +1526,7 @@ objectives stated in the Project Plan (PLAN §1 and §3):
 | Tool execution | REQ-CORE-050–056 |
 | Session persistence and resume | REQ-CORE-080–089, REQ-CORE-701 |
 | Context compaction | REQ-CORE-060–064 |
-| Multi-provider LLM support | REQ-CORE-070–078, REQ-CORE-150–156, REQ-CORE-200–208, REQ-CORE-215–218 |
+| Multi-provider LLM support | REQ-CORE-070–078, REQ-CORE-150–156, REQ-CORE-200–208, REQ-CORE-215–219 |
 | Man pages for coyote and coyote_sqc | REQ-CORE-160 |
 | Skill discovery and system prompt construction | REQ-CORE-090–094 |
 | Subagent spawning with session lineage | REQ-CORE-019–020, REQ-CORE-030–032 |

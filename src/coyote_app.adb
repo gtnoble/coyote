@@ -871,6 +871,12 @@ package body Coyote_App is
                     ("COYOTE_SESSION_ID", Sess);
                end if;
             end;
+            --  Publish the stable OpenRouter Broadcast identity for child
+            --  subagent processes.  Durable coyote lineage continues to use
+            --  COYOTE_SESSION_ID independently.
+            Ada.Environment_Variables.Set
+              ("COYOTE_OPENROUTER_SESSION_ID",
+               LLM.Agent.OpenRouter_Session_Id (Agent_Session));
             --  Publish the thinking level for child subagent processes.
             if Ada.Strings.Unbounded.Length (Current_Thinking) > 0 then
                Ada.Environment_Variables.Set
@@ -959,6 +965,10 @@ package body Coyote_App is
                               LLM.Agent.Switch_Session
                                 (S    => Agent_Session,
                                  UUID => To_String (Text));
+                              Ada.Environment_Variables.Set
+                                ("COYOTE_OPENROUTER_SESSION_ID",
+                                 LLM.Agent.OpenRouter_Session_Id
+                                   (Agent_Session));
                               Synchronize_Sandbox;
                               Reset_Session_State;
                               Render_Loaded_Session (To_String (Text));
@@ -2512,6 +2522,12 @@ package body Coyote_App is
                     ("COYOTE_SESSION_ID", Sess);
                end if;
             end;
+            --  Publish the stable OpenRouter Broadcast identity for child
+            --  subagent processes.  Durable coyote lineage continues to use
+            --  COYOTE_SESSION_ID independently.
+            Ada.Environment_Variables.Set
+              ("COYOTE_OPENROUTER_SESSION_ID",
+               LLM.Agent.OpenRouter_Session_Id (Agent_Session));
             --  Publish the thinking level for child subagent processes.
             if Ada.Strings.Unbounded.Length (Current_Thinking) > 0 then
                Ada.Environment_Variables.Set
@@ -2681,6 +2697,10 @@ package body Coyote_App is
                                    ("COYOTE_SESSION_ID", Sess);
                               end if;
                            end;
+                           Ada.Environment_Variables.Set
+                             ("COYOTE_OPENROUTER_SESSION_ID",
+                              LLM.Agent.OpenRouter_Session_Id
+                                (Agent_Session));
                            Reset_Session_State;
                            My_Frontend.Clear_Stats;
                            My_Frontend.Clear_Conversation;
@@ -2758,6 +2778,10 @@ package body Coyote_App is
                              (S    => Agent_Session,
                               UUID => Ada.Strings.Unbounded.To_String
                                         (It.Session_UUID));
+                           Ada.Environment_Variables.Set
+                             ("COYOTE_OPENROUTER_SESSION_ID",
+                              LLM.Agent.OpenRouter_Session_Id
+                                (Agent_Session));
                            Synchronize_Sandbox;
                            Reset_Session_State;
                            My_Frontend.Clear_Stats;

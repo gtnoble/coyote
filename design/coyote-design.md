@@ -497,7 +497,8 @@ simple and auditable.*
 **Inputs:** `Ada.Command_Line.Argument_Count` / `Argument`; environment
 variables `$winid`, `$DISPLAY`, `$WAYLAND_DISPLAY`, `COYOTE_FRONTEND`,
 `COYOTE_NO_SESSION`, `COYOTE_SESSION_ID`, `COYOTE_PARENT_SESSION`,
-`COYOTE_THINKING_LEVEL`, `COYOTE_RECURSION_DEPTH`.
+`COYOTE_OPENROUTER_SESSION_ID`, `COYOTE_THINKING_LEVEL`,
+`COYOTE_RECURSION_DEPTH`.
 
 **Outputs:** `Coyote_App.Options` record passed to `Run` or `Run_GUI`;
 environment variable `COYOTE_FRONTEND` set when the frontend is a windowing kind (Acme or GUI).
@@ -1579,8 +1580,11 @@ refreshes the catalogue, then forwards to
 reasoning-effort customization, then adds `session_id` when the provider was
 constructed with a non-empty coyote session UUID. The field groups Broadcast
 observability traces and does not change the stateless Responses request
-semantics. The agent supplies `S.Session_UUID` to the provider for both normal
-agent turns and compaction requests.
+semantics. The agent supplies its stable OpenRouter Broadcast identifier to
+both normal agent turns and compaction requests. Root and ordinary sessions
+default that identifier to their active coyote session UUID; subagents inherit
+`COYOTE_OPENROUTER_SESSION_ID` unchanged, recursively. That variable is kept
+separate from `COYOTE_SESSION_ID` and `COYOTE_PARENT_SESSION`.
 
 **Catalogue package `OpenRouter.Catalogue`:** Fetches
 `https://openrouter.ai/api/v1/models`, caches to
@@ -2296,6 +2300,7 @@ blocking; `Agent_Resumed_Event` is emitted after unblocking.
 | REQ-CORE-001–005 | `Coyote` (entry point) |
 | REQ-CORE-010–023 | `Coyote` (entry point), `Coyote_Utils` |
 | REQ-CORE-030–032 | `Coyote` (entry point), `LLM.Session_Store` |
+| REQ-CORE-219 | `Coyote_App`, `LLM.Agent`, OpenRouter provider |
 | REQ-CORE-040–046 | `LLM.Agent`, `Coyote_App.Dispatch`, all frontends |
 | REQ-CORE-050–055 | `LLM.Tools.Shell`, `LLM.Tools.Temp_File`, `LLM.Agent` |
 | REQ-CORE-060–064 | `LLM.Agent`, `LLM.Compaction`, `LLM.Session_Store` |
@@ -2324,7 +2329,7 @@ neither task may share mutable frontend state with the other.
 | REQ-CORE-170–172 | `LLM.System_Prompt`, `LLM.Agent` |
 | REQ-CORE-180–183 | `LLM.Memory`, `LLM.System_Prompt` |
 | REQ-CORE-190–192 | `LLM.System_Prompt`, `LLM.Agent`, `LLM.Tools.Shell` |
-| REQ-CORE-200–208, REQ-CORE-215–217 | `LLM.Providers.*`, `LLM.HTTP`, `LLM.SSE`, `LLM.Agent` |
+| REQ-CORE-200–208, REQ-CORE-215–219 | `LLM.Providers.*`, `LLM.HTTP`, `LLM.SSE`, `LLM.Agent` |
 | REQ-CORE-210–212 | `Nine_P.Client`, `Acme.Window`, `Coyote_App.Frontend.Acme_Win` |
 | REQ-CORE-220–221, 133–139 | `Coyote_App.Frontend.GUI`, `Coyote_GUI.Conversation_Stack`, `Coyote_GUI.Exchange_View`, `Coyote_GUI.*` |
 | REQ-CORE-504a | `Coyote_Help`, `share/help/C/coyote/` Mallard documentation |

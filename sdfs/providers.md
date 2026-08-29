@@ -371,3 +371,13 @@ The active coyote session UUID is passed into OpenRouter for normal agent turns
 and compaction requests. Empty identifiers are omitted. A local HTTP mock test
 asserts the exact JSON field while preserving the existing `store` and
 `previous_response_id` omissions.
+
+### OpenRouter Broadcast identity inheritance (2026-08-29, REQ-CORE-219)
+
+`LLM.Agent` keeps the durable coyote session UUID separate from its OpenRouter
+Broadcast identity. Root and ordinary sessions use their own UUID. Subagents
+adopt `COYOTE_OPENROUTER_SESSION_ID` when present and retain that value through
+recursive subagent creation; missing inheritance falls back to the new
+subagent's own UUID. Both normal and compaction OpenRouter requests use the
+stable identity. The application republishes it after startup, session
+switches, and GUI new-session creation without altering `COYOTE_SESSION_ID`.

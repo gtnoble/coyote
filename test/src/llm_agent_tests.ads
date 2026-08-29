@@ -18,6 +18,8 @@ package LLM_Agent_Tests is
    procedure Test_Session_File_Written_Only_After_Turn_End
      (T : in out Test);
    procedure Test_Session_Resume                   (T : in out Test);
+   procedure Test_OpenRouter_Session_Id_Inherited_By_Subagents
+     (T : in out Test);
    procedure Test_Create_Without_Model_Spec_Uses_Settings_Default
      (T : in out Test);
    procedure Test_Memory_Enabled_By_Env_Var (T : in out Test);

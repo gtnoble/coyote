@@ -127,6 +127,10 @@ package LLM.Agent is
    --  Return the active session UUID.
    function Session_Id (S : Session) return String;
 
+   --  Return the OpenRouter Broadcast session identifier used by this
+   --  process and its subagents.
+   function OpenRouter_Session_Id (S : Session) return String;
+
    --  True once Run_Prompt has been called at least once.
    function Has_Submitted_Prompts (S : Session) return Boolean;
 
@@ -169,7 +173,11 @@ private
         Ada.Strings.Unbounded.Null_Unbounded_String;
       Session_UUID  : Ada.Strings.Unbounded.Unbounded_String :=
         Ada.Strings.Unbounded.Null_Unbounded_String;
+      --  Stable OpenRouter Broadcast identity shared by descendants.
+      OpenRouter_Session_UUID : Ada.Strings.Unbounded.Unbounded_String :=
+        Ada.Strings.Unbounded.Null_Unbounded_String;
       History       : LLM.Types.Message_Vectors.Vector;
+      Subagent_Mode : Boolean := False;
       No_Tools      : Boolean := False;
       Thinking        : LLM.Providers.Thinking_Level := LLM.Providers.Off;
       Sandbox_Profile : aliased Ada.Strings.Unbounded.Unbounded_String;

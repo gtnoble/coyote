@@ -1327,7 +1327,9 @@ package body LLM.Agent is
                else ""),
             Coordinator_Mode  => not No_Tools));
       S.Session_UUID := Null_Unbounded_String;
+      S.OpenRouter_Session_UUID := Null_Unbounded_String;
       S.History.Clear;
+      S.Subagent_Mode := Subagent;
       S.No_Tools := No_Tools;
       S.Thinking := Thinking_From_String
         (To_String (Settings_Value.Default_Thinking));
@@ -1382,6 +1384,23 @@ package body LLM.Agent is
          S.Session_UUID := To_Unbounded_String
            (LLM.Session_Store.Create_Session (To_String (S.Cwd)));
          S.Has_Submitted_Prompts := False;
+      end if;
+
+      if S.Subagent_Mode then
+         declare
+            Inherited_Id : constant String :=
+              Ada.Environment_Variables.Value
+                ("COYOTE_OPENROUTER_SESSION_ID", "");
+         begin
+            if Inherited_Id'Length > 0 then
+               S.OpenRouter_Session_UUID :=
+                 To_Unbounded_String (Inherited_Id);
+            else
+               S.OpenRouter_Session_UUID := S.Session_UUID;
+            end if;
+         end;
+      else
+         S.OpenRouter_Session_UUID := S.Session_UUID;
       end if;
    end Create;
 
@@ -1516,7 +1535,7 @@ package body LLM.Agent is
          declare
             Provider : LLM.Providers.OpenRouter.Provider :=
               LLM.Providers.OpenRouter.Create
-                (Session_Id => To_String (S.Session_UUID));
+                (Session_Id => To_String (S.OpenRouter_Session_UUID));
          begin
             Provider.Send
               (Model_Id      => To_String (S.Model_Info.Model_Id),
@@ -1820,7 +1839,7 @@ package body LLM.Agent is
                declare
                   Provider : LLM.Providers.OpenRouter.Provider :=
                     LLM.Providers.OpenRouter.Create
-                      (Session_Id => To_String (S.Session_UUID));
+                      (Session_Id => To_String (S.OpenRouter_Session_UUID));
                begin
                   Send_With_Retry
                     (S             => S,
@@ -2268,6 +2287,9 @@ package body LLM.Agent is
       end if;
 
       S.Session_UUID := To_Unbounded_String (UUID);
+      if not S.Subagent_Mode then
+         S.OpenRouter_Session_UUID := S.Session_UUID;
+      end if;
       S.Sandbox_Profile :=
         Ada.Strings.Unbounded.To_Unbounded_String
           (LLM.Session_Store.Session_Sandbox_Profile (UUID));
@@ -2315,6 +2337,11 @@ package body LLM.Agent is
    begin
       return To_String (S.Session_UUID);
    end Session_Id;
+
+   function OpenRouter_Session_Id (S : Session) return String is
+   begin
+      return To_String (S.OpenRouter_Session_UUID);
+   end OpenRouter_Session_Id;
 
    function Has_Submitted_Prompts (S : Session) return Boolean is
    begin
