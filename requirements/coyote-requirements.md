@@ -1,8 +1,8 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.17
-**Date:** 2026-08-25
+**Version:** 1.18
+**Date:** 2026-08-29
 **Status:** Draft
 **Project Plan:** `plan/project-plan.md`
 
@@ -684,8 +684,8 @@ behaviour are demonstrated.
 **REQ-CORE-116** (D)
 The GUI frontend shall provide an `Options → Preferences...` dialog for editing
 persistent defaults without changing the active session. The dialog shall
-expose the default model, default thinking level, default sandbox profile, and
-optional default subagent model.
+expose the default model, default thinking level, default sandbox profile,
+optional default subagent model, and maximum subagent recursion depth.
 
 **REQ-CORE-117** (D)
 When the user saves GUI preferences, the frontend shall persist the default
@@ -694,7 +694,9 @@ model as `defaultProvider` and `defaultModel`, the thinking level as
 subagent model as `defaultSubagentProvider` and `defaultSubagentModel` in
 `~/.coyote/settings.json`. A no-sandbox selection shall clear the persisted
 sandbox default, and the explicit subagent fallback selection shall clear both
-subagent preference fields.
+subagent preference fields. The maximum subagent recursion depth shall be
+persisted as the nonnegative integer `maxRecursionDepth`, with zero disabling
+subagent spawning.
 
 **REQ-CORE-118** (T)
 GUI preference persistence shall preserve unrelated fields in
@@ -703,9 +705,9 @@ failure without terminating the active session.
 
 **REQ-CORE-119** (D)
 Changing a persistent preference shall affect subsequently created sessions;
-it shall not silently change the model, thinking level, or sandbox profile of
-the active session. Existing runtime controls shall remain available for
-changing the active session.
+it shall not silently change the model, thinking level, sandbox profile, or
+recursion limit of the active session. Existing runtime controls shall remain
+available for changing the active session.
 
 **REQ-CORE-126** (D)
 The interactive GTK GUI shall issue a desktop notification after a non-aborted

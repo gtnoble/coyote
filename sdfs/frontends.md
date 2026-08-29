@@ -756,6 +756,16 @@ auto-scroll; local selection and PRIMARY; tool-card activation;
 clear/session-switch callback invalidation; replay/live parity; and keyboard
 focus traversal. No production default switch has been made.
 
+### GTK recursion-depth preference (2026-08-29)
+
+The GTK Preferences dialog now exposes the persistent maximum subagent
+recursion depth alongside model, thinking, sandbox, subagent-model, and
+completion-notification defaults. The value is carried through the typed
+`Set_Preferences` queue item and saved by the agent task as
+`maxRecursionDepth`; enforcement remains in the executable entry point before
+frontend and session startup. Queue and settings persistence regressions cover
+non-default and zero values.
+
 ### GTK footer-summary propagation correction (2026-08-25)
 
 The GUI frontend now preserves the typed footer summary in `Update.Text2` and

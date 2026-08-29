@@ -472,3 +472,20 @@ the production schedule remains available. The historical full-suite runs
 passed 917/919 assertions in 31.84–32.26 seconds with zero unexpected errors;
 the PCR-073 native-stack fixture-isolation and exchange-reset correction now
 brings the current full suite to 921/921.
+
+## 2026-08-29 — GTK subagent recursion-depth preference
+
+**Requirement:** The GTK Preferences dialog shall expose the persistent
+maximum subagent recursion depth and save it for subsequently launched
+subagents without mutating the active session.
+
+**Design:** The preference is transported as a `Natural` field in the typed
+`Coyote_GUI.Prompt_Queue.Preferences_Record` and persisted by
+`LLM.Settings.Save_Preferences` as `maxRecursionDepth`. The GUI uses a bounded
+integer `Gtk.Spin_Button`; zero retains its documented meaning of disabling
+subagent spawning. Enforcement remains in `coyote.adb` before frontend or
+session startup.
+
+**Verification:** Extended settings persistence and GTK prompt-queue tests to
+cover non-default depth 3 and zero. The focused tests pass; display-backed
+DEM-033 remains the qualification procedure for the complete Preferences flow.

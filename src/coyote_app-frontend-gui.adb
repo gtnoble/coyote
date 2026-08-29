@@ -51,6 +51,7 @@ with Glib.Values;
 with Gtk.Cell_Renderer_Text;
 with Gtk.Dialog;
 with Gtk.Combo_Box_Text;
+with Gtk.Spin_Button;
 with Gtk.List_Store;
 with LLM.Settings;
 with Gtk.Search_Entry;
@@ -1917,8 +1918,9 @@ package body Coyote_App.Frontend.GUI is
       Subagent_Model_C    : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
       Thinking_C          : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
       Sandbox_C            : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
-      Notification_C        : Gtk.Check_Button.Gtk_Check_Button;
-      Resp                  : Gtk.Dialog.Gtk_Response_Type;
+      Recursion_C         : Gtk.Spin_Button.Gtk_Spin_Button;
+      Notification_C       : Gtk.Check_Button.Gtk_Check_Button;
+      Resp                 : Gtk.Dialog.Gtk_Response_Type;
       Btn                 : Gtk.Widget.Gtk_Widget;
       Thinking_Index      : Glib.Gint := 0;
       Sandbox_Index       : Glib.Gint := 0;
@@ -1958,7 +1960,7 @@ package body Coyote_App.Frontend.GUI is
       end if;
       Gtk.Dialog.Gtk_New (Dialog);
       Dialog.Set_Title ("coyote : Preferences");
-      Dialog.Set_Default_Size (560, 330);
+      Dialog.Set_Default_Size (560, 370);
       Dialog.Set_Transient_For (Current_Frontend.Win);
       Btn := Dialog.Add_Button ("_Save", Gtk.Dialog.Gtk_Response_OK);
       Btn := Dialog.Add_Button ("_Cancel", Gtk.Dialog.Gtk_Response_Cancel);
@@ -2061,6 +2063,22 @@ package body Coyote_App.Frontend.GUI is
 
       declare
          Row : Gtk.Box.Gtk_Box;
+         Label : Gtk.Label.Gtk_Label;
+      begin
+         Gtk.Box.Gtk_New_Hbox (Row, Homogeneous => False, Spacing => 8);
+         Gtk.Label.Gtk_New (Label, "Maximum subagent recursion depth:");
+         Row.Pack_Start (Label, False, False, 0);
+         Gtk.Spin_Button.Gtk_New
+           (Recursion_C, 0.0, Gdouble (Natural'Last), 1.0);
+         Recursion_C.Set_Value
+           (Gdouble (Settings_Value.Max_Recursion_Depth));
+         Recursion_C.Set_Width_Chars (8);
+         Row.Pack_Start (Recursion_C, False, False, 0);
+         Form.Pack_Start (Row, False, False, 0);
+      end;
+
+      declare
+         Row : Gtk.Box.Gtk_Box;
       begin
          Gtk.Box.Gtk_New_Hbox (Row, Homogeneous => False, Spacing => 8);
          Gtk.Check_Button.Gtk_New
@@ -2116,6 +2134,8 @@ package body Coyote_App.Frontend.GUI is
                      (if Sand = "None (no sandbox)" then "" else Sand),
                    Subagent_Provider        => Subagent_Provider,
                    Subagent_Model           => Subagent_Id,
+                   Max_Recursion_Depth      => Natural
+                     (Recursion_C.Get_Value),
                    Completion_Notifications => Notification_C.Get_Active)));
          end;
       end if;

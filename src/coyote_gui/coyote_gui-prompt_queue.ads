@@ -20,8 +20,9 @@ package Coyote_GUI.Prompt_Queue is
       Model_Id          : Ada.Strings.Unbounded.Unbounded_String;
       Thinking          : LLM.Providers.Thinking_Level := LLM.Providers.Off;
       Sandbox           : Ada.Strings.Unbounded.Unbounded_String;
-      Subagent_Provider : Ada.Strings.Unbounded.Unbounded_String;
+      Subagent_Provider        : Ada.Strings.Unbounded.Unbounded_String;
       Subagent_Model           : Ada.Strings.Unbounded.Unbounded_String;
+      Max_Recursion_Depth      : Natural := 1;
       Completion_Notifications : Boolean := True;
    end record;
 

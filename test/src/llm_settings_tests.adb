@@ -535,9 +535,10 @@ package body LLM_Settings_Tests is
         (Provider => "openrouter",
          Model_Id => "new/model",
          Think_Level       => "high",
-         Sandbox           => "restricted",
+         Sandbox                  => "restricted",
          Subagent_Provider        => "openrouter",
          Subagent_Model           => "new/fast-model",
+         Max_Recursion_Depth      => 3,
          Completion_Notifications => False);
       Root := LLM.Settings.Load_Json_File (Home & "/.coyote/settings.json");
       Assert (Coyote_App.Utils.Get_String (Root, "defaultProvider") =
@@ -569,8 +570,14 @@ package body LLM_Settings_Tests is
               "atomic save should remove its temporary file");
 
       LLM.Settings.Save_Preferences
-        (Provider => "", Model_Id => "", Think_Level => "", Sandbox => "");
+        (Provider            => "",
+         Model_Id            => "",
+         Think_Level         => "",
+         Sandbox             => "",
+         Max_Recursion_Depth => 0);
       Root := LLM.Settings.Load_Json_File (Home & "/.coyote/settings.json");
+      Assert (Coyote_App.Utils.Get_Integer (Root, "maxRecursionDepth") = 0,
+              "zero recursion depth should be persisted");
       Assert (not Root.Has_Field ("defaultProvider"),
               "empty provider should clear the persisted field");
       Assert (not Root.Has_Field ("defaultModel"),

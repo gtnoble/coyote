@@ -1,8 +1,8 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.19
-**Date:** 2026-08-28
+**Version:** 1.20
+**Date:** 2026-08-29
 
 **Status:** Reviewed — project control (M3 complete 2026-06-02)
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
@@ -1453,9 +1453,11 @@ made by the GUI Preferences dialog or the Acme SetDefault command.
 empty/default values. A malformed or absent file does not prevent startup.
 
 **`Save_Preferences` operation:** Updates the model, thinking, sandbox,
-optional subagent-model, and completion-notification preference fields while
-preserving unrelated JSON fields. The file is written through an atomic same-directory replacement.
-Empty values clear the corresponding preference. Write failures are reported
+optional subagent-model, maximum recursion depth, and completion-notification
+preference fields while preserving unrelated JSON fields. The file is written
+through an atomic same-directory replacement. Empty values clear the
+corresponding string preference; recursion depth is persisted as a nonnegative
+integer, with zero disabling subagent spawning. Write failures are reported
  to the caller so the active session can continue.
 
 **Default precedence:** For a newly created session, an explicit model
@@ -1801,10 +1803,11 @@ the native vertical `Gtk.Box` stack (see §5.15b).
 - `Read_Prompt` — blocks on `Coyote_GUI.Prompt_Queue.Dequeue`.
 - **Preferences dialog:** `Options → Preferences...` is constructed and operated
   on the GTK main task. It edits persistent defaults for model, thinking level,
-  sandbox profile, subagent model, and completion notifications without
-  mutating the active `LLM.Agent.Session`. The callback enqueues a typed
-  `Set_Preferences` item; the agent task performs the atomic settings-file
-  update and sends a success or failure notice back through the frontend. On
+  sandbox profile, subagent model, maximum subagent recursion depth, and
+  completion notifications without mutating the active `LLM.Agent.Session`.
+  The callback enqueues a typed `Set_Preferences` item; the agent task performs
+  the atomic settings-file update and sends a success or failure notice back
+  through the frontend. On
   successful persistence, the notification setting is applied to the current
   GUI through `Coyote_GUI.Updates`.
 - **Menu and window conventions:** The main menu is ordered `File`, `Edit`,
@@ -2055,13 +2058,14 @@ turns), and `Shutdown` (unblocks any waiting `Dequeue`).
 | `Set_Sandbox` | `Profile_Name` | Change the sandbox profile |
 | `Switch_Session` | `Session_UUID` | Load a different session by UUID |
 | `Set_Default` | — | Persist current model and thinking as defaults |
-| `Set_Preferences` | Preferences record | Persist model, thinking, and sandbox defaults without changing the active session |
+| `Set_Preferences` | Preferences record | Persist model, thinking, sandbox, recursion-depth, and notification defaults without changing the active session |
 | `Shutdown_Item` | — | Queue is closing; `Agent_Task` should exit |
 
 The `Preferences record` contains the selected provider/model, thinking level,
-and sandbox profile. Empty values represent explicit clearing of the related
-default. The GTK task never writes settings directly; persistence remains
-owned by the agent task.
+sandbox profile, maximum subagent recursion depth, and completion-notification
+setting. Empty strings represent explicit clearing of string defaults; zero
+recursion depth disables subagent spawning. The GTK task never writes settings
+directly; persistence remains owned by the agent task.
 
 ---
 

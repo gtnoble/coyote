@@ -1,7 +1,7 @@
 # Test Plan â coyote (STP)
 
-**Version:** 1.20
-**Date:** 2026-08-28
+**Version:** 1.21
+**Date:** 2026-08-29
 
 **Status:** Reviewed and acknowledged â M4 complete (2026-06-03)
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
@@ -230,7 +230,7 @@ behaviour. Results are recorded in a Test Report.
 | DEM-012 | REQ-CORE-075 | In Acme, plumb a `coyote-model+PID/...` token; verify model changes on next turn |
 | DEM-013 | REQ-CORE-100â109 | Exercise each Acme tag command; verify expected behaviour for each |
 | DEM-014 | REQ-CORE-110â115, 125, 132 | Exercise GUI window: markdown rendering, tool frames, vi scroll, all main-menu accelerators, and Ctrl+wheel zoom. Verify each visible accelerator activates its corresponding menu action. |
-| DEM-033 | REQ-CORE-116..117, 119 | Open GUI Preferences, save ordinary and subagent model/thinking/sandbox defaults, then create a new session and verify the active session was unchanged, ordinary sessions inherit the ordinary defaults, and `coyote --subagent` inherits the subagent model |
+| DEM-033 | REQ-CORE-116..117, 119 | Open GUI Preferences, save ordinary and subagent model/thinking/sandbox defaults and a maximum subagent recursion depth, then create a new session and verify the active session was unchanged, ordinary sessions inherit the ordinary defaults, and `coyote --subagent` uses the saved recursion limit and subagent model |
 | DEM-035 | REQ-CORE-126..128 | Toggle desktop completion notifications in GUI Preferences; verify an unfocused ordinary GUI turn notifies, a focused turn does not, the setting persists, and subagent/one-shot runs remain silent |
 | DEM-036 | REQ-CORE-113a..113c | Exercise the GUI menu bar and support windows: verify top-level order `File`, `Edit`, `View`, `Agent`, `Options`, `Help`; activate Overview, Keys & Shortcuts, and Product Information; verify application-prefixed titles for in-process support windows, Yelp ownership for Overview/Keys topics, an in-process Product Information dialog, dialog button order, and lifecycle status in the status area rather than the title |
 | DEM-037 | REQ-CORE-113a..113b | In a display-backed GUI, press F1 and verify Overview opens; press Shift+F1 and verify the pointer becomes a question mark; click the conversation canvas and verify contextual help opens without activating the clicked control; select and extend conversation text, verify PRIMARY changes independently of CLIPBOARD; middle-click in the prompt and verify PRIMARY text is inserted at the pointer without selecting the result |
@@ -350,7 +350,7 @@ These are entered as open items in the problem log (PCR-009 and PCR-078).
 | REQ-CORE-132 | D/T | `coyote_gui_navigation_tests.adb`, `coyote_gui_prompt_queue_tests.adb`, DEM-014 |
 | REQ-CORE-124 | T/D | `coyote_lasem_tests.adb`, `coyote_gui_conversation_tests.adb`, DEM-048 (deferred native qualification) |
 | REQ-CORE-116 | D | DEM-033 |
-| REQ-CORE-117 | D | DEM-033 |
+| REQ-CORE-117 | D/T | `llm_settings_tests.adb`, `coyote_gui_prompt_queue_tests.adb`, DEM-033 |
 | REQ-CORE-118 | T | `llm_settings_tests.adb`, `coyote_gui_prompt_queue_tests.adb` |
 | REQ-CORE-119 | D | DEM-033 |
 | REQ-CORE-120â121 | D | DEM-001 (plain output) |
@@ -824,3 +824,10 @@ Acme dispatch abort regression to use `Agent_End_Event.Was_Aborted` as the
 source of truth. Production and test development builds succeed; the complete
 development suite passes 928/928 with zero failed assertions and zero
 unexpected errors.
+
+**Baseline as of 2026-08-29 (PCR-080 GTK recursion-depth preference):**
+928 registered tests. Extended the typed GTK preference and settings persistence
+regressions to cover maximum subagent recursion depths 3 and 0. Production and
+test development builds succeed; the complete suite passes 928/928 with zero
+failed assertions and zero unexpected errors. DEM-033 remains the manual
+qualification procedure for display-backed Preferences interaction.

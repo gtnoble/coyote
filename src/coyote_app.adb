@@ -2818,6 +2818,8 @@ package body Coyote_App is
                                 (It.Preferences.Subagent_Provider),
                               Subagent_Model           => To_String
                                 (It.Preferences.Subagent_Model),
+                              Max_Recursion_Depth      =>
+                                It.Preferences.Max_Recursion_Depth,
                               Completion_Notifications =>
                                 It.Preferences.Completion_Notifications);
                            My_Frontend.Set_Completion_Notifications

@@ -2725,3 +2725,28 @@ behavior, current test baseline, and remaining manual qualification scope.
   unexpected errors, including the stalled-response regression.
 - **Status:** Resolved
 - **Date resolved:** 2026-08-28
+
+## PCR-080 — GTK preference for subagent recursion depth
+
+- **Date reported:** 2026-08-29
+- **Category:** Requirements, Design, Code, Test, Manuals
+- **Priority:** 3-Moderate
+- **Description:** The persistent `maxRecursionDepth` setting and executable
+  enforcement existed, but the GTK Preferences dialog could not configure it.
+- **Affected work products:** GTK Preferences dialog, preference queue,
+  `LLM.Settings.Save_Preferences`, settings and queue tests, SRS-CORE,
+  SDD-CORE, TEST-PLAN, README, and frontend/core SDFs.
+- **Corrective action required:** Add a GTK numeric control, carry its value
+  through the typed preference queue, persist it as `maxRecursionDepth`, and
+  cover non-default and zero values without moving enforcement out of the
+  executable entry point.
+- **Actions taken:** Implemented the GTK spin control and persistence path,
+  extended regression coverage, and updated requirements, design, test-plan,
+  README, and component development logs.
+- **Verification:** Production and test development builds succeed. The
+  focused settings and prompt-queue tests pass 1/1 each. The complete suite
+  passes 928/928 with zero failed assertions and zero unexpected errors when
+  run from the test project directory. The initial root-directory invocation
+  failed only because its relative `../bin/coyote` test path was invalid.
+- **Status:** Resolved
+- **Date resolved:** 2026-08-29

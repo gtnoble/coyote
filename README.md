@@ -102,6 +102,7 @@ All configuration files live under `~/.coyote/`.
   "defaultSubagentProvider":  "openrouter",
   "defaultSubagentModel":     "anthropic/claude-haiku",
   "defaultThinkingLevel":     "low",
+  "maxRecursionDepth":        1,
   "appendSystemPrompt":       "You are a helpful coding assistant.",
   "promptFilter":             "m4 -"
 }
@@ -114,6 +115,7 @@ All configuration files live under `~/.coyote/`.
 | `defaultSubagentProvider` | Provider to use for `--subagent` when `--model` is not specified |
 | `defaultSubagentModel` | Model ID to use for `--subagent` when `--model` is not specified; absent values fall back to the ordinary default |
 | `defaultThinkingLevel` | Reasoning level at startup (`low`, `medium`, `high`) |
+| `maxRecursionDepth` | Maximum nested `--subagent` depth; zero disables subagent spawning and the default is 1 |
 | `appendSystemPrompt` | Text appended to every system prompt |
 | `promptFilter` | Shell command through which interactive prompts (Send/Steer) are filtered. The raw prompt is written to stdin; stdout becomes the prompt sent to the agent and the text echoed in the window. Runs via `$SHELL -c CMD`. Can be overridden per-invocation with `--prompt-filter`. |
 

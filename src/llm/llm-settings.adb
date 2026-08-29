@@ -367,6 +367,7 @@ package body LLM.Settings is
       Sandbox                  : String;
       Subagent_Provider        : String := "";
       Subagent_Model           : String := "";
+      Max_Recursion_Depth      : Natural := 1;
       Completion_Notifications : Boolean := True)
    is
       Path     : constant String := Settings_Path;
@@ -418,6 +419,8 @@ package body LLM.Settings is
          Root.Unset_Field ("defaultSubagentModel");
       end if;
 
+      Root.Set_Field
+        ("maxRecursionDepth", Long_Integer (Max_Recursion_Depth));
       Root.Set_Field ("completionNotifications", Completion_Notifications);
 
       Write_Atomically (Path, GNATCOLL.JSON.Write (Root));

@@ -22,7 +22,9 @@ package body Coyote_GUI_Prompt_Queue_Tests is
              Thinking          => LLM.Providers.High,
              Sandbox           => To_Unbounded_String ("restricted"),
              Subagent_Provider        => To_Unbounded_String ("openrouter"),
-             Subagent_Model           => To_Unbounded_String ("test/fast-model"),
+             Subagent_Model           => To_Unbounded_String
+               ("test/fast-model"),
+             Max_Recursion_Depth      => 3,
              Completion_Notifications =>
                False)));
       Queue.Dequeue (Got);
@@ -43,6 +45,9 @@ package body Coyote_GUI_Prompt_Queue_Tests is
         (To_String (Got.Preferences.Subagent_Model) = "test/fast-model",
          "subagent model should survive queue transport");
       Assert
+        (Got.Preferences.Max_Recursion_Depth = 3,
+         "recursion depth should survive queue transport");
+      Assert
         (not Got.Preferences.Completion_Notifications,
          "disabled completion preference should survive queue transport");
 
@@ -55,6 +60,7 @@ package body Coyote_GUI_Prompt_Queue_Tests is
              Sandbox           => Null_Unbounded_String,
              Subagent_Provider        => Null_Unbounded_String,
              Subagent_Model           => Null_Unbounded_String,
+             Max_Recursion_Depth      => 0,
              Completion_Notifications => True)));
       Queue.Dequeue (Got);
       Assert (Length (Got.Preferences.Provider) = 0,
@@ -67,6 +73,9 @@ package body Coyote_GUI_Prompt_Queue_Tests is
               "empty subagent provider should represent an explicit clear");
       Assert (Length (Got.Preferences.Subagent_Model) = 0,
               "empty subagent model should represent an explicit clear");
+      Assert
+        (Got.Preferences.Max_Recursion_Depth = 0,
+         "zero recursion depth should survive queue transport");
    end Test_Set_Preferences_Round_Trips;
 
    procedure Test_Enqueue_Reports_Acceptance (T : in out Test) is

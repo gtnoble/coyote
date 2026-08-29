@@ -69,16 +69,17 @@ package LLM.Settings is
       Model_Id    : String;
       Think_Level : String);
 
-   --  Write model, thinking, sandbox, and notification defaults to
-   --  settings.json.
+   --  Write model, thinking, sandbox, recursion, and notification defaults
+   --  to settings.json.
    --  Empty string values clear the corresponding string preference.
    --  Unrelated fields are preserved and the replacement is atomic.
    procedure Save_Preferences
-     (Provider          : String;
-      Model_Id          : String;
-      Think_Level       : String;
-      Sandbox           : String;
+     (Provider                 : String;
+      Model_Id                 : String;
+      Think_Level              : String;
+      Sandbox                  : String;
       Subagent_Provider        : String := "";
       Subagent_Model           : String := "";
+      Max_Recursion_Depth      : Natural := 1;
       Completion_Notifications : Boolean := True);
 end LLM.Settings;
