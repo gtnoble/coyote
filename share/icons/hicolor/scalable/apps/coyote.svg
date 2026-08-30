@@ -1,9 +1,30 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+<svg xmlns="http://www.w3.org/2000/svg" width="85" height="67" viewBox="0 0 85 67">
   <title>coyote application icon</title>
-  <rect x="8" y="22" width="112" height="84" rx="12" fill="#d9dde3" stroke="#30343b" stroke-width="6"/>
-  <path d="M26 78h76l-10 18H36z" fill="#6f7782" stroke="#30343b" stroke-width="5"/>
-  <path d="M30 45c0-12 10-22 22-22h24c12 0 22 10 22 22v18H30z" fill="#4f82b8" stroke="#30343b" stroke-width="5"/>
-  <circle cx="52" cy="51" r="6" fill="#fff"/>
-  <circle cx="76" cy="51" r="6" fill="#fff"/>
-  <path d="M52 66c8 6 16 6 24 0" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
+  <desc>A faceted, long-snouted coyote profile in the IRIX icon style.</desc>
+
+  <!-- Solid IconSmith-style ground shadow beneath the neck. -->
+  <polygon points="19,52 53,47 72,54 42,65" fill="#555555"/>
+
+  <!-- The coyote occupies the canvas: tall ear, narrow skull, long muzzle. -->
+  <polygon points="23,47 20,27 27,16 25,4 39,17 50,16 57,23
+                   74,30 77,34 70,39 56,40 48,51 34,57"
+           fill="#c59155" stroke="#202020" stroke-width="1.7"
+           stroke-linejoin="miter"/>
+
+  <!-- Ear planes. -->
+  <polygon points="27,16 25,4 39,17 34,23" fill="#b6814a"/>
+  <polygon points="28,10 34,18 29,21" fill="#55392f"/>
+
+  <!-- Faceted cheek, crown, and pale muzzle planes. -->
+  <polygon points="23,47 20,27 34,23 39,37 34,57" fill="#9b663f"/>
+  <polygon points="34,23 39,17 50,16 57,23 49,34 39,37"
+           fill="#d5ad72"/>
+  <polygon points="49,34 57,23 74,30 70,39 56,40" fill="#dfc58e"/>
+
+  <!-- Eye and lower mouth; the compact nose caps only the muzzle tip. -->
+  <polygon points="45,23 52,23 55,27 48,28" fill="#202020"/>
+  <line x1="56" y1="36.5" x2="73" y2="36"
+        stroke="#6f5544" stroke-width="1.2"/>
+  <polygon points="74,30 77,34 70,39 71.5,35.5 71.5,32.5"
+           fill="#202020"/>
 </svg>
