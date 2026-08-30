@@ -29,7 +29,8 @@ package body LLM_OpenAI_Completions_Tests is
    type Event_Collector is record
       Sequence  : String_Vectors.Vector;
       Last_Stop : LLM.Types.Stop_Reason := LLM.Types.Unknown_Stop;
-      Usage     : LLM.Types.Usage := (others => 0);
+      Usage      : LLM.Types.Usage := (others => 0);
+      Last_Error : Unbounded_String;
    end record;
 
    Current_Collector : Event_Collector;
@@ -72,6 +73,7 @@ package body LLM_OpenAI_Completions_Tests is
       Current_Collector.Sequence.Clear;
       Current_Collector.Last_Stop := LLM.Types.Unknown_Stop;
       Current_Collector.Usage := (others => 0);
+      Current_Collector.Last_Error := Null_Unbounded_String;
    end Reset_Collector;
 
    --  Return the string content of a JSON value as a plain String.
@@ -302,6 +304,7 @@ package body LLM_OpenAI_Completions_Tests is
          begin
             Collector.Last_Stop := Event.Stop;
             Collector.Usage := Event.Tok_Usage;
+            Collector.Last_Error := Event.Err_Msg;
             Collector.Sequence.Append ("message_end");
          end;
       elsif E'Tag = LLM.Events.Agent_End_Event'Tag then
@@ -1398,7 +1401,13 @@ package body LLM_OpenAI_Completions_Tests is
       Error_Message : Unbounded_String;
 
       --  HTTP 500 error JSON payload.
-      Error_Payload : constant String := "{""error"":""internal""}";
+      Error_Payload : constant String :=
+        "{""error"":{""message"":"""
+        & "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"
+        & "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"
+        & "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"
+        & "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"
+        & """}}";
 
       procedure Handle_Request
         (Req :     Test_HTTP_Server.Request;
@@ -1451,9 +1460,18 @@ package body LLM_OpenAI_Completions_Tests is
         (Ada.Strings.Fixed.Index (To_String (Error_Message), "HTTP 500") > 0,
          "OpenAI HTTP errors should include the status code");
       Assert
-        (Current_Collector.Sequence.Length = 3,
-         "OpenAI HTTP errors should emit agent_start, message_start,"
-         & " and agent_end only: " & Sequence_Image);
+        (Current_Collector.Last_Stop = LLM.Types.Error_Stop,
+         "HTTP errors should emit Error_Stop");
+      Assert
+        (Ada.Strings.Fixed.Index
+           (To_String (Current_Collector.Last_Error),
+            "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz" & """}}")
+           > 0,
+         "HTTP error event should preserve the complete response body");
+      Assert
+        (Current_Collector.Sequence.Length = 4,
+         "OpenAI HTTP errors should emit message_end before agent_end: "
+         & Sequence_Image);
       Assert
         (Current_Collector.Sequence.Element (1) = "agent_start",
          "OpenAI HTTP errors should still emit Agent_Start_Event");
@@ -1461,7 +1479,10 @@ package body LLM_OpenAI_Completions_Tests is
         (Current_Collector.Sequence.Element (2) = "message_start",
          "OpenAI HTTP errors should still emit Message_Start_Event");
       Assert
-        (Current_Collector.Sequence.Element (3) = "agent_end",
+        (Current_Collector.Sequence.Element (3) = "message_end",
+         "OpenAI HTTP errors should emit Message_End_Event");
+      Assert
+        (Current_Collector.Sequence.Element (4) = "agent_end",
          "OpenAI HTTP errors should still emit Agent_End_Event");
    exception
       when others =>
@@ -1470,6 +1491,82 @@ package body LLM_OpenAI_Completions_Tests is
          end if;
          raise;
    end Test_OpenAI_HTTP_Error_Propagates;
+
+   procedure Test_OpenAI_Stream_Error_Propagates (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Port     : constant Positive := 18_798;
+      Provider : LLM.Providers.OpenAI_Completions.Provider :=
+        LLM.Providers.OpenAI_Completions.Create
+          (Base_Url => "http://127.0.0.1:18798",
+           Api_Key  => "test-key");
+      Messages      : LLM.Types.Message_Vectors.Vector;
+      User_Content  : LLM.Types.Content_Block_Vectors.Vector;
+      Error_Payload : constant String :=
+        "{""error"":{""message"":"""
+        & "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"
+        & "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"
+        & "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"
+        & "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"
+        & """}}";
+      SSE_Payload : constant String := SSE_Record (Error_Payload);
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Res.Status := 200;
+         Append (Res.Body_Data, SSE_Payload);
+      end Handle_Request;
+
+      Server_Stopped : Boolean := False;
+      Srv            : Test_HTTP_Server.Server
+        (Handler => Handle_Request'Unrestricted_Access);
+   begin
+      Reset_Collector;
+      User_Content.Append
+        ((Kind => LLM.Types.Text_Block,
+          Text => To_Unbounded_String ("stream error")));
+      Messages.Append
+        ((Role      => LLM.Types.User,
+          Content   => User_Content,
+          Tok_Usage => (others => 0),
+          Stop      => LLM.Types.Unknown_Stop,
+          Timestamp => Null_Unbounded_String));
+      Srv.Bind (Port);
+      Send_With_Retry
+        (P             => Provider,
+         Model_Id      => "stream-error-model",
+         System_Prompt => "",
+         Messages      => Messages,
+         Tools_Json    => "[]",
+         Max_Tokens    => 64,
+         Handler       => On_Event'Access);
+      Srv.Stop;
+      Server_Stopped := True;
+
+      Assert
+        (Current_Collector.Last_Stop = LLM.Types.Error_Stop,
+         "streamed errors should emit Error_Stop");
+      Assert
+        (Ada.Strings.Fixed.Index
+           (To_String (Current_Collector.Last_Error),
+            "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz" & """}}")
+           > 0,
+         "streamed error event should preserve the complete payload");
+      Assert
+        (Current_Collector.Sequence.Length = 4,
+         "streamed errors should emit message_end before agent_end: "
+         & Sequence_Image);
+   exception
+      when others =>
+         if not Server_Stopped then
+            Srv.Stop;
+         end if;
+         raise;
+   end Test_OpenAI_Stream_Error_Propagates;
 
    procedure Test_OpenAI_Stream_Terminates_Early (T : in out Test) is
       pragma Unreferenced (T);

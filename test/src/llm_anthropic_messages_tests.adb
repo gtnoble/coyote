@@ -35,6 +35,7 @@ package body LLM_Anthropic_Messages_Tests is
       Last_Stop            : LLM.Types.Stop_Reason := LLM.Types.Unknown_Stop;
       Usage                : LLM.Types.Usage := (others => 0);
       Last_Thinking_Sig    : Unbounded_String;
+      Last_Error           : Unbounded_String;
    end record;
 
    Current_Collector : Event_Collector;
@@ -194,6 +195,7 @@ package body LLM_Anthropic_Messages_Tests is
       Current_Collector.Last_Stop := LLM.Types.Unknown_Stop;
       Current_Collector.Usage := (others => 0);
       Current_Collector.Last_Thinking_Sig := Null_Unbounded_String;
+      Current_Collector.Last_Error := Null_Unbounded_String;
    end Reset_Collector;
 
    procedure Collect_Event (E : LLM.Events.Agent_Event'Class) is
@@ -209,6 +211,7 @@ package body LLM_Anthropic_Messages_Tests is
          begin
             Current_Collector.Last_Stop := Event.Stop;
             Current_Collector.Usage := Event.Tok_Usage;
+            Current_Collector.Last_Error := Event.Err_Msg;
             Current_Collector.Sequence.Append ("message_end");
          end;
       elsif E'Tag = LLM.Events.Agent_End_Event'Tag then
@@ -1143,7 +1146,14 @@ package body LLM_Anthropic_Messages_Tests is
          pragma Unreferenced (Req);
       begin
          Res.Status := 500;
-         Append (Res.Body_Data, "{""error"":""internal""}");
+         Append
+           (Res.Body_Data,
+            "{""error"":{""message"":"""
+            & "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"
+            & "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"
+            & "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"
+            & "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"
+            & """}}");
       end Handle_Request;
 
       Server_Stopped : Boolean := False;
@@ -1177,14 +1187,26 @@ package body LLM_Anthropic_Messages_Tests is
              (To_String (Error_Message), "HTTP 500") > 0,
           "Anthropic HTTP errors should include the status code");
       Assert
-         (Current_Collector.Sequence.Length = 2,
-          "Anthropic HTTP errors should only bracket the turn with agent"
-          & " events: " & Sequence_Image);
+         (Current_Collector.Last_Stop = LLM.Types.Error_Stop,
+          "HTTP errors should emit Error_Stop");
+      Assert
+         (Ada.Strings.Fixed.Index
+             (To_String (Current_Collector.Last_Error),
+              "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz" & """}}")
+           > 0,
+          "HTTP error event should preserve the complete response body");
+      Assert
+         (Current_Collector.Sequence.Length = 3,
+          "Anthropic HTTP errors should emit message_end before agent_end: "
+          & Sequence_Image);
       Assert
          (Current_Collector.Sequence.Element (1) = "agent_start",
           "Anthropic HTTP errors should still emit Agent_Start_Event");
       Assert
-         (Current_Collector.Sequence.Element (2) = "agent_end",
+         (Current_Collector.Sequence.Element (2) = "message_end",
+          "Anthropic HTTP errors should emit Message_End_Event");
+      Assert
+         (Current_Collector.Sequence.Element (3) = "agent_end",
           "Anthropic HTTP errors should still emit Agent_End_Event");
    exception
       when others =>

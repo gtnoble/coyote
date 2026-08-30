@@ -1060,6 +1060,17 @@ package body LLM.Agent is
          Pending_Tools.Clear;
       end Reset_Attempt_State;
 
+      function Error_Text
+        (Occurrence : Ada.Exceptions.Exception_Occurrence) return String
+      is
+      begin
+         if Length (Builder.Error_Text) > 0 then
+            return To_String (Builder.Error_Text);
+         else
+            return Ada.Exceptions.Exception_Message (Occurrence);
+         end if;
+      end Error_Text;
+
       procedure Provider_Event_Handler (E : LLM.Events.Agent_Event'Class) is
       begin
          --  If the user clicked Stop, abort the HTTP stream immediately.
@@ -1170,7 +1181,7 @@ package body LLM.Agent is
                      if S.Abort_State.Requested then
                         exit Attempt_Loop;
                      elsif Is_Context_Overflow_Error
-                       (Ada.Exceptions.Exception_Message (Occurrence))
+                       (Error_Text (Occurrence))
                      then
                         if Overflow_Recovery_Attempted then
                            declare
@@ -1227,8 +1238,7 @@ package body LLM.Agent is
                               Max_Attempts => Delays_Ms'Last + 1,
                               Delay_Ms     => Delay_Ms,
                               Error_Msg    => To_Unbounded_String
-                                (Ada.Exceptions.Exception_Message
-                                   (Occurrence)));
+                                (Error_Text (Occurrence)));
                            Was_Aborted : Boolean;
                         begin
                            Emit (On_Event, Event);
@@ -1246,21 +1256,20 @@ package body LLM.Agent is
                               Success     => False,
                               Attempt     => Attempt,
                               Final_Error => To_Unbounded_String
-                                (Ada.Exceptions.Exception_Message
-                                   (Occurrence)));
+                                (Error_Text (Occurrence)));
                         begin
                            Emit (On_Event, Event);
                         end;
                         Ada.Text_IO.Put_Line
                           (Ada.Text_IO.Standard_Error,
                            "[!] agent error (retry exhausted): "
-                           & Ada.Exceptions.Exception_Message (Occurrence));
+                           & Error_Text (Occurrence));
                         raise;
                      else
                         Ada.Text_IO.Put_Line
                           (Ada.Text_IO.Standard_Error,
                            "[!] agent error (non-retryable): "
-                           & Ada.Exceptions.Exception_Message (Occurrence));
+                           & Error_Text (Occurrence));
                         raise;
                      end if;
                end;
@@ -2224,18 +2233,23 @@ package body LLM.Agent is
             Roll_Back_Pending_Messages;
             S.Streaming := False;
             declare
+               Error_Text : constant String :=
+                 (if Length (Builder.Error_Text) > 0
+                  then To_String (Builder.Error_Text)
+                  else Ada.Exceptions.Exception_Message (Occurrence));
                End_Event : constant LLM.Events.Agent_End_Event :=
-                 (LLM.Events.Agent_Event with Was_Aborted => Was_Aborted);
+                 (LLM.Events.Agent_Event with
+                  Was_Aborted => Was_Aborted,
+                  Error_Msg   => To_Unbounded_String (Error_Text));
             begin
                Emit (On_Event, End_Event);
+               S.Abort_State.Clear;
+               Emit (On_Event, Session_Stats (S));
+               S.Pause_State.Release;
+               Ada.Text_IO.Put_Line
+                 (Ada.Text_IO.Standard_Error,
+                  "[!] agent error (run_prompt): " & Error_Text);
             end;
-            S.Abort_State.Clear;
-            Emit (On_Event, Session_Stats (S));
-            S.Pause_State.Release;
-            Ada.Text_IO.Put_Line
-              (Ada.Text_IO.Standard_Error,
-               "[!] agent error (run_prompt): "
-               & Ada.Exceptions.Exception_Message (Occurrence));
             raise;
       end;
 
@@ -2243,7 +2257,9 @@ package body LLM.Agent is
       S.Streaming := False;
       declare
          End_Event : constant LLM.Events.Agent_End_Event :=
-           (LLM.Events.Agent_Event with Was_Aborted => Was_Aborted);
+           (LLM.Events.Agent_Event with
+            Was_Aborted => Was_Aborted,
+            Error_Msg   => Null_Unbounded_String);
       begin
          Emit (On_Event, End_Event);
       end;

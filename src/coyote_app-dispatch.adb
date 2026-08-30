@@ -195,6 +195,9 @@ package body Coyote_App.Dispatch is
             if Ev.Was_Aborted then
                State.Set_Aborted (True);
             end if;
+            if To_String (Ev.Error_Msg)'Length > 0 then
+               State.Set_Last_Error_Message (To_String (Ev.Error_Msg));
+            end if;
          end;
          if State.Was_Aborted then
             Frontend.Append_Notice

@@ -18,7 +18,13 @@ package LLM.Events is
 
    type Agent_End_Event is new Agent_Event with record
       Was_Aborted : Boolean := False;
+      Error_Msg   : Ada.Strings.Unbounded.Unbounded_String :=
+        Ada.Strings.Unbounded.Null_Unbounded_String;
    end record;
+
+   --  Error_Msg carries the complete diagnostic when a run terminates
+   --  exceptionally; it is kept outside Ada exception-message storage.
+   --  The value is empty for successful and aborted runs without an error.
 
    type Message_Start_Event is new Agent_Event with null record;
 

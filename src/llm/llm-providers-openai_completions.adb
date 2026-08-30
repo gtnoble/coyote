@@ -43,6 +43,7 @@ package body LLM.Providers.OpenAI_Completions is
       Done              : Boolean := False;
       Saw_Stream_Event  : Boolean := False;
       Raw_Response_Body : Unbounded_String;
+      Error_Message     : Unbounded_String;
    end record;
 
    function Create
@@ -322,7 +323,9 @@ package body LLM.Providers.OpenAI_Completions is
 
    procedure Emit_Agent_End (Handler : LLM.Providers.Event_Handler) is
       Event : constant LLM.Events.Agent_End_Event :=
-         (LLM.Events.Agent_Event with Was_Aborted => False);
+         (LLM.Events.Agent_Event with
+          Was_Aborted => False,
+          Error_Msg   => Null_Unbounded_String);
    begin
       Emit (Handler, Event);
    end Emit_Agent_End;
@@ -336,13 +339,14 @@ package body LLM.Providers.OpenAI_Completions is
 
    procedure Emit_Message_End
       (Handler   : LLM.Providers.Event_Handler;
-     Stop      : LLM.Types.Stop_Reason;
-     Tok_Usage : LLM.Types.Usage)
+       Stop      : LLM.Types.Stop_Reason;
+       Tok_Usage : LLM.Types.Usage;
+       Err_Msg   : String := "")
    is
       Event : constant LLM.Events.Message_End_Event :=
          (LLM.Events.Agent_Event with
           Stop      => Stop,
-          Err_Msg   => Null_Unbounded_String,
+          Err_Msg   => To_Unbounded_String (Err_Msg),
           Tok_Usage => Tok_Usage,
           Cost_Dmil => 0);
    begin
@@ -775,8 +779,9 @@ package body LLM.Providers.OpenAI_Completions is
 
       Emit_Message_End
          (Handler   => Handler,
-       Stop      => State.Stop,
-       Tok_Usage => State.Tok_Usage);
+          Stop      => State.Stop,
+          Tok_Usage => State.Tok_Usage,
+          Err_Msg   => To_String (State.Error_Message));
       State.Done := True;
    end Finalize_Message;
 
@@ -795,6 +800,15 @@ package body LLM.Providers.OpenAI_Completions is
          and then Root.Get ("usage").Kind = GNATCOLL.JSON.JSON_Object_Type
       then
          State.Tok_Usage := Parse_Usage (Root.Get ("usage"));
+      end if;
+
+      if Root.Kind = GNATCOLL.JSON.JSON_Object_Type
+         and then Root.Has_Field ("error")
+      then
+         State.Stop := LLM.Types.Error_Stop;
+         State.Error_Message := GNATCOLL.JSON.Write (Root);
+         Finalize_Message (State, Handler);
+         return;
       end if;
 
       if GNATCOLL.JSON.Length (Choices) = 0 then
@@ -1006,11 +1020,23 @@ package body LLM.Providers.OpenAI_Completions is
        Abort_Check => Abort_Check);
 
       if Status /= 200 then
-         raise Constraint_Error with
-            "OpenAI chat completion failed with HTTP"
-            & Natural'Image (Status)
-            & ": "
-            & To_String (State.Raw_Response_Body);
+         declare
+            Error_Text : constant String :=
+              "OpenAI chat completion failed with HTTP"
+              & Natural'Image (Status)
+              & ": "
+              & To_String (State.Raw_Response_Body);
+         begin
+            State.Error_Message := To_Unbounded_String (Error_Text);
+            Emit_Message_End
+              (Handler   => Handler,
+               Stop      => LLM.Types.Error_Stop,
+               Tok_Usage => State.Tok_Usage,
+               Err_Msg   => Error_Text);
+            raise Constraint_Error with
+              "OpenAI chat completion failed with HTTP"
+              & Natural'Image (Status);
+         end;
       end if;
 
       if not P.Use_Streaming then

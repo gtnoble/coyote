@@ -1265,6 +1265,10 @@ package body Test_Suites is
          LLM_OpenAI_Completions_Tests
            .Test_OpenAI_HTTP_Error_Propagates'Access));
       Result.Add_Test (LLM_OpenAI_Completions_Caller.Create
+        ("LLM.OpenAI_Completions propagates streamed errors",
+         LLM_OpenAI_Completions_Tests
+           .Test_OpenAI_Stream_Error_Propagates'Access));
+      Result.Add_Test (LLM_OpenAI_Completions_Caller.Create
         ("LLM.OpenAI_Completions finalizes early-terminated streams",
          LLM_OpenAI_Completions_Tests
            .Test_OpenAI_Stream_Terminates_Early'Access));

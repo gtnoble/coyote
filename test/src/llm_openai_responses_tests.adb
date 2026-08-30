@@ -1,6 +1,7 @@
 with AUnit.Assertions;
 with Ada.Containers;
 with Ada.Containers.Indefinite_Vectors;
+with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Tags;
 with GNATCOLL.JSON;
@@ -28,6 +29,7 @@ package body LLM_OpenAI_Responses_Tests is
       Sequence  : String_Vectors.Vector;
       Last_Stop : LLM.Types.Stop_Reason := LLM.Types.Unknown_Stop;
       Usage     : LLM.Types.Usage := (others => 0);
+      Last_Error : Unbounded_String;
    end record;
 
    Current_Collector : Event_Collector;
@@ -72,6 +74,7 @@ package body LLM_OpenAI_Responses_Tests is
       Current_Collector.Sequence.Clear;
       Current_Collector.Last_Stop := LLM.Types.Unknown_Stop;
       Current_Collector.Usage := (others => 0);
+      Current_Collector.Last_Error := Null_Unbounded_String;
    end Reset_Collector;
 
    function Json_String (Val : GNATCOLL.JSON.JSON_Value) return String is
@@ -351,6 +354,7 @@ package body LLM_OpenAI_Responses_Tests is
          begin
             Collector.Last_Stop := Event.Stop;
             Collector.Usage := Event.Tok_Usage;
+            Collector.Last_Error := Event.Err_Msg;
             Collector.Sequence.Append ("message_end");
          end;
       elsif E'Tag = LLM.Events.Agent_End_Event'Tag then
@@ -823,6 +827,13 @@ package body LLM_OpenAI_Responses_Tests is
            Api_Key  => "bad-key");
       Messages : constant LLM.Types.Message_Vectors.Vector := User_Hello;
       Raised   : Boolean := False;
+      Error_Payload : constant String :=
+        "{""error"":{""message"":"""
+        & "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"
+        & "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"
+        & "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"
+        & "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"
+        & """}}";
 
       procedure Handle_Request
         (Req :     Test_HTTP_Server.Request;
@@ -831,7 +842,7 @@ package body LLM_OpenAI_Responses_Tests is
          pragma Unreferenced (Req);
       begin
          Res.Status := 401;
-         Ada.Strings.Unbounded.Append (Res.Body_Data, "{""error"":{""message"":""nope""}}");
+         Ada.Strings.Unbounded.Append (Res.Body_Data, Error_Payload);
       end Handle_Request;
 
       Server_Stopped : Boolean := False;
@@ -857,8 +868,19 @@ package body LLM_OpenAI_Responses_Tests is
       Server_Stopped := True;
       Assert (Raised, "HTTP 401 should raise Constraint_Error");
       Assert
-        (Current_Collector.Sequence.Find_Index ("agent_end") > 0,
-         "agent_end should still fire");
+        (Current_Collector.Last_Stop = LLM.Types.Error_Stop,
+         "HTTP errors should emit Error_Stop; stop="
+         & LLM.Types.Stop_Reason'Image (Current_Collector.Last_Stop)
+         & ", sequence=" & Sequence_Image);
+      Assert
+        (Ada.Strings.Fixed.Index
+           (To_String (Current_Collector.Last_Error),
+            "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz" & """}}")
+           > 0,
+         "HTTP error event should preserve the complete response body");
+      Assert
+        (Current_Collector.Sequence.Length = 4,
+         "HTTP errors should emit message_end before agent_end");
    exception
       when others =>
          if not Server_Stopped then

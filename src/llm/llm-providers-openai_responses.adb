@@ -54,6 +54,7 @@ package body LLM.Providers.OpenAI_Responses is
       Done                    : Boolean := False;
       Saw_Stream_Event        : Boolean := False;
       Raw_Response_Body       : Unbounded_String;
+      Error_Message            : Unbounded_String;
       Thinking_Item_Id        : Unbounded_String;
       Encrypted_Content       : Unbounded_String;
    end record;
@@ -293,7 +294,9 @@ package body LLM.Providers.OpenAI_Responses is
 
    procedure Emit_Agent_End (Handler : LLM.Providers.Event_Handler) is
       Event : constant LLM.Events.Agent_End_Event :=
-         (LLM.Events.Agent_Event with Was_Aborted => False);
+         (LLM.Events.Agent_Event with
+          Was_Aborted => False,
+          Error_Msg   => Null_Unbounded_String);
    begin
       Emit (Handler, Event);
    end Emit_Agent_End;
@@ -307,13 +310,14 @@ package body LLM.Providers.OpenAI_Responses is
 
    procedure Emit_Message_End
       (Handler   : LLM.Providers.Event_Handler;
-     Stop      : LLM.Types.Stop_Reason;
-     Tok_Usage : LLM.Types.Usage)
+       Stop      : LLM.Types.Stop_Reason;
+       Tok_Usage : LLM.Types.Usage;
+       Err_Msg   : String := "")
    is
       Event : constant LLM.Events.Message_End_Event :=
          (LLM.Events.Agent_Event with
           Stop      => Stop,
-          Err_Msg   => Null_Unbounded_String,
+          Err_Msg   => To_Unbounded_String (Err_Msg),
           Tok_Usage => Tok_Usage,
           Cost_Dmil => 0);
    begin
@@ -968,8 +972,9 @@ package body LLM.Providers.OpenAI_Responses is
 
       Emit_Message_End
          (Handler   => Handler,
-       Stop      => State.Stop,
-       Tok_Usage => State.Tok_Usage);
+          Stop      => State.Stop,
+          Tok_Usage => State.Tok_Usage,
+          Err_Msg   => To_String (State.Error_Message));
       State.Done := True;
    end Finalize_Message;
 
@@ -1142,6 +1147,9 @@ package body LLM.Providers.OpenAI_Responses is
         or else Event_Typ = "response.failed"
       then
          Apply_Usage_And_Status (State, Root);
+         if State.Stop = LLM.Types.Error_Stop then
+            State.Error_Message := GNATCOLL.JSON.Write (Root);
+         end if;
          declare
             Response_Obj : constant GNATCOLL.JSON.JSON_Value :=
                Get_Object_Field (Root, "response");
@@ -1164,6 +1172,7 @@ package body LLM.Providers.OpenAI_Responses is
          Finalize_Message (State, Handler);
       elsif Event_Typ = "error" then
          State.Stop := LLM.Types.Error_Stop;
+         State.Error_Message := GNATCOLL.JSON.Write (Root);
          Finalize_Message (State, Handler);
       elsif Event_Typ = "response.refusal.delta" then
          State.Stop := LLM.Types.Error_Stop;
@@ -1270,11 +1279,23 @@ package body LLM.Providers.OpenAI_Responses is
        Abort_Check => Abort_Check);
 
       if Status /= 200 then
-         raise Constraint_Error with
-            "OpenAI responses request failed with HTTP"
-            & Natural'Image (Status)
-            & ": "
-            & To_String (State.Raw_Response_Body);
+         declare
+            Error_Text : constant String :=
+              "OpenAI responses request failed with HTTP"
+              & Natural'Image (Status)
+              & ": "
+              & To_String (State.Raw_Response_Body);
+         begin
+            State.Error_Message := To_Unbounded_String (Error_Text);
+            Emit_Message_End
+              (Handler   => Handler,
+               Stop      => LLM.Types.Error_Stop,
+               Tok_Usage => State.Tok_Usage,
+               Err_Msg   => Error_Text);
+            raise Constraint_Error with
+              "OpenAI responses request failed with HTTP"
+              & Natural'Image (Status);
+         end;
       end if;
 
       if not P.Use_Streaming then

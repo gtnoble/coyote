@@ -487,10 +487,18 @@ package body Coyote_App is
                      Current_Text := Null_Unbounded_String;
                   end;
                elsif E in LLM.Events.Agent_End_Event then
-                  Completion_Pending :=
-                    not LLM.Events.Agent_End_Event (E).Was_Aborted
-                    and then not Opts.One_Shot
-                    and then not Opts.Subagent;
+                  declare
+                     Agent_End : constant LLM.Events.Agent_End_Event :=
+                       LLM.Events.Agent_End_Event (E);
+                  begin
+                     if Length (Agent_End.Error_Msg) > 0 then
+                        Final_Error := Agent_End.Error_Msg;
+                     end if;
+                     Completion_Pending :=
+                       not Agent_End.Was_Aborted
+                       and then not Opts.One_Shot
+                       and then not Opts.Subagent;
+                  end;
                elsif E in LLM.Events.Session_Stats_Event then
                   declare
                      Ev : constant LLM.Events.Session_Stats_Event :=
@@ -687,24 +695,28 @@ package body Coyote_App is
                end if;
             exception
                when Ex : others =>
-                  Append_Task_Warning
-                    ("prompt failed: "
-                     & Ada.Exceptions.Exception_Message (Ex));
-                  if Opts.One_Shot then
-                     declare
-                        Err : constant JSON_Value := Create_Object;
-                     begin
-                        Err.Set_Field
-                          ("error",
-                           "prompt failed: "
-                           & Ada.Exceptions.Exception_Message (Ex));
-                        Err.Set_Field
-                          ("session_id",
-                           Create (LLM.Agent.Session_Id (Agent_Session)));
-                        State.Set_One_Shot_Result (Write (Err));
-                     end;
+                  declare
+                     Error_Text : constant String :=
+                       (if Length (Final_Error) > 0
+                        then To_String (Final_Error)
+                        else Ada.Exceptions.Exception_Message (Ex));
+                  begin
+                     Append_Task_Warning
+                       ("prompt failed: " & Error_Text);
+                     if Opts.One_Shot then
+                        declare
+                           Err : constant JSON_Value := Create_Object;
+                        begin
+                           Err.Set_Field
+                             ("error", "prompt failed: " & Error_Text);
+                           Err.Set_Field
+                             ("session_id",
+                              Create (LLM.Agent.Session_Id (Agent_Session)));
+                           State.Set_One_Shot_Result (Write (Err));
+                        end;
+                     end if;
                      Initiate_Shutdown;
-                  end if;
+                  end;
             end Run_Queued_Prompt;
 
          begin

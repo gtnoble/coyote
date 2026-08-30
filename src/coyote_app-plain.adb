@@ -100,8 +100,15 @@ package body Coyote_App.Plain is
                Current_Text := Null_Unbounded_String;
             end;
          elsif Event in LLM.Events.Agent_End_Event then
-            Was_Aborted :=
-              LLM.Events.Agent_End_Event (Event).Was_Aborted;
+            declare
+               Agent_End : constant LLM.Events.Agent_End_Event :=
+                 LLM.Events.Agent_End_Event (Event);
+            begin
+               Was_Aborted := Agent_End.Was_Aborted;
+               if Length (Agent_End.Error_Msg) > 0 then
+                  Final_Error := Agent_End.Error_Msg;
+               end if;
+            end;
          end if;
       end Track_Event;
 
@@ -247,17 +254,24 @@ package body Coyote_App.Plain is
          end if;
       exception
          when Ex : others =>
-            Frontend.Append_Notice
-              (Coyote_App.Frontend.Error,
-               "prompt failed: " & Ada.Exceptions.Exception_Message (Ex));
-            Ada.Text_IO.Put_Line
-              (Ada.Text_IO.Standard_Error,
-               "[!] prompt failed: " & Ada.Exceptions.Exception_Message (Ex));
-            if Opts.One_Shot then
-               Final_Error := To_Unbounded_String
-                 ("prompt failed: " & Ada.Exceptions.Exception_Message (Ex));
-               Store_One_Shot_Result;
-            end if;
+            declare
+               Error_Text : constant String :=
+                 (if Length (Final_Error) > 0
+                  then To_String (Final_Error)
+                  else Ada.Exceptions.Exception_Message (Ex));
+            begin
+               Frontend.Append_Notice
+                 (Coyote_App.Frontend.Error,
+                  "prompt failed: " & Error_Text);
+               Ada.Text_IO.Put_Line
+                 (Ada.Text_IO.Standard_Error,
+                  "[!] prompt failed: " & Error_Text);
+               if Opts.One_Shot then
+                  Final_Error := To_Unbounded_String
+                    ("prompt failed: " & Error_Text);
+                  Store_One_Shot_Result;
+               end if;
+            end;
       end Run_Prompt;
 
       task body Shutdown_Monitor is
