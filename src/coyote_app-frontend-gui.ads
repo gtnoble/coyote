@@ -31,6 +31,8 @@ with Gtk.Accel_Group;
 with Gtk.Box;
 with Gtk.Button;
 with Gtk.Check_Button;
+with Gtk.Dialog;
+with Gtk.Image;
 with Gtk.Label;
 with Gtk.Menu_Bar;
 with Gtk.Menu_Item;
@@ -198,6 +200,11 @@ package Coyote_App.Frontend.GUI is
       Session_Id : String);
 
 private
+
+   procedure Build_Product_Information
+     (Parent : Gtk.Window.Gtk_Window;
+      Dialog : out Gtk.Dialog.Gtk_Dialog;
+      Image  : out Gtk.Image.Gtk_Image);
 
    protected type Session_Reference is
       procedure Set (Value : access LLM.Agent.Session);

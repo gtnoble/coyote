@@ -25,6 +25,7 @@ with Gtk.Check_Button;
 with Gtk.Clipboard;
 with Gtk.Enums;
 with Gtk.Frame;
+with Gtk.Image;
 with Gtk.Label;
 with Gtk.Main;
 with Gtk.Menu;
@@ -1261,35 +1262,51 @@ package body Coyote_App.Frontend.GUI is
       Open_Help_Topic ("keyboard-shortcuts");
    end On_Keys_Activate;
 
-   procedure On_Product_Information_Activate
-     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class) is
-      pragma Unreferenced (Self);
-      Dialog  : Gtk.Dialog.Gtk_Dialog;
+   procedure Build_Product_Information
+     (Parent : Gtk.Window.Gtk_Window;
+      Dialog : out Gtk.Dialog.Gtk_Dialog;
+      Image  : out Gtk.Image.Gtk_Image) is
       Label   : Gtk.Label.Gtk_Label;
       Btn     : Gtk.Widget.Gtk_Widget;
       Content : Gtk.Box.Gtk_Box;
-      Resp    : Gtk.Dialog.Gtk_Response_Type;
-      pragma Unreferenced (Btn, Resp);
    begin
-      if Current_Frontend = null then
-         return;
-      end if;
       Gtk.Dialog.Gtk_New (Dialog);
       Dialog.Set_Title ("coyote : Product Information");
-      Dialog.Set_Transient_For (Current_Frontend.Win);
-      Dialog.Set_Default_Size (420, 180);
+      Dialog.Set_Transient_For (Parent);
+      Dialog.Set_Default_Size (420, 270);
       Btn := Dialog.Add_Button ("_OK", Gtk.Dialog.Gtk_Response_OK);
       Dialog.Set_Default_Response (Gtk.Dialog.Gtk_Response_OK);
       Content := Dialog.Get_Content_Area;
+      Content.Set_Orientation (Gtk.Enums.Orientation_Vertical);
+      Content.Set_Spacing (6);
+      Gtk.Image.Gtk_New_From_Icon_Name
+        (Image, "coyote", Gtk.Enums.Icon_Size_Dialog);
+      Image.Set_Pixel_Size (96);
+      Image.Set_Halign (Gtk.Widget.Align_Center);
+      Content.Pack_Start (Image, False, False, 4);
       Gtk.Label.Gtk_New (Label, Coyote_Help.Product_Information_Text);
       Label.Set_Line_Wrap (True);
       Label.Set_Xalign (0.0);
       Label.Set_Margin_Start (12);
       Label.Set_Margin_End (12);
-      Label.Set_Margin_Top (10);
+      Label.Set_Margin_Top (4);
       Label.Set_Margin_Bottom (10);
       Content.Pack_Start (Label, True, True, 0);
       Dialog.Show_All;
+   end Build_Product_Information;
+
+   procedure On_Product_Information_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class) is
+      pragma Unreferenced (Self);
+      Dialog : Gtk.Dialog.Gtk_Dialog;
+      Image  : Gtk.Image.Gtk_Image;
+      Resp   : Gtk.Dialog.Gtk_Response_Type;
+      pragma Unreferenced (Resp);
+   begin
+      if Current_Frontend = null then
+         return;
+      end if;
+      Build_Product_Information (Current_Frontend.Win, Dialog, Image);
       Resp := Dialog.Run;
       Dialog.Destroy;
    end On_Product_Information_Activate;

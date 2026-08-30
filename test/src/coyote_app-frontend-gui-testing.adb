@@ -52,4 +52,14 @@ package body Coyote_App.Frontend.GUI.Testing is
       return F.Prompt_Status_Sep;
    end Prompt_Status_Separator;
 
+   procedure Build_Product_Information
+     (F      : Coyote_App.Frontend.GUI.Instance;
+      Dialog : out Gtk.Dialog.Gtk_Dialog;
+      Image  : out Gtk.Image.Gtk_Image)
+   is
+   begin
+      Coyote_App.Frontend.GUI.Build_Product_Information
+        (F.Win, Dialog, Image);
+   end Build_Product_Information;
+
 end Coyote_App.Frontend.GUI.Testing;

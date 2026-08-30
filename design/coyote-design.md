@@ -1863,13 +1863,14 @@ the native vertical `Gtk.Box` stack (see §5.15b).
   Shortcuts launch the corresponding Mallard topic in Yelp. Product
   Information is an in-process dialog built from
   `Coyote_Help.Product_Information_Text` so name, version, and license remain
-  available when Yelp is missing. The root URI is `help:coyote`; topic URIs
-  use `help:coyote/<topic>`. F1 opens Overview. Shift+F1 and Help → Click for
-  Help arm a question-mark cursor on the whole main window; a generic GTK
-  event handler consumes the next left click before widget activation and
-  opens the mapped contextual topic. If Yelp is unavailable, the frontend
-  emits an error notice. Conversation tool/action handling remains a separate
-  canvas callback.
+  available when Yelp is missing. It presents the themed `coyote` application
+  icon at a prominent 96-pixel size above that text. The root URI is
+  `help:coyote`; topic URIs use `help:coyote/<topic>`. F1 opens Overview.
+  Shift+F1 and Help → Click for Help arm a question-mark cursor on the whole
+  main window; a generic GTK event handler consumes the next left click before
+  widget activation and opens the mapped contextual topic. If Yelp is
+  unavailable, the frontend emits an error notice. Conversation tool/action
+  handling remains a separate canvas callback.
 - **Desktop identity and session roles:** The GUI sets the themed `coyote`
   icon name and a stable main-window role. After session creation, resume, or
   switch, the agent queues the session identifier through `Coyote_GUI.Updates`;

@@ -32,9 +32,11 @@ rightmost. Edit provides Cut, Copy, Paste, Select All, and Deselect All. The mai
 application-identifying titles without lifecycle status, and lifecycle state
 remains in the status area. The Help menu launches Yelp topics for Overview,
 task help, Index, and Keys & Shortcuts. Product Information is an in-process
-dialog. Click for Help arms contextual help. Pause uses Ctrl+Shift+P so the
-reserved Ctrl+P accelerator remains available for Print. Help task entries
-omit mnemonics; standard Help entries have mnemonics and F1 / Shift+F1.
+dialog with the prominent themed coyote application icon above the name,
+version, and license text. Click for Help arms contextual help. Pause uses
+Ctrl+Shift+P so the reserved Ctrl+P accelerator remains available for Print.
+Help task entries omit mnemonics; standard Help entries have mnemonics and
+F1 / Shift+F1.
 
 The implementation does not claim complete IRIX conformance. F1 and Help →
 Click for Help arm a question-mark pointer for the whole main window. The

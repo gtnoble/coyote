@@ -3,6 +3,8 @@
 --  Project: coyote
 
 with Gtk.Box;
+with Gtk.Dialog;
+with Gtk.Image;
 with Gtk.Separator;
 with Gtk.Window;
 
@@ -31,5 +33,10 @@ package Coyote_App.Frontend.GUI.Testing is
    function Prompt_Status_Separator
      (F : Coyote_App.Frontend.GUI.Instance)
       return Gtk.Separator.Gtk_Separator;
+
+   procedure Build_Product_Information
+     (F      : Coyote_App.Frontend.GUI.Instance;
+      Dialog : out Gtk.Dialog.Gtk_Dialog;
+      Image  : out Gtk.Image.Gtk_Image);
 
 end Coyote_App.Frontend.GUI.Testing;
