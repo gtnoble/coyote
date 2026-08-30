@@ -304,6 +304,8 @@ package body Coyote_GUI.Tool_Detail_Window is
         and then Parsed.Value.Kind = GNATCOLL.JSON.JSON_Object_Type
       then
          declare
+            Visible_Count : Natural := 0;
+
             procedure Add_Field
               (Field_Name  : GNATCOLL.JSON.UTF8_String;
                Field_Value : GNATCOLL.JSON.JSON_Value)
@@ -313,10 +315,24 @@ package body Coyote_GUI.Tool_Detail_Window is
                   then Field_Value.Get
                   else Field_Value.Write);
             begin
-               Add_Argument_Field (Container, Field_Name, Value);
+               if not Is_Hidden_Tool_Argument
+                 (Field_Name, Field_Value)
+               then
+                  Add_Argument_Field (Container, Field_Name, Value);
+                  Visible_Count := Visible_Count + 1;
+               end if;
             end Add_Field;
          begin
             Parsed.Value.Map_JSON_Object (Add_Field'Access);
+            if Visible_Count = 0 then
+               declare
+                  Empty : Gtk.Label.Gtk_Label;
+               begin
+                  Gtk.Label.Gtk_New (Empty, "(no arguments)");
+                  Empty.Set_Xalign (0.0);
+                  Container.Pack_Start (Empty, False, False, 0);
+               end;
+            end if;
          end;
       else
          Add_Text_View

@@ -649,6 +649,29 @@ package body Coyote_App.Utils is
 
    --  ── JSON field helpers ────────────────────────────────────────────────
 
+   function Is_Hidden_Tool_Argument
+     (Field_Name  : UTF8_String;
+      Field_Value : JSON_Value) return Boolean
+   is
+      Name : constant String := String (Field_Name);
+   begin
+      if Name = "run_group" then
+         return Field_Value.Kind = JSON_Int_Type
+           and then Long_Integer'(Field_Value.Get) = 0;
+      elsif Name = "stdin" or else Name = "media_type" then
+         if Field_Value.Kind = JSON_Null_Type then
+            return True;
+         elsif Field_Value.Kind = JSON_String_Type then
+            declare
+               Value : constant String := Field_Value.Get;
+            begin
+               return Value'Length = 0;
+            end;
+         end if;
+      end if;
+      return False;
+   end Is_Hidden_Tool_Argument;
+
    function Get_String
      (Val   : JSON_Value;
       Field : UTF8_String) return String

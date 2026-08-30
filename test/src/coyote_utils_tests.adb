@@ -5,6 +5,7 @@ with Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with Coyote_App.Utils;
 with Coyote_Utils;
+with GNATCOLL.JSON;
 
 package body Coyote_Utils_Tests is
 
@@ -135,6 +136,40 @@ package body Coyote_Utils_Tests is
         (Coyote_Utils.Strip_Session_Prefix ("") = "",
          "Strip_Session_Prefix should return empty string for empty input");
    end Test_Strip_Session_Prefix_Empty;
+
+   procedure Test_Hidden_Tool_Arguments (T : in out Test) is
+      pragma Unreferenced (T);
+      use GNATCOLL.JSON;
+      Zero_Group : constant JSON_Value := Create (Integer'(0));
+      Empty_Text : constant JSON_Value := Create ("");
+      Null_Value : constant JSON_Value := JSON_Null;
+      Text_Value : constant JSON_Value := Create ("data");
+   begin
+      Assert
+        (Coyote_App.Utils.Is_Hidden_Tool_Argument
+           ("run_group", Zero_Group),
+         "zero run_group should be hidden");
+      Assert
+        (not Coyote_App.Utils.Is_Hidden_Tool_Argument
+           ("run_group", Create (Integer'(1))),
+         "positive run_group should remain visible");
+      Assert
+        (Coyote_App.Utils.Is_Hidden_Tool_Argument
+           ("stdin", Empty_Text),
+         "empty stdin should be hidden");
+      Assert
+        (Coyote_App.Utils.Is_Hidden_Tool_Argument
+           ("media_type", Null_Value),
+         "null media_type should be hidden");
+      Assert
+        (not Coyote_App.Utils.Is_Hidden_Tool_Argument
+           ("stdin", Text_Value),
+         "non-empty stdin should remain visible");
+      Assert
+        (not Coyote_App.Utils.Is_Hidden_Tool_Argument
+           ("command", Empty_Text),
+         "empty command should remain visible");
+   end Test_Hidden_Tool_Arguments;
 
    --  ── Sanitize_UTF8 tests ────────────────────────────────────────────────
 

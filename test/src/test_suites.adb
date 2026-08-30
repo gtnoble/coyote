@@ -754,6 +754,9 @@ package body Test_Suites is
         ("Coyote_Utils Strip_Session_Prefix returns empty for empty input",
          Coyote_Utils_Tests.Test_Strip_Session_Prefix_Empty'Access));
       Result.Add_Test (Coyote_Utils_Caller.Create
+        ("Coyote_Utils hides default and empty tool arguments",
+         Coyote_Utils_Tests.Test_Hidden_Tool_Arguments'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
         ("Sanitize_UTF8 passes through pure ASCII unchanged",
          Coyote_Utils_Tests.Test_Sanitize_UTF8_Passthrough_Pure_ASCII'Access));
       Result.Add_Test (Coyote_Utils_Caller.Create

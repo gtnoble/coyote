@@ -201,10 +201,13 @@ package body Coyote_GUI.Conversation_Stack is
                Field_Value : GNATCOLL.JSON.JSON_Value)
             is
             begin
-               Append
-                 (Summary,
-                  ASCII.LF & String (Field_Name) & ": "
-                  & Compact_Tool_Value (JSON_Scalar_Image (Field_Value)));
+               if not Is_Hidden_Tool_Argument (Field_Name, Field_Value) then
+                  Append
+                    (Summary,
+                     ASCII.LF & String (Field_Name) & ": "
+                     & Compact_Tool_Value
+                         (JSON_Scalar_Image (Field_Value)));
+               end if;
             end Add_Argument;
          begin
             Args_Val.Map_JSON_Object (Add_Argument'Access);
@@ -571,12 +574,17 @@ package body Coyote_GUI.Conversation_Stack is
                   Field_Value : GNATCOLL.JSON.JSON_Value)
                is
                begin
-                  Add_Tool_Argument
-                    (Arguments.all'Access,
-                     Row,
-                     String (Field_Name),
-                     Compact_Tool_Value (JSON_Scalar_Image (Field_Value)));
-                  Row := Row + 1;
+                  if not Is_Hidden_Tool_Argument
+                    (Field_Name, Field_Value)
+                  then
+                     Add_Tool_Argument
+                       (Arguments.all'Access,
+                        Row,
+                        String (Field_Name),
+                        Compact_Tool_Value
+                          (JSON_Scalar_Image (Field_Value)));
+                     Row := Row + 1;
+                  end if;
                end Add_Argument;
             begin
                Args_Val.Map_JSON_Object (Add_Argument'Access);

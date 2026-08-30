@@ -346,6 +346,9 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Summary : String (1 .. 4096);
       Summary_Length : Natural;
       Info : Coyote_GUI.Conversation.Tool_Info;
+      Tool_Args : constant String :=
+        "{""command"":""printf hello"",""timeout"":5," &
+        """run_group"":0,""stdin"":"""",""media_type"":null}";
    begin
       if not T.Display_Available then
          return;
@@ -354,7 +357,7 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Begin_Tool
         (C                => T.Stack,
          Name             => "shell",
-         Args             => "{""command"":""printf hello"",""timeout"":5}",
+         Args             => Tool_Args,
          Session_Id      => "session-1",
          Tool_Id         => "tool-summary",
          Model            => "provider/model",
@@ -381,7 +384,13 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Assert (Index (Summary (1 .. Summary_Length), "command: printf hello") > 0,
               "summary contains compact argument fields");
       Assert (Index (Summary (1 .. Summary_Length), "timeout: 5") > 0,
-              "summary contains each top-level argument field");
+              "summary contains each visible top-level argument field");
+      Assert (Index (Summary (1 .. Summary_Length), "run_group: 0") = 0,
+              "summary hides the default run group");
+      Assert (Index (Summary (1 .. Summary_Length), "stdin:") = 0,
+              "summary hides empty stdin");
+      Assert (Index (Summary (1 .. Summary_Length), "media_type:") = 0,
+              "summary hides null media type");
       Assert (Index (Summary (1 .. Summary_Length), "printf hello") > 0,
               "summary contains argument value");
       Assert (Index (Summary (1 .. Summary_Length), "full-result-sentinel") = 0,
@@ -407,9 +416,8 @@ package body Coyote_GUI_Conversation_Stack_Tests is
         (T.Stack, "tool-summary");
       Assert (To_String (Info.Name) = "shell",
               "retained details preserve the tool name");
-      Assert (To_String (Info.Args) =
-                "{""command"":""printf hello"",""timeout"":5}",
-              "retained details preserve raw arguments");
+      Assert (To_String (Info.Args) = Tool_Args,
+              "retained details preserve raw arguments including hidden fields");
       Assert (To_String (Info.Result_Text) = "full-result-sentinel",
               "retained details preserve the full result");
       Assert (To_String (Info.Media_Type) = "image/png",

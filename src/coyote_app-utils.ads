@@ -284,6 +284,12 @@ package Coyote_App.Utils is
 
    --  ── JSON field helpers ────────────────────────────────────────────────
 
+   --  Return True when a tool argument is an implementation default or an
+   --  empty optional value that should be hidden in the GUI.
+   function Is_Hidden_Tool_Argument
+     (Field_Name  : GNATCOLL.JSON.UTF8_String;
+      Field_Value : GNATCOLL.JSON.JSON_Value) return Boolean;
+
    --  Return the string value of Field from Val, or "" if absent or not
    --  a JSON string.
    function Get_String
