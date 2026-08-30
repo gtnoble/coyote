@@ -33,6 +33,7 @@ with Gtk.Menu_Shell;
 with Gtk.Check_Menu_Item;
 with Gtk.Settings;
 with Gtk.Scrolled_Window;
+with Gtk.Separator;
 with Gtk.Selection_Data;
 with Gtk.Separator_Menu_Item;
 with Gtk.Layout;
@@ -2655,8 +2656,11 @@ package body Coyote_App.Frontend.GUI is
       use Gtk.Text_View;
       use Gtk.Window;
 
-      Prompt_Box : Gtk.Box.Gtk_Box;
-      Bottom_Box : Gtk.Box.Gtk_Box;
+      Prompt_Box               : Gtk.Box.Gtk_Box;
+      Bottom_Box               : Gtk.Box.Gtk_Box;
+      Status_Box               : Gtk.Box.Gtk_Box;
+      Conversation_Prompt_Sep  : Gtk.Separator.Gtk_Separator;
+      Prompt_Status_Sep        : Gtk.Separator.Gtk_Separator;
 
       --  File menu
       File_Menu : Gtk_Menu;
@@ -3122,9 +3126,18 @@ package body Coyote_App.Frontend.GUI is
            (F.Conv_Scroll, Expand => True, Fill => True, Padding => 0);
       end if;
 
+      --  ── Conversation / prompt boundary ───────────────────────────────
+
+      Gtk.Separator.Gtk_New_Hseparator (Conversation_Prompt_Sep);
+      F.Conversation_Prompt_Sep := Conversation_Prompt_Sep;
+      F.Outer_Box.Pack_Start
+        (Conversation_Prompt_Sep, Expand => False, Fill => True, Padding => 2);
+
       --  ── Prompt area ───────────────────────────────────────────────────
 
       Gtk.Box.Gtk_New_Vbox (Prompt_Box, Homogeneous => False, Spacing => 2);
+      Prompt_Box.Set_Border_Width (4);
+      F.Prompt_Box := Prompt_Box;
 
       Gtk.Text_View.Gtk_New (F.Prompt_View);
       F.Prompt_View.Set_Name ("coyote-help-prompt");
@@ -3177,8 +3190,18 @@ package body Coyote_App.Frontend.GUI is
       F.Outer_Box.Pack_Start (Prompt_Box, Expand => False, Fill => False,
                               Padding => 2);
 
+      --  ── Prompt / status boundary ──────────────────────────────────────
+
+      Gtk.Separator.Gtk_New_Hseparator (Prompt_Status_Sep);
+      F.Prompt_Status_Sep := Prompt_Status_Sep;
+      F.Outer_Box.Pack_Start
+        (Prompt_Status_Sep, Expand => False, Fill => True, Padding => 2);
+
       --  ── Status bar ────────────────────────────────────────────────────
 
+      Gtk.Box.Gtk_New_Vbox (Status_Box, Homogeneous => False, Spacing => 0);
+      Status_Box.Set_Border_Width (4);
+      F.Status_Box := Status_Box;
       Gtk.Label.Gtk_New (F.Status_Bar, "");
       F.Status_Bar.Set_Name ("coyote-help-status");
       F.Status_Bar.Set_Events (Gdk.Event.Button_Press_Mask);
@@ -3201,8 +3224,10 @@ package body Coyote_App.Frontend.GUI is
          Pango.Font.Free (Font_Desc);
       end;
 
-      F.Outer_Box.Pack_Start (F.Status_Bar, Expand => False, Fill => False,
-                              Padding => 2);
+      Status_Box.Pack_Start
+        (F.Status_Bar, Expand => False, Fill => True, Padding => 0);
+      F.Outer_Box.Pack_Start
+        (Status_Box, Expand => False, Fill => True, Padding => 0);
 
       --  ── Show and register idle drain ──────────────────────────────────
 

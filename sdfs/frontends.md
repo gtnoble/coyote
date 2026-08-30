@@ -343,6 +343,19 @@ the point size to its monospace `GtkTextView` widgets while using the
 generic `"monospace"` family name, which Pango resolves to the users
 configured monospace font.
 
+### GUI top-level region separation (2026-08-30)
+
+The native GTK main window now makes the three primary regions explicit. The
+conversation scroller remains the sole expanding work area. A horizontal
+`Gtk.Separator` separates it from a prompt control box with four pixels of
+internal border spacing; a second separator divides that control area from a
+four-pixel padded status box containing the lifecycle label. This follows the
+IRIX work-area/control-area/status-area grouping without adding nested scrolling
+or changing prompt and status behavior. The structural regression
+`Coyote.GUI separates conversation, prompt, and status` verifies the widget
+order and configured borders. Display-backed human review remains required to
+confirm the separators have sufficient contrast under the active GTK theme.
+
 ### GUI visual spacing and layout
 
 The initial GUI conversation view felt cramped — content blocks ran into

@@ -25,6 +25,7 @@ with Coyote_GUI_Prompt_Queue_Tests;
 with Coyote_GUI_Notification_Policy_Tests;
 with Coyote_GUI_Mode_Tests;
 with Coyote_GUI_Session_Stats_Window_Tests;
+with Coyote_App_Frontend_GUI_Tests;
 with Session_History_Tests;
 with Tool_URI_Tests;
 with Subagent_Integration_Tests;
@@ -128,6 +129,8 @@ package body Test_Suites is
      new AUnit.Test_Caller (Coyote_GUI_Mode_Tests.Test);
    package Coyote_GUI_Session_Stats_Window_Caller is
      new AUnit.Test_Caller (Coyote_GUI_Session_Stats_Window_Tests.Test);
+   package Coyote_App_Frontend_GUI_Caller is
+     new AUnit.Test_Caller (Coyote_App_Frontend_GUI_Tests.Test);
    package LLM_HTTP_Caller is
      new AUnit.Test_Caller (LLM_HTTP_Tests.Test);
    package LLM_Settings_Caller is
@@ -3072,6 +3075,10 @@ package body Test_Suites is
         ("Coyote.GUI session stats window creation is idempotent",
          Coyote_GUI_Session_Stats_Window_Tests
            .Test_Create_Is_Idempotent'Access));
+      Result.Add_Test (Coyote_App_Frontend_GUI_Caller.Create
+        ("Coyote.GUI separates conversation, prompt, and status",
+         Coyote_App_Frontend_GUI_Tests
+           .Test_Separates_Conversation_Prompt_And_Status'Access));
 
       Result.Add_Test (Coyote_Lasem_Caller.Create
         ("Coyote.Lasem measures a MathML fraction",

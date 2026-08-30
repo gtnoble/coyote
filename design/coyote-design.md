@@ -1802,6 +1802,13 @@ selection commands. The conversation view is selected at startup: the legacy
 the native vertical `Gtk.Box` stack (see §5.15b).
 
 **Key rendering choices:**
+- The main window uses one vertical `Gtk.Box` with the expanding conversation
+  scroller first, followed by a horizontal `Gtk.Separator`, a padded prompt
+  control area, a second horizontal `Gtk.Separator`, and a padded status area.
+  This makes the work area, control area, and status area explicit without
+  adding nested scrolling regions or changing the conversation's expansion
+  policy. The arrangement follows the IRIX guidance for a work area above a
+  control area and a status area along the bottom.
 - All `Append_Text`, `Begin_Tool`, `End_Tool`, etc. calls enqueue a
   `Coyote_GUI.Update` record onto `Coyote_GUI.Updates`. A GLib idle handler
   drains the queue on the GTK main-loop thread and dispatches it to the

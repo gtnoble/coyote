@@ -221,6 +221,7 @@ behaviour. Results are recorded in a Test Report.
 | DEM-046 | REQ-CORE-111, 125 | In a display-backed native-stack GUI (`COYOTE_NATIVE_STACK=1`), render a fixture containing headings, inline formatting, code, lists, tables, links, strikethrough, and a thematic break. Verify conversion occurs after streaming, local selection exposes plain text, the Render Markdown toggle preserves source text when disabled, and zoom changes native response font size. |
 | DEM-047 | REQ-CORE-111, 131, 137 | Render the same Markdown response live and by session replay in the native GUI. Verify equivalent supported visible content and response-block boundaries, and verify Acme/Plain replay remains plain text. |
 | DEM-048 | REQ-CORE-124 | In a display-backed native-stack GUI, exercise valid and invalid standalone Presentation MathML blocks. Verify native realization, readable source/fallback on parse failure, local selection, and zoom. This procedure remains deferred until native MathML is implemented. |
+| DEM-049 | REQ-CORE-110, 113b | In a display-backed GUI, verify that the conversation work area, prompt controls, and status area are separated by visible horizontal rules; verify the prompt and status areas have consistent breathing room and that the conversation remains the sole expanding region. The structural portion is covered by `Coyote.GUI separates conversation, prompt, and status`; visual contrast remains a manual check under the active theme. |
 | DEM-006 | REQ-CORE-040â044 | Start a GUI session; send a prompt; verify streaming text, thinking, tool events, and stats appear |
 | DEM-007 | REQ-CORE-055 | Start a long tool execution; press Stop; verify tool is cancelled and agent exits cleanly |
 | DEM-008 | REQ-CORE-060 | Configure a small context window; send prompts until threshold reached; verify auto-compaction notice appears |
@@ -340,7 +341,7 @@ These are entered as open items in the problem log (PCR-009 and PCR-078).
 
 | REQ-CORE-090â093 | T | `llm_skills_tests.adb` |
 | REQ-CORE-100â109 | T/D | `acme_event_parser_tests.adb`, `tool_uri_tests.adb`, DEM-013 |
-| REQ-CORE-110â115 | T/D | `coyote_cmark_tests.adb`, `coyote_gui_conversation_tests.adb`, DEM-014, DEM-036..037 |
+| REQ-CORE-110â115 | T/D | `coyote_cmark_tests.adb`, `coyote_gui_conversation_tests.adb`, `coyote_app_frontend_gui_tests.adb`, DEM-014, DEM-036..037, DEM-049 |
 | REQ-CORE-111 | T/D | `coyote_cmark_tests.adb`, `coyote_gui_conversation_tests.adb`, `coyote_gui_conversation_stack_tests.adb`, DEM-014, DEM-046..047 |
 | REQ-CORE-113a..113c | D/T/I | `coyote_gui_conversation_tests.adb`, `coyote_help_tests.adb`, `coyote_gui_mode_tests.adb`, DEM-036..039, Mallard validation, source inspection |
 | REQ-CORE-113d | D/T/I | `coyote_gui_session_stats_window_tests.adb`, DEM-040, source inspection |
@@ -860,3 +861,12 @@ including folder selection and list reordering, remains pending under DEM-033.
 The development build and complete test suite pass with zero failed assertions
 and zero unexpected errors. Native GTK conversation accessibility and selection
 remain covered by the native widget and interaction tests.
+
+**Baseline after PCR-085 (2026-08-30):** 933 registered tests. Added a
+full-GUI structural regression for the conversation/prompt/status hierarchy;
+the focused test passes 1/1 and the complete development suite passes 933/933
+with zero failed assertions and zero unexpected errors. The test verifies the
+two native separators, four-pixel prompt/status borders, and child ordering.
+Human display review of separator contrast remains part of DEM-049. The
+standard `xvfb-run` wrapper is unavailable in the current environment; the
+focused test was executed directly against the available `DISPLAY`.

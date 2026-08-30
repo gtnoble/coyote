@@ -2831,3 +2831,33 @@ behavior, current test baseline, and remaining manual qualification scope.
   root is supplied as an XDG data directory.
 - **Status:** Resolved
 - **Date resolved:** 2026-08-29
+
+## PCR-085 — GTK main-window region separation
+
+- **Date reported:** 2026-08-30
+- **Category:** Design, Code, Test, Manuals
+- **Priority:** 4-Minor (usability enhancement)
+- **Description:** The native GTK main window placed the conversation work area,
+  prompt controls, and lifecycle status label in one zero-spaced vertical box.
+  Internal conversation frames and footer separators existed, but the three
+  primary regions had no explicit native boundary and relied on small packing
+  padding, weakening visual grouping under some GTK themes.
+- **Affected work products:** `Coyote_App.Frontend.GUI`, GUI design description,
+  frontend SDF, test plan, and GTK test suite.
+- **Corrective action required:** Follow the IRIX work-area/control-area/status-area
+  layout guidance by inserting native horizontal separators between the major
+  regions, retaining the conversation as the sole expanding child, and adding
+  consistent breathing room inside the prompt and status areas. Add structural
+  regression coverage and retain display-backed visual review for theme contrast.
+- **Actions taken:** Added conversation/prompt and prompt/status `Gtk.Separator`
+  widgets; added four-pixel borders to dedicated prompt and status boxes; retained
+  the status label inside its status box; added test-only accessors and the
+  `Coyote.GUI separates conversation, prompt, and status` regression; documented
+  DEM-049 and the design rationale.
+- **Verification:** Production `alr build` and test `cd test && alr build` succeed
+  in the development profile. The focused layout test passes 1/1, and the full
+  development suite passes 933/933 with zero failed assertions and zero unexpected
+  errors. GTK emitted existing theme parsing warnings. `xvfb-run` is unavailable
+  in the environment; the focused test ran directly against `DISPLAY=:0.0`.
+  Human visual contrast review remains open under DEM-049.
+- **Status:** Implemented; display-backed visual review pending
