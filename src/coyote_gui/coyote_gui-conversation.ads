@@ -170,9 +170,6 @@ package Coyote_GUI.Conversation is
    --  Return the currently focused action strip, if any.
    function Focused_Action (C : Instance) return Action_Click_Result;
 
-   --  Return a plain-text transcript suitable for native accessibility tools.
-   function Transcript_Text (C : Instance) return String;
-
    --  Return the current selection as plain UTF-8 text.  This is independent
    --  of the global clipboard and is also the value offered through PRIMARY.
    function Selected_Text (C : Instance) return String;

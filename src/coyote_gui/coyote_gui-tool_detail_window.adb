@@ -554,10 +554,10 @@ package body Coyote_GUI.Tool_Detail_Window is
       Content.Pack_Start (Result_Frame, True, True, 0);
 
       Gtk_New_Hbox (Button_Box, Homogeneous => False, Spacing => 6);
-      Gtk.Button.Gtk_New (Help_Button, "Help");
+      Gtk.Button.Gtk_New_With_Mnemonic (Help_Button, "_Help");
       Help_Button.On_Clicked (On_Help_Clicked'Access);
       Button_Box.Pack_End (Help_Button, False, False, 0);
-      Gtk.Button.Gtk_New (Close_Button, "Close");
+      Gtk.Button.Gtk_New_With_Mnemonic (Close_Button, "_Close");
       Close_Button.On_Clicked (On_Close_Clicked'Access);
       Button_Box.Pack_End (Close_Button, False, False, 0);
       Root.Pack_End (Button_Box, False, False, 0);

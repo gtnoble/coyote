@@ -561,7 +561,7 @@ package body Coyote_SQC.UI.Detail_Panel is
          CE_Scroll.Add (CE);
          CBox.Pack_Start (CE_Scroll, False, False, 2);
          --  Add Comment button.
-         Gtk.Button.Gtk_New (Btn, "Add Comment");
+         Gtk.Button.Gtk_New_With_Mnemonic (Btn, "_Add Comment");
          Btn.On_Clicked (On_Add_Comment_Clicked'Access);
          CBox.Pack_Start (Btn, False, False, 2);
          Frame.Add (CBox);
@@ -606,7 +606,7 @@ package body Coyote_SQC.UI.Detail_Panel is
       Gtk.Box.Gtk_New_Vbox (Outer);
 
       --  "Back" button at the top.
-      Gtk.Button.Gtk_New (Back, "< Back to Selection");
+      Gtk.Button.Gtk_New_With_Mnemonic (Back, "< _Back to Selection");
       Back.On_Clicked (On_Back_Clicked'Access);
       Outer.Pack_Start (Back, False, False, 2);
 
@@ -786,7 +786,7 @@ package body Coyote_SQC.UI.Detail_Panel is
       end;
       end;
       --  Set as Setup Interval button.
-      Gtk.Button.Gtk_New (Btn, "Set as Setup Interval");
+      Gtk.Button.Gtk_New_With_Mnemonic (Btn, "_Set as Setup Interval");
       Btn.On_Clicked (On_Set_Setup_Interval_Clicked'Access);
       VBox.Pack_Start (Btn, False, False, 4);
 
@@ -806,7 +806,7 @@ package body Coyote_SQC.UI.Detail_Panel is
          CE_S.Set_Size_Request (-1, 60);
          CE_S.Add (MC_Entry);
          CBox.Pack_Start (CE_S, False, False, 2);
-         Gtk.Button.Gtk_New (CBt, "Add Comment to All");
+         Gtk.Button.Gtk_New_With_Mnemonic (CBt, "_Add Comment to All");
          CBt.On_Clicked (On_Add_Multi_Comment_Clicked'Access);
          CBox.Pack_Start (CBt, False, False, 2);
          Frame.Add (CBox);
@@ -1332,7 +1332,7 @@ package body Coyote_SQC.UI.Detail_Panel is
             CE_S.Set_Size_Request (-1, 60);
             CE_S.Add (MC_Entry);
             CBox.Pack_Start (CE_S, False, False, 2);
-            Gtk.Button.Gtk_New (CBt, "Add Comment to All");
+            Gtk.Button.Gtk_New_With_Mnemonic (CBt, "_Add Comment to All");
             CBt.On_Clicked (On_Add_Multi_Comment_Clicked'Access);
             CBox.Pack_Start (CBt, False, False, 2);
             Frame.Add (CBox);

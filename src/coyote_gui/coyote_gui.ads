@@ -99,11 +99,9 @@ package Coyote_GUI is
       Output             : Natural := 0;
       Cost_Dmil          : Natural := 0;
    end record;
-   --    Set_Transcript       Text = accessible transcript text
    --    Set_Session_Identity Text = session identifier for window role
    --    Show_Detail          Text = window title; Text2 = content
    --    Shutdown           (no extra fields)
-
 
    type Update_Kind is
      (Begin_Request,
@@ -123,7 +121,6 @@ package Coyote_GUI is
       Set_Stats,
       Clear_Stats,
       Clear_Conversation,
-      Set_Transcript,
       Set_Session_Identity,
       Set_Completion_Notifications,
       Completion_Notification,

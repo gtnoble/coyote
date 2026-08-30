@@ -6,7 +6,7 @@
   </info>
   <title>Overview</title>
   <p>Coyote is a native LLM coding agent. It maintains a persistent conversation with a selected model, displays responses and tool activity, and can execute coding tasks through its configured tools.</p>
-  <p>The main window contains the conversation area, prompt area, Send and Stop controls, an accessible transcript, and a status area. Use the <link xref="send-prompt">Send a Prompt</link> task to begin a conversation.</p>
+  <p>The main window contains the conversation area, prompt area, Send and Stop controls, and a status area. Use the <link xref="send-prompt">Send a Prompt</link> task to begin a conversation.</p>
   <links type="section"/>
   <section id="areas">
     <title>Main window areas</title>

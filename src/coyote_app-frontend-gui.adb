@@ -343,8 +343,6 @@ package body Coyote_App.Frontend.GUI is
          return "controls";
       elsif Name = "coyote-help-status" then
          return "status";
-      elsif Name = "coyote-help-transcript" then
-         return "transcript";
       else
          return "conversation";
       end if;
@@ -974,14 +972,6 @@ package body Coyote_App.Frontend.GUI is
             if F.Stack_Enabled then
                F.Stack.Clear;
             end if;
-            if F.Transcript_Buf /= null then
-               F.Transcript_Buf.Set_Text ("");
-            end if;
-
-         when Set_Transcript =>
-            if F.Transcript_Buf /= null then
-               F.Transcript_Buf.Set_Text (To_String (U.Text));
-            end if;
 
          when Set_Session_Identity =>
             F.Win.Set_Role
@@ -1015,16 +1005,6 @@ package body Coyote_App.Frontend.GUI is
       end case;
       if F.Stack_Enabled and then F.Auto_Scroll then
          F.Stack.Scroll_To_End;
-      end if;
-      if F.Transcript_Buf /= null
-        and then U.Kind /= Set_Stats
-        and then U.Kind /= Clear_Stats
-        and then U.Kind /= Set_Transcript
-      then
-         F.Transcript_Buf.Set_Text
-           (if F.Stack_Enabled
-            then F.Stack.Transcript_Text
-            else F.Conv.Transcript_Text);
       end if;
    end Apply_Update;
 
@@ -2308,10 +2288,10 @@ package body Coyote_App.Frontend.GUI is
          Refresh_Skill_Path_List;
 
          Gtk.Box.Gtk_New_Hbox (Actions, Homogeneous => False, Spacing => 4);
-         Gtk.Button.Gtk_New (Add_B, "_Add Directory...");
-         Gtk.Button.Gtk_New (Remove_B, "_Remove Selected");
-         Gtk.Button.Gtk_New (Up_B, "Move _Up");
-         Gtk.Button.Gtk_New (Down_B, "Move _Down");
+         Gtk.Button.Gtk_New_With_Mnemonic (Add_B, "_Add Directory...");
+         Gtk.Button.Gtk_New_With_Mnemonic (Remove_B, "_Remove Selected");
+         Gtk.Button.Gtk_New_With_Mnemonic (Up_B, "Move _Up");
+         Gtk.Button.Gtk_New_With_Mnemonic (Down_B, "Move _Down");
          Add_B.On_Clicked (On_Add_Skill_Path_Clicked'Access);
          Remove_B.On_Clicked (On_Remove_Skill_Path_Clicked'Access);
          Up_B.On_Clicked (On_Move_Skill_Path_Up_Clicked'Access);
@@ -2331,9 +2311,9 @@ package body Coyote_App.Frontend.GUI is
          Row : Gtk.Box.Gtk_Box;
       begin
          Gtk.Box.Gtk_New_Hbox (Row, Homogeneous => False, Spacing => 8);
-         Gtk.Check_Button.Gtk_New
+         Gtk.Check_Button.Gtk_New_With_Mnemonic
            (Notification_C,
-            "Desktop notifications when agent completes");
+            "Desktop _notifications when agent completes");
          Notification_C.Set_Active
            (Settings_Value.Completion_Notifications);
          Row.Pack_Start (Notification_C, True, True, 0);
@@ -3142,22 +3122,6 @@ package body Coyote_App.Frontend.GUI is
            (F.Conv_Scroll, Expand => True, Fill => True, Padding => 0);
       end if;
 
-      --  Native transcript for keyboard selection and assistive technology.
-      Gtk.Expander.Gtk_New (F.Transcript_Expander, "Accessible transcript");
-      Gtk.Text_View.Gtk_New (F.Transcript_View);
-      F.Transcript_View.Set_Name ("coyote-help-transcript");
-      F.Transcript_View.On_Button_Press_Event (On_Help_Event'Access);
-      F.Transcript_View.Set_Editable (False);
-      F.Transcript_View.Set_Wrap_Mode (Wrap_Word_Char);
-      F.Transcript_View.Set_Cursor_Visible (False);
-      F.Transcript_View.Set_Tooltip_Text
-        ("Read-only plain-text conversation transcript");
-      F.Transcript_Buf := F.Transcript_View.Get_Buffer;
-      F.Transcript_Expander.Add (F.Transcript_View);
-      F.Transcript_Expander.Set_Expanded (False);
-      F.Outer_Box.Pack_Start
-        (F.Transcript_Expander, Expand => False, Fill => True, Padding => 2);
-
       --  ── Prompt area ───────────────────────────────────────────────────
 
       Gtk.Box.Gtk_New_Vbox (Prompt_Box, Homogeneous => False, Spacing => 2);
@@ -3186,7 +3150,8 @@ package body Coyote_App.Frontend.GUI is
          (F.Send_Btn, "mail-send", Gtk.Enums.Icon_Size_Button);
       F.Send_Btn.Set_Name ("coyote-help-controls");
       F.Send_Btn.On_Button_Press_Event (On_Help_Event'Access);
-      F.Send_Btn.Set_Label ("Send");
+      F.Send_Btn.Set_Label ("_Send");
+      F.Send_Btn.Set_Use_Underline (True);
       F.Send_Btn.Set_Always_Show_Image (True);
       F.Send_Btn.On_Clicked (On_Send_Clicked'Access);
       F.Send_Btn.Set_Tooltip_Text
@@ -3198,7 +3163,8 @@ package body Coyote_App.Frontend.GUI is
          (F.Stop_Btn, "process-stop", Gtk.Enums.Icon_Size_Button);
       F.Stop_Btn.Set_Name ("coyote-help-controls");
       F.Stop_Btn.On_Button_Press_Event (On_Help_Event'Access);
-      F.Stop_Btn.Set_Label ("Stop");
+      F.Stop_Btn.Set_Label ("St_op");
+      F.Stop_Btn.Set_Use_Underline (True);
       F.Stop_Btn.Set_Always_Show_Image (True);
       F.Stop_Btn.On_Clicked (On_Stop_Btn_Clicked'Access);
       F.Stop_Btn.Set_Tooltip_Text ("Stop agent (Agent > Stop)");

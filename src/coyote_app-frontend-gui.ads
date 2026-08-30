@@ -40,7 +40,6 @@ with Gtk.Status_Bar;
 with Gtk.Layout;
 with Gtk.Text_Buffer;
 with Gtk.Text_View;
-with Gtk.Expander;
 with Gtk.Window;
 
 package Coyote_App.Frontend.GUI is
@@ -235,9 +234,6 @@ private
       Send_Btn    : Gtk.Button.Gtk_Button;
       Stop_Btn    : Gtk.Button.Gtk_Button;
       Status_Bar  : Gtk.Label.Gtk_Label;
-      Transcript_Expander : Gtk.Expander.Gtk_Expander;
-      Transcript_View     : Gtk.Text_View.Gtk_Text_View;
-      Transcript_Buf      : Gtk.Text_Buffer.Gtk_Text_Buffer;
       Outer_Box   : Gtk.Box.Gtk_Box;
       --  State
       Win_Name     : Unbounded_String;

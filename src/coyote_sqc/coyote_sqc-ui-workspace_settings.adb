@@ -208,9 +208,9 @@ package body Coyote_SQC.UI.Workspace_Settings is
          Lbl.Set_Halign (Gtk.Widget.Align_Start);
          VBox.Pack_Start (Lbl, False, False, 0);
 
-         Gtk.Check_Button.Gtk_New
+         Gtk.Check_Button.Gtk_New_With_Mnemonic
            (Analyze_CB,
-            "Analyze all source directories");
+            "Analy_ze all source directories");
          Analyze_CB.Set_Tooltip_Text
            ("Load sessions from every project directory, "
             & "ignoring the list below.");
@@ -223,9 +223,9 @@ package body Coyote_SQC.UI.Workspace_Settings is
          declare
             Interp_CB : Gtk.Check_Button.Gtk_Check_Button;
          begin
-            Gtk.Check_Button.Gtk_New
+            Gtk.Check_Button.Gtk_New_With_Mnemonic
               (Interp_CB,
-               "Use interpolated quantile control limits (faster)");
+               "_Use interpolated quantile control limits (faster)");
             Interp_CB.Set_Tooltip_Text
               ("When enabled, bootstrap control limits are computed at"
                & " a small set of anchor subgroup sizes and interpolated"
@@ -241,9 +241,9 @@ package body Coyote_SQC.UI.Workspace_Settings is
             declare
                Bf_CB : Gtk.Check_Button.Gtk_Check_Button;
             begin
-               Gtk.Check_Button.Gtk_New
+               Gtk.Check_Button.Gtk_New_With_Mnemonic
                  (Bf_CB,
-                  "Apply Bonferroni correction to quantile charts");
+                  "Apply _Bonferroni correction to quantile charts");
                Bf_CB.Set_Tooltip_Text
                  ("When enabled (default), Bonferroni"
                   & " multiplicity correction controls the"
@@ -281,8 +281,8 @@ package body Coyote_SQC.UI.Workspace_Settings is
          VBox.Pack_Start (Scroll, True, True, 0);
 
          Gtk.Box.Gtk_New_Hbox (HBox);
-         Gtk.Button.Gtk_New (Add_B, "Add Directory...");
-         Gtk.Button.Gtk_New (Rm_B,  "Remove Selected");
+         Gtk.Button.Gtk_New_With_Mnemonic (Add_B, "_Add Directory...");
+         Gtk.Button.Gtk_New_With_Mnemonic (Rm_B,  "_Remove Selected");
          Add_B.On_Clicked (On_Add_Dir_Clicked'Access);
          Rm_B.On_Clicked  (On_Remove_Dir_Clicked'Access);
          HBox.Pack_Start (Add_B, False, False, 0);

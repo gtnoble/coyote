@@ -342,7 +342,6 @@ package body Coyote_GUI.Conversation_Stack is
       C.Stream_Buf     := Null_Unbounded_String;
       C.Thinking       := null;
       C.Thinking_View  := null;
-      C.Transcript     := Null_Unbounded_String;
       C.Has_Exchange   := False;
       C.Step_Open      := False;
       C.Footer_Pending := False;
@@ -374,7 +373,6 @@ package body Coyote_GUI.Conversation_Stack is
       C.Tools.Clear;
       Add_Text_Element
         (C, C.Exchange, Caption, Text, C.Active_Text, C.Active_View);
-      Append (C.Transcript, Text & ASCII.LF);
       C.Has_Exchange   := True;
       C.Step_Open      := False;
       C.Footer_Pending := False;
@@ -407,7 +405,6 @@ package body Coyote_GUI.Conversation_Stack is
       end if;
       Append (C.Stream_Buf, Text);
       Append_Buffer (C.Active_Text, Text);
-      Append (C.Transcript, Text);
    end Append_Text;
 
    procedure End_Text_Block (C : in out Instance) is
@@ -417,7 +414,6 @@ package body Coyote_GUI.Conversation_Stack is
             Replace_Streamed_Text (C);
          end if;
          Append_Buffer (C.Active_Text, ASCII.LF & ASCII.LF);
-         Append (C.Transcript, ASCII.LF & ASCII.LF);
          if C.Stream_Mark /= null then
             C.Active_Text.Delete_Mark (C.Stream_Mark);
          end if;
@@ -446,14 +442,12 @@ package body Coyote_GUI.Conversation_Stack is
          Begin_Thinking (C);
       end if;
       Append_Buffer (C.Thinking, Text);
-      Append (C.Transcript, Text);
    end Append_Thinking;
 
    procedure End_Thinking (C : in out Instance) is
    begin
       if C.Thinking_Open then
          Append_Buffer (C.Thinking, ASCII.LF & ASCII.LF);
-         Append (C.Transcript, ASCII.LF & ASCII.LF);
          C.Thinking_Open := False;
       end if;
    end End_Thinking;
@@ -591,7 +585,6 @@ package body Coyote_GUI.Conversation_Stack is
           Details      => Details,
           Info         => Info,
           Completed    => False));
-      Append (C.Transcript, ASCII.LF & Summary_Text & ASCII.LF);
    end Begin_Tool;
 
    procedure End_Tool
@@ -626,13 +619,6 @@ package body Coyote_GUI.Conversation_Stack is
       Tool_Value.Details.Set_Sensitive (True);
       Tool_Value.Completed := True;
       C.Tools.Replace (Tool_Id, Tool_Value);
-      Append
-        (C.Transcript,
-         (case Status is
-             when Coyote_GUI.Success   => "ok",
-             when Coyote_GUI.Error     => "error",
-             when Coyote_GUI.Cancelled => "cancelled")
-         & ASCII.LF);
    end End_Tool;
 
    procedure Append_Notice
@@ -656,7 +642,6 @@ package body Coyote_GUI.Conversation_Stack is
       Label.Set_Selectable (True);
       C.Exchange.Pack_Start (Label, Expand => False, Fill => True, Padding => 2);
       Show_Contents (C);
-      Append (C.Transcript, Prefix & Text & ASCII.LF);
    end Append_Notice;
 
    procedure Append_Turn_Footer
@@ -692,8 +677,6 @@ package body Coyote_GUI.Conversation_Stack is
       C.Step_Box.Pack_Start
         (Footer_Box, Expand => False, Fill => True, Padding => 2);
       Show_Contents (C);
-      Append (C.Transcript, (if Summary'Length > 0 then Summary else Text)
-              & ASCII.LF);
       C.Footer_Pending := True;
    end Append_Turn_Footer;
 
@@ -738,7 +721,6 @@ package body Coyote_GUI.Conversation_Stack is
       C.Step_Box.Pack_Start
         (Action_Box, Expand => False, Fill => True, Padding => 0);
       Show_Contents (C);
-      Append (C.Transcript, "Fork" & ASCII.LF);
       if C.Footer_Pending then
          Finalize_Active_Step (C);
       end if;
@@ -748,27 +730,14 @@ package body Coyote_GUI.Conversation_Stack is
      (C      : in out Instance;
       Status : Coyote_GUI.Completion_Status)
    is
-      Text : constant String :=
-        (case Status is
-            when Coyote_GUI.Completed => "completed",
-            when Coyote_GUI.Aborted   => "aborted",
-            when Coyote_GUI.Failed    => "failed");
    begin
       if not C.Has_Exchange or else C.Completed then
          return;
       end if;
-      --  The footer and lifecycle status area already carry normal completion
-      --  currency; do not append a second standalone status widget.
-      Append (C.Transcript, Text & ASCII.LF);
       C.Last_Status := Status;
       C.Completed := True;
       Finalize_Active_Step (C);
    end Complete_Request;
-
-   function Transcript_Text (C : Instance) return String is
-   begin
-      return To_String (C.Transcript);
-   end Transcript_Text;
 
    function Tool_Summary
      (C       : Instance;

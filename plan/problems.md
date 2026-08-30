@@ -2276,6 +2276,33 @@ behavior, current test baseline, and remaining manual qualification scope.
 - **Status:** Resolved for automated implementation coverage; display-backed
   qualification remains pending.
 
+## PCR-084 — Remove redundant GTK accessibility transcript
+
+- **Date reported:** 2026-08-30
+- **Category:** Requirements, Design, Code, Test, Manuals
+- **Priority:** 3-Moderate
+- **Description:** The GTK GUI exposed a collapsed `Accessible transcript`
+  expander duplicating conversation content solely to provide an accessibility
+  text surface. Native GTK conversation widgets now provide the required
+  accessibility semantics directly, making the duplicate widget and mirror
+  data path unnecessary.
+- **Affected work products:** SRS-CORE REQ-CORE-113a; SDD-CORE GUI design;
+  `Coyote_App.Frontend.GUI`, `Coyote_GUI`, `Coyote_GUI.Conversation`,
+  `Coyote_GUI.Conversation_Stack`, GTK Help pages, frontend SDF, TEST-PLAN,
+  and GUI tests.
+- **Corrective action:** Remove the expander, mirror buffers and accumulators,
+  dead update protocol member, transcript-specific Help mapping and page, and
+  obsolete tests. Preserve native widget selection, labels, focusable actions,
+  and contextual Help for the remaining GUI areas.
+- **Actions taken:** Completed the source, test, Help, requirements, design,
+  SDF, and test-plan cleanup. The native development build succeeds.
+- **Verification:** `alr build` and `cd test && alr build` succeed in the
+  mandated development profile. The complete AUnit suite passes 932/932 with
+  zero failed assertions and zero unexpected errors. Active native GTK
+  conversation accessibility and selection tests remain passing.
+- **Status:** Resolved
+- **Date resolved:** 2026-08-30
+
 
 ## PCR-068 — Initial GTK GUI IRIX alignment
 

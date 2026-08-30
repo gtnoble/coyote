@@ -1436,21 +1436,6 @@ package body Coyote_GUI.Conversation is
       return (Found => False);
    end Focused_Action;
 
-   function Transcript_Text (C : Instance) return String is
-      Result : Unbounded_String;
-   begin
-      if C.Lines.Is_Empty then
-         return "";
-      end if;
-      for I in C.Lines.First_Index .. C.Lines.Last_Index loop
-         if I > C.Lines.First_Index then
-            Append (Result, ASCII.LF);
-         end if;
-         Append (Result, Strip_Pango_Markup (To_String (C.Lines (I).Text)));
-      end loop;
-      return To_String (Result);
-   end Transcript_Text;
-
    function Selected_Text (C : Instance) return String is
    begin
       return Extract_Selection_Text (C);

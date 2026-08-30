@@ -559,7 +559,7 @@ package body Coyote_SQC.UI.Chart_Settings_Dialog is
       declare
          Btn : Gtk.Button.Gtk_Button;
       begin
-         Gtk.Button.Gtk_New (Btn, "Reset to Defaults");
+         Gtk.Button.Gtk_New_With_Mnemonic (Btn, "_Reset to Defaults");
          Btn.On_Clicked (On_Reset'Unrestricted_Access);
          VBox.Pack_Start (Btn, False, False, 4);
       end;

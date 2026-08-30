@@ -169,17 +169,17 @@ package body Coyote_SQC.UI.Toolbar is
       Toolbar.Pack_Start (Sep, False, False, 4);
 
       --  Show All button.
-      Gtk.Button.Gtk_New (Show_All, "Show All");
+      Gtk.Button.Gtk_New_With_Mnemonic (Show_All, "_Show All");
       Show_All.On_Clicked (On_Show_All_Clicked'Access);
       Toolbar.Pack_Start (Show_All, False, False, 0);
 
       --  Y-Fit button.
-      Gtk.Button.Gtk_New (Y_Fit, "Y-Fit");
+      Gtk.Button.Gtk_New_With_Mnemonic (Y_Fit, "_Y-Fit");
       Y_Fit.On_Clicked (On_Y_Fit_Clicked'Access);
       Toolbar.Pack_Start (Y_Fit, False, False, 0);
 
       --  Run Sequence checkbox.
-      Gtk.Check_Button.Gtk_New (Run_Seq, "Run Sequence");
+      Gtk.Check_Button.Gtk_New_With_Mnemonic (Run_Seq, "_Run Sequence");
       Run_Seq.On_Toggled (On_Run_Sequence_Toggled'Access);
       Toolbar.Pack_Start (Run_Seq, False, False, 4);
       Run_Seq_Check := Run_Seq;
@@ -188,7 +188,7 @@ package body Coyote_SQC.UI.Toolbar is
       declare
          Log_Y : Gtk.Check_Button.Gtk_Check_Button;
       begin
-         Gtk.Check_Button.Gtk_New (Log_Y, "Log Y");
+         Gtk.Check_Button.Gtk_New_With_Mnemonic (Log_Y, "_Log Y");
          Log_Y.On_Toggled (On_Log_Y_Toggled'Access);
          Toolbar.Pack_Start (Log_Y, False, False, 4);
          Log_Y_Check := Log_Y;
@@ -198,7 +198,7 @@ package body Coyote_SQC.UI.Toolbar is
       declare
          Edit_Set_B : Gtk.Toggle_Button.Gtk_Toggle_Button;
       begin
-         Gtk.Toggle_Button.Gtk_New (Edit_Set_B, "Edit Set B");
+         Gtk.Toggle_Button.Gtk_New_With_Mnemonic (Edit_Set_B, "_Edit Set B");
          Edit_Set_B.On_Toggled (On_Edit_Set_B_Toggled'Access);
          Toolbar.Pack_Start (Edit_Set_B, False, False, 4);
          if Coyote_SQC.App.State /= null then

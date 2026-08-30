@@ -50,8 +50,6 @@ package body Coyote_Help is
          return "ui-controls";
       elsif Area = "status" then
          return "ui-status";
-      elsif Area = "transcript" then
-         return "ui-transcript";
       else
          return "ui-conversation";
       end if;

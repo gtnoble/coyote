@@ -623,14 +623,14 @@ text labels as well as icons. Normal windows focus the prompt on startup;
 Open Session, Sandbox Profile, Preferences, and model dialogs establish
 initial keyboard focus explicitly.
 
-A collapsed native read-only Accessible transcript expander mirrors the plain
-text of the custom-rendered conversation, providing a GTK/AT-SPI semantic text
-surface without duplicating the visual renderer. The canvas selects a dark
+Native GTK conversation components expose selectable text, labels, and
+focusable actions through GTK accessibility. The legacy canvas retains its
+local selection and keyboard interaction behavior. The canvas selects a dark
 background and light primary text when GTK requests a dark theme. Display-backed
 AT-SPI qualification and full color-contrast measurement remain manual work.
 
 Automated coverage added three navigation-policy tests, two prompt-queue
-acceptance/overflow tests, and conversation transcript/focus-cycle tests.
+acceptance/overflow tests, and conversation focus-cycle tests.
 
 ### Live Session Stats support window (2026-08-23, REQ-CORE-113d)
 
@@ -790,9 +790,24 @@ both the update-queue payload round trip and legacy summary visibility.
 The GTK `Options → Preferences...` dialog now edits additional skill roots with
 a single-selection scrollable list. `Add Directory...` opens a folder chooser;
 `Remove Selected`, `Move Up`, and `Move Down` are explicit keyboard-accessible
-actions. The pending ordered vector travels through the typed
+actions. These four actions use GTK mnemonic buttons (`Alt+A`, `Alt+R`, `Alt+U`,
+and `Alt+D`). The pending ordered vector travels through the typed
 `Set_Preferences` queue item; the agent task persists it as `skillPaths` without
 changing the active session. The dialog default size was increased to provide
 room for the resizable directory list. Queue, settings, and skill-discovery
 regressions cover the transport and persistence behavior; display-backed
 interaction remains part of the Preferences qualification procedure DEM-033.
+The main Send and Stop controls, support-window actions, and static SQC action
+controls likewise expose context-appropriate GTK mnemonics. Repeated dynamic
+tool-card buttons remain unmarked to avoid ambiguous mnemonic groups.
+
+### Removal of the redundant accessibility transcript (2026-08-30)
+
+The collapsed `Accessible transcript` expander and its plain-text mirror were
+removed. Native GTK conversation widgets now provide the GUI accessibility
+surface directly; the legacy canvas retains local selection and keyboard
+interaction without maintaining a second transcript buffer. The dead
+`Set_Transcript` update kind, renderer mirror accumulators, transcript-specific
+contextual Help mapping, Mallard page, tests, and qualification wording were
+removed. The native component stack's selectable text, labels, and focusable
+actions remain unchanged.

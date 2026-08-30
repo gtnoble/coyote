@@ -155,9 +155,6 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Assert (Active_Text_View (T.Stack) /= null
               and then Active_Text_View (T.Stack).Get_Visible,
               "dynamically-created native text is visible");
-      Assert (Transcript_Text (T.Stack) = "request" & ASCII.LF
-              & "first second" & ASCII.LF & ASCII.LF,
-              "streaming updates one native text component");
    end Test_Request_And_Streaming_Are_Incremental;
 
    procedure Test_Native_Markdown_Renders_After_Streaming
@@ -414,8 +411,6 @@ package body Coyote_GUI_Conversation_Stack_Tests is
               "clear removes exchange state");
       Assert (not Is_Completed (T.Stack),
               "clear removes terminal state");
-      Assert (Transcript_Text (T.Stack) = "",
-              "clear removes native transcript content");
    end Test_Clear_Removes_Exchange_State;
 
 end Coyote_GUI_Conversation_Stack_Tests;

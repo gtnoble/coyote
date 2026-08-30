@@ -83,8 +83,7 @@ package Coyote_GUI.Conversation_Stack is
       Kind : Coyote_GUI.Notice_Kind;
       Text : String);
 
-   --  Text is retained for the accessibility transcript and Summary is the
-   --  typed status text used by the native footer label.
+   --  Summary is the typed status text used by the native footer label.
    procedure Append_Turn_Footer
      (C       : in out Instance;
       Text    : String;
@@ -101,8 +100,6 @@ package Coyote_GUI.Conversation_Stack is
    procedure Complete_Request
      (C      : in out Instance;
       Status : Coyote_GUI.Completion_Status);
-
-   function Transcript_Text (C : Instance) return String;
 
    --  Return the compact summary rendered for Tool_Id.
    function Tool_Summary
@@ -172,7 +169,6 @@ private
       Thinking          : Gtk.Text_Buffer.Gtk_Text_Buffer;
       Thinking_View     : Gtk.Text_View.Gtk_Text_View;
       Tools             : Tool_Maps.Map;
-      Transcript        : Ada.Strings.Unbounded.Unbounded_String;
       Has_Exchange      : Boolean := False;
       Step_Open         : Boolean := False;
       Footer_Pending    : Boolean := False;

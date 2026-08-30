@@ -178,7 +178,7 @@ SRS-CORE requirement groups.
 | `tool_uri_tests.adb` | REQ-CORE-100â109 (plumb token format) | ~10 |
 | `coyote_cmark_tests.adb` | REQ-CORE-111 (Markdown rendering) | ~25 |
 | `coyote_lasem_tests.adb` | Lasem Presentation MathML measurement, zoom scaling, relation entities, and error handling | 5 |
-| `coyote_gui_conversation_tests.adb` | Display-math style, source preservation, visual height, font propagation, selection text, PRIMARY transfer, and tool-detail metadata/media capture | 6 |
+| `coyote_gui_conversation_tests.adb` | Display-math style, source preservation, visual height, font propagation, selection text, PRIMARY transfer, and tool-detail metadata/media capture | 5 |
 | `llm_session_store_tests.adb` | Session-store header/accessor coverage, including local session creation timestamp | ~48 |
 | `coyote_gui_zoom_tests.adb` | REQ-CORE-125 (zoom arithmetic: clamping, step semantics) | 12 |
 | `coyote_gui_notification_policy_tests.adb` | REQ-CORE-127 (notification eligibility policy) | 4 |
@@ -230,11 +230,11 @@ behaviour. Results are recorded in a Test Report.
 | DEM-012 | REQ-CORE-075 | In Acme, plumb a `coyote-model+PID/...` token; verify model changes on next turn |
 | DEM-013 | REQ-CORE-100â109 | Exercise each Acme tag command; verify expected behaviour for each |
 | DEM-014 | REQ-CORE-110â115, 125, 132 | Exercise GUI window: markdown rendering, tool frames, vi scroll, all main-menu accelerators, and Ctrl+wheel zoom. Verify each visible accelerator activates its corresponding menu action. |
-| DEM-033 | REQ-CORE-116..117, 119, 090a | Open GUI Preferences, save ordinary and subagent model/thinking/sandbox defaults, recursion depth, and ordered additional skill directories. Verify Add Directory uses a folder chooser, Remove Selected and Move Up/Down change the list, saved paths persist in `skillPaths`, the active session is unchanged, and new sessions inherit the paths. |
+| DEM-033 | REQ-CORE-116..117, 119, 090a | Open GUI Preferences, save ordinary and subagent model/thinking/sandbox defaults, recursion depth, and ordered additional skill directories. Verify Add Directory uses a folder chooser, Remove Selected and Move Up/Down change the list, the Alt+A/Alt+R/Alt+U/Alt+D mnemonics activate the corresponding controls, saved paths persist in `skillPaths`, the active session is unchanged, and new sessions inherit the paths. |
 | DEM-035 | REQ-CORE-126..128 | Toggle desktop completion notifications in GUI Preferences; verify an unfocused ordinary GUI turn notifies, a focused turn does not, the setting persists, and subagent/one-shot runs remain silent |
 | DEM-036 | REQ-CORE-113a..113c | Exercise the GUI menu bar and support windows: verify top-level order `File`, `Edit`, `View`, `Agent`, `Options`, `Help`; activate Overview, Keys & Shortcuts, and Product Information; verify application-prefixed titles for in-process support windows, Yelp ownership for Overview/Keys topics, an in-process Product Information dialog, dialog button order, and lifecycle status in the status area rather than the title |
 | DEM-037 | REQ-CORE-113a..113b | In a display-backed GUI, press F1 and verify Overview opens; press Shift+F1 and verify the pointer becomes a question mark; click the conversation canvas and verify contextual help opens without activating the clicked control; select and extend conversation text, verify PRIMARY changes independently of CLIPBOARD; middle-click in the prompt and verify PRIMARY text is inserted at the pointer without selecting the result |
-| DEM-038 | REQ-CORE-113a, 113b, 115 | In a display-backed GUI, use Help → Click for Help and click one widget in each main area (menu item, prompt, Send/Stop, transcript, status, conversation). Verify a contextual Help window opens, the selected action is not activated, Escape cancels the armed mode, the window role changes to `coyote-session-<UUID>` after session bootstrap/switch, and the launcher/icon identity is `coyote`. |
+| DEM-038 | REQ-CORE-113a, 113b, 115 | In a display-backed GUI, use Help → Click for Help and click one widget in each main area (menu item, prompt, Send/Stop, status, conversation). Verify a contextual Help window opens, the selected action is not activated, Escape cancels the armed mode, the window role changes to `coyote-session-<UUID>` after session bootstrap/switch, and the launcher/icon identity is `coyote`. |
 | DEM-039 | REQ-CORE-113a, REQ-CORE-504a | In a display-backed GUI, activate Overview, task entries, Index, and Keys & Shortcuts and verify Yelp opens the corresponding `help:coyote` or `help:coyote/<topic>` document. Verify Product Information opens an in-process dialog that remains available when Yelp is missing. Verify Mallard navigation, Index links, task links, contextual area topics, and the visible error notice when Yelp is unavailable. |
 | DEM-040 | REQ-CORE-113d | In a display-backed GUI, open Session Stats repeatedly and verify only one modeless transient `coyote : Session Stats` support window exists. Verify grouped selectable values, system-font sizing, scrollable report area, visible Close, Ctrl+W, live refresh after a completed turn, and clearing after New Session and session switch. |
 | DEM-041 | REQ-CORE-113e | In a display-backed GUI, click completed tool cards and verify each opens an independent `coyote : Tool Call Details` transient support window. Verify selectable header metadata, labelled monospace argument views, full selectable results, outer vertical scrolling, visible Close and Help actions, deterministic focus, Ctrl+W, non-color status meaning, image display/fallback, light/dark theme behavior, replay parity, and correct multi-window independence. |
@@ -742,7 +742,7 @@ activities.
 898 registered tests. The application and test development builds succeed.
 The focused GUI qualification passes 45 tests with 0 failures and 0
 unexpected errors, covering navigation policy, prompt queue acceptance and
-overflow, transcript plain-text exposure, and custom interactive focus.
+overflow, and custom interactive focus.
 The complete suite was executed with a 900-second limit; display-backed
 DEM-014, AT-SPI accessibility inspection, and full color-contrast measurement
 remain manual qualification activities.
@@ -854,3 +854,9 @@ GTK preference queue coverage for ordered `skillPaths`. Production and test
 development builds succeed; the complete suite passes 933/933 with zero failed
 assertions and zero unexpected errors. Display-backed Preferences interaction,
 including folder selection and list reordering, remains pending under DEM-033.
+
+**Baseline after PCR-084 (2026-08-30):**
+932 registered tests after removing the redundant accessibility-transcript test.
+The development build and complete test suite pass with zero failed assertions
+and zero unexpected errors. Native GTK conversation accessibility and selection
+remain covered by the native widget and interaction tests.

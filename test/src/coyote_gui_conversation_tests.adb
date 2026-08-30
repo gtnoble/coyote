@@ -1148,28 +1148,6 @@ package body Coyote_GUI_Conversation_Tests is
               "math height is not forced onto the body-line grid");
    end Test_Math_Uses_Natural_Pixel_Height;
 
-   procedure Test_Transcript_Text_Uses_Plain_Text (T : in out Test) is
-      Conv   : Instance;
-      Scroll : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
-      Layout : Gtk.Layout.Gtk_Layout;
-   begin
-      if not T.Display_Available then
-         return;
-      end if;
-      Make_Fresh_Conv (Conv, Scroll, Layout);
-      Conv.Append_Text ("**bold** transcript");
-      Conv.End_Text_Block;
-      declare
-         Transcript : constant String := Transcript_Text (Conv);
-      begin
-         Assert (Ada.Strings.Fixed.Index
-                   (Transcript, "bold transcript") > 0,
-                 "transcript should expose plain text");
-         Assert (Ada.Strings.Fixed.Index (Transcript, "<b>") = 0,
-                 "transcript should strip display markup");
-      end;
-   end Test_Transcript_Text_Uses_Plain_Text;
-
    procedure Test_Selected_Text_Uses_Selection_Order (T : in out Test) is
       Conv      : Instance;
       Scroll    : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
@@ -1255,7 +1233,7 @@ package body Coyote_GUI_Conversation_Tests is
          Name   : Unbounded_String;
          Topic  : Unbounded_String;
       end record;
-      Areas : constant array (1 .. 6) of Area_Case :=
+      Areas : constant array (1 .. 5) of Area_Case :=
         ((To_Unbounded_String ("menu"),
           To_Unbounded_String ("ui-menu")),
          (To_Unbounded_String ("prompt"),
@@ -1264,8 +1242,6 @@ package body Coyote_GUI_Conversation_Tests is
           To_Unbounded_String ("ui-controls")),
          (To_Unbounded_String ("status"),
           To_Unbounded_String ("ui-status")),
-         (To_Unbounded_String ("transcript"),
-          To_Unbounded_String ("ui-transcript")),
          (To_Unbounded_String ("conversation"),
           To_Unbounded_String ("ui-conversation")));
    begin

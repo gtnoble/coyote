@@ -614,9 +614,9 @@ coyote window. Product Information shall be an in-process dialog that shows
 the application name, version, and license even when Yelp is unavailable. Click for Help shall arm
 contextual help rather than open a topic immediately. F1 shall open Overview;
 Shift+F1 shall arm Click for Help with the question-mark pointer; and the next
-left click in any main-window control area, menu, prompt, transcript, status
-area, or conversation area shall open the corresponding contextual topic in
-Yelp without activating the clicked control.
+left click in any main-window control area, menu, prompt, status area, or
+conversation area shall open the corresponding contextual topic in Yelp
+without activating the clicked control.
 
 **REQ-CORE-113b** (D)
 GUI dialogs and support windows shall use application-identifying titles,

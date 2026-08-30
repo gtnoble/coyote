@@ -246,7 +246,7 @@ package body Coyote_GUI.Session_Stats_Window is
       Total_Frame.Set_Border_Width (8);
       Report_Box.Pack_Start (Total_Frame, True, True, 0);
 
-      Gtk.Button.Gtk_New (Close, "Close");
+      Gtk.Button.Gtk_New_With_Mnemonic (Close, "_Close");
       Close.On_Clicked (On_Close_Clicked'Access);
       Close.Set_Halign (Gtk.Widget.Align_End);
       Outer.Pack_End (Close, False, False, 0);

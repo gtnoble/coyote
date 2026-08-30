@@ -1864,8 +1864,8 @@ the native vertical `Gtk.Box` stack (see §5.15b).
   `Gtk.Window.Is_Active` and calls `Coyote_Notify` only for an inactive window.
   Missing notification daemons and delivery failures are non-fatal.
 - `Clear_Conversation` — queues a `Clear_Conversation` update; the GTK idle
-  callback clears `Coyote_GUI.Conversation` and the native transcript. The
-  agent task uses this when handling the `New_Session` or `Clear` command.
+  callback clears the active conversation renderer. The agent task uses this
+  when handling the `New_Session` or `Clear` command.
 - `Set_Stats_Summary` — not part of the abstract interface; queues a typed
   `Set_Stats` snapshot so `Coyote_GUI.Session_Stats_Window` refreshes its
   reusable modeless support window on the GTK main-loop thread.  The window
@@ -1879,10 +1879,11 @@ the native vertical `Gtk.Box` stack (see §5.15b).
   Tab and Shift+Tab cycle custom tool/action controls; Enter, keypad Enter,
   and Space activate the focused control. Escape clears selection only when
   a selection exists, otherwise it reaches the Stop accelerator.
-- **Accessibility:** Send and Stop use text labels as well as icons. A
-  collapsed native read-only transcript mirrors the plain text of the custom
-  renderer for GTK accessibility and keyboard selection. The canvas uses
-  GTK's dark-theme preference to select contrasting colors.
+- **Accessibility:** Send and Stop use text labels as well as icons. Native
+  GTK conversation components expose their labels, selectable text, and
+  focusable actions through GTK accessibility. The legacy canvas retains its
+  local selection and keyboard interaction behavior. The canvas uses GTK's
+  dark-theme preference to select contrasting colors.
 
 - `Shutdown` — calls `Gtk.Main.Quit` from within the idle callback.
 - **System font integration** (2026-07-30): On startup the frontend reads the
@@ -1964,8 +1965,8 @@ Switch Session; ordinary Clear Conversation does not change statistics.
 
 **`Topic_For_Area (Area)`:** Maps each main-window contextual-help area to a
 stable Mallard topic ID: `menu` to `ui-menu`, `prompt` to `ui-prompt`,
-`controls` to `ui-controls`, `status` to `ui-status`, `transcript` to
-`ui-transcript`, and all other areas to `ui-conversation`.
+`controls` to `ui-controls`, `status` to `ui-status`, and all other areas to
+`ui-conversation`.
 
 **`Yelp_Available`:** Locates the `yelp` executable on `PATH`.
 
@@ -2014,7 +2015,7 @@ enumeration and the `Update` discriminated record.
 **`Update_Kind` values:** `Append_Text`, `End_Text_Block`, `Append_Thinking`,
 `Begin_Thinking`, `End_Thinking`, `Begin_Tool`, `End_Tool`, `Append_Notice`,
 `Append_Turn_Footer`, `Set_Mode`, `Set_Stats`, `Clear_Stats`,
-`Clear_Conversation`, `Set_Transcript`, `Set_Completion_Notifications`,
+`Clear_Conversation`, `Set_Completion_Notifications`,
 `Completion_Notification`, `Show_Detail`, and `Shutdown`.
 
 **`Update` record:** Discriminant is `Update_Kind`. Each variant carries the
