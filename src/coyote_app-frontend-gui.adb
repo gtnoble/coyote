@@ -82,6 +82,7 @@ with LLM.Model_Registry;
 with LLM.Tools.Sandbox;
 with Coyote_Notify;
 with Coyote_GUI.Notification_Policy;
+with Coyote_Process_Control;
 
 package body Coyote_App.Frontend.GUI is
    use Coyote_GUI.Prompt_Queue;
@@ -1041,6 +1042,18 @@ package body Coyote_App.Frontend.GUI is
       end if;
    end Enqueue_Update;
 
+   procedure Request_Shutdown (F : in out Instance) is
+   begin
+      Coyote_Process_Control.Stop_Monitor;
+      F.Agent_Sess.Request_Abort;
+      F.PQ.Shutdown;
+      F.Updates.Stop;
+   exception
+      when others =>
+         F.PQ.Shutdown;
+         F.Updates.Stop;
+   end Request_Shutdown;
+
    --  ── Signal handlers ───────────────────────────────────────────────────
 
    function On_Window_Delete
@@ -1050,11 +1063,10 @@ package body Coyote_App.Frontend.GUI is
       pragma Unreferenced (Self, Event);
    begin
       if Current_Frontend /= null then
-         Current_Frontend.PQ.Shutdown;
-         Current_Frontend.Updates.Stop;
+         Current_Frontend.Request_Shutdown;
       end if;
       Gtk.Main.Main_Quit;
-      return True;  --  suppress default handler (window destruction)
+      return False;
    end On_Window_Delete;
 
    procedure On_Send_Clicked
@@ -1150,8 +1162,7 @@ package body Coyote_App.Frontend.GUI is
       pragma Unreferenced (Self);
    begin
       if Current_Frontend /= null then
-         Current_Frontend.PQ.Shutdown;
-         Current_Frontend.Updates.Stop;
+         Current_Frontend.Request_Shutdown;
       end if;
       Gtk.Main.Main_Quit;
    end On_Quit_Activate;

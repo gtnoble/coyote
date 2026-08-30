@@ -165,14 +165,20 @@ package Coyote_App.Frontend.GUI is
    --  Clear the support-window report for a new or switched session.
    procedure Clear_Stats (F : in out Instance);
 
-   --  Register the agent session so that Stop can call Request_Abort
-   --  directly from the GTK callback thread, bypassing the prompt queue.
-   --  Must be called from Agent_Task after LLM.Agent.Create.
+   --  Register the agent session so that Stop and application shutdown can
+   --  call Request_Abort directly from the GTK callback thread, bypassing
+   --  the prompt queue.  Must be called from Agent_Task after
+   --  LLM.Agent.Create.
    procedure Register_Session
      (F : in out Instance;
       S : access LLM.Agent.Session);
 
-   --  Clear all conversation content and reset streaming state.
+   --  Request application shutdown from a GTK callback.  This stops the
+   --  process-control monitor, aborts any active request, wakes Agent_Task,
+   --  and stops update producers.  The callback is responsible for quitting
+   --  the GTK main loop.
+   procedure Request_Shutdown (F : in out Instance);
+
    --  Called when replacing the active session with a new one.
    procedure Clear_Conversation (F : in out Instance);
 

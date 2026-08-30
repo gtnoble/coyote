@@ -2912,3 +2912,27 @@ behavior, current test baseline, and remaining manual qualification scope.
   errors. Display-backed verification of the Preferences control and picker
   columns remains pending under DEM-033.
 - **Status:** Implemented; display-backed qualification pending
+
+## PCR-088 — GUI close waits indefinitely for nested tasks
+
+- **Date reported:** 2026-08-30
+- **Category:** Code, Design, Test, Manuals
+- **Priority:** 2-Serious
+- **Description:** After the SIGTERM process-control monitor was added, closing
+  the GTK window or selecting File → Exit stopped the GTK main loop but did not
+  stop the nested shutdown monitor or abort an active agent request. `Run_GUI`
+  consequently waited indefinitely at its Ada task-master boundary.
+- **Affected work products:** GTK frontend, `Coyote_App`, process-control
+  integration, GUI tests, SDD, frontend SDF, and test plan.
+- **Root cause:** GUI close handlers shut down the prompt and update queues and
+  called `Gtk.Main.Main_Quit`, but bypassed the application shutdown sequence
+  used by signal-driven and agent-driven termination.
+- **Corrective action:** Added a shared `Request_Shutdown` operation that stops
+  the process-control monitor, requests agent cancellation, wakes the prompt
+  queue, and stops update producers; the GTK callbacks then quit GTK.
+  Window-manager close now allows normal GTK window destruction.
+- **Verification:** Production and test development builds succeed. The
+  focused GUI lifecycle regression and complete AUnit suite pass with 940/940
+  tests, zero failed assertions, and zero unexpected errors. Full
+  window-manager and active-request close qualification remains pending.
+- **Status:** Implemented; qualification pending

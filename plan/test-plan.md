@@ -880,3 +880,11 @@ launch rejection, and persistence freeze. Production and test development
 builds succeed; the complete suite passes 937/937 with zero failed assertions
 and zero unexpected errors. Live OS-signal injection remains pending under
 DEM-017; display-backed Preferences interaction remains pending under DEM-033.
+
+**Baseline after PCR-088 (2026-08-30):** 940 registered tests. Extended the
+existing GUI fixture regression `Coyote.GUI layout and shutdown lifecycle` to
+verify application shutdown stops the process-control monitor and releases a
+blocked prompt reader. Production and test development builds succeed; the
+focused GUI lifecycle test and complete
+suite pass with zero failed assertions and zero unexpected errors. Full
+window-manager and active-request close qualification remains display-backed.

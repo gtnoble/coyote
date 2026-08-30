@@ -2416,8 +2416,10 @@ operations, process-tree signalling, persistence freezing, and frontend wakeup.
 The first SIGTERM freezes new JSONL writes, requests agent cancellation, sends
 SIGTERM to all registered groups and nested shell-launched coyote groups, waits
 0 through 30 configured seconds, then sends SIGKILL and waits for group cleanup.
-A second SIGTERM bypasses the grace interval. Existing GUI Stop and ordinary
-window-close paths retain their direct abort behavior and stop the monitor.
+A second SIGTERM bypasses the grace interval. GUI Stop requests direct agent
+cancellation. GUI window-close and File → Exit use the frontend shutdown
+operation, which requests direct cancellation, stops the monitor, wakes the
+prompt queue, and stops update producers. The callbacks then quit GTK.
 
 The GTK Preferences dialog persists `shellTerminationGraceSeconds` as an
 integer number of seconds. The active process applies a saved value immediately;

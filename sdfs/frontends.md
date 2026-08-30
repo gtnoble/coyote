@@ -824,6 +824,17 @@ Zero-valued cells display `free`; negative values are blank. Raw prices remain
 the sort keys because the logarithm is monotonic for positive values. SI
 prefixes remain the default and the Acme model list is unchanged.
 
+### GUI application shutdown correction (2026-08-30, PCR-088)
+
+The GTK window-manager close and File → Exit callbacks now share the
+`Request_Shutdown` operation. It requests agent cancellation through the
+registered session reference, stops the process-control shutdown monitor,
+wakes the prompt queue, and stops update producers. The callbacks then quit
+GTK; window-manager close permits the normal GTK destruction handler instead
+of suppressing it. This prevents `Run_GUI` from waiting indefinitely for its
+nested monitor and agent tasks. A display-backed regression covers monitor
+stop and release of a blocked prompt reader.
+
 ### Removal of the redundant accessibility transcript (2026-08-30)
 
 The collapsed `Accessible transcript` expander and its plain-text mirror were

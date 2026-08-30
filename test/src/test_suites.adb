@@ -3091,9 +3091,9 @@ package body Test_Suites is
          Coyote_GUI_Session_Stats_Window_Tests
            .Test_Create_Is_Idempotent'Access));
       Result.Add_Test (Coyote_App_Frontend_GUI_Caller.Create
-        ("Coyote.GUI separates conversation, prompt, and status",
+        ("Coyote.GUI layout and shutdown lifecycle",
          Coyote_App_Frontend_GUI_Tests
-           .Test_Separates_Conversation_Prompt_And_Status'Access));
+           .Test_Layout_And_Shutdown_Lifecycle'Access));
 
       Result.Add_Test (Coyote_Lasem_Caller.Create
         ("Coyote.Lasem measures a MathML fraction",

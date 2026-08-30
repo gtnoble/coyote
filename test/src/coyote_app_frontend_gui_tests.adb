@@ -5,6 +5,8 @@
 with Ada.Environment_Variables;
 with AUnit.Assertions;
 with Coyote_App.Frontend.GUI.Testing;
+with Coyote_GUI.Prompt_Queue;
+with Coyote_Process_Control;
 with Glib;
 with Gtk.Box;
 with Gtk.Container;
@@ -21,6 +23,7 @@ package body Coyote_App_Frontend_GUI_Tests is
    use type Gtk.Separator.Gtk_Separator;
    use type Gtk.Window.Gtk_Window;
    use type Gtk.Widget.Gtk_Widget;
+   use type Coyote_GUI.Prompt_Queue.Item_Kind;
 
    function Display_Available return Boolean is
    begin
@@ -49,7 +52,7 @@ package body Coyote_App_Frontend_GUI_Tests is
       end if;
    end Tear_Down;
 
-   procedure Test_Separates_Conversation_Prompt_And_Status
+   procedure Test_Layout_And_Shutdown_Lifecycle
      (T : in out Test)
    is
       use Coyote_App.Frontend.GUI.Testing;
@@ -87,6 +90,30 @@ package body Coyote_App_Frontend_GUI_Tests is
               "prompt area is followed by the status separator");
       Assert (Outer.Get_Child (5) = Gtk.Widget.Gtk_Widget (Status),
               "status area follows the prompt separator");
-   end Test_Separates_Conversation_Prompt_And_Status;
+
+      declare
+         task Reader is
+            entry Complete;
+         end Reader;
+
+         Item : Coyote_GUI.Prompt_Queue.Item;
+
+         task body Reader is
+         begin
+            Item := T.Frontend.Read_Item;
+            accept Complete;
+         end Reader;
+      begin
+         T.Frontend.Request_Shutdown;
+         Reader.Complete;
+         Assert
+           (Item.Kind = Coyote_GUI.Prompt_Queue.Shutdown_Item,
+            "application shutdown should release a blocked prompt reader");
+      end;
+
+      Assert
+        (Coyote_Process_Control.Monitor_Should_Stop,
+         "application shutdown should stop the process-control monitor");
+   end Test_Layout_And_Shutdown_Lifecycle;
 
 end Coyote_App_Frontend_GUI_Tests;

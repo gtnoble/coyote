@@ -18,7 +18,7 @@ package Coyote_App_Frontend_GUI_Tests is
    overriding procedure Set_Up (T : in out Test);
    overriding procedure Tear_Down (T : in out Test);
 
-   procedure Test_Separates_Conversation_Prompt_And_Status
+   procedure Test_Layout_And_Shutdown_Lifecycle
      (T : in out Test);
 
 end Coyote_App_Frontend_GUI_Tests;

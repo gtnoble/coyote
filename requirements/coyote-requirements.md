@@ -602,7 +602,9 @@ Acme tag commands: Send, Stop, New, Clear, Models, Session Stats, Compact,
 Pause, Resume.  The runtime actions shall be grouped under a custom Agent
 menu, and persistent preferences shall be grouped under Options. Stop, Pause,
 and Resume shall be disabled in the Agent menu when they cannot apply to the
-current run mode.
+current run mode. Selecting File → Exit or closing the main window shall
+cancel any active request, terminate the GUI agent and shutdown-monitor tasks,
+and exit the process cleanly.
 
 **REQ-CORE-113a** (D)
 The GUI frontend shall provide a rightmost Help menu containing Click for
@@ -1512,7 +1514,7 @@ matrix and retains historical `TC-*` identifiers; the current mappings are in
 | REQ-CORE-100..107 | Acme frontend tag commands (Send, Stop, New, etc.) | D | TC-100..107 |
 | REQ-CORE-108..108b | Session fork tokens and step-level turn footers | D | TC-108..108b |
 | REQ-CORE-109 | SetDefault writes to settings.json | D | TC-109 |
-| REQ-CORE-110..119, 124..129, 133..139 | GUI frontend capabilities, including Preferences, ordered skill-directory editing, display math, zoom, component-stack conversation presentation, completion notifications, and Change Model search | D/T/I | TC-110..119, TC-124..129, TC-133..139; GUI regression tests; DEM-033, DEM-042..044 |
+| REQ-CORE-110..119, 124..129, 133..139 | GUI frontend capabilities, including Preferences, ordered skill-directory editing, display math, zoom, component-stack conversation presentation, completion notifications, and Change Model search | D/T/I | TC-110..119, TC-124..129, TC-133..139; GUI regression tests including `Coyote.GUI layout and shutdown lifecycle`; DEM-033, DEM-042..044 |
 | REQ-CORE-113a..113c | GUI Help menu, Yelp topics, Edit menu, Product Information dialog, menu taxonomy, title, dialog, support-window, lifecycle-status, and desktop interaction conventions | D/T/I | DEM-036..039; Coyote_Help tests; Mallard validation; source inspection |
 | REQ-CORE-113d | Live structured Session Stats support window and session-reset currency | D/T/I | `coyote_gui_session_stats_window_tests.adb`; DEM-040; source inspection |
 | REQ-CORE-113e | Compact tool-card summary and View Details action opening the structured GTK tool-call detail window | D/T/I | `coyote_gui_conversation_tests.adb`, `coyote_gui_conversation_stack_tests.adb`, `llm_session_store_tests.adb`; DEM-041..043; source inspection |
