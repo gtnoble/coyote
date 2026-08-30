@@ -1,6 +1,6 @@
 # Test Plan â coyote (STP)
 
-**Version:** 1.23
+**Version:** 1.24
 **Date:** 2026-08-30
 
 **Status:** Reviewed and acknowledged â M4 complete (2026-06-03)
@@ -73,14 +73,13 @@ owner) is invited to independently review test results before accepting them.
 | Lasem 0.6 + shared library | GUI display-math rendering | 0.6.0 |
 | libnotify4 + notification daemon | GTK completion notifications | 0.8.3-compatible |
 | Computer Modern math fonts | Lasem glyph coverage | cmr10/cmmi10/cmex10/cmsy10 |
-| plan9port | Acme frontend and plumber | At `/usr/local/plan9` |
 | GNATCOLL | JSON processing | â¥ 25.0.0 (via Alire) |
 
 ### 3.3 Test Infrastructure
 
 **AUnit automated tests:** `test/src/` contains the full AUnit suite.
 The suite is self-contained except for GTK widget tests, which require GTK3
-and a display or `xvfb-run`. Non-GUI tests run without a live acme instance,
+and a display or `xvfb-run`. Non-GUI tests run without a live display or external desktop service.
 live LLM provider, or display. Fixtures are in `test/fixtures/`.
 
 **Integration tests:** Tests in the following files require a live environment
@@ -88,8 +87,6 @@ and are **opt-in** (guarded by environment variable checks at test startup):
 
 | Test file | Guard variable | Requires |
 |---|---|---|
-| `acme_integration_tests.adb` | `COYOTE_TEST_ACME=1` | Running acme instance |
-| `nine_p_integration_tests.adb` | `COYOTE_TEST_9P=1` | 9P server |
 | `llm_github_copilot_tests.adb` | `COYOTE_TEST_COPILOT=1` | Valid Copilot credentials |
 | `llm_anthropic_messages_tests.adb` | `COYOTE_TEST_ANTHROPIC=1` | Valid Anthropic API key |
 | `llm_agent_tests.adb` (live tests) | `COYOTE_TEST_LIVE=1` | Any live provider |
@@ -164,8 +161,6 @@ SRS-CORE requirement groups.
 
 | `sandbox_tests.adb` | Sandbox profile subsystem, including timeout and abort process-group termination | 24 |
 | `llm_context_tests.adb` | REQ-CORE-060 (compaction threshold) | ~15 |
-| `session_history_tests.adb` | REQ-CORE-130â131 | ~15 |
-| `dispatch_tests.adb` | REQ-CORE-040â046 (dispatch) | ~20 |
 | `coyote_app_tests.adb` | REQ-CORE-010â023 (CLI parsing) | ~30 |
 | `coyote_utils_tests.adb` | REQ-CORE-023 | ~10 |
 | `collapse_utils_tests.adb` | REQ-CORE-023 (thinking collapse) | 5 |
@@ -175,7 +170,6 @@ SRS-CORE requirement groups.
 | `llm_openai_completions_tests.adb` | REQ-CORE-201 | ~30 |
 | `llm_anthropic_messages_tests.adb` | REQ-CORE-202 | ~30 |
 | `llm_openrouter_tests.adb` | REQ-CORE-072, REQ-CORE-216, REQ-CORE-218, REQ-CORE-219 (OpenRouter) | ~17 |
-| `tool_uri_tests.adb` | REQ-CORE-100â109 (plumb token format) | ~10 |
 | `coyote_cmark_tests.adb` | REQ-CORE-111 (Markdown rendering) | ~25 |
 | `coyote_lasem_tests.adb` | Lasem Presentation MathML measurement, zoom scaling, relation entities, and error handling | 5 |
 | `coyote_gui_conversation_tests.adb` | Display-math style, source preservation, visual height, font propagation, selection text, PRIMARY transfer, and tool-detail metadata/media capture | 5 |
@@ -188,8 +182,6 @@ SRS-CORE requirement groups.
 
 | `coyote_gui_prompt_queue_tests.adb` | REQ-CORE-116..119, 128; typed preference payload transport | 1 |
 | `coyote_help_tests.adb` | REQ-CORE-113a, REQ-CORE-504a; Yelp URI construction, area mapping, executable detection, Help data path, and Product Information text | 5 |
-| `nine_p_proto_tests.adb` | REQ-CORE-210 (9P protocol) | ~20 |
-| `nine_p_mock_server_tests.adb` | REQ-CORE-210â211 | ~15 |
 | `session_lister_tests.adb` | REQ-CORE-084 | ~10 |
 | `coyote_sqc_parser_tests.adb` | REQ-CORE-240â241 | ~25 |
 | `coyote_sqc_statistics_tests.adb` | SRS-SQC statistics | ~40 |
@@ -199,10 +191,8 @@ SRS-CORE requirement groups.
 | `coyote_sqc_mi_tests.adb` | SRS-SQC MI metrics | ~11 |
 | `coyote_sqc_histogram_tests.adb` | SRS-SQC histogram | ~10 |
 | `coyote_sqc_bootstrap_tests.adb` | SRS-SQC Â§5.17 bootstrap CI, Â§10.3 two-set histogram bins | ~7 |
-| `acme_event_parser_tests.adb` | REQ-CORE-100â109 | ~20 |
-| `acme_raw_events_tests.adb` | REQ-CORE-100 | ~10 |
 
-**Total automated tests (current):** **927**
+**Total automated tests (current):** **798**
 
 ### 4.3 Planned Tests â Demonstration
 
@@ -212,24 +202,21 @@ behaviour. Results are recorded in a Test Report.
 
 | Test ID | Requirement | Procedure |
 |---|---|---|
-| DEM-001 | REQ-CORE-001 | Run `coyote --one-shot --prompt "hello"` without $winid set; verify Plain frontend used and JSON printed to stdout |
-| DEM-002 | REQ-CORE-002 | Run coyote from inside an acme window ($winid set); verify Acme frontend opens a window |
-| DEM-003 | REQ-CORE-003 | Run coyote with $DISPLAY set, no $winid; verify GUI window opens |
+| DEM-001 | REQ-CORE-001 | Run `coyote --one-shot --prompt "hello"`; verify the Plain frontend is used and the single JSON result is printed to stdout |
+| DEM-003 | REQ-CORE-003 | Run coyote with `$DISPLAY` or `$WAYLAND_DISPLAY` set; verify the GUI window opens |
 | DEM-004 | REQ-CORE-019 | `coyote --one-shot --prompt "echo hello"` exits after one turn; check exit code 0 and JSON on stdout |
-| DEM-005 | REQ-CORE-020 | `coyote --subagent --prompt "hello"` opens a window (does not force Plain) |
+| DEM-005 | REQ-CORE-020 | `coyote --subagent --prompt "hello"` inherits GUI when available and otherwise uses Plain |
 | DEM-045 | REQ-CORE-025 | Set `maxRecursionDepth` to 1; invoke coyote with inherited `COYOTE_RECURSION_DEPTH=1` and `--subagent`; verify it exits non-zero before opening a frontend and reports the limit on stderr |
 | DEM-046 | REQ-CORE-111, 125 | In a display-backed native-stack GUI (`COYOTE_NATIVE_STACK=1`), render a fixture containing headings, inline formatting, code, lists, tables, links, strikethrough, and a thematic break. Verify conversion occurs after streaming, local selection exposes plain text, the Render Markdown toggle preserves source text when disabled, and zoom changes native response font size. |
-| DEM-047 | REQ-CORE-111, 131, 137 | Render the same Markdown response live and by session replay in the native GUI. Verify equivalent supported visible content and response-block boundaries, and verify Acme/Plain replay remains plain text. |
+| DEM-047 | REQ-CORE-111, 131, 137 | Render the same Markdown response live and by session replay in the native GUI. Verify equivalent supported visible content and response-block boundaries, and verify the GUI replay preserves the same semantic blocks. |
 | DEM-048 | REQ-CORE-124 | In a display-backed native-stack GUI, exercise valid and invalid standalone Presentation MathML blocks. Verify native realization, readable source/fallback on parse failure, local selection, and zoom. This procedure remains deferred until native MathML is implemented. |
 | DEM-049 | REQ-CORE-110, 113b | In a display-backed GUI, verify that the conversation work area, prompt controls, and status area are separated by visible horizontal rules; verify the prompt and status areas have consistent breathing room and that the conversation remains the sole expanding region. The structural portion is covered by `Coyote.GUI separates conversation, prompt, and status`; visual contrast remains a manual check under the active theme. |
 | DEM-006 | REQ-CORE-040â044 | Start a GUI session; send a prompt; verify streaming text, thinking, tool events, and stats appear |
 | DEM-007 | REQ-CORE-055 | Start a long tool execution; press Stop; verify tool is cancelled and agent exits cleanly |
 | DEM-008 | REQ-CORE-060 | Configure a small context window; send prompts until threshold reached; verify auto-compaction notice appears |
-| DEM-009 | REQ-CORE-061 | Trigger manual compact in Acme (Compact tag) and GUI (menu); verify compaction summary appears |
+| DEM-009 | REQ-CORE-061 | Trigger manual compact in the GUI (`:compact` command or menu); verify the compaction summary appears |
 | DEM-010 | REQ-CORE-070 | Set defaultModel in settings.json; start coyote without --model; verify correct model used |
 | DEM-011 | REQ-CORE-074 | Use an expired Copilot token; send a prompt; verify token is refreshed and request succeeds |
-| DEM-012 | REQ-CORE-075 | In Acme, plumb a `coyote-model+PID/...` token; verify model changes on next turn |
-| DEM-013 | REQ-CORE-100â109 | Exercise each Acme tag command; verify expected behaviour for each |
 | DEM-014 | REQ-CORE-110â115, 125, 132 | Exercise GUI window: markdown rendering, tool frames, vi scroll, all main-menu accelerators, and Ctrl+wheel zoom. Verify each visible accelerator activates its corresponding menu action. |
 | DEM-033 | REQ-CORE-116..117, 119, 090a | Open GUI Preferences, save ordinary and subagent model/thinking/sandbox defaults, recursion depth, and ordered additional skill directories. Verify Add Directory uses a folder chooser, Remove Selected and Move Up/Down change the list, the Alt+A/Alt+R/Alt+U/Alt+D mnemonics activate the corresponding controls, saved paths persist in `skillPaths`, the active session is unchanged, and new sessions inherit the paths. |
 | DEM-035 | REQ-CORE-126..128 | Toggle desktop completion notifications in GUI Preferences; verify an unfocused ordinary GUI turn notifies, a focused turn does not, the setting persists, and subagent/one-shot runs remain silent |
@@ -260,7 +247,7 @@ behaviour. Results are recorded in a Test Report.
 | DEM-029 | REQ-CORE-085 | Create a session with a sandbox profile, exit, resume it with `--session UUID`, and verify the profile is restored and applied to shell commands |
 | DEM-030 | REQ-CORE-086..087 | In one running frontend, switch between sessions with different and absent sandbox profiles; verify restoration and clearing before the next tool call |
 | DEM-031 | REQ-CORE-088 | Set a sandbox profile, spawn a child coyote process, and verify the child receives the profile and applies it to a shell command |
-| DEM-032 | REQ-CORE-089 | Exercise startup, profile change, resume, and switch in Acme and GUI; verify displayed, agent, and propagated profile values remain identical |
+| DEM-032 | REQ-CORE-089 | Exercise startup, profile change, resume, and switch in the GUI; verify displayed, agent, and propagated profile values remain identical |
 
 ### 4.4 Planned Tests â Inspection
 
@@ -277,9 +264,6 @@ and must be demonstrated or inspected:
 - REQ-CORE-011, 012 â CWD restoration on session resume (requires filesystem)
 - REQ-CORE-022 â prompt-filter (requires shell subprocess)
 - REQ-CORE-074 â Copilot token auto-refresh (requires live Copilot credential)
-- REQ-CORE-075, 076 â plumb-port model/thinking switch (requires live acme)
-- REQ-CORE-107 â Acme Pause/Resume (partial; pause mechanics tested in AUnit
-  via `llm_agent_tests.adb`)
 - REQ-CORE-142 â SIGTERM handling (requires OS signal; manual test)
 - REQ-CORE-124 â native display MathML realization and fallback (DEM-048)
 - REQ-CORE-138 â native large-history performance and display-backed zoom
@@ -315,13 +299,13 @@ These are entered as open items in the problem log (PCR-009 and PCR-078).
 | REQ-CORE-010â018 | T | `coyote_app_tests.adb` |
 | REQ-CORE-019â020 | D | DEM-004, DEM-005 |
 | REQ-CORE-025 | T/D | `subagent_integration_tests.adb`, `llm_settings_tests.adb`, DEM-045 |
-| REQ-CORE-021 | D | DEM-013 (Acme window name) |
+| REQ-CORE-021 | D | GUI window title label demonstration |
 | REQ-CORE-022 | D | DEM (TBD) |
 | REQ-CORE-023 | T | `coyote_utils_tests.adb` |
 | REQ-CORE-024 | D | TC-024 (DEM-019) |
 | REQ-CORE-030â032 | T/I | `coyote_app_tests.adb`, code inspection |
 | REQ-CORE-219 | T/I | `llm_agent_tests.adb`, code inspection |
-| REQ-CORE-040â046 | T/D | `dispatch_tests.adb`, `llm_agent_tests.adb`, DEM-006 |
+| REQ-CORE-040â046 | T/D | `llm_agent_tests.adb`, DEM-006 |
 | REQ-CORE-050â053 | T | `llm_tools_tests.adb` |
 | REQ-CORE-054 | D | DEM (--no-tools with tool model) |
 | REQ-CORE-055 | D | DEM-007 |
@@ -332,7 +316,7 @@ These are entered as open items in the problem log (PCR-009 and PCR-078).
 | REQ-CORE-070â073 | T/D | `llm_settings_tests.adb`, `llm_model_registry_tests.adb`, DEM-010 |
 | REQ-CORE-070a | T | `llm_agent_tests.adb` |
 | REQ-CORE-074 | D | DEM-011 |
-| REQ-CORE-075â076 | T/D | `llm_agent_tests.adb`, DEM-012 |
+| REQ-CORE-075â076 | Historical | Retired Acme/plumber controls; see PCR-090 |
 | REQ-CORE-080â083 | T | `llm_session_store_tests.adb` |
 | REQ-CORE-084 | T/D | `session_lister_tests.adb`, DEM-018 |
 | REQ-CORE-085 | T | `llm_session_store_tests.adb`, `llm_agent_tests.adb`, DEM-029 |
@@ -341,7 +325,7 @@ These are entered as open items in the problem log (PCR-009 and PCR-078).
 | REQ-CORE-089 | T | `coyote_app_tests.adb`, DEM-032 |
 
 | REQ-CORE-090â093 | T | `llm_skills_tests.adb` |
-| REQ-CORE-100â109 | T/D | `acme_event_parser_tests.adb`, `tool_uri_tests.adb`, DEM-013 |
+| REQ-CORE-100â109 | Historical | Retired Acme/plumber controls; see PCR-090 |
 | REQ-CORE-110â115 | T/D | `coyote_cmark_tests.adb`, `coyote_gui_conversation_tests.adb`, `coyote_app_frontend_gui_tests.adb`, DEM-014, DEM-036..037, DEM-049 |
 | REQ-CORE-111 | T/D | `coyote_cmark_tests.adb`, `coyote_gui_conversation_tests.adb`, `coyote_gui_conversation_stack_tests.adb`, DEM-014, DEM-046..047 |
 | REQ-CORE-113a..113c | D/T/I | `coyote_gui_conversation_tests.adb`, `coyote_help_tests.adb`, `coyote_gui_mode_tests.adb`, DEM-036..039, Mallard validation, source inspection |
@@ -359,7 +343,7 @@ These are entered as open items in the problem log (PCR-009 and PCR-078).
 | REQ-CORE-230 | T | `llm_settings_tests.adb` |
 | REQ-CORE-119 | D | DEM-033 |
 | REQ-CORE-120â121 | D | DEM-001 (plain output) |
-| REQ-CORE-130â131 | T/D | `session_history_tests.adb`, DEM-015 |
+| REQ-CORE-130â131 | T/D | `Coyote_App.History`, DEM-015 |
 | REQ-CORE-140â141 | D | DEM-016 |
 | REQ-CORE-142 | D | DEM-017 |
 | REQ-CORE-170â173 | T/D | `llm_system_prompt_tests.adb`, `llm_skills_tests.adb`, DEM-023..024, code inspection |
@@ -367,7 +351,7 @@ These are entered as open items in the problem log (PCR-009 and PCR-078).
 | REQ-CORE-190â192 | T/D | `llm_system_prompt_tests.adb`, DEM-027..028, code inspection |
 | REQ-CORE-200â203 | T/I | `llm_sse_tests.adb`, `llm_openai_completions_tests.adb`, `llm_anthropic_messages_tests.adb`, code inspection |
 | REQ-CORE-205â208, 215â217 | T/I | `llm_openai_responses_tests.adb`, `llm_agent_tests.adb`, `llm_session_store_tests.adb`, code inspection |
-| REQ-CORE-210â212 | T/I | `nine_p_proto_tests.adb`, `nine_p_mock_server_tests.adb`, code inspection |
+| REQ-CORE-210â212 | Historical | Retired 9P interface; see PCR-090 |
 | REQ-CORE-220â221 | I | Code inspection (GTK call sites) |
 | REQ-CORE-025, 230â234 | T | `llm_settings_tests.adb`, `subagent_integration_tests.adb`, `llm_auth_tests.adb`, DEM-034, DEM-045 |
 | REQ-CORE-240â241 | T | `llm_session_store_tests.adb`, `coyote_sqc_parser_tests.adb` |
@@ -556,7 +540,7 @@ and any failures are recorded here or in the Test Report.
 **PCR-044 qualification status:** The automated tests cover session-header
 profile reading, resume restoration, and profile restoration/clearing on agent
 session switching. DEM-029..032 remain manual qualification demonstrations
-for shell-command application, child-process propagation, and Acme/GUI state
+for shell-command application and child-process propagation in the GUI/plain architecture
 synchronization.
 
 **Baseline as of 2026-06-13 (Quantile Control Chart):** 683 tests, 0 failures,
@@ -690,7 +674,7 @@ documents updated.
 **Coverage gap PCR:** The gaps identified in Â§4.5 are logged in
 `plan/problems.md` as PCR-009. They are accepted as deferred for the current
 build with the rationale that the uncovered requirements are either low-risk
-(SIGTERM handling) or require live external services (Copilot, live acme).
+(SIGTERM handling) or require live external services (Copilot).
 **Baseline as of 2026-06-06:** 660 tests, 0 failures, 0 unexpected errors.  7 new test cases required by SRS-SQC Â§15.6 (Â§5.17 bootstrap CI, Â§10.3 two-set histogram) are pending implementation; they are not yet included in the suite.
 
 **Baseline as of 2026-06-14 (PCR-024 OpenAI Cache Parity):** 688 tests, 0 failures,
@@ -897,7 +881,13 @@ focused `Coyote.GUI.Conversation_Stack uses responsive tool flow` test passes
 1/1 with zero failed assertions and zero unexpected errors. Display-backed
 multi-column placement and resize reflow remain part of DEM-043 qualification.
 
-**Baseline after graceful shell timeout escalation (2026-08-30):** 943 registered
+**Baseline after Acme frontend removal (2026-08-30):** 798 registered
+tests. Removed the Acme frontend, Nine_P subsystem, `coyote_open`, and their
+unit/integration tests; migrated the test suite to the GUI/plain architecture.
+Production and test development builds succeed, and the complete suite passes
+798/798 with zero failed assertions and zero unexpected errors.
+
+**Historical baseline before PCR-090 (2026-08-30):** 943 registered
 tests. Added TERM-aware timeout-exit and TERM-ignoring timeout-escalation
 regressions. Production and test development builds succeed; the new focused
 tests and the complete suite pass with zero failed assertions and zero

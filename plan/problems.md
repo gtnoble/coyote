@@ -2961,3 +2961,39 @@ behavior, current test baseline, and remaining manual qualification scope.
   1/1 with zero failed assertions and zero unexpected errors. Display-backed
   multi-column placement and resize reflow remain pending under DEM-043.
 - **Status:** Implemented; qualification pending
+
+## PCR-090 — Remove Acme frontend and desktop integration
+
+- **Date reported:** 2026-08-30
+- **Category:** Requirements, Design, Code, Test, Manuals
+- **Priority:** 2-Serious
+- **Description:** The Acme UI frontend was removed from coyote. The change
+  also retires the private Nine_P 9P client/protocol stack, Acme event and
+  window packages, plumber control paths, and the standalone `coyote_open`
+  utility. The supported product now consists of GTK3 and Plain frontends.
+- **Root cause / rationale:** Acme-specific infrastructure represented a large
+  independent execution path and duplicated controls already provided by GTK.
+  The prior non-GUI runner also mounted Acme for the advertised Plain mode,
+  making one-shot and no-display execution depend on an unavailable desktop
+  service. The removal permits a real headless runner and a smaller two-path
+  architecture.
+- **Affected work products:** `src/coyote_app.adb`, frontend selection,
+  `Coyote_App.Dispatch`, `Coyote_App.History`, frontend contracts, utility
+  functions, Acme/Nine_P units, `coyote_open`, project mains, tests, README,
+  manual page, Help, SRS, SDD, SDFs, project/test plans, and operational
+  guidance.
+- **Actions taken:** Added `Coyote_App.Plain` and
+  `Coyote_App.Frontend.Plain`; routed selection to GUI or Plain; removed PID
+  and Acme-only dispatcher APIs; removed Acme/Nine_P source units and
+  `coyote_open`; changed `coyote_list_sessions` to ordinary tabular UUID
+  output; removed Acme/9P/tool-URI tests; preserved shared session/provider/
+  GUI coverage; corrected the generated build configuration to development.
+- **Compatibility disposition:** Existing JSONL sessions remain readable by
+  session-store and GUI replay. Acme windows, plumber tokens, `coyote_open`,
+  and Acme-specific CLI/environment behavior are no longer supported.
+- **Verification:** `alr build` and `cd test && alr run coyote_test` pass in
+  the development profile. The post-change suite contains 798 registered
+  tests and passes 798/798 with zero failed assertions and zero unexpected
+  errors.
+- **Status:** Implemented; display-backed GUI qualification remains subject to
+  the existing GUI demonstration procedures.

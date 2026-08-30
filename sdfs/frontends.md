@@ -1,10 +1,17 @@
 # Component Development Log — Frontends
 
+## Current baseline amendment (2026-08-30)
+
+The Acme frontend and Nine_P subsystem were removed from the supported
+product, along with Acme-only plumbing, `coyote_open`, and their tests. The
+current frontends are GTK and Plain. Historical rationale and PCR entries
+below are retained as historical records; they no longer describe active
+components.
+
 **Components:** `Coyote_App`, `Coyote_App.Dispatch`, `Coyote_App.History`,
-`Coyote_App.Utils`, `Coyote_App.Frontend`, `Coyote_App.Frontend.Acme_Win`,
-`Coyote_App.Frontend.GUI`, `Coyote_App.Frontend.Plain`,
-`Coyote_GUI.*`, `Coyote_GUI.Conversation`, `Coyote_Renderer.*`,
-`Coyote_Cmark`, `Acme.*`, `Nine_P.*`
+`Coyote_App.Utils`, `Coyote_App.Frontend`, `Coyote_App.Frontend.GUI`,
+`Coyote_App.Frontend.Plain`, `Coyote_GUI.*`, `Coyote_GUI.Conversation`,
+`Coyote_Renderer.*`, and `Coyote_Cmark`
 
 **Source files:** `src/coyote_app*.ads/.adb`, `src/coyote_gui/*`,
 `src/coyote_help.ads/.adb`, `share/help/C/coyote/*.page`,
@@ -12,9 +19,7 @@
 `share/icons/hicolor/scalable/apps/coyote.svg`,
 `src/coyote_cmark*.ads/.adb`, `src/coyote_cmark_c.c`,
 `src/coyote_lasem*.ads/.adb`, `src/coyote_lasem_c.c`,
-`src/coyote_renderer/*.ads/.adb`,
-`src/acme*.ads/.adb`, `src/nine_p*.ads/.adb`
-
+`src/coyote_renderer/*.ads/.adb`
 ---
 
 ## Design Rationale
@@ -127,7 +132,7 @@ calls the native `Coyote_Notify` libnotify binding only when the window is
 inactive. Notification-daemon absence or delivery failure does not affect the
 agent session.
 
-### Why three frontends share one `Dispatch_Event` function
+### Why GUI and Plain share one `Dispatch_Event` function
 
 ### GUI Preferences implementation (2026-08-06)
 
@@ -144,9 +149,9 @@ Automated coverage includes the typed queue round-trip, settings persistence,
 and agent sandbox-default precedence tests. Display-backed DEM-033 remains
 pending because no GTK display is available in this environment.
 
-`Coyote_App.Dispatch.Dispatch_Event` is the single function that maps
+`Coyote_App.Dispatch.Dispatch_Event` is the single current function that maps
 `LLM.Events.Agent_Event'Class` values to `Frontend'Class` primitives. All
-three execution paths (Acme, GUI, Plain) use the same dispatcher. The
+the current GUI and Plain execution paths use the same dispatcher. The
 alternative — per-frontend dispatch functions — would duplicate the event
 → action logic and make adding a new event type a multi-file change.
 The cost is that `Dispatch_Event` must use `App_State` for side effects
@@ -161,14 +166,14 @@ replace the placeholder footer in-place when `End_Tool` arrives.  A simpler
 "emit text" interface would require the GUI to buffer the tool-call content
 and insert it retrospectively, which is harder to implement.
 
-### 9P connection-per-task rule
+### Retired 9P connection-per-task rule (historical)
 
-Each task that accesses the acme 9P VFS creates its own `Nine_P.Client.Fs`
+Historical note: each former Acme task accessed the 9P VFS through its own `Nine_P.Client.Fs`
 connection (`Ns_Mount ("acme")` or `Ns_Mount ("plumb")`). The rule is enforced
 by the type system: `Fs` is `limited` and cannot be shared or copied. This
 avoids cross-task I/O interleaving, which would corrupt 9P message framing.
 
-### Acme addr→data write pair serialisation
+### Retired Acme addr→data write pair serialisation (historical)
 
 Writing text to an acme window body requires two sequential 9P writes:
 (1) write to `/N/addr` to set the insertion point, (2) write to `/N/data`
@@ -203,22 +208,20 @@ collapses them to flowing prose on flush.
 
 **Implementation:** `Coyote_App.Utils.Collapse_Thinking_Delta` (pure function)
 replaces single `\n`/`\r` with spaces, preserves `\n\n` as paragraph breaks,
-and trims leading/trailing whitespace. Both Acme and GUI frontends apply the
+and trims leading/trailing whitespace. The GUI and Plain frontends apply the
 same pattern: buffer during accumulation, collapse and emit once on `End_Thinking`.
 
 **Rationale:** Display layer owns rendering semantics. Providers remain
 wire-format-neutral. Buffering occurs in the frontend, not the provider or
-dispatch layer, keeping concerns isolated and allowing different frontends to
-apply different rendering strategies if needed (e.g., the plain frontend could
-preserve more whitespace for line-by-line thinking output).
+dispatch layer, keeping concerns isolated.
 
-**Test coverage:** `Test_Dispatch_Thinking_Delta` in `test/src/dispatch_tests.adb`
-emits both `Thinking_Delta` and `Thinking_End` events, verifying the collapsing
-and buffer-management semantics.
+**Test coverage:** The current frontend and application tests exercise thinking
+delta dispatch and buffer-management semantics. The former dedicated dispatch
+fixture was removed with PCR-090.
 
 ### PCR-044 session sandbox synchronization (2026-08-04)
 
-The Acme and GUI agent tasks keep sandbox state synchronized at the frontend
+The GUI agent task keeps sandbox state synchronized at the frontend boundary; the Plain runner applies the same rules synchronously.
 boundary. After agent creation, new-session creation, and session switching,
 they copy `LLM.Agent.Current_Sandbox` into the frontend-local state and
 `App_State`, then republish `COYOTE_SANDBOX_PROFILE` before bootstrap or the
@@ -234,7 +237,7 @@ manual qualification demonstrations DEM-031 and DEM-032.
 ### PCR-046 GUI status sandbox display (2026-08-06)
 
 The shared `Coyote_App.Dispatch.Format_Status` formatter now includes the
-active `App_State.Current_Sandbox` profile. The Acme and GUI local status-label
+active `App_State.Current_Sandbox` profile. The GUI local status-label
 helpers return only the lifecycle state, preventing duplicate profile suffixes
 when explicit menu updates refresh the status. Added formatter and dispatch
 regressions; the complete AUnit suite passes with 825 tests.
@@ -292,13 +295,12 @@ user acceptance of DEM-046 confirmed the native Markdown content and
 interaction behavior on 2026-08-28. User acceptance of DEM-047 confirmed
 live/replay native Markdown parity on 2026-08-28. Native display MathML and
 large-history qualification remain open under DEM-048 and DEM-044. The
-legacy GtkLayout renderer, Acme, and Plain frontends retain their existing
-semantics.
+legacy GtkLayout renderer and Plain frontend retain their existing semantics.
 
 Renderer parity for this increment is defined by supported content and
 interaction, not pixel-identical layout:
 
-| Capability | GtkLayout | Native stack | Acme/Plain | SQC replay |
+| Capability | GtkLayout | Native stack | Plain | SQC replay |
 |---|---|---|---|---|
 | GFM Markdown response content | Implemented | Implemented | Plain text | Implemented |
 | Markdown toggle | Implemented | Implemented | N/A | N/A |
@@ -363,7 +365,7 @@ each other with no vertical rhythm.  The following changes were applied to
 create visual separation between distinct content regions:
 
 **Turn separators:** `Append_Turn_Footer` had been a no-op in the GUI
-frontend (the Acme frontend rendered a turn footer with fork tokens, which
+frontend (the retired Acme frontend rendered a turn footer with fork tokens, which
 are not meaningful in a GTK window).  It now inserts a dim horizontal rule
 (60 × `UC_HORIZ` in the `footer` tag, grey `#888888`) with blank lines
 above and below, giving each turn a clear visual boundary.
@@ -534,7 +536,7 @@ let the user explicitly control the behaviour.
   replayed tool cards carry model, source directory, session timestamp,
   turn/call position, result media type, and cancelled-on-missing-result
   semantics.  The abstract frontend uses defaulted metadata parameters so
-  Acme and plain output remain unchanged.  Focused and full automated tests
+  Plain output remains line-oriented. Focused and full automated tests
   pass; display-backed visual, keyboard, theme, and image qualification remain
   manual DEM-041.
 - `Coyote_Lasem`: covered by five AUnit tests for MathML fraction and matrix
@@ -546,15 +548,13 @@ let the user explicitly control the behaviour.
 - `Coyote_Help`: covered by display-independent AUnit tests for root/topic URI
   construction, contextual-area mapping, and Yelp executable detection.
   Mallard syntax and cross-page links are checked with `yelp-check`.
-- `Acme.*` / `Nine_P.*`: covered by integration tests in
-  `test/src/acme_integration_tests.adb` and `nine_p_integration_tests.adb`
-  (require a live acme instance; opt-in).
+- Acme/Nine_P integration tests were removed with PCR-090; no active coverage remains.
 
 ---
 
 ## Open Questions / Future Work
 
-### PCR-021 — Acme session-loading frontend selection (2026-06-07)
+### Historical PCR-021 — Acme session-loading frontend selection (2026-06-07)
 
 **Problem:**  Button-3 on a `coyote-session+UUID` token in the acme Sessions
 window spawned `coyote --session UUID` via the plumber, which inherited
@@ -773,7 +773,7 @@ non-selectable summary label, and a right-aligned action row with a stable
 registered GUI fork handler; normal completion does not add a duplicate
 standalone status widget. The typed summary travels separately from the
 formatted text through the GUI update queue, so native rendering does not parse
-frontend display text. Acme/plain output and the legacy Cairo renderer are
+frontend display text. Plain output and the legacy Cairo renderer are
 unchanged. Required qualification still covers 100, 500, and 2,000 exchanges;
 streaming first-token latency; widget count and memory; resize and zoom;
 auto-scroll; local selection and PRIMARY; tool-card activation;
@@ -839,7 +839,7 @@ prices in dB from their true $/tok values (`10 × log10 (p / 1,000,000)` for
 stored $/MTok `p`) when selected, and updates the column headers accordingly.
 Zero-valued cells display `free`; negative values are blank. Raw prices remain
 the sort keys because the logarithm is monotonic for positive values. SI
-prefixes remain the default and the Acme model list is unchanged.
+prefixes remain the default.
 
 ### GUI application shutdown correction (2026-08-30, PCR-088)
 

@@ -3,7 +3,6 @@ with Coyote_Cmark_Tests;
 with Coyote_Lasem_Tests;
 with Collapse_Utils_Tests;
 with Coyote_Utils_Tests;
-with Dispatch_Tests;
 with LLM_Compaction_Tests;
 with Coyote_SQC_Statistics_Tests;
 with Coyote_SQC_Parser_Tests;

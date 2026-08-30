@@ -3,13 +3,9 @@
 --  Project: coyote
 --  For revision history, see the project version-control log.
 
-with Ada.Exceptions;
-with Acme.Window;
 with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
-with Ada.Text_IO;
 with GNATCOLL.JSON;
 with LLM.Types;
-with Nine_P.Client;          use Nine_P.Client;
 with Coyote_App.Frontend;
 with Coyote_App.Utils;       use Coyote_App.Utils;
 
@@ -87,8 +83,7 @@ package body Coyote_App.Dispatch is
    --  Append a live turn footer and advance the turn counter.
    procedure Append_Live_Turn_Footer
      (Frontend : in out Coyote_App.Frontend.Instance'Class;
-      State    : in out App_State;
-      PID      : String)
+      State    : in out App_State)
    is
       Input_Tokens      : constant Natural := State.Turn_Input_Tokens;
       Output_Tokens     : constant Natural := State.Turn_Output_Tokens;
@@ -119,8 +114,7 @@ package body Coyote_App.Dispatch is
             Stop_Reason_Text => Stop_Reason_Text),
          Summary => Footer_Summary);
       Frontend.Append_Fork_Action
-        (PID    => PID,
-         UUID   => State.Session_Id,
+        (UUID   => State.Session_Id,
          Turn_N => State.Turn_Count,
          Step_N => 0);
    end Append_Live_Turn_Footer;
@@ -129,8 +123,7 @@ package body Coyote_App.Dispatch is
    --  (stop = toolUse) within a turn.  Does not increment Turn_Count.
    procedure Append_Step_Footer
      (Frontend : in out Coyote_App.Frontend.Instance'Class;
-      State    : in out App_State;
-      PID      : String)
+      State    : in out App_State)
    is
       Input_Tokens      : constant Natural := State.Turn_Input_Tokens;
       Output_Tokens     : constant Natural := State.Turn_Output_Tokens;
@@ -160,59 +153,16 @@ package body Coyote_App.Dispatch is
          Kind    => Coyote_App.Frontend.Step_Footer,
          Summary => Footer_Summary);
       Frontend.Append_Fork_Action
-        (PID    => PID,
-         UUID   => State.Session_Id,
+        (UUID   => State.Session_Id,
          Turn_N => State.Turn_Count + 1,
          Step_N => State.Turn_Step);
    end Append_Step_Footer;
-
-   --  ── Open_Sub_Window ───────────────────────────────────────────────────
-
-   procedure Open_Sub_Window
-     (FS      : not null access Nine_P.Client.Fs;
-      Parent  : String;
-      Sub     : String;
-      Content : String)
-   is
-      W : Acme.Window.Win := Acme.Window.New_Win (FS);
-   begin
-      Acme.Window.Set_Name (W, FS, Parent & "/" & Sub);
-      if Content'Length > 0 then
-         Acme.Window.Append (W, FS, Content);
-      end if;
-      Acme.Window.Ctl (W, FS, "clean");
-   exception
-      when Ex : others =>
-         Ada.Text_IO.Put_Line
-           (Ada.Text_IO.Standard_Error,
-            "Open_Sub_Window failed: "
-            & Ada.Exceptions.Exception_Information (Ex));
-   end Open_Sub_Window;
-
-   procedure Update_Tag
-     (Win    : in out Acme.Window.Win;
-      FS     : not null access Nine_P.Client.Fs;
-      Mode   : Tag_Mode;
-      Suffix : String)
-   is
-      Text : constant String :=
-        (case Mode is
-         when Idle_Tag    => " | Send Steer New Compact Clear Continue",
-         when Running_Tag => " | Stop Steer Pause",
-         when Armed_Tag   => " | Stop Steer Pausing",
-         when Paused_Tag  => " | Stop Steer Send Resume")
-        & Suffix;
-   begin
-      Acme.Window.Ctl (Win, FS, "cleartag");
-      Acme.Window.Append_Tag (Win, FS, Text);
-   end Update_Tag;
 
    procedure Dispatch_Event
      (Event    : LLM.Events.Agent_Event'Class;
       Frontend : in out Coyote_App.Frontend.Instance'Class;
       State    : in out App_State;
-      Section  : in out Section_Kind;
-      PID      : String)
+      Section  : in out Section_Kind)
    is
    begin
 
@@ -392,8 +342,7 @@ package body Coyote_App.Dispatch is
                State.Increment_Turn_Step;
                Append_Step_Footer
                  (Frontend => Frontend,
-                  State    => State,
-                  PID      => PID);
+                  State    => State);
             end if;
 
             Frontend.Set_Status (Format_Status (State, "running"));
@@ -591,8 +540,7 @@ package body Coyote_App.Dispatch is
             State.Set_Pending_Stats (False);
             Append_Live_Turn_Footer
               (Frontend => Frontend,
-               State    => State,
-               PID      => PID);
+               State    => State);
             Frontend.Complete_Request
               (Coyote_App.Frontend.Completed);
          end if;

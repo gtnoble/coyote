@@ -69,8 +69,7 @@ package body Coyote_App.History is
    procedure Render_Session_History
      (UUID     : String;
       Frontend : in out Coyote_App.Frontend.Instance'Class;
-      State    : in out App_State;
-      PID      : String := "")
+      State    : in out App_State)
    is
       Path         : constant String :=
         Find_Session_File (UUID);
@@ -349,8 +348,7 @@ package body Coyote_App.History is
                                   Model_Text        => To_String (Cur_Model),
                                   Stop_Reason_Text  => To_String (Turn_Stop)));
                               Frontend.Append_Fork_Action
-                                (PID    => PID,
-                                 UUID   => UUID,
+                                (UUID   => UUID,
                                  Turn_N => Turns_Rendered,
                                  Step_N => 0);
                            end if;
@@ -557,8 +555,7 @@ package body Coyote_App.History is
                                     Model_Text       => To_String (Cur_Model),
                                     Stop_Reason_Text => To_String (Turn_Stop)));
                               Frontend.Append_Fork_Action
-                                (PID    => PID,
-                                 UUID   => UUID,
+                                (UUID   => UUID,
                                  Turn_N => Turns_Rendered + 1,
                                  Step_N => Turn_Step);
                            end if;
@@ -606,8 +603,7 @@ package body Coyote_App.History is
                Model_Text       => To_String (Cur_Model),
                Stop_Reason_Text => To_String (Turn_Stop)));
          Frontend.Append_Fork_Action
-           (PID    => PID,
-            UUID   => UUID,
+           (UUID   => UUID,
             Turn_N => Turns_Rendered,
             Step_N => 0);
          Frontend.Complete_Request

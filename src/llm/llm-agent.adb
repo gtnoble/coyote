@@ -86,7 +86,6 @@ package body LLM.Agent is
       Done_Count : Natural := 0;
    end Results_Store;
    --  Executes one tool call and stores the result in a Results_Store.
-   --  Workers never call On_Event or touch any Nine_P.Client.Fs.
    task type Worker_Task
      (Store           : not null access Results_Store;
       Abort_Flg       : access LLM.Tools.Abort_Flag;

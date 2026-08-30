@@ -1,43 +1,23 @@
---  Coyote_App.Frontend.Acme — concrete acme window frontend.
+--  Coyote_App.Frontend.Plain — line-oriented headless frontend.
 --
---  Implements Coyote_App.Frontend.Instance by routing all rendering calls to
---  the shared Acme.Window.Win object supplied at creation time.  Each
---  Instance maintains its own Nine_P.Client.Fs connection to the acme
---  namespace so it can be called from any task without sharing Fs state
---  with other tasks.
+--  The Plain frontend writes conversation output to standard output during
+--  interactive execution.  One-shot execution sends presentation output to
+--  standard error so that the final JSON result remains the only standard
+--  output record.
 --
 --  Project: coyote
---  For revision history, see the project version-control log.
 
-with Ada.Strings.Unbounded;
-with Acme.Window;
-with Coyote_App.Utils;
-with Nine_P.Client;
+with Coyote_App.Frontend;
 
-package Coyote_App.Frontend.Acme_Win is
-
-   --  ── Instance ──────────────────────────────────────────────────────────
+package Coyote_App.Frontend.Plain is
 
    type Instance is new Coyote_App.Frontend.Instance with private;
 
-   --  Initialise F to render into Win_Ptr.  Opens a private Nine_P
-   --  connection to the acme namespace.
+   --  Initialise the output mode.  When One_Shot is true, presentation
+   --  output is written to standard error rather than standard output.
    procedure Create
-     (F       :    out Instance;
-      Win_Ptr : not null access Acme.Window.Win);
-
-   --  Store the tag suffix appended after the dynamic button group.
-   --  Must be called before the first Set_Mode; defaults to "".
-   procedure Set_Tag_Suffix
-     (F      : in out Instance;
-      Suffix : in     String);
-
-   --  Return the underlying Win pointer so callers can pass it to other
-   --  operations that still need the raw Win object.
-   function Win_Access
-     (F : Instance) return not null access Acme.Window.Win;
-
-   --  ── Frontend primitives ───────────────────────────────────────────────
+     (F        : in out Instance;
+      One_Shot : in Boolean := False);
 
    overriding
    procedure Set_Status
@@ -81,12 +61,13 @@ package Coyote_App.Frontend.Acme_Win is
       Name            : in     String;
       Args_Json       : in     String;
       Session_Id      : in     String;
-      Tool_Id          : in     String;
+      Tool_Id         : in     String;
       Model           : in     String := "";
       Source_Directory : in     String := "";
       Session_Start   : in     String := "";
       Turn_Index      : in     Positive := 1;
       Call_In_Turn    : in     Positive := 1);
+
    overriding
    procedure End_Tool
      (F           : in out Instance;
@@ -94,6 +75,7 @@ package Coyote_App.Frontend.Acme_Win is
       Status      : in     Coyote_App.Frontend.Tool_End_Status;
       Result_Text : in     String := "";
       Media_Type  : in     String := "");
+
    overriding
    procedure Append_Turn_Footer
      (F       : in out Instance;
@@ -103,9 +85,13 @@ package Coyote_App.Frontend.Acme_Win is
       Summary : in     String := "");
 
    overriding
+   procedure Complete_Request
+     (F      : in out Instance;
+      Status : in     Coyote_App.Frontend.Completion_Status);
+
+   overriding
    procedure Append_Fork_Action
      (F       : in out Instance;
-      PID     : in     String;
       UUID    : in     String;
       Turn_N  : in     Positive;
       Step_N  : in     Natural := 0);
@@ -123,8 +109,7 @@ package Coyote_App.Frontend.Acme_Win is
       Content : in     String);
 
    overriding
-   function Read_Prompt
-     (F : in out Instance) return String;
+   function Read_Prompt (F : in out Instance) return String;
 
    overriding
    procedure Shutdown (F : in out Instance);
@@ -132,12 +117,9 @@ package Coyote_App.Frontend.Acme_Win is
 private
 
    type Instance is new Coyote_App.Frontend.Instance with record
-      Win_Ptr    : access Acme.Window.Win := null;
-      In_Thinking          : Boolean := False;
-      Prefix_Emitted       : Boolean := False;
-      Thinking_Tok : Coyote_App.Utils.Thinking_Tokenizer.Instance;
-      My_FS      : aliased Nine_P.Client.Fs;
-      Tag_Suffix : Ada.Strings.Unbounded.Unbounded_String;
+      To_Standard_Error : Boolean := False;
+      Thinking_Started  : Boolean := False;
+      Text_Started      : Boolean := False;
    end record;
 
-end Coyote_App.Frontend.Acme_Win;
+end Coyote_App.Frontend.Plain;

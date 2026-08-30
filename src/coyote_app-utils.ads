@@ -1,16 +1,14 @@
 --  Coyote_App.Utils — pure utility functions shared by Coyote_App.
 --
 --  All subprograms in this package take only plain parameters and have no
---  dependency on App_State or Acme.Window.  They may be tested in
---  isolation without a live acme session.
+--  dependency on App_State or a live frontend.  They may be tested
+--  in isolation.
 --
 --  Project: coyote
 --  For revision history, see the project version-control log.
 
 with Ada.Strings.Unbounded;
-with Session_Lister;
 with GNATCOLL.JSON;
-with Nine_P;
 
 package Coyote_App.Utils is
 
@@ -168,34 +166,6 @@ package Coyote_App.Utils is
    --  or "" if Text has fewer than N tokens.  Whitespace is space or HT.
    function Nth_Field (Text : String; N : Positive) return String;
 
-   --  Parse a coyote-fork+PID/UUID/N[/S] token received from the
-   --  coyote-fork plumb port.
-   --
-   --  Data       : the data field of the plumb message (already extracted).
-   --  Pid_Prefix : the expected prefix string,
-   --               e.g. "coyote-fork+" & My_PID & "/".
-   --
-   --  On success (token begins with Pid_Prefix and has the form
-   --  "coyote-fork+PID/UUID/N" or "coyote-fork+PID/UUID/N/S") sets UUID,
-   --  Turn_N, and Step_N (default 0 when /S is absent) and returns True.
-   --  On any mismatch or malformed input returns False and leaves
-   --  UUID / Turn_N / Step_N unchanged.
-   function Parse_Fork_Token
-     (Data       : String;
-      Pid_Prefix : String;
-      UUID       : out Ada.Strings.Unbounded.Unbounded_String;
-      Turn_N     : out Positive;
-      Step_N     : out Natural) return Boolean;
-
-   --  Return the first 16 hex characters of the SHA-256 digest of Tool_Id,
-   --  matching the token computed by the Python reference implementation:
-   --    hashlib.sha256(tool_id.encode()).hexdigest()[:16]
-   function Hash_Tool_Id (Tool_Id : String) return String;
-
-   --  Extract the data payload from a raw plumb message byte array.
-   --  A plumb message is 7 newline-separated fields; the last field is
-   --  the data payload.  Returns "" if the message is malformed.
-   function Extract_Plumb_Data (Raw : Nine_P.Byte_Array) return String;
 
    --  Run the raw prompt text through a shell filter command and return
    --  the filtered result.
@@ -356,7 +326,7 @@ package Coyote_App.Utils is
    function JSON_Scalar_Image
      (Val : GNATCOLL.JSON.JSON_Value) return String;
 
-   --  Format a single tool-argument field for display in the acme window.
+   --  Format a single tool-argument field for display.
    --
    --  The first line of the result is "│ Name: <first line of Value>".
    --  Each subsequent line (delimited by ASCII.LF in Value) is prefixed
@@ -367,7 +337,7 @@ package Coyote_App.Utils is
    --  bytes and appending "…") when Value'Length > Max_Len.
    --
    --  The returned string contains no leading LF; the caller should
-   --  prepend ASCII.LF before appending to the acme window body.
+   --  prepend ASCII.LF before appending to the conversation.
    function Format_Tool_Field
      (Name    : String;
       Value   : String;
@@ -388,8 +358,6 @@ package Coyote_App.Utils is
    --
    --  The introductory comment line and trailing newline are included in the
    --  returned string.  Returns just the comment line when Sessions is empty.
-   function Format_Session_List
-     (Sessions : Session_Lister.Session_Vectors.Vector) return String;
 
    --  True when Query is empty or whitespace, or occurs as a
    --  case-insensitive substring of Provider, Name, or Spec.

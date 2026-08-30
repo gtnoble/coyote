@@ -1,13 +1,4 @@
 with AUnit.Test_Caller;
-with Nine_P_Proto_Tests;
-with Nine_P_Client_Tests;
-with Nine_P_Mock_Server_Tests;
-with Nine_P_Integration_Tests;
-with Acme_Event_Parser_Tests;
-with Acme_Raw_Events_Tests;
-with Acme_Window_Tests;
-with Acme_Integration_Tests;
-with Dispatch_Tests;
 with Session_Lister_Tests;
 with Coyote_App_Tests;
 with Collapse_Utils_Tests;
@@ -27,8 +18,6 @@ with Coyote_GUI_Mode_Tests;
 with Coyote_GUI_Session_Stats_Window_Tests;
 with Coyote_App_Frontend_GUI_Tests;
 with Coyote_Process_Control_Tests;
-with Session_History_Tests;
-with Tool_URI_Tests;
 with Subagent_Integration_Tests;
 with LLM_System_Prompt_Tests;
 with LLM_Context_Tests;
@@ -64,32 +53,10 @@ with Sandbox_Tests;
 
 package body Test_Suites is
 
-   package Proto_Caller is
-     new AUnit.Test_Caller (Nine_P_Proto_Tests.Test);
-   package Client_Caller is
-     new AUnit.Test_Caller (Nine_P_Client_Tests.Test);
-   package Mock_Caller is
-     new AUnit.Test_Caller (Nine_P_Mock_Server_Tests.Test);
-   package Nine_P_Int_Caller is
-     new AUnit.Test_Caller (Nine_P_Integration_Tests.Test);
-   package Event_Parser_Caller is
-     new AUnit.Test_Caller (Acme_Event_Parser_Tests.Test);
-   package Raw_Events_Caller is
-     new AUnit.Test_Caller (Acme_Raw_Events_Tests.Test);
-   package Window_Caller is
-     new AUnit.Test_Caller (Acme_Window_Tests.Test);
-   package Acme_Int_Caller is
-     new AUnit.Test_Caller (Acme_Integration_Tests.Test);
-   package Dispatch_Caller is
-     new AUnit.Test_Caller (Dispatch_Tests.Test);
    package Session_Lister_Caller is
      new AUnit.Test_Caller (Session_Lister_Tests.Test);
    package App_State_Caller is
      new AUnit.Test_Caller (Coyote_App_Tests.Test);
-   package Session_History_Caller is
-     new AUnit.Test_Caller (Session_History_Tests.Test);
-   package Tool_URI_Caller is
-     new AUnit.Test_Caller (Tool_URI_Tests.Test);
    package Subagent_Int_Caller is
      new AUnit.Test_Caller (Subagent_Integration_Tests.Test);
    package LLM_Sys_Prompt_Caller is
@@ -195,345 +162,6 @@ package body Test_Suites is
       Result : constant AUnit.Test_Suites.Access_Test_Suite :=
         AUnit.Test_Suites.New_Suite;
    begin
-      --  Nine_P.Proto tests
-      Result.Add_Test (Proto_Caller.Create
-        ("Pack/Unpack Qid round-trip",
-         Nine_P_Proto_Tests.Test_Qid_Round_Trip'Access));
-      Result.Add_Test (Proto_Caller.Create
-        ("Pack/Unpack Stat round-trip",
-         Nine_P_Proto_Tests.Test_Stat_Round_Trip'Access));
-      Result.Add_Test (Proto_Caller.Create
-        ("Pack/Unpack Tversion",
-         Nine_P_Proto_Tests.Test_Tversion_Round_Trip'Access));
-      Result.Add_Test (Proto_Caller.Create
-        ("Pack/Unpack Rversion",
-         Nine_P_Proto_Tests.Test_Rversion_Round_Trip'Access));
-      Result.Add_Test (Proto_Caller.Create
-        ("Pack/Unpack Tattach",
-         Nine_P_Proto_Tests.Test_Tattach_Round_Trip'Access));
-      Result.Add_Test (Proto_Caller.Create
-        ("Pack/Unpack Rattach",
-         Nine_P_Proto_Tests.Test_Rattach_Round_Trip'Access));
-      Result.Add_Test (Proto_Caller.Create
-        ("Pack/Unpack Rerror",
-         Nine_P_Proto_Tests.Test_Rerror_Round_Trip'Access));
-      Result.Add_Test (Proto_Caller.Create
-        ("Pack/Unpack Twalk",
-         Nine_P_Proto_Tests.Test_Twalk_Round_Trip'Access));
-      Result.Add_Test (Proto_Caller.Create
-        ("Pack/Unpack Rwalk",
-         Nine_P_Proto_Tests.Test_Rwalk_Round_Trip'Access));
-      Result.Add_Test (Proto_Caller.Create
-        ("Pack/Unpack Topen",
-         Nine_P_Proto_Tests.Test_Topen_Round_Trip'Access));
-      Result.Add_Test (Proto_Caller.Create
-        ("Pack/Unpack Ropen",
-         Nine_P_Proto_Tests.Test_Ropen_Round_Trip'Access));
-      Result.Add_Test (Proto_Caller.Create
-        ("Pack/Unpack Tread",
-         Nine_P_Proto_Tests.Test_Tread_Round_Trip'Access));
-      Result.Add_Test (Proto_Caller.Create
-        ("Pack/Unpack Rread",
-         Nine_P_Proto_Tests.Test_Rread_Round_Trip'Access));
-      Result.Add_Test (Proto_Caller.Create
-        ("Pack/Unpack Twrite",
-         Nine_P_Proto_Tests.Test_Twrite_Round_Trip'Access));
-      Result.Add_Test (Proto_Caller.Create
-        ("Pack/Unpack Twrite with empty data (count=0)",
-         Nine_P_Proto_Tests.Test_Twrite_Empty_Data'Access));
-      Result.Add_Test (Proto_Caller.Create
-        ("Pack/Unpack Rwrite",
-         Nine_P_Proto_Tests.Test_Rwrite_Round_Trip'Access));
-      Result.Add_Test (Proto_Caller.Create
-        ("Pack/Unpack Tclunk",
-         Nine_P_Proto_Tests.Test_Tclunk_Round_Trip'Access));
-      Result.Add_Test (Proto_Caller.Create
-        ("Pack/Unpack Tstat/Rstat",
-         Nine_P_Proto_Tests.Test_Stat_Message_Round_Trip'Access));
-      Result.Add_Test (Proto_Caller.Create
-        ("Message size field is correct",
-         Nine_P_Proto_Tests.Test_Message_Size'Access));
-      Result.Add_Test (Proto_Caller.Create
-        ("Little-endian byte order",
-         Nine_P_Proto_Tests.Test_Little_Endian'Access));
-      Result.Add_Test (Proto_Caller.Create
-        ("UTF-8 string encoding",
-         Nine_P_Proto_Tests.Test_String_Encoding'Access));
-
-      --  Nine_P.Client tests
-      Result.Add_Test (Client_Caller.Create
-        ("Namespace uses $NAMESPACE env var",
-         Nine_P_Client_Tests.Test_Namespace_Uses_Env'Access));
-      Result.Add_Test (Client_Caller.Create
-        ("Namespace fallback to /tmp/ns.<user>.<display>",
-         Nine_P_Client_Tests.Test_Namespace_Fallback'Access));
-      Result.Add_Test (Client_Caller.Create
-        ("Connect mutates an existing Fs in place",
-         Nine_P_Client_Tests.Test_Connect'Access));
-      Result.Add_Test (Client_Caller.Create
-        ("Open procedure mutates an existing File in place",
-         Nine_P_Client_Tests.Test_Open_Procedure'Access));
-      Result.Add_Test (Client_Caller.Create
-        ("Connect closes old socket and reconnects cleanly",
-         Nine_P_Client_Tests.Test_Connect_Reconnect'Access));
-      Result.Add_Test (Client_Caller.Create
-        ("Connect raises when service is absent from namespace",
-         Nine_P_Client_Tests.Test_Connect_Failure'Access));
-      Result.Add_Test (Client_Caller.Create
-        ("Read_Message / Write_Message round-trip",
-         Nine_P_Client_Tests.Test_Read_Write_Message'Access));
-      Result.Add_Test (Client_Caller.Create
-        ("Read_Message respects size framing",
-         Nine_P_Client_Tests.Test_Read_Message_Framing'Access));
-      Result.Add_Test (Client_Caller.Create
-        ("Connect_With_Retry succeeds on first attempt",
-         Nine_P_Client_Tests
-           .Test_Connect_With_Retry_Happy_Path'Access));
-      Result.Add_Test (Client_Caller.Create
-        ("Connect_With_Retry succeeds on second attempt after one failure",
-         Nine_P_Client_Tests
-           .Test_Connect_With_Retry_Succeeds_On_Second_Attempt'Access));
-      Result.Add_Test (Client_Caller.Create
-        ("Connect_With_Retry raises after all retries exhausted",
-         Nine_P_Client_Tests
-           .Test_Connect_With_Retry_Exhausted'Access));
-
-      --  Nine_P.Client protocol tests via TCP mock server
-      Result.Add_Test (Mock_Caller.Create
-        ("Nine_P.Client Read_Once issues a single Tread",
-         Nine_P_Mock_Server_Tests
-           .Test_Read_Once_Returns_Single_Tread'Access));
-      Result.Add_Test (Mock_Caller.Create
-        ("Nine_P.Client Read aggregates Rread chunks until EOF",
-         Nine_P_Mock_Server_Tests
-           .Test_Read_Aggregates_Chunks_Until_EOF'Access));
-      Result.Add_Test (Mock_Caller.Create
-        ("Nine_P.Client Write splits payloads by IOunit",
-         Nine_P_Mock_Server_Tests.Test_Write_Splits_By_IOunit'Access));
-      Result.Add_Test (Mock_Caller.Create
-        ("Nine_P.Client Twalk Rerror raises P9_Error",
-         Nine_P_Mock_Server_Tests
-           .Test_Walk_Failure_Raises_P9_Error'Access));
-      Result.Add_Test (Mock_Caller.Create
-        ("Nine_P.Client Tread Rerror raises P9_Error",
-         Nine_P_Mock_Server_Tests
-           .Test_Rerror_On_Read_Raises_P9_Error'Access));
-      Result.Add_Test (Mock_Caller.Create
-        ("Nine_P.Client unsupported Rversion raises P9_Error",
-         Nine_P_Mock_Server_Tests
-           .Test_Rversion_Failure_Raises_P9_Error'Access));
-      Result.Add_Test (Mock_Caller.Create
-        ("Nine_P.Client finalization sends Tclunk",
-         Nine_P_Mock_Server_Tests.Test_Finalize_Sends_Tclunk'Access));
-
-      --  Nine_P integration tests (skipped if acme not running)
-      Result.Add_Test (Nine_P_Int_Caller.Create
-        ("[integration] Ns_Mount acme",
-         Nine_P_Integration_Tests.Test_Ns_Mount_Acme'Access));
-      Result.Add_Test (Nine_P_Int_Caller.Create
-        ("[integration] Read /index matches 9p",
-         Nine_P_Integration_Tests.Test_Read_Acme_Index'Access));
-      Result.Add_Test (Nine_P_Int_Caller.Create
-        ("[integration] Open /new/ctl returns window ID",
-         Nine_P_Integration_Tests.Test_Open_New_Ctl'Access));
-      Result.Add_Test (Nine_P_Int_Caller.Create
-        ("[integration] Client write visible via 9p",
-         Nine_P_Integration_Tests.Test_Client_Matches_9p'Access));
-
-      --  Acme.Event_Parser tests
-      Result.Add_Test (Event_Parser_Caller.Create
-        ("Unquoted rc token",
-         Acme_Event_Parser_Tests.Test_Unquoted_Token'Access));
-      Result.Add_Test (Event_Parser_Caller.Create
-        ("Quoted rc token with spaces",
-         Acme_Event_Parser_Tests.Test_Quoted_Token'Access));
-      Result.Add_Test (Event_Parser_Caller.Create
-        ("Escaped single quote in rc token",
-         Acme_Event_Parser_Tests.Test_Escaped_Quote'Access));
-      Result.Add_Test (Event_Parser_Caller.Create
-        ("Parse button-2 execute event",
-         Acme_Event_Parser_Tests.Test_Parse_Execute'Access));
-      Result.Add_Test (Event_Parser_Caller.Create
-        ("Parse button-3 look event",
-         Acme_Event_Parser_Tests.Test_Parse_Look'Access));
-      Result.Add_Test (Event_Parser_Caller.Create
-        ("Parse event with quoted text",
-         Acme_Event_Parser_Tests.Test_Parse_Quoted_Text'Access));
-      Result.Add_Test (Event_Parser_Caller.Create
-        ("Invalid lines return False",
-         Acme_Event_Parser_Tests.Test_Parse_Invalid'Access));
-      Result.Add_Test (Event_Parser_Caller.Create
-        ("Empty/whitespace lines return False",
-         Acme_Event_Parser_Tests.Test_Parse_Empty'Access));
-
-      --  Acme.Raw_Events tests
-      Result.Add_Test (Raw_Events_Caller.Create
-        ("Simple execute event",
-         Acme_Raw_Events_Tests.Test_Simple_Execute'Access));
-      Result.Add_Test (Raw_Events_Caller.Create
-        ("Simple look event",
-         Acme_Raw_Events_Tests.Test_Simple_Look'Access));
-      Result.Add_Test (Raw_Events_Caller.Create
-        ("Keyboard insert event",
-         Acme_Raw_Events_Tests.Test_Keyboard_Insert'Access));
-      Result.Add_Test (Raw_Events_Caller.Create
-        ("Multi-digit positions",
-         Acme_Raw_Events_Tests.Test_Multi_Digit_Pos'Access));
-      Result.Add_Test (Raw_Events_Caller.Create
-        ("Flag 2 expansion event",
-         Acme_Raw_Events_Tests.Test_Flag2_Expansion'Access));
-      Result.Add_Test (Raw_Events_Caller.Create
-        ("Flag 8 chorded arg/origin",
-         Acme_Raw_Events_Tests.Test_Flag8_Chorded'Access));
-      Result.Add_Test (Raw_Events_Caller.Create
-        ("Incremental feed",
-         Acme_Raw_Events_Tests.Test_Incremental_Feed'Access));
-      Result.Add_Test (Raw_Events_Caller.Create
-        ("Two events in one feed",
-         Acme_Raw_Events_Tests.Test_Two_Events_One_Feed'Access));
-      Result.Add_Test (Raw_Events_Caller.Create
-        ("Incomplete buffer returns False",
-         Acme_Raw_Events_Tests.Test_Incomplete_Returns_False'Access));
-
-      --  Acme.Window pure tests (no live acme)
-      Result.Add_Test (Window_Caller.Create
-        ("Win_File_Path generates correct paths",
-         Acme_Window_Tests.Test_Win_File_Path'Access));
-      Result.Add_Test (Window_Caller.Create
-        ("Event_Path generates correct path",
-         Acme_Window_Tests.Test_Event_Path'Access));
-      Result.Add_Test (Window_Caller.Create
-        ("Win_File_Path id=1 has no leading space",
-         Acme_Window_Tests.Test_Win_File_Path_Id1'Access));
-
-      --  Acme.Window integration tests (skipped if acme not running)
-      Result.Add_Test (Acme_Int_Caller.Create
-        ("[integration] New_Win has valid ID",
-         Acme_Integration_Tests.Test_New_Win_Has_Valid_Id'Access));
-      Result.Add_Test (Acme_Int_Caller.Create
-        ("[integration] Append visible via 9p",
-         Acme_Integration_Tests.Test_Append_Visible_Via_9p'Access));
-      Result.Add_Test (Acme_Int_Caller.Create
-        ("[integration] Append_Tag visible via 9p",
-         Acme_Integration_Tests.Test_Append_Tag_Visible_Via_9p'Access));
-      Result.Add_Test (Acme_Int_Caller.Create
-        ("[integration] Set_Name reflected in ctl",
-         Acme_Integration_Tests.Test_Set_Name'Access));
-      Result.Add_Test (Acme_Int_Caller.Create
-        ("[integration] Replace_Line1 rewrites only the first line",
-         Acme_Integration_Tests
-           .Test_Replace_Line1_Only_Rewrites_First_Line'Access));
-      Result.Add_Test (Acme_Int_Caller.Create
-        ("[integration] Delete removes window from /index",
-         Acme_Integration_Tests
-           .Test_Delete_Removes_Window_From_Index'Access));
-      Result.Add_Test (Acme_Int_Caller.Create
-        ("[integration] Read_Body returns the full body",
-         Acme_Integration_Tests
-           .Test_Read_Body_Returns_Full_Content'Access));
-      Result.Add_Test (Acme_Int_Caller.Create
-        ("[integration] Read_Chars returns the requested subrange",
-         Acme_Integration_Tests.Test_Read_Chars_Returns_Subrange'Access));
-      Result.Add_Test (Acme_Int_Caller.Create
-        ("[integration] Selection empty on fresh window",
-         Acme_Integration_Tests.Test_Selection_Empty'Access));
-      Result.Add_Test (Acme_Int_Caller.Create
-        ("[integration] Selection_Text after dot=addr",
-         Acme_Integration_Tests
-           .Test_Selection_Text_After_Set_Dot'Access));
-      Result.Add_Test (Acme_Int_Caller.Create
-        ("[integration] Raw event parser with live window",
-         Acme_Integration_Tests.Test_Raw_Event_From_Live'Access));
-      Result.Add_Test (Acme_Int_Caller.Create
-        ("[integration] Replace_Match substitutes matched text",
-         Acme_Integration_Tests.Test_Replace_Match_Simple'Access));
-      Result.Add_Test (Acme_Int_Caller.Create
-        ("[integration] Replace_Match is silent when pattern absent",
-         Acme_Integration_Tests.Test_Replace_Match_No_Match'Access));
-      Result.Add_Test (Acme_Int_Caller.Create
-        ("[integration] Replace_Match closes parallel blocks independently",
-         Acme_Integration_Tests.Test_Replace_Match_Parallel_Blocks'Access));
-      Result.Add_Test (Acme_Int_Caller.Create
-        ("[integration] Clear: Replace_Match ""1,$"" erases body content",
-         Acme_Integration_Tests.Test_Clear_Body_Erases_Content'Access));
-      Result.Add_Test (Acme_Int_Caller.Create
-        ("[integration] Clear: full sequence leaves only the status line",
-         Acme_Integration_Tests.Test_Clear_Body_Restores_Status'Access));
-      Result.Add_Test (Acme_Int_Caller.Create
-        ("[integration] Clear: safe on an already-empty body",
-         Acme_Integration_Tests.Test_Clear_Body_On_Empty_Body'Access));
-      Result.Add_Test (Acme_Int_Caller.Create
-        ("[integration] Live footer: summary and fork share one line",
-         Acme_Integration_Tests.Test_Append_Live_Turn_Footer'Access));
-      Result.Add_Test (Acme_Int_Caller.Create
-        ("[integration] Live footer: cost segments appear when non-zero",
-         Acme_Integration_Tests.Test_Append_Live_Turn_Footer_With_Cost
-           'Access));
-
-      --  Dispatch integration tests (skipped if acme not running)
-      Result.Add_Test (Dispatch_Caller.Create
-        ("[integration] Dispatch agent_start sets streaming",
-         Dispatch_Tests.Test_Dispatch_Agent_Start'Access));
-      Result.Add_Test (Dispatch_Caller.Create
-        ("[integration] Dispatch agent_end clears streaming",
-         Dispatch_Tests.Test_Dispatch_Agent_End_Normal'Access));
-      Result.Add_Test (Dispatch_Caller.Create
-        ("[integration] Dispatch text_delta appends text",
-         Dispatch_Tests.Test_Dispatch_Text_Delta'Access));
-      Result.Add_Test (Dispatch_Caller.Create
-        ("[integration] Dispatch thinking_delta prefixes with border",
-         Dispatch_Tests.Test_Dispatch_Thinking_Delta'Access));
-      Result.Add_Test (Dispatch_Caller.Create
-        ("[integration] Dispatch tool_execution_start renders header",
-         Dispatch_Tests.Test_Dispatch_Tool_Start'Access));
-      Result.Add_Test (Dispatch_Caller.Create
-        ("[integration] Dispatch tool_execution_end success closes block",
-         Dispatch_Tests.Test_Dispatch_Tool_End_Success'Access));
-      Result.Add_Test (Dispatch_Caller.Create
-        ("[integration] Dispatch tool_execution_end error closes block",
-         Dispatch_Tests.Test_Dispatch_Tool_End_Error'Access));
-      Result.Add_Test (Dispatch_Caller.Create
-        ("[integration] Dispatch tool_execution_end cancelled closes block",
-         Dispatch_Tests.Test_Dispatch_Tool_End_Cancelled'Access));
-      Result.Add_Test (Dispatch_Caller.Create
-        ("[integration] Dispatch message_end updates token counts",
-         Dispatch_Tests.Test_Dispatch_Message_End_Tokens'Access));
-      Result.Add_Test (Dispatch_Caller.Create
-        ("[integration] Dispatch session_stats appends live footer",
-         Dispatch_Tests.Test_Dispatch_Session_Stats_Footer'Access));
-      Result.Add_Test (Dispatch_Caller.Create
-        ("[integration] Dispatch model_select updates model state",
-         Dispatch_Tests.Test_Dispatch_Model_Select'Access));
-      Result.Add_Test (Dispatch_Caller.Create
-        ("[integration] Dispatch session_info updates session state",
-         Dispatch_Tests.Test_Dispatch_Session_Info'Access));
-      Result.Add_Test (Dispatch_Caller.Create
-        ("[integration] Dispatch auto_retry_start writes retry notice",
-         Dispatch_Tests.Test_Dispatch_Auto_Retry_Start'Access));
-      Result.Add_Test (Dispatch_Caller.Create
-        ("[integration] Dispatch full turn footer waits for session_stats",
-         Dispatch_Tests
-           .Test_Dispatch_Full_Turn_Footer_Only_After_Session_Stats'Access));
-      Result.Add_Test (Dispatch_Caller.Create
-        ("[integration] Dispatch aborted turn does not append footer",
-         Dispatch_Tests.Test_Dispatch_Aborted_Turn_No_Footer'Access));
-      Result.Add_Test (Dispatch_Caller.Create
-        ("[integration] Dispatch auto_retry_end allows later footer",
-         Dispatch_Tests.Test_Dispatch_Auto_Retry_End_Then_Normal_Turn'Access));
-      Result.Add_Test (Dispatch_Caller.Create
-        ("[integration] Dispatch auto_compaction start/end keep state clean",
-         Dispatch_Tests.Test_Dispatch_Auto_Compaction_Start_And_End'Access));
-      Result.Add_Test (Dispatch_Caller.Create
-        ("[integration] Dispatch agent_end with no response shows warning",
-         Dispatch_Tests.Test_Dispatch_Agent_End_No_Response_Shows_Error
-           'Access));
-      Result.Add_Test (Dispatch_Caller.Create
-        ("[integration] Dispatch Agent_Paused_Event sets Is_Paused",
-         Dispatch_Tests.Test_Dispatch_Agent_Paused_Event'Access));
-      Result.Add_Test (Dispatch_Caller.Create
-        ("[integration] Dispatch Agent_Resumed_Event clears Is_Paused",
-         Dispatch_Tests.Test_Dispatch_Agent_Resumed_Event'Access));
-
       --  Session_Lister tests
       Result.Add_Test (Session_Lister_Caller.Create
         ("Encode_Cwd absolute path",
@@ -632,27 +260,6 @@ package body Test_Suites is
         ("Nth_Field edge cases",
          Coyote_App_Tests.Test_Nth_Field_Edges'Access));
       Result.Add_Test (App_State_Caller.Create
-        ("Parse_Fork_Token: matching PID extracts UUID and turn",
-         Coyote_App_Tests.Test_Parse_Fork_Token_Match'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("Parse_Fork_Token: mismatched PID returns False",
-         Coyote_App_Tests.Test_Parse_Fork_Token_Pid_Mismatch'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("Parse_Fork_Token: missing trailing slash returns False",
-         Coyote_App_Tests.Test_Parse_Fork_Token_No_Slash'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("Parse_Fork_Token: non-numeric turn returns False",
-         Coyote_App_Tests.Test_Parse_Fork_Token_Bad_Turn'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("Parse_Fork_Token: empty UUID returns False",
-         Coyote_App_Tests.Test_Parse_Fork_Token_Empty_Uuid'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("Parse_Fork_Token: empty input returns False",
-         Coyote_App_Tests.Test_Parse_Fork_Token_Empty'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("Parse_Fork_Token: with step suffix",
-         Coyote_App_Tests.Test_Parse_Fork_Token_With_Step'Access));
-      Result.Add_Test (App_State_Caller.Create
         ("Format_Turn_Footer: step-level separator",
          Coyote_App_Tests.Test_Format_Turn_Footer_Display_Step'Access));
       Result.Add_Test (App_State_Caller.Create
@@ -712,17 +319,6 @@ package body Test_Suites is
          & "(stop/length only)",
          Coyote_App_Tests
            .Test_State_Pending_Stats_Gated_By_Stop_Reason'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("App_State Models_Pending defaults to False",
-         Coyote_App_Tests.Test_State_Models_Pending_Initial'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("App_State Models_Pending Set_Models_Pending toggles flag",
-         Coyote_App_Tests
-           .Test_State_Models_Pending_Set_And_Clear'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("App_State Models_Pending independent of Pending_Stats",
-         Coyote_App_Tests
-           .Test_State_Models_Pending_Independent'Access));
       Result.Add_Test (App_State_Caller.Create
         ("Stats model part: non-empty when model is set",
          Coyote_App_Tests.Test_Stats_Model_Part_When_Set'Access));
@@ -852,20 +448,6 @@ package body Test_Suites is
         ("Format_DB_Price: free and negative values",
          Coyote_App_Tests.Test_Format_DB_Price_Free_And_Negative'Access));
 
-      --  Extract_Plumb_Data
-      Result.Add_Test (App_State_Caller.Create
-        ("Extract_Plumb_Data: data field returned from valid message",
-         Coyote_App_Tests.Test_Extract_Plumb_Data_Basic'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("Extract_Plumb_Data: trailing LF stripped via ndata",
-         Coyote_App_Tests.Test_Extract_Plumb_Data_Strips_Trailing_LF'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("Extract_Plumb_Data: fewer than 6 newlines returns empty string",
-         Coyote_App_Tests.Test_Extract_Plumb_Data_Too_Few_Fields'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("Extract_Plumb_Data: empty byte array returns empty string",
-         Coyote_App_Tests.Test_Extract_Plumb_Data_Empty'Access));
-
       --  Get_Cost_Dmil
       Result.Add_Test (App_State_Caller.Create
         ("Get_Cost_Dmil: JSON float converted to dmil units",
@@ -946,33 +528,6 @@ package body Test_Suites is
         ("App_State Is_Pause_Armed toggles via Set_Pause_Armed",
          Coyote_App_Tests.Test_State_Is_Pause_Armed_Set_And_Clear'Access));
       Result.Add_Test (App_State_Caller.Create
-        ("Format_Session_List: flat list has no tree connectors",
-         Coyote_App_Tests.Test_Format_Session_List_Flat'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("Format_Session_List: child indented under parent",
-         Coyote_App_Tests.Test_Format_Session_List_Parent_Child'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("Format_Session_List: grandchild indented two levels",
-         Coyote_App_Tests.Test_Format_Session_List_Deep'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("Format_Session_List: orphaned subagent rendered as root",
-         Coyote_App_Tests.Test_Format_Session_List_Orphan'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("Format_Session_List: multiple children ordered after parent",
-         Coyote_App_Tests.Test_Format_Session_List_Multi_Child'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("Format_Session_List: subagent child uses hook connector",
-         Coyote_App_Tests.Test_Format_Session_List_Subagent_Uses_Hook'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("Format_Session_List: fork child uses branch connector",
-         Coyote_App_Tests.Test_Format_Session_List_Fork_Uses_Branch'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("App_State Tag_Suffix initial value is empty",
-         Coyote_App_Tests.Test_State_Tag_Suffix_Initial'Access));
-      Result.Add_Test (App_State_Caller.Create
-        ("App_State Tag_Suffix round-trip via Set_Tag_Suffix",
-         Coyote_App_Tests.Test_State_Tag_Suffix_Round_Trip'Access));
-      Result.Add_Test (App_State_Caller.Create
         ("App_State Current_Sandbox initial value is empty",
          Coyote_App_Tests.Test_State_Sandbox_Initial'Access));
       Result.Add_Test (App_State_Caller.Create
@@ -989,75 +544,7 @@ package body Test_Suites is
         ("GFM cmark: paragraph still has type_string 'paragraph'",
          Coyote_App_Tests.Test_Cmark_Paragraph_Type_String'Access));
 
-      --  Session_History integration tests (require live acme)
-      Result.Add_Test (Session_History_Caller.Create
-        ("[integration] Render: file not found writes error",
-         Session_History_Tests.Test_Render_File_Not_Found'Access));
-      Result.Add_Test (Session_History_Caller.Create
-        ("[integration] Render: user message rendered as triangle text",
-         Session_History_Tests.Test_Render_User_Message'Access));
-      Result.Add_Test (Session_History_Caller.Create
-        ("[integration] Render: assistant text rendered verbatim",
-         Session_History_Tests.Test_Render_Assistant_Text'Access));
-      Result.Add_Test (Session_History_Caller.Create
-        ("[integration] Render: successful tool call shows check mark",
-         Session_History_Tests.Test_Render_Tool_Call_Success'Access));
-      Result.Add_Test (Session_History_Caller.Create
-        ("[integration] Render: failed tool call shows cross mark",
-         Session_History_Tests.Test_Render_Tool_Call_Error'Access));
-      Result.Add_Test (Session_History_Caller.Create
-        ("[integration] Render: thinking block prefixed with bar",
-         Session_History_Tests.Test_Render_Thinking_Block'Access));
-      Result.Add_Test (Session_History_Caller.Create
-        ("[integration] Render: model_change writes [Model ...] line",
-         Session_History_Tests.Test_Render_Model_Change'Access));
-      Result.Add_Test (Session_History_Caller.Create
-        ("[integration] Render: token usage updates State.Turn_Tokens",
-         Session_History_Tests.Test_Render_Token_Stats'Access));
-      Result.Add_Test (Session_History_Caller.Create
-        ("[integration] Render: separator appended after history",
-         Session_History_Tests.Test_Render_Separator'Access));
-      Result.Add_Test (Session_History_Caller.Create
-        ("[integration] Render: tool call header contains coyote-session+ URI",
-         Session_History_Tests.Test_Render_Tool_Call_URI'Access));
-      Result.Add_Test (Session_History_Caller.Create
-        ("[integration] Render: tool call header has no URI when id absent",
-         Session_History_Tests.Test_Render_Tool_Call_No_URI'Access));
-      Result.Add_Test (Session_History_Caller.Create
-        ("[integration] Render: native user and assistant text",
-         Session_History_Tests
-           .Test_History_Renders_Native_User_And_Assistant'Access));
-      Result.Add_Test (Session_History_Caller.Create
-        ("[integration] Render: native tool call shows success",
-         Session_History_Tests
-           .Test_History_Renders_Native_Tool_Call'Access));
-      Result.Add_Test (Session_History_Caller.Create
-        ("[integration] Render: native model_change writes [Model ...]",
-         Session_History_Tests
-           .Test_History_Renders_Native_Model_Change'Access));
-      Result.Add_Test (Session_History_Caller.Create
-        ("[integration] Render: native two-turn history restores count",
-         Session_History_Tests
-           .Test_History_Renders_Two_Turn_Session'Access));
-
-      --  Tool_URI unit tests (pure, no acme required)
-      Result.Add_Test (Tool_URI_Caller.Create
-        ("Hash_Tool_Id: SHA-256 of empty string",
-         Tool_URI_Tests.Test_Hash_Empty'Access));
-      Result.Add_Test (Tool_URI_Caller.Create
-        ("Hash_Tool_Id: known values match Python reference",
-         Tool_URI_Tests.Test_Hash_Known_Values'Access));
-      Result.Add_Test (Tool_URI_Caller.Create
-        ("Hash_Tool_Id: result is always 16 characters",
-         Tool_URI_Tests.Test_Hash_Length'Access));
-      Result.Add_Test (Tool_URI_Caller.Create
-        ("Hash_Tool_Id: distinct inputs produce distinct hashes",
-         Tool_URI_Tests.Test_Hash_Distinct'Access));
-      Result.Add_Test (Tool_URI_Caller.Create
-        ("Hash_Tool_Id: result contains only lowercase hex",
-         Tool_URI_Tests.Test_Hash_Lowercase_Hex'Access));
-
-      --  Subagent (--one-shot) integration tests (require live acme)
+      --  Subagent (--one-shot) integration tests (opt-in)
       Result.Add_Test (Subagent_Int_Caller.Create
         ("[subagent] One-shot returns JSON with output and session_id",
          Subagent_Integration_Tests.Test_One_Shot_Returns_Json'Access));

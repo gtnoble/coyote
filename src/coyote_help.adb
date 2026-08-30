@@ -135,7 +135,7 @@ package body Coyote_Help is
    begin
       return
         "coyote " & Coyote_Config.Crate_Version & ASCII.LF & ASCII.LF
-        & "coyote is a native Ada LLM coding agent with GTK, Acme, "
+        & "coyote is a native Ada LLM coding agent with GTK "
         & "and plain-text frontends." & ASCII.LF
         & "License: MIT OR Apache-2.0 WITH LLVM-exception.";
    end Product_Information_Text;

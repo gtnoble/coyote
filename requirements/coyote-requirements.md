@@ -1,7 +1,7 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.19
+**Version:** 1.20
 **Date:** 2026-08-30
 **Status:** Draft
 **Project Plan:** `plan/project-plan.md`
@@ -36,15 +36,19 @@
 
 ## 1. Scope
 
+**Current baseline amendment (2026-08-30):** The Acme UI frontend, its 9P
+VFS and plumber interfaces, and the standalone `coyote_open` utility were
+withdrawn from the supported product. The current executable supports GTK3
+and Plain frontends. Historical Acme requirements below are retained for
+traceability and are superseded by this amendment.
+
 **Component identifier:** coyote
 
 **System context:** coyote is a self-contained LLM coding agent. It manages
 a conversation session with a large language model, executes tool calls on
-behalf of the model, and presents streaming output to the user via one of
-three frontends: the acme text editor (via 9P VFS), a GTK3 graphical window,
-or plain text output. A companion utility `coyote_list_sessions` lists
-sessions saved for the current working directory; `coyote_open` opens a
-tool-call detail window.
+behalf of the model, and presents streaming output to the user via a GTK3
+graphical window or Plain text output. A companion utility
+`coyote_list_sessions` lists sessions saved for the current working directory.
 
 **Document overview:** This specification states the capability, interface,
 data, environment, resource, quality, and constraint requirements for the
@@ -81,10 +85,9 @@ The executable shall select the Plain frontend when the `--one-shot` flag is
 given without the `--subagent` flag, regardless of any display environment.
 
 **REQ-CORE-002** (D)
-The executable shall select the Acme frontend when the environment variable
-`$winid` is set to a non-zero integer, or `COYOTE_FRONTEND` equals `"acme"`,
-provided the Plain-only condition of REQ-CORE-001 does not apply and no
-`--frontend` flag overrides the selection.
+**Superseded by the 2026-08-30 baseline amendment:** Acme selection by
+`$winid` or `COYOTE_FRONTEND=acme` is no longer supported. When no explicit
+frontend is selected and no display is available, the executable selects Plain.
 
 **REQ-CORE-003** (D)
 The executable shall select the GUI frontend when none of the above apply,
@@ -98,14 +101,13 @@ selection, and none of REQ-CORE-001, REQ-CORE-002, or REQ-CORE-003 applies,
 the executable shall select the Plain frontend.
 
 **REQ-CORE-005** (I)
-When the Acme or GUI frontend is selected, the executable shall set the
-environment variable `COYOTE_FRONTEND=acme` or `COYOTE_FRONTEND=gui`
-respectively before spawning any child processes, so that subagents inherit
-the headful context.
+When the GUI frontend is selected, the executable shall set
+`COYOTE_FRONTEND=gui` before spawning child processes so GUI subagents inherit
+the display context.
 
 
 **REQ-CORE-006** (T)
-The executable shall accept an optional `--frontend acme|gui|plain`
+The executable shall accept an optional `--frontend gui|plain`
 command-line argument that overrides all automatic frontend detection.
 When `--frontend` is given, the named frontend shall be used regardless
 of the display environment.
@@ -163,9 +165,8 @@ JSON result summary to standard output.
 
 **REQ-CORE-020** (D)
 The executable shall accept a `--subagent` flag. When set, the executable
-shall behave as `--one-shot` but shall not force the Plain frontend — the
-inherited display context (`COYOTE_FRONTEND` or `$winid`) governs frontend
-selection, allowing a headful window to open.
+shall behave as `--one-shot` and shall inherit the GUI context when
+`COYOTE_FRONTEND=gui` is present; otherwise the child uses the Plain frontend.
 
 **REQ-CORE-025** (T)
 When `--subagent` is given, the executable shall read the optional
@@ -281,7 +282,7 @@ return an error result to the model rather than executing the tool.
 
 **REQ-CORE-055** (D)
 Tool execution shall be abortable: when the user triggers an abort (via the
-Stop tag command in Acme or equivalent in GUI), a running tool invocation
+GUI Stop action), a running tool invocation
 shall be cancelled and the agent loop shall terminate cleanly. A running
 provider HTTP/SSE request shall also be interruptible without waiting for the
 next response-body chunk.
@@ -313,8 +314,8 @@ compaction threshold (context window minus `Reserve_Tokens`), the agent shall
 automatically trigger context compaction before sending the next request.
 
 **REQ-CORE-061** (D)
-The agent shall support manual compaction triggered by the user (via the
-Compact tag command in Acme, or the `:compact` GUI command).
+The agent shall support manual compaction triggered by the user through the
+`:compact` GUI command.
 
 **REQ-CORE-062** (D)
 Context compaction shall call the active model once with a structured
@@ -385,12 +386,12 @@ GitHub Copilot tokens that are expired or near expiry shall be automatically
 refreshed using the stored refresh token before the request is sent.
 
 **REQ-CORE-075** (D)
-In the Acme frontend, the model may be switched at runtime by sending a
+In the retired Acme frontend, the model could be switched at runtime by sending a
 `coyote-model+PID/PROVIDER/ID` token via the `/coyote-model` plumb port.
 The switch shall take effect on the next `Run_Prompt` call.
 
 **REQ-CORE-076** (D)
-In the Acme frontend, the thinking level may be switched at runtime by
+In the retired Acme frontend, the thinking level could be switched at runtime by
 sending a `coyote-thinking+PID/LEVEL` token via the `/coyote-thinking` plumb
 port.
 
@@ -505,7 +506,7 @@ executable and taking the parent of its parent directory; otherwise
 
 ---
 
-#### 3.1.10 Acme Frontend
+#### 3.1.10 Retired Acme Frontend Requirements (historical)
 
 **REQ-CORE-100** (D)
 The Acme frontend shall open a named window in the running acme instance via
@@ -850,7 +851,7 @@ The GUI presentation interface shall identify the start of a submitted
 request and shall distinguish an intermediate step footer from a final turn
 footer without parsing formatted display text. The interface shall provide
 an explicit exchange-completion state for normal completion, abort, and
-error termination. Existing Acme and Plain frontends shall retain their
+error termination. The Plain frontend shall retain its
 current output semantics.
 
 ---
@@ -878,7 +879,7 @@ History replay shall render assistant messages with the same supported
 Markdown content contract as live GUI rendering. The native component-stack
 and legacy GtkLayout renderers may use different GTK/layout structures, but
 shall present equivalent supported content and applicable selection behavior.
-Acme and Plain history replay shall remain plain text.
+GUI history replay uses the GUI rendering contract; Plain history replay remains line-oriented plain text.
 
 ---
 
@@ -1185,7 +1186,7 @@ exists.
 
 ---
 
-#### 3.2.2 acme 9P VFS
+#### 3.2.2 Retired Acme 9P VFS Requirements (historical)
 
 **REQ-CORE-210** (I)
 The Acme frontend shall access the acme window VFS by mounting the `acme`
@@ -1306,10 +1307,9 @@ The executable shall be built with GNAT (GCC Ada 2022) using Alire and
 GPRbuild. No other Ada compiler is required to be supported.
 
 **REQ-CORE-501** (I)
-The Acme frontend shall require plan9port to be installed at
-`/usr/local/plan9` or at the path given by the `$PLAN9` environment variable.
-If plan9port is absent, the Acme frontend shall not be selected (it is only
-selected when `$winid` is set, which requires running inside acme).
+The current GUI and Plain frontends shall not require plan9port, Acme,
+plumber, or any other desktop integration service beyond the GUI frontend's
+documented GTK3 runtime dependency.
 
 **REQ-CORE-502** (I)
 The GUI frontend shall require GTK3 runtime libraries to be present on the
@@ -1435,8 +1435,8 @@ qualification requirements are identified.
 ## 4. Qualification Provisions
 
 Traceability from requirements to test cases. Current test procedures and
-status are maintained in `plan/test-plan.md`; the automated baseline is 927
-registered tests. Display-backed native GUI procedures remain separately
+status are maintained in `plan/test-plan.md`; the current automated baseline
+is 798 registered tests. Display-backed native GUI procedures remain separately
 identified in the Test Plan. The table below is the original qualification
 matrix and retains historical `TC-*` identifiers; the current mappings are in
 `plan/test-plan.md` §6.
@@ -1444,10 +1444,10 @@ matrix and retains historical `TC-*` identifiers; the current mappings are in
 | Requirement ID | Description (abbreviated) | Verification | Historical Test Case |
 |---|---|---|---|
 | REQ-CORE-001 | Plain frontend on --one-shot | D | TC-001 |
-| REQ-CORE-002 | Acme frontend on $winid or COYOTE_FRONTEND=acme | D | TC-002 |
+| REQ-CORE-002 | Retired Acme frontend selection (historical) | D | TC-002 |
 | REQ-CORE-003 | GUI frontend on $DISPLAY/$WAYLAND_DISPLAY/COYOTE_FRONTEND=gui | D | TC-003 |
 | REQ-CORE-004 | Plain frontend fallback after all checks fail | D | TC-004 |
-| REQ-CORE-005 | COYOTE_FRONTEND=acme|gui propagation | I | TC-005 |
+| REQ-CORE-005 | COYOTE_FRONTEND=gui propagation | I | TC-005 |
 | REQ-CORE-006 | --frontend flag overrides detection | T | TC-006 |
 | REQ-CORE-010 | --session UUID resumes session | T | TC-010 |
 | REQ-CORE-011 | CWD restored on session resume | D | TC-011 |
@@ -1499,8 +1499,8 @@ matrix and retains historical `TC-*` identifiers; the current mappings are in
 | REQ-CORE-072 | All six providers supported | D | TC-072 |
 | REQ-CORE-073 | API key resolution order | T | TC-073 |
 | REQ-CORE-074 | Copilot token auto-refresh | D | TC-074 |
-| REQ-CORE-075 | Runtime model switch via plumb | D | TC-075 |
-| REQ-CORE-076 | Runtime thinking switch via plumb | D | TC-076 |
+| REQ-CORE-075 | Retired Acme/plumber model switch (historical) | D | TC-075 |
+| REQ-CORE-076 | Retired Acme/plumber thinking switch (historical) | D | TC-076 |
 | REQ-CORE-077 | Provider graceful startup | D | TC-077 |
 | REQ-CORE-078 | OpenCode Go metadata from OpenRouter | D | TC-078 |
 
@@ -1520,9 +1520,9 @@ matrix and retains historical `TC-*` identifiers; the current mappings are in
 | REQ-CORE-092 | Skills included in system prompt | D | TC-092 |
 | REQ-CORE-093 | Local skills shadow global | T | TC-093 |
 | REQ-CORE-094 | BASE derived from binary path | I | TC-094 |
-| REQ-CORE-100..107 | Acme frontend tag commands (Send, Stop, New, etc.) | D | TC-100..107 |
-| REQ-CORE-108..108b | Session fork tokens and step-level turn footers | D | TC-108..108b |
-| REQ-CORE-109 | SetDefault writes to settings.json | D | TC-109 |
+| REQ-CORE-100..107 | Retired Acme frontend commands (historical) | D | TC-100..107 |
+| REQ-CORE-108..108b | Retired Acme fork-token interface (historical) | D | TC-108..108b |
+| REQ-CORE-109 | Retired Acme SetDefault command (historical) | D | TC-109 |
 | REQ-CORE-110..119, 124..129, 133..139 | GUI frontend capabilities, including Preferences, ordered skill-directory editing, display math, zoom, component-stack conversation presentation, completion notifications, and Change Model search | D/T/I | TC-110..119, TC-124..129, TC-133..139; GUI regression tests including `Coyote.GUI layout and shutdown lifecycle`; DEM-033, DEM-042..044 |
 | REQ-CORE-113a..113c | GUI Help menu, Yelp topics, Edit menu, Product Information dialog, menu taxonomy, title, dialog, support-window, lifecycle-status, and desktop interaction conventions | D/T/I | DEM-036..039; Coyote_Help tests; Mallard validation; source inspection |
 | REQ-CORE-113d | Live structured Session Stats support window and session-reset currency | D/T/I | `coyote_gui_session_stats_window_tests.adb`; DEM-040; source inspection |
@@ -1546,7 +1546,7 @@ matrix and retains historical `TC-*` identifiers; the current mappings are in
 | REQ-CORE-191 | Structured subagent result reporting | D | TC-191 |
 | REQ-CORE-192 | Synthesis-before-delegation instruction | I | TC-192 |
 | REQ-CORE-200..208, REQ-CORE-215..219 | Provider API interfaces | I/T | TC-200..208, TC-215..219 |
-| REQ-CORE-210..212 | acme 9P VFS interface | I | TC-210..212 |
+| REQ-CORE-210..212 | Retired Acme 9P VFS interface (historical) | I | TC-210..212 |
 | REQ-CORE-220..221 | GTK3 interface | I | TC-220..221 |
 | REQ-CORE-090a, 230..234 | Configuration file interface, including skillPaths, sandbox default, and priceDisplay | T | TC-090a, TC-230..234 |
 | REQ-CORE-240..241 | Session JSONL format | T | TC-240..241 |
@@ -1569,7 +1569,7 @@ objectives stated in the Project Plan (PLAN §1 and §3):
 | Objective | Derived Requirements |
 |---|---|
 | Self-contained Ada LLM agent with no Node.js dependency | REQ-CORE-024, REQ-CORE-500–505, REQ-CORE-800–805 |
-| Multi-frontend support (acme, GTK3, plain) | REQ-CORE-001–004, REQ-CORE-100–139 |
+| Multi-frontend support (GTK3 and Plain) | REQ-CORE-001–004, REQ-CORE-110–139 |
 | Streaming output | REQ-CORE-040–046, REQ-CORE-700, REQ-CORE-138 |
 | Tool execution | REQ-CORE-050–057 |
 | Session persistence and resume | REQ-CORE-080–089, REQ-CORE-701 |
@@ -1602,8 +1602,8 @@ objectives stated in the Project Plan (PLAN §1 and §3):
 - coyote_sqc requirements are in `requirements/coyote-sqc-requirements.md` (SRS-SQC).
 - The shared `coyote_renderer` library requirements are covered implicitly
   under the GUI frontend and coyote_sqc requirements.
-- `coyote_open` remains a separate native tool-inspection utility; the GTK
-  tool-detail window is specified by REQ-CORE-113e.
+- The GTK tool-detail window is specified by REQ-CORE-113e. The former
+  `coyote_open` utility is retired and is not part of the current product.
 **Independence limitation:**
 This specification was authored by the developer. The user (product owner)
 is invited to review it and raise any issues before it advances to

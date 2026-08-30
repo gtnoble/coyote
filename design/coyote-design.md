@@ -1,7 +1,7 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.22
+**Version:** 1.23
 **Date:** 2026-08-30
 
 **Status:** Reviewed — project control (M3 complete 2026-06-02)
@@ -24,18 +24,25 @@
 
 ## 1. Scope
 
+**Current architecture amendment (2026-08-30):** The supported architecture
+contains GTK3 and Plain execution paths. The former Acme frontend, Nine_P
+9P stack, plumber tasks, and `coyote_open` utility were removed. Historical
+sections that describe those components remain as design history and are not
+part of the current build.
+
 **Component identifier:** coyote
 
 This document describes the software design of the coyote core agent: the
 design decisions that govern the component as a whole, the structural
 decomposition into software units (Ada packages and tasks), the interfaces
 among them, the concept of execution, and the detailed design of each major
-unit. It covers the `coyote` executable, `coyote_list_sessions`,
-`coyote_open`, and the shared library packages in `src/llm/`,
-`src/coyote_gui/`, `src/acme*`, and `src/nine_p*`.
+unit. It covers the `coyote` executable, `coyote_list_sessions`, and the shared
+library packages in `src/llm/`, `src/coyote_gui/`, and the shared renderer.
+The former Acme/Nine_P design sections are retained only as historical record.
 
 The `coyote_sqc` application and `coyote_renderer` shared library are covered
-by separate design documents (`design/coyote-sqc-design.md`).
+by separate design documents (`design/coyote-sqc-design.md`). Historical
+Acme/Nine_P sections below are retained for traceability only.
 
 ---
 
@@ -98,9 +105,9 @@ Errors are classified into three handling tiers:
 
 ### 3.3 Concurrency Model
 
-The application has two execution paths with different task structures.
+The current application has two execution paths with different structures.
 
-**Acme path** — five long-lived Ada tasks:
+**Historical Acme path** — removed from the current baseline:
 
 | Task | Owns |
 |---|---|
@@ -111,7 +118,7 @@ The application has two execution paths with different task structures.
 | `Plumb_Fork_Task` | `/coyote-fork` plumb port reader |
 | `Plumb_Sandbox_Task` | `/coyote-sandbox` plumb port reader |
 
-**GUI path** — two tasks:
+**Current GUI path** — two tasks:
 
 | Task | Owns |
 |---|---|
@@ -119,8 +126,8 @@ The application has two execution paths with different task structures.
 | `Agent_Task` | `LLM.Agent.Session`; the agentic loop |
 
 **Shared-state rule:** All inter-task mutable state is held in the
-`App_State` protected object. Tasks never share `Nine_P.Client.Fs` instances
-(each task that accesses the 9P VFS creates its own connection).
+`App_State` protected object. GUI widgets are accessed only by the GTK main
+task; the agent task communicates through protected queues.
 
 **GTK thread safety:** All GTK operations execute on the main Ada task. The
 `Agent_Task` communicates with the GTK main loop through two thread-safe
@@ -138,10 +145,6 @@ No additional thread is created for HTTP I/O. The active session's protected
 `CURLOPT_XFERINFOFUNCTION` callback that polls that mirror while libcurl is
 blocked, returning nonzero to terminate the transfer promptly.
 
-**9P (acme):** The acme window and plumb ports are accessed via the plan9port
-9P client (`Nine_P.Client`). Each connection is established by calling
-`Ns_Mount ("acme")` or `Ns_Mount ("plumb")` from the task that will use it.
-
 **GTK3:** All GTK3 calls use Ada bindings from the GtkAda library. `Gtk.Main.Init`
 and `Gtk.Main.Main` are called from the main Ada task.
 
@@ -152,11 +155,6 @@ C shim's getter functions. Raw streamed tokens are inserted as plain text and
 replaced with Pango markup when the block completes (`End_Text_Block`).
 
 ### 3.5 Output Media and Formats
-
-- **Acme frontend:** Plain UTF-8 text written to the acme window body via
-  9P. Box-drawing and other glyphs use the `UC_*` constants defined in
-  `Coyote_App.Utils`. Tool-call plumb tokens (`coyote-session+UUID/tool/TOKEN`)
-  are embedded in the window body for button-3 navigation.
 
 - **GUI frontend:** GTK3 `Gtk.Layout` with Cairo + Pango virtualized
   rendering via `Coyote_GUI.Conversation`.  Only visible lines are laid
@@ -173,17 +171,21 @@ replaced with Pango markup when the block completes (`End_Text_Block`).
 
 ### 3.6 Reuse of Shared Data and Services
 
-- **Session persistence:** All three execution paths share `LLM.Session_Store`
+- **Session persistence:** The GUI and Plain paths share `LLM.Session_Store`
   for JSONL read and write.
-- **Skill discovery:** All three paths share `LLM.Skills.Load_Skills` and
+- **Skill discovery:** Both paths share `LLM.Skills.Load_Skills` and
   `Format_Skills_For_Prompt`.
-- **Settings:** All three paths share `LLM.Settings.Load` and
-  `LLM.Auth.Load`.
-- **Model registry:** All three paths share `LLM.Model_Registry`.
-- **Dispatch:** All three paths share `Coyote_App.Dispatch.Dispatch_Event`.
-  The GUI path also calls `Coyote_App.Frontend.GUI.Set_Stats_Summary` on
+- **Settings:** Both paths share `LLM.Settings.Load` and `LLM.Auth.Load`.
+- **Model registry:** Both paths share `LLM.Model_Registry`.
+- **Dispatch:** Both paths share `Coyote_App.Dispatch.Dispatch_Event`. The GUI
+  path also calls `Coyote_App.Frontend.GUI.Set_Stats_Summary` on
   `Session_Stats_Event` for the menu-item display; this is a GUI-specific
   extension beyond the abstract interface.
+
+The Plain path is synchronous and does not initialize GTK or use the GUI
+queues. It owns its agent session, replays requested history, dispatches native
+events, and reads additional prompts from standard input.
+
 
 ---
 
@@ -201,11 +203,6 @@ replaced with Pango markup when the block completes (`End_Text_Block`).
 **Task stacks:** All tasks use the default GNAT runtime stack size (8 MiB on
 Linux x86-64). No task has been observed to approach this limit; no explicit
 `Storage_Size` clause is needed.
-
-**9P connection per task:** Each task that accesses the acme or plumb 9P
-namespace holds one `Nine_P.Client.Fs` instance. On the Acme path, five tasks
-each hold one `Fs`; each `Fs` requires one UNIX socket file descriptor and an
-internal 8 KiB message buffer.
 
 **libcurl handle per request:** `LLM.HTTP.Post_Stream` creates and destroys
 one `CURL` handle per HTTP request. No handle pool is maintained. This avoids
@@ -232,7 +229,6 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `Coyote_App.History` | Session replay | `src/coyote_app-history.ads/.adb` |
 | `Coyote_App.Utils` | Formatting utilities + UC_* glyphs | `src/coyote_app-utils.ads/.adb` |
 | `Coyote_App.Frontend` | Abstract frontend interface | `src/coyote_app-frontend.ads` |
-| `Coyote_App.Frontend.Acme_Win` | Acme frontend implementation | `src/coyote_app-frontend-acme_win.ads/.adb` |
 | `Coyote_App.Frontend.GUI` | GTK3 frontend implementation | `src/coyote_app-frontend-gui.ads/.adb` |
 | `Coyote_App.Frontend.Plain` | Plain-text frontend implementation | `src/coyote_app-frontend-plain.ads/.adb` |
 | `Coyote_GUI` | GUI root (Update_Kind, Update record) | `src/coyote_gui/coyote_gui.ads` |
@@ -278,13 +274,6 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `LLM.Memory` | Memory taxonomy and MEMORY.md discovery | `src/llm/llm-memory.ads/.adb` |
 | `LLM.Session_Store` | JSONL session persistence | `src/llm/llm-session_store.ads/.adb` |
 | `LLM.Agent` | Native agentic loop | `src/llm/llm-agent.ads/.adb` |
-| `Acme` | Root; Win_File_Path helper | `src/acme.ads/.adb` |
-| `Acme.Window` | Acme window operations | `src/acme-window.ads/.adb` |
-| `Acme.Event_Parser` | Acme event-file record parser | `src/acme-event_parser.ads/.adb` |
-| `Acme.Raw_Events` | Low-level raw event byte feeding | `src/acme-raw_events.ads/.adb` |
-| `Nine_P` | 9P2000 constants, Qid, Byte_Array | `src/nine_p.ads` |
-| `Nine_P.Proto` | 9P message encode/decode | `src/nine_p-proto.ads/.adb` |
-| `Nine_P.Client` | 9P client: mount, open, read, write | `src/nine_p-client.ads/.adb` |
 | `Coyote_Cmark` | Ada binding to libcmark-gfm | `src/coyote_cmark.ads/.adb` |
 | `Coyote_Lasem` | Ada/C binding to Lasem Presentation MathML rendering | `src/coyote_lasem.ads/.adb`, `src/coyote_lasem_c.c` |
 | `Coyote_Renderer` | Shared GTK text/replay rendering root | `src/coyote_renderer/coyote_renderer.ads` |
@@ -303,7 +292,6 @@ three layers:
 [Entry points]
   Coyote (coyote.adb)
   Coyote_List_Sessions (tools/coyote_list_sessions.adb)
-  Coyote_Open (tools/coyote_open.adb)
         │
         ▼
 [Application orchestration]
@@ -312,7 +300,6 @@ three layers:
   Coyote_App.History  ──► LLM.Session_Store, Coyote_App.Frontend'Class
   Coyote_App.Utils
         │
-        ├─► Coyote_App.Frontend.Acme_Win ──► Acme.Window, Nine_P.Client
         ├─► Coyote_App.Frontend.GUI ──► Coyote_GUI.Conversation,
         │                                  Coyote_GUI.Conversation_Stack,
         │                                  Coyote_GUI.Exchange_View,
@@ -348,12 +335,11 @@ three layers:
 [Infrastructure layer]
   LLM.HTTP ──► LLM.HTTP.Curl_Binding (libcurl C binding)
   LLM.SSE  (pure parser, no external dependencies)
-  Nine_P.Client ──► Nine_P.Proto
   Coyote_Cmark ──► coyote_cmark_c.c (C shim for libcmark-gfm)
   Coyote_Notify ──► libnotify, GLib, GDK-Pixbuf
 ```
 
-### 4.3 Dynamic Relationships — Acme Path Concept of Execution
+### 4.3 Historical Acme Path Concept of Execution (retired)
 
 ```
 [startup]
@@ -448,19 +434,17 @@ three layers:
 **Decision D-001: Frontend abstraction at event granularity, not text granularity.**
 The `Frontend'Class` interface operates at the level of structured events
 (Begin_Tool, End_Tool, Begin_Thinking, etc.) rather than raw character
-streams. This allows the GUI to maintain typed widget state (tool frames,
-text tags) while the Acme frontend simply formats the same information as
-Unicode-glyph-prefixed text. *Rationale: A text-only interface would force
-the GUI to re-parse event semantics from rendered text, which is fragile and
-lossy.*
+streams. This allows the GUI to maintain typed widget state while the Plain
+frontend formats the same event stream as line-oriented UTF-8 text. *Rationale:
+A text-only interface would force the GUI to re-parse event semantics from
+rendered text, which is fragile and lossy.*
 
 **Decision D-002: On_Event callback invoked synchronously in the agent task.**
-`Run_Prompt` calls `On_Event` in the same task that called `Run_Prompt`. In
-the Acme path this is `Agent_Task`; in the GUI path this is also `Agent_Task`.
-The callback must not block. *Rationale: Avoids an extra queue and synchronisation
-for the Acme path, which can update the 9P window synchronously from
-Agent_Task. The GUI path uses the Updates queue to cross to the GTK thread.*
-
+`Run_Prompt` calls `On_Event` in the same task that called `Run_Prompt`. The
+callback must not block. The GUI agent task uses the protected Updates queue to
+cross to the GTK main task; the Plain runner consumes events synchronously.
+*Rationale: A single callback path avoids duplicated event translation while
+keeping GTK operations on the GTK main task.*
 **Decision D-003: Routing providers delegate to wire-format providers.**
 GitHub Copilot and OpenCode Go each support multiple wire formats (OpenAI
 Chat Completions and Anthropic). These are implemented as *routing
@@ -493,16 +477,16 @@ simple and auditable.*
 
 ### 5.1 `Coyote` (entry point)
 
-**Purpose:** CLI argument parsing and frontend selection.
+**Purpose:** CLI argument parsing and GUI/Plain frontend selection.
 
 **Inputs:** `Ada.Command_Line.Argument_Count` / `Argument`; environment
-variables `$winid`, `$DISPLAY`, `$WAYLAND_DISPLAY`, `COYOTE_FRONTEND`,
+variables `$DISPLAY`, `$WAYLAND_DISPLAY`, `COYOTE_FRONTEND`,
 `COYOTE_NO_SESSION`, `COYOTE_SESSION_ID`, `COYOTE_PARENT_SESSION`,
 `COYOTE_OPENROUTER_SESSION_ID`, `COYOTE_THINKING_LEVEL`,
 `COYOTE_RECURSION_DEPTH`.
 
-**Outputs:** `Coyote_App.Options` record passed to `Run` or `Run_GUI`;
-environment variable `COYOTE_FRONTEND` set when the frontend is a windowing kind (Acme or GUI).
+**Outputs:** `Coyote_App.Options` record passed to `Coyote_App.Plain.Run` or
+`Coyote_App.Run_GUI`; `COYOTE_FRONTEND=gui` is propagated for GUI children.
 
 **Control flow:**
 1. Parse arguments sequentially. Each recognised flag sets the corresponding
@@ -520,18 +504,18 @@ environment variable `COYOTE_FRONTEND` set when the frontend is a windowing kind
 2. If `$COYOTE_NO_SESSION` is set, force `Opts.No_Session := True`.
 3. If `--session UUID` was given and the session's working directory exists,
    call `Ada.Directories.Set_Directory`.
-4. Evaluate the frontend selection rules listed below (the `--frontend` flag wins over all); set `Opts.Frontend`.
-5. Propagate the selected frontend to child processes via
-   `COYOTE_FRONTEND`.  If Acme: set `COYOTE_FRONTEND=acme`.  If GUI:
-   set `COYOTE_FRONTEND=gui`.  Plain frontend does not set this variable.
-6. Dispatch to `Coyote_App.Run` (Acme/Plain) or `Coyote_App.Run_GUI` (GUI).
+4. Evaluate the frontend selection rules: explicit `--frontend gui|plain`
+   wins; otherwise select Plain for non-subagent one-shot runs, GUI when a
+   display or `COYOTE_FRONTEND=gui` is present, and Plain otherwise.
+5. Propagate `COYOTE_FRONTEND=gui` when GUI is selected.
+6. Dispatch to `Coyote_App.Plain.Run` for Plain or `Coyote_App.Run_GUI` for GUI.
 
 **Error handling:** `Coyote_Utils.Bad_Arg_Error` is caught at the outermost
 level; error message goes to stderr; exit status is set to Failure.
 
 ---
 
-### 5.2 `Coyote_App` (App_State and Run/Run_GUI)
+### 5.2 `Coyote_App` (App_State and Run_GUI)
 
 **Purpose:** Application lifecycle management; inter-task shared state.
 
@@ -543,9 +527,6 @@ All fields are protected by Ada's monitor semantics. Key fields:
 - `Turn_Count`, `Turn_Cost_Dmil`, `Session_Cost_Dmil` — statistics accumulators
 - `Context_Window` — set by Model_Select_Event; used for compaction threshold
 
-**`Run` procedure:** Creates the `Acme_Win` frontend, spawns the five tasks,
-then blocks on `App_State.Wait_Shutdown`.
-
 **`Run_GUI` procedure:** Calls `Gtk.Main.Init`, creates the GUI frontend,
 spawns `Agent_Task`, then calls `Gtk.Main.Main`.
 
@@ -554,7 +535,7 @@ spawns `Agent_Task`, then calls `Gtk.Main.Main`.
 ### 5.3 `Coyote_App.Dispatch`
 
 **Purpose:** Maps each `LLM.Events.Agent_Event'Class` value to the appropriate
-`Frontend'Class` primitive calls. Shared by all three execution paths.
+`Frontend'Class` primitive calls. Shared by the GUI and Plain execution paths.
 
 **Interface:** Single public procedure `Dispatch_Event` taking an
 `Agent_Event'Class` value and an `Instance'Class` access.
@@ -578,14 +559,10 @@ spawns `Agent_Task`, then calls `Gtk.Main.Main`.
 | `Agent_Paused_Event` | `Set_Mode (Paused)` |
 | `Agent_Resumed_Event` | `Set_Mode (Running)` |
 
-**Step-level turn footers (v1.8):** After the last `Tool_Execution_End_Event`
-in a batch, the dispatch layer calls `Append_Turn_Footer` (display separator)
-then `Append_Fork_Action` (fork token).  The acme frontend writes a
-`coyote-fork+` plumb token for button-3 clicking; the GUI renders a clickable
-action strip with the fork data.  The step counter is maintained in `App_State`
-alongside `Turn_Count`: incremented at `Agent_Start_Event`, reset at each new
-turn.  The final full-turn fork action is emitted from `Session_Stats_Event`
-as before.
+**Step-level turn footers:** After the last `Tool_Execution_End_Event` in a
+batch, the dispatch layer calls `Append_Turn_Footer` and `Append_Fork_Action`.
+The GUI renders the action strip; Plain ignores the action. The step counter is
+maintained in `App_State` alongside `Turn_Count`.
 
 ---
 
@@ -605,8 +582,9 @@ instead of flowing prose:
 ```
 
 **Solution (PCR-022 resolution, 2026-06-07; revised PCR-039, 2026-06-27):**
-Each frontend (Acme and GUI) collapses each thinking delta as it arrives
-and emits it immediately, producing flowing prose without buffering.
+The GUI and Plain frontends buffer thinking deltas between `Begin_Thinking`
+and `End_Thinking`, collapse the accumulated text, and emit flowing prose on
+flush. This avoids fragmented token-by-token display.
 
 **Collapsing algorithm:**
 - Spaces are treated as content, not whitespace — they carry word-boundary
@@ -618,7 +596,7 @@ and emits it immediately, producing flowing prose without buffering.
 - Leading and trailing LF, CR, HT trimmed; spaces preserved
 - Implemented in `Coyote_App.Utils.Collapse_Thinking_Delta` (pure function)
 
-**Frontend implementation (Acme and GUI identical pattern):**
+**Frontend implementation:**
 - `Begin_Thinking`: Set `Prefix_Emitted` flag to false, mark thinking active
 - `Append_Thinking`: Collapse delta via `Collapse_Thinking_Delta`, emit with
   box-drawing prefix on first call; subsequent deltas are concatenated
@@ -640,7 +618,7 @@ into concatenable prose fragments.
 paragraph preservation, empty input, no-LF verbatim, space preservation,
 OpenAI trailing-LF stripping, OpenAI mid-stream LFs→spaces, and LF/HT-only
 whitespace.  `Test_Dispatch_Thinking_Delta` in
-`test/src/dispatch_tests.adb` verifies end-to-end thinking-delta dispatch.
+`test/src/coyote_app_tests.adb` and the frontend tests verify thinking-delta dispatch.
 
 ### 5.4 `Coyote_App.Frontend` (abstract interface)
 
@@ -1176,8 +1154,8 @@ base64-decoded into a GTK image when possible, with an explicit text fallback
 on decode failure.  Status uses a text/icon indicator and theme-neutral
 emphasis rather than a private color palette.  The outer scroller keeps all
 sections reachable when many fields exceed the minimum 600 x 400 pixel window.
-The abstract frontend carries these additions through defaulted parameters so
-Acme and plain rendering retain their existing behavior.
+The GUI implementation carries these additions through the abstract frontend
+interface; Plain output remains line-oriented.
 **Thinking blocks:** `Append_Thinking` collapses deltas via
 `Collapse_Thinking_Delta` and appends to the last line's text (not creating
 new lines), so thinking flows as a single paragraph.  The first delta gets a
@@ -1358,7 +1336,7 @@ turn, and step and invokes the registered frontend callback on the GTK main
 thread. Native rendering does not display the text formatter's Unicode
 separator, `Step:`/`Turn:` prefix, or a duplicate standalone completion label.
 The summary is carried as typed data through the GUI update queue rather than
-recovered by parsing formatted display text. Acme, Plain, and the legacy
+recovered by parsing formatted display text. Plain and the legacy
 GtkLayout renderer retain their existing text semantics.
 
 **Performance qualification:** The native tree is initially realized with one
@@ -1459,7 +1437,7 @@ for each complete SSE `data:` line, stripping the `data:` prefix.
 
 **Purpose:** Loads and exposes user configuration from
 `~/.coyote/settings.json` and `~/.coyote/models.json`, and persists changes
-made by the GUI Preferences dialog or the Acme SetDefault command.
+made by the GUI Preferences dialog. Plain execution does not persist settings through a frontend command.
 
 **Settings fields:**
 - `Default_Provider`, `Default_Model` — model defaults from
@@ -1799,7 +1777,7 @@ points > 255 cannot appear as character literals.
 
 ---
 
-### 5.32 `Coyote_App.Frontend.Acme_Win`
+### 5.32 Retired `Coyote_App.Frontend.Acme_Win` (historical)
 
 **Purpose:** Acme frontend implementation. Renders agent events as structured
 Unicode-glyph-prefixed text in the acme window body.
@@ -2191,7 +2169,7 @@ malformed; caught in `coyote.adb` and printed to stderr.
 
 ---
 
-### 5.39 `Acme`
+### 5.39 Retired `Acme` subsystem (historical)
 
 **Purpose:** Root package for the acme subsystem. Defines the
 `Win_File_Path` helper.
@@ -2202,7 +2180,7 @@ malformed; caught in `coyote.adb` and printed to stderr.
 
 ---
 
-### 5.40 `Acme.Window`
+### 5.40 Retired `Acme.Window` (historical)
 
 **Purpose:** High-level acme window operations over 9P.
 
@@ -2221,7 +2199,7 @@ the caller's task-local connection is used; never shares an `Fs` across tasks.
 
 ---
 
-### 5.41 `Acme.Event_Parser`
+### 5.41 Retired `Acme.Event_Parser` (historical)
 
 **Purpose:** Parses acme event-file records into structured `Event` values.
 
@@ -2236,7 +2214,7 @@ and `C2 = 'x'` (button-2 execute in body).
 
 ---
 
-### 5.42 `Acme.Raw_Events`
+### 5.42 Retired `Acme.Raw_Events` (historical)
 
 **Purpose:** Low-level byte accumulator for the acme event file.
 
@@ -2247,7 +2225,7 @@ calls.
 
 ---
 
-### 5.43 `Nine_P`
+### 5.43 Retired `Nine_P` subsystem (historical)
 
 **Purpose:** Root package for the 9P2000 protocol implementation. Defines
 `Qid`, `Byte_Array`, and protocol constants (`NOTAG`, `NOFID`, version
@@ -2257,7 +2235,7 @@ string `"9P2000"`).
 
 ---
 
-### 5.44 `Nine_P.Proto`
+### 5.44 Retired `Nine_P.Proto` (historical)
 
 **Purpose:** Encodes and decodes 9P2000 T-messages and R-messages.
 
@@ -2276,7 +2254,7 @@ R-message bytes.
 
 ---
 
-### 5.45 `Nine_P.Client`
+### 5.45 Retired `Nine_P.Client` (historical)
 
 **Purpose:** 9P2000 client; provides mount, open, read, write, and clunk
 over a UNIX socket.
@@ -2368,13 +2346,14 @@ switch. The operation copies `LLM.Agent.Current_Sandbox` into the frontend
 local state and `App_State`, and republishes the same value as
 `COYOTE_SANDBOX_PROFILE` before bootstrap or the next tool call. Session-info
 emission queries the agent directly rather than trusting stale frontend-local
-state. The Acme and GUI agent tasks use the same sequence independently because
-neither task may share mutable frontend state with the other.
+state. The GUI agent task performs this synchronization before bootstrap and
+before the next tool call; the Plain runner applies the same environment and
+session-header rules synchronously.
 
 | REQ-CORE-090, 090a–094 | `LLM.Skills`, `LLM.Settings`, `LLM.System_Prompt` |
-| REQ-CORE-100–107 | `Coyote_App.Frontend.Acme_Win`, `Coyote_App`, `Acme.Window`, `Nine_P.Client` |
+| REQ-CORE-100–107 | Historical retired Acme frontend requirements; see PCR-090 |
 | REQ-CORE-108–108b | `Coyote_App`, `Coyote_App.Dispatch`, `Coyote_App.Utils`, `Session_Lister` |
-| REQ-CORE-109 | `LLM.Settings`, `Coyote_App.Frontend.Acme_Win` |
+| REQ-CORE-109 | Historical retired Acme frontend requirement; see PCR-090 |
 | REQ-CORE-110–119, 125, 129, 132, 230 | `Coyote_App.Frontend.GUI`, `Coyote_GUI.Conversation`, `Coyote_GUI.Conversation_Stack`, `Coyote_GUI.Prompt_Queue`, `Coyote_GUI.Zoom`, `Coyote_Cmark`, `Coyote_Renderer.Markup`, `Coyote_App.Utils`, `LLM.Settings` |
 | REQ-CORE-124 | `Coyote_GUI.Conversation`, `Coyote_Lasem`; native realization deferred in `Coyote_GUI.Conversation_Stack` |
 | REQ-CORE-120–121 | `Coyote_App.Frontend.Plain` |
@@ -2384,7 +2363,7 @@ neither task may share mutable frontend state with the other.
 | REQ-CORE-180–183 | `LLM.Memory`, `LLM.System_Prompt` |
 | REQ-CORE-190–192 | `LLM.System_Prompt`, `LLM.Agent`, `LLM.Tools.Shell` |
 | REQ-CORE-200–208, REQ-CORE-215–219 | `LLM.Providers.*`, `LLM.HTTP`, `LLM.SSE`, `LLM.Agent` |
-| REQ-CORE-210–212 | `Nine_P.Client`, `Acme.Window`, `Coyote_App.Frontend.Acme_Win` |
+| REQ-CORE-210–212 | Historical retired Acme 9P VFS requirements; see PCR-090 |
 | REQ-CORE-220–221, 133–139 | `Coyote_App.Frontend.GUI`, `Coyote_GUI.Conversation_Stack`, `Coyote_GUI.Exchange_View`, `Coyote_GUI.*` |
 | REQ-CORE-504a | `Coyote_Help`, `share/help/C/coyote/` Mallard documentation |
 | REQ-CORE-025, 230–234 | `Coyote`, `LLM.Settings`, `LLM.Auth`, `LLM.Auth.GitHub_Copilot` |

@@ -17,30 +17,6 @@ package Coyote_App_Tests is
    procedure Test_Nth_Field_Tabs      (T : in out Test);
    procedure Test_Nth_Field_Edges     (T : in out Test);
 
-   --  ── Parse_Fork_Token ──────────────────────────────────────────────────
-
-   --  Valid token with matching PID prefix returns True and extracts fields.
-   procedure Test_Parse_Fork_Token_Match        (T : in out Test);
-
-   --  Mismatched PID prefix returns False.
-   procedure Test_Parse_Fork_Token_Pid_Mismatch (T : in out Test);
-
-   --  Token with no slash after UUID returns False.
-   procedure Test_Parse_Fork_Token_No_Slash     (T : in out Test);
-
-   --  Non-numeric turn field returns False.
-   procedure Test_Parse_Fork_Token_Bad_Turn     (T : in out Test);
-
-   --  Empty UUID part (nothing between prefix slash and turn slash)
-   --  returns False.
-   procedure Test_Parse_Fork_Token_Empty_Uuid   (T : in out Test);
-
-   --  Empty input returns False.
-   procedure Test_Parse_Fork_Token_Empty        (T : in out Test);
-
-   --  Step-level fork token parsing.
-   procedure Test_Parse_Fork_Token_With_Step     (T : in out Test);
-
    --  Format_Turn_Footer with step-level separator.
    procedure Test_Format_Turn_Footer_Display_Step  (T : in out Test);
 
@@ -87,13 +63,6 @@ package Coyote_App_Tests is
    --  Pending_Stats is gated by Last_Stop_Reason in Dispatch_Event.
    --  "stop" and "length" trigger the footer; other reasons do not.
    procedure Test_State_Pending_Stats_Gated_By_Stop_Reason (T : in out Test);
-
-   --  App_State Models_Pending — set by Acme_Event_Task when the Models
-   --  tag command is pressed; cleared by Dispatch_Event when the
-   --  get_available_models response arrives and the +models window is opened.
-   procedure Test_State_Models_Pending_Initial           (T : in out Test);
-   procedure Test_State_Models_Pending_Set_And_Clear     (T : in out Test);
-   procedure Test_State_Models_Pending_Independent       (T : in out Test);
 
    --  Model in stats summary line
    --  Verify the App_State accessor that gates the model part in the
@@ -190,16 +159,6 @@ package Coyote_App_Tests is
    procedure Test_Format_DB_Price_Representative (T : in out Test);
    procedure Test_Format_DB_Price_Free_And_Negative (T : in out Test);
 
-   --  ── Extract_Plumb_Data ────────────────────────────────────────────────
-   --  Extract_Plumb_Data parses a 7-field newline-delimited plumb message
-   --  and returns the data field, clipped to ndata bytes so that any
-   --  trailing newline added by the plumber is stripped.
-
-   procedure Test_Extract_Plumb_Data_Basic                (T : in out Test);
-   procedure Test_Extract_Plumb_Data_Strips_Trailing_LF   (T : in out Test);
-   procedure Test_Extract_Plumb_Data_Too_Few_Fields        (T : in out Test);
-   procedure Test_Extract_Plumb_Data_Empty                (T : in out Test);
-
    --  ── Get_Cost_Dmil ────────────────────────────────────────────────────
    --  Get_Cost_Dmil reads a JSON float or integer cost field and converts
    --  it to integer dmil units ($0.0001) using round-half-up arithmetic.
@@ -251,8 +210,7 @@ package Coyote_App_Tests is
    procedure Test_Apply_Filter_Trims_Whitespace  (T : in out Test);
 
    --  ── App_State Prompt_Filter ───────────────────────────────────────────
-   --  Prompt_Filter is stored in App_State so that Acme_Event_Task (a
-   --  separate task from Agent_Task) can read it at Send/Steer time.
+   --  Prompt_Filter is stored in App_State for the active runner.
 
    procedure Test_State_Prompt_Filter_Initial    (T : in out Test);
    procedure Test_State_Prompt_Filter_Round_Trip (T : in out Test);
@@ -273,14 +231,6 @@ package Coyote_App_Tests is
    --  Set_Pause_Armed toggles the Is_Pause_Armed flag.
    procedure Test_State_Is_Pause_Armed_Set_And_Clear (T : in out Test);
 
-   --  ── Tag_Suffix ────────────────────────────────────────────────────────
-
-   --  Tag_Suffix is empty by default.
-   procedure Test_State_Tag_Suffix_Initial       (T : in out Test);
-
-   --  Set_Tag_Suffix stores the suffix verbatim.
-   procedure Test_State_Tag_Suffix_Round_Trip    (T : in out Test);
-
    --  ── Sandbox ──────────────────────────────────────────────────────────
 
    --  Current_Sandbox is empty by default.
@@ -291,34 +241,6 @@ package Coyote_App_Tests is
 
    --  Set_Sandbox ("") clears the profile back to empty.
    procedure Test_State_Sandbox_Clear            (T : in out Test);
-
-   --  ── Format_Session_List ──────────────────────────────────────────────
-
-   --  Flat list with no subagents renders one line per session.
-   procedure Test_Format_Session_List_Flat          (T : in out Test);
-
-   --  A child session is indented under its parent.
-   procedure Test_Format_Session_List_Parent_Child  (T : in out Test);
-
-   --  A grandchild session is indented two levels deep.
-   procedure Test_Format_Session_List_Deep          (T : in out Test);
-
-   --  A subagent whose parent UUID is not in the list is rendered as a root.
-   procedure Test_Format_Session_List_Orphan        (T : in out Test);
-
-   --  Multiple children of the same parent each get the one-level indent.
-   procedure Test_Format_Session_List_Multi_Child   (T : in out Test);
-
-   --  Subagent child uses hook connector (↳).
-   procedure Test_Format_Session_List_Subagent_Uses_Hook
-     (T : in out Test);
-
-   --  Fork child uses branch connector (⎇).
-   procedure Test_Format_Session_List_Fork_Uses_Branch
-     (T : in out Test);
-
-
-
 
    --  ── GFM (libcmark-gfm) table parsing ─────────────────────────────────
 

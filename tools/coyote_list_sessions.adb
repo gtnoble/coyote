@@ -1,9 +1,7 @@
 --  coyote_list_sessions — print coyote sessions for the current directory.
 --
---  Output (tab-separated per line):
---    coyote-session+UUID<TAB>name<TAB>date<TAB>snippet
---
---  Button-3 any coyote-session+ token in acme to load that session.
+--  Output is tab-separated per line:
+--    UUID<TAB>name<TAB>date<TAB>snippet
 
 with Ada.Command_Line;
 with Ada.Directories;
@@ -17,7 +15,7 @@ procedure Coyote_List_Sessions is
 begin
    for S of Sessions loop
       Ada.Text_IO.Put_Line
-        ("coyote-session+" & To_String (S.UUID)
+        (To_String (S.UUID)
          & ASCII.HT & To_String (S.Name)
          & ASCII.HT & To_String (S.Date)
          & ASCII.HT & To_String (S.Snippet));

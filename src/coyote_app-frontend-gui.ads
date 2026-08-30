@@ -126,7 +126,6 @@ package Coyote_App.Frontend.GUI is
    overriding
    procedure Append_Fork_Action
      (F       : in out Instance;
-      PID     : in     String;
       UUID    : in     String;
       Turn_N  : in     Positive;
       Step_N  : in     Natural := 0);

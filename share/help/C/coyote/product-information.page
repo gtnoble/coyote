@@ -5,7 +5,7 @@
     <desc>Version, licensing, and project information for coyote.</desc>
   </info>
   <title>Product Information</title>
-  <p><app>coyote</app> is a native Ada LLM coding agent with GTK, Acme, and plain-text frontends. Choose <gui>Help</gui> → <gui>Product Information</gui> for the installed name, version, and license; that dialog does not require this Help viewer.</p>
+  <p><app>coyote</app> is a native Ada LLM coding agent with GTK and plain-text frontends. Choose <gui>Help</gui> → <gui>Product Information</gui> for the installed name, version, and license; that dialog does not require this Help viewer.</p>
   <terms>
     <item><title>License</title><p>coyote is distributed under the MIT OR Apache-2.0 WITH LLVM-exception license.</p></item>
     <item><title>Documentation</title><p>This Help is provided in Mallard format and displayed by Yelp.</p></item>

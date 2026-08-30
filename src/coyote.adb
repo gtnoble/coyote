@@ -1,11 +1,11 @@
---  coyote — Acme window frontend for the native LLM agent.
+--  coyote — native LLM coding agent with GUI and plain frontends.
 --
 --  Usage: coyote [--session UUID] [--model PROVIDER/ID]
 --                 [--agent TEXT|@PATH]
 --                 [--no-tools] [--no-session]
 --                 [--prompt TEXT|-] [--one-shot] [--subagent] [--name LABEL]
 --                 [--prompt-filter CMD]
---                 [--frontend acme|gui|plain] [-h|--help]
+--                 [--frontend gui|plain] [-h|--help]
 --
 --  --agent TEXT|@PATH
 --                 Append extra instructions to the system prompt.
@@ -15,11 +15,9 @@
 --  --one-shot     Exit automatically after the first complete agent turn,
 --                 printing a JSON result line to stdout.  Always selects
 --                 the Plain (non-windowed) frontend.
---  --subagent     Like --one-shot but does NOT force Plain: the child
---                 inherits COYOTE_FRONTEND=gui / $winid and opens its own
---                 window.  Use for spawning headful subagents.
---  --name LABEL   Short label appended to the window name as ":LABEL" so
---                 the acme tagline reads "CWD/+coyote:LABEL | …".
+--  --subagent     Like --one-shot but preserves inherited GUI context when
+--                 one is available.  Use for spawning GUI subagents.
+--  --name LABEL   Optional label appended to the GUI window title.
 --  --prompt-filter CMD
 --                 Shell command through which interactive prompts are
 --                 filtered before being sent to the agent.  The raw prompt
@@ -27,11 +25,8 @@
 --                 prompt.  Runs via "$SHELL -c CMD" ($SHELL defaults to
 --                 "sh").  Overrides the "promptFilter" settings.json field.
 
---  --frontend acme|gui|plain
---                 Override automatic frontend detection.  When specified,
---                 the named frontend is used regardless of environment
---                 variables.  Useful in plumb rules to force the Acme
---                 frontend for session-loading links.
+--  --frontend gui|plain
+--                 Override automatic frontend detection.
 --  --debug-logging        Enable conversation debug logging to stderr
 --                         (disabled by default).
 --
@@ -48,12 +43,15 @@ with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with Coyote_App;
+with Coyote_App.Plain;
 with Coyote_Process_Control;
 with Coyote_Utils;
 with LLM.Session_Store;
 with LLM.Settings;
 
 procedure Coyote is
+   use type Coyote_App.Frontend_Kind;
+
    Opts : Coyote_App.Options;
    I    : Positive := 1;
 
@@ -155,7 +153,7 @@ procedure Coyote is
       Ada.Text_IO.Put_Line
         ("               [-f|--prompt-filter CMD]");
       Ada.Text_IO.Put_Line
-        ("               [-F|--frontend acme|gui|plain]");
+        ("               [-F|--frontend gui|plain]");
       Ada.Text_IO.Put_Line
         ("               [-d|--debug-logging]");
       Ada.Text_IO.Put_Line
@@ -184,7 +182,7 @@ procedure Coyote is
       Ada.Text_IO.Put_Line
         ("  -f, --prompt-filter CMD    Filter prompts through shell");
       Ada.Text_IO.Put_Line
-        ("  -F, --frontend acme|gui|plain"
+        ("  -F, --frontend gui|plain"
          & "   Override frontend selection");
       Ada.Text_IO.Put_Line
         ("  -d, --debug-logging         Enable conv debug output to stderr");
@@ -278,9 +276,7 @@ begin
             declare
                Val : constant String := Ada.Command_Line.Argument (I);
             begin
-               if Val = "acme" then
-                  Opts.Frontend := Coyote_App.Acme_Frontend;
-               elsif Val = "gui" then
+               if Val = "gui" then
                   Opts.Frontend := Coyote_App.GUI_Frontend;
                elsif Val = "plain" then
                   Opts.Frontend := Coyote_App.Plain_Frontend;
@@ -335,7 +331,7 @@ begin
    --  When resuming a session, change to the working directory that was
    --  current when the session was created so all relative paths resolve
    --  consistently.  If the stored directory no longer exists, record a
-   --  warning for display in the acme window after it opens.
+   --  warning for display after the selected frontend starts.
    if Length (Opts.Session_Id) > 0 then
       declare
          Wd : constant String :=
@@ -361,22 +357,15 @@ begin
 
    --  ── Frontend detection ────────────────────────────────────────────────
    --  Priority:
-   --    0. --frontend flag explicitly set    → that frontend
-   --    1. --one-shot (non-subagent)          → Plain
-   --    2. $winid non-zero (set by acme per exec.c:1584) → Acme
-   --    3. COYOTE_FRONTEND=acme               → Acme
-   --    4. $DISPLAY or $WAYLAND_DISPLAY set   → GUI
-   --    5. COYOTE_FRONTEND=gui                → GUI
-   --    6. otherwise                          → Plain
+   --    0. --frontend flag explicitly set → that frontend
+   --    1. --one-shot (non-subagent)     → Plain
+   --    2. $DISPLAY or $WAYLAND_DISPLAY  → GUI
+   --    3. COYOTE_FRONTEND=gui           → GUI
+   --    4. otherwise                      → Plain
    if Opts.Frontend_Explicit then
-      --  Frontend already set by --frontend flag; skip detection.
       null;
    elsif Opts.One_Shot and then not Opts.Subagent then
       Opts.Frontend := Coyote_App.Plain_Frontend;
-   elsif Ada.Environment_Variables.Value ("winid", "0") /= "0"
-     or else Ada.Environment_Variables.Value ("COYOTE_FRONTEND", "") = "acme"
-   then
-      Opts.Frontend := Coyote_App.Acme_Frontend;
    elsif (Ada.Environment_Variables.Exists ("DISPLAY")
             and then
               Ada.Environment_Variables.Value ("DISPLAY", "")'Length > 0)
@@ -391,19 +380,14 @@ begin
       Opts.Frontend := Coyote_App.Plain_Frontend;
    end if;
 
-   --  Propagate frontend context to child processes (subagents inherit this
-   --  and open their own windows automatically, following the same frontend).
-   case Opts.Frontend is
-      when Coyote_App.Acme_Frontend =>
-         Ada.Environment_Variables.Set ("COYOTE_FRONTEND", "acme");
-      when Coyote_App.GUI_Frontend =>
-         Ada.Environment_Variables.Set ("COYOTE_FRONTEND", "gui");
-      when others => null;
-   end case;
+   --  Propagate GUI context to child processes.
+   if Opts.Frontend = Coyote_App.GUI_Frontend then
+      Ada.Environment_Variables.Set ("COYOTE_FRONTEND", "gui");
+   end if;
 
    case Opts.Frontend is
-      when Coyote_App.Acme_Frontend | Coyote_App.Plain_Frontend =>
-         Coyote_App.Run (Opts);
+      when Coyote_App.Plain_Frontend =>
+         Coyote_App.Plain.Run (Opts);
       when Coyote_App.GUI_Frontend =>
          Coyote_App.Run_GUI (Opts);
    end case;

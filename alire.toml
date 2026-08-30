@@ -1,5 +1,5 @@
 name = "coyote"
-description = "Coyote \u2014 native Ada LLM coding agent for Acme"
+description = "Coyote \\u2014 native Ada LLM coding agent for GTK and plain text"
 version = "0.1.0-dev"
 
 authors = ["Garret Noble"]

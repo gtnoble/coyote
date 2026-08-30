@@ -1,6 +1,6 @@
 # Project Plan — coyote
 
-**Version:** 1.25
+**Version:** 1.26
 **Date:** 2026-08-30
 **Status:** Active
 
@@ -40,7 +40,7 @@
 **Project:** coyote — a native Ada LLM coding agent.
 
 **Purpose:** Develop and maintain a self-contained multi-frontend LLM coding
-agent that operates inside the acme text editor and a GTK3 GUI. The agent
+agent with GTK3 and Plain frontends. The agent
 streams thinking, tool output, and assistant responses in real time; supports
 multiple LLM providers; and includes a companion
 Statistical Quality Control application (coyote_sqc) for process monitoring.
@@ -84,7 +84,7 @@ Two software components are developed within this project:
 
 ### Component: coyote (core agent)
 
-The primary executable. Provides acme, GTK3, and plain-text frontends; drives
+The primary executable. Provides GTK3 and Plain frontends; drives
 an in-process LLM agentic loop; streams events to the active frontend; persists
 sessions; executes the built-in shell tool; manages provider selection and
 context compaction.
@@ -161,7 +161,7 @@ advances to project-level or client control.
 `sdfs/`. Each records design rationale, constraints, unit test notes, and
 status throughout development.
 
-**Non-deliverable tools:** plan9port (acme, plumber), GTK3 dev headers,
+**Non-deliverable tools:** GTK3 dev headers,
 libcurl dev headers, libcmark-gfm dev headers, Lasem 0.6 dev headers, and Computer Modern math fonts. Operation of delivered
 binaries does not depend on any of these tools at runtime except GTK3
 (which must be present on the user's system; this is a known dependency).
@@ -231,7 +231,7 @@ dispatch.
 **Approach:** Acceptance testing demonstrates that all SRS requirements have
 been met. The AUnit suite constitutes the primary test vehicle. For
 capabilities not directly testable with AUnit (streaming frontend output,
-acme window integration, GTK rendering) the test method is demonstration or
+GUI rendering) the test method is demonstration or
 inspection as stated in the SRS.
 
 **Independence limitation:** The developer is evaluating their own work.
@@ -239,7 +239,7 @@ This limitation is declared at each acceptance review. The user (product
 owner) is invited to independently review work products before they are
 considered accepted.
 
-**Test environment:** Development workstation running GNAT, Alire, plan9port,
+**Test environment:** Development workstation running GNAT, Alire,
 GTK3. Live-provider tests require valid API credentials (opt-in).
 
 **Dry run policy:** Before proposing an acceptance review to the user, a full
@@ -401,7 +401,7 @@ Subsequent builds will define their own milestone sets.
 | libcmark-gfm + dev headers | Markdown rendering | System package |
 | Lasem 0.6 + dev headers | Display math rendering | System package/custom install |
 | Computer Modern math fonts | Lasem glyph coverage | System font package |
-| plan9port | Acme frontend and plumber | At `/usr/local/plan9` |
+
 | Git | Version control / project library | Project root |
 
 ---
@@ -737,7 +737,7 @@ arguments/results remain available through the existing detail window.
 | Component progress | Native summary/detail implementation complete and unit-tested; legacy GtkLayout renderer remains the default fallback. |
 | Open problems | PCR-073 remains open for revised DEM-042..044 qualification; R7 remains open. |
 | Milestone status | Requirements/design/test-plan amendment, implementation, and regression testing complete; display-backed replay/performance qualification remains pending. |
-| Scope changes | 1 presentation refinement within the PCR-073 GUI architecture change; no change to Acme or Plain semantics. |
+| Scope changes | 1 presentation refinement within the PCR-073 GUI architecture change; no change to Plain semantics. |
 | Test results trend | Production and test development builds succeed; full suite passes 917/917 with zero failed assertions and zero unexpected errors. |
 
 **Disposition:** The requirements/design amendment and implementation are
@@ -756,7 +756,7 @@ stack implementation and focused tests were started.
 | Requirements volatility | SRS-CORE v1.16: no new requirement ID; REQ-CORE-134 amended to require a visible native frame per assistant/tool step. |
 | Component progress | Step-frame implementation compiles; focused frame lifecycle tests added; replay step boundaries amended; display-backed qualification pending. |
 | Open problems | PCR-073 and R7 remain open for visual, replay, and 100/500/2,000-exchange qualification. |
-| Scope changes | One refinement within the existing native GTK presentation change; Acme and Plain semantics unchanged. |
+| Scope changes | One refinement within the existing native GTK presentation change; Plain semantics unchanged. |
 | Test results trend | Production/test development builds succeed; full regression run was interrupted by command timeout during the existing long-running suite; focused native-stack result is recorded separately. |
 
 **Independence limitation:** Developer evaluated own implementation; the user is
@@ -863,7 +863,7 @@ in the GTK model picker.
 | Component progress | Price formatter, GTK Preferences control, settings persistence, typed queue transport, tests, and documentation complete. |
 | Open problems | PCR-087 remains open for display-backed qualification under DEM-033. |
 | Milestone status | Implementation and automated verification complete on 2026-08-30; display-backed review pending. |
-| Scope changes | One approved GTK presentation preference enhancement; provider pricing and Acme output unchanged. |
+| Scope changes | One approved GTK presentation preference enhancement; provider pricing and Plain output unchanged. |
 | Test results trend | 940 registered tests; production and test development builds succeed; full suite passes 940/940 with zero failed assertions and zero unexpected errors. |
 
 **Disposition:** SI prefixes remain the default. The Preferences combo selects
@@ -872,16 +872,29 @@ with zero shown as `free` and negative values blank. The developer performed
 self-evaluation; independent user review and display-backed DEM-033 remain
 invited.
 
+### Review 21 — PCR-090 Acme frontend removal (2026-08-30)
+
+**Review type:** Scope, requirements, design, implementation, and test-results review
+**Trigger:** Approved removal of the Acme UI frontend and associated desktop integration.
+
+| Indicator | Value |
+|---|---|
+| Scope change | Retired the Acme UI, Nine_P 9P stack, plumber integration, `coyote_open`, and associated tests. Current frontends are GTK and Plain. |
+| Architectural result | Added the synchronous Plain runner and reduced shared frontend APIs to GUI/plain needs. |
+| Verification | Development production build succeeds; the complete test suite passes 798/798 with zero failed assertions and zero unexpected errors. |
+| Documentation | README, man page, SRS, SDD, SDF, Test Plan, Integration Guide, AGENTS, and this Project Plan updated. |
+| Disposition | Implemented. Historical Acme requirements and review records remain retained as superseded records. |
+
 ## 9. Artifact Version Table
 
 
 | Artifact | ID | Location | Current Version | Control Level |
 |---|---|---|---|---|
-| Project Plan | PLAN | `plan/project-plan.md` | 1.25 (2026-08-30) | Project |
+| Project Plan | PLAN | `plan/project-plan.md` | 1.26 (2026-08-30) | Project |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
-| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.19 (2026-08-30) | Client |
-| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.21 (2026-08-30) | Project |
+| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.20 (2026-08-30) | Client |
+| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.22 (2026-08-30) | Project |
 | coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.2 (2026-06-21) | Project |
 | coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.2 (2026-06-21) | Project |
-| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.22 (2026-08-30) | Project |
+| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.23 (2026-08-30) | Project |
 | Agent Working Instructions (secondary) | AGENTS | `AGENTS.md` | active | Project |

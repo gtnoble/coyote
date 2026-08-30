@@ -10,7 +10,7 @@ project Coyote is
    for Create_Missing_Dirs use "True";
    for Exec_Dir use "bin";
    for Main use ("coyote.adb", "coyote_list_sessions.adb",
-                 "coyote_open.adb", "coyote_sqc_main.adb");
+                 "coyote_sqc_main.adb");
 
    --  gprof profiling flag; passed via -XCOYOTE_PROFILE=true.
    Profile_Enabled := external ("COYOTE_PROFILE", "false");

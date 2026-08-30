@@ -1,8 +1,7 @@
 --  Coyote_App — main application state and entry point.
 --
 --  App_State is a protected object holding all mutable state shared between
---  tasks.  Run spawns the acme window and blocks until the
---  window is closed.
+--  tasks.  Run_GUI starts the GTK frontend and blocks until it closes.
 --
 --  Project: coyote
 --  For revision history, see the project version-control log.
@@ -66,11 +65,6 @@ package Coyote_App is
       --  agent_start alongside Last_Stop_Reason.
       function Last_Error_Message return String;
       function Pending_Stats        return Boolean;
-      --  True while waiting for the get_available_models response that will
-      --  populate the +models sub-window.  Set by the Acme_Event_Task when
-      --  the user presses Models; cleared by Dispatch_Event when the
-      --  response arrives and the sub-window has been opened.
-      function Models_Pending       return Boolean;
       function Context_Window     return Natural;
       function Turn_Input_Tokens  return Natural;
       function Turn_Output_Tokens return Natural;
@@ -84,7 +78,6 @@ package Coyote_App is
       function Session_Cache_Read    return Natural;
       function Session_Cache_Write   return Natural;
       function Session_Total_Tokens  return Natural;
-      function Win_Name              return String;
       --  Effective prompt filter command (CLI flag overrides settings.json).
       --  Empty when no filter is configured.
       function Prompt_Filter         return String;
@@ -118,7 +111,6 @@ package Coyote_App is
       procedure Set_Last_Stop_Reason  (Value : String);
       procedure Set_Last_Error_Message (Value : String);
       procedure Set_Pending_Stats  (Value : Boolean);
-      procedure Set_Models_Pending (Value : Boolean);
       procedure Set_Context_Window (N     : Natural);
       procedure Set_Turn_Tokens    (Input, Output : Natural);
       --  Per-turn cost from message_end usage.cost.total (units of $0.0001).
@@ -131,15 +123,10 @@ package Coyote_App is
          Cache_Read  : Natural;
          Cache_Write : Natural;
          Total       : Natural);
-      procedure Set_Win_Name       (Name  : String);
       procedure Set_Prompt_Filter  (Cmd   : String);
       procedure Set_Agent_Ready    (Value : Boolean);
       procedure Set_Agent_Stopped  (Value : Boolean);
       procedure Set_Frontend_Ready (Value : Boolean);
-      --  Static tag suffix appended after the dynamic button group.
-      --  Set once at startup; read by tag-update helpers in dispatch.
-      function  Tag_Suffix         return String;
-      procedure Set_Tag_Suffix     (Suffix : String);
 
       --  Turn counter — incremented after each completed agent turn,
       --  reset on new_session, and restored from history on session reload.
@@ -195,7 +182,7 @@ package Coyote_App is
       P_Last_Stop_Reason  : Ada.Strings.Unbounded.Unbounded_String;
       P_Last_Error_Message : Ada.Strings.Unbounded.Unbounded_String;
       P_Pending_Stats : Boolean := False;
-      P_Models_Pending : Boolean := False;
+
       P_Ctx_Win       : Natural := 0;
       P_Turn_In       : Natural := 0;
       P_Turn_Out      : Natural := 0;
@@ -208,9 +195,9 @@ package Coyote_App is
       P_Sess_Cache_R  : Natural := 0;
       P_Sess_Cache_W  : Natural := 0;
       P_Sess_Total    : Natural := 0;
-      P_Win_Name      : Ada.Strings.Unbounded.Unbounded_String;
+
       P_Prompt_Filter : Ada.Strings.Unbounded.Unbounded_String;
-      P_Tag_Suffix    : Ada.Strings.Unbounded.Unbounded_String;
+
       P_Agent_Ready   : Boolean := False;
       P_Agent_Stopped : Boolean := False;
       P_Frontend_Ready : Boolean := False;
@@ -227,14 +214,12 @@ package Coyote_App is
 
    --  ── Frontend_Kind ────────────────────────────────────────────────────
    --
-   --  Which display frontend to use.  Set by coyote.adb at startup based
-   --  on the $winid environment variable and stdout TTY detection.
+   --  Which presentation frontend to use.  Set by coyote.adb at startup.
    --
-   --    Acme_Frontend  — acme window via 9P  (default when $winid is set)
-   --    GUI_Frontend   — GTK3 window        (default when $DISPLAY is set)
-   --    Plain_Frontend — line-oriented text  (--one-shot / piped output)
+   --    GUI_Frontend   — GTK3 window        (default when a display is set)
+   --    Plain_Frontend — line-oriented text (one-shot / no display)
 
-   type Frontend_Kind is (Acme_Frontend, GUI_Frontend, Plain_Frontend);
+   type Frontend_Kind is (GUI_Frontend, Plain_Frontend);
 
    type Options is record
       Session_Id     : Ada.Strings.Unbounded.Unbounded_String;
@@ -253,19 +238,18 @@ package Coyote_App is
       --  (--subagent flag): exits after one turn like One_Shot but
       --  does not force the Plain frontend.
       Subagent       : Boolean := False;
-      --  Optional short label appended to the window name as ":Name" so the
-      --  acme tagline reads "CWD/+coyote:Name | …".  Empty means no suffix.
+      --  Optional label appended to the GUI window title.
       Name           : Ada.Strings.Unbounded.Unbounded_String;
       --  Shell command through which interactive prompts are filtered before
       --  being sent to the agent.  CLI flag wins over settings.json.
       --  Empty means no filter.
       Prompt_Filter  : Ada.Strings.Unbounded.Unbounded_String;
-      --  When non-empty, a warning message to display in the acme window
-      --  (and on stderr) after startup.  Set by coyote.adb when the working
+      --  When non-empty, a warning message to display after startup
+      --  (and on stderr).  Set by coyote.adb when the working
       --  directory stored in the resumed session no longer exists.
       Work_Dir_Warning : Ada.Strings.Unbounded.Unbounded_String;
-      --  Which frontend to use; set by the entry-point before calling Run.
-      Frontend       : Frontend_Kind := Acme_Frontend;
+      --  Which frontend to use; set by the entry point before startup.
+      Frontend       : Frontend_Kind := Plain_Frontend;
       --  True when --frontend was explicitly set on the command line.
       --  When True, the automatic detection logic is skipped.
       Frontend_Explicit : Boolean := False;
@@ -277,17 +261,13 @@ package Coyote_App is
    --
    --  Tracks which kind of streaming content is currently being appended to
    --  the window body.  Shared between Dispatch_Event (in
-   --  Coyote_App.Dispatch) and the Pi_Stdout_Task in Run.
+   --  Coyote_App.Dispatch) and the agent task in the selected runner.
 
    type Section_Kind is
      (No_Section, Thinking_Section, Text_Section, Tool_Section);
 
-   --  ── Entry point ──────────────────────────────────────────────────────
+   --  ── Entry points ──────────────────────────────────────────────────────
 
-
-   --  GUI variant of Run: uses Coyote_App.Frontend.GUI instead of the
-   --  acme window frontend.
-   procedure Run (Opts : Options);
-
+   --  Run the GTK3 graphical frontend.
    procedure Run_GUI (Opts : Options);
 end Coyote_App;

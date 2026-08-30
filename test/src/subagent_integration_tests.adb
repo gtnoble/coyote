@@ -7,22 +7,13 @@ with Ada.Text_IO;
 with GNATCOLL.JSON;           use GNATCOLL.JSON;
 with GNATCOLL.OS.FS;
 with GNATCOLL.OS.Process;     use GNATCOLL.OS.Process;
-with Nine_P.Client;
+
 
 package body Subagent_Integration_Tests is
 
    use AUnit.Assertions;
 
    --  ── Helpers ──────────────────────────────────────────────────────────
-
-   --  True when the acme 9P server socket is present in the namespace.
-   function Acme_Running return Boolean is
-   begin
-      return Ada.Directories.Exists
-               (Nine_P.Client.Namespace & "/acme");
-   exception
-      when others => return False;
-   end Acme_Running;
 
    function Is_Guarded (Name : String) return Boolean is
    begin
@@ -234,10 +225,7 @@ package body Subagent_Integration_Tests is
       end Runner;
 
    begin
-      if not Is_Guarded ("COYOTE_TEST_ACME") then
-         return;
-      end if;
-      if not Acme_Running then
+      if not Is_Guarded ("COYOTE_TEST_SUBAGENT") then
          return;
       end if;
       if Coyote'Length = 0 then
@@ -370,10 +358,7 @@ package body Subagent_Integration_Tests is
       end Runner;
 
    begin
-      if not Is_Guarded ("COYOTE_TEST_ACME") then
-         return;
-      end if;
-      if not Acme_Running then
+      if not Is_Guarded ("COYOTE_TEST_SUBAGENT") then
          return;
       end if;
       if Coyote'Length = 0 then
@@ -511,10 +496,7 @@ package body Subagent_Integration_Tests is
       end Runner;
 
    begin
-      if not Is_Guarded ("COYOTE_TEST_ACME") then
-         return;
-      end if;
-      if not Acme_Running then
+      if not Is_Guarded ("COYOTE_TEST_SUBAGENT") then
          return;
       end if;
       if Coyote'Length = 0 then

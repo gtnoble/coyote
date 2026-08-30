@@ -1,6 +1,6 @@
-.\" Man page for coyote — Native Ada LLM coding agent harness
-.\" Generated 2026-06-21
-.TH COYOTE 1 "2026-06-21" "coyote 0.1.0" "Coyote Manual"
+." Man page for coyote — Native Ada LLM coding agent harness
+." Generated 2026-08-30
+.TH COYOTE 1 "2026-08-30" "coyote 0.1.0" "Coyote Manual"
 .SH NAME
 coyote \- native Ada LLM coding agent harness
 .SH SYNOPSIS
@@ -15,241 +15,181 @@ coyote \- native Ada LLM coding agent harness
 [\fB\-\-subagent\fR]
 [\fB\-\-name\fR \fILABEL\fR]
 [\fB\-\-prompt\-filter\fR \fICMD\fR]
-[\fB\-\-frontend\fR \fIacme\fR|\fIgui\fR|\fIplain\fR]
+[\fB\-\-frontend\fR \fIgui\fR|\fIplain\fR]
 [\fB\-h\fR|\fB\-\-help\fR]
 .SH DESCRIPTION
 .B coyote
 is a self-contained LLM coding agent that manages a conversation session
 with a large language model, executes tool calls on behalf of the model,
-and presents streaming output to the user via one of three frontends:
-the
-.B acme
-text editor (via 9P VFS), a GTK3 graphical window, or plain text output.
+and presents streaming output through a GTK3 graphical frontend or a
+line-oriented Plain frontend.
 .PP
-The agent streams assistant text, thinking (reasoning) blocks, tool-call
-events, and session statistics in real time.  It supports multiple LLM
-providers, automatic context compaction, skill discovery, and session
-persistence.
+The agent streams assistant text, thinking blocks, tool-call events, and
+session statistics in real time. It supports multiple LLM providers, automatic
+context compaction, skill discovery, and JSONL session persistence.
 .PP
-Companion utilities
+The companion utility
 .BR coyote_list_sessions (1)
-and
-.BR coyote_open (1)
-are also provided.
+prints sessions saved for the current working directory.
 .SH OPTIONS
 .TP
 \fB\-\-session\fR \fIUUID\fR
 Resume the session identified by
 .IR UUID .
-The conversation history is reloaded from the session file and the
-process working directory is changed to the directory that was current
-when the session was created (if it still exists).
+The conversation history is reloaded and the process working directory is
+changed to the directory recorded when the session was created, if it exists.
 .TP
 \fB\-\-model\fR \fIPROVIDER/ID\fR
-Select the LLM model to use for this session.  Overrides the default
-model from
+Select the LLM model for the session. Overrides the default from
 .IR ~/.coyote/settings.json .
-Example:
-.BR \-\-model\ anthropic/claude-sonnet-4-5 .
 .TP
 \fB\-\-agent\fR \fITEXT\fR|\fB@\fIPATH\fR
-Append extra instructions to the system prompt.  When the value begins
-with
-.RB \(lq @ \(rq,
-the remainder is treated as a file path; the file's contents are
-appended.  Otherwise the value string itself is appended.
+Append extra instructions to the system prompt. A value beginning with @ is
+loaded from the named file.
 .TP
 \fB\-\-no\-tools\fR
-Disable the built-in tool set for this session.  The model receives no
-tool definitions and any tool-call request from the model is returned
-as an error.
+Disable the built-in tool set for this session.
 .TP
 \fB\-\-no\-session\fR
-Do not persist the conversation to disk.  No session JSONL file is
-created or written.  This flag is propagated to child processes via
-the
-.B COYOTE_NO_SESSION
-environment variable.
+Do not persist the conversation. This setting is propagated to descendants
+through
+.BR COYOTE_NO_SESSION .
 .TP
 \fB\-\-prompt\fR \fITEXT\fR|\fB\-\fR
 Send
 .I TEXT
-as the first user prompt immediately after startup, without waiting
-for interactive input.  When
-.B \-
-is given, the prompt is read from standard input (until EOF).
+as the first prompt. With
+.BR \- ,
+read the prompt from standard input until EOF.
 .TP
 \fB\-\-one\-shot\fR
-Exit automatically after the first complete agent turn and print a
-JSON result summary to standard output.  Always selects the Plain
-(non-windowed) frontend unless
-.B \-\-subagent
-is also given.
+Exit after the first complete agent turn and print one JSON result record to
+standard output. Presentation output is sent to standard error.
 .TP
 \fB\-\-subagent\fR
-Like
-.B \-\-one\-shot
-but does not force the Plain frontend: the child inherits
-.B COYOTE_FRONTEND
-or
-.B $winid
-and opens its own window.  Use for spawning headful subagents.
+Behave as one-shot while preserving inherited GUI context when available.
+Otherwise the child uses the Plain frontend.
 .TP
 \fB\-\-name\fR \fILABEL\fR
-Append
-.I LABEL
-to the window or process name so that the user can distinguish
-multiple concurrent coyote instances.  In the Acme frontend the
-tagline reads
-.IR "CWD/+coyote:LABEL | ..." .
+Add an optional label to the GTK window title.
 .TP
 \fB\-\-prompt\-filter\fR \fICMD\fR
-Pass each interactive prompt through the shell command
-.I CMD
-(via
-.BR "$SHELL -c CMD" )
-before sending it to the agent.  The raw prompt is written to stdin;
-stdout is used as the filtered prompt.  Overrides the
+Pass each interactive prompt through
+.BR "$SHELL -c CMD"
+before sending it to the agent. Overrides
 .B promptFilter
-field in
+in
 .IR ~/.coyote/settings.json .
 .TP
-\fB\-\-frontend\fR \fIacme\fR|\fIgui\fR|\fIplain\fR
-Override automatic frontend detection.  When specified, the named
-frontend is used regardless of environment variables.  Useful in
-plumb rules to force the Acme frontend for session-loading links.
+\fB\-\-frontend\fR \fIgui\fR|\fIplain\fR
+Override automatic frontend detection.
 .TP
 \fB\-h\fR, \fB\-\-help\fR
-Print a usage summary to standard output and exit with success status.
+Print usage information and exit successfully.
 .SH ENVIRONMENT
 .TP
 .B COYOTE_FRONTEND
 When set to
-.BR acme " or " gui ,
-forces the corresponding frontend.  Set automatically by the parent
-coyote process before spawning child processes so that subagents
-inherit the headful context.
+.BR gui ,
+selects the GUI frontend. It is set automatically by a GUI parent before
+spawning child coyote processes. Other values do not select a supported
+frontend.
 .TP
 .B COYOTE_SESSION_ID
-Set by coyote after session creation to the session UUID.  Child
-processes promote this to
+Set after session creation. Child processes promote it to
 .B COYOTE_PARENT_SESSION
-to record parent lineage in their session JSONL header.
+to record parent lineage.
 .TP
 .B COYOTE_PARENT_SESSION
-When set at startup (and
-.B COYOTE_SESSION_ID
-is not already set), recorded as the
+When set at startup, recorded as the
 .I parentSession
-field in the new session's JSONL header.
+field in a new session header.
 .TP
 .B COYOTE_OPENROUTER_SESSION_ID
-Stable OpenRouter Broadcast grouping identity.  Subagents inherit this
-value unchanged recursively; it is separate from the durable coyote
-session-lineage variables.
+Stable OpenRouter Broadcast grouping identity inherited by subagents.
 .TP
 .B COYOTE_NO_SESSION
 When set to
 .BR 1 ,
-propagates
-.B \-\-no\-session
-behaviour to all descendant coyote processes.
+propagates no-session behavior to descendants.
+.TP
+.B COYOTE_THINKING_LEVEL
+Current thinking level inherited by child sessions.
+.TP
+.B COYOTE_SANDBOX_PROFILE
+Current sandbox profile inherited by child sessions.
 .TP
 .B COYOTE_RECURSION_DEPTH
-Tracks the inherited --subagent nesting depth.  A top-level process uses
-zero; each --subagent increments the value.  A child is rejected before
-startup when the incremented value exceeds the maxRecursionDepth setting,
-which defaults to 1.  This variable is process context, not a security
-boundary.
-.TP
-.B winid
-When set to a non-zero integer (by acme's
-.BR exec (1)
-per window launch), selects the Acme frontend.
+Inherited subagent nesting depth. A child is rejected before startup when it
+would exceed
+.B maxRecursionDepth
+in the settings file.
 .TP
 .B DISPLAY
-When non-empty and no Acme context is detected, selects the GUI
-frontend.
+When non-empty, selects the GUI frontend unless an explicit frontend or
+one-shot Plain selection applies.
 .TP
 .B WAYLAND_DISPLAY
-When non-empty and no Acme context is detected, selects the GUI
-frontend.
-.TP
-.B PLAN9
-Path to the plan9port installation.  Defaults to
-.BR /usr/local/plan9 .
+When non-empty, selects the GUI frontend unless an explicit frontend or
+one-shot Plain selection applies.
 .TP
 .B SHELL
-Shell used for
-.B \-\-prompt\-filter
-command execution.  Defaults to
+Shell used for prompt-filter commands. Defaults to
 .BR sh .
 .SH FILES
 .TP
 .I ~/.coyote/settings.json
 Default provider, model, thinking level, compaction settings, prompt filter,
-the maximum subagent recursion depth (`maxRecursionDepth`, default 1), and
-GTK model-picker price display (`priceDisplay`, `si` or `db`; default `si`).
-In `db` mode, positive stored $/MTok prices are shown as
-`10 × log10 (price / 1,000,000)` dB; zero is `free` and negative is blank.
+sandbox profile, skill paths, and maximum subagent recursion depth.
 .TP
 .I ~/.coyote/models.json
-Per-provider model overrides and API key configuration.
+Per-provider model overrides and API-key configuration.
 .TP
 .I ~/.coyote/auth.json
-GitHub Copilot OAuth tokens (read and written atomically).
+GitHub Copilot OAuth tokens.
 .TP
 .I ~/.coyote/sessions/<cwd-slug>/<UUID>.jsonl
-Session files in v3 JSONL envelope format.  The
-.I <cwd-slug>
-is the URL-encoded representation of the working directory path.
+Persisted conversation sessions in JSONL format.
 .TP
 .I ~/.coyote/skills/*/SKILL.md
 .I ~/.agents/skills/*/SKILL.md
-.I .coyote/skills/*/SKILL.md
-.I .agents/skills/*/SKILL.md
-Skill definition files discovered at startup and included in the
-system prompt.  Project-local skills (CWD roots) shadow global
-skills of the same name.
+Skill definitions discovered at startup.
 .SH "FRONTEND SELECTION"
-The frontend is selected in the following priority order:
+The frontend is selected in this priority order:
 .IP 1. 4
+An explicit
 .B \-\-frontend
-flag explicitly set \(em that frontend.
+argument.
 .IP 2. 4
 .B \-\-one\-shot
 without
-.B \-\-subagent
-\(em Plain frontend.
+.BR \-\-subagent ,
+which selects Plain.
 .IP 3. 4
-.B $winid
-non-zero or
-.B COYOTE_FRONTEND=acme
-\(em Acme frontend.
-.IP 4. 4
-.B $DISPLAY
+A non-empty
+.B DISPLAY
 or
-.B $WAYLAND_DISPLAY
-set, or
-.B COYOTE_FRONTEND=gui
-\(em GUI frontend.
-.IP 5. 4
-Otherwise \(em Plain frontend.
+.B WAYLAND_DISPLAY ,
+or
+.BR COYOTE_FRONTEND=gui ,
+which selects GUI.
+.IP 4. 4
+Otherwise Plain.
 .SH EXAMPLES
 .TP
-Start an interactive GUI session with the default model:
+Start a GUI session when a display is available:
 .EX
 coyote
 .EE
 .TP
-Start an Acme session with a specific model:
-.EX
-coyote \-\-model openrouter/anthropic/claude-sonnet-4-5
-.EE
-.TP
-Send a one-shot prompt and print the JSON result:
+Send a one-shot prompt and print its JSON result:
 .EX
 coyote \-\-one\-shot \-\-prompt "Explain the Ada package system"
+.EE
+.TP
+Pipe a prompt to a Plain subagent:
+.EX
+printf 'Review the following code...\n' | coyote \-\-subagent \-\-prompt \-
 .EE
 .TP
 Resume a previous session:
@@ -257,18 +197,12 @@ Resume a previous session:
 coyote \-\-session 550e8400-e29b-41d4-a716-446655440000
 .EE
 .TP
-Spawn a subagent with extra system-prompt instructions:
+Disable tools and persistence:
 .EX
-printf \(aqReview the following code...\(aq | coyote \-\-subagent \-\-prompt \- \-\-agent @review-instructions.txt
-.EE
-.TP
-Disable tool execution for a read-only session:
-.EX
-coyote \-\-no\-tools \-\-no\-session
+coyote \-\-frontend plain \-\-no\-tools \-\-no\-session
 .EE
 .SH "SEE ALSO"
 .BR coyote_list_sessions (1),
-.BR coyote_open (1),
 .BR coyote_sqc (1)
 .PP
 Project documentation:

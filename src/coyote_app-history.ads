@@ -17,14 +17,9 @@ package Coyote_App.History is
    --  history so that subsequent live turns are numbered correctly.
    --  Calls Frontend.Append_Notice (Error, …) if the session file cannot
    --  be located or read.
-   --
-   --  PID is embedded in plumb tokens inside tool-call boxes (acme path
-   --  passes My_PID; plain / GUI callers omit it or pass "" to suppress
-   --  the token).
    procedure Render_Session_History
      (UUID     : String;
       Frontend : in out Coyote_App.Frontend.Instance'Class;
-      State    : in out App_State;
-      PID      : String := "");
+      State    : in out App_State);
 
 end Coyote_App.History;

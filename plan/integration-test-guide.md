@@ -1,15 +1,18 @@
 # Integration Test Guide
 
 This project keeps all live integration tests **opt-in**. The default AUnit run
-must stay CI-safe and must not require network access, API credentials, acme, or
-plumber state unless a test is explicitly guarded.
+must stay CI-safe and must not require network access, API credentials, or a
+display unless a test is explicitly guarded.
 
 ## Current Status
 
-There are no live LLM API integration tests checked in. Acme/9P and dispatch
-integration tests are opt-in and auto-detect their live environment. PCR-044
-adds manual qualification procedures DEM-029..032 for sandbox session
-restoration, frontend synchronization, and child-process propagation.
+The Acme and 9P integration surface was removed on 2026-08-30. The active
+suite contains no Acme/9P tests. Live provider tests remain opt-in; the
+standard suite is safe without network access, credentials, or a display.
+
+PCR-090 records the removal. GUI sandbox/session qualification remains covered
+by the existing manual procedures; Plain subprocess tests use the neutral
+`COYOTE_TEST_SUBAGENT=1` guard.
 
 ## Principles
 
@@ -31,7 +34,7 @@ Suggested conventions:
 - OpenRouter: `COYOTE_RUN_OPENROUTER_LIVE=1`
 - Anthropic: `COYOTE_RUN_ANTHROPIC_LIVE=1`
 - GitHub Copilot: `COYOTE_RUN_GITHUB_COPILOT_LIVE=1`
-- acme / 9P integration: `COYOTE_RUN_ACME_LIVE=1`
+- Subagent subprocess integration: `COYOTE_TEST_SUBAGENT=1`
 
 A test should return immediately when the guard is absent or not equal to `1`.
 If the guard is present but the credential is missing, the test should report a
@@ -80,18 +83,6 @@ alr run coyote_test
 
 If a test also needs a fresh login, run `pi login github-copilot` first.
 
-## Example: Run Existing acme / 9P Live Tests
-
-When acme-backed integration tests need a live editor namespace, start acme and
-ensure the Plan 9 environment is configured first:
-
-```sh
-export PLAN9=/usr/local/plan9
-export COYOTE_RUN_ACME_LIVE=1
-
-cd /home/gtnoble/Projects/coyote/test
-alr run coyote_test
-```
 
 ## Test Authoring Notes
 
@@ -161,7 +152,7 @@ that can modify important user data.
 ### DEM-030 — Session switching and clearing
 
 1. Create one session with profile A and another with profile B.
-2. In one Acme or GUI instance, switch from A to B and verify the displayed
+2. In one GUI instance, switch from A to B and verify the displayed
    profile and the next shell command use B.
 3. Switch from B to a session with no `sandboxProfile` header field.
 4. Verify the displayed profile is cleared and the next shell command is
@@ -178,7 +169,7 @@ that can modify important user data.
 ### DEM-032 — Frontend, agent, and environment synchronization
 
 Exercise startup/resume, explicit profile changes, new-session creation, and
-session switching in both Acme and GUI. At each boundary verify that the
+session switching in the GUI. At each boundary verify that the
 status display, the agent's next shell command, and the inherited
 `COYOTE_SANDBOX_PROFILE` value identify the same profile, including the empty
 value when sandboxing is cleared.
