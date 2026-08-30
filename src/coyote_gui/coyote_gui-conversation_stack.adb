@@ -2,11 +2,14 @@
 --
 --  Project: coyote
 
+with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with Coyote_App.Utils;       use Coyote_App.Utils;
 with Coyote_GUI;
 with Coyote_GUI.Tool_Detail_Window;
+with Coyote_GUI.Math_Element;
+with Coyote_Renderer.MathML;
 with Coyote_Renderer.Markup;
 with Glib;                   use Glib;
 with Gtk.Adjustment;
@@ -36,6 +39,7 @@ package body Coyote_GUI.Conversation_Stack is
    use type Gtk.Text_Buffer.Gtk_Text_Buffer;
    use type Gtk.Text_Mark.Gtk_Text_Mark;
    use type Gtk.Text_View.Gtk_Text_View;
+   use type Coyote_GUI.Math_Element.Instance_Access;
    use type Gtk.Window.Gtk_Window;
 
    type Instance_Access is access all Instance;
@@ -96,6 +100,110 @@ package body Coyote_GUI.Conversation_Stack is
       Buffer.Insert (Iter, Text);
    end Append_Buffer;
 
+   procedure Add_Text_Element
+     (C       : in out Instance;
+      Parent  : not null access Gtk.Box.Gtk_Box_Record'Class;
+      Caption : String;
+      Text    : String;
+      Buffer  : out Gtk.Text_Buffer.Gtk_Text_Buffer;
+      View    : out Gtk.Text_View.Gtk_Text_View);
+
+   procedure Add_Response_Text
+     (C      : in out Instance;
+      Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
+      Text   : String)
+   is
+      Buffer : Gtk.Text_Buffer.Gtk_Text_Buffer;
+      View   : Gtk.Text_View.Gtk_Text_View;
+      Markup : constant String :=
+        Coyote_Renderer.Markup.To_Pango_Markup (Text);
+      Iter   : Gtk.Text_Iter.Gtk_Text_Iter;
+   begin
+      if Text'Length = 0 then
+         return;
+      end if;
+      Add_Text_Element (C, Parent, "", Text, Buffer, View);
+      if C.Render_Markdown then
+         Buffer.Set_Text ("");
+         Buffer.Get_End_Iter (Iter);
+         Buffer.Insert_Markup (Iter, Markup, -1);
+      end if;
+      C.Text_Views.Append (View);
+   end Add_Response_Text;
+
+   procedure Add_Response_Math
+     (C      : in out Instance;
+      Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
+      Block  : Coyote_Renderer.MathML.Display_Math_Block)
+   is
+      Element : constant Coyote_GUI.Math_Element.Instance_Access :=
+        Coyote_GUI.Math_Element.New_Element
+          (To_String (Block.MathML),
+           To_String (Block.Source),
+           C.Math_Scale);
+   begin
+      if Element = null then
+         Add_Response_Text (C, Parent, To_String (Block.Source));
+         return;
+      end if;
+      Parent.Pack_Start
+        (Coyote_GUI.Math_Element.Widget (Element.all),
+         Expand  => False,
+         Fill    => True,
+         Padding => 2);
+      C.Math_Elements.Append (Element);
+   end Add_Response_Math;
+   procedure Build_Response_Elements
+     (C        : in out Instance;
+      Full_Text : String)
+   is
+      Extraction : constant Coyote_Renderer.MathML.Extraction_Result :=
+        Coyote_Renderer.MathML.Extract_Display_Math (Full_Text);
+      Masked     : constant String :=
+        To_String (Extraction.Masked_Text);
+      Cursor     : Positive := Masked'First;
+      Block_Index : Positive := 1;
+   begin
+      if Extraction.Blocks.Is_Empty or else C.Response_Section = null then
+         return;
+      end if;
+
+      if C.Active_View /= null then
+         C.Active_View.Hide;
+      end if;
+      Gtk.Box.Gtk_New_Vbox
+        (C.Response_Box, Homogeneous => False, Spacing => 2);
+      C.Response_Section.Pack_Start
+        (C.Response_Box, Expand => False, Fill => True, Padding => 2);
+
+      while Block_Index <= Natural (Extraction.Blocks.Length) loop
+         declare
+            Token : constant String :=
+              "COYOTE_MATH_BLOCK_"
+              & Ada.Strings.Fixed.Trim
+                  (Natural'Image (Block_Index), Ada.Strings.Both)
+              & "__";
+            Position : constant Natural :=
+              Ada.Strings.Fixed.Index (Masked, Token, Cursor);
+         begin
+            exit when Position = 0;
+            if Position > Cursor then
+               Add_Response_Text
+                 (C, C.Response_Box, Masked (Cursor .. Position - 1));
+            end if;
+            Add_Response_Math
+              (C, C.Response_Box, Extraction.Blocks (Block_Index));
+            Cursor := Position + Token'Length;
+            Block_Index := Block_Index + 1;
+         end;
+      end loop;
+
+      if Cursor <= Masked'Last then
+         Add_Response_Text (C, C.Response_Box, Masked (Cursor .. Masked'Last));
+      end if;
+      C.Response_Box.Show_All;
+   end Build_Response_Elements;
+
    procedure Replace_Streamed_Text (C : in out Instance) is
       Start_Iter : Gtk.Text_Iter.Gtk_Text_Iter;
       End_Iter   : Gtk.Text_Iter.Gtk_Text_Iter;
@@ -107,6 +215,15 @@ package body Coyote_GUI.Conversation_Stack is
       if C.Active_Text = null or else C.Stream_Mark = null then
          return;
       end if;
+      declare
+         Extraction : constant Coyote_Renderer.MathML.Extraction_Result :=
+           Coyote_Renderer.MathML.Extract_Display_Math (Full_Text);
+      begin
+         if not Extraction.Blocks.Is_Empty then
+            Build_Response_Elements (C, Full_Text);
+            return;
+         end if;
+      end;
       C.Active_Text.Get_Iter_At_Mark (Start_Iter, C.Stream_Mark);
       C.Active_Text.Get_End_Iter (End_Iter);
       C.Active_Text.Delete (Start_Iter, End_Iter);
@@ -278,6 +395,9 @@ package body Coyote_GUI.Conversation_Stack is
       end if;
       Section.Pack_Start (View, Expand => False, Fill => True, Padding => 2);
       Parent.Pack_Start (Section, Expand => False, Fill => True, Padding => 4);
+      if Caption = "Response" then
+         C.Response_Section := Section;
+      end if;
       Show_Contents (C);
    end Add_Text_Element;
 
@@ -330,6 +450,14 @@ package body Coyote_GUI.Conversation_Stack is
 
    procedure Clear (C : in out Instance) is
    begin
+      if not C.Math_Elements.Is_Empty then
+         for Math_Index in C.Math_Elements.First_Index
+           .. C.Math_Elements.Last_Index
+         loop
+            Coyote_GUI.Math_Element.Detach
+              (C.Math_Elements (Math_Index).all);
+         end loop;
+      end if;
       if not C.Exchanges.Is_Empty then
          for Exchange_Index in reverse C.Exchanges.First_Index
            .. C.Exchanges.Last_Index
@@ -340,14 +468,27 @@ package body Coyote_GUI.Conversation_Stack is
       C.Exchanges.Clear;
       C.Step_Frames.Clear;
       C.Tools.Clear;
+      if not C.Math_Elements.Is_Empty then
+         for Math_Index in C.Math_Elements.First_Index
+           .. C.Math_Elements.Last_Index
+         loop
+            Coyote_GUI.Math_Element.Free
+              (C.Math_Elements (Math_Index));
+         end loop;
+      end if;
+      C.Math_Elements.Clear;
+      C.Text_Views.Clear;
       C.Exchange       := null;
       C.Step_Frame     := null;
       C.Step_Box       := null;
       C.Tool_Flow      := null;
       C.Active_Text    := null;
       C.Active_View    := null;
-      C.Stream_Mark    := null;
-      C.Stream_Buf     := Null_Unbounded_String;
+      C.Response_Section := null;
+      C.Response_Box  := null;
+      C.Math_Scale    := 1.0;
+      C.Stream_Mark  := null;
+      C.Stream_Buf   := Null_Unbounded_String;
       C.Thinking       := null;
       C.Thinking_View  := null;
       C.Has_Exchange   := False;
@@ -858,15 +999,32 @@ package body Coyote_GUI.Conversation_Stack is
    end Get_Render_Markdown;
 
    procedure Set_Font
-     (C    : in out Instance;
-      Desc : Pango.Font.Pango_Font_Description)
+     (C          : in out Instance;
+      Desc       : Pango.Font.Pango_Font_Description;
+      Math_Scale : Long_Float := 1.0)
    is
    begin
       if C.Active_View /= null then
          C.Active_View.Modify_Font (Desc);
       end if;
+      if not C.Text_Views.Is_Empty then
+         for Text_Index in C.Text_Views.First_Index
+           .. C.Text_Views.Last_Index
+         loop
+            C.Text_Views (Text_Index).Modify_Font (Desc);
+         end loop;
+      end if;
       if C.Thinking_View /= null then
          C.Thinking_View.Modify_Font (Desc);
+      end if;
+      C.Math_Scale := Long_Float'Max (Math_Scale, 0.01);
+      if not C.Math_Elements.Is_Empty then
+         for Math_Index in C.Math_Elements.First_Index
+           .. C.Math_Elements.Last_Index
+         loop
+            Coyote_GUI.Math_Element.Set_Scale
+              (C.Math_Elements (Math_Index).all, C.Math_Scale);
+         end loop;
       end if;
    end Set_Font;
 

@@ -7,8 +7,11 @@ with AUnit.Assertions;
 with Coyote_Cmark;
 with Coyote_App.Utils;
 with Coyote_Renderer.Markup;
+with Coyote_Renderer.MathML;
 with Ada.Characters.Latin_1;
+with Ada.Containers;
 with Ada.Strings.Fixed;
+with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
 with Interfaces.C;
 with Interfaces.C.Strings;
 with System;
@@ -16,6 +19,7 @@ with System;
 package body Coyote_Cmark_Tests is
 
    use AUnit.Assertions;
+   use type Ada.Containers.Count_Type;
    use type System.Address;
    use Interfaces.C;
    use Interfaces.C.Strings;
@@ -406,5 +410,85 @@ package body Coyote_Cmark_Tests is
             "ordered list should preserve its starting ordinal");
       end;
    end Test_Pango_Markup_Nested_List_Indentation;
+
+   procedure Test_Display_Math_Extraction_Is_Code_Safe (T : in out Test) is
+      pragma Unreferenced (T);
+      Fenced : constant String :=
+        "```" & Ada.Characters.Latin_1.LF
+        & "$$" & Ada.Characters.Latin_1.LF
+        & "<math><mi>x</mi></math>"
+        & Ada.Characters.Latin_1.LF & "$$"
+        & Ada.Characters.Latin_1.LF & "```";
+      Indented : constant String :=
+        "    $$" & Ada.Characters.Latin_1.LF
+        & "    not math" & Ada.Characters.Latin_1.LF
+        & "    $$";
+      Fenced_Result : constant Coyote_Renderer.MathML.Extraction_Result :=
+        Coyote_Renderer.MathML.Extract_Display_Math (Fenced);
+      Indented_Result : constant Coyote_Renderer.MathML.Extraction_Result :=
+        Coyote_Renderer.MathML.Extract_Display_Math (Indented);
+   begin
+      Assert (Fenced_Result.Blocks.Is_Empty,
+              "fenced code must not produce a math block");
+      Assert (Ada.Strings.Fixed.Index
+                (To_String (Fenced_Result.Masked_Text), "$$") > 0,
+              "fenced code keeps its dollar delimiters");
+      Assert (Indented_Result.Blocks.Is_Empty,
+              "indented code must not produce a math block");
+      Assert (Ada.Strings.Fixed.Index
+                (To_String (Indented_Result.Masked_Text), "    $$") > 0,
+              "indented code keeps its indentation");
+   end Test_Display_Math_Extraction_Is_Code_Safe;
+
+   procedure Test_Display_Math_Extraction_Preserves_Source
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+      Input : constant String :=
+        "before" & Ada.Characters.Latin_1.LF
+        & "$$" & Ada.Characters.Latin_1.LF
+        & "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
+        & "<mrow><mi>x</mi><mo>&lt;</mo><mn>1</mn></mrow></math>"
+        & Ada.Characters.Latin_1.LF & "$$"
+        & Ada.Characters.Latin_1.LF & "after";
+      Extracted : constant Coyote_Renderer.MathML.Extraction_Result :=
+        Coyote_Renderer.MathML.Extract_Display_Math (Input);
+      Block : constant Coyote_Renderer.MathML.Display_Math_Block :=
+        Extracted.Blocks (Extracted.Blocks.First_Index);
+   begin
+      Assert (Extracted.Blocks.Length = 1,
+              "one complete display-math block is extracted");
+      Assert (To_String (Block.Source) =
+                "$$" & Ada.Characters.Latin_1.LF
+                & "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
+                & "<mrow><mi>x</mi><mo>&lt;</mo><mn>1</mn></mrow></math>"
+                & Ada.Characters.Latin_1.LF & "$$",
+              "original display-math source is retained");
+      Assert (To_String (Block.MathML) =
+                "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
+                & "<mrow><mi>x</mi><mo>&lt;</mo><mn>1</mn></mrow></math>"
+                & Ada.Characters.Latin_1.LF,
+              "inner MathML is separated from delimiters");
+      Assert (Ada.Strings.Fixed.Index
+                (To_String (Extracted.Masked_Text),
+                 "COYOTE_MATH_BLOCK_1__") > 0,
+              "complete display math becomes a placeholder");
+   end Test_Display_Math_Extraction_Preserves_Source;
+
+   procedure Test_Display_Math_Extraction_Preserves_Unmatched
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+      Input : constant String :=
+        "$$" & Ada.Characters.Latin_1.LF
+        & "<math><mi>x</mi></math>";
+      Extracted : constant Coyote_Renderer.MathML.Extraction_Result :=
+        Coyote_Renderer.MathML.Extract_Display_Math (Input);
+   begin
+      Assert (Extracted.Blocks.Is_Empty,
+              "unmatched delimiter must not produce a math block");
+      Assert (To_String (Extracted.Masked_Text) = Input & ASCII.LF,
+              "unmatched display-math source remains visible");
+   end Test_Display_Math_Extraction_Preserves_Unmatched;
 
 end Coyote_Cmark_Tests;

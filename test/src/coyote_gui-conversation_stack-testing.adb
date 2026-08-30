@@ -69,6 +69,71 @@ package body Coyote_GUI.Conversation_Stack.Testing is
       return C.Active_Text.Get_Text (Start_Iter, End_Iter);
    end Active_Text;
 
+   function Math_Element_Count
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Natural
+   is
+   begin
+      return Natural (C.Math_Elements.Length);
+   end Math_Element_Count;
+
+   function Math_Source
+     (C     : Coyote_GUI.Conversation_Stack.Instance;
+      Index : Positive) return String
+   is
+   begin
+      if Index <= Natural (C.Math_Elements.Length) then
+         return Coyote_GUI.Math_Element.Source
+           (C.Math_Elements (Index).all);
+      end if;
+      return "";
+   end Math_Source;
+
+   function Math_Is_Valid
+     (C     : Coyote_GUI.Conversation_Stack.Instance;
+      Index : Positive) return Boolean
+   is
+   begin
+      return Index <= Natural (C.Math_Elements.Length)
+        and then Coyote_GUI.Math_Element.Is_Valid
+          (C.Math_Elements (Index).all);
+   end Math_Is_Valid;
+
+   function Math_Width
+     (C     : Coyote_GUI.Conversation_Stack.Instance;
+      Index : Positive) return Natural
+   is
+   begin
+      if Index <= Natural (C.Math_Elements.Length) then
+         return Coyote_GUI.Math_Element.Width
+           (C.Math_Elements (Index).all);
+      end if;
+      return 0;
+   end Math_Width;
+
+   function Math_Height
+     (C     : Coyote_GUI.Conversation_Stack.Instance;
+      Index : Positive) return Natural
+   is
+   begin
+      if Index <= Natural (C.Math_Elements.Length) then
+         return Coyote_GUI.Math_Element.Height
+           (C.Math_Elements (Index).all);
+      end if;
+      return 0;
+   end Math_Height;
+
+   function Math_Scale
+     (C     : Coyote_GUI.Conversation_Stack.Instance;
+      Index : Positive) return Long_Float
+   is
+   begin
+      if Index <= Natural (C.Math_Elements.Length) then
+         return Coyote_GUI.Math_Element.Scale
+           (C.Math_Elements (Index).all);
+      end if;
+      return 0.0;
+   end Math_Scale;
+
    function Step_Frame_Count
      (C : Coyote_GUI.Conversation_Stack.Instance) return Natural
    is

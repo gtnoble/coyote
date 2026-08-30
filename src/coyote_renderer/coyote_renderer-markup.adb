@@ -173,9 +173,9 @@ package body Coyote_Renderer.Markup is
 
       It := Iter_New (Doc);
       loop
-         Ev   := Iter_Next (It);
-         Node := Iter_Get_Node (It);
+         Ev := Iter_Next (It);
          exit when Ev = EVENT_DONE;
+         Node := Iter_Get_Node (It);
 
          declare
             NT : constant Node_Type_Int := Node_Get_Type (Node);

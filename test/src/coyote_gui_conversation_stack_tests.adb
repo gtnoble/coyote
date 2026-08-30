@@ -20,6 +20,7 @@ with Gtk.Main;
 with Gtk.Scrolled_Window;
 with Gtk.Separator;
 with Gtk.Text_View;
+with Pango.Font;
 
 package body Coyote_GUI_Conversation_Stack_Tests is
 
@@ -465,5 +466,103 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Assert (not Is_Completed (T.Stack),
               "clear removes terminal state");
    end Test_Clear_Removes_Exchange_State;
+
+   procedure Test_Native_Display_Math_Realizes_Element
+     (T : in out Test)
+   is
+      Source : constant String :=
+        "$$" & ASCII.LF
+        & "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
+        & "<mfrac><mn>1</mn><mn>2</mn></mfrac></math>"
+        & ASCII.LF & "$$";
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Begin_Request (T.Stack, "request", Prompt);
+      Append_Text (T.Stack, Source);
+      End_Text_Block (T.Stack);
+      Assert (Math_Element_Count (T.Stack) = 1,
+              "valid display math creates one native element");
+      Assert (Math_Is_Valid (T.Stack, 1),
+              "valid display math is measured successfully");
+      Assert (Math_Width (T.Stack, 1) > 0
+              and then Math_Height (T.Stack, 1) > 0,
+              "native math element has non-zero dimensions");
+      Assert (Index (Math_Source (T.Stack, 1), "$$") > 0,
+              "native math element retains delimiter-wrapped source");
+   end Test_Native_Display_Math_Realizes_Element;
+
+   procedure Test_Native_Display_Math_Invalid_Falls_Back
+     (T : in out Test)
+   is
+      Source : constant String :=
+        "$$" & ASCII.LF
+        & "<" & ASCII.LF & "$$";
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Begin_Request (T.Stack, "request", Prompt);
+      Append_Text (T.Stack, Source);
+      End_Text_Block (T.Stack);
+      Assert (Math_Element_Count (T.Stack) = 1,
+              "invalid display math retains a native fallback element");
+      Assert (not Math_Is_Valid (T.Stack, 1),
+              "invalid display math is marked invalid");
+      Assert (Index (Math_Source (T.Stack, 1), "<") > 0,
+              "invalid display math retains readable source");
+   end Test_Native_Display_Math_Invalid_Falls_Back;
+
+   procedure Test_Native_Display_Math_Protects_Code
+     (T : in out Test)
+   is
+      Source : constant String :=
+        "```" & ASCII.LF
+        & "$$" & ASCII.LF
+        & "<math><mi>x</mi></math>" & ASCII.LF
+        & "$$" & ASCII.LF & "```";
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Begin_Request (T.Stack, "request", Prompt);
+      Append_Text (T.Stack, Source);
+      End_Text_Block (T.Stack);
+      Assert (Math_Element_Count (T.Stack) = 0,
+              "display math inside fenced code is not realized");
+      Assert (Index (Active_Text (T.Stack), "$$") > 0,
+              "fenced code retains dollar delimiters");
+   end Test_Native_Display_Math_Protects_Code;
+
+   procedure Test_Native_Display_Math_Zooms (T : in out Test) is
+      Source : constant String :=
+        "$$" & ASCII.LF
+        & "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
+        & "<mi>x</mi></math>" & ASCII.LF & "$$";
+      Small_Font : Pango.Font.Pango_Font_Description :=
+        Pango.Font.From_String ("sans 8");
+      Large_Font : Pango.Font.Pango_Font_Description :=
+        Pango.Font.From_String ("sans 18");
+      Initial_Scale : Long_Float;
+   begin
+      if not T.Display_Available then
+         Pango.Font.Free (Small_Font);
+         Pango.Font.Free (Large_Font);
+         return;
+      end if;
+      Begin_Request (T.Stack, "request", Prompt);
+      Append_Text (T.Stack, Source);
+      End_Text_Block (T.Stack);
+      Initial_Scale := Math_Scale (T.Stack, 1);
+      Set_Font (T.Stack, Small_Font, Math_Scale => 1.0);
+      Set_Font (T.Stack, Large_Font, Math_Scale => 2.0);
+      Assert (Math_Scale (T.Stack, 1) > Initial_Scale,
+              "native MathML scale changes during zoom");
+      Assert (Math_Height (T.Stack, 1) > 0,
+              "native MathML remains measured after zoom");
+      Pango.Font.Free (Small_Font);
+      Pango.Font.Free (Large_Font);
+   end Test_Native_Display_Math_Zooms;
 
 end Coyote_GUI_Conversation_Stack_Tests;

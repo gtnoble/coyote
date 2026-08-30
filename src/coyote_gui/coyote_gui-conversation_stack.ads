@@ -11,6 +11,7 @@ with Ada.Strings.Hash;
 with Ada.Strings.Unbounded;
 with Coyote_GUI;
 with Coyote_GUI.Conversation;
+with Coyote_GUI.Math_Element;
 with Gtk.Box;
 with Gtk.Frame;
 with Gtk.Flow_Box;
@@ -28,7 +29,8 @@ package Coyote_GUI.Conversation_Stack is
 
    use type Gtk.Box.Gtk_Box;
    use type Gtk.Frame.Gtk_Frame;
-
+   use type Gtk.Text_View.Gtk_Text_View;
+   use type Coyote_GUI.Math_Element.Instance_Access;
    type Instance is tagged limited private;
 
    procedure Create
@@ -125,9 +127,9 @@ package Coyote_GUI.Conversation_Stack is
    function Get_Render_Markdown (C : Instance) return Boolean;
 
    procedure Set_Font
-     (C    : in out Instance;
-      Desc : Pango.Font.Pango_Font_Description);
-
+     (C          : in out Instance;
+      Desc       : Pango.Font.Pango_Font_Description;
+      Math_Scale : Long_Float := 1.0);
    procedure Set_Debug_Logging (C : in out Instance; Enabled : Boolean);
 
 private
@@ -154,6 +156,14 @@ private
      (Index_Type   => Positive,
       Element_Type => Gtk.Frame.Gtk_Frame);
 
+   package Text_View_Vectors is new Ada.Containers.Vectors
+     (Index_Type   => Positive,
+      Element_Type => Gtk.Text_View.Gtk_Text_View);
+
+   package Math_Element_Vectors is new Ada.Containers.Vectors
+     (Index_Type   => Positive,
+      Element_Type => Coyote_GUI.Math_Element.Instance_Access);
+
    type Instance is tagged limited record
       Scroll            : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
       Main_Window       : Gtk.Window.Gtk_Window;
@@ -166,8 +176,13 @@ private
       Step_Frames       : Frame_Vectors.Vector;
       Active_Text       : Gtk.Text_Buffer.Gtk_Text_Buffer;
       Active_View       : Gtk.Text_View.Gtk_Text_View;
+      Response_Section  : Gtk.Box.Gtk_Box;
+      Response_Box      : Gtk.Box.Gtk_Box;
       Stream_Mark       : Gtk.Text_Mark.Gtk_Text_Mark;
       Stream_Buf        : Ada.Strings.Unbounded.Unbounded_String;
+      Text_Views        : Text_View_Vectors.Vector;
+      Math_Elements     : Math_Element_Vectors.Vector;
+      Math_Scale        : Long_Float := 1.0;
       Thinking          : Gtk.Text_Buffer.Gtk_Text_Buffer;
       Thinking_View     : Gtk.Text_View.Gtk_Text_View;
       Tools             : Tool_Maps.Map;

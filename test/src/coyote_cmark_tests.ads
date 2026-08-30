@@ -66,4 +66,13 @@ package Coyote_Cmark_Tests is
    --  level.
    procedure Test_Pango_Markup_Nested_List_Indentation (T : in out Test);
 
+   --  Display-math extraction must preserve Markdown code blocks.
+   procedure Test_Display_Math_Extraction_Is_Code_Safe (T : in out Test);
+
+   --  A complete display-math block yields source and inner MathML.
+   procedure Test_Display_Math_Extraction_Preserves_Source (T : in out Test);
+
+   --  An unmatched display delimiter remains ordinary Markdown.
+   procedure Test_Display_Math_Extraction_Preserves_Unmatched (T : in out Test);
+
 end Coyote_Cmark_Tests;

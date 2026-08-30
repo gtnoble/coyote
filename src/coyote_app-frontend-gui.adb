@@ -2523,7 +2523,9 @@ package body Coyote_App.Frontend.GUI is
       FD : Pango_Font_Description := From_String (Font_Str);
    begin
       if F.Stack_Enabled then
-         F.Stack.Set_Font (FD);
+         F.Stack.Set_Font
+           (FD,
+            Math_Scale => Long_Float (Clamped) / Long_Float (Base_Clamped));
       else
          F.Conv.Set_Font
            (FD,

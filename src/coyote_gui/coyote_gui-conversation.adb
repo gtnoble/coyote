@@ -10,6 +10,7 @@ with Cairo;                          use Cairo;
 with Coyote_App.Utils;               use Coyote_App.Utils;
 with Coyote_Cmark;                   use Coyote_Cmark;
 with Coyote_Lasem;
+with Coyote_Renderer.MathML;
 with Glib;                           use Glib;
 with Pango;
 with Pango.Attributes;
@@ -1735,88 +1736,15 @@ package body Coyote_GUI.Conversation is
    procedure Render_Markdown_Block
      (C : in out Instance; Full_Text : String)
    is
-      package Math_Source_Vectors is new Ada.Containers.Vectors
-        (Positive, Unbounded_String);
+      Math_Extraction : constant Coyote_Renderer.MathML.Extraction_Result :=
+        Coyote_Renderer.MathML.Extract_Display_Math (Full_Text);
+      Masked_Text : Unbounded_String := Math_Extraction.Masked_Text;
 
-      Math_Sources : Math_Source_Vectors.Vector;
-      Masked_Text  : Unbounded_String;
-      Math_Open    : Boolean := False;
-      Math_Delim   : Unbounded_String;
-      Math_Buffer  : Unbounded_String;
-
-      procedure Append_Masked_Line (Line : String) is
-      begin
-         Append (Masked_Text, Line);
-         Append (Masked_Text, ASCII.LF);
-      end Append_Masked_Line;
-
-      procedure Extract_Display_Math is
-         Start : Natural := Full_Text'First;
-      begin
-         if Full_Text'Length = 0 then
-            return;
-         end if;
-
-         for I in Full_Text'Range loop
-            if Full_Text (I) = ASCII.LF
-              or else I = Full_Text'Last
-            then
-               declare
-                  Last : constant Natural :=
-                    (if Full_Text (I) = ASCII.LF then I - 1 else I);
-                  Line : constant String :=
-                    (if Last >= Start then Full_Text (Start .. Last) else "");
-                  Trimmed : constant String :=
-                    Ada.Strings.Fixed.Trim (Line, Ada.Strings.Both);
-               begin
-                  if not Math_Open and then Trimmed = "$$" then
-                     Math_Open := True;
-                     Math_Delim := To_Unbounded_String (Trimmed);
-                     Math_Buffer := Null_Unbounded_String;
-                  elsif Math_Open
-                    and then To_String (Math_Delim) = "$$"
-                    and then Trimmed = "$$"
-                  then
-                     if Length (Math_Buffer) > 0 then
-                        declare
-                           Source : Unbounded_String := Math_Delim;
-                        begin
-                           Append (Source, ASCII.LF);
-                           Append (Source, Math_Buffer);
-                           Append (Source, Trimmed);
-                           Math_Sources.Append (Source);
-                        end;
-                        Append_Masked_Line
-                          ("COYOTE_MATH_BLOCK_"
-                           & Ada.Strings.Fixed.Trim
-                               (Natural'Image
-                                  (Natural (Math_Sources.Length)),
-                                Ada.Strings.Both)
-                           & "__");
-                     end if;
-                     Math_Open := False;
-                     Math_Delim := Null_Unbounded_String;
-                     Math_Buffer := Null_Unbounded_String;
-                  elsif Math_Open then
-                     Append (Math_Buffer, Line);
-                     Append (Math_Buffer, ASCII.LF);
-                  else
-                     Append_Masked_Line (Line);
-                  end if;
-               end;
-               Start := I + 1;
-            end if;
-         end loop;
-
-         if Math_Open then
-            --  An unmatched delimiter is not math.  Preserve the complete
-            --  source as plain Markdown rather than discarding content.
-            Append_Masked_Line (To_String (Math_Delim));
-            Append (Masked_Text, To_String (Math_Buffer));
-         end if;
-      end Extract_Display_Math;
+      Math_Sources : constant Coyote_Renderer.MathML.Display_Math_Vectors.Vector :=
+        Math_Extraction.Blocks;
 
       function Math_Index (Text : String) return Natural is
+         Source : constant String := Text;
       begin
          for I in 1 .. Natural (Math_Sources.Length) loop
             declare
@@ -1826,14 +1754,13 @@ package body Coyote_GUI.Conversation is
                      (Natural'Image (I), Ada.Strings.Both)
                  & "__";
             begin
-               if Text = Token then
+               if Source = Token then
                   return I;
                end if;
             end;
          end loop;
          return 0;
       end Math_Index;
-
       Doc    : Node_Ptr;
       It     : Iter_Ptr;
       Ev     : Event_Type_Int;
@@ -1978,7 +1905,6 @@ package body Coyote_GUI.Conversation is
          return;
       end if;
 
-      Extract_Display_Math;
       declare
          C_Text : constant Interfaces.C.char_array :=
            Interfaces.C.To_C (To_String (Masked_Text), Append_Nul => True);
@@ -2008,9 +1934,9 @@ package body Coyote_GUI.Conversation is
 
       It := Iter_New (Doc);
       loop
-         Ev   := Iter_Next (It);
-         Node := Iter_Get_Node (It);
+         Ev := Iter_Next (It);
          exit when Ev = EVENT_DONE;
+         Node := Iter_Get_Node (It);
 
          declare
             NT : constant Node_Type_Int := Node_Get_Type (Node);
@@ -2255,7 +2181,8 @@ package body Coyote_GUI.Conversation is
                      Index   : constant Natural := Math_Index (Literal);
                   begin
                      if Index > 0 and then In_Para then
-                        Math_Source := Math_Sources (Index);
+                        Math_Source :=
+                          Math_Sources (Index).Source;
                         Para_Empty := False;
                      elsif In_Cell then
                         Cell_Append (Literal);

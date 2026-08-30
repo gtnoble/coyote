@@ -27,8 +27,11 @@ package Coyote_GUI_Conversation_Stack_Tests is
    procedure Test_Request_And_Streaming_Are_Incremental (T : in out Test);
    procedure Test_Native_Markdown_Renders_After_Streaming (T : in out Test);
    procedure Test_Native_Markdown_Toggle_Disables_Rendering (T : in out Test);
-   procedure Test_Assistant_Content_Uses_Visible_Step_Frame
-     (T : in out Test);
+   procedure Test_Native_Display_Math_Realizes_Element (T : in out Test);
+   procedure Test_Native_Display_Math_Invalid_Falls_Back (T : in out Test);
+   procedure Test_Native_Display_Math_Protects_Code (T : in out Test);
+   procedure Test_Native_Display_Math_Zooms (T : in out Test);
+   procedure Test_Assistant_Content_Uses_Visible_Step_Frame     (T : in out Test);
    procedure Test_Footer_Closes_Step_Before_Next_Step
      (T : in out Test);
    procedure Test_New_Request_Resets_Step_Frames

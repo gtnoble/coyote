@@ -304,7 +304,7 @@ interaction, not pixel-identical layout:
 |---|---|---|---|---|
 | GFM Markdown response content | Implemented | Implemented | Plain text | Implemented |
 | Markdown toggle | Implemented | Implemented | N/A | N/A |
-| Display MathML | Implemented | Deferred | Plain text | Separate |
+| Display MathML | Implemented | Implemented (automated; DEM-048 manual qualification open) | Plain text | Separate |
 | Live/replay native hierarchy | Legacy model | Accepted (DEM-047) | N/A | Replay model |
 | Large-history qualification | Baseline | Pending | N/A | Separate |
 
@@ -541,8 +541,12 @@ let the user explicitly control the behaviour.
   manual DEM-041.
 - `Coyote_Lasem`: covered by five AUnit tests for MathML fraction and matrix
   measurement, zoom scaling, relation entities, and invalid MathML error
-  handling.  `Coyote_GUI.Conversation` has four display-backed tests for style
-  selection, source preservation, visual height, and font propagation.
+  handling.  `Coyote_Renderer.MathML` adds headless extraction tests protecting
+  fenced and indented code, preserving source, and preserving unmatched
+  delimiters.  `Coyote_GUI.Conversation` has four display-backed tests for
+  style selection, source preservation, visual height, and font propagation.
+  `Coyote_GUI.Conversation_Stack` has four display-backed tests for native
+  realization, invalid fallback, code protection, and zoom propagation.
 - `Coyote_Cmark`: covered by AUnit tests — parse round-trips for each GFM
   node type; extension handling; null-safety of `cmark_shim_get_literal`.
 - `Coyote_Help`: covered by display-independent AUnit tests for root/topic URI
@@ -747,25 +751,21 @@ The revised implementation is now present in
 one exchange container per request, native selectable text views for request,
 thinking, and response content, native focusable fork controls, structured native
 tool-card labels, retained `Tool_Info` payloads, and `View Details` buttons that are
-enabled after completion. Stable `Tool_Id` updates modify the existing summary
-and retained payload rather than adding argument/result widgets. The stack is
-selected only when `COYOTE_NATIVE_STACK=1`; the existing
-`Coyote_GUI.Conversation` renderer remains the default baseline and fallback
-until display-backed qualification completes. The native footer status-row
-regression is covered by the focused test suite. The fixture-isolation and
-exchange-reset correction is now implemented: the native-stack fixture clears
-its reusable stack between tests, and `Begin_Request` clears the prior
-exchange's step-frame bookkeeping. The 12 native-stack tests are registered;
-the two Markdown regressions cover post-stream conversion and disabled-rendering
-source preservation. Production
-and test development builds succeed. The complete suite was attempted under
-`xvfb-run` but timed out with unrelated environment-dependent failures, so no
-full-suite acceptance claim is made. Display-backed DEM-042/043, native MathML
-DEM-048, and DEM-044 large-history qualification remain pending. DEM-047
-live/replay Markdown parity was accepted by the user on 2026-08-28.
-
+enabled after completion. Completed responses with standalone display math are
+realized as ordered native text views and Lasem-backed
+`Coyote_GUI.Math_Element` widgets; invalid expressions retain selectable source
+fallback. The cmark-backed `Coyote_Renderer.MathML` extractor protects code-block
+ranges before masking display math. The stack is selected only when
+`COYOTE_NATIVE_STACK=1`; the existing `Coyote_GUI.Conversation` renderer remains
+the default baseline and fallback until display-backed qualification completes.
+The four native MathML tests and parser-safety regressions are registered.
+Production and test development builds succeed; the complete development suite
+passes 806/806 with zero failed assertions and zero unexpected errors. Manual
+visual/local-selection and large-history qualification remain open under DEM-048
+and DEM-044. DEM-047 live/replay Markdown parity was accepted by the user on
+2026-08-28.
 The separately named `Exchange_View`, `Text_Element`, `Tool_Card`,
-`Math_Element`, and `Footer_Element` units remain deferred because this slice
+`Math_Element` is now implemented; the separately named `Exchange_View`, `Text_Element`, `Tool_Card`, and `Footer_Element` units remain deferred because this slice
 keeps their ownership private to `Conversation_Stack` while preserving the
 required semantic boundaries. Native footers now use a GTK separator, a
 non-selectable summary label, and a right-aligned action row with a stable

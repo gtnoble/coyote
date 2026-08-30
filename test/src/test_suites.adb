@@ -889,7 +889,15 @@ package body Test_Suites is
       Result.Add_Test (Coyote_Cmark_Caller.Create
         ("Coyote_Renderer.Markup nested list indentation",
          Coyote_Cmark_Tests.Test_Pango_Markup_Nested_List_Indentation'Access));
-
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote.Renderer.MathML protects Markdown code blocks",
+         Coyote_Cmark_Tests.Test_Display_Math_Extraction_Is_Code_Safe'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote.Renderer.MathML preserves display-math source",
+         Coyote_Cmark_Tests.Test_Display_Math_Extraction_Preserves_Source'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote.Renderer.MathML preserves unmatched delimiters",
+         Coyote_Cmark_Tests.Test_Display_Math_Extraction_Preserves_Unmatched'Access));
       --  LLM.HTTP tests
       Result.Add_Test (LLM_HTTP_Caller.Create
         ("LLM.HTTP POST returns status and callback chunk",
@@ -2661,6 +2669,22 @@ package body Test_Suites is
         ("Coyote.GUI.Conversation_Stack toggles Markdown rendering",
          Coyote_GUI_Conversation_Stack_Tests
            .Test_Native_Markdown_Toggle_Disables_Rendering'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack realizes display MathML",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Native_Display_Math_Realizes_Element'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack falls back for invalid MathML",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Native_Display_Math_Invalid_Falls_Back'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack protects code MathML",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Native_Display_Math_Protects_Code'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack zooms display MathML",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Native_Display_Math_Zooms'Access));
       Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
         ("Coyote.GUI.Conversation_Stack uses visible step frames",
          Coyote_GUI_Conversation_Stack_Tests

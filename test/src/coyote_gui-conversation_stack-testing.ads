@@ -38,6 +38,29 @@ package Coyote_GUI.Conversation_Stack.Testing is
    function Active_Text
      (C : Coyote_GUI.Conversation_Stack.Instance) return String;
 
+   function Math_Element_Count
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Natural;
+
+   function Math_Source
+     (C       : Coyote_GUI.Conversation_Stack.Instance;
+      Index   : Positive) return String;
+
+   function Math_Is_Valid
+     (C       : Coyote_GUI.Conversation_Stack.Instance;
+      Index   : Positive) return Boolean;
+
+   function Math_Width
+     (C       : Coyote_GUI.Conversation_Stack.Instance;
+      Index   : Positive) return Natural;
+
+   function Math_Height
+     (C       : Coyote_GUI.Conversation_Stack.Instance;
+      Index   : Positive) return Natural;
+
+   function Math_Scale
+     (C       : Coyote_GUI.Conversation_Stack.Instance;
+      Index   : Positive) return Long_Float;
+
    function Step_Frame_Count
      (C : Coyote_GUI.Conversation_Stack.Instance) return Natural;
 

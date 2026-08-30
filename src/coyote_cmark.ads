@@ -94,6 +94,15 @@ package Coyote_Cmark is
    function Node_Get_Type (Node : Node_Ptr) return Node_Type_Int
    with Import, Convention => C, External_Name => "cmark_node_get_type";
 
+   --  Return the inclusive source line range occupied by Node.
+   function Node_Get_Start_Line (Node : Node_Ptr) return Interfaces.C.int
+   with Import, Convention => C,
+        External_Name => "cmark_node_get_start_line";
+
+   function Node_Get_End_Line (Node : Node_Ptr) return Interfaces.C.int
+   with Import, Convention => C,
+        External_Name => "cmark_node_get_end_line";
+
    --  Return the heading level (1..6) for NODE_HEADING nodes.
    function Node_Get_Heading_Level
      (Node : Node_Ptr) return Interfaces.C.int

@@ -239,7 +239,7 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `Coyote_GUI.Exchange_View` | Deferred; exchange realization is owned by `Conversation_Stack` in this build | Not separate in qualification build |
 | `Coyote_GUI.Text_Element` | Deferred; native text-element realization is owned by `Conversation_Stack` in this build | Not separate in qualification build |
 | `Coyote_GUI.Tool_Card` | Deferred; native tool-card realization is owned by `Conversation_Stack` in this build | Not separate in qualification build |
-| `Coyote_GUI.Math_Element` | Deferred to the math qualification increment | Not separate in qualification build |
+| `Coyote_GUI.Math_Element` | Native Lasem-backed display-math widget with selectable fallback source | `src/coyote_gui/coyote_gui-math_element.ads/.adb` |
 | `Coyote_GUI.Footer_Element` | Deferred; typed footer realization is owned by `Conversation_Stack` in this build | Not separate in qualification build |
 | `Coyote_GUI.Tool_Detail_Window` | Structured GTK tool-call detail window | `src/coyote_gui/coyote_gui-tool_detail_window.ads/.adb` |
 | `Coyote_GUI.Session_Stats_Window` | Reusable live session-statistics support window | `src/coyote_gui/coyote_gui-session_stats_window.ads/.adb` |
@@ -278,6 +278,7 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `Coyote_Lasem` | Ada/C binding to Lasem Presentation MathML rendering | `src/coyote_lasem.ads/.adb`, `src/coyote_lasem_c.c` |
 | `Coyote_Renderer` | Shared GTK text/replay rendering root | `src/coyote_renderer/coyote_renderer.ads` |
 | `Coyote_Renderer.Markup` | GFM Markdown to Pango markup converter | `src/coyote_renderer/coyote_renderer-markup.ads/.adb` |
+| `Coyote_Renderer.MathML` | Markdown-aware display-math extraction with code-block protection | `src/coyote_renderer/coyote_renderer-mathml.ads/.adb` |
 | `Coyote_Renderer.Session_View` | Read-only session replay renderer | `src/coyote_renderer/coyote_renderer-session_view.ads/.adb` |
 | `Coyote_Notify` | Ada/C binding to libnotify desktop notifications | `src/coyote_notify.ads/.adb`, `src/coyote_notify_c.c` |
 | `Coyote_GUI.Notification_Policy` | Pure completion-notification eligibility policy | `src/coyote_gui/coyote_gui-notification_policy.ads/.adb` |
@@ -1213,10 +1214,11 @@ Presentation MathML with `lsm_dom_document_new_from_memory`, converts Lasem
 `GError` values to allocated messages, and releases the document/view GObjects
 before returning. The GUI retains the original delimiter-wrapped MathML source
 for display and selection, while the shim receives only the inner MathML
-document. Display math is currently supported only in the virtualized GUI
-conversation renderer; inline math and the legacy shared Pango renderer remain
-future work. MathML element whitelisting is intentionally deferred until a
-concrete compatibility problem is observed.
+document. `Coyote_Renderer.MathML` parses the original Markdown with cmark,
+protects inclusive `NODE_CODE_BLOCK` source ranges, and only masks eligible
+standalone `$$` display-math blocks. Inline math and the legacy shared Pango
+renderer remain future work. MathML element whitelisting is intentionally
+deferred until a concrete compatibility problem is observed.
 
 ### 5.15b Native component-stack conversation presentation
 
@@ -1226,11 +1228,12 @@ The current `Coyote_GUI.Conversation` GtkLayout renderer remains the default
 fallback until the performance and display-backed acceptance gates are complete.
 Basic GFM Markdown conversion for native response text is now implemented by
 retaining streamed text and replacing it at `End_Text_Block` with markup from
-`Coyote_Renderer.Markup`. The `Render Markdown` toggle and zoom route to the
-selected renderer. User acceptance of DEM-047 confirmed live/replay Markdown
-parity on 2026-08-28. Native display MathML and large-history qualification
-remain open under DEM-048 and DEM-044.
-
+`Coyote_Renderer.Markup`. Completed responses containing display math are split
+into ordered native text views and Lasem-backed `Coyote_GUI.Math_Element`
+widgets. Invalid MathML retains selectable source fallback. Zoom propagates to
+all retained text and math elements. User acceptance of DEM-047 confirmed
+live/replay Markdown parity on 2026-08-28. Manual visual/local-selection and
+large-history qualification remain open under DEM-048 and DEM-044.
 **Purpose:** Replace the single custom conversation canvas with a native GTK
 component hierarchy. One `Exchange_View` represents one submitted request and
 its complete agent response, bounded by the final turn footer. The submitted

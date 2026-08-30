@@ -170,9 +170,10 @@ SRS-CORE requirement groups.
 | `llm_openai_completions_tests.adb` | REQ-CORE-201 | ~30 |
 | `llm_anthropic_messages_tests.adb` | REQ-CORE-202 | ~30 |
 | `llm_openrouter_tests.adb` | REQ-CORE-072, REQ-CORE-216, REQ-CORE-218, REQ-CORE-219 (OpenRouter) | ~17 |
-| `coyote_cmark_tests.adb` | REQ-CORE-111 (Markdown rendering) | ~25 |
+| `coyote_cmark_tests.adb` | REQ-CORE-111 (Markdown rendering), parser-safe display-math code-block protection | ~28 |
 | `coyote_lasem_tests.adb` | Lasem Presentation MathML measurement, zoom scaling, relation entities, and error handling | 5 |
 | `coyote_gui_conversation_tests.adb` | Display-math style, source preservation, visual height, font propagation, selection text, PRIMARY transfer, and tool-detail metadata/media capture | 5 |
+| `coyote_gui_conversation_stack_tests.adb` | Native display MathML realization, invalid fallback, code protection, and zoom | 17 |
 | `llm_session_store_tests.adb` | Session-store header/accessor coverage, including local session creation timestamp | ~48 |
 | `coyote_gui_zoom_tests.adb` | REQ-CORE-125 (zoom arithmetic: clamping, step semantics) | 12 |
 | `coyote_gui_notification_policy_tests.adb` | REQ-CORE-127 (notification eligibility policy) | 4 |
@@ -192,7 +193,7 @@ SRS-CORE requirement groups.
 | `coyote_sqc_histogram_tests.adb` | SRS-SQC histogram | ~10 |
 | `coyote_sqc_bootstrap_tests.adb` | SRS-SQC Â§5.17 bootstrap CI, Â§10.3 two-set histogram bins | ~7 |
 
-**Total automated tests (current):** **798**
+**Total automated tests (current):** **806**
 
 ### 4.3 Planned Tests â Demonstration
 
@@ -209,7 +210,7 @@ behaviour. Results are recorded in a Test Report.
 | DEM-045 | REQ-CORE-025 | Set `maxRecursionDepth` to 1; invoke coyote with inherited `COYOTE_RECURSION_DEPTH=1` and `--subagent`; verify it exits non-zero before opening a frontend and reports the limit on stderr |
 | DEM-046 | REQ-CORE-111, 125 | In a display-backed native-stack GUI (`COYOTE_NATIVE_STACK=1`), render a fixture containing headings, inline formatting, code, lists, tables, links, strikethrough, and a thematic break. Verify conversion occurs after streaming, local selection exposes plain text, the Render Markdown toggle preserves source text when disabled, and zoom changes native response font size. |
 | DEM-047 | REQ-CORE-111, 131, 137 | Render the same Markdown response live and by session replay in the native GUI. Verify equivalent supported visible content and response-block boundaries, and verify the GUI replay preserves the same semantic blocks. |
-| DEM-048 | REQ-CORE-124 | In a display-backed native-stack GUI, exercise valid and invalid standalone Presentation MathML blocks. Verify native realization, readable source/fallback on parse failure, local selection, and zoom. This procedure remains deferred until native MathML is implemented. |
+| DEM-048 | REQ-CORE-124 | In a display-backed native-stack GUI, exercise valid and invalid standalone Presentation MathML blocks. Verify native realization, readable source/fallback on parse failure, local selection, and zoom. Automated native realization, fallback, code-protection, and zoom tests are implemented; visual and local-selection acceptance remains pending. |
 | DEM-049 | REQ-CORE-110, 113b | In a display-backed GUI, verify that the conversation work area, prompt controls, and status area are separated by visible horizontal rules; verify the prompt and status areas have consistent breathing room and that the conversation remains the sole expanding region. The structural portion is covered by `Coyote.GUI separates conversation, prompt, and status`; visual contrast remains a manual check under the active theme. |
 | DEM-006 | REQ-CORE-040â044 | Start a GUI session; send a prompt; verify streaming text, thinking, tool events, and stats appear |
 | DEM-007 | REQ-CORE-055 | Start a long tool execution; press Stop; verify tool is cancelled and agent exits cleanly |

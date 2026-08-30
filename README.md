@@ -145,8 +145,8 @@ Tests live in `test/src/` and use AUnit:
 cd test && alr run coyote_test
 ```
 
-The complete development suite currently contains 798 registered tests and
-passes 798/798. Live provider tests remain opt-in.
+The complete development suite currently contains 806 registered tests and
+passes 806/806. Live provider tests remain opt-in.
 
 ## License
 

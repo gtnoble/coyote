@@ -1436,8 +1436,10 @@ qualification requirements are identified.
 
 Traceability from requirements to test cases. Current test procedures and
 status are maintained in `plan/test-plan.md`; the current automated baseline
-is 798 registered tests. Display-backed native GUI procedures remain separately
-identified in the Test Plan. The table below is the original qualification
+is 806 registered tests. Display-backed native GUI procedures remain separately
+identified in the Test Plan. Native MathML implementation coverage is automated;
+DEM-048 visual and local-selection qualification remains separate. The
+table below is the original qualification
 matrix and retains historical `TC-*` identifiers; the current mappings are in
 `plan/test-plan.md` §6.
 
