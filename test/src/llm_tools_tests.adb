@@ -16,6 +16,19 @@ package body LLM_Tools_Tests is
       return Ada.Strings.Fixed.Index (Text, Pattern) > 0;
    end Contains;
 
+   function Image_Arguments
+     (Command : String; Media_Type : String := "image/png") return String is
+   begin
+      return "{""command"":""" & Command
+        & """,""media_type"":""" & Media_Type & """}";
+   end Image_Arguments;
+
+   --  Minimal 1x1 PNG used by image-result tests.
+   PNG_Base64 : constant String :=
+     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+   PNG_Command : constant String :=
+     "printf '" & PNG_Base64 & "' | base64 -d";
+
    procedure Test_Shell_Success (T : in out Test) is
       pragma Unreferenced (T);
 
@@ -312,15 +325,13 @@ package body LLM_Tools_Tests is
    procedure Test_Shell_Media_Type_Sets_Base64_Result (T : in out Test) is
       pragma Unreferenced (T);
 
-      --  "Hello" in standard base64 is "SGVsbG8="
+      --  A real minimal PNG is emitted and must round-trip unchanged.
       Result     : Unbounded_String;
       Media_Type : Unbounded_String;
       Is_Error   : Boolean;
    begin
       LLM.Tools.Shell.Execute
-        (Args_Json  =>
-           "{""command"":""printf Hello"","
-           & """media_type"":""image/png""}",
+        (Args_Json  => Image_Arguments (PNG_Command),
          Result     => Result,
          Media_Type => Media_Type,
          Is_Error   => Is_Error);
@@ -332,9 +343,8 @@ package body LLM_Tools_Tests is
          "Media_Type out param should be ""image/png"", got: "
          & To_String (Media_Type));
       Assert
-        (To_String (Result) = "SGVsbG8=",
-         "Base64 of ""Hello"" should be ""SGVsbG8="", got: "
-         & To_String (Result));
+        (To_String (Result) = PNG_Base64,
+         "PNG stdout should be returned unchanged after base64 encoding");
    end Test_Shell_Media_Type_Sets_Base64_Result;
 
    procedure Test_Shell_Media_Type_Error_Clears_Type (T : in out Test) is
@@ -384,6 +394,69 @@ package body LLM_Tools_Tests is
          "Result should contain the plain-text output");
    end Test_Shell_Media_Type_Absent_Is_Plain_Text;
 
+   procedure Test_Shell_Image_Separates_Stderr (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Result     : Unbounded_String;
+      Media_Type : Unbounded_String;
+      Is_Error   : Boolean;
+   begin
+      LLM.Tools.Shell.Execute
+        (Args_Json  => Image_Arguments
+           ("printf warning >&2; " & PNG_Command),
+         Result     => Result,
+         Media_Type => Media_Type,
+         Is_Error   => Is_Error);
+
+      Assert (not Is_Error,
+              "valid image stdout with stderr diagnostics should succeed");
+      Assert (To_String (Media_Type) = "image/png",
+              "image MIME type should be preserved");
+      Assert (To_String (Result) = PNG_Base64,
+              "stderr must not be included in image base64 data");
+   end Test_Shell_Image_Separates_Stderr;
+
+   procedure Test_Shell_Image_Rejects_Invalid_Data (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Result     : Unbounded_String;
+      Media_Type : Unbounded_String;
+      Is_Error   : Boolean;
+   begin
+      LLM.Tools.Shell.Execute
+        (Args_Json  => Image_Arguments ("printf not-an-image"),
+         Result     => Result,
+         Media_Type => Media_Type,
+         Is_Error   => Is_Error);
+
+      Assert (Is_Error, "non-image bytes should be rejected");
+      Assert (To_String (Media_Type) = "",
+              "invalid image output must not retain a media type");
+      Assert (Contains (To_String (Result), "not a valid image/png"),
+              "invalid image result should explain the validation failure");
+   end Test_Shell_Image_Rejects_Invalid_Data;
+
+   procedure Test_Shell_Image_Rejects_Unsupported_Mime (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Result     : Unbounded_String;
+      Media_Type : Unbounded_String;
+      Is_Error   : Boolean;
+   begin
+      LLM.Tools.Shell.Execute
+        (Args_Json => Image_Arguments
+           ("printf should-not-run", "image/bmp"),
+         Result     => Result,
+         Media_Type => Media_Type,
+         Is_Error   => Is_Error);
+
+      Assert (Is_Error, "unsupported image MIME should be rejected");
+      Assert (To_String (Media_Type) = "",
+              "unsupported image MIME must not be returned");
+      Assert (Contains (To_String (Result), "unsupported image media type"),
+              "MIME failure should identify the rejected media type");
+   end Test_Shell_Image_Rejects_Unsupported_Mime;
+
    procedure Test_Execute_Image_Not_Truncated (T : in out Test) is
       pragma Unreferenced (T);
 
@@ -397,8 +470,7 @@ package body LLM_Tools_Tests is
    begin
       LLM.Tools.Shell.Execute
         (Args_Json  =>
-           "{""command"":""printf '%5000d' 0"","
-           & """media_type"":""image/png""}",
+           Image_Arguments (PNG_Command & "; printf '%5000d' 0 >&2"),
          Result     => Result,
          Media_Type => Media_Type,
          Is_Error   => Is_Error);

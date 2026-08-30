@@ -80,6 +80,15 @@ package LLM_Tools_Tests is
    --  When media_type is absent the tool behaves as plain text.
    procedure Test_Shell_Media_Type_Absent_Is_Plain_Text (T : in out Test);
 
+   --  A valid PNG on stdout remains valid when stderr contains diagnostics.
+   procedure Test_Shell_Image_Separates_Stderr             (T : in out Test);
+
+   --  Image output must match the declared MIME type.
+   procedure Test_Shell_Image_Rejects_Invalid_Data         (T : in out Test);
+
+   --  Unsupported MIME types are rejected before process execution.
+   procedure Test_Shell_Image_Rejects_Unsupported_Mime     (T : in out Test);
+
    --  LLM.Tools.Execute skips Temp_File truncation for image results.
    procedure Test_Execute_Image_Not_Truncated           (T : in out Test);
 

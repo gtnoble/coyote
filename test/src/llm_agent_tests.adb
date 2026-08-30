@@ -5572,7 +5572,7 @@ package body LLM_Agent_Tests is
                     (Tool_Call_Id   => "call_footer_3",
                      Tool_Name      => "shell",
                      Arguments_Json =>
-                       "{""command"":""printf test"",""media_type"":""image/png""}")),
+                       "{""command"":""printf 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=' | base64 -d"",""media_type"":""image/png""}")),
                   Prompt_Tokens     => 50,
                   Completion_Tokens => 20));
          else

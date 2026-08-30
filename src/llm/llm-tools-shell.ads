@@ -23,9 +23,9 @@ package LLM.Tools.Shell is
    --  string field "media_type".
    --
    --  When "media_type" is non-empty the command's stdout is treated as raw
-   --  binary data: the bytes are base64-encoded and returned in Result, and
-   --  Media_Type is set to the given MIME type (e.g. "image/png").  The
-   --  caller is responsible for forming the appropriate image content block.
+   --  binary image data.  Only supported image MIME types are accepted;
+   --  stdout must have the matching image signature before the bytes are
+   --  base64-encoded and returned in Result with Media_Type set.
    --  When "media_type" is absent or empty the tool behaves as plain text
    --  (the current default).
    --
@@ -39,10 +39,12 @@ package LLM.Tools.Shell is
    --  A timeout of 0 or a missing / non-integer "timeout" field disables
    --  the timer (the default: no per-command time limit).
    --
-   --  Result receives the combined stdout/stderr text (or base64-encoded
-   --  image bytes when media_type is non-empty).  Media_Type receives the
-   --  value of the "media_type" argument, or an empty Unbounded_String when
-   --  absent.  Is_Error is True when the arguments are invalid or the
+   --  Result receives combined stdout/stderr text for plain-text commands.
+   --  For image commands, Result contains base64-encoded stdout only after
+   --  the MIME type and matching image signature have been validated.
+   --  Media_Type receives the canonical image MIME type, or an empty
+   --  Unbounded_String when absent or when image validation fails.
+   --  Is_Error is True when the arguments are invalid or the
    --  command exits non-zero.
    procedure Execute
      (Args_Json       :     String;

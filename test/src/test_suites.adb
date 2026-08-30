@@ -1199,6 +1199,15 @@ package body Test_Suites is
         ("LLM.Tools.Shell absent media_type is plain text",
          LLM_Tools_Tests.Test_Shell_Media_Type_Absent_Is_Plain_Text'Access));
       Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell image keeps stderr out of payload",
+         LLM_Tools_Tests.Test_Shell_Image_Separates_Stderr'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell image rejects invalid data",
+         LLM_Tools_Tests.Test_Shell_Image_Rejects_Invalid_Data'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell image rejects unsupported MIME",
+         LLM_Tools_Tests.Test_Shell_Image_Rejects_Unsupported_Mime'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
         ("LLM.Tools.Execute image results bypass truncation cap",
          LLM_Tools_Tests.Test_Execute_Image_Not_Truncated'Access));
 

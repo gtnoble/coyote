@@ -714,8 +714,8 @@ package body Coyote_App is
                               Create (LLM.Agent.Session_Id (Agent_Session)));
                            State.Set_One_Shot_Result (Write (Err));
                         end;
+                        Initiate_Shutdown;
                      end if;
-                     Initiate_Shutdown;
                   end;
             end Run_Queued_Prompt;
 

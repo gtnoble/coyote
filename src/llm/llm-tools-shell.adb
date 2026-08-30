@@ -5,17 +5,19 @@
 
 with Ada.Directories;
 with Ada.Environment_Variables;
+with Ada.Characters.Handling;
 with Ada.Exceptions;
 with Ada.Real_Time;
 with Ada.Strings;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
+with GNAT.OS_Lib;
+with GNAT.Strings;
 with GNATCOLL.JSON;
 with GNATCOLL.OS.FS;         use GNATCOLL.OS.FS;
 with LLM.Tools.Sandbox;
 with Coyote_Process_Control;
 with GNATCOLL.OS.Process;    use GNATCOLL.OS.Process;
-
 package body LLM.Tools.Shell is
 
    use type GNATCOLL.JSON.JSON_Value_Type;
@@ -89,6 +91,115 @@ package body LLM.Tools.Shell is
       return Result;
    end Base64_Encode;
 
+   function Canonical_Image_Mime (Value : String) return String is
+      Normalized : constant String :=
+        Ada.Characters.Handling.To_Lower
+          (Ada.Strings.Fixed.Trim (Value, Ada.Strings.Both));
+   begin
+      if Normalized = "image/png"
+        or else Normalized = "image/jpeg"
+        or else Normalized = "image/gif"
+        or else Normalized = "image/webp"
+      then
+         return Normalized;
+      end if;
+      return "";
+   end Canonical_Image_Mime;
+
+   function Image_Signature_Matches
+     (Media_Type : String;
+      Data       : String) return Boolean
+   is
+      First : constant Positive := Data'First;
+   begin
+      if Media_Type = "image/png" then
+         return Data'Length >= 8
+           and then Data (First) = Character'Val (16#89#)
+           and then Data (First + 1 .. First + 3) = "PNG"
+           and then Data (First + 4) = Character'Val (16#0D#)
+           and then Data (First + 5) = Character'Val (16#0A#)
+           and then Data (First + 6) = Character'Val (16#1A#)
+           and then Data (First + 7) = Character'Val (16#0A#);
+      elsif Media_Type = "image/jpeg" then
+         return Data'Length >= 2
+           and then Data (First) = Character'Val (16#FF#)
+           and then Data (First + 1) = Character'Val (16#D8#);
+      elsif Media_Type = "image/gif" then
+         return Data'Length >= 6
+           and then (Data (First .. First + 5) = "GIF87a"
+                     or else Data (First .. First + 5) = "GIF89a");
+      elsif Media_Type = "image/webp" then
+         return Data'Length >= 12
+           and then Data (First .. First + 3) = "RIFF"
+           and then Data (First + 8 .. First + 11) = "WEBP";
+      end if;
+      return False;
+   end Image_Signature_Matches;
+
+   function New_Temporary_Path return String is
+      FD   : GNAT.OS_Lib.File_Descriptor := GNAT.OS_Lib.Invalid_FD;
+      Name : GNAT.Strings.String_Access := null;
+      use type GNAT.OS_Lib.File_Descriptor;
+      use type GNAT.Strings.String_Access;
+   begin
+      GNAT.OS_Lib.Create_Temp_File (FD, Name);
+      if FD = GNAT.OS_Lib.Invalid_FD or else Name = null then
+         raise Program_Error with "unable to create image diagnostic file";
+      end if;
+      GNAT.OS_Lib.Close (FD);
+      declare
+         Path : constant String := Name.all;
+      begin
+         GNAT.OS_Lib.Free (Name);
+         return Path;
+      end;
+   exception
+      when others =>
+         if Name /= null then
+            GNAT.OS_Lib.Free (Name);
+         end if;
+         raise;
+   end New_Temporary_Path;
+
+   function Read_File_Prefix
+     (Path : String) return String
+   is
+      FD       : File_Descriptor := Invalid_FD;
+      Buffer   : String (1 .. 4096);
+      Read_N   : Integer;
+      Result   : Unbounded_String;
+      Remaining : Natural := 8 * 1024;
+   begin
+      if Path'Length = 0 then
+         return "";
+      end if;
+      FD := Open (Path, Read_Mode);
+      if FD = Invalid_FD then
+         return "";
+      end if;
+      loop
+         Read_N := Read (FD, Buffer);
+         exit when Read_N <= 0;
+         if Remaining > 0 then
+            declare
+               Keep : constant Natural :=
+                 Natural'Min (Remaining, Read_N);
+            begin
+               Append (Result, Buffer (1 .. Keep));
+               Remaining := Remaining - Keep;
+            end;
+         end if;
+      end loop;
+      Close (FD);
+      return To_String (Result);
+   exception
+      when others =>
+         if FD /= Invalid_FD then
+            Close (FD);
+         end if;
+         return To_String (Result);
+   end Read_File_Prefix;
+
    function Resolve_Shell return String is
    begin
       if Ada.Environment_Variables.Exists ("SHELL") then
@@ -143,9 +254,9 @@ package body LLM.Tools.Shell is
       Media_P.Set_Field
         ("description",
          "Optional MIME type of the command's stdout (e.g. ""image/png"","
-         & " ""image/jpeg"").  When non-empty the raw stdout bytes are"
-         & " base64-encoded and returned as an image content block of this"
-         & " type.  Omit or leave empty for plain-text output (the default).");
+         & " ""image/jpeg"").  Only supported image types are accepted."
+         & " The stdout bytes must match the declared image type; stderr is"
+         & " kept separate.  Omit or leave empty for plain-text output.");
 
       Run_Grp_P.Set_Field ("type", "integer");
       Run_Grp_P.Set_Field
@@ -251,6 +362,7 @@ package body LLM.Tools.Shell is
             Shell_Path       : constant String := Resolve_Shell;
             Output_R         : File_Descriptor := Invalid_FD;
             Output_W         : File_Descriptor := Invalid_FD;
+            Diagnostic_W     : File_Descriptor := Invalid_FD;
             Null_In          : File_Descriptor := Invalid_FD;
             Handle           : Process_Handle  := Invalid_Handle;
             Args             : Argument_List;
@@ -258,6 +370,8 @@ package body LLM.Tools.Shell is
             Bytes_Read       : Integer;
             Exit_Code        : Integer         := 0;
             Output           : Unbounded_String;
+            Diagnostic       : Unbounded_String;
+            Diagnostic_Path  : Unbounded_String;
             Has_Stdin_Text   : Boolean         := False;
             Stdin_Text       : Unbounded_String := Null_Unbounded_String;
             Timeout_Seconds  : Integer := 0;
@@ -398,7 +512,19 @@ package body LLM.Tools.Shell is
                   Value : constant String := Root.Get ("media_type").Get;
                begin
                   if Value'Length > 0 then
-                     Requested_Mime := To_Unbounded_String (Value);
+                     declare
+                        Canonical : constant String :=
+                          Canonical_Image_Mime (Value);
+                     begin
+                        if Canonical'Length = 0 then
+                           Set_Error
+                             ("shell tool rejected unsupported image media "
+                              & "type: " & Value,
+                              Result, Media_Type, Is_Error);
+                           return;
+                        end if;
+                        Requested_Mime := To_Unbounded_String (Canonical);
+                     end;
                   end if;
                end;
             end if;
@@ -417,6 +543,18 @@ package body LLM.Tools.Shell is
                      Timeout_Seconds := Integer (Raw);
                   end if;
                end;
+            end if;
+
+            if Length (Requested_Mime) > 0 then
+               Diagnostic_Path :=
+                 To_Unbounded_String (New_Temporary_Path);
+               Diagnostic_W := Open
+                 (To_String (Diagnostic_Path), Write_Mode);
+               if Diagnostic_W = Invalid_FD then
+                  raise Program_Error with
+                    "unable to open image diagnostic file";
+               end if;
+               Set_Close_On_Exec (Diagnostic_W, False);
             end if;
 
             Open_Pipe (Output_R, Output_W);
@@ -495,7 +633,9 @@ package body LLM.Tools.Shell is
                     (Args   => Args,
                      Stdin  => (if Has_Stdin_Text then Stdin_R else Null_In),
                      Stdout => Output_W,
-                     Stderr => Output_W);
+                     Stderr => (if Length (Requested_Mime) > 0
+                                then Diagnostic_W
+                                else Output_W));
                   Started := True;
                   Coyote_Process_Control.Complete_Launch
                     (Integer (Handle), Needs_Signal);
@@ -528,6 +668,10 @@ package body LLM.Tools.Shell is
 
             Close (Output_W);
             Output_W := Invalid_FD;
+            if Diagnostic_W /= Invalid_FD then
+               Close (Diagnostic_W);
+               Diagnostic_W := Invalid_FD;
+            end if;
 
             --  When a timeout is requested, the supervisor sends SIGTERM
             --  at expiry, waits the configured grace period, and sends
@@ -548,7 +692,9 @@ package body LLM.Tools.Shell is
                         select
                            Abort_Flg.Wait_Requested;
                            Termination.Mark_Aborted;
-                           if not Coyote_Process_Control.Shutdown_Requested then
+                           if not Coyote_Process_Control
+                             .Shutdown_Requested
+                           then
                               Coyote_Process_Control.Signal_Group
                                 (Integer (Handle),
                                  Coyote_Process_Control.SIGKILL_Signal);
@@ -579,7 +725,8 @@ package body LLM.Tools.Shell is
                               select
                                  Abort_Flg.Wait_Requested;
                                  Termination.Mark_Aborted;
-                                 if not Coyote_Process_Control.Shutdown_Requested
+                                 if not Coyote_Process_Control
+                                   .Shutdown_Requested
                                  then
                                     Coyote_Process_Control.Signal_Group
                                       (Integer (Handle),
@@ -742,6 +889,11 @@ package body LLM.Tools.Shell is
 
             Reap_Child;
 
+            if Length (Diagnostic_Path) > 0 then
+               Diagnostic := To_Unbounded_String
+                 (Read_File_Prefix (To_String (Diagnostic_Path)));
+            end if;
+
             if Exit_Code /= 0 then
                Is_Error := True;
                if Length (Output) > 0 then
@@ -755,6 +907,12 @@ package body LLM.Tools.Shell is
                   Output := To_Unbounded_String
                     ("command exited with status " & Image_Of (Exit_Code));
                end if;
+               if Length (Diagnostic) > 0 then
+                  Append (Output, ASCII.LF);
+                  Append (Output, "[command diagnostics: ");
+                  Append (Output, To_String (Diagnostic));
+                  Append (Output, "]");
+               end if;
                --  On error discard any requested media type; the result is
                --  always an error text message.
                Result := Output;
@@ -762,11 +920,25 @@ package body LLM.Tools.Shell is
                return;
             end if;
 
-            --  Successful exit: base64-encode when a media type was requested.
+            --  Successful exit: validate and base64-encode image stdout.
             if Length (Requested_Mime) > 0 then
-               Result     :=
-                 To_Unbounded_String (Base64_Encode (To_String (Output)));
-               Media_Type := Requested_Mime;
+               if Length (Output) = 0 then
+                  Set_Error
+                    ("shell tool produced empty output for "
+                     & To_String (Requested_Mime),
+                     Result, Media_Type, Is_Error);
+               elsif not Image_Signature_Matches
+                 (To_String (Requested_Mime), To_String (Output))
+               then
+                  Set_Error
+                    ("shell tool stdout is not a valid "
+                     & To_String (Requested_Mime) & " image",
+                     Result, Media_Type, Is_Error);
+               else
+                  Result     := To_Unbounded_String
+                    (Base64_Encode (To_String (Output)));
+                  Media_Type := Requested_Mime;
+               end if;
             else
                Result := Output;
             end if;
