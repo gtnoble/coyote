@@ -2962,6 +2962,37 @@ behavior, current test baseline, and remaining manual qualification scope.
   multi-column placement and resize reflow remain pending under DEM-043.
 - **Status:** Implemented; qualification pending
 
+## PCR-091 — Native GUI response rendering duplication and MathML source visibility
+
+- **Date reported:** 2026-08-30
+- **Category:** Design, Code, Test, Manuals
+- **Priority:** 2-Serious (user-visible GUI rendering defect)
+- **Description:** With `COYOTE_NATIVE_STACK=1`, completed responses containing
+  display MathML could show the raw streamed response together with a second
+  Markdown/native-MathML response. Valid native MathML could also show its
+  delimiter-wrapped source beside the rendered formula. Native math and text
+  surfaces did not explicitly share a theme background.
+- **Root cause:** The native response path hid but retained the streaming
+  `Gtk.Text_View`; recursive `Show_All` restored it after rendered children
+  were packed. `Coyote_GUI.Math_Element` called `Show_All` after hiding its
+  valid-render fallback label, restoring that label. Native response text and
+  math widgets inherited styling independently.
+- **Actions taken:** Finalized the stream mark before removing the raw response
+  view from its parent and tracking vector, then built the rendered response
+  hierarchy and restored a visible rendered text component as the active
+  selection target. Marked the MathML drawing area and fallback label
+  `no-show-all` and made validity-driven visibility explicit. Applied the
+  theme-aware `coyote-response-content` style class to response text, math
+  roots, and drawing areas. Added display-backed structural and visibility
+  regressions.
+- **Compatibility disposition:** The Plain frontend and legacy GtkLayout
+  renderer are unchanged. Invalid MathML continues to show selectable source
+  fallback; valid MathML shows only the rendered formula.
+- **Verification:** Production and test development builds succeed. The
+  focused native-stack suite passes 17/17 and the complete AUnit suite passes
+  806/806 with zero failed assertions and zero unexpected errors.
+- **Status:** Implemented; visual light/dark theme qualification remains open.
+
 ## PCR-090 — Remove Acme frontend and desktop integration
 
 - **Date reported:** 2026-08-30

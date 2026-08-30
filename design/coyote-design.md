@@ -1230,10 +1230,15 @@ Basic GFM Markdown conversion for native response text is now implemented by
 retaining streamed text and replacing it at `End_Text_Block` with markup from
 `Coyote_Renderer.Markup`. Completed responses containing display math are split
 into ordered native text views and Lasem-backed `Coyote_GUI.Math_Element`
-widgets. Invalid MathML retains selectable source fallback. Zoom propagates to
-all retained text and math elements. User acceptance of DEM-047 confirmed
-live/replay Markdown parity on 2026-08-28. Manual visual/local-selection and
-large-history qualification remain open under DEM-048 and DEM-044.
+widgets. Valid MathML displays only the Lasem-rendered formula; invalid MathML
+retains selectable source fallback. The temporary raw streaming response view is
+removed before rendered children are packed, and rendered response text remains
+the active selectable component when text surrounds display math. Response text,
+MathML roots, and drawing areas share the theme-aware `coyote-response-content`
+style. Zoom propagates to all retained text and math elements. User acceptance
+of DEM-047 confirmed live/replay Markdown parity on 2026-08-28. Manual
+visual/local-selection and large-history qualification remain open under
+DEM-048 and DEM-044.
 **Purpose:** Replace the single custom conversation canvas with a native GTK
 component hierarchy. One `Exchange_View` represents one submitted request and
 its complete agent response, bounded by the final turn footer. The submitted

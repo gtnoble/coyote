@@ -38,6 +38,24 @@ package Coyote_GUI.Conversation_Stack.Testing is
    function Active_Text
      (C : Coyote_GUI.Conversation_Stack.Instance) return String;
 
+   function Response_Stream_Present
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean;
+
+   function Response_Text_Has_Style
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean;
+
+   function Math_Area_Visible
+     (C     : Coyote_GUI.Conversation_Stack.Instance;
+      Index : Positive) return Boolean;
+
+   function Math_Fallback_Visible
+     (C     : Coyote_GUI.Conversation_Stack.Instance;
+      Index : Positive) return Boolean;
+
+   function Math_Has_Response_Style
+     (C     : Coyote_GUI.Conversation_Stack.Instance;
+      Index : Positive) return Boolean;
+
    function Math_Element_Count
      (C : Coyote_GUI.Conversation_Stack.Instance) return Natural;
 

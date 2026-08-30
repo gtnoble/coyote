@@ -862,3 +862,25 @@ interaction without maintaining a second transcript buffer. The dead
 contextual Help mapping, Mallard page, tests, and qualification wording were
 removed. The native component stack's selectable text, labels, and focusable
 actions remain unchanged.
+
+### Native response rendering visibility correction (2026-08-30)
+
+The native component-stack response replacement now removes the temporary raw
+streaming `Gtk.Text_View` from its response section after the stream buffer and
+mark have been finalized, before packing Markdown text and Lasem-backed math.
+This prevents the raw response from being restored by later recursive
+`Show_All` calls. Rendered response text remains the active selectable text
+component when text surrounds display math.
+
+Native MathML drawing areas and source-fallback labels are now excluded from
+recursive `Show_All` operations and are explicitly shown or hidden according
+to parse validity. Valid MathML therefore presents only the rendered formula;
+invalid MathML continues to present selectable source fallback. Response text,
+MathML roots, and drawing areas share the theme-aware
+`coyote-response-content` GTK style class and use the GTK theme base/text
+colors.
+
+Display-backed regressions cover raw-stream removal, rendered-text selection,
+valid and invalid MathML visibility after `Show_All`, and shared response
+styling. Production and test development builds succeed; the complete suite
+passes 806/806 with zero failed assertions and zero unexpected errors.

@@ -10,8 +10,12 @@ with Ada.Unchecked_Deallocation;
 with Cairo;
 with Coyote_Lasem;
 with Glib;                   use Glib;
+with Glib.Error;
 with Gtk.Drawing_Area;
 with Gtk.Handlers;
+with Gtk.Css_Provider;
+with Gtk.Style_Context;
+with Gtk.Style_Provider;
 with Gtk.Widget;
 with Interfaces.C;
 with Interfaces.C.Strings;
@@ -48,6 +52,28 @@ package body Coyote_GUI.Math_Element is
       Element : Instance_Access);
 
    procedure Queue_Redraw (Element : in out Instance);
+
+   procedure Apply_Response_Style
+     (Widget : not null access Gtk.Widget.Gtk_Widget_Record'Class)
+   is
+      use Gtk.Css_Provider;
+      use Gtk.Style_Context;
+      use Gtk.Style_Provider;
+      CSS : constant String :=
+        ".coyote-response-content { background-color: @theme_base_color; "
+        & "color: @theme_text_color; }";
+      Provider  : Gtk_Css_Provider;
+      CSS_Error : aliased Glib.Error.GError;
+      Ignored   : Boolean;
+      pragma Unreferenced (Ignored);
+   begin
+      Gtk_New (Provider);
+      Ignored := Provider.Load_From_Data (CSS, CSS_Error'Access);
+      Get_Style_Context (Widget).Add_Class ("coyote-response-content");
+      Get_Style_Context (Widget).Add_Provider
+        (Implements_Gtk_Style_Provider.To_Interface (Provider),
+         Guint (Priority_Application));
+   end Apply_Response_Style;
 
    procedure Measure (Element : in out Instance) is
       C_Text  : constant Interfaces.C.char_array :=
@@ -94,10 +120,6 @@ package body Coyote_GUI.Math_Element is
          Element.Fallback.Set_Text (To_String (Element.Source_Text));
          Element.Fallback.Show;
          Element.Area.Set_Size_Request (-1, -1);
-      end if;
-      Element.Root.Show_All;
-      if not Element.Valid then
-         Element.Area.Hide;
       end if;
    end Update_Visibility;
 
@@ -184,6 +206,10 @@ package body Coyote_GUI.Math_Element is
            (Element.Root, Homogeneous => False, Spacing => 2);
          Gtk.Drawing_Area.Gtk_New (Element.Area);
          Gtk.Label.Gtk_New (Element.Fallback, Source);
+         Apply_Response_Style (Element.Root);
+         Apply_Response_Style (Element.Area);
+         Element.Area.Set_No_Show_All (True);
+         Element.Fallback.Set_No_Show_All (True);
          Element.Fallback.Set_Xalign (0.0);
          Element.Fallback.Set_Line_Wrap (True);
          Element.Fallback.Set_Selectable (True);

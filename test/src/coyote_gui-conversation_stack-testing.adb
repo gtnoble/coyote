@@ -2,13 +2,19 @@
 --
 --  Project: coyote
 
+with Coyote_GUI.Math_Element.Testing;
+with Gtk.Container;
+with Gtk.Style_Context;
 with Gtk.Text_Buffer;
 with Gtk.Text_Iter;
+with Gtk.Widget;
 
 package body Coyote_GUI.Conversation_Stack.Testing is
 
    use type Gtk.Label.Gtk_Label;
    use type Gtk.Text_Buffer.Gtk_Text_Buffer;
+   use type Gtk.Widget.Gtk_Widget;
+   use type Gtk.Widget.Widget_List.Glist;
 
    function Has_Exchange
      (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean
@@ -68,6 +74,69 @@ package body Coyote_GUI.Conversation_Stack.Testing is
       C.Active_Text.Get_End_Iter (End_Iter);
       return C.Active_Text.Get_Text (Start_Iter, End_Iter);
    end Active_Text;
+
+   function Response_Stream_Present
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean
+   is
+      Children : Gtk.Widget.Widget_List.Glist;
+      Child    : Gtk.Widget.Gtk_Widget;
+   begin
+      if C.Response_Section = null then
+         return False;
+      end if;
+      Children := Gtk.Container.Get_Children
+        (Gtk.Container.Gtk_Container (C.Response_Section));
+      Children := Gtk.Widget.Widget_List.First (Children);
+      while Children /= Gtk.Widget.Widget_List.Null_List loop
+         Child := Gtk.Widget.Widget_List.Get_Data (Children);
+         if Child /= null
+           and then Child.Get_Name = "coyote-response-stream"
+         then
+            return True;
+         end if;
+         Children := Gtk.Widget.Widget_List.Next (Children);
+      end loop;
+      return False;
+   end Response_Stream_Present;
+
+   function Response_Text_Has_Style
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean
+   is
+   begin
+      return C.Active_View /= null
+        and then Gtk.Style_Context.Get_Style_Context
+          (C.Active_View).Has_Class ("coyote-response-content");
+   end Response_Text_Has_Style;
+
+   function Math_Area_Visible
+     (C     : Coyote_GUI.Conversation_Stack.Instance;
+      Index : Positive) return Boolean
+   is
+   begin
+      return Index <= Natural (C.Math_Elements.Length)
+        and then Coyote_GUI.Math_Element.Testing.Area_Visible
+          (C.Math_Elements (Index).all);
+   end Math_Area_Visible;
+
+   function Math_Fallback_Visible
+     (C     : Coyote_GUI.Conversation_Stack.Instance;
+      Index : Positive) return Boolean
+   is
+   begin
+      return Index <= Natural (C.Math_Elements.Length)
+        and then Coyote_GUI.Math_Element.Testing.Fallback_Visible
+          (C.Math_Elements (Index).all);
+   end Math_Fallback_Visible;
+
+   function Math_Has_Response_Style
+     (C     : Coyote_GUI.Conversation_Stack.Instance;
+      Index : Positive) return Boolean
+   is
+   begin
+      return Index <= Natural (C.Math_Elements.Length)
+        and then Coyote_GUI.Math_Element.Testing.Has_Response_Style
+          (C.Math_Elements (Index).all);
+   end Math_Has_Response_Style;
 
    function Math_Element_Count
      (C : Coyote_GUI.Conversation_Stack.Instance) return Natural

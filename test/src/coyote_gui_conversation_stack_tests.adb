@@ -382,10 +382,12 @@ package body Coyote_GUI_Conversation_Stack_Tests is
               "summary exposes running status text");
       Assert (Index (Summary (1 .. Summary_Length), "shell") > 0,
               "summary contains the tool name");
-      Assert (Index (Summary (1 .. Summary_Length), "command: printf hello") > 0,
-              "summary contains compact argument fields");
-      Assert (Index (Summary (1 .. Summary_Length), "timeout: 5") > 0,
-              "summary contains each visible top-level argument field");
+      Assert
+        (Index (Summary (1 .. Summary_Length), "command: printf hello") > 0,
+         "summary contains compact argument fields");
+      Assert
+        (Index (Summary (1 .. Summary_Length), "timeout: 5") > 0,
+         "summary contains each visible top-level argument field");
       Assert (Index (Summary (1 .. Summary_Length), "run_group: 0") = 0,
               "summary hides the default run group");
       Assert (Index (Summary (1 .. Summary_Length), "stdin:") = 0,
@@ -394,8 +396,9 @@ package body Coyote_GUI_Conversation_Stack_Tests is
               "summary hides null media type");
       Assert (Index (Summary (1 .. Summary_Length), "printf hello") > 0,
               "summary contains argument value");
-      Assert (Index (Summary (1 .. Summary_Length), "full-result-sentinel") = 0,
-              "summary does not contain the full result");
+      Assert
+        (Index (Summary (1 .. Summary_Length), "full-result-sentinel") = 0,
+         "summary does not contain the full result");
       Assert (Index (Summary (1 .. Summary_Length), "{""command""") = 0,
               "summary does not contain raw argument JSON");
       Assert
@@ -417,8 +420,9 @@ package body Coyote_GUI_Conversation_Stack_Tests is
         (T.Stack, "tool-summary");
       Assert (To_String (Info.Name) = "shell",
               "retained details preserve the tool name");
-      Assert (To_String (Info.Args) = Tool_Args,
-              "retained details preserve raw arguments including hidden fields");
+      Assert
+        (To_String (Info.Args) = Tool_Args,
+         "retained details preserve raw arguments including hidden fields");
       Assert (To_String (Info.Result_Text) = "full-result-sentinel",
               "retained details preserve the full result");
       Assert (To_String (Info.Media_Type) = "image/png",
@@ -471,10 +475,12 @@ package body Coyote_GUI_Conversation_Stack_Tests is
      (T : in out Test)
    is
       Source : constant String :=
-        "$$" & ASCII.LF
+        "before" & ASCII.LF
+        & "$$" & ASCII.LF
         & "<math xmlns=""http://www.w3.org/1998/Math/MathML"">"
         & "<mfrac><mn>1</mn><mn>2</mn></mfrac></math>"
-        & ASCII.LF & "$$";
+        & ASCII.LF & "$$" & ASCII.LF
+        & "after";
    begin
       if not T.Display_Available then
          return;
@@ -491,6 +497,21 @@ package body Coyote_GUI_Conversation_Stack_Tests is
               "native math element has non-zero dimensions");
       Assert (Index (Math_Source (T.Stack, 1), "$$") > 0,
               "native math element retains delimiter-wrapped source");
+      Assert (not Response_Stream_Present (T.Stack),
+              "native MathML replacement removes the raw stream view");
+      Assert (Active_Text_View (T.Stack) /= null,
+              "rendered response text remains the active text component");
+      Assert (Response_Text_Has_Style (T.Stack),
+              "rendered response text uses the response style");
+      Assert (Math_Area_Visible (T.Stack, 1),
+              "valid MathML shows the rendered area");
+      Assert (not Math_Fallback_Visible (T.Stack, 1),
+              "valid MathML hides the source fallback");
+      Assert (Math_Has_Response_Style (T.Stack, 1),
+              "rendered MathML uses the response style");
+      Host_Widget (T.Stack).Show_All;
+      Assert (not Math_Fallback_Visible (T.Stack, 1),
+              "parent Show_All does not reveal valid MathML source");
    end Test_Native_Display_Math_Realizes_Element;
 
    procedure Test_Native_Display_Math_Invalid_Falls_Back
@@ -512,6 +533,10 @@ package body Coyote_GUI_Conversation_Stack_Tests is
               "invalid display math is marked invalid");
       Assert (Index (Math_Source (T.Stack, 1), "<") > 0,
               "invalid display math retains readable source");
+      Assert (not Math_Area_Visible (T.Stack, 1),
+              "invalid MathML hides the rendered area");
+      Assert (Math_Fallback_Visible (T.Stack, 1),
+              "invalid MathML shows the source fallback");
    end Test_Native_Display_Math_Invalid_Falls_Back;
 
    procedure Test_Native_Display_Math_Protects_Code

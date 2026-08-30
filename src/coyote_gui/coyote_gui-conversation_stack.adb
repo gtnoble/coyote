@@ -12,6 +12,7 @@ with Coyote_GUI.Math_Element;
 with Coyote_Renderer.MathML;
 with Coyote_Renderer.Markup;
 with Glib;                   use Glib;
+with Glib.Error;
 with Gtk.Adjustment;
 with Gtk.Handlers;
 with GNATCOLL.JSON;
@@ -29,6 +30,9 @@ with Gtk.Text_Buffer;
 with Gtk.Text_Iter;
 with Gtk.Text_View;
 with Gtk.Widget;
+with Gtk.Css_Provider;
+with Gtk.Style_Context;
+with Gtk.Style_Provider;
 with Pango.Font;
 
 package body Coyote_GUI.Conversation_Stack is
@@ -108,6 +112,28 @@ package body Coyote_GUI.Conversation_Stack is
       Buffer  : out Gtk.Text_Buffer.Gtk_Text_Buffer;
       View    : out Gtk.Text_View.Gtk_Text_View);
 
+   procedure Apply_Response_Style
+     (Widget : not null access Gtk.Widget.Gtk_Widget_Record'Class)
+   is
+      use Gtk.Css_Provider;
+      use Gtk.Style_Context;
+      use Gtk.Style_Provider;
+      CSS : constant String :=
+        ".coyote-response-content { background-color: @theme_base_color; "
+        & "color: @theme_text_color; }";
+      Provider  : Gtk_Css_Provider;
+      CSS_Error : aliased Glib.Error.GError;
+      Ignored   : Boolean;
+      pragma Unreferenced (Ignored);
+   begin
+      Gtk_New (Provider);
+      Ignored := Provider.Load_From_Data (CSS, CSS_Error'Access);
+      Get_Style_Context (Widget).Add_Class ("coyote-response-content");
+      Get_Style_Context (Widget).Add_Provider
+        (Implements_Gtk_Style_Provider.To_Interface (Provider),
+         Guint (Priority_Application));
+   end Apply_Response_Style;
+
    procedure Add_Response_Text
      (C      : in out Instance;
       Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
@@ -123,12 +149,15 @@ package body Coyote_GUI.Conversation_Stack is
          return;
       end if;
       Add_Text_Element (C, Parent, "", Text, Buffer, View);
+      Apply_Response_Style (View);
       if C.Render_Markdown then
          Buffer.Set_Text ("");
          Buffer.Get_End_Iter (Iter);
          Buffer.Insert_Markup (Iter, Markup, -1);
       end if;
       C.Text_Views.Append (View);
+      C.Active_Text := Buffer;
+      C.Active_View := View;
    end Add_Response_Text;
 
    procedure Add_Response_Math
@@ -168,11 +197,9 @@ package body Coyote_GUI.Conversation_Stack is
          return;
       end if;
 
-      if C.Active_View /= null then
-         C.Active_View.Hide;
-      end if;
       Gtk.Box.Gtk_New_Vbox
         (C.Response_Box, Homogeneous => False, Spacing => 2);
+      C.Response_Box.Set_Name ("coyote-response-rendered");
       C.Response_Section.Pack_Start
         (C.Response_Box, Expand => False, Fill => True, Padding => 2);
 
@@ -204,14 +231,17 @@ package body Coyote_GUI.Conversation_Stack is
       C.Response_Box.Show_All;
    end Build_Response_Elements;
 
-   procedure Replace_Streamed_Text (C : in out Instance) is
+   procedure Replace_Streamed_Text
+     (C                : in out Instance;
+      Full_Text        : String;
+      Has_Display_Math : out Boolean)
+   is
       Start_Iter : Gtk.Text_Iter.Gtk_Text_Iter;
       End_Iter   : Gtk.Text_Iter.Gtk_Text_Iter;
-      Full_Text  : constant String :=
-        Sanitize_UTF8 (To_String (C.Stream_Buf));
       Markup     : constant String :=
         Coyote_Renderer.Markup.To_Pango_Markup (Full_Text);
    begin
+      Has_Display_Math := False;
       if C.Active_Text = null or else C.Stream_Mark = null then
          return;
       end if;
@@ -220,7 +250,7 @@ package body Coyote_GUI.Conversation_Stack is
            Coyote_Renderer.MathML.Extract_Display_Math (Full_Text);
       begin
          if not Extraction.Blocks.Is_Empty then
-            Build_Response_Elements (C, Full_Text);
+            Has_Display_Math := True;
             return;
          end if;
       end;
@@ -249,7 +279,7 @@ package body Coyote_GUI.Conversation_Stack is
       View.Set_Pixels_Below_Lines (2);
    end Configure_Text_View;
 
-   procedure Show_Contents (C : in Instance) is
+   procedure Show_Contents (C : Instance) is
    begin
       if C.Scroll /= null then
          C.Scroll.Show_All;
@@ -390,6 +420,9 @@ package body Coyote_GUI.Conversation_Stack is
       Gtk.Text_Buffer.Gtk_New (Buffer);
       Gtk.Text_View.Gtk_New (View, Buffer);
       Configure_Text_View (View);
+      if Caption = "Response" then
+         View.Set_Name ("coyote-response-stream");
+      end if;
       if Text'Length > 0 then
          Buffer.Set_Text (Text);
       end if;
@@ -397,6 +430,7 @@ package body Coyote_GUI.Conversation_Stack is
       Parent.Pack_Start (Section, Expand => False, Fill => True, Padding => 4);
       if Caption = "Response" then
          C.Response_Section := Section;
+         Apply_Response_Style (View);
       end if;
       Show_Contents (C);
    end Add_Text_Element;
@@ -557,10 +591,13 @@ package body Coyote_GUI.Conversation_Stack is
    end Append_Text;
 
    procedure End_Text_Block (C : in out Instance) is
+      Full_Text        : constant String :=
+        Sanitize_UTF8 (To_String (C.Stream_Buf));
+      Has_Display_Math : Boolean := False;
    begin
       if C.Text_Open then
          if C.Render_Markdown then
-            Replace_Streamed_Text (C);
+            Replace_Streamed_Text (C, Full_Text, Has_Display_Math);
          end if;
          Append_Buffer (C.Active_Text, ASCII.LF & ASCII.LF);
          if C.Stream_Mark /= null then
@@ -569,6 +606,25 @@ package body Coyote_GUI.Conversation_Stack is
          C.Stream_Mark := null;
          C.Stream_Buf  := Null_Unbounded_String;
          C.Text_Open   := False;
+         if Has_Display_Math and then C.Response_Section /= null then
+            declare
+               Old_View  : constant Gtk.Text_View.Gtk_Text_View :=
+                 C.Active_View;
+               Old_Index : Text_View_Vectors.Extended_Index :=
+                 Text_View_Vectors.No_Index;
+            begin
+               if Old_View /= null then
+                  Old_Index := C.Text_Views.Find_Index (Old_View);
+                  if Old_Index /= Text_View_Vectors.No_Index then
+                     C.Text_Views.Delete (Old_Index);
+                  end if;
+                  C.Response_Section.Remove (Old_View);
+               end if;
+               C.Active_Text := null;
+               C.Active_View := null;
+               Build_Response_Elements (C, Full_Text);
+            end;
+         end if;
       end if;
    end End_Text_Block;
 
@@ -812,7 +868,8 @@ package body Coyote_GUI.Conversation_Stack is
       Label.Set_Xalign (0.0);
       Label.Set_Line_Wrap (True);
       Label.Set_Selectable (True);
-      C.Exchange.Pack_Start (Label, Expand => False, Fill => True, Padding => 2);
+      C.Exchange.Pack_Start
+        (Label, Expand => False, Fill => True, Padding => 2);
       Show_Contents (C);
    end Append_Notice;
 

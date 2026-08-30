@@ -888,6 +888,15 @@ unit/integration tests; migrated the test suite to the GUI/plain architecture.
 Production and test development builds succeed, and the complete suite passes
 798/798 with zero failed assertions and zero unexpected errors.
 
+**Baseline after native response rendering correction (2026-08-30):** 806
+registered tests. Added display-backed native-stack regressions for removal of
+the raw streaming response view, preservation of rendered-text selection,
+valid/invalid MathML child visibility through recursive `Show_All`, and shared
+response styling. Production and test development builds succeed; the focused
+native-stack suite passes 17/17 and the complete suite passes 806/806 with zero
+failed assertions and zero unexpected errors. Visual light/dark theme
+qualification remains open.
+
 **Historical baseline before PCR-090 (2026-08-30):** 943 registered
 tests. Added TERM-aware timeout-exit and TERM-ignoring timeout-escalation
 regressions. Production and test development builds succeed; the new focused
