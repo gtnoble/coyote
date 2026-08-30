@@ -2888,3 +2888,27 @@ behavior, current test baseline, and remaining manual qualification scope.
   errors. Live OS-signal injection and display-backed Preferences interaction
   remain pending qualification in DEM-017/DEM-033.
 - **Status:** Implemented; live qualification pending
+
+## PCR-087 — Configurable GTK model-picker dB prices
+
+- **Date reported:** 2026-08-30
+- **Category:** Requirements, Design, Code, Test, Manuals
+- **Priority:** 3-Moderate
+- **Description:** The GTK model picker displayed catalogue prices only with
+  SI prefixes. The user requested an option to display prices in dB $/tok and
+  selected the interpretation using true dollars per token.
+- **Affected work products:** GTK model picker, GTK Preferences, `LLM.Settings`,
+  typed preference queue, price-format utilities, tests, SRS, SDD, TEST-PLAN,
+  project plan, and component development logs.
+- **Corrective action:** Add a persistent SI/dB preference. In dB mode calculate
+  `10 × log10 (p / 1,000,000)` from stored $/MTok `p`; display zero as `free`,
+  leave negative values blank, preserve raw-price sorting, and retain SI as the
+  default.
+- **Actions taken:** Implemented `Price_Display_Mode`, `priceDisplay` load/save
+  validation, `Format_DB_Price`, GTK Preferences and picker wiring, typed queue
+  transport, unit/persistence/queue regressions, and controlled-document updates.
+- **Verification:** Production and test development builds succeed. The full
+  AUnit suite passes 940/940 with zero failed assertions and zero unexpected
+  errors. Display-backed verification of the Preferences control and picker
+  columns remains pending under DEM-033.
+- **Status:** Implemented; display-backed qualification pending

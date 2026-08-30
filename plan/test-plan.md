@@ -1,7 +1,7 @@
 # Test Plan â coyote (STP)
 
-**Version:** 1.21
-**Date:** 2026-08-29
+**Version:** 1.22
+**Date:** 2026-08-30
 
 **Status:** Reviewed and acknowledged â M4 complete (2026-06-03)
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
@@ -354,6 +354,8 @@ These are entered as open items in the problem log (PCR-009 and PCR-078).
 | REQ-CORE-116 | D | DEM-033 |
 | REQ-CORE-117 | D/T | `llm_settings_tests.adb`, `coyote_gui_prompt_queue_tests.adb`, DEM-033 |
 | REQ-CORE-118 | T | `llm_settings_tests.adb`, `coyote_gui_prompt_queue_tests.adb` |
+| REQ-CORE-129 | T | `coyote_app_tests.adb`, DEM-033 |
+| REQ-CORE-230 | T | `llm_settings_tests.adb` |
 | REQ-CORE-119 | D | DEM-033 |
 | REQ-CORE-120â121 | D | DEM-001 (plain output) |
 | REQ-CORE-130â131 | T/D | `session_history_tests.adb`, DEM-015 |

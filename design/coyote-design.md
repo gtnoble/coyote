@@ -1,8 +1,8 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.20
-**Date:** 2026-08-29
+**Version:** 1.21
+**Date:** 2026-08-30
 
 **Status:** Reviewed — project control (M3 complete 2026-06-02)
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
@@ -1457,6 +1457,8 @@ made by the GUI Preferences dialog or the Acme SetDefault command.
 - `Prompt_Filter` — interactive prompt filter command from `promptFilter`.
 - `Completion_Notifications` — boolean `completionNotifications`; absent or
   malformed values default to True.
+- `Price_Display` — `priceDisplay`, either `"si"` or `"db"`; absent, malformed,
+  or other values default to SI-prefixed prices.
 - `Max_Recursion_Depth` — nonnegative `maxRecursionDepth`; absent, negative,
   non-integer, or out-of-range values default to 1.
 - `Shell_Termination_Grace_Seconds` — `shellTerminationGraceSeconds`, an
@@ -1470,13 +1472,16 @@ made by the GUI Preferences dialog or the Acme SetDefault command.
 empty/default values. A malformed or absent file does not prevent startup.
 
 **`Save_Preferences` operation:** Updates the model, thinking, sandbox,
-optional subagent-model, maximum recursion depth, completion-notification, and
-`skillPaths` preference fields while preserving unrelated JSON fields. The
-file is written through an atomic same-directory replacement. Empty values
-clear the corresponding string preference; an empty skill-path vector removes
-`skillPaths`. Recursion depth is persisted as a nonnegative integer, with zero
-disabling subagent spawning. Write failures are reported to the caller so the
-active session can continue.
+optional subagent-model, maximum recursion depth, completion-notification,
+`priceDisplay`, and `skillPaths` preference fields while preserving unrelated
+JSON fields. The file is written through an atomic same-directory replacement.
+`priceDisplay` is `"si"` or `"db"`; missing or invalid values load as SI. In
+`"db"` mode, positive stored $/MTok values are converted to $/tok and shown as
+`10 × log10 (p / 1,000,000)` dB. Zero is shown as `free`; negative values are
+blank. Empty string values clear the corresponding string preference; an empty
+skill-path vector removes `skillPaths`. Recursion depth is persisted as a
+nonnegative integer, with zero disabling subagent spawning. Write failures are
+reported to the caller so the active session can continue.
 
 **Default precedence:** For a newly created session, an explicit model
 argument overrides all persistent defaults. For `--subagent`, the configured
@@ -1832,8 +1837,11 @@ the native vertical `Gtk.Box` stack (see §5.15b).
 - **Preferences dialog:** `Options → Preferences...` is constructed and operated
   on the GTK main task. It edits persistent defaults for model, thinking level,
   sandbox profile, subagent model, maximum subagent recursion depth,
-  completion notifications, and the ordered additional skill-directory list
-  without mutating the active `LLM.Agent.Session`. The directory list uses a
+  completion notifications, price-display mode, and the ordered additional
+  skill-directory list without mutating the active `LLM.Agent.Session`. The
+  price-display combo offers SI prefixes ($/tok) and dB ($/tok), and the
+  selected mode applies when the Change Model dialog is next opened. The
+  directory list uses a
   single-selection list, a folder chooser for `Add Directory...`, and explicit
   `Remove Selected`, `Move Up`, and `Move Down` actions. The callback enqueues
   a typed `Set_Preferences` item; the agent task performs
@@ -2104,7 +2112,8 @@ turns), and `Shutdown` (unblocks any waiting `Dequeue`).
 
 The `Preferences record` contains the selected provider/model, thinking level,
 sandbox profile, maximum subagent recursion depth, completion-notification,
-and the ordered Skill_Paths vector. Empty strings represent explicit clearing
+price-display mode, and the ordered Skill_Paths vector. Empty strings represent
+explicit clearing
 of string defaults; zero recursion depth disables subagent spawning. An empty
 Skill_Paths vector clears `skillPaths`. The GTK task never writes settings
 directly; persistence remains owned by the agent task.
@@ -2350,7 +2359,7 @@ neither task may share mutable frontend state with the other.
 | REQ-CORE-100–107 | `Coyote_App.Frontend.Acme_Win`, `Coyote_App`, `Acme.Window`, `Nine_P.Client` |
 | REQ-CORE-108–108b | `Coyote_App`, `Coyote_App.Dispatch`, `Coyote_App.Utils`, `Session_Lister` |
 | REQ-CORE-109 | `LLM.Settings`, `Coyote_App.Frontend.Acme_Win` |
-| REQ-CORE-110–119, 125, 129, 132 | `Coyote_App.Frontend.GUI`, `Coyote_GUI.Conversation`, `Coyote_GUI.Conversation_Stack`, `Coyote_GUI.Prompt_Queue`, `Coyote_GUI.Zoom`, `Coyote_Cmark`, `Coyote_Renderer.Markup`, `Coyote_App.Utils` |
+| REQ-CORE-110–119, 125, 129, 132, 230 | `Coyote_App.Frontend.GUI`, `Coyote_GUI.Conversation`, `Coyote_GUI.Conversation_Stack`, `Coyote_GUI.Prompt_Queue`, `Coyote_GUI.Zoom`, `Coyote_Cmark`, `Coyote_Renderer.Markup`, `Coyote_App.Utils`, `LLM.Settings` |
 | REQ-CORE-124 | `Coyote_GUI.Conversation`, `Coyote_Lasem`; native realization deferred in `Coyote_GUI.Conversation_Stack` |
 | REQ-CORE-120–121 | `Coyote_App.Frontend.Plain` |
 | REQ-CORE-130–131, 137 | `Coyote_App.History`, `Coyote_GUI.Conversation`, `Coyote_GUI.Conversation_Stack`, `Coyote_Renderer.Markup`, `Coyote_Renderer.Session_View` |

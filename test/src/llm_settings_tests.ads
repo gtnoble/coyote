@@ -24,6 +24,7 @@ package LLM_Settings_Tests is
    procedure Test_Termination_Grace_Load_And_Clamp (T : in out Test);
    procedure Test_Completion_Notifications_Default_Enabled (T : in out Test);
    procedure Test_Save_Preferences_Preserves_And_Clears (T : in out Test);
+   procedure Test_Price_Display_Load_And_Default (T : in out Test);
    procedure Test_Skill_Paths_Loaded (T : in out Test);
 
 end LLM_Settings_Tests;

@@ -15,6 +15,7 @@ package body LLM_Settings_Tests is
    use AUnit.Assertions;
    use type Ada.Containers.Count_Type;
    use type GNATCOLL.JSON.JSON_Value_Type;
+   use type LLM.Settings.Price_Display_Mode;
 
    procedure Restore_Env (Name : String; Was_Set : Boolean; Value : String) is
    begin
@@ -609,6 +610,65 @@ package body LLM_Settings_Tests is
          raise;
    end Test_Skill_Paths_Loaded;
 
+   procedure Test_Price_Display_Load_And_Default (T : in out Test) is
+      pragma Unreferenced (T);
+      Home         : constant String := "/tmp/coyote_llm_settings_test_price";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Loaded       : LLM.Settings.Settings;
+      Root         : GNATCOLL.JSON.JSON_Value;
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+      Ada.Environment_Variables.Set ("HOME", Home);
+
+      Write_File (Home & "/.coyote/settings.json", "{}");
+      Loaded := LLM.Settings.Load_Settings;
+      Assert (Loaded.Price_Display = LLM.Settings.SI_Prefixes,
+              "absent priceDisplay should default to SI prefixes");
+
+      Write_File (Home & "/.coyote/settings.json",
+                  "{""priceDisplay"":""db""}");
+      Loaded := LLM.Settings.Load_Settings;
+      Assert (Loaded.Price_Display = LLM.Settings.Decibels,
+              "db priceDisplay should load as Decibels");
+
+      Write_File (Home & "/.coyote/settings.json",
+                  "{""priceDisplay"":""invalid""}");
+      Loaded := LLM.Settings.Load_Settings;
+      Assert (Loaded.Price_Display = LLM.Settings.SI_Prefixes,
+              "invalid priceDisplay should default to SI prefixes");
+
+      LLM.Settings.Save_Preferences
+        (Provider => "", Model_Id => "", Think_Level => "", Sandbox => "",
+         Price_Display => LLM.Settings.SI_Prefixes);
+      Root := LLM.Settings.Load_Json_File
+        (Home & "/.coyote/settings.json");
+      Assert (Coyote_App.Utils.Get_String (Root, "priceDisplay") = "si",
+              "Save_Preferences should write si priceDisplay");
+
+      LLM.Settings.Save_Preferences
+        (Provider => "", Model_Id => "", Think_Level => "", Sandbox => "",
+         Price_Display => LLM.Settings.Decibels);
+      Root := LLM.Settings.Load_Json_File
+        (Home & "/.coyote/settings.json");
+      Assert (Coyote_App.Utils.Get_String (Root, "priceDisplay") = "db",
+              "Save_Preferences should write db priceDisplay");
+      Loaded := LLM.Settings.Load_Settings;
+      Assert (Loaded.Price_Display = LLM.Settings.Decibels,
+              "saved db priceDisplay should survive reload");
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Price_Display_Load_And_Default;
+
    procedure Test_Save_Preferences_Preserves_And_Clears (T : in out Test) is
       pragma Unreferenced (T);
       Home         : constant String := "/tmp/coyote_llm_settings_test_11";
@@ -637,6 +697,7 @@ package body LLM_Settings_Tests is
          Subagent_Model           => "new/fast-model",
          Max_Recursion_Depth      => 3,
          Completion_Notifications => False,
+         Price_Display            => LLM.Settings.SI_Prefixes,
          Skill_Paths =>
            (LLM.Settings.String_Vectors.To_Vector
               ("/opt/skills", 1)),
@@ -694,6 +755,7 @@ package body LLM_Settings_Tests is
          Model_Id            => "",
          Think_Level         => "",
          Sandbox             => "",
+         Price_Display       => LLM.Settings.SI_Prefixes,
          Max_Recursion_Depth => 0,
          Skill_Paths         => LLM.Settings.String_Vectors.Empty_Vector);
       Root := LLM.Settings.Load_Json_File (Home & "/.coyote/settings.json");

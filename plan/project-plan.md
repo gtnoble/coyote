@@ -1,7 +1,7 @@
 # Project Plan — coyote
 
-**Version:** 1.24
-**Date:** 2026-08-28
+**Version:** 1.25
+**Date:** 2026-08-30
 **Status:** Active
 
 ---
@@ -851,16 +851,37 @@ acceptance gate for native live/replay Markdown parity. It does not close
 PCR-078. DEM-048 and DEM-044 remain open. The developer recorded and evaluated
 the result; independent review remains invited.
 
+### Review 20 — PCR-087 GTK model-picker dB price display (2026-08-30)
+
+**Review type:** Requirements, design, implementation, and test-results review
+**Trigger:** User-approved implementation of configurable dB `$ / tok` display
+in the GTK model picker.
+
+| Indicator | Value |
+|---|---|
+| Requirements volatility | SRS-CORE v1.19: amended REQ-CORE-116, 117, 129, and 230; no requirement IDs added or removed. |
+| Component progress | Price formatter, GTK Preferences control, settings persistence, typed queue transport, tests, and documentation complete. |
+| Open problems | PCR-087 remains open for display-backed qualification under DEM-033. |
+| Milestone status | Implementation and automated verification complete on 2026-08-30; display-backed review pending. |
+| Scope changes | One approved GTK presentation preference enhancement; provider pricing and Acme output unchanged. |
+| Test results trend | 940 registered tests; production and test development builds succeed; full suite passes 940/940 with zero failed assertions and zero unexpected errors. |
+
+**Disposition:** SI prefixes remain the default. The Preferences combo selects
+SI or dB mode; dB uses `10 × log10 (p / 1,000,000)` for stored $/MTok `p`,
+with zero shown as `free` and negative values blank. The developer performed
+self-evaluation; independent user review and display-backed DEM-033 remain
+invited.
+
 ## 9. Artifact Version Table
 
 
 | Artifact | ID | Location | Current Version | Control Level |
 |---|---|---|---|---|
-| Project Plan | PLAN | `plan/project-plan.md` | 1.24 (2026-08-28) | Project |
+| Project Plan | PLAN | `plan/project-plan.md` | 1.25 (2026-08-30) | Project |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
-| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.17 (2026-08-25) | Client |
-| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.19 (2026-08-28) | Project |
+| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.19 (2026-08-30) | Client |
+| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.21 (2026-08-30) | Project |
 | coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.2 (2026-06-21) | Project |
 | coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.2 (2026-06-21) | Project |
-| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.21 (2026-08-28) | Project |
+| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.22 (2026-08-30) | Project |
 | Agent Working Instructions (secondary) | AGENTS | `AGENTS.md` | active | Project |

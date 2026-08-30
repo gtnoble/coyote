@@ -9,6 +9,7 @@ with Ada.Strings;
 with Ada.Strings.Fixed;
 with Ada.Exceptions;
 with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
+with Ada.Numerics.Long_Elementary_Functions;
 with GNAT.SHA256;
 with GNATCOLL.JSON;          use GNATCOLL.JSON;
 with GNATCOLL.OS.FS;
@@ -314,6 +315,42 @@ package body Coyote_App.Utils is
          return "$" & Format_Compact (Per_MTok * 1_000_000.0) & "p";
       end if;
    end Format_SI_Price;
+
+   function Format_DB_Price (Per_MTok : Long_Float) return String is
+      use Ada.Numerics.Long_Elementary_Functions;
+
+      function Signed_Compact (V : Long_Float) return String is
+         Rounded : constant Long_Integer :=
+           Long_Integer (Long_Float'Rounding (abs V * 100.0));
+         Int_Part : constant Long_Integer := Rounded / 100;
+         Frac_Part : constant Natural := Natural (Rounded mod 100);
+         Image : constant String :=
+           Ada.Strings.Fixed.Trim (Long_Integer'Image (Int_Part),
+                                   Ada.Strings.Both);
+         Sign : constant String :=
+           (if V < 0.0 and then Rounded > 0 then "-" else "");
+      begin
+         if Frac_Part = 0 then
+            return Sign & Image;
+         elsif Frac_Part mod 10 = 0 then
+            return Sign & Image & "."
+              & Character'Val (Character'Pos ('0') + Frac_Part / 10);
+         else
+            return Sign & Image & "."
+              & Character'Val (Character'Pos ('0') + Frac_Part / 10)
+              & Character'Val (Character'Pos ('0') + Frac_Part mod 10);
+         end if;
+      end Signed_Compact;
+   begin
+      if Per_MTok < 0.0 then
+         return "";
+      elsif Per_MTok = 0.0 then
+         return "free";
+      else
+         return Signed_Compact
+           (10.0 * Log (Per_MTok / 1_000_000.0) / Log (10.0));
+      end if;
+   end Format_DB_Price;
 
    function Format_Model_Price
      (Input_Per_MTok       : Long_Float;

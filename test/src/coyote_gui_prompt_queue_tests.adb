@@ -31,6 +31,7 @@ package body Coyote_GUI_Prompt_Queue_Tests is
              Termination_Grace_Seconds => 7,
              Completion_Notifications =>
                False,
+             Price_Display => LLM.Settings.Decibels,
              Skill_Paths =>
                LLM.Settings.String_Vectors.Empty_Vector)));
       Queue.Dequeue (Got);
@@ -76,6 +77,7 @@ package body Coyote_GUI_Prompt_Queue_Tests is
                 Max_Recursion_Depth => 1,
                 Termination_Grace_Seconds => 2,
                 Completion_Notifications => True,
+                Price_Display => LLM.Settings.SI_Prefixes,
                 Skill_Paths => Paths)));
          Queue.Dequeue (Got);
          Assert (Got.Preferences.Skill_Paths.Length = 2,
@@ -98,6 +100,7 @@ package body Coyote_GUI_Prompt_Queue_Tests is
              Max_Recursion_Depth      => 0,
              Termination_Grace_Seconds => 0,
              Completion_Notifications => True,
+             Price_Display             => LLM.Settings.SI_Prefixes,
              Skill_Paths               =>
                LLM.Settings.String_Vectors.Empty_Vector)));
       Queue.Dequeue (Got);

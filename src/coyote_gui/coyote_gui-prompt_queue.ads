@@ -26,6 +26,8 @@ package Coyote_GUI.Prompt_Queue is
       Max_Recursion_Depth      : Natural := 1;
       Termination_Grace_Seconds : Natural := 2;
       Completion_Notifications : Boolean := True;
+      Price_Display             : LLM.Settings.Price_Display_Mode :=
+        LLM.Settings.SI_Prefixes;
       Skill_Paths               : LLM.Settings.String_Vectors.Vector;
    end record;
 

@@ -66,8 +66,10 @@ mode, after an explicit model argument and before the ordinary default.
 `LLM.Settings` now loads the optional `defaultSandboxProfile` field and exposes
 `Save_Preferences` for model, thinking, and sandbox defaults. The save operation
 preserves unrelated JSON fields, removes empty preference fields, and uses the
-existing same-directory atomic replacement. Write failures propagate to the
-GUI agent-task command handler, which reports an error notice without changing
+existing same-directory atomic replacement. The GTK-only `priceDisplay`
+preference changes presentation of catalogue prices but never changes provider
+pricing metadata or request costs. Write failures propagate to the GUI
+agent-task command handler, which reports an error notice without changing
 the active session. Settings and agent tests cover field loading, preservation,
 clearing, atomic temporary-file cleanup, and sandbox-default precedence.
 

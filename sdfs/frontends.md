@@ -814,6 +814,16 @@ The main Send and Stop controls, support-window actions, and static SQC action
 controls likewise expose context-appropriate GTK mnemonics. Repeated dynamic
 tool-card buttons remain unmarked to avoid ambiguous mnemonic groups.
 
+### GTK model-picker price display (2026-08-30, PCR-087)
+
+The GTK Preferences dialog now persists `priceDisplay` as `"si"` or `"db"`.
+The Change Model picker reads this preference when opened, formats positive
+prices in dB from their true $/tok values (`10 × log10 (p / 1,000,000)` for
+stored $/MTok `p`) when selected, and updates the column headers accordingly.
+Zero-valued cells display `free`; negative values are blank. Raw prices remain
+the sort keys because the logarithm is monotonic for positive values. SI
+prefixes remain the default and the Acme model list is unchanged.
+
 ### Removal of the redundant accessibility transcript (2026-08-30)
 
 The collapsed `Accessible transcript` expander and its plain-text mirror were

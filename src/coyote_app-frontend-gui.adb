@@ -118,6 +118,7 @@ package body Coyote_App.Frontend.GUI is
    use type Gtk.List_Box_Row.Gtk_List_Box_Row;
    use type Gtk.Button.Gtk_Button;
    use type Gtk.Dialog.Gtk_Response_Type;
+   use type LLM.Settings.Price_Display_Mode;
 
    procedure On_Change_Model_Activate
      (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
@@ -1523,6 +1524,8 @@ package body Coyote_App.Frontend.GUI is
 
       Models  : constant LLM.Model_Registry.Model_Info_Vectors.Vector :=
                   LLM.Model_Registry.Available_Models;
+      Settings_Value : constant LLM.Settings.Settings :=
+        LLM.Settings.Load_Settings;
       Store      : Gtk_List_Store;
       View       : Gtk_Tree_View;
       Scroll     : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
@@ -1576,6 +1579,19 @@ package body Coyote_App.Frontend.GUI is
          end if;
       end Price_Sort;
 
+      function Price_Text (P : Long_Float) return String is
+      begin
+         if P = 0.0 then
+            return "free";
+         elsif P < 0.0 then
+            return "";
+         elsif Settings_Value.Price_Display = LLM.Settings.Decibels then
+            return Coyote_App.Utils.Format_DB_Price (P);
+         else
+            return Coyote_App.Utils.Format_SI_Price (P);
+         end if;
+      end Price_Text;
+
    begin
       if Current_Frontend = null then
          return;
@@ -1610,14 +1626,10 @@ package body Coyote_App.Frontend.GUI is
                else To_String (M.Model_Id));
             Ctx      : constant String :=
               Coyote_App.Utils.Format_SI_Count (M.Context_Window) & " ctx";
-            In_P     : constant String :=
-              Coyote_App.Utils.Format_SI_Price (M.Cost.Input);
-            Out_P    : constant String :=
-              Coyote_App.Utils.Format_SI_Price (M.Cost.Output);
-            CR_P     : constant String :=
-              Coyote_App.Utils.Format_SI_Price (M.Cost.Cache_Read);
-            CW_P     : constant String :=
-              Coyote_App.Utils.Format_SI_Price (M.Cost.Cache_Write);
+            In_P     : constant String := Price_Text (M.Cost.Input);
+            Out_P    : constant String := Price_Text (M.Cost.Output);
+            CR_P     : constant String := Price_Text (M.Cost.Cache_Read);
+            CW_P     : constant String := Price_Text (M.Cost.Cache_Write);
             Spec     : constant String :=
               Provider & "/" & To_String (M.Model_Id);
             Row      : Gtk_Tree_Iter;
@@ -1653,10 +1665,22 @@ package body Coyote_App.Frontend.GUI is
       Add_Text_Column ("Provider",   0, Sort_Col => 0);
       Add_Text_Column ("Name",       1, Sort_Col => 1);
       Add_Text_Column ("Context",    2, Sort_Col => 8);
-      Add_Text_Column ("In $/MTok",  3, Sort_Col => 9);
-      Add_Text_Column ("Out $/MTok", 4, Sort_Col => 10);
-      Add_Text_Column ("CR $/MTok",  5, Sort_Col => 11);
-      Add_Text_Column ("CW $/MTok",  6, Sort_Col => 12);
+      Add_Text_Column
+        ((if Settings_Value.Price_Display = LLM.Settings.Decibels
+          then "In dB ($/tok)" else "In $/MTok"),
+         3, Sort_Col => 9);
+      Add_Text_Column
+        ((if Settings_Value.Price_Display = LLM.Settings.Decibels
+          then "Out dB ($/tok)" else "Out $/MTok"),
+         4, Sort_Col => 10);
+      Add_Text_Column
+        ((if Settings_Value.Price_Display = LLM.Settings.Decibels
+          then "CR dB ($/tok)" else "CR $/MTok"),
+         5, Sort_Col => 11);
+      Add_Text_Column
+        ((if Settings_Value.Price_Display = LLM.Settings.Decibels
+          then "CW dB ($/tok)" else "CW $/MTok"),
+         6, Sort_Col => 12);
 
       Gtk.Scrolled_Window.Gtk_New (Scroll);
       Scroll.Set_Policy (Gtk.Enums.Policy_Automatic,
@@ -2104,6 +2128,7 @@ package body Coyote_App.Frontend.GUI is
       Subagent_Model_C    : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
       Thinking_C          : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
       Sandbox_C            : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
+      Price_Display_C      : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
       Recursion_C         : Gtk.Spin_Button.Gtk_Spin_Button;
       Grace_C              : Gtk.Spin_Button.Gtk_Spin_Button;
       Notification_C       : Gtk.Check_Button.Gtk_Check_Button;
@@ -2254,6 +2279,23 @@ package body Coyote_App.Frontend.GUI is
          Label : Gtk.Label.Gtk_Label;
       begin
          Gtk.Box.Gtk_New_Hbox (Row, Homogeneous => False, Spacing => 8);
+         Gtk.Label.Gtk_New (Label, "Price display:");
+         Row.Pack_Start (Label, False, False, 0);
+         Gtk.Combo_Box_Text.Gtk_New (Price_Display_C);
+         Price_Display_C.Append_Text ("SI prefixes ($/tok)");
+         Price_Display_C.Append_Text ("dB ($/tok)");
+         Price_Display_C.Set_Active
+           (LLM.Settings.Price_Display_Mode'Pos
+              (Settings_Value.Price_Display));
+         Row.Pack_Start (Price_Display_C, True, True, 0);
+         Form.Pack_Start (Row, False, False, 0);
+      end;
+
+      declare
+         Row : Gtk.Box.Gtk_Box;
+         Label : Gtk.Label.Gtk_Label;
+      begin
+         Gtk.Box.Gtk_New_Hbox (Row, Homogeneous => False, Spacing => 8);
          Gtk.Label.Gtk_New (Label, "Maximum subagent recursion depth:");
          Row.Pack_Start (Label, False, False, 0);
          Gtk.Spin_Button.Gtk_New
@@ -2390,6 +2432,8 @@ package body Coyote_App.Frontend.GUI is
                    Termination_Grace_Seconds => Natural
                      (Grace_C.Get_Value),
                    Completion_Notifications => Notification_C.Get_Active,
+                   Price_Display             => LLM.Settings.Price_Display_Mode'Val
+                     (Price_Display_C.Get_Active),
                    Skill_Paths               => Skill_Editor.Paths)));
          end;
       end if;

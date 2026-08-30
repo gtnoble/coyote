@@ -1441,6 +1441,26 @@ package body Coyote_App_Tests is
          & " but got """ & Result & """");
    end Test_Format_Model_Price_Cache_Only;
 
+   procedure Test_Format_DB_Price_Representative (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      Assert (Format_DB_Price (1_000_000.0) = "0",
+              "one dollar per token should be 0 dB");
+      Assert (Format_DB_Price (3.0) = "-55.23",
+              "3 dollars per MTok should convert to -55.23 dB");
+      Assert (Format_DB_Price (15.0) = "-48.24",
+              "15 dollars per MTok should convert to -48.24 dB");
+   end Test_Format_DB_Price_Representative;
+
+   procedure Test_Format_DB_Price_Free_And_Negative (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      Assert (Format_DB_Price (0.0) = "free",
+              "zero price should display as free");
+      Assert (Format_DB_Price (-1.0) = "",
+              "negative price should display as blank");
+   end Test_Format_DB_Price_Free_And_Negative;
+
    --  ── Apply_Prompt_Filter ───────────────────────────────────────────────
 
    --  Empty filter: raw returned unchanged, Warn_Buf empty.

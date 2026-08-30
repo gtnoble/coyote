@@ -134,6 +134,13 @@ package Coyote_App.Utils is
    --            0.075 → "$75n".
    function Format_SI_Price (Per_MTok : Long_Float) return String;
 
+   --  Format a price in decibels from its dollars-per-million-token value.
+   --  The input is converted to dollars per token before calculating
+   --  10 * log10 (x).  Zero returns "free" and negative values return "".
+   --  The numeric result has at most two decimal places; the column header
+   --  supplies the dB unit.
+   function Format_DB_Price (Per_MTok : Long_Float) return String;
+
    --  Format a compact per-million-token price string for model display.
    --
    --  Each non-zero field produces one labelled segment:

@@ -186,6 +186,10 @@ package Coyote_App_Tests is
    --  Only cache_read non-zero → only "cr" label appears.
    procedure Test_Format_Model_Price_Cache_Only  (T : in out Test);
 
+   --  Format_DB_Price converts $/MTok to dB $/tok using 10*log10.
+   procedure Test_Format_DB_Price_Representative (T : in out Test);
+   procedure Test_Format_DB_Price_Free_And_Negative (T : in out Test);
+
    --  ── Extract_Plumb_Data ────────────────────────────────────────────────
    --  Extract_Plumb_Data parses a 7-field newline-delimited plumb message
    --  and returns the data field, clipped to ndata bytes so that any

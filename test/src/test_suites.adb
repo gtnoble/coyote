@@ -845,6 +845,12 @@ package body Test_Suites is
       Result.Add_Test (App_State_Caller.Create
         ("Format_Model_Price: cache-read-only produces nano cr segment",
          Coyote_App_Tests.Test_Format_Model_Price_Cache_Only'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_DB_Price: representative values use $/tok",
+         Coyote_App_Tests.Test_Format_DB_Price_Representative'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_DB_Price: free and negative values",
+         Coyote_App_Tests.Test_Format_DB_Price_Free_And_Negative'Access));
 
       --  Extract_Plumb_Data
       Result.Add_Test (App_State_Caller.Create
@@ -1455,6 +1461,9 @@ package body Test_Suites is
         ("LLM.Settings completion notifications default and load",
          LLM_Settings_Tests
            .Test_Completion_Notifications_Default_Enabled'Access));
+      Result.Add_Test (LLM_Settings_Caller.Create
+        ("LLM.Settings price display load, default, and save",
+         LLM_Settings_Tests.Test_Price_Display_Load_And_Default'Access));
 
       --  LLM.Types tests
       Result.Add_Test (LLM_Types_Caller.Create

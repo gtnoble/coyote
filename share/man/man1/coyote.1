@@ -188,7 +188,10 @@ command execution.  Defaults to
 .TP
 .I ~/.coyote/settings.json
 Default provider, model, thinking level, compaction settings, prompt filter,
-and the maximum subagent recursion depth (`maxRecursionDepth`, default 1).
+the maximum subagent recursion depth (`maxRecursionDepth`, default 1), and
+GTK model-picker price display (`priceDisplay`, `si` or `db`; default `si`).
+In `db` mode, positive stored $/MTok prices are shown as
+`10 × log10 (price / 1,000,000)` dB; zero is `free` and negative is blank.
 .TP
 .I ~/.coyote/models.json
 Per-provider model overrides and API key configuration.

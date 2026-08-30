@@ -549,3 +549,13 @@ errors. Settings and typed preference queue regressions cover the new field.
 Live OS-signal injection against an interactive coyote process remains a
 manual qualification activity because the test environment does not provide a
 stable provider/frontend fixture.
+
+## 2026-08-30 — GTK model-picker dB price display (PCR-087)
+
+Added `LLM.Settings.Price_Display_Mode` with SI-prefix and dB choices. The
+optional `priceDisplay` setting defaults to SI and is atomically persisted by
+`Save_Preferences`. `Coyote_App.Utils.Format_DB_Price` converts stored
+$/MTok values to $/tok before applying `10 × log10`; zero is `free` and
+negative values are blank. GTK carries the choice through the typed preference
+queue and applies it to the next model-picker invocation. Formatter, settings,
+and queue regressions cover the behavior.

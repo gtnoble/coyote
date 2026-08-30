@@ -18,8 +18,12 @@ package LLM.Settings is
    Default_Termination_Grace_Seconds : constant Natural := 2;
    Max_Termination_Grace_Seconds     : constant Natural := 30;
 
+   --  Price units shown in the GTK model picker.
+   type Price_Display_Mode is (SI_Prefixes, Decibels);
+
    --  Base configuration directory for coyote.
    --  Returns $HOME/.coyote, or "" when $HOME is not set.
+
    function Agent_Dir return String;
 
    package String_Vectors is new Ada.Containers.Indefinite_Vectors
@@ -46,6 +50,8 @@ package LLM.Settings is
       Prompt_Filter             : Ada.Strings.Unbounded.Unbounded_String;
       --  Whether interactive GUI completion notifications are enabled.
       Completion_Notifications  : Boolean := True;
+      --  Price units shown in the GTK model picker.
+      Price_Display             : Price_Display_Mode := SI_Prefixes;
       --  Additional skill roots from the skillPaths JSON array.
       Skill_Paths               : String_Vectors.Vector;
    end record;
@@ -83,8 +89,9 @@ package LLM.Settings is
       Model_Id    : String;
       Think_Level : String);
 
-   --  Write model, thinking, sandbox, recursion, notification, skill-path,
-   --  and shell-termination defaults to settings.json.
+   --  Write model, thinking, sandbox, price-display, recursion,
+   --  notification, skill-path, and shell-termination defaults to
+   --  settings.json.  Price_Display is persisted as "si" or "db".
    --  Empty string values clear the corresponding string preference.
    --  Unrelated fields are preserved and the replacement is atomic.
    procedure Save_Preferences
@@ -92,6 +99,7 @@ package LLM.Settings is
       Model_Id                 : String;
       Think_Level              : String;
       Sandbox                  : String;
+      Price_Display            : Price_Display_Mode;
       Subagent_Provider        : String := "";
       Subagent_Model           : String := "";
       Max_Recursion_Depth      : Natural := 1;

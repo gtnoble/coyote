@@ -104,6 +104,7 @@ All configuration files live under `~/.coyote/`.
   "defaultThinkingLevel":     "low",
   "maxRecursionDepth":        1,
   "shellTerminationGraceSeconds": 2,
+  "priceDisplay":             "si",
   "appendSystemPrompt":       "You are a helpful coding assistant.",
   "promptFilter":             "m4 -",
   "skillPaths":               ["/opt/company/skills", "/home/user/project-skills"]
@@ -119,6 +120,7 @@ All configuration files live under `~/.coyote/`.
 | `defaultThinkingLevel` | Reasoning level at startup (`low`, `medium`, `high`) |
 | `maxRecursionDepth` | Maximum nested `--subagent` depth; zero disables subagent spawning and the default is 1 |
 | `shellTerminationGraceSeconds` | Grace period after SIGTERM is sent to running shell-tool process groups; integer seconds from 0 through 30, default 2. Zero escalates immediately to SIGKILL; a second SIGTERM escalates immediately. |
+| `priceDisplay` | GTK model-picker price display: `si` for SI-prefixed $/tok values or `db` for `10 × log10 ($/tok)`. Defaults to `si`; zero prices show `free` and negative prices are blank. |
 | `appendSystemPrompt` | Text appended to every system prompt |
 | `promptFilter` | Shell command through which interactive prompts (Send/Steer) are filtered. The raw prompt is written to stdin; stdout becomes the prompt sent to the agent and the text echoed in the window. Runs via `$SHELL -c CMD`. Can be overridden per-invocation with `--prompt-filter`. |
 | `skillPaths` | Optional JSON array of additional absolute skill-root directories. Each root contains child directories with `SKILL.md`; entries are searched in listed order before project-local roots. |

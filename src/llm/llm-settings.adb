@@ -304,6 +304,10 @@ package body LLM.Settings is
              (Get_String_Field (Root, "promptFilter")),
          Completion_Notifications =>
            Get_Boolean_Field (Root, "completionNotifications", True),
+         Price_Display =>
+           (if Get_String_Field (Root, "priceDisplay") = "db"
+            then Decibels
+            else SI_Prefixes),
          Skill_Paths => Get_Skill_Paths (Root));
    end Load_Settings;
 
@@ -414,6 +418,7 @@ package body LLM.Settings is
       Model_Id                 : String;
       Think_Level              : String;
       Sandbox                  : String;
+      Price_Display            : Price_Display_Mode;
       Subagent_Provider        : String := "";
       Subagent_Model           : String := "";
       Max_Recursion_Depth      : Natural := 1;
@@ -481,6 +486,9 @@ package body LLM.Settings is
               (Max_Termination_Grace_Seconds,
                Termination_Grace_Seconds)));
       Root.Set_Field ("completionNotifications", Completion_Notifications);
+      Root.Set_Field
+        ("priceDisplay",
+         (if Price_Display = Decibels then "db" else "si"));
 
       if Skill_Paths.Is_Empty then
          Root.Unset_Field ("skillPaths");

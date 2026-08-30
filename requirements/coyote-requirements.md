@@ -1,8 +1,8 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.18
-**Date:** 2026-08-29
+**Version:** 1.19
+**Date:** 2026-08-30
 **Status:** Draft
 **Project Plan:** `plan/project-plan.md`
 
@@ -693,7 +693,8 @@ The GUI frontend shall provide an `Options → Preferences...` dialog for editin
 persistent defaults without changing the active session. The dialog shall
 expose the default model, default thinking level, default sandbox profile,
 optional default subagent model, maximum subagent recursion depth, the shell
-termination grace period, and the ordered list of additional skill directories.
+termination grace period, the ordered list of additional skill directories, and
+whether the GTK model picker displays SI-prefixed or dB prices.
 
 **REQ-CORE-117** (D)
 When the user saves GUI preferences, the frontend shall persist the default
@@ -713,7 +714,13 @@ second SIGTERM shall escalate immediately to SIGKILL. The value applies to the
 running process and subsequent shell-tool launches without changing active
 session model, thinking, or sandbox state.
 The dialog shall provide Add Directory, Remove Selected, Move Up, and Move Down
-controls, and Add Directory shall use a folder-selection dialog.
+controls, and Add Directory shall use a folder-selection dialog. The price
+format preference shall be persisted as the optional `priceDisplay` string in
+`~/.coyote/settings.json`, using `"si"` or `"db"`; absent or invalid values
+shall default to `"si"`. In `"db"` mode, each positive stored price `p` in
+$/MTok shall be displayed as `10 × log10 (p / 1,000,000)` dB, representing
+$/tok. Zero-valued fields shall display `free`, and negative fields shall be
+blank. The preference shall affect subsequently opened GTK model pickers.
 
 **REQ-CORE-118** (T)
 GUI preference persistence shall preserve unrelated fields in
@@ -749,7 +756,9 @@ model list to rows whose provider, display name, or `provider/id`
 specification contain the query as a case-insensitive substring. An empty
 or whitespace-only query shall show all models. The dialog shall display
 the number of visible rows. Escape shall clear a non-empty query; Escape
-on an empty query shall cancel the dialog.
+on an empty query shall cancel the dialog. The four price columns shall use
+the configured SI-prefixed or dB display mode; zero values shall show `free`,
+negative values shall be blank, and numeric price ordering shall be retained.
 
 **REQ-CORE-132** (D)
 The interactive GTK GUI shall provide visible keyboard accelerators for every
@@ -1203,10 +1212,13 @@ The agent shall read `~/.coyote/settings.json` at startup to obtain the
 default provider, model, thinking level, optional subagent provider/model,
 compaction settings, `promptFilter`, `completionNotifications`, the
 optional nonnegative `maxRecursionDepth` setting, `shellTerminationGraceSeconds`,
-and the optional `skillPaths` array. An absent or invalid `maxRecursionDepth`
-shall default to 1. An absent, negative, non-integer, or over-limit
+and the optional `skillPaths` array, and the optional `priceDisplay` string.
+An absent or invalid `maxRecursionDepth` shall default to 1. An absent,
+negative, non-integer, or over-limit
 `shellTerminationGraceSeconds` shall default to 2 and values above 30 shall
 be clamped. An absent or malformed `skillPaths` value shall be treated as empty.
+The optional `priceDisplay` value shall be `"si"` or `"db"`; absent,
+malformed, or other values shall select SI-prefixed prices.
 
 **REQ-CORE-231** (T)
 The agent shall read `~/.coyote/models.json` at startup to obtain per-provider
@@ -1525,7 +1537,7 @@ matrix and retains historical `TC-*` identifiers; the current mappings are in
 | REQ-CORE-200..208, REQ-CORE-215..219 | Provider API interfaces | I/T | TC-200..208, TC-215..219 |
 | REQ-CORE-210..212 | acme 9P VFS interface | I | TC-210..212 |
 | REQ-CORE-220..221 | GTK3 interface | I | TC-220..221 |
-| REQ-CORE-090a, 230..234 | Configuration file interface, including skillPaths and sandbox default | T | TC-090a, TC-230..234 |
+| REQ-CORE-090a, 230..234 | Configuration file interface, including skillPaths, sandbox default, and priceDisplay | T | TC-090a, TC-230..234 |
 | REQ-CORE-240..241 | Session JSONL format | T | TC-240..241 |
 | REQ-CORE-300..302 | Internal interfaces | I | TC-300..302 |
 | REQ-CORE-400..402 | Internal data | I | TC-400..402 |

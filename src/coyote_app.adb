@@ -2971,6 +2971,7 @@ package body Coyote_App is
                                 It.Preferences.Max_Recursion_Depth,
                               Completion_Notifications =>
                                 It.Preferences.Completion_Notifications,
+                              Price_Display => It.Preferences.Price_Display,
                               Skill_Paths => It.Preferences.Skill_Paths,
                               Termination_Grace_Seconds =>
                                 It.Preferences.Termination_Grace_Seconds);
