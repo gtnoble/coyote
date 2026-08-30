@@ -6,6 +6,7 @@
 with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Exceptions;
+with Ada.Real_Time;
 with Ada.Strings;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
@@ -18,13 +19,9 @@ with GNATCOLL.OS.Process;    use GNATCOLL.OS.Process;
 package body LLM.Tools.Shell is
 
    use type GNATCOLL.JSON.JSON_Value_Type;
+   use type Ada.Real_Time.Time;
 
-   --  Thin binding for POSIX kill(2); sends Signal to process group -Pid.
-   function C_Kill
-     (Pid    : Integer;
-      Signal : Integer) return Integer
-     with Import, Convention => C, External_Name => "kill";
-
+   --  Local process-group signalling is provided by Coyote_Process_Control.
    Default_Shell : constant String := "/bin/sh";
 
    --  Standard base64 alphabet (RFC 4648, Table 1).
@@ -264,14 +261,87 @@ package body LLM.Tools.Shell is
             Has_Stdin_Text   : Boolean         := False;
             Stdin_Text       : Unbounded_String := Null_Unbounded_String;
             Timeout_Seconds  : Integer := 0;
-            Timer_Fired      : Boolean := False;
             Stdin_R          : File_Descriptor := Invalid_FD;
             Stdin_W          : File_Descriptor := Invalid_FD;
             Requested_Mime   : Unbounded_String := Null_Unbounded_String;
+            Started          : Boolean := False;
+            Waited           : Boolean := False;
             Registered       : Boolean := False;
+
+            protected type Termination_State is
+               procedure Mark_Timeout;
+               procedure Mark_Aborted;
+               procedure Mark_Killed;
+               function Timed_Out return Boolean;
+               function Aborted return Boolean;
+               function Killed return Boolean;
+            private
+               Timeout_Fired : Boolean := False;
+               Abort_Fired   : Boolean := False;
+               Kill_Fired    : Boolean := False;
+            end Termination_State;
+
+            protected body Termination_State is
+               procedure Mark_Timeout is
+               begin
+                  Timeout_Fired := True;
+               end Mark_Timeout;
+
+               procedure Mark_Aborted is
+               begin
+                  Abort_Fired := True;
+               end Mark_Aborted;
+
+               procedure Mark_Killed is
+               begin
+                  Kill_Fired := True;
+               end Mark_Killed;
+
+               function Timed_Out return Boolean is
+               begin
+                  return Timeout_Fired;
+               end Timed_Out;
+
+               function Aborted return Boolean is
+               begin
+                  return Abort_Fired;
+               end Aborted;
+
+               function Killed return Boolean is
+               begin
+                  return Kill_Fired;
+               end Killed;
+            end Termination_State;
+
+            Termination : Termination_State;
+
+            procedure Reap_Child is
+            begin
+               if Started and then not Waited then
+                  Exit_Code := Wait (Handle);
+                  Waited := True;
+               end if;
+            end Reap_Child;
 
             procedure Cleanup is
             begin
+               if Started and then not Waited then
+                  begin
+                     Coyote_Process_Control.Signal_Group
+                       (Integer (Handle),
+                        Coyote_Process_Control.SIGKILL_Signal);
+                  exception
+                     when others =>
+                        null;
+                  end;
+                  begin
+                     Reap_Child;
+                  exception
+                     when others =>
+                        null;
+                  end;
+               end if;
+
                if Registered then
                   Coyote_Process_Control.Unregister (Integer (Handle));
                   Registered := False;
@@ -426,6 +496,7 @@ package body LLM.Tools.Shell is
                      Stdin  => (if Has_Stdin_Text then Stdin_R else Null_In),
                      Stdout => Output_W,
                      Stderr => Output_W);
+                  Started := True;
                   Coyote_Process_Control.Complete_Launch
                     (Integer (Handle), Needs_Signal);
                   Registered := True;
@@ -458,50 +529,82 @@ package body LLM.Tools.Shell is
             Close (Output_W);
             Output_W := Invalid_FD;
 
-            --  When a timeout is requested, spawn a timer task that
-            --  sends SIGKILL to the child process group after the timeout
-            --  elapses, or immediately when the abort flag is set.  The
-            --  child runs under setsid(1) so it is the leader of its own
-            --  process group; kill(-Handle, SIGKILL) kills the shell and
-            --  all descendants.  The kernel then closes the write-end of
-            --  the output pipe, unblocking any blocked read() with EOF.
-            --  The timer is cancelled as soon as the read loop completes.
+            --  When a timeout is requested, the supervisor sends SIGTERM
+            --  at expiry, waits the configured grace period, and sends
+            --  SIGKILL to the process group if it is still running.  Manual
+            --  abort retains immediate SIGKILL.  The child runs under
+            --  setsid(1), so Signal_Group also covers nested descendants.
+            --  The supervisor is cancelled as soon as the read loop
+            --  completes.
             if Timeout_Seconds > 0 then
                declare
-                  Killed : Boolean := False;
-
                   task Timer;
                   task body Timer is
+                     Deadline  : Ada.Real_Time.Time;
+                     Timed_Out : Boolean := False;
                   begin
-                     --  Race the timeout delay against the abort flag;
-                     --  whichever fires first triggers the kill.
+                     --  Manual abort retains its immediate KILL policy.
                      if Abort_Flg /= null then
                         select
                            Abort_Flg.Wait_Requested;
-                           --  abort fired; leave Timer_Fired False
+                           Termination.Mark_Aborted;
+                           if not Coyote_Process_Control.Shutdown_Requested then
+                              Coyote_Process_Control.Signal_Group
+                                (Integer (Handle),
+                                 Coyote_Process_Control.SIGKILL_Signal);
+                              Termination.Mark_Killed;
+                           end if;
                         or
                            delay Duration (Timeout_Seconds);
-                           Timer_Fired := True;
+                           Timed_Out := True;
                         end select;
                      else
                         delay Duration (Timeout_Seconds);
-                        Timer_Fired := True;
+                        Timed_Out := True;
                      end if;
-                     --  kill(-Handle, SIGKILL) kills the child's entire
-                     --  process group (the setsid child + shell + all
-                     --  descendants).  The kernel closes the pipe's
-                     --  write-end → blocked read() returns EOF.
-                     if Handle /= Invalid_Handle then
-                        declare
-                           Dummy : Integer;
-                        begin
-                           if not Coyote_Process_Control.Shutdown_Requested then
-                              Dummy :=
-                                C_Kill (-Integer (Handle), 9);
-                              Killed := True;
+
+                     if Timed_Out then
+                        Termination.Mark_Timeout;
+                        if not Coyote_Process_Control.Shutdown_Requested then
+                           --  Allow a TERM-aware command to exit cleanly.
+                           Coyote_Process_Control.Signal_Group
+                             (Integer (Handle),
+                              Coyote_Process_Control.SIGTERM_Signal);
+                           Deadline :=
+                             Ada.Real_Time.Clock
+                             + Ada.Real_Time.Seconds
+                               (Integer
+                                  (Coyote_Process_Control.Grace_Seconds));
+                           if Abort_Flg /= null then
+                              select
+                                 Abort_Flg.Wait_Requested;
+                                 Termination.Mark_Aborted;
+                                 if not Coyote_Process_Control.Shutdown_Requested
+                                 then
+                                    Coyote_Process_Control.Signal_Group
+                                      (Integer (Handle),
+                                       Coyote_Process_Control.SIGKILL_Signal);
+                                    Termination.Mark_Killed;
+                                 end if;
+                              or
+                                 delay until Deadline;
+                              end select;
+                           else
+                              delay until Deadline;
                            end if;
-                        end;
+                           if not Coyote_Process_Control.Shutdown_Requested
+                             and then not Termination.Aborted
+                           then
+                              Coyote_Process_Control.Signal_Group
+                                (Integer (Handle),
+                                 Coyote_Process_Control.SIGKILL_Signal);
+                              Termination.Mark_Killed;
+                           end if;
+                        end if;
                      end if;
+                  exception
+                     when others =>
+                        null;
                   end Timer;
                begin
                   Read_Loop :
@@ -510,10 +613,12 @@ package body LLM.Tools.Shell is
                         Bytes_Read := Read (Output_R, Chunk);
                      exception
                         when others =>
-                           if Killed then
-                              --  Child killed by timer or abort →
-                              --  expected error; read() returning 0
-                              --  is handled by the Bytes_Read exit.
+                           if Termination.Killed
+                             or else Termination.Timed_Out
+                             or else Termination.Aborted
+                           then
+                              --  Termination released the output pipe;
+                              --  read() returning 0 is handled below.
                               exit Read_Loop;
                            end if;
                            raise;
@@ -544,15 +649,11 @@ package body LLM.Tools.Shell is
                         --  process group (shell + descendants).  The kernel
                         --  closes the pipe's write-end → blocked read()
                         --  returns EOF immediately.
-                        if Handle /= Invalid_Handle then
-                           declare
-                              Dummy : Integer;
-                           begin
-                              if not Coyote_Process_Control.Shutdown_Requested then
-                                 Dummy :=
-                                   C_Kill (-Integer (Handle), 9);
-                              end if;
-                           end;
+                        if not Coyote_Process_Control.Shutdown_Requested then
+                           Coyote_Process_Control.Signal_Group
+                             (Integer (Handle),
+                              Coyote_Process_Control.SIGKILL_Signal);
+                           Termination.Mark_Killed;
                         end if;
                      end Abort_Watcher;
                   begin
@@ -586,21 +687,11 @@ package body LLM.Tools.Shell is
                end if;
             end if;
 
-            --  If timed out, terminate the child process before waiting.
-            if Timer_Fired then
-               if Handle /= Invalid_Handle
-                 and then not Coyote_Process_Control.Shutdown_Requested
-               then
-                  declare
-                     Dummy : Integer;
-                  begin
-                     Dummy :=
-                       C_Kill (-Integer (Handle), 15);
-                  end;
-               end if;
+            --  If timed out, return the result after graceful termination.
+            if Termination.Timed_Out and then not Termination.Aborted then
                Close (Output_R);
                Output_R := Invalid_FD;
-               Exit_Code := Wait (Handle);
+               Reap_Child;
                --  Preserve partial stdout/stderr as the result so the
                --  model sees how much work the command completed before
                --  the timeout expired.
@@ -626,17 +717,9 @@ package body LLM.Tools.Shell is
 
             --  If aborted, terminate the child process before waiting.
             if Abort_Flg /= null and then Abort_Flg.Requested then
-               if Handle /= Invalid_Handle then
-                  declare
-                     Dummy : Integer;
-                  begin
-                     Dummy :=
-                       C_Kill (-Integer (Handle), 15);
-                  end;
-               end if;
                Close (Output_R);
                Output_R := Invalid_FD;
-               Exit_Code := Wait (Handle);
+               Reap_Child;
                --  Preserve partial stdout/stderr as the result so the
                --  model sees how much work the command completed before
                --  the abort signal arrived.
@@ -657,7 +740,7 @@ package body LLM.Tools.Shell is
             Close (Output_R);
             Output_R := Invalid_FD;
 
-            Exit_Code := Wait (Handle);
+            Reap_Child;
 
             if Exit_Code /= 0 then
                Is_Error := True;

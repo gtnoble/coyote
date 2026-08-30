@@ -32,8 +32,10 @@ package LLM.Tools.Shell is
    --  When "stdin" is absent or empty the command reads from /dev/null.
    --
    --  When "timeout" is present and positive the command is automatically
-   --  terminated after that many seconds.  The combined output collected up
-   --  to that point is returned as Result with a timeout notice appended.
+   --  terminated after that many seconds.  SIGTERM is sent first, followed
+   --  by the configured shell termination grace period and SIGKILL if the
+   --  process group is still running.  The combined output collected up to
+   --  that point is returned as Result with a timeout notice appended.
    --  A timeout of 0 or a missing / non-integer "timeout" field disables
    --  the timer (the default: no per-command time limit).
    --

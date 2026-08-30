@@ -559,3 +559,22 @@ $/MTok values to $/tok before applying `10 × log10`; zero is `free` and
 negative values are blank. GTK carries the choice through the typed preference
 queue and applies it to the next model-picker invocation. Formatter, settings,
 and queue regressions cover the behavior.
+
+## 2026-08-30 — Graceful shell timeout escalation
+
+**Requirement:** A positive shell timeout sends SIGTERM first, permits the
+configured `shellTerminationGraceSeconds` interval for clean termination, and
+sends SIGKILL only when the process group remains active. Manual abort retains
+immediate SIGKILL.
+
+**Implementation:** `LLM.Tools.Shell` uses protected termination state and the
+descendant-aware `Coyote_Process_Control.Signal_Group` operation. Timeout
+supervision sends TERM, waits on an absolute grace deadline, and escalates to
+KILL. Direct child reaping is centralized and occurs before registry
+unregistration, including the exceptional cleanup path.
+
+**Verification:** Added TERM-aware and TERM-ignoring timeout regressions;
+focused tests and the 943-test development suite pass. The current lifecycle
+still transfers synchronous stdin before starting timeout supervision, so a
+future nonblocking duplex-I/O increment remains necessary to bound pathological
+large-input/large-output pipe deadlocks.

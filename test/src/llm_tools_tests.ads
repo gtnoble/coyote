@@ -113,4 +113,11 @@ package LLM_Tools_Tests is
    --  stdout ahead of the abort notice.
    procedure Test_Shell_Abort_Preserves_Stdout            (T : in out Test);
 
+   --  A timed-out command that handles SIGTERM exits during the grace period.
+   procedure Test_Shell_Timeout_Allows_Term_Exit            (T : in out Test);
+
+   --  A timed-out command that ignores SIGTERM is killed after the grace
+   --  period and still returns the timeout notice.
+   procedure Test_Shell_Timeout_Escalates_After_Grace       (T : in out Test);
+
 end LLM_Tools_Tests;

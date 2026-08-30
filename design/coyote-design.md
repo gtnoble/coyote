@@ -932,6 +932,13 @@ forking the parser.
    `LLM.Tools.Temp_File.Truncated` before returning.
 8. Set `Is_Error := exit_code /= 0`; unregister the group on every cleanup path.
 
+For a positive `timeout`, a local supervisor races the timeout against the
+abort flag.  Timeout sends SIGTERM through `Coyote_Process_Control.Signal_Group`,
+waits the configured grace interval, and sends SIGKILL to the process group and
+nested descendants if the command remains active.  Manual abort retains its
+immediate SIGKILL policy.  The direct child is reaped exactly once before the
+process group is unregistered.
+
 **Process-wide shutdown:** `Coyote_Process_Control` receives SIGTERM through
 an async-signal-safe self-pipe. Its deferred monitor freezes persistence,
 rejects new shell launches, requests the agent abort, sends SIGTERM to all

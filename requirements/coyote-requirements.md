@@ -286,6 +286,14 @@ shall be cancelled and the agent loop shall terminate cleanly. A running
 provider HTTP/SSE request shall also be interruptible without waiting for the
 next response-body chunk.
 
+**REQ-CORE-057** (T)
+When the shell tool receives a positive `timeout` value, it shall send SIGTERM
+to the command process group when the timeout expires, allow the configured
+`shellTerminationGraceSeconds` interval for clean termination, and send SIGKILL
+if the process group remains active. The result shall remain an error with the
+existing timeout notice and collected partial output. A zero, negative, absent,
+or non-integer timeout shall remain unlimited.
+
 **REQ-CORE-056** (I)
 The shell tool shall accept an optional integer `run_group` argument. When
 every tool call in a turn carries a valid `run_group > 0`, tool calls shall
@@ -1476,6 +1484,7 @@ matrix and retains historical `TC-*` identifiers; the current mappings are in
 | REQ-CORE-054 | --no-tools returns error to model | D | TC-054 |
 | REQ-CORE-055 | Stop aborts tool execution | D | TC-055 |
 | REQ-CORE-056 | run_group controls parallel/sequential execution | T | TC-056 |
+| REQ-CORE-057 | shell timeout TERM/grace/KILL escalation | T | `llm_tools_tests.adb` |
 | REQ-CORE-060 | Auto compaction at threshold | D | TC-060 |
 | REQ-CORE-061 | Manual compaction via command | D | TC-061 |
 | REQ-CORE-062 | Compaction summarises and trims history | D | TC-062 |
@@ -1562,7 +1571,7 @@ objectives stated in the Project Plan (PLAN §1 and §3):
 | Self-contained Ada LLM agent with no Node.js dependency | REQ-CORE-024, REQ-CORE-500–505, REQ-CORE-800–805 |
 | Multi-frontend support (acme, GTK3, plain) | REQ-CORE-001–004, REQ-CORE-100–139 |
 | Streaming output | REQ-CORE-040–046, REQ-CORE-700, REQ-CORE-138 |
-| Tool execution | REQ-CORE-050–056 |
+| Tool execution | REQ-CORE-050–057 |
 | Session persistence and resume | REQ-CORE-080–089, REQ-CORE-701 |
 | Context compaction | REQ-CORE-060–064 |
 | Multi-provider LLM support | REQ-CORE-070–078, REQ-CORE-150–156, REQ-CORE-200–208, REQ-CORE-215–219 |

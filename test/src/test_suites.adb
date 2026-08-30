@@ -1726,6 +1726,12 @@ package body Test_Suites is
         ("LLM.Tools.Shell timeout preserves stdout emitted before kill",
          LLM_Tools_Tests.Test_Shell_Timeout_Preserves_Stdout'Access));
       Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell timeout allows TERM-aware exit during grace",
+         LLM_Tools_Tests.Test_Shell_Timeout_Allows_Term_Exit'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell timeout escalates after grace",
+         LLM_Tools_Tests.Test_Shell_Timeout_Escalates_After_Grace'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
         ("LLM.Tools.Shell abort preserves stdout emitted before kill",
          LLM_Tools_Tests.Test_Shell_Abort_Preserves_Stdout'Access));
       --  LLM.Providers.OpenAI_Completions tests

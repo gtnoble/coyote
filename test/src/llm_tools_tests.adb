@@ -5,6 +5,7 @@ with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with LLM.Tools;
 with LLM.Tools.Temp_File;
 with LLM.Tools.Shell;
+with Coyote_Process_Control;
 
 package body LLM_Tools_Tests is
 
@@ -701,5 +702,75 @@ package body LLM_Tools_Tests is
             & Result_Text);
       end;
    end Test_Shell_Abort_Preserves_Stdout;
+
+   procedure Test_Shell_Timeout_Allows_Term_Exit (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Result      : Unbounded_String;
+      Media_Type  : Unbounded_String;
+      Is_Error    : Boolean;
+      Saved_Grace : constant Natural :=
+        Coyote_Process_Control.Grace_Seconds;
+   begin
+      Coyote_Process_Control.Set_Grace_Seconds (1);
+      LLM.Tools.Shell.Execute
+        (Args_Json  =>
+           "{""command"":""trap 'echo term && exit 0' TERM; sleep 10"",""timeout"":1}",
+         Result     => Result,
+         Media_Type => Media_Type,
+         Is_Error   => Is_Error);
+      Coyote_Process_Control.Set_Grace_Seconds (Saved_Grace);
+
+      Assert (Is_Error, "timed-out TERM-aware command should report an error");
+      Assert
+        (Contains (To_String (Result), "term"),
+         "timeout should send SIGTERM before forced termination");
+      Assert
+        (Contains (To_String (Result), "timed out after 1 seconds"),
+         "timeout result should retain its timeout notice");
+   exception
+      when others =>
+         Coyote_Process_Control.Set_Grace_Seconds (Saved_Grace);
+         raise;
+   end Test_Shell_Timeout_Allows_Term_Exit;
+
+   procedure Test_Shell_Timeout_Escalates_After_Grace (T : in out Test) is
+      pragma Unreferenced (T);
+
+      use Ada.Real_Time;
+
+      Result      : Unbounded_String;
+      Media_Type  : Unbounded_String;
+      Is_Error    : Boolean;
+      Start       : constant Time := Clock;
+      Elapsed     : Time_Span;
+      Saved_Grace : constant Natural :=
+        Coyote_Process_Control.Grace_Seconds;
+   begin
+      Coyote_Process_Control.Set_Grace_Seconds (1);
+      LLM.Tools.Shell.Execute
+        (Args_Json  =>
+           "{""command"":""trap '' TERM; sleep 10"",""timeout"":1}",
+         Result     => Result,
+         Media_Type => Media_Type,
+         Is_Error   => Is_Error);
+      Elapsed := Clock - Start;
+      Coyote_Process_Control.Set_Grace_Seconds (Saved_Grace);
+
+      Assert (Is_Error, "TERM-ignoring timeout command should report an error");
+      Assert
+        (Contains (To_String (Result), "timed out after 1 seconds"),
+         "forced timeout result should contain its timeout notice");
+      Assert
+        (To_Duration (Elapsed) >= 1.8,
+         "timeout should allow the configured grace period");
+      Assert
+        (To_Duration (Elapsed) < 3.5,
+         "timeout escalation should complete after timeout plus grace");
+   exception
+      when others =>
+         Coyote_Process_Control.Set_Grace_Seconds (Saved_Grace);
+         raise;
+   end Test_Shell_Timeout_Escalates_After_Grace;
 
 end LLM_Tools_Tests;

@@ -157,7 +157,7 @@ SRS-CORE requirement groups.
 | `coyote_gui_navigation_tests.adb` | REQ-CORE-114; clamped keyboard viewport navigation | 3 |
 | `llm_auth_tests.adb` | REQ-CORE-232 | ~15 |
 | `llm_compaction_tests.adb` | REQ-CORE-060â064 | ~30 |
-| `llm_tools_tests.adb` | REQ-CORE-050â053 | ~25 |
+| `llm_tools_tests.adb` | REQ-CORE-050â053, 057 | ~27; timeout TERM/grace/KILL escalation |
 | `llm_system_prompt_tests.adb` | REQ-CORE-090â092, REQ-CORE-173 (display and inline math guidance) | ~11 |
 | `llm_types_tests.adb` | REQ-CORE-400â402 | ~20 |
 | `llm_parallel_tools_tests.adb` | REQ-CORE-056 (run_group) | ~15 |
@@ -326,6 +326,7 @@ These are entered as open items in the problem log (PCR-009 and PCR-078).
 | REQ-CORE-054 | D | DEM (--no-tools with tool model) |
 | REQ-CORE-055 | D | DEM-007 |
 | REQ-CORE-056 | T | `llm_parallel_tools_tests.adb` |
+| REQ-CORE-057 | T | `llm_tools_tests.adb` (TERM-aware and escalation regressions) |
 | REQ-CORE-060â064 | T/D | `llm_compaction_tests.adb`, `llm_context_tests.adb`, DEM-008â009 |
 | REQ-CORE-065â068 | T/D | `llm_compaction_tests.adb`, `llm_context_tests.adb`, DEM-020..022, code inspection |
 | REQ-CORE-070â073 | T/D | `llm_settings_tests.adb`, `llm_model_registry_tests.adb`, DEM-010 |
@@ -895,3 +896,11 @@ flow implementation. Production and test development builds succeed; the
 focused `Coyote.GUI.Conversation_Stack uses responsive tool flow` test passes
 1/1 with zero failed assertions and zero unexpected errors. Display-backed
 multi-column placement and resize reflow remain part of DEM-043 qualification.
+
+**Baseline after graceful shell timeout escalation (2026-08-30):** 943 registered
+tests. Added TERM-aware timeout-exit and TERM-ignoring timeout-escalation
+regressions. Production and test development builds succeed; the new focused
+tests and the complete suite pass with zero failed assertions and zero
+unexpected errors. Timeout supervision still begins after synchronous stdin
+transfer; a future nonblocking duplex I/O increment is required to bound that
+specific large-input/large-output deadlock class.
