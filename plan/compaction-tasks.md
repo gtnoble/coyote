@@ -1,5 +1,9 @@
 # Context Compaction — Subagent Task Breakdown
 
+> **Status: SUPERSEDED.** This historical task breakdown predates the
+> 2026-08-30 baseline. Its old project paths and legacy frontend references
+> are retained for traceability only and must not be executed.
+
 ## Dependency graph
 
 ```

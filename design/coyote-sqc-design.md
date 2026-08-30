@@ -155,19 +155,19 @@ without a `"thinking"` key are parsed correctly with a zero thinking token count
 
 ### 2.5 Shared Renderer Extraction
 
-**Files affected:** `src/coyote_gui/coyote_gui-buffer.ads/.adb`,
-`src/coyote_gui/coyote_gui-conversation_stack.ads/.adb`,
-`src/coyote_app-frontend-gui.adb`, new `src/coyote_renderer/`.
+**Files affected:** `src/coyote_gui/coyote_gui-conversation_stack.ads/.adb`,
+`src/coyote_app-frontend-gui.adb`, and `src/coyote_renderer/`.
 
 The shared converter is used by the native stack for completed response
-blocks and by the text-buffer replay path; the legacy GtkLayout renderer keeps
-its specialized cmark/Lasem adapter for virtualization and display math.
+blocks and by the GTK session-replay path; the GtkLayout renderer keeps its
+specialized cmark/Lasem adapter for virtualization and display math.
 
-The markdown-to-Pango-markup function `To_Pango_Markup` and its helpers (`Xml_Escape`,
-the cmark tree-walk, and table rendering) shall be extracted from `Coyote_GUI.Buffer`
-into a new package `Coyote_Renderer.Markup` (see §10). The existing
-`Coyote_GUI.Buffer` package is updated to call `Coyote_Renderer.Markup.To_Pango_Markup`
-rather than providing its own copy. No change in external behaviour.
+The Markdown-to-Pango-markup function `To_Pango_Markup` and its helpers
+(`Xml_Escape`, the cmark tree-walk, and table rendering) are provided by
+`Coyote_Renderer.Markup` (see §10). No separate legacy text-buffer renderer
+is part of the current implementation.
+
+No change in external behaviour.
 
 ### 2.6 Persist Model Information in Session JSONL
 
@@ -304,7 +304,7 @@ Coyote_SQC.UI.Chart_Settings_Dialog  -- per-chart Box-Cox, estimation method, EW
 Coyote_SQC.UI.Tool_Detail_Window     -- non-modal tool call detail window
 
 Coyote_Renderer                      -- shared root
-Coyote_Renderer.Markup               -- To_Pango_Markup (extracted from Coyote_GUI.Buffer)
+Coyote_Renderer.Markup               -- To_Pango_Markup (shared GFM-to-Pango converter)
 Coyote_Renderer.Session_View         -- Render_Session: Session_Record → GtkTextBuffer
 ```
 
@@ -2632,7 +2632,8 @@ using the same byte-random approach as `LLM.Session_Store.New_UUID`.
 
 ### 10.1 Package `Coyote_Renderer.Markup`
 
-Extracted from `Coyote_GUI.Buffer.To_Pango_Markup`. Public interface:
+Shared GFM-to-Pango converter used by the native conversation stack and
+GTK session replay. Public interface:
 
 ```ada
 --  Convert a Markdown string (GFM extensions: table, strikethrough, autolink)
@@ -2701,10 +2702,9 @@ tool result record is found in the session file (e.g. the session was truncated
 before the tool completed) shall be assigned `Cancelled` status.
 
 `Tool_End_Status` is declared in this package so that both
-`Coyote_SQC.UI.Tool_Detail_Window` and `Coyote_GUI.Buffer` can reference it
-without a circular dependency.  `Coyote_GUI.Buffer` retains its own
-`Tool_End_Status` declaration for backward compatibility; the two types have
-identical enumerators.
+`Coyote_SQC.UI.Tool_Detail_Window` can reference it without a circular
+dependency; the native main-GUI conversation stack retains its own typed tool
+status model.
 
 The procedure reads the raw session JSONL to obtain the full message content
 needed for rendering (assistant text, thinking blocks, tool call frames), using

@@ -101,7 +101,7 @@ See `plan/integration-test-guide.md` for full setup instructions.
   existence and lifecycle are inspected programmatically; border appearance
   remains a display-backed demonstration concern. Performance and large-history
   qualification remain manual DEM-044 activities.
-Tests of the old `Coyote_GUI.Buffer` are not part of the current live GUI path.
+The obsolete `Coyote_GUI.Buffer` unit was removed; current GUI coverage targets the native stack and the active GtkLayout renderer.
 Headless `GtkTextBuffer` tests, when present, do not require a display.
 - Tests that require `$DISPLAY` or `$WAYLAND_DISPLAY` for window creation
   are not part of the standard automated suite.

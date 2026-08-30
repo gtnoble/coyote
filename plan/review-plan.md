@@ -1,5 +1,9 @@
 # Subagent Review Plan: Native Agent Implementation
 
+> **Status: SUPERSEDED.** This historical review plan predates the
+> 2026-08-30 GTK/Plain baseline. References to the old Acme project path and
+> migration architecture are retained for traceability only.
+
 ## Purpose
 
 Ten parallel subagent reviews covering correctness of the native Ada agentic

@@ -1,5 +1,9 @@
 # Task 01 — Build System, libcurl Binding, LLM.HTTP, LLM.Settings
 
+> **Status: SUPERSEDED.** This historical task targets the pre-2026-08-30
+> project layout and old migration workflow. It is retained for traceability
+> only and must not be executed.
+
 ## Before you start
 
 1. Load the Ada style guide skill:

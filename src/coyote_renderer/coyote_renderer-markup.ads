@@ -1,7 +1,6 @@
 --  Coyote_Renderer.Markup — Markdown → Pango markup conversion.
 --
---  Extracted from Coyote_GUI.Buffer so that both the Coyote GUI and
---  coyote_sqc can share the same rendering implementation.
+--  Shared by the native Coyote GUI and coyote_sqc.
 --
 --  Dependencies: Coyote_Cmark, standard Ada. No GTK widget types.
 --

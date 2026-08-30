@@ -1,7 +1,7 @@
 --  Coyote_Renderer.Markup body.
 --
---  Extracted from Coyote_GUI.Buffer.  All rendering logic lives here;
---  Coyote_GUI.Buffer delegates to this package.
+--  All shared GFM-to-Pango rendering logic lives here;
+--  The native conversation stack and GTK session replay use this package.
 --
 --  Project: coyote
 

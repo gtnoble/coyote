@@ -281,7 +281,7 @@ height expands as wrapping changes.
   Selection copy strips markup tags for plain-text clipboard output.
 - Selection, copy-to-clipboard, tool-click detail windows, action strips,
   thinking blocks, notices, and turn footers are all supported.
-- The old `Coyote_GUI.Buffer` package is retained as dead code for reference.
+- The obsolete `Coyote_GUI.Buffer` package was removed; `Coyote_Renderer.Markup` is the maintained shared converter.
 
 ### Native Markdown response rendering (2026-08-27)
 
@@ -516,11 +516,11 @@ let the user explicitly control the behaviour.
 - All GTK widget operations must execute on the main Ada task (the GTK main
   loop task). Ada tasks other than the main task must not call any GTK function
   directly; they communicate via `Coyote_GUI.Updates`.
-- `Read_Prompt` in the Acme frontend blocks until the `Acme_Event_Task`
-  signals a prompt via `App_State`. It must not hold any 9P file handle open
-  while blocking.
-- The `Addr_Mutex` in `Acme.Window.Win` must be released promptly; no blocking
-  operations (9P reads, waits) inside the critical section.
+- `Read_Prompt` is owned by the active GUI or Plain frontend and uses the
+  typed prompt queue or standard input; no external frontend event task or
+  9P file handle is part of the current architecture.
+- GTK widget operations remain confined to the GTK main task; the Plain
+  frontend remains synchronous and headless.
 
 ---
 
@@ -571,9 +571,9 @@ instead of opening a new acme window.
 - The GUI frontend currently uses a `GtkTextView` for the prompt input area.
   A multi-line `GtkSourceView` with syntax highlighting would improve the
   editing experience for long prompts, but adds a dependency on `gtksourceview`.
-- The Acme frontend's tag-line button set is rebuilt on each `Set_Mode` call
-  by overwriting the entire tag line. A diff-and-patch approach would reduce
-  9P write traffic for high-frequency mode changes.
+- Native-stack qualification remains the principal frontend work: complete
+  DEM-042 through DEM-044 and DEM-048, then remove the GtkLayout fallback if
+  the acceptance gates pass.
 
 ### Variable-height block layout (2026-08-15)
 
@@ -712,8 +712,8 @@ The current `Coyote_GUI.Conversation` GtkLayout/Cairo/Pango renderer remains
 the implementation baseline until native-stack qualification completes. Its
 existing Markdown, UTF-8, thinking, tool-ID, and MathML logic remains the
 legacy adapter; basic native Markdown now uses `Coyote_Renderer.Markup`. The
-`Coyote_GUI.Buffer` and `Coyote_Renderer.Markup` units provide native text-tag
-and Markdown precedents.
+`Coyote_Renderer.Markup` provides the shared GFM-to-Pango conversion used by
+both the native conversation stack and GTK session replay.
 
 An exchange remains open across multiple assistant/tool steps. Intermediate
 step footers remain inside the exchange; only the final turn footer completes

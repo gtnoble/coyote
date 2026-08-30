@@ -1,5 +1,9 @@
 # Python → Ada Migration: Sequential Subagent Tasks
 
+> **Status: SUPERSEDED.** This historical task list predates the 2026-08-30
+> baseline. Its Nine_P, Acme, and old project-path instructions are retained
+> only as migration history and must not be executed.
+
 Each task is self-contained: read the listed files, make the listed changes,
 verify with `cd test && alr run coyote_test`, then commit.  Every task must
 leave the test suite fully green before the next task begins.

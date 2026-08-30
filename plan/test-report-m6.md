@@ -11,6 +11,10 @@
 
 ## 1. Scope
 
+**Historical status:** This is a pre-PCR-090 acceptance report. Its Acme/9P,
+plumber, and plan9port results are superseded by the 2026-08-30 GTK/Plain
+baseline and are retained for historical traceability only.
+
 This report records the results of the first full acceptance test run for the
 coyote core agent component (SRS-CORE). It covers:
 
@@ -229,7 +233,7 @@ by code review on 2026-06-03. Results below.
 | REQ-CORE-501 | Acme requires plan9port at `/usr/local/plan9` | Frontend selected only when `$winid` is set (requires running inside acme) | PASS |
 | REQ-CORE-502 | GUI requires GTK3 runtime | GTK3 linked; confirmed by build and test run | PASS |
 | REQ-CORE-503 | All frontends require libcurl | `LLM.HTTP.Curl_Binding` confirmed in `src/llm/llm-http-curl_binding.ads/adb` | PASS |
-| REQ-CORE-504 | GUI requires libcmark-gfm | `coyote_cmark.ads/adb` binding present; used by `Coyote_GUI.Buffer` | PASS |
+| REQ-CORE-504 | GUI requires libcmark-gfm | `coyote_cmark.ads/adb` binding present; used by the historical GTK text-buffer path | PASS |
 | REQ-CORE-505 | Runs on Linux | Build and test run on Linux developer workstation confirmed | PASS |
 | REQ-CORE-600 | Memory bounded; no unbounded accumulation | `LLM.Compaction` enforces token budget; `Should_Compact` triggers before overflow | PASS |
 | REQ-CORE-601 | Agent does not block GTK main loop | `Run_GUI` starts `Agent_Task` separately; GTK main loop runs on main Ada task | PASS |

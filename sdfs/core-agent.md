@@ -1,5 +1,10 @@
 # Component Development Log — Core Agent
 
+> **Current-baseline note (2026-08-30):** Entries below that mention Acme,
+> Nine_P, 9P, or plumber describe superseded pre-PCR-090 architecture. They
+> are retained as historical development records and are not current design
+> constraints or implementation guidance.
+
 **Components:** `LLM.Agent`, `LLM.Compaction`, `LLM.Session_Store`,
 `LLM.System_Prompt`, `LLM.Skills`, `LLM.Types`, `LLM.Events`
 

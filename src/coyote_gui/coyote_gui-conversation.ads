@@ -1,7 +1,7 @@
 --  Coyote_GUI.Conversation — Gtk.Layout-based conversation renderer.
 --
---  Replaces Coyote_GUI.Buffer with a virtualized text renderer that only
---  lays out and draws visible blocks, giving responsive resize performance
+--  Provides the active virtualized text renderer, laying out and drawing only
+--  visible blocks for responsive resize performance
 --  regardless of document size.
 --
 --  Data model: a flat vector of Logical_Line records.  Each line is a

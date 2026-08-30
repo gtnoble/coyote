@@ -1,5 +1,9 @@
 # Plan: Replace `pi` with a Native Ada Agentic Harness
 
+> **Status: SUPERSEDED.** This historical migration plan predates the
+> 2026-08-30 baseline. The native Ada agent and GTK/Plain frontend cutover is
+> complete; Acme, Nine_P, and plumber work described below is not actionable.
+
 ## 1. Motivation
 
 `coyote` currently spawns `pi --mode rpc` as a subprocess and communicates

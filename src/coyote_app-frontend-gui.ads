@@ -7,7 +7,7 @@
 --
 --    * Routing each Frontend primitive to an Update value enqueued in the
 --      protected Updates queue.  A GLib idle callback drains the queue on
---      the GTK main loop thread and applies changes to the GtkTextBuffer.
+--      the GTK main loop thread and applies changes to the selected conversation renderer.
 --
 --    * Providing a Prompt_Queue for user input: the Send button and menu
 --      item activations enqueue prompt strings and :command strings.
