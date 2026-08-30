@@ -48,6 +48,7 @@ with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with Coyote_App;
+with Coyote_Process_Control;
 with Coyote_Utils;
 with LLM.Session_Store;
 with LLM.Settings;
@@ -191,6 +192,12 @@ procedure Coyote is
         ("  -h, --help              Print this help and exit");
    end Print_Usage;
 begin
+   if not Coyote_Process_Control.Install then
+      Ada.Text_IO.Put_Line
+        (Ada.Text_IO.Standard_Error,
+         "warning: SIGTERM handler could not be installed");
+   end if;
+
    while I <= Ada.Command_Line.Argument_Count loop
       declare
          Arg : constant String := Ada.Command_Line.Argument (I);

@@ -186,8 +186,13 @@ Exit code: 0
 
 ### DEM-017 — SIGTERM handling (REQ-CORE-142)
 
-**Status:** Deferred — requires OS signal injection into running process (PCR-009).
-**Result: DEFERRED**
+**Status:** Implemented in source; live OS-signal qualification remains pending
+because the standard AUnit environment does not provide a stable interactive
+provider/frontend fixture (PCR-086).
+
+**Automated result:** 937/937 AUnit tests pass. Coverage includes the bounded
+preference, process-group launch rejection, and persistence-freeze mechanics.
+**Live demonstration result:** DEFERRED.
 
 ---
 

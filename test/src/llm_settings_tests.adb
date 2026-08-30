@@ -485,6 +485,69 @@ package body LLM_Settings_Tests is
          raise;
    end Test_Max_Recursion_Depth_Invalid_Defaults;
 
+   procedure Test_Termination_Grace_Load_And_Clamp (T : in out Test) is
+      pragma Unreferenced (T);
+      Home         : constant String := "/tmp/coyote_llm_settings_test_grace";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Loaded       : LLM.Settings.Settings;
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+      Ada.Environment_Variables.Set ("HOME", Home);
+
+      Write_File
+        (Home & "/.coyote/settings.json",
+         "{""shellTerminationGraceSeconds"":7}");
+      Loaded := LLM.Settings.Load_Settings;
+      Assert (Loaded.Shell_Termination_Grace_Seconds = 7,
+              "termination grace should load as seconds");
+
+      Write_File (Home & "/.coyote/settings.json", "{}");
+      Loaded := LLM.Settings.Load_Settings;
+      Assert
+        (Loaded.Shell_Termination_Grace_Seconds =
+           LLM.Settings.Default_Termination_Grace_Seconds,
+         "absent termination grace should use the default");
+
+      Write_File
+        (Home & "/.coyote/settings.json",
+         "{""shellTerminationGraceSeconds"":-1}");
+      Loaded := LLM.Settings.Load_Settings;
+      Assert
+        (Loaded.Shell_Termination_Grace_Seconds =
+           LLM.Settings.Default_Termination_Grace_Seconds,
+         "negative termination grace should use the default");
+
+      Write_File
+        (Home & "/.coyote/settings.json",
+         "{""shellTerminationGraceSeconds"":""bad""}");
+      Loaded := LLM.Settings.Load_Settings;
+      Assert
+        (Loaded.Shell_Termination_Grace_Seconds =
+           LLM.Settings.Default_Termination_Grace_Seconds,
+         "non-integer termination grace should use the default");
+
+      Write_File
+        (Home & "/.coyote/settings.json",
+         "{""shellTerminationGraceSeconds"":99}");
+      Loaded := LLM.Settings.Load_Settings;
+      Assert
+        (Loaded.Shell_Termination_Grace_Seconds =
+           LLM.Settings.Max_Termination_Grace_Seconds,
+         "termination grace should clamp to the configured maximum");
+
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Termination_Grace_Load_And_Clamp;
+
    procedure Test_Completion_Notifications_Default_Enabled
      (T : in out Test)
    is
@@ -576,7 +639,8 @@ package body LLM_Settings_Tests is
          Completion_Notifications => False,
          Skill_Paths =>
            (LLM.Settings.String_Vectors.To_Vector
-              ("/opt/skills", 1)));
+              ("/opt/skills", 1)),
+         Termination_Grace_Seconds => 99);
       Root := LLM.Settings.Load_Json_File (Home & "/.coyote/settings.json");
       Assert (Coyote_App.Utils.Get_String (Root, "defaultProvider") =
                 "openrouter",
@@ -590,6 +654,11 @@ package body LLM_Settings_Tests is
       Assert (Coyote_App.Utils.Get_String (Root, "defaultSandboxProfile") =
                 "restricted",
               "Save_Preferences should write sandbox profile");
+      Assert
+        (Coyote_App.Utils.Get_Integer
+           (Root, "shellTerminationGraceSeconds") =
+           LLM.Settings.Max_Termination_Grace_Seconds,
+         "Save_Preferences should clamp termination grace");
       declare
          Skill_Items : constant GNATCOLL.JSON.JSON_Array :=
            Root.Get ("skillPaths").Get;

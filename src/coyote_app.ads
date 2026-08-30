@@ -88,6 +88,12 @@ package Coyote_App is
       --  Effective prompt filter command (CLI flag overrides settings.json).
       --  Empty when no filter is configured.
       function Prompt_Filter         return String;
+      function Agent_Ready        return Boolean;
+      entry     Wait_Agent_Ready;
+      function Agent_Stopped      return Boolean;
+      entry     Wait_Agent_Stopped;
+      function Frontend_Ready     return Boolean;
+      function Shutdown_Requested  return Boolean;
 
       --  Writers
       procedure Set_Session_Id     (Id    : String);
@@ -127,6 +133,9 @@ package Coyote_App is
          Total       : Natural);
       procedure Set_Win_Name       (Name  : String);
       procedure Set_Prompt_Filter  (Cmd   : String);
+      procedure Set_Agent_Ready    (Value : Boolean);
+      procedure Set_Agent_Stopped  (Value : Boolean);
+      procedure Set_Frontend_Ready (Value : Boolean);
       --  Static tag suffix appended after the dynamic button group.
       --  Set once at startup; read by tag-update helpers in dispatch.
       function  Tag_Suffix         return String;
@@ -202,6 +211,9 @@ package Coyote_App is
       P_Win_Name      : Ada.Strings.Unbounded.Unbounded_String;
       P_Prompt_Filter : Ada.Strings.Unbounded.Unbounded_String;
       P_Tag_Suffix    : Ada.Strings.Unbounded.Unbounded_String;
+      P_Agent_Ready   : Boolean := False;
+      P_Agent_Stopped : Boolean := False;
+      P_Frontend_Ready : Boolean := False;
       P_Shutdown      : Boolean := False;
       P_Turn_Count    : Natural := 0;
       P_Turn_Step     : Natural := 0;   --  step counter within turn (1-based)

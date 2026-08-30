@@ -332,14 +332,16 @@ Key points:
   automatically when launched from a parent coyote process.
 
 - Abort semantics: each shell-tool child runs under `setsid(1)` so it is the
-  leader of its own process group.  On abort or timeout a dedicated watcher
-  task sends `SIGKILL` (signal 9) to the process group via `kill(-pid, 9)`,
-  which kills the shell and all descendants immediately.  The kernel closes
-  the write-end of the output pipe, which unblocks any blocked `read()` in
-  the agent task with EOF.  This guarantees sub-second abort latency even
-  when the command is consuming no CPU (e.g. `sleep 3600`).  A redundant
-  `SIGTERM` cleanup follows in the main task's post-loop path but the child
-  is already dead by that point.
+  leader of its own process group. Manual Stop and per-command timeout retain
+  immediate watcher cancellation. Process-wide SIGTERM uses the protected
+  `Coyote_Process_Control` registry: first TERM is sent to every running shell
+  group, followed by the configured 0..30 second grace period and SIGKILL;
+  a second SIGTERM escalates immediately. Nested shell-launched coyote groups
+  are included, and session writes requested after the first TERM are rejected.
+  Manual Stop and per-command timeout watchers still use SIGKILL to guarantee
+  prompt cancellation. The process-wide shutdown monitor sends SIGKILL only
+  after the configured SIGTERM grace period; this fallback handles commands
+  that ignore SIGTERM and unblocks the agent task by closing the output pipe.
 
 ## 9P / Acme VFS Conventions
 

@@ -24,6 +24,7 @@ package Coyote_GUI.Prompt_Queue is
       Subagent_Provider        : Ada.Strings.Unbounded.Unbounded_String;
       Subagent_Model           : Ada.Strings.Unbounded.Unbounded_String;
       Max_Recursion_Depth      : Natural := 1;
+      Termination_Grace_Seconds : Natural := 2;
       Completion_Notifications : Boolean := True;
       Skill_Paths               : LLM.Settings.String_Vectors.Vector;
    end record;

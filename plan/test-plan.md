@@ -870,3 +870,11 @@ two native separators, four-pixel prompt/status borders, and child ordering.
 Human display review of separator contrast remains part of DEM-049. The
 standard `xvfb-run` wrapper is unavailable in the current environment; the
 focused test was executed directly against the available `DISPLAY`.
+
+**Baseline after PCR-086 (2026-08-30):** 937 registered tests. Added
+`shellTerminationGraceSeconds` settings parsing/clamping coverage, typed GTK
+preference queue coverage, and process-controller coverage for grace clamping,
+launch rejection, and persistence freeze. Production and test development
+builds succeed; the complete suite passes 937/937 with zero failed assertions
+and zero unexpected errors. Live OS-signal injection remains pending under
+DEM-017; display-backed Preferences interaction remains pending under DEM-033.

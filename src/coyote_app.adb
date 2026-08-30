@@ -29,6 +29,7 @@ with Acme.Raw_Events;
 with Acme.Window;
 with Coyote_App.Frontend.Acme_Win;
 with Coyote_App.Frontend.GUI;
+with Coyote_Process_Control;
 with Coyote_GUI.Prompt_Queue;
 with Coyote_GUI;
 with Coyote_Notify;
@@ -92,6 +93,37 @@ package body Coyote_App is
         (To_String (P_Win_Name));
       function Prompt_Filter      return String  is
         (To_String (P_Prompt_Filter));
+      function Agent_Ready return Boolean is (P_Agent_Ready);
+
+      procedure Set_Agent_Ready (Value : Boolean) is
+      begin
+         P_Agent_Ready := Value;
+      end Set_Agent_Ready;
+
+      procedure Set_Agent_Stopped (Value : Boolean) is
+      begin
+         P_Agent_Stopped := Value;
+      end Set_Agent_Stopped;
+
+      entry Wait_Agent_Ready when P_Agent_Ready or else P_Shutdown is
+      begin
+         null;
+      end Wait_Agent_Ready;
+
+      function Agent_Stopped return Boolean is (P_Agent_Stopped);
+
+      entry Wait_Agent_Stopped when P_Agent_Stopped is
+      begin
+         null;
+      end Wait_Agent_Stopped;
+
+      function Frontend_Ready return Boolean is (P_Frontend_Ready);
+      function Shutdown_Requested return Boolean is (P_Shutdown);
+
+      procedure Set_Frontend_Ready (Value : Boolean) is
+      begin
+         P_Frontend_Ready := Value;
+      end Set_Frontend_Ready;
 
       procedure Set_Session_Id (Id : String) is
       begin
@@ -513,6 +545,7 @@ package body Coyote_App is
 
       procedure Initiate_Shutdown is
       begin
+         Coyote_Process_Control.Stop_Monitor;
          LLM.Agent.Request_Abort (Agent_Session);
          Commands.Signal_Shutdown;
          State.Signal_Shutdown;
@@ -525,7 +558,46 @@ package body Coyote_App is
       --  ── Inner task declarations ────────────────────────────────────────
 
       task Agent_Task;
+      task Shutdown_Monitor;
       task Acme_Event_Task;
+
+      task body Shutdown_Monitor is
+         First  : Boolean;
+         Signal : Natural;
+      begin
+         loop
+            exit when Coyote_Process_Control.Monitor_Should_Stop;
+            Signal := Coyote_Process_Control.Read_Signal;
+            if Signal = 0 then
+               delay 0.05;
+            else
+               Coyote_Process_Control.Begin_Shutdown (First);
+               if First then
+                  if State.Agent_Ready then
+                     Coyote_Process_Control.Freeze_Persistence;
+                     Commands.Signal_Shutdown;
+                     LLM.Agent.Request_Abort (Agent_Session);
+                  else
+                     Commands.Signal_Shutdown;
+                  end if;
+                  Coyote_Process_Control.Complete_Shutdown
+                    (Immediate => Signal >= 2);
+                  if State.Agent_Ready then
+                     State.Wait_Agent_Stopped;
+                  end if;
+                  State.Signal_Shutdown;
+               else
+                  Coyote_Process_Control.Signal_All
+                    (Coyote_Process_Control.SIGKILL_Signal);
+               end if;
+               exit;
+            end if;
+         end loop;
+      exception
+         when others =>
+            Commands.Signal_Shutdown;
+            State.Signal_Shutdown;
+      end Shutdown_Monitor;
       task Plumb_Model_Task;
       task Plumb_Thinking_Task;
       task Plumb_Fork_Task;
@@ -791,6 +863,7 @@ package body Coyote_App is
                  "Agent_Task could not connect to acme";
             end if;
             Coyote_App.Frontend.Acme_Win.Create (My_Frontend, Win'Unchecked_Access);
+            State.Set_Frontend_Ready (True);
             My_Frontend.Set_Tag_Suffix
               (if Opts.One_Shot then "" else " Models Sessions Thinking Stats SetDefault");
 
@@ -798,6 +871,8 @@ package body Coyote_App is
                Settings_Value : constant LLM.Settings.Settings :=
                  LLM.Settings.Load_Settings;
             begin
+               Coyote_Process_Control.Set_Grace_Seconds
+                 (Settings_Value.Shell_Termination_Grace_Seconds);
                Current_Thinking := Settings_Value.Default_Thinking;
                --  CLI --prompt-filter wins; fall back to settings.json.
                if Length (Opts.Prompt_Filter) > 0 then
@@ -846,6 +921,7 @@ package body Coyote_App is
                No_Tools   => Opts.No_Tools,
                Session_Id => To_String (Opts.Session_Id),
                Subagent   => Opts.Subagent);
+            State.Set_Agent_Ready (True);
             Synchronize_Sandbox;
             if Opts.No_Compact then
                LLM.Agent.Set_Compact_Settings
@@ -1088,6 +1164,7 @@ package body Coyote_App is
                end if;
                Initiate_Shutdown;
          end;
+         State.Set_Agent_Stopped (True);
       end Agent_Task;
 
       --  ── Acme_Event_Task ───────────────────────────────────────────────
@@ -2172,6 +2249,7 @@ package body Coyote_App is
 
       procedure Initiate_Shutdown is
       begin
+         Coyote_Process_Control.Stop_Monitor;
          LLM.Agent.Request_Abort (Agent_Session);
          My_Frontend.Shutdown;
          State.Signal_Shutdown;
@@ -2182,6 +2260,50 @@ package body Coyote_App is
       end Initiate_Shutdown;
 
       task Agent_Task;
+      task Shutdown_Monitor;
+
+      task body Shutdown_Monitor is
+         First  : Boolean;
+         Signal : Natural;
+      begin
+         loop
+            exit when Coyote_Process_Control.Monitor_Should_Stop;
+            Signal := Coyote_Process_Control.Read_Signal;
+            if Signal = 0 then
+               delay 0.05;
+            else
+               Coyote_Process_Control.Begin_Shutdown (First);
+               if First then
+                  if State.Agent_Ready then
+                     Coyote_Process_Control.Freeze_Persistence;
+                     if State.Frontend_Ready then
+                        My_Frontend.Shutdown;
+                     end if;
+                     LLM.Agent.Request_Abort (Agent_Session);
+                  else
+                     if State.Frontend_Ready then
+                        My_Frontend.Shutdown;
+                     end if;
+                  end if;
+                  Coyote_Process_Control.Complete_Shutdown
+                    (Immediate => Signal >= 2);
+                  if State.Agent_Ready then
+                     State.Wait_Agent_Stopped;
+                  end if;
+                  My_Frontend.Shutdown;
+                  State.Signal_Shutdown;
+               else
+                  Coyote_Process_Control.Signal_All
+                    (Coyote_Process_Control.SIGKILL_Signal);
+               end if;
+               exit;
+            end if;
+         end loop;
+      exception
+         when others =>
+            My_Frontend.Shutdown;
+            State.Signal_Shutdown;
+      end Shutdown_Monitor;
 
       task body Agent_Task is
          Section          : Section_Kind    := No_Section;
@@ -2449,6 +2571,8 @@ package body Coyote_App is
                Settings_Value : constant LLM.Settings.Settings :=
                  Startup_Settings;
             begin
+               Coyote_Process_Control.Set_Grace_Seconds
+                 (Settings_Value.Shell_Termination_Grace_Seconds);
                Current_Thinking := Settings_Value.Default_Thinking;
                if Length (Opts.Prompt_Filter) > 0 then
                   State.Set_Prompt_Filter
@@ -2496,6 +2620,7 @@ package body Coyote_App is
                No_Tools   => Opts.No_Tools,
                Session_Id => To_String (Opts.Session_Id),
                Subagent   => Opts.Subagent);
+            State.Set_Agent_Ready (True);
             Synchronize_Sandbox;
             My_Frontend.Register_Session (Agent_Session'Unchecked_Access);
             if Opts.No_Compact then
@@ -2846,7 +2971,11 @@ package body Coyote_App is
                                 It.Preferences.Max_Recursion_Depth,
                               Completion_Notifications =>
                                 It.Preferences.Completion_Notifications,
-                              Skill_Paths => It.Preferences.Skill_Paths);
+                              Skill_Paths => It.Preferences.Skill_Paths,
+                              Termination_Grace_Seconds =>
+                                It.Preferences.Termination_Grace_Seconds);
+                           Coyote_Process_Control.Set_Grace_Seconds
+                             (It.Preferences.Termination_Grace_Seconds);
                            My_Frontend.Set_Completion_Notifications
                              (It.Preferences.Completion_Notifications);
                            My_Frontend.Append_Notice
@@ -2877,6 +3006,7 @@ package body Coyote_App is
                   & Ada.Exceptions.Exception_Message (Ex));
                Initiate_Shutdown;
          end;
+         State.Set_Agent_Stopped (True);
       end Agent_Task;
 
    begin
@@ -2892,6 +3022,12 @@ package body Coyote_App is
            not Opts.One_Shot and then not Opts.Subagent,
          Notifications_Enabled     =>
            Startup_Settings.Completion_Notifications);
+      State.Set_Frontend_Ready (True);
+      if Coyote_Process_Control.Shutdown_Requested then
+         My_Frontend.Shutdown;
+         State.Signal_Shutdown;
+         return;
+      end if;
 
       if Opts.Debug_Logging then
          My_Frontend.Set_Debug_Logging (True);

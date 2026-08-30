@@ -2105,6 +2105,7 @@ package body Coyote_App.Frontend.GUI is
       Thinking_C          : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
       Sandbox_C            : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
       Recursion_C         : Gtk.Spin_Button.Gtk_Spin_Button;
+      Grace_C              : Gtk.Spin_Button.Gtk_Spin_Button;
       Notification_C       : Gtk.Check_Button.Gtk_Check_Button;
       Skill_Paths_Scroll   : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
       Resp                 : Gtk.Dialog.Gtk_Response_Type;
@@ -2265,6 +2266,25 @@ package body Coyote_App.Frontend.GUI is
       end;
 
       declare
+         Row : Gtk.Box.Gtk_Box;
+         Label : Gtk.Label.Gtk_Label;
+      begin
+         Gtk.Box.Gtk_New_Hbox (Row, Homogeneous => False, Spacing => 8);
+         Gtk.Label.Gtk_New (Label, "Shutdown grace period (seconds):");
+         Row.Pack_Start (Label, False, False, 0);
+         Gtk.Spin_Button.Gtk_New
+           (Grace_C,
+            0.0,
+            Gdouble (LLM.Settings.Max_Termination_Grace_Seconds),
+            1.0);
+         Grace_C.Set_Value
+           (Gdouble (Settings_Value.Shell_Termination_Grace_Seconds));
+         Grace_C.Set_Width_Chars (8);
+         Row.Pack_Start (Grace_C, False, False, 0);
+         Form.Pack_Start (Row, False, False, 0);
+      end;
+
+      declare
          Label : Gtk.Label.Gtk_Label;
          Actions : Gtk.Box.Gtk_Box;
          Add_B, Remove_B, Up_B, Down_B : Gtk.Button.Gtk_Button;
@@ -2367,6 +2387,8 @@ package body Coyote_App.Frontend.GUI is
                    Subagent_Model           => Subagent_Id,
                    Max_Recursion_Depth      => Natural
                      (Recursion_C.Get_Value),
+                   Termination_Grace_Seconds => Natural
+                     (Grace_C.Get_Value),
                    Completion_Notifications => Notification_C.Get_Active,
                    Skill_Paths               => Skill_Editor.Paths)));
          end;
@@ -3474,6 +3496,7 @@ package body Coyote_App.Frontend.GUI is
    procedure Shutdown (F : in out Instance) is
       U : Coyote_GUI.Update;
    begin
+      F.PQ.Shutdown;
       U.Kind := Coyote_GUI.Shutdown;
       Enqueue_Update (F, U);
    end Shutdown;

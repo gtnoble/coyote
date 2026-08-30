@@ -12,6 +12,7 @@ with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with GNATCOLL.JSON;
 with GNATCOLL.OS.FS;         use GNATCOLL.OS.FS;
 with LLM.Tools.Sandbox;
+with Coyote_Process_Control;
 with GNATCOLL.OS.Process;    use GNATCOLL.OS.Process;
 
 package body LLM.Tools.Shell is
@@ -267,9 +268,15 @@ package body LLM.Tools.Shell is
             Stdin_R          : File_Descriptor := Invalid_FD;
             Stdin_W          : File_Descriptor := Invalid_FD;
             Requested_Mime   : Unbounded_String := Null_Unbounded_String;
+            Registered       : Boolean := False;
 
             procedure Cleanup is
             begin
+               if Registered then
+                  Coyote_Process_Control.Unregister (Integer (Handle));
+                  Registered := False;
+               end if;
+
                if Output_R /= Invalid_FD then
                   Close (Output_R);
                   Output_R := Invalid_FD;
@@ -360,6 +367,9 @@ package body LLM.Tools.Shell is
             --  returned by Start is then the process-group leader in both
             --  sandboxed and unsandboxed executions.
             Args.Append ("/usr/bin/setsid");
+            Args.Append ("/bin/sh");
+            Args.Append ("-c");
+            Args.Append ("trap - TERM; exec ""$0"" ""$@""");
 
             if Sandbox_Profile'Length > 0 then
                declare
@@ -382,20 +392,54 @@ package body LLM.Tools.Shell is
                   end loop;
                   Args.Append ("--");
                end;
+            else
+               Args.Append (Shell_Path);
+            end if;
+
+            if Sandbox_Profile'Length = 0 then
+               Args.Append ("-lc");
+               Args.Append (Command);
+            else
+               Args.Append (Shell_Path);
+               Args.Append ("-lc");
+               Args.Append (Command);
             end if;
 
             --  The setsid process is the direct child started by Start and
-            --  is replaced by bwrap when sandboxing is enabled.  Its PID is
-            --  therefore the process-group leader used by kill(-Handle, N).
-            Args.Append (Shell_Path);
-            Args.Append ("-lc");
-            Args.Append (Command);
-
-            Handle := Start
-              (Args   => Args,
-               Stdin  => (if Has_Stdin_Text then Stdin_R else Null_In),
-               Stdout => Output_W,
-               Stderr => Output_W);
+            --  is replaced by the reset wrapper.  Its PID is therefore the
+            --  process-group leader used by the registry.
+            declare
+               Launch_Accepted : Boolean;
+               Needs_Signal    : Boolean;
+            begin
+               Coyote_Process_Control.Begin_Launch (Launch_Accepted);
+               if not Launch_Accepted then
+                  Set_Error
+                    ("shell tool rejected during process shutdown",
+                     Result, Media_Type, Is_Error);
+                  Cleanup;
+                  return;
+               end if;
+               begin
+                  Handle := Start
+                    (Args   => Args,
+                     Stdin  => (if Has_Stdin_Text then Stdin_R else Null_In),
+                     Stdout => Output_W,
+                     Stderr => Output_W);
+                  Coyote_Process_Control.Complete_Launch
+                    (Integer (Handle), Needs_Signal);
+                  Registered := True;
+                  if Needs_Signal then
+                     Coyote_Process_Control.Signal_Group
+                       (Integer (Handle),
+                        Coyote_Process_Control.SIGTERM_Signal);
+                  end if;
+               exception
+                  when others =>
+                     Coyote_Process_Control.Cancel_Launch;
+                     raise;
+               end;
+            end;
 
             --  The child has inherited the read end of the stdin pipe; the
             --  parent no longer needs it.  Write the stdin content and close
@@ -451,9 +495,11 @@ package body LLM.Tools.Shell is
                         declare
                            Dummy : Integer;
                         begin
-                           Dummy :=
-                             C_Kill (-Integer (Handle), 9);
-                           Killed := True;
+                           if not Coyote_Process_Control.Shutdown_Requested then
+                              Dummy :=
+                                C_Kill (-Integer (Handle), 9);
+                              Killed := True;
+                           end if;
                         end;
                      end if;
                   end Timer;
@@ -502,8 +548,10 @@ package body LLM.Tools.Shell is
                            declare
                               Dummy : Integer;
                            begin
-                              Dummy :=
-                                C_Kill (-Integer (Handle), 9);
+                              if not Coyote_Process_Control.Shutdown_Requested then
+                                 Dummy :=
+                                   C_Kill (-Integer (Handle), 9);
+                              end if;
                            end;
                         end if;
                      end Abort_Watcher;
@@ -540,7 +588,9 @@ package body LLM.Tools.Shell is
 
             --  If timed out, terminate the child process before waiting.
             if Timer_Fired then
-               if Handle /= Invalid_Handle then
+               if Handle /= Invalid_Handle
+                 and then not Coyote_Process_Control.Shutdown_Requested
+               then
                   declare
                      Dummy : Integer;
                   begin

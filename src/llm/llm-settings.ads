@@ -6,12 +6,17 @@ with GNATCOLL.JSON;
 --  and the environment.
 --
 --  Project: coyote
---  For revision history, see the project version-control log.
 
 with Ada.Containers.Indefinite_Vectors;
 with Ada.Strings.Unbounded;
 
 package LLM.Settings is
+
+   --  Grace period after shutdown sends SIGTERM to shell process groups.
+   --  Zero requests immediate SIGKILL after SIGTERM; values above the
+   --  maximum are clamped when settings are loaded or saved.
+   Default_Termination_Grace_Seconds : constant Natural := 2;
+   Max_Termination_Grace_Seconds     : constant Natural := 30;
 
    --  Base configuration directory for coyote.
    --  Returns $HOME/.coyote, or "" when $HOME is not set.
@@ -31,6 +36,9 @@ package LLM.Settings is
       --  Maximum number of nested --subagent processes.  A value of zero
       --  disables subagent spawning; the default permits one child level.
       Max_Recursion_Depth       : Natural := 1;
+      --  Grace period after process shutdown sends SIGTERM to shell groups.
+      Shell_Termination_Grace_Seconds : Natural :=
+        Default_Termination_Grace_Seconds;
       Append_System_Prompt      : Ada.Strings.Unbounded.Unbounded_String;
       --  Shell command line through which interactive prompts are filtered
       --  before being sent to the agent.  The raw prompt is written to stdin
@@ -68,7 +76,6 @@ package LLM.Settings is
      (Root : GNATCOLL.JSON.JSON_Value; Provider : String)
       return GNATCOLL.JSON.JSON_Value;
 
-
    --  Write the current default model (Provider/Id) and thinking level
    --  to ~/.coyote/settings.json, preserving all other existing fields.
    procedure Save_Defaults
@@ -76,8 +83,8 @@ package LLM.Settings is
       Model_Id    : String;
       Think_Level : String);
 
-   --  Write model, thinking, sandbox, recursion, notification, and skill-path
-   --  defaults to settings.json.
+   --  Write model, thinking, sandbox, recursion, notification, skill-path,
+   --  and shell-termination defaults to settings.json.
    --  Empty string values clear the corresponding string preference.
    --  Unrelated fields are preserved and the replacement is atomic.
    procedure Save_Preferences
@@ -90,5 +97,8 @@ package LLM.Settings is
       Max_Recursion_Depth      : Natural := 1;
       Completion_Notifications : Boolean := True;
       Skill_Paths               : String_Vectors.Vector :=
-        String_Vectors.Empty_Vector);
+        String_Vectors.Empty_Vector;
+      Termination_Grace_Seconds : Natural :=
+        Default_Termination_Grace_Seconds);
+
 end LLM.Settings;

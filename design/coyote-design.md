@@ -268,8 +268,9 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `LLM.Providers.GitHub_Copilot` | Copilot routing provider | `src/llm/llm-providers-github_copilot.ads/.adb` |
 | `LLM.Providers.OpenCode_Go` | OpenCode Go routing provider | `src/llm/llm-providers-opencode_go.ads/.adb` |
 | `LLM.Tools` | Abort_Flag, Pause_Flag, Tool_Descriptor | `src/llm/llm-tools.ads/.adb` |
-| `LLM.Tools.Shell` | Built-in shell tool | `src/llm/llm-tools-shell.ads/.adb` |
+| `LLM.Tools.Shell` | Built-in shell tool and tracked process-group execution | `src/llm/llm-tools-shell.ads/.adb` |
 | `LLM.Tools.Sandbox` | Sandbox profile discovery and bwrap arg construction | `src/llm/llm-tools-sandbox.ads/.adb` |
+| `Coyote_Process_Control` | SIGTERM bridge, shell process-group registry, persistence freeze, and escalation | `src/coyote_process_control.ads/.adb`, `src/coyote_signal_bridge.c/.h` |
 | `LLM.Tools.Temp_File` | Tool-result size cap and spill | `src/llm/llm-tools-temp_file.ads/.adb` |
 | `LLM.Skills` | Skill discovery and system prompt formatting | `src/llm/llm-skills.ads/.adb` |
 | `LLM.System_Prompt` | System prompt construction | `src/llm/llm-system_prompt.ads/.adb` |
@@ -919,14 +920,25 @@ forking the parser.
    `LLM.Tools.Sandbox.Build_Bwrap_Args` and prepend `bwrap` with base
    isolation (`--ro-bind / / --dev /dev --proc /proc`) and per-rule
    binds/ro-binds/tmpfs before `--`.
-3. Spawn `$SHELL -c command` via `GNAT.OS_Lib.Spawn_Pipe` (or equivalent);
-   the command is wrapped in `setsid(1)` for abort/timeout signalling.
-4. Write `stdin` content to the child's stdin if non-empty.
-5. Read combined stdout/stderr.
+3. Reserve a launch in `Coyote_Process_Control`, then spawn a reset-wrapper
+   command under `setsid(1)`. The wrapper restores the normal SIGTERM
+   disposition before executing either `bwrap` or `$SHELL -lc command`.
+4. Register the returned process-group leader before releasing the reservation;
+   a shutdown racing `Start` signals the newly registered group immediately.
+5. Write `stdin` content to the child's stdin if non-empty and read combined
+   stdout/stderr.
 6. If `media_type` non-empty: base64-encode the raw bytes; set `Media_Type`.
 7. If result exceeds `LLM.Tools.Temp_File.Result_Threshold`: call
    `LLM.Tools.Temp_File.Truncated` before returning.
-8. Set `Is_Error := exit_code /= 0`.
+8. Set `Is_Error := exit_code /= 0`; unregister the group on every cleanup path.
+
+**Process-wide shutdown:** `Coyote_Process_Control` receives SIGTERM through
+an async-signal-safe self-pipe. Its deferred monitor freezes persistence,
+rejects new shell launches, requests the agent abort, sends SIGTERM to all
+registered groups and nested shell-launched coyote groups, waits the configured
+0–30 second grace period, and sends SIGKILL to remaining groups. A second
+SIGTERM skips the grace period. Only JSONL records whose writes completed before
+persistence freeze are retained.
 
 ---
 
@@ -1447,6 +1459,8 @@ made by the GUI Preferences dialog or the Acme SetDefault command.
   malformed values default to True.
 - `Max_Recursion_Depth` — nonnegative `maxRecursionDepth`; absent, negative,
   non-integer, or out-of-range values default to 1.
+- `Shell_Termination_Grace_Seconds` — `shellTerminationGraceSeconds`, an
+  integer second count clamped to 0 through 30, default 2.
 - `Skill_Paths` — ordered additional absolute skill roots from the optional
   `skillPaths` JSON array; malformed or non-string entries are ignored.
 - Raw provider model entries and API-key configuration are read from
@@ -2379,3 +2393,25 @@ owner) is invited to review it before it advances to client-control status.
 - `coyote_sqc` design: see `design/coyote-sqc-design.md`.
 - Detailed design for catalogue packages (`OpenRouter.Catalogue`, etc.):
   deferred; covered adequately by AGENTS.md §Adding a New LLM Provider.
+
+
+### 5.10b `Coyote_Process_Control` — SIGTERM shutdown
+
+`Coyote_Process_Control` owns a protected registry of shell-tool process-group
+leaders and launch reservations. `Begin_Launch` closes the Start/register race;
+`Complete_Launch` registers the `setsid` group and signals it immediately if
+shutdown began during spawning. A native self-pipe receives SIGTERM using an
+async-signal-safe handler; deferred Ada monitor tasks perform all protected
+operations, process-tree signalling, persistence freezing, and frontend wakeup.
+
+The first SIGTERM freezes new JSONL writes, requests agent cancellation, sends
+SIGTERM to all registered groups and nested shell-launched coyote groups, waits
+0 through 30 configured seconds, then sends SIGKILL and waits for group cleanup.
+A second SIGTERM bypasses the grace interval. Existing GUI Stop and ordinary
+window-close paths retain their direct abort behavior and stop the monitor.
+
+The GTK Preferences dialog persists `shellTerminationGraceSeconds` as an
+integer number of seconds. The active process applies a saved value immediately;
+new coyote children inherit the setting through normal environment/settings
+startup. Only session records whose writes completed before the persistence
+freeze are retained.

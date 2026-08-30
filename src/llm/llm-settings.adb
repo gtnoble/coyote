@@ -289,6 +289,13 @@ package body LLM.Settings is
              (Get_String_Field (Root, "defaultSubagentModel")),
          Max_Recursion_Depth       =>
            Get_Natural_Field (Root, "maxRecursionDepth", 1),
+         Shell_Termination_Grace_Seconds =>
+           Natural'Min
+             (Max_Termination_Grace_Seconds,
+              Get_Natural_Field
+                (Root,
+                 "shellTerminationGraceSeconds",
+                 Default_Termination_Grace_Seconds)),
          Append_System_Prompt      =>
            To_Unbounded_String
              (Get_String_Field (Root, "appendSystemPrompt")),
@@ -412,7 +419,9 @@ package body LLM.Settings is
       Max_Recursion_Depth      : Natural := 1;
       Completion_Notifications : Boolean := True;
       Skill_Paths               : String_Vectors.Vector :=
-        String_Vectors.Empty_Vector)
+        String_Vectors.Empty_Vector;
+      Termination_Grace_Seconds : Natural :=
+        Default_Termination_Grace_Seconds)
    is
       Path     : constant String := Settings_Path;
       Existing : constant GNATCOLL.JSON.JSON_Value :=
@@ -465,6 +474,12 @@ package body LLM.Settings is
 
       Root.Set_Field
         ("maxRecursionDepth", Long_Integer (Max_Recursion_Depth));
+      Root.Set_Field
+        ("shellTerminationGraceSeconds",
+         Long_Integer
+           (Natural'Min
+              (Max_Termination_Grace_Seconds,
+               Termination_Grace_Seconds)));
       Root.Set_Field ("completionNotifications", Completion_Notifications);
 
       if Skill_Paths.Is_Empty then

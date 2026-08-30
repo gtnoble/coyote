@@ -692,8 +692,8 @@ behaviour are demonstrated.
 The GUI frontend shall provide an `Options → Preferences...` dialog for editing
 persistent defaults without changing the active session. The dialog shall
 expose the default model, default thinking level, default sandbox profile,
-optional default subagent model, maximum subagent recursion depth, and the
-ordered list of additional skill directories.
+optional default subagent model, maximum subagent recursion depth, the shell
+termination grace period, and the ordered list of additional skill directories.
 
 **REQ-CORE-117** (D)
 When the user saves GUI preferences, the frontend shall persist the default
@@ -705,7 +705,13 @@ sandbox default, and the explicit subagent fallback selection shall clear both
 subagent preference fields. The maximum subagent recursion depth shall be
 persisted as the nonnegative integer `maxRecursionDepth`, with zero disabling
 subagent spawning. The additional skill directories shall be persisted as the
-ordered `skillPaths` JSON array; an empty list shall clear that field.
+ordered `skillPaths` JSON array; an empty list shall clear that field. The
+termination grace period shall be persisted as the nonnegative integer
+`shellTerminationGraceSeconds`, in seconds, bounded to 0 through 30 with a
+default of 2. Zero shall send SIGTERM and escalate immediately to SIGKILL; a
+second SIGTERM shall escalate immediately to SIGKILL. The value applies to the
+running process and subsequent shell-tool launches without changing active
+session model, thinking, or sandbox state.
 The dialog shall provide Add Directory, Remove Selected, Move Up, and Move Down
 controls, and Add Directory shall use a folder-selection dialog.
 
@@ -868,9 +874,14 @@ frontend; they shall not be silently discarded.
 Errors shall also be written to standard error for logging purposes.
 
 **REQ-CORE-142** (D)
-The executable shall handle SIGTERM gracefully: in-progress tool executions
-shall be cancelled, any open session file shall be flushed, and the process
-shall exit cleanly.
+The executable shall handle SIGTERM gracefully. On the first SIGTERM it shall
+request cancellation of in-progress tool executions, send SIGTERM to every
+running shell-tool process group including shell-launched coyote descendants,
+and escalate to SIGKILL after the configured grace period. The grace period is
+`0` through `30` seconds, defaults to `2`, and is configurable in the GTK
+Preferences dialog. A second SIGTERM shall escalate immediately to SIGKILL.
+Only records whose JSONL writes completed before shutdown are retained; pending
+records shall not be flushed during shutdown. The process shall exit cleanly.
 
 ---
 
@@ -1191,9 +1202,11 @@ thread-safe protected queue.
 The agent shall read `~/.coyote/settings.json` at startup to obtain the
 default provider, model, thinking level, optional subagent provider/model,
 compaction settings, `promptFilter`, `completionNotifications`, the
-optional nonnegative `maxRecursionDepth` setting, and the optional `skillPaths`
-array. An absent or invalid `maxRecursionDepth` shall default to 1. An absent
-or malformed `skillPaths` value shall be treated as empty.
+optional nonnegative `maxRecursionDepth` setting, `shellTerminationGraceSeconds`,
+and the optional `skillPaths` array. An absent or invalid `maxRecursionDepth`
+shall default to 1. An absent, negative, non-integer, or over-limit
+`shellTerminationGraceSeconds` shall default to 2 and values above 30 shall
+be clamped. An absent or malformed `skillPaths` value shall be treated as empty.
 
 **REQ-CORE-231** (T)
 The agent shall read `~/.coyote/models.json` at startup to obtain per-provider

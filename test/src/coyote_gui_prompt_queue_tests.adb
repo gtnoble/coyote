@@ -28,6 +28,7 @@ package body Coyote_GUI_Prompt_Queue_Tests is
              Subagent_Model           => To_Unbounded_String
                ("test/fast-model"),
              Max_Recursion_Depth      => 3,
+             Termination_Grace_Seconds => 7,
              Completion_Notifications =>
                False,
              Skill_Paths =>
@@ -53,6 +54,9 @@ package body Coyote_GUI_Prompt_Queue_Tests is
         (Got.Preferences.Max_Recursion_Depth = 3,
          "recursion depth should survive queue transport");
       Assert
+        (Got.Preferences.Termination_Grace_Seconds = 7,
+         "termination grace should survive queue transport");
+      Assert
         (not Got.Preferences.Completion_Notifications,
          "disabled completion preference should survive queue transport");
       declare
@@ -70,6 +74,7 @@ package body Coyote_GUI_Prompt_Queue_Tests is
                 Subagent_Provider => Null_Unbounded_String,
                 Subagent_Model => Null_Unbounded_String,
                 Max_Recursion_Depth => 1,
+                Termination_Grace_Seconds => 2,
                 Completion_Notifications => True,
                 Skill_Paths => Paths)));
          Queue.Dequeue (Got);
@@ -91,6 +96,7 @@ package body Coyote_GUI_Prompt_Queue_Tests is
              Subagent_Provider        => Null_Unbounded_String,
              Subagent_Model           => Null_Unbounded_String,
              Max_Recursion_Depth      => 0,
+             Termination_Grace_Seconds => 0,
              Completion_Notifications => True,
              Skill_Paths               =>
                LLM.Settings.String_Vectors.Empty_Vector)));

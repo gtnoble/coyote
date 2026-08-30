@@ -26,6 +26,7 @@ with Coyote_GUI_Notification_Policy_Tests;
 with Coyote_GUI_Mode_Tests;
 with Coyote_GUI_Session_Stats_Window_Tests;
 with Coyote_App_Frontend_GUI_Tests;
+with Coyote_Process_Control_Tests;
 with Session_History_Tests;
 with Tool_URI_Tests;
 with Subagent_Integration_Tests;
@@ -131,6 +132,8 @@ package body Test_Suites is
      new AUnit.Test_Caller (Coyote_GUI_Session_Stats_Window_Tests.Test);
    package Coyote_App_Frontend_GUI_Caller is
      new AUnit.Test_Caller (Coyote_App_Frontend_GUI_Tests.Test);
+   package Coyote_Process_Control_Caller is
+     new AUnit.Test_Caller (Coyote_Process_Control_Tests.Test);
    package LLM_HTTP_Caller is
      new AUnit.Test_Caller (LLM_HTTP_Tests.Test);
    package LLM_Settings_Caller is
@@ -1439,6 +1442,9 @@ package body Test_Suites is
       Result.Add_Test (LLM_Settings_Caller.Create
         ("LLM.Settings loads skillPaths array",
          LLM_Settings_Tests.Test_Skill_Paths_Loaded'Access));
+      Result.Add_Test (LLM_Settings_Caller.Create
+        ("LLM.Settings loads and clamps termination grace",
+         LLM_Settings_Tests.Test_Termination_Grace_Load_And_Clamp'Access));
       Result.Add_Test (LLM_Settings_Caller.Create
         ("LLM.Settings loads and validates max recursion depth",
          LLM_Settings_Tests.Test_Max_Recursion_Depth_Invalid_Defaults'Access));
@@ -3347,6 +3353,18 @@ package body Test_Suites is
         ("Coyote.GUI.Conversation select all and clear selection",
          Coyote_GUI_Conversation_Tests
            .Test_Select_All_And_Clear_Selection'Access));
+
+      --  Process-controller tests must remain last because the controller
+      --  intentionally retains process-wide shutdown and persistence state.
+      Result.Add_Test (Coyote_Process_Control_Caller.Create
+        ("Coyote process control clamps shutdown grace",
+         Coyote_Process_Control_Tests.Test_Grace_Clamps'Access));
+      Result.Add_Test (Coyote_Process_Control_Caller.Create
+        ("Coyote process control freezes persistence",
+         Coyote_Process_Control_Tests.Test_Persistence_Freezes'Access));
+      Result.Add_Test (Coyote_Process_Control_Caller.Create
+        ("Coyote process control rejects launches after shutdown",
+         Coyote_Process_Control_Tests.Test_Launches_Reject_After_Shutdown'Access));
 
       return Result;
    end Suite;

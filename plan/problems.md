@@ -2861,3 +2861,30 @@ behavior, current test baseline, and remaining manual qualification scope.
   in the environment; the focused test ran directly against `DISPLAY=:0.0`.
   Human visual contrast review remains open under DEM-049.
 - **Status:** Implemented; display-backed visual review pending
+
+
+## PCR-086 — SIGTERM does not terminate shell-tool process groups
+
+- **Date reported:** 2026-08-30
+- **Category:** Requirements, Design, Code, Test, Manuals
+- **Priority:** 2-Serious
+- **Description:** coyote had no process-wide SIGTERM handler. Shell tools were
+  placed in `setsid` process groups and their PIDs were local to `Execute`, so
+  terminating coyote could leave shell commands and shell-launched coyote
+  processes running; pending session records could also be flushed during
+  shutdown.
+- **Affected work products:** `Coyote`, `Coyote_App`, `LLM.Tools.Shell`,
+  `LLM.Session_Store`, `LLM.Settings`, GTK Preferences, process-control
+  sources, SRS/SDD, test plan, and operational documentation.
+- **Corrective action:** Added a protected process-group registry with launch
+  reservations, an async-signal-safe self-pipe bridge, deferred shutdown
+  monitors for Acme and GUI, nested descendant group signalling, and an
+  atomic persistence freeze. First SIGTERM sends TERM then bounded KILL;
+  second SIGTERM sends KILL immediately. Added the GTK setting
+  `shellTerminationGraceSeconds` (0..30 seconds, default 2), shell-wrapper
+  SIGTERM disposition reset, settings/queue tests, and controller tests.
+- **Verification:** Production and test development builds succeed. The full
+  AUnit suite passes 937/937 with zero failed assertions and zero unexpected
+  errors. Live OS-signal injection and display-backed Preferences interaction
+  remain pending qualification in DEM-017/DEM-033.
+- **Status:** Implemented; live qualification pending

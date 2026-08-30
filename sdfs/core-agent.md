@@ -524,3 +524,28 @@ ignored without aborting startup.
 array loading, malformed elements, serialization/clearing, configured-root
 loading, and project-local shadowing. Focused tests and the full development
 suite pass.
+
+
+## 2026-08-30 — SIGTERM shell-process shutdown escalation
+
+**Requirement:** A first SIGTERM must cancel active shell tools, send SIGTERM
+to all shell-tool process groups including shell-launched coyote descendants,
+retain only records already flushed before shutdown, and escalate to SIGKILL
+after a configurable bounded grace period. A second SIGTERM escalates
+immediately. Subagents have no implicit execution timeout.
+
+**Implementation:** Added `Coyote_Process_Control` with a protected process-group
+registry, launch reservations, persistence freeze gate, and deferred signal
+coordination. Added the async-signal-safe C self-pipe bridge and `/proc` descendant
+scan for nested `setsid` groups. Shell launches reset the inherited coyote
+SIGTERM disposition before executing the user shell or sandbox wrapper. Acme and
+GUI runtimes run shutdown monitor tasks; normal UI Stop/close remains separate.
+The GTK Preferences dialog persists `shellTerminationGraceSeconds`, bounded to
+0..30 seconds with default 2.
+
+**Verification:** Production and test development builds succeed. The complete
+AUnit suite passes 937/937 with zero failed assertions and zero unexpected
+errors. Settings and typed preference queue regressions cover the new field.
+Live OS-signal injection against an interactive coyote process remains a
+manual qualification activity because the test environment does not provide a
+stable provider/frontend fixture.

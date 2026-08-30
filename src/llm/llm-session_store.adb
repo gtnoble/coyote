@@ -14,6 +14,7 @@ with Ada.Streams.Stream_IO;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
+with Coyote_Process_Control;
 with GNATCOLL.JSON;
 with Interfaces;
 with Session_Lister;
@@ -232,16 +233,35 @@ package body LLM.Session_Store is
       File   : Ada.Streams.Stream_IO.File_Type;
       Stream : Ada.Streams.Stream_IO.Stream_Access;
    begin
-      if Fresh then
-         Ada.Streams.Stream_IO.Create (File, Mode, Path);
-      else
-         Ada.Streams.Stream_IO.Open (File, Mode, Path);
-      end if;
+      declare
+         Accepted : Boolean;
+      begin
+         Coyote_Process_Control.Begin_Persistence_Write (Accepted);
+         if not Accepted then
+            return;
+         end if;
+      end;
 
-      Stream := Ada.Streams.Stream_IO.Stream (File);
-      String'Write (Stream, Line);
-      Character'Write (Stream, ASCII.LF);
-      Ada.Streams.Stream_IO.Close (File);
+      begin
+         if Fresh then
+            Ada.Streams.Stream_IO.Create (File, Mode, Path);
+         else
+            Ada.Streams.Stream_IO.Open (File, Mode, Path);
+         end if;
+
+         Stream := Ada.Streams.Stream_IO.Stream (File);
+         String'Write (Stream, Line);
+         Character'Write (Stream, ASCII.LF);
+         Ada.Streams.Stream_IO.Close (File);
+      exception
+         when others =>
+            if Ada.Streams.Stream_IO.Is_Open (File) then
+               Ada.Streams.Stream_IO.Close (File);
+            end if;
+            Coyote_Process_Control.End_Persistence_Write;
+            raise;
+      end;
+      Coyote_Process_Control.End_Persistence_Write;
    exception
       when others =>
          if Ada.Streams.Stream_IO.Is_Open (File) then
