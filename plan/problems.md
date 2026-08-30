@@ -2936,3 +2936,28 @@ behavior, current test baseline, and remaining manual qualification scope.
   tests, zero failed assertions, and zero unexpected errors. Full
   window-manager and active-request close qualification remains pending.
 - **Status:** Implemented; qualification pending
+
+## PCR-089 — Responsive native GTK tool-card flow
+
+- **Date reported:** 2026-08-30
+- **Category:** Design, Code, Test, Manuals
+- **Priority:** 4-Minor (usability enhancement)
+- **Description:** Native GTK tool-call cards were packed directly into the
+  vertical step box, so multiple cards in one assistant/tool step occupied one
+  full-width row each and left substantial unused space to the right.
+- **Affected work products:** `Coyote_GUI.Conversation_Stack`, native GTK
+  conversation tests, SDD-CORE, frontend SDF, and Test Plan.
+- **Corrective action required:** Group cards for each active step in a
+  responsive horizontal `Gtk.Flow_Box` while preserving vertical exchange and
+  step containers, stable tool-ID updates, native Details actions, and the
+  single outer scrolling region.
+- **Actions taken:** Added a lazily-created non-homogeneous FlowBox per step,
+  configured horizontal orientation and four-pixel row/column spacing, inserted
+  cards in event order, added structural regression coverage, and updated the
+  native-stack design and DEM-043 reflow qualification procedure. The legacy
+  GtkLayout renderer and production frontend selection remain unchanged.
+- **Verification:** Production and test development builds succeed. The
+  focused `Coyote.GUI.Conversation_Stack uses responsive tool flow` test passes
+  1/1 with zero failed assertions and zero unexpected errors. Display-backed
+  multi-column placement and resize reflow remain pending under DEM-043.
+- **Status:** Implemented; qualification pending

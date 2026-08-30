@@ -16,6 +16,7 @@ with Gtk.Box;
 with Gtk.Button;
 with Gtk.Clipboard;
 with Gtk.Enums;
+with Gtk.Flow_Box;
 with Gtk.Frame;
 with Gtk.Grid;
 with Gtk.Label;
@@ -24,11 +25,13 @@ with Gtk.Separator;
 with Gtk.Text_Buffer;
 with Gtk.Text_Iter;
 with Gtk.Text_View;
+with Gtk.Widget;
 with Pango.Font;
 
 package body Coyote_GUI.Conversation_Stack is
 
    use type Gtk.Box.Gtk_Box;
+   use type Gtk.Flow_Box.Gtk_Flow_Box;
    use type Gtk.Scrolled_Window.Gtk_Scrolled_Window;
    use type Gtk.Text_Buffer.Gtk_Text_Buffer;
    use type Gtk.Text_Mark.Gtk_Text_Mark;
@@ -218,6 +221,7 @@ package body Coyote_GUI.Conversation_Stack is
    begin
       C.Step_Frame     := null;
       C.Step_Box       := null;
+      C.Tool_Flow      := null;
       C.Step_Open      := False;
       C.Footer_Pending := False;
       C.Text_Open      := False;
@@ -336,6 +340,7 @@ package body Coyote_GUI.Conversation_Stack is
       C.Exchange       := null;
       C.Step_Frame     := null;
       C.Step_Box       := null;
+      C.Tool_Flow      := null;
       C.Active_Text    := null;
       C.Active_View    := null;
       C.Stream_Mark    := null;
@@ -473,6 +478,23 @@ package body Coyote_GUI.Conversation_Stack is
       Grid.Attach (Value, 1, Row);
    end Add_Tool_Argument;
 
+   procedure Ensure_Tool_Flow (C : in out Instance) is
+   begin
+      if C.Tool_Flow = null then
+         Gtk.Flow_Box.Gtk_New (C.Tool_Flow);
+         C.Tool_Flow.Set_Homogeneous (False);
+         C.Tool_Flow.Set_Row_Spacing (4);
+         C.Tool_Flow.Set_Column_Spacing (4);
+         C.Tool_Flow.Set_Selection_Mode (Gtk.Enums.Selection_None);
+         C.Tool_Flow.Set_Orientation
+           (Gtk.Enums.Orientation_Horizontal);
+         C.Tool_Flow.Set_Hexpand (True);
+         C.Tool_Flow.Set_Halign (Gtk.Widget.Align_Fill);
+         C.Step_Box.Pack_Start
+           (C.Tool_Flow, Expand => False, Fill => True, Padding => 0);
+      end if;
+   end Ensure_Tool_Flow;
+
    procedure Begin_Tool
      (C               : in out Instance;
       Name            : String;
@@ -500,6 +522,7 @@ package body Coyote_GUI.Conversation_Stack is
          Begin_Request (C, "", Coyote_GUI.Prompt);
       end if;
       Ensure_Active_Step (C);
+      Ensure_Tool_Flow (C);
       if C.Tools.Contains (Tool_Id) then
          return;
       end if;
@@ -576,7 +599,7 @@ package body Coyote_GUI.Conversation_Stack is
          (Stack   => C'Unchecked_Access,
           Tool_Id => To_Unbounded_String (Tool_Id)));
       Box.Pack_Start (Details, Expand => False, Fill => False, Padding => 0);
-      C.Step_Box.Pack_Start (Frame, Expand => False, Fill => True, Padding => 4);
+      C.Tool_Flow.Insert (Frame, -1);
       Show_Contents (C);
       C.Tools.Insert
         (Tool_Id,

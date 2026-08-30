@@ -13,6 +13,7 @@ with Coyote_GUI;
 with Coyote_GUI.Conversation;
 with Gtk.Box;
 with Gtk.Frame;
+with Gtk.Flow_Box;
 with Gtk.Button;
 with Gtk.Label;
 with Gtk.Scrolled_Window;
@@ -161,6 +162,7 @@ private
       Exchanges         : Exchange_Vectors.Vector;
       Step_Frame        : Gtk.Frame.Gtk_Frame;
       Step_Box          : Gtk.Box.Gtk_Box;
+      Tool_Flow         : Gtk.Flow_Box.Gtk_Flow_Box;
       Step_Frames       : Frame_Vectors.Vector;
       Active_Text       : Gtk.Text_Buffer.Gtk_Text_Buffer;
       Active_View       : Gtk.Text_View.Gtk_Text_View;

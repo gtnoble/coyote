@@ -1,6 +1,6 @@
 # Test Plan â coyote (STP)
 
-**Version:** 1.22
+**Version:** 1.23
 **Date:** 2026-08-30
 
 **Status:** Reviewed and acknowledged â M4 complete (2026-06-03)
@@ -184,7 +184,7 @@ SRS-CORE requirement groups.
 | `coyote_gui_notification_policy_tests.adb` | REQ-CORE-127 (notification eligibility policy) | 4 |
 | `coyote_gui_mode_tests.adb` | REQ-CORE-113 Agent-menu availability by run mode | 1 |
 | `coyote_gui_session_stats_window_tests.adb` | REQ-CORE-113d; typed snapshot retention, reset, and idempotent support-window creation | 3 |
-| `coyote_gui_conversation_stack_tests.adb` | REQ-CORE-111, 133..139; native stack host, visible per-step frames, incremental text, native GFM Markdown replacement, Markdown toggle, stable tool IDs, native status-row footers, functional fork buttons, explicit completion lifecycle, and reset | 12 |
+| `coyote_gui_conversation_stack_tests.adb` | REQ-CORE-111, 133..139; native stack host, visible per-step frames, responsive per-step tool-card flow, incremental text, native GFM Markdown replacement, Markdown toggle, stable tool IDs, native status-row footers, functional fork buttons, explicit completion lifecycle, and reset | 13 |
 
 | `coyote_gui_prompt_queue_tests.adb` | REQ-CORE-116..119, 128; typed preference payload transport | 1 |
 | `coyote_help_tests.adb` | REQ-CORE-113a, REQ-CORE-504a; Yelp URI construction, area mapping, executable detection, Help data path, and Product Information text | 5 |
@@ -240,7 +240,7 @@ behaviour. Results are recorded in a Test Report.
 | DEM-040 | REQ-CORE-113d | In a display-backed GUI, open Session Stats repeatedly and verify only one modeless transient `coyote : Session Stats` support window exists. Verify grouped selectable values, system-font sizing, scrollable report area, visible Close, Ctrl+W, live refresh after a completed turn, and clearing after New Session and session switch. |
 | DEM-041 | REQ-CORE-113e | In a display-backed GUI, click completed tool cards and verify each opens an independent `coyote : Tool Call Details` transient support window. Verify selectable header metadata, labelled monospace argument views, full selectable results, outer vertical scrolling, visible Close and Help actions, deterministic focus, Ctrl+W, non-color status meaning, image display/fallback, light/dark theme behavior, replay parity, and correct multi-window independence. |
 | DEM-042 | REQ-CORE-133..134, 139 | In a display-backed GUI using the native component-stack build, submit a request that produces thinking, assistant text, a tool call, and a final response. Verify one exchange container and one visible step frame are created, each semantic component is a separate native widget, the tool card contains native tool-name and status labels plus individually selectable top-level argument-field labels, raw arguments and full results are absent, the `View Details` button is focusable and opens `coyote : Tool Call Details` after completion, and the request-start, step-footer, final-footer, and terminal lifecycle transitions are explicit. |
-| DEM-043 | REQ-CORE-135..137 | In a display-backed GUI using the native component-stack build, submit requests with multiple tool steps and replay the resulting session. Verify exchange widgets are vertically ordered in one outer scroller, each assistant/tool step has a distinct visible frame, intermediate footers remain inside their step frame and exchange, native label/grid summaries are live/replay equivalent, cards update by stable tool-call ID without exposing raw arguments or full results, the `View Details` button opens the correct retained payload, local component selection/copy/PRIMARY works independently for separate components, and clear/session switching removes stale widgets and callbacks. |
+| DEM-043 | REQ-CORE-135..137 | In a display-backed GUI using the native component-stack build, submit requests with multiple tool steps and replay the resulting session. Verify exchange widgets are vertically ordered in one outer scroller, each assistant/tool step has a distinct visible frame, intermediate footers remain inside their step frame and exchange, native label/grid summaries are live/replay equivalent, cards update by stable tool-call ID without exposing raw arguments or full results, the `View Details` button opens the correct retained payload, local component selection/copy/PRIMARY works independently for separate components, and clear/session switching removes stale widgets and callbacks. For a step with multiple tool calls, verify cards share a horizontal flow host, occupy multiple columns when space permits, and wrap onto additional rows after narrowing the window. |
 | DEM-044 | REQ-CORE-138 | On a development build using the native component stack, qualify first-token latency, widget count, memory, resize, zoom, auto-scroll, replay, and repeated reset behavior, and `View Details`-button activation for histories of 100, 500, and 2,000 exchanges. Confirm that compact tool cards do not create argument/result text widgets per call. Compare against the Gtk.Layout baseline and retain the baseline renderer if native realization fails the measured performance objective. |
 | DEM-034 | REQ-CORE-234 | Set and clear `defaultSandboxProfile`; verify inherited runtime and session-header precedence |
 | DEM-015 | REQ-CORE-130 | Resume a session; verify history replayed in frontend |
@@ -888,3 +888,10 @@ blocked prompt reader. Production and test development builds succeed; the
 focused GUI lifecycle test and complete
 suite pass with zero failed assertions and zero unexpected errors. Full
 window-manager and active-request close qualification remains display-backed.
+
+**Baseline after responsive native tool-card flow (2026-08-30):** 941 registered
+tests. Added the native FlowBox structural regression and per-step responsive
+flow implementation. Production and test development builds succeed; the
+focused `Coyote.GUI.Conversation_Stack uses responsive tool flow` test passes
+1/1 with zero failed assertions and zero unexpected errors. Display-backed
+multi-column placement and resize reflow remain part of DEM-043 qualification.

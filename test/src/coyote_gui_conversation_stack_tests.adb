@@ -6,21 +6,27 @@ with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
 with AUnit.Assertions;
+with Glib;
 with Gtk.Button;
 with Coyote_App.Utils;
 with Coyote_GUI;
 with Coyote_GUI.Conversation;
 with Coyote_GUI.Conversation_Stack.Testing;
 with Gtk.Enums;
+with Gtk.Flow_Box;
+with Gtk.Flow_Box_Child;
 with Gtk.Frame;
 with Gtk.Main;
 with Gtk.Scrolled_Window;
 with Gtk.Separator;
 with Gtk.Text_View;
-with Gtk.Window;
 
 package body Coyote_GUI_Conversation_Stack_Tests is
 
+   use type Glib.Gint;
+   use type Glib.Guint;
+   use type Gtk.Flow_Box.Gtk_Flow_Box;
+   use type Gtk.Flow_Box_Child.Gtk_Flow_Box_Child;
    use type Gtk.Frame.Gtk_Frame;
    use type Gtk.Scrolled_Window.Gtk_Scrolled_Window;
    use type Gtk.Text_View.Gtk_Text_View;
@@ -296,6 +302,45 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Assert (Tool_Count (T.Stack) = 2,
               "tool completion updates existing card by ID");
    end Test_Tool_Updates_By_Stable_Id;
+
+   procedure Test_Tool_Cards_Use_Responsive_Flow (T : in out Test) is
+      Flow : Gtk.Flow_Box.Gtk_Flow_Box;
+      First_Child : Gtk.Flow_Box_Child.Gtk_Flow_Box_Child;
+      Second_Child : Gtk.Flow_Box_Child.Gtk_Flow_Box_Child;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Begin_Request (T.Stack, "request", Prompt);
+      Begin_Tool
+        (C          => T.Stack,
+         Name       => "shell",
+         Args       => "{""command"":""one""}",
+         Session_Id => "session",
+         Tool_Id    => "tool-flow-1");
+      Begin_Tool
+        (C          => T.Stack,
+         Name       => "shell",
+         Args       => "{""command"":""two""}",
+         Session_Id => "session",
+         Tool_Id    => "tool-flow-2");
+
+      Flow := Tool_Flow (T.Stack);
+      Assert (Flow /= null, "tool cards create a native flow host");
+      Assert (not Flow.Get_Homogeneous,
+              "tool flow preserves natural card widths");
+      Assert (Flow.Get_Row_Spacing = 4,
+              "tool flow uses four pixels between rows");
+      Assert (Flow.Get_Column_Spacing = 4,
+              "tool flow uses four pixels between columns");
+      Assert (Flow.Get_Child_At_Index (0) /= null
+              and then Flow.Get_Child_At_Index (1) /= null,
+              "two tool cards are inserted into the same flow host");
+      First_Child := Flow.Get_Child_At_Index (0);
+      Second_Child := Flow.Get_Child_At_Index (1);
+      Assert (First_Child.Get_Index = 0 and then Second_Child.Get_Index = 1,
+              "tool cards retain insertion order in the flow host");
+   end Test_Tool_Cards_Use_Responsive_Flow;
 
    procedure Test_Tool_Card_Uses_Native_Labels (T : in out Test) is
       Summary : String (1 .. 4096);

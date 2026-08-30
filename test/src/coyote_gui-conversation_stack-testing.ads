@@ -6,6 +6,7 @@ with Coyote_GUI;
 with Coyote_GUI.Conversation;
 with Coyote_GUI.Conversation_Stack;
 with Gtk.Button;
+with Gtk.Flow_Box;
 with Gtk.Frame;
 with Gtk.Scrolled_Window;
 with Gtk.Separator;
@@ -43,6 +44,10 @@ package Coyote_GUI.Conversation_Stack.Testing is
    function Active_Step_Frame
      (C : Coyote_GUI.Conversation_Stack.Instance)
       return Gtk.Frame.Gtk_Frame;
+
+   function Tool_Flow
+     (C : Coyote_GUI.Conversation_Stack.Instance)
+      return Gtk.Flow_Box.Gtk_Flow_Box;
 
    function Tool_Summary
      (C       : Coyote_GUI.Conversation_Stack.Instance;

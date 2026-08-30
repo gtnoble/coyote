@@ -3183,6 +3183,10 @@ package body Test_Suites is
          Coyote_GUI_Conversation_Stack_Tests
            .Test_Tool_Updates_By_Stable_Id'Access));
       Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack uses responsive tool flow",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Tool_Cards_Use_Responsive_Flow'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
         ("Coyote.GUI.Conversation_Stack uses native labels and View Details action",
          Coyote_GUI_Conversation_Stack_Tests
            .Test_Tool_Card_Uses_Native_Labels'Access));

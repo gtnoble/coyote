@@ -780,6 +780,23 @@ auto-scroll; local selection and PRIMARY; tool-card activation;
 clear/session-switch callback invalidation; replay/live parity; and keyboard
 focus traversal. No production default switch has been made.
 
+### Responsive native tool-card flow (2026-08-30, PCR-089)
+
+Native tool cards in `Coyote_GUI.Conversation_Stack` are now grouped per
+assistant/tool step in a non-homogeneous horizontal `Gtk.Flow_Box`. The flow
+uses four-pixel row and column spacing and inserts cards in event order, so
+multiple natural-width cards can share a row and automatically wrap when the
+available step width changes. The flow is created lazily on the first tool card
+of a step and is discarded with the active step; footers and fork actions remain
+below it in the vertical step box. Stable `Tool_Id` updates, retained details,
+callbacks, replay parity, and the single outer scroller are unchanged.
+
+Added the `Coyote.GUI.Conversation_Stack uses responsive tool flow` regression,
+which verifies the flow host, variable-width configuration, spacing, child
+count, and insertion order. Production/test development builds and the full
+941-test suite pass. Display-backed multi-column placement and narrow-window
+reflow remain pending under DEM-043.
+
 ### GTK recursion-depth preference (2026-08-29)
 
 The GTK Preferences dialog now exposes the persistent maximum subagent

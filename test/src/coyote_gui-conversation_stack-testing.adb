@@ -84,6 +84,14 @@ package body Coyote_GUI.Conversation_Stack.Testing is
       return C.Step_Frame;
    end Active_Step_Frame;
 
+   function Tool_Flow
+     (C : Coyote_GUI.Conversation_Stack.Instance)
+      return Gtk.Flow_Box.Gtk_Flow_Box
+   is
+   begin
+      return C.Tool_Flow;
+   end Tool_Flow;
+
    function Tool_Summary
      (C       : Coyote_GUI.Conversation_Stack.Instance;
       Tool_Id : String) return String

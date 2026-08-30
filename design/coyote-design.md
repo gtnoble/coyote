@@ -1,7 +1,7 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.21
+**Version:** 1.22
 **Date:** 2026-08-30
 
 **Status:** Reviewed — project control (M3 complete 2026-06-02)
@@ -1251,9 +1251,12 @@ component hierarchy. One `Exchange_View` represents one submitted request and
 its complete agent response, bounded by the final turn footer. The submitted
 request is an exchange-level child. Each assistant/tool step is represented by
 a visible, titled `Gtk.Frame` containing a vertical `Gtk.Box`; thinking blocks,
-assistant response blocks, tool cards, the corresponding step or final footer,
-and its fork action are children of that step box. Notices remain exchange-level
-children unless they are emitted while a step is active.
+assistant response blocks, the corresponding step or final footer, and its fork
+action are children of that step box. Tool cards are grouped in a dedicated
+horizontal `Gtk.Flow_Box` inside the step box. The flow is non-homogeneous,
+uses natural card widths, and wraps cards onto additional rows as the available
+width changes. Notices remain exchange-level children unless they are emitted
+while a step is active.
 
 The resulting hierarchy is:
 
@@ -1265,7 +1268,8 @@ Gtk.Scrolled_Window
             ├─ Step Gtk.Frame (Step 1)
             │    └─ Step Gtk.Box
             │         ├─ Thinking/response elements
-            │         ├─ Tool Gtk.Frame(s)
+            │         ├─ Tool Gtk.Flow_Box
+            │         │    └─ Tool Gtk.Frame(s), wrapped by width
             │         └─ Step footer and fork action
             └─ Step Gtk.Frame (Step 2/final)
                  └─ Step Gtk.Box
@@ -1282,11 +1286,16 @@ regions; the outer adjustment owns transcript scrolling and auto-scroll.
 renders the user request. The first `Begin_Thinking`, `Append_Text`, or
 `Begin_Tool` operation lazily creates Step 1. `Begin_Thinking`/`End_Thinking`
 create and finalize a thinking element, while `Append_Text`/`End_Text_Block`
-update and finalize an assistant response element. `Begin_Tool` creates a
-native `Tool_Card`; `End_Tool` updates it by `Tool_Id`. An intermediate step
-footer and fork action are packed into the active step frame; the frame closes
-after the fork action. The next assistant/tool content creates the next step
-frame. The final footer and final fork action remain in the final step frame,
+update and finalize an assistant response element. The first `Begin_Tool` in
+an active step lazily creates its horizontal `Gtk.Flow_Box`; subsequent
+`Tool_Card` frames are inserted into that flow in event order. The flow is
+non-homogeneous, uses natural card widths, and has four-pixel row and column
+spacing, so GTK wraps cards onto additional rows as the available width
+changes. `End_Tool` updates the retained card by `Tool_Id`. An intermediate
+step footer and fork action are packed into the active step frame below the
+tool flow; the frame closes after the fork action. The next assistant/tool
+content creates the next step frame. The final footer and final fork action
+remain in the final step frame,
 then `Complete_Request` marks the enclosing exchange complete. Abort and error
 termination preserve the partial step frame and mark the exchange terminal
 without inventing a normal completion footer. Step frames are never scrolled
