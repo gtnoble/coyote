@@ -1,8 +1,8 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.20
-**Date:** 2026-08-30
+**Version:** 1.21
+**Date:** 2026-08-31
 **Status:** Draft
 **Project Plan:** `plan/project-plan.md`
 
@@ -594,10 +594,10 @@ completed block shall be converted at block termination. Conversion failure
 shall preserve the source as visible escaped or plain text. Copying rendered
 text shall not expose Pango markup.
 
-When `COYOTE_NATIVE_STACK=1`, the native component-stack renderer shall apply
-the same content contract to assistant response blocks. This is content and
-interaction parity, not a requirement for pixel-identical layout between the
-native GTK widget hierarchy and the legacy GtkLayout renderer.
+The native component-stack renderer shall apply the same content contract
+to assistant response blocks. The native GTK widget hierarchy is the sole
+supported GTK conversation presentation; no alternate conversation renderer
+or runtime renderer-selection flag is provided.
 
 **REQ-CORE-112** (D)
 Tool calls shall be rendered in the conversation view as graphical cards
@@ -694,11 +694,8 @@ viewport-scrolling behaviour.
 The GUI conversation view shall render standalone display-math blocks delimited
 by `$$`/`$$` and containing a complete Presentation MathML `<math>` document.
 The opening and closing `$$` delimiters shall be on standalone lines. If
-parsing fails, the original source shall remain visible as text. The current
-GtkLayout renderer satisfies this requirement; native component-stack
-realization is a separate qualification increment and shall not be claimed
-until its localized GTK/Lasem realization, fallback, selection, and zoom
-behaviour are demonstrated.
+parsing fails, the original source shall remain visible as text. The native component stack satisfies this requirement through its localized
+GTK/Lasem realization, selectable source fallback, and zoom propagation.
 **REQ-CORE-116** (D)
 The GUI frontend shall provide an `Options → Preferences...` dialog for editing
 persistent defaults without changing the active session. The dialog shall
@@ -876,10 +873,9 @@ history into the active frontend so the user can see the prior exchange.
 
 **REQ-CORE-131** (D)
 History replay shall render assistant messages with the same supported
-Markdown content contract as live GUI rendering. The native component-stack
-and legacy GtkLayout renderers may use different GTK/layout structures, but
-shall present equivalent supported content and applicable selection behavior.
-GUI history replay uses the GUI rendering contract; Plain history replay remains line-oriented plain text.
+Markdown content contract and native component hierarchy as live GUI rendering.
+GUI history replay uses the native GTK rendering contract; Plain history replay
+remains line-oriented plain text.
 
 ---
 
@@ -1436,11 +1432,9 @@ qualification requirements are identified.
 
 Traceability from requirements to test cases. Current test procedures and
 status are maintained in `plan/test-plan.md`; the current automated baseline
-is 806 registered tests. Display-backed native GUI procedures remain separately
-identified in the Test Plan. Native MathML implementation coverage is automated;
-DEM-048 visual and local-selection qualification remains separate. The
-table below is the original qualification
-matrix and retains historical `TC-*` identifiers; the current mappings are in
+is 762 registered tests. Native GUI qualification is complete for the
+Conversation_Stack presentation. The table below is the original qualification
+matrix and retains historical `TC-*` identifiers; current mappings are in
 `plan/test-plan.md` §6.
 
 | Requirement ID | Description (abbreviated) | Verification | Historical Test Case |
@@ -1528,7 +1522,7 @@ matrix and retains historical `TC-*` identifiers; the current mappings are in
 | REQ-CORE-110..119, 124..129, 133..139 | GUI frontend capabilities, including Preferences, ordered skill-directory editing, display math, zoom, component-stack conversation presentation, completion notifications, and Change Model search | D/T/I | TC-110..119, TC-124..129, TC-133..139; GUI regression tests including `Coyote.GUI layout and shutdown lifecycle`; DEM-033, DEM-042..044 |
 | REQ-CORE-113a..113c | GUI Help menu, Yelp topics, Edit menu, Product Information dialog, menu taxonomy, title, dialog, support-window, lifecycle-status, and desktop interaction conventions | D/T/I | DEM-036..039; Coyote_Help tests; Mallard validation; source inspection |
 | REQ-CORE-113d | Live structured Session Stats support window and session-reset currency | D/T/I | `coyote_gui_session_stats_window_tests.adb`; DEM-040; source inspection |
-| REQ-CORE-113e | Compact tool-card summary and View Details action opening the structured GTK tool-call detail window | D/T/I | `coyote_gui_conversation_tests.adb`, `coyote_gui_conversation_stack_tests.adb`, `llm_session_store_tests.adb`; DEM-041..043; source inspection |
+| REQ-CORE-113e | Compact tool-card summary and View Details action opening the structured GTK tool-call detail window | D/T/I | `coyote_gui_conversation_stack_tests.adb`, `llm_session_store_tests.adb`; DEM-041..043; source inspection |
 | REQ-CORE-132 | Complete visible accelerators for main GTK menu items | D/T | DEM-014; GUI regression tests |
 | REQ-CORE-133..139 | Native GTK exchange/component stack, local component selection, lifecycle, parity, and qualification | D/T/I | `coyote_gui_conversation_stack_tests.adb`; DEM-042..044; source inspection; performance analysis |
 | REQ-CORE-120..121 | Plain frontend capabilities | D | TC-120..121 |

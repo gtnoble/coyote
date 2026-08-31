@@ -236,7 +236,7 @@ package body Coyote_GUI.Conversation_Stack.Testing is
 
    function Tool_Detail
      (C       : Coyote_GUI.Conversation_Stack.Instance;
-      Tool_Id : String) return Coyote_GUI.Conversation.Tool_Info
+      Tool_Id : String) return Coyote_GUI.Tool_Info
    is
    begin
       return C.Tool_Detail (Tool_Id);

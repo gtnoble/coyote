@@ -11,6 +11,52 @@ with Ada.Strings.Unbounded;
 
 package Coyote_GUI is
 
+   --  Tool status shared by native cards and the GTK update queue.
+   type Tool_End_Status is (Success, Error, Cancelled);
+
+   --  Tool metadata retained for native detail windows and tool cards.
+   type Tool_Info is record
+      Name             : Ada.Strings.Unbounded.Unbounded_String;
+      Args             : Ada.Strings.Unbounded.Unbounded_String;
+      Result_Text      : Ada.Strings.Unbounded.Unbounded_String;
+      Media_Type       : Ada.Strings.Unbounded.Unbounded_String;
+      Result_Status    : Tool_End_Status := Success;
+      Model            : Ada.Strings.Unbounded.Unbounded_String;
+      Source_Directory : Ada.Strings.Unbounded.Unbounded_String;
+      Session_Start    : Ada.Strings.Unbounded.Unbounded_String;
+      Turn_Index       : Positive := 1;
+      Call_In_Turn     : Positive := 1;
+   end record;
+
+   type Action_Kind is (Fork);
+
+   type Action_Info (Kind : Action_Kind := Fork) is record
+      case Kind is
+         when Fork =>
+            Fork_UUID   : Ada.Strings.Unbounded.Unbounded_String;
+            Fork_Turn_N : Positive;
+            Fork_Step_N : Natural;
+      end case;
+   end record;
+
+   type Tool_Click_Result (Found : Boolean := False) is record
+      case Found is
+         when True =>
+            Info : Tool_Info;
+         when False =>
+            null;
+      end case;
+   end record;
+
+   type Action_Click_Result (Found : Boolean := False) is record
+      case Found is
+         when True =>
+            Action : Action_Info;
+         when False =>
+            null;
+      end case;
+   end record;
+
    --  ── Run mode ──────────────────────────────────────────────────────────
    --  Mirrors Coyote_App.Frontend.Run_Mode.
 
@@ -33,11 +79,6 @@ package Coyote_GUI is
    type Request_Kind is (Prompt, Steer);
    type Footer_Kind is (Step_Footer, Final_Footer);
    type Completion_Status is (Completed, Aborted, Failed);
-
-   --  ── Tool end status ───────────────────────────────────────────────────
-   --  Mirrors Coyote_App.Frontend.Tool_End_Status.
-
-   type Tool_End_Status is (Success, Error, Cancelled);
 
    --  ── Notice severity ───────────────────────────────────────────────────
    --  Mirrors Coyote_App.Frontend.Notice_Kind.

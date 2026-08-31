@@ -1,7 +1,7 @@
 # Project Plan — coyote
 
-**Version:** 1.26
-**Date:** 2026-08-30
+**Version:** 1.27
+**Date:** 2026-08-31
 **Status:** Active
 
 ---
@@ -416,7 +416,7 @@ Subsequent builds will define their own milestone sets.
 | R6 | Reasoning items not replayed on later Responses turns degrade o-series / GPT-5 quality | Medium | Moderate | Pack reasoning `id` + `encrypted_content` in the existing signature field; unit-test history encoding; request `include: reasoning.encrypted_content` | Mitigated; monitor live use |
 | R3 | SDD-CORE drifts from actual implementation, misleading future development | Medium | Moderate | Treat SDD-CORE as the primary controlled design artifact; include SDD-CORE review in the Definition of Done for each build; update AGENTS.md to match SDD-CORE when it diverges; PCR raised when drift is detected | Open |
 | R4 | Process artifact maintenance overhead crowds out feature work | Low | Low | Keep all process artifacts in Markdown co-located with the code; lightweight tooling (no external tracking systems); tailor to minimum viable coverage | Open |
-| R7 | Native GTK component-stack migration, including visible per-step frames, regresses streaming latency, memory, resize, or session-reset correctness, or frames are not visually distinct under a theme | Medium | High | Implement behind current GtkLayout baseline; qualify frame visibility, 100, 500, and 2,000 exchanges; measure first-token latency, widget count, memory, resize, zoom, replay, and reset; retain baseline fallback until gates pass | Open |
+| R7 | Native GTK component-stack migration, including visible per-step frames, regresses streaming latency, memory, resize, or session-reset correctness, or frames are not visually distinct under a theme | Medium | High | Native stack qualified for frame visibility, live/replay behavior, zoom, reset, responsive tool flow, and 100/500/2,000-exchange histories; retain automated regression coverage | Closed |
 
 ---
 
@@ -885,16 +885,33 @@ invited.
 | Documentation | README, man page, SRS, SDD, SDF, Test Plan, Integration Guide, AGENTS, and this Project Plan updated. |
 | Disposition | Implemented. Historical Acme requirements and review records remain retained as superseded records. |
 
+
+### Review 22 — Native GTK conversation cutover (2026-08-31)
+
+**Review type:** Scope, requirements, design, implementation, and
+qualification review
+**Trigger:** User-approved retirement of the qualified legacy GTK conversation
+renderer.
+
+| Indicator | Value |
+|---|---|
+| Scope change | Removed the custom GtkLayout/Cairo/Pango conversation renderer, its test accessors and tests, and the `COYOTE_NATIVE_STACK` runtime switch. The native component stack is the sole GTK conversation presentation; Plain remains supported. |
+| Component progress | Native exchange/step hierarchy, Markdown, MathML, selection, zoom, responsive tool cards, replay, reset, and large-history behavior qualified and integrated unconditionally. |
+| Verification | Production and test development builds succeed. The 17-test native-stack group passes 17/17; the GUI lifecycle regression passes 1/1 with zero failed assertions and zero unexpected errors. The post-cutover suite registers 762 tests. |
+| Risk disposition | R7 closed. Native qualification gates DEM-042 through DEM-048 are closed. |
+| Documentation | SRS-CORE 1.21, SDD-CORE 1.24, TEST-PLAN 1.25, frontend SDF, and PCR-092 record the cutover. |
+| Disposition | Implemented and qualified. Historical migration records remain retained as superseded records. |
+
 ## 9. Artifact Version Table
 
 
 | Artifact | ID | Location | Current Version | Control Level |
 |---|---|---|---|---|
-| Project Plan | PLAN | `plan/project-plan.md` | 1.26 (2026-08-30) | Project |
+| Project Plan | PLAN | `plan/project-plan.md` | 1.27 (2026-08-31) | Project |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
-| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.20 (2026-08-30) | Client |
-| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.22 (2026-08-30) | Project |
+| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.21 (2026-08-31) | Client |
+| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.24 (2026-08-31) | Project |
 | coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.2 (2026-06-21) | Project |
 | coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.2 (2026-06-21) | Project |
-| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.23 (2026-08-30) | Project |
+| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.25 (2026-08-31) | Project |
 | Agent Working Instructions (secondary) | AGENTS | `AGENTS.md` | active | Project |

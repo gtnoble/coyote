@@ -10,7 +10,6 @@ with Ada.Containers.Vectors;
 with Ada.Strings.Hash;
 with Ada.Strings.Unbounded;
 with Coyote_GUI;
-with Coyote_GUI.Conversation;
 with Coyote_GUI.Math_Element;
 with Gtk.Box;
 with Gtk.Frame;
@@ -112,7 +111,7 @@ package Coyote_GUI.Conversation_Stack is
    --  Return the complete detail payload retained for Tool_Id.
    function Tool_Detail
      (C       : Instance;
-      Tool_Id : String) return Coyote_GUI.Conversation.Tool_Info;
+      Tool_Id : String) return Coyote_GUI.Tool_Info;
 
    --  Keep the active exchange at the bottom of the outer host.
    procedure Scroll_To_End (C : in out Instance);
@@ -138,7 +137,7 @@ private
       Summary_Text : Ada.Strings.Unbounded.Unbounded_String;
       Status       : Gtk.Label.Gtk_Label;
       Details      : Gtk.Button.Gtk_Button;
-      Info         : Coyote_GUI.Conversation.Tool_Info;
+      Info         : Coyote_GUI.Tool_Info;
       Completed    : Boolean := False;
    end record;
 

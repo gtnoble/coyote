@@ -10,7 +10,6 @@ with Glib;
 with Gtk.Button;
 with Coyote_App.Utils;
 with Coyote_GUI;
-with Coyote_GUI.Conversation;
 with Coyote_GUI.Conversation_Stack.Testing;
 with Gtk.Enums;
 with Gtk.Flow_Box;
@@ -346,7 +345,7 @@ package body Coyote_GUI_Conversation_Stack_Tests is
    procedure Test_Tool_Card_Uses_Native_Labels (T : in out Test) is
       Summary : String (1 .. 4096);
       Summary_Length : Natural;
-      Info : Coyote_GUI.Conversation.Tool_Info;
+      Info : Coyote_GUI.Tool_Info;
       Tool_Args : constant String :=
         "{""command"":""printf hello"",""timeout"":5," &
         """run_group"":0,""stdin"":"""",""media_type"":null}";

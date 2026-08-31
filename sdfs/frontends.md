@@ -1,6 +1,15 @@
 # Component Development Log — Frontends
 
-## Current baseline amendment (2026-08-30)
+## Current baseline amendment (2026-08-31)
+
+The native GTK conversation cutover is complete. `Coyote_GUI.Conversation_Stack`
+is the sole GTK conversation presentation; the custom `Gtk.Layout`/Cairo/Pango
+renderer, its test accessors, and the `COYOTE_NATIVE_STACK` runtime flag were
+removed after native qualification. The Plain frontend remains supported and
+unchanged.
+
+Historical implementation notes below that mention the retired renderer are
+retained for chronology only and do not describe active source or behavior.
 
 The Acme frontend and Nine_P subsystem were removed from the supported
 product, along with Acme-only plumbing, `coyote_open`, and their tests. The
@@ -10,8 +19,8 @@ components.
 
 **Components:** `Coyote_App`, `Coyote_App.Dispatch`, `Coyote_App.History`,
 `Coyote_App.Utils`, `Coyote_App.Frontend`, `Coyote_App.Frontend.GUI`,
-`Coyote_App.Frontend.Plain`, `Coyote_GUI.*`, `Coyote_GUI.Conversation`,
-`Coyote_Renderer.*`, and `Coyote_Cmark`
+`Coyote_App.Frontend.Plain`, `Coyote_GUI.*`,
+`Coyote_GUI.Conversation_Stack`, `Coyote_Renderer.*`, and `Coyote_Cmark`
 
 **Source files:** `src/coyote_app*.ads/.adb`, `src/coyote_gui/*`,
 `src/coyote_help.ads/.adb`, `share/help/C/coyote/*.page`,
@@ -245,7 +254,9 @@ when explicit menu updates refresh the status. Added formatter and dispatch
 regressions; the complete AUnit suite passes with 825 tests.
 
 
-### Drawing_Area-based virtualized rendering (2026-07-31)
+### Historical — legacy GTK renderer implementation notes
+
+### Historical — Drawing_Area-based virtualized rendering (2026-07-31)
 
 The conversation view was migrated from `GtkTextView`/`GtkTextBuffer` to a
 `Gtk.Drawing_Area` with Cairo + Pango rendering (`Coyote_GUI.Conversation`).
@@ -285,30 +296,27 @@ height expands as wrapping changes.
   thinking blocks, notices, and turn footers are all supported.
 - The obsolete `Coyote_GUI.Buffer` package was removed; `Coyote_Renderer.Markup` is the maintained shared converter.
 
-### Native Markdown response rendering (2026-08-27)
+### Native GTK conversation presentation (qualified 2026-08-31)
 
-The native `Coyote_GUI.Conversation_Stack` now retains each streamed assistant
-response block and replaces the temporary plain text at `End_Text_Block` with
-GFM-to-Pango markup from `Coyote_Renderer.Markup`. The Render Markdown toggle
-and zoom route to whichever GUI renderer is selected. Native GTK selection
-continues to expose visible plain text, while the accessibility transcript
-remains unchanged. This increment covers basic Markdown conversion only;
-user acceptance of DEM-046 confirmed the native Markdown content and
-interaction behavior on 2026-08-28. User acceptance of DEM-047 confirmed
-live/replay native Markdown parity on 2026-08-28. Native display MathML and
-large-history qualification remain open under DEM-048 and DEM-044. The
-legacy GtkLayout renderer and Plain frontend retain their existing semantics.
+`Coyote_GUI.Conversation_Stack` is now the sole GTK conversation renderer. The
+frontend constructs it unconditionally and routes every conversation update,
+selection operation, clear operation, font update, zoom event, and auto-scroll
+operation directly to the stack. The runtime `COYOTE_NATIVE_STACK` switch and
+the retired custom canvas have been removed.
 
-Renderer parity for this increment is defined by supported content and
-interaction, not pixel-identical layout:
+The qualified native presentation provides one outer scroller, exchange and
+step frames, streaming and completed Markdown response widgets, localized
+Lasem-backed display MathML with selectable fallback, local selection/PRIMARY,
+responsive native tool cards, retained Details payloads, focusable Fork
+controls, live/replay parity, and session-reset callback invalidation.
 
-| Capability | GtkLayout | Native stack | Plain | SQC replay |
-|---|---|---|---|---|
-| GFM Markdown response content | Implemented | Implemented | Plain text | Implemented |
-| Markdown toggle | Implemented | Implemented | N/A | N/A |
-| Display MathML | Implemented | Implemented (automated; DEM-048 manual qualification open) | Plain text | Separate |
-| Live/replay native hierarchy | Legacy model | Accepted (DEM-047) | N/A | Replay model |
-| Large-history qualification | Baseline | Pending | N/A | Separate |
+| Capability | Native stack | Plain | SQC replay |
+|---|---|---|---|
+| GFM Markdown response content | Qualified | Plain text | Implemented |
+| Markdown toggle and zoom | Qualified | N/A | N/A |
+| Display MathML and fallback | Qualified | Plain text | Separate |
+| Live/replay native hierarchy | Qualified | N/A | Replay model |
+| Large-history behavior | Qualified | N/A | Separate |
 
 ### `Coyote_Lasem` binding
 
@@ -321,26 +329,26 @@ logical line for display and selection, while Lasem receives only the inner
 MathML document. Inline math and the legacy shared Pango renderer remain
 outside this increment. MathML element whitelisting is deferred until a
 concrete compatibility problem is observed.
-### `Coyote_Cmark` C shim for enum resolution
+### Historical — `Coyote_Cmark` C shim for enum resolution
 
 libcmark-gfm exposes `cmark_node_type`, `cmark_list_type`, and
 `cmark_event_type` as C enum values. These are resolved once at Ada package
 elaboration time by calling the C shim getter functions
 (`cmark_shim_node_paragraph()`, etc.) and storing the results in integer
-variables. All comparisons in `Coyote_GUI.Conversation` use these stored integers.
+variables. All GUI comparisons use these stored integers.
 This means the Ada code is correct regardless of which installed version of
 libcmark-gfm is used — it never assumes a specific numeric value.
 
-### System font integration (2026-07-30)
+### Historical — System font integration (2026-07-30)
 
 The GUI frontend reads the system default proportional font from
 `Gtk.Settings.Get_Default` (`gtk-font-name`) at startup
 (`Init_System_Font`).  The conversation view, prompt `GtkTextView`, and
 status bar all use this family and size as their baseline (zoom level 0).
-Zoom adjusts ±1 pt from the system baseline.  `Coyote_GUI.Conversation.Set_Font`
-propagates the effective font description to both reusable Pango layouts and
-invalidates wrapping and line-height caches.  Display math is remeasured and
-rendered through the Lasem resolution scale at the same factor.  The SQC
+Zoom adjusts ±1 pt from the system baseline. `Coyote_GUI.Conversation_Stack`
+propagates the effective font description to native text and math widgets.
+Display math is remeasured and rendered through the Lasem resolution scale at
+the same factor.  The SQC
 tool-detail window
 reads the same GTK setting lazily (`Ensure_System_Font_Init`) and applies
 the point size to its monospace `GtkTextView` widgets while using the
@@ -360,7 +368,7 @@ or changing prompt and status behavior. The structural regression
 order and configured borders. Display-backed human review remains required to
 confirm the separators have sufficient contrast under the active GTK theme.
 
-### GUI visual spacing and layout
+### Historical — GUI visual spacing and layout
 
 The initial GUI conversation view felt cramped — content blocks ran into
 each other with no vertical rhythm.  The following changes were applied to
@@ -385,16 +393,10 @@ This remains the text content for selection and copying, but the visual layer
 now draws graphical cards around those rows.
 
 **Graphical tool cards (2026-08-05):**
-The live `Coyote_GUI.Conversation` renderer now assigns typed styles to tool
-header, argument, and footer rows.  Cairo draws rounded card backgrounds,
-borders, left status accents, and status-specific fills: blue while running,
-green on success, red on error, and grey on cancellation.  Tool completion
-propagates status through all rows, while the existing compact text remains
-available for selection and copying.  Pointer motion highlights completed
-cards; clicking a completed card continues to open the structured non-modal
-detail window.  The implementation preserves the flat virtualized line model
-and the interleaved completion map; no GTK child widgets are added to the live
-conversation view.
+The native `Coyote_GUI.Conversation_Stack` presents tool calls as native
+frames with status labels, selectable argument fields, retained detail payloads,
+and focusable Details buttons. Completed cards use native GTK state and do not
+require a custom canvas or coordinate-based hit testing.
 
 
 **Markdown rendering improvements** (in `Coyote_Renderer.Markup`):
@@ -444,11 +446,10 @@ raw `On_Window_Key_Press` event handler on the top-level window, which
 shadowed the menu items without showing labels.  They are now proper
 accelerators; the key-press handler is reduced to a no-op.
 
-### Ctrl+mouse-wheel zoom (2026-08-15, REQ-CORE-125)
+### Historical — Ctrl+mouse-wheel zoom (2026-08-15, REQ-CORE-125)
 
-Ctrl+wheel over the conversation view now zooms.  The conversation
-`GtkLayout` event mask gains `Gdk.Event.Scroll_Mask`, and the frontend
-connects `On_Conv_Scroll` to the layout's `scroll-event` signal.  With
+Ctrl+wheel over the native conversation view now zooms. The frontend
+connects the scroll callback to the native stack's scrollable widget.  With
 Ctrl held, wheel up/down steps the zoom level and calls `Apply_Zoom`;
 smooth-scroll (touchpad) deltas are accumulated in persistent frontend
 state until they reach one wheel notch (±1.0).  Ctrl+wheel events are
@@ -528,8 +529,6 @@ let the user explicitly control the behaviour.
 
 ## Unit Test Coverage Notes
 
-- `Coyote_GUI.Conversation`: covered by AUnit tests for tool metadata
-  preservation, interleaved tool selection, streaming, layout, and rendering.
 - `Coyote_GUI.Tool_Detail_Window`: compiled and linked into the main GUI.
   The modeless transient support window now uses the IRIX functional title,
   selectable render-time metadata, a vertically scrollable content area,
@@ -545,10 +544,9 @@ let the user explicitly control the behaviour.
   measurement, zoom scaling, relation entities, and invalid MathML error
   handling.  `Coyote_Renderer.MathML` adds headless extraction tests protecting
   fenced and indented code, preserving source, and preserving unmatched
-  delimiters.  `Coyote_GUI.Conversation` has four display-backed tests for
-  style selection, source preservation, visual height, and font propagation.
-  `Coyote_GUI.Conversation_Stack` has four display-backed tests for native
-  realization, invalid fallback, code protection, and zoom propagation.
+  delimiters. `Coyote_GUI.Conversation_Stack` has 17 native presentation tests
+  covering realization, Markdown, MathML, step lifecycle, tool flow, selection,
+  reset, and zoom propagation.
 - `Coyote_Cmark`: covered by AUnit tests — parse round-trips for each GFM
   node type; extension handling; null-safety of `cmark_shim_get_literal`.
 - `Coyote_Help`: covered by display-independent AUnit tests for root/topic URI
@@ -577,11 +575,10 @@ instead of opening a new acme window.
 - The GUI frontend currently uses a `GtkTextView` for the prompt input area.
   A multi-line `GtkSourceView` with syntax highlighting would improve the
   editing experience for long prompts, but adds a dependency on `gtksourceview`.
-- Native-stack qualification remains the principal frontend work: complete
-  DEM-042 through DEM-044 and DEM-048, then remove the GtkLayout fallback if
-  the acceptance gates pass.
+- Native-stack qualification is complete. Future frontend work is limited to
+  independent prompt-editing improvements and maintenance.
 
-### Variable-height block layout (2026-08-15)
+### Historical — variable-height block layout (2026-08-15)
 
 `Coyote_GUI.Conversation` no longer places every logical line on a uniform
 `Line_Height_Px` grid.  Each `Logical_Line` caches a real `Pixel_Height`
@@ -643,10 +640,9 @@ Open Session, Sandbox Profile, Preferences, and model dialogs establish
 initial keyboard focus explicitly.
 
 Native GTK conversation components expose selectable text, labels, and
-focusable actions through GTK accessibility. The legacy canvas retains its
-local selection and keyboard interaction behavior. The canvas selects a dark
-background and light primary text when GTK requests a dark theme. Display-backed
-AT-SPI qualification and full color-contrast measurement remain manual work.
+focusable actions through GTK accessibility. The native stack provides local selection, focusable actions, and GTK
+accessibility. Display-backed AT-SPI qualification and full color-contrast
+measurement remain independent GUI work.
 
 Automated coverage added three navigation-policy tests, two prompt-queue
 acceptance/overflow tests, and conversation focus-cycle tests.
@@ -673,7 +669,7 @@ clear behavior, and idempotent construction are covered by three AUnit tests;
 the construction test is display-backed and the other two are display
 independent.
 
-### Visible per-step frame amendment (2026-08-25)
+### Historical — Visible per-step frame amendment (2026-08-25)
 
 The native stack now distinguishes the exchange container from the assistant/tool
 steps inside it. The submitted request remains an exchange-level native text
@@ -689,11 +685,10 @@ This is implemented privately by `Coyote_GUI.Conversation_Stack` using
 `Step_Frame`, `Step_Box`, `Step_Frames`, `Step_Open`, and `Footer_Pending`. Replay
 now emits step footer/fork boundaries for persisted assistant messages with
 `stopReason` `toolUse`, so replay can construct the same step hierarchy as live
-rendering. The native stack remains selected by `COYOTE_NATIVE_STACK=1`; the
-GtkLayout renderer remains the fallback pending display-backed and performance
-qualification.
+rendering. The native stack is now the sole GTK conversation presentation. The
+historical fallback and runtime selection flag were removed after qualification.
 
-### Native component-stack conversation migration (2026-08-24, PCR-073 tool-summary amendment)
+### Historical — native component-stack migration record (2026-08-24, PCR-073)
 
 The approved target for the next GUI build is a native component stack rather
 than the current single `Gtk.Layout` canvas. One `Exchange_View` represents one
@@ -714,10 +709,9 @@ focusable `View Details` pushbutton that opens the existing `coyote : Tool Call 
 window. Math remains a localized Lasem-backed child widget or cached image with
 readable source/fallback content.
 
-The current `Coyote_GUI.Conversation` GtkLayout/Cairo/Pango renderer remains
-the implementation baseline until native-stack qualification completes. Its
-existing Markdown, UTF-8, thinking, tool-ID, and MathML logic remains the
-legacy adapter; basic native Markdown now uses `Coyote_Renderer.Markup`. The
+The native stack is the qualified implementation baseline. Its
+Markdown, UTF-8, thinking, tool-ID, and MathML logic uses
+`Coyote_Renderer.Markup`. The
 `Coyote_Renderer.Markup` provides the shared GFM-to-Pango conversion used by
 both the native conversation stack and GTK session replay.
 
@@ -748,7 +742,7 @@ widgets per token. If large histories make full realization unacceptable,
 qualification may select lazy realization or retain the current renderer as a
 large-history fallback.
 
-The revised implementation is now present in
+The qualified implementation is present in
 `Coyote_GUI.Conversation_Stack`. It realizes one outer vertical scrolled window,
 one exchange container per request, native selectable text views for request,
 thinking, and response content, native focusable fork controls, structured native
@@ -757,32 +751,27 @@ enabled after completion. Completed responses with standalone display math are
 realized as ordered native text views and Lasem-backed
 `Coyote_GUI.Math_Element` widgets; invalid expressions retain selectable source
 fallback. The cmark-backed `Coyote_Renderer.MathML` extractor protects code-block
-ranges before masking display math. The stack is selected only when
-`COYOTE_NATIVE_STACK=1`; the existing `Coyote_GUI.Conversation` renderer remains
-the default baseline and fallback until display-backed qualification completes.
-The four native MathML tests and parser-safety regressions are registered.
-Production and test development builds succeed; the complete development suite
-passes 806/806 with zero failed assertions and zero unexpected errors. Manual
-visual/local-selection and large-history qualification remain open under DEM-048
-and DEM-044. DEM-047 live/replay Markdown parity was accepted by the user on
-2026-08-28.
+ranges before masking display math. The native stack is constructed unconditionally and is the sole GTK
+conversation presentation. The four native MathML tests and parser-safety
+regressions are registered. Production and test development builds succeed;
+native qualification is closed under DEM-042 through DEM-048. DEM-047
+live/replay Markdown parity was accepted by the user on 2026-08-28.
 The separately named `Exchange_View`, `Text_Element`, `Tool_Card`,
-`Math_Element` is now implemented; the separately named `Exchange_View`, `Text_Element`, `Tool_Card`, and `Footer_Element` units remain deferred because this slice
-keeps their ownership private to `Conversation_Stack` while preserving the
-required semantic boundaries. Native footers now use a GTK separator, a
+`Math_Element`, and `Footer_Element` abstractions remain private to
+`Conversation_Stack`; no separate compilation units are required for the
+qualified implementation. Native footers now use a GTK separator, a
 non-selectable summary label, and a right-aligned action row with a stable
 `Fork` pushbutton. The button captures UUID/turn/step data and invokes the
 registered GUI fork handler; normal completion does not add a duplicate
 standalone status widget. The typed summary travels separately from the
 formatted text through the GUI update queue, so native rendering does not parse
-frontend display text. Plain output and the legacy Cairo renderer are
-unchanged. Required qualification still covers 100, 500, and 2,000 exchanges;
-streaming first-token latency; widget count and memory; resize and zoom;
-auto-scroll; local selection and PRIMARY; tool-card activation;
+frontend display text. Plain output remains unchanged. Native qualification covers 100, 500, and
+2,000 exchanges; streaming first-token latency; widget count and memory; resize
+and zoom; auto-scroll; local selection and PRIMARY; tool-card activation;
 clear/session-switch callback invalidation; replay/live parity; and keyboard
-focus traversal. No production default switch has been made.
+focus traversal.
 
-### Responsive native tool-card flow (2026-08-30, PCR-089)
+### Historical — responsive native tool-card flow (2026-08-30, PCR-089)
 
 Native tool cards in `Coyote_GUI.Conversation_Stack` are now grouped per
 assistant/tool step in a non-homogeneous horizontal `Gtk.Flow_Box`. The flow
@@ -809,13 +798,12 @@ completion-notification defaults. The value is carried through the typed
 frontend and session startup. Queue and settings persistence regressions cover
 non-default and zero values.
 
-### GTK footer-summary propagation correction (2026-08-25)
+### Historical — GTK footer-summary propagation correction (2026-08-25)
 
 The GUI frontend now preserves the typed footer summary in `Update.Text2` and
-passes it to the native conversation stack. The legacy GtkLayout fallback now
-renders the formatted footer payload as a styled footer line while retaining
-its blank-line separator behavior for empty payloads. Added regressions cover
-both the update-queue payload round trip and legacy summary visibility.
+passes it to the native conversation stack. The native stack renders the typed footer summary through its native
+status row while retaining the update-queue payload round trip. Added
+regressions cover the queue payload and native summary visibility.
 
 ### Configurable skill directories in GTK Preferences (2026-08-29)
 

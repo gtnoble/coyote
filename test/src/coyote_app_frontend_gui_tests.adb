@@ -49,34 +49,37 @@ package body Coyote_App_Frontend_GUI_Tests is
       if Display_Available then
          Gtk.Main.Init;
          T.Display_Available := True;
-         Coyote_App.Frontend.GUI.Create
-           (T.Frontend, "coyote layout test", Pop_Under => True);
       end if;
    end Set_Up;
 
    overriding procedure Tear_Down (T : in out Test) is
-      use Coyote_App.Frontend.GUI.Testing;
+      pragma Unreferenced (T);
    begin
-      if T.Display_Available and then Main_Window (T.Frontend) /= null then
-         Main_Window (T.Frontend).Destroy;
-      end if;
+      null;
    end Tear_Down;
 
    procedure Test_Layout_And_Shutdown_Lifecycle
      (T : in out Test)
    is
       use Coyote_App.Frontend.GUI.Testing;
-      Outer         : constant Gtk.Box.Gtk_Box := Outer_Box (T.Frontend);
-      Prompt        : constant Gtk.Box.Gtk_Box := Prompt_Box (T.Frontend);
-      Status        : constant Gtk.Box.Gtk_Box := Status_Box (T.Frontend);
-      Conv_Prompt   : constant Gtk.Separator.Gtk_Separator :=
-        Conversation_Prompt_Separator (T.Frontend);
-      Prompt_Status : constant Gtk.Separator.Gtk_Separator :=
-        Prompt_Status_Separator (T.Frontend);
+      Frontend      : Coyote_App.Frontend.GUI.Instance;
+      Outer         : Gtk.Box.Gtk_Box;
+      Prompt        : Gtk.Box.Gtk_Box;
+      Status        : Gtk.Box.Gtk_Box;
+      Conv_Prompt   : Gtk.Separator.Gtk_Separator;
+      Prompt_Status : Gtk.Separator.Gtk_Separator;
+      use type Gtk.Window.Gtk_Window;
    begin
       if not T.Display_Available then
          return;
       end if;
+      Coyote_App.Frontend.GUI.Create
+        (Frontend, "coyote layout test", Pop_Under => True);
+      Outer := Outer_Box (Frontend);
+      Prompt := Prompt_Box (Frontend);
+      Status := Status_Box (Frontend);
+      Conv_Prompt := Conversation_Prompt_Separator (Frontend);
+      Prompt_Status := Prompt_Status_Separator (Frontend);
 
       Assert (Outer /= null, "GUI creates an outer layout box");
       Assert (Conv_Prompt /= null,
@@ -110,11 +113,11 @@ package body Coyote_App_Frontend_GUI_Tests is
 
          task body Reader is
          begin
-            Item := T.Frontend.Read_Item;
+            Item := Frontend.Read_Item;
             accept Complete;
          end Reader;
       begin
-         T.Frontend.Request_Shutdown;
+         Frontend.Request_Shutdown;
          Reader.Complete;
          Assert
            (Item.Kind = Coyote_GUI.Prompt_Queue.Shutdown_Item,
@@ -124,20 +127,26 @@ package body Coyote_App_Frontend_GUI_Tests is
       Assert
         (Coyote_Process_Control.Monitor_Should_Stop,
          "application shutdown should stop the process-control monitor");
+      if Main_Window (Frontend) /= null then
+         Main_Window (Frontend).Destroy;
+      end if;
    end Test_Layout_And_Shutdown_Lifecycle;
 
    procedure Test_Product_Information_Icon
      (T : in out Test)
    is
       use Coyote_App.Frontend.GUI.Testing;
-      Dialog : Gtk.Dialog.Gtk_Dialog;
-      Image  : Gtk.Image.Gtk_Image;
+      Frontend : Coyote_App.Frontend.GUI.Instance;
+      Dialog   : Gtk.Dialog.Gtk_Dialog;
+      Image    : Gtk.Image.Gtk_Image;
    begin
       if not T.Display_Available then
          return;
       end if;
+      Coyote_App.Frontend.GUI.Create
+        (Frontend, "coyote product information test", Pop_Under => True);
 
-      Build_Product_Information (T.Frontend, Dialog, Image);
+      Build_Product_Information (Frontend, Dialog, Image);
       Assert (Dialog /= null,
               "Product Information creates a dialog");
       Assert (Dialog.Get_Title = "coyote : Product Information",
@@ -167,6 +176,7 @@ package body Coyote_App_Frontend_GUI_Tests is
       Assert (Gtk.Widget.Is_Visible (Gtk.Widget.Gtk_Widget (Image)),
               "Product Information icon is visible");
       Dialog.Destroy;
+      Main_Window (Frontend).Destroy;
    end Test_Product_Information_Icon;
 
 end Coyote_App_Frontend_GUI_Tests;

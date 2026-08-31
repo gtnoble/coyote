@@ -713,7 +713,7 @@ package body Coyote_GUI.Conversation_Stack is
       Status       : Gtk.Label.Gtk_Label;
       Arguments    : Gtk.Grid.Gtk_Grid;
       Details      : Gtk.Button.Gtk_Button;
-      Info         : Coyote_GUI.Conversation.Tool_Info;
+      Info         : Coyote_GUI.Tool_Info;
       Summary_Text : constant String :=
         Format_Tool_Summary
           (Name, Args, Coyote_GUI.Success, "", Running => True);
@@ -831,7 +831,7 @@ package body Coyote_GUI.Conversation_Stack is
       Tool_Value.Info.Result_Text   := To_Unbounded_String (Result);
       Tool_Value.Info.Media_Type    := To_Unbounded_String (Media_Type);
       Tool_Value.Info.Result_Status :=
-        Coyote_GUI.Conversation.Tool_End_Status'Val
+        Coyote_GUI.Tool_End_Status'Val
           (Coyote_GUI.Tool_End_Status'Pos (Status));
       Tool_Value.Summary_Text :=
         To_Unbounded_String
@@ -983,7 +983,7 @@ package body Coyote_GUI.Conversation_Stack is
 
    function Tool_Detail
      (C       : Instance;
-      Tool_Id : String) return Coyote_GUI.Conversation.Tool_Info
+      Tool_Id : String) return Coyote_GUI.Tool_Info
    is
       Tool_Value : Tool_Entry;
    begin

@@ -1,8 +1,8 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.23
-**Date:** 2026-08-30
+**Version:** 1.24
+**Date:** 2026-08-31
 
 **Status:** Reviewed — project control (M3 complete 2026-06-02)
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
@@ -156,16 +156,12 @@ replaced with Pango markup when the block completes (`End_Text_Block`).
 
 ### 3.5 Output Media and Formats
 
-- **GUI frontend:** GTK3 `Gtk.Layout` with Cairo + Pango virtualized
-  rendering via `Coyote_GUI.Conversation`.  Only visible lines are laid
-  out and drawn; resize cost is O(visible), not O(document).  Plain UTF-8
-  text is rendered directly; completed blocks are rendered through the GFM
-  markdown path.  Tool calls are displayed as Cairo-drawn graphical cards
-  containing compact box-drawing text; thinking blocks use yellow-background
-  paragraphs.  Notices use
-  colour-coded text, and turn separators use dim horizontal rules.
-  Conversation margins are 16/12 px (left+right / top+bottom); content
-  blocks are separated by blank lines for visual rhythm.
+- **GUI frontend:** GTK3 native widget hierarchy hosted by
+  `Coyote_GUI.Conversation_Stack`. Each exchange contains native text views,
+  step frames, tool cards, footers, fork controls, notices, and localized
+  Lasem-backed display math. Plain UTF-8 text is rendered directly while
+  streaming and completed blocks use the shared GFM path. Selection is local
+  to semantic components, and one outer scroller hosts the conversation.
 
 - **Plain frontend:** Plain UTF-8 to stdout. No ANSI escape codes.
 
@@ -234,7 +230,6 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `Coyote_GUI` | GUI root (Update_Kind, Update record) | `src/coyote_gui/coyote_gui.ads` |
 | `Coyote_GUI.Updates` | Protected agent→GTK queue | `src/coyote_gui/coyote_gui-updates.ads/.adb` |
 | `Coyote_GUI.Prompt_Queue` | Protected GTK→agent queue | `src/coyote_gui/coyote_gui-prompt_queue.ads/.adb` |
-| `Coyote_GUI.Conversation` | Current GtkLayout-based virtualized conversation renderer (migration baseline) | `src/coyote_gui/coyote_gui-conversation.ads/.adb` |
 | `Coyote_GUI.Conversation_Stack` | Native GTK exchange and per-step frame host/update router | `src/coyote_gui/coyote_gui-conversation_stack.ads/.adb` |
 | `Coyote_GUI.Exchange_View` | Deferred; exchange realization is owned by `Conversation_Stack` in this build | Not separate in qualification build |
 | `Coyote_GUI.Text_Element` | Deferred; native text-element realization is owned by `Conversation_Stack` in this build | Not separate in qualification build |
@@ -301,8 +296,7 @@ three layers:
   Coyote_App.History  ──► LLM.Session_Store, Coyote_App.Frontend'Class
   Coyote_App.Utils
         │
-        ├─► Coyote_App.Frontend.GUI ──► Coyote_GUI.Conversation,
-        │                                  Coyote_GUI.Conversation_Stack,
+        ├─► Coyote_App.Frontend.GUI ──► Coyote_GUI.Conversation_Stack,
         │                                  Coyote_GUI.Exchange_View,
         │                                  Coyote_GUI.Tool_Detail_Window,
         │                                  Coyote_GUI.Session_Stats_Window,
@@ -406,11 +400,10 @@ three layers:
            → On_Event → Dispatch_Event
                 → Coyote_GUI.Updates.Enqueue(update)
            → GTK idle callback drains Updates queue
-                → Coyote_App.Frontend.GUI routes updates to either
-                  Coyote_GUI.Conversation or Coyote_GUI.Conversation_Stack
-                  according to COYOTE_NATIVE_STACK
-                → the selected renderer performs all GTK operations on the
-                  GTK main task
+                → Coyote_App.Frontend.GUI routes updates to
+                  Coyote_GUI.Conversation_Stack
+                → the native stack performs all GTK operations on the GTK main
+                  task
 
 [GTK callbacks]
   → Send button / Enter key → Coyote_GUI.Prompt_Queue.Enqueue(prompt_text)
@@ -1066,296 +1059,39 @@ block containing `<skill>` entries for each discovered skill, or `""` if none.
 
 ---
 
-### 5.15 `Coyote_GUI.Conversation`
+### 5.15 `Coyote_GUI.Conversation_Stack`
 
-**Purpose:** Current implementation baseline: virtualized conversation renderer
-using `Gtk.Layout` with Cairo + Pango. It replaces the earlier
-`GtkTextView`/`GtkTextBuffer` approach with a viewport-oriented rendering model
-and remains in service while the native component-stack design in
-§5.15b completes implementation and qualification. The current data model,
-rendering, selection, and tool-card behaviour are specified below.
+**Purpose:** Sole GTK conversation presentation. The package owns one outer
+vertical scroller and realizes each request/response exchange as native GTK
+components. It is the only supported GTK conversation renderer; the retired
+custom `Gtk.Layout`/Cairo/Pango renderer and `COYOTE_NATIVE_STACK` selection
+flag are not part of the product.
 
-**Data model:** A flat `Line_Vectors.Vector` of `Logical_Line` records.  Each
-line is a variable-height block carrying a `Line_Style` discriminant
-(`Plain`, `Heading_1`–`Heading_6`, `Display_Math`, `Thinking`,
-`Notice_Info`, `Notice_Warn`, `Notice_Error`, `Footer`, `Action_Strip`,
-tool-card styles) plus a cached `Pixel_Height` and optional metadata
-(tool info, action data).  Tool blocks are tracked in a `Tool_Maps.Vector` of
-`Tool_Block` records (first line, last line, tool info).  A `Tool_Start_Maps` hashed map keyed by `Tool_Id` stores each tool block's
-start line, footer line, and arguments for concurrent tool batches. The
-footer line is captured when the block is appended, so completion events can
-replace the correct placeholder even when all tool starts precede all ends.
+**Hierarchy:** Each exchange contains a request element and one or more visible
+step frames. Step frames contain thinking, response, tool-flow, footer, and
+fork-action elements. Notices are placed at the appropriate exchange or step
+level. Tool cards use native labels and argument-field grids, retain complete
+`Tool_Info` payloads for the Details window, and update by stable `Tool_Id`.
+The single outer scroller avoids nested scrolling regions for ordinary content.
 
-**Rendering (`On_Draw`):**
-1. Walk logical lines, accumulating each block's `Pixel_Height`.
-2. Skip blocks whose pixel box is entirely above or below the viewport.
-3. For visible blocks: draw background (yellow for thinking, blue for info
-   notices), draw a selection highlight from Pango `Index_To_Pos`
-   rectangles (covering wrapped rows), set text colour by style, and
-   render via `Pango.Cairo.Show_Layout` or Lasem.
-4. Headings wrap their text in a bold / sized Pango span so their
-   measured height is larger than body text.
+**Content and interaction:** Streaming text is held in native text views and
+completed blocks are replaced with shared GFM markup. Standalone Presentation
+MathML is realized through `Coyote_GUI.Math_Element`; invalid input retains
+selectable source fallback. Selection and PRIMARY publication are local to the
+focused semantic text component. Native Details and Fork buttons are focusable
+and operate on the GTK main task. Live updates and session replay use the same
+lifecycle operations and hierarchy.
 
-**Document height:** the sum of per-block `Pixel_Height` values, not a
-multiple of the body-text line height.  The scrollbar range is updated in
-`Recompute_Vis_Lines` after every content change.  Block heights are
-cached per logical line; appending to an existing streaming line marks
-that line dirty so its wrapping and the document height are recomputed
-immediately without remeasuring unchanged lines.  `Line_Height_Px`
-remains the body-text metric used as a fallback for empty blocks and as
-the zoom-sensitive baseline.
+**Lifecycle and reset:** `Begin_Request` starts an exchange, intermediate
+footers close visible step frames, and `Complete_Request` closes the exchange.
+Clear removes exchange widgets, retained tool payloads, and callback state
+before new content is inserted. All mutation occurs on the GTK main task after
+updates cross `Coyote_GUI.Updates`.
 
-**Resize performance:** `On_Size_Allocate` calls `Recompute_Vis_Lines`, which
-re-measures every logical line at the new width via one reused
-`Pango_Layout`.  Offscreen lines are measured for height only (no draw).
-This is O(document lines) of Pango measure calls, not O(document size)
-of GTK widget allocation.
-
-**Selection:** Click-drag (button 1) sets `Sel_Dragging` and `Sel_Visible`;
-motion extends the range; release clears `Sel_Dragging` but keeps
-`Sel_Visible` so the highlight persists.  `Ctrl+A` selects all, `Ctrl+C`
-copies to clipboard, `Escape` clears.  Right-click on a selection shows a
-"Copy" context menu.  Hit-testing uses `Pango.Layout.Xy_To_Index` to map
-pixel coordinates to logical-line/byte-offset pairs.  While the pointer is
-dragging, `Sel_Start_*` remains the press point and `Sel_End_*` tracks the
-cursor, so an upward or leftward drag inverts the stored range.
-`Ordered_Selection` returns those endpoints in document order for highlight
-drawing and clipboard extraction; button-release writes the ordered pair
-back and queues a redraw.
-
-**Tool-call display:** `Begin_Tool` appends typed tool-card lines
-(`Tool_Header`, `Tool_Argument`, and `Tool_Footer`) to the logical-line vector.
-The Cairo draw callback renders each card row with a rounded background, border,
-left status accent, and status-specific fill.  New cards use a blue running
-appearance; completed cards use green, red, or grey accents for success, error,
-or cancellation.  The card keeps the existing compact box-drawing text as its
-content, so copying and selection remain text-compatible.  `End_Tool` replaces
-the matching footer in-place, propagates the terminal status through the card,
-and records a non-overlapping `Tool_Block` range for click handling.  Pointer
-motion highlights the completed card under the cursor without introducing GTK
-child-widget lifetime management.  `Handle_Tool_Click` continues to return the
-complete structured `Tool_Info` record, and clicking a completed card opens the
-non-modal detail window.
-
-**`Coyote_GUI.Tool_Detail_Window`:** The main GTK frontend opens an independent
-modeless transient support window titled `coyote : Tool Call Details` for each
-completed tool card.  `Tool_Info` captures name, raw arguments, result text,
-result media type, status, model, source directory, session-start timestamp,
-and 1-based turn/call position before the click; opening the window never
-re-parses a session file.  Saved-session replay supplies the same payload and
-marks a missing result as cancelled.
-
-The window contains a vertically scrollable content area with a selectable
-header, framed Arguments and Result sections, a visible Close/Help response
-area, and Ctrl+W handling.  Header values are selectable labels.  Top-level
-JSON object fields become labelled read-only monospace text views with bounded
-content-aware heights; malformed or non-object arguments use one raw view.
-The full text result remains selectable and scrollable.  Image results are
-base64-decoded into a GTK image when possible, with an explicit text fallback
-on decode failure.  Status uses a text/icon indicator and theme-neutral
-emphasis rather than a private color palette.  The outer scroller keeps all
-sections reachable when many fields exceed the minimum 600 x 400 pixel window.
-The GUI implementation carries these additions through the abstract frontend
-interface; Plain output remains line-oriented.
-**Thinking blocks:** `Append_Thinking` collapses deltas via
-`Collapse_Thinking_Delta` and appends to the last line's text (not creating
-new lines), so thinking flows as a single paragraph.  The first delta gets a
-`UC_BOX_V` prefix.
-
-**Markdown rendering:** Implemented via `Render_Markdown_Block` in
-`Coyote_GUI.Conversation`.  When `Render_Markdown` is enabled (default),
-`End_Text_Block` parses the accumulated text through `Coyote_Cmark` (GFM
-with table, strikethrough, and autolink extensions) and emits styled
-`Logical_Line` entries:
-
-- **Block-level nodes** become lines with dedicated `Line_Style` values:
-  `Heading_1`–`Heading_6`, `Code_Block`, `Blockquote`, `Thematic_Break`,
-  `List_Item_Bullet`, `List_Item_Ordered`, and `Display_Math`.
-- **Display math** delimited by standalone `$$` lines is extracted before
-  cmark parsing, measured through Lasem as Presentation MathML, and rendered
-  directly to Cairo. The original delimiter-wrapped MathML source remains
-  selectable and is used as fallback text when Lasem rejects an expression.
-- **Inline formatting** (bold, italic, code, strikethrough, links) within
-  paragraphs is accumulated as Pango markup and emitted with `Has_Markup
-  = True`.  The `On_Draw` callback uses `Pango.Layout.Set_Markup` for
-  these lines.
-- **Nested lists** retain their hierarchy in the flat logical-line model:
-  each list level adds two leading spaces before its bullet or ordered marker.
-- **Tables** are rendered as box-drawing ASCII art (two-pass width
-  calculation, same as the old `Coyote_Renderer.Markup`).
-- **Selection copy** strips Pango markup tags via `Strip_Pango_Markup`
-  so clipboard text is plain UTF-8.
-
-When `Render_Markdown` is disabled, text is split on LF and displayed as
-plain `Logical_Line` entries (the original behaviour).
-
-**Zoom and font propagation:** `Set_Font` applies the frontend's effective
-Pango font description to both reusable layouts (`Measure_Layout` and
-`Draw_Layout`), invalidates wrapping caches, and recomputes line height before
-redrawing.  Display-math lines are remeasured at the same zoom factor and are
-rendered at that factor through the Lasem resolution parameter, keeping math
-geometry consistent with its visible size.  The frontend derives the factor
-from the clamped effective point size relative to the clamped baseline size.
-
-**`Clear` procedure:** Resets all conversation state to empty — clears the
-logical line and tool-block vectors, the tool-start map, all streaming
-state (`In_Text_Block`, `In_Thinking`, `Stream_Buf`, `Prefix_Emitted`,
-the thinking tokenizer, the selection
-state, and the layout cache.  Calls `Recompute_Vis_Lines` and `Queue_Draw`
-to refresh the display.  Used when replacing the current session with a
-fresh one via `File → New Session`.
-
----
-
-### 5.15a `Coyote_Lasem` binding
-
-`Coyote_Lasem` wraps Lasem 0.6 through `coyote_lasem_c.c`. The C shim parses
-Presentation MathML with `lsm_dom_document_new_from_memory`, converts Lasem
-`GError` values to allocated messages, and releases the document/view GObjects
-before returning. The GUI retains the original delimiter-wrapped MathML source
-for display and selection, while the shim receives only the inner MathML
-document. `Coyote_Renderer.MathML` parses the original Markdown with cmark,
-protects inclusive `NODE_CODE_BLOCK` source ranges, and only masks eligible
-standalone `$$` display-math blocks. Inline math and the legacy shared Pango
-renderer remain future work. MathML element whitelisting is intentionally
-deferred until a concrete compatibility problem is observed.
-
-### 5.15b Native component-stack conversation presentation
-
-**Status:** The native component-stack slice is implemented in
-`Coyote_GUI.Conversation_Stack` and is selected with `COYOTE_NATIVE_STACK=1`.
-The current `Coyote_GUI.Conversation` GtkLayout renderer remains the default
-fallback until the performance and display-backed acceptance gates are complete.
-Basic GFM Markdown conversion for native response text is now implemented by
-retaining streamed text and replacing it at `End_Text_Block` with markup from
-`Coyote_Renderer.Markup`. Completed responses containing display math are split
-into ordered native text views and Lasem-backed `Coyote_GUI.Math_Element`
-widgets. Valid MathML displays only the Lasem-rendered formula; invalid MathML
-retains selectable source fallback. The temporary raw streaming response view is
-removed before rendered children are packed, and rendered response text remains
-the active selectable component when text surrounds display math. Response text,
-MathML roots, and drawing areas share the theme-aware `coyote-response-content`
-style. Zoom propagates to all retained text and math elements. User acceptance
-of DEM-047 confirmed live/replay Markdown parity on 2026-08-28. Manual
-visual/local-selection and large-history qualification remain open under
-DEM-048 and DEM-044.
-**Purpose:** Replace the single custom conversation canvas with a native GTK
-component hierarchy. One `Exchange_View` represents one submitted request and
-its complete agent response, bounded by the final turn footer. The submitted
-request is an exchange-level child. Each assistant/tool step is represented by
-a visible, titled `Gtk.Frame` containing a vertical `Gtk.Box`; thinking blocks,
-assistant response blocks, the corresponding step or final footer, and its fork
-action are children of that step box. Tool cards are grouped in a dedicated
-horizontal `Gtk.Flow_Box` inside the step box. The flow is non-homogeneous,
-uses natural card widths, and wraps cards onto additional rows as the available
-width changes. Notices remain exchange-level children unless they are emitted
-while a step is active.
-
-The resulting hierarchy is:
-
-```text
-Gtk.Scrolled_Window
-  └─ Host Gtk.Box
-       └─ Exchange Gtk.Box
-            ├─ Request element
-            ├─ Step Gtk.Frame (Step 1)
-            │    └─ Step Gtk.Box
-            │         ├─ Thinking/response elements
-            │         ├─ Tool Gtk.Flow_Box
-            │         │    └─ Tool Gtk.Frame(s), wrapped by width
-            │         └─ Step footer and fork action
-            └─ Step Gtk.Frame (Step 2/final)
-                 └─ Step Gtk.Box
-                      ├─ Response elements
-                      └─ Final footer and fork action
-```
-
-**Host hierarchy:** The main GUI retains one `Gtk.Scrolled_Window` containing
-one vertical `Gtk.Box`. The box contains one `Exchange_View` per completed or
-active request-response pair. Ordinary components do not create nested scrolling
-regions; the outer adjustment owns transcript scrolling and auto-scroll.
-
-**Exchange lifecycle:** A request-start operation creates the exchange and
-renders the user request. The first `Begin_Thinking`, `Append_Text`, or
-`Begin_Tool` operation lazily creates Step 1. `Begin_Thinking`/`End_Thinking`
-create and finalize a thinking element, while `Append_Text`/`End_Text_Block`
-update and finalize an assistant response element. The first `Begin_Tool` in
-an active step lazily creates its horizontal `Gtk.Flow_Box`; subsequent
-`Tool_Card` frames are inserted into that flow in event order. The flow is
-non-homogeneous, uses natural card widths, and has four-pixel row and column
-spacing, so GTK wraps cards onto additional rows as the available width
-changes. `End_Tool` updates the retained card by `Tool_Id`. An intermediate
-step footer and fork action are packed into the active step frame below the
-tool flow; the frame closes after the fork action. The next assistant/tool
-content creates the next step frame. The final footer and final fork action
-remain in the final step frame,
-then `Complete_Request` marks the enclosing exchange complete. Abort and error
-termination preserve the partial step frame and mark the exchange terminal
-without inventing a normal completion footer. Step frames are never scrolled
-independently.
-
-**Component widgets:** Substantial text uses read-only native `Gtk.Text_View`
-and `Gtk.Text_Buffer` widgets with GTK text tags and local selection. Completed
-native response blocks retain their raw streamed text while streaming and
-replace that range at `End_Text_Block` with `Coyote_Renderer.Markup`
-GFM-to-Pango markup. Disabled Markdown rendering leaves the source text
-unchanged. The conversion runs on the GTK main task and preserves plain
-visible text for native selection.
-
-Native
-tool cards use a titled `Gtk.Frame` containing a native header label, a
-plain-text status label, and a `Gtk.Grid` of top-level argument-field labels.
-Argument values are individually selectable; the card does not use a text
-field or box-drawing characters for visual framing. It does not realize raw
-argument, full-result, or image content widgets. Each completed card has a
-focusable `View Details` pushbutton. The button callback resolves the card's
-stable `Tool_Id` to its retained `Coyote_GUI.Conversation.Tool_Info` payload
-and invokes `Coyote_GUI.Tool_Detail_Window.Show` on the GTK main task. Math
-uses a localized child widget or cached image backed by `Coyote_Lasem`, with
-source/fallback text retained for readable failure and accessibility.
-Markdown parsing remains in `Coyote_Cmark`/`Coyote_Renderer.Markup`; rendering
-converts the semantic block output to native widget content rather than
-Cairo-painted conversation lines.
-
-**Selection:** Selection is local to one semantic component. Copy, Select All,
-and PRIMARY publication operate on the focused or most recently selected text
-component; CLIPBOARD and PRIMARY remain independent. The design intentionally
-does not require a range spanning multiple components or exchanges.
-
-**Tool ownership and reset:** Each exchange owns its tool-card map, retained
-`Tool_Info` payloads, and Details-button callback state. Clearing or switching
-sessions removes exchange widgets and invalidates callbacks before new content
-is inserted. No package-global conversation or tool callback pointer is
-permitted in the native implementation.
-
-**Live/replay parity:** Live updates and session replay construct equivalent
-exchange/component hierarchies. Replay uses the same request, component, tool, and
-footer operations as live rendering. The compact tool summary and Details
-button shall be equivalent in both paths, and each shall use the complete
-render-time payload for the detail window. The update queue remains the only
-agent-to-GTK boundary; all widget operations execute on the GTK main task.
-
-**Native footer realization:** The native stack renders each step or final
-footer as a compact GTK status area: a native horizontal separator, a
-non-selectable summary label containing the usage/cost/stop-reason currency,
-and a right-aligned action row. The action row uses a stable `Fork` pushbutton
-with a static fork-point label. The button captures the structured session UUID,
-turn, and step and invokes the registered frontend callback on the GTK main
-thread. Native rendering does not display the text formatter's Unicode
-separator, `Step:`/`Turn:` prefix, or a duplicate standalone completion label.
-The summary is carried as typed data through the GUI update queue rather than
-recovered by parsing formatted display text. Plain and the legacy
-GtkLayout renderer retain their existing text semantics.
-
-**Performance qualification:** The native tree is initially realized with one
-vertical `Gtk.Box` child per exchange and one visible `Gtk.Frame` per
-assistant/tool step. Qualification measures first-token latency,
-widget count, memory, resize, zoom, replay, session reset, and Details-button
-activation for 100, 500, and 2,000 exchanges. The measurements shall confirm
-that compact tool cards do not create per-call argument/result views. Lazy
-realization or retention of the current renderer as a large-history fallback is
-permitted only if measurements show that full native realization is
-unacceptable.
+**Qualification:** Native Markdown, MathML, selection, zoom, tool-card flow,
+replay, reset, and large-history behavior have been qualified under DEM-042
+through DEM-048. The 17 native stack tests remain the automated regression
+coverage for the presentation package.
 
 ### 5.16 `Coyote_Cmark` and `coyote_cmark_c.c`
 
@@ -1814,13 +1550,11 @@ Tracks `Current_Tool_Name` for the `End_Tool` label.
 **Purpose:** GTK3 frontend implementation. Drives the conversation view via
 the `Coyote_GUI.Updates` queue.
 
-**State:** Holds an access to the `GtkApplicationWindow`, the legacy
-`Coyote_GUI.Conversation` instance, the opt-in
+**State:** Holds an access to the `GtkApplicationWindow`, the native
 `Coyote_GUI.Conversation_Stack`, and a reference to the `Prompt_Queue`. A
 menu-bar action map provides Compact, Pause, Resume, New Session, and model
-selection commands. The conversation view is selected at startup: the legacy
-`Gtk.Layout` renderer is used by default, while `COYOTE_NATIVE_STACK=1` selects
-the native vertical `Gtk.Box` stack (see §5.15b).
+selection commands. The native vertical `Gtk.Box` stack is constructed at
+startup and is the sole GTK conversation presentation (see §5.15).
 
 **Key rendering choices:**
 - The main window uses one vertical `Gtk.Box` with the expanding conversation
@@ -1832,9 +1566,9 @@ the native vertical `Gtk.Box` stack (see §5.15b).
   control area and a status area along the bottom.
 - All `Append_Text`, `Begin_Tool`, `End_Tool`, etc. calls enqueue a
   `Coyote_GUI.Update` record onto `Coyote_GUI.Updates`. A GLib idle handler
-  drains the queue on the GTK main-loop thread and dispatches it to the
-  selected `Coyote_GUI.Conversation` or `Coyote_GUI.Conversation_Stack`
-  renderer. Markdown parsing and widget mutation occur on the GTK main task.
+  drains the queue on the GTK main-loop thread and dispatches it to
+  `Coyote_GUI.Conversation_Stack`. Markdown parsing and widget mutation occur
+  on the GTK main task.
 - `Read_Prompt` — blocks on `Coyote_GUI.Prompt_Queue.Dequeue`.
 - **Preferences dialog:** `Options → Preferences...` is constructed and operated
   on the GTK main task. It edits persistent defaults for model, thinking level,
@@ -1913,9 +1647,8 @@ the native vertical `Gtk.Box` stack (see §5.15b).
   a selection exists, otherwise it reaches the Stop accelerator.
 - **Accessibility:** Send and Stop use text labels as well as icons. Native
   GTK conversation components expose their labels, selectable text, and
-  focusable actions through GTK accessibility. The legacy canvas retains its
-  local selection and keyboard interaction behavior. The canvas uses GTK's
-  dark-theme preference to select contrasting colors.
+  focusable actions through GTK accessibility. Native text components provide
+  local selection and the GTK theme supplies the active presentation colors.
 
 - `Shutdown` — calls `Gtk.Main.Quit` from within the idle callback.
 - **System font integration** (2026-07-30): On startup the frontend reads the
@@ -2363,10 +2096,10 @@ session-header rules synchronously.
 | REQ-CORE-100–107 | Historical retired Acme frontend requirements; see PCR-090 |
 | REQ-CORE-108–108b | `Coyote_App`, `Coyote_App.Dispatch`, `Coyote_App.Utils`, `Session_Lister` |
 | REQ-CORE-109 | Historical retired Acme frontend requirement; see PCR-090 |
-| REQ-CORE-110–119, 125, 129, 132, 230 | `Coyote_App.Frontend.GUI`, `Coyote_GUI.Conversation`, `Coyote_GUI.Conversation_Stack`, `Coyote_GUI.Prompt_Queue`, `Coyote_GUI.Zoom`, `Coyote_Cmark`, `Coyote_Renderer.Markup`, `Coyote_App.Utils`, `LLM.Settings` |
-| REQ-CORE-124 | `Coyote_GUI.Conversation`, `Coyote_Lasem`; native realization deferred in `Coyote_GUI.Conversation_Stack` |
+| REQ-CORE-110–119, 125, 129, 132, 230 | `Coyote_App.Frontend.GUI`, `Coyote_GUI.Conversation_Stack`, `Coyote_GUI.Prompt_Queue`, `Coyote_GUI.Zoom`, `Coyote_Cmark`, `Coyote_Renderer.Markup`, `Coyote_App.Utils`, `LLM.Settings` |
+| REQ-CORE-124 | `Coyote_GUI.Conversation_Stack`, `Coyote_Lasem` |
 | REQ-CORE-120–121 | `Coyote_App.Frontend.Plain` |
-| REQ-CORE-130–131, 137 | `Coyote_App.History`, `Coyote_GUI.Conversation`, `Coyote_GUI.Conversation_Stack`, `Coyote_Renderer.Markup`, `Coyote_Renderer.Session_View` |
+| REQ-CORE-130–131, 137 | `Coyote_App.History`, `Coyote_GUI.Conversation_Stack`, `Coyote_Renderer.Markup`, `Coyote_Renderer.Session_View` |
 | REQ-CORE-140–142 | `LLM.Agent`, `Coyote_App.Dispatch`, all frontends |
 | REQ-CORE-170–172 | `LLM.System_Prompt`, `LLM.Agent` |
 | REQ-CORE-180–183 | `LLM.Memory`, `LLM.System_Prompt` |

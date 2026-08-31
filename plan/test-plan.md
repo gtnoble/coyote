@@ -1,7 +1,7 @@
 # Test Plan â coyote (STP)
 
-**Version:** 1.24
-**Date:** 2026-08-30
+**Version:** 1.25
+**Date:** 2026-08-31
 
 **Status:** Reviewed and acknowledged â M4 complete (2026-06-03)
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
@@ -94,14 +94,13 @@ and are **opt-in** (guarded by environment variable checks at test startup):
 See `plan/integration-test-guide.md` for full setup instructions.
 
 ### 3.4 Known Test Environment Constraints
-- GUI conversation tests cover both the GtkLayout baseline and the opt-in
+- GUI conversation coverage targets the qualified
   `Coyote_GUI.Conversation_Stack` implementation with GTK3 and a display (or
-  `xvfb-run`). The native tests construct one outer scroller and a vertical box
-  of exchange widgets with native text/control components. Per-step frame
-  existence and lifecycle are inspected programmatically; border appearance
-  remains a display-backed demonstration concern. Performance and large-history
-  qualification remain manual DEM-044 activities.
-The obsolete `Coyote_GUI.Buffer` unit was removed; current GUI coverage targets the native stack and the active GtkLayout renderer.
+  `xvfb-run`). The native tests cover one outer scroller, exchange and step
+  widgets, Markdown, MathML, selection, tool flow, lifecycle, reset, and zoom.
+  Display-backed native qualification is complete.
+- The obsolete `Coyote_GUI.Buffer` unit and legacy conversation renderer were
+  removed. Plain frontend tests remain independent and headless where applicable.
 Headless `GtkTextBuffer` tests, when present, do not require a display.
 - Tests that require `$DISPLAY` or `$WAYLAND_DISPLAY` for window creation
   are not part of the standard automated suite.
@@ -172,7 +171,6 @@ SRS-CORE requirement groups.
 | `llm_openrouter_tests.adb` | REQ-CORE-072, REQ-CORE-216, REQ-CORE-218, REQ-CORE-219 (OpenRouter) | ~17 |
 | `coyote_cmark_tests.adb` | REQ-CORE-111 (Markdown rendering), parser-safe display-math code-block protection | ~28 |
 | `coyote_lasem_tests.adb` | Lasem Presentation MathML measurement, zoom scaling, relation entities, and error handling | 5 |
-| `coyote_gui_conversation_tests.adb` | Display-math style, source preservation, visual height, font propagation, selection text, PRIMARY transfer, and tool-detail metadata/media capture | 5 |
 | `coyote_gui_conversation_stack_tests.adb` | Native display MathML realization, invalid fallback, code protection, and zoom | 17 |
 | `llm_session_store_tests.adb` | Session-store header/accessor coverage, including local session creation timestamp | ~48 |
 | `coyote_gui_zoom_tests.adb` | REQ-CORE-125 (zoom arithmetic: clamping, step semantics) | 12 |
@@ -208,9 +206,9 @@ behaviour. Results are recorded in a Test Report.
 | DEM-004 | REQ-CORE-019 | `coyote --one-shot --prompt "echo hello"` exits after one turn; check exit code 0 and JSON on stdout |
 | DEM-005 | REQ-CORE-020 | `coyote --subagent --prompt "hello"` inherits GUI when available and otherwise uses Plain |
 | DEM-045 | REQ-CORE-025 | Set `maxRecursionDepth` to 1; invoke coyote with inherited `COYOTE_RECURSION_DEPTH=1` and `--subagent`; verify it exits non-zero before opening a frontend and reports the limit on stderr |
-| DEM-046 | REQ-CORE-111, 125 | In a display-backed native-stack GUI (`COYOTE_NATIVE_STACK=1`), render a fixture containing headings, inline formatting, code, lists, tables, links, strikethrough, and a thematic break. Verify conversion occurs after streaming, local selection exposes plain text, the Render Markdown toggle preserves source text when disabled, and zoom changes native response font size. |
+| DEM-046 | REQ-CORE-111, 125 | In the display-backed GTK GUI, render a fixture containing headings, inline formatting, code, lists, tables, links, strikethrough, and a thematic break. Verify conversion occurs after streaming, local selection exposes plain text, the Render Markdown toggle preserves source text when disabled, and zoom changes native response font size. |
 | DEM-047 | REQ-CORE-111, 131, 137 | Render the same Markdown response live and by session replay in the native GUI. Verify equivalent supported visible content and response-block boundaries, and verify the GUI replay preserves the same semantic blocks. |
-| DEM-048 | REQ-CORE-124 | In a display-backed native-stack GUI, exercise valid and invalid standalone Presentation MathML blocks. Verify native realization, readable source/fallback on parse failure, local selection, and zoom. Automated native realization, fallback, code-protection, and zoom tests are implemented; visual and local-selection acceptance remains pending. |
+| DEM-048 | REQ-CORE-124 | In the display-backed GTK GUI, exercise valid and invalid standalone Presentation MathML blocks. Verify native realization, readable source/fallback on parse failure, local selection, and zoom. Automated native realization, fallback, code-protection, zoom, visual, and local-selection acceptance is complete. |
 | DEM-049 | REQ-CORE-110, 113b | In a display-backed GUI, verify that the conversation work area, prompt controls, and status area are separated by visible horizontal rules; verify the prompt and status areas have consistent breathing room and that the conversation remains the sole expanding region. The structural portion is covered by `Coyote.GUI separates conversation, prompt, and status`; visual contrast remains a manual check under the active theme. |
 | DEM-006 | REQ-CORE-040â044 | Start a GUI session; send a prompt; verify streaming text, thinking, tool events, and stats appear |
 | DEM-007 | REQ-CORE-055 | Start a long tool execution; press Stop; verify tool is cancelled and agent exits cleanly |
@@ -229,7 +227,7 @@ behaviour. Results are recorded in a Test Report.
 | DEM-041 | REQ-CORE-113e | In a display-backed GUI, click completed tool cards and verify each opens an independent `coyote : Tool Call Details` transient support window. Verify selectable header metadata, labelled monospace argument views, full selectable results, outer vertical scrolling, visible Close and Help actions, deterministic focus, Ctrl+W, non-color status meaning, image display/fallback, light/dark theme behavior, replay parity, and correct multi-window independence. |
 | DEM-042 | REQ-CORE-133..134, 139 | In a display-backed GUI using the native component-stack build, submit a request that produces thinking, assistant text, a tool call, and a final response. Verify one exchange container and one visible step frame are created, each semantic component is a separate native widget, the tool card contains native tool-name and status labels plus individually selectable top-level argument-field labels, raw arguments and full results are absent, the `View Details` button is focusable and opens `coyote : Tool Call Details` after completion, and the request-start, step-footer, final-footer, and terminal lifecycle transitions are explicit. |
 | DEM-043 | REQ-CORE-135..137 | In a display-backed GUI using the native component-stack build, submit requests with multiple tool steps and replay the resulting session. Verify exchange widgets are vertically ordered in one outer scroller, each assistant/tool step has a distinct visible frame, intermediate footers remain inside their step frame and exchange, native label/grid summaries are live/replay equivalent, cards update by stable tool-call ID without exposing raw arguments or full results, the `View Details` button opens the correct retained payload, local component selection/copy/PRIMARY works independently for separate components, and clear/session switching removes stale widgets and callbacks. For a step with multiple tool calls, verify cards share a horizontal flow host, occupy multiple columns when space permits, and wrap onto additional rows after narrowing the window. |
-| DEM-044 | REQ-CORE-138 | On a development build using the native component stack, qualify first-token latency, widget count, memory, resize, zoom, auto-scroll, replay, and repeated reset behavior, and `View Details`-button activation for histories of 100, 500, and 2,000 exchanges. Confirm that compact tool cards do not create argument/result text widgets per call. Compare against the Gtk.Layout baseline and retain the baseline renderer if native realization fails the measured performance objective. |
+| DEM-044 | REQ-CORE-138 | On a development build using the native component stack, qualify first-token latency, widget count, memory, resize, zoom, auto-scroll, replay, and repeated reset behavior, and `View Details`-button activation for histories of 100, 500, and 2,000 exchanges. Confirm that compact tool cards do not create argument/result text widgets per call. Record the native measurements and retain the regression evidence as the production baseline. |
 | DEM-034 | REQ-CORE-234 | Set and clear `defaultSandboxProfile`; verify inherited runtime and session-header precedence |
 | DEM-015 | REQ-CORE-130 | Resume a session; verify history replayed in frontend |
 | DEM-016 | REQ-CORE-140 | Inject a provider error (invalid API key); verify error notice visible in frontend |
@@ -266,16 +264,11 @@ and must be demonstrated or inspected:
 - REQ-CORE-022 â prompt-filter (requires shell subprocess)
 - REQ-CORE-074 â Copilot token auto-refresh (requires live Copilot credential)
 - REQ-CORE-142 â SIGTERM handling (requires OS signal; manual test)
-- REQ-CORE-124 â native display MathML realization and fallback (DEM-048)
-- REQ-CORE-138 â native large-history performance and display-backed zoom
-  qualification (DEM-044)
 
-The native Markdown unit tests cover the basic conversion and toggle paths;
-DEM-047 live/replay parity was accepted by the user on 2026-08-28. The
-remaining items require display-backed implementation or qualification of the
-deferred native MathML element and large-history behavior.
-
-These are entered as open items in the problem log (PCR-009 and PCR-078).
+The native Markdown, MathML, live/replay, local-selection, responsive-flow,
+and large-history qualification gates were accepted on 2026-08-31. Remaining
+coverage gaps are limited to the unrelated filesystem, live-provider, signal,
+and preferences demonstrations listed above.
 
 ---
 
@@ -327,16 +320,16 @@ These are entered as open items in the problem log (PCR-009 and PCR-078).
 
 | REQ-CORE-090â093 | T | `llm_skills_tests.adb` |
 | REQ-CORE-100â109 | Historical | Retired Acme/plumber controls; see PCR-090 |
-| REQ-CORE-110â115 | T/D | `coyote_cmark_tests.adb`, `coyote_gui_conversation_tests.adb`, `coyote_app_frontend_gui_tests.adb`, DEM-014, DEM-036..037, DEM-049 |
-| REQ-CORE-111 | T/D | `coyote_cmark_tests.adb`, `coyote_gui_conversation_tests.adb`, `coyote_gui_conversation_stack_tests.adb`, DEM-014, DEM-046..047 |
-| REQ-CORE-113a..113c | D/T/I | `coyote_gui_conversation_tests.adb`, `coyote_help_tests.adb`, `coyote_gui_mode_tests.adb`, DEM-036..039, Mallard validation, source inspection |
+| REQ-CORE-110â115 | T/D | `coyote_cmark_tests.adb`, `coyote_app_frontend_gui_tests.adb`, DEM-014, DEM-036..037, DEM-049 |
+| REQ-CORE-111 | T/D | `coyote_cmark_tests.adb`, `coyote_gui_conversation_stack_tests.adb`, DEM-014, DEM-046..047 |
+| REQ-CORE-113a..113c | D/T/I | `coyote_help_tests.adb`, `coyote_gui_mode_tests.adb`, DEM-036..039, Mallard validation, source inspection |
 | REQ-CORE-113d | D/T/I | `coyote_gui_session_stats_window_tests.adb`, DEM-040, source inspection |
-| REQ-CORE-113e | D/T/I | `coyote_gui_conversation_tests.adb`, `coyote_gui_conversation_stack_tests.adb`, `llm_session_store_tests.adb`, DEM-041..043, source inspection |
+| REQ-CORE-113e | D/T/I | `coyote_gui_conversation_stack_tests.adb`, `llm_session_store_tests.adb`, DEM-041..043, source inspection |
 | REQ-CORE-133..139 | D/T/I/A | `coyote_gui_conversation_stack_tests.adb`, DEM-042..044, source inspection, performance analysis |
 | REQ-CORE-504a | I/T | `coyote_help_tests.adb`, `yelp-check`, DEM-039 |
 | REQ-CORE-125 | T/D | `coyote_gui_zoom_tests.adb`, DEM-014, DEM-046 |
 | REQ-CORE-132 | D/T | `coyote_gui_navigation_tests.adb`, `coyote_gui_prompt_queue_tests.adb`, DEM-014 |
-| REQ-CORE-124 | T/D | `coyote_lasem_tests.adb`, `coyote_gui_conversation_tests.adb`, DEM-048 (deferred native qualification) |
+| REQ-CORE-124 | T/D | `coyote_lasem_tests.adb`, `coyote_gui_conversation_stack_tests.adb`, DEM-048 |
 | REQ-CORE-116 | D | DEM-033 |
 | REQ-CORE-117 | D/T | `llm_settings_tests.adb`, `coyote_gui_prompt_queue_tests.adb`, DEM-033 |
 | REQ-CORE-118 | T | `llm_settings_tests.adb`, `coyote_gui_prompt_queue_tests.adb` |
@@ -743,7 +736,7 @@ replayed tool-detail payloads now preserve metadata and image state. The full
 suite passes 911/911 with zero failed assertions and zero unexpected errors.
 Display-backed DEM-041 remains manual qualification.
 
-**Baseline as of 2026-08-25 (PCR-073 native stack visible step-frame implementation):**
+**Historical baseline as of 2026-08-25 (PCR-073 native stack visible step-frame implementation):**
 919 registered tests. Production and test development builds succeed. The two
 new step-frame regressions and the six existing native-stack tests pass
 individually with zero failed assertions and zero unexpected errors. The full
@@ -775,7 +768,7 @@ tests; the two failures are the pre-existing PCR-073 step-frame tests, which
 pass when run individually. Display-backed qualification remains pending under
 DEM-042..044.
 
-**Current PCR-073 corrective verification (2026-08-25):** The native-stack
+**Historical PCR-073 corrective verification (2026-08-25):** The native-stack
 fixture now clears its reusable stack between tests, and `Begin_Request`
 clears prior step-frame bookkeeping. The 10 native-stack tests pass 10/10,
 including a consecutive-request reset regression. The complete development
@@ -904,3 +897,13 @@ tests and the complete suite pass with zero failed assertions and zero
 unexpected errors. Timeout supervision still begins after synchronous stdin
 transfer; a future nonblocking duplex I/O increment is required to bound that
 specific large-input/large-output deadlock class.
+
+
+**Baseline after native GTK conversation cutover (2026-08-31):** 762 registered
+tests. Removed the retired GtkLayout/Cairo/Pango conversation renderer, its
+test accessors, and its dedicated test group. The native stack is now the sole
+GTK conversation presentation and the `COYOTE_NATIVE_STACK` flag is gone.
+Production and test development builds succeed. All 17 native-stack tests pass
+17/17, and the GUI lifecycle regression passes 1/1 with zero failed assertions
+and zero unexpected errors. Native DEM-042 through DEM-048 qualification is
+closed; the Plain frontend remains supported.

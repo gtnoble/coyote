@@ -12,7 +12,6 @@ package Coyote_App_Frontend_GUI_Tests is
 
    type Test is new AUnit.Test_Fixtures.Test_Fixture with record
       Display_Available : Boolean := False;
-      Frontend          : Coyote_App.Frontend.GUI.Instance;
    end record;
 
    overriding procedure Set_Up (T : in out Test);

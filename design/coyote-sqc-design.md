@@ -159,8 +159,8 @@ without a `"thinking"` key are parsed correctly with a zero thinking token count
 `src/coyote_app-frontend-gui.adb`, and `src/coyote_renderer/`.
 
 The shared converter is used by the native stack for completed response
-blocks and by the GTK session-replay path; the GtkLayout renderer keeps its
-specialized cmark/Lasem adapter for virtualization and display math.
+blocks and by the GTK session-replay path. The native stack owns the supported
+GTK presentation and localized display-math realization.
 
 The Markdown-to-Pango-markup function `To_Pango_Markup` and its helpers
 (`Xml_Escape`, the cmark tree-walk, and table rendering) are provided by

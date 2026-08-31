@@ -209,33 +209,33 @@ package body Coyote_GUI.Tool_Detail_Window is
    end Add_Text_View;
 
    function Status_Text
-     (Status : Coyote_GUI.Conversation.Tool_End_Status) return String
+     (Status : Coyote_GUI.Tool_End_Status) return String
    is
    begin
       case Status is
-         when Coyote_GUI.Conversation.Success =>
+         when Coyote_GUI.Success =>
             return UC_CHECK & " success";
-         when Coyote_GUI.Conversation.Error =>
+         when Coyote_GUI.Error =>
             return UC_CROSS & " error";
-         when Coyote_GUI.Conversation.Cancelled =>
+         when Coyote_GUI.Cancelled =>
             return "- cancelled";
       end case;
    end Status_Text;
 
    procedure Apply_Status_Style
      (Label  : not null access Gtk.Label.Gtk_Label_Record'Class;
-      Status : Coyote_GUI.Conversation.Tool_End_Status)
+      Status : Coyote_GUI.Tool_End_Status)
    is
       use Gtk.Css_Provider;
       use Gtk.Style_Context;
       use Gtk.Style_Provider;
       CSS : constant String :=
         (case Status is
-            when Coyote_GUI.Conversation.Success =>
+            when Coyote_GUI.Success =>
                "label { font-weight: bold; padding: 7px 10px; }",
-            when Coyote_GUI.Conversation.Error =>
+            when Coyote_GUI.Error =>
                "label { font-weight: bold; padding: 7px 10px; }",
-            when Coyote_GUI.Conversation.Cancelled =>
+            when Coyote_GUI.Cancelled =>
                "label { font-weight: bold; padding: 7px 10px; }");
       Provider  : Gtk_Css_Provider;
       CSS_Error : aliased Glib.Error.GError;
@@ -478,7 +478,7 @@ package body Coyote_GUI.Tool_Detail_Window is
    end Add_Image_Result;
 
    procedure Show
-     (Info        : Coyote_GUI.Conversation.Tool_Info;
+     (Info        : Coyote_GUI.Tool_Info;
       Main_Window : not null access Gtk.Window.Gtk_Window_Record'Class)
    is
       use Gtk.Box;

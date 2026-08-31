@@ -3028,3 +3028,27 @@ behavior, current test baseline, and remaining manual qualification scope.
   errors.
 - **Status:** Implemented; display-backed GUI qualification remains subject to
   the existing GUI demonstration procedures.
+
+
+## PCR-092 — Retire legacy GTK conversation renderer
+
+- **Date reported:** 2026-08-31
+- **Category:** Requirements, Design, Code, Test, Plans, Manuals
+- **Priority:** 2-Serious
+- **Description:** Native GTK conversation presentation was fully qualified,
+but the production GUI still carried the retired GtkLayout/Cairo/Pango renderer,
+dual update routing, and the `COYOTE_NATIVE_STACK` runtime selection flag.
+- **Affected work products:** `Coyote_App.Frontend.GUI`,
+`Coyote_GUI.Conversation_Stack`, the retired conversation units and tests,
+SRS-CORE, SDD-CORE, TEST-PLAN, frontend SDF, Project Plan, and traceability.
+- **Actions taken:** Made `Coyote_GUI.Conversation_Stack` unconditional in the
+GUI frontend; removed legacy state, callbacks, imports, renderer units, test
+accessors, and dedicated test registrations; moved retained tool metadata to
+`Coyote_GUI`; updated active controlled documentation and marked prior migration
+entries historical. The Plain frontend was not changed.
+- **Verification:** Production and test development builds succeed. All 17
+native-stack tests pass 17/17, and the GUI lifecycle regression passes 1/1 with
+zero failed assertions and zero unexpected errors. The post-cutover suite has
+762 registered tests.
+- **Status:** Resolved
+- **Date resolved:** 2026-08-31

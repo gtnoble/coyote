@@ -5,7 +5,7 @@
 --
 --  Project: coyote
 
-with Coyote_GUI.Conversation;
+with Coyote_GUI;
 with Gtk.Window;
 
 package Coyote_GUI.Tool_Detail_Window is
@@ -13,7 +13,7 @@ package Coyote_GUI.Tool_Detail_Window is
    --  Show a structured, non-modal detail window for Info.  The window is
    --  transient for Main_Window and remains open until closed by the user.
    procedure Show
-     (Info        : in Coyote_GUI.Conversation.Tool_Info;
+     (Info        : in Coyote_GUI.Tool_Info;
       Main_Window : not null access Gtk.Window.Gtk_Window_Record'Class);
 
 end Coyote_GUI.Tool_Detail_Window;

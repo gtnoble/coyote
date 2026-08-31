@@ -7,7 +7,6 @@ with Coyote_Help_Tests;
 with Coyote_Utils_Tests;
 with Coyote_Cmark_Tests;
 with Coyote_Lasem_Tests;
-with Coyote_GUI_Conversation_Tests;
 with Coyote_GUI_Conversation_Stack_Tests;
 with Coyote_GUI_Navigation_Tests;
 with Coyote_GUI_Zoom_Tests;
@@ -77,8 +76,6 @@ package body Test_Suites is
      new AUnit.Test_Caller (Coyote_Cmark_Tests.Test);
    package Coyote_Lasem_Caller is
      new AUnit.Test_Caller (Coyote_Lasem_Tests.Test);
-   package Coyote_GUI_Conversation_Caller is
-     new AUnit.Test_Caller (Coyote_GUI_Conversation_Tests.Test);
    package Coyote_GUI_Conversation_Stack_Caller is
      new AUnit.Test_Caller
        (Coyote_GUI_Conversation_Stack_Tests.Test);
@@ -2608,13 +2605,13 @@ package body Test_Suites is
          Coyote_GUI_Session_Stats_Window_Tests
            .Test_Create_Is_Idempotent'Access));
       Result.Add_Test (Coyote_App_Frontend_GUI_Caller.Create
-        ("Coyote.GUI layout and shutdown lifecycle",
-         Coyote_App_Frontend_GUI_Tests
-           .Test_Layout_And_Shutdown_Lifecycle'Access));
-      Result.Add_Test (Coyote_App_Frontend_GUI_Caller.Create
         ("Coyote.GUI Product Information displays application icon",
          Coyote_App_Frontend_GUI_Tests
            .Test_Product_Information_Icon'Access));
+      Result.Add_Test (Coyote_App_Frontend_GUI_Caller.Create
+        ("Coyote.GUI layout and shutdown lifecycle",
+         Coyote_App_Frontend_GUI_Tests
+           .Test_Layout_And_Shutdown_Lifecycle'Access));
 
       Result.Add_Test (Coyote_Lasem_Caller.Create
         ("Coyote.Lasem measures a MathML fraction",
@@ -2739,170 +2736,6 @@ package body Test_Suites is
         ("Coyote.GUI.Conversation_Stack clears exchange state",
          Coyote_GUI_Conversation_Stack_Tests
            .Test_Clear_Removes_Exchange_State'Access));
-
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation Append_Notice adds logical lines",
-         Coyote_GUI_Conversation_Tests.Test_Append_Notice_Increments_Count'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation Append_Text enters text block",
-         Coyote_GUI_Conversation_Tests.Test_Append_Text_Enters_Text_Block'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation Append_Text accumulates buffer",
-         Coyote_GUI_Conversation_Tests.Test_Append_Text_Accumulates_Buffer'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation reassembles split UTF-8 text",
-         Coyote_GUI_Conversation_Tests.Test_Split_UTF8_Text_Is_Reassembled'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation reassembles split UTF-8 thinking",
-         Coyote_GUI_Conversation_Tests.Test_Split_UTF8_Thinking_Is_Reassembled'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation streaming append invalidates visual cache",
-         Coyote_GUI_Conversation_Tests
-           .Test_Streaming_Append_Invalidates_Vis_Cache'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation End_Text_Block exits block",
-         Coyote_GUI_Conversation_Tests.Test_End_Text_Block_Exits_Block'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation Begin_Thinking sets flag",
-         Coyote_GUI_Conversation_Tests.Test_Begin_Thinking_Sets_Flag'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation End_Thinking clears flag",
-         Coyote_GUI_Conversation_Tests.Test_End_Thinking_Clears_Flag'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation tool detail preserves arguments",
-         Coyote_GUI_Conversation_Tests
-           .Test_Tool_Detail_Preserves_Arguments'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation selects interleaved second tool",
-         Coyote_GUI_Conversation_Tests
-           .Test_Tool_Detail_Selects_Second_Interleaved'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation tool card lifecycle styles",
-         Coyote_GUI_Conversation_Tests
-           .Test_Tool_Card_Lifecycle_Styles'Access));
-
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation notices do not enter text block",
-         Coyote_GUI_Conversation_Tests.Test_Notice_Does_Not_Enter_Text_Block'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation footer leaves 3 lines",
-         Coyote_GUI_Conversation_Tests.Test_Footer_Leaves_Blank_Lines'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation footer renders summary",
-         Coyote_GUI_Conversation_Tests.Test_Footer_Renders_Summary'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation single short line Vis_Count = 1",
-         Coyote_GUI_Conversation_Tests.Test_Single_Short_Line_Vis_Count_One'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation Total_Vis_Lines after Append_Text",
-         Coyote_GUI_Conversation_Tests.Test_Total_Vis_Lines_After_Append_Text'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation Total_Vis_Lines zero when empty",
-         Coyote_GUI_Conversation_Tests.Test_Total_Vis_Lines_Zero_When_Empty'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation cache width non-zero after recompute",
-         Coyote_GUI_Conversation_Tests.Test_Cache_Width_Non_Zero_After_Recompute'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation Invalidate_Layout recomputes cache",
-         Coyote_GUI_Conversation_Tests.Test_Invalidate_Layout_Zeroes_Cache_Width'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation Set_Font changes line height",
-         Coyote_GUI_Conversation_Tests.Test_Set_Font_Changes_Line_Height'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation Recompute_Vis_Lines updates total",
-         Coyote_GUI_Conversation_Tests.Test_Recompute_Vis_Lines_Updates_Total'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation multiple short lines each Vis_Count=1",
-         Coyote_GUI_Conversation_Tests.Test_Multiple_Short_Lines_Each_Vis_Count_One'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation long line produces many visual lines",
-         Coyote_GUI_Conversation_Tests.Test_Long_Line_Produces_Many_Visual_Lines'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation deep indent consumes width and wraps",
-         Coyote_GUI_Conversation_Tests.Test_Deep_Indent_Consumes_Width_And_Wraps'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation visual lines exceed viewport height",
-         Coyote_GUI_Conversation_Tests.Test_Visual_Lines_Exceed_Viewport_Height'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation Vis_Count consistent on recompute",
-         Coyote_GUI_Conversation_Tests.Test_Long_Line_Vis_Count_Consistent_On_Recompute'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation long word forces character break",
-         Coyote_GUI_Conversation_Tests.Test_Long_Word_Forces_Character_Break'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation select-all extracts expected text",
-         Coyote_GUI_Conversation_Tests.Test_Viewport_Select_All_Extracts_Expected_Text'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation inverted selection orders endpoints",
-         Coyote_GUI_Conversation_Tests.Test_Inverted_Selection_Orders_Endpoints'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation inverted selection extracts expected text",
-         Coyote_GUI_Conversation_Tests.Test_Inverted_Selection_Extracts_Expected_Text'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation markdown paragraph has markup flag",
-         Coyote_GUI_Conversation_Tests.Test_Markdown_Paragraph_Has_Markup_Flag'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation markdown multi-paragraph line count",
-         Coyote_GUI_Conversation_Tests.Test_Markdown_Multi_Paragraph_Line_Count'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation nested list indentation",
-         Coyote_GUI_Conversation_Tests.Test_Markdown_Nested_List_Indentation'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation mixed list indentation",
-         Coyote_GUI_Conversation_Tests.Test_Markdown_Mixed_List_Indentation'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation markdown select-all strips markup",
-         Coyote_GUI_Conversation_Tests.Test_Markdown_Select_All_Strips_Markup'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation markdown heading styles",
-         Coyote_GUI_Conversation_Tests.Test_Markdown_Heading_Styles'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation markdown bold/italic rendered to plain text",
-         Coyote_GUI_Conversation_Tests.Test_Markdown_Bold_Italic_Preserved_In_Text'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation display math has dedicated style",
-         Coyote_GUI_Conversation_Tests
-           .Test_Markdown_Display_Math_Style'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation display math preserves source",
-         Coyote_GUI_Conversation_Tests
-           .Test_Markdown_Display_Math_Preserves_Source'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation display math has visual lines",
-         Coyote_GUI_Conversation_Tests
-           .Test_Markdown_Display_Math_Has_Visual_Lines'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation document height is sum of blocks",
-         Coyote_GUI_Conversation_Tests
-           .Test_Document_Height_Is_Sum_Of_Block_Heights'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation heading taller than body",
-         Coyote_GUI_Conversation_Tests
-           .Test_Heading_Taller_Than_Body'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation math uses natural pixel height",
-         Coyote_GUI_Conversation_Tests
-           .Test_Math_Uses_Natural_Pixel_Height'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation selected text uses selection order",
-         Coyote_GUI_Conversation_Tests
-           .Test_Selected_Text_Uses_Selection_Order'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation primary selection round trip",
-         Coyote_GUI_Conversation_Tests
-           .Test_Primary_Selection_Round_Trip'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation interactive focus cycles",
-         Coyote_GUI_Conversation_Tests
-           .Test_Interactive_Focus_Cycles'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Context_Help maps main areas to topics",
-         Coyote_GUI_Conversation_Tests
-           .Test_Context_Help_Covers_Main_Areas'Access));
-      Result.Add_Test (Coyote_GUI_Conversation_Caller.Create
-        ("Coyote.GUI.Conversation select all and clear selection",
-         Coyote_GUI_Conversation_Tests
-           .Test_Select_All_And_Clear_Selection'Access));
 
       --  Process-controller tests must remain last because the controller
       --  intentionally retains process-wide shutdown and persistence state.
