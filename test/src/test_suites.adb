@@ -1,6 +1,10 @@
 with AUnit.Test_Caller;
 with Session_Lister_Tests;
 with Coyote_App_Tests;
+with Coyote_App_Agent_Registry_Tests;
+with Coyote_App_Agent_RPC_Tests;
+with Coyote_App_Agent_RPC_Transport_Tests;
+with Coyote_App_Agent_RPC_Service_Tests;
 with Collapse_Utils_Tests;
 with Model_Row_Match_Tests;
 with Coyote_Help_Tests;
@@ -56,6 +60,14 @@ package body Test_Suites is
      new AUnit.Test_Caller (Session_Lister_Tests.Test);
    package App_State_Caller is
      new AUnit.Test_Caller (Coyote_App_Tests.Test);
+   package Agent_Registry_Caller is
+     new AUnit.Test_Caller (Coyote_App_Agent_Registry_Tests.Test);
+   package Agent_RPC_Caller is
+     new AUnit.Test_Caller (Coyote_App_Agent_RPC_Tests.Test);
+   package Agent_RPC_Transport_Caller is
+     new AUnit.Test_Caller (Coyote_App_Agent_RPC_Transport_Tests.Test);
+   package Agent_RPC_Service_Caller is
+     new AUnit.Test_Caller (Coyote_App_Agent_RPC_Service_Tests.Test);
    package Subagent_Int_Caller is
      new AUnit.Test_Caller (Subagent_Integration_Tests.Test);
    package LLM_Sys_Prompt_Caller is
@@ -230,6 +242,132 @@ package body Test_Suites is
         ("Fork_Session preserves native turn boundaries",
          Session_Lister_Tests
            .Test_Fork_Native_Format_Preserves_Turn_Boundary'Access));
+
+      --  Coyote_App.Agent_Registry tests
+      Result.Add_Test (Agent_Registry_Caller.Create
+        ("Agent registry registers the main root",
+         Coyote_App_Agent_Registry_Tests
+           .Test_Register_Main_Agent_As_Root'Access));
+      Result.Add_Test (Agent_Registry_Caller.Create
+        ("Agent registry registers a child under its parent",
+         Coyote_App_Agent_Registry_Tests
+           .Test_Register_Child_Under_Parent'Access));
+      Result.Add_Test (Agent_Registry_Caller.Create
+        ("Agent registry preserves recursive descendants",
+         Coyote_App_Agent_Registry_Tests
+           .Test_Register_Recursive_Descendants'Access));
+      Result.Add_Test (Agent_Registry_Caller.Create
+        ("Agent registry separates runtime and durable identity",
+         Coyote_App_Agent_Registry_Tests
+           .Test_Runtime_Identity_Is_Separate'Access));
+      Result.Add_Test (Agent_Registry_Caller.Create
+        ("Agent registry selects a live agent",
+         Coyote_App_Agent_Registry_Tests
+           .Test_Select_Live_Agent'Access));
+      Result.Add_Test (Agent_Registry_Caller.Create
+        ("Agent registry accepts controls while ready",
+         Coyote_App_Agent_Registry_Tests
+           .Test_Ready_Agent_Accepts_Control'Access));
+      Result.Add_Test (Agent_Registry_Caller.Create
+        ("Agent registry updates durable session identity",
+         Coyote_App_Agent_Registry_Tests
+           .Test_Durable_Session_Id_Update'Access));
+      Result.Add_Test (Agent_Registry_Caller.Create
+        ("Agent registry retains terminal selection",
+         Coyote_App_Agent_Registry_Tests
+           .Test_Terminal_Agent_Remains_Selectable'Access));
+      Result.Add_Test (Agent_Registry_Caller.Create
+        ("Agent registry rejects terminal controls",
+         Coyote_App_Agent_Registry_Tests
+           .Test_Terminal_Agent_Rejects_Control'Access));
+      Result.Add_Test (Agent_Registry_Caller.Create
+        ("Agent registry rejects unknown parents",
+         Coyote_App_Agent_Registry_Tests
+           .Test_Unknown_Parent_Is_Rejected'Access));
+      Result.Add_Test (Agent_Registry_Caller.Create
+        ("Agent registry rejects duplicate runtime identities",
+         Coyote_App_Agent_Registry_Tests
+           .Test_Duplicate_Runtime_Id_Is_Rejected'Access));
+      Result.Add_Test (Agent_Registry_Caller.Create
+        ("Agent registry clears records and selection",
+         Coyote_App_Agent_Registry_Tests
+           .Test_Clear_Removes_All_Records'Access));
+
+      --  Coyote_App.Agent_RPC.Service tests
+      Result.Add_Test (Agent_RPC_Service_Caller.Create
+        ("Agent RPC service registers child handshakes",
+         Coyote_App_Agent_RPC_Service_Tests
+           .Test_Listener_Registers_Child'Access));
+      Result.Add_Test (Agent_RPC_Service_Caller.Create
+        ("Agent RPC service routes commands",
+         Coyote_App_Agent_RPC_Service_Tests
+           .Test_Command_Routes_To_Child'Access));
+      Result.Add_Test (Agent_RPC_Service_Caller.Create
+        ("Agent RPC service reports disconnects",
+         Coyote_App_Agent_RPC_Service_Tests
+           .Test_Disconnect_Is_Reported'Access));
+
+      --  Coyote_App.Agent_RPC.Transport tests
+      Result.Add_Test (Agent_RPC_Transport_Caller.Create
+        ("Agent RPC transport pair round-trips a handshake",
+         Coyote_App_Agent_RPC_Transport_Tests.Test_Pair_Round_Trip'Access));
+      Result.Add_Test (Agent_RPC_Transport_Caller.Create
+        ("Agent RPC transport enforces handshake ordering",
+         Coyote_App_Agent_RPC_Transport_Tests.Test_Handshake_Ordering'Access));
+      Result.Add_Test (Agent_RPC_Transport_Caller.Create
+        ("Agent RPC transport enforces increasing event sequence",
+         Coyote_App_Agent_RPC_Transport_Tests
+           .Test_Event_Sequence_Must_Increase'Access));
+      Result.Add_Test (Agent_RPC_Transport_Caller.Create
+        ("Agent RPC transport rejects frames after terminal",
+         Coyote_App_Agent_RPC_Transport_Tests
+           .Test_Terminal_Closes_Send_Side'Access));
+      Result.Add_Test (Agent_RPC_Transport_Caller.Create
+        ("Agent RPC transport reports peer close",
+         Coyote_App_Agent_RPC_Transport_Tests
+           .Test_Peer_Close_Is_Reported'Access));
+      Result.Add_Test (Agent_RPC_Transport_Caller.Create
+        ("Agent RPC transport accepts Unix clients",
+         Coyote_App_Agent_RPC_Transport_Tests
+           .Test_Unix_Listener_Accepts_Client'Access));
+
+      --  Coyote_App.Agent_RPC codec tests
+      Result.Add_Test (Agent_RPC_Caller.Create
+        ("Agent RPC handshake round-trips",
+         Coyote_App_Agent_RPC_Tests.Test_Handshake_Round_Trip'Access));
+      Result.Add_Test (Agent_RPC_Caller.Create
+        ("Agent RPC event round-trips",
+         Coyote_App_Agent_RPC_Tests.Test_Event_Round_Trip'Access));
+      Result.Add_Test (Agent_RPC_Caller.Create
+        ("Agent RPC command round-trips",
+         Coyote_App_Agent_RPC_Tests.Test_Command_Round_Trip'Access));
+      Result.Add_Test (Agent_RPC_Caller.Create
+        ("Agent RPC terminal round-trips",
+         Coyote_App_Agent_RPC_Tests.Test_Terminal_Round_Trip'Access));
+      Result.Add_Test (Agent_RPC_Caller.Create
+        ("Agent RPC preserves JSON escaping",
+         Coyote_App_Agent_RPC_Tests.Test_JSON_Escaping'Access));
+      Result.Add_Test (Agent_RPC_Caller.Create
+        ("Agent RPC encoding has no trailing newline",
+         Coyote_App_Agent_RPC_Tests.Test_Encode_Has_No_Trailing_Newline'Access));
+      Result.Add_Test (Agent_RPC_Caller.Create
+        ("Agent RPC rejects malformed JSON",
+         Coyote_App_Agent_RPC_Tests.Test_Malformed_JSON'Access));
+      Result.Add_Test (Agent_RPC_Caller.Create
+        ("Agent RPC rejects non-object frames",
+         Coyote_App_Agent_RPC_Tests.Test_Non_Object_Frame'Access));
+      Result.Add_Test (Agent_RPC_Caller.Create
+        ("Agent RPC rejects wrong protocol markers",
+         Coyote_App_Agent_RPC_Tests.Test_Wrong_Protocol'Access));
+      Result.Add_Test (Agent_RPC_Caller.Create
+        ("Agent RPC rejects unsupported versions",
+         Coyote_App_Agent_RPC_Tests.Test_Unsupported_Version'Access));
+      Result.Add_Test (Agent_RPC_Caller.Create
+        ("Agent RPC rejects missing required fields",
+         Coyote_App_Agent_RPC_Tests.Test_Missing_Required_Field'Access));
+      Result.Add_Test (Agent_RPC_Caller.Create
+        ("Agent RPC rejects invalid payloads",
+         Coyote_App_Agent_RPC_Tests.Test_Invalid_Payload'Access));
 
       --  Coyote_App (App_State) tests
       Result.Add_Test (App_State_Caller.Create
@@ -2537,6 +2675,9 @@ package body Test_Suites is
         ("Coyote.GUI.Updates stopped queue does not wake",
          Coyote_GUI_Updates_Tests.Test_Stopped_Queue_Does_Not_Wake'Access));
       Result.Add_Test (Coyote_GUI_Updates_Caller.Create
+        ("Coyote.GUI.Updates preserves runtime agent identity",
+         Coyote_GUI_Updates_Tests.Test_Runtime_Agent_Id_Round_Trips'Access));
+      Result.Add_Test (Coyote_GUI_Updates_Caller.Create
         ("Coyote.GUI.Updates preserves footer summary",
          Coyote_GUI_Updates_Tests.Test_Footer_Summary_Round_Trips'Access));
       Result.Add_Test (Coyote_GUI_Prompt_Queue_Caller.Create
@@ -2545,6 +2686,9 @@ package body Test_Suites is
       Result.Add_Test (Coyote_GUI_Prompt_Queue_Caller.Create
         ("Coyote.GUI.Prompt_Queue reports acceptance",
          Coyote_GUI_Prompt_Queue_Tests.Test_Enqueue_Reports_Acceptance'Access));
+      Result.Add_Test (Coyote_GUI_Prompt_Queue_Caller.Create
+        ("Coyote.GUI.Prompt_Queue preserves target identity",
+         Coyote_GUI_Prompt_Queue_Tests.Test_Target_Agent_Id_Round_Trips'Access));
       Result.Add_Test (Coyote_GUI_Prompt_Queue_Caller.Create
         ("Coyote.GUI.Prompt_Queue rejects overflow",
          Coyote_GUI_Prompt_Queue_Tests.Test_Enqueue_Rejects_Overflow'Access));

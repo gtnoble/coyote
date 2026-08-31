@@ -32,8 +32,9 @@ process. Selecting a completed record is for review only; it does not restart
 or make the worker persistent. Runtime agent identity and parent identity are
 separate from durable session UUID and session lineage.
 
-**Status:** Accepted documentation/design amendment; implementation and
-qualification are pending.
+**Status:** Implemented in the development build; focused registry, codec,
+transport, and service tests pass. Full integration, display-backed, and
+real-provider qualification remain pending under DEM-050..053.
 
 ## 2026-08-29 — Recursive OpenRouter Broadcast identity (REQ-CORE-219)
 

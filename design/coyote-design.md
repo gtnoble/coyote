@@ -30,15 +30,17 @@ contains GTK3 and Plain execution paths. The former Acme frontend, Nine_P
 sections that describe those components remain as design history and are not
 part of the current build.
 
-**Accepted virtual-agent-window amendment (2026-08-31):** The planned GUI
-shall organize coordinator-launched short-lived subagents as virtual windows
-in an agents tree rather than mapping one top-level GUI window per subagent.
-The main agent is the tree root; selecting an agent displays its independent
-conversation state in the shared conversation view and directs prompts and
-agent controls to that live agent. This is an organization and presentation
-change, not a persistent-agent change: `--subagent` retains its initial-prompt,
-active-steering, final-response, and process-exit lifecycle. The amendment is
-accepted design direction and is not yet implemented in the current build.
+**Accepted virtual-agent-window amendment (2026-08-31):** The GUI organizes
+coordinator-launched short-lived subagents as virtual windows in an agents tree
+rather than mapping one top-level GUI window per subagent. The main agent is the
+tree root; selecting an agent displays its independent conversation state in
+the shared conversation view and directs prompts and agent controls to that live
+agent. This is an organization and presentation change, not a persistent-agent
+change: `--subagent` retains its initial-prompt, active-steering, final-response,
+and process-exit lifecycle. The development implementation is present; focused
+registry/RPC qualification passes, while display-backed and real-provider
+end-to-end qualification remain open.
+
 
 **Component identifier:** coyote
 
@@ -237,9 +239,9 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `Coyote_App.Frontend` | Abstract frontend interface | `src/coyote_app-frontend.ads` |
 | `Coyote_App.Frontend.GUI` | GTK3 frontend implementation, agents tree, and selected virtual-window presentation | `src/coyote_app-frontend-gui.ads/.adb` |
 | `Coyote_App.Frontend.Plain` | Plain-text frontend implementation | `src/coyote_app-frontend-plain.ads/.adb` |
-| `Coyote_App.Frontend.RPC` | Planned headless coordinator RPC frontend for short-lived subagents | Planned `src/coyote_app-frontend-rpc.ads/.adb` |
-| `Coyote_App.Agent_Registry` | Planned live virtual-agent hierarchy and selected-agent routing state | Planned `src/coyote_app-agent_registry.ads/.adb` |
-| `Coyote_App.Agent_RPC` | Planned local bidirectional RPC listener, event routing, and control transport | Planned `src/coyote_app-agent_rpc.ads/.adb` |
+| `Coyote_App.Frontend.RPC` | Headless coordinator RPC frontend for short-lived subagents | `src/coyote_app-frontend-rpc.ads/.adb` |
+| `Coyote_App.Agent_Registry` | Live virtual-agent hierarchy and selected-agent routing state | `src/coyote_app-agent_registry.ads/.adb` |
+| `Coyote_App.Agent_RPC` | Local bidirectional RPC codec, listener, event routing, and control transport | `src/coyote_app-agent_rpc.ads/.adb` |
 | `Coyote_GUI` | GUI root (Update_Kind, Update record) | `src/coyote_gui/coyote_gui.ads` |
 | `Coyote_GUI.Updates` | Protected agent→GTK queue | `src/coyote_gui/coyote_gui-updates.ads/.adb` |
 | `Coyote_GUI.Prompt_Queue` | Protected GTK→agent queue | `src/coyote_gui/coyote_gui-prompt_queue.ads/.adb` |
@@ -436,7 +438,7 @@ three layers:
   → Coyote_Notify calls libnotify only when the window is inactive
 ```
 
-**Planned virtual-agent-window flow:**
+**Implemented virtual-agent-window flow:**
 
 ```
 [coordinator GUI]
@@ -1605,8 +1607,8 @@ startup and is the sole GTK conversation presentation (see §5.15).
   adding nested scrolling regions or changing the conversation's expansion
   policy. The arrangement follows the IRIX guidance for a work area above a
   control area and a status area along the bottom.
-- The planned agents panel is a narrow, resizable left-side tree view within
-  the main window. Its root row is the main agent; recursively launched
+- The agents panel is a narrow, resizable left-side tree view within the main
+  window. Its root row is the main agent; recursively launched
   subagents appear beneath the agent that launched them. Each row identifies
   the agent label and lifecycle state. Selecting a row switches the shared
   conversation view to that agent's retained conversation state and makes the

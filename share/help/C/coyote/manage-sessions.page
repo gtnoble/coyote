@@ -9,7 +9,7 @@
   <steps>
     <item><p>Choose <gui>File</gui> and then choose <gui>New Session</gui> to replace the current session.</p></item>
     <item><p>Choose <gui>File</gui> and then choose <gui>Open Session...</gui> to select a saved session.</p></item>
-    <item><p>Use the planned agents panel to select the main agent or one of its short-lived subagents without opening another desktop window. A selected live agent receives prompts and applicable controls; completed agents remain available for review.</p></item>
+    <item><p>Use the agents panel to select the main agent or one of its short-lived subagents without opening another desktop window. A selected live agent receives prompts and applicable controls; completed agents remain available for review.</p></item>
     <item><p>Use <gui>File</gui> and <gui>New Window</gui> when an explicitly separate physical coyote window is needed.</p></item>
   </steps>
   <p>See <link xref="ui-menu">Main menu</link> for menu navigation and <link xref="keyboard-shortcuts">Keys &amp; Shortcuts</link> for keyboard access.</p>

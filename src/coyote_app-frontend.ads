@@ -7,9 +7,24 @@
 --  Project: coyote
 --  For revision history, see the project version-control log.
 
+with Ada.Strings.Unbounded;
+
 package Coyote_App.Frontend is
 
    type Instance is abstract tagged limited null record;
+
+   type Control_Command_Kind is
+     (Control_Stop, Control_Pause, Control_Resume, Control_Shutdown);
+
+   type Control_Command is record
+      Kind : Control_Command_Kind := Control_Stop;
+   end record;
+
+   function Has_Control_Channel (F : Instance) return Boolean is (False);
+   function Read_Control
+     (F       : in out Instance;
+      Command : out Control_Command) return Boolean is (False);
+
    type Instance_Access is access all Instance'Class;
 
    --  Update the persistent one-line status display in the GUI.  Text is

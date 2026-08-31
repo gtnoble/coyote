@@ -7,7 +7,7 @@
   <title>Overview</title>
   <p>Coyote is a native LLM coding agent. It maintains a persistent conversation with a selected model, displays responses and tool activity, and can execute coding tasks through its configured tools.</p>
   <p>The main window contains the agents panel, conversation area, prompt area, Send and Stop controls, and a status area. Use the agents panel to organize the main agent and its short-lived subagents as a tree of virtual windows. Select an agent to display its conversation and, while it is live, make it the target of prompts and agent controls. Use the <link xref="send-prompt">Send a Prompt</link> task to begin a conversation.</p>
-  <note><p>The agents panel is planned and is not yet implemented. Coordinator-launched subagents will remain short-lived: after their final response, they exit. Completed agents remain available for review in the panel.</p></note>
+  <note><p>The agents panel is implemented in the development build. Coordinator-launched subagents remain short-lived: after their final response, they exit. Focused RPC qualification passes; display-backed and real-provider end-to-end qualification remain open. Completed agents remain available for review in the panel.</p></note>
   <links type="section"/>
   <p>Coordinator-launched subagents are shown as child virtual windows in the agents tree. Their processes remain short-lived and exit after the final response; the tree retains their conversation for review.</p>
   <section id="areas">

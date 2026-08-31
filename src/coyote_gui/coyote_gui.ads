@@ -142,6 +142,7 @@ package Coyote_GUI is
    end record;
    --    Set_Session_Identity Text = session identifier for window role
    --    Show_Detail          Text = window title; Text2 = content
+   --    Rpc_Frame            Text = encoded coyote-agent-rpc frame
    --    Shutdown           (no extra fields)
 
    type Update_Kind is
@@ -166,10 +167,13 @@ package Coyote_GUI is
       Set_Completion_Notifications,
       Completion_Notification,
       Show_Detail,
+      Rpc_Frame,
       Shutdown);
 
    type Update is record
       Kind     : Update_Kind := Append_Text;
+      --  Originating runtime agent; empty is the legacy single-agent value.
+      Runtime_Agent_Id : Ada.Strings.Unbounded.Unbounded_String;
       Text     : Ada.Strings.Unbounded.Unbounded_String;
       Text2    : Ada.Strings.Unbounded.Unbounded_String;
       Text3    : Ada.Strings.Unbounded.Unbounded_String;

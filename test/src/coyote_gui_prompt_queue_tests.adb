@@ -19,6 +19,7 @@ package body Coyote_GUI_Prompt_Queue_Tests is
    begin
       Queue.Enqueue
         ((Kind => Set_Preferences,
+          Target_Agent_Id => Null_Unbounded_String,
           Preferences =>
             (Provider => To_Unbounded_String ("openrouter"),
              Model_Id => To_Unbounded_String ("test/model"),
@@ -67,6 +68,7 @@ package body Coyote_GUI_Prompt_Queue_Tests is
          Paths.Append ("/two/skills");
          Queue.Enqueue
            ((Kind => Set_Preferences,
+             Target_Agent_Id => Null_Unbounded_String,
              Preferences =>
                (Provider => Null_Unbounded_String,
                 Model_Id => Null_Unbounded_String,
@@ -90,6 +92,7 @@ package body Coyote_GUI_Prompt_Queue_Tests is
 
       Queue.Enqueue
         ((Kind => Set_Preferences,
+          Target_Agent_Id => Null_Unbounded_String,
           Preferences =>
             (Provider          => Null_Unbounded_String,
              Model_Id          => Null_Unbounded_String,
@@ -126,13 +129,33 @@ package body Coyote_GUI_Prompt_Queue_Tests is
       Got      : Coyote_GUI.Prompt_Queue.Item;
    begin
       Queue.Enqueue
-        ((Kind => User_Prompt, Text => To_Unbounded_String ("hello")),
+        ((Kind            => User_Prompt,
+          Target_Agent_Id => Null_Unbounded_String,
+          Text            => To_Unbounded_String ("hello")),
          Accepted);
       Assert (Accepted, "available queue should accept an item");
       Queue.Dequeue (Got);
       Assert (To_String (Got.Text) = "hello",
               "accepted prompt should be delivered");
    end Test_Enqueue_Reports_Acceptance;
+
+   procedure Test_Target_Agent_Id_Round_Trips (T : in out Test) is
+      pragma Unreferenced (T);
+      Queue : Coyote_GUI.Prompt_Queue.Queue;
+      Got   : Coyote_GUI.Prompt_Queue.Item;
+   begin
+      Queue.Enqueue
+        ((Kind            => User_Prompt,
+          Target_Agent_Id => To_Unbounded_String ("agent-7"),
+          Text            => To_Unbounded_String ("steer")));
+      Queue.Dequeue (Got);
+      Assert (Got.Kind = User_Prompt,
+              "targeted item kind should survive queue transport");
+      Assert (To_String (Got.Target_Agent_Id) = "agent-7",
+              "target runtime identity must survive prompt transport");
+      Assert (To_String (Got.Text) = "steer",
+              "targeted prompt text must survive queue transport");
+   end Test_Target_Agent_Id_Round_Trips;
 
    procedure Test_Enqueue_Rejects_Overflow (T : in out Test) is
       pragma Unreferenced (T);
@@ -142,11 +165,14 @@ package body Coyote_GUI_Prompt_Queue_Tests is
       for I in 1 .. Max_Depth loop
          Queue.Enqueue
            ((Kind => User_Prompt,
+             Target_Agent_Id => Null_Unbounded_String,
              Text => To_Unbounded_String ("prompt")), Accepted);
          Assert (Accepted, "queue should accept items through capacity");
       end loop;
       Queue.Enqueue
-        ((Kind => User_Prompt, Text => To_Unbounded_String ("lost")),
+        ((Kind            => User_Prompt,
+          Target_Agent_Id => Null_Unbounded_String,
+          Text            => To_Unbounded_String ("lost")),
          Accepted);
       Assert (not Accepted, "full queue should reject an item");
    end Test_Enqueue_Rejects_Overflow;

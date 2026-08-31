@@ -86,6 +86,7 @@ package Coyote_App is
       function Agent_Stopped      return Boolean;
       entry     Wait_Agent_Stopped;
       function Frontend_Ready     return Boolean;
+      entry     Wait_Frontend_Ready;
       function Shutdown_Requested  return Boolean;
 
       --  Writers
@@ -219,7 +220,7 @@ package Coyote_App is
    --    GUI_Frontend   — GTK3 window        (default when a display is set)
    --    Plain_Frontend — line-oriented text (one-shot / no display)
 
-   type Frontend_Kind is (GUI_Frontend, Plain_Frontend);
+   type Frontend_Kind is (GUI_Frontend, Plain_Frontend, RPC_Frontend);
 
    type Options is record
       Session_Id     : Ada.Strings.Unbounded.Unbounded_String;

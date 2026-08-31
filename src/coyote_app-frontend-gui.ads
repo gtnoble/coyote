@@ -19,15 +19,23 @@
 --
 --  Project: coyote
 
+with Ada.Containers.Vectors;
 with Ada.Strings.Unbounded;        use Ada.Strings.Unbounded;
+with Coyote_GUI;
 with Glib;                          use Glib;
 with LLM.Agent;
 with Coyote_GUI.Conversation_Stack;
 with Coyote_GUI.Prompt_Queue;
 with Coyote_GUI.Session_Stats_Window;
 with Coyote_GUI.Updates;
+with Coyote_App.Agent_Registry;
+with Coyote_App.Agent_RPC.Service;
 with Gtk.Accel_Group;
 with Gtk.Box;
+with Gtk.Paned;
+with Gtk.Tree_Model;
+with Gtk.Tree_Store;
+with Gtk.Tree_View;
 with Gtk.Button;
 with Gtk.Check_Button;
 with Gtk.Dialog;
@@ -197,6 +205,8 @@ package Coyote_App.Frontend.GUI is
 
 private
 
+   use type Coyote_GUI.Update;
+
    procedure Build_Product_Information
      (Parent : Gtk.Window.Gtk_Window;
       Dialog : out Gtk.Dialog.Gtk_Dialog;
@@ -209,6 +219,19 @@ private
       Value : access LLM.Agent.Session := null;
    end Session_Reference;
 
+   package Update_Vectors is new Ada.Containers.Vectors
+     (Index_Type   => Positive,
+      Element_Type => Coyote_GUI.Update);
+
+   type History_Entry is record
+      Runtime_Id : Unbounded_String;
+      Updates    : Update_Vectors.Vector;
+   end record;
+
+   package History_Vectors is new Ada.Containers.Vectors
+     (Index_Type   => Positive,
+      Element_Type => History_Entry);
+
    type Instance is new Coyote_App.Frontend.Instance with record
       --  Update queue: agent task → GTK idle drain.
       Updates   : aliased Coyote_GUI.Updates.Queue;
@@ -216,8 +239,25 @@ private
       PQ        : aliased Coyote_GUI.Prompt_Queue.Queue;
       --  Native component-stack presentation.
       Stack     : Coyote_GUI.Conversation_Stack.Instance;
+      --  Runtime hierarchy; it owns no GTK objects.
+      Agent_Registry : Coyote_App.Agent_Registry.Registry;
+      Root_Agent_Id  : Unbounded_String;
+      --  Coordinator-side local RPC service.  Its callback only enqueues
+      --  opaque frames; GTK state is applied by Drain_Idle.
+      RPC_Service   : Coyote_App.Agent_RPC.Service.Service;
+      RPC_Endpoint  : Unbounded_String;
+      Selected_Agent_Id : Unbounded_String :=
+        To_Unbounded_String ("root");
+      RPC_Request_Sequence : Natural := 0;
+      Histories : History_Vectors.Vector;
+      Replaying : Boolean := False;
       --  GTK widgets.
       Win       : Gtk.Window.Gtk_Window;
+      Agent_Pane  : Gtk.Paned.Gtk_Paned;
+      Agents_Store : Gtk.Tree_Store.Gtk_Tree_Store;
+      Agents_View  : Gtk.Tree_View.Gtk_Tree_View;
+      Agent_Root_Iter : Gtk.Tree_Model.Gtk_Tree_Iter :=
+        Gtk.Tree_Model.Null_Iter;
       Render_Markdown_Item  : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
       Stop_Item             : Gtk.Menu_Item.Gtk_Menu_Item;
       Pause_Item            : Gtk.Menu_Item.Gtk_Menu_Item;

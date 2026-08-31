@@ -17,6 +17,9 @@ with Gtk.Enums;
 with Gtk.Image;
 with Gtk.Main;
 with Gtk.Separator;
+with Gtk.Paned;
+with Gtk.Tree_Model;
+with Gtk.Tree_View;
 with Gtk.Widget;
 with Gtk.Window;
 
@@ -31,6 +34,9 @@ package body Coyote_App_Frontend_GUI_Tests is
    use type Gtk.Image.Gtk_Image_Type;
    use type GNAT.Strings.String_Access;
    use type Gtk.Separator.Gtk_Separator;
+   use type Gtk.Paned.Gtk_Paned;
+   use type Gtk.Tree_View.Gtk_Tree_View;
+   use type Gtk.Tree_Model.Gtk_Tree_Model;
    use type Gtk.Window.Gtk_Window;
    use type Gtk.Widget.Gtk_Widget;
    use type Coyote_GUI.Prompt_Queue.Item_Kind;
@@ -68,6 +74,9 @@ package body Coyote_App_Frontend_GUI_Tests is
       Status        : Gtk.Box.Gtk_Box;
       Conv_Prompt   : Gtk.Separator.Gtk_Separator;
       Prompt_Status : Gtk.Separator.Gtk_Separator;
+      Agents_Pane   : Gtk.Paned.Gtk_Paned;
+      Agents_Tree   : Gtk.Tree_View.Gtk_Tree_View;
+      Agents_Model  : Gtk.Tree_Model.Gtk_Tree_Model;
       use type Gtk.Window.Gtk_Window;
    begin
       if not T.Display_Available then
@@ -80,8 +89,25 @@ package body Coyote_App_Frontend_GUI_Tests is
       Status := Status_Box (Frontend);
       Conv_Prompt := Conversation_Prompt_Separator (Frontend);
       Prompt_Status := Prompt_Status_Separator (Frontend);
+      Agents_Pane := Agent_Pane (Frontend);
+      Agents_Tree := Agents_View (Frontend);
+      if Agents_Tree /= null then
+         Agents_Model := Gtk.Tree_View.Get_Model (Agents_Tree);
+      end if;
 
       Assert (Outer /= null, "GUI creates an outer layout box");
+      Assert (Agents_Pane /= null, "GUI creates the agents pane");
+      Assert (Agents_Tree /= null, "GUI creates the agents tree view");
+      Assert
+        (Agents_Model /= Gtk.Tree_Model.Null_Gtk_Tree_Model
+         and then Gtk.Tree_Model.N_Children (Agents_Model) = 1,
+         "agents tree starts with one main-agent root row");
+      Assert
+        (Gtk.Paned.Get_Child1 (Agents_Pane) /= null,
+         "agents pane contains the agents scroller");
+      Assert
+        (Gtk.Paned.Get_Child2 (Agents_Pane) /= null,
+         "agents pane contains the shared conversation view");
       Assert (Conv_Prompt /= null,
               "GUI creates a conversation/prompt separator");
       Assert (Prompt_Status /= null,

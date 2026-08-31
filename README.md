@@ -28,7 +28,8 @@ shared between coyote and pi.
   will make it the prompt and control target while it remains active. Session
   lineage is recorded automatically. Standalone subagents without a
   coordinator channel use the Plain frontend. This virtual-window
-  organization is accepted design direction and is not yet implemented.
+  organization is implemented in the development build; display-backed and
+  real-provider end-to-end qualification remain open.
 
 ## Requirements
 
@@ -89,12 +90,13 @@ intended to open their own GUI window may still inherit
 The GTK frontend provides File, Edit, View, Agent, Options, and Help menus.
 The Agent menu supports sending, stopping, pausing, resuming, compacting,
 clearing, changing models, changing thinking level, switching sessions, and
-forking a session. The planned agents panel presents the main agent as the
-root of a tree and coordinator-launched short-lived subagents as child virtual
-windows. Selecting a live node routes prompts and applicable controls to that
-agent; completed nodes remain available for review but do not accept new
-prompts. Completed tool cards open structured detail windows. This virtual
-window organization is planned and is not yet implemented.
+forking a session. The agents panel presents the main agent as the root of a
+tree and coordinator-launched short-lived subagents as child virtual windows.
+Selecting a live node routes prompts and applicable controls to that agent;
+completed nodes remain available for review but do not accept new prompts.
+Completed tool cards open structured detail windows. This virtual-window
+organization is implemented in the development build; display-backed and
+real-provider end-to-end qualification remain open.
 
 The Help menu opens the installed Mallard documentation through Yelp. F1 opens
 the overview and Shift+F1 enables contextual help.

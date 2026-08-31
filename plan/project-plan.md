@@ -911,13 +911,13 @@ execution and active steering semantics.
 
 | Indicator | Value |
 |---|---|
-| Scope change | Add a planned agents tree and coordinator RPC presentation path; no change to subagent persistence or one-shot termination semantics. |
+| Scope change | Add an agents tree and coordinator RPC presentation path; no change to subagent persistence or one-shot termination semantics. |
 | Requirements | Added REQ-CORE-020a..020c, revised REQ-CORE-020 and REQ-CORE-005, and revised REQ-CORE-115/115a for selected-agent routing and virtual windows. |
-| Design | Added planned `Coyote_App.Frontend.RPC`, `Coyote_App.Agent_Registry`, and `Coyote_App.Agent_RPC` boundaries; implementation remains pending. |
-| Test planning | Added future DEM-050..053 for tree registration, selected-agent prompt/control routing, retained terminal records, and bidirectional RPC. |
-| Verification | Documentation consistency reviewed; no implementation or runtime qualification performed. |
-| Open problem | PCR-093 In Progress, priority 2-Serious. |
-| Disposition | Accepted design direction; implementation and qualification deferred to a subsequent build. |
+| Design | Implemented `Coyote_App.Frontend.RPC`, `Coyote_App.Agent_Registry`, and `Coyote_App.Agent_RPC` boundaries, plus shared selected-agent conversation presentation. |
+| Test planning | Added DEM-050..053 for tree registration, selected-agent prompt/control routing, retained terminal records, and bidirectional RPC. |
+| Verification | Production and test builds pass. Focused registry, codec, transport, and service tests pass sequentially; full-suite execution remains sensitive to fixed endpoint contamination. Display-backed and real-provider end-to-end qualification remain open. |
+| Open problem | PCR-093 In Progress, priority 2-Serious, pending DEM-050..053 completion. |
+| Disposition | Implementation slice complete; focused qualification passed; remaining GUI/display and provider-backed qualification is tracked under DEM-050..053. |
 
 ## 9. Artifact Version Table
 

@@ -103,6 +103,14 @@ package body Coyote_App is
       end Wait_Agent_Stopped;
 
       function Frontend_Ready return Boolean is (P_Frontend_Ready);
+
+      entry Wait_Frontend_Ready
+        when P_Frontend_Ready or else P_Shutdown
+      is
+      begin
+         null;
+      end Wait_Frontend_Ready;
+
       function Shutdown_Requested return Boolean is (P_Shutdown);
 
       procedure Set_Frontend_Ready (Value : Boolean) is
@@ -458,7 +466,9 @@ package body Coyote_App is
          Final_Error        : Unbounded_String := Null_Unbounded_String;
          Completion_Pending : Boolean := False;
       begin
-         declare
+         State.Wait_Frontend_Ready;
+         if not State.Shutdown_Requested then
+            declare
 
             procedure Track_Event
               (E : LLM.Events.Agent_Event'Class)
@@ -921,6 +931,7 @@ package body Coyote_App is
                            Args    : Argument_List;
                         begin
                            Args.Append (Ada.Command_Line.Command_Name);
+                           Args.Append ("--subagent");
                            if Model'Length > 0 then
                               Args.Append ("--model");
                               Args.Append (Model);
@@ -1161,6 +1172,7 @@ package body Coyote_App is
                   & Ada.Exceptions.Exception_Message (Ex));
                Initiate_Shutdown;
          end;
+         end if;
          State.Set_Agent_Stopped (True);
       end Agent_Task;
 

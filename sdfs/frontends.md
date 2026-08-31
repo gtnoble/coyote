@@ -48,9 +48,12 @@ short-lived `--subagent` processes: they process the initial prompt, accept
 steering while active, emit the final response, and exit. Completed, aborted,
 failed, or disconnected nodes remain as presentation records for review; they
 do not keep a worker process alive or create a persistent interactive session.
-The planned coordinator path uses a headless, bidirectional local RPC frontend
-for structured conversation and lifecycle events. This documentation records
-accepted design direction; implementation and qualification are pending.
+The coordinator path now uses a headless, bidirectional local RPC frontend
+for structured conversation and lifecycle events. The runtime registry, shared
+conversation replay, selected-agent prompt/control routing, active control
+polling, and terminal retention are implemented. Focused registry, codec,
+transport, and service qualification passes; display-backed and real-provider
+end-to-end qualification remain open.
 
 ### GTK IRIX alignment slice (2026-08-23)
 

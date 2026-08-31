@@ -149,7 +149,7 @@ SRS-CORE requirement groups.
 | `llm_skills_tests.adb` | REQ-CORE-090, 090a, 091â094 | ~22; configured roots, malformed entries, and shadowing |
 | `llm_settings_tests.adb` | REQ-CORE-025, 090a, 230â234, 070â073; skillPaths loading and Save_Preferences persistence | ~29 |
 | `subagent_integration_tests.adb` | REQ-CORE-025, 019–020; subprocess startup, one-shot, and steering behavior | 4 |
-| Planned coordinator/RPC integration tests | REQ-CORE-020a–020c, 115, 115a; agents-tree registration, selected-agent routing, terminal retention, and RPC transport | Planned |
+| Coordinator/RPC implementation tests | REQ-CORE-020a–020c, 115, 115a; registry hierarchy/selection, runtime identity transport, versioned codec, Unix transport, service command/disconnect routing | Focused tests pass; DEM-050..053 remain for GUI/display and real-provider end-to-end qualification |
 | `coyote_gui_prompt_queue_tests.adb` | REQ-CORE-116â119; typed preference and skill-path payload, acceptance, and overflow transport | 3 |
 | `coyote_gui_navigation_tests.adb` | REQ-CORE-114; clamped keyboard viewport navigation | 3 |
 | `llm_auth_tests.adb` | REQ-CORE-232 | ~15 |
@@ -294,7 +294,7 @@ and preferences demonstrations listed above.
 | REQ-CORE-010â018 | T | `coyote_app_tests.adb` |
 | REQ-CORE-019â020 | D | DEM-004, DEM-005 |
 | REQ-CORE-025 | T/D | `subagent_integration_tests.adb`, `llm_settings_tests.adb`, DEM-045 |
-| REQ-CORE-020a..020c, 115, 115a | D/T/I | Planned coordinator/RPC integration tests DEM-050..053; source inspection |
+| REQ-CORE-020a..020c, 115, 115a | D/T/I | Registry, codec, transport, and service focused tests; DEM-050..053 for GUI/display and real-provider end-to-end qualification; source inspection |
 | REQ-CORE-021 | D | GUI window title label demonstration |
 | REQ-CORE-022 | D | DEM (TBD) |
 | REQ-CORE-023 | T | `coyote_utils_tests.adb` |

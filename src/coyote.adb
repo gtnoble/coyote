@@ -5,7 +5,7 @@
 --                 [--no-tools] [--no-session]
 --                 [--prompt TEXT|-] [--one-shot] [--subagent] [--name LABEL]
 --                 [--prompt-filter CMD]
---                 [--frontend gui|plain] [-h|--help]
+--                 [--frontend gui|plain|rpc] [-h|--help]
 --
 --  --agent TEXT|@PATH
 --                 Append extra instructions to the system prompt.
@@ -25,7 +25,7 @@
 --                 prompt.  Runs via "$SHELL -c CMD" ($SHELL defaults to
 --                 "sh").  Overrides the "promptFilter" settings.json field.
 
---  --frontend gui|plain
+--  --frontend gui|plain|rpc
 --                 Override automatic frontend detection.
 --  --debug-logging        Enable conversation debug logging to stderr
 --                         (disabled by default).
@@ -44,7 +44,9 @@ with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with Coyote_App;
 with Coyote_App.Plain;
+with Coyote_App.RPC;
 with Coyote_Process_Control;
+with GNAT.OS_Lib;
 with Coyote_Utils;
 with LLM.Session_Store;
 with LLM.Settings;
@@ -153,7 +155,7 @@ procedure Coyote is
       Ada.Text_IO.Put_Line
         ("               [-f|--prompt-filter CMD]");
       Ada.Text_IO.Put_Line
-        ("               [-F|--frontend gui|plain]");
+        ("               [-F|--frontend gui|plain|rpc]");
       Ada.Text_IO.Put_Line
         ("               [-d|--debug-logging]");
       Ada.Text_IO.Put_Line
@@ -182,8 +184,8 @@ procedure Coyote is
       Ada.Text_IO.Put_Line
         ("  -f, --prompt-filter CMD    Filter prompts through shell");
       Ada.Text_IO.Put_Line
-        ("  -F, --frontend gui|plain"
-         & "   Override frontend selection");
+        ("  -F, --frontend gui|plain|rpc"
+         & "   Override frontend selection (gui, plain, or rpc)");
       Ada.Text_IO.Put_Line
         ("  -d, --debug-logging         Enable conv debug output to stderr");
       Ada.Text_IO.Put_Line
@@ -280,6 +282,8 @@ begin
                   Opts.Frontend := Coyote_App.GUI_Frontend;
                elsif Val = "plain" then
                   Opts.Frontend := Coyote_App.Plain_Frontend;
+               elsif Val = "rpc" then
+                  Opts.Frontend := Coyote_App.RPC_Frontend;
                else
                   Ada.Text_IO.Put_Line
                     (Ada.Text_IO.Standard_Error,
@@ -355,6 +359,33 @@ begin
       end;
    end if;
 
+   --  Endpoint-backed subagents receive their own runtime identity while
+   --  retaining the inherited coordinator identity as their parent.
+   if Opts.Subagent
+     and then Ada.Environment_Variables.Value
+       ("COYOTE_RPC_ENDPOINT", "")'Length > 0
+   then
+      declare
+         Parent_Id : constant String :=
+           Ada.Environment_Variables.Value
+             ("COYOTE_RUNTIME_AGENT_ID", "root");
+         Pid_Text : constant String :=
+           Ada.Strings.Fixed.Trim
+             (GNAT.OS_Lib.Pid_To_Integer
+                (GNAT.OS_Lib.Current_Process_Id)'Image,
+              Ada.Strings.Both);
+      begin
+         Ada.Environment_Variables.Set
+           ("COYOTE_PARENT_RUNTIME_AGENT_ID", Parent_Id);
+         Ada.Environment_Variables.Set
+           ("COYOTE_RUNTIME_AGENT_ID", "subagent-" & Pid_Text);
+         Ada.Environment_Variables.Set
+           ("COYOTE_AGENT_LABEL",
+            (if Length (Opts.Name) > 0 then To_String (Opts.Name)
+             else "subagent"));
+      end;
+   end if;
+
    --  ── Frontend detection ────────────────────────────────────────────────
    --  Priority:
    --    0. --frontend flag explicitly set → that frontend
@@ -366,6 +397,11 @@ begin
       null;
    elsif Opts.One_Shot and then not Opts.Subagent then
       Opts.Frontend := Coyote_App.Plain_Frontend;
+   elsif Opts.Subagent
+     and then Ada.Environment_Variables.Value
+       ("COYOTE_RPC_ENDPOINT", "")'Length > 0
+   then
+      Opts.Frontend := Coyote_App.RPC_Frontend;
    elsif (Ada.Environment_Variables.Exists ("DISPLAY")
             and then
               Ada.Environment_Variables.Value ("DISPLAY", "")'Length > 0)
@@ -390,6 +426,8 @@ begin
          Coyote_App.Plain.Run (Opts);
       when Coyote_App.GUI_Frontend =>
          Coyote_App.Run_GUI (Opts);
+      when Coyote_App.RPC_Frontend =>
+         Coyote_App.RPC.Run (Opts);
    end case;
 exception
    when E : Coyote_Utils.Bad_Arg_Error =>

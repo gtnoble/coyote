@@ -54,6 +54,9 @@ package Coyote_GUI.Prompt_Queue is
    --  New_Session, Shutdown_Item) use the others branch with no fields.
 
    type Item (Kind : Item_Kind := User_Prompt) is record
+      --  Runtime destination; empty is the legacy single-agent value.
+      Target_Agent_Id : Ada.Strings.Unbounded.Unbounded_String :=
+        Ada.Strings.Unbounded.Null_Unbounded_String;
       case Kind is
          when User_Prompt =>
             Text         : Ada.Strings.Unbounded.Unbounded_String;

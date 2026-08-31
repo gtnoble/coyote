@@ -20,13 +20,17 @@ client-controlled work product gets an entry here.
   agents tree with the main agent as root and recursively launched subagents
   as children. Selecting a live node makes it the prompt and control target;
   completed, aborted, failed, or disconnected nodes remain reviewable. The
-  planned coordinator path uses a headless, bidirectional local RPC frontend,
+  coordinator path now uses a headless, bidirectional local RPC frontend,
   while `--subagent` retains its initial-prompt, active-steering,
-  final-response, and process-exit lifecycle. Added future DEM-050..053
-  qualification procedures. Updated public and operational documentation.
-- **Implementation status:** Documentation and accepted design direction only;
-  the RPC frontend, agents panel, and selected-agent renderer are not yet
-  implemented. Existing source behavior remains unchanged until implementation.
+  final-response, and process-exit lifecycle. Added DEM-050..053
+  qualification procedures and updated public and operational documentation.
+- **Implementation status:** The runtime registry, root agents tree, shared
+  conversation replay, versioned RPC codec/Unix transport, coordinator RPC
+  service, headless frontend, selected-agent routing, active controls, session
+  lineage, and readiness synchronization are implemented. Focused registry,
+  codec, transport, and service tests pass. Full-suite execution remains
+  sensitive to stale fixed test socket paths; display-backed and real-provider
+  end-to-end qualification remain open.
 - **Status:** In Progress
 
 **Category values:** Plans | Requirements | Design | Code | Test | Manuals | Other

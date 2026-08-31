@@ -20,6 +20,7 @@ with Gtk.Adjustment;
 with Glib.Properties;            use Glib.Properties;
 with Gtk.Accel_Group;
 with Gtk.Box;
+with Gtk.Paned;
 with Gtk.Button;
 with Gtk.Check_Button;
 with Gtk.Clipboard;
@@ -46,6 +47,7 @@ with Pango.Context;
 with Pango.Font_Metrics;
 with Pango.Language;
 with Ada.Directories;
+with Ada.Environment_Variables;
 with Glib.Values;
 with Gtk.Cell_Renderer_Text;
 with Gtk.Dialog;
@@ -69,6 +71,7 @@ with Session_Lister;
 with Coyote_Spawn;
 with Ada.Command_Line;
 with GNATCOLL.OS.Process;
+with GNATCOLL.JSON;
 with LLM.Agent;
 with LLM.Providers;
 with Coyote_App.Utils;
@@ -80,6 +83,9 @@ with LLM.Tools.Sandbox;
 with Coyote_Notify;
 with Coyote_GUI.Notification_Policy;
 with Coyote_Process_Control;
+with Coyote_App.Agent_RPC;
+with Coyote_App.Agent_RPC.Service;
+with GNAT.OS_Lib;
 
 package body Coyote_App.Frontend.GUI is
    use Coyote_GUI.Prompt_Queue;
@@ -89,6 +95,457 @@ package body Coyote_App.Frontend.GUI is
 
    --  Global access for signal callbacks (single window per process).
    Current_Frontend : access Instance := null;
+
+   use type Gtk.Tree_Store.Gtk_Tree_Store;
+   use type Gtk.Tree_Model.Gtk_Tree_Iter;
+   use type Coyote_GUI.Update_Kind;
+   use type GNATCOLL.JSON.JSON_Value_Type;
+
+   function Drain_Idle return Boolean;
+
+   procedure Apply_Update_Visible
+     (F : in out Instance; U : Coyote_GUI.Update);
+   procedure Apply_Update (F : in out Instance; U : Coyote_GUI.Update);
+   procedure Apply_Agent_Menu_Sensitivity (F : in out Instance);
+
+   procedure On_RPC_Frame (Value : Coyote_App.Agent_RPC.Frame);
+
+   function History_Index
+     (F         : Instance;
+      Runtime_Id : String) return History_Vectors.Extended_Index
+   is
+   begin
+      for Position in F.Histories.First_Index .. F.Histories.Last_Index loop
+         if To_String (F.Histories.Element (Position).Runtime_Id) = Runtime_Id
+         then
+            return Position;
+         end if;
+      end loop;
+      return History_Vectors.No_Index;
+   end History_Index;
+
+   procedure Retain_Update (F : in out Instance; U : Coyote_GUI.Update) is
+      Runtime_Id : constant String := To_String (U.Runtime_Agent_Id);
+      Position   : History_Vectors.Extended_Index;
+   begin
+      if Runtime_Id'Length = 0 or else U.Kind = Coyote_GUI.Rpc_Frame then
+         return;
+      end if;
+      Position := History_Index (F, Runtime_Id);
+      if Position = History_Vectors.No_Index then
+         F.Histories.Append
+           ((Runtime_Id => To_Unbounded_String (Runtime_Id),
+             Updates    => Update_Vectors.Empty_Vector));
+         Position := F.Histories.Last_Index;
+      end if;
+      declare
+         Saved_History : History_Entry := F.Histories.Element (Position);
+      begin
+         Saved_History.Updates.Append (U);
+         F.Histories.Replace_Element (Position, Saved_History);
+      end;
+   end Retain_Update;
+
+   procedure Replay_Selected_History (F : in out Instance) is
+      Runtime_Id : constant String := To_String (F.Selected_Agent_Id);
+      Position   : constant History_Vectors.Extended_Index :=
+        History_Index (F, Runtime_Id);
+   begin
+      if Position = History_Vectors.No_Index then
+         F.Stack.Clear;
+         return;
+      end if;
+      F.Replaying := True;
+      F.Stack.Clear;
+      for U of F.Histories.Element (Position).Updates loop
+         Apply_Update_Visible (F, U);
+      end loop;
+      F.Replaying := False;
+   exception
+      when others =>
+         F.Replaying := False;
+   end Replay_Selected_History;
+
+   procedure Stop_RPC_Service (F : in out Instance) is
+   begin
+      if Coyote_App.Agent_RPC.Service.Is_Running (F.RPC_Service) then
+         Coyote_App.Agent_RPC.Service.Stop (F.RPC_Service);
+      end if;
+   exception
+      when others =>
+         null;
+   end Stop_RPC_Service;
+
+   function Is_Root_Selected return Boolean is
+   begin
+      return Current_Frontend = null
+        or else To_String (Current_Frontend.Selected_Agent_Id) = "root";
+   end Is_Root_Selected;
+
+   function Next_RPC_Request_Id return String is
+   begin
+      if Current_Frontend = null then
+         return "";
+      end if;
+      Current_Frontend.RPC_Request_Sequence :=
+        Current_Frontend.RPC_Request_Sequence + 1;
+      return "gui-request-"
+        & Coyote_App.Utils.Natural_Image
+            (Current_Frontend.RPC_Request_Sequence);
+   end Next_RPC_Request_Id;
+
+   procedure Send_Selected_RPC_Command
+     (Command : Coyote_App.Agent_RPC.Command_Kind;
+      Payload : String := "{}")
+   is
+      Request_Id : constant String := Next_RPC_Request_Id;
+   begin
+      if Current_Frontend = null or else Is_Root_Selected then
+         return;
+      end if;
+      Coyote_App.Agent_RPC.Service.Send_Command
+        (S          => Current_Frontend.RPC_Service,
+         Agent_Id   => To_String (Current_Frontend.Selected_Agent_Id),
+         Request_Id => Request_Id,
+         Command    => Command,
+         Payload    => Payload);
+   exception
+      when others =>
+         if Current_Frontend /= null then
+            Current_Frontend.Append_Notice
+              (Coyote_App.Frontend.Warning,
+               "Selected agent is no longer available.");
+         end if;
+   end Send_Selected_RPC_Command;
+
+   procedure On_Agent_Selection_Changed
+     (Self : access Gtk.Tree_Selection.Gtk_Tree_Selection_Record'Class)
+   is
+      Model : Gtk.Tree_Model.Gtk_Tree_Model;
+      Iter  : Gtk.Tree_Model.Gtk_Tree_Iter;
+      Value : Glib.Values.GValue;
+   begin
+      if Current_Frontend = null then
+         return;
+      end if;
+      Self.Get_Selected (Model, Iter);
+      if Iter = Gtk.Tree_Model.Null_Iter then
+         return;
+      end if;
+      Gtk.Tree_Model.Get_Value (Model, Iter, 2, Value);
+      declare
+         Runtime_Id : constant String := Glib.Values.Get_String (Value);
+      begin
+         Glib.Values.Unset (Value);
+         if Runtime_Id'Length > 0
+           and then Coyote_App.Agent_Registry.Select_Agent
+             (Current_Frontend.Agent_Registry,
+              Coyote_App.Agent_Registry.Create_Agent_Id (Runtime_Id))
+         then
+            Current_Frontend.Selected_Agent_Id :=
+              To_Unbounded_String (Runtime_Id);
+            Replay_Selected_History (Current_Frontend.all);
+            Apply_Agent_Menu_Sensitivity (Current_Frontend.all);
+         end if;
+      end;
+   end On_Agent_Selection_Changed;
+
+   procedure Find_Agent_Iter
+     (Model      : Gtk.Tree_Model.Gtk_Tree_Model;
+      Parent     : Gtk.Tree_Model.Gtk_Tree_Iter;
+      Runtime_Id : String;
+      Found      : out Boolean;
+      Result     : out Gtk.Tree_Model.Gtk_Tree_Iter)
+   is
+      use Gtk.Tree_Model;
+      Iter  : Gtk_Tree_Iter;
+      Value : Glib.Values.GValue;
+   begin
+      Found := False;
+      Result := Null_Iter;
+      Iter := Children (Model, Parent);
+      while Iter /= Null_Iter loop
+         Get_Value (Model, Iter, 2, Value);
+         declare
+            Candidate : constant String := Glib.Values.Get_String (Value);
+         begin
+            Glib.Values.Unset (Value);
+            if Candidate = Runtime_Id then
+               Found := True;
+               Result := Iter;
+               return;
+            end if;
+         end;
+         Find_Agent_Iter (Model, Iter, Runtime_Id, Found, Result);
+         exit when Found;
+         Next (Model, Iter);
+      end loop;
+   end Find_Agent_Iter;
+
+   procedure Set_Agent_Row_Status
+     (F          : in out Instance;
+      Runtime_Id : String;
+      Status     : String)
+   is
+      Found : Boolean;
+      Iter  : Gtk.Tree_Model.Gtk_Tree_Iter;
+   begin
+      if F.Agents_Store = null then
+         return;
+      end if;
+      Find_Agent_Iter
+        (Gtk.Tree_Store."+" (F.Agents_Store),
+         Gtk.Tree_Model.Null_Iter, Runtime_Id, Found, Iter);
+      if Found then
+         Gtk.Tree_Store.Set (F.Agents_Store, Iter, 1, Status);
+      end if;
+   end Set_Agent_Row_Status;
+
+   procedure Apply_RPC_Event
+     (F     : in out Instance;
+      Value : Coyote_App.Agent_RPC.Frame)
+   is
+      use Coyote_App.Agent_RPC;
+      Parsed : constant GNATCOLL.JSON.Read_Result :=
+        GNATCOLL.JSON.Read (To_String (Value.Payload_Json));
+      U       : Coyote_GUI.Update;
+      Emit    : Boolean := False;
+   begin
+      if not Parsed.Success
+        or else Parsed.Value.Kind /= GNATCOLL.JSON.JSON_Object_Type
+      then
+         return;
+      end if;
+      U.Runtime_Agent_Id := Value.Agent_Id;
+      case Value.Event_Name is
+         when Request_Start =>
+            U.Kind := Coyote_GUI.Begin_Request;
+            U.Text := To_Unbounded_String
+              (Coyote_App.Utils.Get_String (Parsed.Value, "text"));
+            U.R_Kind :=
+              (if Coyote_App.Utils.Get_String (Parsed.Value, "kind") = "steer"
+               then Coyote_GUI.Steer else Coyote_GUI.Prompt);
+            Emit := True;
+         when Request_End =>
+            U.Kind := Coyote_GUI.Complete_Request;
+            U.C_Status :=
+              (if Coyote_App.Utils.Get_String (Parsed.Value, "status") = "aborted"
+               then Coyote_GUI.Aborted
+               elsif Coyote_App.Utils.Get_String
+                 (Parsed.Value, "status") = "failed"
+               then Coyote_GUI.Failed
+               else Coyote_GUI.Completed);
+            Emit := True;
+         when Text_Delta =>
+            U.Kind := Coyote_GUI.Append_Text;
+            U.Text := To_Unbounded_String
+              (Coyote_App.Utils.Get_String (Parsed.Value, "text"));
+            Emit := True;
+         when Text_End =>
+            U.Kind := Coyote_GUI.End_Text_Block;
+            Emit := True;
+         when Thinking_Start =>
+            U.Kind := Coyote_GUI.Begin_Thinking;
+            Emit := True;
+         when Thinking_Delta =>
+            U.Kind := Coyote_GUI.Append_Thinking;
+            U.Text := To_Unbounded_String
+              (Coyote_App.Utils.Get_String (Parsed.Value, "text"));
+            Emit := True;
+         when Thinking_End =>
+            U.Kind := Coyote_GUI.End_Thinking;
+            Emit := True;
+         when Tool_Start =>
+            U.Kind := Coyote_GUI.Begin_Tool;
+            U.Text := To_Unbounded_String
+              (Coyote_App.Utils.Get_String (Parsed.Value, "name"));
+            U.Text2 := To_Unbounded_String
+              (Coyote_App.Utils.Get_Object (Parsed.Value, "args").Write);
+            U.Text3 := To_Unbounded_String
+              (Coyote_App.Utils.Get_String (Parsed.Value, "sessionId"));
+            U.Text4 := To_Unbounded_String
+              (Coyote_App.Utils.Get_String (Parsed.Value, "toolId"));
+            U.Text5 := To_Unbounded_String
+              (Coyote_App.Utils.Get_String (Parsed.Value, "model"));
+            U.Text6 := To_Unbounded_String
+              (Coyote_App.Utils.Get_String (Parsed.Value, "sourceDirectory"));
+            U.Text7 := To_Unbounded_String
+              (Coyote_App.Utils.Get_String (Parsed.Value, "sessionStart"));
+            U.Tool_Turn := Coyote_App.Utils.Get_Integer (Parsed.Value, "turn");
+            U.Tool_Call := Coyote_App.Utils.Get_Integer (Parsed.Value, "call");
+            Emit := True;
+         when Tool_End =>
+            U.Kind := Coyote_GUI.End_Tool;
+            U.Text := To_Unbounded_String
+              (Coyote_App.Utils.Get_String (Parsed.Value, "toolId"));
+            U.Text2 := To_Unbounded_String
+              (Coyote_App.Utils.Get_String (Parsed.Value, "result"));
+            U.Text3 := To_Unbounded_String
+              (Coyote_App.Utils.Get_String (Parsed.Value, "mediaType"));
+            U.T_Status :=
+              (if Coyote_App.Utils.Get_String (Parsed.Value, "status") = "error"
+               then Coyote_GUI.Error
+               elsif Coyote_App.Utils.Get_String
+                 (Parsed.Value, "status") = "cancelled"
+               then Coyote_GUI.Cancelled
+               else Coyote_GUI.Success);
+            Emit := True;
+         when Footer =>
+            U.Kind := Coyote_GUI.Append_Turn_Footer;
+            U.Text := To_Unbounded_String
+              (Coyote_App.Utils.Get_String (Parsed.Value, "text"));
+            U.Text2 := To_Unbounded_String
+              (Coyote_App.Utils.Get_String (Parsed.Value, "summary"));
+            U.F_Kind :=
+              (if Coyote_App.Utils.Get_String (Parsed.Value, "kind") = "step"
+               then Coyote_GUI.Step_Footer else Coyote_GUI.Final_Footer);
+            Emit := True;
+         when Notice =>
+            U.Kind := Coyote_GUI.Append_Notice;
+            U.Text := To_Unbounded_String
+              (Coyote_App.Utils.Get_String (Parsed.Value, "text"));
+            U.N_Kind :=
+              (if Coyote_App.Utils.Get_String (Parsed.Value, "severity") = "error"
+               then Coyote_GUI.Error
+               elsif Coyote_App.Utils.Get_String
+                 (Parsed.Value, "severity") = "warning"
+               then Coyote_GUI.Warning
+               else Coyote_GUI.Info);
+            Emit := True;
+         when others =>
+            null;
+      end case;
+      if Emit then
+         Apply_Update (F, U);
+      end if;
+   end Apply_RPC_Event;
+
+   procedure Apply_RPC_Frame
+     (F : in out Instance;
+      U : Coyote_GUI.Update)
+   is
+      use Coyote_App.Agent_RPC;
+      Value : constant Frame := Decode (To_String (U.Text));
+      Runtime_Id : constant String := To_String (Value.Agent_Id);
+   begin
+      case Value.Kind is
+         when Handshake =>
+            declare
+               Parent_Id : constant String :=
+                 To_String (Value.Parent_Agent_Id);
+               Parent_Runtime : constant String :=
+                 (if Parent_Id'Length = 0 then "root" else Parent_Id);
+               Parent_Found : Boolean;
+               Parent_Iter  : Gtk.Tree_Model.Gtk_Tree_Iter;
+               Child_Iter   : Gtk.Tree_Model.Gtk_Tree_Iter;
+               Registered   : Boolean;
+               pragma Unreferenced (Registered);
+            begin
+               Registered := Coyote_App.Agent_Registry.Register_Child
+                 (R                  => F.Agent_Registry,
+                  Runtime_Id         => Coyote_App.Agent_Registry.Create_Agent_Id (Runtime_Id),
+                  Parent_Runtime_Id  => Coyote_App.Agent_Registry.Create_Agent_Id (Parent_Runtime),
+                  Durable_Session_Id => To_String (Value.Session_Id),
+                  Label              => To_String (Value.Label),
+                  Status             => Coyote_App.Agent_Registry.Starting);
+               if Registered then
+                  Find_Agent_Iter
+                    (Gtk.Tree_Store."+" (F.Agents_Store),
+                     Gtk.Tree_Model.Null_Iter,
+                     Parent_Runtime, Parent_Found, Parent_Iter);
+                  if Parent_Found then
+                     F.Agents_Store.Append (Child_Iter, Parent_Iter);
+                     F.Agents_Store.Set
+                       (Child_Iter, 0, To_String (Value.Label));
+                     F.Agents_Store.Set (Child_Iter, 1, "starting");
+                     F.Agents_Store.Set (Child_Iter, 2, Runtime_Id);
+                  end if;
+               end if;
+            end;
+         when Event =>
+            Apply_RPC_Event (F, Value);
+            if Value.Event_Name = Session_Info then
+               declare
+                  Parsed : constant GNATCOLL.JSON.Read_Result :=
+                    GNATCOLL.JSON.Read (To_String (Value.Payload_Json));
+                  Changed : Boolean;
+               begin
+                  if Parsed.Success
+                    and then Parsed.Value.Kind = GNATCOLL.JSON.JSON_Object_Type
+                  then
+                     Changed := Coyote_App.Agent_Registry.Set_Durable_Session_Id
+                       (R          => F.Agent_Registry,
+                        Runtime_Id =>
+                          Coyote_App.Agent_Registry.Create_Agent_Id
+                            (Runtime_Id),
+                        Session_Id => Coyote_App.Utils.Get_String
+                          (Parsed.Value, "sessionId"));
+                  end if;
+               end;
+            end if;
+            case Value.Event_Name is
+               when Request_Start | Agent_Start | Thinking_Start |
+                    Tool_Start =>
+                  Set_Agent_Row_Status (F, Runtime_Id, "running");
+               when Request_End =>
+                  Set_Agent_Row_Status (F, Runtime_Id, "ready");
+               when Mode | Status =>
+                  Set_Agent_Row_Status (F, Runtime_Id, "running");
+               when others =>
+                  null;
+            end case;
+         when Terminal =>
+            Set_Agent_Row_Status
+              (F, Runtime_Id,
+               (case Value.Status is
+                   when Completed => "completed",
+                   when Aborted => "aborted",
+                   when Failed => "failed",
+                   when Disconnected => "disconnected"));
+            declare
+               Changed : Boolean;
+               pragma Unreferenced (Changed);
+            begin
+               Changed := Coyote_App.Agent_Registry.Set_Status
+                 (R          => F.Agent_Registry,
+                  Runtime_Id => Coyote_App.Agent_Registry.Create_Agent_Id (Runtime_Id),
+                  Status     =>
+                    (case Value.Status is
+                        when Completed => Coyote_App.Agent_Registry.Completed,
+                        when Aborted => Coyote_App.Agent_Registry.Aborted,
+                        when Failed => Coyote_App.Agent_Registry.Failed,
+                        when Disconnected =>
+                          Coyote_App.Agent_Registry.Disconnected));
+            end;
+         when Command =>
+            null;
+      end case;
+   exception
+      when others =>
+         null;
+   end Apply_RPC_Frame;
+
+   procedure On_RPC_Frame (Value : Coyote_App.Agent_RPC.Frame) is
+      Wake_Needed : Boolean;
+      Idle_Id     : Glib.Main.G_Source_Id;
+      pragma Unreferenced (Idle_Id);
+      U : Coyote_GUI.Update;
+   begin
+      if Current_Frontend = null then
+         return;
+      end if;
+      U.Kind := Coyote_GUI.Rpc_Frame;
+      U.Runtime_Agent_Id := Value.Agent_Id;
+      U.Text := To_Unbounded_String
+        (Coyote_App.Agent_RPC.Encode (Value));
+      Current_Frontend.Updates.Enqueue (U, Wake_Needed);
+      if Wake_Needed then
+         Idle_Id := Glib.Main.Idle_Add (Drain_Idle'Access);
+      end if;
+   exception
+      when others =>
+         null;
+   end On_RPC_Frame;
 
    protected body Session_Reference is
       procedure Set (Value : access LLM.Agent.Session) is
@@ -110,6 +567,8 @@ package body Coyote_App.Frontend.GUI is
    use type Gtk.Menu_Item.Gtk_Menu_Item;
    use type Gtk.Text_View.Gtk_Text_View;
    use type Gtk.Tree_Model_Filter.Gtk_Tree_Model_Filter;
+   use type Gtk.Tree_Store.Gtk_Tree_Store;
+   use type Gtk.Tree_Model.Gtk_Tree_Iter;
    use type Gtk.Tree_View.Gtk_Tree_View;
    use type Gtk.List_Box.Gtk_List_Box;
    use type Gtk.List_Box_Row.Gtk_List_Box_Row;
@@ -148,8 +607,6 @@ package body Coyote_App.Frontend.GUI is
    function On_Support_Window_Key_Press
      (Self  : access Gtk.Widget.Gtk_Widget_Record'Class;
       Event : Gdk.Event.Gdk_Event_Key) return Boolean;
-
-   procedure Apply_Agent_Menu_Sensitivity (F : in out Instance);
 
    procedure On_Edit_Menu_Show
      (Self : access Gtk.Widget.Gtk_Widget_Record'Class);
@@ -416,10 +873,32 @@ package body Coyote_App.Frontend.GUI is
    end On_Support_Window_Key_Press;
 
    procedure Apply_Agent_Menu_Sensitivity (F : in out Instance) is
-      Mode : constant Coyote_GUI.Run_Mode :=
+      Mode : Coyote_GUI.Run_Mode :=
         Coyote_GUI.Run_Mode'Val
           (Coyote_App.Frontend.Run_Mode'Pos (F.Current_Mode));
    begin
+      if To_String (F.Selected_Agent_Id) /= "root"
+        and then Coyote_App.Agent_Registry.Has_Agent
+          (F.Agent_Registry,
+           Coyote_App.Agent_Registry.Create_Agent_Id
+             (To_String (F.Selected_Agent_Id)))
+      then
+         declare
+            Status : constant Coyote_App.Agent_Registry.Lifecycle_Status :=
+              Coyote_App.Agent_Registry.Get_Agent
+                (F.Agent_Registry,
+                 Coyote_App.Agent_Registry.Create_Agent_Id
+                   (To_String (F.Selected_Agent_Id))).Status;
+         begin
+            Mode :=
+              (case Status is
+                  when Coyote_App.Agent_Registry.Running =>
+                    Coyote_GUI.Running,
+                  when Coyote_App.Agent_Registry.Paused =>
+                    Coyote_GUI.Paused,
+                  when others => Coyote_GUI.Idle);
+         end;
+      end if;
       F.Stop_Btn.Set_Sensitive (Coyote_GUI.Stop_Available (Mode));
       if F.Stop_Item /= null then
          F.Stop_Item.Set_Sensitive (Coyote_GUI.Stop_Available (Mode));
@@ -640,6 +1119,7 @@ package body Coyote_App.Frontend.GUI is
             Args : Argument_List;
          begin
             Args.Append (Ada.Command_Line.Command_Name);
+            Args.Append ("--subagent");
             Args.Append ("--session");
             Args.Append (New_UUID);
             Coyote_Spawn.Spawn_Detached (Args);
@@ -647,9 +1127,53 @@ package body Coyote_App.Frontend.GUI is
       end if;
    end On_Native_Fork;
 
+   procedure Set_Root_Agent_Status
+     (F      : in out Instance;
+      Status : String)
+   is
+   begin
+      if F.Agents_Store /= null
+        and then F.Agent_Root_Iter /= Gtk.Tree_Model.Null_Iter
+      then
+         Gtk.Tree_Store.Set
+           (F.Agents_Store, F.Agent_Root_Iter, 1, Status);
+      end if;
+   end Set_Root_Agent_Status;
+
+   procedure Set_Root_Agent_Label
+     (F         : in out Instance;
+      Session_Id : String)
+   is
+   begin
+      if F.Agents_Store /= null
+        and then F.Agent_Root_Iter /= Gtk.Tree_Model.Null_Iter
+      then
+         Gtk.Tree_Store.Set
+           (F.Agents_Store, F.Agent_Root_Iter, 0,
+            "main [" & Session_Id (Session_Id'First ..
+              Integer'Min (Session_Id'Last, Session_Id'First + 7)) & "]");
+      end if;
+   end Set_Root_Agent_Label;
+
+   procedure Set_Root_Registry_Status
+     (F      : in out Instance;
+      Status : Coyote_App.Agent_Registry.Lifecycle_Status)
+   is
+      Changed : Boolean;
+      pragma Unreferenced (Changed);
+   begin
+      Changed := Coyote_App.Agent_Registry.Set_Status
+        (R          => F.Agent_Registry,
+         Runtime_Id =>
+           Coyote_App.Agent_Registry.Create_Agent_Id
+             (To_String (F.Root_Agent_Id)),
+         Status     => Status);
+   end Set_Root_Registry_Status;
+
    --  ── Apply_Update — called on the GTK main thread by Drain_Idle ────────
 
-   procedure Apply_Update (F : in out Instance; U : Coyote_GUI.Update) is
+   procedure Apply_Update_Visible
+     (F : in out Instance; U : Coyote_GUI.Update) is
       use Coyote_GUI;
    begin
       case U.Kind is
@@ -661,6 +1185,22 @@ package body Coyote_App.Frontend.GUI is
          when Complete_Request =>
             F.Stack.Complete_Request
               (Coyote_GUI.Completion_Status (U.C_Status));
+            if To_String (U.Runtime_Agent_Id) = "root" then
+               case U.C_Status is
+               when Coyote_GUI.Completed =>
+                  Set_Root_Agent_Status (F, "ready");
+                  Set_Root_Registry_Status
+                    (F, Coyote_App.Agent_Registry.Ready);
+               when Coyote_GUI.Aborted =>
+                  Set_Root_Agent_Status (F, "aborted");
+                  Set_Root_Registry_Status
+                    (F, Coyote_App.Agent_Registry.Aborted);
+               when Coyote_GUI.Failed =>
+                  Set_Root_Agent_Status (F, "failed");
+                  Set_Root_Registry_Status
+                    (F, Coyote_App.Agent_Registry.Failed);
+            end case;
+            end if;
 
          when Append_Text =>
             F.Stack.Append_Text (To_String (U.Text));
@@ -735,7 +1275,27 @@ package body Coyote_App.Frontend.GUI is
             F.Current_Mode :=
               Coyote_App.Frontend.Run_Mode'Val
                 (Coyote_GUI.Run_Mode'Pos (U.Mode));
+            if To_String (U.Runtime_Agent_Id) = "root" then
+               case U.Mode is
+               when Coyote_GUI.Idle =>
+                  Set_Root_Agent_Status (F, "ready");
+                  Set_Root_Registry_Status
+                    (F, Coyote_App.Agent_Registry.Ready);
+               when Coyote_GUI.Running =>
+                  Set_Root_Agent_Status (F, "running");
+                  Set_Root_Registry_Status
+                    (F, Coyote_App.Agent_Registry.Running);
+               when Coyote_GUI.Armed =>
+                  Set_Root_Agent_Status (F, "pause requested");
+                  Set_Root_Registry_Status
+                    (F, Coyote_App.Agent_Registry.Running);
+               when Coyote_GUI.Paused =>
+                  Set_Root_Agent_Status (F, "paused");
+                  Set_Root_Registry_Status
+                    (F, Coyote_App.Agent_Registry.Paused);
+            end case;
             Apply_Agent_Menu_Sensitivity (F);
+            end if;
 
          when Set_Stats =>
             Coyote_GUI.Session_Stats_Window.Update
@@ -750,6 +1310,20 @@ package body Coyote_App.Frontend.GUI is
          when Set_Session_Identity =>
             F.Win.Set_Role
               ("coyote-session-" & To_String (U.Text));
+            declare
+               Updated : Boolean;
+               Session : constant String := To_String (U.Text);
+               pragma Unreferenced (Updated);
+            begin
+               Updated :=
+                 Coyote_App.Agent_Registry.Set_Durable_Session_Id
+                   (R          => F.Agent_Registry,
+                    Runtime_Id =>
+                      Coyote_App.Agent_Registry.Create_Agent_Id
+                        (To_String (F.Root_Agent_Id)),
+                    Session_Id => Session);
+               Set_Root_Agent_Label (F, Session);
+            end;
 
          when Set_Completion_Notifications =>
             F.Notifications_Enabled :=
@@ -772,6 +1346,9 @@ package body Coyote_App.Frontend.GUI is
                "coyote : Detail",
                To_String (U.Text) & ASCII.LF & To_String (U.Text2));
 
+         when Rpc_Frame =>
+            Apply_RPC_Frame (F, U);
+
          when Shutdown =>
             F.PQ.Shutdown;
             Gtk.Main.Main_Quit;
@@ -779,6 +1356,20 @@ package body Coyote_App.Frontend.GUI is
 
       if F.Auto_Scroll then
          F.Stack.Scroll_To_End;
+      end if;
+   end Apply_Update_Visible;
+
+   procedure Apply_Update (F : in out Instance; U : Coyote_GUI.Update) is
+      Runtime_Id : constant String := To_String (U.Runtime_Agent_Id);
+      Selected   : constant String := To_String (F.Selected_Agent_Id);
+   begin
+      if U.Kind = Coyote_GUI.Rpc_Frame then
+         Apply_RPC_Frame (F, U);
+      else
+         Retain_Update (F, U);
+         if Runtime_Id'Length = 0 or else Runtime_Id = Selected then
+            Apply_Update_Visible (F, U);
+         end if;
       end if;
    end Apply_Update;
 
@@ -806,8 +1397,10 @@ package body Coyote_App.Frontend.GUI is
       Wake_Needed : Boolean;
       Idle_Id     : Glib.Main.G_Source_Id;
       pragma Unreferenced (Idle_Id);
+      Tagged_Update : Coyote_GUI.Update := U;
    begin
-      F.Updates.Enqueue (U, Wake_Needed);
+      Tagged_Update.Runtime_Agent_Id := F.Root_Agent_Id;
+      F.Updates.Enqueue (Tagged_Update, Wake_Needed);
       if Wake_Needed then
          Idle_Id := Glib.Main.Idle_Add (Drain_Idle'Access);
       end if;
@@ -816,6 +1409,7 @@ package body Coyote_App.Frontend.GUI is
    procedure Request_Shutdown (F : in out Instance) is
    begin
       Coyote_Process_Control.Stop_Monitor;
+      Stop_RPC_Service (F);
       F.Agent_Sess.Request_Abort;
       F.PQ.Shutdown;
       F.Updates.Stop;
@@ -860,9 +1454,23 @@ package body Coyote_App.Frontend.GUI is
          if Ada.Strings.Fixed.Trim (Text, Ada.Strings.Both)'Length = 0 then
             return;
          end if;
-         Current_Frontend.PQ.Enqueue
-           ((User_Prompt,
-             Text => To_Unbounded_String (Text)), Accepted);
+         if Is_Root_Selected then
+            Current_Frontend.PQ.Enqueue
+              ((User_Prompt,
+                Target_Agent_Id => Current_Frontend.Root_Agent_Id,
+                Text => To_Unbounded_String (Text)), Accepted);
+         else
+            declare
+               Data : constant GNATCOLL.JSON.JSON_Value :=
+                 GNATCOLL.JSON.Create_Object;
+            begin
+               Data.Set_Field ("text", Text);
+               Send_Selected_RPC_Command
+                 (Coyote_App.Agent_RPC.Prompt,
+                  GNATCOLL.JSON.Write (Data));
+               Accepted := True;
+            end;
+         end if;
          if Accepted then
             Current_Frontend.Prompt_Buf.Set_Text ("");
          else
@@ -898,7 +1506,8 @@ package body Coyote_App.Frontend.GUI is
       pragma Unreferenced (Self);
    begin
       if Current_Frontend /= null then
-         Current_Frontend.PQ.Enqueue ((Kind => New_Window));
+         Current_Frontend.PQ.Enqueue ((Kind => New_Window,
+         Target_Agent_Id => Current_Frontend.Root_Agent_Id));
       end if;
    end On_New_Activate;
 
@@ -907,7 +1516,8 @@ package body Coyote_App.Frontend.GUI is
       pragma Unreferenced (Self);
    begin
       if Current_Frontend /= null then
-         Current_Frontend.PQ.Enqueue ((Kind => New_Session));
+         Current_Frontend.PQ.Enqueue ((Kind => New_Session,
+         Target_Agent_Id => Current_Frontend.Root_Agent_Id));
       end if;
    end On_New_Session_Activate;
 
@@ -917,7 +1527,8 @@ package body Coyote_App.Frontend.GUI is
       Accepted : Boolean;
    begin
       if Current_Frontend /= null then
-         Current_Frontend.PQ.Enqueue ((Kind => Clear), Accepted);
+         Current_Frontend.PQ.Enqueue ((Kind => Clear,
+                Target_Agent_Id => Current_Frontend.Root_Agent_Id), Accepted);
       end if;
    end On_Clear_Activate;
 
@@ -943,7 +1554,11 @@ package body Coyote_App.Frontend.GUI is
       pragma Unreferenced (Self);
    begin
       if Current_Frontend /= null then
-         Current_Frontend.Agent_Sess.Request_Abort;
+         if Is_Root_Selected then
+            Current_Frontend.Agent_Sess.Request_Abort;
+         else
+            Send_Selected_RPC_Command (Coyote_App.Agent_RPC.Stop);
+         end if;
       end if;
    end On_Stop_Activate;
 
@@ -953,7 +1568,11 @@ package body Coyote_App.Frontend.GUI is
       pragma Unreferenced (Self);
    begin
       if Current_Frontend /= null then
-         Current_Frontend.Agent_Sess.Request_Abort;
+         if Is_Root_Selected then
+            Current_Frontend.Agent_Sess.Request_Abort;
+         else
+            Send_Selected_RPC_Command (Coyote_App.Agent_RPC.Stop);
+         end if;
       end if;
    end On_Stop_Btn_Clicked;
 
@@ -962,7 +1581,13 @@ package body Coyote_App.Frontend.GUI is
       pragma Unreferenced (Self);
    begin
       if Current_Frontend /= null then
-         Current_Frontend.PQ.Enqueue ((Kind => Pause));
+         if Is_Root_Selected then
+            Current_Frontend.PQ.Enqueue
+              ((Kind => Pause,
+                Target_Agent_Id => Current_Frontend.Root_Agent_Id));
+         else
+            Send_Selected_RPC_Command (Coyote_App.Agent_RPC.Pause);
+         end if;
       end if;
    end On_Pause_Activate;
 
@@ -971,7 +1596,13 @@ package body Coyote_App.Frontend.GUI is
       pragma Unreferenced (Self);
    begin
       if Current_Frontend /= null then
-         Current_Frontend.PQ.Enqueue ((Kind => Resume));
+         if Is_Root_Selected then
+            Current_Frontend.PQ.Enqueue
+              ((Kind => Resume,
+                Target_Agent_Id => Current_Frontend.Root_Agent_Id));
+         else
+            Send_Selected_RPC_Command (Coyote_App.Agent_RPC.Resume);
+         end if;
       end if;
    end On_Resume_Activate;
 
@@ -980,7 +1611,8 @@ package body Coyote_App.Frontend.GUI is
       pragma Unreferenced (Self);
    begin
       if Current_Frontend /= null then
-         Current_Frontend.PQ.Enqueue ((Kind => Compact));
+         Current_Frontend.PQ.Enqueue ((Kind => Compact,
+         Target_Agent_Id => Current_Frontend.Root_Agent_Id));
       end if;
    end On_Compact_Activate;
 
@@ -989,7 +1621,8 @@ package body Coyote_App.Frontend.GUI is
       pragma Unreferenced (Self);
    begin
       if Current_Frontend /= null then
-         Current_Frontend.PQ.Enqueue ((Kind => Set_Default));
+         Current_Frontend.PQ.Enqueue ((Kind => Set_Default,
+         Target_Agent_Id => Current_Frontend.Root_Agent_Id));
       end if;
    end On_Set_Default_Activate;
    procedure On_Stats_Activate
@@ -1296,6 +1929,7 @@ package body Coyote_App.Frontend.GUI is
                if UUID'Length > 0 then
                   Current_Frontend.PQ.Enqueue
                     ((Switch_Session,
+                      Target_Agent_Id => Current_Frontend.Root_Agent_Id,
                       Session_UUID => To_Unbounded_String (UUID)));
                end if;
             end;
@@ -1540,6 +2174,7 @@ package body Coyote_App.Frontend.GUI is
                if Spec'Length > 0 then
                   Current_Frontend.PQ.Enqueue
                     ((Set_Model,
+                      Target_Agent_Id => Current_Frontend.Root_Agent_Id,
                       Model_Spec => To_Unbounded_String (Spec)));
                end if;
             end;
@@ -1557,7 +2192,9 @@ package body Coyote_App.Frontend.GUI is
    begin
       if Current_Frontend /= null then
          Current_Frontend.PQ.Enqueue
-           ((Set_Thinking, Level => LLM.Providers.Off));
+           ((Kind            => Set_Thinking,
+             Target_Agent_Id => Current_Frontend.Root_Agent_Id,
+             Level           => LLM.Providers.Off));
       end if;
    end On_Thinking_Off_Activate;
 
@@ -1567,7 +2204,9 @@ package body Coyote_App.Frontend.GUI is
    begin
       if Current_Frontend /= null then
          Current_Frontend.PQ.Enqueue
-           ((Set_Thinking, Level => LLM.Providers.Minimal));
+           ((Kind            => Set_Thinking,
+             Target_Agent_Id => Current_Frontend.Root_Agent_Id,
+             Level           => LLM.Providers.Minimal));
       end if;
    end On_Thinking_Minimal_Activate;
 
@@ -1577,7 +2216,9 @@ package body Coyote_App.Frontend.GUI is
    begin
       if Current_Frontend /= null then
          Current_Frontend.PQ.Enqueue
-           ((Set_Thinking, Level => LLM.Providers.Low));
+           ((Kind            => Set_Thinking,
+             Target_Agent_Id => Current_Frontend.Root_Agent_Id,
+             Level           => LLM.Providers.Low));
       end if;
    end On_Thinking_Low_Activate;
 
@@ -1587,7 +2228,9 @@ package body Coyote_App.Frontend.GUI is
    begin
       if Current_Frontend /= null then
          Current_Frontend.PQ.Enqueue
-           ((Set_Thinking, Level => LLM.Providers.Medium));
+           ((Kind            => Set_Thinking,
+             Target_Agent_Id => Current_Frontend.Root_Agent_Id,
+             Level           => LLM.Providers.Medium));
       end if;
    end On_Thinking_Medium_Activate;
 
@@ -1597,7 +2240,9 @@ package body Coyote_App.Frontend.GUI is
    begin
       if Current_Frontend /= null then
          Current_Frontend.PQ.Enqueue
-           ((Set_Thinking, Level => LLM.Providers.High));
+           ((Kind            => Set_Thinking,
+             Target_Agent_Id => Current_Frontend.Root_Agent_Id,
+             Level           => LLM.Providers.High));
       end if;
    end On_Thinking_High_Activate;
 
@@ -1607,7 +2252,9 @@ package body Coyote_App.Frontend.GUI is
    begin
       if Current_Frontend /= null then
          Current_Frontend.PQ.Enqueue
-           ((Set_Thinking, Level => LLM.Providers.X_High));
+           ((Kind            => Set_Thinking,
+             Target_Agent_Id => Current_Frontend.Root_Agent_Id,
+             Level           => LLM.Providers.X_High));
       end if;
    end On_Thinking_X_High_Activate;
 
@@ -1701,6 +2348,7 @@ package body Coyote_App.Frontend.GUI is
                Glib.Values.Unset (Val);
                Current_Frontend.PQ.Enqueue
                  ((Set_Sandbox,
+                   Target_Agent_Id => Current_Frontend.Root_Agent_Id,
                    Profile_Name =>
                      To_Unbounded_String
                        (if Name = "None (no sandbox)" then "" else Name)));
@@ -2216,6 +2864,7 @@ package body Coyote_App.Frontend.GUI is
             end if;
             Current_Frontend.PQ.Enqueue
               ((Kind => Set_Preferences,
+                Target_Agent_Id => Current_Frontend.Root_Agent_Id,
                 Preferences =>
                   (Provider          => Provider,
                    Model_Id          => Model_Id,
@@ -2489,6 +3138,82 @@ package body Coyote_App.Frontend.GUI is
       Gtk.Menu_Shell.Append
         (Gtk.Menu_Shell.Gtk_Menu_Shell (Menu), Sep);
    end Add_Sep;
+
+   procedure Build_Agents_Tree (F : in out Instance) is
+      use Gtk.Cell_Renderer_Text;
+      use Gtk.Tree_Model;
+      use Gtk.Tree_Store;
+      use Gtk.Tree_View;
+      use Gtk.Tree_View_Column;
+      Store      : Gtk.Tree_Store.Gtk_Tree_Store;
+      View       : Gtk.Tree_View.Gtk_Tree_View;
+      Scroll     : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Selection  : Gtk.Tree_Selection.Gtk_Tree_Selection;
+      Row        : Gtk_Tree_Iter;
+      Label_Col   : constant Glib.Guint := 0;
+      Status_Col  : constant Glib.Guint := 1;
+      Runtime_Col : constant Glib.Guint := 2;
+      Label_Renderer  : Gtk_Cell_Renderer_Text;
+      Status_Renderer : Gtk_Cell_Renderer_Text;
+      Label_Column   : Gtk_Tree_View_Column;
+      Status_Column  : Gtk_Tree_View_Column;
+      Registered     : Boolean;
+      pragma Unreferenced (Registered);
+   begin
+      Gtk.Tree_Store.Gtk_New
+        (Store,
+         (Label_Col   => Glib.GType_String,
+          Status_Col  => Glib.GType_String,
+          Runtime_Col => Glib.GType_String));
+      Store.Append (Row, Null_Iter);
+      Store.Set (Row, Glib.Gint (Label_Col), "main");
+      Store.Set (Row, Glib.Gint (Runtime_Col), "root");
+      Store.Set (Row, Glib.Gint (Status_Col), "starting");
+      Gtk.Tree_View.Gtk_New (View, +Store);
+      Gtk.Cell_Renderer_Text.Gtk_New (Label_Renderer);
+      Gtk.Tree_View_Column.Gtk_New (Label_Column);
+      Label_Column.Set_Title ("Agent");
+      Label_Column.Pack_Start (Label_Renderer, Expand => True);
+      Label_Column.Add_Attribute
+        (Label_Renderer, "text", Glib.Gint (Label_Col));
+      declare
+         Dummy : Glib.Gint;
+      begin
+         Dummy := Gtk.Tree_View.Append_Column (View, Label_Column);
+      end;
+      Gtk.Cell_Renderer_Text.Gtk_New (Status_Renderer);
+      Gtk.Tree_View_Column.Gtk_New (Status_Column);
+      Status_Column.Set_Title ("State");
+      Status_Column.Pack_Start (Status_Renderer, Expand => True);
+      Status_Column.Add_Attribute
+        (Status_Renderer, "text", Glib.Gint (Status_Col));
+      declare
+         Dummy : Glib.Gint;
+      begin
+         Dummy := Gtk.Tree_View.Append_Column (View, Status_Column);
+      end;
+      View.Set_Name ("coyote-agents-tree");
+      Gtk.Scrolled_Window.Gtk_New (Scroll);
+      Scroll.Set_Policy
+        (Gtk.Enums.Policy_Automatic, Gtk.Enums.Policy_Automatic);
+      Scroll.Add (View);
+      F.Agents_Store := Store;
+      F.Agents_View := View;
+      F.Agent_Root_Iter := Row;
+      F.Root_Agent_Id := To_Unbounded_String ("root");
+      Registered := Coyote_App.Agent_Registry.Register_Root
+        (R                  => F.Agent_Registry,
+         Runtime_Id         =>
+           Coyote_App.Agent_Registry.Create_Agent_Id ("root"),
+         Label              => "main");
+      Gtk.Paned.Gtk_New_Hpaned (F.Agent_Pane);
+      F.Agent_Pane.Pack1 (Scroll, Resize => False, Shrink => False);
+      F.Agent_Pane.Set_Position (190);
+      F.Agent_Pane.Set_Name ("coyote-agents-pane");
+      Selection := View.Get_Selection;
+      Selection.On_Changed (On_Agent_Selection_Changed'Access);
+      Selection.Select_Iter (Row);
+   end Build_Agents_Tree;
 
    --  ── Create ────────────────────────────────────────────────────────────
 
@@ -2936,6 +3661,34 @@ package body Coyote_App.Frontend.GUI is
 
       --  ── Conversation view ─────────────────────────────────────────────
 
+      Build_Agents_Tree (F);
+      declare
+         Pid_Text : constant String :=
+           Ada.Strings.Fixed.Trim
+             (GNAT.OS_Lib.Pid_To_Integer
+                (GNAT.OS_Lib.Current_Process_Id)'Image,
+              Ada.Strings.Both);
+         Path : constant String := "/tmp/coyote-agent-" & Pid_Text & ".sock";
+      begin
+         if Ada.Directories.Exists (Path) then
+            Ada.Directories.Delete_File (Path);
+         end if;
+         Coyote_App.Agent_RPC.Service.Start
+           (S       => F.RPC_Service,
+            Path    => Path,
+            Handler => On_RPC_Frame'Access);
+         F.RPC_Endpoint := To_Unbounded_String (Path);
+         Ada.Environment_Variables.Set ("COYOTE_RPC_ENDPOINT", Path);
+         Ada.Environment_Variables.Set
+           ("COYOTE_RUNTIME_AGENT_ID", "root");
+         Ada.Environment_Variables.Set
+           ("COYOTE_PARENT_RUNTIME_AGENT_ID", "");
+         Ada.Environment_Variables.Set ("COYOTE_AGENT_LABEL", "main");
+      exception
+         when others =>
+            F.RPC_Endpoint := Null_Unbounded_String;
+            Ada.Environment_Variables.Set ("COYOTE_RPC_ENDPOINT", "");
+      end;
       Coyote_GUI.Conversation_Stack.Create
         (F.Stack, F.Win.all'Access);
       Coyote_GUI.Conversation_Stack.Set_Fork_Handler
@@ -2949,8 +3702,10 @@ package body Coyote_App.Frontend.GUI is
       end;
 
       F.Stack.Widget.On_Scroll_Event (On_Stack_Scroll'Access);
+      F.Agent_Pane.Pack2
+        (F.Stack.Widget, Resize => True, Shrink => False);
       F.Outer_Box.Pack_Start
-        (F.Stack.Widget, Expand => True, Fill => True, Padding => 0);
+        (F.Agent_Pane, Expand => True, Fill => True, Padding => 0);
 
       --  ── Conversation / prompt boundary ───────────────────────────────
 
@@ -3298,6 +4053,7 @@ package body Coyote_App.Frontend.GUI is
    procedure Shutdown (F : in out Instance) is
       U : Coyote_GUI.Update;
    begin
+      Stop_RPC_Service (F);
       F.PQ.Shutdown;
       U.Kind := Coyote_GUI.Shutdown;
       Enqueue_Update (F, U);

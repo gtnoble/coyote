@@ -33,7 +33,9 @@ package body Coyote_GUI.Prompt_Queue is
             Head := Head mod Max_Depth + 1;
             Count := Count - 1;
          else
-            I := (Kind => Shutdown_Item);
+            I :=
+              (Kind            => Shutdown_Item,
+               Target_Agent_Id => Ada.Strings.Unbounded.Null_Unbounded_String);
          end if;
       end Dequeue;
 
