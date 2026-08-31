@@ -5,6 +5,6 @@
     <desc>Use the Send and Stop controls.</desc>
   </info>
   <title>Control Area</title>
-  <p><gui style="button">Send</gui> submits the current prompt. <gui style="button">Stop</gui> aborts an active turn or tool invocation.</p>
-  <p>Other runtime controls are available in the <gui>Agent</gui> menu; see <link xref="agent-controls">Agent Controls</link>.</p>
+  <p><gui style="button">Send</gui> submits the current prompt to the selected live agent. <gui style="button">Stop</gui> aborts that agent's active turn or tool invocation.</p>
+  <p>Other runtime controls are available in the <gui>Agent</gui> menu and apply to the selected live agent; see <link xref="agent-controls">Agent Controls</link>.</p>
 </page>

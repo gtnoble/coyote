@@ -899,8 +899,25 @@ renderer.
 | Component progress | Native exchange/step hierarchy, Markdown, MathML, selection, zoom, responsive tool cards, replay, reset, and large-history behavior qualified and integrated unconditionally. |
 | Verification | Production and test development builds succeed. The 17-test native-stack group passes 17/17; the GUI lifecycle regression passes 1/1 with zero failed assertions and zero unexpected errors. The post-cutover suite registers 762 tests. |
 | Risk disposition | R7 closed. Native qualification gates DEM-042 through DEM-048 are closed. |
-| Documentation | SRS-CORE 1.21, SDD-CORE 1.24, TEST-PLAN 1.25, frontend SDF, and PCR-092 record the cutover. |
+| Documentation | SRS-CORE 1.21, SDD-CORE 1.24, TEST-PLAN 1.25, frontend SDF, and PCR-092 record the cutover. This historical review predates PCR-093. |
 | Disposition | Implemented and qualified. Historical migration records remain retained as superseded records. |
+
+### Review 23 — PCR-093 Virtual-agent-window organization amendment (2026-08-31)
+
+**Review type:** Joint scope, requirements, design, and documentation review
+**Trigger:** User acceptance of the virtual-agent-window organization plan to
+remove desktop pollution while preserving independent short-lived subagent
+execution and active steering semantics.
+
+| Indicator | Value |
+|---|---|
+| Scope change | Add a planned agents tree and coordinator RPC presentation path; no change to subagent persistence or one-shot termination semantics. |
+| Requirements | Added REQ-CORE-020a..020c, revised REQ-CORE-020 and REQ-CORE-005, and revised REQ-CORE-115/115a for selected-agent routing and virtual windows. |
+| Design | Added planned `Coyote_App.Frontend.RPC`, `Coyote_App.Agent_Registry`, and `Coyote_App.Agent_RPC` boundaries; implementation remains pending. |
+| Test planning | Added future DEM-050..053 for tree registration, selected-agent prompt/control routing, retained terminal records, and bidirectional RPC. |
+| Verification | Documentation consistency reviewed; no implementation or runtime qualification performed. |
+| Open problem | PCR-093 In Progress, priority 2-Serious. |
+| Disposition | Accepted design direction; implementation and qualification deferred to a subsequent build. |
 
 ## 9. Artifact Version Table
 
@@ -909,9 +926,9 @@ renderer.
 |---|---|---|---|---|
 | Project Plan | PLAN | `plan/project-plan.md` | 1.27 (2026-08-31) | Project |
 | Problem/Change Log | PCR-LOG | `plan/problems.md` | active | Project |
-| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.21 (2026-08-31) | Client |
-| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.24 (2026-08-31) | Project |
+| coyote Requirements Spec | SRS-CORE | `requirements/coyote-requirements.md` | 1.22 (2026-08-31) | Client |
+| coyote Design Description | SDD-CORE | `design/coyote-design.md` | 1.25 (2026-08-31) | Project |
 | coyote_sqc Requirements Spec | SRS-SQC | `requirements/coyote-sqc-requirements.md` | 0.2 (2026-06-21) | Project |
 | coyote_sqc Design Spec | SDD-SQC | `design/coyote-sqc-design.md` | 0.2 (2026-06-21) | Project |
-| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.25 (2026-08-31) | Project |
+| Test Plan | TEST-PLAN | `plan/test-plan.md` | 1.26 (2026-08-31) | Project |
 | Agent Working Instructions (secondary) | AGENTS | `AGENTS.md` | active | Project |

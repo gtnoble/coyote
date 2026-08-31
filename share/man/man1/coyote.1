@@ -67,8 +67,10 @@ Exit after the first complete agent turn and print one JSON result record to
 standard output. Presentation output is sent to standard error.
 .TP
 \fB\-\-subagent\fR
-Behave as one-shot while preserving inherited GUI context when available.
-Otherwise the child uses the Plain frontend.
+Behave as one-shot. In the planned coordinator path, a subagent will use the
+headless RPC presentation channel and will not open a separate GUI window. It
+will accept steering messages while active, emit its final response, and exit.
+Without a coordinator channel it uses the Plain frontend.
 .TP
 \fB\-\-name\fR \fILABEL\fR
 Add an optional label to the GTK window title.
@@ -91,9 +93,10 @@ Print usage information and exit successfully.
 .B COYOTE_FRONTEND
 When set to
 .BR gui ,
-selects the GUI frontend. It is set automatically by a GUI parent before
-spawning child coyote processes. Other values do not select a supported
-frontend.
+selects the GUI frontend for an ordinary coyote process. A coordinator-launched
+.BR --subagent
+uses its private headless RPC presentation channel instead of opening a
+separate GUI window. Other values do not select a supported frontend.
 .TP
 .B COYOTE_SESSION_ID
 Set after session creation. Child processes promote it to
@@ -172,7 +175,9 @@ or
 .B WAYLAND_DISPLAY ,
 or
 .BR COYOTE_FRONTEND=gui ,
-which selects GUI.
+which selects GUI for an ordinary process. A coordinator-launched
+.BR --subagent
+uses the headless RPC presentation channel instead.
 .IP 4. 4
 Otherwise Plain.
 .SH EXAMPLES

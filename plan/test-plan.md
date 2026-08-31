@@ -1,6 +1,6 @@
 # Test Plan â coyote (STP)
 
-**Version:** 1.25
+**Version:** 1.26
 **Date:** 2026-08-31
 
 **Status:** Reviewed and acknowledged â M4 complete (2026-06-03)
@@ -148,7 +148,8 @@ SRS-CORE requirement groups.
 
 | `llm_skills_tests.adb` | REQ-CORE-090, 090a, 091â094 | ~22; configured roots, malformed entries, and shadowing |
 | `llm_settings_tests.adb` | REQ-CORE-025, 090a, 230â234, 070â073; skillPaths loading and Save_Preferences persistence | ~29 |
-| `subagent_integration_tests.adb` | REQ-CORE-025, 019â020; subprocess startup and one-shot behavior | 4 |
+| `subagent_integration_tests.adb` | REQ-CORE-025, 019–020; subprocess startup, one-shot, and steering behavior | 4 |
+| Planned coordinator/RPC integration tests | REQ-CORE-020a–020c, 115, 115a; agents-tree registration, selected-agent routing, terminal retention, and RPC transport | Planned |
 | `coyote_gui_prompt_queue_tests.adb` | REQ-CORE-116â119; typed preference and skill-path payload, acceptance, and overflow transport | 3 |
 | `coyote_gui_navigation_tests.adb` | REQ-CORE-114; clamped keyboard viewport navigation | 3 |
 | `llm_auth_tests.adb` | REQ-CORE-232 | ~15 |
@@ -204,7 +205,7 @@ behaviour. Results are recorded in a Test Report.
 | DEM-001 | REQ-CORE-001 | Run `coyote --one-shot --prompt "hello"`; verify the Plain frontend is used and the single JSON result is printed to stdout |
 | DEM-003 | REQ-CORE-003 | Run coyote with `$DISPLAY` or `$WAYLAND_DISPLAY` set; verify the GUI window opens |
 | DEM-004 | REQ-CORE-019 | `coyote --one-shot --prompt "echo hello"` exits after one turn; check exit code 0 and JSON on stdout |
-| DEM-005 | REQ-CORE-020 | `coyote --subagent --prompt "hello"` inherits GUI when available and otherwise uses Plain |
+| DEM-005 | REQ-CORE-020 | `coyote --subagent --prompt "hello"` retains one-shot behavior, accepts steering while active, and exits after its final response; without a coordinator channel it uses Plain |
 | DEM-045 | REQ-CORE-025 | Set `maxRecursionDepth` to 1; invoke coyote with inherited `COYOTE_RECURSION_DEPTH=1` and `--subagent`; verify it exits non-zero before opening a frontend and reports the limit on stderr |
 | DEM-046 | REQ-CORE-111, 125 | In the display-backed GTK GUI, render a fixture containing headings, inline formatting, code, lists, tables, links, strikethrough, and a thematic break. Verify conversion occurs after streaming, local selection exposes plain text, the Render Markdown toggle preserves source text when disabled, and zoom changes native response font size. |
 | DEM-047 | REQ-CORE-111, 131, 137 | Render the same Markdown response live and by session replay in the native GUI. Verify equivalent supported visible content and response-block boundaries, and verify the GUI replay preserves the same semantic blocks. |
@@ -293,6 +294,7 @@ and preferences demonstrations listed above.
 | REQ-CORE-010â018 | T | `coyote_app_tests.adb` |
 | REQ-CORE-019â020 | D | DEM-004, DEM-005 |
 | REQ-CORE-025 | T/D | `subagent_integration_tests.adb`, `llm_settings_tests.adb`, DEM-045 |
+| REQ-CORE-020a..020c, 115, 115a | D/T/I | Planned coordinator/RPC integration tests DEM-050..053; source inspection |
 | REQ-CORE-021 | D | GUI window title label demonstration |
 | REQ-CORE-022 | D | DEM (TBD) |
 | REQ-CORE-023 | T | `coyote_utils_tests.adb` |

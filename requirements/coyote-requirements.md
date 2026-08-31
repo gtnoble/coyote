@@ -1,7 +1,7 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.21
+**Version:** 1.22
 **Date:** 2026-08-31
 **Status:** Draft
 **Project Plan:** `plan/project-plan.md`
@@ -42,6 +42,13 @@ withdrawn from the supported product. The current executable supports GTK3
 and Plain frontends. Historical Acme requirements below are retained for
 traceability and are superseded by this amendment.
 
+**Accepted virtual-agent-window amendment (2026-08-31):** The planned
+coordinator UI shall organize short-lived subagent processes as selectable
+virtual windows in an agents tree rather than opening one top-level GUI
+window per subagent. This amendment changes the planned GUI presentation and
+inter-process interface; it does not make subagents persistent. The existing
+one-shot completion, final-response exit, and steering-while-active semantics
+remain in force until the process exits.
 **Component identifier:** coyote
 
 **System context:** coyote is a self-contained LLM coding agent. It manages
@@ -101,10 +108,11 @@ selection, and none of REQ-CORE-001, REQ-CORE-002, or REQ-CORE-003 applies,
 the executable shall select the Plain frontend.
 
 **REQ-CORE-005** (I)
-When the GUI frontend is selected, the executable shall set
-`COYOTE_FRONTEND=gui` before spawning child processes so GUI subagents inherit
-the display context.
-
+When the GUI frontend launches an ordinary child coyote process that is
+intended to have its own GUI window, it shall propagate
+`COYOTE_FRONTEND=gui`. A coordinator-launched `--subagent` shall instead use
+the coordinator's headless agent-presentation channel and shall not open a
+separate top-level GUI window merely because a display is available.
 
 **REQ-CORE-006** (T)
 The executable shall accept an optional `--frontend gui|plain`
@@ -165,8 +173,40 @@ JSON result summary to standard output.
 
 **REQ-CORE-020** (D)
 The executable shall accept a `--subagent` flag. When set, the executable
-shall behave as `--one-shot` and shall inherit the GUI context when
-`COYOTE_FRONTEND=gui` is present; otherwise the child uses the Plain frontend.
+shall retain the one-shot lifecycle: it shall process its initial prompt,
+accept steering messages while its agentic turn is active, emit its final
+response, and exit. When launched by a coyote coordinator, the subagent shall
+use a headless RPC frontend to publish its conversation and lifecycle events
+and shall not open a separate top-level GUI window. When no coordinator RPC
+channel is supplied, the subagent shall use the Plain frontend. A completed,
+aborted, failed, or disconnected subagent shall not become a persistent
+interactive session as a consequence of this requirement.
+
+**REQ-CORE-020a** (D/T/I)
+The coordinator GUI shall present the main agent and coordinator-launched
+subagents as nodes in an agents tree. The main agent shall be the root, and
+subagents shall be attached below their launching agent. Selecting a node
+shall display that agent's conversation state in the shared conversation view
+and shall make that live agent the target of typed prompts and agent controls.
+A completed or exited agent shall remain selectable for conversation review,
+but shall not accept new prompts.
+
+**REQ-CORE-020b** (D/T/I)
+The coordinator shall maintain a distinct runtime identity for each live or
+completed virtual agent, including its parent runtime identity, durable
+session identity when available, display label, lifecycle state, and
+conversation state. The coordinator shall preserve completed virtual-agent
+records for the lifetime of the coordinator process without making the
+subagent process persistent.
+
+**REQ-CORE-020c** (D/T/I)
+The coordinator and a coordinator-launched subagent shall communicate through
+a local, bidirectional, versioned RPC interface. The subagent shall publish
+structured conversation, status, tool, statistics, and terminal lifecycle
+events. The coordinator shall route prompts, including steering messages,
+and applicable Stop, Pause, Resume, and shutdown controls to the selected
+live subagent. RPC loss shall mark the virtual agent disconnected and shall
+not by itself convert it into a persistent session.
 
 **REQ-CORE-025** (T)
 When `--subagent` is given, the executable shall read the optional
@@ -674,12 +714,31 @@ shall remain understandable without color.
 The GUI frontend shall support vi-style scroll navigation (j/k/g/G/Ctrl-D/
 Ctrl-U) in the conversation view.
 
-**REQ-CORE-115** (D)
-The GUI frontend shall propagate `COYOTE_FRONTEND=gui` to all child processes
-so that subagents open their own GUI windows. The GUI shall publish the
-application identity `coyote` for desktop launchers and use a distinct
-window-manager role for each active session so session windows are
-interchangeable only when they represent the same session.
+**REQ-CORE-115** (D/T/I)
+The GUI frontend shall retain the application identity `coyote` for desktop
+launchers and shall provide an agents panel implemented as a tree view. The
+main agent shall be the top-level tree element and each subagent shall appear
+as a child of the agent that launched it. Each tree element shall identify the
+agent label and lifecycle state in text as well as any status indicator.
+Selecting an agent shall make its virtual window active: the shared
+conversation view shall display that agent's conversation state, typed prompts
+shall be sent to that live agent, and Stop, Pause, and Resume shall target that
+live agent. Selection shall not create or map a top-level desktop window.
+Completed, aborted, failed, or disconnected agents shall remain selectable for
+review, but controls that require a live process shall be disabled. Ordinary
+`File → New Window` behavior, when requested explicitly, remains a separate
+physical-window operation.
+
+**REQ-CORE-115a** (D/T/I)
+When a coordinator launches a `--subagent`, the child shall use a headless
+frontend connected to the coordinator through a local, bidirectional,
+versioned RPC channel. The channel shall carry the child's structured
+conversation and lifecycle events, including streaming text and thinking,
+tool execution, notices, turn completion, statistics, errors, and terminal
+state. The coordinator shall route selected-agent prompts and steering
+messages over the channel. The RPC interface shall carry a runtime agent
+identity and parent runtime identity so recursively launched agents can be
+placed correctly in the tree.
 
 **REQ-CORE-125** (D)
 The GUI frontend shall support zooming the conversation view, prompt area,
@@ -1443,7 +1502,7 @@ matrix and retains historical `TC-*` identifiers; current mappings are in
 | REQ-CORE-002 | Retired Acme frontend selection (historical) | D | TC-002 |
 | REQ-CORE-003 | GUI frontend on $DISPLAY/$WAYLAND_DISPLAY/COYOTE_FRONTEND=gui | D | TC-003 |
 | REQ-CORE-004 | Plain frontend fallback after all checks fail | D | TC-004 |
-| REQ-CORE-005 | COYOTE_FRONTEND=gui propagation | I | TC-005 |
+| REQ-CORE-005 | GUI child frontend propagation and coordinator presentation-channel selection | I | TC-005 |
 | REQ-CORE-006 | --frontend flag overrides detection | T | TC-006 |
 | REQ-CORE-010 | --session UUID resumes session | T | TC-010 |
 | REQ-CORE-011 | CWD restored on session resume | D | TC-011 |
@@ -1456,7 +1515,8 @@ matrix and retains historical `TC-*` identifiers; current mappings are in
 | REQ-CORE-017 | --prompt TEXT sends initial prompt | T | TC-017 |
 | REQ-CORE-018 | --prompt - reads from stdin | T | TC-018 |
 | REQ-CORE-019 | --one-shot exits and prints JSON | D | TC-019 |
-| REQ-CORE-020 | --subagent opens headful window | D | TC-020 |
+| REQ-CORE-020 | --subagent one-shot lifecycle and steering while active | D | TC-020 |
+| REQ-CORE-020a..020c | Virtual-agent tree, selected-agent routing, runtime records, and coordinator RPC | D/T/I | DEM-050..053; source inspection |
 | REQ-CORE-025 | maxRecursionDepth limits inherited --subagent depth | T | TC-025 |
 | REQ-CORE-021 | --name LABEL appended to window | D | TC-021 |
 | REQ-CORE-022 | --prompt-filter applied to prompts | D | TC-022 |
@@ -1520,6 +1580,7 @@ matrix and retains historical `TC-*` identifiers; current mappings are in
 | REQ-CORE-108..108b | Retired Acme fork-token interface (historical) | D | TC-108..108b |
 | REQ-CORE-109 | Retired Acme SetDefault command (historical) | D | TC-109 |
 | REQ-CORE-110..119, 124..129, 133..139 | GUI frontend capabilities, including Preferences, ordered skill-directory editing, display math, zoom, component-stack conversation presentation, completion notifications, and Change Model search | D/T/I | TC-110..119, TC-124..129, TC-133..139; GUI regression tests including `Coyote.GUI layout and shutdown lifecycle`; DEM-033, DEM-042..044 |
+| REQ-CORE-115, 115a | Virtual-agent tree, selected-agent input routing, headless subagent presentation, and coordinator RPC | D/T/I | DEM-050..053; source inspection |
 | REQ-CORE-113a..113c | GUI Help menu, Yelp topics, Edit menu, Product Information dialog, menu taxonomy, title, dialog, support-window, lifecycle-status, and desktop interaction conventions | D/T/I | DEM-036..039; Coyote_Help tests; Mallard validation; source inspection |
 | REQ-CORE-113d | Live structured Session Stats support window and session-reset currency | D/T/I | `coyote_gui_session_stats_window_tests.adb`; DEM-040; source inspection |
 | REQ-CORE-113e | Compact tool-card summary and View Details action opening the structured GTK tool-call detail window | D/T/I | `coyote_gui_conversation_stack_tests.adb`, `llm_session_store_tests.adb`; DEM-041..043; source inspection |
@@ -1573,7 +1634,7 @@ objectives stated in the Project Plan (PLAN §1 and §3):
 | Multi-provider LLM support | REQ-CORE-070–078, REQ-CORE-150–156, REQ-CORE-200–208, REQ-CORE-215–219 |
 | Man pages for coyote and coyote_sqc | REQ-CORE-160 |
 | Skill discovery, configurable roots, and system prompt construction | REQ-CORE-090, 090a–094 |
-| Subagent spawning with session lineage | REQ-CORE-019–020, REQ-CORE-030–032 |
+| Subagent spawning with session lineage and virtual-window organization | REQ-CORE-019–020c, REQ-CORE-030–032, REQ-CORE-115, 115a |
 | Error visibility and graceful shutdown | REQ-CORE-140–142, REQ-CORE-139, REQ-CORE-702–703 |
 | Enhanced system prompt with personality and task constraints | REQ-CORE-170–172 |
 | Structured memory system (four-type taxonomy) | REQ-CORE-180–183 |

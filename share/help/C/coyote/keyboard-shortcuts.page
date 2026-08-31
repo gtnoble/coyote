@@ -25,7 +25,7 @@
       <item><title><key>Ctrl</key>+<key>V</key></title><p>Paste into the prompt.</p></item>
       <item><title><key>Ctrl</key>+<key>A</key></title><p>Select all in the focused area.</p></item>
       <item><title><key>Ctrl</key>+<key>,</key></title><p>Open Preferences.</p></item>
-      <item><title><key>Ctrl</key>+<key>Return</key></title><p>Send the prompt.</p></item>
+      <item><title><key>Ctrl</key>+<key>Return</key></title><p>Send the prompt to the selected live agent; while that agent is active, this may be a steering message.</p></item>
       <item><title><key>Ctrl</key>+<key>Shift</key>+<key>P</key></title><p>Pause the session.</p></item>
       <item><title><key>Ctrl</key>+<key>R</key></title><p>Resume the session.</p></item>
       <item><title><key>Ctrl</key>+<key>M</key></title><p>Change the model.</p></item>

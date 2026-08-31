@@ -1,7 +1,7 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.24
+**Version:** 1.25
 **Date:** 2026-08-31
 
 **Status:** Reviewed — project control (M3 complete 2026-06-02)
@@ -29,6 +29,16 @@ contains GTK3 and Plain execution paths. The former Acme frontend, Nine_P
 9P stack, plumber tasks, and `coyote_open` utility were removed. Historical
 sections that describe those components remain as design history and are not
 part of the current build.
+
+**Accepted virtual-agent-window amendment (2026-08-31):** The planned GUI
+shall organize coordinator-launched short-lived subagents as virtual windows
+in an agents tree rather than mapping one top-level GUI window per subagent.
+The main agent is the tree root; selecting an agent displays its independent
+conversation state in the shared conversation view and directs prompts and
+agent controls to that live agent. This is an organization and presentation
+change, not a persistent-agent change: `--subagent` retains its initial-prompt,
+active-steering, final-response, and process-exit lifecycle. The amendment is
+accepted design direction and is not yet implemented in the current build.
 
 **Component identifier:** coyote
 
@@ -225,8 +235,11 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `Coyote_App.History` | Session replay | `src/coyote_app-history.ads/.adb` |
 | `Coyote_App.Utils` | Formatting utilities + UC_* glyphs | `src/coyote_app-utils.ads/.adb` |
 | `Coyote_App.Frontend` | Abstract frontend interface | `src/coyote_app-frontend.ads` |
-| `Coyote_App.Frontend.GUI` | GTK3 frontend implementation | `src/coyote_app-frontend-gui.ads/.adb` |
+| `Coyote_App.Frontend.GUI` | GTK3 frontend implementation, agents tree, and selected virtual-window presentation | `src/coyote_app-frontend-gui.ads/.adb` |
 | `Coyote_App.Frontend.Plain` | Plain-text frontend implementation | `src/coyote_app-frontend-plain.ads/.adb` |
+| `Coyote_App.Frontend.RPC` | Planned headless coordinator RPC frontend for short-lived subagents | Planned `src/coyote_app-frontend-rpc.ads/.adb` |
+| `Coyote_App.Agent_Registry` | Planned live virtual-agent hierarchy and selected-agent routing state | Planned `src/coyote_app-agent_registry.ads/.adb` |
+| `Coyote_App.Agent_RPC` | Planned local bidirectional RPC listener, event routing, and control transport | Planned `src/coyote_app-agent_rpc.ads/.adb` |
 | `Coyote_GUI` | GUI root (Update_Kind, Update record) | `src/coyote_gui/coyote_gui.ads` |
 | `Coyote_GUI.Updates` | Protected agent→GTK queue | `src/coyote_gui/coyote_gui-updates.ads/.adb` |
 | `Coyote_GUI.Prompt_Queue` | Protected GTK→agent queue | `src/coyote_gui/coyote_gui-prompt_queue.ads/.adb` |
@@ -423,6 +436,32 @@ three layers:
   → Coyote_Notify calls libnotify only when the window is inactive
 ```
 
+**Planned virtual-agent-window flow:**
+
+```
+[coordinator GUI]
+  → create the agents tree and local RPC listener
+  → register the main agent as the root virtual window
+  → launch a coordinator-launched --subagent with runtime agent identity
+  → receive the child's structured events through bidirectional RPC
+  → update that agent's retained conversation state and tree-row status
+  → when the user selects a live node, route prompts and agent controls to it
+  → retain completed, aborted, failed, or disconnected nodes for review
+
+[headless subagent]
+  → use the RPC frontend when coordinator channel context is supplied
+  → process the initial prompt and active steering messages
+  → publish streaming conversation and lifecycle events
+  → emit its final response and exit after the existing one-shot lifecycle
+```
+
+The planned agents tree is a presentation-level virtual window manager. It
+retains independent process and session state for each subagent without
+merging conversations or keeping subagent processes alive after completion.
+The selected node is the driver's-seat target: prompts and applicable agent
+controls are routed to that live process. A completed or exited node remains
+selectable for inspection but cannot receive a new prompt.
+
 ### 4.5 Design Decisions Affecting Multiple Units
 
 **Decision D-001: Frontend abstraction at event granularity, not text granularity.**
@@ -480,7 +519,9 @@ variables `$DISPLAY`, `$WAYLAND_DISPLAY`, `COYOTE_FRONTEND`,
 `COYOTE_RECURSION_DEPTH`.
 
 **Outputs:** `Coyote_App.Options` record passed to `Coyote_App.Plain.Run` or
-`Coyote_App.Run_GUI`; `COYOTE_FRONTEND=gui` is propagated for GUI children.
+`Coyote_App.Run_GUI`. Ordinary explicitly separate GUI windows may propagate
+`COYOTE_FRONTEND=gui`; coordinator-launched `--subagent` processes use the
+planned headless RPC frontend instead.
 
 **Control flow:**
 1. Parse arguments sequentially. Each recognised flag sets the corresponding
@@ -501,7 +542,7 @@ variables `$DISPLAY`, `$WAYLAND_DISPLAY`, `COYOTE_FRONTEND`,
 4. Evaluate the frontend selection rules: explicit `--frontend gui|plain`
    wins; otherwise select Plain for non-subagent one-shot runs, GUI when a
    display or `COYOTE_FRONTEND=gui` is present, and Plain otherwise.
-5. Propagate `COYOTE_FRONTEND=gui` when GUI is selected.
+5. Propagate GUI context only to ordinary child processes that are intended to have their own physical GUI window. Pass the coordinator RPC channel and runtime agent identities to coordinator-launched subagents.
 6. Dispatch to `Coyote_App.Plain.Run` for Plain or `Coyote_App.Run_GUI` for GUI.
 
 **Error handling:** `Coyote_Utils.Bad_Arg_Error` is caught at the outermost
@@ -1564,6 +1605,20 @@ startup and is the sole GTK conversation presentation (see §5.15).
   adding nested scrolling regions or changing the conversation's expansion
   policy. The arrangement follows the IRIX guidance for a work area above a
   control area and a status area along the bottom.
+- The planned agents panel is a narrow, resizable left-side tree view within
+  the main window. Its root row is the main agent; recursively launched
+  subagents appear beneath the agent that launched them. Each row identifies
+  the agent label and lifecycle state. Selecting a row switches the shared
+  conversation view to that agent's retained conversation state and makes the
+  selected live agent the target of typed prompts and applicable agent
+  controls. Completed, aborted, failed, and disconnected rows remain
+  selectable for review, but cannot receive new prompts after their process
+  has ended.
+- The agents panel is a virtual window manager for organization only. It does
+  not merge agent conversations, make subagents persistent, or map a separate
+  desktop window for each coordinator-launched subagent. The child process
+  retains the existing initial-prompt, steering-while-active, final-response,
+  and exit lifecycle.
 - All `Append_Text`, `Begin_Tool`, `End_Tool`, etc. calls enqueue a
   `Coyote_GUI.Update` record onto `Coyote_GUI.Updates`. A GLib idle handler
   drains the queue on the GTK main-loop thread and dispatches it to
@@ -2073,6 +2128,7 @@ blocking; `Agent_Resumed_Event` is emitted after unblocking.
 |---|---|
 | REQ-CORE-001–005 | `Coyote` (entry point) |
 | REQ-CORE-010–023 | `Coyote` (entry point), `Coyote_Utils` |
+| REQ-CORE-020a–020c, 115, 115a | Planned `Coyote_App.Frontend.RPC`, `Coyote_App.Agent_Registry`, `Coyote_App.Agent_RPC`, and `Coyote_App.Frontend.GUI` agents-panel presentation |
 | REQ-CORE-030–032 | `Coyote` (entry point), `LLM.Session_Store` |
 | REQ-CORE-219 | `Coyote_App`, `LLM.Agent`, OpenRouter provider |
 | REQ-CORE-040–046 | `LLM.Agent`, `Coyote_App.Dispatch`, all frontends |

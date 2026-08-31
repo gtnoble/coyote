@@ -78,16 +78,20 @@ relevant SDF.
 
 ## Frontend selection
 
-`coyote.adb` selects the frontend in this order:
+The current executable selects the frontend in this order:
 
 1. Explicit `--frontend gui|plain`.
 2. Non-subagent `--one-shot` → Plain.
 3. `COYOTE_FRONTEND=gui`, `$DISPLAY`, or `$WAYLAND_DISPLAY` → GUI.
 4. Otherwise → Plain.
 
-GUI selection propagates `COYOTE_FRONTEND=gui` to child coyote processes.
+The accepted virtual-agent-window amendment changes the planned coordinator
+path: a coordinator-launched `--subagent` will use a headless RPC presentation
+channel instead of opening a GUI window. Ordinary child processes intended to
+open their own physical GUI window may still inherit `COYOTE_FRONTEND=gui`.
 Plain one-shot presentation goes to standard error so the final JSON result is
-the only standard-output record. There is no Acme frontend context.
+the only standard-output record. There is no Acme frontend context. The
+amendment is not yet implemented.
 
 ## Architecture
 
@@ -150,6 +154,13 @@ Launch a child through the shell with:
 printf 'Review the following code...\n' | coyote --subagent --prompt -
 ```
 
-A GUI parent propagates GUI context. A Plain parent produces a Plain child.
+A GUI parent currently propagates GUI context and a Plain parent produces a
+Plain child. The accepted virtual-agent-window amendment will change
+coordinator-launched `--subagent` execution to a headless RPC frontend: the
+main agent and short-lived subagents will appear as virtual windows in an
+agents tree, and selecting a live node will route prompts and controls to it.
+The subagent will retain its existing initial-prompt, active-steering,
+final-response, and exit lifecycle; completed nodes will remain reviewable but
+will not become persistent agents. The amendment is not yet implemented.
 Session lineage uses `COYOTE_SESSION_ID` and `COYOTE_PARENT_SESSION`; recursion
 is limited by `maxRecursionDepth` and `COYOTE_RECURSION_DEPTH`.

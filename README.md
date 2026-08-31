@@ -22,8 +22,13 @@ shared between coyote and pi.
 - **Session persistence** — conversations saved under
   `~/.coyote/sessions/` as JSONL files
 - **Subagent support** — invoke `coyote --subagent --prompt -` from a shell
-  pipeline; GUI context is inherited when available, otherwise the child uses
-  the plain frontend. Session lineage is recorded automatically
+  pipeline. The planned coordinator path will use a headless subagent and
+  report its short-lived virtual-window conversation to the coordinator;
+  it will not open a separate desktop window. Selecting its agent-tree node
+  will make it the prompt and control target while it remains active. Session
+  lineage is recorded automatically. Standalone subagents without a
+  coordinator channel use the Plain frontend. This virtual-window
+  organization is accepted design direction and is not yet implemented.
 
 ## Requirements
 
@@ -67,21 +72,29 @@ coyote [--session UUID] [--model PROVIDER/ID] [--agent TEXT|@PATH]
 | `--no-session` | Do not persist the conversation |
 | `--prompt TEXT\|-` | Send an initial prompt; `-` reads it from standard input |
 | `--one-shot` | Exit after one turn and print a JSON result to standard output |
-| `--subagent` | Behave as one-shot while inheriting GUI context when available |
+| `--subagent` | Behave as one-shot; coordinator-launched workers use the headless RPC presentation channel and retain active steering semantics |
 | `--name LABEL` | Add an optional label to the GUI window title |
 | `--prompt-filter CMD` | Filter interactive prompts through `$SHELL -c CMD` |
 | `--frontend gui\|plain` | Override automatic frontend selection |
 
 Without an explicit frontend, coyote selects Plain for non-subagent one-shot
 execution, GUI when a display or `COYOTE_FRONTEND=gui` is present, and Plain
-otherwise. `COYOTE_FRONTEND=gui` is propagated to child coyote processes.
+otherwise. Coordinator-launched `--subagent` processes use the headless RPC
+presentation channel instead of opening GUI windows. Ordinary child processes
+intended to open their own GUI window may still inherit
+`COYOTE_FRONTEND=gui`.
 
 ## GTK controls
 
 The GTK frontend provides File, Edit, View, Agent, Options, and Help menus.
 The Agent menu supports sending, stopping, pausing, resuming, compacting,
 clearing, changing models, changing thinking level, switching sessions, and
-forking a session. Completed tool cards open structured detail windows.
+forking a session. The planned agents panel presents the main agent as the
+root of a tree and coordinator-launched short-lived subagents as child virtual
+windows. Selecting a live node routes prompts and applicable controls to that
+agent; completed nodes remain available for review but do not accept new
+prompts. Completed tool cards open structured detail windows. This virtual
+window organization is planned and is not yet implemented.
 
 The Help menu opens the installed Mallard documentation through Yelp. F1 opens
 the overview and Shift+F1 enables contextual help.

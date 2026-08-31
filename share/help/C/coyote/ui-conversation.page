@@ -5,7 +5,8 @@
     <desc>Read, select, and interact with conversation content.</desc>
   </info>
   <title>Conversation Area</title>
-  <p>The native GTK conversation area displays assistant responses, reasoning, notices, tool activity, and turn summaries in selectable components and visible step frames.</p>
+  <p>The native GTK conversation area displays the conversation of the selected agent, including assistant responses, reasoning, notices, tool activity, and turn summaries in selectable components and visible step frames.</p>
+  <p>The planned agents panel treats each agent as a virtual window. Selecting a live row changes the conversation shown and puts that agent in the driver's seat for prompts and applicable controls. Selecting a completed row shows its retained conversation for review.</p>
   <p>Select text to publish it through the desktop PRIMARY selection. Completed tool cards and fork controls can be activated with the mouse or keyboard.</p>
   <p>See <link xref="keyboard-shortcuts">Keys &amp; Shortcuts</link> for navigation and selection commands.</p>
 </page>

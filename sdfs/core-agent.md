@@ -16,6 +16,25 @@
 
 ## Design Rationale
 
+## 2026-08-31 — Virtual-agent-window presentation amendment
+
+**Requirement:** Coordinator-launched subagents shall be organized as virtual
+windows in the coordinator's agents tree, with the selected live agent as the
+prompt and control target, without changing the existing short-lived worker
+lifecycle.
+
+**Design direction:** The planned coordinator supplies a headless RPC frontend
+to each coordinator-launched `--subagent`. The child continues to process its
+initial prompt, accept steering while its agentic turn is active, emit its
+final response, and exit. The coordinator retains the child's conversation
+and terminal state as a virtual-agent record for the lifetime of the GUI
+process. Selecting a completed record is for review only; it does not restart
+or make the worker persistent. Runtime agent identity and parent identity are
+separate from durable session UUID and session lineage.
+
+**Status:** Accepted documentation/design amendment; implementation and
+qualification are pending.
+
 ## 2026-08-29 — Recursive OpenRouter Broadcast identity (REQ-CORE-219)
 
 **Requirement:** Subagents and recursively spawned subagents must share the

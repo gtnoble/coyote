@@ -2,10 +2,11 @@
 <page xmlns="http://projectmallard.org/1.0/" type="task" id="send-prompt">
   <info>
     <link type="guide" xref="index"/>
-    <desc>Enter a request and send it to the active model.</desc>
+    <desc>Enter a request and send it to the selected live agent.</desc>
   </info>
   <title>Send a Prompt</title>
-  <p>Enter a coding request in the prompt area and submit it to the active model. The response appears in the conversation area as it streams.</p>
+  <p>Enter a coding request in the prompt area and submit it to the selected live agent. The response appears in that agent's conversation area as it streams. The selected agent is the driver's-seat target.</p>
+  <p>When the selected agent is processing its initial or current turn, another submitted message is handled using the existing steering behavior. A completed, aborted, failed, or disconnected agent cannot receive a new prompt; select a live agent instead.</p>
   <steps>
     <item><p>Click in the prompt area and enter your request.</p></item>
     <item><p>Choose <gui style="button">Send</gui>, or press <key>Ctrl</key>+<key>Return</key>.</p></item>

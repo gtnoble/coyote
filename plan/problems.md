@@ -3,6 +3,32 @@
 Maintained continuously. Every detected problem in a project-level or
 client-controlled work product gets an entry here.
 
+## PCR-093 — Virtual-agent-window organization amendment
+
+- **Date reported:** 2026-08-31
+- **Category:** Requirements, Design, Test, Manuals, Plans
+- **Priority:** 2-Serious
+- **Description:** The existing headful subagent presentation creates one
+  complete top-level GUI window per short-lived worker, which pollutes the
+  desktop during parallel orchestration. The accepted product direction is to
+  organize those workers as virtual windows in an agents tree in the
+  coordinator GUI.
+- **Affected work products:** SRS-CORE, SDD-CORE, TEST-PLAN, `AGENTS.md`,
+  README, man page, Mallard Help, frontend SDF, core-agent SDF, and project
+  planning records.
+- **Actions taken:** Updated the requirements and design to specify a left-side
+  agents tree with the main agent as root and recursively launched subagents
+  as children. Selecting a live node makes it the prompt and control target;
+  completed, aborted, failed, or disconnected nodes remain reviewable. The
+  planned coordinator path uses a headless, bidirectional local RPC frontend,
+  while `--subagent` retains its initial-prompt, active-steering,
+  final-response, and process-exit lifecycle. Added future DEM-050..053
+  qualification procedures. Updated public and operational documentation.
+- **Implementation status:** Documentation and accepted design direction only;
+  the RPC frontend, agents panel, and selected-agent renderer are not yet
+  implemented. Existing source behavior remains unchanged until implementation.
+- **Status:** In Progress
+
 **Category values:** Plans | Requirements | Design | Code | Test | Manuals | Other
 **Priority values:** 1-Critical | 2-Serious | 3-Moderate | 4-Minor | 5-Negligible
 **Status values:** Open | In Progress | Resolved | Deferred

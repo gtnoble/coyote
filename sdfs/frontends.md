@@ -33,6 +33,25 @@ components.
 
 ## Design Rationale
 
+### Accepted virtual-agent-window amendment (2026-08-31)
+
+The planned GUI frontend will replace the current one-top-level-window-per-
+headful-subagent presentation with an agents panel on the left side of the
+coordinator window. The main agent is the tree root and recursively launched
+subagents are child virtual windows. Selecting a live node replaces the
+conversation shown in the shared conversation view and routes prompts and
+applicable controls to that agent, reproducing the current multi-window
+"driver's seat" behavior without desktop pollution.
+
+The amendment is organizational only. Coordinator-launched subagents remain
+short-lived `--subagent` processes: they process the initial prompt, accept
+steering while active, emit the final response, and exit. Completed, aborted,
+failed, or disconnected nodes remain as presentation records for review; they
+do not keep a worker process alive or create a persistent interactive session.
+The planned coordinator path uses a headless, bidirectional local RPC frontend
+for structured conversation and lifecycle events. This documentation records
+accepted design direction; implementation and qualification are pending.
+
 ### GTK IRIX alignment slice (2026-08-23)
 
 The GTK main menu now follows the implemented desktop order `File`, `Edit`,

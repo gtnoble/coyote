@@ -5,7 +5,7 @@
     <desc>Control an active coyote turn and its runtime settings.</desc>
   </info>
   <title>Agent Controls</title>
-  <p>The <gui>Agent</gui> menu controls the active turn and session-level behavior.</p>
+  <p>The <gui>Agent</gui> menu controls the selected agent's active turn and session-level behavior. Selecting a row in the planned agents panel puts that agent in the driver's seat.</p>
   <terms>
     <item><title><gui>Stop</gui></title><p>Abort the active turn or tool invocation.</p></item>
     <item><title><gui>Pause</gui></title><p>Pause at the next turn boundary.</p></item>
