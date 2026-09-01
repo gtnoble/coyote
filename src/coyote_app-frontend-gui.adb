@@ -26,6 +26,7 @@ with Gtk.Check_Button;
 with Gtk.Clipboard;
 with Gtk.Enums;
 with Gtk.Image;
+with Gtk.Icon_Theme;
 with Gtk.Label;
 with Gtk.Main;
 with Gtk.Menu;
@@ -79,6 +80,7 @@ with Coyote_Help;
 with Coyote_GUI.Session_Stats_Window;
 with Coyote_GUI.Zoom;
 with LLM.Model_Registry;
+with LLM.Skills;
 with LLM.Tools.Sandbox;
 with Coyote_Notify;
 with Coyote_GUI.Notification_Policy;
@@ -97,6 +99,31 @@ package body Coyote_App.Frontend.GUI is
 
    --  Global access for signal callbacks (single window per process).
    Current_Frontend : access Instance := null;
+
+   procedure Register_Icon_Search_Path is
+      Base : constant String := LLM.Skills.Install_Base;
+   begin
+      if Base'Length > 0 then
+         declare
+            Path : constant String := Base & "/share/icons";
+         begin
+            if Ada.Directories.Exists (Path) then
+               Gtk.Icon_Theme.Get_Default.Append_Search_Path (Path);
+            else
+               declare
+                  Parent : constant String :=
+                    Ada.Directories.Containing_Directory (Base);
+                  Parent_Path : constant String := Parent & "/share/icons";
+               begin
+                  if Ada.Directories.Exists (Parent_Path) then
+                     Gtk.Icon_Theme.Get_Default.Append_Search_Path
+                       (Parent_Path);
+                  end if;
+               end;
+            end if;
+         end;
+      end if;
+   end Register_Icon_Search_Path;
 
    use type Gtk.Tree_Store.Gtk_Tree_Store;
    use type Gtk.Tree_Model.Gtk_Tree_Iter;
@@ -3353,6 +3380,7 @@ package body Coyote_App.Frontend.GUI is
       Help_Item         : Gtk_Menu_Item;
 
    begin
+      Register_Icon_Search_Path;
       Init_System_Font;
       F.Win_Name := To_Unbounded_String (Win_Name);
       F.Notifications_Allowed := Notifications_Allowed;

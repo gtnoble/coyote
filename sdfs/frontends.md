@@ -130,6 +130,17 @@ dependency; `yelp-tools` and `itstool` are contributor-time validation and
 translation dependencies. Because Yelp owns its window, Help windows are not
 GTK transient children of the coyote window.
 
+### GTK application icon search-path correction (2026-09-01)
+
+The Product Information dialog and main window use the themed icon name
+`coyote`, while GTK does not automatically search the checkout or a private
+Alire prefix for the application-owned `share/icons` tree. The GUI frontend
+now registers the executable-relative `$BASE/share/icons` directory with the
+default GTK icon theme before creating windows. A parent-prefix fallback also
+covers the nested `test/bin` layout used by display-backed tests. The existing
+Product Information regression now verifies that GTK resolves `coyote` to a
+source file rather than only checking the widget metadata.
+
 ### Help data-path correction (2026-08-29)
 
 The initial implementation shipped Mallard pages in the repository but did not

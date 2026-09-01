@@ -15,6 +15,7 @@ with Gtk.Container;
 with Gtk.Dialog;
 with Gtk.Enums;
 with Gtk.Image;
+with Gtk.Icon_Theme;
 with Gtk.Main;
 with Gtk.Separator;
 with Gtk.Paned;
@@ -32,6 +33,7 @@ package body Coyote_App_Frontend_GUI_Tests is
    use type Gtk.Dialog.Gtk_Dialog;
    use type Gtk.Image.Gtk_Image;
    use type Gtk.Image.Gtk_Image_Type;
+   use type Gtk.Icon_Theme.Gtk_Icon_Info;
    use type GNAT.Strings.String_Access;
    use type Gtk.Separator.Gtk_Separator;
    use type Gtk.Paned.Gtk_Paned;
@@ -201,6 +203,18 @@ package body Coyote_App_Frontend_GUI_Tests is
       end;
       Assert (Gtk.Widget.Is_Visible (Gtk.Widget.Gtk_Widget (Image)),
               "Product Information icon is visible");
+      declare
+         Icon_Info : constant Gtk.Icon_Theme.Gtk_Icon_Info :=
+           Gtk.Icon_Theme.Get_Default.Lookup_Icon
+             ("coyote", 96, Gtk.Icon_Theme.Icon_Lookup_Force_Svg);
+      begin
+         Assert (Icon_Info /= null,
+                 "GTK resolves the coyote icon to an installed asset");
+         if Icon_Info /= null then
+            Assert (Gtk.Icon_Theme.Get_Filename (Icon_Info)'Length > 0,
+                    "GTK resolves the coyote icon to a source file");
+         end if;
+      end;
       Dialog.Destroy;
       Main_Window (Frontend).Destroy;
    end Test_Product_Information_Icon;

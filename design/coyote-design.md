@@ -158,7 +158,11 @@ No additional thread is created for HTTP I/O. The active session's protected
 blocked, returning nonzero to terminate the transfer promptly.
 
 **GTK3:** All GTK3 calls use Ada bindings from the GtkAda library. `Gtk.Main.Init`
-and `Gtk.Main.Main` are called from the main Ada task.
+and `Gtk.Main.Main` are called from the main Ada task. Before constructing
+windows, `Coyote_App.Frontend.GUI.Create` registers the executable-relative
+`$BASE/share/icons` directory with the default GTK icon theme. This makes the
+tracked `coyote` SVG available to both the main window and in-process dialogs
+without requiring an externally configured `XDG_DATA_DIRS`.
 
 **Markdown rendering:** The GUI frontend renders completed assistant text blocks
 using libcmark-gfm (via the `Coyote_Cmark` Ada binding and the `coyote_cmark_c.c`
@@ -401,7 +405,8 @@ three layers:
 
 [Coyote_App.Run_GUI]
   → Gtk.Main.Init
-  → Frontend.GUI.Create (builds GtkApplicationWindow)
+  → Frontend.GUI.Create (registers `$BASE/share/icons`, then builds
+    GtkApplicationWindow)
   → spawn Agent_Task
   → Gtk.Main.Main (blocks main task on GTK event loop)
 
@@ -565,7 +570,9 @@ All fields are protected by Ada's monitor semantics. Key fields:
 - `Context_Window` — set by Model_Select_Event; used for compaction threshold
 
 **`Run_GUI` procedure:** Calls `Gtk.Main.Init`, creates the GUI frontend,
-spawns `Agent_Task`, then calls `Gtk.Main.Main`.
+spawns `Agent_Task`, then calls `Gtk.Main.Main`. GUI creation registers the
+executable-relative icon search path before assigning the `coyote` themed icon
+to any window or dialog.
 
 ---
 

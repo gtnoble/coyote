@@ -3,6 +3,32 @@
 Maintained continuously. Every detected problem in a project-level or
 client-controlled work product gets an entry here.
 
+## PCR-094 — GTK application icon is not discoverable from the GUI
+
+- **Date reported:** 2026-09-01
+- **Category:** Code, Design, Test, Manuals
+- **Priority:** 2-Serious
+- **Description:** The Product Information dialog displayed GTK's missing-image
+  placeholder instead of the tracked coyote application icon.
+- **Root cause:** The dialog and main window requested the themed icon name
+  `coyote`, but the application did not register its executable-relative
+  `share/icons` directory. The default GTK icon search path omitted both the
+  checkout tree and the private Alire installation prefix.
+- **Affected work products:** `Coyote_App.Frontend.GUI`, the application SVG,
+  GUI regression coverage, SDD-GUI startup behavior, and the frontend SDF.
+- **Corrective action:** Register `$BASE/share/icons` with GTK's default icon
+  theme in `Coyote_App.Frontend.GUI.Create` before any window or dialog is
+  created. Use the parent-prefix fallback for the nested `test/bin` layout.
+  Extend the Product Information regression to verify actual GTK icon lookup
+  and source-file resolution.
+- **Verification:** `alr build` and `cd test && alr build` succeed. A direct
+  GTK lookup resolves `coyote.svg` when the application icon path is
+  registered. The display-backed focused AUnit test was selected correctly
+  but timed out in this environment before reporting results, after emitting
+  unrelated desktop-theme parser warnings.
+- **Status:** Resolved; display-backed runtime qualification remains pending.
+- **Date resolved:** 2026-09-01
+
 ## PCR-093 — Virtual-agent-window organization amendment
 
 - **Date reported:** 2026-08-31
