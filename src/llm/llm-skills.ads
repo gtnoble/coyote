@@ -42,8 +42,7 @@ package LLM.Skills is
    --  Resolves the real path of Executable, then takes the parent of its
    --  parent directory (stripping bin/<name>).  Returns "" when the path
    --  is not of the expected form.
-   --  Executable defaults to Ada.Command_Line.Command_Name (the running
-   --  binary).
+   --  Executable defaults to the active executable image path.
    function Install_Base
      (Executable : String := "") return String;
 

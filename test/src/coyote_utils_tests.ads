@@ -13,6 +13,9 @@ package Coyote_Utils_Tests is
    procedure Test_Strip_Session_Prefix_With_Prefix    (T : in out Test);
    procedure Test_Strip_Session_Prefix_Without_Prefix (T : in out Test);
    procedure Test_Strip_Session_Prefix_Empty           (T : in out Test);
+   procedure Test_Active_Executable_Path_Is_Absolute   (T : in out Test);
+   procedure Test_Shell_Quote_Preserves_Spaces         (T : in out Test);
+   procedure Test_Shell_Quote_Escapes_Apostrophes      (T : in out Test);
    procedure Test_Hidden_Tool_Arguments                (T : in out Test);
 
    procedure Test_Sanitize_UTF8_Passthrough_Pure_ASCII (T : in out Test);

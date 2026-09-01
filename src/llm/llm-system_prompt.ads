@@ -29,6 +29,9 @@ package LLM.System_Prompt is
    --  Memory_Block     : pre-formatted memory index content from
    --                     LLM.Memory.Load_Memory_Index; appended before
    --                     Skills_Section when non-empty.
+   --  Executable_Path  : path to the active coyote executable used in
+   --                     subagent commands; when empty, the running
+   --                     executable is resolved automatically.
    --  Coordinator_Mode : when True and No_Tools is False, the prompt
    --                     includes coordinator subagent-orchestration
    --                     guidance (REQ-CORE-190..192).
@@ -43,6 +46,7 @@ package LLM.System_Prompt is
       Context_Sections   : String  := "";
       Skills_Section     : String  := "";
       Memory_Block       : String  := "";
+      Executable_Path    : String  := "";
       Coordinator_Mode   : Boolean := False) return String;
 
    --  Return per-turn reminder instructions for appending to each user

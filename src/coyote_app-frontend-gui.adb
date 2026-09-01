@@ -69,7 +69,7 @@ with Gtk.Tree_View_Column;
 with Gtk.Tree_Store;
 with Session_Lister;
 with Coyote_Spawn;
-with Ada.Command_Line;
+with Coyote_Utils;
 with GNATCOLL.OS.Process;
 with GNATCOLL.JSON;
 with LLM.Agent;
@@ -1118,7 +1118,7 @@ package body Coyote_App.Frontend.GUI is
             use GNATCOLL.OS.Process;
             Args : Argument_List;
          begin
-            Args.Append (Ada.Command_Line.Command_Name);
+            Args.Append (Coyote_Utils.Active_Executable_Path);
             Args.Append ("--subagent");
             Args.Append ("--session");
             Args.Append (New_UUID);

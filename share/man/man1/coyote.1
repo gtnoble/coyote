@@ -67,10 +67,12 @@ Exit after the first complete agent turn and print one JSON result record to
 standard output. Presentation output is sent to standard error.
 .TP
 \fB\-\-subagent\fR
-Behave as one-shot. In the planned coordinator path, a subagent will use the
-headless RPC presentation channel and will not open a separate GUI window. It
-will accept steering messages while active, emit its final response, and exit.
-Without a coordinator channel it uses the Plain frontend.
+Behave as one-shot. Coordinator-launched workers use the headless RPC
+presentation channel and will not open separate GUI windows. They accept
+steering messages while active, emit a final response, and exit. Without a
+coordinator channel they use the Plain frontend. The runtime system prompt
+uses the absolute, shell-quoted path of the active coyote executable for
+subagent shell commands.
 .TP
 \fB\-\-name\fR \fILABEL\fR
 Add an optional label to the GTK window title.
@@ -192,7 +194,8 @@ Send a one-shot prompt and print its JSON result:
 coyote \-\-one\-shot \-\-prompt "Explain the Ada package system"
 .EE
 .TP
-Pipe a prompt to a Plain subagent:
+Pipe a prompt to a Plain subagent. The `coyote` name is a portable example;
+the runtime system prompt supplies the active executable path:
 .EX
 printf 'Review the following code...\n' | coyote \-\-subagent \-\-prompt \-
 .EE

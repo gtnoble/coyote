@@ -22,14 +22,14 @@ shared between coyote and pi.
 - **Session persistence** — conversations saved under
   `~/.coyote/sessions/` as JSONL files
 - **Subagent support** — invoke `coyote --subagent --prompt -` from a shell
-  pipeline. The planned coordinator path will use a headless subagent and
-  report its short-lived virtual-window conversation to the coordinator;
-  it will not open a separate desktop window. Selecting its agent-tree node
-  will make it the prompt and control target while it remains active. Session
-  lineage is recorded automatically. Standalone subagents without a
-  coordinator channel use the Plain frontend. This virtual-window
-  organization is implemented in the development build; display-backed and
-  real-provider end-to-end qualification remain open.
+  pipeline. The runtime system prompt replaces this portable command with the
+  absolute, shell-quoted path of the active coyote executable. Coordinator-
+  launched workers use the headless RPC presentation channel and report their
+  short-lived virtual-window conversation to the coordinator; they do not open
+  separate desktop windows. Standalone subagents without a coordinator
+  channel use the Plain frontend. This virtual-window organization is
+  implemented in the development build; display-backed and real-provider
+  end-to-end qualification remain open.
 
 ## Requirements
 

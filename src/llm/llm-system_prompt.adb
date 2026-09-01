@@ -303,11 +303,18 @@ package body LLM.System_Prompt is
       Context_Sections   : String  := "";
       Skills_Section     : String  := "";
       Memory_Block       : String  := "";
+      Executable_Path    : String  := "";
       Coordinator_Mode   : Boolean := False) return String
    is
       Result : Unbounded_String;
       Descriptor : constant LLM.Tools.Tool_Descriptor :=
         LLM.Tools.Shell.Descriptor;
+      Active_Path : constant String :=
+        (if Executable_Path'Length > 0
+         then Executable_Path
+         else Coyote_Utils.Active_Executable_Path);
+      Subagent_Command : constant String :=
+        Coyote_Utils.Shell_Quote (Active_Path) & " --subagent";
    begin
       Append
         (Result,
@@ -459,17 +466,18 @@ package body LLM.System_Prompt is
          & ASCII.LF
          & ASCII.LF
          & "**Invocation:** use the shell tool with"
-         & " `coyote --subagent --prompt -`, piping the task"
+         & " `" & Subagent_Command & " --prompt -`, piping the task"
          & " prompt to stdin.  The call returns quickly with empty"
-         & " output; the subagent opens its own window and runs"
-         & " one turn.  Pass `--model PROVIDER/ID`,"
+         & " output; coordinator-launched workers use the headless RPC"
+         & " presentation channel, while standalone workers use Plain;"
+         & " each runs one turn.  Pass `--model PROVIDER/ID`,"
          & " `--agent @path`, and `--name LABEL`.  Session"
          & " lineage is auto-linked via COYOTE_SESSION_ID."
          & ASCII.LF
          & ASCII.LF
          & "Example:"
          & " `printf 'Search all callers of Init()\n'"
-         & " | coyote --subagent"
+         & " | " & Subagent_Command
          & " --agent @~/.coyote/skills/ada-style-guide/SKILL.md"
          & " --name ""search-init"" --prompt -`");
 

@@ -17,6 +17,13 @@ package Coyote_Utils is
    --  without stack overflow.
    function Read_Whole_File (Path : String) return String;
 
+   --  Return the absolute path of the executable image running this process.
+   --  On Linux, prefer /proc/self/exe so the result is independent of argv[0].
+   function Active_Executable_Path return String;
+
+   --  Quote a value for use as one POSIX shell word.
+   function Shell_Quote (Value : String) return String;
+
    --  Raised by Resolve_Text_Arg when the argument begins with '@' but
    --  the referenced file cannot be found or read.
    Bad_Arg_Error : exception;

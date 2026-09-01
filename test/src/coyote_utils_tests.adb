@@ -137,6 +137,37 @@ package body Coyote_Utils_Tests is
          "Strip_Session_Prefix should return empty string for empty input");
    end Test_Strip_Session_Prefix_Empty;
 
+   procedure Test_Active_Executable_Path_Is_Absolute (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Path : constant String := Coyote_Utils.Active_Executable_Path;
+   begin
+      Assert
+        (Path'Length > 0
+         and then Path (Path'First) = '/'
+         and then Path /= "/proc/self/exe"
+         and then Ada.Strings.Fixed.Index (Path, "coyote_test") > 0,
+         "active executable path should identify the running test binary");
+   end Test_Active_Executable_Path_Is_Absolute;
+
+   procedure Test_Shell_Quote_Preserves_Spaces (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      Assert
+        (Coyote_Utils.Shell_Quote ("/tmp/coyote agent/bin/coyote") =
+           "'/tmp/coyote agent/bin/coyote'",
+         "Shell_Quote should protect spaces inside a path");
+   end Test_Shell_Quote_Preserves_Spaces;
+
+   procedure Test_Shell_Quote_Escapes_Apostrophes (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      Assert
+        (Coyote_Utils.Shell_Quote ("/tmp/coyote's/bin/coyote") =
+           "'/tmp/coyote'\''s/bin/coyote'",
+         "Shell_Quote should escape apostrophes for POSIX shells");
+   end Test_Shell_Quote_Escapes_Apostrophes;
+
    procedure Test_Hidden_Tool_Arguments (T : in out Test) is
       pragma Unreferenced (T);
       use GNATCOLL.JSON;

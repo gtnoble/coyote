@@ -3,13 +3,13 @@
 --  Project: coyote
 --  For revision history, see the project version-control log.
 
-with Ada.Command_Line;
 with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Strings;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
+with Coyote_Utils;
 with LLM.Settings;
 
 package body LLM.Skills is
@@ -182,23 +182,11 @@ package body LLM.Skills is
          null;
    end Collect_Skills_From_Root;
 
-   function Binary_Path return String is
-   begin
-      --  Use /proc/self/exe on Linux for the real binary path,
-      --  regardless of argv[0].  Falls back to Command_Name on
-      --  other platforms or if /proc/self/exe is absent.
-      if Ada.Directories.Exists ("/proc/self/exe") then
-         return Ada.Directories.Full_Name ("/proc/self/exe");
-      end if;
-
-      return Ada.Directories.Full_Name (Ada.Command_Line.Command_Name);
-   end Binary_Path;
-
    function Install_Base (Executable : String := "") return String is
       Exe : constant String :=
         (if Executable'Length > 0
          then Ada.Directories.Full_Name (Executable)
-         else Binary_Path);
+         else Coyote_Utils.Active_Executable_Path);
       Bin : constant String := Ada.Directories.Containing_Directory (Exe);
    begin
       if Bin'Length = 0

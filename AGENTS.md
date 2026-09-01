@@ -148,19 +148,16 @@ their documented guard variables and credentials.
 
 ## Subagents
 
-Launch a child through the shell with:
+The generated system prompt supplies the absolute, shell-quoted path of the
+active coyote executable in its subagent invocation and example. Use that
+rendered command rather than assuming that `coyote` is available on `PATH`.
 
-```sh
-printf 'Review the following code...\n' | coyote --subagent --prompt -
-```
-
-A GUI parent currently propagates GUI context and a Plain parent produces a
-Plain child. The accepted virtual-agent-window amendment will change
-coordinator-launched `--subagent` execution to a headless RPC frontend: the
-main agent and short-lived subagents will appear as virtual windows in an
-agents tree, and selecting a live node will route prompts and controls to it.
-The subagent will retain its existing initial-prompt, active-steering,
-final-response, and exit lifecycle; completed nodes will remain reviewable but
-will not become persistent agents. The amendment is not yet implemented.
-Session lineage uses `COYOTE_SESSION_ID` and `COYOTE_PARENT_SESSION`; recursion
+A GUI parent propagates GUI context to ordinary physical-window children. The
+implemented virtual-agent-window path launches coordinator `--subagent`
+processes through the headless RPC frontend: the main agent and short-lived
+subagents appear as virtual windows in an agents tree, and selecting a live
+node routes prompts and controls to it. The subagent retains its
+initial-prompt, active-steering, final-response, and exit lifecycle; completed
+nodes remain reviewable but do not become persistent agents. Session lineage
+uses `COYOTE_SESSION_ID` and `COYOTE_PARENT_SESSION`; recursion
 is limited by `maxRecursionDepth` and `COYOTE_RECURSION_DEPTH`.

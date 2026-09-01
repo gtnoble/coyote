@@ -705,6 +705,14 @@ package body Test_Suites is
          LLM_System_Prompt_Tests
            .Test_Default_Prompt_Lists_Tools'Access));
       Result.Add_Test (LLM_Sys_Prompt_Caller.Create
+        ("LLM.System_Prompt uses injected executable path",
+         LLM_System_Prompt_Tests
+           .Test_Prompt_Uses_Injected_Executable_Path'Access));
+      Result.Add_Test (LLM_Sys_Prompt_Caller.Create
+        ("LLM.System_Prompt quotes executable path",
+         LLM_System_Prompt_Tests
+           .Test_Prompt_Quotes_Executable_Path'Access));
+      Result.Add_Test (LLM_Sys_Prompt_Caller.Create
         ("LLM.System_Prompt default prompt contains guidelines",
          LLM_System_Prompt_Tests
            .Test_Default_Prompt_Contains_Guidelines'Access));
@@ -888,6 +896,15 @@ package body Test_Suites is
       Result.Add_Test (Coyote_Utils_Caller.Create
         ("Coyote_Utils Strip_Session_Prefix returns empty for empty input",
          Coyote_Utils_Tests.Test_Strip_Session_Prefix_Empty'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("Coyote_Utils resolves the active executable path",
+         Coyote_Utils_Tests.Test_Active_Executable_Path_Is_Absolute'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("Coyote_Utils shell-quotes paths containing spaces",
+         Coyote_Utils_Tests.Test_Shell_Quote_Preserves_Spaces'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("Coyote_Utils shell-quotes apostrophes",
+         Coyote_Utils_Tests.Test_Shell_Quote_Escapes_Apostrophes'Access));
       Result.Add_Test (Coyote_Utils_Caller.Create
         ("Coyote_Utils hides default and empty tool arguments",
          Coyote_Utils_Tests.Test_Hidden_Tool_Arguments'Access));

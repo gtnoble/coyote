@@ -255,7 +255,7 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `Coyote_GUI.Session_Stats_Window` | Reusable live session-statistics support window | `src/coyote_gui/coyote_gui-session_stats_window.ads/.adb` |
 | `Coyote_GUI.Zoom` | Zoom-level ↔ font-size arithmetic (pure logic) | `src/coyote_gui/coyote_gui-zoom.ads/.adb` |
 | `Coyote_GUI.Navigation` | Clamped keyboard viewport navigation policy | `src/coyote_gui/coyote_gui-navigation.ads/.adb` |
-| `Coyote_Utils` | CLI arg resolution, file reading, session prefix stripping | `src/coyote_utils.ads/.adb` |
+| `Coyote_Utils` | CLI arg resolution, file reading, session prefix stripping, active executable resolution, and POSIX shell quoting | `src/coyote_utils.ads/.adb` |
 | `LLM` | Root package | `src/llm/llm.ads` |
 | `LLM.Types` | Message, content block, usage types | `src/llm/llm-types.ads/.adb` |
 | `LLM.Events` | Agent event hierarchy | `src/llm/llm-events.ads` |
@@ -1475,10 +1475,13 @@ at session end.
 **Purpose:** Constructs the complete system prompt string from its parts,
 including personality definition, conditional tool-use instructions,
 Presentation MathML display-math guidance with Unicode inline-math guidance,
-memory taxonomy, and coordinator guidance (REQ-CORE-170..173,
-REQ-CORE-180..183, REQ-CORE-190..192).
+memory taxonomy, coordinator guidance, and the active executable command used
+for subagent delegation (REQ-CORE-170..173, REQ-CORE-180..183,
+REQ-CORE-190..192).
 
-**`Build (Settings, Skills_Block, Memory_Block, Agent_Text, Available_Tools, Coordinator_Mode) → String`:** Concatenates:
+**`Build (Cwd, No_Tools, Has_Editing_Tools, Agent, Context_Sections,
+Skills_Section, Memory_Block, Executable_Path, Coordinator_Mode) → String`:**
+Concatenates:
 
 1. **Static preamble** — role description, date, CWD.
 2. **Personality definition** — terse, direct, pragmatic; no cheerleading or
@@ -1502,7 +1505,10 @@ REQ-CORE-180..183, REQ-CORE-190..192).
    spawning is available: parallel-launch instruction, synthesis-before-
    delegation requirement, structured-result format specification,
    prohibition on fabricating in-flight results (REQ-CORE-190..192).
-8. **Agent_Text** — content of `--agent` argument.
+8. **Subagent command** — the active executable image path is shell-quoted and
+   reused in the delegation invocation and example; the path may be injected
+   for deterministic testing.
+9. **Agent_Text** — content of `--agent` argument.
 
 **`Build_Reminder_Instructions (Available_Tools) → String`:** Returns per-turn
 reminder text appended to each user prompt: persist until task is completely
@@ -1940,8 +1946,16 @@ zoom-out be immediately responsive after zooming into the clamp.
 
 ### 5.38 `Coyote_Utils`
 
-**Purpose:** CLI argument resolution and session prefix stripping utilities
-shared by the entry-point packages.
+**Purpose:** CLI argument resolution, session prefix stripping, active
+executable resolution, and POSIX shell quoting utilities shared by the
+entry-point and prompt packages.
+
+**`Active_Executable_Path → String`:** Resolves `/proc/self/exe` with
+link resolution on Linux so the running binary path is independent of
+`argv[0]`; falls back to the command name when procfs is unavailable.
+
+**`Shell_Quote (Value : String) → String`:** Returns `Value` as one
+single-quoted POSIX shell word, escaping embedded apostrophes.
 
 **`Read_Whole_File (Path : String) → String`:** Reads the entire contents
 of `Path` as a `String` using `Stream_IO` chunk-based reading (8 KB buffer).

@@ -603,3 +603,21 @@ focused tests and the 943-test development suite pass. The current lifecycle
 still transfers synchronous stdin before starting timeout supervision, so a
 future nonblocking duplex-I/O increment remains necessary to bound pathological
 large-input/large-output pipe deadlocks.
+
+## 2026-08-31 — Active executable in subagent prompt
+
+**Requirement:** Subagent shell instructions shall invoke the coyote executable
+image that is actively running, rather than assuming that `coyote` is available
+on `PATH`.
+
+**Implementation:** Added `Coyote_Utils.Active_Executable_Path`, which resolves
+`/proc/self/exe` through `GNAT.OS_Lib.Normalize_Pathname` with link resolution
+and falls back to `Ada.Command_Line.Command_Name`. Added `Shell_Quote` for
+POSIX-safe prompt rendering. `LLM.System_Prompt.Build_System_Prompt` accepts an
+injectable executable path and uses one quoted command in both invocation and
+example text. GUI new-window and session-fork launchers use the same active path;
+skill installation-prefix discovery reuses the centralized resolver.
+
+**Verification:** Added utility and system-prompt tests for active-path
+resolution, repeated command rendering, spaces, and apostrophes. Focused tests
+pass in the development test build.

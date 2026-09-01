@@ -3,12 +3,13 @@
 --  Project: coyote
 --  For revision history, see the project version-control log.
 
+with Ada.Command_Line;
 with Ada.Directories;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Streams.Stream_IO;
+with GNAT.OS_Lib;
 
 package body Coyote_Utils is
-
 
    --  Read the entire file at Path using Stream_IO chunk-based reading.
    --  Unlike Text_IO.Get_Line, this handles files with very long lines
@@ -52,6 +53,41 @@ package body Coyote_Utils is
    begin
       return Read_Whole_File (Path);
    end Read_File_If_Exists;
+
+   function Active_Executable_Path return String is
+   begin
+      if Ada.Directories.Exists ("/proc/self/exe") then
+         declare
+            Resolved : constant String :=
+              GNAT.OS_Lib.Normalize_Pathname
+                ("/proc/self/exe", Resolve_Links => True);
+         begin
+            if Resolved'Length > 0 then
+               return Resolved;
+            end if;
+         end;
+      end if;
+
+      return Ada.Directories.Full_Name (Ada.Command_Line.Command_Name);
+   exception
+      when others =>
+         return Ada.Command_Line.Command_Name;
+   end Active_Executable_Path;
+
+   function Shell_Quote (Value : String) return String is
+      Result : Unbounded_String;
+   begin
+      Append (Result, "'");
+      for Character_Value of Value loop
+         if Character_Value = ''' then
+            Append (Result, "'\''");
+         else
+            Append (Result, Character_Value);
+         end if;
+      end loop;
+      Append (Result, "'");
+      return To_String (Result);
+   end Shell_Quote;
 
    function Resolve_Text_Arg (Arg : String) return String is
    begin

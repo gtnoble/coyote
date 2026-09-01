@@ -24,6 +24,26 @@ package body LLM_System_Prompt_Tests is
       end if;
    end Today_String;
 
+   function Count_Substring (Source, Pattern : String) return Natural is
+      Count : Natural := 0;
+      From  : Positive := 1;
+      Match : Natural;
+   begin
+      if Pattern'Length = 0 then
+         return 0;
+      end if;
+
+      while From <= Source'Length loop
+         Match := Ada.Strings.Fixed.Index
+           (Source => Source, Pattern => Pattern, From => From);
+         exit when Match = 0;
+         Count := Count + 1;
+         From := Match + Pattern'Length;
+      end loop;
+
+      return Count;
+   end Count_Substring;
+
    procedure Test_Default_Prompt_Contains_Preamble (T : in out Test) is
       pragma Unreferenced (T);
 
@@ -45,9 +65,41 @@ package body LLM_System_Prompt_Tests is
         (Ada.Strings.Fixed.Index (P, "shell") > 0,
          "default prompt should mention the shell tool");
       Assert
-        (Ada.Strings.Fixed.Index (P, "coyote --subagent") > 0,
+        (Ada.Strings.Fixed.Index (P, "--subagent --prompt -") > 0,
          "default prompt should explain the subagent shell pattern");
    end Test_Default_Prompt_Lists_Tools;
+
+   procedure Test_Prompt_Uses_Injected_Executable_Path (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Path   : constant String := "/opt/coyote/bin/coyote";
+      Prompt : constant String :=
+        LLM.System_Prompt.Build_System_Prompt
+          (Cwd           => Test_Cwd,
+           Executable_Path => Path);
+      Command : constant String := "'/opt/coyote/bin/coyote' --subagent";
+   begin
+      Assert
+        (Ada.Strings.Fixed.Index (Prompt, Command) > 0,
+         "prompt should use the injected executable path");
+      Assert
+        (Count_Substring (Prompt, Command) = 2,
+         "prompt should repeat the same command in the example");
+   end Test_Prompt_Uses_Injected_Executable_Path;
+
+   procedure Test_Prompt_Quotes_Executable_Path (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Prompt : constant String :=
+        LLM.System_Prompt.Build_System_Prompt
+          (Cwd            => Test_Cwd,
+           Executable_Path => "/tmp/coyote agent/bin/coyote");
+   begin
+      Assert
+        (Ada.Strings.Fixed.Index
+           (Prompt, "'/tmp/coyote agent/bin/coyote' --subagent") > 0,
+         "prompt should shell-quote executable paths containing spaces");
+   end Test_Prompt_Quotes_Executable_Path;
 
    procedure Test_Default_Prompt_Contains_Guidelines (T : in out Test) is
       pragma Unreferenced (T);

@@ -4,9 +4,8 @@
 --  For revision history, see the project version-control log.
 
 with Ada.Characters.Handling;
-with Ada.Command_Line;
-with Ada.Environment_Variables;
 with Ada.Directories;
+with Ada.Environment_Variables;
 with Ada.Exceptions;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
@@ -26,6 +25,7 @@ with Coyote_GUI.Prompt_Queue;
 with Coyote_GUI;
 with Coyote_Notify;
 with Coyote_Spawn;
+with Coyote_Utils;
 with Gtk.Main;
 with Coyote_App.History;    use Coyote_App.History;
 with Coyote_App.Dispatch;   use Coyote_App.Dispatch;
@@ -930,7 +930,7 @@ package body Coyote_App is
                              LLM.Agent.Current_Model_Spec (Agent_Session);
                            Args    : Argument_List;
                         begin
-                           Args.Append (Ada.Command_Line.Command_Name);
+                           Args.Append (Coyote_Utils.Active_Executable_Path);
                            Args.Append ("--subagent");
                            if Model'Length > 0 then
                               Args.Append ("--model");
