@@ -12,6 +12,7 @@ package Coyote_App_Agent_RPC_Tests is
    procedure Test_Handshake_Round_Trip (T : in out Test);
    procedure Test_Event_Round_Trip (T : in out Test);
    procedure Test_Command_Round_Trip (T : in out Test);
+   procedure Test_Stop_Command_Round_Trip (T : in out Test);
    procedure Test_Terminal_Round_Trip (T : in out Test);
    procedure Test_JSON_Escaping (T : in out Test);
    procedure Test_Encode_Has_No_Trailing_Newline (T : in out Test);

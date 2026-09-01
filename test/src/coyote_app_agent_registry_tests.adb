@@ -109,6 +109,44 @@ package body Coyote_App_Agent_Registry_Tests is
               "ready agent must accept live controls");
    end Test_Ready_Agent_Accepts_Control;
 
+   procedure Test_Starting_Agent_Accepts_Control (T : in out Test) is
+      pragma Unreferenced (T);
+      R : Registry;
+   begin
+      Assert (Register_Root (R, Root_Id),
+              "root registration must succeed");
+      Assert (Register_Child (R, Child_Id, Root_Id),
+              "child registration must succeed");
+      Assert (Can_Control (R, Child_Id),
+              "starting child must accept Stop control");
+   end Test_Starting_Agent_Accepts_Control;
+
+   procedure Test_Live_Status_Transitions (T : in out Test) is
+      pragma Unreferenced (T);
+      R : Registry;
+   begin
+      Assert (Register_Root (R, Root_Id),
+              "root registration must succeed");
+      Assert (Register_Child (R, Child_Id, Root_Id),
+              "child registration must succeed");
+      Assert (Set_Status (R, Child_Id, Running),
+              "running transition must succeed");
+      Assert (Can_Control (R, Child_Id),
+              "running child must accept control");
+      Assert (Set_Status (R, Child_Id, Paused),
+              "paused transition must succeed");
+      Assert (Can_Control (R, Child_Id),
+              "paused child must accept control");
+      Assert (Set_Status (R, Child_Id, Ready),
+              "ready transition must succeed");
+      Assert (Can_Control (R, Child_Id),
+              "ready child must accept Stop control");
+      Assert (Set_Status (R, Child_Id, Aborted),
+              "aborted transition must succeed");
+      Assert (not Can_Control (R, Child_Id),
+              "aborted child must reject control");
+   end Test_Live_Status_Transitions;
+
    procedure Test_Durable_Session_Id_Update (T : in out Test) is
       pragma Unreferenced (T);
       R      : Registry;

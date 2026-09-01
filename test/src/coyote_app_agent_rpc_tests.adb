@@ -83,6 +83,23 @@ package body Coyote_App_Agent_RPC_Tests is
               "command payload must round-trip");
    end Test_Command_Round_Trip;
 
+   procedure Test_Stop_Command_Round_Trip (T : in out Test) is
+      pragma Unreferenced (T);
+      Input  : constant Frame :=
+        Make_Command
+          (Agent_Id     => "worker-7",
+           Request_Id   => "stop-19",
+           Command_Name => Stop);
+      Output : constant Frame := Decode (Encode (Input));
+   begin
+      Assert (Output.Kind = Command,
+              "Stop command kind must round-trip");
+      Assert (Output.Command_Name = Stop,
+              "Stop command name must round-trip");
+      Assert (To_String (Output.Request_Id) = "stop-19",
+              "Stop command request identity must round-trip");
+   end Test_Stop_Command_Round_Trip;
+
    procedure Test_Terminal_Round_Trip (T : in out Test) is
       pragma Unreferenced (T);
       Input  : constant Frame :=

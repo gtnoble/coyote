@@ -269,6 +269,14 @@ package body Test_Suites is
          Coyote_App_Agent_Registry_Tests
            .Test_Ready_Agent_Accepts_Control'Access));
       Result.Add_Test (Agent_Registry_Caller.Create
+        ("Agent registry accepts controls while starting",
+         Coyote_App_Agent_Registry_Tests
+           .Test_Starting_Agent_Accepts_Control'Access));
+      Result.Add_Test (Agent_Registry_Caller.Create
+        ("Agent registry preserves live status control policy",
+         Coyote_App_Agent_Registry_Tests
+           .Test_Live_Status_Transitions'Access));
+      Result.Add_Test (Agent_Registry_Caller.Create
         ("Agent registry updates durable session identity",
          Coyote_App_Agent_Registry_Tests
            .Test_Durable_Session_Id_Update'Access));
@@ -302,6 +310,10 @@ package body Test_Suites is
         ("Agent RPC service routes commands",
          Coyote_App_Agent_RPC_Service_Tests
            .Test_Command_Routes_To_Child'Access));
+      Result.Add_Test (Agent_RPC_Caller.Create
+        ("Agent RPC Stop command round-trips",
+         Coyote_App_Agent_RPC_Tests
+           .Test_Stop_Command_Round_Trip'Access));
       Result.Add_Test (Agent_RPC_Service_Caller.Create
         ("Agent RPC service reports disconnects",
          Coyote_App_Agent_RPC_Service_Tests

@@ -15,6 +15,8 @@ package Coyote_App_Agent_Registry_Tests is
    procedure Test_Runtime_Identity_Is_Separate (T : in out Test);
    procedure Test_Select_Live_Agent (T : in out Test);
    procedure Test_Ready_Agent_Accepts_Control (T : in out Test);
+   procedure Test_Starting_Agent_Accepts_Control (T : in out Test);
+   procedure Test_Live_Status_Transitions (T : in out Test);
    procedure Test_Durable_Session_Id_Update (T : in out Test);
    procedure Test_Terminal_Agent_Remains_Selectable (T : in out Test);
    procedure Test_Terminal_Agent_Rejects_Control (T : in out Test);

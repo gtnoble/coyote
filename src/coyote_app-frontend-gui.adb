@@ -90,6 +90,8 @@ with GNAT.OS_Lib;
 package body Coyote_App.Frontend.GUI is
    use Coyote_GUI.Prompt_Queue;
    use Coyote_App.Utils;
+   use type Coyote_App.Agent_Registry.Lifecycle_Status;
+   use type Coyote_App.Agent_RPC.Command_Kind;
 
    --  ── Package-body state ────────────────────────────────────────────────
 
@@ -199,10 +201,35 @@ package body Coyote_App.Frontend.GUI is
       Payload : String := "{}")
    is
       Request_Id : constant String := Next_RPC_Request_Id;
+      Agent_Id   : Coyote_App.Agent_Registry.Agent_Id;
    begin
       if Current_Frontend = null or else Is_Root_Selected then
          return;
       end if;
+      Agent_Id := Coyote_App.Agent_Registry.Create_Agent_Id
+        (To_String (Current_Frontend.Selected_Agent_Id));
+      declare
+         Status : constant Coyote_App.Agent_Registry.Lifecycle_Status :=
+           Coyote_App.Agent_Registry.Get_Agent
+             (Current_Frontend.Agent_Registry, Agent_Id).Status;
+         Allowed : constant Boolean :=
+           Coyote_App.Agent_Registry.Can_Control
+             (Current_Frontend.Agent_Registry, Agent_Id)
+           and then
+             (Command = Coyote_App.Agent_RPC.Stop
+              or else
+                (Command = Coyote_App.Agent_RPC.Pause
+                 and then Status = Coyote_App.Agent_Registry.Running)
+              or else
+                (Command = Coyote_App.Agent_RPC.Resume
+                 and then Status = Coyote_App.Agent_Registry.Paused)
+              or else Command = Coyote_App.Agent_RPC.Prompt
+              or else Command = Coyote_App.Agent_RPC.Steer);
+      begin
+         if not Allowed then
+            return;
+         end if;
+      end;
       Coyote_App.Agent_RPC.Service.Send_Command
         (S          => Current_Frontend.RPC_Service,
          Agent_Id   => To_String (Current_Frontend.Selected_Agent_Id),
@@ -300,6 +327,26 @@ package body Coyote_App.Frontend.GUI is
          Gtk.Tree_Store.Set (F.Agents_Store, Iter, 1, Status);
       end if;
    end Set_Agent_Row_Status;
+
+   procedure Set_Child_Status
+     (F              : in out Instance;
+      Runtime_Id     : String;
+      Row_Status     : String;
+      Registry_State : Coyote_App.Agent_Registry.Lifecycle_Status)
+   is
+   begin
+      Set_Agent_Row_Status (F, Runtime_Id, Row_Status);
+      if not Coyote_App.Agent_Registry.Set_Status
+        (R          => F.Agent_Registry,
+         Runtime_Id => Coyote_App.Agent_Registry.Create_Agent_Id (Runtime_Id),
+         Status     => Registry_State)
+      then
+         return;
+      end if;
+      if Runtime_Id = To_String (F.Selected_Agent_Id) then
+         Apply_Agent_Menu_Sensitivity (F);
+      end if;
+   end Set_Child_Status;
 
    procedure Apply_RPC_Event
      (F     : in out Instance;
@@ -486,37 +533,63 @@ package body Coyote_App.Frontend.GUI is
             case Value.Event_Name is
                when Request_Start | Agent_Start | Thinking_Start |
                     Tool_Start =>
-                  Set_Agent_Row_Status (F, Runtime_Id, "running");
+                  Set_Child_Status
+                    (F, Runtime_Id, "running",
+                     Coyote_App.Agent_Registry.Running);
                when Request_End =>
-                  Set_Agent_Row_Status (F, Runtime_Id, "ready");
-               when Mode | Status =>
-                  Set_Agent_Row_Status (F, Runtime_Id, "running");
+                  Set_Child_Status
+                    (F, Runtime_Id, "ready",
+                     Coyote_App.Agent_Registry.Ready);
+               when Mode =>
+                  declare
+                     Mode_Result : constant GNATCOLL.JSON.Read_Result :=
+                       GNATCOLL.JSON.Read
+                         (To_String (Value.Payload_Json));
+                     Mode_Text : Unbounded_String := Null_Unbounded_String;
+                  begin
+                     if Mode_Result.Success
+                       and then Mode_Result.Value.Kind =
+                         GNATCOLL.JSON.JSON_Object_Type
+                     then
+                        Mode_Text := To_Unbounded_String
+                          (Coyote_App.Utils.Get_String
+                             (Mode_Result.Value, "mode"));
+                     end if;
+                     if To_String (Mode_Text) = "running"
+                       or else To_String (Mode_Text) = "armed"
+                     then
+                        Set_Child_Status
+                          (F, Runtime_Id, "running",
+                           Coyote_App.Agent_Registry.Running);
+                     elsif To_String (Mode_Text) = "paused" then
+                        Set_Child_Status
+                          (F, Runtime_Id, "paused",
+                           Coyote_App.Agent_Registry.Paused);
+                     elsif To_String (Mode_Text) = "idle" then
+                        Set_Child_Status
+                          (F, Runtime_Id, "ready",
+                           Coyote_App.Agent_Registry.Ready);
+                     end if;
+                  end;
+               when Status =>
+                  null;
                when others =>
                   null;
             end case;
          when Terminal =>
-            Set_Agent_Row_Status
+            Set_Child_Status
               (F, Runtime_Id,
                (case Value.Status is
                    when Completed => "completed",
                    when Aborted => "aborted",
                    when Failed => "failed",
-                   when Disconnected => "disconnected"));
-            declare
-               Changed : Boolean;
-               pragma Unreferenced (Changed);
-            begin
-               Changed := Coyote_App.Agent_Registry.Set_Status
-                 (R          => F.Agent_Registry,
-                  Runtime_Id => Coyote_App.Agent_Registry.Create_Agent_Id (Runtime_Id),
-                  Status     =>
-                    (case Value.Status is
-                        when Completed => Coyote_App.Agent_Registry.Completed,
-                        when Aborted => Coyote_App.Agent_Registry.Aborted,
-                        when Failed => Coyote_App.Agent_Registry.Failed,
-                        when Disconnected =>
-                          Coyote_App.Agent_Registry.Disconnected));
-            end;
+                   when Disconnected => "disconnected"),
+               (case Value.Status is
+                   when Completed => Coyote_App.Agent_Registry.Completed,
+                   when Aborted => Coyote_App.Agent_Registry.Aborted,
+                   when Failed => Coyote_App.Agent_Registry.Failed,
+                   when Disconnected =>
+                     Coyote_App.Agent_Registry.Disconnected));
          when Command =>
             null;
       end case;
@@ -873,9 +946,12 @@ package body Coyote_App.Frontend.GUI is
    end On_Support_Window_Key_Press;
 
    procedure Apply_Agent_Menu_Sensitivity (F : in out Instance) is
-      Mode : Coyote_GUI.Run_Mode :=
+      Mode         : constant Coyote_GUI.Run_Mode :=
         Coyote_GUI.Run_Mode'Val
           (Coyote_App.Frontend.Run_Mode'Pos (F.Current_Mode));
+      Stop_Enabled : Boolean := False;
+      Pause_Enabled : Boolean := False;
+      Resume_Enabled : Boolean := False;
    begin
       if To_String (F.Selected_Agent_Id) /= "root"
         and then Coyote_App.Agent_Registry.Has_Agent
@@ -884,32 +960,34 @@ package body Coyote_App.Frontend.GUI is
              (To_String (F.Selected_Agent_Id)))
       then
          declare
+            Agent_Id : constant Coyote_App.Agent_Registry.Agent_Id :=
+              Coyote_App.Agent_Registry.Create_Agent_Id
+                (To_String (F.Selected_Agent_Id));
             Status : constant Coyote_App.Agent_Registry.Lifecycle_Status :=
               Coyote_App.Agent_Registry.Get_Agent
-                (F.Agent_Registry,
-                 Coyote_App.Agent_Registry.Create_Agent_Id
-                   (To_String (F.Selected_Agent_Id))).Status;
+                (F.Agent_Registry, Agent_Id).Status;
          begin
-            Mode :=
-              (case Status is
-                  when Coyote_App.Agent_Registry.Running =>
-                    Coyote_GUI.Running,
-                  when Coyote_App.Agent_Registry.Paused =>
-                    Coyote_GUI.Paused,
-                  when others => Coyote_GUI.Idle);
+            Stop_Enabled := Coyote_App.Agent_Registry.Can_Control
+              (F.Agent_Registry, Agent_Id);
+            Pause_Enabled := Status = Coyote_App.Agent_Registry.Running;
+            Resume_Enabled := Status = Coyote_App.Agent_Registry.Paused;
          end;
+      else
+         Stop_Enabled := Coyote_GUI.Stop_Available (Mode);
+         Pause_Enabled := Coyote_GUI.Pause_Available (Mode);
+         Resume_Enabled := Coyote_GUI.Resume_Available (Mode);
       end if;
       if F.Stop_Btn /= null then
-         F.Stop_Btn.Set_Sensitive (Coyote_GUI.Stop_Available (Mode));
+         F.Stop_Btn.Set_Sensitive (Stop_Enabled);
       end if;
       if F.Stop_Item /= null then
-         F.Stop_Item.Set_Sensitive (Coyote_GUI.Stop_Available (Mode));
+         F.Stop_Item.Set_Sensitive (Stop_Enabled);
       end if;
       if F.Pause_Item /= null then
-         F.Pause_Item.Set_Sensitive (Coyote_GUI.Pause_Available (Mode));
+         F.Pause_Item.Set_Sensitive (Pause_Enabled);
       end if;
       if F.Resume_Item /= null then
-         F.Resume_Item.Set_Sensitive (Coyote_GUI.Resume_Available (Mode));
+         F.Resume_Item.Set_Sensitive (Resume_Enabled);
       end if;
    end Apply_Agent_Menu_Sensitivity;
 
@@ -1274,10 +1352,10 @@ package body Coyote_App.Frontend.GUI is
             F.Status_Bar.Set_Text (To_String (U.Text));
 
          when Set_Mode =>
-            F.Current_Mode :=
-              Coyote_App.Frontend.Run_Mode'Val
-                (Coyote_GUI.Run_Mode'Pos (U.Mode));
             if To_String (U.Runtime_Agent_Id) = "root" then
+               F.Current_Mode :=
+                 Coyote_App.Frontend.Run_Mode'Val
+                   (Coyote_GUI.Run_Mode'Pos (U.Mode));
                case U.Mode is
                when Coyote_GUI.Idle =>
                   Set_Root_Agent_Status (F, "ready");

@@ -33,6 +33,17 @@ components.
 
 ## Design Rationale
 
+### Selected virtual-agent controls (2026-09-01)
+
+The coordinator now synchronizes child RPC lifecycle events into the runtime
+agent registry as well as the visible agents tree. Selected child controls use
+that registry state directly: Stop is available for starting, ready, running,
+and paused children; Pause is limited to running children; Resume is limited to
+paused children. Child state changes and terminal frames refresh the shared
+control sensitivity, and stale command callbacks are rejected before RPC
+routing. The existing selected-child Stop command continues through the
+versioned RPC channel to the headless child's `Request_Abort` path.
+
 ### Accepted virtual-agent-window amendment (2026-08-31)
 
 The planned GUI frontend will replace the current one-top-level-window-per-
