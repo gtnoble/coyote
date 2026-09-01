@@ -899,7 +899,9 @@ package body Coyote_App.Frontend.GUI is
                   when others => Coyote_GUI.Idle);
          end;
       end if;
-      F.Stop_Btn.Set_Sensitive (Coyote_GUI.Stop_Available (Mode));
+      if F.Stop_Btn /= null then
+         F.Stop_Btn.Set_Sensitive (Coyote_GUI.Stop_Available (Mode));
+      end if;
       if F.Stop_Item /= null then
          F.Stop_Item.Set_Sensitive (Coyote_GUI.Stop_Available (Mode));
       end if;
