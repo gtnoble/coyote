@@ -78,6 +78,12 @@ coyote [--session UUID] [--model PROVIDER/ID] [--agent TEXT|@PATH]
 | `--prompt-filter CMD` | Filter interactive prompts through `$SHELL -c CMD` |
 | `--frontend gui\|plain` | Override automatic frontend selection |
 
+Physical windows are independent GUI processes. `File → New Window` and the
+conversation `Fork` action launch a normal interactive GUI with explicit
+`--frontend gui`; Fork additionally resumes the newly-created branch session.
+These windows do not become coordinator virtual agents or inherit subagent
+one-shot behavior.
+
 Without an explicit frontend, coyote selects Plain for non-subagent one-shot
 execution, GUI when a display or `COYOTE_FRONTEND=gui` is present, and Plain
 otherwise. Coordinator-launched `--subagent` processes use the headless RPC
@@ -89,9 +95,10 @@ intended to open their own GUI window may still inherit
 
 The GTK frontend provides File, Edit, View, Agent, Options, and Help menus.
 The Agent menu supports sending, stopping, pausing, resuming, compacting,
-clearing, changing models, changing thinking level, switching sessions, and
-forking a session. The agents panel presents the main agent as the root of a
-tree and coordinator-launched short-lived subagents as child virtual windows.
+clearing, changing models, changing thinking level, and switching sessions.
+The conversation `Fork` control opens a new physical GUI window containing the
+new branch. The agents panel presents the main agent as the root of a tree and
+coordinator-launched short-lived subagents as child virtual windows.
 Selecting a live node routes prompts and applicable controls to that agent;
 completed nodes remain available for review but do not accept new prompts.
 Completed tool cards open structured detail windows. This virtual-window

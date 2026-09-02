@@ -931,14 +931,21 @@ package body Coyote_App is
                            Args    : Argument_List;
                         begin
                            Args.Append (Coyote_Utils.Active_Executable_Path);
-                           Args.Append ("--subagent");
+                           Args.Append ("--frontend");
+                           Args.Append ("gui");
+                           Args.Append ("--physical-window");
                            if Model'Length > 0 then
                               Args.Append ("--model");
                               Args.Append (Model);
                            end if;
-                           Coyote_Spawn.Spawn_Detached
+                           if not Coyote_Spawn.Spawn_Detached
                              (Args,
-                              Cwd => Ada.Directories.Current_Directory);
+                              Cwd => Ada.Directories.Current_Directory)
+                           then
+                              My_Frontend.Append_Notice
+                                (Coyote_App.Frontend.Warning,
+                                 "Unable to open a new coyote window.");
+                           end if;
                         end;
 
                      when Coyote_GUI.Prompt_Queue.New_Session =>

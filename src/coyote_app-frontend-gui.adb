@@ -49,6 +49,7 @@ with Pango.Font_Metrics;
 with Pango.Language;
 with Ada.Directories;
 with Ada.Environment_Variables;
+with Ada.Exceptions;
 with Glib.Values;
 with Gtk.Cell_Renderer_Text;
 with Gtk.Dialog;
@@ -1220,18 +1221,49 @@ package body Coyote_App.Frontend.GUI is
            Target_Cwd  => Ada.Directories.Current_Directory,
            After_Step  => Step_N);
    begin
-      if New_UUID'Length > 0 then
+      if New_UUID'Length = 0 then
+         if Current_Frontend /= null then
+            Current_Frontend.Append_Notice
+              (Coyote_App.Frontend.Error,
+               "Unable to create the forked session.");
+         end if;
+         return;
+      end if;
+
+      begin
          declare
             use GNATCOLL.OS.Process;
             Args : Argument_List;
          begin
             Args.Append (Coyote_Utils.Active_Executable_Path);
-            Args.Append ("--subagent");
+            Args.Append ("--frontend");
+            Args.Append ("gui");
+            Args.Append ("--physical-window");
             Args.Append ("--session");
             Args.Append (New_UUID);
-            Coyote_Spawn.Spawn_Detached (Args);
+            Args.Append ("--name");
+            Args.Append
+              ("Fork @ " & Natural_Image (Turn_N)
+               & (if Step_N > 0
+                  then "/" & Natural_Image (Step_N)
+                  else ""));
+            if not Coyote_Spawn.Spawn_Detached
+              (Args,
+               Cwd => Ada.Directories.Current_Directory)
+            then
+               raise Program_Error with
+                 "physical Fork window could not be started";
+            end if;
          end;
-      end if;
+      exception
+         when E : others =>
+            if Current_Frontend /= null then
+               Current_Frontend.Append_Notice
+                 (Coyote_App.Frontend.Error,
+                  "Unable to open the forked session: "
+                  & Ada.Exceptions.Exception_Message (E));
+            end if;
+      end;
    end On_Native_Fork;
 
    procedure Set_Root_Agent_Status

@@ -912,6 +912,9 @@ package body Test_Suites is
         ("Coyote_Utils resolves the active executable path",
          Coyote_Utils_Tests.Test_Active_Executable_Path_Is_Absolute'Access));
       Result.Add_Test (Coyote_Utils_Caller.Create
+        ("Coyote_Spawn rejects empty argument lists",
+         Coyote_Utils_Tests.Test_Spawn_Detached_Rejects_Empty_Args'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
         ("Coyote_Utils shell-quotes paths containing spaces",
          Coyote_Utils_Tests.Test_Shell_Quote_Preserves_Spaces'Access));
       Result.Add_Test (Coyote_Utils_Caller.Create

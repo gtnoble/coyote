@@ -112,7 +112,12 @@ package body Coyote_Help is
 
       Args.Append (Path.all);
       Args.Append (Help_URI (Topic));
-      Coyote_Spawn.Spawn_Detached (Args);
+      if not Coyote_Spawn.Spawn_Detached (Args) then
+         Restore_Data_Directory;
+         GNAT.OS_Lib.Free (Path);
+         Path := null;
+         return False;
+      end if;
       Restore_Data_Directory;
       GNAT.OS_Lib.Free (Path);
       Path := null;

@@ -239,6 +239,8 @@ package Coyote_App is
       --  (--subagent flag): exits after one turn like One_Shot but
       --  does not force the Plain frontend.
       Subagent       : Boolean := False;
+      --  When True, launch as an independent physical GUI window.
+      Physical_Window : Boolean := False;
       --  Optional label appended to the GUI window title.
       Name           : Ada.Strings.Unbounded.Unbounded_String;
       --  Shell command through which interactive prompts are filtered before

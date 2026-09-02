@@ -832,6 +832,22 @@ count, and insertion order. Production/test development builds and the full
 941-test suite pass. Display-backed multi-column placement and narrow-window
 reflow remain pending under DEM-043.
 
+### Physical Fork and New Window processes (2026-09-02)
+
+The native GTK `Fork` action now creates the durable branch through
+`Session_Lister.Fork_Session` and launches it as an independent physical GUI
+process using the active executable, explicit `--frontend gui`,
+`--physical-window`, the forked `--session` UUID, the target working directory,
+and a `Fork @ turn[/step]` window label. `File → New Window` uses the same
+physical launch mode without a session argument. Neither path uses
+`--subagent`, so neither path is registered as a coordinator virtual agent or
+subject to the short-lived one-shot lifecycle. The entry point clears inherited
+coordinator and session-lineage variables for these children. Fork-copy failures
+are reported through the originating GUI's notice path; detached-spawn callers
+now receive and handle initial process-creation status. The existing native
+button and session-copy tests pass; display-backed two-window qualification
+remains required.
+
 ### GTK recursion-depth preference (2026-08-29)
 
 The GTK Preferences dialog now exposes the persistent maximum subagent

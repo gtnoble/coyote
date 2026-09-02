@@ -5,7 +5,8 @@
 --                 [--no-tools] [--no-session]
 --                 [--prompt TEXT|-] [--one-shot] [--subagent] [--name LABEL]
 --                 [--prompt-filter CMD]
---                 [--frontend gui|plain|rpc] [-h|--help]
+--                 [--frontend gui|plain|rpc] [--physical-window]
+--                 [-h|--help]
 --
 --  --agent TEXT|@PATH
 --                 Append extra instructions to the system prompt.
@@ -187,6 +188,8 @@ procedure Coyote is
         ("  -F, --frontend gui|plain|rpc"
          & "   Override frontend selection (gui, plain, or rpc)");
       Ada.Text_IO.Put_Line
+        ("      --physical-window       Open an independent GUI window");
+      Ada.Text_IO.Put_Line
         ("  -d, --debug-logging         Enable conv debug output to stderr");
       Ada.Text_IO.Put_Line
         ("  -h, --help              Print this help and exit");
@@ -259,6 +262,8 @@ begin
             Opts.One_Shot   := True;
             Opts.Subagent   := True;
             Opts.No_Compact := True;
+         elsif Arg = "--physical-window" then
+            Opts.Physical_Window := True;
          elsif (Arg = "-n" or else Arg = "--name")
            and then I < Ada.Command_Line.Argument_Count
          then
@@ -307,6 +312,24 @@ begin
       end;
       I := I + 1;
    end loop;
+
+   --  Physical windows are independent processes, not coordinator children.
+   --  Clear inherited coordinator state before recursion and session setup.
+   if Opts.Physical_Window then
+      Opts.Subagent := False;
+      Opts.One_Shot := False;
+      Opts.Frontend := Coyote_App.GUI_Frontend;
+      Opts.Frontend_Explicit := True;
+      Ada.Environment_Variables.Clear ("COYOTE_RPC_ENDPOINT");
+      Ada.Environment_Variables.Clear ("COYOTE_RUNTIME_AGENT_ID");
+      Ada.Environment_Variables.Clear ("COYOTE_PARENT_RUNTIME_AGENT_ID");
+      Ada.Environment_Variables.Clear ("COYOTE_AGENT_LABEL");
+      Ada.Environment_Variables.Clear ("COYOTE_SESSION_ID");
+      Ada.Environment_Variables.Clear ("COYOTE_PARENT_SESSION");
+      Ada.Environment_Variables.Clear ("COYOTE_OPENROUTER_SESSION_ID");
+      Ada.Environment_Variables.Clear ("COYOTE_NO_SESSION");
+      Ada.Environment_Variables.Clear ("COYOTE_RECURSION_DEPTH");
+   end if;
 
    --  Establish the inherited process depth before any frontend, session,
    --  or provider initialization.  A rejected subagent must not open a

@@ -740,6 +740,17 @@ messages over the channel. The RPC interface shall carry a runtime agent
 identity and parent runtime identity so recursively launched agents can be
 placed correctly in the tree.
 
+**REQ-CORE-115b** (I/T)
+The GUI `Fork` action shall create a new durable session branch and launch it
+as an independent physical GUI window. The child shall be started with the
+active executable, explicit `--frontend gui`, `--physical-window`, and the
+new `--session` UUID, using the fork target working directory. It shall not
+be launched as a coordinator `--subagent` or registered in the parent's
+virtual-agent tree. `File → New Window` shall use the same independent
+physical-window launch mode without a session argument. Physical-window
+launches shall clear inherited coordinator and session-lineage environment
+variables before startup.
+
 **REQ-CORE-125** (D)
 The GUI frontend shall support zooming the conversation view, prompt area,
 and status bar text via menu accelerators (Ctrl++/Ctrl+-/Ctrl+0) and via

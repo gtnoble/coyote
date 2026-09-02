@@ -517,6 +517,16 @@ simple and auditable.*
 
 ### 5.1 `Coyote` (entry point)
 
+**Physical-window launch:** The GUI `Fork` action and `File → New Window`
+launches use the active executable with explicit `--frontend gui` and the
+internal `--physical-window` marker. Fork adds `--session <UUID>` and a
+window label, while New Window starts a fresh session. Both launches pass the
+current working directory to the detached-spawn wrapper and omit
+`--subagent`, so they create independent interactive GTK processes rather
+than coordinator virtual agents. The entry point clears inherited RPC,
+agent-runtime, session-lineage, no-session, and recursion-depth variables for
+physical windows before frontend and session initialization.
+
 **Purpose:** CLI argument parsing and GUI/Plain frontend selection.
 
 **Inputs:** `Ada.Command_Line.Argument_Count` / `Argument`; environment

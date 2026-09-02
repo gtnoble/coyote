@@ -4,8 +4,10 @@ with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with Coyote_App.Utils;
+with Coyote_Spawn;
 with Coyote_Utils;
 with GNATCOLL.JSON;
+with GNATCOLL.OS.Process;
 
 package body Coyote_Utils_Tests is
 
@@ -149,6 +151,16 @@ package body Coyote_Utils_Tests is
          and then Ada.Strings.Fixed.Index (Path, "coyote_test") > 0,
          "active executable path should identify the running test binary");
    end Test_Active_Executable_Path_Is_Absolute;
+
+   procedure Test_Spawn_Detached_Rejects_Empty_Args (T : in out Test) is
+      pragma Unreferenced (T);
+      use GNATCOLL.OS.Process;
+      Args : Argument_List;
+   begin
+      Assert
+        (not Coyote_Spawn.Spawn_Detached (Args),
+         "detached spawn should reject an empty argument list");
+   end Test_Spawn_Detached_Rejects_Empty_Args;
 
    procedure Test_Shell_Quote_Preserves_Spaces (T : in out Test) is
       pragma Unreferenced (T);
