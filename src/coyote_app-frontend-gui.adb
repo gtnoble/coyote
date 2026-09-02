@@ -1755,15 +1755,6 @@ package body Coyote_App.Frontend.GUI is
       end if;
    end On_Compact_Activate;
 
-   procedure On_Set_Default_Activate
-     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class) is
-      pragma Unreferenced (Self);
-   begin
-      if Current_Frontend /= null then
-         Current_Frontend.PQ.Enqueue ((Kind => Set_Default,
-         Target_Agent_Id => Current_Frontend.Root_Agent_Id));
-      end if;
-   end On_Set_Default_Activate;
    procedure On_Stats_Activate
      (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class) is
       pragma Unreferenced (Self);
@@ -3676,13 +3667,6 @@ package body Coyote_App.Frontend.GUI is
          Gdk.Types.Control_Mask or Gdk.Types.Shift_Mask,
          Gtk.Accel_Group.Accel_Visible);
       Add_Sep (Agent_Menu);
-      Item := Make_Item ("Set _Defaults", Agent_Menu);
-      Item.On_Activate (On_Set_Default_Activate'Access);
-      Item.Add_Accelerator
-        ("activate", F.Accel_Group,
-         Gdk.Types.Keysyms.GDK_LC_d,
-         Gdk.Types.Control_Mask or Gdk.Types.Shift_Mask,
-         Gtk.Accel_Group.Accel_Visible);
       --  ── View menu ─────────────────────────────────────────────────────
       declare
          View_Menu : Gtk.Menu.Gtk_Menu;

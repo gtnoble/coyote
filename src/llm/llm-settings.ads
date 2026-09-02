@@ -82,13 +82,6 @@ package LLM.Settings is
      (Root : GNATCOLL.JSON.JSON_Value; Provider : String)
       return GNATCOLL.JSON.JSON_Value;
 
-   --  Write the current default model (Provider/Id) and thinking level
-   --  to ~/.coyote/settings.json, preserving all other existing fields.
-   procedure Save_Defaults
-     (Provider    : String;
-      Model_Id    : String;
-      Think_Level : String);
-
    --  Write model, thinking, sandbox, price-display, recursion,
    --  notification, skill-path, and shell-termination defaults to
    --  settings.json.  Price_Display is persisted as "si" or "db".

@@ -466,8 +466,8 @@ through the window's `Gtk_Accel_Group`: Ctrl+N (New Window), Ctrl+Shift+N
 Escape (Stop), Ctrl+Shift+P (Pause), Ctrl+R (Resume), Ctrl+M (Change Model),
 Ctrl+1 through Ctrl+6 (Thinking Level: Off through X-High), Ctrl+Shift+S
 (Sandbox Profile), Ctrl+Shift+C (Compact Context), Ctrl+Shift+I (Session
-Stats), Ctrl+Shift+D (Set Defaults), Ctrl+Shift+M (Render Markdown),
-Ctrl+Shift+A (Auto-scroll), and Ctrl++/Ctrl+-/Ctrl+0 (Zoom In/Out/Reset).
+Stats), Ctrl+Shift+M (Render Markdown), Ctrl+Shift+A (Auto-scroll), and
+Ctrl++/Ctrl+-/Ctrl+0 (Zoom In/Out/Reset).
 All entries use `Accel_Visible`, so GTK renders the shortcut labels beside
 the menu items.  The separate conversation context-menu Copy item and
 Preferences dialog combo-box choices are intentionally outside this

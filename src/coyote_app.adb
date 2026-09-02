@@ -1094,35 +1094,6 @@ package body Coyote_App is
                                  & Ada.Exceptions.Exception_Message (Ex));
                         end;
 
-                     when Coyote_GUI.Prompt_Queue.Set_Default =>
-                        declare
-                           Model_Spec : constant String :=
-                             LLM.Agent.Current_Model_Spec (Agent_Session);
-                           Provider : Unbounded_String;
-                           Model_Id : Unbounded_String;
-                        begin
-                           if Model_Spec'Length > 0 then
-                              Split_Model_Spec
-                                (Model_Spec, Provider, Model_Id);
-                           end if;
-                           LLM.Settings.Save_Defaults
-                             (Provider    => To_String (Provider),
-                              Model_Id    => To_String (Model_Id),
-                              Think_Level => State.Current_Thinking);
-                           My_Frontend.Append_Notice
-                             (Coyote_App.Frontend.Info,
-                              "Defaults saved: " & Model_Spec
-                              & (if
-                                State.Current_Thinking'Length > 0
-                                then " ~" & State.Current_Thinking
-                                else ""));
-                        exception
-                           when Ex : others =>
-                              Append_Task_Warning
-                                ("saving defaults failed: "
-                                 & Ada.Exceptions.Exception_Message (Ex));
-                        end;
-
                      when Coyote_GUI.Prompt_Queue.Set_Preferences =>
                         begin
                            LLM.Settings.Save_Preferences

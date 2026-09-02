@@ -1753,9 +1753,9 @@ startup and is the sole GTK conversation presentation (see §5.15).
   Paste, Select All), Escape (Stop), Ctrl+Shift+P
   (Pause), Ctrl+R (Resume), Ctrl+M (Change Model), Ctrl+1 through Ctrl+6
   (Thinking Level: Off through X-High), Ctrl+Shift+S (Sandbox Profile),
-  Ctrl+Shift+C (Compact Context), Ctrl+Shift+I (Session Stats), Ctrl+Shift+D
-  (Set Defaults), Ctrl+Shift+M (Render Markdown), Ctrl+Shift+A (Auto-scroll),
-  and Ctrl++/Ctrl+-/Ctrl+0 (Zoom In/Out/Reset).  Ctrl+, opens Preferences.
+  Ctrl+Shift+C (Compact Context), Ctrl+Shift+I (Session Stats),
+  Ctrl+Shift+M (Render Markdown), Ctrl+Shift+A (Auto-scroll), and
+  Ctrl++/Ctrl+-/Ctrl+0 (Zoom In/Out/Reset).  Ctrl+, opens Preferences.
   Every actionable item in the main menu bar has a visible accelerator.
   Zoom shortcuts were previously handled by a raw `On_Window_Key_Press`
   handler; moving them to proper accelerators makes them visible in menu
@@ -1922,7 +1922,6 @@ turns), and `Shutdown` (unblocks any waiting `Dequeue`).
 | `Set_Thinking` | `Level` | Change the reasoning level |
 | `Set_Sandbox` | `Profile_Name` | Change the sandbox profile |
 | `Switch_Session` | `Session_UUID` | Load a different session by UUID |
-| `Set_Default` | — | Persist current model and thinking as defaults |
 | `Set_Preferences` | Preferences record | Persist model, thinking, sandbox, recursion-depth, notification, and skill-path defaults without changing the active session |
 | `Shutdown_Item` | — | Queue is closing; `Agent_Task` should exit |
 

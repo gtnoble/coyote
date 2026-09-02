@@ -843,8 +843,8 @@ The interactive GTK GUI shall provide visible keyboard accelerators for every
 actionable item in the main menu bar. The accelerators shall include Ctrl+,
 for Preferences; Ctrl+1 through Ctrl+6 for Thinking Level choices in order
 from Off through X-High; Ctrl+Shift+S for Sandbox Profile; Ctrl+Shift+I
-for Session Stats; Ctrl+Shift+D for Set Defaults; Ctrl+Shift+M for Render
-Markdown; and Ctrl+Shift+A for Auto-scroll. Existing menu accelerators shall
+for Session Stats; Ctrl+Shift+M for Render Markdown; and Ctrl+Shift+A for
+Auto-scroll. Existing menu accelerators shall
 remain available, including Ctrl+N, Ctrl+Shift+N, Ctrl+O, Ctrl+Q, Escape,
 Ctrl+X, Ctrl+C, Ctrl+V, Ctrl+A, Ctrl+Shift+P, Ctrl+R, Ctrl+M, Ctrl+Shift+C,
 Ctrl++, Ctrl+-, and Ctrl+0.

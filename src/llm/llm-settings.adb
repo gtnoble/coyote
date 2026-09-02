@@ -383,36 +383,6 @@ package body LLM.Settings is
          raise;
    end Write_Atomically;
 
-   procedure Save_Defaults
-     (Provider    : String;
-      Model_Id    : String;
-      Think_Level : String)
-   is
-      Path     : constant String := Settings_Path;
-      Existing : constant GNATCOLL.JSON.JSON_Value :=
-        Load_Json_File (Path);
-      Root     : constant GNATCOLL.JSON.JSON_Value :=
-        (if Existing.Kind = GNATCOLL.JSON.JSON_Object_Type
-         then Existing
-         else GNATCOLL.JSON.Create_Object);
-   begin
-      if Path'Length = 0 then
-         return;
-      end if;
-
-      if Provider'Length > 0 then
-         Root.Set_Field ("defaultProvider", Provider);
-      end if;
-      if Model_Id'Length > 0 then
-         Root.Set_Field ("defaultModel", Model_Id);
-      end if;
-      if Think_Level'Length > 0 then
-         Root.Set_Field ("defaultThinkingLevel", Think_Level);
-      end if;
-
-      Write_Atomically (Path, GNATCOLL.JSON.Write (Root));
-   end Save_Defaults;
-
    procedure Save_Preferences
      (Provider                 : String;
       Model_Id                 : String;

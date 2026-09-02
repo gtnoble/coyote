@@ -44,7 +44,6 @@ package Coyote_GUI.Prompt_Queue is
       Set_Thinking,      --  change the reasoning level
       Set_Sandbox,       --  change the sandbox profile
       Switch_Session,    --  load a different session by UUID
-      Set_Default,       --  persist current model and thinking as defaults
       Set_Preferences,   --  persist all Preferences_Record fields
       Shutdown_Item);    --  queue is closing; agent task should exit
 
