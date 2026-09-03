@@ -119,6 +119,30 @@ const char *cmark_shim_node_get_type_string(cmark_node *node)
     return (s != NULL) ? s : "";
 }
 
+/* ── Table metadata ───────────────────────────────────────────────────────── */
+
+/*  Keep the extension-owned alignment array inside the C boundary.          */
+int cmark_shim_table_column_count(cmark_node *node)
+{
+    return node != NULL
+        ? (int)cmark_gfm_extensions_get_table_columns(node)
+        : 0;
+}
+
+int cmark_shim_table_column_alignment(cmark_node *node, int column)
+{
+    uint16_t count;
+    uint8_t *alignments;
+
+    if (node == NULL || column < 0)
+        return 0;
+    count = cmark_gfm_extensions_get_table_columns(node);
+    if (column >= (int)count)
+        return 0;
+    alignments = cmark_gfm_extensions_get_table_alignments(node);
+    return alignments != NULL ? (int)alignments[column] : 0;
+}
+
 /* ── Table row header predicate ──────────────────────────────────────────── */
 
 /*  Returns non-zero if node is a table_row that is the header row.     */

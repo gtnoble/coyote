@@ -3108,3 +3108,26 @@ zero failed assertions and zero unexpected errors. The post-cutover suite has
 762 registered tests.
 - **Status:** Resolved
 - **Date resolved:** 2026-08-31
+
+
+## PCR-093 — Native GTK Markdown table rendering
+
+- **Date reported:** 2026-09-03
+- **Category:** Design, Code, Test, Plans
+- **Priority:** 3-Moderate (user-visible rendering enhancement)
+- **Description:** Completed GFM tables were rendered as box-drawing text inside
+  a Pango text buffer, losing native row/cell structure, header semantics, and
+  column alignment in the GTK conversation view.
+- **Affected work products:** `Coyote_Cmark`,
+  `Coyote_Renderer.Tables`, `Coyote_GUI.Conversation_Stack`, native GUI tests,
+  SDD-CORE, frontend SDF, and Test Plan.
+- **Corrective action:** Added scalar cmark shims for table column count and
+  alignment; added a GTK-independent extraction/model package; rebuilt native
+  responses containing tables or display math in source order; realized tables
+  as theme-styled `Gtk.Grid` widgets with selectable wrapping cells and bold
+  headers; retained the shared Pango/text path for SQC replay and fallback.
+- **Verification:** Production and test development builds succeed. The three
+  new headless extraction tests pass. Two native GUI tests compile and remain
+  display-gated; virtual-display qualification is pending because `xvfb-run`
+  is unavailable in the current environment.
+- **Status:** Implemented; display-backed qualification pending

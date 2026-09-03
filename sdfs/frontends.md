@@ -33,6 +33,26 @@ components.
 
 ## Design Rationale
 
+### Native GTK Markdown tables (2026-09-03)
+
+Completed GFM response blocks containing tables now pass through the
+GTK-independent `Coyote_Renderer.Tables` extractor. It copies table rows,
+cell text, header state, column counts, and cmark alignment metadata before the
+cmark tree is released, and masks table source lines with ordered placeholders.
+`Coyote_GUI.Conversation_Stack` combines table and display-math placeholders so
+mixed responses retain source order, removes the streaming view at completion,
+and realizes tables as theme-styled native `Gtk.Grid` components with wrapping,
+selectable cells and bold header markup. Retained cells receive font updates
+and table state is cleared with the exchange hierarchy.
+
+The shared `Coyote_Renderer.Markup` contract remains unchanged for SQC session
+replay and text fallback. cmark column count and alignment are exposed through
+scalar C shims; the alignment pointer remains confined to the C boundary.
+Headless extraction tests cover metadata and line-preserving masking. Native
+GUI tests cover grid/cell realization, alignment, stream replacement, and the
+Markdown toggle; display-backed execution remains pending where no virtual
+X11 display is available.
+
 ### Selected virtual-agent controls (2026-09-01)
 
 The coordinator now synchronizes child RPC lifecycle events into the runtime

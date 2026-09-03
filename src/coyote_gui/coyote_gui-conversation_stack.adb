@@ -11,6 +11,7 @@ with Coyote_GUI.Tool_Detail_Window;
 with Coyote_GUI.Math_Element;
 with Coyote_Renderer.MathML;
 with Coyote_Renderer.Markup;
+with Coyote_Renderer.Tables;
 with Glib;                   use Glib;
 with Glib.Error;
 with Gtk.Adjustment;
@@ -112,6 +113,11 @@ package body Coyote_GUI.Conversation_Stack is
       Buffer  : out Gtk.Text_Buffer.Gtk_Text_Buffer;
       View    : out Gtk.Text_View.Gtk_Text_View);
 
+   procedure Add_Response_Table
+     (C      : in out Instance;
+      Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
+      Table  : Coyote_Renderer.Tables.Table_Block);
+
    procedure Apply_Response_Style
      (Widget : not null access Gtk.Widget.Gtk_Widget_Record'Class)
    is
@@ -160,6 +166,78 @@ package body Coyote_GUI.Conversation_Stack is
       C.Active_View := View;
    end Add_Response_Text;
 
+   procedure Add_Response_Table
+     (C      : in out Instance;
+      Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
+      Table  : Coyote_Renderer.Tables.Table_Block)
+   is
+      Grid : Gtk.Grid.Gtk_Grid;
+   begin
+      Gtk.Grid.Gtk_New (Grid);
+      Grid.Set_Column_Spacing (12);
+      Grid.Set_Row_Spacing (3);
+      Grid.Set_Hexpand (True);
+      Apply_Response_Style (Grid);
+
+      if not Table.Rows.Is_Empty then
+         for Row_Index in Table.Rows.First_Index .. Table.Rows.Last_Index loop
+            declare
+               Row : constant Coyote_Renderer.Tables.Table_Row :=
+                 Table.Rows (Row_Index);
+            begin
+               if not Row.Cells.Is_Empty then
+                  for Column_Index in Row.Cells.First_Index
+                    .. Row.Cells.Last_Index
+                  loop
+                     declare
+                        Cell : Gtk.Label.Gtk_Label;
+                        Text : constant String := To_String
+                          (Row.Cells (Column_Index).Text);
+                        Alignment : constant
+                          Coyote_Renderer.Tables.Table_Alignment :=
+                          (if Column_Index <= Natural
+                             (Table.Alignments.Length)
+                           then Table.Alignments (Column_Index)
+                           else Coyote_Renderer.Tables.Unspecified);
+                     begin
+                        Gtk.Label.Gtk_New (Cell);
+                        if Row.Is_Header then
+                           Cell.Set_Markup
+                             ("<b>"
+                              & Coyote_Renderer.Markup.Xml_Escape (Text)
+                              & "</b>");
+                        else
+                           Cell.Set_Text (Text);
+                        end if;
+                        Cell.Set_Line_Wrap (True);
+                        Cell.Set_Max_Width_Chars (35);
+                        Cell.Set_Selectable (True);
+                        Cell.Set_Halign (Gtk.Widget.Align_Fill);
+                        case Alignment is
+                           when Coyote_Renderer.Tables.Left |
+                                Coyote_Renderer.Tables.Unspecified =>
+                              Cell.Set_Xalign (0.0);
+                           when Coyote_Renderer.Tables.Center =>
+                              Cell.Set_Xalign (0.5);
+                           when Coyote_Renderer.Tables.Right =>
+                              Cell.Set_Xalign (1.0);
+                        end case;
+                        Grid.Attach
+                          (Cell,
+                           Glib.Gint (Column_Index - 1),
+                           Glib.Gint (Row_Index - 1));
+                        C.Table_Cells.Append (Cell);
+                     end;
+                  end loop;
+               end if;
+            end;
+         end loop;
+      end if;
+      Parent.Pack_Start
+        (Grid, Expand => False, Fill => True, Padding => 4);
+      C.Table_Grids.Append (Grid);
+   end Add_Response_Table;
+
    procedure Add_Response_Math
      (C      : in out Instance;
       Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
@@ -186,14 +264,25 @@ package body Coyote_GUI.Conversation_Stack is
      (C        : in out Instance;
       Full_Text : String)
    is
-      Extraction : constant Coyote_Renderer.MathML.Extraction_Result :=
-        Coyote_Renderer.MathML.Extract_Display_Math (Full_Text);
+      Table_Extraction : constant Coyote_Renderer.Tables.Extraction_Result :=
+        Coyote_Renderer.Tables.Extract_Tables (Full_Text);
+      Math_Extraction : constant Coyote_Renderer.MathML.Extraction_Result :=
+        Coyote_Renderer.MathML.Extract_Display_Math
+          (To_String (Table_Extraction.Masked_Text));
       Masked     : constant String :=
-        To_String (Extraction.Masked_Text);
-      Cursor     : Positive := Masked'First;
-      Block_Index : Positive := 1;
+        To_String (Math_Extraction.Masked_Text);
+      Cursor     : Positive := (if Masked'Length > 0 then Masked'First else 1);
+      Table_Index : Natural := 1;
+      Math_Index  : Natural := 1;
+      Table_Token : Unbounded_String;
+      Math_Token  : Unbounded_String;
+      Table_Position : Natural := 0;
+      Math_Position  : Natural := 0;
    begin
-      if Extraction.Blocks.Is_Empty or else C.Response_Section = null then
+      if (Table_Extraction.Blocks.Is_Empty
+          and then Math_Extraction.Blocks.Is_Empty)
+        or else C.Response_Section = null
+      then
          return;
       end if;
 
@@ -203,29 +292,56 @@ package body Coyote_GUI.Conversation_Stack is
       C.Response_Section.Pack_Start
         (C.Response_Box, Expand => False, Fill => True, Padding => 2);
 
-      while Block_Index <= Natural (Extraction.Blocks.Length) loop
-         declare
-            Token : constant String :=
-              "COYOTE_MATH_BLOCK_"
-              & Ada.Strings.Fixed.Trim
-                  (Natural'Image (Block_Index), Ada.Strings.Both)
-              & "__";
-            Position : constant Natural :=
-              Ada.Strings.Fixed.Index (Masked, Token, Cursor);
-         begin
-            exit when Position = 0;
-            if Position > Cursor then
+      while Table_Index <= Natural (Table_Extraction.Blocks.Length)
+        or else Math_Index <= Natural (Math_Extraction.Blocks.Length)
+      loop
+         Table_Token := Null_Unbounded_String;
+         Math_Token := Null_Unbounded_String;
+         if Table_Index <= Natural (Table_Extraction.Blocks.Length) then
+            Table_Token := Table_Extraction.Blocks (Table_Index).Placeholder;
+            Table_Position := Ada.Strings.Fixed.Index
+              (Masked, To_String (Table_Token), Cursor);
+         else
+            Table_Position := 0;
+         end if;
+         if Math_Index <= Natural (Math_Extraction.Blocks.Length) then
+            Math_Token := To_Unbounded_String
+              ("COYOTE_MATH_BLOCK_"
+               & Ada.Strings.Fixed.Trim
+                   (Natural'Image (Math_Index), Ada.Strings.Both)
+               & "__");
+            Math_Position := Ada.Strings.Fixed.Index
+              (Masked, To_String (Math_Token), Cursor);
+         else
+            Math_Position := 0;
+         end if;
+
+         exit when Table_Position = 0 and then Math_Position = 0;
+         if Math_Position = 0
+           or else (Table_Position > 0 and then Table_Position < Math_Position)
+         then
+            if Table_Position > Cursor then
                Add_Response_Text
-                 (C, C.Response_Box, Masked (Cursor .. Position - 1));
+                 (C, C.Response_Box, Masked (Cursor .. Table_Position - 1));
+            end if;
+            Add_Response_Table
+              (C, C.Response_Box,
+               Table_Extraction.Blocks (Table_Index));
+            Cursor := Table_Position + Length (Table_Token);
+            Table_Index := Table_Index + 1;
+         else
+            if Math_Position > Cursor then
+               Add_Response_Text
+                 (C, C.Response_Box, Masked (Cursor .. Math_Position - 1));
             end if;
             Add_Response_Math
-              (C, C.Response_Box, Extraction.Blocks (Block_Index));
-            Cursor := Position + Token'Length;
-            Block_Index := Block_Index + 1;
-         end;
+              (C, C.Response_Box, Math_Extraction.Blocks (Math_Index));
+            Cursor := Math_Position + Length (Math_Token);
+            Math_Index := Math_Index + 1;
+         end if;
       end loop;
 
-      if Cursor <= Masked'Last then
+      if Masked'Length > 0 and then Cursor <= Masked'Last then
          Add_Response_Text (C, C.Response_Box, Masked (Cursor .. Masked'Last));
       end if;
       C.Response_Box.Show_All;
@@ -238,13 +354,21 @@ package body Coyote_GUI.Conversation_Stack is
    is
       Start_Iter : Gtk.Text_Iter.Gtk_Text_Iter;
       End_Iter   : Gtk.Text_Iter.Gtk_Text_Iter;
-      Markup     : constant String :=
-        Coyote_Renderer.Markup.To_Pango_Markup (Full_Text);
+      Markup     : Unbounded_String;
    begin
       Has_Display_Math := False;
       if C.Active_Text = null or else C.Stream_Mark = null then
          return;
       end if;
+      declare
+         Table_Extraction : constant
+           Coyote_Renderer.Tables.Extraction_Result :=
+           Coyote_Renderer.Tables.Extract_Tables (Full_Text);
+      begin
+         if not Table_Extraction.Blocks.Is_Empty then
+            return;
+         end if;
+      end;
       declare
          Extraction : constant Coyote_Renderer.MathML.Extraction_Result :=
            Coyote_Renderer.MathML.Extract_Display_Math (Full_Text);
@@ -254,12 +378,15 @@ package body Coyote_GUI.Conversation_Stack is
             return;
          end if;
       end;
+      Markup := To_Unbounded_String
+        (Coyote_Renderer.Markup.To_Pango_Markup (Full_Text));
       C.Active_Text.Get_Iter_At_Mark (Start_Iter, C.Stream_Mark);
       C.Active_Text.Get_End_Iter (End_Iter);
       C.Active_Text.Delete (Start_Iter, End_Iter);
       C.Active_Text.Get_Iter_At_Mark (Start_Iter, C.Stream_Mark);
-      if Markup'Length > 0 then
-         C.Active_Text.Insert_Markup (Start_Iter, Markup, -1);
+      if Length (Markup) > 0 then
+         C.Active_Text.Insert_Markup
+           (Start_Iter, To_String (Markup), -1);
       else
          C.Active_Text.Insert (Start_Iter, Full_Text);
       end if;
@@ -511,6 +638,8 @@ package body Coyote_GUI.Conversation_Stack is
          end loop;
       end if;
       C.Math_Elements.Clear;
+      C.Table_Grids.Clear;
+      C.Table_Cells.Clear;
       C.Text_Views.Clear;
       C.Exchange       := null;
       C.Step_Frame     := null;
@@ -594,10 +723,14 @@ package body Coyote_GUI.Conversation_Stack is
       Full_Text        : constant String :=
         Sanitize_UTF8 (To_String (C.Stream_Buf));
       Has_Display_Math : Boolean := False;
+      Has_Native_Blocks : Boolean := False;
    begin
       if C.Text_Open then
          if C.Render_Markdown then
             Replace_Streamed_Text (C, Full_Text, Has_Display_Math);
+            Has_Native_Blocks := Has_Display_Math
+              or else not Coyote_Renderer.Tables.Extract_Tables
+                (Full_Text).Blocks.Is_Empty;
          end if;
          Append_Buffer (C.Active_Text, ASCII.LF & ASCII.LF);
          if C.Stream_Mark /= null then
@@ -606,7 +739,7 @@ package body Coyote_GUI.Conversation_Stack is
          C.Stream_Mark := null;
          C.Stream_Buf  := Null_Unbounded_String;
          C.Text_Open   := False;
-         if Has_Display_Math and then C.Response_Section /= null then
+         if Has_Native_Blocks and then C.Response_Section /= null then
             declare
                Old_View  : constant Gtk.Text_View.Gtk_Text_View :=
                  C.Active_View;
@@ -1073,6 +1206,13 @@ package body Coyote_GUI.Conversation_Stack is
       end if;
       if C.Thinking_View /= null then
          C.Thinking_View.Modify_Font (Desc);
+      end if;
+      if not C.Table_Cells.Is_Empty then
+         for Cell_Index in C.Table_Cells.First_Index
+           .. C.Table_Cells.Last_Index
+         loop
+            C.Table_Cells (Cell_Index).Modify_Font (Desc);
+         end loop;
       end if;
       C.Math_Scale := Long_Float'Max (Math_Scale, 0.01);
       if not C.Math_Elements.Is_Empty then

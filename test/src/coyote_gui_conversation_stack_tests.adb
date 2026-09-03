@@ -15,6 +15,8 @@ with Gtk.Enums;
 with Gtk.Flow_Box;
 with Gtk.Flow_Box_Child;
 with Gtk.Frame;
+with Gtk.Grid;
+with Gtk.Label;
 with Gtk.Main;
 with Gtk.Scrolled_Window;
 with Gtk.Separator;
@@ -23,11 +25,14 @@ with Pango.Font;
 
 package body Coyote_GUI_Conversation_Stack_Tests is
 
+   use type Glib.Gfloat;
    use type Glib.Gint;
    use type Glib.Guint;
    use type Gtk.Flow_Box.Gtk_Flow_Box;
    use type Gtk.Flow_Box_Child.Gtk_Flow_Box_Child;
    use type Gtk.Frame.Gtk_Frame;
+   use type Gtk.Grid.Gtk_Grid;
+   use type Gtk.Label.Gtk_Label;
    use type Gtk.Scrolled_Window.Gtk_Scrolled_Window;
    use type Gtk.Text_View.Gtk_Text_View;
    use type Gtk.Separator.Gtk_Separator;
@@ -205,6 +210,61 @@ package body Coyote_GUI_Conversation_Stack_Tests is
                  "disabled native Markdown preserves source text");
       end;
    end Test_Native_Markdown_Toggle_Disables_Rendering;
+
+   procedure Test_Native_Table_Realizes_Grid (T : in out Test) is
+      Source : constant String :=
+        "| Name | Count | Ratio |" & ASCII.LF
+        & "| :--- | :---: | ---: |" & ASCII.LF
+        & "| alpha | 42 | 0.5 |";
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Begin_Request (T.Stack, "request", Prompt);
+      Append_Text (T.Stack, Source);
+      End_Text_Block (T.Stack);
+      Assert (Table_Count (T.Stack) = 1,
+              "completed table should create one native grid");
+      Assert (Table_Grid (T.Stack, 1) /= null,
+              "native table grid should be retained");
+      Assert (Table_Cell (T.Stack, 1, 1, 1) /= null,
+              "native table header cell should exist");
+      Assert (Table_Cell (T.Stack, 1, 2, 3) /= null,
+              "native table body cell should exist");
+      Assert (Table_Cell (T.Stack, 1, 2, 3).Get_Text = "0.5",
+              "native table cell should retain copied text");
+      Assert (Table_Cell (T.Stack, 1, 1, 1).Get_Use_Markup,
+              "native table header should use Pango markup");
+      Assert (Table_Cell (T.Stack, 1, 1, 1).Get_Text = "Name",
+              "native table header should retain visible text");
+      Assert (Table_Cell (T.Stack, 1, 2, 1).Get_Xalign = 0.0,
+              "left-aligned table column should use left alignment");
+      Assert (Table_Cell (T.Stack, 1, 2, 2).Get_Xalign = 0.5,
+              "center-aligned table column should use center alignment");
+      Assert (Table_Cell (T.Stack, 1, 2, 3).Get_Xalign = 1.0,
+              "right-aligned table column should use right alignment");
+      Assert (not Response_Stream_Present (T.Stack),
+              "native table replacement removes the raw stream view");
+   end Test_Native_Table_Realizes_Grid;
+
+   procedure Test_Native_Table_Toggle_Disables_Rendering (T : in out Test) is
+      Source : constant String :=
+        "| Name | Value |" & ASCII.LF
+        & "| --- | --- |" & ASCII.LF
+        & "| alpha | 42 |";
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Set_Render_Markdown (T.Stack, False);
+      Begin_Request (T.Stack, "request", Prompt);
+      Append_Text (T.Stack, Source);
+      End_Text_Block (T.Stack);
+      Assert (Table_Count (T.Stack) = 0,
+              "disabled Markdown should not create a native table");
+      Assert (Index (Active_Text (T.Stack), "| Name | Value |") > 0,
+              "disabled Markdown should preserve table source");
+   end Test_Native_Table_Toggle_Disables_Rendering;
 
    procedure Test_Assistant_Content_Uses_Visible_Step_Frame
      (T : in out Test)

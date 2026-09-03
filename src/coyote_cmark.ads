@@ -149,6 +149,20 @@ package Coyote_Cmark is
    with Import, Convention => C,
         External_Name => "cmark_shim_node_get_type_string";
 
+   --  Return the number of columns in a GFM table node.
+   function Table_Column_Count
+     (Node : Node_Ptr) return Interfaces.C.int
+   with Import, Convention => C,
+        External_Name => "cmark_shim_table_column_count";
+
+   --  Return the alignment byte for a zero-based table column.  The result
+   --  is zero for unspecified alignment or an invalid column.
+   function Table_Column_Alignment
+     (Node   : Node_Ptr;
+      Column : Interfaces.C.int) return Interfaces.C.int
+   with Import, Convention => C,
+        External_Name => "cmark_shim_table_column_alignment";
+
    --  Return 1 if Node is a table_row that is the header row, else 0.
    function Table_Row_Is_Header
      (Node : Node_Ptr) return Interfaces.C.int

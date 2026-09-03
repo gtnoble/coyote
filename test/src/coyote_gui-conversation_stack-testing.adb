@@ -3,6 +3,7 @@
 --  Project: coyote
 
 with Coyote_GUI.Math_Element.Testing;
+with Glib;
 with Gtk.Container;
 with Gtk.Style_Context;
 with Gtk.Text_Buffer;
@@ -107,6 +108,44 @@ package body Coyote_GUI.Conversation_Stack.Testing is
         and then Gtk.Style_Context.Get_Style_Context
           (C.Active_View).Has_Class ("coyote-response-content");
    end Response_Text_Has_Style;
+
+   function Table_Count
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Natural
+   is
+   begin
+      return Natural (C.Table_Grids.Length);
+   end Table_Count;
+
+   function Table_Grid
+     (C     : Coyote_GUI.Conversation_Stack.Instance;
+      Index : Positive) return Gtk.Grid.Gtk_Grid
+   is
+   begin
+      if Index <= Natural (C.Table_Grids.Length) then
+         return C.Table_Grids (Index);
+      end if;
+      return null;
+   end Table_Grid;
+
+   function Table_Cell
+     (C      : Coyote_GUI.Conversation_Stack.Instance;
+      Table  : Positive;
+      Row    : Positive;
+      Column : Positive) return Gtk.Label.Gtk_Label
+   is
+      Grid  : constant Gtk.Grid.Gtk_Grid := Table_Grid (C, Table);
+      Child : Gtk.Widget.Gtk_Widget;
+   begin
+      if Grid = null then
+         return null;
+      end if;
+      Child := Grid.Get_Child_At
+        (Glib.Gint (Column - 1), Glib.Gint (Row - 1));
+      if Child = null then
+         return null;
+      end if;
+      return Gtk.Label.Gtk_Label (Child);
+   end Table_Cell;
 
    function Math_Area_Visible
      (C     : Coyote_GUI.Conversation_Stack.Instance;

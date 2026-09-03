@@ -170,9 +170,9 @@ SRS-CORE requirement groups.
 | `llm_openai_completions_tests.adb` | REQ-CORE-201 | ~30 |
 | `llm_anthropic_messages_tests.adb` | REQ-CORE-202 | ~30 |
 | `llm_openrouter_tests.adb` | REQ-CORE-072, REQ-CORE-216, REQ-CORE-218, REQ-CORE-219 (OpenRouter) | ~17 |
-| `coyote_cmark_tests.adb` | REQ-CORE-111 (Markdown rendering), parser-safe display-math code-block protection | ~28 |
+| `coyote_cmark_tests.adb` | REQ-CORE-111 (Markdown rendering), table metadata/masking, parser-safe display-math code-block protection | ~30 |
 | `coyote_lasem_tests.adb` | Lasem Presentation MathML measurement, zoom scaling, relation entities, and error handling | 5 |
-| `coyote_gui_conversation_stack_tests.adb` | Native display MathML realization, invalid fallback, code protection, and zoom | 17 |
+| `coyote_gui_conversation_stack_tests.adb` | Native display MathML and Markdown table realization, invalid fallback, code protection, toggle, alignment, and zoom | 19 |
 | `llm_session_store_tests.adb` | Session-store header/accessor coverage, including local session creation timestamp | ~48 |
 | `coyote_gui_zoom_tests.adb` | REQ-CORE-125 (zoom arithmetic: clamping, step semantics) | 12 |
 | `coyote_gui_notification_policy_tests.adb` | REQ-CORE-127 (notification eligibility policy) | 4 |
@@ -207,7 +207,7 @@ behaviour. Results are recorded in a Test Report.
 | DEM-004 | REQ-CORE-019 | `coyote --one-shot --prompt "echo hello"` exits after one turn; check exit code 0 and JSON on stdout |
 | DEM-005 | REQ-CORE-020 | `coyote --subagent --prompt "hello"` retains one-shot behavior, accepts steering while active, and exits after its final response; without a coordinator channel it uses Plain |
 | DEM-045 | REQ-CORE-025 | Set `maxRecursionDepth` to 1; invoke coyote with inherited `COYOTE_RECURSION_DEPTH=1` and `--subagent`; verify it exits non-zero before opening a frontend and reports the limit on stderr |
-| DEM-046 | REQ-CORE-111, 125 | In the display-backed GTK GUI, render a fixture containing headings, inline formatting, code, lists, tables, links, strikethrough, and a thematic break. Verify conversion occurs after streaming, local selection exposes plain text, the Render Markdown toggle preserves source text when disabled, and zoom changes native response font size. |
+| DEM-046 | REQ-CORE-111, 125 | In the display-backed GTK GUI, render a fixture containing headings, inline formatting, code, lists, tables, links, strikethrough, and a thematic break. Verify conversion occurs after streaming; GFM tables become native grids with selectable cells, bold headers, and column alignment; local selection exposes plain text; the Render Markdown toggle preserves source text when disabled; and zoom changes native response font size. Native-table execution remains pending virtual-display qualification. |
 | DEM-047 | REQ-CORE-111, 131, 137 | Render the same Markdown response live and by session replay in the native GUI. Verify equivalent supported visible content and response-block boundaries, and verify the GUI replay preserves the same semantic blocks. |
 | DEM-048 | REQ-CORE-124 | In the display-backed GTK GUI, exercise valid and invalid standalone Presentation MathML blocks. Verify native realization, readable source/fallback on parse failure, local selection, and zoom. Automated native realization, fallback, code-protection, zoom, visual, and local-selection acceptance is complete. |
 | DEM-049 | REQ-CORE-110, 113b | In a display-backed GUI, verify that the conversation work area, prompt controls, and status area are separated by visible horizontal rules; verify the prompt and status areas have consistent breathing room and that the conversation remains the sole expanding region. The structural portion is covered by `Coyote.GUI separates conversation, prompt, and status`; visual contrast remains a manual check under the active theme. |
@@ -323,7 +323,7 @@ and preferences demonstrations listed above.
 | REQ-CORE-090â093 | T | `llm_skills_tests.adb` |
 | REQ-CORE-100â109 | Historical | Retired Acme/plumber controls; see PCR-090 |
 | REQ-CORE-110â115 | T/D | `coyote_cmark_tests.adb`, `coyote_app_frontend_gui_tests.adb`, DEM-014, DEM-036..037, DEM-049 |
-| REQ-CORE-111 | T/D | `coyote_cmark_tests.adb`, `coyote_gui_conversation_stack_tests.adb`, DEM-014, DEM-046..047 |
+| REQ-CORE-111 | T/D | `coyote_cmark_tests.adb`, `coyote_gui_conversation_stack_tests.adb`, DEM-014, DEM-046..047; native table qualification pending |
 | REQ-CORE-113a..113c | D/T/I | `coyote_help_tests.adb`, `coyote_gui_mode_tests.adb`, DEM-036..039, Mallard validation, source inspection |
 | REQ-CORE-113d | D/T/I | `coyote_gui_session_stats_window_tests.adb`, DEM-040, source inspection |
 | REQ-CORE-113e | D/T/I | `coyote_gui_conversation_stack_tests.adb`, `llm_session_store_tests.adb`, DEM-041..043, source inspection |

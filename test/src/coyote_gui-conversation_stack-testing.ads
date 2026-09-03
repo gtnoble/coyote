@@ -7,6 +7,8 @@ with Coyote_GUI.Conversation_Stack;
 with Gtk.Button;
 with Gtk.Flow_Box;
 with Gtk.Frame;
+with Gtk.Grid;
+with Gtk.Label;
 with Gtk.Scrolled_Window;
 with Gtk.Separator;
 with Gtk.Text_View;
@@ -42,6 +44,19 @@ package Coyote_GUI.Conversation_Stack.Testing is
 
    function Response_Text_Has_Style
      (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean;
+
+   function Table_Count
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Natural;
+
+   function Table_Grid
+     (C     : Coyote_GUI.Conversation_Stack.Instance;
+      Index : Positive) return Gtk.Grid.Gtk_Grid;
+
+   function Table_Cell
+     (C      : Coyote_GUI.Conversation_Stack.Instance;
+      Table  : Positive;
+      Row    : Positive;
+      Column : Positive) return Gtk.Label.Gtk_Label;
 
    function Math_Area_Visible
      (C     : Coyote_GUI.Conversation_Stack.Instance;

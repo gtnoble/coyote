@@ -293,6 +293,7 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `Coyote_Renderer` | Shared GTK text/replay rendering root | `src/coyote_renderer/coyote_renderer.ads` |
 | `Coyote_Renderer.Markup` | GFM Markdown to Pango markup converter | `src/coyote_renderer/coyote_renderer-markup.ads/.adb` |
 | `Coyote_Renderer.MathML` | Markdown-aware display-math extraction with code-block protection | `src/coyote_renderer/coyote_renderer-mathml.ads/.adb` |
+| `Coyote_Renderer.Tables` | GTK-independent GFM table extraction and metadata model | `src/coyote_renderer/coyote_renderer-tables.ads/.adb` |
 | `Coyote_Renderer.Session_View` | Read-only session replay renderer | `src/coyote_renderer/coyote_renderer-session_view.ads/.adb` |
 | `Coyote_Notify` | Ada/C binding to libnotify desktop notifications | `src/coyote_notify.ads/.adb`, `src/coyote_notify_c.c` |
 | `Coyote_GUI.Notification_Policy` | Pure completion-notification eligibility policy | `src/coyote_gui/coyote_gui-notification_policy.ads/.adb` |
@@ -350,6 +351,10 @@ three layers:
   LLM.HTTP ──► LLM.HTTP.Curl_Binding (libcurl C binding)
   LLM.SSE  (pure parser, no external dependencies)
   Coyote_Cmark ──► coyote_cmark_c.c (C shim for libcmark-gfm)
+  Coyote_Renderer.Tables ──► Coyote_Cmark
+  Coyote_GUI.Conversation_Stack ──► Coyote_Renderer.Tables,
+                                      Coyote_Renderer.Markup,
+                                      Coyote_Renderer.MathML
   Coyote_Notify ──► libnotify, GLib, GDK-Pixbuf
 ```
 
@@ -1135,12 +1140,16 @@ level. Tool cards use native labels and argument-field grids, retain complete
 The single outer scroller avoids nested scrolling regions for ordinary content.
 
 **Content and interaction:** Streaming text is held in native text views and
-completed blocks are replaced with shared GFM markup. Standalone Presentation
-MathML is realized through `Coyote_GUI.Math_Element`; invalid input retains
-selectable source fallback. Selection and PRIMARY publication are local to the
-focused semantic text component. Native Details and Fork buttons are focusable
-and operate on the GTK main task. Live updates and session replay use the same
-lifecycle operations and hierarchy.
+completed blocks are replaced with shared GFM markup. Completed responses that
+contain GFM tables are rebuilt as ordered native `Gtk.Grid` components with
+selectable, wrapping cell labels; header cells use bold Pango markup and GFM
+column alignment maps to label alignment. Standalone Presentation MathML is
+realized through `Coyote_GUI.Math_Element`; invalid input retains selectable
+source fallback. Selection and PRIMARY publication are local to the focused
+semantic text component. Native Details and Fork buttons are focusable and
+operate on the GTK main task. Live updates and session replay use the same
+lifecycle operations and hierarchy. SQC session replay retains the shared
+Pango/text fallback.
 
 **Lifecycle and reset:** `Begin_Request` starts an exchange, intermediate
 footers close visible step frames, and `Complete_Request` closes the exchange.
@@ -1168,7 +1177,10 @@ of the installed library version.*
 
 **GFM extensions enabled:** `table`, `strikethrough`, `autolink`.
 Enabled by `cmark_shim_parse_document_gfm`, which creates a parser with all
-three extensions attached before parsing.
+three extensions attached before parsing. `Coyote_Renderer.Tables` obtains
+column counts, alignment bytes, header-row state, and copied cell text through
+scalar C shims; the extension-owned alignment array never crosses into Ada.
+The shared Pango serializer remains the text fallback for SQC replay.
 
 ---
 

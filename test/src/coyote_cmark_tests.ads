@@ -75,4 +75,13 @@ package Coyote_Cmark_Tests is
    --  An unmatched display delimiter remains ordinary Markdown.
    procedure Test_Display_Math_Extraction_Preserves_Unmatched (T : in out Test);
 
+   --  GFM table metadata and copied cell values are extracted correctly.
+   procedure Test_Table_Extraction_Preserves_Metadata (T : in out Test);
+
+   --  Table masking preserves one source line per input line.
+   procedure Test_Table_Extraction_Preserves_Line_Count (T : in out Test);
+
+   --  Table placeholders preserve their position between surrounding prose.
+   procedure Test_Table_Extraction_Preserves_Source_Order (T : in out Test);
+
 end Coyote_Cmark_Tests;

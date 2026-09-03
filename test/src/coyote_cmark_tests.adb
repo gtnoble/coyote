@@ -8,6 +8,7 @@ with Coyote_Cmark;
 with Coyote_App.Utils;
 with Coyote_Renderer.Markup;
 with Coyote_Renderer.MathML;
+with Coyote_Renderer.Tables;
 with Ada.Characters.Latin_1;
 with Ada.Containers;
 with Ada.Strings.Fixed;
@@ -21,6 +22,7 @@ package body Coyote_Cmark_Tests is
    use AUnit.Assertions;
    use type Ada.Containers.Count_Type;
    use type System.Address;
+   use type Coyote_Renderer.Tables.Table_Alignment;
    use Interfaces.C;
    use Interfaces.C.Strings;
 
@@ -490,5 +492,93 @@ package body Coyote_Cmark_Tests is
       Assert (To_String (Extracted.Masked_Text) = Input & ASCII.LF,
               "unmatched display-math source remains visible");
    end Test_Display_Math_Extraction_Preserves_Unmatched;
+
+   procedure Test_Table_Extraction_Preserves_Metadata (T : in out Test) is
+      pragma Unreferenced (T);
+      Input : constant String :=
+        "| A | B | C |" & ASCII.LF
+        & "| :--- | :---: | ---: |" & ASCII.LF
+        & "| one | two | three |" & ASCII.LF;
+      Extracted : constant Coyote_Renderer.Tables.Extraction_Result :=
+        Coyote_Renderer.Tables.Extract_Tables (Input);
+      Table : constant Coyote_Renderer.Tables.Table_Block :=
+        Extracted.Blocks (1);
+   begin
+      Assert (Extracted.Blocks.Length = 1,
+              "one GFM table should produce one extracted block");
+      Assert (Table.Column_Count = 3,
+              "table should preserve its three-column metadata");
+      Assert (Table.Rows.Length = 2,
+              "table should preserve header and body rows");
+      Assert (Table.Rows (1).Is_Header,
+              "first table row should be marked as the header");
+      Assert (To_String (Table.Rows (2).Cells (3).Text) = "three",
+              "table cell text should be copied from cmark");
+      Assert (Table.Alignments (1) = Coyote_Renderer.Tables.Left,
+              "leading colon should select left alignment");
+      Assert (Table.Alignments (2) = Coyote_Renderer.Tables.Center,
+              "both colons should select center alignment");
+      Assert (Table.Alignments (3) = Coyote_Renderer.Tables.Right,
+              "trailing colon should select right alignment");
+      Assert (Ada.Strings.Fixed.Index
+                (To_String (Extracted.Masked_Text),
+                 "COYOTE_TABLE_BLOCK_1__") > 0,
+              "masked source should contain the table placeholder");
+   end Test_Table_Extraction_Preserves_Metadata;
+
+   procedure Test_Table_Extraction_Preserves_Line_Count (T : in out Test) is
+      pragma Unreferenced (T);
+      Input : constant String :=
+        "| A | B |" & ASCII.LF
+        & "| --- | --- |" & ASCII.LF
+        & "| one | two |" & ASCII.LF
+        & ASCII.LF & "after";
+      Extracted : constant Coyote_Renderer.Tables.Extraction_Result :=
+        Coyote_Renderer.Tables.Extract_Tables (Input);
+      Masked : constant String := To_String (Extracted.Masked_Text);
+      Input_Lines : Natural := 0;
+      Masked_Lines : Natural := 0;
+   begin
+      for Character_Index in Input'Range loop
+         if Input (Character_Index) = ASCII.LF then
+            Input_Lines := Input_Lines + 1;
+         end if;
+      end loop;
+      for Character_Index in Masked'Range loop
+         if Masked (Character_Index) = ASCII.LF then
+            Masked_Lines := Masked_Lines + 1;
+         end if;
+      end loop;
+      Assert (Input_Lines + 1 = Masked_Lines,
+              "table masking should preserve logical source lines");
+      Assert (Ada.Strings.Fixed.Index (Masked, "COYOTE_TABLE_BLOCK_1__") > 0,
+              "table placeholder should remain at the table start");
+      Assert (Ada.Strings.Fixed.Index (Masked, "after") > 0,
+              "text after a table should remain in masked source");
+   end Test_Table_Extraction_Preserves_Line_Count;
+
+   procedure Test_Table_Extraction_Preserves_Source_Order (T : in out Test) is
+      pragma Unreferenced (T);
+      Input : constant String :=
+        "before" & ASCII.LF & ASCII.LF
+        & "| A | B |" & ASCII.LF
+        & "| --- | --- |" & ASCII.LF
+        & "| one | two |" & ASCII.LF & ASCII.LF
+        & "after";
+      Extracted : constant Coyote_Renderer.Tables.Extraction_Result :=
+        Coyote_Renderer.Tables.Extract_Tables (Input);
+      Masked : constant String := To_String (Extracted.Masked_Text);
+      Before_Position : constant Natural :=
+        Ada.Strings.Fixed.Index (Masked, "before");
+      Table_Position : constant Natural :=
+        Ada.Strings.Fixed.Index (Masked, "COYOTE_TABLE_BLOCK_1__");
+      After_Position : constant Natural :=
+        Ada.Strings.Fixed.Index (Masked, "after");
+   begin
+      Assert (Before_Position > 0 and then Table_Position > Before_Position,
+              "table placeholder should follow preceding prose");
+      Assert (After_Position > Table_Position,
+              "following prose should remain after table placeholder");
+   end Test_Table_Extraction_Preserves_Source_Order;
 
 end Coyote_Cmark_Tests;

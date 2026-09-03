@@ -15,6 +15,7 @@ with Gtk.Box;
 with Gtk.Frame;
 with Gtk.Flow_Box;
 with Gtk.Button;
+with Gtk.Grid;
 with Gtk.Label;
 with Gtk.Scrolled_Window;
 with Gtk.Separator;
@@ -28,6 +29,8 @@ package Coyote_GUI.Conversation_Stack is
 
    use type Gtk.Box.Gtk_Box;
    use type Gtk.Frame.Gtk_Frame;
+   use type Gtk.Grid.Gtk_Grid;
+   use type Gtk.Label.Gtk_Label;
    use type Gtk.Text_View.Gtk_Text_View;
    use type Coyote_GUI.Math_Element.Instance_Access;
    type Instance is tagged limited private;
@@ -163,6 +166,14 @@ private
      (Index_Type   => Positive,
       Element_Type => Coyote_GUI.Math_Element.Instance_Access);
 
+   package Table_Grid_Vectors is new Ada.Containers.Vectors
+     (Index_Type   => Positive,
+      Element_Type => Gtk.Grid.Gtk_Grid);
+
+   package Table_Cell_Vectors is new Ada.Containers.Vectors
+     (Index_Type   => Positive,
+      Element_Type => Gtk.Label.Gtk_Label);
+
    type Instance is tagged limited record
       Scroll            : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
       Main_Window       : Gtk.Window.Gtk_Window;
@@ -181,6 +192,8 @@ private
       Stream_Buf        : Ada.Strings.Unbounded.Unbounded_String;
       Text_Views        : Text_View_Vectors.Vector;
       Math_Elements     : Math_Element_Vectors.Vector;
+      Table_Grids       : Table_Grid_Vectors.Vector;
+      Table_Cells       : Table_Cell_Vectors.Vector;
       Math_Scale        : Long_Float := 1.0;
       Thinking          : Gtk.Text_Buffer.Gtk_Text_Buffer;
       Thinking_View     : Gtk.Text_View.Gtk_Text_View;

@@ -1065,6 +1065,15 @@ package body Test_Suites is
       Result.Add_Test (Coyote_Cmark_Caller.Create
         ("Coyote.Renderer.MathML preserves unmatched delimiters",
          Coyote_Cmark_Tests.Test_Display_Math_Extraction_Preserves_Unmatched'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote.Renderer.Tables preserves table metadata",
+         Coyote_Cmark_Tests.Test_Table_Extraction_Preserves_Metadata'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote.Renderer.Tables preserves table line count",
+         Coyote_Cmark_Tests.Test_Table_Extraction_Preserves_Line_Count'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote.Renderer.Tables preserves source order",
+         Coyote_Cmark_Tests.Test_Table_Extraction_Preserves_Source_Order'Access));
       --  LLM.HTTP tests
       Result.Add_Test (LLM_HTTP_Caller.Create
         ("LLM.HTTP POST returns status and callback chunk",
@@ -2859,6 +2868,14 @@ package body Test_Suites is
         ("Coyote.GUI.Conversation_Stack toggles Markdown rendering",
          Coyote_GUI_Conversation_Stack_Tests
            .Test_Native_Markdown_Toggle_Disables_Rendering'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack realizes native tables",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Native_Table_Realizes_Grid'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack toggles native tables",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Native_Table_Toggle_Disables_Rendering'Access));
       Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
         ("Coyote.GUI.Conversation_Stack realizes display MathML",
          Coyote_GUI_Conversation_Stack_Tests
