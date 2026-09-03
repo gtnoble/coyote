@@ -493,6 +493,20 @@ package body Coyote_Cmark_Tests is
               "unmatched display-math source remains visible");
    end Test_Display_Math_Extraction_Preserves_Unmatched;
 
+   procedure Test_Table_Extraction_Preserves_Plain_Text
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+      Input : constant String := "ordinary response text";
+      Extracted : constant Coyote_Renderer.Tables.Extraction_Result :=
+        Coyote_Renderer.Tables.Extract_Tables (Input);
+   begin
+      Assert (Extracted.Blocks.Is_Empty,
+              "plain text should not produce a table block");
+      Assert (To_String (Extracted.Masked_Text) = Input & ASCII.LF,
+              "plain text should remain visible after table extraction");
+   end Test_Table_Extraction_Preserves_Plain_Text;
+
    procedure Test_Table_Extraction_Preserves_Metadata (T : in out Test) is
       pragma Unreferenced (T);
       Input : constant String :=

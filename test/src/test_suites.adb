@@ -1066,6 +1066,9 @@ package body Test_Suites is
         ("Coyote.Renderer.MathML preserves unmatched delimiters",
          Coyote_Cmark_Tests.Test_Display_Math_Extraction_Preserves_Unmatched'Access));
       Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote.Renderer.Tables preserves plain text",
+         Coyote_Cmark_Tests.Test_Table_Extraction_Preserves_Plain_Text'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
         ("Coyote.Renderer.Tables preserves table metadata",
          Coyote_Cmark_Tests.Test_Table_Extraction_Preserves_Metadata'Access));
       Result.Add_Test (Coyote_Cmark_Caller.Create

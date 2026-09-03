@@ -161,7 +161,8 @@ package body Coyote_Renderer.Tables is
       Line_Number  : Positive := 1;
       Skip_Until   : Natural := 0;
       Block_Index  : Table_Vectors.Extended_Index :=
-        Blocks.First_Index;
+        (if Blocks.Is_Empty then Table_Vectors.No_Index
+         else Blocks.First_Index);
    begin
       if Markdown'Length = 0 then
          return Result;
