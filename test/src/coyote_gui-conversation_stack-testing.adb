@@ -76,6 +76,14 @@ package body Coyote_GUI.Conversation_Stack.Testing is
       return C.Active_Text.Get_Text (Start_Iter, End_Iter);
    end Active_Text;
 
+   function Response_Box
+     (C : Coyote_GUI.Conversation_Stack.Instance)
+      return Gtk.Box.Gtk_Box
+   is
+   begin
+      return C.Response_Box;
+   end Response_Box;
+
    function Response_Stream_Present
      (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean
    is

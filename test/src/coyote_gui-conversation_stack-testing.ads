@@ -5,6 +5,7 @@
 with Coyote_GUI;
 with Coyote_GUI.Conversation_Stack;
 with Gtk.Button;
+with Gtk.Box;
 with Gtk.Flow_Box;
 with Gtk.Frame;
 with Gtk.Grid;
@@ -41,6 +42,10 @@ package Coyote_GUI.Conversation_Stack.Testing is
 
    function Response_Stream_Present
      (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean;
+
+   function Response_Box
+     (C : Coyote_GUI.Conversation_Stack.Instance)
+      return Gtk.Box.Gtk_Box;
 
    function Response_Text_Has_Style
      (C : Coyote_GUI.Conversation_Stack.Instance) return Boolean;

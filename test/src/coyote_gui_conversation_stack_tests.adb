@@ -8,6 +8,8 @@ with Ada.Strings.Unbounded;
 with AUnit.Assertions;
 with Glib;
 with Gtk.Button;
+with Gtk.Container;
+with Gtk.Widget;
 with Coyote_App.Utils;
 with Coyote_GUI;
 with Coyote_GUI.Conversation_Stack.Testing;
@@ -265,6 +267,50 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Assert (Index (Active_Text (T.Stack), "| Name | Value |") > 0,
               "disabled Markdown should preserve table source");
    end Test_Native_Table_Toggle_Disables_Rendering;
+
+   procedure Test_Native_Response_Table_Skips_Whitespace_Blocks
+     (T : in out Test)
+   is
+      Source : constant String :=
+        "| Name | Value |" & ASCII.LF
+        & "| --- | --- |" & ASCII.LF
+        & "| alpha | 42 |";
+      Children : Gtk.Widget.Widget_List.Glist;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Begin_Request (T.Stack, "request", Prompt);
+      Append_Text (T.Stack, Source);
+      End_Text_Block (T.Stack);
+      Children := Gtk.Container.Get_Children
+        (Gtk.Container.Gtk_Container (Response_Box (T.Stack)));
+      Assert (Gtk.Widget.Widget_List.Length (Children) = 1,
+              "table-only response should not create whitespace text blocks");
+   end Test_Native_Response_Table_Skips_Whitespace_Blocks;
+
+   procedure Test_Native_Response_Mixed_Blocks_Skip_Whitespace
+     (T : in out Test)
+   is
+      Source : constant String :=
+        "before" & ASCII.LF & ASCII.LF
+        & "| Name | Value |" & ASCII.LF
+        & "| --- | --- |" & ASCII.LF
+        & "| alpha | 42 |" & ASCII.LF & ASCII.LF
+        & "after";
+      Children : Gtk.Widget.Widget_List.Glist;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Begin_Request (T.Stack, "request", Prompt);
+      Append_Text (T.Stack, Source);
+      End_Text_Block (T.Stack);
+      Children := Gtk.Container.Get_Children
+        (Gtk.Container.Gtk_Container (Response_Box (T.Stack)));
+      Assert (Gtk.Widget.Widget_List.Length (Children) = 3,
+              "mixed response should contain only text-table-text blocks");
+   end Test_Native_Response_Mixed_Blocks_Skip_Whitespace;
 
    procedure Test_Assistant_Content_Uses_Visible_Step_Frame
      (T : in out Test)

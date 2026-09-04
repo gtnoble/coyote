@@ -2888,6 +2888,14 @@ package body Test_Suites is
          Coyote_GUI_Conversation_Stack_Tests
            .Test_Native_Table_Toggle_Disables_Rendering'Access));
       Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack skips table whitespace blocks",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Native_Response_Table_Skips_Whitespace_Blocks'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack skips mixed whitespace blocks",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Native_Response_Mixed_Blocks_Skip_Whitespace'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
         ("Coyote.GUI.Conversation_Stack realizes display MathML",
          Coyote_GUI_Conversation_Stack_Tests
            .Test_Native_Display_Math_Realizes_Element'Access));

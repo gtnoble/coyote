@@ -49,6 +49,30 @@ package body Coyote_GUI.Conversation_Stack is
 
    type Instance_Access is access all Instance;
 
+   Response_Box_Spacing   : constant Gint  := 2;
+   Response_Block_Padding : constant Guint := 4;
+
+   procedure Pack_Response_Block
+     (Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
+      Child  : not null access Gtk.Widget.Gtk_Widget_Record'Class)
+   is
+   begin
+      Parent.Pack_Start
+        (Child, Expand => False, Fill => True,
+         Padding => Response_Block_Padding);
+   end Pack_Response_Block;
+
+   function Has_Non_Whitespace (Text : String) return Boolean is
+   begin
+      for Character_Value of Text loop
+         case Character_Value is
+            when ' ' | ASCII.HT | ASCII.LF | ASCII.CR | ASCII.FF => null;
+            when others => return True;
+         end case;
+      end loop;
+      return False;
+   end Has_Non_Whitespace;
+
    type Detail_Context is record
       Stack   : Instance_Access;
       Tool_Id : Unbounded_String;
@@ -106,12 +130,13 @@ package body Coyote_GUI.Conversation_Stack is
    end Append_Buffer;
 
    procedure Add_Text_Element
-     (C       : in out Instance;
-      Parent  : not null access Gtk.Box.Gtk_Box_Record'Class;
-      Caption : String;
-      Text    : String;
-      Buffer  : out Gtk.Text_Buffer.Gtk_Text_Buffer;
-      View    : out Gtk.Text_View.Gtk_Text_View);
+     (C              : in out Instance;
+      Parent         : not null access Gtk.Box.Gtk_Box_Record'Class;
+      Caption        : String;
+      Text           : String;
+      Buffer         : out Gtk.Text_Buffer.Gtk_Text_Buffer;
+      View           : out Gtk.Text_View.Gtk_Text_View;
+      Response_Block : Boolean := False);
 
    procedure Add_Response_Table
      (C      : in out Instance;
@@ -154,7 +179,8 @@ package body Coyote_GUI.Conversation_Stack is
       if Text'Length = 0 then
          return;
       end if;
-      Add_Text_Element (C, Parent, "", Text, Buffer, View);
+      Add_Text_Element
+        (C, Parent, "", Text, Buffer, View, Response_Block => True);
       Apply_Response_Style (View);
       if C.Render_Markdown then
          Buffer.Set_Text ("");
@@ -233,8 +259,7 @@ package body Coyote_GUI.Conversation_Stack is
             end;
          end loop;
       end if;
-      Parent.Pack_Start
-        (Grid, Expand => False, Fill => True, Padding => 4);
+      Pack_Response_Block (Parent, Grid);
       C.Table_Grids.Append (Grid);
    end Add_Response_Table;
 
@@ -253,11 +278,8 @@ package body Coyote_GUI.Conversation_Stack is
          Add_Response_Text (C, Parent, To_String (Block.Source));
          return;
       end if;
-      Parent.Pack_Start
-        (Coyote_GUI.Math_Element.Widget (Element.all),
-         Expand  => False,
-         Fill    => True,
-         Padding => 2);
+      Pack_Response_Block
+        (Parent, Coyote_GUI.Math_Element.Widget (Element.all));
       C.Math_Elements.Append (Element);
    end Add_Response_Math;
    procedure Build_Response_Elements
@@ -278,6 +300,13 @@ package body Coyote_GUI.Conversation_Stack is
       Math_Token  : Unbounded_String;
       Table_Position : Natural := 0;
       Math_Position  : Natural := 0;
+
+      procedure Add_Response_Text_If_Content (Text : String) is
+      begin
+         if Has_Non_Whitespace (Text) then
+            Add_Response_Text (C, C.Response_Box, Text);
+         end if;
+      end Add_Response_Text_If_Content;
    begin
       if (Table_Extraction.Blocks.Is_Empty
           and then Math_Extraction.Blocks.Is_Empty)
@@ -287,7 +316,8 @@ package body Coyote_GUI.Conversation_Stack is
       end if;
 
       Gtk.Box.Gtk_New_Vbox
-        (C.Response_Box, Homogeneous => False, Spacing => 2);
+        (C.Response_Box, Homogeneous => False,
+         Spacing => Response_Box_Spacing);
       C.Response_Box.Set_Name ("coyote-response-rendered");
       C.Response_Section.Pack_Start
         (C.Response_Box, Expand => False, Fill => True, Padding => 2);
@@ -321,8 +351,8 @@ package body Coyote_GUI.Conversation_Stack is
            or else (Table_Position > 0 and then Table_Position < Math_Position)
          then
             if Table_Position > Cursor then
-               Add_Response_Text
-                 (C, C.Response_Box, Masked (Cursor .. Table_Position - 1));
+               Add_Response_Text_If_Content
+                 (Masked (Cursor .. Table_Position - 1));
             end if;
             Add_Response_Table
               (C, C.Response_Box,
@@ -331,8 +361,8 @@ package body Coyote_GUI.Conversation_Stack is
             Table_Index := Table_Index + 1;
          else
             if Math_Position > Cursor then
-               Add_Response_Text
-                 (C, C.Response_Box, Masked (Cursor .. Math_Position - 1));
+               Add_Response_Text_If_Content
+                 (Masked (Cursor .. Math_Position - 1));
             end if;
             Add_Response_Math
               (C, C.Response_Box, Math_Extraction.Blocks (Math_Index));
@@ -342,7 +372,7 @@ package body Coyote_GUI.Conversation_Stack is
       end loop;
 
       if Masked'Length > 0 and then Cursor <= Masked'Last then
-         Add_Response_Text (C, C.Response_Box, Masked (Cursor .. Masked'Last));
+         Add_Response_Text_If_Content (Masked (Cursor .. Masked'Last));
       end if;
       C.Response_Box.Show_All;
    end Build_Response_Elements;
@@ -529,12 +559,13 @@ package body Coyote_GUI.Conversation_Stack is
    end Ensure_Active_Step;
 
    procedure Add_Text_Element
-     (C       : in out Instance;
-      Parent  : not null access Gtk.Box.Gtk_Box_Record'Class;
-      Caption : String;
-      Text    : String;
-      Buffer  : out Gtk.Text_Buffer.Gtk_Text_Buffer;
-      View    : out Gtk.Text_View.Gtk_Text_View)
+     (C              : in out Instance;
+      Parent         : not null access Gtk.Box.Gtk_Box_Record'Class;
+      Caption        : String;
+      Text           : String;
+      Buffer         : out Gtk.Text_Buffer.Gtk_Text_Buffer;
+      View           : out Gtk.Text_View.Gtk_Text_View;
+      Response_Block : Boolean := False)
    is
       Section : Gtk.Box.Gtk_Box;
       Label   : Gtk.Label.Gtk_Label;
@@ -554,7 +585,12 @@ package body Coyote_GUI.Conversation_Stack is
          Buffer.Set_Text (Text);
       end if;
       Section.Pack_Start (View, Expand => False, Fill => True, Padding => 2);
-      Parent.Pack_Start (Section, Expand => False, Fill => True, Padding => 4);
+      if Response_Block then
+         Pack_Response_Block (Parent, Section);
+      else
+         Parent.Pack_Start
+           (Section, Expand => False, Fill => True, Padding => 4);
+      end if;
       if Caption = "Response" then
          C.Response_Section := Section;
          Apply_Response_Style (View);
