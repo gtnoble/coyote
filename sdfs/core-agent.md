@@ -604,6 +604,26 @@ still transfers synchronous stdin before starting timeout supervision, so a
 future nonblocking duplex-I/O increment remains necessary to bound pathological
 large-input/large-output pipe deadlocks.
 
+## 2026-09-04 — External static system-prompt resource (REQ-CORE-174)
+
+**Requirement:** Static normal-agent system-prompt prose shall be maintained
+outside the executable and installed below the prefix share hierarchy.
+
+**Implementation:** Added the contiguous `share/coyote/system-prompt.md`
+resource containing the role, communication, math, tool, delegation,
+coordinator, and editing prose. `LLM.System_Prompt` resolves the resource
+from executable-derived `$BASE/share/coyote`, permits the parent checkout
+fallback for the nested test executable layout, renders capability-dependent
+sections and the active subagent command with fixed-string markers, and raises
+`System_Prompt_Error` for missing or empty resources. Agent text, settings,
+memory, context, skills, date, CWD, shell, reminders, and compaction prompts
+remain dynamic or separate as designed.
+
+**Verification:** Production and test development builds succeed. New AUnit
+regressions cover marker removal, no-tools suppression, terminal-only policy,
+and coordinator rendering; all 22 system-prompt tests pass.
+
+
 ## 2026-08-31 — Active executable in subagent prompt
 
 **Requirement:** Subagent shell instructions shall invoke the coyote executable

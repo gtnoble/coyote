@@ -320,4 +320,84 @@ package body LLM_System_Prompt_Tests is
          "empty memory block should not inject memory taxonomy");
    end Test_Memory_Block_Absent_When_Empty;
 
+   procedure Test_Static_Template_Markers_Rendered (T : in out Test) is
+      pragma Unreferenced (T);
+
+      P : constant String :=
+        LLM.System_Prompt.Build_System_Prompt
+          (Cwd             => Test_Cwd,
+           Executable_Path => "/opt/coyote/bin/coyote");
+   begin
+      Assert
+        (Ada.Strings.Fixed.Index (P, "{{") = 0,
+         "rendered prompt should not contain template markers");
+      Assert
+        (Ada.Strings.Fixed.Index (P, "# Editing Discipline") > 0,
+         "static template should retain its final section");
+   end Test_Static_Template_Markers_Rendered;
+
+   procedure Test_No_Tools_Removes_Template_Sections (T : in out Test) is
+      pragma Unreferenced (T);
+
+      P : constant String :=
+        LLM.System_Prompt.Build_System_Prompt
+          (Cwd      => Test_Cwd,
+           No_Tools => True);
+   begin
+      Assert
+        (Ada.Strings.Fixed.Index (P, "Available tools:") = 0,
+         "No_Tools should remove the resource tool section");
+      Assert
+        (Ada.Strings.Fixed.Index (P, "# Tool Use Policy") = 0,
+         "No_Tools should remove the resource policy section");
+      Assert
+        (Ada.Strings.Fixed.Index
+           (P, "# Coordinator Subagent Orchestration") = 0,
+         "No_Tools should remove the coordinator section");
+   end Test_No_Tools_Removes_Template_Sections;
+
+   procedure Test_Terminal_Tool_Policy_Rendered (T : in out Test) is
+      pragma Unreferenced (T);
+
+      P : constant String :=
+        LLM.System_Prompt.Build_System_Prompt
+          (Cwd              => Test_Cwd,
+           No_Tools         => False,
+           Has_Editing_Tools => False,
+           Coordinator_Mode => False);
+   begin
+      Assert
+        (Ada.Strings.Fixed.Index
+           (P, "Terminal tools are available") > 0,
+         "terminal-only sessions should render the terminal policy");
+      Assert
+        (Ada.Strings.Fixed.Index
+           (P, "Editing tools are available") = 0,
+         "terminal-only sessions should omit the editing policy");
+      Assert
+        (Ada.Strings.Fixed.Index
+           (P, "# Coordinator Subagent Orchestration") = 0,
+         "disabled coordinator mode should omit its section");
+   end Test_Terminal_Tool_Policy_Rendered;
+
+   procedure Test_Coordinator_Section_Rendered (T : in out Test) is
+      pragma Unreferenced (T);
+
+      P : constant String :=
+        LLM.System_Prompt.Build_System_Prompt
+          (Cwd              => Test_Cwd,
+           No_Tools         => False,
+           Has_Editing_Tools => True,
+           Coordinator_Mode => True);
+   begin
+      Assert
+        (Ada.Strings.Fixed.Index
+           (P, "# Coordinator Subagent Orchestration") > 0,
+         "coordinator mode should render its resource section");
+      Assert
+        (Ada.Strings.Fixed.Index
+           (P, "Never delegate understanding") > 0,
+         "coordinator section should retain synthesis guidance");
+   end Test_Coordinator_Section_Rendered;
+
 end LLM_System_Prompt_Tests;

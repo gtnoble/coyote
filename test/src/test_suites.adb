@@ -784,6 +784,18 @@ package body Test_Suites is
       Result.Add_Test (LLM_Sys_Prompt_Caller.Create
         ("LLM.System_Prompt empty memory block absent from prompt",
          LLM_System_Prompt_Tests.Test_Memory_Block_Absent_When_Empty'Access));
+      Result.Add_Test (LLM_Sys_Prompt_Caller.Create
+        ("LLM.System_Prompt renders all template markers",
+         LLM_System_Prompt_Tests.Test_Static_Template_Markers_Rendered'Access));
+      Result.Add_Test (LLM_Sys_Prompt_Caller.Create
+        ("LLM.System_Prompt removes template sections without tools",
+         LLM_System_Prompt_Tests.Test_No_Tools_Removes_Template_Sections'Access));
+      Result.Add_Test (LLM_Sys_Prompt_Caller.Create
+        ("LLM.System_Prompt renders terminal tool policy",
+         LLM_System_Prompt_Tests.Test_Terminal_Tool_Policy_Rendered'Access));
+      Result.Add_Test (LLM_Sys_Prompt_Caller.Create
+        ("LLM.System_Prompt renders coordinator section",
+         LLM_System_Prompt_Tests.Test_Coordinator_Section_Rendered'Access));
 
       --  LLM.System_Prompt context-loading tests
       Result.Add_Test (LLM_Context_Caller.Create

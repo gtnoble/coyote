@@ -1081,6 +1081,16 @@ than inventing markup. It shall also instruct the agent to write inline
 mathematics with Unicode math symbols directly in ordinary text rather than
 LaTeX notation or backslash commands.
 
+**REQ-CORE-174** (I/T)
+The static system-prompt prose shall be shipped as one contiguous resource at
+`share/coyote/system-prompt.md`. At runtime it shall be located below the
+installation base derived from the active executable's `bin/` directory.
+Capability-dependent sections and runtime values shall be rendered without
+leaving template markers in the prompt. A missing or empty resource shall
+raise a visible prompt-resource error rather than silently producing an
+incomplete system prompt. The existing test executable layout may resolve the
+resource from the parent checkout share tree.
+
 #### 3.1.18 Structured Memory System
 
 **REQ-CORE-180** (D)
@@ -1606,6 +1616,7 @@ matrix and retains historical `TC-*` identifiers; current mappings are in
 | REQ-CORE-171 | Conditional tool-use instructions by capability | D | TC-171 |
 | REQ-CORE-172 | Per-turn reminder instructions appended to prompt | D | TC-172 |
 | REQ-CORE-173 | Presentation MathML display-math guidance in prompt | D/T | TC-173 |
+| REQ-CORE-174 | Static prompt resource installed and loaded from executable-relative share/coyote | I/T | TC-174 |
 | REQ-CORE-180 | MEMORY.md index file discovery | D | TC-180 |
 | REQ-CORE-181 | Four-type memory taxonomy in system prompt | D | TC-181 |
 | REQ-CORE-182 | Memory save/retrieval behaviour guidance | I | TC-182 |
@@ -1647,7 +1658,7 @@ objectives stated in the Project Plan (PLAN §1 and §3):
 | Skill discovery, configurable roots, and system prompt construction | REQ-CORE-090, 090a–094 |
 | Subagent spawning with session lineage and virtual-window organization | REQ-CORE-019–020c, REQ-CORE-030–032, REQ-CORE-115, 115a |
 | Error visibility and graceful shutdown | REQ-CORE-140–142, REQ-CORE-139, REQ-CORE-702–703 |
-| Enhanced system prompt with personality and task constraints | REQ-CORE-170–172 |
+| Enhanced system prompt with personality, resource loading, and task constraints | REQ-CORE-170–174 |
 | Structured memory system (four-type taxonomy) | REQ-CORE-180–183 |
 | Coordinator subagent orchestration | REQ-CORE-190–192 |
 | Compaction quality and robustness | REQ-CORE-065–068 |

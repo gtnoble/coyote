@@ -9,6 +9,9 @@
 
 package LLM.System_Prompt is
 
+   --  Raised when the installed static prompt resource is missing or empty.
+   System_Prompt_Error : exception;
+
    --  Build and return the full system prompt string.
    --
    --  Cwd              : working directory appended as "Current working
@@ -36,7 +39,11 @@ package LLM.System_Prompt is
    --                     includes coordinator subagent-orchestration
    --                     guidance (REQ-CORE-190..192).
    --
-   --  The current date (YYYY-MM-DD) and Cwd are always appended last,
+   --  The static prompt prose is loaded from the installed
+   --  share/coyote/system-prompt.md resource.  The executable-relative
+   --  installation base is derived from the running executable.
+   --
+   --  The current date (YYYY-MM-DD), Cwd, and shell are appended last,
    --  regardless of which other parameters are set.
    function Build_System_Prompt
      (Cwd                : String;

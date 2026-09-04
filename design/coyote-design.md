@@ -283,7 +283,7 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `Coyote_Process_Control` | SIGTERM bridge, shell process-group registry, persistence freeze, and escalation | `src/coyote_process_control.ads/.adb`, `src/coyote_signal_bridge.c/.h` |
 | `LLM.Tools.Temp_File` | Tool-result size cap and spill | `src/llm/llm-tools-temp_file.ads/.adb` |
 | `LLM.Skills` | Skill discovery and system prompt formatting | `src/llm/llm-skills.ads/.adb` |
-| `LLM.System_Prompt` | System prompt construction | `src/llm/llm-system_prompt.ads/.adb` |
+| `LLM.System_Prompt` | System prompt construction and resource rendering | `src/llm/llm-system_prompt.ads/.adb`, `share/coyote/system-prompt.md` |
 | `LLM.Compaction` | Context compaction helpers | `src/llm/llm-compaction.ads/.adb` |
 | `LLM.Memory` | Memory taxonomy and MEMORY.md discovery | `src/llm/llm-memory.ads/.adb` |
 | `LLM.Session_Store` | JSONL session persistence | `src/llm/llm-session_store.ads/.adb` |
@@ -1501,22 +1501,34 @@ at session end.
 
 ### 5.29 `LLM.System_Prompt`
 
-**Purpose:** Constructs the complete system prompt string from its parts,
-including personality definition, conditional tool-use instructions,
-Presentation MathML display-math guidance with Unicode inline-math guidance,
-memory taxonomy, coordinator guidance, and the active executable command used
-for subagent delegation (REQ-CORE-170..173, REQ-CORE-180..183,
-REQ-CORE-190..192).
+**Purpose:** Constructs the complete system prompt string from its parts.
+Static prose is loaded as one contiguous Markdown resource from
+`share/coyote/system-prompt.md`, while capability-dependent sections and
+runtime values are rendered by Ada. The resource is found below the
+executable-derived `$BASE/share` tree; a nested test executable may use the
+parent checkout prefix. Missing or empty resources raise
+`LLM.System_Prompt.System_Prompt_Error` rather than silently producing an
+incomplete prompt. This covers personality definition, conditional tool-use
+instructions, Presentation MathML display-math guidance, memory taxonomy,
+coordinator guidance, and subagent delegation (REQ-CORE-170..174,
+REQ-CORE-180..183, REQ-CORE-190..192).
 
 **`Build (Cwd, No_Tools, Has_Editing_Tools, Agent, Context_Sections,
 Skills_Section, Memory_Block, Executable_Path, Coordinator_Mode) → String`:**
 Concatenates:
 
-1. **Static preamble** — role description, date, CWD.
-2. **Personality definition** — terse, direct, pragmatic; no cheerleading or
+1. **Static resource** — role description, communication style, math guidance,
+   tool guidance, delegation, coordinator, and editing-discipline prose loaded
+   from `share/coyote/system-prompt.md`.
+2. **Capability rendering** — tool descriptor, tool policy variant, coordinator
+   variant, and shell-quoted subagent command are rendered into the resource.
+3. **Dynamic session sections** — agent text, settings, memory, project
+   context, skills, current date, working directory, and shell are appended by
+   Ada in their existing order.
+4. **Personality definition** — terse, direct, pragmatic; no cheerleading or
    conversational interjections; guidance on final answers and intermediary
    updates (REQ-CORE-170).
-3. **Math-formatting guidance** — for standalone mathematics intended for the
+5. **Math-formatting guidance** — for standalone mathematics intended for the
    GUI, require Presentation MathML inside standalone `$$` delimiters, with a
    complete `<math>` document; unsupported expressions remain readable as
    plain text. For inline mathematics, require Unicode math symbols in
@@ -2201,7 +2213,7 @@ session-header rules synchronously.
 | REQ-CORE-120–121 | `Coyote_App.Frontend.Plain` |
 | REQ-CORE-130–131, 137 | `Coyote_App.History`, `Coyote_GUI.Conversation_Stack`, `Coyote_Renderer.Markup`, `Coyote_Renderer.Session_View` |
 | REQ-CORE-140–142 | `LLM.Agent`, `Coyote_App.Dispatch`, all frontends |
-| REQ-CORE-170–172 | `LLM.System_Prompt`, `LLM.Agent` |
+| REQ-CORE-170–174 | `LLM.System_Prompt`, `LLM.Agent`, `share/coyote/system-prompt.md` |
 | REQ-CORE-180–183 | `LLM.Memory`, `LLM.System_Prompt` |
 | REQ-CORE-190–192 | `LLM.System_Prompt`, `LLM.Agent`, `LLM.Tools.Shell` |
 | REQ-CORE-200–208, REQ-CORE-215–219 | `LLM.Providers.*`, `LLM.HTTP`, `LLM.SSE`, `LLM.Agent` |
