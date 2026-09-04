@@ -20,6 +20,9 @@ package Coyote_App_Frontend_GUI_Tests is
    procedure Test_Layout_And_Shutdown_Lifecycle
      (T : in out Test);
 
+   procedure Test_Agent_Tree_Expands_New_Subagents
+     (T : in out Test);
+
    procedure Test_Product_Information_Icon
      (T : in out Test);
 

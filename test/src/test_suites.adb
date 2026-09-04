@@ -2808,6 +2808,10 @@ package body Test_Suites is
         ("Coyote.GUI layout and shutdown lifecycle",
          Coyote_App_Frontend_GUI_Tests
            .Test_Layout_And_Shutdown_Lifecycle'Access));
+      Result.Add_Test (Coyote_App_Frontend_GUI_Caller.Create
+        ("Coyote.GUI agent tree expands new subagents",
+         Coyote_App_Frontend_GUI_Tests
+           .Test_Agent_Tree_Expands_New_Subagents'Access));
 
       Result.Add_Test (Coyote_Lasem_Caller.Create
         ("Coyote.Lasem measures a MathML fraction",

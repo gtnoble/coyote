@@ -212,6 +212,10 @@ private
       Dialog : out Gtk.Dialog.Gtk_Dialog;
       Image  : out Gtk.Image.Gtk_Image);
 
+   procedure Apply_RPC_Frame
+     (F : in out Instance;
+      U : Coyote_GUI.Update);
+
    protected type Session_Reference is
       procedure Set (Value : access LLM.Agent.Session);
       procedure Request_Abort;

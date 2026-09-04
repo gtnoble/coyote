@@ -2,6 +2,10 @@
 --
 --  Project: coyote
 
+with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
+with Coyote_App.Agent_RPC;
+with Coyote_GUI;
+
 package body Coyote_App.Frontend.GUI.Testing is
 
    function Main_Window
@@ -67,6 +71,24 @@ package body Coyote_App.Frontend.GUI.Testing is
    begin
       return F.Agents_View;
    end Agents_View;
+
+   procedure Apply_Handshake
+     (F               : in out Coyote_App.Frontend.GUI.Instance;
+      Agent_Id        : String;
+      Parent_Agent_Id : String;
+      Label           : String)
+   is
+      Update : Coyote_GUI.Update;
+   begin
+      Update.Kind := Coyote_GUI.Rpc_Frame;
+      Update.Text := To_Unbounded_String
+        (Coyote_App.Agent_RPC.Encode
+           (Coyote_App.Agent_RPC.Make_Handshake
+              (Agent_Id        => Agent_Id,
+               Parent_Agent_Id => Parent_Agent_Id,
+               Label           => Label)));
+      Coyote_App.Frontend.GUI.Apply_RPC_Frame (F, Update);
+   end Apply_Handshake;
 
    procedure Build_Product_Information
      (F      : Coyote_App.Frontend.GUI.Instance;
