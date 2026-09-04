@@ -1,5 +1,4 @@
 with Ada.Calendar;
-with Ada.Directories;
 --  Coyote_App.Agent_RPC.Transport — local framed RPC channels.
 --
 --  The transport reads arbitrary socket chunks into an unbounded buffer, then
@@ -13,6 +12,7 @@ with Ada.Directories;
 with Ada.Characters.Latin_1;
 with Ada.Exceptions;
 with Ada.Streams;
+with GNAT.OS_Lib;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
 with GNAT.Sockets;
@@ -85,36 +85,27 @@ package body Coyote_App.Agent_RPC.Transport is
       Timeout  : Duration;
       Accepted : out Boolean)
    is
-      Address : Sock_Addr_Type;
-      Request : Request_Type :=
-        (Name => Non_Blocking_IO, Enabled => True);
-      Deadline : constant Ada.Calendar.Time :=
-        Ada.Calendar.Clock + Timeout;
+      Address        : Sock_Addr_Type;
+      Selector_State : Selector_Status;
+      Request        : Request_Type :=
+        (Name => Non_Blocking_IO, Enabled => False);
    begin
       Accepted := False;
       if L.Socket = No_Socket then
          raise Transport_Error with "RPC listener is closed";
       end if;
-      Control_Socket (L.Socket, Request);
-      while not Accepted
-        and then Ada.Calendar.Clock < Deadline
-      loop
-         begin
-            Accept_Socket (L.Socket, C.Socket, Address);
-            Request := (Name => Non_Blocking_IO, Enabled => False);
-            Control_Socket (C.Socket, Request);
-            Initialize_Channel (C);
-            Accepted := True;
-         exception
-            when E : Socket_Error =>
-               if Resolve_Exception (E) /= Resource_Temporarily_Unavailable then
-                  raise;
-               end if;
-               delay 0.001;
-         end;
-      end loop;
-      Request := (Name => Non_Blocking_IO, Enabled => False);
-      Control_Socket (L.Socket, Request);
+
+      Accept_Socket
+        (Server  => L.Socket,
+         Socket  => C.Socket,
+         Address => Address,
+         Timeout => Selector_Duration (Timeout),
+         Status  => Selector_State);
+      if Selector_State = Completed then
+         Control_Socket (C.Socket, Request);
+         Initialize_Channel (C);
+         Accepted := True;
+      end if;
    exception
       when E : others =>
          raise Transport_Error with Ada.Exceptions.Exception_Message (E);
@@ -187,10 +178,10 @@ package body Coyote_App.Agent_RPC.Transport is
          L.Socket := No_Socket;
       end if;
       if Length (L.Endpoint) > 0 then
+         declare
+            Deleted : Boolean;
          begin
-            Ada.Directories.Delete_File (To_String (L.Endpoint));
-         exception
-            when others => null;
+            GNAT.OS_Lib.Delete_File (To_String (L.Endpoint), Deleted);
          end;
       end if;
       L.Endpoint := Null_Unbounded_String;
@@ -388,30 +379,88 @@ package body Coyote_App.Agent_RPC.Transport is
       Timeout : Duration;
       Ready   : out Boolean) return Boolean
    is
-      Request : Request_Type :=
+      Buffer         : Ada.Streams.Stream_Element_Array (1 .. 4096);
+      Last           : Ada.Streams.Stream_Element_Offset;
+      Request        : Request_Type :=
         (Name => Non_Blocking_IO, Enabled => True);
-      Result : Boolean;
+      Selector       : Selector_Type;
+      Read_Set       : Socket_Set_Type;
+      Write_Set      : Socket_Set_Type;
+      Selector_State : Selector_Status;
+      Complete       : Boolean := False;
+      Result         : Boolean := False;
+      Timeout_Value  : constant Duration := Duration'Max (Timeout, 0.0);
    begin
-      pragma Unreferenced (Timeout);
       Require_Open (C);
       Ready := False;
-      Control_Socket (C.Socket, Request);
+      Status := Invalid_Frame;
+      Error := Null_Unbounded_String;
+      Create_Selector (Selector);
       begin
-         Result := Receive_Frame (C, Value, Status, Error);
+         Control_Socket (C.Socket, Request);
+
+         if Ada.Strings.Fixed.Index
+           (To_String (C.Input), "" & ASCII.LF) > 0
+         then
+            Result := Receive_Frame (C, Value, Status, Error);
+            Complete := True;
+         else
+            Empty (Read_Set);
+            Empty (Write_Set);
+            Set (Read_Set, C.Socket);
+            Check_Selector
+              (Selector     => Selector,
+               R_Socket_Set => Read_Set,
+               W_Socket_Set => Write_Set,
+               Status       => Selector_State,
+               Timeout      => Selector_Duration (Timeout_Value));
+
+            if Selector_State = Completed then
+               begin
+                  Receive_Socket (C.Socket, Buffer, Last);
+                  if Last < Buffer'First then
+                     Close (C);
+                     Status := Peer_Closed;
+                     Error := To_Unbounded_String
+                       ("RPC peer closed the channel");
+                     Complete := True;
+                  else
+                     for Index in Buffer'First .. Last loop
+                        Append
+                          (C.Input, Character'Val (Buffer (Index)));
+                     end loop;
+                     if Ada.Strings.Fixed.Index
+                       (To_String (C.Input), "" & ASCII.LF) > 0
+                     then
+                        Result := Receive_Frame (C, Value, Status, Error);
+                        Complete := True;
+                     end if;
+                  end if;
+               exception
+                  when E : Socket_Error =>
+                     if Resolve_Exception (E) /=
+                       Resource_Temporarily_Unavailable
+                     then
+                        raise;
+                     end if;
+               end;
+            end if;
+         end if;
+
          if Is_Open (C) then
             Request := (Name => Non_Blocking_IO, Enabled => False);
             Control_Socket (C.Socket, Request);
          end if;
-         Ready := Result
-           or else Status /= Invalid_Frame
-           or else Length (C.Input) > 0;
+         Close_Selector (Selector);
+         Ready := Complete;
          return Result;
       exception
-         when E : others =>
+         when others =>
             if Is_Open (C) then
                Request := (Name => Non_Blocking_IO, Enabled => False);
                Control_Socket (C.Socket, Request);
             end if;
+            Close_Selector (Selector);
             raise;
       end;
    exception

@@ -14,6 +14,8 @@ package Coyote_App_Agent_RPC_Transport_Tests is
    procedure Test_Event_Sequence_Must_Increase (T : in out Test);
    procedure Test_Terminal_Closes_Send_Side (T : in out Test);
    procedure Test_Peer_Close_Is_Reported (T : in out Test);
+   procedure Test_Receive_Times_Out_When_Idle (T : in out Test);
+   procedure Test_Unix_Listener_Times_Out_When_Idle (T : in out Test);
    procedure Test_Unix_Listener_Accepts_Client (T : in out Test);
 
 end Coyote_App_Agent_RPC_Transport_Tests;

@@ -339,6 +339,14 @@ package body Test_Suites is
          Coyote_App_Agent_RPC_Transport_Tests
            .Test_Peer_Close_Is_Reported'Access));
       Result.Add_Test (Agent_RPC_Transport_Caller.Create
+        ("Agent RPC transport receive times out when idle",
+         Coyote_App_Agent_RPC_Transport_Tests
+           .Test_Receive_Times_Out_When_Idle'Access));
+      Result.Add_Test (Agent_RPC_Transport_Caller.Create
+        ("Agent RPC transport listener times out when idle",
+         Coyote_App_Agent_RPC_Transport_Tests
+           .Test_Unix_Listener_Times_Out_When_Idle'Access));
+      Result.Add_Test (Agent_RPC_Transport_Caller.Create
         ("Agent RPC transport accepts Unix clients",
          Coyote_App_Agent_RPC_Transport_Tests
            .Test_Unix_Listener_Accepts_Client'Access));

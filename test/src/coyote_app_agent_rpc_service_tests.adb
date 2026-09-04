@@ -2,12 +2,14 @@
 --
 --  Project: coyote
 
-with Ada.Directories;
+with Ada.Strings;
+with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
 with AUnit.Assertions;
 with Coyote_App.Agent_RPC;
 with Coyote_App.Agent_RPC.Service;
 with Coyote_App.Agent_RPC.Transport;
+with GNAT.OS_Lib;
 
 package body Coyote_App_Agent_RPC_Service_Tests is
 
@@ -15,6 +17,23 @@ package body Coyote_App_Agent_RPC_Service_Tests is
    use Ada.Strings.Unbounded;
    use Coyote_App.Agent_RPC;
    use Coyote_App.Agent_RPC.Transport;
+
+   procedure Remove_Path (Path : String) is
+      Deleted : Boolean;
+   begin
+      GNAT.OS_Lib.Delete_File (Path, Deleted);
+   end Remove_Path;
+
+   function Test_Endpoint (Stem : String) return String is
+      Pid_Image : constant String :=
+        Ada.Strings.Fixed.Trim
+          (Integer'Image
+             (GNAT.OS_Lib.Pid_To_Integer
+                (GNAT.OS_Lib.Current_Process_Id)),
+           Ada.Strings.Both);
+   begin
+      return "/tmp/" & Stem & "-" & Pid_Image & ".sock";
+   end Test_Endpoint;
 
    protected Collector is
       procedure Add (Value : Frame);
@@ -62,18 +81,12 @@ package body Coyote_App_Agent_RPC_Service_Tests is
       end loop;
    end Wait_For_Count;
 
-   procedure Remove_Path (Path : String) is
-   begin
-      if Ada.Directories.Exists (Path) then
-         Ada.Directories.Delete_File (Path);
-      end if;
-   end Remove_Path;
-
    procedure Test_Listener_Registers_Child (T : in out Test) is
       pragma Unreferenced (T);
       Service : Coyote_App.Agent_RPC.Service.Service;
-      Child : Channel;
-      Path : constant String := "/tmp/coyote-rpc-service-register.sock";
+      Child   : Channel;
+      Path    : constant String := Test_Endpoint
+        ("coyote-rpc-service-register");
    begin
       Remove_Path (Path);
       Collector.Clear;
@@ -83,24 +96,27 @@ package body Coyote_App_Agent_RPC_Service_Tests is
       Send_Frame
         (Child,
          Make_Handshake
-           (Agent_Id => "worker", Parent_Agent_Id => "root", Label => "worker"));
+           (Agent_Id        => "worker",
+            Parent_Agent_Id => "root",
+            Label           => "worker"));
       Wait_For_Count (1);
-      Close (Child);
-      Coyote_App.Agent_RPC.Service.Stop (Service);
       Assert (Collector.Count >= 1,
               "service must receive child handshake");
       Assert (Collector.Last.Kind = Handshake,
               "first service callback must be handshake");
+      Close (Child);
+      Coyote_App.Agent_RPC.Service.Stop (Service);
    end Test_Listener_Registers_Child;
 
    procedure Test_Command_Routes_To_Child (T : in out Test) is
       pragma Unreferenced (T);
       Service : Coyote_App.Agent_RPC.Service.Service;
-      Child : Channel;
-      Path : constant String := "/tmp/coyote-rpc-service-command.sock";
-      Value : Frame;
-      Status : Receive_Status;
-      Error : Unbounded_String;
+      Child   : Channel;
+      Path    : constant String := Test_Endpoint
+        ("coyote-rpc-service-command");
+      Value   : Frame;
+      Status  : Receive_Status;
+      Error   : Unbounded_String;
    begin
       Remove_Path (Path);
       Collector.Clear;
@@ -129,8 +145,9 @@ package body Coyote_App_Agent_RPC_Service_Tests is
    procedure Test_Disconnect_Is_Reported (T : in out Test) is
       pragma Unreferenced (T);
       Service : Coyote_App.Agent_RPC.Service.Service;
-      Child : Channel;
-      Path : constant String := "/tmp/coyote-rpc-service-disconnect.sock";
+      Child   : Channel;
+      Path    : constant String := Test_Endpoint
+        ("coyote-rpc-service-disconnect");
    begin
       Remove_Path (Path);
       Collector.Clear;

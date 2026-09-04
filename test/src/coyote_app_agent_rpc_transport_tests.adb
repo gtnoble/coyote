@@ -2,18 +2,39 @@
 --
 --  Project: coyote
 
-with Ada.Directories;
+with Ada.Calendar;
+with Ada.Strings;
+with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;
 with AUnit.Assertions;
 with Coyote_App.Agent_RPC;
 with Coyote_App.Agent_RPC.Transport;
+with GNAT.OS_Lib;
 
 package body Coyote_App_Agent_RPC_Transport_Tests is
 
    use AUnit.Assertions;
    use Ada.Strings.Unbounded;
    use Coyote_App.Agent_RPC;
+   use type Ada.Calendar.Time;
    use Coyote_App.Agent_RPC.Transport;
+
+   procedure Remove_Path (Path : String) is
+      Deleted : Boolean;
+   begin
+      GNAT.OS_Lib.Delete_File (Path, Deleted);
+   end Remove_Path;
+
+   function Test_Endpoint (Stem : String) return String is
+      Pid_Image : constant String :=
+        Ada.Strings.Fixed.Trim
+          (Integer'Image
+             (GNAT.OS_Lib.Pid_To_Integer
+                (GNAT.OS_Lib.Current_Process_Id)),
+           Ada.Strings.Both);
+   begin
+      return "/tmp/" & Stem & "-" & Pid_Image & ".sock";
+   end Test_Endpoint;
 
    procedure Test_Pair_Round_Trip (T : in out Test) is
       pragma Unreferenced (T);
@@ -147,12 +168,62 @@ package body Coyote_App_Agent_RPC_Transport_Tests is
       Close (Right);
    end Test_Peer_Close_Is_Reported;
 
+   procedure Test_Receive_Times_Out_When_Idle (T : in out Test) is
+      pragma Unreferenced (T);
+      Left, Right : Channel;
+      Value        : Frame;
+      Status       : Receive_Status;
+      Error        : Unbounded_String;
+      Ready        : Boolean := True;
+      Started      : constant Ada.Calendar.Time := Ada.Calendar.Clock;
+      Result       : Boolean;
+   begin
+      Create_Pair (Left, Right);
+      Result := Receive_Frame
+        (Right, Value, Status, Error, Timeout => 0.05, Ready => Ready);
+      Assert (not Result, "idle receive must not produce a frame");
+      Assert (not Ready, "idle receive must report not ready");
+      Assert (Ada.Calendar.Clock - Started < 0.5,
+              "idle receive must return within its timeout");
+      Close (Left);
+      Close (Right);
+   exception
+      when others =>
+         Close (Left);
+         Close (Right);
+         raise;
+   end Test_Receive_Times_Out_When_Idle;
+
+   procedure Test_Unix_Listener_Times_Out_When_Idle (T : in out Test) is
+      pragma Unreferenced (T);
+      Listener : Coyote_App.Agent_RPC.Transport.Listener;
+      Client   : Channel;
+      Path     : constant String := Test_Endpoint
+        ("coyote-rpc-transport-timeout");
+      Accepted : Boolean := True;
+      Started  : constant Ada.Calendar.Time := Ada.Calendar.Clock;
+   begin
+      Remove_Path (Path);
+      Create_Listener (Listener, Path);
+      Accept_Channel (Listener, Client, 0.05, Accepted);
+      Assert (not Accepted, "idle listener must report a timeout");
+      Assert (Ada.Calendar.Clock - Started < 0.5,
+              "idle listener must return within its timeout");
+      Close (Listener);
+   exception
+      when others =>
+         Close (Client);
+         Close (Listener);
+         raise;
+   end Test_Unix_Listener_Times_Out_When_Idle;
+
    procedure Test_Unix_Listener_Accepts_Client (T : in out Test) is
       pragma Unreferenced (T);
       Listener : Coyote_App.Agent_RPC.Transport.Listener;
       Client   : Channel;
       Server   : Channel;
-      Path     : constant String := "/tmp/coyote-rpc-transport-listener.sock";
+      Path     : constant String := Test_Endpoint
+        ("coyote-rpc-transport-listener");
       Value    : Frame;
       Status   : Receive_Status;
       Error    : Unbounded_String;
@@ -171,9 +242,7 @@ package body Coyote_App_Agent_RPC_Transport_Tests is
             Accepted := False;
       end Acceptor;
    begin
-      if Ada.Directories.Exists (Path) then
-         Ada.Directories.Delete_File (Path);
-      end if;
+      Remove_Path (Path);
       Create_Listener (Listener, Path);
       Acceptor.Start;
       Connect (Client, Path);
