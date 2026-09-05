@@ -3131,3 +3131,27 @@ zero failed assertions and zero unexpected errors. The post-cutover suite has
   display-gated; virtual-display qualification is pending because `xvfb-run`
   is unavailable in the current environment.
 - **Status:** Implemented; display-backed qualification pending
+
+
+## PCR-095 — Externalize static system-prompt resource
+
+- **Date reported:** 2026-09-04
+- **Category:** Requirements, Design, Code, Test, Plans
+- **Priority:** 2-Serious
+- **Description:** The normal-agent system prompt was embedded in Ada source,
+  making prompt prose changes require recompilation and preventing the static
+  prompt content from being installed as a share resource.
+- **Affected work products:** `LLM.System_Prompt`, the new
+  `share/coyote/system-prompt.md` resource, SRS-CORE, SDD-CORE, core-agent
+  SDF, Test Plan, and system-prompt AUnit tests.
+- **Corrective action:** Moved all static normal-agent prose into one
+  contiguous Markdown resource. Added executable-relative `$BASE/share/coyote`
+  lookup with a parent-checkout fallback for the nested test layout, fixed
+  string marker rendering for tool, policy, coordinator, shell-descriptor,
+  and subagent-command substitutions, and a visible exception for missing or
+  empty resources. Dynamic session data and separate reminder/compaction
+  prompts remain in their existing Ada packages.
+- **Verification:** Production and test development builds succeed. All 22
+  system-prompt tests pass, including marker elimination and capability-branch
+  regressions.
+- **Status:** Implemented

@@ -192,7 +192,7 @@ SRS-CORE requirement groups.
 | `coyote_sqc_histogram_tests.adb` | SRS-SQC histogram | ~10 |
 | `coyote_sqc_bootstrap_tests.adb` | SRS-SQC Â§5.17 bootstrap CI, Â§10.3 two-set histogram bins | ~7 |
 
-**Total automated tests (current):** **806**
+**Total automated tests (current):** **810**
 
 ### 4.3 Planned Tests â Demonstration
 
@@ -240,6 +240,7 @@ behaviour. Results are recorded in a Test Report.
 | DEM-022 | REQ-CORE-067 | Set a tiny context window; cause 3 consecutive compaction failures; verify auto-compaction is suspended and manual compaction still works |
 | DEM-023 | REQ-CORE-170..171 | Start a coyote session; inspect the system prompt; verify personality definition, conditional tool-use instructions, and per-turn reminder sections are present |
 | DEM-024 | REQ-CORE-172 | Run a session with the GUI frontend; verify that per-turn reminder instructions appear in the prompt before each model request |
+| TC-174 | REQ-CORE-174 | Build the development and test projects; run system-prompt regressions; verify the executable-relative share/coyote resource is loaded, all markers are rendered, no-tools and capability branches remove/select the correct sections, and dynamic prompt sections remain present. |
 | DEM-025 | REQ-CORE-180..181 | Create a MEMORY.md file in ~/.coyote/memory/; start coyote; verify the memory content appears in the system prompt and the taxonomy is described |
 | DEM-026 | REQ-CORE-183 | Run a session; direct the agent to save a memory; verify a new topic file is created and MEMORY.md index is updated |
 | DEM-027 | REQ-CORE-190..191 | Run a session using subagents; verify the system prompt contains coordinator instructions and subagent results include structured summary blocks |

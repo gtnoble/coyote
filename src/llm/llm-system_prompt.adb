@@ -199,66 +199,6 @@ package body LLM.System_Prompt is
          return "";
    end Load_Context_Sections;
 
-   --  Personality definition for the agent (REQ-CORE-170).
-   Personality_Definition : constant String :=
-     "# Communication Style"
-     & ASCII.LF
-     & ASCII.LF
-     & "- Be terse, direct, and pragmatic."
-     & ASCII.LF
-     & "- No cheerleading, motivational language, or artificial"
-     & " reassurance."
-     & ASCII.LF
-     & "- No conversational interjections as response openers -- never"
-     & " start a response with ""Done --"", ""Got it"", ""Great question"","
-     & " ""Sure!"", ""Absolutely"", or similar."
-     & ASCII.LF
-     & "- When providing a final answer, state the result directly"
-     & " without a preamble."
-     & ASCII.LF
-     & "- Between tool calls, give concise progress updates: 1--2"
-     & " sentences stating what was done and what comes next."
-     & ASCII.LF
-     & "- Vary your progress-update phrasing across turns; never repeat"
-     & " the same template verbatim.";
-
-   --  Presentation MathML display-math guidance (REQ-CORE-173).
-   Display_Math_Guidance : constant String :=
-     "# Display Math"
-     & ASCII.LF
-     & ASCII.LF
-     & "When writing standalone display mathematics intended for the coyote"
-     & " GUI, output Presentation MathML inside a `$$` block."
-     & ASCII.LF
-     & "- Put the opening and closing `$$` delimiters on standalone lines."
-     & ASCII.LF
-     & "- Between the delimiters, output one complete `<math>` document"
-     & " with the namespace"
-     & " `http://www.w3.org/1998/Math/MathML`."
-     & ASCII.LF
-     & "- Use Presentation MathML elements such as `<mrow>`, `<mi>`,"
-     & " `<mo>`, `<mn>`, `<mfrac>`, and `<msup>`; do not output LaTeX"
-     & " commands or Content MathML."
-     & ASCII.LF
-     & "- Escape XML special characters in text and operators: use `&lt;`,"
-     & " `&gt;`, and `&amp;` where required."
-     & ASCII.LF
-     & "- If an expression cannot be represented reliably in Presentation"
-     & " MathML, keep it readable as plain text rather than inventing"
-     & " markup."
-     & ASCII.LF
-     & ASCII.LF
-     & "# Inline Math"
-     & ASCII.LF
-     & ASCII.LF
-     & "When writing inline mathematics, use Unicode math symbols directly"
-     & " (for example, Unicode comparison, multiplication, root, arrow, and"
-     & " Greek-letter symbols) rather than LaTeX"
-     & " notation or backslash commands."
-     & ASCII.LF
-     & "- Keep inline mathematics readable in ordinary text; do not use"
-     & " LaTeX-style inline delimiters or commands.";
-
    function Build_Reminder_Instructions
      (Has_Tools : Boolean := False) return String
    is
@@ -295,6 +235,194 @@ package body LLM.System_Prompt is
       return To_String (Result);
    end Build_Reminder_Instructions;
 
+   function Prompt_File_Path return String is
+      Base      : constant String := LLM.Skills.Install_Base;
+      Candidate : constant String :=
+        (if Base'Length > 0
+         then Base & "/share/coyote/system-prompt.md"
+         else "");
+   begin
+      if Candidate'Length > 0
+        and then Ada.Directories.Exists (Candidate)
+        and then Ada.Directories.Kind (Candidate) =
+          Ada.Directories.Ordinary_File
+      then
+         return Candidate;
+      end if;
+
+      --  Test executables use a nested test/bin layout.  Permit the
+      --  containing checkout prefix without weakening installed lookup.
+      if Base'Length > 0 then
+         declare
+            Parent : constant String :=
+              Ada.Directories.Containing_Directory (Base);
+            Parent_Candidate : constant String :=
+              Parent & "/share/coyote/system-prompt.md";
+         begin
+            if Ada.Directories.Exists (Parent_Candidate)
+              and then Ada.Directories.Kind (Parent_Candidate) =
+                Ada.Directories.Ordinary_File
+            then
+               return Parent_Candidate;
+            end if;
+         end;
+      end if;
+
+      return Candidate;
+   end Prompt_File_Path;
+
+   function Load_Static_Prompt return String is
+      Path    : constant String := Prompt_File_Path;
+      Content : constant String := Coyote_Utils.Read_Whole_File (Path);
+   begin
+      if Path'Length = 0 or else Content'Length = 0 then
+         raise System_Prompt_Error;
+      end if;
+
+      return Content;
+   end Load_Static_Prompt;
+
+   function Replace_All
+     (Source : String;
+      Marker : String;
+      Value  : String) return String
+   is
+      Result : Unbounded_String;
+      Start  : Positive;
+      Match  : Natural;
+   begin
+      if Source'Length = 0 or else Marker'Length = 0 then
+         return Source;
+      end if;
+
+      Start := Source'First;
+      loop
+         Match := Ada.Strings.Fixed.Index
+           (Source  => Source,
+            Pattern => Marker,
+            From    => Start);
+         exit when Match = 0;
+
+         if Match > Start then
+            Append (Result, Source (Start .. Match - 1));
+         end if;
+         Append (Result, Value);
+         Start := Match + Marker'Length;
+         exit when Start > Source'Last;
+      end loop;
+
+      if Match = 0 and then Start <= Source'Last then
+         Append (Result, Source (Start .. Source'Last));
+      end if;
+
+      return To_String (Result);
+   end Replace_All;
+
+   function Remove_Section
+     (Source       : String;
+      Begin_Marker : String;
+      End_Marker   : String) return String
+   is
+      Begin_Pos : constant Natural :=
+        Ada.Strings.Fixed.Index (Source, Begin_Marker);
+      End_Pos : Natural;
+      Result : Unbounded_String;
+   begin
+      if Begin_Pos = 0 then
+         return Source;
+      end if;
+
+      End_Pos :=
+        Ada.Strings.Fixed.Index
+          (Source, End_Marker, Begin_Pos + Begin_Marker'Length);
+      if End_Pos = 0 then
+         raise System_Prompt_Error;
+      end if;
+
+      if Begin_Pos > Source'First then
+         Append (Result, Source (Source'First .. Begin_Pos - 1));
+      end if;
+      End_Pos := End_Pos + End_Marker'Length;
+      if End_Pos <= Source'Last then
+         Append (Result, Source (End_Pos .. Source'Last));
+      end if;
+      return To_String (Result);
+   end Remove_Section;
+
+   function Unwrap_Section
+     (Source       : String;
+      Begin_Marker : String;
+      End_Marker   : String) return String
+   is
+      Result : constant String :=
+        Replace_All (Source, Begin_Marker, "");
+   begin
+      return Replace_All (Result, End_Marker, "");
+   end Unwrap_Section;
+
+   function Render_Static_Prompt
+     (No_Tools          : Boolean;
+      Has_Editing_Tools : Boolean;
+      Coordinator_Mode  : Boolean;
+      Tools_Text        : String;
+      Subagent_Command  : String) return String
+   is
+      Result : Unbounded_String :=
+        To_Unbounded_String (Load_Static_Prompt);
+
+      procedure Replace (Marker, Value : String) is
+      begin
+         Result :=
+           To_Unbounded_String
+             (Replace_All (To_String (Result), Marker, Value));
+      end Replace;
+
+      procedure Remove (Begin_Marker, End_Marker : String) is
+      begin
+         Result :=
+           To_Unbounded_String
+             (Remove_Section (To_String (Result), Begin_Marker, End_Marker));
+      end Remove;
+
+      procedure Unwrap (Begin_Marker, End_Marker : String) is
+      begin
+         Result :=
+           To_Unbounded_String
+             (Unwrap_Section (To_String (Result), Begin_Marker, End_Marker));
+      end Unwrap;
+   begin
+      Replace ("{{SHELL_TOOL}}", Tools_Text);
+      Replace ("{{SUBAGENT_COMMAND}}", Subagent_Command);
+
+      if No_Tools then
+         Remove ("{{TOOLS_BEGIN}}", "{{TOOLS_END}}");
+         Remove ("{{TOOL_POLICY_BEGIN}}", "{{TOOL_POLICY_END}}");
+         Remove ("{{COORDINATOR_BEGIN}}", "{{COORDINATOR_END}}");
+      else
+         Unwrap ("{{TOOLS_BEGIN}}", "{{TOOLS_END}}");
+         Unwrap ("{{TOOL_POLICY_BEGIN}}", "{{TOOL_POLICY_END}}");
+         if Has_Editing_Tools then
+            Remove ("{{TERMINAL_TOOLS_BEGIN}}", "{{TERMINAL_TOOLS_END}}");
+            Unwrap ("{{EDITING_TOOLS_BEGIN}}", "{{EDITING_TOOLS_END}}");
+         else
+            Remove ("{{EDITING_TOOLS_BEGIN}}", "{{EDITING_TOOLS_END}}");
+            Unwrap ("{{TERMINAL_TOOLS_BEGIN}}", "{{TERMINAL_TOOLS_END}}");
+         end if;
+
+         if Coordinator_Mode then
+            Unwrap ("{{COORDINATOR_BEGIN}}", "{{COORDINATOR_END}}");
+         else
+            Remove ("{{COORDINATOR_BEGIN}}", "{{COORDINATOR_END}}");
+         end if;
+      end if;
+
+      if Ada.Strings.Fixed.Index (To_String (Result), "{{") > 0 then
+         raise System_Prompt_Error;
+      end if;
+
+      return To_String (Result);
+   end Render_Static_Prompt;
+
    function Build_System_Prompt
      (Cwd                : String;
       No_Tools           : Boolean := False;
@@ -316,252 +444,15 @@ package body LLM.System_Prompt is
       Subagent_Command : constant String :=
         Coyote_Utils.Shell_Quote (Active_Path) & " --subagent";
    begin
-      Append
-        (Result,
-         "You are an expert coding assistant operating inside coyote, a"
-         & " native coding agent. You help users by reading files,"
-         & " executing commands, editing code, and writing new files.");
-
-      --  Personality definition (REQ-CORE-170).
-      Append (Result, ASCII.LF & ASCII.LF & Personality_Definition);
-
-      --  Presentation MathML display-math guidance (REQ-CORE-173).
-      Append (Result, ASCII.LF & ASCII.LF & Display_Math_Guidance);
-      if not No_Tools then
-         Append (Result, ASCII.LF & ASCII.LF & "Available tools:");
-
-         Append
-           (Result,
-            ASCII.LF
-            & "- "
-            & To_String (Descriptor.Name)
-            & ": "
-            & To_String (Descriptor.Description));
-
-         Append
-           (Result,
-            ASCII.LF
-            & ASCII.LF
-            & "Guidelines:"
-            & ASCII.LF
-            & "- Always use the stdin field instead of heredocs when"
-            & " passing multi-line content to a command;"
-            & " never use <<EOF or <<'EOF' heredoc syntax"
-            & ASCII.LF
-            & "- Read files: cat path (full file),"
-            & " sed -n 'N,Mp' path (line range), head/tail"
-            & ASCII.LF
-            & "- Write new files or complete rewrites:"
-            & " command=""cat > path"","
-            & " stdin=""<file content>"""
-            & ASCII.LF
-            & "- Edit files precisely with aged, sed, or perl"
-            & " (pass the script via the stdin field;"
-            & " use perl -0777 -i -pe for multi-line patterns)"
-            & ASCII.LF
-            & "- Edit files with aged: `aged FILE OLD NEW` for exact"
-            & " string replacement, or `aged -d DELIM FILE` to read"
-            & " OLD and NEW from stdin separated by a DELIM line"
-            & ASCII.LF
-            & "- For non-trivial sed/perl/awk scripts, pass the script"
-            & " body via the stdin field rather than embedding it in"
-            & " the command argument to avoid shell-quoting issues"
-            & ASCII.LF
-            & "- Never pass code to an interpreter via inline flags when"
-            & " stdin is available; always supply the script body through"
-            & " the stdin field instead (e.g. never use perl -e '...'"
-            & " or perl -E '...'; invoke perl without inline code arguments"
-            & " and pass the script via stdin)"
-            & ASCII.LF
-            & "- Find files: find path -name pattern;"
-            & " search content: grep -r pattern path (or rg)"
-            & ASCII.LF
-            & "- Set a wall-clock timeout on shell commands by adding a"
-            & " `timeout` integer field (seconds). A timed-out command"
-            & " returns partial output with a ""[command timed out"" notice."
-            & " Omit the field (or use 0) for no time limit."
-            & ASCII.LF
-            & "- When summarizing your actions, output plain text directly"
-            & " - do NOT use cat or bash to display what you did"
-            & ASCII.LF
-            & "- Be concise in your responses"
-            & ASCII.LF
-            & "- Show file paths clearly when working with files"
-            & ASCII.LF
-            & "- Each tool batch appends a [coyote: turn=...in/...out"
-            & " session=...in/...out] footer to the last result;"
-            & " use this to monitor token consumption and cost"
-            & ASCII.LF);
-      end if;
-
-      --  Conditional tool-use instructions (REQ-CORE-171).
-      if not No_Tools then
-         if Has_Editing_Tools then
-            Append
-              (Result,
-               ASCII.LF
-               & "# Tool Use Policy"
-               & ASCII.LF
-               & ASCII.LF
-               & "Editing tools are available.  Use them to make changes"
-               & " directly in files rather than printing code blocks for"
-               & " the user to copy-paste.  When you would otherwise print"
-               & " a code block as a suggestion, apply the edit instead"
-               & " and report what you changed.");
-         else
-            Append
-              (Result,
-               ASCII.LF
-               & "# Tool Use Policy"
-               & ASCII.LF
-               & ASCII.LF
-               & "Terminal tools are available -- run commands rather than"
-               & " printing them for the user to execute."
-               & ASCII.LF
-               & "When no editing tools are available, print code blocks"
-               & " as suggestions for the user to apply.");
-         end if;
-      end if;
-
-      Append
-        (Result,
-         ASCII.LF
-         & ASCII.LF
-         & "# Parallel Delegation (Subagents)"
-         & ASCII.LF
-         & ASCII.LF
-         & "For complex multi-phase tasks, spawn subagents to"
-         & " parallelize independent work.  Do NOT do everything"
-         & " sequentially inline when work can be delegated."
-         & ASCII.LF
-         & ASCII.LF
-         & "**PREFER spawning a subagent when:**"
-         & ASCII.LF
-         & "- Codebase exploration: BEFORE making edits, spawn a"
-         & " subagent to search, grep, or read files while you"
-         & " plan your approach.  Delegating exploration is faster"
-         & " than doing all searching inline, turn by turn."
-         & ASCII.LF
-         & "- Independent subtasks: when a request splits into"
-         & " unrelated pieces (e.g. ""fix bug A"" and ""refactor"
-         & " module B""), spawn a subagent for each in parallel."
-         & ASCII.LF
-         & "- Heavy computation: offload build runs, test suites,"
-         & " or large-scale searches to subagents while you"
-         & " continue editing or planning."
-         & ASCII.LF
-         & "- Skill-specific work: when a skill in"
-         & " &lt;available_skills&gt; matches the task, spawn a"
-         & " subagent with `--agent @path/to/SKILL.md` so it"
-         & " has the specialised instructions."
-         & ASCII.LF
-         & ASCII.LF
-         & "**Do NOT spawn subagents for:**"
-         & ASCII.LF
-         & "- Sequential dependent work (step 2 needs step 1)"
-         & ASCII.LF
-         & "- Trivial single-file fixes or one-shot questions"
-         & ASCII.LF
-         & "- Simple commands with no exploration needed"
-         & ASCII.LF
-         & ASCII.LF
-         & "**Invocation:** use the shell tool with"
-         & " `" & Subagent_Command & " --prompt -`, piping the task"
-         & " prompt to stdin.  The call returns quickly with empty"
-         & " output; coordinator-launched workers use the headless RPC"
-         & " presentation channel, while standalone workers use Plain;"
-         & " each runs one turn.  Pass `--model PROVIDER/ID`,"
-         & " `--agent @path`, and `--name LABEL`.  Session"
-         & " lineage is auto-linked via COYOTE_SESSION_ID."
-         & ASCII.LF
-         & ASCII.LF
-         & "Example:"
-         & " `printf 'Search all callers of Init()\n'"
-         & " | " & Subagent_Command
-         & " --agent @~/.coyote/skills/ada-style-guide/SKILL.md"
-         & " --name ""search-init"" --prompt -`");
-
-      --  Coordinator mode guidance (REQ-CORE-190..192).
-      if Coordinator_Mode and then not No_Tools then
-         Append
-           (Result,
-            ASCII.LF
-            & ASCII.LF
-            & "# Coordinator Subagent Orchestration"
-            & ASCII.LF
-            & ASCII.LF
-            & "When spawning subagents, act as a coordinator:"
-            & ASCII.LF
-            & ASCII.LF
-            & "- **Launch independent subagents in parallel** whenever"
-            & " possible -- do not serialise unrelated tasks."
-            & ASCII.LF
-            & "- **Never delegate understanding.**  Read all worker results"
-            & " and synthesise them before writing follow-up prompts."
-            & ASCII.LF
-            & "- **Write specific worker prompts** with exact file paths and"
-            & " line numbers rather than vague ""based on your findings"""
-            & " directives."
-            & ASCII.LF
-            & "- **Do not fabricate or predict subagent results** before"
-            & " they arrive.  When asked about an in-flight subagent,"
-            & " report its status only -- never guess at its findings."
-            & ASCII.LF
-            & ASCII.LF
-            & "## Subagent Result Format"
-            & ASCII.LF
-            & ASCII.LF
-            & "Subagent results include a structured summary block:"
-            & ASCII.LF
-            & "- **Task status:** completed, failed, or killed"
-            & ASCII.LF
-            & "- **Human-readable summary** of what was done"
-            & ASCII.LF
-            & "- **Final text response** from the worker agent"
-            & ASCII.LF
-            & "- **Usage statistics:** token count, tool-use count,"
-            & " wall-clock duration"
-            & ASCII.LF
-            & ASCII.LF
-            & "Use this structured format to distinguish worker completion"
-            & " notifications from user messages.");
-      end if;
-
-      Append
-        (Result,
-         ASCII.LF
-         & ASCII.LF
-         & "# Editing Discipline"
-         & ASCII.LF
-         & ASCII.LF
-         & "Before making any code edits:"
-         & ASCII.LF
-         & ASCII.LF
-         & "1. **Map every affected site first.** Identify all call"
-         & " sites, declaration sites, and test files that will need"
-         & " changing. Read enough context at each site to confirm the"
-         & " surrounding scope (which procedure, which package, what"
-         & " indentation) before writing a single edit."
-         & ASCII.LF
-         & ASCII.LF
-         & "2. **Verify structural assumptions explicitly.** Never assume"
-         & " a variable declared in one procedure is visible at a call"
-         & " site in another. Grep for the containing procedure of each"
-         & " call site and confirm it matches expectations."
-         & ASCII.LF
-         & ASCII.LF
-         & "3. **Watch for irregular formatting.** Source files may"
-         & " contain mis-indented or otherwise non-standard constructs"
-         & " that defeat pattern-matching greps. If a grep returns fewer"
-         & " hits than expected, investigate before proceeding."
-         & ASCII.LF
-         & ASCII.LF
-         & "4. **Plan all changes before executing any.** Collect the"
-         & " full list of edits -- including every call site, declaration,"
-         & " spec, and test -- then execute them in one coherent pass"
-         & " (bottom-to-top when inserting lines to keep line numbers"
-         & " stable), rather than making incremental edits that shift"
-         & " line numbers and require re-greps.");
+      Result :=
+        To_Unbounded_String
+          (Render_Static_Prompt
+             (No_Tools          => No_Tools,
+              Has_Editing_Tools => Has_Editing_Tools,
+              Coordinator_Mode  => Coordinator_Mode,
+              Tools_Text        => To_String (Descriptor.Name)
+                & ": " & To_String (Descriptor.Description),
+              Subagent_Command  => Subagent_Command));
 
       if Agent'Length > 0 then
          Append (Result, ASCII.LF & ASCII.LF & Agent);

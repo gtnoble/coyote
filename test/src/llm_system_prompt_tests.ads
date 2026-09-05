@@ -24,5 +24,9 @@ package LLM_System_Prompt_Tests is
    procedure Test_Section_Order (T : in out Test);
    procedure Test_Memory_Block_Injected (T : in out Test);
    procedure Test_Memory_Block_Absent_When_Empty (T : in out Test);
+   procedure Test_Static_Template_Markers_Rendered (T : in out Test);
+   procedure Test_No_Tools_Removes_Template_Sections (T : in out Test);
+   procedure Test_Terminal_Tool_Policy_Rendered (T : in out Test);
+   procedure Test_Coordinator_Section_Rendered (T : in out Test);
 
 end LLM_System_Prompt_Tests;
