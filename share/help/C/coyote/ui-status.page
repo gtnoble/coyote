@@ -5,5 +5,6 @@
     <desc>Interpret the coyote status area.</desc>
   </info>
   <title>Status Area</title>
-  <p>The status area reports lifecycle state, active model information, and non-critical session information. Errors and warnings are also reported visibly in the conversation.</p>
+  <p>The status area reports live lifecycle state, active model information, and non-critical session information. Errors and warnings are also reported visibly in the conversation.</p>
+  <p>Step and turn summary rows inside the conversation are historical metadata for completed assistant or tool steps. They are not live progress indicators; use the status area and tool cards for current activity.</p>
 </page>

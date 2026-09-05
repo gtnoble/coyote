@@ -210,6 +210,7 @@ private
       Fork_Callback     : Fork_Handler;
       Render_Markdown   : Boolean := True;
       Footer_Separator  : Gtk.Separator.Gtk_Separator;
+      Footer_Heading    : Gtk.Label.Gtk_Label;
       Footer_Label      : Gtk.Label.Gtk_Label;
       Fork_Button       : Gtk.Button.Gtk_Button;
    end record;

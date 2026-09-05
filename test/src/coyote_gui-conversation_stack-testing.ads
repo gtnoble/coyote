@@ -129,6 +129,9 @@ package Coyote_GUI.Conversation_Stack.Testing is
      (C : Coyote_GUI.Conversation_Stack.Instance)
       return Gtk.Separator.Gtk_Separator;
 
+   function Footer_Heading
+     (C : Coyote_GUI.Conversation_Stack.Instance) return String;
+
    function Footer_Summary
      (C : Coyote_GUI.Conversation_Stack.Instance) return String;
 
