@@ -1,3 +1,5 @@
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 --  Coyote_Cmark_Tests body.
 --
 --  Project: coyote
@@ -594,5 +596,83 @@ package body Coyote_Cmark_Tests is
       Assert (After_Position > Table_Position,
               "following prose should remain after table placeholder");
    end Test_Table_Extraction_Preserves_Source_Order;
+
+
+   package Coyote_Cmark_Caller is
+     new AUnit.Test_Caller (Coyote_Cmark_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote_Cmark enum constants are non-negative after elaboration",
+         Coyote_Cmark_Tests.Test_Constants_Are_Non_Negative'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote_Cmark Parse_Document returns non-null root node",
+         Coyote_Cmark_Tests.Test_Parse_Returns_Non_Null'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote_Cmark root node type equals NODE_DOCUMENT",
+         Coyote_Cmark_Tests.Test_Root_Type_Is_Document'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote_Cmark iterator yields TEXT event for plain paragraph",
+         Coyote_Cmark_Tests.Test_Iterator_Yields_Text_Event'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote_Cmark TEXT node literal matches the input word",
+         Coyote_Cmark_Tests.Test_Literal_Matches_Input'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote_Cmark Node_Free and Iter_Free do not raise",
+         Coyote_Cmark_Tests.Test_Free_Does_Not_Raise'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote_Cmark Node_Get_Heading_Level returns correct level",
+         Coyote_Cmark_Tests.Test_Heading_Level'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote_Cmark Node_Get_List_Type returns LIST_BULLET",
+         Coyote_Cmark_Tests.Test_List_Type_Is_Bullet'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote_Cmark Node_Get_List_Type returns LIST_ORDERED",
+         Coyote_Cmark_Tests.Test_List_Type_Is_Ordered'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote_Cmark Node_Get_List_Start returns declared ordinal",
+         Coyote_Cmark_Tests.Test_List_Start_Ordinal'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote_Cmark Node_Get_Literal on code block returns content",
+         Coyote_Cmark_Tests.Test_Code_Block_Literal'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote_Cmark shim returns empty string for null literal",
+         Coyote_Cmark_Tests.Test_Get_Literal_Null_Safety'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote_Cmark event constants are mutually distinct",
+         Coyote_Cmark_Tests.Test_Event_Constants_Are_Distinct'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote_Cmark Render_Markdown node-type constants are distinct",
+         Coyote_Cmark_Tests.Test_Node_Constants_Are_Distinct'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote_Renderer.Markup nested list indentation",
+         Coyote_Cmark_Tests.Test_Pango_Markup_Nested_List_Indentation'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote.Renderer.MathML protects Markdown code blocks",
+         Coyote_Cmark_Tests.Test_Display_Math_Extraction_Is_Code_Safe'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote.Renderer.MathML preserves display-math source",
+         Coyote_Cmark_Tests.Test_Display_Math_Extraction_Preserves_Source'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote.Renderer.MathML preserves unmatched delimiters",
+         Coyote_Cmark_Tests.Test_Display_Math_Extraction_Preserves_Unmatched'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote.Renderer.Tables preserves plain text",
+         Coyote_Cmark_Tests.Test_Table_Extraction_Preserves_Plain_Text'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote.Renderer.Tables preserves table metadata",
+         Coyote_Cmark_Tests.Test_Table_Extraction_Preserves_Metadata'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote.Renderer.Tables preserves table line count",
+         Coyote_Cmark_Tests.Test_Table_Extraction_Preserves_Line_Count'Access));
+      Result.Add_Test (Coyote_Cmark_Caller.Create
+        ("Coyote.Renderer.Tables preserves source order",
+         Coyote_Cmark_Tests.Test_Table_Extraction_Preserves_Source_Order'Access));
+
+      return Result;
+   end Suite;
 
 end Coyote_Cmark_Tests;

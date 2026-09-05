@@ -3,6 +3,8 @@ with Ada.Containers;
 with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with GNATCOLL.JSON;
@@ -787,5 +789,66 @@ package body LLM_Settings_Tests is
          Cleanup_Test_Home (Home);
          raise;
    end Test_Save_Preferences_Preserves_And_Clears;
+
+
+   package LLM_Settings_Caller is
+     new AUnit.Test_Caller (LLM_Settings_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (LLM_Settings_Caller.Create
+        ("LLM.Settings loads defaults and subagent defaults from settings.json",
+         LLM_Settings_Tests.Test_Load_Settings'Access));
+      Result.Add_Test (LLM_Settings_Caller.Create
+        ("LLM.Settings loads appendSystemPrompt from settings.json",
+         LLM_Settings_Tests.Test_Append_System_Prompt_Loaded'Access));
+      Result.Add_Test (LLM_Settings_Caller.Create
+        ("LLM.Settings Append_System_Prompt defaults to empty",
+         LLM_Settings_Tests.Test_Append_System_Prompt_Missing'Access));
+      Result.Add_Test (LLM_Settings_Caller.Create
+        ("LLM.Settings Agent parameter appears in built prompt",
+         LLM_Settings_Tests.Test_Append_Prompt_In_Built_Prompt'Access));
+      Result.Add_Test (LLM_Settings_Caller.Create
+        ("LLM.Settings Resolve_Api_Key prefers models.json literal value",
+         LLM_Settings_Tests.Test_Resolve_Api_Key_Literal'Access));
+      Result.Add_Test (LLM_Settings_Caller.Create
+        ("LLM.Settings Resolve_Api_Key supports ${ENV_VAR} interpolation",
+         LLM_Settings_Tests.Test_Resolve_Api_Key_Interpolated_Env'Access));
+      Result.Add_Test (LLM_Settings_Caller.Create
+        ("LLM.Settings Resolve_Api_Key falls back to standard env map",
+         LLM_Settings_Tests.Test_Resolve_Api_Key_Default_Env'Access));
+      Result.Add_Test (LLM_Settings_Caller.Create
+        ("LLM.Settings loads promptFilter from settings.json",
+         LLM_Settings_Tests.Test_Prompt_Filter_Loaded'Access));
+      Result.Add_Test (LLM_Settings_Caller.Create
+        ("LLM.Settings Prompt_Filter defaults to empty when absent",
+         LLM_Settings_Tests.Test_Prompt_Filter_Missing'Access));
+      Result.Add_Test (LLM_Settings_Caller.Create
+        ("LLM.Settings loads default sandbox profile",
+         LLM_Settings_Tests.Test_Default_Sandbox_Profile_Loaded'Access));
+      Result.Add_Test (LLM_Settings_Caller.Create
+        ("LLM.Settings loads skillPaths array",
+         LLM_Settings_Tests.Test_Skill_Paths_Loaded'Access));
+      Result.Add_Test (LLM_Settings_Caller.Create
+        ("LLM.Settings loads and clamps termination grace",
+         LLM_Settings_Tests.Test_Termination_Grace_Load_And_Clamp'Access));
+      Result.Add_Test (LLM_Settings_Caller.Create
+        ("LLM.Settings loads and validates max recursion depth",
+         LLM_Settings_Tests.Test_Max_Recursion_Depth_Invalid_Defaults'Access));
+      Result.Add_Test (LLM_Settings_Caller.Create
+        ("LLM.Settings Save_Preferences preserves and clears fields",
+         LLM_Settings_Tests.Test_Save_Preferences_Preserves_And_Clears'Access));
+      Result.Add_Test (LLM_Settings_Caller.Create
+        ("LLM.Settings completion notifications default and load",
+         LLM_Settings_Tests
+           .Test_Completion_Notifications_Default_Enabled'Access));
+      Result.Add_Test (LLM_Settings_Caller.Create
+        ("LLM.Settings price display load, default, and save",
+         LLM_Settings_Tests.Test_Price_Display_Load_And_Default'Access));
+
+      return Result;
+   end Suite;
 
 end LLM_Settings_Tests;

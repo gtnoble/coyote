@@ -1,4 +1,6 @@
 with AUnit.Assertions;
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Characters.Latin_1;
 with GNATCOLL.JSON;         use GNATCOLL.JSON;
@@ -1499,5 +1501,308 @@ package body Coyote_App_Tests is
       Assert (Found_Para,
               "Standard paragraph must still have type_string='paragraph'");
    end Test_Cmark_Paragraph_Type_String;
+
+
+   package App_State_Caller is
+     new AUnit.Test_Caller (Coyote_App_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State model round-trip",
+         Coyote_App_Tests.Test_State_Model'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State streaming flag",
+         Coyote_App_Tests.Test_State_Streaming'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State token counts",
+         Coyote_App_Tests.Test_State_Tokens'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State shutdown barrier",
+         Coyote_App_Tests.Test_State_Shutdown'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State session ID",
+         Coyote_App_Tests.Test_State_Session_Id'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Nth_Field basic space-separated",
+         Coyote_App_Tests.Test_Nth_Field_Basic'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Nth_Field tab-separated input",
+         Coyote_App_Tests.Test_Nth_Field_Tabs'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Nth_Field edge cases",
+         Coyote_App_Tests.Test_Nth_Field_Edges'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_Turn_Footer: step-level separator",
+         Coyote_App_Tests.Test_Format_Turn_Footer_Display_Step'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Turn_Step increment",
+         Coyote_App_Tests.Test_State_Turn_Step_Increment'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Turn_Step set",
+         Coyote_App_Tests.Test_State_Turn_Step_Set'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Turn_Step reset",
+         Coyote_App_Tests.Test_State_Turn_Step_Reset'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Turn_Count increment",
+         Coyote_App_Tests.Test_State_Turn_Count_Increment'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Turn_Count set",
+         Coyote_App_Tests.Test_State_Turn_Count_Set'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Turn_Count reset",
+         Coyote_App_Tests.Test_State_Turn_Count_Reset'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Is_Retrying initial value is False",
+         Coyote_App_Tests.Test_State_Is_Retrying_Initial'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Is_Retrying set and clear",
+         Coyote_App_Tests.Test_State_Is_Retrying_Set_And_Clear'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Is_Retrying independent of text flags",
+         Coyote_App_Tests.Test_State_Is_Retrying_Independent'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Has_Text_Delta initial value is False",
+         Coyote_App_Tests.Test_State_Has_Text_Delta_Initial'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Has_Text_Delta set and clear",
+         Coyote_App_Tests.Test_State_Has_Text_Delta_Set_And_Clear'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Has_Text_Delta independent of Text_Emitted",
+         Coyote_App_Tests.Test_State_Has_Text_Delta_Independent'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Last_Stop_Reason initial value is empty",
+         Coyote_App_Tests.Test_State_Last_Stop_Reason_Initial'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Last_Stop_Reason round-trip for all stop-reason values",
+         Coyote_App_Tests.Test_State_Last_Stop_Reason_Round_Trip'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Last_Stop_Reason independent of all other flags",
+         Coyote_App_Tests.Test_State_Last_Stop_Reason_Independent'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Last_Error_Message initial value is empty",
+         Coyote_App_Tests.Test_State_Last_Error_Message_Initial'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Last_Error_Message round-trip and independence",
+         Coyote_App_Tests
+           .Test_State_Last_Error_Message_Round_Trip'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Pending_Stats gated by Last_Stop_Reason "
+         & "(stop/length only)",
+         Coyote_App_Tests
+           .Test_State_Pending_Stats_Gated_By_Stop_Reason'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Stats model part: non-empty when model is set",
+         Coyote_App_Tests.Test_Stats_Model_Part_When_Set'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Stats model part: empty guard when no model set",
+         Coyote_App_Tests.Test_Stats_Model_Part_When_Empty'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Turn_Cost_Dmil initial value is 0",
+         Coyote_App_Tests.Test_State_Turn_Cost_Initial'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Turn_Cost_Dmil round-trip via Set_Turn_Cost",
+         Coyote_App_Tests.Test_State_Turn_Cost_Round_Trip'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State session stats fields all start at 0",
+         Coyote_App_Tests.Test_State_Session_Stats_Initial'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Set_Session_Stats stores all six fields atomically",
+         Coyote_App_Tests.Test_State_Session_Stats_Round_Trip'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Set_Session_Stats with zeros resets all fields",
+         Coyote_App_Tests.Test_State_Session_Stats_Reset'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State cost fields are independent of per-turn token counts",
+         Coyote_App_Tests.Test_State_Cost_Independent_Of_Tokens'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("JSON_Scalar_Image: string value returned without quotes",
+         Coyote_App_Tests.Test_JSON_Scalar_String'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("JSON_Scalar_Image: integer value serialised as numeric string",
+         Coyote_App_Tests.Test_JSON_Scalar_Integer'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("JSON_Scalar_Image: negative integer serialised correctly",
+         Coyote_App_Tests.Test_JSON_Scalar_Negative_Integer'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("JSON_Scalar_Image: boolean true serialises to ""true""",
+         Coyote_App_Tests.Test_JSON_Scalar_Boolean_True'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("JSON_Scalar_Image: boolean false serialises to ""false""",
+         Coyote_App_Tests.Test_JSON_Scalar_Boolean_False'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("JSON_Scalar_Image: float value serialises to non-empty string",
+         Coyote_App_Tests.Test_JSON_Scalar_Float'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("JSON_Scalar_Image: null value returns ""...""",
+         Coyote_App_Tests.Test_JSON_Scalar_Null'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("JSON_Scalar_Image: object value returns ""...""",
+         Coyote_App_Tests.Test_JSON_Scalar_Object'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("JSON_Scalar_Image: array value returns ""...""",
+         Coyote_App_Tests.Test_JSON_Scalar_Array'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State One_Shot_Result initial value is empty",
+         Coyote_App_Tests.Test_One_Shot_Result_Initial'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State One_Shot_Result first-write-wins",
+         Coyote_App_Tests.Test_One_Shot_Result_First_Write_Wins'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_Tool_Field: single-line value returns border + label + value",
+         Coyote_App_Tests.Test_Format_Tool_Field_Single_Line'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_Tool_Field: two-line value carries border on both lines",
+         Coyote_App_Tests.Test_Format_Tool_Field_Two_Lines'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_Tool_Field: three-line value carries border on every line",
+         Coyote_App_Tests.Test_Format_Tool_Field_Three_Lines'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_Tool_Field: trailing LF produces empty continuation line",
+         Coyote_App_Tests.Test_Format_Tool_Field_Trailing_LF'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_Tool_Field: empty value returns border + label only",
+         Coyote_App_Tests.Test_Format_Tool_Field_Empty_Value'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_Tool_Field: value over Max_Len is truncated with ellipsis",
+         Coyote_App_Tests.Test_Format_Tool_Field_Truncation'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Tool_Segment line count: LF-count + 1 = display lines",
+         Coyote_App_Tests.Test_Tool_Segment_Line_Count'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_SI_Count: values below 1000 returned as decimal",
+         Coyote_App_Tests.Test_Format_SI_Count_Below_Threshold'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_SI_Count: exact multiples of 1000 use ""k"" suffix",
+         Coyote_App_Tests.Test_Format_SI_Count_Round_Numbers'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_SI_Count: non-zero hundredths produce ""N.FFk"" form",
+         Coyote_App_Tests.Test_Format_SI_Count_Fractional'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_SI_Count: values >= 1 000 000 use ""M"" suffix",
+         Coyote_App_Tests.Test_Format_SI_Count_M_Range'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_Cost: 0 dmil -> ""$0.0000""",
+         Coyote_App_Tests.Test_Format_Cost_Zero'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_Cost: sub-dollar values zero-pad fractional digits",
+         Coyote_App_Tests.Test_Format_Cost_Fractional'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_Cost: values >= 10000 dmil have non-zero dollar part",
+         Coyote_App_Tests.Test_Format_Cost_Dollars'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_Model_Price: all zeros returns empty string",
+         Coyote_App_Tests.Test_Format_Model_Price_All_Zeros'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_Model_Price: in/out only produces two SI Âµ segments",
+         Coyote_App_Tests.Test_Format_Model_Price_In_Out_Only'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_Model_Price: all four fields, four SI-prefixed segments",
+         Coyote_App_Tests.Test_Format_Model_Price_All_Four'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_Model_Price: zero cache fields are silently omitted",
+         Coyote_App_Tests.Test_Format_Model_Price_Omits_Zeros'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_Model_Price: cache-read-only produces nano cr segment",
+         Coyote_App_Tests.Test_Format_Model_Price_Cache_Only'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_DB_Price: representative values use $/tok",
+         Coyote_App_Tests.Test_Format_DB_Price_Representative'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_DB_Price: free and negative values",
+         Coyote_App_Tests.Test_Format_DB_Price_Free_And_Negative'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Get_Cost_Dmil: JSON float converted to dmil units",
+         Coyote_App_Tests.Test_Get_Cost_Dmil_Float_Value'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Get_Cost_Dmil: JSON float 0.0 returns 0",
+         Coyote_App_Tests.Test_Get_Cost_Dmil_Zero_Float'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Get_Cost_Dmil: JSON integer 0 returns 0",
+         Coyote_App_Tests.Test_Get_Cost_Dmil_Integer_Zero'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Get_Cost_Dmil: absent field returns 0",
+         Coyote_App_Tests.Test_Get_Cost_Dmil_Absent_Field'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Get_Cost_Dmil: negative float returns 0",
+         Coyote_App_Tests.Test_Get_Cost_Dmil_Negative_Float'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_Status: empty state produces ""* ready""",
+         Coyote_App_Tests.Test_Format_Status_Default'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_Status: Extra argument reflected verbatim",
+         Coyote_App_Tests.Test_Format_Status_Custom_Extra'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_Status: model shown as ""[provider/model]""",
+         Coyote_App_Tests.Test_Format_Status_With_Model'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_Status: session ID shows first 8 chars",
+         Coyote_App_Tests.Test_Format_Status_With_Session'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_Status: token/context window shown as ""Nk/Mk""",
+         Coyote_App_Tests.Test_Format_Status_With_Context'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_Status: thinking level shown as "" ~level""",
+         Coyote_App_Tests.Test_Format_Status_With_Thinking'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Format_Status: sandbox profile shown as ""[profile]""",
+         Coyote_App_Tests.Test_Format_Status_With_Sandbox'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Apply_Prompt_Filter: empty filter returns raw unchanged",
+         Coyote_App_Tests.Test_Apply_Filter_Empty_Filter'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Apply_Prompt_Filter: cat filter echoes prompt back",
+         Coyote_App_Tests.Test_Apply_Filter_Echo'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Apply_Prompt_Filter: tr filter transforms prompt to uppercase",
+         Coyote_App_Tests.Test_Apply_Filter_Transform'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Apply_Prompt_Filter: non-zero exit falls back to raw with warning",
+         Coyote_App_Tests.Test_Apply_Filter_Non_Zero_Exit'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Apply_Prompt_Filter: empty stdout falls back to raw with warning",
+         Coyote_App_Tests.Test_Apply_Filter_Empty_Output'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("Apply_Prompt_Filter: output is trimmed of surrounding whitespace",
+         Coyote_App_Tests.Test_Apply_Filter_Trims_Whitespace'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Prompt_Filter initial value is empty",
+         Coyote_App_Tests.Test_State_Prompt_Filter_Initial'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Prompt_Filter round-trip via Set_Prompt_Filter",
+         Coyote_App_Tests.Test_State_Prompt_Filter_Round_Trip'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Is_Paused initial value is False",
+         Coyote_App_Tests.Test_State_Is_Paused_Initial'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Is_Paused toggles via Set_Paused",
+         Coyote_App_Tests.Test_State_Is_Paused_Set_And_Clear'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Is_Pause_Armed initial value is False",
+         Coyote_App_Tests.Test_State_Is_Pause_Armed_Initial'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Is_Pause_Armed toggles via Set_Pause_Armed",
+         Coyote_App_Tests.Test_State_Is_Pause_Armed_Set_And_Clear'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Current_Sandbox initial value is empty",
+         Coyote_App_Tests.Test_State_Sandbox_Initial'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Current_Sandbox round-trip via Set_Sandbox",
+         Coyote_App_Tests.Test_State_Sandbox_Round_Trip'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State Set_Sandbox to empty clears the profile",
+         Coyote_App_Tests.Test_State_Sandbox_Clear'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("GFM cmark: table input produces node with type_string 'table'",
+         Coyote_App_Tests.Test_Cmark_GFM_Table_Parsed'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("GFM cmark: paragraph still has type_string 'paragraph'",
+         Coyote_App_Tests.Test_Cmark_Paragraph_Type_String'Access));
+
+      return Result;
+   end Suite;
 
 end Coyote_App_Tests;

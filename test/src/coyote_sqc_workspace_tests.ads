@@ -4,6 +4,7 @@
 
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 
 package Coyote_SQC_Workspace_Tests is
 
@@ -34,4 +35,6 @@ package Coyote_SQC_Workspace_Tests is
 
    procedure Test_Quantile_Bonferroni_Round_Trip  (T : in out Test);
    procedure Test_Quantile_Bonferroni_Default      (T : in out Test);
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
+
 end Coyote_SQC_Workspace_Tests;

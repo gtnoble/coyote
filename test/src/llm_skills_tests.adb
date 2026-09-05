@@ -3,6 +3,8 @@ with Ada.Containers;
 with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with LLM.Skills;
@@ -879,5 +881,89 @@ package body LLM_Skills_Tests is
          Cleanup (Install_Root);
          raise;
    end Test_Install_Root_Skills_Loaded;
+
+
+   package LLM_Skills_Caller is
+     new AUnit.Test_Caller (LLM_Skills_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (LLM_Skills_Caller.Create
+        ("LLM.Skills returns empty string when no skills exist",
+         LLM_Skills_Tests.Test_No_Skills_Returns_Empty_String'Access));
+      Result.Add_Test (LLM_Skills_Caller.Create
+        ("LLM.Skills parses name and description from frontmatter",
+         LLM_Skills_Tests.Test_Parses_Name_And_Description'Access));
+      Result.Add_Test (LLM_Skills_Caller.Create
+        ("LLM.Skills records absolute skill file locations",
+         LLM_Skills_Tests.Test_Location_Is_Absolute_Path'Access));
+      Result.Add_Test (LLM_Skills_Caller.Create
+        ("LLM.Skills skips files missing name",
+         LLM_Skills_Tests.Test_Missing_Name_Skipped'Access));
+      Result.Add_Test (LLM_Skills_Caller.Create
+        ("LLM.Skills skips files missing description",
+         LLM_Skills_Tests.Test_Missing_Description_Skipped'Access));
+      Result.Add_Test (LLM_Skills_Caller.Create
+        ("LLM.Skills loads global skills",
+         LLM_Skills_Tests.Test_Global_Skills_Loaded'Access));
+      Result.Add_Test (LLM_Skills_Caller.Create
+        ("LLM.Skills loads project skills",
+         LLM_Skills_Tests.Test_Project_Skills_Loaded'Access));
+      Result.Add_Test (LLM_Skills_Caller.Create
+        ("LLM.Skills loads global ~/.agents/skills",
+         LLM_Skills_Tests.Test_Global_Agents_Skills_Loaded'Access));
+      Result.Add_Test (LLM_Skills_Caller.Create
+        ("LLM.Skills loads configured skill roots",
+         LLM_Skills_Tests.Test_Configured_Skills_Loaded'Access));
+      Result.Add_Test (LLM_Skills_Caller.Create
+        ("LLM.Skills project roots shadow configured skills",
+         LLM_Skills_Tests.Test_Configured_Skill_Shadowed_By_Project'Access));
+      Result.Add_Test (LLM_Skills_Caller.Create
+        ("LLM.Skills loads project .agents/skills",
+         LLM_Skills_Tests.Test_Project_Agents_Skills_Loaded'Access));
+      Result.Add_Test (LLM_Skills_Caller.Create
+        ("LLM.Skills format contains skill name",
+         LLM_Skills_Tests.Test_Format_Contains_Skill_Name'Access));
+      Result.Add_Test (LLM_Skills_Caller.Create
+        ("LLM.Skills format contains description",
+         LLM_Skills_Tests.Test_Format_Contains_Description'Access));
+      Result.Add_Test (LLM_Skills_Caller.Create
+        ("LLM.Skills format contains location",
+         LLM_Skills_Tests.Test_Format_Contains_Location'Access));
+      Result.Add_Test (LLM_Skills_Caller.Create
+        ("LLM.Skills format contains outer tags",
+         LLM_Skills_Tests.Test_Format_Contains_Outer_Tags'Access));
+      Result.Add_Test (LLM_Skills_Caller.Create
+        ("LLM.Skills format contains preamble",
+         LLM_Skills_Tests.Test_Format_Contains_Preamble'Access));
+      Result.Add_Test (LLM_Skills_Caller.Create
+        ("LLM.Skills formats two skills",
+         LLM_Skills_Tests.Test_Format_Two_Skills'Access));
+      Result.Add_Test (LLM_Skills_Caller.Create
+        ("LLM.Skills auto-injects into Build_System_Prompt",
+         LLM_Skills_Tests.Test_Injected_Into_Built_Prompt'Access));
+      Result.Add_Test (LLM_Skills_Caller.Create
+        ("LLM.Skills Install_Base derives prefix from bin/coyote",
+         LLM_Skills_Tests.Test_Install_Base_Bin_Coyote'Access));
+      Result.Add_Test (LLM_Skills_Caller.Create
+        ("LLM.Skills Install_Base returns empty for non-bin path",
+         LLM_Skills_Tests.Test_Install_Base_Non_Standard'Access));
+      Result.Add_Test (LLM_Skills_Caller.Create
+        ("LLM.Skills Install_Base uses explicit Executable arg",
+         LLM_Skills_Tests.Test_Install_Base_Explicit_Arg'Access));
+      Result.Add_Test (LLM_Skills_Caller.Create
+        ("LLM.Skills Installation_Skills_Base appends path",
+         LLM_Skills_Tests.Test_Installation_Skills_Base_Path'Access));
+      Result.Add_Test (LLM_Skills_Caller.Create
+        ("LLM.Skills Installation_Skills_Base returns empty for non-bin",
+         LLM_Skills_Tests.Test_Installation_Skills_Base_Empty'Access));
+      Result.Add_Test (LLM_Skills_Caller.Create
+        ("LLM.Skills install-root skills not loaded when bin/ absent",
+         LLM_Skills_Tests.Test_Install_Root_Skills_Loaded'Access));
+
+      return Result;
+   end Suite;
 
 end LLM_Skills_Tests;

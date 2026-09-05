@@ -4,6 +4,7 @@
 
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 
 package Coyote_App_Agent_RPC_Service_Tests is
 
@@ -12,5 +13,7 @@ package Coyote_App_Agent_RPC_Service_Tests is
    procedure Test_Listener_Registers_Child (T : in out Test);
    procedure Test_Command_Routes_To_Child (T : in out Test);
    procedure Test_Disconnect_Is_Reported (T : in out Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end Coyote_App_Agent_RPC_Service_Tests;

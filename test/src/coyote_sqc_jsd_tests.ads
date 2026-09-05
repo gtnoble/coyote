@@ -7,6 +7,7 @@
 
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 
 package Coyote_SQC_JSD_Tests is
 
@@ -35,5 +36,7 @@ package Coyote_SQC_JSD_Tests is
    procedure Test_Estimate_JSD_Sum_I_Grand_Mean      (T : in out Test);
    procedure Test_Estimate_JSD_Sum_I_Mean_MR         (T : in out Test);
    procedure Test_Estimate_JSD_Sum_Excludes_No_Pairs (T : in out Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end Coyote_SQC_JSD_Tests;

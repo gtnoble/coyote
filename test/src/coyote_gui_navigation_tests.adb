@@ -1,3 +1,5 @@
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 --  Coyote_GUI_Navigation_Tests body.
 --
 --  Project: coyote
@@ -40,5 +42,26 @@ package body Coyote_GUI_Navigation_Tests is
       Assert (Target_Value (1000.0, 0.0, 1000.0, 100.0, 18.0, Line_Down) = 900.0,
               "down should clamp at effective upper bound");
    end Test_Top_Bottom_And_Clamp;
+
+
+   package Coyote_GUI_Navigation_Caller is
+     new AUnit.Test_Caller (Coyote_GUI_Navigation_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (Coyote_GUI_Navigation_Caller.Create
+        ("Coyote.GUI.Navigation line movement",
+         Coyote_GUI_Navigation_Tests.Test_Line_Movement'Access));
+      Result.Add_Test (Coyote_GUI_Navigation_Caller.Create
+        ("Coyote.GUI.Navigation page movement",
+         Coyote_GUI_Navigation_Tests.Test_Page_Movement'Access));
+      Result.Add_Test (Coyote_GUI_Navigation_Caller.Create
+        ("Coyote.GUI.Navigation top bottom clamp",
+         Coyote_GUI_Navigation_Tests.Test_Top_Bottom_And_Clamp'Access));
+
+      return Result;
+   end Suite;
 
 end Coyote_GUI_Navigation_Tests;

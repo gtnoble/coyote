@@ -1,5 +1,6 @@
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 
 package LLM_SSE_Tests is
 
@@ -13,5 +14,7 @@ package LLM_SSE_Tests is
    procedure Test_Anthropic_Fixture (T : in out Test);
    procedure Test_OpenAI_Fixture (T : in out Test);
    procedure Test_Reset (T : in out Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end LLM_SSE_Tests;

@@ -1,5 +1,6 @@
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 
 package LLM_Context_Tests is
 
@@ -15,5 +16,7 @@ package LLM_Context_Tests is
    procedure Test_Outer_Header_Present (T : in out Test);
    procedure Test_No_Header_When_Empty (T : in out Test);
    procedure Test_Injected_Into_Built_Prompt (T : in out Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end LLM_Context_Tests;

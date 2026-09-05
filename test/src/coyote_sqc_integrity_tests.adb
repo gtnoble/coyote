@@ -1,3 +1,5 @@
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 --  Coyote_SQC_Integrity_Tests body.
 --
 --  Project: coyote
@@ -187,5 +189,38 @@ package body Coyote_SQC_Integrity_Tests is
       Assert (W.Setup_Session_Ids.Contains (To_Unbounded_String ("bbb")),
               "Remove_Missing none: ""bbb"" must still be present");
    end Test_Remove_Missing_None;
+
+
+   package SQC_Integrity_Caller is
+     new AUnit.Test_Caller (Coyote_SQC_Integrity_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (SQC_Integrity_Caller.Create
+        ("SQC integrity: Check all present returns Missing_Count = 0",
+         Coyote_SQC_Integrity_Tests.Test_Check_All_Present'Access));
+      Result.Add_Test (SQC_Integrity_Caller.Create
+        ("SQC integrity: Check one missing returns Missing_Count = 1",
+         Coyote_SQC_Integrity_Tests.Test_Check_Some_Missing'Access));
+      Result.Add_Test (SQC_Integrity_Caller.Create
+        ("SQC integrity: Check all missing returns Missing_Count = N",
+         Coyote_SQC_Integrity_Tests.Test_Check_All_Missing'Access));
+      Result.Add_Test (SQC_Integrity_Caller.Create
+        ("SQC integrity: Check empty setup interval returns Missing_Count = 0",
+         Coyote_SQC_Integrity_Tests.Test_Check_Empty_Setup'Access));
+      Result.Add_Test (SQC_Integrity_Caller.Create
+        ("SQC integrity: Remove_Missing removes absent, retains present",
+         Coyote_SQC_Integrity_Tests.Test_Remove_Missing_Partial'Access));
+      Result.Add_Test (SQC_Integrity_Caller.Create
+        ("SQC integrity: Remove_Missing clears all when all absent",
+         Coyote_SQC_Integrity_Tests.Test_Remove_Missing_All'Access));
+      Result.Add_Test (SQC_Integrity_Caller.Create
+        ("SQC integrity: Remove_Missing no-op when all present",
+         Coyote_SQC_Integrity_Tests.Test_Remove_Missing_None'Access));
+
+      return Result;
+   end Suite;
 
 end Coyote_SQC_Integrity_Tests;

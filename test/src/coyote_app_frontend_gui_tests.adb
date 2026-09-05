@@ -1,3 +1,5 @@
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 --  Coyote_App_Frontend_GUI_Tests body.
 --
 --  Project: coyote
@@ -276,8 +278,33 @@ package body Coyote_App_Frontend_GUI_Tests is
                     "GTK resolves the coyote icon to a source file");
          end if;
       end;
+      Frontend.Request_Shutdown;
       Dialog.Destroy;
       Main_Window (Frontend).Destroy;
    end Test_Product_Information_Icon;
+
+
+   package Coyote_App_Frontend_GUI_Caller is
+     new AUnit.Test_Caller (Coyote_App_Frontend_GUI_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (Coyote_App_Frontend_GUI_Caller.Create
+        ("Coyote.GUI Product Information displays application icon",
+         Coyote_App_Frontend_GUI_Tests
+           .Test_Product_Information_Icon'Access));
+      Result.Add_Test (Coyote_App_Frontend_GUI_Caller.Create
+        ("Coyote.GUI layout and shutdown lifecycle",
+         Coyote_App_Frontend_GUI_Tests
+           .Test_Layout_And_Shutdown_Lifecycle'Access));
+      Result.Add_Test (Coyote_App_Frontend_GUI_Caller.Create
+        ("Coyote.GUI agent tree expands new subagents",
+         Coyote_App_Frontend_GUI_Tests
+           .Test_Agent_Tree_Expands_New_Subagents'Access));
+
+      return Result;
+   end Suite;
 
 end Coyote_App_Frontend_GUI_Tests;

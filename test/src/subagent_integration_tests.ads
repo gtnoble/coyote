@@ -1,5 +1,6 @@
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 
 --  Integration tests for the coyote --one-shot (subagent) mode.
 --
@@ -31,5 +32,7 @@ package Subagent_Integration_Tests is
    --  A nested --subagent invocation must be rejected before frontend startup
    --  when the configured maximum depth has already been reached.
    procedure Test_Subagent_Recursion_Limit (T : in out Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end Subagent_Integration_Tests;

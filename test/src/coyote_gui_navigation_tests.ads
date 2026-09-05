@@ -4,6 +4,7 @@
 
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 
 package Coyote_GUI_Navigation_Tests is
 
@@ -12,5 +13,7 @@ package Coyote_GUI_Navigation_Tests is
    procedure Test_Line_Movement (T : in out Test);
    procedure Test_Page_Movement (T : in out Test);
    procedure Test_Top_Bottom_And_Clamp (T : in out Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end Coyote_GUI_Navigation_Tests;

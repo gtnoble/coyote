@@ -1,3 +1,5 @@
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 --  Coyote_App_Agent_RPC_Transport_Tests — local RPC channel tests.
 --
 --  Project: coyote
@@ -257,5 +259,47 @@ package body Coyote_App_Agent_RPC_Transport_Tests is
       Close (Server);
       Close (Listener);
    end Test_Unix_Listener_Accepts_Client;
+
+
+   package Agent_RPC_Transport_Caller is
+     new AUnit.Test_Caller (Coyote_App_Agent_RPC_Transport_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (Agent_RPC_Transport_Caller.Create
+        ("Agent RPC transport pair round-trips a handshake",
+         Coyote_App_Agent_RPC_Transport_Tests.Test_Pair_Round_Trip'Access));
+      Result.Add_Test (Agent_RPC_Transport_Caller.Create
+        ("Agent RPC transport enforces handshake ordering",
+         Coyote_App_Agent_RPC_Transport_Tests.Test_Handshake_Ordering'Access));
+      Result.Add_Test (Agent_RPC_Transport_Caller.Create
+        ("Agent RPC transport enforces increasing event sequence",
+         Coyote_App_Agent_RPC_Transport_Tests
+           .Test_Event_Sequence_Must_Increase'Access));
+      Result.Add_Test (Agent_RPC_Transport_Caller.Create
+        ("Agent RPC transport rejects frames after terminal",
+         Coyote_App_Agent_RPC_Transport_Tests
+           .Test_Terminal_Closes_Send_Side'Access));
+      Result.Add_Test (Agent_RPC_Transport_Caller.Create
+        ("Agent RPC transport reports peer close",
+         Coyote_App_Agent_RPC_Transport_Tests
+           .Test_Peer_Close_Is_Reported'Access));
+      Result.Add_Test (Agent_RPC_Transport_Caller.Create
+        ("Agent RPC transport receive times out when idle",
+         Coyote_App_Agent_RPC_Transport_Tests
+           .Test_Receive_Times_Out_When_Idle'Access));
+      Result.Add_Test (Agent_RPC_Transport_Caller.Create
+        ("Agent RPC transport listener times out when idle",
+         Coyote_App_Agent_RPC_Transport_Tests
+           .Test_Unix_Listener_Times_Out_When_Idle'Access));
+      Result.Add_Test (Agent_RPC_Transport_Caller.Create
+        ("Agent RPC transport accepts Unix clients",
+         Coyote_App_Agent_RPC_Transport_Tests
+           .Test_Unix_Listener_Accepts_Client'Access));
+
+      return Result;
+   end Suite;
 
 end Coyote_App_Agent_RPC_Transport_Tests;

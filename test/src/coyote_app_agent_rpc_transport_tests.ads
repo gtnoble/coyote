@@ -4,6 +4,7 @@
 
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 
 package Coyote_App_Agent_RPC_Transport_Tests is
 
@@ -17,5 +18,7 @@ package Coyote_App_Agent_RPC_Transport_Tests is
    procedure Test_Receive_Times_Out_When_Idle (T : in out Test);
    procedure Test_Unix_Listener_Times_Out_When_Idle (T : in out Test);
    procedure Test_Unix_Listener_Accepts_Client (T : in out Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end Coyote_App_Agent_RPC_Transport_Tests;

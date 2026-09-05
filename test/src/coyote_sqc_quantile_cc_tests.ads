@@ -4,6 +4,7 @@
 
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 
 package Coyote_SQC_Quantile_CC_Tests is
 
@@ -32,5 +33,7 @@ package Coyote_SQC_Quantile_CC_Tests is
    procedure Test_Sort_Through_Quantiles_Larger    (T : in out Test);
 
    procedure Test_Extract_Limits_Bonferroni_Disabled (T : in out Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end Coyote_SQC_Quantile_CC_Tests;

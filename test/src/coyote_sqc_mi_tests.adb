@@ -1,3 +1,5 @@
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 --  Coyote_SQC_MI_Tests body.
 --
 --  Project: coyote
@@ -360,5 +362,56 @@ package body Coyote_SQC_MI_Tests is
               "MI Sum I excludes Pairs=0: Mean_MR should be 20.0; got "
               & Long_Float'Image (Params.Mean_MR));
    end Test_Estimate_MI_Sum_Excludes_No_Pairs;
+
+
+   package SQC_MI_Caller is
+     new AUnit.Test_Caller (Coyote_SQC_MI_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (SQC_MI_Caller.Create
+        ("SQC MI: identical calls",
+         Coyote_SQC_MI_Tests.Test_MI_Identical_Calls'Access));
+      Result.Add_Test (SQC_MI_Caller.Create
+        ("SQC MI: different tool names",
+         Coyote_SQC_MI_Tests.Test_MI_Different_Tool_Names'Access));
+      Result.Add_Test (SQC_MI_Caller.Create
+        ("SQC MI: one side absent",
+         Coyote_SQC_MI_Tests.Test_MI_One_Side_Absent'Access));
+      Result.Add_Test (SQC_MI_Caller.Create
+        ("SQC MI: integer key skipped",
+         Coyote_SQC_MI_Tests.Test_MI_Integer_Key_Skipped'Access));
+      Result.Add_Test (SQC_MI_Caller.Create
+        ("SQC MI: both sides empty",
+         Coyote_SQC_MI_Tests.Test_MI_Both_Sides_Empty'Access));
+      Result.Add_Test (SQC_MI_Caller.Create
+        ("SQC MI: metrics two identical calls",
+         Coyote_SQC_MI_Tests.Test_Metrics_MI_Two_Identical_Calls'Access));
+      Result.Add_Test (SQC_MI_Caller.Create
+        ("SQC MI: metrics single tool call",
+         Coyote_SQC_MI_Tests.Test_Metrics_MI_Single_Tool_Call'Access));
+      Result.Add_Test (SQC_MI_Caller.Create
+        ("SQC MI: metrics no tool calls",
+         Coyote_SQC_MI_Tests.Test_Metrics_MI_No_Tool_Calls'Access));
+      Result.Add_Test (SQC_MI_Caller.Create
+        ("SQC MI: metrics total sum",
+         Coyote_SQC_MI_Tests.Test_Metrics_MI_Total_Sum'Access));
+      Result.Add_Test (SQC_MI_Caller.Create
+        ("SQC MI: metrics cross-turn pairs",
+         Coyote_SQC_MI_Tests.Test_Metrics_MI_Cross_Turn_Pairs'Access));
+      Result.Add_Test (SQC_MI_Caller.Create
+        ("SQC MI: estimate Grand_Mean",
+         Coyote_SQC_MI_Tests.Test_Estimate_MI_Sum_I_Grand_Mean'Access));
+      Result.Add_Test (SQC_MI_Caller.Create
+        ("SQC MI: estimate Mean_MR",
+         Coyote_SQC_MI_Tests.Test_Estimate_MI_Sum_I_Mean_MR'Access));
+      Result.Add_Test (SQC_MI_Caller.Create
+        ("SQC MI: estimate excludes no-pairs",
+         Coyote_SQC_MI_Tests.Test_Estimate_MI_Sum_Excludes_No_Pairs'Access));
+
+      return Result;
+   end Suite;
 
 end Coyote_SQC_MI_Tests;

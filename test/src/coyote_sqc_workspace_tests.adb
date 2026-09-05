@@ -1,3 +1,5 @@
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 --  Coyote_SQC_Workspace_Tests body.
 --
 --  Project: coyote
@@ -807,4 +809,81 @@ package body Coyote_SQC_Workspace_Tests is
                  & " when field absent from workspace file");
       end;
    end Test_Quantile_Bonferroni_Default;
+
+   package SQC_Workspace_Caller is
+     new AUnit.Test_Caller (Coyote_SQC_Workspace_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("SQC: workspace round-trip serialisation",
+         Coyote_SQC_Workspace_Tests.Test_Round_Trip'Access));
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("SQC: workspace version > 2 raises Workspace_Error",
+         Coyote_SQC_Workspace_Tests.Test_Version_Too_High'Access));
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("SQC: workspace missing version loads without error",
+         Coyote_SQC_Workspace_Tests.Test_Missing_Version'Access));
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("SQC: duplicate setup session IDs are deduplicated on load",
+         Coyote_SQC_Workspace_Tests.Test_UUID_Deduplication'Access));
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("SQC: New_UUID returns valid RFC 4122 v4 format",
+         Coyote_SQC_Workspace_Tests.Test_New_UUID_Format'Access));
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("SQC: New_UUID returns unique values",
+         Coyote_SQC_Workspace_Tests.Test_New_UUID_Unique'Access));
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("Box-Cox config round-trip",
+         Coyote_SQC_Workspace_Tests.Test_Box_Cox_Round_Trip'Access));
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("Robust_Auto lambda source round-trip",
+         Coyote_SQC_Workspace_Tests.Test_Robust_Auto_Round_Trip'Access));
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("v1 workspace loads with Box-Cox disabled",
+         Coyote_SQC_Workspace_Tests.Test_V1_Loads_Box_Cox_Disabled'Access));
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("EWMA: weight and L round-trip through workspace",
+         Coyote_SQC_Workspace_Tests.Test_EWMA_Round_Trip'Access));
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("EWMA: v3 workspace loads default weight=0.2, L=3.0",
+         Coyote_SQC_Workspace_Tests.Test_V3_Loads_EWMA_Defaults'Access));
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("Turn Count Box-Cox: config round-trips through workspace",
+         Coyote_SQC_Workspace_Tests.Test_Turn_Count_Box_Cox_Round_Trip'Access));
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("Turn Count Box-Cox: v4 workspace loads default (disabled)",
+         Coyote_SQC_Workspace_Tests.Test_V4_Loads_Turn_Count_Defaults'Access));
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("Robust estimation: Robust_Median survives workspace round-trip",
+         Coyote_SQC_Workspace_Tests.Test_Estimation_Method_Round_Trip'Access));
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("Robust estimation: v5 workspace loads Classical default",
+         Coyote_SQC_Workspace_Tests.Test_V5_Loads_Classical_Default'Access));
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("SQC workspace: Anscombe transform round-trips through save/load",
+         Coyote_SQC_Workspace_Tests
+           .Test_Anscombe_Transform_Round_Trip'Access));
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("SQC workspace: logYMode round-trips through workspace save/load",
+         Coyote_SQC_Workspace_Tests
+           .Test_Log_Y_Mode_Round_Trip'Access));
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("SQC workspace: Analyze_All_Directories round-trips through save/load",
+         Coyote_SQC_Workspace_Tests
+           .Test_Analyze_All_Directories_Round_Trip'Access));
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("Quantile_Bonferroni round-trip",
+         Coyote_SQC_Workspace_Tests
+           .Test_Quantile_Bonferroni_Round_Trip'Access));
+      Result.Add_Test (SQC_Workspace_Caller.Create
+        ("Quantile_Bonferroni defaults to True when absent",
+         Coyote_SQC_Workspace_Tests
+           .Test_Quantile_Bonferroni_Default'Access));
+
+      return Result;
+   end Suite;
+
 end Coyote_SQC_Workspace_Tests;

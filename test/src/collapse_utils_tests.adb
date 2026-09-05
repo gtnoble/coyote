@@ -1,5 +1,7 @@
 with AUnit.Assertions;
 with Coyote_App.Utils;
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 
 package body Collapse_Utils_Tests is
 
@@ -104,6 +106,42 @@ package body Collapse_Utils_Tests is
         (Result = "first second third",
          "Expected single LFs collapsed to spaces, got '" & Result & "'");
    end Test_Collapse_OpenAI_Mid_Stream;
+
+
+   package Collapse_Utils_Caller is
+     new AUnit.Test_Caller (Collapse_Utils_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (Collapse_Utils_Caller.Create
+        ("Collapse_Thinking_Delta: single-LF collapse to spaces",
+         Collapse_Utils_Tests.Test_Collapse_Basic'Access));
+      Result.Add_Test (Collapse_Utils_Caller.Create
+        ("Collapse_Thinking_Delta: paragraph breaks (LF LF) preserved",
+         Collapse_Utils_Tests.Test_Collapse_Paragraph'Access));
+      Result.Add_Test (Collapse_Utils_Caller.Create
+        ("Collapse_Thinking_Delta: empty input returns empty string",
+         Collapse_Utils_Tests.Test_Collapse_Empty'Access));
+      Result.Add_Test (Collapse_Utils_Caller.Create
+        ("Collapse_Thinking_Delta: no-LF input returned verbatim",
+         Collapse_Utils_Tests.Test_Collapse_NoLF'Access));
+      Result.Add_Test (Collapse_Utils_Caller.Create
+        ("Collapse_Thinking_Delta: leading/trailing whitespace stripped",
+         Collapse_Utils_Tests.Test_Collapse_Leading_Trailing_WS'Access));
+      Result.Add_Test (Collapse_Utils_Caller.Create
+        ("Collapse_Thinking_Delta: spaces preserved as word boundaries",
+         Collapse_Utils_Tests.Test_Collapse_Preserves_Spaces'Access));
+      Result.Add_Test (Collapse_Utils_Caller.Create
+        ("Collapse_Thinking_Delta: OpenAI-style trailing LF stripped",
+         Collapse_Utils_Tests.Test_Collapse_OpenAI_Style'Access));
+      Result.Add_Test (Collapse_Utils_Caller.Create
+        ("Collapse_Thinking_Delta: OpenAI mid-stream LFs become spaces",
+         Collapse_Utils_Tests.Test_Collapse_OpenAI_Mid_Stream'Access));
+
+      return Result;
+   end Suite;
 
 end Collapse_Utils_Tests;
 

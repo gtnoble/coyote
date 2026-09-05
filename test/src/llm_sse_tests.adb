@@ -1,4 +1,6 @@
 with AUnit.Assertions;
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with LLM.SSE;
 
@@ -226,5 +228,41 @@ package body LLM_SSE_Tests is
       LLM.SSE.Feed (P, "data: complete" & ASCII.LF & ASCII.LF);
       Assert_Event (P, Expected_Name => "", Expected_Data => "complete");
    end Test_Reset;
+
+
+   package LLM_SSE_Caller is
+     new AUnit.Test_Caller (LLM_SSE_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (LLM_SSE_Caller.Create
+        ("LLM.SSE parses a complete named event",
+         LLM_SSE_Tests.Test_Full_Event'Access));
+      Result.Add_Test (LLM_SSE_Caller.Create
+        ("LLM.SSE parses an event split across Feed calls",
+         LLM_SSE_Tests.Test_Multi_Chunk_Event'Access));
+      Result.Add_Test (LLM_SSE_Caller.Create
+        ("LLM.SSE returns the [DONE] sentinel unchanged",
+         LLM_SSE_Tests.Test_Done_Event'Access));
+      Result.Add_Test (LLM_SSE_Caller.Create
+        ("LLM.SSE skips ping events transparently",
+         LLM_SSE_Tests.Test_Ping_Skipped'Access));
+      Result.Add_Test (LLM_SSE_Caller.Create
+        ("LLM.SSE accepts CRLF-terminated records",
+         LLM_SSE_Tests.Test_CRLF_Ping_Skipped'Access));
+      Result.Add_Test (LLM_SSE_Caller.Create
+        ("LLM.SSE parses a canned Anthropic SSE fixture",
+         LLM_SSE_Tests.Test_Anthropic_Fixture'Access));
+      Result.Add_Test (LLM_SSE_Caller.Create
+        ("LLM.SSE parses a canned OpenAI SSE fixture",
+         LLM_SSE_Tests.Test_OpenAI_Fixture'Access));
+      Result.Add_Test (LLM_SSE_Caller.Create
+        ("LLM.SSE Reset clears partial buffered data",
+         LLM_SSE_Tests.Test_Reset'Access));
+
+      return Result;
+   end Suite;
 
 end LLM_SSE_Tests;

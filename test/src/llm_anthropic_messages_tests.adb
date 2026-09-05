@@ -6,6 +6,8 @@ with Ada.Directories;
 with Ada.Exceptions;
 with Ada.Strings;
 with Ada.Strings.Fixed;
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Tags;
 with Ada.Text_IO;
@@ -2118,5 +2120,81 @@ package body LLM_Anthropic_Messages_Tests is
          end if;
          raise;
    end Test_Tool_Result_Image_Serialised;
+
+
+   package LLM_Anthropic_Messages_Caller is
+     new AUnit.Test_Caller (LLM_Anthropic_Messages_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (LLM_Anthropic_Messages_Caller.Create
+        ("LLM.Anthropic_Messages streams thinking and text SSE responses",
+         LLM_Anthropic_Messages_Tests
+           .Test_Stream_Thinking_And_Text_Response'Access));
+      Result.Add_Test (LLM_Anthropic_Messages_Caller.Create
+        ("LLM.Anthropic_Messages sends required Anthropic headers",
+         LLM_Anthropic_Messages_Tests.Test_Request_Headers'Access));
+      Result.Add_Test (LLM_Anthropic_Messages_Caller.Create
+        ("LLM.Anthropic_Messages injects the correct thinking budget",
+         LLM_Anthropic_Messages_Tests
+           .Test_Thinking_Budget_Injection'Access));
+      Result.Add_Test (LLM_Anthropic_Messages_Caller.Create
+        ("LLM.Anthropic_Messages encodes compaction summaries as user",
+         LLM_Anthropic_Messages_Tests
+           .Test_Compaction_Summary_Encodes_As_User_Anthropic'Access));
+      Result.Add_Test (LLM_Anthropic_Messages_Caller.Create
+        ("LLM.Anthropic_Messages streams tool_use blocks",
+         LLM_Anthropic_Messages_Tests
+           .Test_Stream_Tool_Use_Response'Access));
+      Result.Add_Test (LLM_Anthropic_Messages_Caller.Create
+        ("LLM.Anthropic_Messages maps alternate stop reasons",
+         LLM_Anthropic_Messages_Tests
+           .Test_Stop_Reason_Mappings'Access));
+      Result.Add_Test (LLM_Anthropic_Messages_Caller.Create
+        ("LLM.Anthropic_Messages uses x-api-key for Anthropic-style URLs",
+         LLM_Anthropic_Messages_Tests
+           .Test_Anthropic_Uses_X_Api_Key_Header'Access));
+      Result.Add_Test (LLM_Anthropic_Messages_Caller.Create
+        ("LLM.Anthropic_Messages propagates HTTP errors",
+         LLM_Anthropic_Messages_Tests
+           .Test_Anthropic_HTTP_Error_Propagates'Access));
+      Result.Add_Test (LLM_Anthropic_Messages_Caller.Create
+        ("LLM.Anthropic_Messages finalizes early-terminated streams",
+         LLM_Anthropic_Messages_Tests
+           .Test_Anthropic_Stream_Terminates_Early'Access));
+      Result.Add_Test (LLM_Anthropic_Messages_Caller.Create
+        ("LLM.Anthropic_Messages captures signature from signature_delta",
+         LLM_Anthropic_Messages_Tests
+           .Test_Signature_Parsed_From_SSE'Access));
+      Result.Add_Test (LLM_Anthropic_Messages_Caller.Create
+        ("LLM.Anthropic_Messages echoes thinking block with signature "
+         & "in subsequent request",
+         LLM_Anthropic_Messages_Tests
+           .Test_Thinking_Block_Serialised_In_Request'Access));
+      Result.Add_Test (LLM_Anthropic_Messages_Caller.Create
+        ("Anthropic system prompt is content-block array with cache_control",
+         LLM_Anthropic_Messages_Tests
+           .Test_System_Prompt_Is_Content_Block_Array'Access));
+      Result.Add_Test (LLM_Anthropic_Messages_Caller.Create
+        ("Anthropic last tool has cache_control breakpoint",
+         LLM_Anthropic_Messages_Tests
+           .Test_Cache_Control_On_Last_Tool'Access));
+      Result.Add_Test (LLM_Anthropic_Messages_Caller.Create
+        ("Anthropic last user message has cache_control breakpoint",
+         LLM_Anthropic_Messages_Tests
+           .Test_Cache_Control_On_Last_User_Message'Access));
+      Result.Add_Test (LLM_Anthropic_Messages_Caller.Create
+        ("Anthropic tool_result with Is_Error includes is_error field",
+         LLM_Anthropic_Messages_Tests
+           .Test_Tool_Result_Is_Error_Serialised'Access));
+      Result.Add_Test (LLM_Anthropic_Messages_Caller.Create
+        ("Anthropic tool_result image block uses base64 source format",
+         LLM_Anthropic_Messages_Tests
+           .Test_Tool_Result_Image_Serialised'Access));
+
+      return Result;
+   end Suite;
 
 end LLM_Anthropic_Messages_Tests;

@@ -1,5 +1,6 @@
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 
 package LLM_Settings_Tests is
 
@@ -26,5 +27,7 @@ package LLM_Settings_Tests is
    procedure Test_Save_Preferences_Preserves_And_Clears (T : in out Test);
    procedure Test_Price_Display_Load_And_Default (T : in out Test);
    procedure Test_Skill_Paths_Loaded (T : in out Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end LLM_Settings_Tests;

@@ -1,4 +1,6 @@
 with AUnit.Assertions;
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Coyote_GUI.Prompt_Queue;
 with LLM.Providers;
@@ -176,5 +178,29 @@ package body Coyote_GUI_Prompt_Queue_Tests is
          Accepted);
       Assert (not Accepted, "full queue should reject an item");
    end Test_Enqueue_Rejects_Overflow;
+
+
+   package Coyote_GUI_Prompt_Queue_Caller is
+     new AUnit.Test_Caller (Coyote_GUI_Prompt_Queue_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (Coyote_GUI_Prompt_Queue_Caller.Create
+        ("Coyote.GUI.Prompt_Queue Set_Preferences round trips",
+         Coyote_GUI_Prompt_Queue_Tests.Test_Set_Preferences_Round_Trips'Access));
+      Result.Add_Test (Coyote_GUI_Prompt_Queue_Caller.Create
+        ("Coyote.GUI.Prompt_Queue reports acceptance",
+         Coyote_GUI_Prompt_Queue_Tests.Test_Enqueue_Reports_Acceptance'Access));
+      Result.Add_Test (Coyote_GUI_Prompt_Queue_Caller.Create
+        ("Coyote.GUI.Prompt_Queue preserves target identity",
+         Coyote_GUI_Prompt_Queue_Tests.Test_Target_Agent_Id_Round_Trips'Access));
+      Result.Add_Test (Coyote_GUI_Prompt_Queue_Caller.Create
+        ("Coyote.GUI.Prompt_Queue rejects overflow",
+         Coyote_GUI_Prompt_Queue_Tests.Test_Enqueue_Rejects_Overflow'Access));
+
+      return Result;
+   end Suite;
 
 end Coyote_GUI_Prompt_Queue_Tests;

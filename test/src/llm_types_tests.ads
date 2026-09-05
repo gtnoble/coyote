@@ -1,5 +1,6 @@
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 
 package LLM_Types_Tests is
 
@@ -14,5 +15,7 @@ package LLM_Types_Tests is
    procedure Test_Message_Vectors (T : in out Test);
 
    procedure Test_Tool_Result_Block_Media_Type (T : in out Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end LLM_Types_Tests;

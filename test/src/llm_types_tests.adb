@@ -1,5 +1,7 @@
 with AUnit.Assertions;
 with Ada.Containers;
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with LLM.Types;
 
@@ -190,5 +192,41 @@ package body LLM_Types_Tests is
          "Is_Error should be False");
    end Test_Tool_Result_Block_Media_Type;
 
+
+
+   package LLM_Types_Caller is
+     new AUnit.Test_Caller (LLM_Types_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (LLM_Types_Caller.Create
+        ("LLM.Types text block stores text content",
+         LLM_Types_Tests.Test_Text_Block'Access));
+      Result.Add_Test (LLM_Types_Caller.Create
+        ("LLM.Types thinking block stores thinking content",
+         LLM_Types_Tests.Test_Thinking_Block'Access));
+      Result.Add_Test (LLM_Types_Caller.Create
+        ("LLM.Types tool-call block stores id/name/arguments",
+         LLM_Types_Tests.Test_Tool_Call_Block'Access));
+      Result.Add_Test (LLM_Types_Caller.Create
+        ("LLM.Types tool-result block stores result and error flag",
+         LLM_Types_Tests.Test_Tool_Result_Block'Access));
+      Result.Add_Test (LLM_Types_Caller.Create
+        ("LLM.Types tool-result block stores Media_Type field",
+         LLM_Types_Tests.Test_Tool_Result_Block_Media_Type'Access));
+      Result.Add_Test (LLM_Types_Caller.Create
+        ("LLM.Types compaction summary messages preserve role and text",
+         LLM_Types_Tests.Test_Compaction_Summary_Role'Access));
+      Result.Add_Test (LLM_Types_Caller.Create
+        ("LLM.Types usage values add field-by-field",
+         LLM_Types_Tests.Test_Usage_Addition'Access));
+      Result.Add_Test (LLM_Types_Caller.Create
+        ("LLM.Types message vectors append and preserve values",
+         LLM_Types_Tests.Test_Message_Vectors'Access));
+
+      return Result;
+   end Suite;
 
 end LLM_Types_Tests;

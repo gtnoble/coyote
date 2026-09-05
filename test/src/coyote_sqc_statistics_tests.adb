@@ -1,3 +1,5 @@
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 --  Coyote_SQC_Statistics_Tests body.
 --
 --  Project: coyote
@@ -2743,5 +2745,323 @@ package body Coyote_SQC_Statistics_Tests is
       Assert (abs (V - 10.0) < 1.0e-10,
               "Robust median of {5,10,100} should be 10.0");
    end Test_Robust_Plot_Box_Cox_Interaction;
+
+
+   package SQC_Statistics_Caller is
+     new AUnit.Test_Caller (Coyote_SQC_Statistics_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: c4(n) matches ASTM E2587 Table 1 reference values",
+         Coyote_SQC_Statistics_Tests.Test_C4_Known_Values'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: c4(101) approximation within 0.1% of exact value",
+         Coyote_SQC_Statistics_Tests.Test_C4_Approximation'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: c4(1) raises Constraint_Error",
+         Coyote_SQC_Statistics_Tests.Test_C4_N1_Raises'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: Xbar limits well-formed for n > 1",
+         Coyote_SQC_Statistics_Tests.Test_Xbar_Limits_Basic'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: Xbar n=1 returns Undefined",
+         Coyote_SQC_Statistics_Tests.Test_Xbar_N1_Undefined'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC stats: Xbar Pooled_S=0 returns Undefined ; Has_UCL and Has_LCL both False",
+         Coyote_SQC_Statistics_Tests.Test_Xbar_Pooled_S_Zero'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: s chart limits well-formed for n > 1",
+         Coyote_SQC_Statistics_Tests.Test_S_Chart_Limits_Basic'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: s chart n=1 returns Undefined",
+         Coyote_SQC_Statistics_Tests.Test_S_Chart_N1_Undefined'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC stats: S_Chart Pooled_S=0 returns Undefined",
+         Coyote_SQC_Statistics_Tests.Test_S_Chart_Pooled_S_Zero'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: s chart LCL clamped to 0 for n=2",
+         Coyote_SQC_Statistics_Tests.Test_S_Chart_LCL_Clamped'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: p chart limits well-formed for N > 0",
+         Coyote_SQC_Statistics_Tests.Test_P_Chart_Limits_Basic'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: p chart N=0 returns Undefined",
+         Coyote_SQC_Statistics_Tests.Test_P_Chart_N0_Undefined'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: p chart LCL clamped to 0 when formula yields negative",
+         Coyote_SQC_Statistics_Tests.Test_P_Chart_LCL_Clamped'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: Estimate_Parameters grand mean and pooled s (Xbar/s)",
+         Coyote_SQC_Statistics_Tests.Test_Estimate_Xbar_S'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC Â§14.1: 5-session varying-n dataset UCL/CL/LCL to 4 dp",
+         Coyote_SQC_Statistics_Tests.Test_Xbar_Known_Dataset'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC Â§14.1: 4-session p-chart dataset UCL/CL/LCL to 4 dp",
+         Coyote_SQC_Statistics_Tests.Test_P_Chart_Known_Dataset'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: Estimate_Parameters grand p (p chart)",
+         Coyote_SQC_Statistics_Tests.Test_Estimate_P_Chart'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: Estimate_Parameters all n=1 sessions -> Pooled_S = 0",
+         Coyote_SQC_Statistics_Tests.Test_Estimate_N1_Only'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC Â§14.1 special: n=1 contributes to grand mean, not pooled s",
+         Coyote_SQC_Statistics_Tests.Test_N1_Excluded_From_Pooled_S'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: Estimate_Parameters excludes zero-thinking sessions",
+         Coyote_SQC_Statistics_Tests.Test_Estimate_Zero_Thinking'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC Â§14.3: Estimate_Parameters excludes zero-tool-call sessions",
+         Coyote_SQC_Statistics_Tests.Test_Estimate_Zero_Tool_Calls'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC Â§14.4: Per_Turn_Tool_Tokens records output tokens for tool-call turns",
+         Coyote_SQC_Statistics_Tests.Test_Tool_Call_Token_Values'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: I chart limits well-formed for Mean_MR > 0",
+         Coyote_SQC_Statistics_Tests.Test_I_Chart_Limits_Basic'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: I chart LCL positive when grand mean sufficiently large",
+         Coyote_SQC_Statistics_Tests.Test_I_Chart_LCL_Positive'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: I chart Mean_MR=0 returns Undefined",
+         Coyote_SQC_Statistics_Tests.Test_I_Chart_Mean_MR_Zero'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: I chart LCL clamped to 0 when formula yields negative",
+         Coyote_SQC_Statistics_Tests.Test_I_Chart_LCL_Clamped'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: MR chart limits well-formed for Mean_MR > 0",
+         Coyote_SQC_Statistics_Tests.Test_MR_Chart_Limits_Basic'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: MR chart Mean_MR=0 returns Undefined",
+         Coyote_SQC_Statistics_Tests.Test_MR_Chart_Mean_MR_Zero'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: Estimate_Parameters grand mean and Mean_MR (I chart, input tokens)",
+         Coyote_SQC_Statistics_Tests.Test_Estimate_I_Chart_Input'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: Estimate_Parameters single-session setup -> Mean_MR = 0",
+         Coyote_SQC_Statistics_Tests.Test_Estimate_I_Chart_Single'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Box_Cox ln identity",
+         Coyote_SQC_Statistics_Tests.Test_Box_Cox_Ln_Identity'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Box_Cox lambda=1 identity",
+         Coyote_SQC_Statistics_Tests.Test_Box_Cox_Lambda_One'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Box_Cox round-trip",
+         Coyote_SQC_Statistics_Tests.Test_Box_Cox_Round_Trip'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Box_Cox zero raises Constraint_Error",
+         Coyote_SQC_Statistics_Tests.Test_Box_Cox_Zero_Raises'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Estimate_Lambda with few observations returns 0",
+         Coyote_SQC_Statistics_Tests.Test_Estimate_Lambda_Few_Obs'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("I chart Box-Cox ln: back-transformed limits",
+         Coyote_SQC_Statistics_Tests.Test_I_Limits_Box_Cox_Ln'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Box-Cox MR: differences of transformed values",
+         Coyote_SQC_Statistics_Tests.Test_Box_Cox_MR_Transformed'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Qn_Scale: N=3 known value",
+         Coyote_SQC_Statistics_Tests.Test_Qn_Scale_N3_Known'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Qn_Scale: N=4 known value",
+         Coyote_SQC_Statistics_Tests.Test_Qn_Scale_N4_Known'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Qn_Scale: N<2 raises Constraint_Error",
+         Coyote_SQC_Statistics_Tests.Test_Qn_Scale_N_Less_2_Raises'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Qn_Scale: zero value raises Constraint_Error",
+         Coyote_SQC_Statistics_Tests.Test_Qn_Scale_Zero_Raises'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Qn_Scale: N=20 (even asymptotic) is positive",
+         Coyote_SQC_Statistics_Tests.Test_Qn_Scale_Asymptotic_Even'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Qn_Scale: N=11 (odd asymptotic) is positive",
+         Coyote_SQC_Statistics_Tests.Test_Qn_Scale_Asymptotic_Odd'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Robust Estimate_Lambda: fewer than 3 obs returns 0.0",
+         Coyote_SQC_Statistics_Tests.
+           Test_Estimate_Lambda_Robust_Few_Obs'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Robust Estimate_Lambda: result in [-2.0, 2.0] on skewed data",
+         Coyote_SQC_Statistics_Tests.
+           Test_Estimate_Lambda_Robust_Basic'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Estimate_Lambda: all-identical data returns 0.0 with fallback",
+         Coyote_SQC_Statistics_Tests.
+           Test_Estimate_Lambda_Degenerate'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("EWMA: Compute_Z single step",
+         Coyote_SQC_Statistics_Tests.Test_EWMA_Compute_Z_Single_Step'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("EWMA: Compute_Z multi step",
+         Coyote_SQC_Statistics_Tests.Test_EWMA_Compute_Z_Multi_Step'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("EWMA: time-varying limits at T=1",
+         Coyote_SQC_Statistics_Tests.Test_EWMA_Limits_T1'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("EWMA: limits converge toward steady state",
+         Coyote_SQC_Statistics_Tests.Test_EWMA_Limits_Steady_State'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("EWMA: zero sigma gives no limits",
+         Coyote_SQC_Statistics_Tests.Test_EWMA_Limits_Zero_Sigma'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("EWMA: LCL clamped to 0 when formula yields negative",
+         Coyote_SQC_Statistics_Tests.Test_EWMA_Limits_LCL_Clamped'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Robust: Median_Of basic (odd size)",
+         Coyote_SQC_Statistics_Tests.Test_Median_Of_Basic'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Robust: Median_Of even size",
+         Coyote_SQC_Statistics_Tests.Test_Median_Of_Even'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Robust: Median_Of single element",
+         Coyote_SQC_Statistics_Tests.Test_Median_Of_Single'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Robust: Median_Of empty array returns 0",
+         Coyote_SQC_Statistics_Tests.Test_Median_Of_Empty'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Robust: Median_Of unsorted input",
+         Coyote_SQC_Statistics_Tests.Test_Median_Of_Unsorted'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Robust: I chart Grand_Mean = median when outlier present",
+         Coyote_SQC_Statistics_Tests.Test_Robust_I_Chart_Grand_Mean'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Robust: I chart Mean_MR = median of MRs, I_Sigma = Qn/2.2219",
+         Coyote_SQC_Statistics_Tests.Test_Robust_I_Chart_Mean_MR'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Robust: Compute_I_Limits uses Sigma parameter directly (no internal divisor)",
+         Coyote_SQC_Statistics_Tests.Test_Robust_I_Limits_Divisor'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Robust: MR chart UCL = D4 * median(MR_i)",
+         Coyote_SQC_Statistics_Tests.Test_Robust_MR_UCL'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Robust: Xbar Grand_Mean = unweighted median of session means",
+         Coyote_SQC_Statistics_Tests.Test_Robust_Xbar_Grand_Mean'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Robust: Xbar Pooled_S = Qn of pooled residuals (> 0)",
+         Coyote_SQC_Statistics_Tests.Test_Robust_Xbar_Pooled_S'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("Robust: p-chart Grand_P unchanged by estimation method",
+         Coyote_SQC_Statistics_Tests.Test_Robust_P_Chart_Unchanged'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: Fraction_Thinking_Tokens Grand_Mean estimated correctly",
+         Coyote_SQC_Statistics_Tests.Test_Fraction_Thinking_Tokens_Grand_Mean'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: Fraction_Tool_Call_Tokens Grand_Mean estimated correctly",
+         Coyote_SQC_Statistics_Tests.Test_Fraction_Tool_Call_Tokens_Grand_Mean'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: token fraction charts exclude zero-output sessions",
+         Coyote_SQC_Statistics_Tests.Test_Fraction_Token_Charts_Zero_Output'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: Fraction_Thinking_Per_Tool_Call Grand_Mean estimated correctly",
+         Coyote_SQC_Statistics_Tests.Test_Fraction_Thinking_Per_Tool_Call_Grand_Mean'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: Fraction_Uncached_Input Grand_Mean estimated correctly",
+         Coyote_SQC_Statistics_Tests.Test_Fraction_Uncached_Input_Grand_Mean'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: new rate charts exclude zero-denominator sessions",
+         Coyote_SQC_Statistics_Tests.Test_Fraction_New_Charts_Zero_Denominator'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC stats: EWMA + ln Box-Cox back-transforms to asymmetric limits",
+         Coyote_SQC_Statistics_Tests
+           .Test_EWMA_Box_Cox_Asymmetric_Limits'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC stats: Robust Grand_Mean gives different EWMA Z0 than Classical",
+         Coyote_SQC_Statistics_Tests
+           .Test_Robust_EWMA_Outlier_Grand_Mean'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: robust Xbar plot uses median",
+         Coyote_SQC_Statistics_Tests.Test_Robust_Xbar_Plot_Median'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: robust s chart plot uses Qn",
+         Coyote_SQC_Statistics_Tests.Test_Robust_S_Plot_Qn'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: robust plot produces distinct values",
+         Coyote_SQC_Statistics_Tests.Test_Robust_Plot_Round_Trip'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: robust plot I chart unaffected",
+         Coyote_SQC_Statistics_Tests
+           .Test_Robust_Plot_I_Chart_Unaffected'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: robust plot p chart unaffected",
+         Coyote_SQC_Statistics_Tests
+           .Test_Robust_Plot_P_Chart_Unaffected'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: robust plot quantile CC unaffected",
+         Coyote_SQC_Statistics_Tests
+           .Test_Robust_Plot_Quantile_Unaffected'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: robust plot single-turn Xbar identical",
+         Coyote_SQC_Statistics_Tests
+           .Test_Robust_Plot_Single_Turn_Xbar'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: robust plot single-turn s excluded",
+         Coyote_SQC_Statistics_Tests
+           .Test_Robust_Plot_Single_Turn_S'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC: robust plot Box-Cox interaction",
+         Coyote_SQC_Statistics_Tests
+           .Test_Robust_Plot_Box_Cox_Interaction'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC stats: Sqrt_VS forward/inverse round-trip",
+         Coyote_SQC_Statistics_Tests
+           .Test_Sqrt_VS_Round_Trip'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC stats: Anscombe forward/inverse round-trip",
+         Coyote_SQC_Statistics_Tests
+           .Test_Anscombe_Round_Trip'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC stats: Arcsinh_VS forward/inverse round-trip (incl. negatives)",
+         Coyote_SQC_Statistics_Tests
+           .Test_Arcsinh_VS_Round_Trip'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC stats: Freeman-Tukey forward/inverse round-trip",
+         Coyote_SQC_Statistics_Tests
+           .Test_Freeman_Tukey_Round_Trip'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC stats: Apply_Transform / Invert_Transform dispatch for all kinds",
+         Coyote_SQC_Statistics_Tests
+           .Test_Apply_Invert_Dispatch'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC stats: Dip_Test_P_Value returns N/A for N < 4",
+         Coyote_SQC_Statistics_Tests
+           .Test_Dip_NA_Too_Small'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC stats: Dip test flags strongly bimodal data (p < 0.05)",
+         Coyote_SQC_Statistics_Tests
+           .Test_Dip_Bimodal_Significant'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC stats: Dip test does not flag tightly unimodal data (p > 0.10)",
+         Coyote_SQC_Statistics_Tests
+           .Test_Dip_Unimodal_Not_Sig'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC Bootstrap: point estimates for Set A={1..5} and Set B={3..7}",
+         Coyote_SQC_Statistics_Tests
+           .Test_Bootstrap_Point_Estimates'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC Bootstrap: 95% CI with seed 12345 contains true parameter",
+         Coyote_SQC_Statistics_Tests
+           .Test_Bootstrap_CI_Coverage'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC Bootstrap: all stats N/A when Set A has fewer than 2 values",
+         Coyote_SQC_Statistics_Tests
+           .Test_Bootstrap_NA_Insufficient'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC Bootstrap: SD_Ratio N/A when SD(A) = 0",
+         Coyote_SQC_Statistics_Tests
+           .Test_Bootstrap_NA_SD_Zero'Access));
+      Result.Add_Test (SQC_Statistics_Caller.Create
+        ("SQC Bootstrap: same seed produces identical CI bounds",
+         Coyote_SQC_Statistics_Tests
+           .Test_Bootstrap_Reproducibility'Access));
+
+      return Result;
+   end Suite;
 
 end Coyote_SQC_Statistics_Tests;

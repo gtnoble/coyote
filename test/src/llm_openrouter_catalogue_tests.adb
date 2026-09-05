@@ -3,6 +3,8 @@ with Ada.Calendar;
 with Ada.Containers;
 with Ada.Directories;
 with Ada.Environment_Variables;
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with GNATCOLL.JSON;
@@ -369,5 +371,27 @@ package body LLM_OpenRouter_Catalogue_Tests is
          Cleanup_Test_Home (Home);
          raise;
    end Test_Stale_Cache_Fallback;
+
+
+   package LLM_OpenRouter_Catalogue_Caller is
+     new AUnit.Test_Caller (LLM_OpenRouter_Catalogue_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (LLM_OpenRouter_Catalogue_Caller.Create
+        ("LLM.OpenRouter.Catalogue loads and parses a fresh cached model list",
+         LLM_OpenRouter_Catalogue_Tests.Test_Load_From_Fresh_Cache'Access));
+      Result.Add_Test (LLM_OpenRouter_Catalogue_Caller.Create
+        ("LLM.OpenRouter.Catalogue uses live fetch when the cache is stale",
+         LLM_OpenRouter_Catalogue_Tests
+           .Test_Stale_Cache_Triggers_Live_Fetch'Access));
+      Result.Add_Test (LLM_OpenRouter_Catalogue_Caller.Create
+        ("LLM.OpenRouter.Catalogue falls back to stale cache on fetch failure",
+         LLM_OpenRouter_Catalogue_Tests.Test_Stale_Cache_Fallback'Access));
+
+      return Result;
+   end Suite;
 
 end LLM_OpenRouter_Catalogue_Tests;

@@ -9,6 +9,14 @@
 
 ## Design Rationale
 
+### AUnit SQC suite hierarchy and timing regression (2026-09-05)
+
+The SQC test callers are now package-scoped leaf suites composed by
+`Test_SQC_Suite`. Moving the Quantile CC and MI caller instantiations out of
+the root suite function fixed a dangling-dispatch lifetime defect that was
+only exposed when AUnit global or per-case timing was enabled. The SQC domain
+contains 208 registrations and passes as part of the verified 822-test suite.
+
 ### Why coyote_sqc is a separate executable
 
 coyote_sqc reads coyote session JSONL files but does not interact with the

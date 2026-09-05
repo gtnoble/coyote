@@ -2,6 +2,8 @@ with AUnit.Assertions;
 with Ada.Strings.Unbounded;
 with Coyote_GUI;
 with Coyote_GUI.Updates;
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 
 package body Coyote_GUI_Updates_Tests is
 
@@ -149,5 +151,41 @@ package body Coyote_GUI_Updates_Tests is
       Assert (To_String (Output.Text2) = To_String (Input.Text2),
               "footer summary must survive the update queue");
    end Test_Footer_Summary_Round_Trips;
+
+
+   package Coyote_GUI_Updates_Caller is
+     new AUnit.Test_Caller (Coyote_GUI_Updates_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (Coyote_GUI_Updates_Caller.Create
+        ("Coyote.GUI.Updates first enqueue wakes exactly once",
+         Coyote_GUI_Updates_Tests.Test_First_Enqueue_Wakes_Exactly_Once'Access));
+      Result.Add_Test (Coyote_GUI_Updates_Caller.Create
+        ("Coyote.GUI.Updates pending enqueue does not duplicate wakeup",
+         Coyote_GUI_Updates_Tests.Test_Pending_Enqueue_Does_Not_Duplicate_Wakeup'Access));
+      Result.Add_Test (Coyote_GUI_Updates_Caller.Create
+        ("Coyote.GUI.Updates idle completion keeps source for pending work",
+         Coyote_GUI_Updates_Tests.Test_Idle_Done_Keeps_Source_For_Pending_Work'Access));
+      Result.Add_Test (Coyote_GUI_Updates_Caller.Create
+        ("Coyote.GUI.Updates idle completion clears source when empty",
+         Coyote_GUI_Updates_Tests.Test_Idle_Done_Clears_Source_When_Empty'Access));
+      Result.Add_Test (Coyote_GUI_Updates_Caller.Create
+        ("Coyote.GUI.Updates enqueue rearms after idle completion",
+         Coyote_GUI_Updates_Tests.Test_Enqueue_Rearms_After_Idle_Done'Access));
+      Result.Add_Test (Coyote_GUI_Updates_Caller.Create
+        ("Coyote.GUI.Updates stopped queue does not wake",
+         Coyote_GUI_Updates_Tests.Test_Stopped_Queue_Does_Not_Wake'Access));
+      Result.Add_Test (Coyote_GUI_Updates_Caller.Create
+        ("Coyote.GUI.Updates preserves runtime agent identity",
+         Coyote_GUI_Updates_Tests.Test_Runtime_Agent_Id_Round_Trips'Access));
+      Result.Add_Test (Coyote_GUI_Updates_Caller.Create
+        ("Coyote.GUI.Updates preserves footer summary",
+         Coyote_GUI_Updates_Tests.Test_Footer_Summary_Round_Trips'Access));
+
+      return Result;
+   end Suite;
 
 end Coyote_GUI_Updates_Tests;

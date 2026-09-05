@@ -1,5 +1,6 @@
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 
 package LLM_Session_Store_Tests is
 
@@ -46,5 +47,7 @@ package LLM_Session_Store_Tests is
    --  The session-store accessor returns the persisted profile and clears
    --  safely when the header has no profile.
    procedure Test_Sandbox_Profile_Read_From_Header (T : in out Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end LLM_Session_Store_Tests;

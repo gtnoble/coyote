@@ -6,6 +6,7 @@
 
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 with Ada.Strings.Unbounded;
 
 package Sandbox_Tests is
@@ -58,4 +59,6 @@ package Sandbox_Tests is
    procedure Test_Shell_Sandbox_Empty_Profile  (T : in out Test);
    procedure Test_Shell_Sandbox_Timeout         (T : in out Test);
    procedure Test_Shell_Sandbox_Abort           (T : in out Test);
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
+
 end Sandbox_Tests;

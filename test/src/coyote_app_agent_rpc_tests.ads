@@ -4,6 +4,7 @@
 
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 
 package Coyote_App_Agent_RPC_Tests is
 
@@ -22,5 +23,7 @@ package Coyote_App_Agent_RPC_Tests is
    procedure Test_Unsupported_Version (T : in out Test);
    procedure Test_Missing_Required_Field (T : in out Test);
    procedure Test_Invalid_Payload (T : in out Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end Coyote_App_Agent_RPC_Tests;

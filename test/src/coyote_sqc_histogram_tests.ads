@@ -7,6 +7,7 @@
 
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 
 package Coyote_SQC_Histogram_Tests is
 
@@ -31,5 +32,7 @@ package Coyote_SQC_Histogram_Tests is
 
    --  32-bin cap test.
    procedure Test_Bins_Cap_At_32          (T : in out Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end Coyote_SQC_Histogram_Tests;

@@ -1,3 +1,5 @@
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 --  Coyote_SQC_JSD_Tests body.
 --
 --  Project: coyote
@@ -368,5 +370,76 @@ package body Coyote_SQC_JSD_Tests is
               "JSD Sum I excludes Pairs=0: Mean_MR should be 20.0; got "
               & Long_Float'Image (Params.Mean_MR));
    end Test_Estimate_JSD_Sum_Excludes_No_Pairs;
+
+
+   package SQC_JSD_Caller is
+     new AUnit.Test_Caller (Coyote_SQC_JSD_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (SQC_JSD_Caller.Create
+        ("SQC JSD: Token_Count single tool name only",
+         Coyote_SQC_JSD_Tests.Test_Token_Count_Tool_Name_Only'Access));
+      Result.Add_Test (SQC_JSD_Caller.Create
+        ("SQC JSD: Token_Count multi-word tool name",
+         Coyote_SQC_JSD_Tests
+           .Test_Token_Count_Multi_Word_Tool_Name'Access));
+      Result.Add_Test (SQC_JSD_Caller.Create
+        ("SQC JSD: Token_Count empty tool name and args yields 0",
+         Coyote_SQC_JSD_Tests.Test_Token_Count_Empty'Access));
+      Result.Add_Test (SQC_JSD_Caller.Create
+        ("SQC JSD: Compute_S_Values identical calls pair-level sum non-zero",
+         Coyote_SQC_JSD_Tests
+           .Test_S_Values_Identical_Calls_Non_Zero'Access));
+      Result.Add_Test (SQC_JSD_Caller.Create
+        ("SQC JSD: Compute_S_Values identical calls sum = 4.0",
+         Coyote_SQC_JSD_Tests
+           .Test_S_Values_Identical_Calls_Sum'Access));
+      Result.Add_Test (SQC_JSD_Caller.Create
+        ("SQC JSD: Compute_S_Values one-side absent key pair-level sum equals tool_name-only S_k",
+         Coyote_SQC_JSD_Tests
+           .Test_S_Values_One_Side_Absent'Access));
+      Result.Add_Test (SQC_JSD_Caller.Create
+        ("SQC JSD: Compute_S_Values integer-valued key skipped (N_k = 0)",
+         Coyote_SQC_JSD_Tests
+           .Test_S_Values_Integer_Key_Skipped'Access));
+      Result.Add_Test (SQC_JSD_Caller.Create
+        ("SQC JSD: Compute_S_Values different tool names give lower pair-level sum",
+         Coyote_SQC_JSD_Tests
+           .Test_S_Values_Different_Tool_Names'Access));
+      Result.Add_Test (SQC_JSD_Caller.Create
+        ("SQC JSD: Metrics.Compute N_Consecutive_Tool_Pairs=1 for two calls",
+         Coyote_SQC_JSD_Tests
+           .Test_Metrics_JSD_Two_Identical_Calls'Access));
+      Result.Add_Test (SQC_JSD_Caller.Create
+        ("SQC JSD: Metrics.Compute N_Consecutive_Tool_Pairs=0 for one call",
+         Coyote_SQC_JSD_Tests
+           .Test_Metrics_JSD_Single_Tool_Call'Access));
+      Result.Add_Test (SQC_JSD_Caller.Create
+        ("SQC JSD: Metrics.Compute N_Consecutive_Tool_Pairs=0 with no tools",
+         Coyote_SQC_JSD_Tests.Test_Metrics_JSD_No_Tool_Calls'Access));
+      Result.Add_Test (SQC_JSD_Caller.Create
+        ("SQC JSD: Total_Tool_Call_JSD_S equals sum of Per_Consecutive_Tool_S",
+         Coyote_SQC_JSD_Tests.Test_Metrics_JSD_Total_S_Sum'Access));
+      Result.Add_Test (SQC_JSD_Caller.Create
+        ("SQC JSD: Tool calls across turns form consecutive pairs",
+         Coyote_SQC_JSD_Tests.Test_Metrics_JSD_Cross_Turn_Pairs'Access));
+      Result.Add_Test (SQC_JSD_Caller.Create
+        ("SQC JSD: Estimate_Parameters JSD Sum I Grand_Mean",
+         Coyote_SQC_JSD_Tests
+           .Test_Estimate_JSD_Sum_I_Grand_Mean'Access));
+      Result.Add_Test (SQC_JSD_Caller.Create
+        ("SQC JSD: Estimate_Parameters JSD Sum I Mean_MR",
+         Coyote_SQC_JSD_Tests
+           .Test_Estimate_JSD_Sum_I_Mean_MR'Access));
+      Result.Add_Test (SQC_JSD_Caller.Create
+        ("SQC JSD: Estimate_Parameters JSD Sum excludes sessions with 0 pairs",
+         Coyote_SQC_JSD_Tests
+           .Test_Estimate_JSD_Sum_Excludes_No_Pairs'Access));
+
+      return Result;
+   end Suite;
 
 end Coyote_SQC_JSD_Tests;

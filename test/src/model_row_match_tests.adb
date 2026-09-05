@@ -1,5 +1,7 @@
 with AUnit.Assertions;
 with Coyote_App.Utils;
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 
 package body Model_Row_Match_Tests is
 
@@ -96,5 +98,41 @@ package body Model_Row_Match_Tests is
         (Format_Model_Picker_Count (8, True) = "8 matches",
          "Many filtered should be 'N matches'");
    end Test_Count_Filtered;
+
+
+   package Model_Row_Match_Caller is
+     new AUnit.Test_Caller (Model_Row_Match_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (Model_Row_Match_Caller.Create
+        ("Model_Row_Matches: empty query matches any row",
+         Model_Row_Match_Tests.Test_Empty_Query_Matches'Access));
+      Result.Add_Test (Model_Row_Match_Caller.Create
+        ("Model_Row_Matches: whitespace query matches any row",
+         Model_Row_Match_Tests.Test_Whitespace_Query_Matches'Access));
+      Result.Add_Test (Model_Row_Match_Caller.Create
+        ("Model_Row_Matches: case-insensitive name substring",
+         Model_Row_Match_Tests.Test_Name_Substring_Casefold'Access));
+      Result.Add_Test (Model_Row_Match_Caller.Create
+        ("Model_Row_Matches: provider substring",
+         Model_Row_Match_Tests.Test_Provider_Match'Access));
+      Result.Add_Test (Model_Row_Match_Caller.Create
+        ("Model_Row_Matches: spec substring",
+         Model_Row_Match_Tests.Test_Spec_Match'Access));
+      Result.Add_Test (Model_Row_Match_Caller.Create
+        ("Model_Row_Matches: unrelated query rejected",
+         Model_Row_Match_Tests.Test_No_Match'Access));
+      Result.Add_Test (Model_Row_Match_Caller.Create
+        ("Format_Model_Picker_Count: unfiltered wording",
+         Model_Row_Match_Tests.Test_Count_Unfiltered'Access));
+      Result.Add_Test (Model_Row_Match_Caller.Create
+        ("Format_Model_Picker_Count: filtered wording",
+         Model_Row_Match_Tests.Test_Count_Filtered'Access));
+
+      return Result;
+   end Suite;
 
 end Model_Row_Match_Tests;

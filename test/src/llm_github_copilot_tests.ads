@@ -1,5 +1,6 @@
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 
 package LLM_GitHub_Copilot_Tests is
 
@@ -12,5 +13,7 @@ package LLM_GitHub_Copilot_Tests is
    procedure Test_Send_Selects_OpenAI_Path (T : in out Test);
    procedure Test_Copilot_Refreshes_Expired_Token_Then_Sends
       (T : in out Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end LLM_GitHub_Copilot_Tests;

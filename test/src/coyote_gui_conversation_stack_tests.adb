@@ -1,3 +1,5 @@
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 --  Coyote_GUI_Conversation_Stack_Tests body.
 --
 --  Project: coyote
@@ -694,5 +696,101 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Pango.Font.Free (Small_Font);
       Pango.Font.Free (Large_Font);
    end Test_Native_Display_Math_Zooms;
+
+
+   package Coyote_GUI_Conversation_Stack_Caller is
+     new AUnit.Test_Caller (Coyote_GUI_Conversation_Stack_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack creates single outer host",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Creates_Single_Outer_Host'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack streams incrementally",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Request_And_Streaming_Are_Incremental'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack renders Markdown",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Native_Markdown_Renders_After_Streaming'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack toggles Markdown rendering",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Native_Markdown_Toggle_Disables_Rendering'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack realizes native tables",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Native_Table_Realizes_Grid'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack toggles native tables",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Native_Table_Toggle_Disables_Rendering'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack skips table whitespace blocks",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Native_Response_Table_Skips_Whitespace_Blocks'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack skips mixed whitespace blocks",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Native_Response_Mixed_Blocks_Skip_Whitespace'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack realizes display MathML",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Native_Display_Math_Realizes_Element'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack falls back for invalid MathML",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Native_Display_Math_Invalid_Falls_Back'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack protects code MathML",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Native_Display_Math_Protects_Code'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack zooms display MathML",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Native_Display_Math_Zooms'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack uses visible step frames",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Assistant_Content_Uses_Visible_Step_Frame'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack separates assistant steps",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Footer_Closes_Step_Before_Next_Step'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack resets step frames for new requests",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_New_Request_Resets_Step_Frames'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack updates tools by stable ID",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Tool_Updates_By_Stable_Id'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack uses responsive tool flow",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Tool_Cards_Use_Responsive_Flow'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack uses native labels and View Details action",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Tool_Card_Uses_Native_Labels'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack keeps footer kind explicit",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Footer_Kind_And_Completion_Are_Explicit'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack uses native footer status row",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Native_Footer_Uses_Status_Row_And_Fork_Button'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack clears exchange state",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Clear_Removes_Exchange_State'Access));
+
+      return Result;
+   end Suite;
 
 end Coyote_GUI_Conversation_Stack_Tests;

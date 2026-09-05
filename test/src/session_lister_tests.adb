@@ -3,6 +3,8 @@ with Ada.Containers;
 with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with LLM.Session_Store;
@@ -871,5 +873,87 @@ package body Session_Lister_Tests is
          Cleanup_Test_Home (Home);
          raise;
    end Test_Fork_Native_Format_Preserves_Turn_Boundary;
+
+
+   package Session_Lister_Caller is
+     new AUnit.Test_Caller (Session_Lister_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (Session_Lister_Caller.Create
+        ("Encode_Cwd absolute path",
+         Session_Lister_Tests.Test_Encode_Cwd_Absolute'Access));
+      Result.Add_Test (Session_Lister_Caller.Create
+        ("Encode_Cwd relative path",
+         Session_Lister_Tests.Test_Encode_Cwd_Relative'Access));
+      Result.Add_Test (Session_Lister_Caller.Create
+        ("Encode_Cwd empty/root path",
+         Session_Lister_Tests.Test_Encode_Cwd_Empty'Access));
+      Result.Add_Test (Session_Lister_Caller.Create
+        ("Format_Timestamp ISO with Z",
+         Session_Lister_Tests.Test_Format_Timestamp'Access));
+      Result.Add_Test (Session_Lister_Caller.Create
+        ("Format_Timestamp short string verbatim",
+         Session_Lister_Tests.Test_Format_Timestamp_Short'Access));
+      Result.Add_Test (Session_Lister_Caller.Create
+        ("Parse full session JSONL",
+         Session_Lister_Tests.Test_Parse_Session_Full'Access));
+      Result.Add_Test (Session_Lister_Caller.Create
+        ("Parse session JSONL without name",
+         Session_Lister_Tests.Test_Parse_Session_No_Name'Access));
+      Result.Add_Test (Session_Lister_Caller.Create
+        ("Parse session JSONL with bad JSON",
+         Session_Lister_Tests.Test_Parse_Session_Bad_Json'Access));
+      Result.Add_Test (Session_Lister_Caller.Create
+        ("Parse session JSONL with a very long line (no stack overflow)",
+         Session_Lister_Tests.Test_Parse_Session_Long_Line'Access));
+      Result.Add_Test (Session_Lister_Caller.Create
+        ("Parse_Session_File extracts Parent_Id from header",
+         Session_Lister_Tests.Test_Parse_Session_Parent_Id'Access));
+      Result.Add_Test (Session_Lister_Caller.Create
+        ("Parse_Session_File leaves Parent_Id empty when absent",
+         Session_Lister_Tests.Test_Parse_Session_No_Parent_Id'Access));
+      Result.Add_Test (Session_Lister_Caller.Create
+        ("Parse_Session_File: Is_Fork True when relation is fork",
+         Session_Lister_Tests.Test_Parse_Session_Is_Fork_True'Access));
+      Result.Add_Test (Session_Lister_Caller.Create
+        ("Parse_Session_File: Is_Fork False when relation is subagent",
+         Session_Lister_Tests.Test_Parse_Session_Is_Fork_False'Access));
+      Result.Add_Test (Session_Lister_Caller.Create
+        ("Find_Session_File found in test dir",
+         Session_Lister_Tests.Test_Find_Session_File_Found'Access));
+      Result.Add_Test (Session_Lister_Caller.Create
+        ("Find_Session_File returns empty when UUID absent",
+         Session_Lister_Tests.Test_Find_Session_File_Not_Found'Access));
+      Result.Add_Test (Session_Lister_Caller.Create
+        ("Find_Session_File searches all session subdirectories",
+         Session_Lister_Tests.Test_Find_Session_File_Any_Dir'Access));
+      Result.Add_Test (Session_Lister_Caller.Create
+        ("Fork_Session forks after first turn",
+         Session_Lister_Tests.Test_Fork_Session_One_Turn'Access));
+      Result.Add_Test (Session_Lister_Caller.Create
+        ("Fork_Session forks after second turn",
+         Session_Lister_Tests.Test_Fork_Session_Second_Turn'Access));
+      Result.Add_Test (Session_Lister_Caller.Create
+        ("Fork_Session returns empty beyond last turn",
+         Session_Lister_Tests.Test_Fork_Session_Beyond_End'Access));
+      Result.Add_Test (Session_Lister_Caller.Create
+        ("Fork_Session returns empty for missing source",
+         Session_Lister_Tests.Test_Fork_Session_Missing_Src'Access));
+      Result.Add_Test (Session_Lister_Caller.Create
+        ("List_Sessions sorts native sessions newest first",
+         Session_Lister_Tests.Test_List_Sessions_Newest_First'Access));
+      Result.Add_Test (Session_Lister_Caller.Create
+        ("List_Sessions ignores invalid non-session files",
+         Session_Lister_Tests.Test_List_Sessions_Skips_Invalid_Files'Access));
+      Result.Add_Test (Session_Lister_Caller.Create
+        ("Fork_Session preserves native turn boundaries",
+         Session_Lister_Tests
+           .Test_Fork_Native_Format_Preserves_Turn_Boundary'Access));
+
+      return Result;
+   end Suite;
 
 end Session_Lister_Tests;

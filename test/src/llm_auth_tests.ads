@@ -1,5 +1,6 @@
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 
 package LLM_Auth_Tests is
 
@@ -17,5 +18,7 @@ package LLM_Auth_Tests is
      (T : in out Test);
    procedure Test_Refresh_Token_Missing_Expires_At_Field_Raises
      (T : in out Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end LLM_Auth_Tests;

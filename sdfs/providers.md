@@ -13,6 +13,14 @@
 
 ## Design Rationale
 
+### AUnit provider-suite hierarchy (2026-09-05)
+
+Provider and agent test callers now live in package-scoped leaf suites under
+`Test_LLM_Suite`, rather than in one flat root registration body. The LLM
+domain preserves 295 registrations and remains the dominant measured local
+group at approximately 28–29 seconds; the full 822-test suite completes in
+34.3 seconds with local fixtures and guarded external tests disabled.
+
 ### OpenAI Responses sibling adapter (2026-08-15, PCR-059)
 
 Approach A: add `LLM.Providers.OpenAI_Responses` as a sibling of
