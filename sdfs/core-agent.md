@@ -16,6 +16,25 @@
 
 ## Design Rationale
 
+## 2026-09-05 — AUnit hierarchy and runtime baseline
+
+The test runner now uses AUnit's built-in global and per-case timing after
+moving the SQC `Test_Caller` instantiations to package scope. The previous
+function-local instantiations left dangling dispatch metadata and caused a
+null indirect call whenever timing exposed the invalid lifetime.
+
+The formerly flat registration body is now composed as a canonical AUnit
+hierarchy: the root suite contains Core, LLM, SQC, GUI, Integration, and
+Process-Control domain suites; 54 fixture packages provide leaf `Suite`
+functions. Process-Control remains the final root child because its tests
+retain process-wide shutdown state. The optional recursion-depth subprocess
+test is guarded by `COYOTE_TEST_SUBAGENT` like the other real subagent tests.
+
+**Verification:** `cd test && alr build` succeeds. The complete development
+suite executes 822/822 with zero failed assertions and zero unexpected errors
+in 34.3 seconds wall time. The root runner rejects extra arguments, zero-test
+filters, and failed results with nonzero exit status.
+
 ## 2026-09-05 — Local and RPC agent endpoints
 
 **Requirement:** The coordinator shall model its root and child runtime agents

@@ -3,6 +3,8 @@ with Ada.Calendar;
 with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with GNATCOLL.JSON;
@@ -1123,5 +1125,35 @@ package body LLM_OpenRouter_Tests is
             null;
       end;
    end Test_OpenRouter_Session_Id_Length;
+
+
+   package LLM_OpenRouter_Caller is
+     new AUnit.Test_Caller (LLM_OpenRouter_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (LLM_OpenRouter_Caller.Create
+        ("LLM.OpenRouter sends auth, metadata headers, and the broadcast session ID",
+         LLM_OpenRouter_Tests.Test_Send_Adds_OpenRouter_Headers'Access));
+      Result.Add_Test (LLM_OpenRouter_Caller.Create
+        ("LLM.OpenRouter adds reasoning.effort for reasoning models",
+         LLM_OpenRouter_Tests.Test_Send_Includes_Reasoning_Effort'Access));
+      Result.Add_Test (LLM_OpenRouter_Caller.Create
+        ("LLM.OpenRouter refreshes a stale cache before sending",
+         LLM_OpenRouter_Tests
+           .Test_OpenRouter_Stale_Cache_Fetches_Live_Then_Sends'Access));
+      Result.Add_Test (LLM_OpenRouter_Caller.Create
+        ("LLM.OpenRouter falls back to models.json for the API key",
+         LLM_OpenRouter_Tests
+           .Test_OpenRouter_Settings_Api_Key_Fallback'Access));
+      Result.Add_Test (LLM_OpenRouter_Caller.Create
+        ("LLM.OpenRouter enforces the 256-character session ID limit",
+         LLM_OpenRouter_Tests
+           .Test_OpenRouter_Session_Id_Length'Access));
+
+      return Result;
+   end Suite;
 
 end LLM_OpenRouter_Tests;

@@ -4,6 +4,7 @@
 
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 
 package Coyote_SQC_Parser_Tests is
 
@@ -49,5 +50,7 @@ package Coyote_SQC_Parser_Tests is
    --  Incremental-reload tests: Parse_File must populate File_Path / File_Mtime.
    procedure Test_Parse_File_Sets_File_Path  (T : in out Test);
    procedure Test_Parse_File_Sets_File_Mtime (T : in out Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end Coyote_SQC_Parser_Tests;

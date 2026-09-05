@@ -6,6 +6,7 @@
 
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 with Coyote_GUI.Conversation_Stack;
 with Gtk.Window;
 
@@ -48,5 +49,7 @@ package Coyote_GUI_Conversation_Stack_Tests is
    procedure Test_Tool_Card_Uses_Native_Labels (T : in out Test);
    procedure Test_Footer_Kind_And_Completion_Are_Explicit (T : in out Test);
    procedure Test_Clear_Removes_Exchange_State (T : in out Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end Coyote_GUI_Conversation_Stack_Tests;

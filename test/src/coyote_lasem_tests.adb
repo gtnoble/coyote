@@ -1,3 +1,5 @@
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 --  Coyote_Lasem_Tests body.
 --
 --  Project: coyote
@@ -133,5 +135,32 @@ package body Coyote_Lasem_Tests is
               "invalid MathML returns an error");
       Coyote_Lasem.Free_Error (Error);
    end Test_Invalid_MathML_Returns_Error;
+
+
+   package Coyote_Lasem_Caller is
+     new AUnit.Test_Caller (Coyote_Lasem_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (Coyote_Lasem_Caller.Create
+        ("Coyote.Lasem measures a MathML fraction",
+         Coyote_Lasem_Tests.Test_Measure_MathML_Fraction'Access));
+      Result.Add_Test (Coyote_Lasem_Caller.Create
+        ("Coyote.Lasem measures a MathML matrix",
+         Coyote_Lasem_Tests.Test_Measure_MathML_Matrix'Access));
+      Result.Add_Test (Coyote_Lasem_Caller.Create
+        ("Coyote.Lasem scales MathML measurements",
+         Coyote_Lasem_Tests.Test_Measure_MathML_Scale'Access));
+      Result.Add_Test (Coyote_Lasem_Caller.Create
+        ("Coyote.Lasem accepts MathML relation entities",
+         Coyote_Lasem_Tests.Test_Measure_MathML_Relations'Access));
+      Result.Add_Test (Coyote_Lasem_Caller.Create
+        ("Coyote.Lasem rejects invalid MathML",
+         Coyote_Lasem_Tests.Test_Invalid_MathML_Returns_Error'Access));
+
+      return Result;
+   end Suite;
 
 end Coyote_Lasem_Tests;

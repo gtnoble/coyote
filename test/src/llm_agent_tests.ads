@@ -1,5 +1,6 @@
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 
 package LLM_Agent_Tests is
 
@@ -105,5 +106,7 @@ package LLM_Agent_Tests is
    --  target session.
    procedure Test_Sandbox_Profile_Restored_And_Cleared_On_Switch
      (T : in out Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end LLM_Agent_Tests;

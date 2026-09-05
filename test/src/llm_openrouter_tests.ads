@@ -1,5 +1,6 @@
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 
 package LLM_OpenRouter_Tests is
 
@@ -12,5 +13,7 @@ package LLM_OpenRouter_Tests is
    procedure Test_OpenRouter_Settings_Api_Key_Fallback
       (T : in out Test);
    procedure Test_OpenRouter_Session_Id_Length (T : in out Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end LLM_OpenRouter_Tests;

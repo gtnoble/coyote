@@ -12,7 +12,7 @@ Coyote is a native Ada 2022 LLM coding-agent harness with two frontends:
 The former Acme frontend, Nine_P 9P stack, plumber integration, and
 `coyote_open` utility were removed from the current product baseline on
 2026-08-30. Do not add Acme, 9P, `$winid`, `PLAN9`, or plumber assumptions to
-current code or documentation. The current registered test baseline is 798.
+current code or documentation. The current registered test baseline is 822.
 
 Executables:
 
@@ -126,25 +126,29 @@ grace period before escalation.
 
 ## Testing
 
-The complete development suite currently contains 798 registered tests and
-passes 798/798. The removed Acme, 9P, plumber, dispatcher-fixture, history-
-fixture, and tool-URI tests are no longer part of the suite. Live provider and
-subagent subprocess tests remain explicitly guarded.
+The complete development suite currently contains 822 registered tests and
+passes 822/822 in approximately 34 seconds on the development host. The
+suite is organized as a root AUnit suite with Core, LLM, SQC, GUI,
+Integration, and final Process-Control domain suites. Live provider tests
+remain opt-in, and real subagent subprocess tests require
+`COYOTE_TEST_SUBAGENT=1`.
 
 ```sh
-cd test && alr run coyote_test
+cd test && alr build
+/usr/bin/time -f 'wall=%e user=%U sys=%S exit=%x' ./bin/coyote_test
 ```
 
-Use the test executable's glob filter for focused runs:
+AUnit filters are literal case-sensitive prefixes, not globs. For example:
 
 ```sh
-./bin/coyote_test "*Session*"
-./bin/coyote_test "*Compaction*"
+./bin/coyote_test LLM.Compaction
+./bin/coyote_test Coyote.GUI.Conversation_Stack
 ```
 
-GUI tests require a display when they create GTK windows; conversation and
-queue tests can run without starting a GUI window. Live provider tests require
-their documented guard variables and credentials.
+An unmatched filter is an error. GUI tests require a display when they create
+GTK windows; conversation and queue tests can run without starting a GUI
+window. Live provider tests require their documented guard variables and
+credentials.
 
 ## Subagents
 

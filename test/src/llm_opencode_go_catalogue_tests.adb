@@ -1,5 +1,7 @@
 with AUnit.Assertions;
 with LLM.Providers.OpenCode_Go.Catalogue;
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 use type LLM.Providers.OpenCode_Go.Catalogue.Wire_Kind;
 
 package body LLM_OpenCode_Go_Catalogue_Tests is
@@ -105,5 +107,29 @@ package body LLM_OpenCode_Go_Catalogue_Tests is
          Assert (True, "No models loaded (network/cache unavailable) -- skip");
       end if;
    end Test_Static_Metadata_Unknown_Model;
+
+
+   package LLM_OpenCode_Go_Catalogue_Caller is
+     new AUnit.Test_Caller (LLM_OpenCode_Go_Catalogue_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (LLM_OpenCode_Go_Catalogue_Caller.Create
+        ("LLM.OpenCode_Go.Catalogue MiniMax uses Anthropic wire",
+         LLM_OpenCode_Go_Catalogue_Tests
+           .Test_Wire_Format_MiniMax_Anthropic'Access));
+      Result.Add_Test (LLM_OpenCode_Go_Catalogue_Caller.Create
+        ("LLM.OpenCode_Go.Catalogue DeepSeek uses OpenAI wire",
+         LLM_OpenCode_Go_Catalogue_Tests
+           .Test_Wire_Format_DeepSeek_OpenAI'Access));
+      Result.Add_Test (LLM_OpenCode_Go_Catalogue_Caller.Create
+        ("LLM.OpenCode_Go.Catalogue unknown models default to OpenAI wire",
+         LLM_OpenCode_Go_Catalogue_Tests
+           .Test_Wire_Format_Unknown_Defaults_OpenAI'Access));
+
+      return Result;
+   end Suite;
 
 end LLM_OpenCode_Go_Catalogue_Tests;

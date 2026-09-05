@@ -9,6 +9,7 @@
 
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 
 package LLM_Parallel_Tools_Tests is
 
@@ -28,5 +29,7 @@ package LLM_Parallel_Tools_Tests is
    --  Three tools in two groups: group 1 runs first in parallel, then
    --  group 2 runs in parallel after group 1 completes.
    procedure Test_Tools_Run_In_Group_Order (T : in out Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end LLM_Parallel_Tools_Tests;

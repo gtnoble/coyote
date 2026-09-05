@@ -1,3 +1,5 @@
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 --  Coyote_App_Agent_RPC_Tests — versioned RPC frame codec tests.
 --
 --  Project: coyote
@@ -199,5 +201,57 @@ package body Coyote_App_Agent_RPC_Tests is
         ("{""protocol"":""coyote-agent-rpc"",""version"":1,""type"":""event"",""agentId"":""worker"",""sequence"":1,""event"":""textDelta"",""payload"":[]}",
          "non-object event payload must be rejected");
    end Test_Invalid_Payload;
+
+
+   package Agent_RPC_Caller is
+     new AUnit.Test_Caller (Coyote_App_Agent_RPC_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (Agent_RPC_Caller.Create
+        ("Agent RPC Stop command round-trips",
+         Coyote_App_Agent_RPC_Tests
+           .Test_Stop_Command_Round_Trip'Access));
+      Result.Add_Test (Agent_RPC_Caller.Create
+        ("Agent RPC handshake round-trips",
+         Coyote_App_Agent_RPC_Tests.Test_Handshake_Round_Trip'Access));
+      Result.Add_Test (Agent_RPC_Caller.Create
+        ("Agent RPC event round-trips",
+         Coyote_App_Agent_RPC_Tests.Test_Event_Round_Trip'Access));
+      Result.Add_Test (Agent_RPC_Caller.Create
+        ("Agent RPC command round-trips",
+         Coyote_App_Agent_RPC_Tests.Test_Command_Round_Trip'Access));
+      Result.Add_Test (Agent_RPC_Caller.Create
+        ("Agent RPC terminal round-trips",
+         Coyote_App_Agent_RPC_Tests.Test_Terminal_Round_Trip'Access));
+      Result.Add_Test (Agent_RPC_Caller.Create
+        ("Agent RPC preserves JSON escaping",
+         Coyote_App_Agent_RPC_Tests.Test_JSON_Escaping'Access));
+      Result.Add_Test (Agent_RPC_Caller.Create
+        ("Agent RPC encoding has no trailing newline",
+         Coyote_App_Agent_RPC_Tests.Test_Encode_Has_No_Trailing_Newline'Access));
+      Result.Add_Test (Agent_RPC_Caller.Create
+        ("Agent RPC rejects malformed JSON",
+         Coyote_App_Agent_RPC_Tests.Test_Malformed_JSON'Access));
+      Result.Add_Test (Agent_RPC_Caller.Create
+        ("Agent RPC rejects non-object frames",
+         Coyote_App_Agent_RPC_Tests.Test_Non_Object_Frame'Access));
+      Result.Add_Test (Agent_RPC_Caller.Create
+        ("Agent RPC rejects wrong protocol markers",
+         Coyote_App_Agent_RPC_Tests.Test_Wrong_Protocol'Access));
+      Result.Add_Test (Agent_RPC_Caller.Create
+        ("Agent RPC rejects unsupported versions",
+         Coyote_App_Agent_RPC_Tests.Test_Unsupported_Version'Access));
+      Result.Add_Test (Agent_RPC_Caller.Create
+        ("Agent RPC rejects missing required fields",
+         Coyote_App_Agent_RPC_Tests.Test_Missing_Required_Field'Access));
+      Result.Add_Test (Agent_RPC_Caller.Create
+        ("Agent RPC rejects invalid payloads",
+         Coyote_App_Agent_RPC_Tests.Test_Invalid_Payload'Access));
+
+      return Result;
+   end Suite;
 
 end Coyote_App_Agent_RPC_Tests;

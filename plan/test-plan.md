@@ -910,3 +910,12 @@ Production and test development builds succeed. All 17 native-stack tests pass
 17/17, and the GUI lifecycle regression passes 1/1 with zero failed assertions
 and zero unexpected errors. Native DEM-042 through DEM-048 qualification is
 closed; the Plain frontend remains supported.
+
+**Current baseline after AUnit hierarchy and runner corrections (2026-09-05):**
+The flat registration body is now a canonical hierarchy of 54 leaf fixture
+suites under six domain suites, with Process-Control last. The development
+build succeeds and the complete suite passes 822/822 with zero failed
+assertions and zero unexpected errors. Measured execution time is 34.3 seconds
+wall time after the test executable is built. AUnit global and per-case timing
+are enabled. The recursion-depth subprocess test is opt-in with
+`COYOTE_TEST_SUBAGENT=1`; live-provider tests remain separately guarded.

@@ -1,5 +1,6 @@
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 
 package LLM_Anthropic_Messages_Tests is
 
@@ -24,5 +25,7 @@ package LLM_Anthropic_Messages_Tests is
    procedure Test_Cache_Control_On_Last_User_Message (T : in out Test);
 
    procedure Test_Tool_Result_Image_Serialised (T : in out Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end LLM_Anthropic_Messages_Tests;

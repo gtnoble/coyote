@@ -1,3 +1,5 @@
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 --  Coyote_App_Agent_RPC_Service_Tests — coordinator RPC service tests.
 --
 --  Project: coyote
@@ -166,5 +168,29 @@ package body Coyote_App_Agent_RPC_Service_Tests is
               "disconnect callback must use disconnected status");
       Coyote_App.Agent_RPC.Service.Stop (Service);
    end Test_Disconnect_Is_Reported;
+
+
+   package Agent_RPC_Service_Caller is
+     new AUnit.Test_Caller (Coyote_App_Agent_RPC_Service_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (Agent_RPC_Service_Caller.Create
+        ("Agent RPC service registers child handshakes",
+         Coyote_App_Agent_RPC_Service_Tests
+           .Test_Listener_Registers_Child'Access));
+      Result.Add_Test (Agent_RPC_Service_Caller.Create
+        ("Agent RPC service routes commands",
+         Coyote_App_Agent_RPC_Service_Tests
+           .Test_Command_Routes_To_Child'Access));
+      Result.Add_Test (Agent_RPC_Service_Caller.Create
+        ("Agent RPC service reports disconnects",
+         Coyote_App_Agent_RPC_Service_Tests
+           .Test_Disconnect_Is_Reported'Access));
+
+      return Result;
+   end Suite;
 
 end Coyote_App_Agent_RPC_Service_Tests;

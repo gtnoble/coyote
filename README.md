@@ -161,14 +161,18 @@ streaming events rather than provider-specific wire data.
 
 ## Testing
 
-Tests live in `test/src/` and use AUnit:
+Tests live in `test/src/` and use AUnit. Build once, then run the development
+suite directly:
 
 ```sh
-cd test && alr run coyote_test
+cd test && alr build
+/usr/bin/time -f 'wall=%e exit=%x' ./bin/coyote_test
 ```
 
-The complete development suite currently contains 806 registered tests and
-passes 806/806. Live provider tests remain opt-in.
+The current hierarchy contains 822 registered tests and passes 822/822 in
+approximately 34 seconds on the development host. AUnit reports cumulative
+and per-test timing. Live provider tests remain opt-in; subagent subprocess
+tests are guarded by `COYOTE_TEST_SUBAGENT=1`.
 
 ## License
 

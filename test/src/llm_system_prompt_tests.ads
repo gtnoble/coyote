@@ -1,5 +1,6 @@
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 
 package LLM_System_Prompt_Tests is
 
@@ -28,5 +29,7 @@ package LLM_System_Prompt_Tests is
    procedure Test_No_Tools_Removes_Template_Sections (T : in out Test);
    procedure Test_Terminal_Tool_Policy_Rendered (T : in out Test);
    procedure Test_Coordinator_Section_Rendered (T : in out Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end LLM_System_Prompt_Tests;

@@ -4,6 +4,8 @@ with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
 with Ada.Text_IO;
 with LLM.System_Prompt;
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 
 package body LLM_Context_Tests is
 
@@ -454,5 +456,47 @@ package body LLM_Context_Tests is
          Cleanup (Home);
          raise;
    end Test_Injected_Into_Built_Prompt;
+
+
+   package LLM_Context_Caller is
+     new AUnit.Test_Caller (LLM_Context_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (LLM_Context_Caller.Create
+        ("LLM.System_Prompt Load_Context_Sections returns empty with no files",
+         LLM_Context_Tests.Test_No_Files_Returns_Empty'Access));
+      Result.Add_Test (LLM_Context_Caller.Create
+        ("LLM.System_Prompt Load_Context_Sections loads AGENTS.md from cwd",
+         LLM_Context_Tests.Test_Agents_Md_In_Cwd'Access));
+      Result.Add_Test (LLM_Context_Caller.Create
+        ("LLM.System_Prompt Load_Context_Sections loads global context dir",
+         LLM_Context_Tests.Test_Global_Context_Dir'Access));
+      Result.Add_Test (LLM_Context_Caller.Create
+        ("LLM.System_Prompt Load_Context_Sections loads project context dir",
+         LLM_Context_Tests.Test_Project_Context_Dir'Access));
+      Result.Add_Test (LLM_Context_Caller.Create
+        ("LLM.System_Prompt Load_Context_Sections: global before project",
+         LLM_Context_Tests.Test_Global_Before_Project'Access));
+      Result.Add_Test (LLM_Context_Caller.Create
+        ("LLM.System_Prompt Load_Context_Sections: project before AGENTS",
+         LLM_Context_Tests.Test_Project_Before_Agents_Md'Access));
+      Result.Add_Test (LLM_Context_Caller.Create
+        ("LLM.System_Prompt Load_Context_Sections sorts files alphabetically",
+         LLM_Context_Tests.Test_Context_Files_Alpha_Order'Access));
+      Result.Add_Test (LLM_Context_Caller.Create
+        ("LLM.System_Prompt Load_Context_Sections adds outer header",
+         LLM_Context_Tests.Test_Outer_Header_Present'Access));
+      Result.Add_Test (LLM_Context_Caller.Create
+        ("LLM.System_Prompt Load_Context_Sections omits header when empty",
+         LLM_Context_Tests.Test_No_Header_When_Empty'Access));
+      Result.Add_Test (LLM_Context_Caller.Create
+        ("LLM.System_Prompt Build_System_Prompt injects loaded context",
+         LLM_Context_Tests.Test_Injected_Into_Built_Prompt'Access));
+
+      return Result;
+   end Suite;
 
 end LLM_Context_Tests;

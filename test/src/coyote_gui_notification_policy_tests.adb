@@ -1,3 +1,5 @@
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 --  Coyote_GUI_Notification_Policy_Tests body.
 --
 --  Project: coyote
@@ -54,5 +56,33 @@ package body Coyote_GUI_Notification_Policy_Tests is
             Window_Active => False),
          "noninteractive mode should suppress notification");
    end Test_Suppress_When_Not_Allowed;
+
+
+   package Coyote_GUI_Notification_Policy_Caller is
+     new AUnit.Test_Caller (Coyote_GUI_Notification_Policy_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (Coyote_GUI_Notification_Policy_Caller.Create
+        ("Coyote.GUI.Notification_Policy eligibility",
+         Coyote_GUI_Notification_Policy_Tests
+           .Test_Notify_When_Allowed_Enabled_And_Inactive'Access));
+      Result.Add_Test (Coyote_GUI_Notification_Policy_Caller.Create
+        ("Coyote.GUI.Notification_Policy active window suppresses",
+         Coyote_GUI_Notification_Policy_Tests
+           .Test_Suppress_When_Window_Is_Active'Access));
+      Result.Add_Test (Coyote_GUI_Notification_Policy_Caller.Create
+        ("Coyote.GUI.Notification_Policy disabled suppresses",
+         Coyote_GUI_Notification_Policy_Tests
+           .Test_Suppress_When_Disabled'Access));
+      Result.Add_Test (Coyote_GUI_Notification_Policy_Caller.Create
+        ("Coyote.GUI.Notification_Policy noninteractive suppresses",
+         Coyote_GUI_Notification_Policy_Tests
+           .Test_Suppress_When_Not_Allowed'Access));
+
+      return Result;
+   end Suite;
 
 end Coyote_GUI_Notification_Policy_Tests;

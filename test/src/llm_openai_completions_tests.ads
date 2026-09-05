@@ -1,5 +1,6 @@
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 
 package LLM_OpenAI_Completions_Tests is
 
@@ -21,5 +22,7 @@ package LLM_OpenAI_Completions_Tests is
    procedure Test_OpenAI_Cached_Tokens_In_Usage (T : in out Test);
 
    procedure Test_Tool_Result_Image_Serialised (T : in out Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end LLM_OpenAI_Completions_Tests;

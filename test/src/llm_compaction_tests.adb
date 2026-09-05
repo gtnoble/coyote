@@ -1,5 +1,7 @@
 with AUnit.Assertions;
 with Ada.Strings.Fixed;
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with LLM.Compaction;
 with LLM.Types;
@@ -359,5 +361,35 @@ package body LLM_Compaction_Tests is
         (Contains (To_String (Text), "[Assistant]:"),
          "serialised candidate should include assistant text labels");
    end Test_Full_Compaction_Candidate;
+
+
+   package LLM_Compaction_Caller is
+     new AUnit.Test_Caller (LLM_Compaction_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (LLM_Compaction_Caller.Create
+        ("LLM.Compaction estimates message tokens conservatively",
+         LLM_Compaction_Tests.Test_Estimate_Tokens'Access));
+      Result.Add_Test (LLM_Compaction_Caller.Create
+        ("LLM.Compaction estimates context tokens from usage or heuristics",
+         LLM_Compaction_Tests.Test_Estimate_Context_Tokens'Access));
+      Result.Add_Test (LLM_Compaction_Caller.Create
+        ("LLM.Compaction decides when to compact",
+         LLM_Compaction_Tests.Test_Should_Compact'Access));
+      Result.Add_Test (LLM_Compaction_Caller.Create
+        ("LLM.Compaction finds safe user-turn cut points",
+         LLM_Compaction_Tests.Test_Find_Cut_Point'Access));
+      Result.Add_Test (LLM_Compaction_Caller.Create
+        ("LLM.Compaction serialises conversations for summarisation",
+         LLM_Compaction_Tests.Test_Serialize_Conversation'Access));
+      Result.Add_Test (LLM_Compaction_Caller.Create
+        ("LLM.Compaction builds a realistic compaction candidate",
+         LLM_Compaction_Tests.Test_Full_Compaction_Candidate'Access));
+
+      return Result;
+   end Suite;
 
 end LLM_Compaction_Tests;

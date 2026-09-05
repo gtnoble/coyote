@@ -4,6 +4,8 @@ with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Exceptions;
 with Ada.Strings.Fixed;
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with Test_HTTP_Server;
@@ -579,5 +581,49 @@ package body LLM_Auth_Tests is
          Response_Body         => "{""token"":""abc123""}",
          Expected_Message_Part => "missing fields");
    end Test_Refresh_Token_Missing_Expires_At_Field_Raises;
+
+
+   package LLM_Auth_Caller is
+     new AUnit.Test_Caller (LLM_Auth_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (LLM_Auth_Caller.Create
+        ("LLM.Auth loads GitHub Copilot credentials from auth.json",
+         LLM_Auth_Tests.Test_Load_Credentials'Access));
+      Result.Add_Test (LLM_Auth_Caller.Create
+        ("LLM.Auth saves credentials atomically and preserves other providers",
+         LLM_Auth_Tests.Test_Save_Credentials'Access));
+      Result.Add_Test (LLM_Auth_Caller.Create
+        ("LLM.Auth.GitHub_Copilot detects expired and valid tokens",
+         LLM_Auth_Tests.Test_Token_Expired'Access));
+      Result.Add_Test (LLM_Auth_Caller.Create
+        ("LLM.Auth.GitHub_Copilot parses proxy-ep into the API base URL",
+         LLM_Auth_Tests.Test_Get_Base_Url'Access));
+      Result.Add_Test (LLM_Auth_Caller.Create
+        ("LLM.Auth.GitHub_Copilot falls back to the default base URL",
+         LLM_Auth_Tests.Test_Get_Base_Url_Fallback'Access));
+      Result.Add_Test (LLM_Auth_Caller.Create
+        ("LLM.Auth.GitHub_Copilot refreshes and persists the API token",
+         LLM_Auth_Tests.Test_Refresh_Token'Access));
+      Result.Add_Test (LLM_Auth_Caller.Create
+        ("LLM.Auth.GitHub_Copilot raises on non-200 refresh responses",
+         LLM_Auth_Tests.Test_Refresh_Token_Non_200_Raises'Access));
+      Result.Add_Test (LLM_Auth_Caller.Create
+        ("LLM.Auth.GitHub_Copilot raises on invalid JSON refresh responses",
+         LLM_Auth_Tests.Test_Refresh_Token_Invalid_JSON_Raises'Access));
+      Result.Add_Test (LLM_Auth_Caller.Create
+        ("LLM.Auth.GitHub_Copilot raises when token is missing",
+         LLM_Auth_Tests.Test_Refresh_Token_Missing_Token_Field_Raises
+           'Access));
+      Result.Add_Test (LLM_Auth_Caller.Create
+        ("LLM.Auth.GitHub_Copilot raises when expires_at is missing",
+         LLM_Auth_Tests
+           .Test_Refresh_Token_Missing_Expires_At_Field_Raises'Access));
+
+      return Result;
+   end Suite;
 
 end LLM_Auth_Tests;

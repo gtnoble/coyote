@@ -4,6 +4,8 @@ with Ada.Calendar.Formatting;
 with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
 with LLM.System_Prompt;
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 
 package body LLM_System_Prompt_Tests is
 
@@ -399,5 +401,97 @@ package body LLM_System_Prompt_Tests is
            (P, "Never delegate understanding") > 0,
          "coordinator section should retain synthesis guidance");
    end Test_Coordinator_Section_Rendered;
+
+
+   package LLM_Sys_Prompt_Caller is
+     new AUnit.Test_Caller (LLM_System_Prompt_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (LLM_Sys_Prompt_Caller.Create
+        ("LLM.System_Prompt default prompt contains preamble",
+         LLM_System_Prompt_Tests
+           .Test_Default_Prompt_Contains_Preamble'Access));
+      Result.Add_Test (LLM_Sys_Prompt_Caller.Create
+        ("LLM.System_Prompt default prompt lists built-in tools",
+         LLM_System_Prompt_Tests
+           .Test_Default_Prompt_Lists_Tools'Access));
+      Result.Add_Test (LLM_Sys_Prompt_Caller.Create
+        ("LLM.System_Prompt uses injected executable path",
+         LLM_System_Prompt_Tests
+           .Test_Prompt_Uses_Injected_Executable_Path'Access));
+      Result.Add_Test (LLM_Sys_Prompt_Caller.Create
+        ("LLM.System_Prompt quotes executable path",
+         LLM_System_Prompt_Tests
+           .Test_Prompt_Quotes_Executable_Path'Access));
+      Result.Add_Test (LLM_Sys_Prompt_Caller.Create
+        ("LLM.System_Prompt default prompt contains guidelines",
+         LLM_System_Prompt_Tests
+           .Test_Default_Prompt_Contains_Guidelines'Access));
+      Result.Add_Test (LLM_Sys_Prompt_Caller.Create
+        ("LLM.System_Prompt default prompt contains math-formatting guidance",
+         LLM_System_Prompt_Tests
+           .Test_Default_Prompt_Contains_Display_Math_Guidance'Access));
+      Result.Add_Test (LLM_Sys_Prompt_Caller.Create
+        ("LLM.System_Prompt default prompt contains cwd",
+         LLM_System_Prompt_Tests
+           .Test_Default_Prompt_Contains_Cwd'Access));
+      Result.Add_Test (LLM_Sys_Prompt_Caller.Create
+        ("LLM.System_Prompt default prompt contains date",
+         LLM_System_Prompt_Tests
+           .Test_Default_Prompt_Contains_Date'Access));
+      Result.Add_Test (LLM_Sys_Prompt_Caller.Create
+        ("LLM.System_Prompt agent appended to prompt",
+         LLM_System_Prompt_Tests
+           .Test_Agent_Appended'Access));
+      Result.Add_Test (LLM_Sys_Prompt_Caller.Create
+        ("LLM.System_Prompt agent prompt appears in built prompt",
+         LLM_System_Prompt_Tests
+           .Test_Agent_Prompt_Appears'Access));
+      Result.Add_Test (LLM_Sys_Prompt_Caller.Create
+        ("LLM.System_Prompt no-tools suppresses tool list",
+         LLM_System_Prompt_Tests
+           .Test_No_Tools_Suppresses_Tool_List'Access));
+      Result.Add_Test (LLM_Sys_Prompt_Caller.Create
+        ("LLM.System_Prompt injects context sections",
+         LLM_System_Prompt_Tests
+           .Test_Context_Sections_Injected'Access));
+      Result.Add_Test (LLM_Sys_Prompt_Caller.Create
+        ("LLM.System_Prompt injects skills section",
+         LLM_System_Prompt_Tests
+           .Test_Skills_Section_Injected'Access));
+      Result.Add_Test (LLM_Sys_Prompt_Caller.Create
+        ("LLM.System_Prompt empty context section is silent",
+         LLM_System_Prompt_Tests
+           .Test_Empty_Context_Sections_Silent'Access));
+      Result.Add_Test (LLM_Sys_Prompt_Caller.Create
+        ("LLM.System_Prompt default prompt contains current shell",
+         LLM_System_Prompt_Tests.Test_Default_Prompt_Contains_Shell'Access));
+      Result.Add_Test (LLM_Sys_Prompt_Caller.Create
+        ("LLM.System_Prompt preserves section order",
+         LLM_System_Prompt_Tests.Test_Section_Order'Access));
+      Result.Add_Test (LLM_Sys_Prompt_Caller.Create
+        ("LLM.System_Prompt memory block injected when provided",
+         LLM_System_Prompt_Tests.Test_Memory_Block_Injected'Access));
+      Result.Add_Test (LLM_Sys_Prompt_Caller.Create
+        ("LLM.System_Prompt empty memory block absent from prompt",
+         LLM_System_Prompt_Tests.Test_Memory_Block_Absent_When_Empty'Access));
+      Result.Add_Test (LLM_Sys_Prompt_Caller.Create
+        ("LLM.System_Prompt renders all template markers",
+         LLM_System_Prompt_Tests.Test_Static_Template_Markers_Rendered'Access));
+      Result.Add_Test (LLM_Sys_Prompt_Caller.Create
+        ("LLM.System_Prompt removes template sections without tools",
+         LLM_System_Prompt_Tests.Test_No_Tools_Removes_Template_Sections'Access));
+      Result.Add_Test (LLM_Sys_Prompt_Caller.Create
+        ("LLM.System_Prompt renders terminal tool policy",
+         LLM_System_Prompt_Tests.Test_Terminal_Tool_Policy_Rendered'Access));
+      Result.Add_Test (LLM_Sys_Prompt_Caller.Create
+        ("LLM.System_Prompt renders coordinator section",
+         LLM_System_Prompt_Tests.Test_Coordinator_Section_Rendered'Access));
+
+      return Result;
+   end Suite;
 
 end LLM_System_Prompt_Tests;

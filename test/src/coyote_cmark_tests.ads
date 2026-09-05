@@ -15,6 +15,7 @@
 
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 
 package Coyote_Cmark_Tests is
 
@@ -86,5 +87,7 @@ package Coyote_Cmark_Tests is
 
    --  Table placeholders preserve their position between surrounding prose.
    procedure Test_Table_Extraction_Preserves_Source_Order (T : in out Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end Coyote_Cmark_Tests;

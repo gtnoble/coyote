@@ -1,5 +1,6 @@
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 
 package LLM_Skills_Tests is
 
@@ -29,5 +30,7 @@ package LLM_Skills_Tests is
    procedure Test_Installation_Skills_Base_Path   (T : in out Test);
    procedure Test_Installation_Skills_Base_Empty  (T : in out Test);
    procedure Test_Install_Root_Skills_Loaded      (T : in out Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end LLM_Skills_Tests;

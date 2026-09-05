@@ -33,6 +33,15 @@ components.
 
 ## Design Rationale
 
+### AUnit GUI fixture hierarchy and shutdown verification (2026-09-05)
+
+GUI fixture packages now expose leaf AUnit `Suite` functions and are composed
+under `Test_GUI_Suite`, preserving the existing display-name order. The
+product-information fixture explicitly requests frontend shutdown before
+ destroying its GTK windows, preventing the RPC service task from surviving
+fixture scope. The complete 822-test development suite passes in 34.3 seconds;
+display-backed GUI tests remain subject to the available display environment.
+
 ### Native GTK Markdown tables (2026-09-03)
 
 Completed GFM response blocks containing tables now pass through the

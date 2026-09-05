@@ -1,3 +1,5 @@
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 --  Unit tests for Coyote_SQC.Statistics.Quantile_CC.
 with Ada.Containers.Generic_Array_Sort;
 --
@@ -659,5 +661,95 @@ package body Coyote_SQC_Quantile_CC_Tests is
                  "Unadjusted_Rank > Bonferroni_Rank");
       end;
    end Test_Extract_Limits_Bonferroni_Disabled;
+
+
+   package SQC_Quantile_CC_Caller is
+     new AUnit.Test_Caller (Coyote_SQC_Quantile_CC_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Quantile CC: Compute_Quantiles basic 10-element array",
+         Coyote_SQC_Quantile_CC_Tests.Test_Compute_Quantiles_Basic'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Quantile CC: Compute_Quantiles n=1 returns all equal",
+         Coyote_SQC_Quantile_CC_Tests.Test_Compute_Quantiles_N1'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Quantile CC: Build_Distribution with 3-session pool",
+         Coyote_SQC_Quantile_CC_Tests
+           .Test_Build_Distribution_Limits'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Quantile CC: Build_Distribution single-session pool",
+         Coyote_SQC_Quantile_CC_Tests
+           .Test_Build_Distribution_Single'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Quantile CC: Build_Distribution seed reproducibility",
+         Coyote_SQC_Quantile_CC_Tests
+           .Test_Build_Distribution_Seeding'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Quantile CC: Extract_Limits with known distribution",
+         Coyote_SQC_Quantile_CC_Tests
+           .Test_Extract_Limits_Known'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Quantile CC: Is_OOC detects value above UCL",
+         Coyote_SQC_Quantile_CC_Tests.Test_Is_OOC_Above'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Quantile CC: Is_OOC with Has_UCL=False",
+         Coyote_SQC_Quantile_CC_Tests.Test_Is_OOC_No_UCL'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Quantile CC: Session_Is_OOC all in-control",
+         Coyote_SQC_Quantile_CC_Tests
+           .Test_Session_Is_OOC_All_In'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Quantile CC: Session_Is_OOC one component out",
+         Coyote_SQC_Quantile_CC_Tests
+           .Test_Session_Is_OOC_One_Out'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Quantile CC: OOC_Components returns correct set",
+         Coyote_SQC_Quantile_CC_Tests.Test_OOC_Components'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Quantile CC: cache hit returns same distribution",
+         Coyote_SQC_Quantile_CC_Tests.Test_Cache_Hit'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Quantile CC: cache invalidation clears entries",
+         Coyote_SQC_Quantile_CC_Tests
+           .Test_Cache_Invalidation'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Quantile CC: sort through quantiles -- reverse input",
+         Coyote_SQC_Quantile_CC_Tests
+           .Test_Sort_Through_Quantiles_Reverse'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Quantile CC: sort through quantiles -- all equal values",
+         Coyote_SQC_Quantile_CC_Tests
+           .Test_Sort_Through_Quantiles_All_Equal'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Quantile CC: sort through quantiles -- two descending",
+         Coyote_SQC_Quantile_CC_Tests
+           .Test_Sort_Through_Quantiles_Two_Desc'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Quantile CC: sort through quantiles -- 50 random-ish",
+         Coyote_SQC_Quantile_CC_Tests
+           .Test_Sort_Through_Quantiles_Larger'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Interpolate_Limits at anchor matches exact",
+         Coyote_SQC_Quantile_CC_Tests
+           .Test_Interpolate_Limits_Anchor'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Interpolate_Limits between anchors shrinks HW",
+         Coyote_SQC_Quantile_CC_Tests
+           .Test_Interpolate_Limits_Between'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Interpolate_Limits n=1 falls back to exact",
+         Coyote_SQC_Quantile_CC_Tests
+           .Test_Interpolate_Limits_N1'Access));
+      Result.Add_Test (SQC_Quantile_CC_Caller.Create
+        ("Extract_Limits with Bonferroni disabled uses unadjusted ranks",
+         Coyote_SQC_Quantile_CC_Tests
+           .Test_Extract_Limits_Bonferroni_Disabled'Access));
+
+      return Result;
+   end Suite;
 
 end Coyote_SQC_Quantile_CC_Tests;

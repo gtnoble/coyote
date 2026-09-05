@@ -1,5 +1,6 @@
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 
 package Model_Row_Match_Tests is
    type Test is new AUnit.Test_Fixtures.Test_Fixture with null record;
@@ -12,4 +13,6 @@ package Model_Row_Match_Tests is
    procedure Test_No_Match (T : in out Test);
    procedure Test_Count_Unfiltered (T : in out Test);
    procedure Test_Count_Filtered (T : in out Test);
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
+
 end Model_Row_Match_Tests;

@@ -298,6 +298,14 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `Coyote_Notify` | Ada/C binding to libnotify desktop notifications | `src/coyote_notify.ads/.adb`, `src/coyote_notify_c.c` |
 | `Coyote_GUI.Notification_Policy` | Pure completion-notification eligibility policy | `src/coyote_gui/coyote_gui-notification_policy.ads/.adb` |
 | `Session_Lister` | Session listing for coyote_list_sessions | `src/session_lister.ads/.adb` |
+| `Test_Suites` | Root AUnit suite composer | `test/src/test_suites.ads/.adb` |
+| `Test_Core_Suite` | Core test-domain suite composer | `test/src/test_core_suite.ads/.adb` |
+| `Test_LLM_Suite` | LLM/provider test-domain suite composer | `test/src/test_llm_suite.ads/.adb` |
+| `Test_SQC_Suite` | SQC test-domain suite composer | `test/src/test_sqc_suite.ads/.adb` |
+| `Test_GUI_Suite` | GUI test-domain suite composer | `test/src/test_gui_suite.ads/.adb` |
+| `Test_Integration_Suite` | Optional subprocess integration suite composer | `test/src/test_integration_suite.ads/.adb` |
+| `Test_Process_Control_Suite` | Final process-control test-domain suite | `test/src/test_process_control_suite.ads/.adb` |
+| `*_Tests.Suite` | Leaf AUnit fixture suite functions (54 fixtures) | `test/src/*_tests.ads/.adb` |
 
 ### 4.2 Static Relationships
 

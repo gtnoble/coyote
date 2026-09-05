@@ -5,6 +5,7 @@
 
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 
 package Coyote_SQC_Integrity_Tests is
 
@@ -17,5 +18,7 @@ package Coyote_SQC_Integrity_Tests is
    procedure Test_Remove_Missing_Partial  (T : in out Test);
    procedure Test_Remove_Missing_All      (T : in out Test);
    procedure Test_Remove_Missing_None     (T : in out Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end Coyote_SQC_Integrity_Tests;

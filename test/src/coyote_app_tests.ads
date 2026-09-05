@@ -1,5 +1,6 @@
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 
 package Coyote_App_Tests is
 
@@ -248,4 +249,6 @@ package Coyote_App_Tests is
    procedure Test_Cmark_GFM_Table_Parsed       (T : in out Test);
    --  Standard CommonMark paragraph still has type_string "paragraph".
    procedure Test_Cmark_Paragraph_Type_String  (T : in out Test);
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
+
 end Coyote_App_Tests;

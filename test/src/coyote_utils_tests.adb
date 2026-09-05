@@ -8,6 +8,8 @@ with Coyote_Spawn;
 with Coyote_Utils;
 with GNATCOLL.JSON;
 with GNATCOLL.OS.Process;
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 
 package body Coyote_Utils_Tests is
 
@@ -365,5 +367,89 @@ package body Coyote_Utils_Tests is
       Assert (Ada.Strings.Unbounded.To_String (Output) = Expected,
               "flush should replace an incomplete sequence");
    end Test_UTF8_Stream_Flushes_Incomplete;
+
+
+   package Coyote_Utils_Caller is
+     new AUnit.Test_Caller (Coyote_Utils_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("Coyote_Utils reads file when path exists",
+         Coyote_Utils_Tests.Test_Reads_File_When_Path_Exists'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("Coyote_Utils returns empty when arg is not a file",
+         Coyote_Utils_Tests.Test_Returns_Arg_When_Not_A_File'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("Coyote_Utils returns empty for empty path",
+         Coyote_Utils_Tests.Test_Returns_Empty_For_Empty_Path'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("Coyote_Utils reads multiline file",
+         Coyote_Utils_Tests.Test_Reads_Multiline_File'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("Coyote_Utils Strip_Session_Prefix removes coyote-session+ prefix",
+         Coyote_Utils_Tests
+           .Test_Strip_Session_Prefix_With_Prefix'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("Coyote_Utils Strip_Session_Prefix returns input unchanged "
+         & "when prefix absent",
+         Coyote_Utils_Tests
+           .Test_Strip_Session_Prefix_Without_Prefix'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("Coyote_Utils Strip_Session_Prefix returns empty for empty input",
+         Coyote_Utils_Tests.Test_Strip_Session_Prefix_Empty'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("Coyote_Utils resolves the active executable path",
+         Coyote_Utils_Tests.Test_Active_Executable_Path_Is_Absolute'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("Coyote_Spawn rejects empty argument lists",
+         Coyote_Utils_Tests.Test_Spawn_Detached_Rejects_Empty_Args'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("Coyote_Utils shell-quotes paths containing spaces",
+         Coyote_Utils_Tests.Test_Shell_Quote_Preserves_Spaces'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("Coyote_Utils shell-quotes apostrophes",
+         Coyote_Utils_Tests.Test_Shell_Quote_Escapes_Apostrophes'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("Coyote_Utils hides default and empty tool arguments",
+         Coyote_Utils_Tests.Test_Hidden_Tool_Arguments'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("Sanitize_UTF8 passes through pure ASCII unchanged",
+         Coyote_Utils_Tests.Test_Sanitize_UTF8_Passthrough_Pure_ASCII'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("Sanitize_UTF8 passes through valid multi-byte UTF-8",
+         Coyote_Utils_Tests.Test_Sanitize_UTF8_Passthrough_Valid_UTF8'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("Sanitize_UTF8 replaces Latin-1 text with U+FFFD",
+         Coyote_Utils_Tests.Test_Sanitize_UTF8_Replaces_Latin1_Mojibake'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("Sanitize_UTF8 replaces isolated continuation bytes",
+         Coyote_Utils_Tests.Test_Sanitize_UTF8_Replaces_Isolated_Cont'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("Sanitize_UTF8 replaces truncated multi-byte sequences",
+         Coyote_Utils_Tests.Test_Sanitize_UTF8_Replaces_Truncated_Seq'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("Sanitize_UTF8 replaces overlong encoding with U+FFFD",
+         Coyote_Utils_Tests.Test_Sanitize_UTF8_Handles_Overlong_Seq'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("Sanitize_UTF8 returns empty string unchanged",
+         Coyote_Utils_Tests.Test_Sanitize_UTF8_Handles_Empty_String'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("UTF8_Stream reassembles two-byte sequences",
+         Coyote_Utils_Tests.Test_UTF8_Stream_Reassembles_Two_Byte'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("UTF8_Stream reassembles three-byte sequences",
+         Coyote_Utils_Tests.Test_UTF8_Stream_Reassembles_Three_Byte'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("UTF8_Stream reassembles four-byte sequences",
+         Coyote_Utils_Tests.Test_UTF8_Stream_Reassembles_Four_Byte'Access));
+      Result.Add_Test (Coyote_Utils_Caller.Create
+        ("UTF8_Stream flushes incomplete sequences",
+         Coyote_Utils_Tests.Test_UTF8_Stream_Flushes_Incomplete'Access));
+
+      return Result;
+   end Suite;
 
 end Coyote_Utils_Tests;

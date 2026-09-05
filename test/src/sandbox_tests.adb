@@ -1,3 +1,5 @@
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 --  Unit tests for LLM.Tools.Sandbox — profile discovery, loading, and
 --  bwrap argument construction.
 --
@@ -678,5 +680,89 @@ package body Sandbox_Tests is
          "sandboxed abort result should contain abort notice, got: "
          & To_String (Result));
    end Test_Shell_Sandbox_Abort;
+
+
+   package Sandbox_Caller is
+     new AUnit.Test_Caller (Sandbox_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox Profiles_Dir returns path",
+         Sandbox_Tests.Test_Profiles_Dir_Returns_Path'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox Available_Profiles empty when none exist",
+         Sandbox_Tests.Test_Available_Profiles_Empty'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox Available_Profiles finds profile",
+         Sandbox_Tests.Test_Available_Profiles_Found'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox Load_Profile returns object for valid profile",
+         Sandbox_Tests.Test_Load_Profile_Found'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox Load_Profile returns JSON_Null for missing profile",
+         Sandbox_Tests.Test_Load_Profile_Not_Found'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox Load_Profile returns JSON_Null for bad JSON",
+         Sandbox_Tests.Test_Load_Profile_Bad_Json'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox Build_Bwrap_Args returns empty for empty profile",
+         Sandbox_Tests.Test_Bbuild_Empty_Profile'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox Build_Bwrap_Args returns empty for non-existent profile",
+         Sandbox_Tests.Test_Bbuild_Non_Existent_Profile'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox Build_Bwrap_Args allowWrite uses --bind",
+         Sandbox_Tests.Test_Bbuild_Allow_Write'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox Build_Bwrap_Args denyWrite uses --ro-bind",
+         Sandbox_Tests.Test_Bbuild_Deny_Write'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox Build_Bwrap_Args allowRead uses --ro-bind",
+         Sandbox_Tests.Test_Bbuild_Allow_Read'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox Build_Bwrap_Args denyRead uses --tmpfs",
+         Sandbox_Tests.Test_Bbuild_Deny_Read'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox Build_Bwrap_Args skips missing paths",
+         Sandbox_Tests.Test_Bbuild_Missing_Path_Skipped'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox Build_Bwrap_Args handles multiple rule types",
+         Sandbox_Tests.Test_Bbuild_Multiple_Rule_Types'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox Build_Bwrap_Args sorts by path depth",
+         Sandbox_Tests.Test_Bbuild_Depth_Sorted'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox resolves '.' to Cwd",
+         Sandbox_Tests.Test_Resolve_Dot_To_Cwd'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox resolves './...' relative to Cwd",
+         Sandbox_Tests.Test_Resolve_Dot_Slash'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox resolves '~/' prefix to $HOME",
+         Sandbox_Tests.Test_Resolve_Home_Prefix'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox passes absolute paths through unchanged",
+         Sandbox_Tests.Test_Resolve_Absolute_Untouched'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox shell allowWrite succeeds",
+         Sandbox_Tests.Test_Shell_Sandbox_Allow_Write'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox shell denyRead blocks access",
+         Sandbox_Tests.Test_Shell_Sandbox_Deny_Read'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox shell empty profile runs unsandboxed",
+         Sandbox_Tests.Test_Shell_Sandbox_Empty_Profile'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox shell timeout terminates the process group",
+         Sandbox_Tests.Test_Shell_Sandbox_Timeout'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox shell abort terminates the process group",
+         Sandbox_Tests.Test_Shell_Sandbox_Abort'Access));
+
+      return Result;
+   end Suite;
 
 end Sandbox_Tests;

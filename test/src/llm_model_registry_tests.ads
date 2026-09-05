@@ -1,5 +1,6 @@
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 
 package LLM_Model_Registry_Tests is
 
@@ -20,5 +21,7 @@ package LLM_Model_Registry_Tests is
   procedure Test_OpenCode_Go_Available_With_Key (T : in out Test);
   procedure Test_OpenAI_Default_Fallback (T : in out Test);
   procedure Test_OpenAI_Available_With_Key (T : in out Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end LLM_Model_Registry_Tests;

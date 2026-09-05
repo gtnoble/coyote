@@ -1,5 +1,6 @@
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 
 package LLM_Compaction_Tests is
 
@@ -11,5 +12,7 @@ package LLM_Compaction_Tests is
    procedure Test_Find_Cut_Point (T : in out Test);
    procedure Test_Serialize_Conversation (T : in out Test);
    procedure Test_Full_Compaction_Candidate (T : in out Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end LLM_Compaction_Tests;

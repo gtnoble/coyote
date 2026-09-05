@@ -1,3 +1,5 @@
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 --  Coyote_App_Agent_Registry_Tests — runtime-agent registry tests.
 --
 --  Project: coyote
@@ -255,5 +257,77 @@ package body Coyote_App_Agent_Registry_Tests is
       Assert (not Has_Agent (R, Root_Id),
               "cleared agent must no longer be found");
    end Test_Clear_Removes_All_Records;
+
+
+   package Agent_Registry_Caller is
+     new AUnit.Test_Caller (Coyote_App_Agent_Registry_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (Agent_Registry_Caller.Create
+        ("Agent registry registers the main root",
+         Coyote_App_Agent_Registry_Tests
+           .Test_Register_Main_Agent_As_Root'Access));
+      Result.Add_Test (Agent_Registry_Caller.Create
+        ("Agent registry registers a child under its parent",
+         Coyote_App_Agent_Registry_Tests
+           .Test_Register_Child_Under_Parent'Access));
+      Result.Add_Test (Agent_Registry_Caller.Create
+        ("Agent registry records local and RPC endpoints",
+         Coyote_App_Agent_Registry_Tests
+           .Test_Register_Agent_Endpoint_Kind'Access));
+      Result.Add_Test (Agent_Registry_Caller.Create
+        ("Agent registry preserves recursive descendants",
+         Coyote_App_Agent_Registry_Tests
+           .Test_Register_Recursive_Descendants'Access));
+      Result.Add_Test (Agent_Registry_Caller.Create
+        ("Agent registry separates runtime and durable identity",
+         Coyote_App_Agent_Registry_Tests
+           .Test_Runtime_Identity_Is_Separate'Access));
+      Result.Add_Test (Agent_Registry_Caller.Create
+        ("Agent registry selects a live agent",
+         Coyote_App_Agent_Registry_Tests
+           .Test_Select_Live_Agent'Access));
+      Result.Add_Test (Agent_Registry_Caller.Create
+        ("Agent registry accepts controls while ready",
+         Coyote_App_Agent_Registry_Tests
+           .Test_Ready_Agent_Accepts_Control'Access));
+      Result.Add_Test (Agent_Registry_Caller.Create
+        ("Agent registry accepts controls while starting",
+         Coyote_App_Agent_Registry_Tests
+           .Test_Starting_Agent_Accepts_Control'Access));
+      Result.Add_Test (Agent_Registry_Caller.Create
+        ("Agent registry preserves live status control policy",
+         Coyote_App_Agent_Registry_Tests
+           .Test_Live_Status_Transitions'Access));
+      Result.Add_Test (Agent_Registry_Caller.Create
+        ("Agent registry updates durable session identity",
+         Coyote_App_Agent_Registry_Tests
+           .Test_Durable_Session_Id_Update'Access));
+      Result.Add_Test (Agent_Registry_Caller.Create
+        ("Agent registry retains terminal selection",
+         Coyote_App_Agent_Registry_Tests
+           .Test_Terminal_Agent_Remains_Selectable'Access));
+      Result.Add_Test (Agent_Registry_Caller.Create
+        ("Agent registry rejects terminal controls",
+         Coyote_App_Agent_Registry_Tests
+           .Test_Terminal_Agent_Rejects_Control'Access));
+      Result.Add_Test (Agent_Registry_Caller.Create
+        ("Agent registry rejects unknown parents",
+         Coyote_App_Agent_Registry_Tests
+           .Test_Unknown_Parent_Is_Rejected'Access));
+      Result.Add_Test (Agent_Registry_Caller.Create
+        ("Agent registry rejects duplicate runtime identities",
+         Coyote_App_Agent_Registry_Tests
+           .Test_Duplicate_Runtime_Id_Is_Rejected'Access));
+      Result.Add_Test (Agent_Registry_Caller.Create
+        ("Agent registry clears records and selection",
+         Coyote_App_Agent_Registry_Tests
+           .Test_Clear_Removes_All_Records'Access));
+
+      return Result;
+   end Suite;
 
 end Coyote_App_Agent_Registry_Tests;

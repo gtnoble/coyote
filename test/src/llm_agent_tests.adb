@@ -5,6 +5,8 @@ with Ada.Containers.Vectors;
 with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with GNATCOLL.JSON;
@@ -6338,5 +6340,184 @@ package body LLM_Agent_Tests is
          Cleanup_Test_Home (Home);
          raise;
    end Test_Sandbox_Profile_Restored_And_Cleared_On_Switch;
+
+
+   package LLM_Agent_Caller is
+     new AUnit.Test_Caller (LLM_Agent_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent runs a single-turn prompt and persists it",
+         LLM_Agent_Tests.Test_Single_Turn_Prompt'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent executes a tool call and loops for the final reply",
+         LLM_Agent_Tests.Test_Tool_Call_Loop'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent executes two tool calls in one turn",
+         LLM_Agent_Tests.Test_Two_Tool_Call_Loop'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent preserves tool execution failures",
+         LLM_Agent_Tests.Test_Tool_Execution_Failure'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent Switch_Session pre-loads existing history",
+         LLM_Agent_Tests.Test_Switch_Session_Loads_History'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent honours cross-task abort requests",
+         LLM_Agent_Tests.Test_Abort_Request'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent keeps aborted multi-tool history structurally valid",
+         LLM_Agent_Tests.Test_Abort_Batched_Tools_Keep_History_Valid'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent aborts shell tool with timeout promptly",
+         LLM_Agent_Tests.Test_Abort_During_Shell_With_Timeout'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent flushes tool batch to session file as soon as it"
+         & " completes",
+         LLM_Agent_Tests.
+           Test_Session_File_Written_Only_After_Turn_End'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent resumes persisted session history",
+         LLM_Agent_Tests.Test_Session_Resume'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent preserves OpenRouter Broadcast ID across subagents",
+         LLM_Agent_Tests
+           .Test_OpenRouter_Session_Id_Inherited_By_Subagents'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent uses settings defaults when Model_Spec is empty",
+         LLM_Agent_Tests
+           .Test_Create_Without_Model_Spec_Uses_Settings_Default'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent memory enabled by COYOTE_ENABLE_MEMORY=1",
+         LLM_Agent_Tests.Test_Memory_Enabled_By_Env_Var'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent memory disabled by default (env var unset)",
+         LLM_Agent_Tests.Test_Memory_Disabled_By_Default'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent reuses history across multiple turns in one session",
+         LLM_Agent_Tests
+           .Test_Multi_Turn_Same_Session_Carries_History'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent emits model/start/update/end/stats in order",
+         LLM_Agent_Tests
+           .Test_Event_Sequence_Agent_Start_Through_Session_Stats'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent turns unknown tool calls into tool errors",
+         LLM_Agent_Tests
+           .Test_Unknown_Tool_Becomes_Error_And_Agent_Continues'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent retries HTTP 500 errors and succeeds on retry",
+         LLM_Agent_Tests
+           .Test_Auto_Retry_On_HTTP_500_Then_Success'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent filters encrypted thinking across model switches",
+         LLM_Agent_Tests
+           .Test_Compatible_History_Filters_Foreign_Thinking'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent rolls back prompts after non-retryable errors",
+         LLM_Agent_Tests
+           .Test_Non_Retryable_Error_Rolls_Back_Prompt'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent rolls back prompts after retry exhaustion",
+         LLM_Agent_Tests
+           .Test_Retry_Exhaustion_Rolls_Back_Prompt'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent detects known context-overflow error phrases",
+         LLM_Agent_Tests
+           .Test_Is_Context_Overflow_Error_Detects_Known_Phrases'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent compacts and retries after a context overflow",
+         LLM_Agent_Tests
+           .Test_Overflow_Triggers_Compact_And_Retry'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent gives up after one overflow recovery attempt",
+         LLM_Agent_Tests
+           .Test_Overflow_Recovery_Not_Attempted_Twice'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent emits a compaction will-retry event on overflow",
+         LLM_Agent_Tests
+           .Test_Overflow_Will_Retry_Event_Emitted'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent Compact replaces old history with a summary message",
+         LLM_Agent_Tests
+           .Test_Compact_Produces_Summary_Message'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent Compact emits compaction start and end events",
+         LLM_Agent_Tests
+           .Test_Compact_Emits_Start_And_End_Events'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent Compact aborts cleanly on very short history",
+         LLM_Agent_Tests
+           .Test_Compact_Short_History_Aborts'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent Compact persists a resumable compaction entry",
+         LLM_Agent_Tests
+           .Test_Compact_Persists_Entry'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent auto-compacts when the context threshold is reached",
+         LLM_Agent_Tests
+           .Test_Auto_Compact_Fires_At_Threshold'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent skips auto-compaction below the context threshold",
+         LLM_Agent_Tests
+           .Test_Auto_Compact_Does_Not_Fire_Below_Threshold'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent persists threshold-triggered compaction entries",
+         LLM_Agent_Tests
+           .Test_Auto_Compact_Session_Persisted_After_Threshold'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent Set_Compact_Settings Enabled=False prevents compaction",
+         LLM_Agent_Tests
+           .Test_Set_Compact_Settings_Disabled'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent Compact survives a session reload round-trip",
+         LLM_Agent_Tests
+           .Test_Compact_Then_Resume'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("[live] LLM.Agent Compact summarises a GitHub Copilot conversation",
+         LLM_Agent_Tests
+           .Test_Compact_Live_Summarises_Conversation'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("Tool result contains [coyote: turn=...] stats footer",
+         LLM_Agent_Tests
+           .Test_Tool_Result_Has_Stats_Footer'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("Stats footer appears only on last tool in a batch",
+         LLM_Agent_Tests
+           .Test_Stats_Footer_Only_On_Last_Tool_In_Batch'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("Image tool results have no stats footer appended",
+         LLM_Agent_Tests
+           .Test_Image_Tool_Result_No_Footer'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent pause fires at turn boundary and resumes normally",
+         LLM_Agent_Tests.Test_Pause_Fires_At_Turn_Boundary'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent Request_Abort while paused exits with Was_Aborted",
+         LLM_Agent_Tests.Test_Stop_While_Paused'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent Set_Sandbox_Profile and Current_Sandbox round-trip",
+         LLM_Agent_Tests.Test_Sandbox_Set_And_Get'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent COYOTE_SANDBOX_PROFILE inherited by Create",
+         LLM_Agent_Tests.Test_Sandbox_Env_Var_Inherited'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent sandbox defaults to empty without env var",
+         LLM_Agent_Tests.Test_Sandbox_Default_Empty'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent persistent sandbox default from settings",
+         LLM_Agent_Tests.Test_Sandbox_Default_From_Settings'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent restores sandbox profile on session resume",
+         LLM_Agent_Tests.Test_Sandbox_Profile_Restored_On_Resume'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent restores and clears sandbox profile on session switch",
+         LLM_Agent_Tests
+           .Test_Sandbox_Profile_Restored_And_Cleared_On_Switch'Access));
+
+      return Result;
+   end Suite;
 
 end LLM_Agent_Tests;

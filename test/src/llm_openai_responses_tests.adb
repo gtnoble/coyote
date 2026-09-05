@@ -2,6 +2,8 @@ with AUnit.Assertions;
 with Ada.Containers;
 with Ada.Containers.Indefinite_Vectors;
 with Ada.Strings.Fixed;
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Tags;
 with GNATCOLL.JSON;
@@ -1228,5 +1230,49 @@ package body LLM_OpenAI_Responses_Tests is
          end if;
          raise;
    end Test_Omits_Store_And_Previous_Response;
+
+
+   package LLM_OpenAI_Responses_Caller is
+     new AUnit.Test_Caller (LLM_OpenAI_Responses_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (LLM_OpenAI_Responses_Caller.Create
+        ("LLM.OpenAI_Responses streams text SSE responses",
+         LLM_OpenAI_Responses_Tests.Test_Stream_Text_Response'Access));
+      Result.Add_Test (LLM_OpenAI_Responses_Caller.Create
+        ("LLM.OpenAI_Responses streams function_call items",
+         LLM_OpenAI_Responses_Tests.Test_Stream_Tool_Call_Response'Access));
+      Result.Add_Test (LLM_OpenAI_Responses_Caller.Create
+        ("LLM.OpenAI_Responses emits thinking and encrypted signature",
+         LLM_OpenAI_Responses_Tests.Test_Stream_Thinking_Response'Access));
+      Result.Add_Test (LLM_OpenAI_Responses_Caller.Create
+        ("LLM.OpenAI_Responses encodes compaction summaries as user",
+         LLM_OpenAI_Responses_Tests
+           .Test_Compaction_Summary_Encodes_As_User'Access));
+      Result.Add_Test (LLM_OpenAI_Responses_Caller.Create
+        ("LLM.OpenAI_Responses parses non-streaming JSON responses",
+         LLM_OpenAI_Responses_Tests.Test_Non_Streaming_Response'Access));
+      Result.Add_Test (LLM_OpenAI_Responses_Caller.Create
+        ("LLM.OpenAI_Responses propagates HTTP errors",
+         LLM_OpenAI_Responses_Tests.Test_HTTP_Error_Propagates'Access));
+      Result.Add_Test (LLM_OpenAI_Responses_Caller.Create
+        ("LLM.OpenAI_Responses parses cache_write_tokens",
+         LLM_OpenAI_Responses_Tests.Test_Usage_Includes_Cache_Write'Access));
+      Result.Add_Test (LLM_OpenAI_Responses_Caller.Create
+        ("LLM.OpenAI_Responses encodes image tool results as input_image",
+         LLM_OpenAI_Responses_Tests.Test_Tool_Result_Image_Serialised'Access));
+      Result.Add_Test (LLM_OpenAI_Responses_Caller.Create
+        ("LLM.OpenAI_Responses replays reasoning items",
+         LLM_OpenAI_Responses_Tests.Test_Reasoning_Item_Replayed'Access));
+      Result.Add_Test (LLM_OpenAI_Responses_Caller.Create
+        ("LLM.OpenAI_Responses omits store and previous_response_id",
+         LLM_OpenAI_Responses_Tests
+           .Test_Omits_Store_And_Previous_Response'Access));
+
+      return Result;
+   end Suite;
 
 end LLM_OpenAI_Responses_Tests;

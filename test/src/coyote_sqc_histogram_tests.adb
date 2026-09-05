@@ -1,3 +1,5 @@
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 --  Coyote_SQC_Histogram_Tests body.
 --
 --  Project: coyote
@@ -223,5 +225,47 @@ package body Coyote_SQC_Histogram_Tests is
       Assert (Total = 100,
               "Cap at 32: total count must still equal 100; got " & Total'Image);
    end Test_Bins_Cap_At_32;
+
+
+   package SQC_Histogram_Caller is
+     new AUnit.Test_Caller (Coyote_SQC_Histogram_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (SQC_Histogram_Caller.Create
+        ("SQC histogram: n=2 uniform: FD gives 2 bins",
+         Coyote_SQC_Histogram_Tests.Test_Bins_N2'Access));
+      Result.Add_Test (SQC_Histogram_Caller.Create
+        ("SQC histogram: n=8 uniform: FD gives 2 bins",
+         Coyote_SQC_Histogram_Tests.Test_Bins_N8'Access));
+      Result.Add_Test (SQC_Histogram_Caller.Create
+        ("SQC histogram: n=100 uniform: FD gives 5 bins",
+         Coyote_SQC_Histogram_Tests.Test_Bins_N100'Access));
+      Result.Add_Test (SQC_Histogram_Caller.Create
+        ("SQC histogram: IQR=0 falls back to single bin",
+         Coyote_SQC_Histogram_Tests.Test_FD_IQR_Zero'Access));
+      Result.Add_Test (SQC_Histogram_Caller.Create
+        ("SQC histogram: bin totals equal input length",
+         Coyote_SQC_Histogram_Tests.Test_Bins_Uniform'Access));
+      Result.Add_Test (SQC_Histogram_Caller.Create
+        ("SQC histogram: minimum value in bin 1",
+         Coyote_SQC_Histogram_Tests.Test_Bins_All_In_First'Access));
+      Result.Add_Test (SQC_Histogram_Caller.Create
+        ("SQC histogram: maximum value clamped to last bin",
+         Coyote_SQC_Histogram_Tests.Test_Bins_All_In_Last'Access));
+      Result.Add_Test (SQC_Histogram_Caller.Create
+        ("SQC histogram: all-equal values -> N_Bins=1, Bin_Width=1.0",
+         Coyote_SQC_Histogram_Tests.Test_Bins_All_Equal'Access));
+      Result.Add_Test (SQC_Histogram_Caller.Create
+        ("SQC histogram: n=1 -> N_Bins=1, Bin_Min=value",
+         Coyote_SQC_Histogram_Tests.Test_Bins_N1'Access));
+      Result.Add_Test (SQC_Histogram_Caller.Create
+        ("SQC histogram: bimodal FD bin count capped at 32",
+         Coyote_SQC_Histogram_Tests.Test_Bins_Cap_At_32'Access));
+
+      return Result;
+   end Suite;
 
 end Coyote_SQC_Histogram_Tests;

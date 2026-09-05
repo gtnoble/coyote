@@ -1,3 +1,5 @@
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 --  Coyote_Help_Tests body.
 --
 --  Project: coyote
@@ -65,5 +67,32 @@ package body Coyote_Help_Tests is
         (Ada.Strings.Fixed.Index (Text, "License") > 0,
          "Product Information includes the license");
    end Test_Product_Information_Text;
+
+
+   package Coyote_Help_Caller is
+     new AUnit.Test_Caller (Coyote_Help_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (Coyote_Help_Caller.Create
+        ("Coyote.Help root URI",
+         Coyote_Help_Tests.Test_Root_URI'Access));
+      Result.Add_Test (Coyote_Help_Caller.Create
+        ("Coyote.Help topic URI",
+         Coyote_Help_Tests.Test_Topic_URI'Access));
+      Result.Add_Test (Coyote_Help_Caller.Create
+        ("Coyote.Help data directory follows executable prefix",
+         Coyote_Help_Tests.Test_Help_Data_Directory'Access));
+      Result.Add_Test (Coyote_Help_Caller.Create
+        ("Coyote.Help detects Yelp",
+         Coyote_Help_Tests.Test_Yelp_Is_Available'Access));
+      Result.Add_Test (Coyote_Help_Caller.Create
+        ("Coyote.Help product information text",
+         Coyote_Help_Tests.Test_Product_Information_Text'Access));
+
+      return Result;
+   end Suite;
 
 end Coyote_Help_Tests;

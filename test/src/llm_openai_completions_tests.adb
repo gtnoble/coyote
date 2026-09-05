@@ -3,6 +3,8 @@ with Ada.Containers;
 with Ada.Containers.Indefinite_Vectors;
 with Ada.Exceptions;
 with Ada.Strings.Fixed;
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 with Ada.Strings.Unbounded;       use Ada.Strings.Unbounded;
 with Ada.Tags;
 with GNATCOLL.JSON;
@@ -2091,5 +2093,72 @@ package body LLM_OpenAI_Completions_Tests is
          raise;
    end Test_Tool_Result_Image_Serialised;
 
+
+
+   package LLM_OpenAI_Completions_Caller is
+     new AUnit.Test_Caller (LLM_OpenAI_Completions_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (LLM_OpenAI_Completions_Caller.Create
+        ("LLM.OpenAI_Completions streams text SSE responses",
+         LLM_OpenAI_Completions_Tests.Test_Stream_Text_Response'Access));
+      Result.Add_Test (LLM_OpenAI_Completions_Caller.Create
+        ("LLM.OpenAI_Completions streams and assembles tool calls",
+         LLM_OpenAI_Completions_Tests
+           .Test_Stream_Tool_Call_Response'Access));
+      Result.Add_Test (LLM_OpenAI_Completions_Caller.Create
+        ("LLM.OpenAI_Completions assembles multiple indexed tool calls",
+         LLM_OpenAI_Completions_Tests
+           .Test_Stream_Multi_Tool_Response'Access));
+      Result.Add_Test (LLM_OpenAI_Completions_Caller.Create
+        ("LLM.OpenAI_Completions emits thinking deltas from reasoning",
+         LLM_OpenAI_Completions_Tests
+           .Test_Stream_Thinking_Response'Access));
+      Result.Add_Test (LLM_OpenAI_Completions_Caller.Create
+        ("LLM.OpenAI_Completions encodes compaction summaries as user",
+         LLM_OpenAI_Completions_Tests
+           .Test_Compaction_Summary_Encodes_As_User_OpenAI'Access));
+      Result.Add_Test (LLM_OpenAI_Completions_Caller.Create
+        ("LLM.OpenAI_Completions parses non-streaming JSON responses",
+         LLM_OpenAI_Completions_Tests
+           .Test_Non_Streaming_Response'Access));
+      Result.Add_Test (LLM_OpenAI_Completions_Caller.Create
+        ("LLM.OpenAI_Completions parses non-streaming tool calls",
+         LLM_OpenAI_Completions_Tests
+           .Test_OpenAI_Non_Streaming_Tool_Calls'Access));
+      Result.Add_Test (LLM_OpenAI_Completions_Caller.Create
+        ("LLM.OpenAI_Completions propagates HTTP errors",
+         LLM_OpenAI_Completions_Tests
+           .Test_OpenAI_HTTP_Error_Propagates'Access));
+      Result.Add_Test (LLM_OpenAI_Completions_Caller.Create
+        ("LLM.OpenAI_Completions propagates streamed errors",
+         LLM_OpenAI_Completions_Tests
+           .Test_OpenAI_Stream_Error_Propagates'Access));
+      Result.Add_Test (LLM_OpenAI_Completions_Caller.Create
+        ("LLM.OpenAI_Completions finalizes early-terminated streams",
+         LLM_OpenAI_Completions_Tests
+           .Test_OpenAI_Stream_Terminates_Early'Access));
+      Result.Add_Test (LLM_OpenAI_Completions_Caller.Create
+        ("LLM.OpenAI_Completions system message has cache_control",
+         LLM_OpenAI_Completions_Tests
+           .Test_OpenAI_System_Cache_Control'Access));
+      Result.Add_Test (LLM_OpenAI_Completions_Caller.Create
+        ("LLM.OpenAI_Completions last tool has cache_control breakpoint",
+         LLM_OpenAI_Completions_Tests
+           .Test_OpenAI_Last_Tool_Cache_Control'Access));
+      Result.Add_Test (LLM_OpenAI_Completions_Caller.Create
+        ("LLM.OpenAI_Completions cached_tokens parsed in usage",
+         LLM_OpenAI_Completions_Tests
+           .Test_OpenAI_Cached_Tokens_In_Usage'Access));
+      Result.Add_Test (LLM_OpenAI_Completions_Caller.Create
+        ("OpenAI tool_result image uses image_url data URI format",
+         LLM_OpenAI_Completions_Tests
+           .Test_Tool_Result_Image_Serialised'Access));
+
+      return Result;
+   end Suite;
 
 end LLM_OpenAI_Completions_Tests;

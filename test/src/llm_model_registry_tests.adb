@@ -2,6 +2,8 @@ with AUnit.Assertions;
 with Ada.Characters.Handling;
 with Ada.Directories;
 with Ada.Environment_Variables;
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with GNATCOLL.JSON;
@@ -761,5 +763,68 @@ package body LLM_Model_Registry_Tests is
       Restore_Env ("OPENAI_API_KEY", Key_Was_Set, Old_Key);
       raise;
   end Test_OpenAI_Available_With_Key;
+
+
+   package LLM_Model_Registry_Caller is
+     new AUnit.Test_Caller (LLM_Model_Registry_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (LLM_Model_Registry_Caller.Create
+        ("LLM.Model_Registry marks Claude Copilot models as Anthropic",
+         LLM_Model_Registry_Tests
+           .Test_GitHub_Copilot_Anthropic_Wire_Format'Access));
+      Result.Add_Test (LLM_Model_Registry_Caller.Create
+        ("LLM.Model_Registry marks GPT Copilot models as OpenAI",
+         LLM_Model_Registry_Tests
+           .Test_GitHub_Copilot_OpenAI_Wire_Format'Access));
+      Result.Add_Test (LLM_Model_Registry_Caller.Create
+        ("LLM.Model_Registry returns a default for unknown Copilot ids",
+         LLM_Model_Registry_Tests.Test_GitHub_Copilot_Default_Fallback'Access));
+      Result.Add_Test (LLM_Model_Registry_Caller.Create
+        ("LLM.Model_Registry preserves OpenRouter model pricing",
+         LLM_Model_Registry_Tests.Test_OpenRouter_Cost_Loaded'Access));
+      Result.Add_Test (LLM_Model_Registry_Caller.Create
+        ("LLM.Model_Registry defaults unknown OpenRouter ids",
+         LLM_Model_Registry_Tests.Test_OpenRouter_Default_Fallback'Access));
+      Result.Add_Test (LLM_Model_Registry_Caller.Create
+        ("LLM.Model_Registry raises Not_Found for unknown providers",
+         LLM_Model_Registry_Tests.Test_Unknown_Provider_Not_Found'Access));
+      Result.Add_Test (LLM_Model_Registry_Caller.Create
+        ("LLM.Model_Registry filters Available_Models by credentials",
+         LLM_Model_Registry_Tests.Test_Available_Models_Filtering'Access));
+      Result.Add_Test (LLM_Model_Registry_Caller.Create
+        ("LLM.Model_Registry adds Anthropic models only with credentials",
+         LLM_Model_Registry_Tests.Test_Anthropic_Available_Models'Access));
+      Result.Add_Test (LLM_Model_Registry_Caller.Create
+        ("LLM.Model_Registry Available_Models returns sorted order",
+         LLM_Model_Registry_Tests.Test_Available_Models_Sorted'Access));
+      Result.Add_Test (LLM_Model_Registry_Caller.Create
+        ("LLM.Model_Registry MiniMax M2.7 uses Anthropic wire format",
+         LLM_Model_Registry_Tests
+           .Test_OpenCode_Go_Wire_Format_Anthropic'Access));
+      Result.Add_Test (LLM_Model_Registry_Caller.Create
+        ("LLM.Model_Registry DeepSeek V4 Pro uses OpenAI wire format",
+         LLM_Model_Registry_Tests
+           .Test_OpenCode_Go_Wire_Format_OpenAI'Access));
+      Result.Add_Test (LLM_Model_Registry_Caller.Create
+        ("LLM.Model_Registry defaults unknown opencode-go ids",
+         LLM_Model_Registry_Tests
+           .Test_OpenCode_Go_Default_Fallback'Access));
+      Result.Add_Test (LLM_Model_Registry_Caller.Create
+        ("LLM.Model_Registry OpenCode Go models available with key",
+         LLM_Model_Registry_Tests
+           .Test_OpenCode_Go_Available_With_Key'Access));
+      Result.Add_Test (LLM_Model_Registry_Caller.Create
+        ("LLM.Model_Registry defaults unknown OpenAI ids to Responses",
+         LLM_Model_Registry_Tests.Test_OpenAI_Default_Fallback'Access));
+      Result.Add_Test (LLM_Model_Registry_Caller.Create
+        ("LLM.Model_Registry OpenAI models available with key",
+         LLM_Model_Registry_Tests.Test_OpenAI_Available_With_Key'Access));
+
+      return Result;
+   end Suite;
 
 end LLM_Model_Registry_Tests;

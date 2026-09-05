@@ -3,6 +3,8 @@ with Ada.Calendar;
 with Ada.Characters.Handling;
 with Ada.Directories;
 with Ada.Environment_Variables;
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with GNATCOLL.JSON;
@@ -821,5 +823,36 @@ package body LLM_GitHub_Copilot_Tests is
          Cleanup_Test_Home (Home);
          raise;
    end Test_Copilot_Refreshes_Expired_Token_Then_Sends;
+
+
+   package LLM_GitHub_Copilot_Caller is
+     new AUnit.Test_Caller (LLM_GitHub_Copilot_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (LLM_GitHub_Copilot_Caller.Create
+        ("LLM.GitHub_Copilot adds the static Copilot headers",
+         LLM_GitHub_Copilot_Tests.Test_Send_Adds_Static_Headers'Access));
+      Result.Add_Test (LLM_GitHub_Copilot_Caller.Create
+        ("LLM.GitHub_Copilot sets X-Initiator=user for user prompts",
+         LLM_GitHub_Copilot_Tests.Test_Send_Sets_X_Initiator_User'Access));
+      Result.Add_Test (LLM_GitHub_Copilot_Caller.Create
+        ("LLM.GitHub_Copilot sets X-Initiator=agent for agent prompts",
+         LLM_GitHub_Copilot_Tests.Test_Send_Sets_X_Initiator_Agent'Access));
+      Result.Add_Test (LLM_GitHub_Copilot_Caller.Create
+        ("LLM.GitHub_Copilot selects Anthropic Messages for Claude models",
+         LLM_GitHub_Copilot_Tests.Test_Send_Selects_Anthropic_Path'Access));
+      Result.Add_Test (LLM_GitHub_Copilot_Caller.Create
+        ("LLM.GitHub_Copilot selects OpenAI completions for GPT models",
+         LLM_GitHub_Copilot_Tests.Test_Send_Selects_OpenAI_Path'Access));
+      Result.Add_Test (LLM_GitHub_Copilot_Caller.Create
+        ("LLM.GitHub_Copilot refreshes expired tokens before sending",
+         LLM_GitHub_Copilot_Tests
+           .Test_Copilot_Refreshes_Expired_Token_Then_Sends'Access));
+
+      return Result;
+   end Suite;
 
 end LLM_GitHub_Copilot_Tests;

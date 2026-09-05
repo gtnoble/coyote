@@ -4,6 +4,7 @@
 
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 
 package Coyote_App_Agent_Registry_Tests is
 
@@ -24,5 +25,7 @@ package Coyote_App_Agent_Registry_Tests is
    procedure Test_Unknown_Parent_Is_Rejected (T : in out Test);
    procedure Test_Duplicate_Runtime_Id_Is_Rejected (T : in out Test);
    procedure Test_Clear_Removes_All_Records (T : in out Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end Coyote_App_Agent_Registry_Tests;

@@ -1,5 +1,6 @@
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 
 package LLM_OpenCode_Go_Catalogue_Tests is
 
@@ -19,5 +20,7 @@ package LLM_OpenCode_Go_Catalogue_Tests is
 
    --  Verify that unknown models get default metadata.
    procedure Test_Static_Metadata_Unknown_Model (T : in out Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end LLM_OpenCode_Go_Catalogue_Tests;

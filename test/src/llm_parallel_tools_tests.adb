@@ -4,6 +4,8 @@ with Ada.Containers;
 with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with GNATCOLL.JSON;
@@ -1052,5 +1054,33 @@ package body LLM_Parallel_Tools_Tests is
          Cleanup_Test_Home (Home);
          raise;
    end Test_Tools_Run_In_Group_Order;
+
+
+   package LLM_Parallel_Caller is
+     new AUnit.Test_Caller (LLM_Parallel_Tools_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (LLM_Parallel_Caller.Create
+        ("Parallel batch: two 0.4 s tools complete in < 0.75 s",
+         LLM_Parallel_Tools_Tests
+           .Test_Parallel_Tools_Run_Concurrently'Access));
+      Result.Add_Test (LLM_Parallel_Caller.Create
+        ("Parallel batch: abort during batch sets Was_Aborted",
+         LLM_Parallel_Tools_Tests
+           .Test_Parallel_Abort_During_Batch'Access));
+      Result.Add_Test (LLM_Parallel_Caller.Create
+        ("Sequential default: tools without run_group run sequentially",
+         LLM_Parallel_Tools_Tests
+           .Test_Tools_Run_Sequentially_By_Default'Access));
+      Result.Add_Test (LLM_Parallel_Caller.Create
+        ("Group order: group 1 runs before group 2",
+         LLM_Parallel_Tools_Tests
+           .Test_Tools_Run_In_Group_Order'Access));
+
+      return Result;
+   end Suite;
 
 end LLM_Parallel_Tools_Tests;

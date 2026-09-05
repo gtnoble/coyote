@@ -6,6 +6,7 @@
 
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 
 package Coyote_GUI_Zoom_Tests is
 
@@ -23,5 +24,7 @@ package Coyote_GUI_Zoom_Tests is
    procedure Test_Step_Zoom_Multi_Step_Stops_At_Clamp (T : in out Test);
    procedure Test_Step_Zoom_Zero_Steps_No_Change      (T : in out Test);
    procedure Test_Clamped_Base_Pt                     (T : in out Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end Coyote_GUI_Zoom_Tests;

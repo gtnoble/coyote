@@ -4,6 +4,8 @@ with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Exceptions;
 with Ada.Strings.Fixed;
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with GNATCOLL.JSON;
@@ -1673,5 +1675,104 @@ package body LLM_Session_Store_Tests is
          Cleanup_Test_Root;
          raise;
    end Test_Sandbox_Profile_Read_From_Header;
+
+
+   package LLM_Session_Store_Caller is
+     new AUnit.Test_Caller (LLM_Session_Store_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store New_UUID returns RFC 4122 v4 text",
+         LLM_Session_Store_Tests.Test_New_UUID_Format'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store New_UUID returns unique values",
+         LLM_Session_Store_Tests.Test_New_UUID_Unique'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store Create_Session writes a parseable header",
+         LLM_Session_Store_Tests.Test_Create_Session_Header'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store user messages round-trip through disk",
+         LLM_Session_Store_Tests.Test_User_Round_Trip'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store assistant tool calls round-trip through disk",
+         LLM_Session_Store_Tests.Test_Assistant_Tool_Call'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store assistant thinking+text round-trips",
+         LLM_Session_Store_Tests
+           .Test_Assistant_Thinking_Text_Round_Trip'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store infers legacy thinking model provenance",
+         LLM_Session_Store_Tests
+           .Test_Legacy_Model_Change_Infers_Thinking_Origin'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store tool results round-trip through disk",
+         LLM_Session_Store_Tests.Test_Tool_Result_Round_Trip'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store native sessions can be forked",
+         LLM_Session_Store_Tests.Test_Fork_Session_Native_Source'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store loads legacy envelope lines",
+         LLM_Session_Store_Tests.Test_Load_Legacy_Pi_Envelope_Lines'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store skips malformed JSONL lines",
+         LLM_Session_Store_Tests.Test_Load_Skips_Malformed_Lines'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store persists assistant usage and stop reason",
+         LLM_Session_Store_Tests
+           .Test_Assistant_Usage_And_Stop_Reason_Persist'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store appends compaction records to JSONL",
+         LLM_Session_Store_Tests
+           .Test_Append_Compaction_Writes_Entry'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store rejects persisted compaction summary messages",
+         LLM_Session_Store_Tests
+           .Test_Compaction_Summary_Not_Persisted'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store loads synthetic history around compaction",
+         LLM_Session_Store_Tests
+           .Test_Load_With_Compaction_Entry'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store keeps legacy load behaviour without compaction",
+         LLM_Session_Store_Tests
+           .Test_Load_Without_Compaction_Unchanged'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store append/load compaction round-trips",
+         LLM_Session_Store_Tests
+           .Test_Append_Then_Load_Round_Trip'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store.Session_Work_Dir returns stored Cwd and empty "
+         & "string for missing session or missing field",
+         LLM_Session_Store_Tests.Test_Session_Work_Dir'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store.Session_Created_At returns local timestamp",
+         LLM_Session_Store_Tests.Test_Session_Created_At'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store.Append_Message handles large tool result without "
+         & "secondary-stack overflow",
+         LLM_Session_Store_Tests
+           .Test_Large_Tool_Result_Round_Trip'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store tool call with invalid args round-trips",
+         LLM_Session_Store_Tests
+           .Test_Assistant_Tool_Call_Invalid_Args'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store sandboxProfile written to header when set",
+         LLM_Session_Store_Tests
+           .Test_Sandbox_Profile_Written_To_Header'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store sandboxProfile absent when env var unset",
+         LLM_Session_Store_Tests
+           .Test_Sandbox_No_Profile_No_Header_Field'Access));
+      Result.Add_Test (LLM_Session_Store_Caller.Create
+        ("LLM.Session_Store reads sandboxProfile from session header",
+         LLM_Session_Store_Tests
+           .Test_Sandbox_Profile_Read_From_Header'Access));
+
+      return Result;
+   end Suite;
 
 end LLM_Session_Store_Tests;

@@ -1,3 +1,5 @@
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 --  Coyote_GUI_Zoom_Tests body.
 --
 --  Project: coyote
@@ -124,5 +126,53 @@ package body Coyote_GUI_Zoom_Tests is
       Assert (Clamped_Base_Pt (100) = Max_Size_Pt,
               "huge baseline clamps to Max_Size_Pt");
    end Test_Clamped_Base_Pt;
+
+
+   package Coyote_GUI_Zoom_Caller is
+     new AUnit.Test_Caller (Coyote_GUI_Zoom_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (Coyote_GUI_Zoom_Caller.Create
+        ("Coyote.GUI.Zoom effective size at level zero",
+         Coyote_GUI_Zoom_Tests.Test_Effective_Size_At_Zero_Level'Access));
+      Result.Add_Test (Coyote_GUI_Zoom_Caller.Create
+        ("Coyote.GUI.Zoom effective size at positive level",
+         Coyote_GUI_Zoom_Tests.Test_Effective_Size_Positive_Level'Access));
+      Result.Add_Test (Coyote_GUI_Zoom_Caller.Create
+        ("Coyote.GUI.Zoom effective size clamps at maximum",
+         Coyote_GUI_Zoom_Tests.Test_Effective_Size_Clamps_At_Max'Access));
+      Result.Add_Test (Coyote_GUI_Zoom_Caller.Create
+        ("Coyote.GUI.Zoom effective size clamps at minimum",
+         Coyote_GUI_Zoom_Tests.Test_Effective_Size_Clamps_At_Min'Access));
+      Result.Add_Test (Coyote_GUI_Zoom_Caller.Create
+        ("Coyote.GUI.Zoom step zoom in changes level",
+         Coyote_GUI_Zoom_Tests.Test_Step_Zoom_In_Changes_Level'Access));
+      Result.Add_Test (Coyote_GUI_Zoom_Caller.Create
+        ("Coyote.GUI.Zoom step zoom out changes level",
+         Coyote_GUI_Zoom_Tests.Test_Step_Zoom_Out_Changes_Level'Access));
+      Result.Add_Test (Coyote_GUI_Zoom_Caller.Create
+        ("Coyote.GUI.Zoom step zoom at max reports no change",
+         Coyote_GUI_Zoom_Tests.Test_Step_Zoom_At_Max_Reports_No_Change'Access));
+      Result.Add_Test (Coyote_GUI_Zoom_Caller.Create
+        ("Coyote.GUI.Zoom step zoom at min reports no change",
+         Coyote_GUI_Zoom_Tests.Test_Step_Zoom_At_Min_Reports_No_Change'Access));
+      Result.Add_Test (Coyote_GUI_Zoom_Caller.Create
+        ("Coyote.GUI.Zoom step zoom applies multiple steps",
+         Coyote_GUI_Zoom_Tests.Test_Step_Zoom_Multi_Step'Access));
+      Result.Add_Test (Coyote_GUI_Zoom_Caller.Create
+        ("Coyote.GUI.Zoom step zoom stops at the clamp",
+         Coyote_GUI_Zoom_Tests.Test_Step_Zoom_Multi_Step_Stops_At_Clamp'Access));
+      Result.Add_Test (Coyote_GUI_Zoom_Caller.Create
+        ("Coyote.GUI.Zoom zero steps report no change",
+         Coyote_GUI_Zoom_Tests.Test_Step_Zoom_Zero_Steps_No_Change'Access));
+      Result.Add_Test (Coyote_GUI_Zoom_Caller.Create
+        ("Coyote.GUI.Zoom baseline clamps to valid range",
+         Coyote_GUI_Zoom_Tests.Test_Clamped_Base_Pt'Access));
+
+      return Result;
+   end Suite;
 
 end Coyote_GUI_Zoom_Tests;

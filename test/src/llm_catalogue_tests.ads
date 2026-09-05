@@ -1,5 +1,6 @@
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 
 package LLM_Catalogue_Tests is
 
@@ -8,5 +9,7 @@ package LLM_Catalogue_Tests is
    procedure Test_Load_From_Fresh_Cache (T : in out Test);
    procedure Test_Stale_Cache_Triggers_Live_Fetch (T : in out Test);
    procedure Test_Stale_Cache_Fallback (T : in out Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end LLM_Catalogue_Tests;

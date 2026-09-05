@@ -1,5 +1,6 @@
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 
 package LLM_Tools_Tests is
 
@@ -128,5 +129,7 @@ package LLM_Tools_Tests is
    --  A timed-out command that ignores SIGTERM is killed after the grace
    --  period and still returns the timeout notice.
    procedure Test_Shell_Timeout_Escalates_After_Grace       (T : in out Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end LLM_Tools_Tests;

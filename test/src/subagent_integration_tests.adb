@@ -2,6 +2,8 @@ with AUnit.Assertions;
 with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with GNATCOLL.JSON;           use GNATCOLL.JSON;
@@ -557,6 +559,9 @@ package body Subagent_Integration_Tests is
       Max_Depth_Path : constant String := Home & "/.coyote/settings.json";
       File       : Ada.Text_IO.File_Type;
    begin
+      if not Is_Guarded ("COYOTE_TEST_SUBAGENT") then
+         return;
+      end if;
       if Coyote'Length = 0 then
          Assert (False, "coyote binary not found at ../bin/coyote");
          return;
@@ -691,5 +696,31 @@ package body Subagent_Integration_Tests is
          end if;
          raise;
    end Test_Subagent_Recursion_Limit;
+
+
+   package Subagent_Int_Caller is
+     new AUnit.Test_Caller (Subagent_Integration_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (Subagent_Int_Caller.Create
+        ("[subagent] One-shot returns JSON with output and session_id",
+         Subagent_Integration_Tests.Test_One_Shot_Returns_Json'Access));
+      Result.Add_Test (Subagent_Int_Caller.Create
+        ("[subagent] Two --one-shot runs use distinct sessions",
+         Subagent_Integration_Tests
+           .Test_One_Shot_Fresh_Session_Each_Run'Access));
+      Result.Add_Test (Subagent_Int_Caller.Create
+        ("[subagent] Prompt-failure one-shot still returns session_id",
+         Subagent_Integration_Tests
+           .Test_One_Shot_Prompt_Failure_Has_Session_Id'Access));
+      Result.Add_Test (Subagent_Int_Caller.Create
+        ("[subagent] Recursion limit rejects nested invocation",
+         Subagent_Integration_Tests.Test_Subagent_Recursion_Limit'Access));
+
+      return Result;
+   end Suite;
 
 end Subagent_Integration_Tests;

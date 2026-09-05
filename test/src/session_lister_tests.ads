@@ -1,5 +1,6 @@
 with AUnit;
 with AUnit.Test_Fixtures;
+with AUnit.Test_Suites;
 
 package Session_Lister_Tests is
 
@@ -42,5 +43,7 @@ package Session_Lister_Tests is
      (T : in out Test);
    procedure Test_Fork_Native_Format_Preserves_Turn_Boundary
      (T : in out Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end Session_Lister_Tests;

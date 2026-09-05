@@ -1,6 +1,8 @@
 with AUnit.Assertions;
 with Ada.Real_Time;
 with Ada.Strings.Fixed;
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with LLM.Tools;
 with LLM.Tools.Temp_File;
@@ -844,5 +846,131 @@ package body LLM_Tools_Tests is
          Coyote_Process_Control.Set_Grace_Seconds (Saved_Grace);
          raise;
    end Test_Shell_Timeout_Escalates_After_Grace;
+
+
+   package LLM_Tools_Caller is
+     new AUnit.Test_Caller (LLM_Tools_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell executes a successful command",
+         LLM_Tools_Tests.Test_Shell_Success'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell reports a non-zero exit status",
+         LLM_Tools_Tests.Test_Shell_Failure'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell pipes stdin text into the command",
+         LLM_Tools_Tests.Test_Shell_Stdin_Piped'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell treats empty stdin field as absent",
+         LLM_Tools_Tests.Test_Shell_Stdin_Empty_Ignored'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell succeeds without a stdin field",
+         LLM_Tools_Tests.Test_Shell_Stdin_Absent_Dev_Null'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Result_Threshold zero returns MAX",
+         LLM_Tools_Tests.Test_Result_Threshold_Zero_Returns_Max'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Result_Threshold small clamped to MIN",
+         LLM_Tools_Tests.Test_Result_Threshold_Small_Clamped_To_Min'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Result_Threshold 128k yields 64 KB",
+         LLM_Tools_Tests.Test_Result_Threshold_Typical_128k'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Result_Threshold 200k yields 100 KB",
+         LLM_Tools_Tests.Test_Result_Threshold_Typical_200k'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Result_Threshold large clamped to MAX",
+         LLM_Tools_Tests.Test_Result_Threshold_Large_Clamped_To_Max'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Validate_Arguments accepts valid JSON object",
+         LLM_Tools_Tests.Test_Validate_Arguments_Valid_Object'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Validate_Arguments rejects invalid JSON",
+         LLM_Tools_Tests.Test_Validate_Arguments_Invalid_Json'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Validate_Arguments rejects non-object JSON",
+         LLM_Tools_Tests.Test_Validate_Arguments_Non_Object'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Validate_Arguments rejects empty string",
+         LLM_Tools_Tests.Test_Validate_Arguments_Empty_String'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Pause_Flag initial state is not armed and not paused",
+         LLM_Tools_Tests.Test_Pause_Flag_Initial_State'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Pause_Flag Arm sets Is_Armed",
+         LLM_Tools_Tests.Test_Pause_Flag_Arm_Sets_Armed'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Pause_Flag Unarm cancels a pending Arm",
+         LLM_Tools_Tests.Test_Pause_Flag_Unarm_Cancels_Arm'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Pause_Flag Fire transitions Armed to Paused",
+         LLM_Tools_Tests.Test_Pause_Flag_Fire_Transitions'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Pause_Flag Fire without Arm is a no-op",
+         LLM_Tools_Tests.Test_Pause_Flag_Fire_No_Op_When_Not_Armed'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Pause_Flag Release clears Paused",
+         LLM_Tools_Tests.Test_Pause_Flag_Release_Clears_Paused'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Pause_Flag Release also clears Armed",
+         LLM_Tools_Tests.Test_Pause_Flag_Release_Clears_Armed'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell media_type base64-encodes stdout",
+         LLM_Tools_Tests.Test_Shell_Media_Type_Sets_Base64_Result'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell media_type on error returns empty Media_Type",
+         LLM_Tools_Tests.Test_Shell_Media_Type_Error_Clears_Type'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell absent media_type is plain text",
+         LLM_Tools_Tests.Test_Shell_Media_Type_Absent_Is_Plain_Text'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell image keeps stderr out of payload",
+         LLM_Tools_Tests.Test_Shell_Image_Separates_Stderr'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell image rejects invalid data",
+         LLM_Tools_Tests.Test_Shell_Image_Rejects_Invalid_Data'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell image rejects unsupported MIME",
+         LLM_Tools_Tests.Test_Shell_Image_Rejects_Unsupported_Mime'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Execute image results bypass truncation cap",
+         LLM_Tools_Tests.Test_Execute_Image_Not_Truncated'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell timeout finishes before deadline",
+         LLM_Tools_Tests.Test_Shell_Timeout_Under'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell timeout kills an over-running command",
+         LLM_Tools_Tests.Test_Shell_Timeout_Triggers'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell timeout=0 disables the timer",
+         LLM_Tools_Tests.Test_Shell_Timeout_Zero'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell negative timeout is ignored",
+         LLM_Tools_Tests.Test_Shell_Timeout_Negative'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell timeout under: elapsed time verifies fast finish",
+         LLM_Tools_Tests.Test_Shell_Timeout_Under_Elapsed'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell timeout triggers: elapsed time verifies tight window",
+         LLM_Tools_Tests.Test_Shell_Timeout_Triggers_Elapsed'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell timeout preserves stdout emitted before kill",
+         LLM_Tools_Tests.Test_Shell_Timeout_Preserves_Stdout'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell timeout allows TERM-aware exit during grace",
+         LLM_Tools_Tests.Test_Shell_Timeout_Allows_Term_Exit'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell timeout escalates after grace",
+         LLM_Tools_Tests.Test_Shell_Timeout_Escalates_After_Grace'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell abort preserves stdout emitted before kill",
+         LLM_Tools_Tests.Test_Shell_Abort_Preserves_Stdout'Access));
+
+      return Result;
+   end Suite;
 
 end LLM_Tools_Tests;

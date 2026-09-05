@@ -1,3 +1,5 @@
+with AUnit.Test_Caller;
+with AUnit.Test_Suites;
 --  Coyote_GUI_Mode_Tests body.
 --
 --  Project: coyote
@@ -41,5 +43,20 @@ package body Coyote_GUI_Mode_Tests is
       Assert (Resume_Available (Paused),
               "Resume is available while paused");
    end Test_Agent_Actions_Follow_Run_Mode;
+
+
+   package Coyote_GUI_Mode_Caller is
+     new AUnit.Test_Caller (Coyote_GUI_Mode_Tests.Test);
+
+   function Suite return AUnit.Test_Suites.Access_Test_Suite is
+      Result : constant AUnit.Test_Suites.Access_Test_Suite :=
+        AUnit.Test_Suites.New_Suite;
+   begin
+      Result.Add_Test (Coyote_GUI_Mode_Caller.Create
+        ("Coyote.GUI agent actions follow run mode",
+         Coyote_GUI_Mode_Tests.Test_Agent_Actions_Follow_Run_Mode'Access));
+
+      return Result;
+   end Suite;
 
 end Coyote_GUI_Mode_Tests;
