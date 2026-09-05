@@ -44,6 +44,12 @@ package Coyote_App.Frontend.GUI.Testing is
      (F : Coyote_App.Frontend.GUI.Instance)
       return Gtk.Tree_View.Gtk_Tree_View;
 
+   procedure Apply_Handshake
+     (F               : in out Coyote_App.Frontend.GUI.Instance;
+      Agent_Id        : String;
+      Parent_Agent_Id : String;
+      Label           : String);
+
    procedure Build_Product_Information
      (F      : Coyote_App.Frontend.GUI.Instance;
       Dialog : out Gtk.Dialog.Gtk_Dialog;

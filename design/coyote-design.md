@@ -1667,7 +1667,9 @@ startup and is the sole GTK conversation presentation (see §5.15).
   not merge agent conversations, make subagents persistent, or map a separate
   desktop window for each coordinator-launched subagent. The child process
   retains the existing initial-prompt, steering-while-active, final-response,
-  and exit lifecycle.
+  and exit lifecycle. When a subagent row is inserted, the GTK frontend expands
+  that row's ancestor chain so the newly added virtual window is immediately
+  visible without expanding unrelated branches.
 - All `Append_Text`, `Begin_Tool`, `End_Tool`, etc. calls enqueue a
   `Coyote_GUI.Update` record onto `Coyote_GUI.Updates`. A GLib idle handler
   drains the queue on the GTK main-loop thread and dispatches it to

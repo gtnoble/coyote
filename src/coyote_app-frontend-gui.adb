@@ -128,6 +128,7 @@ package body Coyote_App.Frontend.GUI is
 
    use type Gtk.Tree_Store.Gtk_Tree_Store;
    use type Gtk.Tree_Model.Gtk_Tree_Iter;
+   use type Gtk.Tree_View.Gtk_Tree_View;
    use type Coyote_GUI.Update_Kind;
    use type GNATCOLL.JSON.JSON_Value_Type;
 
@@ -337,6 +338,20 @@ package body Coyote_App.Frontend.GUI is
       end loop;
    end Find_Agent_Iter;
 
+   procedure Expand_Agent_Iter
+     (F    : in out Instance;
+      Iter : Gtk.Tree_Model.Gtk_Tree_Iter)
+   is
+      Path : Gtk.Tree_Model.Gtk_Tree_Path;
+   begin
+      if F.Agents_Store = null or else F.Agents_View = null then
+         return;
+      end if;
+      Path := Gtk.Tree_Store.Get_Path (F.Agents_Store, Iter);
+      F.Agents_View.Expand_To_Path (Path);
+      Gtk.Tree_Model.Path_Free (Path);
+   end Expand_Agent_Iter;
+
    procedure Set_Agent_Row_Status
      (F          : in out Instance;
       Runtime_Id : String;
@@ -534,6 +549,7 @@ package body Coyote_App.Frontend.GUI is
                        (Child_Iter, 0, To_String (Value.Label));
                      F.Agents_Store.Set (Child_Iter, 1, "starting");
                      F.Agents_Store.Set (Child_Iter, 2, Runtime_Id);
+                     Expand_Agent_Iter (F, Child_Iter);
                   end if;
                end if;
             end;

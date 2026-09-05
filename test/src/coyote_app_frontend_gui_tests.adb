@@ -10,6 +10,7 @@ with Coyote_Process_Control;
 with GNAT.OS_Lib;
 with GNAT.Strings;
 with Glib;
+with Glib.Values;
 with Gtk.Box;
 with Gtk.Container;
 with Gtk.Dialog;
@@ -159,6 +160,66 @@ package body Coyote_App_Frontend_GUI_Tests is
          Main_Window (Frontend).Destroy;
       end if;
    end Test_Layout_And_Shutdown_Lifecycle;
+
+   procedure Test_Agent_Tree_Expands_New_Subagents
+     (T : in out Test)
+   is
+      use Coyote_App.Frontend.GUI.Testing;
+      Frontend   : Coyote_App.Frontend.GUI.Instance;
+      Model      : Gtk.Tree_Model.Gtk_Tree_Model;
+      Root       : Gtk.Tree_Model.Gtk_Tree_Iter;
+      Child      : Gtk.Tree_Model.Gtk_Tree_Iter;
+      Root_Path  : Gtk.Tree_Model.Gtk_Tree_Path;
+      Child_Path : Gtk.Tree_Model.Gtk_Tree_Path;
+      Value      : Glib.Values.GValue;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+
+      Coyote_App.Frontend.GUI.Create
+        (Frontend, "coyote agent tree expansion test", Pop_Under => True);
+      Apply_Handshake
+        (Frontend, "worker", "root", "worker");
+
+      Model := Gtk.Tree_View.Get_Model (Agents_View (Frontend));
+      Root := Gtk.Tree_Model.Get_Iter_From_String (Model, "0");
+      Root_Path := Gtk.Tree_Model.Get_Path (Model, Root);
+      Assert
+        (Gtk.Tree_Model.N_Children (Model, Root) = 1,
+         "new subagent should be inserted under the root row");
+      Gtk.Tree_Model.Get_Value (Model, Root, 0, Value);
+      Assert
+        (Glib.Values.Get_String (Value) = "main",
+         "root row label should remain main");
+      Glib.Values.Unset (Value);
+      Assert
+        (Gtk.Tree_View.Row_Expanded (Agents_View (Frontend), Root_Path),
+         "adding a subagent should expand the root row");
+      Gtk.Tree_Model.Path_Free (Root_Path);
+
+      Apply_Handshake
+        (Frontend, "worker-child", "worker", "worker child");
+      Child := Gtk.Tree_Model.Get_Iter_From_String (Model, "0:0");
+      Child_Path := Gtk.Tree_Model.Get_Path (Model, Child);
+      Assert
+        (Gtk.Tree_Model.N_Children (Model, Child) = 1,
+         "nested subagent should be inserted under its parent row");
+      Gtk.Tree_Model.Get_Value (Model, Child, 0, Value);
+      Assert
+        (Glib.Values.Get_String (Value) = "worker",
+         "parent row label should identify the worker");
+      Glib.Values.Unset (Value);
+      Assert
+        (Gtk.Tree_View.Row_Expanded (Agents_View (Frontend), Child_Path),
+         "adding a nested subagent should expand its parent row");
+      Gtk.Tree_Model.Path_Free (Child_Path);
+
+      Frontend.Request_Shutdown;
+      if Main_Window (Frontend) /= null then
+         Main_Window (Frontend).Destroy;
+      end if;
+   end Test_Agent_Tree_Expands_New_Subagents;
 
    procedure Test_Product_Information_Icon
      (T : in out Test)
