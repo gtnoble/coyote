@@ -53,16 +53,29 @@ GUI tests cover grid/cell realization, alignment, stream replacement, and the
 Markdown toggle; display-backed execution remains pending where no virtual
 X11 display is available.
 
-### Selected virtual-agent controls (2026-09-01)
+### Agent endpoint unification (2026-09-05)
 
-The coordinator now synchronizes child RPC lifecycle events into the runtime
-agent registry as well as the visible agents tree. Selected child controls use
-that registry state directly: Stop is available for starting, ready, running,
-and paused children; Pause is limited to running children; Resume is limited to
-paused children. Child state changes and terminal frames refresh the shared
-control sensitivity, and stale command callbacks are rejected before RPC
-routing. The existing selected-child Stop command continues through the
-versioned RPC channel to the headless child's `Request_Abort` path.
+`Coyote_App.Agent_Registry` now records an explicit `Endpoint_Kind` for every
+agent node. `Register_Agent` is the common registration primitive; the retained
+`Register_Root` and `Register_Child` operations are compatibility wrappers that
+select `Local_Endpoint` and `RPC_Endpoint`, respectively. The GTK coordinator
+uses the same generic primitive for the root and RPC handshakes for children.
+
+Selected prompt, Stop, Pause, and Resume routing now consults the selected node's
+endpoint rather than comparing its runtime identity with the literal `root`.
+Local nodes use the existing prompt queue and direct session abort path; RPC
+nodes continue through `Agent_RPC.Service`. Local lifecycle/status projection
+uses the same endpoint classification. This keeps the root in-process while
+making root and subagent nodes uniform at the registry and coordinator-routing
+levels.
+
+Focused registry coverage verifies generic local/RPC registration, child
+endpoint classification, and endpoint preservation through status updates.
+The production and test development builds pass. The full suite reached the
+registered tests but timed out with unrelated environment/fixture failures in
+recursion-limit, authentication, and SQC session/workspace tests.
+
+### Selected virtual-agent controls (2026-09-01)
 
 ### Accepted virtual-agent-window amendment (2026-08-31)
 

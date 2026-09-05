@@ -94,8 +94,8 @@ package body Coyote_App.Frontend.GUI is
    use Coyote_GUI.Prompt_Queue;
    use Coyote_App.Utils;
    use type Coyote_App.Agent_Registry.Lifecycle_Status;
+   use type Coyote_App.Agent_Registry.Endpoint_Kind;
    use type Coyote_App.Agent_RPC.Command_Kind;
-
    --  ── Package-body state ────────────────────────────────────────────────
 
    --  Global access for signal callbacks (single window per process).
@@ -207,11 +207,33 @@ package body Coyote_App.Frontend.GUI is
          null;
    end Stop_RPC_Service;
 
-   function Is_Root_Selected return Boolean is
+   function Selected_Is_Local return Boolean is
+      Agent_Id : Coyote_App.Agent_Registry.Agent_Id;
    begin
-      return Current_Frontend = null
-        or else To_String (Current_Frontend.Selected_Agent_Id) = "root";
-   end Is_Root_Selected;
+      if Current_Frontend = null then
+         return False;
+      end if;
+      Agent_Id := Coyote_App.Agent_Registry.Create_Agent_Id
+        (To_String (Current_Frontend.Selected_Agent_Id));
+      return Coyote_App.Agent_Registry.Has_Agent
+        (Current_Frontend.Agent_Registry, Agent_Id)
+        and then Coyote_App.Agent_Registry.Get_Agent
+          (Current_Frontend.Agent_Registry, Agent_Id).Endpoint =
+            Coyote_App.Agent_Registry.Local_Endpoint;
+   end Selected_Is_Local;
+
+   function Is_Local_Agent
+     (F         : Instance;
+      Runtime_Id : String) return Boolean
+   is
+      Agent_Id : constant Coyote_App.Agent_Registry.Agent_Id :=
+        Coyote_App.Agent_Registry.Create_Agent_Id (Runtime_Id);
+   begin
+      return Coyote_App.Agent_Registry.Has_Agent (F.Agent_Registry, Agent_Id)
+        and then Coyote_App.Agent_Registry.Get_Agent
+          (F.Agent_Registry, Agent_Id).Endpoint =
+            Coyote_App.Agent_Registry.Local_Endpoint;
+   end Is_Local_Agent;
 
    function Next_RPC_Request_Id return String is
    begin
@@ -232,7 +254,7 @@ package body Coyote_App.Frontend.GUI is
       Request_Id : constant String := Next_RPC_Request_Id;
       Agent_Id   : Coyote_App.Agent_Registry.Agent_Id;
    begin
-      if Current_Frontend = null or else Is_Root_Selected then
+      if Current_Frontend = null or else Selected_Is_Local then
          return;
       end if;
       Agent_Id := Coyote_App.Agent_Registry.Create_Agent_Id
@@ -531,10 +553,11 @@ package body Coyote_App.Frontend.GUI is
                Registered   : Boolean;
                pragma Unreferenced (Registered);
             begin
-               Registered := Coyote_App.Agent_Registry.Register_Child
+               Registered := Coyote_App.Agent_Registry.Register_Agent
                  (R                  => F.Agent_Registry,
                   Runtime_Id         => Coyote_App.Agent_Registry.Create_Agent_Id (Runtime_Id),
                   Parent_Runtime_Id  => Coyote_App.Agent_Registry.Create_Agent_Id (Parent_Runtime),
+                  Endpoint           => Coyote_App.Agent_Registry.RPC_Endpoint,
                   Durable_Session_Id => To_String (Value.Session_Id),
                   Label              => To_String (Value.Label),
                   Status             => Coyote_App.Agent_Registry.Starting);
@@ -997,7 +1020,8 @@ package body Coyote_App.Frontend.GUI is
       Pause_Enabled : Boolean := False;
       Resume_Enabled : Boolean := False;
    begin
-      if To_String (F.Selected_Agent_Id) /= "root"
+      if not Is_Local_Agent
+        (F, To_String (F.Selected_Agent_Id))
         and then Coyote_App.Agent_Registry.Has_Agent
           (F.Agent_Registry,
            Coyote_App.Agent_Registry.Create_Agent_Id
@@ -1340,7 +1364,7 @@ package body Coyote_App.Frontend.GUI is
          when Complete_Request =>
             F.Stack.Complete_Request
               (Coyote_GUI.Completion_Status (U.C_Status));
-            if To_String (U.Runtime_Agent_Id) = "root" then
+            if Is_Local_Agent (F, To_String (U.Runtime_Agent_Id)) then
                case U.C_Status is
                when Coyote_GUI.Completed =>
                   Set_Root_Agent_Status (F, "ready");
@@ -1427,7 +1451,7 @@ package body Coyote_App.Frontend.GUI is
             F.Status_Bar.Set_Text (To_String (U.Text));
 
          when Set_Mode =>
-            if To_String (U.Runtime_Agent_Id) = "root" then
+            if Is_Local_Agent (F, To_String (U.Runtime_Agent_Id)) then
                F.Current_Mode :=
                  Coyote_App.Frontend.Run_Mode'Val
                    (Coyote_GUI.Run_Mode'Pos (U.Mode));
@@ -1609,10 +1633,10 @@ package body Coyote_App.Frontend.GUI is
          if Ada.Strings.Fixed.Trim (Text, Ada.Strings.Both)'Length = 0 then
             return;
          end if;
-         if Is_Root_Selected then
+         if Selected_Is_Local then
             Current_Frontend.PQ.Enqueue
               ((User_Prompt,
-                Target_Agent_Id => Current_Frontend.Root_Agent_Id,
+                Target_Agent_Id => Current_Frontend.Selected_Agent_Id,
                 Text => To_Unbounded_String (Text)), Accepted);
          else
             declare
@@ -1709,7 +1733,7 @@ package body Coyote_App.Frontend.GUI is
       pragma Unreferenced (Self);
    begin
       if Current_Frontend /= null then
-         if Is_Root_Selected then
+         if Selected_Is_Local then
             Current_Frontend.Agent_Sess.Request_Abort;
          else
             Send_Selected_RPC_Command (Coyote_App.Agent_RPC.Stop);
@@ -1723,7 +1747,7 @@ package body Coyote_App.Frontend.GUI is
       pragma Unreferenced (Self);
    begin
       if Current_Frontend /= null then
-         if Is_Root_Selected then
+         if Selected_Is_Local then
             Current_Frontend.Agent_Sess.Request_Abort;
          else
             Send_Selected_RPC_Command (Coyote_App.Agent_RPC.Stop);
@@ -1736,10 +1760,10 @@ package body Coyote_App.Frontend.GUI is
       pragma Unreferenced (Self);
    begin
       if Current_Frontend /= null then
-         if Is_Root_Selected then
+         if Selected_Is_Local then
             Current_Frontend.PQ.Enqueue
               ((Kind => Pause,
-                Target_Agent_Id => Current_Frontend.Root_Agent_Id));
+                Target_Agent_Id => Current_Frontend.Selected_Agent_Id));
          else
             Send_Selected_RPC_Command (Coyote_App.Agent_RPC.Pause);
          end if;
@@ -1751,10 +1775,10 @@ package body Coyote_App.Frontend.GUI is
       pragma Unreferenced (Self);
    begin
       if Current_Frontend /= null then
-         if Is_Root_Selected then
+         if Selected_Is_Local then
             Current_Frontend.PQ.Enqueue
               ((Kind => Resume,
-                Target_Agent_Id => Current_Frontend.Root_Agent_Id));
+                Target_Agent_Id => Current_Frontend.Selected_Agent_Id));
          else
             Send_Selected_RPC_Command (Coyote_App.Agent_RPC.Resume);
          end if;
@@ -3347,10 +3371,13 @@ package body Coyote_App.Frontend.GUI is
       F.Agents_View := View;
       F.Agent_Root_Iter := Row;
       F.Root_Agent_Id := To_Unbounded_String ("root");
-      Registered := Coyote_App.Agent_Registry.Register_Root
+      Registered := Coyote_App.Agent_Registry.Register_Agent
         (R                  => F.Agent_Registry,
          Runtime_Id         =>
            Coyote_App.Agent_Registry.Create_Agent_Id ("root"),
+         Parent_Runtime_Id  =>
+           Coyote_App.Agent_Registry.Create_Agent_Id (""),
+         Endpoint           => Coyote_App.Agent_Registry.Local_Endpoint,
          Label              => "main");
       Gtk.Paned.Gtk_New_Hpaned (F.Agent_Pane);
       F.Agent_Pane.Pack1 (Scroll, Resize => False, Shrink => False);

@@ -11,6 +11,7 @@ package Coyote_App_Agent_Registry_Tests is
 
    procedure Test_Register_Main_Agent_As_Root (T : in out Test);
    procedure Test_Register_Child_Under_Parent (T : in out Test);
+   procedure Test_Register_Agent_Endpoint_Kind (T : in out Test);
    procedure Test_Register_Recursive_Descendants (T : in out Test);
    procedure Test_Runtime_Identity_Is_Separate (T : in out Test);
    procedure Test_Select_Live_Agent (T : in out Test);

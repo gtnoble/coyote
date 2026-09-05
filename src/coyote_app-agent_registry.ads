@@ -24,19 +24,34 @@ package Coyote_App.Agent_Registry is
      (Starting, Ready, Running, Paused, Completed, Aborted, Failed,
       Disconnected);
 
+   type Endpoint_Kind is (Local_Endpoint, RPC_Endpoint);
+
    --  Presentation data retained for one virtual agent.  This record contains
-   --  no GTK values; the GUI owns its visual projection separately.
+   --  no GTK values; the GUI owns its visual projection separately.  Endpoint
+   --  identifies how the coordinator sends input and controls to the agent.
    type Agent_Record is record
       Runtime_Id         : Agent_Id;
       Parent_Runtime_Id  : Agent_Id;
       Durable_Session_Id : Ada.Strings.Unbounded.Unbounded_String;
       Label              : Ada.Strings.Unbounded.Unbounded_String;
+      Endpoint           : Endpoint_Kind := Local_Endpoint;
       Status             : Lifecycle_Status := Starting;
    end record;
 
    type Registry is tagged private;
 
-   --  Register exactly one root agent.  Returns False for an empty or
+   --  Register an agent node.  An empty parent identifies the single root;
+   --  a non-empty parent must already be registered.
+   function Register_Agent
+     (R                  : in out Registry;
+      Runtime_Id         : Agent_Id;
+      Parent_Runtime_Id  : Agent_Id;
+      Endpoint           : Endpoint_Kind;
+      Durable_Session_Id : String := "";
+      Label              : String := "agent";
+      Status             : Lifecycle_Status := Starting) return Boolean;
+
+   --  Register exactly one local root agent.  Returns False for an empty or
    --  duplicate identity, or when a root is already present.
    function Register_Root
      (R                  : in out Registry;
@@ -45,8 +60,8 @@ package Coyote_App.Agent_Registry is
       Label              : String := "main";
       Status             : Lifecycle_Status := Starting) return Boolean;
 
-   --  Register a child below an existing parent.  Returns False for an empty
-   --  or duplicate identity, or for an unknown parent.
+   --  Register an RPC child below an existing parent.  Returns False for an
+   --  empty or duplicate identity, or for an unknown parent.
    function Register_Child
      (R                  : in out Registry;
       Runtime_Id         : Agent_Id;

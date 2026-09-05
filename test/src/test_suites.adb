@@ -253,6 +253,10 @@ package body Test_Suites is
          Coyote_App_Agent_Registry_Tests
            .Test_Register_Child_Under_Parent'Access));
       Result.Add_Test (Agent_Registry_Caller.Create
+        ("Agent registry records local and RPC endpoints",
+         Coyote_App_Agent_Registry_Tests
+           .Test_Register_Agent_Endpoint_Kind'Access));
+      Result.Add_Test (Agent_Registry_Caller.Create
         ("Agent registry preserves recursive descendants",
          Coyote_App_Agent_Registry_Tests
            .Test_Register_Recursive_Descendants'Access));

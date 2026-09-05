@@ -45,11 +45,41 @@ package body Coyote_App_Agent_Registry_Tests is
       Agent_Data := Get_Agent (R, Child_Id);
       Assert (Agent_Data.Parent_Runtime_Id = Root_Id,
               "child parent identity must be retained");
+      Assert (Agent_Data.Endpoint = RPC_Endpoint,
+              "child endpoint should be RPC");
       Assert (Child_Count (R, Root_Id) = 1,
               "parent must report one child");
       Assert (Child_At (R, Root_Id, 1) = Child_Id,
               "child lookup must follow registration order");
    end Test_Register_Child_Under_Parent;
+
+   procedure Test_Register_Agent_Endpoint_Kind (T : in out Test) is
+      pragma Unreferenced (T);
+      R : Registry;
+      Agent_Data : Agent_Record;
+   begin
+      Assert
+        (Register_Agent
+           (R                  => R,
+            Runtime_Id         => Root_Id,
+            Parent_Runtime_Id  => Create_Agent_Id (""),
+            Endpoint           => Local_Endpoint,
+            Label              => "main"),
+         "generic root registration must succeed");
+      Agent_Data := Get_Agent (R, Root_Id);
+      Assert (Agent_Data.Endpoint = Local_Endpoint,
+              "generic root endpoint should be local");
+      Assert
+        (Register_Agent
+           (R                  => R,
+            Runtime_Id         => Child_Id,
+            Parent_Runtime_Id  => Root_Id,
+            Endpoint           => RPC_Endpoint),
+         "generic child registration must succeed");
+      Agent_Data := Get_Agent (R, Child_Id);
+      Assert (Agent_Data.Endpoint = RPC_Endpoint,
+              "generic child endpoint should be RPC");
+   end Test_Register_Agent_Endpoint_Kind;
 
    procedure Test_Register_Recursive_Descendants (T : in out Test) is
       pragma Unreferenced (T);

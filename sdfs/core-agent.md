@@ -16,6 +16,31 @@
 
 ## Design Rationale
 
+## 2026-09-05 — Local and RPC agent endpoints
+
+**Requirement:** The coordinator shall model its root and child runtime agents
+uniformly without forcing the in-process root through a loopback RPC channel.
+
+**Design:** `Coyote_App.Agent_Registry.Agent_Record` carries an explicit
+`Endpoint_Kind`: `Local_Endpoint` for the coordinator's root and
+`RPC_Endpoint` for coordinator-launched subagents. `Register_Agent` validates
+parentage and creates either kind; `Register_Root` and `Register_Child` remain
+small compatibility wrappers. The GTK frontend routes selected prompts and
+Stop/Pause/Resume controls by endpoint kind. Local operations retain the
+prompt-queue/direct-session path, while RPC operations retain the versioned
+`Agent_RPC.Service` path.
+
+**Rationale:** Root and subagents share runtime identity, parentage, durable
+session identity, lifecycle, and conversation presentation, but differ at the
+process/control boundary. A node/endpoint distinction removes root-name
+conditionals without adding a needless local socket hop.
+
+**Verification:** Registry tests cover generic local/RPC registration, child
+endpoint classification, and endpoint preservation through status changes.
+Production and test development builds pass. Full-suite execution reached the
+registered tests but timed out with unrelated environment/fixture failures in
+recursion-limit, authentication, and SQC session/workspace tests.
+
 ## 2026-08-31 — Virtual-agent-window presentation amendment
 
 **Requirement:** Coordinator-launched subagents shall be organized as virtual

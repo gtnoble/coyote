@@ -21,13 +21,13 @@ package body Coyote_App.Agent_Registry is
       Parent_Runtime_Id  => Empty_Id,
       Durable_Session_Id => Null_Unbounded_String,
       Label              => Null_Unbounded_String,
+      Endpoint           => Local_Endpoint,
       Status             => Starting);
 
    function Create_Agent_Id (Value : String) return Agent_Id is
    begin
       return (Value => To_Unbounded_String (Value));
    end Create_Agent_Id;
-
    function Is_Empty (Id : Agent_Id) return Boolean is
    begin
       return Length (Id.Value) = 0;
@@ -56,6 +56,40 @@ package body Coyote_App.Agent_Registry is
       return Agent_Vectors.No_Index;
    end Find_Index;
 
+   function Register_Agent
+     (R                  : in out Registry;
+      Runtime_Id         : Agent_Id;
+      Parent_Runtime_Id  : Agent_Id;
+      Endpoint           : Endpoint_Kind;
+      Durable_Session_Id : String := "";
+      Label              : String := "agent";
+      Status             : Lifecycle_Status := Starting) return Boolean
+   is
+   begin
+      if Is_Empty (Runtime_Id)
+        or else Has_Agent (R, Runtime_Id)
+      then
+         return False;
+      end if;
+
+      if Is_Empty (Parent_Runtime_Id) then
+         if not R.Agents.Is_Empty then
+            return False;
+         end if;
+      elsif not Has_Agent (R, Parent_Runtime_Id) then
+         return False;
+      end if;
+
+      R.Agents.Append
+        ((Runtime_Id         => Runtime_Id,
+          Parent_Runtime_Id  => Parent_Runtime_Id,
+          Durable_Session_Id => To_Unbounded_String (Durable_Session_Id),
+          Label              => To_Unbounded_String (Label),
+          Endpoint           => Endpoint,
+          Status             => Status));
+      return True;
+   end Register_Agent;
+
    function Register_Root
      (R                  : in out Registry;
       Runtime_Id         : Agent_Id;
@@ -64,20 +98,14 @@ package body Coyote_App.Agent_Registry is
       Status             : Lifecycle_Status := Starting) return Boolean
    is
    begin
-      if Is_Empty (Runtime_Id)
-        or else not R.Agents.Is_Empty
-        or else Has_Agent (R, Runtime_Id)
-      then
-         return False;
-      end if;
-
-      R.Agents.Append
-        ((Runtime_Id         => Runtime_Id,
-          Parent_Runtime_Id  => Empty_Id,
-          Durable_Session_Id => To_Unbounded_String (Durable_Session_Id),
-          Label              => To_Unbounded_String (Label),
-          Status             => Status));
-      return True;
+      return Register_Agent
+        (R                  => R,
+         Runtime_Id         => Runtime_Id,
+         Parent_Runtime_Id  => Empty_Id,
+         Endpoint           => Local_Endpoint,
+         Durable_Session_Id => Durable_Session_Id,
+         Label              => Label,
+         Status             => Status);
    end Register_Root;
 
    function Register_Child
@@ -89,21 +117,14 @@ package body Coyote_App.Agent_Registry is
       Status             : Lifecycle_Status := Starting) return Boolean
    is
    begin
-      if Is_Empty (Runtime_Id)
-        or else Is_Empty (Parent_Runtime_Id)
-        or else Has_Agent (R, Runtime_Id)
-        or else not Has_Agent (R, Parent_Runtime_Id)
-      then
-         return False;
-      end if;
-
-      R.Agents.Append
-        ((Runtime_Id         => Runtime_Id,
-          Parent_Runtime_Id  => Parent_Runtime_Id,
-          Durable_Session_Id => To_Unbounded_String (Durable_Session_Id),
-          Label              => To_Unbounded_String (Label),
-          Status             => Status));
-      return True;
+      return Register_Agent
+        (R                  => R,
+         Runtime_Id         => Runtime_Id,
+         Parent_Runtime_Id  => Parent_Runtime_Id,
+         Endpoint           => RPC_Endpoint,
+         Durable_Session_Id => Durable_Session_Id,
+         Label              => Label,
+         Status             => Status);
    end Register_Child;
 
    function Agent_Count (R : Registry) return Natural is
@@ -203,10 +224,10 @@ package body Coyote_App.Agent_Registry is
           Parent_Runtime_Id  => R.Agents.Element (Position).Parent_Runtime_Id,
           Durable_Session_Id => R.Agents.Element (Position).Durable_Session_Id,
           Label              => R.Agents.Element (Position).Label,
+          Endpoint           => R.Agents.Element (Position).Endpoint,
           Status             => Status));
       return True;
    end Set_Status;
-
    function Set_Durable_Session_Id
      (R          : in out Registry;
       Runtime_Id : Agent_Id;
