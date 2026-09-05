@@ -10,7 +10,7 @@
     <terms>
       <item><title><key>F1</key></title><p>Open the Overview.</p></item>
       <item><title><key>Shift</key>+<key>F1</key></title><p>Arm Click for Help.</p></item>
-      <item><title><key>Escape</key></title><p>Cancel Click for Help, stop an active turn, or clear a selection.</p></item>
+      <item><title><key>Escape</key></title><p>Cancel armed Click for Help. Otherwise Escape invokes Stop in the main window; support windows close or hide, and the Change Model search clears a non-empty query before cancelling.</p></item>
     </terms>
   </section>
   <section id="application">
@@ -25,7 +25,7 @@
       <item><title><key>Ctrl</key>+<key>V</key></title><p>Paste into the prompt.</p></item>
       <item><title><key>Ctrl</key>+<key>A</key></title><p>Select all in the focused area.</p></item>
       <item><title><key>Ctrl</key>+<key>,</key></title><p>Open Preferences.</p></item>
-      <item><title><key>Ctrl</key>+<key>Return</key></title><p>Send the prompt to the selected live agent; while that agent is active, this may be a steering message.</p></item>
+      <item><title><key>Return</key> or <key>Ctrl</key>+<key>Return</key></title><p>Send the prompt to the selected live agent; while that agent is active, this may be a steering message. Keypad Enter is also accepted.</p></item>
       <item><title><key>Ctrl</key>+<key>Shift</key>+<key>P</key></title><p>Pause the session.</p></item>
       <item><title><key>Ctrl</key>+<key>R</key></title><p>Resume the session.</p></item>
       <item><title><key>Ctrl</key>+<key>M</key></title><p>Change the model.</p></item>
@@ -33,7 +33,8 @@
       <item><title><key>Ctrl</key>+<key>Shift</key>+<key>S</key></title><p>Choose a sandbox profile.</p></item>
       <item><title><key>Ctrl</key>+<key>Shift</key>+<key>C</key></title><p>Compact context.</p></item>
       <item><title><key>Ctrl</key>+<key>Shift</key>+<key>I</key></title><p>Show session stats.</p></item>
-      <item><title><key>Ctrl</key>+<key>Shift</key>+<key>D</key></title><p>Set current values as defaults.</p></item>
+      <item><title><key>Ctrl</key>+<key>Shift</key>+<key>D</key></title><p>Deselect all in the focused prompt or conversation component.</p></item>
+      <item><title><key>Ctrl</key>+<key>L</key></title><p>Clear the conversation.</p></item>
       <item><title><key>Ctrl</key>+<key>W</key></title><p>Close a support window.</p></item>
     </terms>
   </section>
@@ -44,11 +45,16 @@
       <item><title><key>Ctrl</key>+<key>Shift</key>+<key>A</key></title><p>Toggle auto-scroll.</p></item>
       <item><title><key>Ctrl</key>+<key>+</key> / <key>Ctrl</key>+<key>-</key></title><p>Zoom in or out.</p></item>
       <item><title><key>Ctrl</key>+<key>0</key></title><p>Reset zoom.</p></item>
-      <item><title><key>j</key> / <key>k</key></title><p>Scroll down or up in the conversation.</p></item>
-      <item><title><key>g</key> / <key>Shift</key>+<key>g</key></title><p>Scroll to the top or bottom.</p></item>
-      <item><title><key>Ctrl</key>+<key>D</key> / <key>Ctrl</key>+<key>U</key></title><p>Scroll one page down or up.</p></item>
-      <item><title><key>Home</key> / <key>End</key></title><p>Scroll to the top or bottom.</p></item>
-      <item><title><key>Ctrl</key>+<key>A</key> / <key>Ctrl</key>+<key>C</key></title><p>Select all or copy conversation text.</p></item>
+      <item><title><key>j</key> / <key>k</key></title><p>Move one line down or up when a conversation text view has focus.</p></item>
+      <item><title><key>g</key> / <key>G</key> (Shift+g)</title><p>Move to the top or bottom when a conversation text view has focus.</p></item>
+      <item><title><key>Ctrl</key>+<key>D</key> / <key>Ctrl</key>+<key>U</key></title><p>Move one page down or up when a conversation text view has focus.</p></item>
+      <item><title><key>Ctrl</key>+<key>A</key> / <key>Ctrl</key>+<key>C</key></title><p>Select all or copy in the focused area. Conversation selection commands remain local to the focused or retained conversation component.</p></item>
     </terms>
+  </section>
+  <section id="dialogs">
+    <title>Dialogs and support windows</title>
+    <p>Open Session and Sandbox Profile select their first available row and accept the selected row with Enter, keypad Enter, Space, or row activation. Change Model selects the first visible model; its search field receives initial focus, and Escape clears a non-empty query before cancelling an empty-query dialog.</p>
+    <p>Preferences gives initial focus to Default model and uses Save as the default response. Its labels expose mnemonics for the editable controls; Escape cancels.</p>
+    <p>Session Stats, Tool Call Details, and other transient support windows can be closed with Escape or Ctrl+W. Their visible Close actions remain available through normal Tab traversal and mnemonics.</p>
   </section>
 </page>

@@ -145,6 +145,11 @@ package body Coyote_GUI.Session_Stats_Window is
             Current_Window.Hide;
          end if;
          return True;
+      elsif Event.Keyval = Gdk.Types.Keysyms.GDK_Escape then
+         if Current_Window /= null then
+            Current_Window.Hide;
+         end if;
+         return True;
       end if;
       return False;
    end On_Key_Press;

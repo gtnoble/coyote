@@ -7,10 +7,15 @@
   <title>Agent Controls</title>
   <p>The <gui>Agent</gui> menu controls the selected agent's active turn and session-level behavior. Selecting a row in the agents panel puts that agent in the driver's seat.</p>
   <terms>
+    <item><title><gui>Send</gui></title><p>Send the prompt to the selected live agent. <key>Ctrl</key>+<key>Return</key> is the accelerator.</p></item>
+    <item><title><gui>Clear Conversation</gui></title><p>Clear the displayed conversation. <key>Ctrl</key>+<key>L</key> is the accelerator.</p></item>
     <item><title><gui>Stop</gui></title><p>Abort the active turn or tool invocation.</p></item>
-    <item><title><gui>Pause</gui></title><p>Pause at the next turn boundary.</p></item>
-    <item><title><gui>Resume</gui></title><p>Continue a paused session.</p></item>
-    <item><title><gui>Compact Context</gui></title><p>Summarize older conversation content to make room in the model context.</p></item>
-    <item><title><gui>Models</gui></title><p>Select the active provider and model.</p></item>
+    <item><title><gui>Pause</gui></title><p>Pause at the next turn boundary. <key>Ctrl</key>+<key>Shift</key>+<key>P</key> is the accelerator.</p></item>
+    <item><title><gui>Resume</gui></title><p>Continue a paused session. <key>Ctrl</key>+<key>R</key> is the accelerator.</p></item>
+    <item><title><gui>Compact Context</gui></title><p>Summarize older conversation content to make room in the model context. <key>Ctrl</key>+<key>Shift</key>+<key>C</key> is the accelerator.</p></item>
+    <item><title><gui>Models</gui></title><p>Select the active provider and model. <key>Ctrl</key>+<key>M</key> is the accelerator.</p></item>
+    <item><title><gui>Thinking Level</gui></title><p>Choose the reasoning level with <key>Ctrl</key>+<key>1</key> through <key>Ctrl</key>+<key>6</key>.</p></item>
+    <item><title><gui>Sandbox Profile</gui></title><p>Choose a sandbox profile with <key>Ctrl</key>+<key>Shift</key>+<key>S</key>.</p></item>
+    <item><title><gui>Session Stats</gui></title><p>Open the reusable session statistics window with <key>Ctrl</key>+<key>Shift</key>+<key>I</key>.</p></item>
   </terms>
 </page>

@@ -7,6 +7,6 @@
   <title>Coyote Help</title>
   <section id="topics">
     <title>Topics</title>
-    <links type="topic" groups="overview send-prompt manage-sessions agent-controls keyboard-shortcuts product-information"/>
+    <links type="topic" groups="overview send-prompt manage-sessions agent-controls keyboard-shortcuts product-information ui-menu ui-conversation ui-prompt ui-controls ui-status"/>
   </section>
 </page>

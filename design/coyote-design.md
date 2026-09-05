@@ -431,7 +431,9 @@ three layers:
                   task
 
 [GTK callbacks]
-  → Send button / Enter key → Coyote_GUI.Prompt_Queue.Enqueue(prompt_text)
+  → Send button / Return or keypad Enter → Coyote_GUI.Prompt_Queue.Enqueue(prompt_text)
+       (Ctrl+Return is an explicit Send accelerator; Shift+Return and
+        Alt+Return remain newline-capable text editing)
   → Stop menu → LLM.Tools.Abort_Flag.Set
   → Compact / Pause / Resume menu → Coyote_GUI.Prompt_Queue.Enqueue(":compact" etc.)
   → Options → Preferences... → GTK dialog edits persistent defaults and
@@ -1145,11 +1147,13 @@ contain GFM tables are rebuilt as ordered native `Gtk.Grid` components with
 selectable, wrapping cell labels; header cells use bold Pango markup and GFM
 column alignment maps to label alignment. Standalone Presentation MathML is
 realized through `Coyote_GUI.Math_Element`; invalid input retains selectable
-source fallback. Selection and PRIMARY publication are local to the focused
-semantic text component. Native Details and Fork buttons are focusable and
-operate on the GTK main task. Live updates and session replay use the same
-lifecycle operations and hierarchy. SQC session replay retains the shared
-Pango/text fallback.
+source fallback. Selection and PRIMARY publication are local to one semantic
+text component. With prompt focus, Edit commands target the prompt; otherwise
+conversation commands resolve the focused conversation text view, then a
+retained conversation selection, then the active response view. Native Details
+and Fork buttons are focusable and operate on the GTK main task. Live updates
+and session replay use the same lifecycle operations and hierarchy. SQC session
+replay retains the shared Pango/text fallback.
 
 **Lifecycle and reset:** `Begin_Request` starts an exchange, intermediate
 footers close visible step frames, and `Complete_Request` closes the exchange.
@@ -1746,11 +1750,15 @@ startup and is the sole GTK conversation presentation (see §5.15).
   report area scrollable, and provides Close and Ctrl+W.  `Clear_Stats` resets
   the report after a new session or session switch; ordinary conversation
   clearing does not alter session totals.
-- **Keyboard navigation:** The conversation canvas handles vi-style
-  `j`/`k`/`g`/`Shift+g`, Ctrl+D/Ctrl+U, and Home/End/Page Up/Page Down.
-  Tab and Shift+Tab cycle custom tool/action controls; Enter, keypad Enter,
-  and Space activate the focused control. Escape clears selection only when
-  a selection exists, otherwise it reaches the Stop accelerator.
+- **Keyboard navigation:** When a conversation text view has focus, the outer
+  conversation viewport handles vi-style `j`/`k` line movement, `g` to the
+  top, `G`/Shift+`g` to the bottom, Ctrl+D/Ctrl+U page movement, and native
+  wheel scrolling. Prompt editing, agent-tree navigation, list navigation, and
+  other controls retain their native key behavior. Focusable tool and fork
+  controls remain reachable through GTK traversal and activate with Enter,
+  keypad Enter, or Space. Escape cancels armed contextual Help; otherwise the
+  main-window Escape accelerator performs Stop. Support windows close or hide
+  on Escape, and Deselect All is available from Edit and Ctrl+Shift+D.
 - **Accessibility:** Send and Stop use text labels as well as icons. Native
   GTK conversation components expose their labels, selectable text, and
   focusable actions through GTK accessibility. Native text components provide
@@ -1771,21 +1779,19 @@ startup and is the sole GTK conversation presentation (see §5.15).
   viewport to the bottom on every adjustment change (triggered by new content
   arrival).  When disabled, the viewport stays wherever the user has scrolled
   — there is no automatic detection or override of user-initiated scrolling.
-- **Menu keyboard accelerators** (2026-07-30): All frequently used menu
-  items have GTK accelerator shortcuts attached via a `Gtk_Accel_Group`
-  on the main window, with `Accel_Visible` so shortcut labels appear in
-  menu text.  The accelerators are: Ctrl+N (New Window), Ctrl+Shift+N (New
-  Session), Ctrl+O (Open Session), Ctrl+Q (Exit), Ctrl+X/C/V/A (Cut, Copy,
-  Paste, Select All), Escape (Stop), Ctrl+Shift+P
-  (Pause), Ctrl+R (Resume), Ctrl+M (Change Model), Ctrl+1 through Ctrl+6
-  (Thinking Level: Off through X-High), Ctrl+Shift+S (Sandbox Profile),
-  Ctrl+Shift+C (Compact Context), Ctrl+Shift+I (Session Stats),
-  Ctrl+Shift+M (Render Markdown), Ctrl+Shift+A (Auto-scroll), and
-  Ctrl++/Ctrl+-/Ctrl+0 (Zoom In/Out/Reset).  Ctrl+, opens Preferences.
-  Every actionable item in the main menu bar has a visible accelerator.
-  Zoom shortcuts were previously handled by a raw `On_Window_Key_Press`
-  handler; moving them to proper accelerators makes them visible in menu
-  labels and allows the key-press handler to be simplified to a no-op.
+- **Menu keyboard accelerators** (2026-09-05): The main GTK window attaches
+  visible accelerators through one `Gtk_Accel_Group`. The primary set is
+  Ctrl+N (New Window), Ctrl+Shift+N (New Session), Ctrl+O (Open Session),
+  Ctrl+Q (Exit), Ctrl+X/C/V/A (Cut, Copy, Paste, Select All),
+  Ctrl+Shift+D (Deselect All), Ctrl+, (Preferences), Ctrl+Return (Send),
+  Ctrl+L (Clear Conversation), Escape (Stop), Ctrl+Shift+P (Pause), Ctrl+R
+  (Resume), Ctrl+M (Models), Ctrl+1 through Ctrl+6 (Thinking Level: Off
+  through X-High), Ctrl+Shift+S (Sandbox Profile), Ctrl+Shift+C (Compact
+  Context), Ctrl+Shift+I (Session Stats), Ctrl+Shift+M (Render Markdown),
+  Ctrl+Shift+A (Auto-scroll), and Ctrl++/Ctrl+-/Ctrl+0 (Zoom In/Out/Reset).
+  These primary accelerators use `Accel_Visible`; every menu and menu entry
+  also has a mnemonic where GTK supports one. Help task entries and other
+  informational Help items have mnemonics but no independent accelerators.
 - **Ctrl+mouse-wheel zoom** (2026-08-15): The conversation `GtkLayout`
   enables `Scroll_Mask` in its event mask, and the frontend connects an
   `On_Conv_Scroll` handler to the layout's `scroll-event` signal.  When

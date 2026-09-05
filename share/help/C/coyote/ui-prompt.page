@@ -5,6 +5,6 @@
     <desc>Enter and submit a request to the active model.</desc>
   </info>
   <title>Prompt Area</title>
-  <p>Enter a request in the prompt area and choose <gui style="button">Send</gui>. Press <key>Shift</key>+<key>Return</key> to insert a new line.</p>
+  <p>Enter a request in the prompt area and choose <gui style="button">Send</gui>. Press <key>Return</key>, keypad Enter, or <key>Ctrl</key>+<key>Return</key> to submit. Press <key>Shift</key>+<key>Return</key> or <key>Alt</key>+<key>Return</key> to insert a new line.</p>
   <p>See <link xref="send-prompt">Send a Prompt</link> for the complete task.</p>
 </page>
