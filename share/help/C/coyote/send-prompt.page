@@ -9,8 +9,8 @@
   <p>When the selected agent is processing its initial or current turn, another submitted message is handled using the existing steering behavior. A completed, aborted, failed, or disconnected agent cannot receive a new prompt; select a live agent instead.</p>
   <steps>
     <item><p>Click in the prompt area and enter your request.</p></item>
-    <item><p>Choose <gui style="button">Send</gui>, or press <key>Ctrl</key>+<key>Return</key>.</p></item>
+    <item><p>Choose <gui style="button">Send</gui>, press <key>Return</key> or keypad Enter, or use <key>Ctrl</key>+<key>Return</key>.</p></item>
     <item><p>Read the response and any tool activity in the conversation area.</p></item>
   </steps>
-  <note><p>Press <key>Shift</key>+<key>Return</key> to insert a new line instead of sending.</p></note>
+  <note><p>Press <key>Shift</key>+<key>Return</key> or <key>Alt</key>+<key>Return</key> to keep editing a multi-line prompt instead of sending. The prompt is cleared only after the input queue accepts the request; if the queue is full, the text remains available.</p></note>
 </page>

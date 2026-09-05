@@ -646,14 +646,14 @@ state, and success, error, or cancelled status indicator.  Completed cards
 shall be clickable to open the full tool-call detail window.
 
 **REQ-CORE-113** (D)
-The GUI frontend shall support the following menu actions, equivalent to the
-Acme tag commands: Send, Stop, New, Clear, Models, Session Stats, Compact,
-Pause, Resume.  The runtime actions shall be grouped under a custom Agent
-menu, and persistent preferences shall be grouped under Options. Stop, Pause,
-and Resume shall be disabled in the Agent menu when they cannot apply to the
-current run mode. Selecting File → Exit or closing the main window shall
-cancel any active request, terminate the GUI agent and shutdown-monitor tasks,
-and exit the process cleanly.
+The GUI frontend shall provide the following native menu actions: Send, Stop,
+New, Clear Conversation, Models, Session Stats, Compact, Pause, and Resume.
+The runtime actions shall be grouped under a custom Agent menu, and persistent
+preferences shall be grouped under Options. Stop, Pause, and Resume shall be
+disabled in the Agent menu when they cannot apply to the current run mode.
+Selecting File → Exit or closing the main window shall cancel any active
+request, terminate the GUI agent and shutdown-monitor tasks, and exit the
+process cleanly.
 
 **REQ-CORE-113a** (D)
 The GUI frontend shall provide a rightmost Help menu containing Click for
@@ -673,18 +673,29 @@ without activating the clicked control.
 GUI dialogs and support windows shall use application-identifying titles,
 shall be transient for the main window, shall close on Ctrl+W, and shall
 place the affirmative specific action before Cancel where both actions are
-present. Lifecycle status shall be displayed in the status area rather than
-the window title. The conversation selection shall own the desktop PRIMARY
-selection without changing the ordinary clipboard. Middle-button transfer
-into the prompt shall insert PRIMARY text at the pointer location without
-highlighting it.
+present. Escape shall cancel armed contextual Help; otherwise it shall retain
+native widget behavior or invoke the applicable Stop action. Transient support
+windows shall also close or hide on Escape. The Change Model search field
+shall clear a non-empty query on Escape and cancel the dialog when the query is
+empty. List dialogs shall select an initial row when available, and Enter,
+keypad Enter, Space, or row activation shall perform the affirmative action.
+Lifecycle status shall be displayed in the status area rather than the window
+title. The conversation selection shall own the desktop PRIMARY selection
+without changing the ordinary clipboard. Middle-button transfer into the
+prompt shall insert PRIMARY text at the pointer location without highlighting
+it.
 
 **REQ-CORE-113c** (D)
 The GUI frontend shall provide an Edit menu containing Cut, Copy, Paste,
 Select All, and Deselect All. Cut and Paste shall operate on the prompt.
-Copy and Select All shall operate on the prompt when it has focus and on
-the conversation otherwise. Unavailable Edit actions shall be disabled
-rather than removed.
+When the prompt has focus, Copy, Select All, and Deselect All shall operate on
+the prompt. Otherwise conversation commands shall resolve the focused
+conversation text view, then a retained conversation selection, then the
+active response view. Unavailable Edit actions shall be disabled rather than
+removed. Return and keypad Enter shall submit the prompt; Ctrl+Return shall
+also submit explicitly, while Shift+Return and Alt+Return shall preserve
+multi-line prompt editing. Prompt text shall be cleared only after queue
+acceptance.
 
 **REQ-CORE-113d** (D)
 The GUI Session Stats action shall open one reusable, modeless support window
@@ -711,8 +722,11 @@ file when opened. Missing result records shall be shown as cancelled. Status
 shall remain understandable without color.
 
 **REQ-CORE-114** (D)
-The GUI frontend shall support vi-style scroll navigation (j/k/g/G/Ctrl-D/
-Ctrl-U) in the conversation view.
+The GUI frontend shall support vi-style scroll navigation (`j`, `k`, `g`,
+`G`/Shift+`g`, Ctrl+D, and Ctrl+U) in the conversation view. These bindings
+shall apply when a conversation text view has keyboard focus and shall not
+intercept prompt editing, agent-tree navigation, list navigation, or other
+focusable controls. Plain wheel scrolling shall retain native behavior.
 
 **REQ-CORE-115** (D/T/I)
 The GUI frontend shall retain the application identity `coyote` for desktop
@@ -839,15 +853,18 @@ the configured SI-prefixed or dB display mode; zero values shall show `free`,
 negative values shall be blank, and numeric price ordering shall be retained.
 
 **REQ-CORE-132** (D)
-The interactive GTK GUI shall provide visible keyboard accelerators for every
-actionable item in the main menu bar. The accelerators shall include Ctrl+,
-for Preferences; Ctrl+1 through Ctrl+6 for Thinking Level choices in order
-from Off through X-High; Ctrl+Shift+S for Sandbox Profile; Ctrl+Shift+I
-for Session Stats; Ctrl+Shift+M for Render Markdown; and Ctrl+Shift+A for
-Auto-scroll. Existing menu accelerators shall
-remain available, including Ctrl+N, Ctrl+Shift+N, Ctrl+O, Ctrl+Q, Escape,
-Ctrl+X, Ctrl+C, Ctrl+V, Ctrl+A, Ctrl+Shift+P, Ctrl+R, Ctrl+M, Ctrl+Shift+C,
-Ctrl++, Ctrl+-, and Ctrl+0.
+The interactive GTK GUI shall provide visible keyboard accelerators for the
+primary actionable items in the main menu bar. The implemented accelerator set
+shall include Ctrl+N (New Window), Ctrl+Shift+N (New Session), Ctrl+O (Open
+Session), Ctrl+Q (Exit), Ctrl+X/C/V/A (Cut, Copy, Paste, Select All),
+Ctrl+Shift+D (Deselect All), Ctrl+, (Preferences), Ctrl+Return (Send),
+Ctrl+L (Clear Conversation), Escape (Stop), Ctrl+Shift+P (Pause), Ctrl+R
+(Resume), Ctrl+M (Models), Ctrl+1 through Ctrl+6 (Thinking Level: Off through
+X-High), Ctrl+Shift+S (Sandbox Profile), Ctrl+Shift+C (Compact Context),
+Ctrl+Shift+I (Session Stats), Ctrl+Shift+M (Render Markdown), Ctrl+Shift+A
+(Auto-scroll), and Ctrl++/Ctrl+-/Ctrl+0 (Zoom In/Out/Reset). Every menu and
+menu entry shall also provide a mnemonic where GTK supports one. Informational
+Help entries have mnemonics but do not require independent accelerators.
 
 
 **REQ-CORE-133** (D)
@@ -888,9 +905,10 @@ auto-scroll is enabled.
 Selection in the GTK conversation work area shall be local to the selected
 semantic component. The GUI shall not require selection ranges to span the
 user request, thinking output, assistant response, tool card, footer, or
-another exchange. Copy, Select All, and PRIMARY publication shall operate
-on the focused or most recently selected component, while CLIPBOARD and
-PRIMARY remain independent.
+another exchange. When the prompt has focus, Copy and Select All shall operate
+on the prompt. Otherwise conversation commands shall resolve the focused
+conversation text view, then a retained conversation selection, then the
+active response view. CLIPBOARD and PRIMARY shall remain independent.
 
 **REQ-CORE-137** (D/T/I)
 Live and replayed GUI conversations shall construct equivalent exchange and

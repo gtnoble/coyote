@@ -9,6 +9,7 @@ with Coyote_App.Utils;       use Coyote_App.Utils;
 with Coyote_GUI;
 with Coyote_GUI.Tool_Detail_Window;
 with Coyote_GUI.Math_Element;
+with Coyote_GUI.Navigation;
 with Coyote_Renderer.MathML;
 with Coyote_Renderer.Markup;
 with Coyote_Renderer.Tables;
@@ -38,12 +39,14 @@ with Pango.Font;
 
 package body Coyote_GUI.Conversation_Stack is
 
+   use type Gtk.Adjustment.Gtk_Adjustment;
    use type Gtk.Box.Gtk_Box;
    use type Gtk.Flow_Box.Gtk_Flow_Box;
    use type Gtk.Scrolled_Window.Gtk_Scrolled_Window;
    use type Gtk.Text_Buffer.Gtk_Text_Buffer;
    use type Gtk.Text_Mark.Gtk_Text_Mark;
    use type Gtk.Text_View.Gtk_Text_View;
+   use type Gtk.Widget.Gtk_Widget;
    use type Coyote_GUI.Math_Element.Instance_Access;
    use type Gtk.Window.Gtk_Window;
 
@@ -1173,6 +1176,29 @@ package body Coyote_GUI.Conversation_Stack is
       return (others => <>);
    end Tool_Detail;
 
+   function Selection_View (C : Instance)
+     return Gtk.Text_View.Gtk_Text_View
+   is
+      Focus : Gtk.Widget.Gtk_Widget;
+   begin
+      if C.Main_Window /= null then
+         Focus := C.Main_Window.Get_Focus;
+         if Focus /= null then
+            for View of C.Text_Views loop
+               if Focus = Gtk.Widget.Gtk_Widget (View) then
+                  return View;
+               end if;
+            end loop;
+         end if;
+      end if;
+      for View of C.Text_Views loop
+         if View.Get_Buffer.Get_Has_Selection then
+            return View;
+         end if;
+      end loop;
+      return C.Active_View;
+   end Selection_View;
+
    procedure Scroll_To_End (C : in out Instance) is
    begin
       if C.Scroll = null then
@@ -1188,40 +1214,82 @@ package body Coyote_GUI.Conversation_Stack is
       end;
    end Scroll_To_End;
 
-   function Has_Selection (C : Instance) return Boolean is
+   procedure Move_Viewport
+     (C    : in out Instance;
+      Move : Coyote_GUI.Navigation.Movement)
+   is
+      Adjustment : constant Gtk.Adjustment.Gtk_Adjustment :=
+        (if C.Scroll = null then null else C.Scroll.Get_Vadjustment);
+      Line_Size  : constant Gdouble := 18.0;
    begin
-      return C.Active_Text /= null
-        and then C.Active_Text.Get_Has_Selection;
+      if Adjustment = null then
+         return;
+      end if;
+      Adjustment.Set_Value
+        (Coyote_GUI.Navigation.Target_Value
+           (Current   => Adjustment.Get_Value,
+            Lower     => Adjustment.Get_Lower,
+            Upper     => Adjustment.Get_Upper,
+            Page_Size => Adjustment.Get_Page_Size,
+            Line_Size => Line_Size,
+            Move      => Move));
+   end Move_Viewport;
+
+   function Has_Focus (C : Instance) return Boolean is
+      Focus : Gtk.Widget.Gtk_Widget;
+   begin
+      if C.Main_Window = null then
+         return False;
+      end if;
+      Focus := C.Main_Window.Get_Focus;
+      if Focus = null then
+         return False;
+      end if;
+      for View of C.Text_Views loop
+         if Focus = Gtk.Widget.Gtk_Widget (View) then
+            return True;
+         end if;
+      end loop;
+      return False;
+   end Has_Focus;
+
+   function Has_Selection (C : Instance) return Boolean is
+      View : constant Gtk.Text_View.Gtk_Text_View := Selection_View (C);
+   begin
+      return View /= null and then View.Get_Buffer.Get_Has_Selection;
    end Has_Selection;
 
    procedure Copy_Selection (C : in out Instance) is
+      View : constant Gtk.Text_View.Gtk_Text_View := Selection_View (C);
    begin
-      if Has_Selection (C) then
-         C.Active_Text.Copy_Clipboard (Gtk.Clipboard.Get);
+      if View /= null and then View.Get_Buffer.Get_Has_Selection then
+         View.Get_Buffer.Copy_Clipboard (Gtk.Clipboard.Get);
       end if;
    end Copy_Selection;
 
    procedure Select_All (C : in out Instance) is
+      View       : constant Gtk.Text_View.Gtk_Text_View := Selection_View (C);
       Start_Iter : Gtk.Text_Iter.Gtk_Text_Iter;
       End_Iter   : Gtk.Text_Iter.Gtk_Text_Iter;
    begin
-      if C.Active_Text = null then
+      if View = null then
          return;
       end if;
-      C.Active_Text.Get_Start_Iter (Start_Iter);
-      C.Active_Text.Get_End_Iter (End_Iter);
-      C.Active_Text.Select_Range (Start_Iter, End_Iter);
+      View.Get_Buffer.Get_Start_Iter (Start_Iter);
+      View.Get_Buffer.Get_End_Iter (End_Iter);
+      View.Get_Buffer.Select_Range (Start_Iter, End_Iter);
    end Select_All;
 
    procedure Clear_Selection (C : in out Instance) is
+      View        : constant Gtk.Text_View.Gtk_Text_View := Selection_View (C);
       Insert_Iter : Gtk.Text_Iter.Gtk_Text_Iter;
    begin
-      if C.Active_Text = null then
+      if View = null then
          return;
       end if;
-      C.Active_Text.Get_Iter_At_Mark
-        (Insert_Iter, C.Active_Text.Get_Insert);
-      C.Active_Text.Place_Cursor (Insert_Iter);
+      View.Get_Buffer.Get_Iter_At_Mark
+        (Insert_Iter, View.Get_Buffer.Get_Insert);
+      View.Get_Buffer.Place_Cursor (Insert_Iter);
    end Clear_Selection;
 
    procedure Set_Render_Markdown (C : in out Instance; Enabled : Boolean) is

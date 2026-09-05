@@ -79,6 +79,7 @@ with LLM.Providers;
 with Coyote_App.Utils;
 with Coyote_Help;
 with Coyote_GUI.Session_Stats_Window;
+with Coyote_GUI.Navigation;
 with Coyote_GUI.Zoom;
 with LLM.Model_Registry;
 with LLM.Skills;
@@ -776,6 +777,43 @@ package body Coyote_App.Frontend.GUI is
    end record;
 
    Picker : Model_Picker_State;
+   Active_List_Dialog : Gtk.Dialog.Gtk_Dialog := null;
+
+   procedure On_List_Row_Activated
+     (Self   : access Gtk.Tree_View.Gtk_Tree_View_Record'Class;
+      Path   : Gtk.Tree_Model.Gtk_Tree_Path;
+      Column : not null access Gtk.Tree_View_Column.Gtk_Tree_View_Column_Record'Class);
+
+   procedure On_Agent_Row_Activated
+     (Self   : access Gtk.Tree_View.Gtk_Tree_View_Record'Class;
+      Path   : Gtk.Tree_Model.Gtk_Tree_Path;
+      Column : not null access Gtk.Tree_View_Column.Gtk_Tree_View_Column_Record'Class);
+
+   procedure On_List_Row_Activated
+     (Self   : access Gtk.Tree_View.Gtk_Tree_View_Record'Class;
+      Path   : Gtk.Tree_Model.Gtk_Tree_Path;
+      Column : not null access Gtk.Tree_View_Column.Gtk_Tree_View_Column_Record'Class)
+   is
+      pragma Unreferenced (Self, Path, Column);
+   begin
+      if Active_List_Dialog /= null then
+         Active_List_Dialog.Response (Gtk.Dialog.Gtk_Response_OK);
+      end if;
+   end On_List_Row_Activated;
+
+   procedure On_Agent_Row_Activated
+     (Self   : access Gtk.Tree_View.Gtk_Tree_View_Record'Class;
+      Path   : Gtk.Tree_Model.Gtk_Tree_Path;
+      Column : not null access Gtk.Tree_View_Column.Gtk_Tree_View_Column_Record'Class)
+   is
+      pragma Unreferenced (Self, Path, Column);
+   begin
+      if Current_Frontend /= null
+        and then Current_Frontend.Prompt_View /= null
+      then
+         Current_Frontend.Prompt_View.Grab_Focus;
+      end if;
+   end On_Agent_Row_Activated;
 
    procedure Clear_Model_Picker is
    begin
@@ -822,12 +860,9 @@ package body Coyote_App.Frontend.GUI is
       Sel    : Gtk.Tree_Selection.Gtk_Tree_Selection;
       Model  : Gtk_Tree_Model;
       Iter   : Gtk_Tree_Iter;
-      Path   : Gtk_Tree_Path;
-      Needle : constant String :=
-        Ada.Strings.Fixed.Trim
-          (To_String (Picker.Query), Ada.Strings.Both);
+      Path : Gtk_Tree_Path;
    begin
-      if Picker.View = null or else Needle'Length = 0 then
+      if Picker.View = null then
          return;
       end if;
       Sel := Picker.View.Get_Selection;
@@ -1008,6 +1043,9 @@ package body Coyote_App.Frontend.GUI is
       then
          Self.Destroy;
          return True;
+      elsif Event.Keyval = Gdk.Types.Keysyms.GDK_Escape then
+         Self.Destroy;
+         return True;
       end if;
       return False;
    end On_Support_Window_Key_Press;
@@ -1180,14 +1218,19 @@ package body Coyote_App.Frontend.GUI is
       if Current_Frontend = null then
          return;
       end if;
-      if Current_Frontend.Prompt_Buf /= null
+      if Current_Frontend.Prompt_View /= null
+        and then Current_Frontend.Prompt_View.Has_Focus
+        and then Current_Frontend.Prompt_Buf /= null
         and then Current_Frontend.Prompt_Buf.Get_Has_Selection
       then
          Current_Frontend.Prompt_Buf.Get_Iter_At_Mark
            (Insert, Current_Frontend.Prompt_Buf.Get_Insert);
          Current_Frontend.Prompt_Buf.Place_Cursor (Insert);
+      elsif Current_Frontend.Stack.Has_Focus
+        or else Current_Frontend.Stack.Has_Selection
+      then
+         Current_Frontend.Stack.Clear_Selection;
       end if;
-      Current_Frontend.Stack.Clear_Selection;
    end On_Deselect_Activate;
 
    function On_Prompt_Button_Press
@@ -1657,6 +1700,7 @@ package body Coyote_App.Frontend.GUI is
               (Coyote_App.Frontend.Warning,
                "Input queue is full; prompt retained.");
          end if;
+         Current_Frontend.Prompt_View.Grab_Focus;
       end;
    end On_Send_Clicked;
 
@@ -1670,7 +1714,8 @@ package body Coyote_App.Frontend.GUI is
    begin
       if (Event.Keyval = Gdk.Types.Keysyms.GDK_Return
             or else Event.Keyval = Gdk.Types.Keysyms.GDK_KP_Enter)
-        and then (Event.State and Gdk.Types.Shift_Mask) = 0
+        and then (Event.State and (Gdk.Types.Shift_Mask
+                                   or Gdk.Types.Mod1_Mask)) = 0
       then
          On_Send_Clicked (null);
          return True;
@@ -2061,12 +2106,18 @@ package body Coyote_App.Frontend.GUI is
       end loop;
 
       Gtk.Tree_View.Gtk_New (View, +Store);
+      View.On_Row_Activated (On_List_Row_Activated'Access);
       View.Set_Tooltip_Column (Glib.Gint (Col_Snippet));
       Add_Text_Column ("",     Col_Kind);
       Add_Text_Column ("Name", Col_Name);
       Add_Text_Column ("Date", Col_Date);
       Add_Text_Column ("Snippet", Col_Snippet);
       View.Expand_All;
+      Sel := View.Get_Selection;
+      Iter := Get_Iter_First (+Store);
+      if Iter /= Null_Iter then
+         Sel.Select_Iter (Iter);
+      end if;
 
       Gtk.Scrolled_Window.Gtk_New (Scroll);
       Scroll.Set_Policy (Gtk.Enums.Policy_Automatic,
@@ -2080,6 +2131,7 @@ package body Coyote_App.Frontend.GUI is
       Btn := Dialog.Add_Button ("_Open",   Gtk_Response_OK);
       Btn := Dialog.Add_Button ("_Cancel", Gtk_Response_Cancel);
       Dialog.Set_Default_Response (Gtk_Response_OK);
+      Active_List_Dialog := Dialog;
 
       Content := Dialog.Get_Content_Area;
       Content.Pack_Start (Scroll, Expand => True, Fill => True, Padding => 4);
@@ -2105,6 +2157,7 @@ package body Coyote_App.Frontend.GUI is
             end;
          end if;
       end if;
+      Active_List_Dialog := null;
       Dialog.Destroy;
    end On_Open_Session_Activate;
    --  ── Open Session dialog ───────────────────────────────────────────────
@@ -2263,6 +2316,7 @@ package body Coyote_App.Frontend.GUI is
       --  View the sortable filter; typeahead is replaced by the
       --  search-entry filter above the list.
       Gtk.Tree_View.Gtk_New (View, +Picker.Sort);
+      View.On_Row_Activated (On_List_Row_Activated'Access);
       View.Set_Enable_Search (False);
       Add_Text_Column ("Provider",   0, Sort_Col => 0);
       Add_Text_Column ("Name",       1, Sort_Col => 1);
@@ -2321,6 +2375,8 @@ package body Coyote_App.Frontend.GUI is
       Picker.Dialog := Dialog;
       Picker.Query  := Null_Unbounded_String;
       Update_Model_Picker_Count;
+      Ensure_Model_Picker_Selection;
+      Active_List_Dialog := Dialog;
 
       Content := Dialog.Get_Content_Area;
       Content.Pack_Start
@@ -2350,6 +2406,7 @@ package body Coyote_App.Frontend.GUI is
             end;
          end if;
       end if;
+      Active_List_Dialog := null;
       Dialog.Destroy;
       Clear_Model_Picker;
    end On_Change_Model_Activate;
@@ -2473,6 +2530,7 @@ package body Coyote_App.Frontend.GUI is
       end loop;
 
       Gtk.Tree_View.Gtk_New (View, +Store);
+      View.On_Row_Activated (On_List_Row_Activated'Access);
       View.Set_Enable_Search (True);
       View.Set_Search_Column (0);
       declare
@@ -2499,6 +2557,12 @@ package body Coyote_App.Frontend.GUI is
       Btn := Dialog.Add_Button ("_Select", Gtk_Response_OK);
       Btn := Dialog.Add_Button ("_Cancel", Gtk_Response_Cancel);
       Dialog.Set_Default_Response (Gtk_Response_OK);
+      Active_List_Dialog := Dialog;
+      Sel := View.Get_Selection;
+      Iter := Get_Iter_First (+Store);
+      if Iter /= Null_Iter then
+         Sel.Select_Iter (Iter);
+      end if;
 
       Content := Dialog.Get_Content_Area;
       Content.Pack_Start (Scroll, Expand => True, Fill => True, Padding => 4);
@@ -2525,6 +2589,7 @@ package body Coyote_App.Frontend.GUI is
             end;
          end if;
       end if;
+      Active_List_Dialog := null;
       Dialog.Destroy;
    end On_Sandbox_Profile_Activate;
 
@@ -2793,6 +2858,7 @@ package body Coyote_App.Frontend.GUI is
       Dialog.Set_Transient_For (Current_Frontend.Win);
       Btn := Dialog.Add_Button ("_Save", Gtk.Dialog.Gtk_Response_OK);
       Btn := Dialog.Add_Button ("_Cancel", Gtk.Dialog.Gtk_Response_Cancel);
+      Dialog.Set_Default_Response (Gtk.Dialog.Gtk_Response_OK);
       Content := Dialog.Get_Content_Area;
       Gtk.Box.Gtk_New_Vbox (Form, Homogeneous => False, Spacing => 6);
       Form.Set_Border_Width (10);
@@ -2802,9 +2868,10 @@ package body Coyote_App.Frontend.GUI is
          Label : Gtk.Label.Gtk_Label;
       begin
          Gtk.Box.Gtk_New_Hbox (Row, Homogeneous => False, Spacing => 8);
-         Gtk.Label.Gtk_New (Label, "Default model:");
+         Gtk.Label.Gtk_New_With_Mnemonic (Label, "_Default model:");
          Row.Pack_Start (Label, False, False, 0);
          Gtk.Combo_Box_Text.Gtk_New (Model_C);
+         Label.Set_Mnemonic_Widget (Model_C);
          for M of Models loop
             Model_C.Append_Text (Model_Text (M));
          end loop;
@@ -2822,9 +2889,11 @@ package body Coyote_App.Frontend.GUI is
          Label : Gtk.Label.Gtk_Label;
       begin
          Gtk.Box.Gtk_New_Hbox (Row, Homogeneous => False, Spacing => 8);
-         Gtk.Label.Gtk_New (Label, "Default subagent model:");
+         Gtk.Label.Gtk_New_With_Mnemonic
+           (Label, "_Default subagent model:");
          Row.Pack_Start (Label, False, False, 0);
          Gtk.Combo_Box_Text.Gtk_New (Subagent_Model_C);
+         Label.Set_Mnemonic_Widget (Subagent_Model_C);
          Subagent_Model_C.Append_Text ("Use default model");
          for M of Models loop
             Subagent_Model_C.Append_Text (Model_Text (M));
@@ -2845,9 +2914,10 @@ package body Coyote_App.Frontend.GUI is
          Label : Gtk.Label.Gtk_Label;
       begin
          Gtk.Box.Gtk_New_Hbox (Row, Homogeneous => False, Spacing => 8);
-         Gtk.Label.Gtk_New (Label, "Thinking level:");
+         Gtk.Label.Gtk_New_With_Mnemonic (Label, "_Thinking level:");
          Row.Pack_Start (Label, False, False, 0);
          Gtk.Combo_Box_Text.Gtk_New (Thinking_C);
+         Label.Set_Mnemonic_Widget (Thinking_C);
          for Level in LLM.Providers.Thinking_Level loop
             Thinking_C.Append_Text
               (Ada.Characters.Handling.To_Lower
@@ -2869,9 +2939,10 @@ package body Coyote_App.Frontend.GUI is
          Label : Gtk.Label.Gtk_Label;
       begin
          Gtk.Box.Gtk_New_Hbox (Row, Homogeneous => False, Spacing => 8);
-         Gtk.Label.Gtk_New (Label, "Default sandbox:");
+         Gtk.Label.Gtk_New_With_Mnemonic (Label, "Default _sandbox:");
          Row.Pack_Start (Label, False, False, 0);
          Gtk.Combo_Box_Text.Gtk_New (Sandbox_C);
+         Label.Set_Mnemonic_Widget (Sandbox_C);
          Sandbox_C.Append_Text ("None (no sandbox)");
          for Profile of Profiles loop
             Sandbox_C.Append_Text (Profile);
@@ -2895,9 +2966,10 @@ package body Coyote_App.Frontend.GUI is
          Label : Gtk.Label.Gtk_Label;
       begin
          Gtk.Box.Gtk_New_Hbox (Row, Homogeneous => False, Spacing => 8);
-         Gtk.Label.Gtk_New (Label, "Price display:");
+         Gtk.Label.Gtk_New_With_Mnemonic (Label, "_Price display:");
          Row.Pack_Start (Label, False, False, 0);
          Gtk.Combo_Box_Text.Gtk_New (Price_Display_C);
+         Label.Set_Mnemonic_Widget (Price_Display_C);
          Price_Display_C.Append_Text ("SI prefixes ($/tok)");
          Price_Display_C.Append_Text ("dB ($/tok)");
          Price_Display_C.Set_Active
@@ -2912,10 +2984,12 @@ package body Coyote_App.Frontend.GUI is
          Label : Gtk.Label.Gtk_Label;
       begin
          Gtk.Box.Gtk_New_Hbox (Row, Homogeneous => False, Spacing => 8);
-         Gtk.Label.Gtk_New (Label, "Maximum subagent recursion depth:");
+         Gtk.Label.Gtk_New_With_Mnemonic
+           (Label, "Maximum subagent _recursion depth:");
          Row.Pack_Start (Label, False, False, 0);
          Gtk.Spin_Button.Gtk_New
            (Recursion_C, 0.0, Gdouble (Natural'Last), 1.0);
+         Label.Set_Mnemonic_Widget (Recursion_C);
          Recursion_C.Set_Value
            (Gdouble (Settings_Value.Max_Recursion_Depth));
          Recursion_C.Set_Width_Chars (8);
@@ -2928,13 +3002,15 @@ package body Coyote_App.Frontend.GUI is
          Label : Gtk.Label.Gtk_Label;
       begin
          Gtk.Box.Gtk_New_Hbox (Row, Homogeneous => False, Spacing => 8);
-         Gtk.Label.Gtk_New (Label, "Shutdown grace period (seconds):");
+         Gtk.Label.Gtk_New_With_Mnemonic
+           (Label, "_Shutdown grace period (seconds):");
          Row.Pack_Start (Label, False, False, 0);
          Gtk.Spin_Button.Gtk_New
            (Grace_C,
             0.0,
             Gdouble (LLM.Settings.Max_Termination_Grace_Seconds),
             1.0);
+         Label.Set_Mnemonic_Widget (Grace_C);
          Grace_C.Set_Value
            (Gdouble (Settings_Value.Shell_Termination_Grace_Seconds));
          Grace_C.Set_Width_Chars (8);
@@ -2947,11 +3023,13 @@ package body Coyote_App.Frontend.GUI is
          Actions : Gtk.Box.Gtk_Box;
          Add_B, Remove_B, Up_B, Down_B : Gtk.Button.Gtk_Button;
       begin
-         Gtk.Label.Gtk_New (Label, "Additional skill directories:");
+         Gtk.Label.Gtk_New_With_Mnemonic
+           (Label, "Additional skill _directories:");
          Label.Set_Halign (Gtk.Widget.Align_Start);
          Form.Pack_Start (Label, False, False, 0);
 
          Gtk.List_Box.Gtk_New (Skill_Editor.List);
+         Label.Set_Mnemonic_Widget (Skill_Editor.List);
          Skill_Editor.List.Set_Selection_Mode (Gtk.Enums.Selection_Single);
          Skill_Editor.List.On_Row_Selected
            (On_Skill_Path_Selected'Access);
@@ -3269,6 +3347,12 @@ package body Coyote_App.Frontend.GUI is
    is
       pragma Unreferenced (Self);
       use type Gdk.Types.Gdk_Key_Type;
+      use type Gdk.Types.Gdk_Modifier_Type;
+      Mods : constant Gdk.Types.Gdk_Modifier_Type := Event.State;
+      Plain : constant Boolean :=
+        (Mods and (Gdk.Types.Shift_Mask
+                   or Gdk.Types.Control_Mask
+                   or Gdk.Types.Mod1_Mask)) = 0;
    begin
       if Current_Frontend = null then
          return False;
@@ -3279,6 +3363,45 @@ package body Coyote_App.Frontend.GUI is
       then
          Reset_Click_For_Help (Current_Frontend.all);
          return True;
+      end if;
+
+      if Current_Frontend.Stack.Has_Focus then
+         if Plain and then Event.Keyval = Gdk.Types.Keysyms.GDK_LC_j then
+            Current_Frontend.Stack.Move_Viewport
+              (Coyote_GUI.Navigation.Line_Down);
+            return True;
+         elsif Plain and then Event.Keyval = Gdk.Types.Keysyms.GDK_LC_k then
+            Current_Frontend.Stack.Move_Viewport
+              (Coyote_GUI.Navigation.Line_Up);
+            return True;
+         elsif Plain and then Event.Keyval = Gdk.Types.Keysyms.GDK_LC_g then
+            Current_Frontend.Stack.Move_Viewport
+              (Coyote_GUI.Navigation.To_Top);
+            return True;
+         elsif (Mods and (Gdk.Types.Control_Mask
+                          or Gdk.Types.Mod1_Mask)) = 0
+           and then Event.Keyval = Gdk.Types.Keysyms.GDK_G
+         then
+            Current_Frontend.Stack.Move_Viewport
+              (Coyote_GUI.Navigation.To_Bottom);
+            return True;
+         elsif (Mods and (Gdk.Types.Shift_Mask
+                          or Gdk.Types.Mod1_Mask)) = 0
+           and then Event.Keyval = Gdk.Types.Keysyms.GDK_LC_d
+           and then (Mods and Gdk.Types.Control_Mask) /= 0
+         then
+            Current_Frontend.Stack.Move_Viewport
+              (Coyote_GUI.Navigation.Page_Down);
+            return True;
+         elsif (Mods and (Gdk.Types.Shift_Mask
+                          or Gdk.Types.Mod1_Mask)) = 0
+           and then Event.Keyval = Gdk.Types.Keysyms.GDK_LC_u
+           and then (Mods and Gdk.Types.Control_Mask) /= 0
+         then
+            Current_Frontend.Stack.Move_Viewport
+              (Coyote_GUI.Navigation.Page_Up);
+            return True;
+         end if;
       end if;
 
       return False;
@@ -3385,6 +3508,7 @@ package body Coyote_App.Frontend.GUI is
       F.Agent_Pane.Set_Name ("coyote-agents-pane");
       Selection := View.Get_Selection;
       Selection.On_Changed (On_Agent_Selection_Changed'Access);
+      View.On_Row_Activated (On_Agent_Row_Activated'Access);
       Selection.Select_Iter (Row);
    end Build_Agents_Tree;
 
@@ -3562,6 +3686,11 @@ package body Coyote_App.Frontend.GUI is
          Gtk.Accel_Group.Accel_Visible);
       F.Deselect_Item := Make_Item ("D_eselect All", Edit_Menu);
       F.Deselect_Item.On_Activate (On_Deselect_Activate'Access);
+      F.Deselect_Item.Add_Accelerator
+        ("activate", F.Accel_Group,
+         Gdk.Types.Keysyms.GDK_LC_d,
+         Gdk.Types.Control_Mask or Gdk.Types.Shift_Mask,
+         Gtk.Accel_Group.Accel_Visible);
 
       --  Options menu
       Gtk.Menu.Gtk_New (Options_Menu);
@@ -3801,19 +3930,19 @@ package body Coyote_App.Frontend.GUI is
          Gdk.Types.Keysyms.GDK_F1,
          0,
          Gtk.Accel_Group.Accel_Visible);
-      Gtk.Menu_Item.Gtk_New (Item, "Send a Prompt");
+      Gtk.Menu_Item.Gtk_New_With_Mnemonic (Item, "_Send a Prompt");
       Item.Set_Name ("coyote-help-menu");
       Item.On_Button_Press_Event (On_Help_Event'Access);
       Gtk.Menu_Shell.Append
         (Gtk.Menu_Shell.Gtk_Menu_Shell (Help_Menu), Item);
       Item.On_Activate (On_Send_Help_Activate'Access);
-      Gtk.Menu_Item.Gtk_New (Item, "Manage Sessions");
+      Gtk.Menu_Item.Gtk_New_With_Mnemonic (Item, "_Manage Sessions");
       Item.Set_Name ("coyote-help-menu");
       Item.On_Button_Press_Event (On_Help_Event'Access);
       Gtk.Menu_Shell.Append
         (Gtk.Menu_Shell.Gtk_Menu_Shell (Help_Menu), Item);
       Item.On_Activate (On_Session_Help_Activate'Access);
-      Gtk.Menu_Item.Gtk_New (Item, "Agent Controls");
+      Gtk.Menu_Item.Gtk_New_With_Mnemonic (Item, "_Agent Controls");
       Item.Set_Name ("coyote-help-menu");
       Item.On_Button_Press_Event (On_Help_Event'Access);
       Gtk.Menu_Shell.Append

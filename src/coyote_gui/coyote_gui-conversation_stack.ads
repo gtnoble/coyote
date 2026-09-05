@@ -11,6 +11,7 @@ with Ada.Strings.Hash;
 with Ada.Strings.Unbounded;
 with Coyote_GUI;
 with Coyote_GUI.Math_Element;
+with Coyote_GUI.Navigation;
 with Gtk.Box;
 with Gtk.Frame;
 with Gtk.Flow_Box;
@@ -119,11 +120,18 @@ package Coyote_GUI.Conversation_Stack is
    --  Keep the active exchange at the bottom of the outer host.
    procedure Scroll_To_End (C : in out Instance);
 
+   --  Move the outer conversation viewport without changing widget focus.
+   procedure Move_Viewport
+     (C    : in out Instance;
+      Move : Coyote_GUI.Navigation.Movement);
+
+   --  Return whether focus belongs to a conversation text component.
+   function Has_Focus (C : Instance) return Boolean;
+
    function Has_Selection (C : Instance) return Boolean;
    procedure Copy_Selection (C : in out Instance);
    procedure Select_All (C : in out Instance);
    procedure Clear_Selection (C : in out Instance);
-
    --  Enable or disable Markdown rendering for completed response blocks.
    procedure Set_Render_Markdown (C : in out Instance; Enabled : Boolean);
    function Get_Render_Markdown (C : Instance) return Boolean;

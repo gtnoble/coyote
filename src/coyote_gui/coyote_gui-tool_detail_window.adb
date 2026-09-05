@@ -81,6 +81,9 @@ package body Coyote_GUI.Tool_Detail_Window is
       then
          Self.Destroy;
          return True;
+      elsif Event.Keyval = Gdk.Types.Keysyms.GDK_Escape then
+         Self.Destroy;
+         return True;
       end if;
       return False;
    end On_Detail_Key_Press;

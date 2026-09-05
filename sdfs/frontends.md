@@ -119,8 +119,9 @@ task help, Index, and Keys & Shortcuts. Product Information is an in-process
 dialog with the prominent themed coyote application icon above the name,
 version, and license text. Click for Help arms contextual help. Pause uses
 Ctrl+Shift+P so the reserved Ctrl+P accelerator remains available for Print.
-Help task entries omit mnemonics; standard Help entries have mnemonics and
-F1 / Shift+F1.
+Help task entries use GTK mnemonics (`_Send a Prompt`, `_Manage Sessions`,
+and `_Agent Controls`); standard Help entries also have mnemonics. F1 opens
+Overview and Shift+F1 arms Click for Help.
 
 The implementation does not claim complete IRIX conformance. F1 and Help →
 Click for Help arm a question-mark pointer for the whole main window. The
@@ -234,13 +235,16 @@ agent session.
 ### GUI Preferences implementation (2026-08-06)
 
 The GTK Preferences dialog is implemented as an `Options → Preferences...`
-workflow. It edits persistent model, thinking-level, and sandbox defaults on
-the GTK main task, then sends a typed `Set_Preferences` payload through the
-protected prompt queue to the agent task. The agent task owns settings-file
-persistence and reports write success or failure through the frontend. Saving
-defaults does not change the active session; the existing Agent menu controls
-remain the runtime override path. New GUI sessions reload the persisted
-preferences before agent creation.
+workflow. It edits persistent model, thinking-level, sandbox, optional
+subagent-model, recursion-depth, termination-grace, completion-notification,
+price-display, and ordered skill-directory defaults on the GTK main task, then
+sends a typed `Set_Preferences` payload through the protected prompt queue to
+the agent task. The agent task owns settings-file persistence and reports write
+success or failure through the frontend. Saving defaults does not change the
+active session; the existing Agent menu controls remain the runtime override
+path. New GUI sessions reload the persisted preferences before agent creation.
+Save is the default dialog response, the Default model control receives initial
+focus, Escape cancels, and each editable control has a GTK mnemonic association.
 
 Automated coverage includes the typed queue round-trip, settings persistence,
 and agent sandbox-default precedence tests. Display-backed DEM-033 remains
@@ -500,20 +504,23 @@ require a custom canvas or coordinate-based hit testing.
 **Conversation view margins** increased from 8/6 px to 16/12 px
 (left/right 8→16, top/bottom 6→12) in `Coyote_App.Frontend.GUI.Create`.
 
-### Menu keyboard accelerators (2026-08-22, REQ-CORE-132)
+### Menu keyboard accelerators (2026-09-05, REQ-CORE-132)
 
-Every actionable item in the main GTK menu bar now has a visible accelerator
-through the window's `Gtk_Accel_Group`: Ctrl+N (New Window), Ctrl+Shift+N
-(New Session), Ctrl+O (Open Session), Ctrl+Q (Exit), Ctrl+, (Preferences),
-Escape (Stop), Ctrl+Shift+P (Pause), Ctrl+R (Resume), Ctrl+M (Change Model),
-Ctrl+1 through Ctrl+6 (Thinking Level: Off through X-High), Ctrl+Shift+S
-(Sandbox Profile), Ctrl+Shift+C (Compact Context), Ctrl+Shift+I (Session
-Stats), Ctrl+Shift+M (Render Markdown), Ctrl+Shift+A (Auto-scroll), and
-Ctrl++/Ctrl+-/Ctrl+0 (Zoom In/Out/Reset).
-All entries use `Accel_Visible`, so GTK renders the shortcut labels beside
-the menu items.  The separate conversation context-menu Copy item and
-Preferences dialog combo-box choices are intentionally outside this
-main-menu requirement.
+The main GTK window attaches visible primary accelerators through one
+`Gtk_Accel_Group`: Ctrl+N (New Window), Ctrl+Shift+N (New Session), Ctrl+O
+(Open Session), Ctrl+Q (Exit), Ctrl+X/C/V/A (Cut, Copy, Paste, Select All),
+Ctrl+Shift+D (Deselect All), Ctrl+, (Preferences), Ctrl+Return (Send), Ctrl+L
+(Clear Conversation), Escape (Stop), Ctrl+Shift+P (Pause), Ctrl+R (Resume),
+Ctrl+M (Models), Ctrl+1 through Ctrl+6 (Thinking Level: Off through X-High),
+Ctrl+Shift+S (Sandbox Profile), Ctrl+Shift+C (Compact Context), Ctrl+Shift+I
+(Session Stats), Ctrl+Shift+M (Render Markdown), Ctrl+Shift+A (Auto-scroll),
+and Ctrl++/Ctrl+-/Ctrl+0 (Zoom In/Out/Reset).
+
+These entries use `Accel_Visible`, so GTK renders their shortcut labels. Every
+menu and menu entry also has a mnemonic where GTK supports one. Informational
+Help entries have mnemonics but do not require independent accelerators.
+The separate conversation context-menu Copy item and Preferences dialog
+combo-box choices are outside this main-menu accelerator set.
 
 The zoom shortcuts remain proper GTK accelerators rather than raw window
 key handling; the top-level key-press callback remains a no-op.
@@ -703,16 +710,18 @@ during the drag.  Button-release writes the ordered pair back and calls
 
 ### Keyboard-driven GUI and accessibility (2026-08-23)
 
-The GTK conversation canvas now implements vi-style viewport navigation:
-`j`/`k` move by one body line, `Ctrl+D`/`Ctrl+U` move by one page, and
-`g`/`Shift+g` move to the top/bottom. Home, End, Page Up, and Page Down are
-also supported. The pure `Coyote_GUI.Navigation` package clamps movement to
-the adjustment bounds and is unit tested.
+When a conversation text view has focus, the outer conversation viewport
+implements vi-style navigation: `j`/`k` move by one body line, `g` moves to
+the top, `G`/Shift+`g` moves to the bottom, and Ctrl+D/Ctrl+U moves by one
+page. Native wheel scrolling remains available. Prompt editing, the agents
+tree, list dialogs, and other controls retain native key handling. The pure
+`Coyote_GUI.Navigation` package clamps movement to the adjustment bounds and
+is unit tested.
 
-Custom tool cards and fork action strips participate in keyboard traversal.
-Tab and Shift+Tab select an interactive item; Enter, keypad Enter, or Space
-activates it. Escape clears a selection only when one exists; otherwise it is
-left for the global Stop accelerator.
+Native tool cards and fork action strips participate in GTK traversal. Enter,
+keypad Enter, or Space activates the focused native control. Escape cancels
+armed contextual Help; otherwise the main-window Escape accelerator performs
+Stop. Support windows close or hide on Escape.
 
 The prompt queue now reports whether an enqueue was accepted. Prompt text is
 cleared only after acceptance, and full-queue rejection leaves the text intact
@@ -810,9 +819,11 @@ normal completion footer.
 
 Selection is intentionally local to one semantic component. The GUI does not
 require a range spanning assistant text, thinking, tools, footers, or exchanges.
-Copy, Select All, and PRIMARY operate on the focused or most recently selected
-text component; CLIPBOARD and PRIMARY remain independent. This removes the
-previous global selection/hit-testing model as a migration requirement.
+When the prompt has focus, Copy and Select All target the prompt; otherwise
+conversation commands resolve the focused conversation text view, then a
+retained conversation selection, then the active response view. CLIPBOARD and
+PRIMARY remain independent. This removes the previous global selection/
+hit-testing model as a migration requirement.
 
 The presentation interface must gain an explicit request-start operation, an
 explicit distinction between step and final footers, and an exchange-completion
