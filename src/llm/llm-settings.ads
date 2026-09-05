@@ -89,7 +89,7 @@ package LLM.Settings is
    --  Unrelated fields are preserved and the replacement is atomic.
    procedure Save_Preferences
      (Provider                 : String;
-      Model_Id                 : String;
+      Model_Id                : String;
       Think_Level              : String;
       Sandbox                  : String;
       Price_Display            : Price_Display_Mode;
@@ -101,5 +101,10 @@ package LLM.Settings is
         String_Vectors.Empty_Vector;
       Termination_Grace_Seconds : Natural :=
         Default_Termination_Grace_Seconds);
+
+   --  Update the persistent sandbox default only when it names Old_Name.
+   procedure Rename_Default_Sandbox
+     (Old_Name : String;
+      New_Name : String);
 
 end LLM.Settings;

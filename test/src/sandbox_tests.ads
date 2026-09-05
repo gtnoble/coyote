@@ -32,6 +32,16 @@ package Sandbox_Tests is
    procedure Test_Load_Profile_Not_Found (T : in out Test);
    procedure Test_Load_Profile_Bad_Json (T : in out Test);
 
+   --  ── Typed profile management tests ──────────────────────────────────
+
+   procedure Test_Profile_Name_Validation (T : in out Test);
+   procedure Test_Profile_Typed_Save_Load (T : in out Test);
+   procedure Test_Profile_Optional_Arrays_Default_Empty (T : in out Test);
+   procedure Test_Profile_Edit_Replaces (T : in out Test);
+   procedure Test_Profile_Copy_Independence_And_Collision
+     (T : in out Test);
+   procedure Test_Profile_Rename_Retains_Old (T : in out Test);
+
    --  ── Build_Bwrap_Args unit tests ──────────────────────────────────────
 
    procedure Test_Bbuild_Empty_Profile       (T : in out Test);

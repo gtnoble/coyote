@@ -79,6 +79,7 @@ with LLM.Providers;
 with Coyote_App.Utils;
 with Coyote_Help;
 with Coyote_GUI.Session_Stats_Window;
+with Coyote_GUI.Sandbox_Profile_Window;
 with Coyote_GUI.Zoom;
 with LLM.Model_Registry;
 with LLM.Skills;
@@ -1812,6 +1813,27 @@ package body Coyote_App.Frontend.GUI is
       end if;
    end On_Stats_Activate;
 
+   procedure On_Sandbox_Profiles_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
+   is
+      pragma Unreferenced (Self);
+   begin
+      if Current_Frontend /= null then
+         if not Coyote_GUI.Sandbox_Profile_Window.Is_Created
+           (Current_Frontend.Sandbox_Profile_Window)
+         then
+            Coyote_GUI.Sandbox_Profile_Window.Create
+              (S               => Current_Frontend.Sandbox_Profile_Window,
+               Main_Window     => Current_Frontend.Win.all'Access,
+               Prompt_Queue    => Current_Frontend.PQ'Access,
+               Target_Agent_Id =>
+                 To_String (Current_Frontend.Root_Agent_Id));
+         end if;
+         Coyote_GUI.Sandbox_Profile_Window.Show
+           (Current_Frontend.Sandbox_Profile_Window);
+      end if;
+   end On_Sandbox_Profiles_Activate;
+
    procedure On_Click_For_Help_Activate
      (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class) is
       pragma Unreferenced (Self);
@@ -3439,7 +3461,8 @@ package body Coyote_App.Frontend.GUI is
       --  Options menu
       Options_Menu      : Gtk_Menu;
       Options_Item      : Gtk_Menu_Item;
-      Preferences_Item  : Gtk_Menu_Item;
+      Preferences_Item       : Gtk_Menu_Item;
+      Sandbox_Profiles_Item  : Gtk_Menu_Item;
 
       --  Help menu
       Help_Menu         : Gtk_Menu;
@@ -3463,6 +3486,11 @@ package body Coyote_App.Frontend.GUI is
       F.Win.On_Delete_Event (On_Window_Delete'Access);
       Coyote_GUI.Session_Stats_Window.Create
         (F.Stats_Window, F.Win.all'Access);
+      Coyote_GUI.Sandbox_Profile_Window.Create
+        (S               => F.Sandbox_Profile_Window,
+         Main_Window     => F.Win.all'Access,
+         Prompt_Queue    => F.PQ'Access,
+         Target_Agent_Id => To_String (F.Root_Agent_Id));
       F.Win.On_Key_Press_Event (On_Window_Key_Press'Access);
       F.Win.On_Button_Press_Event (On_Help_Event'Access);
 
@@ -3577,6 +3605,10 @@ package body Coyote_App.Frontend.GUI is
          Gdk.Types.Keysyms.GDK_comma,
          Gdk.Types.Control_Mask,
          Gtk.Accel_Group.Accel_Visible);
+      Sandbox_Profiles_Item :=
+        Make_Item ("_Sandbox Profiles...", Options_Menu);
+      Sandbox_Profiles_Item.On_Activate
+        (On_Sandbox_Profiles_Activate'Access);
 
       --  Agent menu
       Gtk.Menu.Gtk_New (Agent_Menu);

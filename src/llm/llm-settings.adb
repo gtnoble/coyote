@@ -475,4 +475,27 @@ package body LLM.Settings is
 
       Write_Atomically (Path, GNATCOLL.JSON.Write (Root));
    end Save_Preferences;
+
+   procedure Rename_Default_Sandbox
+     (Old_Name : String;
+      New_Name : String)
+   is
+      Path     : constant String := Settings_Path;
+      Existing : constant GNATCOLL.JSON.JSON_Value :=
+        Load_Json_File (Path);
+      Root     : constant GNATCOLL.JSON.JSON_Value :=
+        (if Existing.Kind = GNATCOLL.JSON.JSON_Object_Type
+         then Existing
+         else GNATCOLL.JSON.Create_Object);
+   begin
+      if Path'Length = 0 then
+         raise Ada.IO_Exceptions.Use_Error with
+           "HOME is not set; cannot write settings";
+      end if;
+
+      if Get_String_Field (Root, "defaultSandboxProfile") = Old_Name then
+         Root.Set_Field ("defaultSandboxProfile", New_Name);
+         Write_Atomically (Path, GNATCOLL.JSON.Write (Root));
+      end if;
+   end Rename_Default_Sandbox;
 end LLM.Settings;

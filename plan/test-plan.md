@@ -160,6 +160,9 @@ SRS-CORE requirement groups.
 | `llm_parallel_tools_tests.adb` | REQ-CORE-056 (run_group) | ~15 |
 
 | `sandbox_tests.adb` | Sandbox profile subsystem, including timeout and abort process-group termination | 24 |
+| `coyote_gui_sandbox_profile_window_tests.adb` | REQ-CORE-113f..113i; manager name validation and reusable-window lifecycle | 2; display-gated |
+| `sandbox_tests.adb` | REQ-CORE-235; typed CRUD, name validation, optional arrays, copy/rename compatibility, path rules, fail-closed runtime, timeout and abort process-group termination | 30 |
+| `llm_settings_tests.adb` | REQ-CORE-234..235; sandbox default loading, persistence, and default rename | ~30 |
 | `llm_context_tests.adb` | REQ-CORE-060 (compaction threshold) | ~15 |
 | `coyote_app_tests.adb` | REQ-CORE-010â023 (CLI parsing) | ~30 |
 | `coyote_utils_tests.adb` | REQ-CORE-023 | ~10 |
@@ -249,6 +252,7 @@ behaviour. Results are recorded in a Test Report.
 | DEM-030 | REQ-CORE-086..087 | In one running frontend, switch between sessions with different and absent sandbox profiles; verify restoration and clearing before the next tool call |
 | DEM-031 | REQ-CORE-088 | Set a sandbox profile, spawn a child coyote process, and verify the child receives the profile and applies it to a shell command |
 | DEM-032 | REQ-CORE-089 | Exercise startup, profile change, resume, and switch in the GUI; verify displayed, agent, and propagated profile values remain identical |
+| DEM-054 | REQ-CORE-113f..113i, REQ-CORE-235 | In a display-backed GUI, open `Options → Sandbox Profiles...` and verify the reusable modeless `coyote : Sandbox Profiles` window, left single-selection list, right read-only details, and explicit edit mode. Exercise New, Edit, Duplicate Profile, Rename Profile, Save, Cancel, Refresh, and Use Profile; verify Delete is absent, four path-rule lists preserve `~`, `.`, `./`, absolute, and missing path spellings, CRUD is synchronous local access, and Use Profile queues the active-session change. Verify compatibility rename retains the old profile and updates a matching persistent default without rewriting historical session headers. Display-backed full lifecycle qualification remains pending. |
 
 ### 4.4 Planned Tests â Inspection
 
@@ -320,6 +324,8 @@ and preferences demonstrations listed above.
 | REQ-CORE-086..087 | T | `llm_session_store_tests.adb`, `llm_agent_tests.adb`, DEM-030 |
 | REQ-CORE-088 | T | `llm_agent_tests.adb`, `coyote_app_tests.adb`, DEM-031 |
 | REQ-CORE-089 | T | `coyote_app_tests.adb`, DEM-032 |
+| REQ-CORE-113f..113i | D/T/I | `coyote_gui_sandbox_profile_window_tests.adb`, `sandbox_tests.adb`; DEM-054; display-backed manager qualification pending |
+| REQ-CORE-235 | T/I | `sandbox_tests.adb`, `llm_settings_tests.adb`; source inspection |
 
 | REQ-CORE-090â093 | T | `llm_skills_tests.adb` |
 | REQ-CORE-100â109 | Historical | Retired Acme/plumber controls; see PCR-090 |
@@ -910,3 +916,11 @@ Production and test development builds succeed. All 17 native-stack tests pass
 17/17, and the GUI lifecycle regression passes 1/1 with zero failed assertions
 and zero unexpected errors. Native DEM-042 through DEM-048 qualification is
 closed; the Plain frontend remains supported.
+
+**Baseline after sandbox profile manager implementation (2026-09-05):** Added
+typed sandbox CRUD, safe-name, optional-array, copy/rename compatibility,
+default-rename, and fail-closed runtime tests, plus display-gated manager
+name-validation and reusable-lifecycle coverage. The focused backend/settings
+and manager tests pass in the development test build; full display-backed
+manager interaction remains pending under DEM-054. Historical session headers
+remain unchanged by compatibility rename.

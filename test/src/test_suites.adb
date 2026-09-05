@@ -19,6 +19,7 @@ with Coyote_GUI_Prompt_Queue_Tests;
 with Coyote_GUI_Notification_Policy_Tests;
 with Coyote_GUI_Mode_Tests;
 with Coyote_GUI_Session_Stats_Window_Tests;
+with Coyote_GUI_Sandbox_Profile_Window_Tests;
 with Coyote_App_Frontend_GUI_Tests;
 with Coyote_Process_Control_Tests;
 with Subagent_Integration_Tests;
@@ -106,6 +107,8 @@ package body Test_Suites is
      new AUnit.Test_Caller (Coyote_GUI_Mode_Tests.Test);
    package Coyote_GUI_Session_Stats_Window_Caller is
      new AUnit.Test_Caller (Coyote_GUI_Session_Stats_Window_Tests.Test);
+   package Coyote_GUI_Sandbox_Profile_Window_Caller is
+     new AUnit.Test_Caller (Coyote_GUI_Sandbox_Profile_Window_Tests.Test);
    package Coyote_App_Frontend_GUI_Caller is
      new AUnit.Test_Caller (Coyote_App_Frontend_GUI_Tests.Test);
    package Coyote_Process_Control_Caller is
@@ -1146,6 +1149,9 @@ package body Test_Suites is
       Result.Add_Test (LLM_Settings_Caller.Create
         ("LLM.Settings loads default sandbox profile",
          LLM_Settings_Tests.Test_Default_Sandbox_Profile_Loaded'Access));
+      Result.Add_Test (LLM_Settings_Caller.Create
+        ("LLM.Settings renames the persistent sandbox default",
+         LLM_Settings_Tests.Test_Rename_Default_Sandbox'Access));
       Result.Add_Test (LLM_Settings_Caller.Create
         ("LLM.Settings loads skillPaths array",
          LLM_Settings_Tests.Test_Skill_Paths_Loaded'Access));
@@ -2644,10 +2650,28 @@ package body Test_Suites is
         ("Sandbox Load_Profile returns JSON_Null for bad JSON",
          Sandbox_Tests.Test_Load_Profile_Bad_Json'Access));
       Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox profile names are validated",
+         Sandbox_Tests.Test_Profile_Name_Validation'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox typed profile save and load round-trip",
+         Sandbox_Tests.Test_Profile_Typed_Save_Load'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox optional rule arrays default empty",
+         Sandbox_Tests.Test_Profile_Optional_Arrays_Default_Empty'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox edit explicitly replaces a profile",
+         Sandbox_Tests.Test_Profile_Edit_Replaces'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox copy is independent and rejects collisions",
+         Sandbox_Tests.Test_Profile_Copy_Independence_And_Collision'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox rename retains the old profile and rejects collisions",
+         Sandbox_Tests.Test_Profile_Rename_Retains_Old'Access));
+      Result.Add_Test (Sandbox_Caller.Create
         ("Sandbox Build_Bwrap_Args returns empty for empty profile",
          Sandbox_Tests.Test_Bbuild_Empty_Profile'Access));
       Result.Add_Test (Sandbox_Caller.Create
-        ("Sandbox Build_Bwrap_Args returns empty for non-existent profile",
+        ("Sandbox Build_Bwrap_Args raises for non-existent profile",
          Sandbox_Tests.Test_Bbuild_Non_Existent_Profile'Access));
       Result.Add_Test (Sandbox_Caller.Create
         ("Sandbox Build_Bwrap_Args allowWrite uses --bind",
@@ -2815,6 +2839,14 @@ package body Test_Suites is
       Result.Add_Test (Coyote_GUI_Session_Stats_Window_Caller.Create
         ("Coyote.GUI session stats window creation is idempotent",
          Coyote_GUI_Session_Stats_Window_Tests
+           .Test_Create_Is_Idempotent'Access));
+      Result.Add_Test (Coyote_GUI_Sandbox_Profile_Window_Caller.Create
+        ("Coyote.GUI sandbox profile name validation",
+         Coyote_GUI_Sandbox_Profile_Window_Tests
+           .Test_Profile_Name_Validation'Access));
+      Result.Add_Test (Coyote_GUI_Sandbox_Profile_Window_Caller.Create
+        ("Coyote.GUI sandbox profile window lifecycle",
+         Coyote_GUI_Sandbox_Profile_Window_Tests
            .Test_Create_Is_Idempotent'Access));
       Result.Add_Test (Coyote_App_Frontend_GUI_Caller.Create
         ("Coyote.GUI Product Information displays application icon",

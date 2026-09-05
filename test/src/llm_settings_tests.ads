@@ -20,6 +20,7 @@ package LLM_Settings_Tests is
    procedure Test_Prompt_Filter_Missing (T : in out Test);
 
    procedure Test_Default_Sandbox_Profile_Loaded (T : in out Test);
+   procedure Test_Rename_Default_Sandbox (T : in out Test);
    procedure Test_Max_Recursion_Depth_Invalid_Defaults (T : in out Test);
    procedure Test_Termination_Grace_Load_And_Clamp (T : in out Test);
    procedure Test_Completion_Notifications_Default_Enabled (T : in out Test);
