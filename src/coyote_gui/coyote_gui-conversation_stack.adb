@@ -699,6 +699,7 @@ package body Coyote_GUI.Conversation_Stack is
       C.Completed      := False;
       C.Last_Status      := Coyote_GUI.Completed;
       C.Footer_Separator := null;
+      C.Footer_Heading   := null;
       C.Footer_Label     := null;
       C.Fork_Button      := null;
       Log (C, "cleared stack and invalidated callbacks");
@@ -1049,31 +1050,40 @@ package body Coyote_GUI.Conversation_Stack is
       Summary : String := "")
    is
       Footer_Box : Gtk.Box.Gtk_Box;
-      Prefix     : constant String :=
-        (if Kind = Coyote_GUI.Step_Footer then "Step " else "Turn ");
+      Heading    : constant String :=
+        (if Kind = Coyote_GUI.Step_Footer
+         then "Step " & Natural_Image (C.Step_Number) & " summary"
+         else "Turn summary");
    begin
       if not C.Has_Exchange then
          return;
       end if;
       Ensure_Active_Step (C);
 
-      Gtk.Box.Gtk_New_Vbox (Footer_Box, Homogeneous => False, Spacing => 4);
-      Footer_Box.Set_Border_Width (4);
+      Gtk.Box.Gtk_New_Vbox (Footer_Box, Homogeneous => False, Spacing => 2);
       Gtk.Separator.Gtk_New_Hseparator (C.Footer_Separator);
       Footer_Box.Pack_Start
         (C.Footer_Separator, Expand => False, Fill => True, Padding => 0);
 
-      Gtk.Label.Gtk_New (C.Footer_Label, Summary);
-      C.Footer_Label.Set_Xalign (0.0);
-      C.Footer_Label.Set_Line_Wrap (True);
-      C.Footer_Label.Set_Selectable (False);
-      C.Footer_Label.Set_Tooltip_Text
-        ("Token, context, cost, and completion information for " & Prefix
-         & Natural_Image (C.Step_Number));
+      Gtk.Label.Gtk_New (C.Footer_Heading, Heading);
+      C.Footer_Heading.Set_Xalign (0.0);
+      C.Footer_Heading.Set_Selectable (False);
       Footer_Box.Pack_Start
-        (C.Footer_Label, Expand => False, Fill => True, Padding => 0);
+        (C.Footer_Heading, Expand => False, Fill => True, Padding => 0);
+
+      if Summary'Length > 0 then
+         Gtk.Label.Gtk_New (C.Footer_Label, Summary);
+         C.Footer_Label.Set_Xalign (0.0);
+         C.Footer_Label.Set_Line_Wrap (True);
+         C.Footer_Label.Set_Selectable (False);
+         C.Footer_Label.Set_Tooltip_Text
+           ("Token, context, cost, and completion information for "
+            & Heading);
+         Footer_Box.Pack_Start
+           (C.Footer_Label, Expand => False, Fill => True, Padding => 0);
+      end if;
       C.Step_Box.Pack_Start
-        (Footer_Box, Expand => False, Fill => True, Padding => 2);
+        (Footer_Box, Expand => False, Fill => True, Padding => 1);
       Show_Contents (C);
       C.Footer_Pending := True;
    end Append_Turn_Footer;

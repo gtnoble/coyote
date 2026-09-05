@@ -319,6 +319,16 @@ package body Coyote_GUI.Conversation_Stack.Testing is
       return C.Footer_Separator;
    end Footer_Separator;
 
+   function Footer_Heading
+     (C : Coyote_GUI.Conversation_Stack.Instance) return String
+   is
+   begin
+      if C.Footer_Heading = null then
+         return "";
+      end if;
+      return C.Footer_Heading.Get_Text;
+   end Footer_Heading;
+
    function Footer_Summary
      (C : Coyote_GUI.Conversation_Stack.Instance) return String
    is

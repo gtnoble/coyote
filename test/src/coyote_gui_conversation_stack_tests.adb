@@ -124,6 +124,8 @@ package body Coyote_GUI_Conversation_Stack_Tests is
 
       Assert (Footer_Separator (T.Stack) /= null,
               "footer uses a native GTK separator widget");
+      Assert (Footer_Heading (T.Stack) = "Turn summary",
+              "final footer uses a semantic summary heading");
       Assert (Footer_Summary (T.Stack) = Summary,
               "footer summary is rendered as a native label");
       Assert (not Footer_Summary_Selectable (T.Stack),
@@ -345,6 +347,8 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Append_Text (T.Stack, "first response");
       End_Text_Block (T.Stack);
       Append_Turn_Footer (T.Stack, "step", Step_Footer);
+      Assert (Footer_Heading (T.Stack) = "Step 1 summary",
+              "step footer uses a numbered semantic summary heading");
       Append_Fork_Action
         (T.Stack, "fork step", "session", 1, 1);
       Assert (Step_Frame_Count (T.Stack) = 1,

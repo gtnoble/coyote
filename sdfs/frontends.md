@@ -842,6 +842,13 @@ conversation presentation. The four native MathML tests and parser-safety
 regressions are registered. Production and test development builds succeed;
 native qualification is closed under DEM-042 through DEM-048. DEM-047
 live/replay Markdown parity was accepted by the user on 2026-08-28.
+The native footer presentation was refined to use a semantic `Step N summary`
+or `Turn summary` heading above the existing non-selectable metadata label. The
+footer keeps its native separator and Fork pushbutton, but no longer adds a
+second padded/recessed treatment inside the required visible step frame. This
+is a GUI-only presentation change; footer transport, Plain output, replay
+semantics, and the typed step/final distinction remain unchanged.
+
 The separately named `Exchange_View`, `Text_Element`, `Tool_Card`,
 `Math_Element`, and `Footer_Element` abstractions remain private to
 `Conversation_Stack`; no separate compilation units are required for the
