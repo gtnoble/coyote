@@ -919,3 +919,11 @@ assertions and zero unexpected errors. Measured execution time is 34.3 seconds
 wall time after the test executable is built. AUnit global and per-case timing
 are enabled. The recursion-depth subprocess test is opt-in with
 `COYOTE_TEST_SUBAGENT=1`; live-provider tests remain separately guarded.
+
+**Baseline after sandbox profile manager implementation (2026-09-05):** Added
+typed sandbox CRUD, safe-name, optional-array, copy/rename compatibility,
+default-rename, and fail-closed runtime tests, plus display-gated manager
+name-validation and reusable-lifecycle coverage. The focused backend/settings
+and manager tests pass in the development test build; full display-backed
+manager interaction remains pending under DEM-054. Historical session headers
+remain unchanged by compatibility rename.

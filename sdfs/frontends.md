@@ -42,6 +42,22 @@ product-information fixture explicitly requests frontend shutdown before
 fixture scope. The complete 822-test development suite passes in 34.3 seconds;
 display-backed GUI tests remain subject to the available display environment.
 
+### Sandbox Profiles manager (2026-09-05)
+The GTK frontend now opens one reusable modeless co-primary window titled
+`coyote : Sandbox Profiles` from `Options → Sandbox Profiles...`. The manager
+keeps the existing `Agent → Sandbox Profile...` action and Ctrl+Shift+S as the
+quick active-session chooser. Its left single-selection profile list and right
+read-only details view switch to explicit edit mode for New, Edit, Duplicate
+Profile, Rename Profile, Save, Cancel, Refresh, and Use Profile; Delete is not
+provided. Edit mode exposes four path-rule lists and preserves `~`, `.`, `./`,
+absolute, and missing path spellings. CRUD is synchronous local file access,
+while Use Profile queues typed `Set_Sandbox` for the selected agent.
+
+`Coyote_GUI.Sandbox_Profile_Window` is constructed on the GTK main task,
+transient for the main window, and reused rather than recreated. The manager
+lifecycle/name-validation tests pass; display-backed qualification of the full
+manager interaction remains pending under DEM-054.
+
 ### Native GTK Markdown tables (2026-09-03)
 
 Completed GFM response blocks containing tables now pass through the

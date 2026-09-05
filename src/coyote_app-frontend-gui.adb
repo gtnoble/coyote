@@ -80,6 +80,7 @@ with Coyote_App.Utils;
 with Coyote_Help;
 with Coyote_GUI.Session_Stats_Window;
 with Coyote_GUI.Navigation;
+with Coyote_GUI.Sandbox_Profile_Window;
 with Coyote_GUI.Zoom;
 with LLM.Model_Registry;
 with LLM.Skills;

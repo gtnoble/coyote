@@ -35,6 +35,28 @@ suite executes 822/822 with zero failed assertions and zero unexpected errors
 in 34.3 seconds wall time. The root runner rejects extra arguments, zero-test
 filters, and failed results with nonzero exit status.
 
+## 2026-09-05 — Sandbox profile CRUD and fail-closed runtime
+
+**Requirement:** Extend the existing sandbox runtime with reusable local profile
+administration without changing session-header compatibility or the active
+session's runtime command path.
+
+**Implementation:** `LLM.Tools.Sandbox` now exposes typed `Profile` vectors and
+safe profile-name validation, deterministic listing, atomic save/create/edit/
+copy operations, and compatibility-preserving rename. Optional rule arrays
+load as empty; invalid non-empty profiles raise `Sandbox_Error` before runtime
+bwrap construction. Stored path spelling is preserved, while execution resolves
+`~`, `.`, and `./` as needed and skips missing paths. Rename creates the new
+profile, retains the old definition for historical session headers, updates
+`defaultSandboxProfile` when it names the old profile, and does not rewrite
+historical headers. The GUI manager performs synchronous local CRUD; runtime
+Use Profile still queues `Set_Sandbox`.
+
+**Tests:** Added sandbox CRUD/name-validation/optional-array/fail-closed tests,
+settings default-rename coverage, and display-gated manager lifecycle/name
+validation tests. Display-backed manager qualification remains pending under
+DEM-054.
+
 ## 2026-09-05 — Local and RPC agent endpoints
 
 **Requirement:** The coordinator shall model its root and child runtime agents

@@ -440,6 +440,45 @@ package body LLM_Settings_Tests is
          raise;
    end Test_Default_Sandbox_Profile_Loaded;
 
+   procedure Test_Rename_Default_Sandbox (T : in out Test) is
+      pragma Unreferenced (T);
+      Home         : constant String := "/tmp/coyote_llm_settings_test_rename";
+      Home_Was_Set : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home     : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Loaded       : LLM.Settings.Settings;
+   begin
+      Cleanup_Test_Home (Home);
+      Ensure_Test_Home (Home);
+      Write_File
+        (Home & "/.coyote/settings.json",
+         "{""defaultSandboxProfile"":""old-profile"",""other"":1}");
+      Ada.Environment_Variables.Set ("HOME", Home);
+      LLM.Settings.Rename_Default_Sandbox ("old-profile", "new-profile");
+      Loaded := LLM.Settings.Load_Settings;
+      Assert (To_String (Loaded.Default_Sandbox) = "new-profile",
+              "rename should update the persistent sandbox default");
+      declare
+         Other : constant Integer :=
+           GNATCOLL.JSON.Get
+             (LLM.Settings.Load_Json_File
+                (Home & "/.coyote/settings.json"),
+              "other").Get;
+      begin
+         Assert
+           (Other = 1,
+            "rename should preserve unrelated settings");
+      end;
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Rename_Default_Sandbox;
+
    procedure Test_Max_Recursion_Depth_Invalid_Defaults (T : in out Test) is
       pragma Unreferenced (T);
       Home         : constant String := "/tmp/coyote_llm_settings_test_13";

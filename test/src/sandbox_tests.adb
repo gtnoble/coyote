@@ -6,6 +6,7 @@ with AUnit.Test_Suites;
 --  Project: coyote
 --  For revision history, see the project version-control log.
 
+with Ada.Containers;
 with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Real_Time;
@@ -21,6 +22,7 @@ with LLM.Tools.Shell;
 package body Sandbox_Tests is
 
    use AUnit.Assertions;
+   use type Ada.Containers.Count_Type;
    use type GNATCOLL.JSON.JSON_Value_Type;
 
    function Contains (Text : String; Pattern : String) return Boolean is
@@ -161,6 +163,162 @@ package body Sandbox_Tests is
       end;
    end Test_Load_Profile_Bad_Json;
 
+   --  ── Typed profile management ─────────────────────────────────────────
+
+   procedure Test_Profile_Name_Validation (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      Assert (LLM.Tools.Sandbox.Is_Valid_Profile_Name ("profile_1-2.0"),
+              "valid profile name should be accepted");
+      Assert (not LLM.Tools.Sandbox.Is_Valid_Profile_Name (""),
+              "empty profile name should be rejected");
+      Assert (not LLM.Tools.Sandbox.Is_Valid_Profile_Name ("."),
+              "dot profile name should be rejected");
+      Assert (not LLM.Tools.Sandbox.Is_Valid_Profile_Name (".."),
+              "dot-dot profile name should be rejected");
+      Assert (not LLM.Tools.Sandbox.Is_Valid_Profile_Name ("a/b"),
+              "slash in profile name should be rejected");
+      Assert (not LLM.Tools.Sandbox.Is_Valid_Profile_Name ("a\\b"),
+              "backslash in profile name should be rejected");
+      Assert (not LLM.Tools.Sandbox.Is_Valid_Profile_Name (" profile"),
+              "leading whitespace should be rejected");
+      Assert (not LLM.Tools.Sandbox.Is_Valid_Profile_Name ("profile "),
+              "trailing whitespace should be rejected");
+      Assert (not LLM.Tools.Sandbox.Is_Valid_Profile_Name ("profile!"),
+              "unsupported punctuation should be rejected");
+      Assert (not LLM.Tools.Sandbox.Is_Valid_Profile_Name ("---"),
+              "name without an alphanumeric should be rejected");
+      Assert (not LLM.Tools.Sandbox.Is_Valid_Profile_Name
+                ("profile" & ASCII.LF),
+              "control character should be rejected");
+   end Test_Profile_Name_Validation;
+
+   procedure Test_Profile_Typed_Save_Load (T : in out Test) is
+      Profile : LLM.Tools.Sandbox.Profile;
+   begin
+      Profile.Allow_Write.Append ("/tmp");
+      Profile.Deny_Read.Append ("/etc");
+      LLM.Tools.Sandbox.Save_Profile ("typed-round-trip", Profile);
+
+      declare
+         Loaded : constant LLM.Tools.Sandbox.Profile :=
+           LLM.Tools.Sandbox.Load_Profile_Typed ("typed-round-trip");
+      begin
+         Assert (Loaded.Allow_Write.Length = 1,
+                 "typed round trip should preserve allowWrite count");
+         Assert (Loaded.Allow_Write.First_Element = "/tmp",
+                 "typed round trip should preserve allowWrite value");
+         Assert (Loaded.Deny_Read.First_Element = "/etc",
+                 "typed round trip should preserve denyRead value");
+         Assert (Loaded.Deny_Write.Is_Empty,
+                 "typed round trip should preserve empty denyWrite");
+         Assert (Loaded.Allow_Read.Is_Empty,
+                 "typed round trip should preserve empty allowRead");
+      end;
+   end Test_Profile_Typed_Save_Load;
+
+   procedure Test_Profile_Optional_Arrays_Default_Empty (T : in out Test) is
+      Dir  : constant String := LLM.Tools.Sandbox.Profiles_Dir;
+      Path : constant String := Dir & "/optional-arrays.json";
+   begin
+      Write_File (Path, "{""allowWrite"" : [""/tmp""]}");
+      declare
+         Loaded : constant LLM.Tools.Sandbox.Profile :=
+           LLM.Tools.Sandbox.Load_Profile_Typed ("optional-arrays");
+      begin
+         Assert (Loaded.Allow_Write.Length = 1,
+                 "present optional array should load");
+         Assert (Loaded.Deny_Write.Is_Empty,
+                 "omitted denyWrite should default empty");
+         Assert (Loaded.Deny_Read.Is_Empty,
+                 "omitted denyRead should default empty");
+         Assert (Loaded.Allow_Read.Is_Empty,
+                 "omitted allowRead should default empty");
+      end;
+   end Test_Profile_Optional_Arrays_Default_Empty;
+
+   procedure Test_Profile_Edit_Replaces (T : in out Test) is
+      Original : LLM.Tools.Sandbox.Profile;
+      Updated  : LLM.Tools.Sandbox.Profile;
+   begin
+      Original.Allow_Write.Append ("/tmp");
+      Updated.Allow_Read.Append ("/dev");
+      LLM.Tools.Sandbox.Create_Profile ("edit-profile", Original);
+      LLM.Tools.Sandbox.Edit_Profile ("edit-profile", Updated);
+
+      declare
+         Loaded : constant LLM.Tools.Sandbox.Profile :=
+           LLM.Tools.Sandbox.Load_Profile_Typed ("edit-profile");
+      begin
+         Assert (Loaded.Allow_Write.Is_Empty,
+                 "edit should replace the old allowWrite rules");
+         Assert (Loaded.Allow_Read.First_Element = "/dev",
+                 "edit should write the replacement profile");
+      end;
+   end Test_Profile_Edit_Replaces;
+
+   procedure Test_Profile_Copy_Independence_And_Collision
+     (T : in out Test)
+   is
+      Source : LLM.Tools.Sandbox.Profile;
+      Changed : LLM.Tools.Sandbox.Profile;
+      Collision : Boolean := False;
+   begin
+      Source.Allow_Write.Append ("/tmp");
+      LLM.Tools.Sandbox.Create_Profile ("copy-source", Source);
+      LLM.Tools.Sandbox.Copy_Profile ("copy-source", "copy-target");
+
+      Changed.Deny_Read.Append ("/etc");
+      LLM.Tools.Sandbox.Edit_Profile ("copy-source", Changed);
+
+      declare
+         Copied : constant LLM.Tools.Sandbox.Profile :=
+           LLM.Tools.Sandbox.Load_Profile_Typed ("copy-target");
+      begin
+         Assert (Copied.Allow_Write.First_Element = "/tmp",
+                 "copy should retain the source definition");
+         Assert (Copied.Deny_Read.Is_Empty,
+                 "copy should be independent of later source edits");
+      end;
+
+      begin
+         LLM.Tools.Sandbox.Copy_Profile ("copy-source", "copy-target");
+      exception
+         when LLM.Tools.Sandbox.Sandbox_Error =>
+            Collision := True;
+      end;
+      Assert (Collision, "copy should reject a target collision");
+   end Test_Profile_Copy_Independence_And_Collision;
+
+   procedure Test_Profile_Rename_Retains_Old (T : in out Test) is
+      Original  : LLM.Tools.Sandbox.Profile;
+      Collision : Boolean := False;
+   begin
+      Original.Allow_Read.Append ("/usr");
+      LLM.Tools.Sandbox.Create_Profile ("rename-old", Original);
+      LLM.Tools.Sandbox.Rename_Profile ("rename-old", "rename-new");
+
+      declare
+         Old_Profile : constant LLM.Tools.Sandbox.Profile :=
+           LLM.Tools.Sandbox.Load_Profile_Typed ("rename-old");
+         New_Profile : constant LLM.Tools.Sandbox.Profile :=
+           LLM.Tools.Sandbox.Load_Profile_Typed ("rename-new");
+      begin
+         Assert (Old_Profile.Allow_Read.First_Element = "/usr",
+                 "rename should retain the old profile definition");
+         Assert (New_Profile.Allow_Read.First_Element = "/usr",
+                 "rename should create the new profile definition");
+      end;
+
+      begin
+         LLM.Tools.Sandbox.Rename_Profile ("rename-old", "rename-new");
+      exception
+         when LLM.Tools.Sandbox.Sandbox_Error =>
+            Collision := True;
+      end;
+      Assert (Collision, "rename should reject a target collision");
+   end Test_Profile_Rename_Retains_Old;
+
    --  ── Build_Bwrap_Args ─────────────────────────────────────────────────
 
    procedure Test_Bbuild_Empty_Profile (T : in out Test) is
@@ -175,13 +333,22 @@ package body Sandbox_Tests is
 
    procedure Test_Bbuild_Non_Existent_Profile (T : in out Test) is
       pragma Unreferenced (T);
-      Args : constant LLM.Tools.Sandbox.String_Vectors.Vector :=
-        LLM.Tools.Sandbox.Build_Bwrap_Args ("no_such", "/some/cwd");
+      Failed : Boolean := False;
    begin
-      Assert
-        (Args.Is_Empty,
-         "Build_Bwrap_Args should return empty"
-         & " for non-existent profile");
+      begin
+         declare
+            Args : constant LLM.Tools.Sandbox.String_Vectors.Vector :=
+              LLM.Tools.Sandbox.Build_Bwrap_Args ("no_such", "/some/cwd");
+         begin
+            pragma Unreferenced (Args);
+         end;
+      exception
+         when LLM.Tools.Sandbox.Sandbox_Error =>
+            Failed := True;
+      end;
+
+      Assert (Failed,
+              "Build_Bwrap_Args should fail closed for a missing profile");
    end Test_Bbuild_Non_Existent_Profile;
 
    procedure Test_Bbuild_Allow_Write (T : in out Test) is

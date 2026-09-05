@@ -721,6 +721,34 @@ shall capture all detail data at render time and shall not re-read the session
 file when opened. Missing result records shall be shown as cancelled. Status
 shall remain understandable without color.
 
+**REQ-CORE-113f** (D/T/I)
+The interactive GTK frontend shall provide `Options → Sandbox Profiles...` as
+one reusable, modeless co-primary window titled `coyote : Sandbox Profiles`.
+The existing `Agent → Sandbox Profile...` action and Ctrl+Shift+S accelerator
+shall remain the quick chooser for changing the active session's profile; they
+shall not be replaced by the manager.
+
+**REQ-CORE-113g** (D/T/I)
+The Sandbox Profiles manager shall provide New, Edit, Duplicate Profile,
+Rename Profile, Save, Cancel, Refresh, and Use Profile operations and shall
+not provide Delete. It shall present a single-selection profile list on the
+left and read-only details on the right. Editing shall be explicit and shall
+expose four editable path-rule lists: allow write, deny write, deny read, and
+allow read. Save and Cancel shall leave browse mode only through their explicit
+operations.
+
+**REQ-CORE-113h** (D/T/I)
+Sandbox profile path rules shall preserve user-entered `~`, `.`, `./`, absolute,
+and missing paths in the profile definition. At execution time, paths that do
+not exist shall be skipped rather than rejected by profile editing or runtime
+argument construction.
+
+**REQ-CORE-113i** (T/I)
+Sandbox profile CRUD shall use synchronous local profile-file access. Use
+Profile shall remain a runtime operation: it shall queue the typed
+`Set_Sandbox` command for the selected live agent rather than changing the
+active session directly from the manager.
+
 **REQ-CORE-114** (D)
 The GUI frontend shall support vi-style scroll navigation (`j`, `k`, `g`,
 `G`/Shift+`g`, Ctrl+D, and Ctrl+U) in the conversation view. These bindings
@@ -1344,6 +1372,18 @@ selected. The session header shall remain authoritative when a session is
 resumed or switched, including clearing the active profile when the header has
 no sandbox profile.
 
+**REQ-CORE-235** (T/I)
+The sandbox profile store shall use validated profile-name stems and JSON
+profile files under `~/.coyote/sandbox/`. The four rule arrays are optional and
+shall default to empty when omitted. Typed profile load, save, create, edit,
+copy, and compatibility-preserving rename operations shall reject unsafe names
+and invalid profile data with `Sandbox_Error`; runtime construction for a
+non-empty invalid, missing, or malformed profile shall fail closed. A
+compatibility rename shall create the new profile and retain the old definition
+for historical session headers; it shall update `defaultSandboxProfile` when
+that setting names the old profile, and shall not rewrite historical session
+headers.
+
 ---
 
 #### 3.2.5 Session JSONL Files
@@ -1623,6 +1663,8 @@ matrix and retains historical `TC-*` identifiers; current mappings are in
 | REQ-CORE-113a..113c | GUI Help menu, Yelp topics, Edit menu, Product Information dialog, menu taxonomy, title, dialog, support-window, lifecycle-status, and desktop interaction conventions | D/T/I | DEM-036..039; Coyote_Help tests; Mallard validation; source inspection |
 | REQ-CORE-113d | Live structured Session Stats support window and session-reset currency | D/T/I | `coyote_gui_session_stats_window_tests.adb`; DEM-040; source inspection |
 | REQ-CORE-113e | Compact tool-card summary and View Details action opening the structured GTK tool-call detail window | D/T/I | `coyote_gui_conversation_stack_tests.adb`, `llm_session_store_tests.adb`; DEM-041..043; source inspection |
+| REQ-CORE-113f..113i | Sandbox Profiles manager, rule editing, path preservation, synchronous CRUD, and queued Use Profile | D/T/I | DEM-054; `sandbox_tests.adb`, `llm_settings_tests.adb`, `coyote_gui_sandbox_profile_window_tests.adb`; display-backed qualification pending |
+| REQ-CORE-235 | Typed sandbox profile store, optional arrays, fail-closed runtime, and compatibility rename | T/I | `sandbox_tests.adb`, `llm_settings_tests.adb`; source inspection |
 | REQ-CORE-132 | Complete visible accelerators for main GTK menu items | D/T | DEM-014; GUI regression tests |
 | REQ-CORE-133..139 | Native GTK exchange/component stack, local component selection, lifecycle, parity, and qualification | D/T/I | `coyote_gui_conversation_stack_tests.adb`; DEM-042..044; source inspection; performance analysis |
 | REQ-CORE-120..121 | Plain frontend capabilities | D | TC-120..121 |
@@ -1679,6 +1721,7 @@ objectives stated in the Project Plan (PLAN §1 and §3):
 | Enhanced system prompt with personality, resource loading, and task constraints | REQ-CORE-170–174 |
 | Structured memory system (four-type taxonomy) | REQ-CORE-180–183 |
 | Coordinator subagent orchestration | REQ-CORE-190–192 |
+| Sandbox profile management and GTK profile administration | REQ-CORE-080–089, REQ-CORE-113f–113i, REQ-CORE-234–235 |
 | Compaction quality and robustness | REQ-CORE-065–068 |
 
 ---

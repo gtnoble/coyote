@@ -257,6 +257,7 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `Coyote_GUI.Footer_Element` | Deferred; typed footer realization is owned by `Conversation_Stack` in this build | Not separate in qualification build |
 | `Coyote_GUI.Tool_Detail_Window` | Structured GTK tool-call detail window | `src/coyote_gui/coyote_gui-tool_detail_window.ads/.adb` |
 | `Coyote_GUI.Session_Stats_Window` | Reusable live session-statistics support window | `src/coyote_gui/coyote_gui-session_stats_window.ads/.adb` |
+| `Coyote_GUI.Sandbox_Profile_Window` | Reusable modeless GTK sandbox profile manager with browse/edit views and profile CRUD controls | `src/coyote_gui/coyote_gui-sandbox_profile_window.ads/.adb` |
 | `Coyote_GUI.Zoom` | Zoom-level ↔ font-size arithmetic (pure logic) | `src/coyote_gui/coyote_gui-zoom.ads/.adb` |
 | `Coyote_GUI.Navigation` | Clamped keyboard viewport navigation policy | `src/coyote_gui/coyote_gui-navigation.ads/.adb` |
 | `Coyote_Utils` | CLI arg resolution, file reading, session prefix stripping, active executable resolution, and POSIX shell quoting | `src/coyote_utils.ads/.adb` |
@@ -1018,10 +1019,32 @@ entries by path depth (slash count, shallowest first); produces `bwrap`
 arguments: `--bind <path> <path>` for `allowWrite`, `--ro-bind <path> <path>`
 for `denyWrite` and `allowRead`, `--tmpfs <path>` for `denyRead`.
 
+**Typed profile management:** `Profile` owns four string vectors for the
+allow-write, deny-write, deny-read, and allow-read rule arrays. Profile names
+are validated as safe file stems before any path is formed. `Load_Profile_Typed`
+parses a regular JSON profile and raises `Sandbox_Error` for invalid names,
+missing files, malformed objects, wrong field types, or non-string array
+members. `Save_Profile`/`Edit_Profile` replace profiles through an atomic
+write; `Create_Profile` and `Copy_Profile` reject target collisions; and
+`Rename_Profile` copies the validated definition to the new name without
+removing the old file, preserving historical session-header references.
+`LLM.Settings.Rename_Default_Sandbox` updates `defaultSandboxProfile` only when
+it names the old profile and preserves unrelated settings fields. Session
+JSONL headers are not rewritten.
+
+**Profile serialization:** The four rule arrays are always written. Missing
+arrays in an existing profile default to empty vectors for compatibility.
+`Available_Profiles` filters regular `*.json` files to valid names and returns a
+deterministically sorted vector.
+
 **Integration:** Called by `LLM.Tools.Shell.Execute` when `Sandbox_Profile` is
-non-empty.  `setsid` is the outer process started by the executor; it
-executes `bwrap` for sandboxed commands, which then executes the shell.
-Consequently the process handle returned by `Start` remains the
+non-empty. A non-empty invalid, missing, malformed, or unreadable profile
+raises `Sandbox_Error` before bwrap arguments are generated, failing closed.
+Path spelling is retained in stored profiles; at execution time `~`, `.`, and
+`./` are resolved relative to the relevant home/CWD, absolute paths pass
+through, and missing paths are skipped. `setsid` is the outer process started
+by the executor; it executes `bwrap` for sandboxed commands, which then executes
+the shell. Consequently the process handle returned by `Start` remains the
 process-group leader used by `kill(-pid, SIGKILL)` for the complete tree.
 
 ---
@@ -1314,7 +1337,11 @@ inherited runtime sandbox profile
 (`COYOTE_SANDBOX_PROFILE`) overrides `defaultSandboxProfile`. When resuming or
 switching sessions, the session header's sandbox profile is authoritative;
 an absent profile clears the active value. Persistent preference changes do
-not modify the active session.
+not modify the active session. The Sandbox Profiles manager's compatibility
+rename creates the new profile, retains the old profile definition for
+historical session headers, and updates the persistent
+`defaultSandboxProfile` only when it names the old profile; session JSONL
+headers are never rewritten.
 
 **`Resolve_Api_Key (Provider : String) → String`:** Checks in order:
 (1) literal `apiKey` in models.json entry, (2) `${ENV_VAR}` interpolation,
@@ -1717,12 +1744,23 @@ startup and is the sole GTK conversation presentation (see §5.15).
   `Coyote_Help.Product_Information_Text` so name, version, and license remain
   available when Yelp is missing. It presents the themed `coyote` application
   icon at a prominent 96-pixel size above that text. The root URI is
-  `help:coyote`; topic URIs use `help:coyote/<topic>`. F1 opens Overview.
+  help:coyote; topic URIs use `help:coyote/<topic>`. F1 opens Overview.
   Shift+F1 and Help → Click for Help arm a question-mark cursor on the whole
   main window; a generic GTK event handler consumes the next left click before
   widget activation and opens the mapped contextual topic. If Yelp is
   unavailable, the frontend emits an error notice. Conversation tool/action
   handling remains a separate canvas callback.
+- **Sandbox Profiles manager:** `Options → Sandbox Profiles...` opens one
+  reusable, modeless co-primary titled `coyote : Sandbox Profiles`. It is
+  constructed on the GTK main task, remains transient for the main window, and
+  owns no agent task. A left single-selection profile list is paired with a
+  right read-only details view. Explicit edit mode exposes New, Edit,
+  Duplicate Profile, Rename Profile, Save, Cancel, Refresh, and Use Profile;
+  Delete is intentionally absent. The four editable rule lists preserve path
+  spelling (`~`, `.`, `./`, absolute, and missing paths). CRUD is synchronous
+  local backend access; Use Profile instead enqueues typed `Set_Sandbox` for
+  the selected agent. The existing Agent → Sandbox Profile... and
+  Ctrl+Shift+S quick chooser remains distinct.
 - **Desktop identity and session roles:** The GUI sets the themed `coyote`
   icon name and a stable main-window role. After session creation, resume, or
   switch, the agent queues the session identifier through `Coyote_GUI.Updates`;
@@ -2209,6 +2247,8 @@ blocking; `Agent_Resumed_Event` is emitted after unblocking.
 | REQ-CORE-065–068 | `LLM.Agent`, `LLM.Compaction` |
 | REQ-CORE-070–076 | `LLM.Agent`, `LLM.Settings`, `LLM.Model_Registry`, all providers |
 | REQ-CORE-080–089 | `LLM.Session_Store`, `LLM.Agent`, `Coyote_App`, `Session_Lister` |
+| REQ-CORE-113f–113i | `Coyote_App.Frontend.GUI`, `Coyote_GUI.Sandbox_Profile_Window`, `Coyote_GUI.Prompt_Queue`, `LLM.Tools.Sandbox` |
+| REQ-CORE-235 | `LLM.Tools.Sandbox`, `LLM.Settings`, `LLM.Tools.Shell` |
 
 **PCR-044 synchronization design:** `Coyote_App` calls its local
 `Synchronize_Sandbox` operation after agent creation and after every session

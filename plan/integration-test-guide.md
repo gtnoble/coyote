@@ -174,6 +174,21 @@ status display, the agent's next shell command, and the inherited
 `COYOTE_SANDBOX_PROFILE` value identify the same profile, including the empty
 value when sandboxing is cleared.
 
+### DEM-054 — Sandbox Profiles manager
+
+Use a disposable profile directory and test paths; do not use a profile that
+can modify important user data. In a display-backed GUI, open `Options →
+Sandbox Profiles...` and verify the reusable modeless `coyote : Sandbox
+Profiles` window. Verify the left list permits one selection and the right pane
+is read-only in browse mode. Exercise New, Edit, Duplicate Profile, Rename
+Profile, Save, Cancel, Refresh, and Use Profile; verify Delete is absent and
+that the four rule lists preserve `~`, `.`, `./`, absolute, and missing path
+spellings. Verify CRUD completes through synchronous local profile-file access,
+while Use Profile queues the active-session `Set_Sandbox` command. Verify a
+compatibility rename retains the old definition for historical session headers
+and updates `defaultSandboxProfile` when it names the old profile without
+rewriting those headers. The full display-backed lifecycle is pending.
+
 ## Non-Goals
 
 - Do not add tests that require real credentials in CI.

@@ -27,6 +27,7 @@ with LLM.Agent;
 with Coyote_GUI.Conversation_Stack;
 with Coyote_GUI.Prompt_Queue;
 with Coyote_GUI.Session_Stats_Window;
+with Coyote_GUI.Sandbox_Profile_Window;
 with Coyote_GUI.Updates;
 with Coyote_App.Agent_Registry;
 with Coyote_App.Agent_RPC.Service;
@@ -288,10 +289,11 @@ private
       Outer_Box                : Gtk.Box.Gtk_Box;
       --  State
       Win_Name     : Unbounded_String;
-      Stats_Window : Coyote_GUI.Session_Stats_Window.Instance;
-      Current_Mode : Coyote_App.Frontend.Run_Mode :=
+      Stats_Window           : Coyote_GUI.Session_Stats_Window.Instance;
+      Sandbox_Profile_Window : aliased Coyote_GUI.Sandbox_Profile_Window.Instance;
+      Current_Mode           : Coyote_App.Frontend.Run_Mode :=
         Coyote_App.Frontend.Idle;
-      Agent_Sess  : Session_Reference;
+      Agent_Sess             : Session_Reference;
       --  Auto-scroll: when True, the conversation view snaps to the bottom
       --  whenever its adjustment changes (new content arrives).  Toggled
       --  via View → Auto-scroll check menu item.  Enabled by default.
