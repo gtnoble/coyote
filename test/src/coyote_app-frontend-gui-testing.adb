@@ -72,6 +72,30 @@ package body Coyote_App.Frontend.GUI.Testing is
       return F.Agents_View;
    end Agents_View;
 
+   function Sandbox_Profiles_Item
+     (F : Coyote_App.Frontend.GUI.Instance)
+      return Gtk.Menu_Item.Gtk_Menu_Item
+   is
+   begin
+      return F.Sandbox_Profiles_Item;
+   end Sandbox_Profiles_Item;
+
+   function Sandbox_Profiles_Created
+     (F : Coyote_App.Frontend.GUI.Instance) return Boolean
+   is
+   begin
+      return Coyote_GUI.Sandbox_Profile_Window.Is_Created
+        (F.Sandbox_Profile_Window);
+   end Sandbox_Profiles_Created;
+
+   function Sandbox_Profiles_Title
+     (F : Coyote_App.Frontend.GUI.Instance) return String
+   is
+   begin
+      return Coyote_GUI.Sandbox_Profile_Window.Window_Title
+        (F.Sandbox_Profile_Window);
+   end Sandbox_Profiles_Title;
+
    procedure Apply_Handshake
      (F               : in out Coyote_App.Frontend.GUI.Instance;
       Agent_Id        : String;

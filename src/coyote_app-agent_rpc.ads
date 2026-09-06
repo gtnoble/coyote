@@ -40,6 +40,7 @@ package Coyote_App.Agent_RPC is
       Stop,
       Pause,
       Resume,
+      Set_Sandbox,
       Shutdown);
 
    type Terminal_Status is

@@ -50,7 +50,8 @@ bwrap construction. Stored path spelling is preserved, while execution resolves
 profile, retains the old definition for historical session headers, updates
 `defaultSandboxProfile` when it names the old profile, and does not rewrite
 historical headers. The GUI manager performs synchronous local CRUD; runtime
-Use Profile still queues `Set_Sandbox`.
+Use Profile routes the typed `Set_Sandbox` operation through the selected
+agent's local prompt queue or versioned RPC control channel.
 
 **Tests:** Added sandbox CRUD/name-validation/optional-array/fail-closed tests,
 settings default-rename coverage, and display-gated manager lifecycle/name

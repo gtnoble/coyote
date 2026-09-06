@@ -125,10 +125,11 @@ package body Coyote_App.Agent_RPC is
       case Value is
          when Prompt   => return "prompt";
          when Steer    => return "steer";
-         when Stop     => return "stop";
-         when Pause    => return "pause";
-         when Resume   => return "resume";
-         when Shutdown => return "shutdown";
+         when Stop       => return "stop";
+         when Pause      => return "pause";
+         when Resume     => return "resume";
+         when Set_Sandbox => return "setSandbox";
+         when Shutdown   => return "shutdown";
       end case;
    end Command_Image;
 
@@ -173,6 +174,7 @@ package body Coyote_App.Agent_RPC is
       elsif Value = "stop" then return Stop;
       elsif Value = "pause" then return Pause;
       elsif Value = "resume" then return Resume;
+      elsif Value = "setSandbox" then return Set_Sandbox;
       elsif Value = "shutdown" then return Shutdown;
       else
          raise RPC_Error with "unknown RPC command: " & Value;
@@ -311,6 +313,13 @@ package body Coyote_App.Agent_RPC is
                then
                   raise RPC_Error with
                     "prompt RPC command payload requires string field: text";
+               elsif Value.Command_Name = Set_Sandbox
+                 and then (not Payload.Has_Field ("profile")
+                           or else Payload.Get ("profile").Kind /=
+                             JSON_String_Type)
+               then
+                  raise RPC_Error with
+                    "sandbox RPC command payload requires string field: profile";
                end if;
             end;
          when Terminal =>

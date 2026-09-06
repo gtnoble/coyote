@@ -132,6 +132,16 @@ package body Coyote_App.Headless is
                LLM.Agent.Request_Pause (Agent_Session);
             when Coyote_App.Frontend.Control_Resume =>
                LLM.Agent.Resume (Agent_Session);
+            when Coyote_App.Frontend.Control_Set_Sandbox =>
+               LLM.Agent.Set_Sandbox_Profile
+                 (S       => Agent_Session,
+                  Profile => To_String (Command.Sandbox_Profile));
+               State.Set_Sandbox
+                 (To_String (Command.Sandbox_Profile));
+               Ada.Environment_Variables.Set
+                 ("COYOTE_SANDBOX_PROFILE",
+                  To_String (Command.Sandbox_Profile));
+               Frontend.Set_Status (Format_Status (State, "ready"));
          end case;
       exception
          when others =>

@@ -640,9 +640,18 @@ package body Coyote_GUI.Sandbox_Profile_Window is
       Accepted : Boolean;
    begin
       if Current_Instance = null
-        or else Current_Instance.Queue = null
         or else Length (Current_Instance.Selected_Name) = 0
       then
+         return;
+      end if;
+      if Current_Instance.Use_Handler /= null then
+         Current_Instance.Use_Handler.all
+           (Selected_Name (Current_Instance.all));
+         Current_Instance.Status.Set_Text
+           ("Queued sandbox profile " & Selected_Name (Current_Instance.all));
+         return;
+      end if;
+      if Current_Instance.Queue = null then
          return;
       end if;
       Current_Instance.Queue.Enqueue
@@ -997,6 +1006,22 @@ package body Coyote_GUI.Sandbox_Profile_Window is
          S.Profile_List.Grab_Focus;
       end if;
    end Show;
+
+   procedure Set_Target_Agent
+     (S             : in out Instance;
+      Target_Agent_Id : String)
+   is
+   begin
+      S.Target_Agent_Id := To_Unbounded_String (Target_Agent_Id);
+   end Set_Target_Agent;
+
+   procedure Set_Use_Profile_Handler
+     (S       : in out Instance;
+      Handler : Use_Profile_Handler)
+   is
+   begin
+      S.Use_Handler := Handler;
+   end Set_Use_Profile_Handler;
 
    procedure Refresh (S : in out Instance) is
       Name : constant String := To_String (S.Selected_Name);

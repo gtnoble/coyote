@@ -101,6 +101,24 @@ package body Coyote_App_Agent_RPC_Tests is
               "Stop command request identity must round-trip");
    end Test_Stop_Command_Round_Trip;
 
+   procedure Test_Set_Sandbox_Command_Round_Trip (T : in out Test) is
+      pragma Unreferenced (T);
+      Input  : constant Frame :=
+        Make_Command
+          (Agent_Id      => "worker-7",
+           Request_Id    => "sandbox-19",
+           Command_Name  => Set_Sandbox,
+           Payload_Json  => "{""profile"":""project-write""}");
+      Output : constant Frame := Decode (Encode (Input));
+   begin
+      Assert (Output.Command_Name = Set_Sandbox,
+              "Set_Sandbox command name must round-trip");
+      Assert
+        (To_String (Output.Payload_Json) =
+           "{""profile"":""project-write""}",
+         "Set_Sandbox payload must round-trip");
+   end Test_Set_Sandbox_Command_Round_Trip;
+
    procedure Test_Terminal_Round_Trip (T : in out Test) is
       pragma Unreferenced (T);
       Input  : constant Frame :=
@@ -212,6 +230,10 @@ package body Coyote_App_Agent_RPC_Tests is
         ("Agent RPC Stop command round-trips",
          Coyote_App_Agent_RPC_Tests
            .Test_Stop_Command_Round_Trip'Access));
+      Result.Add_Test (Agent_RPC_Caller.Create
+        ("Agent RPC Set_Sandbox command round-trips",
+         Coyote_App_Agent_RPC_Tests
+           .Test_Set_Sandbox_Command_Round_Trip'Access));
       Result.Add_Test (Agent_RPC_Caller.Create
         ("Agent RPC handshake round-trips",
          Coyote_App_Agent_RPC_Tests.Test_Handshake_Round_Trip'Access));

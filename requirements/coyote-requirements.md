@@ -751,9 +751,11 @@ argument construction.
 
 **REQ-CORE-113i** (T/I)
 Sandbox profile CRUD shall use synchronous local profile-file access. Use
-Profile shall remain a runtime operation: it shall queue the typed
-`Set_Sandbox` command for the selected live agent rather than changing the
-active session directly from the manager.
+Profile shall remain a runtime operation: it shall route the typed
+`Set_Sandbox` operation to the selected live agent through the local prompt
+queue for an in-process agent or the versioned RPC control channel for a
+coordinator-launched child, rather than changing the active session directly
+from the manager.
 
 **REQ-CORE-114** (D)
 The GUI frontend shall support vi-style scroll navigation (`j`, `k`, `g`,

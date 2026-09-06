@@ -14,10 +14,15 @@ package Coyote_App.Frontend is
    type Instance is abstract tagged limited null record;
 
    type Control_Command_Kind is
-     (Control_Stop, Control_Pause, Control_Resume, Control_Shutdown);
+     (Control_Stop,
+      Control_Pause,
+      Control_Resume,
+      Control_Set_Sandbox,
+      Control_Shutdown);
 
    type Control_Command is record
-      Kind : Control_Command_Kind := Control_Stop;
+      Kind           : Control_Command_Kind := Control_Stop;
+      Sandbox_Profile : Ada.Strings.Unbounded.Unbounded_String;
    end record;
 
    function Has_Control_Channel (F : Instance) return Boolean is (False);

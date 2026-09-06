@@ -19,6 +19,7 @@ with Gtk.Enums;
 with Gtk.Image;
 with Gtk.Icon_Theme;
 with Gtk.Main;
+with Gtk.Menu_Item;
 with Gtk.Separator;
 with Gtk.Tree_Model;
 with Gtk.Tree_View;
@@ -35,6 +36,7 @@ package body Coyote_App_Frontend_GUI_Tests is
    use type Gtk.Image.Gtk_Image;
    use type Gtk.Image.Gtk_Image_Type;
    use type Gtk.Icon_Theme.Gtk_Icon_Info;
+   use type Gtk.Menu_Item.Gtk_Menu_Item;
    use type GNAT.Strings.String_Access;
    use type Gtk.Separator.Gtk_Separator;
    use type Gtk.Tree_View.Gtk_Tree_View;
@@ -293,6 +295,44 @@ package body Coyote_App_Frontend_GUI_Tests is
       Main_Window (Frontend).Destroy;
    end Test_Product_Information_Icon;
 
+   procedure Test_Sandbox_Profiles_Menu
+     (T : in out Test)
+   is
+      use Coyote_App.Frontend.GUI.Testing;
+      Frontend : Coyote_App.Frontend.GUI.Instance;
+      Item     : Gtk.Menu_Item.Gtk_Menu_Item;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Coyote_App.Frontend.GUI.Create
+        (Frontend, "coyote sandbox profiles menu test", Pop_Under => True);
+      Item := Sandbox_Profiles_Item (Frontend);
+      Assert (Item /= null, "Options creates Sandbox Profiles item");
+      Assert
+        (not Sandbox_Profiles_Created (Frontend),
+         "Sandbox Profiles manager is created lazily");
+
+      Coyote_App.Frontend.GUI.Show_Sandbox_Profiles (Frontend);
+      Assert
+        (Sandbox_Profiles_Created (Frontend),
+         "Sandbox Profiles item opens the manager");
+      Assert
+        (Sandbox_Profiles_Title (Frontend) = "coyote : Sandbox Profiles",
+         "Sandbox Profiles manager uses the documented title");
+
+      Coyote_App.Frontend.GUI.Show_Sandbox_Profiles (Frontend);
+      Assert
+        (Sandbox_Profiles_Created (Frontend),
+         "reopening Sandbox Profiles reuses the manager");
+      Assert
+        (Sandbox_Profiles_Title (Frontend) = "coyote : Sandbox Profiles",
+         "reused manager retains its title");
+
+      Frontend.Request_Shutdown;
+      Main_Window (Frontend).Destroy;
+   end Test_Sandbox_Profiles_Menu;
+
    package Coyote_App_Frontend_GUI_Caller is
      new AUnit.Test_Caller (Coyote_App_Frontend_GUI_Tests.Test);
 
@@ -304,6 +344,10 @@ package body Coyote_App_Frontend_GUI_Tests is
         ("Coyote.GUI Product Information displays application icon",
          Coyote_App_Frontend_GUI_Tests
            .Test_Product_Information_Icon'Access));
+      Result.Add_Test (Coyote_App_Frontend_GUI_Caller.Create
+        ("Coyote.GUI Sandbox Profiles menu opens manager",
+         Coyote_App_Frontend_GUI_Tests
+           .Test_Sandbox_Profiles_Menu'Access));
       Result.Add_Test (Coyote_App_Frontend_GUI_Caller.Create
         ("Coyote.GUI layout and shutdown lifecycle",
          Coyote_App_Frontend_GUI_Tests

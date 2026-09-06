@@ -5,6 +5,7 @@
 with Gtk.Box;
 with Gtk.Dialog;
 with Gtk.Image;
+with Gtk.Menu_Item;
 with Gtk.Separator;
 with Gtk.Tree_View;
 with Gtk.Window;
@@ -42,6 +43,16 @@ package Coyote_App.Frontend.GUI.Testing is
    function Agents_View
      (F : Coyote_App.Frontend.GUI.Instance)
       return Gtk.Tree_View.Gtk_Tree_View;
+
+   function Sandbox_Profiles_Item
+     (F : Coyote_App.Frontend.GUI.Instance)
+      return Gtk.Menu_Item.Gtk_Menu_Item;
+
+   function Sandbox_Profiles_Created
+     (F : Coyote_App.Frontend.GUI.Instance) return Boolean;
+
+   function Sandbox_Profiles_Title
+     (F : Coyote_App.Frontend.GUI.Instance) return String;
 
    procedure Apply_Handshake
      (F               : in out Coyote_App.Frontend.GUI.Instance;

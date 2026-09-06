@@ -10,6 +10,7 @@ with Ada.Strings.Unbounded;
 with GNATCOLL.JSON;
 with Coyote_App.Agent_RPC;
 with Coyote_App.Agent_RPC.Transport;
+with Coyote_App.Utils;
 
 package body Coyote_App.Frontend.RPC is
 
@@ -324,6 +325,24 @@ package body Coyote_App.Frontend.RPC is
             Command.Kind := Coyote_App.Frontend.Control_Pause;
          when Resume =>
             Command.Kind := Coyote_App.Frontend.Control_Resume;
+         when Set_Sandbox =>
+            declare
+               Parsed : constant Read_Result :=
+                 Read (To_String (Value.Payload_Json));
+            begin
+               if Parsed.Success
+                 and then Parsed.Value.Has_Field ("profile")
+                 and then Parsed.Value.Get ("profile").Kind = JSON_String_Type
+               then
+                  Command.Kind := Coyote_App.Frontend.Control_Set_Sandbox;
+                  Command.Sandbox_Profile :=
+                    Ada.Strings.Unbounded.To_Unbounded_String
+                      (Coyote_App.Utils.Get_String
+                         (Parsed.Value, "profile"));
+               else
+                  return False;
+               end if;
+            end;
          when Shutdown =>
             Command.Kind := Coyote_App.Frontend.Control_Shutdown;
             F.Shutdown_Requested := True;

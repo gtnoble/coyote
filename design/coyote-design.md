@@ -2243,7 +2243,7 @@ blocking; `Agent_Resumed_Event` is emitted after unblocking.
 |---|---|
 | REQ-CORE-001–005 | `Coyote` (entry point) |
 | REQ-CORE-010–023 | `Coyote` (entry point), `Coyote_Utils` |
-| REQ-CORE-020a–020c, 115, 115a | Planned `Coyote_App.Frontend.RPC`, `Coyote_App.Agent_Registry`, `Coyote_App.Agent_RPC`, and `Coyote_App.Frontend.GUI` agents-panel presentation |
+| REQ-CORE-020a–020c, 115, 115a | `Coyote_App.Frontend.RPC`, `Coyote_App.Agent_Registry`, `Coyote_App.Agent_RPC`, and `Coyote_App.Frontend.GUI` agents-panel presentation |
 | REQ-CORE-030–032 | `Coyote` (entry point), `LLM.Session_Store` |
 | REQ-CORE-219 | `Coyote_App`, `LLM.Agent`, OpenRouter provider |
 | REQ-CORE-040–046 | `LLM.Agent`, `Coyote_App.Dispatch`, all frontends |

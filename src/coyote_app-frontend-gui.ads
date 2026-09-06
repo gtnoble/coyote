@@ -170,6 +170,10 @@ package Coyote_App.Frontend.GUI is
    --  Clear the support-window report for a new or switched session.
    procedure Clear_Stats (F : in out Instance);
 
+   --  Open the reusable sandbox profile manager.
+   --  Must be called from the GTK main loop thread.
+   procedure Show_Sandbox_Profiles (F : in out Instance);
+
    --  Register the agent session so that Stop and application shutdown can
    --  call Request_Abort directly from the GTK callback thread, bypassing
    --  the prompt queue.  Must be called from Agent_Task after
@@ -291,6 +295,7 @@ private
       Win_Name     : Unbounded_String;
       Stats_Window           : Coyote_GUI.Session_Stats_Window.Instance;
       Sandbox_Profile_Window : aliased Coyote_GUI.Sandbox_Profile_Window.Instance;
+      Sandbox_Profiles_Item  : Gtk.Menu_Item.Gtk_Menu_Item;
       Current_Mode           : Coyote_App.Frontend.Run_Mode :=
         Coyote_App.Frontend.Idle;
       Agent_Sess             : Session_Reference;

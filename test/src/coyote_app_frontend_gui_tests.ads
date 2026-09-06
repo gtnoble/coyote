@@ -27,6 +27,9 @@ package Coyote_App_Frontend_GUI_Tests is
    procedure Test_Product_Information_Icon
      (T : in out Test);
 
+   procedure Test_Sandbox_Profiles_Menu
+     (T : in out Test);
+
    function Suite return AUnit.Test_Suites.Access_Test_Suite;
 
 end Coyote_App_Frontend_GUI_Tests;

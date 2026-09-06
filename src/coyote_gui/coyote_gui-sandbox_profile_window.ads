@@ -17,6 +17,9 @@ with LLM.Tools.Sandbox;
 
 package Coyote_GUI.Sandbox_Profile_Window is
 
+   type Use_Profile_Handler is access procedure
+     (Profile_Name : String);
+
    type Instance is private;
 
    --  Construct the reusable manager, transient for Main_Window.
@@ -32,6 +35,16 @@ package Coyote_GUI.Sandbox_Profile_Window is
 
    procedure Show (S : in out Instance);
 
+   --  Update the live agent that receives Use Profile.
+   procedure Set_Target_Agent
+     (S             : in out Instance;
+      Target_Agent_Id : String);
+
+   --  Route Use Profile through the owning frontend when supplied.
+   procedure Set_Use_Profile_Handler
+     (S       : in out Instance;
+      Handler : Use_Profile_Handler);
+
    --  Reload the available profile names and preserve the selection where
    --  possible.  An active editor is left unchanged.
    procedure Refresh (S : in out Instance);
@@ -43,6 +56,7 @@ private
       Main_Window     : access Gtk.Window.Gtk_Window_Record'Class := null;
       Queue           : access Coyote_GUI.Prompt_Queue.Queue := null;
       Target_Agent_Id : Ada.Strings.Unbounded.Unbounded_String;
+      Use_Handler     : Use_Profile_Handler := null;
       Names           : LLM.Tools.Sandbox.String_Vectors.Vector;
       Selected_Name   : Ada.Strings.Unbounded.Unbounded_String;
       Original_Name   : Ada.Strings.Unbounded.Unbounded_String;

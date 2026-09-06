@@ -50,8 +50,9 @@ quick active-session chooser. Its left single-selection profile list and right
 read-only details view switch to explicit edit mode for New, Edit, Duplicate
 Profile, Rename Profile, Save, Cancel, Refresh, and Use Profile; Delete is not
 provided. Edit mode exposes four path-rule lists and preserves `~`, `.`, `./`,
-absolute, and missing path spellings. CRUD is synchronous local file access,
-while Use Profile queues typed `Set_Sandbox` for the selected agent.
+absolute, and missing path spellings. CRUD is synchronous local file access. Use Profile routes typed `Set_Sandbox`
+through the selected agent's local prompt queue or versioned RPC control
+channel.
 
 `Coyote_GUI.Sandbox_Profile_Window` is constructed on the GTK main task,
 transient for the main window, and reused rather than recreated. The manager
@@ -1017,3 +1018,17 @@ Display-backed regressions cover raw-stream removal, rendered-text selection,
 valid and invalid MathML visibility after `Show_All`, and shared response
 styling. Production and test development builds succeed; the complete suite
 passes 806/806 with zero failed assertions and zero unexpected errors.
+
+### Sandbox Profiles menu integration (2026-09-06)
+
+The GTK frontend now registers the documented `Options → Sandbox Profiles...`
+item and opens the existing reusable modeless manager lazily. Repeated opens
+reuse the `coyote : Sandbox Profiles` window; the manager target is refreshed
+when the selected Agents entry changes and immediately before presentation.
+The existing `Agent → Sandbox Profile...` quick chooser remains unchanged.
+
+Added a display-backed GUI regression for menu-item registration, lazy manager
+creation, manager reuse, and title/lifecycle behavior. The focused Sandbox
+Profiles test, existing GUI layout/shutdown test, standalone manager lifecycle
+test, and `Set_Sandbox` RPC codec test pass. Use Profile routes through the
+selected agent's local typed queue or versioned RPC control channel.

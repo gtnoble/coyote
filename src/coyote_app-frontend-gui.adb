@@ -279,7 +279,8 @@ package body Coyote_App.Frontend.GUI is
                 (Command = Coyote_App.Agent_RPC.Resume
                  and then Status = Coyote_App.Agent_Registry.Paused)
               or else Command = Coyote_App.Agent_RPC.Prompt
-              or else Command = Coyote_App.Agent_RPC.Steer);
+              or else Command = Coyote_App.Agent_RPC.Steer
+              or else Command = Coyote_App.Agent_RPC.Set_Sandbox);
       begin
          if not Allowed then
             return;
@@ -1929,6 +1930,42 @@ package body Coyote_App.Frontend.GUI is
            (Current_Frontend.Stats_Window);
       end if;
    end On_Stats_Activate;
+
+   procedure On_Use_Sandbox_Profile (Profile_Name : String) is
+      Accepted : Boolean;
+      Data     : GNATCOLL.JSON.JSON_Value;
+   begin
+      if Current_Frontend = null then
+         return;
+      end if;
+      if Selected_Is_Local then
+         Current_Frontend.PQ.Enqueue
+           ((Kind            => Set_Sandbox,
+             Target_Agent_Id => Current_Frontend.Selected_Agent_Id,
+             Profile_Name    => To_Unbounded_String (Profile_Name)),
+            Accepted);
+         if not Accepted then
+            Current_Frontend.Append_Notice
+              (Coyote_App.Frontend.Warning,
+               "The agent command queue is full.");
+         end if;
+      else
+         Data := GNATCOLL.JSON.Create_Object;
+         Data.Set_Field ("profile", Profile_Name);
+         Send_Selected_RPC_Command
+           (Coyote_App.Agent_RPC.Set_Sandbox,
+            GNATCOLL.JSON.Write (Data));
+      end if;
+   end On_Use_Sandbox_Profile;
+
+   procedure On_Sandbox_Profiles_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class) is
+      pragma Unreferenced (Self);
+   begin
+      if Current_Frontend /= null then
+         Show_Sandbox_Profiles (Current_Frontend.all);
+      end if;
+   end On_Sandbox_Profiles_Activate;
 
    procedure On_Click_For_Help_Activate
      (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class) is
@@ -3785,6 +3822,10 @@ package body Coyote_App.Frontend.GUI is
          Gdk.Types.Keysyms.GDK_comma,
          Gdk.Types.Control_Mask,
          Gtk.Accel_Group.Accel_Visible);
+      F.Sandbox_Profiles_Item :=
+        Make_Item ("_Sandbox Profiles...", Options_Menu);
+      F.Sandbox_Profiles_Item.On_Activate
+        (On_Sandbox_Profiles_Activate'Access);
 
       --  Agent menu
       Gtk.Menu.Gtk_New (Agent_Menu);
@@ -4478,6 +4519,29 @@ package body Coyote_App.Frontend.GUI is
       U.Kind := Coyote_GUI.Clear_Stats;
       Enqueue_Update (F, U);
    end Clear_Stats;
+
+   procedure Show_Sandbox_Profiles (F : in out Instance) is
+   begin
+      if not Coyote_GUI.Sandbox_Profile_Window.Is_Created
+        (F.Sandbox_Profile_Window)
+      then
+         Coyote_GUI.Sandbox_Profile_Window.Create
+           (S               => F.Sandbox_Profile_Window,
+            Main_Window     => F.Win.all'Access,
+            Prompt_Queue    => F.PQ'Access,
+            Target_Agent_Id => To_String (F.Selected_Agent_Id));
+      end if;
+      Coyote_GUI.Sandbox_Profile_Window.Set_Target_Agent
+        (F.Sandbox_Profile_Window,
+         To_String (F.Selected_Agent_Id));
+      Coyote_GUI.Sandbox_Profile_Window.Set_Use_Profile_Handler
+        (F.Sandbox_Profile_Window,
+         On_Use_Sandbox_Profile'Access);
+      Coyote_GUI.Sandbox_Profile_Window.Refresh
+        (F.Sandbox_Profile_Window);
+      Coyote_GUI.Sandbox_Profile_Window.Show
+        (F.Sandbox_Profile_Window);
+   end Show_Sandbox_Profiles;
 
    procedure Clear_Conversation (F : in out Instance) is
       U : Coyote_GUI.Update;
