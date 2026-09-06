@@ -60,15 +60,17 @@ profile list and multiple typed in-memory drafts. New and Duplicate Profile
 stage changes without writing files; dirty drafts are marked in the list; Save
 validates and processes all dirty drafts; Cancel reloads persisted profiles and
 discards all drafts; Refresh preserves dirty drafts. Rename and Delete are not
-provided by the manager. The four path-rule collections are one-column
-`GtkTreeView` widgets backed by `GtkListStore` models. Add Path, Edit Selected,
-and Remove Selected are consolidated into one bottom action row; its target is
-the collection most recently selected, clicked, or focused. Edit Path accepts
-arbitrary text, preserving `~`, `.`, `./`, absolute, and missing paths. Backend
-compatibility rename remains available for historical session support. Use
-Profile continues to route through the selected agent's local queue or RPC
-channel. The focused path-editor regression passes; full interaction remains
-display-gated under DEM-054.
+provided by the manager. The four path-rule collections are presented in one
+single-selection `GtkTreeView` backed by a three-column `GtkListStore`, with
+visible Rule category and Path columns plus a hidden numeric rule key. Rows
+remain grouped in category order and preserve path order. Add Path, Edit
+Selected, and Remove Selected are consolidated into one bottom action row. Add
+and Edit use arbitrary-text path dialogs; Add explicitly chooses the category,
+preserving `~`, `.`, `./`, absolute, and missing paths. Backend compatibility
+rename remains available for historical session support. Use Profile continues
+to route through the selected agent's local queue or RPC channel. The focused
+path-editor regression passes; full interaction remains display-gated under
+DEM-054.
 
 ### Native GTK Markdown tables (2026-09-03)
 

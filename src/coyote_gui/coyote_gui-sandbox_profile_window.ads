@@ -76,15 +76,8 @@ private
       Selected_Draft  : Natural := 0;
       Profile_List    : Gtk.List_Box.Gtk_List_Box := null;
       Name_Entry      : Gtk.GEntry.Gtk_Entry := null;
-      Allow_Write_View   : Gtk.Tree_View.Gtk_Tree_View := null;
-      Allow_Write_Store  : Gtk.List_Store.Gtk_List_Store := null;
-      Deny_Write_View    : Gtk.Tree_View.Gtk_Tree_View := null;
-      Deny_Write_Store   : Gtk.List_Store.Gtk_List_Store := null;
-      Deny_Read_View     : Gtk.Tree_View.Gtk_Tree_View := null;
-      Deny_Read_Store    : Gtk.List_Store.Gtk_List_Store := null;
-      Allow_Read_View    : Gtk.Tree_View.Gtk_Tree_View := null;
-      Allow_Read_Store   : Gtk.List_Store.Gtk_List_Store := null;
-      Active_Group       : Natural := 1;
+      Path_View          : Gtk.Tree_View.Gtk_Tree_View := null;
+      Path_Store         : Gtk.List_Store.Gtk_List_Store := null;
       Add_Path_Button    : Gtk.Button.Gtk_Button := null;
       Edit_Path_Button   : Gtk.Button.Gtk_Button := null;
       Remove_Path_Button : Gtk.Button.Gtk_Button := null;

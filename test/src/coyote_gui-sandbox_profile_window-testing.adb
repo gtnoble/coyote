@@ -4,37 +4,13 @@
 
 package body Coyote_GUI.Sandbox_Profile_Window.Testing is
 
-   function Allow_Write_View
+   function Path_View
      (S : Coyote_GUI.Sandbox_Profile_Window.Instance)
       return Gtk.Tree_View.Gtk_Tree_View
    is
    begin
-      return S.Allow_Write_View;
-   end Allow_Write_View;
-
-   function Deny_Write_View
-     (S : Coyote_GUI.Sandbox_Profile_Window.Instance)
-      return Gtk.Tree_View.Gtk_Tree_View
-   is
-   begin
-      return S.Deny_Write_View;
-   end Deny_Write_View;
-
-   function Deny_Read_View
-     (S : Coyote_GUI.Sandbox_Profile_Window.Instance)
-      return Gtk.Tree_View.Gtk_Tree_View
-   is
-   begin
-      return S.Deny_Read_View;
-   end Deny_Read_View;
-
-   function Allow_Read_View
-     (S : Coyote_GUI.Sandbox_Profile_Window.Instance)
-      return Gtk.Tree_View.Gtk_Tree_View
-   is
-   begin
-      return S.Allow_Read_View;
-   end Allow_Read_View;
+      return S.Path_View;
+   end Path_View;
 
    function Add_Path_Button
      (S : Coyote_GUI.Sandbox_Profile_Window.Instance)

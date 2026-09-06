@@ -13,6 +13,7 @@ with Glib;
 with Gtk.Enums;
 with Gtk.Tree_Model;
 with Gtk.Tree_View;
+with Gtk.Tree_View_Column;
 with Gtk.Main;
 with Gtk.Window;
 with LLM.Tools.Sandbox;
@@ -23,6 +24,7 @@ package body Coyote_GUI_Sandbox_Profile_Window_Tests is
    use type Glib.Gint;
    use type Gtk.Tree_Model.Gtk_Tree_Model;
    use type Gtk.Tree_View.Gtk_Tree_View;
+   use type Gtk.Tree_View_Column.Gtk_Tree_View_Column;
    use type Gtk.Window.Gtk_Window;
 
    function Display_Detected return Boolean is
@@ -96,19 +98,10 @@ package body Coyote_GUI_Sandbox_Profile_Window_Tests is
       Parent : Gtk.Window.Gtk_Window;
       Queue  : aliased Coyote_GUI.Prompt_Queue.Queue;
       Window : aliased Coyote_GUI.Sandbox_Profile_Window.Instance;
-
-      procedure Assert_Path_View
-        (View : Gtk.Tree_View.Gtk_Tree_View; Label : String)
-      is
-         Model : constant Gtk.Tree_Model.Gtk_Tree_Model := View.Get_Model;
-      begin
-         Assert (View /= null, Label & " view must exist");
-         Assert (Model /= Gtk.Tree_Model.Null_Gtk_Tree_Model,
-                Label & " view must have a model");
-         Assert
-           (Gtk.Tree_Model.Get_N_Columns (Model) = 1,
-            Label & " view must expose one path column");
-      end Assert_Path_View;
+      View   : Gtk.Tree_View.Gtk_Tree_View;
+      Model  : Gtk.Tree_Model.Gtk_Tree_Model;
+      First  : Gtk.Tree_View_Column.Gtk_Tree_View_Column;
+      Second : Gtk.Tree_View_Column.Gtk_Tree_View_Column;
    begin
       if not T.Display_Available then
          return;
@@ -119,18 +112,25 @@ package body Coyote_GUI_Sandbox_Profile_Window_Tests is
          Main_Window     => Parent.all'Access,
          Prompt_Queue    => Queue'Access,
          Target_Agent_Id => "test-agent");
-      Assert_Path_View
-        (Coyote_GUI.Sandbox_Profile_Window.Testing.Allow_Write_View (Window),
-         "Allow write");
-      Assert_Path_View
-        (Coyote_GUI.Sandbox_Profile_Window.Testing.Deny_Write_View (Window),
-         "Deny write");
-      Assert_Path_View
-        (Coyote_GUI.Sandbox_Profile_Window.Testing.Deny_Read_View (Window),
-         "Deny read");
-      Assert_Path_View
-        (Coyote_GUI.Sandbox_Profile_Window.Testing.Allow_Read_View (Window),
-         "Allow read");
+      View := Coyote_GUI.Sandbox_Profile_Window.Testing.Path_View (Window);
+      Model := View.Get_Model;
+      Assert (View /= null, "combined path view must exist");
+      Assert
+        (Model /= Gtk.Tree_Model.Null_Gtk_Tree_Model,
+         "combined path view must have a model");
+      Assert
+        (Gtk.Tree_Model.Get_N_Columns (Model) = 3,
+         "combined model must have category, path, and rule-key columns");
+      First := View.Get_Column (0);
+      Second := View.Get_Column (1);
+      Assert (First /= null, "category column must exist");
+      Assert (Second /= null, "path column must exist");
+      Assert
+        (First.Get_Title = "Rule category",
+         "first column must identify the rule category");
+      Assert
+        (Second.Get_Title = "Path",
+         "second column must display the path");
       Assert
         (Coyote_GUI.Sandbox_Profile_Window.Testing.Add_Path_Button
            (Window).Get_Label = "_Add Path",

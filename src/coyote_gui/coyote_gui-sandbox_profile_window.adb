@@ -20,6 +20,7 @@ with Gtk.Bin;
 with Gtk.Box;
 with Gtk.Button;
 with Gtk.Cell_Renderer_Text;
+with Gtk.Combo_Box_Text;
 with Gtk.Dialog;
 with Gtk.Editable;
 with Gtk.Enums;
@@ -242,85 +243,82 @@ package body Coyote_GUI.Sandbox_Profile_Window is
       end loop Clear_Loop;
    end Clear_List;
 
-   type Path_Group is (Allow_Write_Group, Deny_Write_Group,
-                       Deny_Read_Group, Allow_Read_Group);
+   type Category_Names_Array is array (Positive range <>) of
+     Unbounded_String;
 
-   function Group_For_Index (Index : Natural) return Path_Group is
-   begin
-      case Index is
-         when 1 => return Allow_Write_Group;
-         when 2 => return Deny_Write_Group;
-         when 3 => return Deny_Read_Group;
-         when others => return Allow_Read_Group;
-      end case;
-   end Group_For_Index;
+   Category_Names : constant Category_Names_Array :=
+     (To_Unbounded_String ("Allow write"),
+      To_Unbounded_String ("Deny write"),
+      To_Unbounded_String ("Deny read"),
+      To_Unbounded_String ("Allow read"));
 
-   function View_For_Group
-     (S : Instance; Group : Path_Group) return Gtk.Tree_View.Gtk_Tree_View
-   is
+   function Category_Label (Category : Natural) return String is
    begin
-      case Group is
-         when Allow_Write_Group => return S.Allow_Write_View;
-         when Deny_Write_Group  => return S.Deny_Write_View;
-         when Deny_Read_Group   => return S.Deny_Read_View;
-         when Allow_Read_Group  => return S.Allow_Read_View;
-      end case;
-   end View_For_Group;
-
-   function Store_For_Group
-     (S : Instance; Group : Path_Group) return Gtk.List_Store.Gtk_List_Store
-   is
-   begin
-      case Group is
-         when Allow_Write_Group => return S.Allow_Write_Store;
-         when Deny_Write_Group  => return S.Deny_Write_Store;
-         when Deny_Read_Group   => return S.Deny_Read_Store;
-         when Allow_Read_Group  => return S.Allow_Read_Store;
-      end case;
-   end Store_For_Group;
-
-   procedure Set_Active_Group (S : in out Instance; Name : String) is
-   begin
-      if Name = "allow-write-paths" then
-         S.Active_Group := 1;
-      elsif Name = "deny-write-paths" then
-         S.Active_Group := 2;
-      elsif Name = "deny-read-paths" then
-         S.Active_Group := 3;
-      elsif Name = "allow-read-paths" then
-         S.Active_Group := 4;
+      if Category in Category_Names'Range then
+         return To_String (Category_Names (Category));
       end if;
-   end Set_Active_Group;
+      return "";
+   end Category_Label;
+
+   procedure Append_Path
+     (Store    : Gtk.List_Store.Gtk_List_Store;
+      Category : Natural;
+      Path     : String)
+   is
+      Iter : Gtk.Tree_Model.Gtk_Tree_Iter;
+   begin
+      Store.Append (Iter);
+      Store.Set (Iter, 0, Category_Label (Category));
+      Store.Set (Iter, 1, Path);
+      Store.Set (Iter, 2, Glib.Gint (Category));
+   end Append_Path;
+
+   procedure Append_Profile_Path
+     (Profile  : in out LLM.Tools.Sandbox.Profile;
+      Category : Natural;
+      Path     : String)
+   is
+   begin
+      case Category is
+         when 1 => Profile.Allow_Write.Append (Path);
+         when 2 => Profile.Deny_Write.Append (Path);
+         when 3 => Profile.Deny_Read.Append (Path);
+         when 4 => Profile.Allow_Read.Append (Path);
+         when others => null;
+      end case;
+   end Append_Profile_Path;
 
    procedure Get_Selected_Path
-     (S     : Instance;
-      Group : Path_Group;
-      Model : out Gtk.Tree_Model.Gtk_Tree_Model;
-      Iter  : out Gtk.Tree_Model.Gtk_Tree_Iter)
+     (S        : Instance;
+      Category : out Natural;
+      Path     : out Unbounded_String;
+      Model    : out Gtk.Tree_Model.Gtk_Tree_Model;
+      Iter     : out Gtk.Tree_Model.Gtk_Tree_Iter)
    is
+      Value : Glib.Values.GValue;
    begin
-      View_For_Group (S, Group).Get_Selection.Get_Selected (Model, Iter);
+      S.Path_View.Get_Selection.Get_Selected (Model, Iter);
+      Category := 0;
+      Path := Null_Unbounded_String;
+      if Iter /= Gtk.Tree_Model.Null_Iter then
+         Category := Natural
+           (Gtk.Tree_Model.Get_Int (Model, Iter, 2));
+         Gtk.Tree_Model.Get_Value (Model, Iter, 1, Value);
+         Path := To_Unbounded_String (Glib.Values.Get_String (Value));
+         Glib.Values.Unset (Value);
+      end if;
    end Get_Selected_Path;
 
-   function Has_Path_Selection
-     (S : Instance; Group : Path_Group) return Boolean
-   is
-      Model : Gtk.Tree_Model.Gtk_Tree_Model;
-      Iter  : Gtk.Tree_Model.Gtk_Tree_Iter;
-   begin
-      Get_Selected_Path (S, Group, Model, Iter);
-      return Iter /= Gtk.Tree_Model.Null_Iter;
-   end Has_Path_Selection;
-
    function Read_Path_List
-     (View : Gtk.Tree_View.Gtk_Tree_View)
-      return LLM.Tools.Sandbox.String_Vectors.Vector
+     (S : Instance) return LLM.Tools.Sandbox.Profile
    is
-      Result : LLM.Tools.Sandbox.String_Vectors.Vector;
-      Model  : constant Gtk.Tree_Model.Gtk_Tree_Model := View.Get_Model;
-      Iter   : Gtk.Tree_Model.Gtk_Tree_Iter;
-      Value  : Glib.Values.GValue;
-      Count  : constant Glib.Gint := Gtk.Tree_Model.N_Children (Model);
+      Result : LLM.Tools.Sandbox.Profile;
+      Model  : constant Gtk.Tree_Model.Gtk_Tree_Model :=
+        S.Path_View.Get_Model;
+      Iter  : Gtk.Tree_Model.Gtk_Tree_Iter;
+      Value : Glib.Values.GValue;
+      Count : constant Glib.Gint := Gtk.Tree_Model.N_Children (Model);
+      Category : Natural;
    begin
       if Count > 0 then
          for Index in 0 .. Count - 1 loop
@@ -328,12 +326,14 @@ package body Coyote_GUI.Sandbox_Profile_Window is
               (Model, Ada.Strings.Fixed.Trim
                  (Glib.Gint'Image (Index), Ada.Strings.Both));
             if Iter /= Gtk.Tree_Model.Null_Iter then
-               Gtk.Tree_Model.Get_Value (Model, Iter, 0, Value);
+               Category := Natural
+                 (Gtk.Tree_Model.Get_Int (Model, Iter, 2));
+               Gtk.Tree_Model.Get_Value (Model, Iter, 1, Value);
                declare
                   Path : constant String :=
                     Glib.Values.Get_String (Value);
                begin
-                  Result.Append (Path);
+                  Append_Profile_Path (Result, Category, Path);
                end;
                Glib.Values.Unset (Value);
             end if;
@@ -344,26 +344,36 @@ package body Coyote_GUI.Sandbox_Profile_Window is
 
    procedure Fill_Path_List
      (Store  : Gtk.List_Store.Gtk_List_Store;
-      Values : LLM.Tools.Sandbox.String_Vectors.Vector)
+      Value  : LLM.Tools.Sandbox.Profile)
    is
-      Iter : Gtk.Tree_Model.Gtk_Tree_Iter;
    begin
       Store.Clear;
-      for Value of Values loop
-         Store.Append (Iter);
-         Store.Set (Iter, 0, Value);
+      for Path of Value.Allow_Write loop
+         Append_Path (Store, 1, Path);
+      end loop;
+      for Path of Value.Deny_Write loop
+         Append_Path (Store, 2, Path);
+      end loop;
+      for Path of Value.Deny_Read loop
+         Append_Path (Store, 3, Path);
+      end loop;
+      for Path of Value.Allow_Read loop
+         Append_Path (Store, 4, Path);
       end loop;
    end Fill_Path_List;
 
    procedure Update_Action_State (S : in out Instance) is
       Has_Selection : constant Boolean := S.Selected_Draft > 0;
       Can_Use       : Boolean := Has_Selection;
-      Has_Path      : constant Boolean :=
-        Has_Path_Selection (S, Group_For_Index (S.Active_Group));
+      Has_Path      : Gtk.Tree_Model.Gtk_Tree_Iter;
+      Model         : Gtk.Tree_Model.Gtk_Tree_Model;
+      Category      : Natural;
+      Path          : Unbounded_String;
    begin
       if Has_Selection then
          Can_Use := not S.Drafts.Element (S.Selected_Draft).Is_New;
       end if;
+      Get_Selected_Path (S, Category, Path, Model, Has_Path);
       if S.Save_Button /= null then
          S.Save_Button.Set_Sensitive (Any_Dirty (S));
       end if;
@@ -371,12 +381,14 @@ package body Coyote_GUI.Sandbox_Profile_Window is
          S.Cancel_Button.Set_Sensitive (Any_Dirty (S));
       end if;
       if S.Edit_Path_Button /= null then
-         S.Edit_Path_Button.Set_Sensitive (Has_Path);
+         S.Edit_Path_Button.Set_Sensitive
+           (Has_Path /= Gtk.Tree_Model.Null_Iter);
       end if;
       if S.Remove_Path_Button /= null then
-         S.Remove_Path_Button.Set_Sensitive (Has_Path);
+         S.Remove_Path_Button.Set_Sensitive
+           (Has_Path /= Gtk.Tree_Model.Null_Iter);
       end if;
-      pragma Unreferenced (Can_Use);
+      pragma Unreferenced (Can_Use, Category, Path, Model);
    end Update_Action_State;
 
    procedure Capture_Editor (S : in out Instance) is
@@ -390,10 +402,7 @@ package body Coyote_GUI.Sandbox_Profile_Window is
       end if;
       Draft := S.Drafts.Element (S.Selected_Draft);
       Draft.Name := To_Unbounded_String (S.Name_Entry.Get_Text);
-      Draft.Profile.Allow_Write := Read_Path_List (S.Allow_Write_View);
-      Draft.Profile.Deny_Write := Read_Path_List (S.Deny_Write_View);
-      Draft.Profile.Deny_Read := Read_Path_List (S.Deny_Read_View);
-      Draft.Profile.Allow_Read := Read_Path_List (S.Allow_Read_View);
+      Draft.Profile := Read_Path_List (S);
       Draft.Dirty := Draft.Is_New
         or else Draft.Name /= Draft.Baseline_Name
         or else not Profile_Equal (Draft.Profile, Draft.Baseline);
@@ -407,26 +416,12 @@ package body Coyote_GUI.Sandbox_Profile_Window is
       if S.Selected_Draft = 0 or else S.Drafts.Is_Empty then
          S.Name_Entry.Set_Text ("");
          S.Name_Entry.Set_Editable (False);
-         Fill_Path_List
-           (S.Allow_Write_Store,
-            LLM.Tools.Sandbox.String_Vectors.Empty_Vector);
-         Fill_Path_List
-           (S.Deny_Write_Store,
-            LLM.Tools.Sandbox.String_Vectors.Empty_Vector);
-         Fill_Path_List
-           (S.Deny_Read_Store,
-            LLM.Tools.Sandbox.String_Vectors.Empty_Vector);
-         Fill_Path_List
-           (S.Allow_Read_Store,
-            LLM.Tools.Sandbox.String_Vectors.Empty_Vector);
+         S.Path_Store.Clear;
       else
          Draft := S.Drafts.Element (S.Selected_Draft);
          S.Name_Entry.Set_Text (To_String (Draft.Name));
          S.Name_Entry.Set_Editable (Draft.Is_New);
-         Fill_Path_List (S.Allow_Write_Store, Draft.Profile.Allow_Write);
-         Fill_Path_List (S.Deny_Write_Store, Draft.Profile.Deny_Write);
-         Fill_Path_List (S.Deny_Read_Store, Draft.Profile.Deny_Read);
-         Fill_Path_List (S.Allow_Read_Store, Draft.Profile.Allow_Read);
+         Fill_Path_List (S.Path_Store, Draft.Profile);
       end if;
       S.Updating_Editor := False;
       Update_Action_State (S);
@@ -466,55 +461,41 @@ package body Coyote_GUI.Sandbox_Profile_Window is
    procedure On_Path_Selection_Changed
      (Self : access Gtk.Tree_Selection.Gtk_Tree_Selection_Record'Class)
    is
+      pragma Unreferenced (Self);
    begin
       if Current_Instance /= null then
-         Set_Active_Group
-           (Current_Instance.all, Self.Get_Tree_View.Get_Name);
          Update_Action_State (Current_Instance.all);
       end if;
    end On_Path_Selection_Changed;
 
-   function On_Path_View_Button_Press
-     (Self  : access Gtk.Widget.Gtk_Widget_Record'Class;
-      Event : Gdk.Event.Gdk_Event_Button) return Boolean
-   is
-      pragma Unreferenced (Event);
-   begin
-      if Current_Instance /= null then
-         Set_Active_Group (Current_Instance.all, Self.Get_Name);
-         Update_Action_State (Current_Instance.all);
-      end if;
-      return False;
-   end On_Path_View_Button_Press;
-
-   function On_Path_View_Focus_In
-     (Self  : access Gtk.Widget.Gtk_Widget_Record'Class;
-      Event : Gdk.Event.Gdk_Event_Focus) return Boolean
-   is
-      pragma Unreferenced (Event);
-   begin
-      if Current_Instance /= null then
-         Set_Active_Group (Current_Instance.all, Self.Get_Name);
-         Update_Action_State (Current_Instance.all);
-      end if;
-      return False;
-   end On_Path_View_Focus_In;
-
    function Edit_Path
-     (S        : Instance;
-      Title    : String;
-      Initial  : String;
-      Accepted : out Boolean) return String
+     (S              : Instance;
+      Title          : String;
+      Initial        : String;
+      Initial_Category : Natural;
+      Category       : out Natural;
+      Accepted       : out Boolean) return String
    is
-      Dialog : Gtk.Dialog.Gtk_Dialog;
-      Path_Field : Gtk.GEntry.Gtk_Entry;
-      Dummy      : Gtk.Widget.Gtk_Widget;
-      Result     : Gtk.Dialog.Gtk_Response_Type;
+      Dialog       : Gtk.Dialog.Gtk_Dialog;
+      Path_Field   : Gtk.GEntry.Gtk_Entry;
+      Category_Box : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
+      Label        : Gtk.Label.Gtk_Label;
+      Dummy        : Gtk.Widget.Gtk_Widget;
+      Result       : Gtk.Dialog.Gtk_Response_Type;
    begin
       Gtk.Dialog.Gtk_New (Dialog);
       Dialog.Set_Title (Title);
       Dialog.Set_Transient_For (S.Window);
       Dialog.Set_Modal (True);
+      Gtk.Label.Gtk_New (Label, "Rule category:");
+      Dialog.Get_Content_Area.Pack_Start (Label, False, False, 8);
+      Gtk.Combo_Box_Text.Gtk_New (Category_Box);
+      for Category_Name of Category_Names loop
+         Category_Box.Append_Text (To_String (Category_Name));
+      end loop;
+      Category_Box.Set_Active (Glib.Gint (Initial_Category - 1));
+      Dialog.Get_Content_Area.Pack_Start
+        (Category_Box, False, False, 8);
       Gtk.GEntry.Gtk_New (Path_Field);
       Path_Field.Set_Text (Initial);
       Path_Field.Set_Width_Chars (48);
@@ -531,6 +512,7 @@ package body Coyote_GUI.Sandbox_Profile_Window is
       Path_Field.Select_Region (0, -1);
       Result := Dialog.Run;
       Accepted := Result = Gtk.Dialog.Gtk_Response_OK;
+      Category := Natural (Category_Box.Get_Active) + 1;
       declare
          Value : constant String := Path_Field.Get_Text;
       begin
@@ -543,27 +525,27 @@ package body Coyote_GUI.Sandbox_Profile_Window is
      (Button : access Gtk.Button.Gtk_Button_Record'Class)
    is
       pragma Unreferenced (Button);
-      S        : access Instance := Current_Instance;
-      Group    : Path_Group;
-      Store    : Gtk.List_Store.Gtk_List_Store;
-      View     : Gtk.Tree_View.Gtk_Tree_View;
-      Iter     : Gtk.Tree_Model.Gtk_Tree_Iter;
-      Accepted : Boolean;
+      S          : access Instance := Current_Instance;
+      Model      : Gtk.Tree_Model.Gtk_Tree_Model;
+      Iter       : Gtk.Tree_Model.Gtk_Tree_Iter;
+      Category   : Natural := 1;
+      Path       : Unbounded_String;
+      Selected   : Natural;
+      Accepted   : Boolean;
    begin
       if S = null then
          return;
       end if;
-      Group := Group_For_Index (S.Active_Group);
-      Store := Store_For_Group (S.all, Group);
-      View := View_For_Group (S.all, Group);
+      Get_Selected_Path (S.all, Selected, Path, Model, Iter);
+      if Selected > 0 then
+         Category := Selected;
+      end if;
       declare
          Value : constant String :=
-           Edit_Path (S.all, "Add Path", "", Accepted);
+           Edit_Path (S.all, "Add Path", "", Category, Category, Accepted);
       begin
          if Accepted and then Value'Length > 0 then
-            Store.Append (Iter);
-            Store.Set (Iter, 0, Value);
-            View.Get_Selection.Select_Iter (Iter);
+            Append_Path (S.Path_Store, Category, Value);
             Capture_Editor (S.all);
             Update_Profile_List_Labels (S.all);
          end if;
@@ -574,33 +556,30 @@ package body Coyote_GUI.Sandbox_Profile_Window is
      (Button : access Gtk.Button.Gtk_Button_Record'Class)
    is
       pragma Unreferenced (Button);
-      S        : access Instance := Current_Instance;
-      Group    : Path_Group;
-      Store    : Gtk.List_Store.Gtk_List_Store;
-      Model    : Gtk.Tree_Model.Gtk_Tree_Model;
-      Iter     : Gtk.Tree_Model.Gtk_Tree_Iter;
-      Value    : Glib.Values.GValue;
-      Accepted : Boolean;
-      Current  : Unbounded_String;
+      S          : access Instance := Current_Instance;
+      Model      : Gtk.Tree_Model.Gtk_Tree_Model;
+      Iter       : Gtk.Tree_Model.Gtk_Tree_Iter;
+      Category   : Natural;
+      Path       : Unbounded_String;
+      New_Category : Natural;
+      Accepted   : Boolean;
    begin
       if S = null then
          return;
       end if;
-      Group := Group_For_Index (S.Active_Group);
-      Store := Store_For_Group (S.all, Group);
-      Get_Selected_Path (S.all, Group, Model, Iter);
+      Get_Selected_Path (S.all, Category, Path, Model, Iter);
       if Iter = Gtk.Tree_Model.Null_Iter then
          return;
       end if;
-      Gtk.Tree_Model.Get_Value (Model, Iter, 0, Value);
-      Current := To_Unbounded_String (Glib.Values.Get_String (Value));
-      Glib.Values.Unset (Value);
       declare
          New_Value : constant String :=
-           Edit_Path (S.all, "Edit Path", To_String (Current), Accepted);
+           Edit_Path (S.all, "Edit Path", To_String (Path),
+                      Category, New_Category, Accepted);
       begin
          if Accepted and then New_Value'Length > 0 then
-            Store.Set (Iter, 0, New_Value);
+            S.Path_Store.Set (Iter, 0, Category_Label (New_Category));
+            S.Path_Store.Set (Iter, 1, New_Value);
+            S.Path_Store.Set (Iter, 2, Glib.Gint (New_Category));
             Capture_Editor (S.all);
             Update_Profile_List_Labels (S.all);
          end if;
@@ -611,64 +590,70 @@ package body Coyote_GUI.Sandbox_Profile_Window is
      (Button : access Gtk.Button.Gtk_Button_Record'Class)
    is
       pragma Unreferenced (Button);
-      S     : access Instance := Current_Instance;
-      Group : Path_Group;
-      Store : Gtk.List_Store.Gtk_List_Store;
-      Model : Gtk.Tree_Model.Gtk_Tree_Model;
-      Iter  : Gtk.Tree_Model.Gtk_Tree_Iter;
+      S        : access Instance := Current_Instance;
+      Model    : Gtk.Tree_Model.Gtk_Tree_Model;
+      Iter     : Gtk.Tree_Model.Gtk_Tree_Iter;
+      Category : Natural;
+      Path     : Unbounded_String;
    begin
       if S = null then
          return;
       end if;
-      Group := Group_For_Index (S.Active_Group);
-      Store := Store_For_Group (S.all, Group);
-      Get_Selected_Path (S.all, Group, Model, Iter);
+      Get_Selected_Path (S.all, Category, Path, Model, Iter);
       if Iter /= Gtk.Tree_Model.Null_Iter then
-         Store.Remove (Iter);
+         S.Path_Store.Remove (Iter);
          Capture_Editor (S.all);
          Update_Profile_List_Labels (S.all);
       end if;
    end On_Remove_Path;
 
-   procedure Create_Path_Group
+   procedure Create_Path_View
      (Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
-      Title  : String;
-      Name   : String;
       View   : out Gtk.Tree_View.Gtk_Tree_View;
       Store  : out Gtk.List_Store.Gtk_List_Store)
    is
-      Frame     : Gtk.Frame.Gtk_Frame;
-      Scroll    : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
-      Column    : Gtk.Tree_View_Column.Gtk_Tree_View_Column;
-      Renderer  : Gtk.Cell_Renderer_Text.Gtk_Cell_Renderer_Text;
-      Selection : Gtk.Tree_Selection.Gtk_Tree_Selection;
-      Dummy     : Glib.Gint;
+      Frame      : Gtk.Frame.Gtk_Frame;
+      Scroll     : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
+      Category_Column : Gtk.Tree_View_Column.Gtk_Tree_View_Column;
+      Path_Column     : Gtk.Tree_View_Column.Gtk_Tree_View_Column;
+      Category_Renderer : Gtk.Cell_Renderer_Text.Gtk_Cell_Renderer_Text;
+      Path_Renderer     : Gtk.Cell_Renderer_Text.Gtk_Cell_Renderer_Text;
+      Selection  : Gtk.Tree_Selection.Gtk_Tree_Selection;
+      Dummy      : Glib.Gint;
    begin
-      Gtk.Frame.Gtk_New (Frame, Title);
-      Gtk.List_Store.Gtk_New (Store, (0 => Glib.GType_String));
+      Gtk.Frame.Gtk_New (Frame, "Profile paths");
+      Gtk.List_Store.Gtk_New
+        (Store,
+         (0 => Glib.GType_String,
+          1 => Glib.GType_String,
+          2 => Glib.GType_Int));
       Gtk.Tree_View.Gtk_New (View, +Store);
-      View.Set_Name (Name);
-      View.Set_Headers_Visible (False);
+      View.Set_Headers_Visible (True);
       View.Set_Enable_Search (False);
-      Gtk.Cell_Renderer_Text.Gtk_New (Renderer);
-      Gtk.Tree_View_Column.Gtk_New (Column);
-      Column.Pack_Start (Renderer, Expand => True);
-      Column.Add_Attribute (Renderer, "text", 0);
-      Dummy := View.Append_Column (Column);
+      Gtk.Cell_Renderer_Text.Gtk_New (Category_Renderer);
+      Gtk.Tree_View_Column.Gtk_New (Category_Column);
+      Category_Column.Set_Title ("Rule category");
+      Category_Column.Pack_Start (Category_Renderer, Expand => False);
+      Category_Column.Add_Attribute (Category_Renderer, "text", 0);
+      Dummy := View.Append_Column (Category_Column);
+      Gtk.Cell_Renderer_Text.Gtk_New (Path_Renderer);
+      Gtk.Tree_View_Column.Gtk_New (Path_Column);
+      Path_Column.Set_Title ("Path");
+      Path_Column.Pack_Start (Path_Renderer, Expand => True);
+      Path_Column.Add_Attribute (Path_Renderer, "text", 1);
+      Dummy := View.Append_Column (Path_Column);
       Selection := View.Get_Selection;
       Selection.Set_Mode (Gtk.Enums.Selection_Single);
       Selection.On_Changed (On_Path_Selection_Changed'Access);
-      View.On_Button_Press_Event (On_Path_View_Button_Press'Access);
-      View.On_Focus_In_Event (On_Path_View_Focus_In'Access);
       Gtk.Scrolled_Window.Gtk_New (Scroll);
       Scroll.Set_Policy
         (Gtk.Enums.Policy_Automatic, Gtk.Enums.Policy_Automatic);
-      Scroll.Set_Size_Request (-1, 72);
+      Scroll.Set_Size_Request (-1, 300);
       Scroll.Add (View);
       Frame.Add (Scroll);
       Frame.Set_Border_Width (6);
       Parent.Pack_Start (Frame, True, True, 0);
-   end Create_Path_Group;
+   end Create_Path_View;
 
    procedure Rebuild_Profile_List (S : in out Instance) is
       Wanted : Unbounded_String;
@@ -1261,18 +1246,8 @@ package body Coyote_GUI.Sandbox_Profile_Window is
            (S.Name_Entry),
          On_Editor_Changed'Access);
       S.Editor.Pack_Start (S.Name_Entry, False, False, 0);
-      Create_Path_Group
-        (S.Editor, "Allow write", "allow-write-paths",
-         S.Allow_Write_View, S.Allow_Write_Store);
-      Create_Path_Group
-        (S.Editor, "Deny write", "deny-write-paths",
-         S.Deny_Write_View, S.Deny_Write_Store);
-      Create_Path_Group
-        (S.Editor, "Deny read", "deny-read-paths",
-         S.Deny_Read_View, S.Deny_Read_Store);
-      Create_Path_Group
-        (S.Editor, "Allow read", "allow-read-paths",
-         S.Allow_Read_View, S.Allow_Read_Store);
+      Create_Path_View
+        (S.Editor, S.Path_View, S.Path_Store);
       Gtk.Box.Gtk_New_Hbox (Actions, False, 4);
       Gtk.Button.Gtk_New_With_Mnemonic (S.Add_Path_Button, "_Add Path");
       Gtk.Button.Gtk_New_With_Mnemonic

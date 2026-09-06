@@ -1762,12 +1762,13 @@ startup and is the sole GTK conversation presentation (see §5.15).
   in-memory drafts, marks dirty drafts in the list, stages New and Duplicate
   without writing files, validates and saves all dirty drafts with Save, and
   reloads persisted state with Cancel. Rename and Delete are intentionally
-  absent from this UI. The four editable rule collections are one-column
-  `GtkTreeView` controls backed by `GtkListStore` models. A shared bottom
-  action row provides Add Path, Edit Selected, and Remove Selected; the
-  active collection follows selection, pointer, and keyboard focus. Edit Path
-  uses an arbitrary-text prompt so path spelling and missing paths remain
-  representable. Profile persistence is
+  absent from this UI. The four editable rule collections are presented by
+  one single-selection `GtkTreeView` backed by a three-column `GtkListStore`:
+  visible Rule category and Path columns plus a hidden numeric rule key. Rows
+  are ordered by the four categories and preserve path order. A shared bottom
+  action row provides Add Path, Edit Selected, and Remove Selected. Add and
+  Edit use an arbitrary-text path dialog; Add also chooses the rule category,
+  preserving path spelling and missing paths. Profile persistence is
   synchronous local backend access; a failed Save retains unsaved drafts and
   reports failed profiles. Use Profile enqueues typed `Set_Sandbox` for the
   selected agent. The existing Agent → Sandbox Profile... and Ctrl+Shift+S
