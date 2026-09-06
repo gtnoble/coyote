@@ -11,9 +11,12 @@ with Ada.Text_IO;
 with GNATCOLL.JSON;          use GNATCOLL.JSON;
 with Coyote_App.Utils;      use Coyote_App.Utils;
 with LLM.Session_Store;
+with LLM.Types;
 with Session_Lister;         use Session_Lister;
 
 package body Coyote_App.History is
+
+   use type LLM.Types.Tool_Result_Status;
 
    --  ── Session history replay types ──────────────────────────────────────
    --
@@ -25,6 +28,8 @@ package body Coyote_App.History is
       Text       : Unbounded_String;
       Media_Type : Unbounded_String;
       Is_Err     : Boolean := False;
+      Status     : LLM.Types.Tool_Result_Status :=
+        LLM.Types.Result_Success;
    end record;
    package TR_Vectors is new Ada.Containers.Vectors
      (Index_Type   => Natural,
@@ -99,7 +104,8 @@ package body Coyote_App.History is
          return (Id         => Null_Unbounded_String,
                  Text       => Null_Unbounded_String,
                  Media_Type => Null_Unbounded_String,
-                 Is_Err     => False);
+                 Is_Err     => False,
+                 Status     => LLM.Types.Result_Success);
       end Find_TR;
 
       --  Return the direct message object for either supported session
@@ -156,6 +162,16 @@ package body Coyote_App.History is
                              Get_String (Msg, "toolCallId");
                            Is_Err : constant Boolean :=
                              Get_Boolean (Msg, "isError");
+                           Status_Text : constant String :=
+                             Get_String (Msg, "status");
+                           Status : constant LLM.Types.Tool_Result_Status :=
+                             (if Status_Text = "timed_out"
+                              then LLM.Types.Result_Timed_Out
+                              elsif Status_Text = "cancelled"
+                              then LLM.Types.Result_Cancelled
+                              elsif Status_Text = "error" or else Is_Err
+                              then LLM.Types.Result_Error
+                              else LLM.Types.Result_Success);
                            Parts      : Unbounded_String;
                            Media_Type : Unbounded_String;
                         begin
@@ -200,7 +216,8 @@ package body Coyote_App.History is
                                 ((Id         => To_Unbounded_String (Tid),
                                   Text       => Parts,
                                   Media_Type => Media_Type,
-                                  Is_Err     => Is_Err));
+                                  Is_Err     => Is_Err,
+                                  Status     => Status));
                            end if;
                         end;
                      end if;
@@ -500,6 +517,16 @@ package body Coyote_App.History is
                                           begin
                                              Call_In_Turn := Call_In_Turn + 1;
                                              if To_String (TR.Id) = "" then
+                                                Status :=
+                                                  Coyote_App.Frontend.Cancelled;
+                                             elsif TR.Status =
+                                               LLM.Types.Result_Timed_Out
+                                             then
+                                                Status :=
+                                                  Coyote_App.Frontend.Timed_Out;
+                                             elsif TR.Status =
+                                               LLM.Types.Result_Cancelled
+                                             then
                                                 Status :=
                                                   Coyote_App.Frontend.Cancelled;
                                              elsif TR.Is_Err then

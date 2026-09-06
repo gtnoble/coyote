@@ -707,3 +707,16 @@ skill installation-prefix discovery reuses the centralized resolver.
 **Verification:** Added utility and system-prompt tests for active-path
 resolution, repeated command rendering, spaces, and apostrophes. Focused tests
 pass in the development test build.
+
+## 2026-09-06 — Typed tool lifecycle status and timeout persistence (PCR-096)
+
+**Requirement:** Tool execution status must distinguish queued work, actual worker
+execution, successful completion, generic failure, timeout, and cancellation.
+
+**Implementation:** Added `Tool_Execution_Running_Event`, per-worker
+`Execution_Status`, structured shell timeout/abort results, and per-tool terminal
+status mapping. Tool-result JSONL records now include a backward-compatible
+`status` field; legacy records continue to derive status from `isError`.
+
+**Verification:** Shell timeout coverage passes 22/22; agent lifecycle coverage
+passes 42/42; session-store coverage passes 24/24; type coverage passes 8/8.

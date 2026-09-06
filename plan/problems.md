@@ -3155,3 +3155,14 @@ zero failed assertions and zero unexpected errors. The post-cutover suite has
   system-prompt tests pass, including marker elimination and capability-branch
   regressions.
 - **Status:** Implemented
+
+## PCR-096 — Detailed tool-call lifecycle status
+
+- **Date reported:** 2026-09-06
+- **Category:** Requirements, Design, Code, Test, Plans
+- **Priority:** 2-Serious
+- **Description:** The conversation view exposed only coarse Running/Completed/Error/Cancelled labels. Tool calls waiting for a later `run_group` appeared to be running, and shell timeouts were indistinguishable from generic errors except through result text.
+- **Affected work products:** `LLM.Events`, `LLM.Agent`, `LLM.Tools.Shell`, frontend contracts and transports, native conversation cards and detail windows, session JSONL/replay, requirements/design, core/frontend SDFs, and AUnit tests.
+- **Corrective action:** Added typed `Queued`, `Running`, `Success`, `Error`, `Timed_Out`, and `Cancelled` lifecycle states. Tool cards are created queued, receive a running event at worker launch, and receive per-tool terminal causes. Shell timeout/abort causes are structured; session results persist a backward-compatible `status` field; core and SQC replay render timed-out results distinctly.
+- **Verification:** Development production build succeeds. Shell timeout tests pass 22/22, native conversation tests pass 22/22, session-store tests pass 24/24, type tests pass 8/8, and agent tests pass 42/42.
+- **Status:** Implemented; full-suite qualification remains subject to the established test-plan run.

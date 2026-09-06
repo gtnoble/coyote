@@ -127,14 +127,35 @@ package body Coyote_App.Frontend.Plain is
       Source_Directory :      String := "";
       Session_Start   :      String := "";
       Turn_Index      :      Positive := 1;
-      Call_In_Turn    :      Positive := 1)
+      Call_In_Turn    :      Positive := 1;
+      Initial_Status  :      Coyote_App.Frontend.Tool_Status :=
+        Coyote_App.Frontend.Running)
    is
       pragma Unreferenced
         (Session_Id, Tool_Id, Model, Source_Directory, Session_Start,
-         Turn_Index, Call_In_Turn);
+         Turn_Index, Call_In_Turn, Initial_Status);
    begin
       Put_Line (F, "[tool] " & Name & " " & Args_Json);
    end Begin_Tool;
+
+   overriding
+   procedure Set_Tool_Status
+     (F       : in out Instance;
+      Tool_Id :      String;
+      Status  :      Coyote_App.Frontend.Tool_Status)
+   is
+      pragma Unreferenced (Tool_Id);
+      Label : constant String :=
+        (case Status is
+            when Coyote_App.Frontend.Queued     => "queued",
+            when Coyote_App.Frontend.Running    => "running",
+            when Coyote_App.Frontend.Success    => "ok",
+            when Coyote_App.Frontend.Error      => "error",
+            when Coyote_App.Frontend.Timed_Out  => "timed out",
+            when Coyote_App.Frontend.Cancelled  => "cancelled");
+   begin
+      Put_Line (F, "[tool " & Label & "]");
+   end Set_Tool_Status;
 
    overriding
    procedure End_Tool
@@ -149,6 +170,7 @@ package body Coyote_App.Frontend.Plain is
         (case Status is
             when Coyote_App.Frontend.Success   => "ok",
             when Coyote_App.Frontend.Error     => "error",
+            when Coyote_App.Frontend.Timed_Out => "timed out",
             when Coyote_App.Frontend.Cancelled => "cancelled");
    begin
       Put_Line (F, "[tool " & Label & "]");

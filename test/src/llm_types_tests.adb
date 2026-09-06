@@ -63,7 +63,8 @@ package body LLM_Types_Tests is
          Result_Id   => To_Unbounded_String ("call-1"),
          Result_Text => To_Unbounded_String ("file contents"),
          Media_Type  => Null_Unbounded_String,
-         Is_Error    => True);
+         Is_Error    => True,
+         Status      => Result_Error);
    begin
       Assert
         (To_String (Block.Result_Id) = "call-1",
@@ -175,7 +176,8 @@ package body LLM_Types_Tests is
          Result_Id   => To_Unbounded_String ("call-2"),
          Result_Text => To_Unbounded_String ("SGVsbG8="),
          Media_Type  => To_Unbounded_String ("image/png"),
-         Is_Error    => False);
+         Is_Error    => False,
+         Status      => Result_Success);
    begin
       Assert
         (To_String (Block.Result_Id) = "call-2",

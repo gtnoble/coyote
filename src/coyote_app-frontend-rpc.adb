@@ -149,7 +149,9 @@ package body Coyote_App.Frontend.RPC is
       Source_Directory : String := "";
       Session_Start   : String := "";
       Turn_Index      : Positive := 1;
-      Call_In_Turn    : Positive := 1)
+      Call_In_Turn    : Positive := 1;
+      Initial_Status  : Coyote_App.Frontend.Tool_Status :=
+        Coyote_App.Frontend.Running)
    is
       Data : constant JSON_Value := Object;
    begin
@@ -172,8 +174,35 @@ package body Coyote_App.Frontend.RPC is
       Data.Set_Field ("sessionStart", Session_Start);
       Data.Set_Field ("turn", Integer (Turn_Index));
       Data.Set_Field ("call", Integer (Call_In_Turn));
+      Data.Set_Field
+        ("status", (case Initial_Status is
+                       when Coyote_App.Frontend.Queued => "queued",
+                       when Coyote_App.Frontend.Running => "running",
+                       when Coyote_App.Frontend.Success => "success",
+                       when Coyote_App.Frontend.Error => "error",
+                       when Coyote_App.Frontend.Timed_Out => "timed_out",
+                       when Coyote_App.Frontend.Cancelled => "cancelled"));
       Emit (F, Tool_Start, Data);
    end Begin_Tool;
+
+   overriding procedure Set_Tool_Status
+     (F       : in out Instance;
+      Tool_Id : String;
+      Status  : Coyote_App.Frontend.Tool_Status)
+   is
+      Data : constant JSON_Value := Object;
+   begin
+      Data.Set_Field ("toolId", Tool_Id);
+      Data.Set_Field
+        ("status", (case Status is
+                       when Coyote_App.Frontend.Queued => "queued",
+                       when Coyote_App.Frontend.Running => "running",
+                       when Coyote_App.Frontend.Success => "success",
+                       when Coyote_App.Frontend.Error => "error",
+                       when Coyote_App.Frontend.Timed_Out => "timed_out",
+                       when Coyote_App.Frontend.Cancelled => "cancelled"));
+      Emit (F, Coyote_App.Agent_RPC.Tool_Status, Data);
+   end Set_Tool_Status;
 
    overriding procedure End_Tool
      (F           : in out Instance;
@@ -191,6 +220,7 @@ package body Coyote_App.Frontend.RPC is
         ("status", (case Status is
                       when Coyote_App.Frontend.Success => "success",
                       when Coyote_App.Frontend.Error => "error",
+                      when Coyote_App.Frontend.Timed_Out => "timed_out",
                       when Coyote_App.Frontend.Cancelled => "cancelled"));
       Emit (F, Tool_End, Data);
    end End_Tool;

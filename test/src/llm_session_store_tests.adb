@@ -21,6 +21,7 @@ package body LLM_Session_Store_Tests is
    use type LLM.Types.Content_Block_Kind;
    use type LLM.Types.Role;
    use type LLM.Types.Stop_Reason;
+   use type LLM.Types.Tool_Result_Status;
 
    function Getpid return Integer;
    pragma Import (C, Getpid, "getpid");
@@ -354,7 +355,8 @@ package body LLM_Session_Store_Tests is
           Result_Id   => To_Unbounded_String ("call-1"),
           Result_Text => To_Unbounded_String ("file contents"),
           Media_Type  => Null_Unbounded_String,
-          Is_Error    => False));
+          Is_Error    => False,
+          Status      => LLM.Types.Result_Success));
 
       return
         (Role      => LLM.Types.Tool_Result,
@@ -713,6 +715,10 @@ package body LLM_Session_Store_Tests is
          Assert
            (not Messages.Element (0).Content.Element (0).Is_Error,
             "Tool result error flag should round-trip");
+         Assert
+           (Messages.Element (0).Content.Element (0).Status =
+              LLM.Types.Result_Success,
+            "Tool result terminal status should round-trip");
       end;
 
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -1366,7 +1372,8 @@ package body LLM_Session_Store_Tests is
           Result_Id   => To_Unbounded_String ("call-large"),
           Result_Text => To_Unbounded_String (Large_Text),
           Media_Type  => Null_Unbounded_String,
-          Is_Error    => False));
+          Is_Error    => False,
+          Status      => LLM.Types.Result_Success));
 
       declare
          Msg : constant LLM.Types.Message :=

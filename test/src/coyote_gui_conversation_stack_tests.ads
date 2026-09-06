@@ -45,6 +45,7 @@ package Coyote_GUI_Conversation_Stack_Tests is
    procedure Test_New_Request_Resets_Step_Frames
      (T : in out Test);
    procedure Test_Tool_Updates_By_Stable_Id (T : in out Test);
+   procedure Test_Tool_Status_Transitions (T : in out Test);
    procedure Test_Tool_Cards_Use_Responsive_Flow (T : in out Test);
    procedure Test_Tool_Card_Uses_Native_Labels (T : in out Test);
    procedure Test_Footer_Kind_And_Completion_Are_Explicit (T : in out Test);

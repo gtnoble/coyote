@@ -61,6 +61,9 @@ package LLM.Events is
       Args_Json    : Ada.Strings.Unbounded.Unbounded_String;
    end record;
 
+   type Tool_Execution_Running_Event is new Agent_Event with record
+      Tool_Call_Id : Ada.Strings.Unbounded.Unbounded_String;
+   end record;
    type Tool_Execution_End_Event is new Agent_Event with record
       Tool_Call_Id : Ada.Strings.Unbounded.Unbounded_String;
       Tool_Name    : Ada.Strings.Unbounded.Unbounded_String;
@@ -68,6 +71,7 @@ package LLM.Events is
       Media_Type   : Ada.Strings.Unbounded.Unbounded_String :=
         Ada.Strings.Unbounded.Null_Unbounded_String;
       Is_Error     : Boolean := False;
+      Is_Timed_Out : Boolean := False;
       Is_Cancelled : Boolean := False;
    end record;
    type Model_Select_Event is new Agent_Event with record

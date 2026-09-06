@@ -1017,3 +1017,14 @@ Display-backed regressions cover raw-stream removal, rendered-text selection,
 valid and invalid MathML visibility after `Show_All`, and shared response
 styling. Production and test development builds succeed; the complete suite
 passes 806/806 with zero failed assertions and zero unexpected errors.
+
+## 2026-09-06 — Detailed tool-call statuses (PCR-096)
+
+Native tool cards now render `Queued`, `Running`, `Completed`, `Error`,
+`Timed out`, and `Cancelled`. Cards update by stable tool ID; detail windows
+and RPC/replay presentations carry the same terminal vocabulary. The card is
+created queued and transitions to running only when its worker starts, so
+later run groups no longer appear active prematurely.
+
+The native conversation lifecycle regression covers queued → running → timed
+out transitions and passes 1/1 focused, 22/22 in the conversation-stack group.

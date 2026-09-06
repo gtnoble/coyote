@@ -12,7 +12,9 @@ with Ada.Strings.Unbounded;
 package Coyote_GUI is
 
    --  Tool status shared by native cards and the GTK update queue.
-   type Tool_End_Status is (Success, Error, Cancelled);
+   type Tool_Status is
+     (Queued, Running, Success, Error, Timed_Out, Cancelled);
+   subtype Tool_End_Status is Tool_Status range Success .. Cancelled;
 
    --  Tool metadata retained for native detail windows and tool cards.
    type Tool_Info is record
@@ -23,7 +25,7 @@ package Coyote_GUI is
       Args             : Ada.Strings.Unbounded.Unbounded_String;
       Result_Text      : Ada.Strings.Unbounded.Unbounded_String;
       Media_Type       : Ada.Strings.Unbounded.Unbounded_String;
-      Result_Status    : Tool_End_Status := Success;
+      Result_Status    : Tool_Status := Queued;
       Completed        : Boolean := False;
       Model            : Ada.Strings.Unbounded.Unbounded_String;
       Source_Directory : Ada.Strings.Unbounded.Unbounded_String;
@@ -116,6 +118,7 @@ package Coyote_GUI is
    --                       Text2 = result text
    --                       Text3 = media type
    --                       T_Status = status
+   --    Set_Tool_Status    Text  = tool id; T_Status = lifecycle status
    --    Append_Notice      Text = message; N_Kind = severity
    --    Append_Turn_Footer Text = formatted footer; Text2 = typed summary;
    --                       F_Kind = step or final
@@ -158,6 +161,7 @@ package Coyote_GUI is
       Append_Thinking,
       End_Thinking,
       Begin_Tool,
+      Set_Tool_Status,
       End_Tool,
       Append_Notice,
       Append_Turn_Footer,
@@ -188,7 +192,7 @@ package Coyote_GUI is
       Tool_Turn : Natural := 0;
       Tool_Call : Natural := 0;
       Stats    : Session_Stats_Record;
-      T_Status : Tool_End_Status := Success;
+      T_Status : Tool_Status := Queued;
       Mode     : Run_Mode        := Idle;
       N_Kind   : Notice_Kind     := Info;
       R_Kind   : Request_Kind    := Prompt;

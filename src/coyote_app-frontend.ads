@@ -64,9 +64,11 @@ package Coyote_App.Frontend is
 
    procedure End_Thinking     (F : in out Instance) is abstract;
 
-   --  Tool execution lifecycle. Session_Id and Tool_Id identify the tool
-   --  segment for replay and detail presentation.
-   type Tool_End_Status is (Success, Error, Cancelled);
+   --  Tool execution lifecycle.  A card may be queued before an executor
+   --  starts it; terminal values describe the execution outcome.
+   type Tool_Status is
+     (Queued, Running, Success, Error, Timed_Out, Cancelled);
+   subtype Tool_End_Status is Tool_Status range Success .. Cancelled;
 
    procedure Begin_Tool
      (F               : in out Instance;
@@ -78,7 +80,13 @@ package Coyote_App.Frontend is
       Source_Directory :      String := "";
       Session_Start   :      String := "";
       Turn_Index      :      Positive := 1;
-      Call_In_Turn    :      Positive := 1) is abstract;
+      Call_In_Turn    :      Positive := 1;
+      Initial_Status  :      Tool_Status := Running) is abstract;
+
+   procedure Set_Tool_Status
+     (F       : in out Instance;
+      Tool_Id :      String;
+      Status  :      Tool_Status) is abstract;
 
    procedure End_Tool
      (F           : in out Instance;

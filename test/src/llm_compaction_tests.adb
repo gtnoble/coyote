@@ -116,7 +116,8 @@ package body LLM_Compaction_Tests is
           Result_Id   => To_Unbounded_String (Tool_Call_Id),
           Result_Text => To_Unbounded_String (Result_Text),
           Media_Type  => Null_Unbounded_String,
-          Is_Error    => False));
+          Is_Error    => False,
+          Status      => LLM.Types.Result_Success));
 
       return
         (Role      => LLM.Types.Tool_Result,

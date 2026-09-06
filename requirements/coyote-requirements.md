@@ -469,7 +469,10 @@ representation of the current working directory path.
 **REQ-CORE-081** (T)
 The session JSONL file shall contain a header record, one record per message
 (user, assistant, tool result), compaction records, and model-change records,
-in the v3 envelope format.
+in the v3 envelope format. Tool-result records shall persist a terminal
+`status` of `success`, `error`, `timed_out`, or `cancelled` alongside the
+legacy `isError` flag. Readers shall derive the terminal status from `isError`
+when loading older records that lack `status`.
 
 **REQ-CORE-082** (T)
 When `--session UUID` is given, the agent shall reload the conversation
@@ -641,12 +644,16 @@ or runtime renderer-selection flag is provided.
 
 **REQ-CORE-112** (D)
 Tool calls shall be rendered in the conversation view as graphical cards
-using the GTK renderer, showing the tool name, argument summary, running
-state, and success, error, or cancelled status indicator.  Every card shall
-be clickable to open a captured tool-call detail snapshot.  While execution
-is active, the snapshot shall show the invocation metadata and arguments,
-`Running` status, and an explicit message that no result is available yet.
-Completed snapshots shall additionally show the captured full result.
+using the GTK renderer, showing the tool name, argument summary, and a
+status indicator.  The lifecycle vocabulary shall distinguish `Queued`,
+`Running`, `Completed`, `Error`, `Timed out`, and `Cancelled`.  A card shall
+remain `Queued` until its worker starts; this is required for sequential and
+run-group execution.  Every card shall be clickable to open a captured
+tool-call detail snapshot.  While execution is active, the snapshot shall
+show the invocation metadata and arguments, `Queued` or `Running` status,
+and an explicit message that no result is available yet.  Completed,
+failed, timed-out, and cancelled snapshots shall additionally show the
+captured result or diagnostic text.
 
 **REQ-CORE-113** (D)
 The GUI frontend shall provide the following native menu actions: Send, Stop,
@@ -714,9 +721,10 @@ Each GUI tool card shall provide a `View Details` action that opens an
 independent, non-modal transient support window titled `coyote : Tool Call
 Details`. The conversation card shall display only the compact tool summary
 and status; it shall not display raw arguments, full results, or image result
-content. For an active call, the snapshot shall display the tool name, `Running`
-status, session timestamp, model, source directory, turn number, call position,
-and the captured arguments, followed by an explicit no-result-yet message. For
+content. For an active call, the snapshot shall display the tool name, `Queued` or
+`Running` status, session timestamp, model, source directory, turn number,
+call position, and the captured arguments, followed by an explicit
+no-result-yet message. For
 a completed call, the window shall additionally display the full result in a
 read-only selectable view, or decode an image result into a GTK image. The
 window shall provide outer vertical scrolling, a visible Close action, Help

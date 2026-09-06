@@ -173,6 +173,9 @@ package body Coyote_SQC.UI.Tool_Detail_Window is
             when Coyote_Renderer.Session_View.Error     =>
                "label { background-color: #f8d7da; color: #721c24;"
                & " padding: 4px; font-weight: bold; }",
+            when Coyote_Renderer.Session_View.Timed_Out =>
+               "label { background-color: #fff3cd; color: #856404;"
+               & " padding: 4px; font-weight: bold; }",
             when Coyote_Renderer.Session_View.Cancelled =>
                "label { background-color: #e2e3e5; color: #383d41;"
                & " padding: 4px; font-weight: bold; }");
@@ -309,6 +312,7 @@ package body Coyote_SQC.UI.Tool_Detail_Window is
          case Status is
             when Coyote_Renderer.Session_View.Success   => return UC_CHECK;
             when Coyote_Renderer.Session_View.Error     => return UC_CROSS;
+            when Coyote_Renderer.Session_View.Timed_Out => return "!";
             when Coyote_Renderer.Session_View.Cancelled => return "-";
          end case;
       end Status_Icon;
@@ -320,6 +324,8 @@ package body Coyote_SQC.UI.Tool_Detail_Window is
                return UC_CHECK & " success";
             when Coyote_Renderer.Session_View.Error     =>
                return UC_CROSS & " error";
+            when Coyote_Renderer.Session_View.Timed_Out =>
+               return "! timed out";
             when Coyote_Renderer.Session_View.Cancelled =>
                return "- cancelled";
          end case;

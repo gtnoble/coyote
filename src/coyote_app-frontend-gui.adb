@@ -1522,7 +1522,13 @@ package body Coyote_App.Frontend.GUI is
                Source_Directory => To_String (U.Text6),
                Session_Start    => To_String (U.Text7),
                Turn_Index       => Positive'Max (U.Tool_Turn, 1),
-               Call_In_Turn     => Positive'Max (U.Tool_Call, 1));
+               Call_In_Turn     => Positive'Max (U.Tool_Call, 1),
+               Initial_Status  => U.T_Status);
+
+         when Set_Tool_Status =>
+            F.Stack.Set_Tool_Status
+              (Tool_Id => To_String (U.Text),
+               Status  => U.T_Status);
 
          when End_Tool =>
             F.Stack.End_Tool
@@ -4290,7 +4296,8 @@ package body Coyote_App.Frontend.GUI is
       Source_Directory :      String := "";
       Session_Start   :      String := "";
       Turn_Index      :      Positive := 1;
-      Call_In_Turn    :      Positive := 1)
+      Call_In_Turn    :      Positive := 1;
+      Initial_Status  :      Tool_Status := Running)
    is
       U : Coyote_GUI.Update;
    begin
@@ -4304,8 +4311,26 @@ package body Coyote_App.Frontend.GUI is
       U.Text7 := To_Unbounded_String (Session_Start);
       U.Tool_Turn := Turn_Index;
       U.Tool_Call := Call_In_Turn;
+      U.T_Status := Coyote_GUI.Tool_Status'Val
+        (Tool_Status'Pos (Initial_Status));
       Enqueue_Update (F, U);
    end Begin_Tool;
+
+   overriding
+   procedure Set_Tool_Status
+     (F       : in out Instance;
+      Tool_Id :      String;
+      Status  :      Tool_Status)
+   is
+      U : Coyote_GUI.Update;
+   begin
+      U.Kind := Coyote_GUI.Set_Tool_Status;
+      U.Text := To_Unbounded_String (Tool_Id);
+      U.T_Status := Coyote_GUI.Tool_Status'Val
+        (Tool_Status'Pos (Status));
+      Enqueue_Update (F, U);
+   end Set_Tool_Status;
+
    overriding
    procedure End_Tool
      (F           : in out Instance;

@@ -75,7 +75,14 @@ package Coyote_GUI.Conversation_Stack is
       Source_Directory : String := "";
       Session_Start   : String := "";
       Turn_Index      : Positive := 1;
-      Call_In_Turn    : Positive := 1);
+      Call_In_Turn    : Positive := 1;
+      Initial_Status  : Coyote_GUI.Tool_Status :=
+        Coyote_GUI.Running);
+
+   procedure Set_Tool_Status
+     (C       : in out Instance;
+      Tool_Id : String;
+      Status  : Coyote_GUI.Tool_Status);
 
    procedure End_Tool
      (C          : in out Instance;

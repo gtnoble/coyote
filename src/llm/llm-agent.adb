@@ -36,6 +36,7 @@ package body LLM.Agent is
    use type LLM.Types.Role;
    use type LLM.Types.Stop_Reason;
    use type LLM.Types.Usage;
+   use type LLM.Tools.Shell.Execution_Status;
    use type GNATCOLL.JSON.JSON_Value_Type;
 
    type Pending_Tool is record
@@ -66,6 +67,8 @@ package body LLM.Agent is
       Media_Type  : Ada.Strings.Unbounded.Unbounded_String :=
         Ada.Strings.Unbounded.Null_Unbounded_String;
       Is_Error    : Boolean := False;
+      Status      : LLM.Tools.Shell.Execution_Status :=
+        LLM.Tools.Shell.Aborted;
    end record;
 
    type Tool_Result_Slot_Array is array (Positive range <>) of
@@ -78,7 +81,8 @@ package body LLM.Agent is
         (Index      : Positive;
          Result     : Ada.Strings.Unbounded.Unbounded_String;
          Media_Type : Ada.Strings.Unbounded.Unbounded_String;
-         Is_Error   : Boolean);
+         Is_Error   : Boolean;
+         Status     : LLM.Tools.Shell.Execution_Status);
       entry Wait_All;
       function Get (Index : Positive) return Tool_Result_Slot;
    private
@@ -104,13 +108,15 @@ package body LLM.Agent is
         (Index      : Positive;
          Result     : Ada.Strings.Unbounded.Unbounded_String;
          Media_Type : Ada.Strings.Unbounded.Unbounded_String;
-         Is_Error   : Boolean)
+         Is_Error   : Boolean;
+         Status     : LLM.Tools.Shell.Execution_Status)
       is
       begin
          Slots (Index) :=
            (Result_Text => Result,
             Media_Type  => Media_Type,
-            Is_Error    => Is_Error);
+            Is_Error    => Is_Error,
+            Status      => Status);
          Done_Count := Done_Count + 1;
       end Set;
 
@@ -132,6 +138,8 @@ package body LLM.Agent is
       Result     : Ada.Strings.Unbounded.Unbounded_String;
       Media_Type : Ada.Strings.Unbounded.Unbounded_String;
       Is_Error   : Boolean := False;
+      Status     : LLM.Tools.Shell.Execution_Status :=
+        LLM.Tools.Shell.Failed;
    begin
       accept Start
         (Index : Positive;
@@ -144,12 +152,13 @@ package body LLM.Agent is
       begin
          if Ada.Strings.Unbounded.To_String (My_Tool.Tool_Name) = "shell"
          then
-            LLM.Tools.Shell.Execute
+            LLM.Tools.Shell.Execute_With_Status
               (Args_Json       => Ada.Strings.Unbounded.To_String
                                     (My_Tool.Arguments_Json),
                Result          => Result,
                Media_Type      => Media_Type,
                Is_Error        => Is_Error,
+               Status          => Status,
                Abort_Flg       => Abort_Flg,
                Sandbox_Profile => Ada.Strings.Unbounded.To_String
                                     (Sandbox_Profile.all));
@@ -174,6 +183,7 @@ package body LLM.Agent is
                  & Ada.Strings.Unbounded.To_String (My_Tool.Tool_Name));
             Media_Type := Ada.Strings.Unbounded.Null_Unbounded_String;
             Is_Error   := True;
+            Status     := LLM.Tools.Shell.Failed;
          end if;
       exception
          when Ex : others =>
@@ -181,9 +191,10 @@ package body LLM.Agent is
               (Ada.Exceptions.Exception_Message (Ex));
             Media_Type := Ada.Strings.Unbounded.Null_Unbounded_String;
             Is_Error   := True;
+            Status     := LLM.Tools.Shell.Failed;
       end;
 
-      Store.Set (My_Index, Result, Media_Type, Is_Error);
+      Store.Set (My_Index, Result, Media_Type, Is_Error, Status);
    end Worker_Task;
 
    type Open_Block_Kind is (No_Open_Block, Open_Text, Open_Thinking);
@@ -569,6 +580,8 @@ package body LLM.Agent is
      (Tool_Call_Id : String;
       Result_Text  : String;
       Is_Error     : Boolean;
+      Status       : LLM.Types.Tool_Result_Status :=
+        LLM.Types.Result_Success;
       Media_Type   : String := "") return LLM.Types.Message
    is
       Content : LLM.Types.Content_Block_Vectors.Vector;
@@ -578,6 +591,7 @@ package body LLM.Agent is
           Result_Id   => To_Unbounded_String (Tool_Call_Id),
           Result_Text => To_Unbounded_String (Result_Text),
           Is_Error    => Is_Error,
+          Status      => Status,
           Media_Type  => To_Unbounded_String (Media_Type)));
 
       return
@@ -2068,6 +2082,16 @@ package body LLM.Agent is
                                            .Context_Window,
                                        Sandbox_Profile =>
                                          S.Sandbox_Profile'Access);
+                                    declare
+                                       Running_Event : constant
+                                         LLM.Events.Tool_Execution_Running_Event :=
+                                           (LLM.Events.Agent_Event with
+                                            Tool_Call_Id =>
+                                              Pending_Tools.Element
+                                                (Slot_Map (W) - 1).Tool_Call_Id);
+                                    begin
+                                       Emit (On_Event, Running_Event);
+                                    end;
                                     Workers (W).Start
                                       (Index => W,
                                        Tool  =>
@@ -2106,6 +2130,14 @@ package body LLM.Agent is
                                 S.Model_Info.Context_Window,
                               Sandbox_Profile =>
                                 S.Sandbox_Profile'Access);
+                           declare
+                              Running_Event : constant
+                                LLM.Events.Tool_Execution_Running_Event :=
+                                  (LLM.Events.Agent_Event with
+                                   Tool_Call_Id => Tool.Tool_Call_Id);
+                           begin
+                              Emit (On_Event, Running_Event);
+                           end;
                            Worker.Start
                              (Index => 1, Tool => Tool);
                            Store.Wait_All;
@@ -2142,8 +2174,10 @@ package body LLM.Agent is
                                   Slot.Media_Type,
                                 Is_Error     =>
                                   Slot.Is_Error,
+                                Is_Timed_Out =>
+                                  Slot.Status = LLM.Tools.Shell.Timed_Out,
                                 Is_Cancelled =>
-                                  S.Abort_State.Requested);
+                                  Slot.Status = LLM.Tools.Shell.Aborted);
                            Stored_Text : constant String :=
                              Ada.Strings.Unbounded.To_String
                                (Slot.Result_Text)
@@ -2162,6 +2196,16 @@ package body LLM.Agent is
                                      (Tool_Block.Tool_Call_Id),
                                  Result_Text  => Stored_Text,
                                  Is_Error     => Slot.Is_Error,
+                                 Status       =>
+                                   (case Slot.Status is
+                                       when LLM.Tools.Shell.Completed =>
+                                         LLM.Types.Result_Success,
+                                       when LLM.Tools.Shell.Timed_Out =>
+                                         LLM.Types.Result_Timed_Out,
+                                       when LLM.Tools.Shell.Aborted =>
+                                         LLM.Types.Result_Cancelled,
+                                       when LLM.Tools.Shell.Failed =>
+                                         LLM.Types.Result_Error),
                                  Media_Type   =>
                                    Ada.Strings.Unbounded.To_String
                                      (Slot.Media_Type)));
