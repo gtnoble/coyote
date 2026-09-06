@@ -91,6 +91,14 @@ package body LLM.Providers.OpenAI_Responses is
       P.Api_Key := To_Unbounded_String (Api_Key);
    end Set_Api_Key;
 
+   procedure Set_Inline_Cache_Hints
+      (P       : in out Provider;
+     Enabled :        Boolean)
+   is
+   begin
+      P.Inline_Cache_Hints := Enabled;
+   end Set_Inline_Cache_Hints;
+
    function Get_Api_Key (P : Provider) return String is
    begin
       return To_String (P.Api_Key);
@@ -407,26 +415,28 @@ package body LLM.Providers.OpenAI_Responses is
    end Unpack_Reasoning_Signature;
 
    procedure Append_Text_Part
-      (Content    : in out GNATCOLL.JSON.JSON_Array;
-     Part_Type  :        String;
-     Text       :        String;
-     Breakpoint :        Boolean)
+      (Content            : in out GNATCOLL.JSON.JSON_Array;
+     Part_Type          :        String;
+     Text               :        String;
+     Breakpoint         :        Boolean;
+     Inline_Cache_Hints :        Boolean)
    is
       Part : constant GNATCOLL.JSON.JSON_Value :=
          GNATCOLL.JSON.Create_Object;
    begin
       Part.Set_Field ("type", Part_Type);
       Part.Set_Field ("text", Text);
-      if Breakpoint then
+      if Breakpoint and then Inline_Cache_Hints then
          Part.Set_Field ("prompt_cache_breakpoint", Make_Cache_Breakpoint);
       end if;
       GNATCOLL.JSON.Append (Content, Part);
    end Append_Text_Part;
 
    procedure Append_User_Item
-      (Input      : in out GNATCOLL.JSON.JSON_Array;
-     Msg        :        LLM.Types.Message;
-     Breakpoint :        Boolean)
+      (Input             : in out GNATCOLL.JSON.JSON_Array;
+     Msg               :        LLM.Types.Message;
+     Breakpoint        :        Boolean;
+     Inline_Cache_Hints :        Boolean)
    is
       Item    : constant GNATCOLL.JSON.JSON_Value :=
          GNATCOLL.JSON.Create_Object;
@@ -435,7 +445,8 @@ package body LLM.Providers.OpenAI_Responses is
       Item.Set_Field ("type", "message");
       Item.Set_Field ("role", "user");
       Append_Text_Part
-         (Content, "input_text", Message_Text (Msg), Breakpoint);
+         (Content, "input_text", Message_Text (Msg), Breakpoint,
+          Inline_Cache_Hints);
       Item.Set_Field ("content", Content);
       GNATCOLL.JSON.Append (Input, Item);
    end Append_User_Item;
@@ -518,9 +529,10 @@ package body LLM.Providers.OpenAI_Responses is
    end Append_Assistant_Items;
 
    procedure Append_Tool_Result_Item
-      (Input      : in out GNATCOLL.JSON.JSON_Array;
-     Msg        :        LLM.Types.Message;
-     Breakpoint :        Boolean)
+      (Input             : in out GNATCOLL.JSON.JSON_Array;
+     Msg               :        LLM.Types.Message;
+     Breakpoint        :        Boolean;
+     Inline_Cache_Hints :        Boolean)
    is
       Item         : constant GNATCOLL.JSON.JSON_Value :=
          GNATCOLL.JSON.Create_Object;
@@ -560,7 +572,7 @@ package body LLM.Providers.OpenAI_Responses is
                ("image_url",
              "data:" & To_String (Media_Type) & ";base64,"
              & To_String (Result_Text));
-            if Breakpoint then
+            if Breakpoint and then Inline_Cache_Hints then
                Image_Part.Set_Field
                   ("prompt_cache_breakpoint", Make_Cache_Breakpoint);
             end if;
@@ -574,7 +586,8 @@ package body LLM.Providers.OpenAI_Responses is
                   GNATCOLL.JSON.Empty_Array;
             begin
                Append_Text_Part
-                  (Output, "input_text", To_String (Result_Text), True);
+                  (Output, "input_text", To_String (Result_Text), True,
+                   Inline_Cache_Hints);
                Item.Set_Field ("output", Output);
             end;
          else
@@ -638,11 +651,13 @@ package body LLM.Providers.OpenAI_Responses is
          begin
             case Msg.Role is
                when LLM.Types.User | LLM.Types.Compaction_Summary =>
-                  Append_User_Item (Input, Msg, Breakpoint);
+                  Append_User_Item
+                     (Input, Msg, Breakpoint, P.Inline_Cache_Hints);
                when LLM.Types.Assistant =>
                   Append_Assistant_Items (Input, Msg);
                when LLM.Types.Tool_Result =>
-                  Append_Tool_Result_Item (Input, Msg, Breakpoint);
+                  Append_Tool_Result_Item
+                     (Input, Msg, Breakpoint, P.Inline_Cache_Hints);
             end case;
          end;
       end loop;
@@ -674,7 +689,7 @@ package body LLM.Providers.OpenAI_Responses is
                            Item : constant GNATCOLL.JSON.JSON_Value :=
                               GNATCOLL.JSON.Get (Raw_Tools, I);
                         begin
-                           if I = Last then
+                           if I = Last and then P.Inline_Cache_Hints then
                               Item.Set_Field
                                  ("prompt_cache_breakpoint",
                                Make_Cache_Breakpoint);

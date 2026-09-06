@@ -8,6 +8,7 @@ with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with LLM.HTTP;
 with LLM.Providers.Anthropic_Messages;
 with LLM.Providers.OpenAI_Completions;
+with LLM.Providers.OpenAI_Responses;
 with LLM.Providers.OpenCode_Go.Catalogue;
 use type LLM.Providers.OpenCode_Go.Catalogue.Wire_Kind;
 with LLM.Settings;
@@ -91,6 +92,32 @@ package body LLM.Providers.OpenCode_Go is
             --  non-anthropic.com base URLs, which is correct for OpenCode Go.
             Delegate.Send
               (Model_Id      => Model_Id,
+               System_Prompt => System_Prompt,
+               Messages      => Messages,
+               Tools_Json    => Tools_Json,
+               Thinking      => Thinking,
+               Max_Tokens    => Max_Tokens,
+               Handler       => Handler,
+               Abort_Check  => Abort_Check);
+         end;
+      elsif Wire = LLM.Providers.OpenCode_Go.Catalogue.OpenAI_Responses_Wire
+      then
+         declare
+            V1_Base : constant String :=
+              (if Base_Url'Length > 0
+                    and then Base_Url (Base_Url'Last) = '/'
+               then Base_Url & "v1"
+               else Base_Url & "/v1");
+            Delegate : LLM.Providers.OpenAI_Responses.Provider :=
+              LLM.Providers.OpenAI_Responses.Create
+                (Base_Url => V1_Base,
+                 Api_Key  => Api_Key);
+         begin
+            LLM.Providers.OpenAI_Responses.Set_Inline_Cache_Hints
+              (Delegate, False);
+            LLM.Providers.OpenAI_Responses.Send_Request
+              (P             => Delegate,
+               Model_Id      => Model_Id,
                System_Prompt => System_Prompt,
                Messages      => Messages,
                Tools_Json    => Tools_Json,

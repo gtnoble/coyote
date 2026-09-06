@@ -37,6 +37,11 @@ package LLM.Providers.OpenAI_Responses is
       (P       : in out Provider;
      Api_Key :        String);
 
+   --  Enable or disable provider-independent inline cache hints.
+   procedure Set_Inline_Cache_Hints
+      (P       : in out Provider;
+     Enabled :        Boolean);
+
    --  Return the configured bearer token.
    function Get_Api_Key (P : Provider) return String;
 
@@ -99,10 +104,11 @@ private
      Element_Type => Header_Entry);
 
    type Provider is new LLM.Providers.Provider with record
-      Base_Url      : Ada.Strings.Unbounded.Unbounded_String;
-      Api_Key       : Ada.Strings.Unbounded.Unbounded_String;
-      Extra_Headers : Header_Entry_Vectors.Vector;
-      Use_Streaming : Boolean := True;
+      Base_Url           : Ada.Strings.Unbounded.Unbounded_String;
+      Api_Key            : Ada.Strings.Unbounded.Unbounded_String;
+      Extra_Headers      : Header_Entry_Vectors.Vector;
+      Use_Streaming      : Boolean := True;
+      Inline_Cache_Hints : Boolean := True;
    end record;
 
 end LLM.Providers.OpenAI_Responses;

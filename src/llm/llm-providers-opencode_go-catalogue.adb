@@ -29,9 +29,20 @@ package body LLM.Providers.OpenCode_Go.Catalogue is
       Lower_Id : constant String :=
         Ada.Characters.Handling.To_Lower (Model_Id);
    begin
-      --  MiniMax M2.5 and M2.7 use the Anthropic /v1/messages endpoint.
+      --  OpenCode Go documents these models on the OpenAI Responses
+      --  endpoint.
+      if Lower_Id = "grok-4.6"
+        or else Lower_Id = "gpt-5.6-luna"
+        or else Lower_Id = "muse-spark-1.3-contributor"
+        or else Lower_Id = "muse-spark-1.2-contributor"
+      then
+         return OpenAI_Responses_Wire;
+      end if;
+
+      --  MiniMax models use the Anthropic /v1/messages endpoint.
       if Lower_Id = "minimax-m2.5"
         or else Lower_Id = "minimax-m2.7"
+        or else Lower_Id = "minimax-m3"
       then
          return Anthropic_Messages_Wire;
       end if;

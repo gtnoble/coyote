@@ -666,6 +666,25 @@ package body LLM_Model_Registry_Tests is
          raise;
    end Test_OpenCode_Go_Wire_Format_OpenAI;
 
+   --  Verify that documented OpenCode Go Responses models retain their wire.
+   procedure Test_OpenCode_Go_Wire_Format_Responses (T : in out Test) is
+      pragma Unreferenced (T);
+
+      procedure Check (Model_Id : String) is
+         Model : constant LLM.Model_Registry.Model_Info :=
+           LLM.Model_Registry.Lookup ("opencode-go", Model_Id);
+      begin
+         Assert
+           (To_String (Model.Wire_Format) = "openai-responses",
+            "OpenCode Go Responses model should retain Responses wire");
+      end Check;
+   begin
+      Check ("grok-4.6");
+      Check ("gpt-5.6-luna");
+      Check ("muse-spark-1.3-contributor");
+      Check ("muse-spark-1.2-contributor");
+   end Test_OpenCode_Go_Wire_Format_Responses;
+
    --  Verify that unknown opencode-go models get a sensible default.
    procedure Test_OpenCode_Go_Default_Fallback (T : in out Test) is
       pragma Unreferenced (T);
@@ -809,6 +828,11 @@ package body LLM_Model_Registry_Tests is
            ("LLM.Model_Registry DeepSeek V4 Pro uses OpenAI wire format",
             LLM_Model_Registry_Tests
               .Test_OpenCode_Go_Wire_Format_OpenAI'Access));
+      Result.Add_Test (LLM_Model_Registry_Caller.Create
+           ("LLM.Model_Registry Responses OpenCode Go models use
+            Responses wire",
+            LLM_Model_Registry_Tests
+              .Test_OpenCode_Go_Wire_Format_Responses'Access));
       Result.Add_Test (LLM_Model_Registry_Caller.Create
            ("LLM.Model_Registry defaults unknown opencode-go ids",
             LLM_Model_Registry_Tests

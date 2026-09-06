@@ -100,6 +100,9 @@ package body LLM.Model_Registry is
            (if Item.Wire =
               LLM.Providers.OpenCode_Go.Catalogue.Anthropic_Messages_Wire
             then To_Unbounded_String ("anthropic-messages")
+            elsif Item.Wire =
+              LLM.Providers.OpenCode_Go.Catalogue.OpenAI_Responses_Wire
+            then To_Unbounded_String ("openai-responses")
             else To_Unbounded_String ("openai-completions")),
          Cost                =>
            (Input       => Item.Cost_Input,
@@ -128,6 +131,9 @@ package body LLM.Model_Registry is
            (if Wire =
               LLM.Providers.OpenCode_Go.Catalogue.Anthropic_Messages_Wire
             then To_Unbounded_String ("anthropic-messages")
+            elsif Wire =
+              LLM.Providers.OpenCode_Go.Catalogue.OpenAI_Responses_Wire
+            then To_Unbounded_String ("openai-responses")
             else To_Unbounded_String ("openai-completions")),
          Cost                => (others => 0.0));
    end Default_OpenCode_Go_Model;
