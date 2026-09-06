@@ -1004,7 +1004,9 @@ loads their rule sets, and constructs `bwrap` argument lists.
 
 **Profile format:** Each profile is a JSON object with four optional array
 fields: `allowWrite`, `denyWrite`, `denyRead`, `allowRead`.  Each array
-contains paths; `~` and `./` prefixes are resolved at execution time.
+contains paths; `~` and `~/...` are expanded at execution time, and all
+relative paths,
+including `.` and `..` components, are normalized against the command CWD.
 
 **`Available_Profiles`:** Scans `~/.coyote/sandbox/` for `*.json` files;
 returns the stems as profile names.  Returns an empty vector when the
@@ -1013,8 +1015,10 @@ directory is absent or no profiles exist.
 **`Load_Profile(Name)`:** Reads and parses `~/.coyote/sandbox/<Name>.json`.
 Returns `JSON_Null` when the profile is not found or parse fails.
 
-**`Build_Bwrap_Args(Profile_Name, Cwd)`:** Resolves all paths in the loaded
-profile relative to `Cwd`; skips paths that do not exist on disk; sorts
+**`Build_Bwrap_Args(Profile_Name, Cwd)`:** Expands `~` against the relevant
+home directory and resolves all relative paths in the loaded profile against
+`Cwd`, including `.` and `..` components. It skips paths that do not exist on
+disk; sorts
 entries by path depth (slash count, shallowest first); produces `bwrap`
 arguments: `--bind <path> <path>` for `allowWrite`, `--ro-bind <path> <path>`
 for `denyWrite` and `allowRead`, `--tmpfs <path>` for `denyRead`.
@@ -1040,9 +1044,10 @@ deterministically sorted vector.
 **Integration:** Called by `LLM.Tools.Shell.Execute` when `Sandbox_Profile` is
 non-empty. A non-empty invalid, missing, malformed, or unreadable profile
 raises `Sandbox_Error` before bwrap arguments are generated, failing closed.
-Path spelling is retained in stored profiles; at execution time `~`, `.`, and
-`./` are resolved relative to the relevant home/CWD, absolute paths pass
-through, and missing paths are skipped. `setsid` is the outer process started
+Path spelling is retained in stored profiles; at execution time `~` is
+expanded against the relevant home directory, relative paths are normalized
+against the relevant CWD, absolute paths are normalized without changing their
+root, and missing paths are skipped. `setsid` is the outer process started
 by the executor; it executes `bwrap` for sandboxed commands, which then executes
 the shell. Consequently the process handle returned by `Start` remains the
 process-group leader used by `kill(-pid, SIGKILL)` for the complete tree.

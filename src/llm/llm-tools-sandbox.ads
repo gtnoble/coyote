@@ -61,8 +61,10 @@ package LLM.Tools.Sandbox is
 
    --  Build the bwrap argument list for the given profile and working
    --  directory.  Returns an empty list when Profile_Name is empty
-   --  (no sandbox).  Paths are resolved relative to Cwd and checked
-   --  for existence; missing paths are silently skipped to match
+   --  (no sandbox).  `~` and `~/...` are expanded against HOME; all
+   --  relative paths, including ".", "..", and paths with mixed dot
+   --  components, are normalized relative to Cwd
+   --  and checked for existence; missing paths are silently skipped to match
    --  sandshell's behaviour.  A non-empty invalid, missing, or malformed
    --  profile raises Sandbox_Error.
    --

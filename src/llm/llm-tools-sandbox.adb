@@ -92,28 +92,39 @@ package body LLM.Tools.Sandbox is
      (Path : in out Ada.Strings.Unbounded.Unbounded_String;
       Cwd  :        String)
    is
-      S : constant String :=
+      Input_Path : constant String :=
         Ada.Strings.Unbounded.To_String (Path);
+      Expanded   : Ada.Strings.Unbounded.Unbounded_String :=
+        Ada.Strings.Unbounded.To_Unbounded_String (Input_Path);
    begin
-      if S = "." then
-         Path := Ada.Strings.Unbounded.To_Unbounded_String (Cwd);
-      elsif S'Length >= 2
-        and then S (S'First .. S'First + 1) = "./"
-      then
-         Path := Ada.Strings.Unbounded.To_Unbounded_String
-           (Cwd & "/" & S (S'First + 2 .. S'Last));
-      elsif S'Length >= 2
-        and then S (S'First .. S'First + 1) = "~/"
+      if Input_Path = "~"
+        or else (Input_Path'Length >= 2
+                 and then Input_Path
+                   (Input_Path'First .. Input_Path'First + 1) = "~/")
       then
          declare
             Home : constant String := Home_Dir;
          begin
             if Home'Length > 0 then
-               Path := Ada.Strings.Unbounded.To_Unbounded_String
-                 (Home & "/" & S (S'First + 2 .. S'Last));
+               if Input_Path = "~" or else Input_Path'Length = 2 then
+                  Expanded := Ada.Strings.Unbounded.To_Unbounded_String
+                    (Home);
+               else
+                  Expanded := Ada.Strings.Unbounded.To_Unbounded_String
+                    (Home & "/" & Input_Path (Input_Path'First + 2 ..
+                                                  Input_Path'Last));
+               end if;
+            else
+               Expanded := Ada.Strings.Unbounded.Null_Unbounded_String;
             end if;
          end;
       end if;
+
+      Path := Ada.Strings.Unbounded.To_Unbounded_String
+        (GNAT.OS_Lib.Normalize_Pathname
+           (Ada.Strings.Unbounded.To_String (Expanded),
+            Directory     => Cwd,
+            Resolve_Links => False));
    end Resolve_Path;
 
    procedure Append_JSON_Array

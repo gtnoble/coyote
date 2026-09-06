@@ -59,6 +59,11 @@ package Sandbox_Tests is
 
    procedure Test_Resolve_Dot_To_Cwd   (T : in out Test);
    procedure Test_Resolve_Dot_Slash    (T : in out Test);
+   procedure Test_Resolve_Bare_Relative (T : in out Test);
+   procedure Test_Resolve_Parent      (T : in out Test);
+   procedure Test_Resolve_Parent_Slash (T : in out Test);
+   procedure Test_Resolve_Mixed       (T : in out Test);
+   procedure Test_Resolve_Home        (T : in out Test);
    procedure Test_Resolve_Home_Prefix  (T : in out Test);
    procedure Test_Resolve_Absolute_Untouched (T : in out Test);
 

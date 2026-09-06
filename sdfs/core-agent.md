@@ -46,7 +46,9 @@ safe profile-name validation, deterministic listing, atomic save/create/edit/
 copy operations, and compatibility-preserving rename. Optional rule arrays
 load as empty; invalid non-empty profiles raise `Sandbox_Error` before runtime
 bwrap construction. Stored path spelling is preserved, while execution resolves
-`~`, `.`, and `./` as needed and skips missing paths. Rename creates the new
+`~` and relative path components such as `.`, `..`, `./`, and `../` as needed;
+all relative paths resolve against the command CWD and missing paths are
+skipped. Rename creates the new
 profile, retains the old definition for historical session headers, updates
 `defaultSandboxProfile` when it names the old profile, and does not rewrite
 historical headers. The GUI manager performs synchronous local CRUD; runtime
@@ -466,7 +468,8 @@ rule arrays: `allowWrite`, `denyWrite`, `denyRead`, `allowRead`. When a profile
 is active, `LLM.Tools.Shell.Execute` wraps the command with `bwrap`
 (bubblewrap), placing the entire root filesystem as read-only and selectively
 adding `--bind`, `--ro-bind`, or `--tmpfs` directives per the profile rules.
-Paths are resolved relative to CWD; missing paths are silently skipped.
+Paths are normalized relative to CWD, including `.` and `..` components;
+missing paths are silently skipped.
 
 **Files touched:**
 - `src/llm/llm-tools-sandbox.ads/.adb` — new package: profile discovery,

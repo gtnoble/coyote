@@ -749,10 +749,12 @@ failed Save shall retain unsaved drafts and identify profiles that were not
 saved.
 
 **REQ-CORE-113h** (D/T/I)
-Sandbox profile path rules shall preserve user-entered `~`, `.`, `./`, absolute,
-and missing paths in the profile definition. At execution time, paths that do
-not exist shall be skipped rather than rejected by profile editing or runtime
-argument construction.
+Sandbox profile path rules shall preserve user-entered `~`, relative paths
+(including `.`, `..`, `./`, and `../` forms), absolute paths, and missing paths
+in the profile definition. At execution time, relative paths shall be
+normalized against the command working directory. Paths that do not exist
+shall be skipped rather than rejected by profile editing or runtime argument
+construction.
 
 **REQ-CORE-113i** (T/I)
 Sandbox profile draft persistence shall use synchronous local profile-file

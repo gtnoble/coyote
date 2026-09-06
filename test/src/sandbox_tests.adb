@@ -196,6 +196,7 @@ package body Sandbox_Tests is
       Profile : LLM.Tools.Sandbox.Profile;
    begin
       Profile.Allow_Write.Append ("/tmp");
+      Profile.Allow_Read.Append ("./relative");
       Profile.Deny_Read.Append ("/etc");
       LLM.Tools.Sandbox.Save_Profile ("typed-round-trip", Profile);
 
@@ -209,10 +210,10 @@ package body Sandbox_Tests is
                  "typed round trip should preserve allowWrite value");
          Assert (Loaded.Deny_Read.First_Element = "/etc",
                  "typed round trip should preserve denyRead value");
+         Assert (Loaded.Allow_Read.First_Element = "./relative",
+                 "typed round trip should preserve relative path spelling");
          Assert (Loaded.Deny_Write.Is_Empty,
                  "typed round trip should preserve empty denyWrite");
-         Assert (Loaded.Allow_Read.Is_Empty,
-                 "typed round trip should preserve empty allowRead");
       end;
    end Test_Profile_Typed_Save_Load;
 
@@ -618,6 +619,121 @@ package body Sandbox_Tests is
       end;
    end Test_Resolve_Dot_Slash;
 
+   procedure Test_Resolve_Bare_Relative (T : in out Test) is
+      Dir       : constant String := LLM.Tools.Sandbox.Profiles_Dir;
+      Prof_Path : constant String := Dir & "/resolve_bare_relative.json";
+      Cwd       : constant String := To_String (T.Temp_Home);
+      Target    : constant String := Cwd & "/relative-target";
+   begin
+      Ada.Directories.Create_Path (Target);
+      Write_File
+        (Prof_Path,
+         "{""allowWrite"": [""relative-target""],"
+         & """denyWrite"":[],""denyRead"":[],""allowRead"":[]}");
+
+      declare
+         Args : constant LLM.Tools.Sandbox.String_Vectors.Vector :=
+           LLM.Tools.Sandbox.Build_Bwrap_Args
+             ("resolve_bare_relative", Cwd);
+      begin
+         Assert
+           (Args.Contains (Target),
+            "Bare relative path should resolve against Cwd, looking for: "
+            & Target);
+      end;
+   end Test_Resolve_Bare_Relative;
+
+   procedure Test_Resolve_Parent (T : in out Test) is
+      Dir       : constant String := LLM.Tools.Sandbox.Profiles_Dir;
+      Prof_Path : constant String := Dir & "/resolve_parent.json";
+      Cwd       : constant String := To_String (T.Temp_Home) & "/child";
+      Parent    : constant String := To_String (T.Temp_Home);
+   begin
+      Ada.Directories.Create_Path (Cwd);
+      Write_File
+        (Prof_Path,
+         "{""allowWrite"": [""..""],"
+         & """denyWrite"":[],""denyRead"":[],""allowRead"":[]}");
+
+      declare
+         Args : constant LLM.Tools.Sandbox.String_Vectors.Vector :=
+           LLM.Tools.Sandbox.Build_Bwrap_Args
+             ("resolve_parent", Cwd);
+      begin
+         Assert
+           (Args.Contains (Parent),
+            "Parent path should resolve against Cwd, looking for: " & Parent);
+      end;
+   end Test_Resolve_Parent;
+
+   procedure Test_Resolve_Parent_Slash (T : in out Test) is
+      Dir       : constant String := LLM.Tools.Sandbox.Profiles_Dir;
+      Prof_Path : constant String := Dir & "/resolve_parent_slash.json";
+      Cwd       : constant String := To_String (T.Temp_Home) & "/child";
+      Parent    : constant String := To_String (T.Temp_Home) & "/.coyote";
+   begin
+      Ada.Directories.Create_Path (Cwd);
+      Write_File
+        (Prof_Path,
+         "{""allowWrite"": [""../.coyote""],"
+         & """denyWrite"":[],""denyRead"":[],""allowRead"":[]}");
+
+      declare
+         Args : constant LLM.Tools.Sandbox.String_Vectors.Vector :=
+           LLM.Tools.Sandbox.Build_Bwrap_Args
+             ("resolve_parent_slash", Cwd);
+      begin
+         Assert
+           (Args.Contains (Parent),
+            "Parent-relative path should resolve to: " & Parent);
+      end;
+   end Test_Resolve_Parent_Slash;
+
+   procedure Test_Resolve_Mixed (T : in out Test) is
+      Dir       : constant String := LLM.Tools.Sandbox.Profiles_Dir;
+      Prof_Path : constant String := Dir & "/resolve_mixed.json";
+      Cwd       : constant String := To_String (T.Temp_Home) & "/child";
+      Target    : constant String := To_String (T.Temp_Home)
+        & "/mixed-target";
+   begin
+      Ada.Directories.Create_Path (Cwd);
+      Ada.Directories.Create_Path (Target);
+      Write_File
+        (Prof_Path,
+         "{""allowWrite"": [""./../mixed-target""],"
+         & """denyWrite"":[],""denyRead"":[],""allowRead"":[]}");
+
+      declare
+         Args : constant LLM.Tools.Sandbox.String_Vectors.Vector :=
+           LLM.Tools.Sandbox.Build_Bwrap_Args
+             ("resolve_mixed", Cwd);
+      begin
+         Assert
+           (Args.Contains (Target),
+            "Mixed dot and parent path should normalize to: " & Target);
+      end;
+   end Test_Resolve_Mixed;
+
+   procedure Test_Resolve_Home (T : in out Test) is
+      Dir       : constant String := LLM.Tools.Sandbox.Profiles_Dir;
+      Prof_Path : constant String := Dir & "/resolve_home.json";
+      Home      : constant String := To_String (T.Temp_Home);
+   begin
+      Write_File
+        (Prof_Path,
+         "{""allowWrite"": [""~""],"
+         & """denyWrite"":[],""denyRead"":[],""allowRead"":[]}");
+
+      declare
+         Args : constant LLM.Tools.Sandbox.String_Vectors.Vector :=
+           LLM.Tools.Sandbox.Build_Bwrap_Args ("resolve_home", Home);
+      begin
+         Assert
+           (Args.Contains (Home),
+            "Bare tilde should resolve to $HOME, looking for: " & Home);
+      end;
+   end Test_Resolve_Home;
+
    procedure Test_Resolve_Home_Prefix (T : in out Test) is
       Dir    : constant String := LLM.Tools.Sandbox.Profiles_Dir;
       Prof_Path : constant String := Dir & "/resolve_home.json";
@@ -905,6 +1021,21 @@ package body Sandbox_Tests is
       Result.Add_Test (Sandbox_Caller.Create
         ("Sandbox resolves './...' relative to Cwd",
          Sandbox_Tests.Test_Resolve_Dot_Slash'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox resolves bare relative paths against Cwd",
+         Sandbox_Tests.Test_Resolve_Bare_Relative'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox resolves '..' against Cwd",
+         Sandbox_Tests.Test_Resolve_Parent'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox resolves '../...' against Cwd",
+         Sandbox_Tests.Test_Resolve_Parent_Slash'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox normalizes mixed dot and parent paths",
+         Sandbox_Tests.Test_Resolve_Mixed'Access));
+      Result.Add_Test (Sandbox_Caller.Create
+        ("Sandbox resolves '~' to $HOME",
+         Sandbox_Tests.Test_Resolve_Home'Access));
       Result.Add_Test (Sandbox_Caller.Create
         ("Sandbox resolves '~/' prefix to $HOME",
          Sandbox_Tests.Test_Resolve_Home_Prefix'Access));
