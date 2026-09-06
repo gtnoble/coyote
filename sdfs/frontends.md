@@ -815,9 +815,11 @@ applicable. Native tool cards use a titled `Gtk.Frame` containing native labels 
 `Gtk.Grid` of top-level argument fields
 showing the tool name, individually selectable top-level argument-field labels, and
 textual running or terminal status. They do not show raw
-argument JSON, full results, or image result content. Each completed card has a
-focusable `View Details` pushbutton that opens the existing `coyote : Tool Call Details`
-window. Math remains a localized Lasem-backed child widget or cached image with
+argument JSON, full results, or image result content. Each card has a focusable
+`View Details` pushbutton that opens a captured `coyote : Tool Call Details`
+snapshot; active snapshots show invocation metadata, arguments, and `Running`,
+while completed snapshots add the captured result. Math remains a localized
+Lasem-backed child widget or cached image with
 readable source/fallback content.
 
 The native stack is the qualified implementation baseline. Its
@@ -859,9 +861,11 @@ The qualified implementation is present in
 `Coyote_GUI.Conversation_Stack`. It realizes one outer vertical scrolled window,
 one exchange container per request, native selectable text views for request,
 thinking, and response content, native focusable fork controls, structured native
-tool-card labels, retained `Tool_Info` payloads, and `View Details` buttons that are
-enabled after completion. Completed responses with standalone display math are
-realized as ordered native text views and Lasem-backed
+tool-card labels, retained `Tool_Info` payloads, and `View Details` buttons that
+are enabled when the card starts. Active cards open captured, non-live detail
+snapshots showing invocation metadata, arguments, and `Running`; completed
+cards add the captured result. Completed responses with standalone display math
+are realized as ordered native text views and Lasem-backed
 `Coyote_GUI.Math_Element` widgets; invalid expressions retain selectable source
 fallback. The cmark-backed `Coyote_Renderer.MathML` extractor protects code-block
 ranges before masking display math. The native stack is constructed unconditionally and is the sole GTK

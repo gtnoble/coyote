@@ -149,7 +149,6 @@ private
       Status       : Gtk.Label.Gtk_Label;
       Details      : Gtk.Button.Gtk_Button;
       Info         : Coyote_GUI.Tool_Info;
-      Completed    : Boolean := False;
    end record;
 
    package Tool_Maps is new Ada.Containers.Indefinite_Hashed_Maps

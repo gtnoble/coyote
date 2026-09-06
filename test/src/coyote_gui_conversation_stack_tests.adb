@@ -477,10 +477,18 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          Session_Start    => "2026-08-24 12:00:00",
          Turn_Index       => 3,
          Call_In_Turn     => 2);
-      Assert (not Details_Enabled (T.Stack, "tool-summary"),
-              "View Details is disabled while the tool is running");
+      Assert (Details_Enabled (T.Stack, "tool-summary"),
+              "View Details is enabled while the tool is running");
       Assert (Details_Label (T.Stack, "tool-summary") = "View Details",
               "tool action uses an active verb");
+      Info := Coyote_GUI.Conversation_Stack.Testing.Tool_Detail
+        (T.Stack, "tool-summary");
+      Assert (not Info.Completed,
+              "active retained details are marked incomplete");
+      Assert (To_String (Info.Tool_Id) = "tool-summary",
+              "active retained details preserve the tool ID");
+      Assert (To_String (Info.Session_Id) = "session-1",
+              "active retained details preserve the session ID");
       declare
          Summary_Text : constant String :=
            Coyote_GUI.Conversation_Stack.Testing.Tool_Summary
@@ -526,9 +534,15 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          Result     => "full-result-sentinel",
          Media_Type => "image/png");
       Assert (Details_Enabled (T.Stack, "tool-summary"),
-              "Details is enabled after tool completion");
+              "Details remains enabled after tool completion");
       Info := Coyote_GUI.Conversation_Stack.Testing.Tool_Detail
         (T.Stack, "tool-summary");
+      Assert (Info.Completed,
+              "completed retained details are marked complete");
+      Assert (To_String (Info.Tool_Id) = "tool-summary",
+              "completed retained details preserve the tool ID");
+      Assert (To_String (Info.Session_Id) = "session-1",
+              "completed retained details preserve the session ID");
       Assert (To_String (Info.Name) = "shell",
               "retained details preserve the tool name");
       Assert
