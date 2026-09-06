@@ -13,29 +13,29 @@ with LLM.Types;
 
 package LLM.Model_Registry is
 
-  --  Unified model information record combining data from both providers.
-  type Model_Info is record
-    Model_Id            : Ada.Strings.Unbounded.Unbounded_String;
-    Name                : Ada.Strings.Unbounded.Unbounded_String;
-    Provider            : Ada.Strings.Unbounded.Unbounded_String;
-    Context_Window      : Natural := 128_000;
-    Max_Tokens          : Natural := 4_096;
-    Reasoning           : Boolean := False;
-    Supports_Tools      : Boolean := True;
-    Supports_Images     : Boolean := False;
-    Max_Thinking_Budget : Natural := 0;
-    Min_Thinking_Budget : Natural := 0;
-    --  Wire format: "anthropic-messages", "openai-completions",
-    --  or "openai-responses".
-    Wire_Format         : Ada.Strings.Unbounded.Unbounded_String;
-    Cost                : LLM.Types.Model_Cost;
-  end record;
+   --  Unified model information record combining data from both providers.
+   type Model_Info is record
+      Model_Id            : Ada.Strings.Unbounded.Unbounded_String;
+      Name                : Ada.Strings.Unbounded.Unbounded_String;
+      Provider            : Ada.Strings.Unbounded.Unbounded_String;
+      Context_Window      : Natural := 128_000;
+      Max_Tokens          : Natural := 4_096;
+      Reasoning           : Boolean := False;
+      Supports_Tools      : Boolean := True;
+      Supports_Images     : Boolean := False;
+      Max_Thinking_Budget : Natural := 0;
+      Min_Thinking_Budget : Natural := 0;
+      --  Wire format: "anthropic-messages", "openai-completions",
+      --  or "openai-responses".
+      Wire_Format         : Ada.Strings.Unbounded.Unbounded_String;
+      Cost                : LLM.Types.Model_Cost;
+   end record;
 
-  package Model_Info_Vectors is new Ada.Containers.Vectors
-    (Index_Type   => Positive,
-     Element_Type => Model_Info);
+   package Model_Info_Vectors is new Ada.Containers.Vectors
+     (Index_Type   => Positive,
+      Element_Type => Model_Info);
 
-  Not_Found : exception;
+   Not_Found : exception;
 
   --  Populate the registry from the cached GitHub Copilot catalogue.
   --
@@ -51,7 +51,7 @@ package LLM.Model_Registry is
   --  catalogue data is appended. When no Copilot credentials are configured
   --  or the cached token has expired, the Copilot portion of the registry
   --  becomes empty.
-  procedure Refresh_GitHub_Copilot;
+   procedure Refresh_GitHub_Copilot;
 
   --  Populate the registry from the live OpenRouter catalogue.
   --
@@ -59,7 +59,7 @@ package LLM.Model_Registry is
   --
   --  All existing "openrouter" entries are cleared before the refreshed
   --  catalogue data is appended.
-  procedure Refresh_OpenRouter;
+   procedure Refresh_OpenRouter;
 
   --  Populate the registry with the direct Anthropic model subset.
   --
@@ -67,7 +67,7 @@ package LLM.Model_Registry is
   --  the registry gains a curated set of well-known Claude models using the
   --  Anthropic Messages wire format. All existing "anthropic" entries are
   --  cleared before the refreshed data is appended.
-  procedure Refresh_Anthropic;
+   procedure Refresh_Anthropic;
 
   --  Populate the registry from the live OpenCode Go catalogue.
   --
@@ -76,9 +76,9 @@ package LLM.Model_Registry is
   --  All existing "opencode-go" entries are cleared before the refreshed
   --  catalogue data is appended. When no OpenCode Go API key is configured,
   --  the OpenCode Go portion of the registry becomes empty.
-  procedure Refresh_OpenCode_Go;
-  procedure Refresh_OpenAI;
-  procedure Refresh_Ollama;
+   procedure Refresh_OpenCode_Go;
+   procedure Refresh_OpenAI;
+   procedure Refresh_Ollama;
 
   --  Look up one model by provider and model identifier.
   --
@@ -97,9 +97,9 @@ package LLM.Model_Registry is
   --  the Responses wire format and conservative limits.
   --
   --  Unknown providers also raise Not_Found.
-  function Lookup
-    (Provider : String;
-     Model_Id : String) return Model_Info;
+   function Lookup
+     (Provider : String;
+      Model_Id : String) return Model_Info;
 
   --  Return all registered models for providers that are currently
   --  configured.
@@ -109,6 +109,6 @@ package LLM.Model_Registry is
   --  included when an API key resolves from the environment or models.json.
   --  OpenCode Go models are included when an OPENCODE_API_KEY is available
   --  or providers.opencode-go.apiKey is configured.
-  function Available_Models return Model_Info_Vectors.Vector;
+   function Available_Models return Model_Info_Vectors.Vector;
 
 end LLM.Model_Registry;

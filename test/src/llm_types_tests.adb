@@ -1,7 +1,6 @@
 with AUnit.Assertions;
 with Ada.Containers;
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with LLM.Types;
 
@@ -191,8 +190,6 @@ package body LLM_Types_Tests is
         (not Block.Is_Error,
          "Is_Error should be False");
    end Test_Tool_Result_Block_Media_Type;
-
-
 
    package LLM_Types_Caller is
      new AUnit.Test_Caller (LLM_Types_Tests.Test);

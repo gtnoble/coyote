@@ -5,7 +5,6 @@ with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
 with LLM.System_Prompt;
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 
 package body LLM_System_Prompt_Tests is
 
@@ -401,7 +400,6 @@ package body LLM_System_Prompt_Tests is
            (P, "Never delegate understanding") > 0,
          "coordinator section should retain synthesis guidance");
    end Test_Coordinator_Section_Rendered;
-
 
    package LLM_Sys_Prompt_Caller is
      new AUnit.Test_Caller (LLM_System_Prompt_Tests.Test);

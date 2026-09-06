@@ -100,7 +100,7 @@ package body Coyote_App.Agent_RPC.Service is
       end Poll_Connections;
    begin
       accept Start
-        (Path : in String;
+        (Path :  String;
          Callback : not null Frame_Handler)
       do
          Handler := Callback;

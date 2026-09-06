@@ -1,5 +1,4 @@
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 --  Coyote_GUI_Zoom_Tests body.
 --
 --  Project: coyote
@@ -126,7 +125,6 @@ package body Coyote_GUI_Zoom_Tests is
       Assert (Clamped_Base_Pt (100) = Max_Size_Pt,
               "huge baseline clamps to Max_Size_Pt");
    end Test_Clamped_Base_Pt;
-
 
    package Coyote_GUI_Zoom_Caller is
      new AUnit.Test_Caller (Coyote_GUI_Zoom_Tests.Test);

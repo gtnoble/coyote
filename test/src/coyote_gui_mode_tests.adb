@@ -1,5 +1,4 @@
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 --  Coyote_GUI_Mode_Tests body.
 --
 --  Project: coyote
@@ -43,7 +42,6 @@ package body Coyote_GUI_Mode_Tests is
       Assert (Resume_Available (Paused),
               "Resume is available while paused");
    end Test_Agent_Actions_Follow_Run_Mode;
-
 
    package Coyote_GUI_Mode_Caller is
      new AUnit.Test_Caller (Coyote_GUI_Mode_Tests.Test);

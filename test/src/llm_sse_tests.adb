@@ -1,6 +1,5 @@
 with AUnit.Assertions;
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with LLM.SSE;
 
@@ -228,7 +227,6 @@ package body LLM_SSE_Tests is
       LLM.SSE.Feed (P, "data: complete" & ASCII.LF & ASCII.LF);
       Assert_Event (P, Expected_Name => "", Expected_Data => "complete");
    end Test_Reset;
-
 
    package LLM_SSE_Caller is
      new AUnit.Test_Caller (LLM_SSE_Tests.Test);

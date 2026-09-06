@@ -1,6 +1,5 @@
 with AUnit.Assertions;
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Characters.Latin_1;
 with GNATCOLL.JSON;         use GNATCOLL.JSON;
@@ -923,7 +922,6 @@ package body Coyote_App_Tests is
               & Natural'Image (NL_Multi + 1));
    end Test_Tool_Segment_Line_Count;
 
-
    --  ── Format_SI_Count ──────────────────────────────────────────────────
 
    procedure Test_Format_SI_Count_Below_Threshold (T : in out Test) is
@@ -1501,7 +1499,6 @@ package body Coyote_App_Tests is
       Assert (Found_Para,
               "Standard paragraph must still have type_string='paragraph'");
    end Test_Cmark_Paragraph_Type_String;
-
 
    package App_State_Caller is
      new AUnit.Test_Caller (Coyote_App_Tests.Test);

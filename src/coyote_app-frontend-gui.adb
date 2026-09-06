@@ -553,7 +553,6 @@ package body Coyote_App.Frontend.GUI is
                Parent_Iter  : Gtk.Tree_Model.Gtk_Tree_Iter;
                Child_Iter   : Gtk.Tree_Model.Gtk_Tree_Iter;
                Registered   : Boolean;
-               pragma Unreferenced (Registered);
             begin
                Registered := Coyote_App.Agent_Registry.Register_Agent
                  (R                  => F.Agent_Registry,
@@ -4129,7 +4128,7 @@ package body Coyote_App.Frontend.GUI is
    --  ── Frontend.Instance overrides ───────────────────────────────────────
 
    overriding
-   procedure Set_Status (F : in out Instance; Text : in String) is
+   procedure Set_Status (F : in out Instance; Text :  String) is
       U : Coyote_GUI.Update;
    begin
       U.Kind := Coyote_GUI.Set_Status;
@@ -4137,7 +4136,7 @@ package body Coyote_App.Frontend.GUI is
       Enqueue_Update (F, U);
    end Set_Status;
 
-   procedure Set_Mode (F : in out Instance; Mode : in Run_Mode) is
+   procedure Set_Mode (F : in out Instance; Mode :  Run_Mode) is
       U : Coyote_GUI.Update;
    begin
       U.Kind := Coyote_GUI.Set_Mode;
@@ -4148,8 +4147,8 @@ package body Coyote_App.Frontend.GUI is
    overriding
    procedure Begin_Request
      (F    : in out Instance;
-      Text : in     String;
-      Kind : in     Coyote_App.Frontend.Request_Kind :=
+      Text :      String;
+      Kind :      Coyote_App.Frontend.Request_Kind :=
         Coyote_App.Frontend.Prompt)
    is
       U : Coyote_GUI.Update;
@@ -4162,7 +4161,7 @@ package body Coyote_App.Frontend.GUI is
    end Begin_Request;
 
    overriding
-   procedure Append_Text (F : in out Instance; Text : in String) is
+   procedure Append_Text (F : in out Instance; Text :  String) is
       U : Coyote_GUI.Update;
    begin
       U.Kind := Coyote_GUI.Append_Text;
@@ -4187,7 +4186,7 @@ package body Coyote_App.Frontend.GUI is
    end Begin_Thinking;
 
    overriding
-   procedure Append_Thinking (F : in out Instance; Text : in String) is
+   procedure Append_Thinking (F : in out Instance; Text :  String) is
       U : Coyote_GUI.Update;
    begin
       U.Kind := Coyote_GUI.Append_Thinking;
@@ -4206,15 +4205,15 @@ package body Coyote_App.Frontend.GUI is
    overriding
    procedure Begin_Tool
      (F               : in out Instance;
-      Name            : in     String;
-      Args_Json       : in     String;
-      Session_Id      : in     String;
-      Tool_Id          : in     String;
-      Model           : in     String := "";
-      Source_Directory : in     String := "";
-      Session_Start   : in     String := "";
-      Turn_Index      : in     Positive := 1;
-      Call_In_Turn    : in     Positive := 1)
+      Name            :      String;
+      Args_Json       :      String;
+      Session_Id      :      String;
+      Tool_Id          :      String;
+      Model           :      String := "";
+      Source_Directory :      String := "";
+      Session_Start   :      String := "";
+      Turn_Index      :      Positive := 1;
+      Call_In_Turn    :      Positive := 1)
    is
       U : Coyote_GUI.Update;
    begin
@@ -4233,10 +4232,10 @@ package body Coyote_App.Frontend.GUI is
    overriding
    procedure End_Tool
      (F           : in out Instance;
-      Tool_Id     : in     String;
-      Status      : in     Tool_End_Status;
-      Result_Text : in     String := "";
-      Media_Type  : in     String := "")
+      Tool_Id     :      String;
+      Status      :      Tool_End_Status;
+      Result_Text :      String := "";
+      Media_Type  :      String := "")
    is
       U : Coyote_GUI.Update;
    begin
@@ -4252,10 +4251,10 @@ package body Coyote_App.Frontend.GUI is
    overriding
    procedure Append_Turn_Footer
      (F       : in out Instance;
-      Text    : in     String;
-      Kind    : in     Coyote_App.Frontend.Footer_Kind :=
+      Text    :      String;
+      Kind    :      Coyote_App.Frontend.Footer_Kind :=
         Coyote_App.Frontend.Final_Footer;
-      Summary : in     String := "")
+      Summary :      String := "")
    is
       U : Coyote_GUI.Update;
    begin
@@ -4270,7 +4269,7 @@ package body Coyote_App.Frontend.GUI is
    overriding
    procedure Complete_Request
      (F      : in out Instance;
-      Status : in     Coyote_App.Frontend.Completion_Status)
+      Status :      Coyote_App.Frontend.Completion_Status)
    is
       U : Coyote_GUI.Update;
    begin
@@ -4283,9 +4282,9 @@ package body Coyote_App.Frontend.GUI is
    overriding
    procedure Append_Fork_Action
      (F       : in out Instance;
-      UUID    : in     String;
-      Turn_N  : in     Positive;
-      Step_N  : in     Natural := 0)
+      UUID    :      String;
+      Turn_N  :      Positive;
+      Step_N  :      Natural := 0)
    is
       U : Coyote_GUI.Update;
    begin
@@ -4304,8 +4303,8 @@ package body Coyote_App.Frontend.GUI is
    overriding
    procedure Append_Notice
      (F    : in out Instance;
-      Kind : in     Notice_Kind;
-      Text : in     String)
+      Kind :      Notice_Kind;
+      Text :      String)
    is
       U : Coyote_GUI.Update;
    begin
@@ -4319,8 +4318,8 @@ package body Coyote_App.Frontend.GUI is
    overriding
    procedure Show_Detail
      (F       : in out Instance;
-      Title   : in     String;
-      Content : in     String)
+      Title   :      String;
+      Content :      String)
    is
       U : Coyote_GUI.Update;
    begin

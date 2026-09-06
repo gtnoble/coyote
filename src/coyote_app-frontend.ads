@@ -31,27 +31,27 @@ package Coyote_App.Frontend is
    --  already formatted by Coyote_App.Dispatch.Format_Status.
    procedure Set_Status
      (F    : in out Instance;
-      Text : in     String) is abstract;
+      Text :      String) is abstract;
 
    type Run_Mode is (Idle, Running, Armed, Paused);
 
    --  Reflect the current agent lifecycle phase in the frontend.
    procedure Set_Mode
      (F    : in out Instance;
-      Mode : in     Run_Mode) is abstract;
+      Mode :      Run_Mode) is abstract;
 
    type Request_Kind is (Prompt, Steer);
 
    --  Identify the semantic start of a submitted request.
    procedure Begin_Request
      (F    : in out Instance;
-      Text : in     String;
-      Kind : in     Request_Kind := Prompt) is null;
+      Text :      String;
+      Kind :      Request_Kind := Prompt) is null;
 
    --  Stream assistant text. A complete block ends at End_Text_Block.
    procedure Append_Text
      (F    : in out Instance;
-      Text : in     String) is abstract;
+      Text :      String) is abstract;
 
    procedure End_Text_Block (F : in out Instance) is abstract;
 
@@ -60,7 +60,7 @@ package Coyote_App.Frontend is
 
    procedure Append_Thinking
      (F    : in out Instance;
-      Text : in     String) is abstract;
+      Text :      String) is abstract;
 
    procedure End_Thinking     (F : in out Instance) is abstract;
 
@@ -70,60 +70,60 @@ package Coyote_App.Frontend is
 
    procedure Begin_Tool
      (F               : in out Instance;
-      Name            : in     String;
-      Args_Json       : in     String;
-      Session_Id      : in     String;
-      Tool_Id         : in     String;
-      Model           : in     String := "";
-      Source_Directory : in     String := "";
-      Session_Start   : in     String := "";
-      Turn_Index      : in     Positive := 1;
-      Call_In_Turn    : in     Positive := 1) is abstract;
+      Name            :      String;
+      Args_Json       :      String;
+      Session_Id      :      String;
+      Tool_Id         :      String;
+      Model           :      String := "";
+      Source_Directory :      String := "";
+      Session_Start   :      String := "";
+      Turn_Index      :      Positive := 1;
+      Call_In_Turn    :      Positive := 1) is abstract;
 
    procedure End_Tool
      (F           : in out Instance;
-      Tool_Id     : in     String;
-      Status      : in     Tool_End_Status;
-      Result_Text : in     String := "";
-      Media_Type  : in     String := "") is abstract;
+      Tool_Id     :      String;
+      Status      :      Tool_End_Status;
+      Result_Text :      String := "";
+      Media_Type  :      String := "") is abstract;
 
    type Footer_Kind is (Step_Footer, Final_Footer);
 
    --  Append a formatted turn footer.
    procedure Append_Turn_Footer
      (F       : in out Instance;
-      Text    : in     String;
-      Kind    : in     Footer_Kind := Final_Footer;
-      Summary : in     String := "") is abstract;
+      Text    :      String;
+      Kind    :      Footer_Kind := Final_Footer;
+      Summary :      String := "") is abstract;
 
    type Completion_Status is (Completed, Aborted, Failed);
 
    --  Explicitly close the active request.
    procedure Complete_Request
      (F      : in out Instance;
-      Status : in     Completion_Status) is null;
+      Status :      Completion_Status) is null;
 
    --  Append a frontend-specific fork action. Plain implementations may
    --  ignore this action; the GUI presents it as a clickable control.
    procedure Append_Fork_Action
      (F       : in out Instance;
-      UUID    : in     String;
-      Turn_N  : in     Positive;
-      Step_N  : in     Natural := 0) is abstract;
+      UUID    :      String;
+      Turn_N  :      Positive;
+      Step_N  :      Natural := 0) is abstract;
 
    type Notice_Kind is (Info, Warning, Error);
 
    --  Append a system notice outside the assistant message stream.
    procedure Append_Notice
      (F    : in out Instance;
-      Kind : in     Notice_Kind;
-      Text : in     String) is abstract;
+      Kind :      Notice_Kind;
+      Text :      String) is abstract;
 
    --  Show a named block of content outside the main conversation view.
    procedure Show_Detail
      (F       : in out Instance;
-      Title   : in     String;
-      Content : in     String) is abstract;
+      Title   :      String;
+      Content :      String) is abstract;
 
    --  Return the next prompt, or "" when the frontend is closed.
    function Read_Prompt

@@ -202,8 +202,10 @@ Provider additions follow the approach described in SDD-CORE §5 (Detailed Desig
 
 ### 4.5 Implementation and Unit Testing
 
-**Coding standards:** Ada 2022; two-space indentation; `--  double-dash`
-comments; `Unbounded_String` for variable-length strings in records; plain
+**Coding standards:** Ada 2022; three-space indentation as enforced by the
+Alire-generated GNAT development profile; omit standalone `in` parameter modes
+as required by `-gnatyI`; `--  double-dash` comments; `Unbounded_String` for
+variable-length strings in records; plain
 `String` for transient values; `GNATCOLL.JSON` for JSON; no raw Unicode
 literals (use `UC_*` constants from `Coyote_App.Utils`).
 

@@ -181,7 +181,7 @@ package body Coyote_App.Utils is
 
       procedure Feed
         (S      : in out Instance;
-         Data   : in     String;
+         Data   :      String;
          Output :    out Ada.Strings.Unbounded.Unbounded_String)
       is
          Combined : constant String := To_String (S.Pending) & Data;
@@ -893,7 +893,7 @@ package body Coyote_App.Utils is
 
       procedure Feed
         (T      : in out Instance;
-         Delt   : in     String;
+         Delt   :      String;
          Output :    out Ada.Strings.Unbounded.Unbounded_String)
       is
          B : constant String := To_String (T.Buf) & Delt;

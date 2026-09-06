@@ -1,5 +1,4 @@
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 --  Coyote_Process_Control_Tests body.
 --  Project: coyote
 
@@ -51,7 +50,6 @@ package body Coyote_Process_Control_Tests is
       Coyote_Process_Control.Begin_Persistence_Write (Accepted);
       Assert (not Accepted, "writes should be rejected after freeze");
    end Test_Persistence_Freezes;
-
 
    package Coyote_Process_Control_Caller is
      new AUnit.Test_Caller (Coyote_Process_Control_Tests.Test);

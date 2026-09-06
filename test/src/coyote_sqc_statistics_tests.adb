@@ -1,5 +1,4 @@
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 --  Coyote_SQC_Statistics_Tests body.
 --
 --  Project: coyote
@@ -83,7 +82,8 @@ package body Coyote_SQC_Statistics_Tests is
          begin
             Assert
               (abs (Computed - Expected) <= Tol,
-               "c4(" & Positive'Image (N) & ") = " & Long_Float'Image (Computed)
+               "c4(" & Positive'Image (N) & ") = "
+                 & Long_Float'Image (Computed)
                & " expected ~" & Long_Float'Image (Expected));
          end;
       end loop;
@@ -310,17 +310,23 @@ package body Coyote_SQC_Statistics_Tests is
       Tokens_2.Append (200);
 
       Metrics.Append
-        (Coyote_SQC.Metrics.Compute (Make_Session ("s1", Tokens_1), Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+        (Coyote_SQC.Metrics.Compute
+           (Make_Session ("s1", Tokens_1),
+            Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
       Metrics.Append
-        (Coyote_SQC.Metrics.Compute (Make_Session ("s2", Tokens_2), Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+        (Coyote_SQC.Metrics.Compute
+           (Make_Session ("s2", Tokens_2),
+            Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
 
       --  Setup interval = all sessions (empty UUID set → retrospective).
-      Estimate_Parameters (Metrics, Setup, Turn_Tokens_Xbar, Parameters => Params);
+      Estimate_Parameters
+        (Metrics, Setup, Turn_Tokens_Xbar, Parameters => Params);
 
       --  Grand_Mean = (3*100 + 3*200) / 6 = 150.
       Assert
         (abs (Params.Grand_Mean - 150.0) < 1.0e-6,
-         "Grand_Mean should be 150; got " & Long_Float'Image (Params.Grand_Mean));
+         "Grand_Mean should be 150; got "
+           & Long_Float'Image (Params.Grand_Mean));
 
       --  Pooled_S = 0 because all turns within each session are identical.
       Assert
@@ -344,31 +350,72 @@ package body Coyote_SQC_Statistics_Tests is
 
       function V (A, B, C : Natural) return Natural_Vectors.Vector is
          Vec : Natural_Vectors.Vector;
-      begin Vec.Append (A); Vec.Append (B); Vec.Append (C); return Vec; end V;
+      begin
+         Vec.Append (A);
+         Vec.Append (B);
+         Vec.Append (C);
+         return Vec;
+      end V;
+
       function V (A, B, C, D : Natural) return Natural_Vectors.Vector is
          Vec : Natural_Vectors.Vector;
-      begin Vec.Append (A); Vec.Append (B); Vec.Append (C); Vec.Append (D);
-            return Vec; end V;
+      begin
+         Vec.Append (A);
+         Vec.Append (B);
+         Vec.Append (C);
+         Vec.Append (D);
+         return Vec;
+      end V;
+
       function V5 (A, B, C, D, E : Natural) return Natural_Vectors.Vector is
          Vec : Natural_Vectors.Vector;
-      begin Vec.Append (A); Vec.Append (B); Vec.Append (C); Vec.Append (D);
-            Vec.Append (E); return Vec; end V5;
+      begin
+         Vec.Append (A);
+         Vec.Append (B);
+         Vec.Append (C);
+         Vec.Append (D);
+         Vec.Append (E);
+         return Vec;
+      end V5;
+
       function V2 (A, B : Natural) return Natural_Vectors.Vector is
          Vec : Natural_Vectors.Vector;
-      begin Vec.Append (A); Vec.Append (B); return Vec; end V2;
+      begin
+         Vec.Append (A);
+         Vec.Append (B);
+         return Vec;
+      end V2;
    begin
-      Metrics.Append (Coyote_SQC.Metrics.Compute (Make_Session ("d1", V  (10, 12, 11)), Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (Make_Session ("d2", V  (20, 22, 21, 19)), Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (Make_Session ("d3", V5 (15, 17, 16, 18, 14)), Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (Make_Session ("d4", V2 (30, 34)), Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (Make_Session ("d5", V  (25, 23, 24)), Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append
+        (Coyote_SQC.Metrics.Compute
+           (Make_Session ("d1", V  (10, 12, 11)),
+            Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append
+        (Coyote_SQC.Metrics.Compute
+           (Make_Session ("d2", V  (20, 22, 21, 19)),
+            Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append
+        (Coyote_SQC.Metrics.Compute
+           (Make_Session ("d3", V5 (15, 17, 16, 18, 14)),
+            Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append
+        (Coyote_SQC.Metrics.Compute
+           (Make_Session ("d4", V2 (30, 34)),
+            Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append
+        (Coyote_SQC.Metrics.Compute
+           (Make_Session ("d5", V  (25, 23, 24)),
+            Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
 
-      Estimate_Parameters (Metrics, Setup, Turn_Tokens_Xbar, Parameters => Params);
+      Estimate_Parameters
+        (Metrics, Setup, Turn_Tokens_Xbar, Parameters => Params);
 
       Assert (abs (Params.Grand_Mean - 19.4706) < 5.0e-4,
-              "Grand_Mean ~= 19.4706; got " & Long_Float'Image (Params.Grand_Mean));
+              "Grand_Mean ~= 19.4706; got "
+                & Long_Float'Image (Params.Grand_Mean));
       Assert (abs (Params.Pooled_S - 1.5) < 1.0e-6,
-              "Pooled_S = 1.5 (exact); got " & Long_Float'Image (Params.Pooled_S));
+              "Pooled_S = 1.5 (exact); got "
+                & Long_Float'Image (Params.Pooled_S));
 
       --  Verify Xbar limits at N=5.
       declare
@@ -426,7 +473,8 @@ package body Coyote_SQC_Statistics_Tests is
       Metrics.Append (PM ("p3",  8, 3));
       Metrics.Append (PM ("p4", 12, 0));
 
-      Estimate_Parameters (Metrics, Setup, Tool_Call_Failure_Rate, Parameters => Params);
+      Estimate_Parameters
+        (Metrics, Setup, Tool_Call_Failure_Rate, Parameters => Params);
 
       --  Grand_P = 6/35 ~= 0.17143.
       Assert (abs (Params.Grand_P - 0.17143) < 5.0e-5,
@@ -442,7 +490,8 @@ package body Coyote_SQC_Statistics_Tests is
          Assert (abs (L.CL - 0.1714) < 5.0e-4,
                  "p CL (N=10) ~= 0.1714; got " & Long_Float'Image (L.CL));
          Assert (L.LCL = 0.0,
-                 "p LCL (N=10) = 0 (clamped); got " & Long_Float'Image (L.LCL));
+                 "p LCL (N=10) = 0 (clamped); got "
+                   & Long_Float'Image (L.LCL));
       end;
    end Test_P_Chart_Known_Dataset;
 
@@ -460,7 +509,7 @@ package body Coyote_SQC_Statistics_Tests is
       Setup   : UUID_Set;
       Params  : Setup_Parameters;
 
-      T1, T2, T3, T4, T5, T6 : Turn_Record;
+      T1, T2 : Turn_Record;
       TC_Ok, TC_Fail : Tool_Call_Record;
    begin
       S1.Session_Id := To_Unbounded_String ("p1");
@@ -484,10 +533,15 @@ package body Coyote_SQC_Statistics_Tests is
       T2.Tool_Calls.Append (TC_Fail);
       S2.Turns.Append (T2);
 
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S1, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S2, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append
+        (Coyote_SQC.Metrics.Compute
+           (S1, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append
+        (Coyote_SQC.Metrics.Compute
+           (S2, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
 
-      Estimate_Parameters (Metrics, Setup, Tool_Call_Failure_Rate, Parameters => Params);
+      Estimate_Parameters
+        (Metrics, Setup, Tool_Call_Failure_Rate, Parameters => Params);
 
       --  Grand_P = 2 failures / 6 total = 1/3.
       Assert
@@ -516,10 +570,15 @@ package body Coyote_SQC_Statistics_Tests is
       Turn.Output_Tokens := 150;
       S2.Turns.Append (Turn);
 
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S1, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S2, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append
+        (Coyote_SQC.Metrics.Compute
+           (S1, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append
+        (Coyote_SQC.Metrics.Compute
+           (S2, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
 
-      Estimate_Parameters (Metrics, Setup, Turn_Tokens_Xbar, Parameters => Params);
+      Estimate_Parameters
+        (Metrics, Setup, Turn_Tokens_Xbar, Parameters => Params);
 
       Assert
         (abs (Params.Grand_Mean - 100.0) < 1.0e-6,
@@ -550,10 +609,17 @@ package body Coyote_SQC_Statistics_Tests is
       N3_Tokens.Append (100);
       N3_Tokens.Append (110);
 
-      Metrics.Append (Coyote_SQC.Metrics.Compute (Make_Session ("n1", N1_Tokens), Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (Make_Session ("n3", N3_Tokens), Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append
+        (Coyote_SQC.Metrics.Compute
+           (Make_Session ("n1", N1_Tokens),
+            Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append
+        (Coyote_SQC.Metrics.Compute
+           (Make_Session ("n3", N3_Tokens),
+            Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
 
-      Estimate_Parameters (Metrics, Setup, Turn_Tokens_Xbar, Parameters => Params);
+      Estimate_Parameters
+        (Metrics, Setup, Turn_Tokens_Xbar, Parameters => Params);
 
       --  Grand_Mean: (1*50 + 3*100) / 4 = 87.5.
       Assert (abs (Params.Grand_Mean - 87.5) < 1.0e-6,
@@ -593,10 +659,13 @@ package body Coyote_SQC_Statistics_Tests is
       Turn_N.Output_Tokens      := 100;
       S_No_Thinking.Turns.Append (Turn_N);
 
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S_Thinking, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S_No_Thinking, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S_Thinking,
+                              Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S_No_Thinking,
+                              Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
 
-      Estimate_Parameters (Metrics, Setup, Thinking_Tokens_Xbar, Parameters => Params);
+      Estimate_Parameters
+        (Metrics, Setup, Thinking_Tokens_Xbar, Parameters => Params);
 
       --  Only the thinking session contributes; Grand_Mean = 500.
       Assert
@@ -604,7 +673,6 @@ package body Coyote_SQC_Statistics_Tests is
          "Grand_Mean for thinking chart should be 500; got "
          & Long_Float'Image (Params.Grand_Mean));
    end Test_Estimate_Zero_Thinking;
-
 
    --  §14.3 Tool_Call_Tokens charts skip sessions without tool calls.
    procedure Test_Estimate_Zero_Tool_Calls (T : in out Test) is
@@ -638,10 +706,13 @@ package body Coyote_SQC_Statistics_Tests is
       Turn_N.Output_Tokens   := 100;
       S_No_Tool.Turns.Append (Turn_N);
 
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S_Tool, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S_No_Tool, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S_Tool,
+                              Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S_No_Tool,
+                              Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
 
-      Estimate_Parameters (Metrics, Setup, Tool_Call_Tokens_Xbar, Parameters => Params);
+      Estimate_Parameters
+        (Metrics, Setup, Tool_Call_Tokens_Xbar, Parameters => Params);
 
       --  Only the tool-call session contributes; Grand_Mean = 200.
       Assert
@@ -684,7 +755,8 @@ package body Coyote_SQC_Statistics_Tests is
       Turn2.Output_Tokens := 50;
       S.Turns.Append (Turn2);
 
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S,
+                              Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
 
       --  Check computed metrics directly.
       declare
@@ -704,14 +776,14 @@ package body Coyote_SQC_Statistics_Tests is
             & Natural'Image (M.N_Tool_Call_Turns_For_Chart));
       end;
 
-      Estimate_Parameters (Metrics, Setup, Tool_Call_Tokens_Xbar, Parameters => Params);
+      Estimate_Parameters
+        (Metrics, Setup, Tool_Call_Tokens_Xbar, Parameters => Params);
 
       Assert
         (abs (Params.Grand_Mean - 300.0) < 1.0e-6,
          "Grand_Mean should be 300; got "
          & Long_Float'Image (Params.Grand_Mean));
    end Test_Tool_Call_Token_Values;
-
 
    --  ── I chart and MR chart tests ────────────────────────────────────────
 
@@ -853,11 +925,18 @@ package body Coyote_SQC_Statistics_Tests is
       Turn3.Turn_Index      := 1;
       S3.Turns.Append (Turn3);
 
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S1, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S2, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S3, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append
+        (Coyote_SQC.Metrics.Compute
+           (S1, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append
+        (Coyote_SQC.Metrics.Compute
+           (S2, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append
+        (Coyote_SQC.Metrics.Compute
+           (S3, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
 
-      Estimate_Parameters (Metrics, Setup, Session_Input_Tokens_I, Parameters => Params);
+      Estimate_Parameters
+        (Metrics, Setup, Session_Input_Tokens_I, Parameters => Params);
 
       Assert (abs (Params.Grand_Mean - 200.0) <= Tol,
               "I chart estimate: Grand_Mean should be 200; got "
@@ -884,15 +963,16 @@ package body Coyote_SQC_Statistics_Tests is
       Turn1.Turn_Index     := 1;
       S.Turns.Append (Turn1);
 
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append (Coyote_SQC.Metrics.Compute (S,
+                              Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
 
-      Estimate_Parameters (Metrics, Setup, Session_Input_Tokens_I, Parameters => Params);
+      Estimate_Parameters
+        (Metrics, Setup, Session_Input_Tokens_I, Parameters => Params);
 
       Assert (Params.Mean_MR = 0.0,
               "I chart single-session: Mean_MR should be 0; got "
               & Long_Float'Image (Params.Mean_MR));
    end Test_Estimate_I_Chart_Single;
-
 
    --  ── Box-Cox transformation tests ─────────────────────────────────────
 
@@ -1224,11 +1304,11 @@ package body Coyote_SQC_Statistics_Tests is
       Lambda_Robust := Estimate_Lambda
                          (Data, Use_Robust => True, Fallback_Used => Fallback);
       Assert
-        (Lambda_MLE >= -5.0 and Lambda_MLE <= 5.0,
+        (Lambda_MLE >= -5.0 and then Lambda_MLE <= 5.0,
          "MLE Estimate_Lambda should be in [-5,5]; got "
          & Long_Float'Image (Lambda_MLE));
       Assert
-        (Lambda_Robust >= -5.0 and Lambda_Robust <= 5.0,
+        (Lambda_Robust >= -5.0 and then Lambda_Robust <= 5.0,
          "Robust Estimate_Lambda should be in [-5,5]; got "
          & Long_Float'Image (Lambda_Robust));
    end Test_Estimate_Lambda_Robust_Basic;
@@ -1251,7 +1331,6 @@ package body Coyote_SQC_Statistics_Tests is
         (Fallback,
          "All-identical data should set Fallback_Used = True");
    end Test_Estimate_Lambda_Degenerate;
-
 
    --  ── EWMA chart tests ──────────────────────────────────────────────────
 
@@ -1318,7 +1397,8 @@ package body Coyote_SQC_Statistics_Tests is
       pragma Unreferenced (T);
       use Coyote_SQC.Statistics.EWMA_Chart;
       use Ada.Numerics.Long_Elementary_Functions;
-      --  Grand_Mean=100, Sigma=10, Weight=0.2, L=3, T=1000 (near steady state).
+      --  Grand_Mean=100, Sigma=10, Weight=0.2, L=3, T=1000
+      --  (near steady state).
       --  Steady-state half-width = 3*10*sqrt(0.2/1.8) = 30/3 = 10.0
       Lim           : constant Limits_Record :=
         Compute_EWMA_Limits
@@ -1334,9 +1414,11 @@ package body Coyote_SQC_Statistics_Tests is
       Assert (Lim.Has_UCL,
               "Steady-state EWMA should have UCL");
       Assert (abs (Lim.UCL - (100.0 + Steady_HW)) <= Tol,
-              "UCL near steady-state wrong; got " & Long_Float'Image (Lim.UCL));
+              "UCL near steady-state wrong; got "
+                & Long_Float'Image (Lim.UCL));
       Assert (abs (Lim.LCL - (100.0 - Steady_HW)) <= Tol,
-              "LCL near steady-state wrong; got " & Long_Float'Image (Lim.LCL));
+              "LCL near steady-state wrong; got "
+                & Long_Float'Image (Lim.LCL));
    end Test_EWMA_Limits_Steady_State;
 
    procedure Test_EWMA_Limits_Zero_Sigma (T : in out Test) is
@@ -1381,7 +1463,6 @@ package body Coyote_SQC_Statistics_Tests is
       Assert (abs (Lim.LCL - 0.0) <= Tol,
               "Clamped LCL should be 0; got " & Long_Float'Image (Lim.LCL));
    end Test_EWMA_Limits_LCL_Clamped;
-
 
    --  ── Median_Of helper tests ────────────────────────────────────────────
 
@@ -1472,11 +1553,21 @@ package body Coyote_SQC_Statistics_Tests is
       S4.Total_Input_Tokens := 120; T4.Turn_Index := 1; S4.Turns.Append (T4);
       S5.Session_Id := To_Unbounded_String ("s5");
       S5.Total_Input_Tokens := 5000; T5.Turn_Index := 1; S5.Turns.Append (T5);
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S1, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S2, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S3, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S4, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S5, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append
+        (Coyote_SQC.Metrics.Compute
+           (S1, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append
+        (Coyote_SQC.Metrics.Compute
+           (S2, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append
+        (Coyote_SQC.Metrics.Compute
+           (S3, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append
+        (Coyote_SQC.Metrics.Compute
+           (S4, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append
+        (Coyote_SQC.Metrics.Compute
+           (S5, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
       Estimate_Parameters
         (Metrics, Setup, Session_Input_Tokens_I,
          Method => Robust_Median, Parameters => Params);
@@ -1528,11 +1619,21 @@ package body Coyote_SQC_Statistics_Tests is
       S5.Session_Id := To_Unbounded_String ("s5");
       S5.Total_Input_Tokens := 130;
       T5.Turn_Index := 1; S5.Turns.Append (T5);
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S1, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S2, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S3, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S4, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S5, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append
+        (Coyote_SQC.Metrics.Compute
+           (S1, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append
+        (Coyote_SQC.Metrics.Compute
+           (S2, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append
+        (Coyote_SQC.Metrics.Compute
+           (S3, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append
+        (Coyote_SQC.Metrics.Compute
+           (S4, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append
+        (Coyote_SQC.Metrics.Compute
+           (S5, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
       Estimate_Parameters
         (Metrics, Setup, Session_Input_Tokens_I,
          Method => Robust_Median, Parameters => Params);
@@ -1609,11 +1710,21 @@ package body Coyote_SQC_Statistics_Tests is
       S4.Total_Input_Tokens := 120; S4.Turns.Append (T1);
       S5.Session_Id := To_Unbounded_String ("s5");
       S5.Total_Input_Tokens := 130; S5.Turns.Append (T1);
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S1, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S2, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S3, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S4, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S5, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append
+        (Coyote_SQC.Metrics.Compute
+           (S1, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append
+        (Coyote_SQC.Metrics.Compute
+           (S2, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append
+        (Coyote_SQC.Metrics.Compute
+           (S3, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append
+        (Coyote_SQC.Metrics.Compute
+           (S4, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append
+        (Coyote_SQC.Metrics.Compute
+           (S5, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
       Estimate_Parameters
         (Metrics, Setup, Session_Input_Tokens_MR,
          Method => Robust_Median, Parameters => Params_R);
@@ -1635,7 +1746,8 @@ package body Coyote_SQC_Statistics_Tests is
                  & Long_Float'Image (D4 * 17.5)
                  & "; got " & Long_Float'Image (UCL_C));
          Assert (UCL_R < UCL_C,
-                 "Robust MR UCL should be less than classical (median < mean)");
+                 "Robust MR UCL should be less than classical "
+                 & "(median < mean)");
       end;
    end Test_Robust_MR_UCL;
 
@@ -1680,9 +1792,15 @@ package body Coyote_SQC_Statistics_Tests is
             S3.Turns.Append (T3);
          end;
       end loop;
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S1, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S2, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S3, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append
+        (Coyote_SQC.Metrics.Compute
+           (S1, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append
+        (Coyote_SQC.Metrics.Compute
+           (S2, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append
+        (Coyote_SQC.Metrics.Compute
+           (S3, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
       Estimate_Parameters
         (Metrics, Setup, Turn_Tokens_Xbar,
          Method => Robust_Median, Parameters => Params);
@@ -1730,8 +1848,12 @@ package body Coyote_SQC_Statistics_Tests is
          S2.Turns.Append (T2b);
          S2.Turns.Append (T2c);
       end;
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S1, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S2, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append
+        (Coyote_SQC.Metrics.Compute
+           (S1, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append
+        (Coyote_SQC.Metrics.Compute
+           (S2, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
       Estimate_Parameters
         (Metrics, Setup, Turn_Tokens_Xbar,
          Method => Robust_Median, Parameters => Params);
@@ -1802,8 +1924,12 @@ package body Coyote_SQC_Statistics_Tests is
       end;
       S2.Turns.Append (T2);
 
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S1, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
-      Metrics.Append (Coyote_SQC.Metrics.Compute (S2, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append
+        (Coyote_SQC.Metrics.Compute
+           (S1, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
+      Metrics.Append
+        (Coyote_SQC.Metrics.Compute
+           (S2, Coyote_SQC.Metrics.Pricing_Maps.Empty_Map));
 
       Estimate_Parameters
         (Metrics, Setup, Tool_Call_Failure_Rate,
@@ -1855,7 +1981,8 @@ package body Coyote_SQC_Statistics_Tests is
         (Metrics, Setup, Fraction_Thinking_Tokens_I, Parameters => Params);
 
       Assert (abs (Params.Grand_Mean - 0.25) < 1.0e-9,
-              "Grand_Mean should be 0.25; got " & Long_Float'Image (Params.Grand_Mean));
+              "Grand_Mean should be 0.25; got "
+                & Long_Float'Image (Params.Grand_Mean));
    end Test_Fraction_Thinking_Tokens_Grand_Mean;
 
    --  Two sessions with known tool-call and output token totals;
@@ -1891,7 +2018,8 @@ package body Coyote_SQC_Statistics_Tests is
         (Metrics, Setup, Fraction_Tool_Call_Tokens_I, Parameters => Params);
 
       Assert (abs (Params.Grand_Mean - 0.2) < 1.0e-9,
-              "Grand_Mean should be 0.2; got " & Long_Float'Image (Params.Grand_Mean));
+              "Grand_Mean should be 0.2; got "
+                & Long_Float'Image (Params.Grand_Mean));
    end Test_Fraction_Tool_Call_Tokens_Grand_Mean;
 
    --  Sessions with zero output tokens are excluded from both new p-charts.
@@ -1923,7 +2051,8 @@ package body Coyote_SQC_Statistics_Tests is
       Metrics.Append (MK ("z2", 100,  50, 500));
 
       Estimate_Parameters
-        (Metrics, Setup, Fraction_Thinking_Tokens_I, Parameters => Params_Think);
+        (Metrics, Setup, Fraction_Thinking_Tokens_I,
+         Parameters => Params_Think);
       Estimate_Parameters
         (Metrics, Setup, Fraction_Tool_Call_Tokens_I, Parameters => Params_TC);
 
@@ -2017,7 +2146,8 @@ package body Coyote_SQC_Statistics_Tests is
 
    --  Sessions with zero denominators are excluded from the new charts.
    --  Sessions with zero denominators are excluded from the new rate charts.
-   --  Tests PTTC (zero tool-call tokens excluded) and UI (zero total-input excluded).
+   --  Tests PTTC (zero tool-call tokens excluded) and UI
+   --  (zero total-input excluded).
    procedure Test_Fraction_New_Charts_Zero_Denominator (T : in out Test) is
       pragma Unreferenced (T);
       use AUnit.Assertions;
@@ -2077,10 +2207,10 @@ package body Coyote_SQC_Statistics_Tests is
               & Long_Float'Image (Params_PTTC.Grand_Mean));
 
       Assert (abs (Params_UI.Grand_Mean - 0.25) < 1.0e-9,
-              "UI Grand_Mean should be 0.25 (zero-total session excluded); got "
+              "UI Grand_Mean should be 0.25 (zero-total session "
+              & "excluded); got "
               & Long_Float'Image (Params_UI.Grand_Mean));
    end Test_Fraction_New_Charts_Zero_Denominator;
-
 
    --  ── EWMA + Box-Cox (Option B) tests ──────────────────────────────────
 
@@ -2092,7 +2222,6 @@ package body Coyote_SQC_Statistics_Tests is
       pragma Unreferenced (T);
       use Coyote_SQC.Statistics.I_Chart;
       use Coyote_SQC.Statistics.EWMA_Chart;
-      use Ada.Numerics.Long_Elementary_Functions;
 
       --  Geometric series: each value is 4× the previous.
       --  ln(x_i) = [0.693, 2.079, 3.466, 4.852]
@@ -2123,7 +2252,8 @@ package body Coyote_SQC_Statistics_Tests is
       Assert (LCL_Orig < CL_Orig,
               "Back-transformed LCL must be < CL");
       Assert (LCL_Orig > 0.0,
-              "Back-transformed LCL must be positive (ln preserves positivity)");
+              "Back-transformed LCL must be positive "
+              & "(ln preserves positivity)");
       --  Key assertion: limits are asymmetric in original space.
       --  For [2,8,32,128]: UCL≈33.4, CL≈16.0, LCL≈7.6.
       --  (UCL−CL)≈17.4 >> (CL−LCL)≈8.4.
@@ -2135,7 +2265,8 @@ package body Coyote_SQC_Statistics_Tests is
 
    --  ── Robust Estimation + EWMA interaction ─────────────────────────────
 
-   --  With a skewed setup interval containing an outlier, the robust Grand_Mean
+   --  With a skewed setup interval containing an outlier, the robust
+   --  Grand_Mean
    --  (median) gives a different EWMA Z_0 than the classical mean, producing
    --  a more resistant first EWMA step when a new observation arrives.
    procedure Test_Robust_EWMA_Outlier_Grand_Mean (T : in out Test) is
@@ -2211,7 +2342,6 @@ package body Coyote_SQC_Statistics_Tests is
               "Robust EWMA Z1 must be less than Classical EWMA Z1 when "
               & "setup interval contains an outlier");
    end Test_Robust_EWMA_Outlier_Grand_Mean;
-
 
    --  ── Additional variance-stabilization transform tests ─────────────────
 
@@ -2294,7 +2424,6 @@ package body Coyote_SQC_Statistics_Tests is
    begin
       --  x=0: f(0)=0+1=1, f^-1(1)=0.
       declare
-         use Ada.Numerics.Long_Elementary_Functions;
          FT_0 : constant Long_Float := Freeman_Tukey (0.0);
       begin
          Assert (abs (FT_0 - 1.0) <= 1.0e-10,
@@ -2308,7 +2437,8 @@ package body Coyote_SQC_Statistics_Tests is
       Assert (abs (Freeman_Tukey_Inverse (Freeman_Tukey (4.0)) - 4.0) <= Tol,
               "Freeman_Tukey round-trip should recover 4.0");
       --  Round-trip for x=100.
-      Assert (abs (Freeman_Tukey_Inverse (Freeman_Tukey (100.0)) - 100.0) <= Tol,
+      Assert
+        (abs (Freeman_Tukey_Inverse (Freeman_Tukey (100.0)) - 100.0) <= Tol,
               "Freeman_Tukey round-trip should recover 100.0");
    end Test_Freeman_Tukey_Round_Trip;
 
@@ -2378,7 +2508,7 @@ package body Coyote_SQC_Statistics_Tests is
       pragma Unreferenced (T);
       use Coyote_SQC.Statistics.Tests;
       --  Ten values at 0.0 and ten at 1.0 — extreme bimodal; dip >> uniform.
-      Bimodal : Long_Float_Array (1 .. 20) :=
+      Bimodal : constant Long_Float_Array (1 .. 20) :=
         (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
          1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0);
       P : Long_Float;
@@ -2394,7 +2524,7 @@ package body Coyote_SQC_Statistics_Tests is
       pragma Unreferenced (T);
       use Coyote_SQC.Statistics.Tests;
       --  Twenty values tightly clustered: clearly unimodal.
-      Unimodal : Long_Float_Array (1 .. 20) :=
+      Unimodal : constant Long_Float_Array (1 .. 20) :=
         (0.48, 0.482, 0.484, 0.486, 0.488,
          0.490, 0.492, 0.494, 0.496, 0.498,
          0.500, 0.502, 0.504, 0.506, 0.508,
@@ -2407,7 +2537,6 @@ package body Coyote_SQC_Statistics_Tests is
       Assert (P > 0.10,
               "Tightly unimodal data should not be flagged as multimodal");
    end Test_Dip_Unimodal_Not_Sig;
-
 
    --  ── Bootstrap CI tests (SRS-SQC §15.6, PCR-016) ──────────────────────
 
@@ -2509,7 +2638,6 @@ package body Coyote_SQC_Statistics_Tests is
               and then R1.SD_Ratio.Upper = R2.SD_Ratio.Upper,
               "SD_Ratio CI bounds should be identical for same seed");
    end Test_Bootstrap_Reproducibility;
-
 
    --  ── Robust plot method tests (SRS-SQC §7.13a) ────────────────────────
 
@@ -2746,7 +2874,6 @@ package body Coyote_SQC_Statistics_Tests is
               "Robust median of {5,10,100} should be 10.0");
    end Test_Robust_Plot_Box_Cox_Interaction;
 
-
    package SQC_Statistics_Caller is
      new AUnit.Test_Caller (Coyote_SQC_Statistics_Tests.Test);
 
@@ -2770,7 +2897,8 @@ package body Coyote_SQC_Statistics_Tests is
         ("SQC: Xbar n=1 returns Undefined",
          Coyote_SQC_Statistics_Tests.Test_Xbar_N1_Undefined'Access));
       Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC stats: Xbar Pooled_S=0 returns Undefined ; Has_UCL and Has_LCL both False",
+        ("SQC stats: Xbar Pooled_S=0 returns Undefined ; "
+         & "Has_UCL and Has_LCL both False",
          Coyote_SQC_Statistics_Tests.Test_Xbar_Pooled_S_Zero'Access));
       Result.Add_Test (SQC_Statistics_Caller.Create
         ("SQC: s chart limits well-formed for n > 1",
@@ -2818,7 +2946,8 @@ package body Coyote_SQC_Statistics_Tests is
         ("SQC Â§14.3: Estimate_Parameters excludes zero-tool-call sessions",
          Coyote_SQC_Statistics_Tests.Test_Estimate_Zero_Tool_Calls'Access));
       Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC Â§14.4: Per_Turn_Tool_Tokens records output tokens for tool-call turns",
+        ("SQC Â§14.4: Per_Turn_Tool_Tokens records output tokens "
+         & "for tool-call turns",
          Coyote_SQC_Statistics_Tests.Test_Tool_Call_Token_Values'Access));
       Result.Add_Test (SQC_Statistics_Caller.Create
         ("SQC: I chart limits well-formed for Mean_MR > 0",
@@ -2839,7 +2968,8 @@ package body Coyote_SQC_Statistics_Tests is
         ("SQC: MR chart Mean_MR=0 returns Undefined",
          Coyote_SQC_Statistics_Tests.Test_MR_Chart_Mean_MR_Zero'Access));
       Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC: Estimate_Parameters grand mean and Mean_MR (I chart, input tokens)",
+        ("SQC: Estimate_Parameters grand mean and Mean_MR "
+         & "(I chart, input tokens)",
          Coyote_SQC_Statistics_Tests.Test_Estimate_I_Chart_Input'Access));
       Result.Add_Test (SQC_Statistics_Caller.Create
         ("SQC: Estimate_Parameters single-session setup -> Mean_MR = 0",
@@ -2935,7 +3065,8 @@ package body Coyote_SQC_Statistics_Tests is
         ("Robust: I chart Mean_MR = median of MRs, I_Sigma = Qn/2.2219",
          Coyote_SQC_Statistics_Tests.Test_Robust_I_Chart_Mean_MR'Access));
       Result.Add_Test (SQC_Statistics_Caller.Create
-        ("Robust: Compute_I_Limits uses Sigma parameter directly (no internal divisor)",
+        ("Robust: Compute_I_Limits uses Sigma parameter directly "
+         & "(no internal divisor)",
          Coyote_SQC_Statistics_Tests.Test_Robust_I_Limits_Divisor'Access));
       Result.Add_Test (SQC_Statistics_Caller.Create
         ("Robust: MR chart UCL = D4 * median(MR_i)",
@@ -2951,22 +3082,28 @@ package body Coyote_SQC_Statistics_Tests is
          Coyote_SQC_Statistics_Tests.Test_Robust_P_Chart_Unchanged'Access));
       Result.Add_Test (SQC_Statistics_Caller.Create
         ("SQC: Fraction_Thinking_Tokens Grand_Mean estimated correctly",
-         Coyote_SQC_Statistics_Tests.Test_Fraction_Thinking_Tokens_Grand_Mean'Access));
+         Coyote_SQC_Statistics_Tests
+           .Test_Fraction_Thinking_Tokens_Grand_Mean'Access));
       Result.Add_Test (SQC_Statistics_Caller.Create
         ("SQC: Fraction_Tool_Call_Tokens Grand_Mean estimated correctly",
-         Coyote_SQC_Statistics_Tests.Test_Fraction_Tool_Call_Tokens_Grand_Mean'Access));
+         Coyote_SQC_Statistics_Tests
+           .Test_Fraction_Tool_Call_Tokens_Grand_Mean'Access));
       Result.Add_Test (SQC_Statistics_Caller.Create
         ("SQC: token fraction charts exclude zero-output sessions",
-         Coyote_SQC_Statistics_Tests.Test_Fraction_Token_Charts_Zero_Output'Access));
+         Coyote_SQC_Statistics_Tests
+           .Test_Fraction_Token_Charts_Zero_Output'Access));
       Result.Add_Test (SQC_Statistics_Caller.Create
         ("SQC: Fraction_Thinking_Per_Tool_Call Grand_Mean estimated correctly",
-         Coyote_SQC_Statistics_Tests.Test_Fraction_Thinking_Per_Tool_Call_Grand_Mean'Access));
+         Coyote_SQC_Statistics_Tests
+           .Test_Fraction_Thinking_Per_Tool_Call_Grand_Mean'Access));
       Result.Add_Test (SQC_Statistics_Caller.Create
         ("SQC: Fraction_Uncached_Input Grand_Mean estimated correctly",
-         Coyote_SQC_Statistics_Tests.Test_Fraction_Uncached_Input_Grand_Mean'Access));
+         Coyote_SQC_Statistics_Tests
+           .Test_Fraction_Uncached_Input_Grand_Mean'Access));
       Result.Add_Test (SQC_Statistics_Caller.Create
         ("SQC: new rate charts exclude zero-denominator sessions",
-         Coyote_SQC_Statistics_Tests.Test_Fraction_New_Charts_Zero_Denominator'Access));
+         Coyote_SQC_Statistics_Tests
+           .Test_Fraction_New_Charts_Zero_Denominator'Access));
       Result.Add_Test (SQC_Statistics_Caller.Create
         ("SQC stats: EWMA + ln Box-Cox back-transforms to asymmetric limits",
          Coyote_SQC_Statistics_Tests
@@ -3025,7 +3162,8 @@ package body Coyote_SQC_Statistics_Tests is
          Coyote_SQC_Statistics_Tests
            .Test_Freeman_Tukey_Round_Trip'Access));
       Result.Add_Test (SQC_Statistics_Caller.Create
-        ("SQC stats: Apply_Transform / Invert_Transform dispatch for all kinds",
+        ("SQC stats: Apply_Transform / Invert_Transform "
+         & "dispatch for all kinds",
          Coyote_SQC_Statistics_Tests
            .Test_Apply_Invert_Dispatch'Access));
       Result.Add_Test (SQC_Statistics_Caller.Create

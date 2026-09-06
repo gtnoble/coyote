@@ -113,7 +113,8 @@ grace period before escalation.
 
 ## Coding conventions
 
-- Use two-space indentation and `--  double-dash` comments.
+- Use three-space indentation as enforced by the Alire-generated GNAT development profile and `--  double-dash` comments.
+- Omit standalone `in` parameter modes as required by GNAT `-gnatyI`; retain `out` and `in out` modes.
 - Keep public API documentation in package specifications.
 - Use `Ada.Strings.Unbounded.Unbounded_String` for variable-length record data.
 - Use `GNATCOLL.JSON` `Read`, `Get_Str`, and `Get_Int` helpers.

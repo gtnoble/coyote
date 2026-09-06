@@ -57,8 +57,8 @@ package body Coyote_Renderer.Session_View is
 
    procedure Append_Tagged
      (Buffer : not null access Gtk.Text_Buffer.Gtk_Text_Buffer_Record'Class;
-      Text   : in String;
-      Tag    : in Gtk.Text_Tag.Gtk_Text_Tag)
+      Text   :  String;
+      Tag    :  Gtk.Text_Tag.Gtk_Text_Tag)
    is
       Iter : Gtk.Text_Iter.Gtk_Text_Iter;
    begin
@@ -68,7 +68,7 @@ package body Coyote_Renderer.Session_View is
 
    procedure Append_Text
      (Buffer : not null access Gtk.Text_Buffer.Gtk_Text_Buffer_Record'Class;
-      Text   : in String)
+      Text   :  String)
    is
       Iter : Gtk.Text_Iter.Gtk_Text_Iter;
    begin
@@ -78,7 +78,7 @@ package body Coyote_Renderer.Session_View is
 
    procedure Append_Markup
      (Buffer : not null access Gtk.Text_Buffer.Gtk_Text_Buffer_Record'Class;
-      Markup : in String)
+      Markup :  String)
    is
       Iter : Gtk.Text_Iter.Gtk_Text_Iter;
    begin
@@ -139,7 +139,7 @@ package body Coyote_Renderer.Session_View is
      (Index_Type   => Natural,
       Element_Type => Tool_Result);
 
-   function Collect_Tool_Results (Path : in String) return TR_Vectors.Vector is
+   function Collect_Tool_Results (Path :  String) return TR_Vectors.Vector is
       Results : TR_Vectors.Vector;
       File    : Ada.Text_IO.File_Type;
       Line    : String (1 .. 65536);
@@ -240,8 +240,8 @@ package body Coyote_Renderer.Session_View is
    end Collect_Tool_Results;
 
    function Find_Result
-     (Results : in TR_Vectors.Vector;
-      Id      : in String) return Tool_Result
+     (Results :  TR_Vectors.Vector;
+      Id      :  String) return Tool_Result
    is
    begin
       for R of Results loop
@@ -275,7 +275,7 @@ package body Coyote_Renderer.Session_View is
    end record;
 
    function Address_Hash
-     (Key : in System.Address) return Ada.Containers.Hash_Type
+     (Key :  System.Address) return Ada.Containers.Hash_Type
    is
       use System.Storage_Elements;
    begin
@@ -321,13 +321,13 @@ package body Coyote_Renderer.Session_View is
    --  ── Rendering pass ────────────────────────────────────────────────────
 
    procedure Render_Pass
-     (Path     : in     String;
+     (Path     :      String;
       Buffer   : not null access Gtk.Text_Buffer.Gtk_Text_Buffer_Record'Class;
       View     : not null access Gtk.Text_View.Gtk_Text_View_Record'Class;
-      Tags     : in     Tag_Set;
-      Results  : in     TR_Vectors.Vector;
-      Callback : in     Tool_Click_Callback;
-      Session  : in     Coyote_SQC.Data_Model.Session_Record)
+      Tags     :      Tag_Set;
+      Results  :      TR_Vectors.Vector;
+      Callback :      Tool_Click_Callback;
+      Session  :      Coyote_SQC.Data_Model.Session_Record)
    is
       File : Ada.Text_IO.File_Type;
       Line : String (1 .. 65536);
@@ -335,7 +335,7 @@ package body Coyote_Renderer.Session_View is
 
       Turn_No : Natural := 0;
 
-      procedure Render_User_Msg (Msg : in GNATCOLL.JSON.JSON_Value) is
+      procedure Render_User_Msg (Msg :  GNATCOLL.JSON.JSON_Value) is
       begin
          if Msg.Has_Field ("content") then
             declare
@@ -372,7 +372,7 @@ package body Coyote_Renderer.Session_View is
          end if;
       end Render_User_Msg;
 
-      procedure Render_Assistant_Msg (Msg : in GNATCOLL.JSON.JSON_Value) is
+      procedure Render_Assistant_Msg (Msg :  GNATCOLL.JSON.JSON_Value) is
          Call_In_Turn : Natural := 0;
       begin
          Turn_No := Turn_No + 1;
@@ -587,8 +587,8 @@ package body Coyote_Renderer.Session_View is
    --  ── Public interface ──────────────────────────────────────────────────
 
    function Find_Session_File
-     (Session_Id       : in String;
-      Source_Directory : in String) return String
+     (Session_Id       :  String;
+      Source_Directory :  String) return String
    is
       use Ada.Directories;
       Home  : constant String := GNAT.OS_Lib.Getenv ("HOME").all;
@@ -632,10 +632,10 @@ package body Coyote_Renderer.Session_View is
    end Find_Session_File;
 
    procedure Render_Session
-     (Session       : in     Coyote_SQC.Data_Model.Session_Record;
+     (Session       :      Coyote_SQC.Data_Model.Session_Record;
       Buffer        : not null access Gtk.Text_Buffer.Gtk_Text_Buffer_Record'Class;
       View          : not null access Gtk.Text_View.Gtk_Text_View_Record'Class;
-      On_Tool_Click : in     Tool_Click_Callback := null)
+      On_Tool_Click :      Tool_Click_Callback := null)
    is
       use Ada.Strings.Unbounded;
       Path : constant String :=

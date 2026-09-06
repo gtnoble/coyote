@@ -9,7 +9,6 @@ with Coyote_Utils;
 with GNATCOLL.JSON;
 with GNATCOLL.OS.Process;
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 
 package body Coyote_Utils_Tests is
 
@@ -367,7 +366,6 @@ package body Coyote_Utils_Tests is
       Assert (Ada.Strings.Unbounded.To_String (Output) = Expected,
               "flush should replace an incomplete sequence");
    end Test_UTF8_Stream_Flushes_Incomplete;
-
 
    package Coyote_Utils_Caller is
      new AUnit.Test_Caller (Coyote_Utils_Tests.Test);

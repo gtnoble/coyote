@@ -1,5 +1,4 @@
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 --  Coyote_SQC_Histogram_Tests body.
 --
 --  Project: coyote
@@ -225,7 +224,6 @@ package body Coyote_SQC_Histogram_Tests is
       Assert (Total = 100,
               "Cap at 32: total count must still equal 100; got " & Total'Image);
    end Test_Bins_Cap_At_32;
-
 
    package SQC_Histogram_Caller is
      new AUnit.Test_Caller (Coyote_SQC_Histogram_Tests.Test);

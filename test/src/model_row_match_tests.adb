@@ -1,7 +1,6 @@
 with AUnit.Assertions;
 with Coyote_App.Utils;
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 
 package body Model_Row_Match_Tests is
 
@@ -98,7 +97,6 @@ package body Model_Row_Match_Tests is
         (Format_Model_Picker_Count (8, True) = "8 matches",
          "Many filtered should be 'N matches'");
    end Test_Count_Filtered;
-
 
    package Model_Row_Match_Caller is
      new AUnit.Test_Caller (Model_Row_Match_Tests.Test);

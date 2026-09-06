@@ -5,7 +5,6 @@ with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with GNATCOLL.JSON;
@@ -405,7 +404,6 @@ package body LLM_Catalogue_Tests is
          Cleanup_Test_Home (Home);
          raise;
    end Test_Stale_Cache_Fallback;
-
 
    package LLM_Catalogue_Caller is
      new AUnit.Test_Caller (LLM_Catalogue_Tests.Test);

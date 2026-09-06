@@ -98,7 +98,7 @@ package Test_HTTP_Server is
       --  Returns only after the socket is bound and the OS accept queue
       --  is active, so callers may connect immediately after this entry
       --  returns.
-      entry Bind (Port : in Positive);
+      entry Bind (Port : Positive);
 
       --  Signal the accept loop to exit.  If a request is currently being
       --  processed, the loop completes that request before stopping.

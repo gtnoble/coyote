@@ -4,7 +4,6 @@ with Ada.Characters.Handling;
 with Ada.Directories;
 with Ada.Environment_Variables;
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with GNATCOLL.JSON;
@@ -823,7 +822,6 @@ package body LLM_GitHub_Copilot_Tests is
          Cleanup_Test_Home (Home);
          raise;
    end Test_Copilot_Refreshes_Expired_Token_Then_Sends;
-
 
    package LLM_GitHub_Copilot_Caller is
      new AUnit.Test_Caller (LLM_GitHub_Copilot_Tests.Test);

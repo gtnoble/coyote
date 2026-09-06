@@ -9,7 +9,7 @@ package body Coyote_App.Frontend.Plain is
 
    procedure Put
      (F    : in out Instance;
-      Text : in     String)
+      Text :      String)
    is
    begin
       if F.To_Standard_Error then
@@ -21,7 +21,7 @@ package body Coyote_App.Frontend.Plain is
 
    procedure Put_Line
      (F    : in out Instance;
-      Text : in     String)
+      Text :      String)
    is
    begin
       Put (F, Text & ASCII.LF);
@@ -29,7 +29,7 @@ package body Coyote_App.Frontend.Plain is
 
    procedure Create
      (F        : in out Instance;
-      One_Shot : in Boolean := False)
+      One_Shot :  Boolean := False)
    is
    begin
       F.To_Standard_Error := One_Shot;
@@ -40,7 +40,7 @@ package body Coyote_App.Frontend.Plain is
    overriding
    procedure Set_Status
      (F    : in out Instance;
-      Text : in     String)
+      Text :      String)
    is
    begin
       Put_Line (F, UC_BULLET & " " & Text);
@@ -49,7 +49,7 @@ package body Coyote_App.Frontend.Plain is
    overriding
    procedure Set_Mode
      (F    : in out Instance;
-      Mode : in     Coyote_App.Frontend.Run_Mode)
+      Mode :      Coyote_App.Frontend.Run_Mode)
    is
       pragma Unreferenced (F, Mode);
    begin
@@ -59,8 +59,8 @@ package body Coyote_App.Frontend.Plain is
    overriding
    procedure Begin_Request
      (F    : in out Instance;
-      Text : in     String;
-      Kind : in     Coyote_App.Frontend.Request_Kind :=
+      Text :      String;
+      Kind :      Coyote_App.Frontend.Request_Kind :=
         Coyote_App.Frontend.Prompt)
    is
       Label : constant String :=
@@ -72,7 +72,7 @@ package body Coyote_App.Frontend.Plain is
    overriding
    procedure Append_Text
      (F    : in out Instance;
-      Text : in     String)
+      Text :      String)
    is
    begin
       F.Text_Started := True;
@@ -101,7 +101,7 @@ package body Coyote_App.Frontend.Plain is
    overriding
    procedure Append_Thinking
      (F    : in out Instance;
-      Text : in     String)
+      Text :      String)
    is
    begin
       Put (F, Text);
@@ -119,15 +119,15 @@ package body Coyote_App.Frontend.Plain is
    overriding
    procedure Begin_Tool
      (F               : in out Instance;
-      Name            : in     String;
-      Args_Json       : in     String;
-      Session_Id      : in     String;
-      Tool_Id         : in     String;
-      Model           : in     String := "";
-      Source_Directory : in     String := "";
-      Session_Start   : in     String := "";
-      Turn_Index      : in     Positive := 1;
-      Call_In_Turn    : in     Positive := 1)
+      Name            :      String;
+      Args_Json       :      String;
+      Session_Id      :      String;
+      Tool_Id         :      String;
+      Model           :      String := "";
+      Source_Directory :      String := "";
+      Session_Start   :      String := "";
+      Turn_Index      :      Positive := 1;
+      Call_In_Turn    :      Positive := 1)
    is
       pragma Unreferenced
         (Session_Id, Tool_Id, Model, Source_Directory, Session_Start,
@@ -139,10 +139,10 @@ package body Coyote_App.Frontend.Plain is
    overriding
    procedure End_Tool
      (F           : in out Instance;
-      Tool_Id     : in     String;
-      Status      : in     Coyote_App.Frontend.Tool_End_Status;
-      Result_Text : in     String := "";
-      Media_Type  : in     String := "")
+      Tool_Id     :      String;
+      Status      :      Coyote_App.Frontend.Tool_End_Status;
+      Result_Text :      String := "";
+      Media_Type  :      String := "")
    is
       pragma Unreferenced (Tool_Id, Media_Type);
       Label : constant String :=
@@ -162,10 +162,10 @@ package body Coyote_App.Frontend.Plain is
    overriding
    procedure Append_Turn_Footer
      (F       : in out Instance;
-      Text    : in     String;
-      Kind    : in     Coyote_App.Frontend.Footer_Kind :=
+      Text    :      String;
+      Kind    :      Coyote_App.Frontend.Footer_Kind :=
         Coyote_App.Frontend.Final_Footer;
-      Summary : in     String := "")
+      Summary :      String := "")
    is
       pragma Unreferenced (Summary);
       Label : constant String :=
@@ -179,7 +179,7 @@ package body Coyote_App.Frontend.Plain is
    overriding
    procedure Complete_Request
      (F      : in out Instance;
-      Status : in     Coyote_App.Frontend.Completion_Status)
+      Status :      Coyote_App.Frontend.Completion_Status)
    is
       pragma Unreferenced (Status);
    begin
@@ -190,9 +190,9 @@ package body Coyote_App.Frontend.Plain is
    overriding
    procedure Append_Fork_Action
      (F       : in out Instance;
-      UUID    : in     String;
-      Turn_N  : in     Positive;
-      Step_N  : in     Natural := 0)
+      UUID    :      String;
+      Turn_N  :      Positive;
+      Step_N  :      Natural := 0)
    is
       pragma Unreferenced (UUID, Turn_N, Step_N);
    begin
@@ -202,8 +202,8 @@ package body Coyote_App.Frontend.Plain is
    overriding
    procedure Append_Notice
      (F    : in out Instance;
-      Kind : in     Coyote_App.Frontend.Notice_Kind;
-      Text : in     String)
+      Kind :      Coyote_App.Frontend.Notice_Kind;
+      Text :      String)
    is
       Label : constant String :=
         (case Kind is
@@ -217,8 +217,8 @@ package body Coyote_App.Frontend.Plain is
    overriding
    procedure Show_Detail
      (F       : in out Instance;
-      Title   : in     String;
-      Content : in     String)
+      Title   :      String;
+      Content :      String)
    is
    begin
       Put_Line (F, "[" & Title & "]");

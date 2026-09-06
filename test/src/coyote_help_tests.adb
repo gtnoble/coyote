@@ -1,5 +1,4 @@
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 --  Coyote_Help_Tests body.
 --
 --  Project: coyote
@@ -67,7 +66,6 @@ package body Coyote_Help_Tests is
         (Ada.Strings.Fixed.Index (Text, "License") > 0,
          "Product Information includes the license");
    end Test_Product_Information_Text;
-
 
    package Coyote_Help_Caller is
      new AUnit.Test_Caller (Coyote_Help_Tests.Test);

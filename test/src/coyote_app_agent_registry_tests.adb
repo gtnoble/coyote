@@ -1,5 +1,4 @@
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 --  Coyote_App_Agent_Registry_Tests — runtime-agent registry tests.
 --
 --  Project: coyote
@@ -257,7 +256,6 @@ package body Coyote_App_Agent_Registry_Tests is
       Assert (not Has_Agent (R, Root_Id),
               "cleared agent must no longer be found");
    end Test_Clear_Removes_All_Records;
-
 
    package Agent_Registry_Caller is
      new AUnit.Test_Caller (Coyote_App_Agent_Registry_Tests.Test);

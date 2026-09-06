@@ -5,7 +5,6 @@
 with Ada.Environment_Variables;
 with AUnit.Assertions;
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 with Coyote_GUI.Prompt_Queue;
 with Coyote_GUI.Sandbox_Profile_Window;
 with Gtk.Enums;

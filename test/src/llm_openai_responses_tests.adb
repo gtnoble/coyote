@@ -3,7 +3,6 @@ with Ada.Containers;
 with Ada.Containers.Indefinite_Vectors;
 with Ada.Strings.Fixed;
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Tags;
 with GNATCOLL.JSON;
@@ -1230,7 +1229,6 @@ package body LLM_OpenAI_Responses_Tests is
          end if;
          raise;
    end Test_Omits_Store_And_Previous_Response;
-
 
    package LLM_OpenAI_Responses_Caller is
      new AUnit.Test_Caller (LLM_OpenAI_Responses_Tests.Test);

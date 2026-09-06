@@ -1,5 +1,4 @@
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 --  Coyote_App_Agent_RPC_Tests — versioned RPC frame codec tests.
 --
 --  Project: coyote
@@ -201,7 +200,6 @@ package body Coyote_App_Agent_RPC_Tests is
         ("{""protocol"":""coyote-agent-rpc"",""version"":1,""type"":""event"",""agentId"":""worker"",""sequence"":1,""event"":""textDelta"",""payload"":[]}",
          "non-object event payload must be rejected");
    end Test_Invalid_Payload;
-
 
    package Agent_RPC_Caller is
      new AUnit.Test_Caller (Coyote_App_Agent_RPC_Tests.Test);

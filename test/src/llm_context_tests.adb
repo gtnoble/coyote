@@ -5,7 +5,6 @@ with Ada.Strings.Fixed;
 with Ada.Text_IO;
 with LLM.System_Prompt;
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 
 package body LLM_Context_Tests is
 
@@ -456,7 +455,6 @@ package body LLM_Context_Tests is
          Cleanup (Home);
          raise;
    end Test_Injected_Into_Built_Prompt;
-
 
    package LLM_Context_Caller is
      new AUnit.Test_Caller (LLM_Context_Tests.Test);

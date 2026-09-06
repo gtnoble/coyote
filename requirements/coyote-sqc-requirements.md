@@ -3574,7 +3574,9 @@ sessions within 5 seconds on a modern workstation, using the session cache
 ### 15.5 Coding Conventions
 
 The application shall follow the same Ada style conventions as the Coyote project:
-two-space indentation, `--  double-dash` comments, `.ads`/`.adb` spec/body split,
+three-space indentation as enforced by the Alire-generated GNAT development
+profile, omission of standalone `in` parameter modes as required by `-gnatyI`,
+`--  double-dash` comments, `.ads`/`.adb` spec/body split,
 `Unbounded_String` for variable-length stored strings, `UC_*` constants for Unicode
 glyphs.
 

@@ -6,7 +6,6 @@ with Coyote_SQC_JSD_Tests;
 with Coyote_SQC_MI_Tests;
 with Coyote_SQC_Integrity_Tests;
 with Coyote_SQC_Quantile_CC_Tests;
-with AUnit.Test_Suites;
 
 package body Test_SQC_Suite is
 

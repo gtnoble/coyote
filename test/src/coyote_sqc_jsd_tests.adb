@@ -1,5 +1,4 @@
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 --  Coyote_SQC_JSD_Tests body.
 --
 --  Project: coyote
@@ -370,7 +369,6 @@ package body Coyote_SQC_JSD_Tests is
               "JSD Sum I excludes Pairs=0: Mean_MR should be 20.0; got "
               & Long_Float'Image (Params.Mean_MR));
    end Test_Estimate_JSD_Sum_Excludes_No_Pairs;
-
 
    package SQC_JSD_Caller is
      new AUnit.Test_Caller (Coyote_SQC_JSD_Tests.Test);

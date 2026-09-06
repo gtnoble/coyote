@@ -17,29 +17,29 @@ package Coyote_App.Frontend.Plain is
    --  output is written to standard error rather than standard output.
    procedure Create
      (F        : in out Instance;
-      One_Shot : in Boolean := False);
+      One_Shot :  Boolean := False);
 
    overriding
    procedure Set_Status
      (F    : in out Instance;
-      Text : in     String);
+      Text :      String);
 
    overriding
    procedure Set_Mode
      (F    : in out Instance;
-      Mode : in     Coyote_App.Frontend.Run_Mode);
+      Mode :      Coyote_App.Frontend.Run_Mode);
 
    overriding
    procedure Begin_Request
      (F    : in out Instance;
-      Text : in     String;
-      Kind : in     Coyote_App.Frontend.Request_Kind :=
+      Text :      String;
+      Kind :      Coyote_App.Frontend.Request_Kind :=
         Coyote_App.Frontend.Prompt);
 
    overriding
    procedure Append_Text
      (F    : in out Instance;
-      Text : in     String);
+      Text :      String);
 
    overriding
    procedure End_Text_Block (F : in out Instance);
@@ -50,7 +50,7 @@ package Coyote_App.Frontend.Plain is
    overriding
    procedure Append_Thinking
      (F    : in out Instance;
-      Text : in     String);
+      Text :      String);
 
    overriding
    procedure End_Thinking (F : in out Instance);
@@ -58,55 +58,55 @@ package Coyote_App.Frontend.Plain is
    overriding
    procedure Begin_Tool
      (F               : in out Instance;
-      Name            : in     String;
-      Args_Json       : in     String;
-      Session_Id      : in     String;
-      Tool_Id         : in     String;
-      Model           : in     String := "";
-      Source_Directory : in     String := "";
-      Session_Start   : in     String := "";
-      Turn_Index      : in     Positive := 1;
-      Call_In_Turn    : in     Positive := 1);
+      Name            :      String;
+      Args_Json       :      String;
+      Session_Id      :      String;
+      Tool_Id         :      String;
+      Model           :      String := "";
+      Source_Directory :      String := "";
+      Session_Start   :      String := "";
+      Turn_Index      :      Positive := 1;
+      Call_In_Turn    :      Positive := 1);
 
    overriding
    procedure End_Tool
      (F           : in out Instance;
-      Tool_Id     : in     String;
-      Status      : in     Coyote_App.Frontend.Tool_End_Status;
-      Result_Text : in     String := "";
-      Media_Type  : in     String := "");
+      Tool_Id     :      String;
+      Status      :      Coyote_App.Frontend.Tool_End_Status;
+      Result_Text :      String := "";
+      Media_Type  :      String := "");
 
    overriding
    procedure Append_Turn_Footer
      (F       : in out Instance;
-      Text    : in     String;
-      Kind    : in     Coyote_App.Frontend.Footer_Kind :=
+      Text    :      String;
+      Kind    :      Coyote_App.Frontend.Footer_Kind :=
         Coyote_App.Frontend.Final_Footer;
-      Summary : in     String := "");
+      Summary :      String := "");
 
    overriding
    procedure Complete_Request
      (F      : in out Instance;
-      Status : in     Coyote_App.Frontend.Completion_Status);
+      Status :      Coyote_App.Frontend.Completion_Status);
 
    overriding
    procedure Append_Fork_Action
      (F       : in out Instance;
-      UUID    : in     String;
-      Turn_N  : in     Positive;
-      Step_N  : in     Natural := 0);
+      UUID    :      String;
+      Turn_N  :      Positive;
+      Step_N  :      Natural := 0);
 
    overriding
    procedure Append_Notice
      (F    : in out Instance;
-      Kind : in     Coyote_App.Frontend.Notice_Kind;
-      Text : in     String);
+      Kind :      Coyote_App.Frontend.Notice_Kind;
+      Text :      String);
 
    overriding
    procedure Show_Detail
      (F       : in out Instance;
-      Title   : in     String;
-      Content : in     String);
+      Title   :      String;
+      Content :      String);
 
    overriding
    function Read_Prompt (F : in out Instance) return String;

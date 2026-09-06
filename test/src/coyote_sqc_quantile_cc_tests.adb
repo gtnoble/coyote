@@ -1,5 +1,4 @@
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 --  Unit tests for Coyote_SQC.Statistics.Quantile_CC.
 with Ada.Containers.Generic_Array_Sort;
 --
@@ -385,7 +384,6 @@ package body Coyote_SQC_Quantile_CC_Tests is
       end;
    end Test_Cache_Invalidation;
 
-
    procedure Test_Sort_Through_Quantiles_Reverse (T : in out Test) is
       pragma Unreferenced (T);
       --  Reverse-sorted input should produce identical quantiles to
@@ -462,7 +460,6 @@ package body Coyote_SQC_Quantile_CC_Tests is
       Assert (Q (Q3) <= Q (Max_Q),
               "Q3 <= max for 50 elements");
    end Test_Sort_Through_Quantiles_Larger;
-
 
    procedure Test_Interpolate_Limits_Anchor (T : in out Test) is
       pragma Unreferenced (T);
@@ -661,7 +658,6 @@ package body Coyote_SQC_Quantile_CC_Tests is
                  "Unadjusted_Rank > Bonferroni_Rank");
       end;
    end Test_Extract_Limits_Bonferroni_Disabled;
-
 
    package SQC_Quantile_CC_Caller is
      new AUnit.Test_Caller (Coyote_SQC_Quantile_CC_Tests.Test);

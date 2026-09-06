@@ -420,191 +420,191 @@ package body Coyote_SQC.UI.Histogram_Canvas is
             end if;
          end;
       else
-      --  ── Build value array ──────────────────────────────────────────────
-      declare
-         N    : constant Positive := Positive (Hist_Values.Length);
-         Vals : Long_Float_Array (1 .. N);
-      begin
-         for I in 1 .. N loop
-            Vals (I) := Hist_Values (I);
-         end loop;
-
+         --  ── Build value array ──────────────────────────────────────────────
          declare
-            N_Bins      : Positive;
-            Bin_Min_V   : Long_Float;
-            Bin_Width_V : Long_Float;
-            Counts      : Bin_Count_Array;
-            Max_Count_V : Natural := 0;
+            N    : constant Positive := Positive (Hist_Values.Length);
+            Vals : Long_Float_Array (1 .. N);
          begin
-            Compute_Bins (Vals, N_Bins, Bin_Min_V, Bin_Width_V, Counts);
-            for I in 1 .. N_Bins loop
-               if Counts (I) > Max_Count_V then
-                  Max_Count_V := Counts (I);
-               end if;
+            for I in 1 .. N loop
+               Vals (I) := Hist_Values (I);
             end loop;
 
             declare
-               Total_Range : constant Long_Float :=
-                 Long_Float (N_Bins) * Bin_Width_V;
-               Bar_W       : constant Gdouble :=
-                 PW / Gdouble (N_Bins);
-
-               --  ── Horizontal grid / y-axis tick labels ──────────────
-               procedure Draw_Grid_And_Labels is
-               begin
-                  for Step in 0 .. 2 loop
-                     declare
-                        C   : constant Natural :=
-                          (case Step is
-                             when 0      => 0,
-                             when 1      => Max_Count_V / 2,
-                             when others => Max_Count_V);
-                        TY  : constant Gdouble := Sy (C, Max_Count_V);
-                        Lbl : constant String  :=
-                          Ada.Strings.Fixed.Trim
-                            (Natural'Image (C), Ada.Strings.Left);
-                     begin
-                        Set_Color (Cr, 0.82, 0.82, 0.82);
-                        Cairo.Set_Line_Width (Cr, 1.0);
-                        Cairo.Set_Dash (Cr, (1 => 3.0, 2 => 3.0), 0.0);
-                        Cairo.Move_To (Cr, ML, TY);
-                        Cairo.Line_To (Cr, W - MR, TY);
-                        Cairo.Stroke (Cr);
-                        Cairo.Set_Dash (Cr, No_Dashes, 0.0);
-                        Set_Color (Cr, 0.3, 0.3, 0.3);
-                        Draw_Text (Cr,
-                                   ML - Gdouble (Lbl'Length) * 6.0 - 2.0,
-                                   TY + 4.0,
-                                   Lbl);
-                     end;
-                  end loop;
-               end Draw_Grid_And_Labels;
-
-               --  ── Bars ──────────────────────────────────────────────
-               procedure Draw_Bars is
-               begin
-                  Set_Color (Cr, 0.27, 0.51, 0.71);
-                  for I in 1 .. N_Bins loop
-                     declare
-                        BX1 : constant Gdouble :=
-                          ML + Gdouble (I - 1) * Bar_W + 1.0;
-                        BX2 : constant Gdouble :=
-                          ML + Gdouble (I) * Bar_W - 1.0;
-                        BY  : constant Gdouble :=
-                          Sy (Counts (I), Max_Count_V);
-                        Bot : constant Gdouble := MT + PH;
-                     begin
-                        if BX2 > BX1 and then BY < Bot then
-                           Cairo.Rectangle
-                             (Cr, BX1, BY, BX2 - BX1, Bot - BY);
-                           Cairo.Fill (Cr);
-                        end if;
-                     end;
-                  end loop;
-               end Draw_Bars;
-
-               --  ── X-axis ticks (left, centre, right) ───────────────
-               procedure Draw_X_Ticks is
-               begin
-                  for Step in 0 .. 2 loop
-                     declare
-                        V   : constant Long_Float :=
-                          Bin_Min_V
-                          + Long_Float (Step) * Long_Float (N_Bins) / 2.0
-                            * Bin_Width_V;
-                        TX  : constant Gdouble :=
-                          Sx (V, Bin_Min_V, Total_Range);
-                        Lbl : constant String   := Format_Value (V);
-                        LW  : constant Gdouble  :=
-                          Gdouble (Lbl'Length) * 5.5;
-                     begin
-                        Set_Color (Cr, 0.0, 0.0, 0.0);
-                        Cairo.Move_To (Cr, TX, MT + PH);
-                        Cairo.Line_To (Cr, TX, MT + PH + 4.0);
-                        Cairo.Stroke (Cr);
-                        Set_Color (Cr, 0.3, 0.3, 0.3);
-                        Draw_Text (Cr,
-                                   TX - LW / 2.0,
-                                   MT + PH + 14.0,
-                                   Lbl);
-                     end;
-                  end loop;
-               end Draw_X_Ticks;
-
-               --  ── Overlay lines ─────────────────────────────────────
-               procedure Draw_Overlays is
-                  X_Lo : constant Long_Float :=
-                    Bin_Min_V - Bin_Width_V * 0.5;
-                  X_Hi : constant Long_Float :=
-                    Bin_Min_V + Total_Range + Bin_Width_V * 0.5;
-
-                  procedure Vline
-                    (V     : Long_Float;
-                     Solid : Boolean;
-                     R, G, B : Gdouble;
-                     Width : Gdouble) is
-                  begin
-                     if V < X_Lo or else V > X_Hi then return; end if;
-                     declare
-                        TX : constant Gdouble :=
-                          Sx (V, Bin_Min_V, Total_Range);
-                     begin
-                        Set_Color (Cr, R, G, B);
-                        Cairo.Set_Line_Width (Cr, Width);
-                        if Solid then
-                           Cairo.Set_Dash (Cr, No_Dashes, 0.0);
-                        else
-                           Cairo.Set_Dash (Cr, (1 => 4.0, 2 => 3.0), 0.0);
-                        end if;
-                        Cairo.Move_To (Cr, TX, MT);
-                        Cairo.Line_To (Cr, TX, MT + PH);
-                        Cairo.Stroke (Cr);
-                        Cairo.Set_Dash (Cr, No_Dashes, 0.0);
-                     end;
-                  end Vline;
-
-               begin
-                  if Hist_Has_UCL then
-                     Vline (Hist_UCL, False, 0.85, 0.1, 0.1, 1.0);
-                  end if;
-                  if Hist_Has_LCL and then Hist_LCL > 0.0 then
-                     Vline (Hist_LCL, False, 0.85, 0.1, 0.1, 1.0);
-                  end if;
-                  Vline (Hist_CL, True, 0.1, 0.3, 0.8, 1.5);
-               end Draw_Overlays;
-
+               N_Bins      : Positive;
+               Bin_Min_V   : Long_Float;
+               Bin_Width_V : Long_Float;
+               Counts      : Bin_Count_Array;
+               Max_Count_V : Natural := 0;
             begin
-               Draw_Grid_And_Labels;
-               Draw_Bars;
+               Compute_Bins (Vals, N_Bins, Bin_Min_V, Bin_Width_V, Counts);
+               for I in 1 .. N_Bins loop
+                  if Counts (I) > Max_Count_V then
+                     Max_Count_V := Counts (I);
+                  end if;
+               end loop;
 
-               --  Axes.
-               Set_Color (Cr, 0.0, 0.0, 0.0);
-               Cairo.Set_Line_Width (Cr, 1.0);
-               Cairo.Move_To (Cr, ML, MT);
-               Cairo.Line_To (Cr, ML, MT + PH);
-               Cairo.Stroke (Cr);
-               Cairo.Move_To (Cr, ML, MT + PH);
-               Cairo.Line_To (Cr, W - MR, MT + PH);
-               Cairo.Stroke (Cr);
-
-               Draw_X_Ticks;
-
-               --  X-axis label centred below tick labels.
                declare
-                  Lbl : constant String := To_String (Hist_X_Label);
-                  LW  : constant Gdouble := Gdouble (Lbl'Length) * 5.5;
-               begin
-                  Set_Color (Cr, 0.3, 0.3, 0.3);
-                  Draw_Text (Cr,
-                             ML + PW / 2.0 - LW / 2.0,
-                             MT + PH + 26.0,
-                             Lbl);
-               end;
+                  Total_Range : constant Long_Float :=
+                    Long_Float (N_Bins) * Bin_Width_V;
+                  Bar_W       : constant Gdouble :=
+                    PW / Gdouble (N_Bins);
 
-               Draw_Overlays;
+                  --  ── Horizontal grid / y-axis tick labels ──────────────
+                  procedure Draw_Grid_And_Labels is
+                  begin
+                     for Step in 0 .. 2 loop
+                        declare
+                           C   : constant Natural :=
+                             (case Step is
+                                when 0      => 0,
+                                when 1      => Max_Count_V / 2,
+                                when others => Max_Count_V);
+                           TY  : constant Gdouble := Sy (C, Max_Count_V);
+                           Lbl : constant String  :=
+                             Ada.Strings.Fixed.Trim
+                               (Natural'Image (C), Ada.Strings.Left);
+                        begin
+                           Set_Color (Cr, 0.82, 0.82, 0.82);
+                           Cairo.Set_Line_Width (Cr, 1.0);
+                           Cairo.Set_Dash (Cr, (1 => 3.0, 2 => 3.0), 0.0);
+                           Cairo.Move_To (Cr, ML, TY);
+                           Cairo.Line_To (Cr, W - MR, TY);
+                           Cairo.Stroke (Cr);
+                           Cairo.Set_Dash (Cr, No_Dashes, 0.0);
+                           Set_Color (Cr, 0.3, 0.3, 0.3);
+                           Draw_Text (Cr,
+                                      ML - Gdouble (Lbl'Length) * 6.0 - 2.0,
+                                      TY + 4.0,
+                                      Lbl);
+                        end;
+                     end loop;
+                  end Draw_Grid_And_Labels;
+
+                  --  ── Bars ──────────────────────────────────────────────
+                  procedure Draw_Bars is
+                  begin
+                     Set_Color (Cr, 0.27, 0.51, 0.71);
+                     for I in 1 .. N_Bins loop
+                        declare
+                           BX1 : constant Gdouble :=
+                             ML + Gdouble (I - 1) * Bar_W + 1.0;
+                           BX2 : constant Gdouble :=
+                             ML + Gdouble (I) * Bar_W - 1.0;
+                           BY  : constant Gdouble :=
+                             Sy (Counts (I), Max_Count_V);
+                           Bot : constant Gdouble := MT + PH;
+                        begin
+                           if BX2 > BX1 and then BY < Bot then
+                              Cairo.Rectangle
+                                (Cr, BX1, BY, BX2 - BX1, Bot - BY);
+                              Cairo.Fill (Cr);
+                           end if;
+                        end;
+                     end loop;
+                  end Draw_Bars;
+
+                  --  ── X-axis ticks (left, centre, right) ───────────────
+                  procedure Draw_X_Ticks is
+                  begin
+                     for Step in 0 .. 2 loop
+                        declare
+                           V   : constant Long_Float :=
+                             Bin_Min_V
+                             + Long_Float (Step) * Long_Float (N_Bins) / 2.0
+                               * Bin_Width_V;
+                           TX  : constant Gdouble :=
+                             Sx (V, Bin_Min_V, Total_Range);
+                           Lbl : constant String   := Format_Value (V);
+                           LW  : constant Gdouble  :=
+                             Gdouble (Lbl'Length) * 5.5;
+                        begin
+                           Set_Color (Cr, 0.0, 0.0, 0.0);
+                           Cairo.Move_To (Cr, TX, MT + PH);
+                           Cairo.Line_To (Cr, TX, MT + PH + 4.0);
+                           Cairo.Stroke (Cr);
+                           Set_Color (Cr, 0.3, 0.3, 0.3);
+                           Draw_Text (Cr,
+                                      TX - LW / 2.0,
+                                      MT + PH + 14.0,
+                                      Lbl);
+                        end;
+                     end loop;
+                  end Draw_X_Ticks;
+
+                  --  ── Overlay lines ─────────────────────────────────────
+                  procedure Draw_Overlays is
+                     X_Lo : constant Long_Float :=
+                       Bin_Min_V - Bin_Width_V * 0.5;
+                     X_Hi : constant Long_Float :=
+                       Bin_Min_V + Total_Range + Bin_Width_V * 0.5;
+
+                     procedure Vline
+                       (V     : Long_Float;
+                        Solid : Boolean;
+                        R, G, B : Gdouble;
+                        Width : Gdouble) is
+                     begin
+                        if V < X_Lo or else V > X_Hi then return; end if;
+                        declare
+                           TX : constant Gdouble :=
+                             Sx (V, Bin_Min_V, Total_Range);
+                        begin
+                           Set_Color (Cr, R, G, B);
+                           Cairo.Set_Line_Width (Cr, Width);
+                           if Solid then
+                              Cairo.Set_Dash (Cr, No_Dashes, 0.0);
+                           else
+                              Cairo.Set_Dash (Cr, (1 => 4.0, 2 => 3.0), 0.0);
+                           end if;
+                           Cairo.Move_To (Cr, TX, MT);
+                           Cairo.Line_To (Cr, TX, MT + PH);
+                           Cairo.Stroke (Cr);
+                           Cairo.Set_Dash (Cr, No_Dashes, 0.0);
+                        end;
+                     end Vline;
+
+                  begin
+                     if Hist_Has_UCL then
+                        Vline (Hist_UCL, False, 0.85, 0.1, 0.1, 1.0);
+                     end if;
+                     if Hist_Has_LCL and then Hist_LCL > 0.0 then
+                        Vline (Hist_LCL, False, 0.85, 0.1, 0.1, 1.0);
+                     end if;
+                     Vline (Hist_CL, True, 0.1, 0.3, 0.8, 1.5);
+                  end Draw_Overlays;
+
+               begin
+                  Draw_Grid_And_Labels;
+                  Draw_Bars;
+
+                  --  Axes.
+                  Set_Color (Cr, 0.0, 0.0, 0.0);
+                  Cairo.Set_Line_Width (Cr, 1.0);
+                  Cairo.Move_To (Cr, ML, MT);
+                  Cairo.Line_To (Cr, ML, MT + PH);
+                  Cairo.Stroke (Cr);
+                  Cairo.Move_To (Cr, ML, MT + PH);
+                  Cairo.Line_To (Cr, W - MR, MT + PH);
+                  Cairo.Stroke (Cr);
+
+                  Draw_X_Ticks;
+
+                  --  X-axis label centred below tick labels.
+                  declare
+                     Lbl : constant String := To_String (Hist_X_Label);
+                     LW  : constant Gdouble := Gdouble (Lbl'Length) * 5.5;
+                  begin
+                     Set_Color (Cr, 0.3, 0.3, 0.3);
+                     Draw_Text (Cr,
+                                ML + PW / 2.0 - LW / 2.0,
+                                MT + PH + 26.0,
+                                Lbl);
+                  end;
+
+                  Draw_Overlays;
+               end;
             end;
          end;
-      end;
       end if;
       return True;
    end On_Histogram_Draw;
@@ -734,20 +734,21 @@ package body Coyote_SQC.UI.Histogram_Canvas is
                   Counts (1) := N;
                else
                   --  Freedman-Diaconis: h = 2 * IQR / n^(1/3).
-                   declare
-                      H     : constant Long_Float :=
-                        2.0 * IQR / Exp (Log (Long_Float (N)) / 3.0);
-                      Ratio   : constant Long_Float :=
-                        Long_Float'Ceiling (Range_V / H);
-                      Raw_K_N : constant Natural :=
-                        (if Ratio >= Long_Float (Max_Bins)
-                         then Natural (Max_Bins)
-                         else Natural (Ratio));
-                      K_Val   : constant Natural := Natural'Max (1, Raw_K_N);
-                      Max_Bins_N : constant Natural := Natural (Max_Bins);
-                      K_N     : constant Natural := Natural'Min (Max_Bins_N, K_Val);
-                      K       : constant Positive := Positive (K_N);
-                   begin
+                  declare
+                     H     : constant Long_Float :=
+                       2.0 * IQR / Exp (Log (Long_Float (N)) / 3.0);
+                     Ratio   : constant Long_Float :=
+                       Long_Float'Ceiling (Range_V / H);
+                     Raw_K_N : constant Natural :=
+                       (if Ratio >= Long_Float (Max_Bins)
+                        then Natural (Max_Bins)
+                        else Natural (Ratio));
+                     K_Val   : constant Natural := Natural'Max (1, Raw_K_N);
+                     Max_Bins_N : constant Natural := Natural (Max_Bins);
+                     K_N     : constant Natural :=
+                       Natural'Min (Max_Bins_N, K_Val);
+                     K       : constant Positive := Positive (K_N);
+                  begin
                      N_Bins    := K;
                      Bin_Width := Range_V / Long_Float (K);
                      for V of Values loop

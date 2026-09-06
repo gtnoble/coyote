@@ -1,5 +1,4 @@
 with Coyote_Process_Control_Tests;
-with AUnit.Test_Suites;
 
 package body Test_Process_Control_Suite is
 

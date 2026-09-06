@@ -20,7 +20,6 @@ with LLM_Model_Registry_Tests;
 with LLM_OpenCode_Go_Catalogue_Tests;
 with LLM_Agent_Tests;
 with LLM_Parallel_Tools_Tests;
-with AUnit.Test_Suites;
 
 package body Test_LLM_Suite is
 

@@ -76,7 +76,7 @@ package body Coyote_SQC.UI.Tool_Detail_Window is
 
    --  ── Base64 decoder ────────────────────────────────────────────────────
 
-   function Char_Val (C : in Character) return Integer is
+   function Char_Val (C :  Character) return Integer is
    begin
       case C is
          when 'A' .. 'Z' =>
@@ -91,7 +91,7 @@ package body Coyote_SQC.UI.Tool_Detail_Window is
       end case;
    end Char_Val;
 
-   function Decode_Base64 (Input : in String) return String is
+   function Decode_Base64 (Input :  String) return String is
       Max_Len : constant Natural := (Input'Length * 3) / 4 + 4;
       Output  : String (1 .. Max_Len);
       Pos     : Natural := 0;
@@ -160,7 +160,7 @@ package body Coyote_SQC.UI.Tool_Detail_Window is
 
    procedure Apply_Banner_Css
      (Label  : not null access Gtk.Label.Gtk_Label_Record'Class;
-      Status : in Coyote_Renderer.Session_View.Tool_End_Status)
+      Status :  Coyote_Renderer.Session_View.Tool_End_Status)
    is
       use Gtk.Css_Provider;
       use Gtk.Style_Context;
@@ -192,7 +192,7 @@ package body Coyote_SQC.UI.Tool_Detail_Window is
 
    procedure Build_Args_Section
      (Container : not null access Gtk.Box.Gtk_Box_Record'Class;
-      Arguments : in String)
+      Arguments :  String)
    is
       use Gtk.Box;
       use Gtk.Label;
@@ -270,14 +270,14 @@ package body Coyote_SQC.UI.Tool_Detail_Window is
    --  ── Public ────────────────────────────────────────────────────────────
 
    procedure Show
-     (Tool_Name    : in String;
-      Arguments    : in String;
-      Result_Text  : in String;
-      Is_Image     : in Boolean;
-      Status       : in Coyote_Renderer.Session_View.Tool_End_Status;
-      Turn_Index   : in Positive;
-      Call_In_Turn : in Positive;
-      Session      : in Coyote_SQC.Data_Model.Session_Record;
+     (Tool_Name    :  String;
+      Arguments    :  String;
+      Result_Text  :  String;
+      Is_Image     :  Boolean;
+      Status       :  Coyote_Renderer.Session_View.Tool_End_Status;
+      Turn_Index   :  Positive;
+      Call_In_Turn :  Positive;
+      Session      :  Coyote_SQC.Data_Model.Session_Record;
       Main_Window  : not null access Gtk.Window.Gtk_Window_Record'Class)
    is
       use Gtk.Box;
@@ -293,7 +293,7 @@ package body Coyote_SQC.UI.Tool_Detail_Window is
 
       --  ── Helpers ────────────────────────────────────────────────────────
 
-      function Trim_Path (P : in String) return String is
+      function Trim_Path (P :  String) return String is
          Home : constant String := GNAT.OS_Lib.Getenv ("HOME").all;
       begin
          if P'Length > Home'Length

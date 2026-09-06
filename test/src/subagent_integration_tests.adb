@@ -3,13 +3,11 @@ with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with GNATCOLL.JSON;           use GNATCOLL.JSON;
 with GNATCOLL.OS.FS;
 with GNATCOLL.OS.Process;     use GNATCOLL.OS.Process;
-
 
 package body Subagent_Integration_Tests is
 
@@ -696,7 +694,6 @@ package body Subagent_Integration_Tests is
          end if;
          raise;
    end Test_Subagent_Recursion_Limit;
-
 
    package Subagent_Int_Caller is
      new AUnit.Test_Caller (Subagent_Integration_Tests.Test);

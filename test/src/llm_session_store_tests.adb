@@ -5,7 +5,6 @@ with Ada.Environment_Variables;
 with Ada.Exceptions;
 with Ada.Strings.Fixed;
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with GNATCOLL.JSON;
@@ -131,50 +130,6 @@ package body LLM_Session_Store_Tests is
       end if;
       return 0;
    end Get_Integer_Field;
-
-   function Get_Array_Field
-     (Value : GNATCOLL.JSON.JSON_Value;
-      Field : String) return GNATCOLL.JSON.JSON_Array
-   is
-   begin
-      if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
-        and then Value.Has_Field (Field)
-        and then Value.Get (Field).Kind = GNATCOLL.JSON.JSON_Array_Type
-      then
-         return Value.Get (Field).Get;
-      end if;
-
-      return GNATCOLL.JSON.Empty_Array;
-   end Get_Array_Field;
-
-   function Get_Array_Element_String
-     (Value : GNATCOLL.JSON.JSON_Array;
-      Index : Positive) return String
-   is
-      Element : constant GNATCOLL.JSON.JSON_Value :=
-        GNATCOLL.JSON.Get (Value, Index);
-   begin
-      if Element.Kind = GNATCOLL.JSON.JSON_String_Type then
-         return Element.Get;
-      end if;
-
-      return "";
-   end Get_Array_Element_String;
-
-   function Get_Object_Field
-     (Value : GNATCOLL.JSON.JSON_Value;
-      Field : String) return GNATCOLL.JSON.JSON_Value
-   is
-   begin
-      if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
-        and then Value.Has_Field (Field)
-        and then Value.Get (Field).Kind = GNATCOLL.JSON.JSON_Object_Type
-      then
-         return Value.Get (Field);
-      end if;
-
-      return GNATCOLL.JSON.JSON_Null;
-   end Get_Object_Field;
 
    procedure Append_Raw_Line
      (Path : String;
@@ -1675,7 +1630,6 @@ package body LLM_Session_Store_Tests is
          Cleanup_Test_Root;
          raise;
    end Test_Sandbox_Profile_Read_From_Header;
-
 
    package LLM_Session_Store_Caller is
      new AUnit.Test_Caller (LLM_Session_Store_Tests.Test);

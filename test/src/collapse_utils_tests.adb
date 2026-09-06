@@ -1,7 +1,6 @@
 with AUnit.Assertions;
 with Coyote_App.Utils;
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 
 package body Collapse_Utils_Tests is
 
@@ -69,7 +68,6 @@ package body Collapse_Utils_Tests is
          "Expected LFs trimmed but internal and leading/trailing spaces preserved");
    end Test_Collapse_Leading_Trailing_WS;
 
-
    procedure Test_Collapse_Preserves_Spaces (T : in out Test) is
       pragma Unreferenced (T);
       --  Anthropic-style deltas: leading space carries word-boundary info.
@@ -107,7 +105,6 @@ package body Collapse_Utils_Tests is
          "Expected single LFs collapsed to spaces, got '" & Result & "'");
    end Test_Collapse_OpenAI_Mid_Stream;
 
-
    package Collapse_Utils_Caller is
      new AUnit.Test_Caller (Collapse_Utils_Tests.Test);
 
@@ -144,4 +141,3 @@ package body Collapse_Utils_Tests is
    end Suite;
 
 end Collapse_Utils_Tests;
-

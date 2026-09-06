@@ -7,7 +7,6 @@ with Ada.Exceptions;
 with Ada.Strings;
 with Ada.Strings.Fixed;
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Tags;
 with Ada.Text_IO;
@@ -2120,7 +2119,6 @@ package body LLM_Anthropic_Messages_Tests is
          end if;
          raise;
    end Test_Tool_Result_Image_Serialised;
-
 
    package LLM_Anthropic_Messages_Caller is
      new AUnit.Test_Caller (LLM_Anthropic_Messages_Tests.Test);

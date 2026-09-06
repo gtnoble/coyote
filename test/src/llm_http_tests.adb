@@ -3,7 +3,6 @@ with Ada.Real_Time;
 with Ada.Exceptions;
 with Ada.Text_IO;
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with LLM.HTTP;
 with LLM.Tools;
@@ -309,7 +308,6 @@ package body LLM_HTTP_Tests is
          end if;
          raise;
    end Test_HTTP_Abort_During_Stalled_Response;
-
 
    package LLM_HTTP_Caller is
      new AUnit.Test_Caller (LLM_HTTP_Tests.Test);

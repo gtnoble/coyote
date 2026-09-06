@@ -6,7 +6,6 @@ with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with GNATCOLL.JSON;
@@ -17,7 +16,6 @@ with LLM.Agent.Testing;
 with LLM.Events;
 with LLM.Session_Store;
 with LLM.Types;
-with Test_HTTP_Server;
 
 package body LLM_Agent_Tests is
 
@@ -446,7 +444,6 @@ package body LLM_Agent_Tests is
         & "data: " & Write (Completed) & ASCII.LF & ASCII.LF;
    end Text_SSE_Payload;
 
-
    --  Append a Content-Type: text/event-stream header to a response.
    procedure Add_SSE_Header (Res : in out Test_HTTP_Server.Response) is
    begin
@@ -519,7 +516,6 @@ package body LLM_Agent_Tests is
         & "data: " & Write (Completed) & ASCII.LF & ASCII.LF;
    end Tool_Call_SSE_Payload;
 
-
    function Assistant_Text (Msg : LLM.Types.Message) return String is
       Result : Unbounded_String;
    begin
@@ -569,9 +565,6 @@ package body LLM_Agent_Tests is
       Append_Text_Message (Session_UUID, LLM.Types.Assistant, Large_Asst_2);
       LLM.Agent.Switch_Session (S, Session_UUID);
    end Seed_Compaction_History;
-
-
-
 
    procedure Test_Single_Turn_Prompt (T : in out Test) is
       pragma Unreferenced (T);
@@ -5519,7 +5512,6 @@ package body LLM_Agent_Tests is
          raise;
    end Test_Stats_Footer_Only_On_Last_Tool_In_Batch;
 
-
    --  ── Test_Image_Tool_Result_No_Footer ──────────────────────────────
    --
    --  Image tool results are base64 blobs and must NOT have the stats
@@ -6340,7 +6332,6 @@ package body LLM_Agent_Tests is
          Cleanup_Test_Home (Home);
          raise;
    end Test_Sandbox_Profile_Restored_And_Cleared_On_Switch;
-
 
    package LLM_Agent_Caller is
      new AUnit.Test_Caller (LLM_Agent_Tests.Test);

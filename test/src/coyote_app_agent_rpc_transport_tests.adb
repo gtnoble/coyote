@@ -1,5 +1,4 @@
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 --  Coyote_App_Agent_RPC_Transport_Tests — local RPC channel tests.
 --
 --  Project: coyote
@@ -259,7 +258,6 @@ package body Coyote_App_Agent_RPC_Transport_Tests is
       Close (Server);
       Close (Listener);
    end Test_Unix_Listener_Accepts_Client;
-
 
    package Agent_RPC_Transport_Caller is
      new AUnit.Test_Caller (Coyote_App_Agent_RPC_Transport_Tests.Test);

@@ -21,14 +21,14 @@ package Coyote_Renderer.Session_View is
    --  replay.  All parameters are captured in the widget closure at render
    --  time; no re-parsing of the session file occurs at click time.
    type Tool_Click_Callback is access procedure
-     (Tool_Name    : in String;
-      Arguments    : in String;
-      Result_Text  : in String;
-      Is_Image     : in Boolean;
-      Status       : in Tool_End_Status;
-      Turn_Index   : in Positive;
-      Call_In_Turn : in Positive;
-      Session      : in Coyote_SQC.Data_Model.Session_Record);
+     (Tool_Name    :  String;
+      Arguments    :  String;
+      Result_Text  :  String;
+      Is_Image     :  Boolean;
+      Status       :  Tool_End_Status;
+      Turn_Index   :  Positive;
+      Call_In_Turn :  Positive;
+      Session      :  Coyote_SQC.Data_Model.Session_Record);
 
    --  Render a session identified by Session into Buffer.
    --
@@ -42,15 +42,15 @@ package Coyote_Renderer.Session_View is
    --  When On_Tool_Click is null, tool calls are rendered as plain tagged
    --  text (non-interactive).
    procedure Render_Session
-     (Session       : in     Coyote_SQC.Data_Model.Session_Record;
+     (Session       :      Coyote_SQC.Data_Model.Session_Record;
       Buffer        : not null access Gtk.Text_Buffer.Gtk_Text_Buffer_Record'Class;
       View          : not null access Gtk.Text_View.Gtk_Text_View_Record'Class;
-      On_Tool_Click : in     Tool_Click_Callback := null);
+      On_Tool_Click :      Tool_Click_Callback := null);
 
    --  Return the JSONL file path for the given session UUID and source
    --  directory, or empty string if not found.
    function Find_Session_File
-     (Session_Id       : in String;
-      Source_Directory : in String) return String;
+     (Session_Id       :  String;
+      Source_Directory :  String) return String;
 
 end Coyote_Renderer.Session_View;

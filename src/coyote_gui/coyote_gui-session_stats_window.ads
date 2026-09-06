@@ -29,7 +29,7 @@ package Coyote_GUI.Session_Stats_Window is
    --  Update the live report with the current statistics snapshot.
    procedure Update
      (S     : in out Instance;
-      Stats : in Coyote_GUI.Session_Stats_Record);
+      Stats :  Coyote_GUI.Session_Stats_Record);
 
    --  Return the most recently received statistics snapshot.
    function Current_Stats

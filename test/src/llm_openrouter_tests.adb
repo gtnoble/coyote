@@ -4,7 +4,6 @@ with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with GNATCOLL.JSON;
@@ -37,12 +36,6 @@ package body LLM_OpenRouter_Tests is
    begin
       return Image (Image'First + 1 .. Image'Last);
    end Long_Long_Image;
-
-   function Natural_Image (Value : Natural) return String is
-      Image : constant String := Natural'Image (Value);
-   begin
-      return Image (Image'First + 1 .. Image'Last);
-   end Natural_Image;
 
    procedure Reset_Collector is
    begin
@@ -311,18 +304,6 @@ package body LLM_OpenRouter_Tests is
            Timestamp => Null_Unbounded_String));
       return Messages;
    end Build_Messages;
-
-   function SSE_Record (Data : String) return String is
-   begin
-      return "data: " & Data & ASCII.LF & ASCII.LF;
-   end SSE_Record;
-
-   function SSE_Record
-      (Data : GNATCOLL.JSON.JSON_Value) return String
-   is
-   begin
-      return SSE_Record (GNATCOLL.JSON.Write (Data));
-   end SSE_Record;
 
    function SSE_Event
       (Event_Type : String;
@@ -1102,19 +1083,12 @@ package body LLM_OpenRouter_Tests is
    procedure Test_OpenRouter_Session_Id_Length (T : in out Test) is
       pragma Unreferenced (T);
    begin
-      declare
-         Provider : LLM.Providers.OpenRouter.Provider :=
-            LLM.Providers.OpenRouter.Create
-              (Session_Id => (1 .. 256 => 'x'));
-      begin
-         null;
-      end;
-
       begin
          declare
             Provider : LLM.Providers.OpenRouter.Provider :=
                LLM.Providers.OpenRouter.Create
                  (Session_Id => (1 .. 257 => 'x'));
+            pragma Unreferenced (Provider);
          begin
             Assert
                (False,
@@ -1125,7 +1099,6 @@ package body LLM_OpenRouter_Tests is
             null;
       end;
    end Test_OpenRouter_Session_Id_Length;
-
 
    package LLM_OpenRouter_Caller is
      new AUnit.Test_Caller (LLM_OpenRouter_Tests.Test);

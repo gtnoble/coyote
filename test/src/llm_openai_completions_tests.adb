@@ -4,7 +4,6 @@ with Ada.Containers.Indefinite_Vectors;
 with Ada.Exceptions;
 with Ada.Strings.Fixed;
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 with Ada.Strings.Unbounded;       use Ada.Strings.Unbounded;
 with Ada.Tags;
 with GNATCOLL.JSON;
@@ -1647,8 +1646,6 @@ package body LLM_OpenAI_Completions_Tests is
          raise;
    end Test_OpenAI_Stream_Terminates_Early;
 
-
-
    --  ── Test_OpenAI_System_Cache_Control ──────────────────────────────────
    --  Verify that the system message carries a cache_control ephemeral
    --  marker so OpenAI's automatic prompt caching can reuse it.
@@ -2092,8 +2089,6 @@ package body LLM_OpenAI_Completions_Tests is
          end if;
          raise;
    end Test_Tool_Result_Image_Serialised;
-
-
 
    package LLM_OpenAI_Completions_Caller is
      new AUnit.Test_Caller (LLM_OpenAI_Completions_Tests.Test);

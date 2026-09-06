@@ -1,11 +1,9 @@
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 --  Coyote_SQC_Parser_Tests body.
 --
 --  Project: coyote
 
 with Ada.Calendar;
-with Ada.Calendar.Formatting;
 with Ada.Containers;
 with Ada.Directories;
 with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
@@ -382,8 +380,6 @@ package body Coyote_SQC_Parser_Tests is
       end;
    end Test_Tool_Call_Token_Estimates;
 
-
-
    --  ── compaction session tests ──────────────────────────────────────────
 
    procedure Test_Compaction_All_Turns (T : in out Test) is
@@ -484,7 +480,6 @@ package body Coyote_SQC_Parser_Tests is
          & Natural'Image (Session.Total_Uncached_Input_Tokens));
    end Test_Anthropic_Input_Token_Normalization;
 
-
    --  ── Incremental-reload tests ──────────────────────────────────────────
 
    --  Parse_File must record the file path in Session_Record.File_Path.
@@ -517,7 +512,6 @@ package body Coyote_SQC_Parser_Tests is
         (Session.File_Mtime /= Epoch,
          "File_Mtime must not be the epoch after a successful parse");
    end Test_Parse_File_Sets_File_Mtime;
-
 
    package SQC_Parser_Caller is
      new AUnit.Test_Caller (Coyote_SQC_Parser_Tests.Test);

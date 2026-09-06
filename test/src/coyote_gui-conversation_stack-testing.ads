@@ -2,8 +2,6 @@
 --
 --  Project: coyote
 
-with Coyote_GUI;
-with Coyote_GUI.Conversation_Stack;
 with Gtk.Button;
 with Gtk.Box;
 with Gtk.Flow_Box;

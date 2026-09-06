@@ -1,7 +1,6 @@
 with AUnit.Assertions;
 with LLM.Providers.OpenCode_Go.Catalogue;
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 use type LLM.Providers.OpenCode_Go.Catalogue.Wire_Kind;
 
 package body LLM_OpenCode_Go_Catalogue_Tests is
@@ -107,7 +106,6 @@ package body LLM_OpenCode_Go_Catalogue_Tests is
          Assert (True, "No models loaded (network/cache unavailable) -- skip");
       end if;
    end Test_Static_Metadata_Unknown_Model;
-
 
    package LLM_OpenCode_Go_Catalogue_Caller is
      new AUnit.Test_Caller (LLM_OpenCode_Go_Catalogue_Tests.Test);

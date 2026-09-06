@@ -3,7 +3,6 @@ with Ada.Strings.Unbounded;
 with Coyote_GUI;
 with Coyote_GUI.Updates;
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 
 package body Coyote_GUI_Updates_Tests is
 
@@ -151,7 +150,6 @@ package body Coyote_GUI_Updates_Tests is
       Assert (To_String (Output.Text2) = To_String (Input.Text2),
               "footer summary must survive the update queue");
    end Test_Footer_Summary_Round_Trips;
-
 
    package Coyote_GUI_Updates_Caller is
      new AUnit.Test_Caller (Coyote_GUI_Updates_Tests.Test);

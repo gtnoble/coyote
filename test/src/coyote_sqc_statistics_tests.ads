@@ -110,9 +110,11 @@ package Coyote_SQC_Statistics_Tests is
    procedure Test_Fraction_Thinking_Tokens_Grand_Mean  (T : in out Test);
    procedure Test_Fraction_Tool_Call_Tokens_Grand_Mean (T : in out Test);
    procedure Test_Fraction_Token_Charts_Zero_Output  (T : in out Test);
-   procedure Test_Fraction_Thinking_Per_Tool_Call_Grand_Mean (T : in out Test);
-   procedure Test_Fraction_Uncached_Input_Grand_Mean          (T : in out Test);
-   procedure Test_Fraction_New_Charts_Zero_Denominator        (T : in out Test);
+   procedure Test_Fraction_Thinking_Per_Tool_Call_Grand_Mean
+     (T : in out Test);
+   procedure Test_Fraction_Uncached_Input_Grand_Mean (T : in out Test);
+   procedure Test_Fraction_New_Charts_Zero_Denominator
+     (T : in out Test);
 
    --  EWMA + Box-Cox combined tests.
    procedure Test_EWMA_Box_Cox_Asymmetric_Limits     (T : in out Test);
@@ -130,7 +132,6 @@ package Coyote_SQC_Statistics_Tests is
    procedure Test_Robust_Plot_Box_Cox_Interaction    (T : in out Test);
 
    procedure Test_Robust_EWMA_Outlier_Grand_Mean     (T : in out Test);
-
 
    --  New variance-stabilization transform tests.
    procedure Test_Sqrt_VS_Round_Trip      (T : in out Test);

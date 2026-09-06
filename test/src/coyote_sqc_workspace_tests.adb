@@ -1,5 +1,4 @@
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 --  Coyote_SQC_Workspace_Tests body.
 --
 --  Project: coyote
@@ -19,17 +18,6 @@ package body Coyote_SQC_Workspace_Tests is
    use AUnit.Assertions;
    use type Ada.Containers.Count_Type;
    use Coyote_SQC.Data_Model;
-
-   --  Helper: discard the Migrated flag when we don't care.
-   procedure Load_Ignoring_Migrated
-     (Path      :     String;
-      Workspace : out Workspace_Record;
-      VF        : out Natural)
-   is
-      Migrated : Boolean;
-   begin
-      Coyote_SQC.Workspace.Load (Path, Workspace, VF, Migrated);
-   end Load_Ignoring_Migrated;
 
    procedure Load_All_Ignored
      (Path      :     String;
@@ -231,7 +219,6 @@ package body Coyote_SQC_Workspace_Tests is
       Assert (ID1 /= ID2, "Two New_UUID calls should not return the same value");
    end Test_New_UUID_Unique;
 
-
    --  ── Per-chart Box-Cox configuration round-trip ────────────────────────
    --
    --  Saving a workspace with Box-Cox enabled on Session_Input_Tokens_I and
@@ -335,7 +322,6 @@ package body Coyote_SQC_Workspace_Tests is
          "Session_Turn_Count_I.Lambda_Source should be Robust_Auto");
    end Test_Robust_Auto_Round_Trip;
 
-
    --  Loading a v1 workspace (no iChartBoxCox field) should give
    --  Box-Cox disabled for all charts by default (empty chart settings map).
    procedure Test_V1_Loads_Box_Cox_Disabled (T : in out Test) is
@@ -365,7 +351,6 @@ package body Coyote_SQC_Workspace_Tests is
            (W, Session_Input_Tokens_I).Transform.Kind = None,
          "Transform should default to None when loading a v1 workspace");
    end Test_V1_Loads_Box_Cox_Disabled;
-
 
    --  Round-trip: per-chart EWMA_Weight and EWMA_L survive save/load.
    procedure Test_EWMA_Round_Trip (T : in out Test) is
@@ -541,8 +526,6 @@ package body Coyote_SQC_Workspace_Tests is
       end;
    end Test_V4_Loads_Turn_Count_Defaults;
 
-
-
    --  Round-trip: per-chart Estimation_Method = Robust_Median survives
    --  save/load.
    procedure Test_Estimation_Method_Round_Trip (T : in out Test) is
@@ -612,7 +595,6 @@ package body Coyote_SQC_Workspace_Tests is
          "Estimation_Method should default to Classical "
          & "for v5 workspace (missing field)");
    end Test_V5_Loads_Classical_Default;
-
 
    --  Anscombe transform config round-trips through workspace save/load.
    procedure Test_Anscombe_Transform_Round_Trip (T : in out Test) is
@@ -697,7 +679,6 @@ package body Coyote_SQC_Workspace_Tests is
       end;
    end Test_Log_Y_Mode_Round_Trip;
 
-
    --  Analyze_All_Directories boolean field round-trips through save/load.
    procedure Test_Analyze_All_Directories_Round_Trip (T : in out Test) is
       pragma Unreferenced (T);
@@ -744,7 +725,6 @@ package body Coyote_SQC_Workspace_Tests is
                  "Analyze_All_Directories should be False after round-trip");
       end;
    end Test_Analyze_All_Directories_Round_Trip;
-
 
    procedure Test_Quantile_Bonferroni_Round_Trip (T : in out Test) is
       pragma Unreferenced (T);

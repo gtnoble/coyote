@@ -1,5 +1,4 @@
 with Subagent_Integration_Tests;
-with AUnit.Test_Suites;
 
 package body Test_Integration_Suite is
 

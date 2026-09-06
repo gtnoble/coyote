@@ -1,5 +1,4 @@
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 --  Coyote_SQC_MI_Tests body.
 --
 --  Project: coyote
@@ -362,7 +361,6 @@ package body Coyote_SQC_MI_Tests is
               "MI Sum I excludes Pairs=0: Mean_MR should be 20.0; got "
               & Long_Float'Image (Params.Mean_MR));
    end Test_Estimate_MI_Sum_Excludes_No_Pairs;
-
 
    package SQC_MI_Caller is
      new AUnit.Test_Caller (Coyote_SQC_MI_Tests.Test);

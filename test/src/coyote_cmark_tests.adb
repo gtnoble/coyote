@@ -1,5 +1,4 @@
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 --  Coyote_Cmark_Tests body.
 --
 --  Project: coyote
@@ -178,7 +177,6 @@ package body Coyote_Cmark_Tests is
       Assert (True, "Free and Iter_Free should not raise");
    end Test_Free_Does_Not_Raise;
 
-
    ---------------------------------------------------------------------------
    --  Shared helper: return first node whose type = Target_Type, or
    --  Null_Address when not found.  Caller must already hold Doc alive.
@@ -187,7 +185,6 @@ package body Coyote_Cmark_Tests is
       Target_Type : Coyote_Cmark.Node_Type_Int)
       return Coyote_Cmark.Node_Ptr
    is
-      use type System.Address;
       Iter   : constant Coyote_Cmark.Iter_Ptr :=
         Coyote_Cmark.Iter_New (Doc);
       Ev     : Coyote_Cmark.Event_Type_Int;
@@ -213,7 +210,6 @@ package body Coyote_Cmark_Tests is
 
    procedure Test_Heading_Level (T : in out Test) is
       pragma Unreferenced (T);
-      use type System.Address;
       Doc1 : constant Coyote_Cmark.Node_Ptr := Parse ("# Heading");
       Doc3 : constant Coyote_Cmark.Node_Ptr := Parse ("### Deep");
       H1   : Coyote_Cmark.Node_Ptr;
@@ -242,7 +238,6 @@ package body Coyote_Cmark_Tests is
 
    procedure Test_List_Type_Is_Bullet (T : in out Test) is
       pragma Unreferenced (T);
-      use type System.Address;
       Doc  : constant Coyote_Cmark.Node_Ptr := Parse ("- item");
       List : Coyote_Cmark.Node_Ptr;
    begin
@@ -260,7 +255,6 @@ package body Coyote_Cmark_Tests is
 
    procedure Test_List_Type_Is_Ordered (T : in out Test) is
       pragma Unreferenced (T);
-      use type System.Address;
       Doc  : constant Coyote_Cmark.Node_Ptr := Parse ("1. item");
       List : Coyote_Cmark.Node_Ptr;
    begin
@@ -278,7 +272,6 @@ package body Coyote_Cmark_Tests is
 
    procedure Test_List_Start_Ordinal (T : in out Test) is
       pragma Unreferenced (T);
-      use type System.Address;
       Doc  : constant Coyote_Cmark.Node_Ptr := Parse ("3. item");
       List : Coyote_Cmark.Node_Ptr;
    begin
@@ -295,7 +288,6 @@ package body Coyote_Cmark_Tests is
 
    procedure Test_Code_Block_Literal (T : in out Test) is
       pragma Unreferenced (T);
-      use type System.Address;
       --  Fenced code block in CommonMark: ``` on its own line.
       Md   : constant String :=
         "```" & Ada.Characters.Latin_1.LF & "hello code" & Ada.Characters.Latin_1.LF & "```" & Ada.Characters.Latin_1.LF;
@@ -324,7 +316,6 @@ package body Coyote_Cmark_Tests is
 
    procedure Test_Get_Literal_Null_Safety (T : in out Test) is
       pragma Unreferenced (T);
-      use type System.Address;
       --  NODE_PARAGRAPH has no literal; cmark_node_get_literal returns NULL.
       --  The shim (cmark_shim_get_literal) must convert that to "".
       Doc  : constant Coyote_Cmark.Node_Ptr := Parse ("hello");
@@ -596,7 +587,6 @@ package body Coyote_Cmark_Tests is
       Assert (After_Position > Table_Position,
               "following prose should remain after table placeholder");
    end Test_Table_Extraction_Preserves_Source_Order;
-
 
    package Coyote_Cmark_Caller is
      new AUnit.Test_Caller (Coyote_Cmark_Tests.Test);

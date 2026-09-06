@@ -8,7 +8,6 @@ with Coyote_App_Frontend_GUI_Tests;
 with Coyote_GUI_Zoom_Tests;
 with Coyote_GUI_Conversation_Stack_Tests;
 with Coyote_GUI_Sandbox_Profile_Window_Tests;
-with AUnit.Test_Suites;
 
 package body Test_GUI_Suite is
 

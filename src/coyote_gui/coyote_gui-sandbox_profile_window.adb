@@ -126,9 +126,9 @@ package body Coyote_GUI.Sandbox_Profile_Window is
    end Profile_Text;
 
    procedure Show_Message
-     (S         : in Instance;
-      The_Type  : in Gtk.Message_Dialog.Gtk_Message_Type;
-      Message   : in String)
+     (S         :  Instance;
+      The_Type  :  Gtk.Message_Dialog.Gtk_Message_Type;
+      Message   :  String)
    is
       Dialog   : Gtk.Message_Dialog.Gtk_Message_Dialog;
       Response : Gtk.Dialog.Gtk_Response_Type;
@@ -145,7 +145,7 @@ package body Coyote_GUI.Sandbox_Profile_Window is
       Dialog.Destroy;
    end Show_Message;
 
-   procedure Show_Error (S : in Instance; Message : in String) is
+   procedure Show_Error (S :  Instance; Message :  String) is
    begin
       Show_Message (S, Gtk.Message_Dialog.Message_Error, Message);
    end Show_Error;
@@ -224,7 +224,7 @@ package body Coyote_GUI.Sandbox_Profile_Window is
    end Read_Path_List;
 
    function List_For_Name
-     (S : in Instance; Name : String)
+     (S :  Instance; Name : String)
       return Gtk.List_Box.Gtk_List_Box
    is
    begin
@@ -373,7 +373,7 @@ package body Coyote_GUI.Sandbox_Profile_Window is
       S.Name_Entry.Select_Region (0, -1);
    end Begin_Edit;
 
-   function Selected_Name (S : in Instance) return String is
+   function Selected_Name (S :  Instance) return String is
    begin
       return To_String (S.Selected_Name);
    end Selected_Name;

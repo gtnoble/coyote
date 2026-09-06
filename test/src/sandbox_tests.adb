@@ -1,5 +1,4 @@
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 --  Unit tests for LLM.Tools.Sandbox — profile discovery, loading, and
 --  bwrap argument construction.
 --
@@ -847,7 +846,6 @@ package body Sandbox_Tests is
          "sandboxed abort result should contain abort notice, got: "
          & To_String (Result));
    end Test_Shell_Sandbox_Abort;
-
 
    package Sandbox_Caller is
      new AUnit.Test_Caller (Sandbox_Tests.Test);

@@ -156,7 +156,7 @@ package body Coyote_GUI.Session_Stats_Window is
 
    procedure Update_Labels
      (S     : in out Instance;
-      Stats : in Coyote_GUI.Session_Stats_Record)
+      Stats :  Coyote_GUI.Session_Stats_Record)
    is
    begin
       Set_Value (S.Session_Id, To_String (Stats.Session_Id));
@@ -277,7 +277,7 @@ package body Coyote_GUI.Session_Stats_Window is
 
    procedure Update
      (S     : in out Instance;
-      Stats : in Coyote_GUI.Session_Stats_Record)
+      Stats :  Coyote_GUI.Session_Stats_Record)
    is
    begin
       S.Stats := Stats;

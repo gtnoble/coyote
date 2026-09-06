@@ -5,7 +5,6 @@ with Ada.Environment_Variables;
 with Ada.Exceptions;
 with Ada.Strings.Fixed;
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with Test_HTTP_Server;
@@ -581,7 +580,6 @@ package body LLM_Auth_Tests is
          Response_Body         => "{""token"":""abc123""}",
          Expected_Message_Part => "missing fields");
    end Test_Refresh_Token_Missing_Expires_At_Field_Raises;
-
 
    package LLM_Auth_Caller is
      new AUnit.Test_Caller (LLM_Auth_Tests.Test);

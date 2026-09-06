@@ -1,5 +1,4 @@
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 --  Coyote_GUI_Notification_Policy_Tests body.
 --
 --  Project: coyote
@@ -56,7 +55,6 @@ package body Coyote_GUI_Notification_Policy_Tests is
             Window_Active => False),
          "noninteractive mode should suppress notification");
    end Test_Suppress_When_Not_Allowed;
-
 
    package Coyote_GUI_Notification_Policy_Caller is
      new AUnit.Test_Caller (Coyote_GUI_Notification_Policy_Tests.Test);

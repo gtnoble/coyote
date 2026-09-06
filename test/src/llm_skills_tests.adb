@@ -4,7 +4,6 @@ with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with LLM.Skills;
@@ -881,7 +880,6 @@ package body LLM_Skills_Tests is
          Cleanup (Install_Root);
          raise;
    end Test_Install_Root_Skills_Loaded;
-
 
    package LLM_Skills_Caller is
      new AUnit.Test_Caller (LLM_Skills_Tests.Test);

@@ -553,7 +553,7 @@ package body Coyote_SQC.Session_Parser is
       Model_Filter            : String_Vectors.Vector;
       Sessions                : in out Session_Vectors.Vector;
       Analyze_All_Directories : Boolean := False;
-      Previous_Sessions       : in Session_Vectors.Vector :=
+      Previous_Sessions       :  Session_Vectors.Vector :=
         Session_Vectors.Empty_Vector)
    is
       use Ada.Directories;

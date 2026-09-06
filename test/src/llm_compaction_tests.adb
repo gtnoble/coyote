@@ -1,7 +1,6 @@
 with AUnit.Assertions;
 with Ada.Strings.Fixed;
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with LLM.Compaction;
 with LLM.Types;
@@ -361,7 +360,6 @@ package body LLM_Compaction_Tests is
         (Contains (To_String (Text), "[Assistant]:"),
          "serialised candidate should include assistant text labels");
    end Test_Full_Compaction_Candidate;
-
 
    package LLM_Compaction_Caller is
      new AUnit.Test_Caller (LLM_Compaction_Tests.Test);

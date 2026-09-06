@@ -1,5 +1,4 @@
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 --  Coyote_GUI_Conversation_Stack_Tests body.
 --
 --  Project: coyote
@@ -714,7 +713,6 @@ package body Coyote_GUI_Conversation_Stack_Tests is
       Pango.Font.Free (Small_Font);
       Pango.Font.Free (Large_Font);
    end Test_Native_Display_Math_Zooms;
-
 
    package Coyote_GUI_Conversation_Stack_Caller is
      new AUnit.Test_Caller (Coyote_GUI_Conversation_Stack_Tests.Test);

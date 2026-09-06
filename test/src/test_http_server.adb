@@ -255,7 +255,7 @@ package body Test_HTTP_Server is
       --  Block until the caller calls Bind, but also accept Stop so
       --  that a caller can cancel a server that was never bound.
       select
-         accept Bind (Port : in Positive) do
+         accept Bind (Port : Positive) do
             Setup_Socket (Port);
          end Bind;
       or

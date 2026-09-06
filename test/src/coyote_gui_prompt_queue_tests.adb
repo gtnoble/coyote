@@ -1,6 +1,5 @@
 with AUnit.Assertions;
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Coyote_GUI.Prompt_Queue;
 with LLM.Providers;
@@ -178,7 +177,6 @@ package body Coyote_GUI_Prompt_Queue_Tests is
          Accepted);
       Assert (not Accepted, "full queue should reject an item");
    end Test_Enqueue_Rejects_Overflow;
-
 
    package Coyote_GUI_Prompt_Queue_Caller is
      new AUnit.Test_Caller (Coyote_GUI_Prompt_Queue_Tests.Test);

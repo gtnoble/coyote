@@ -1,5 +1,4 @@
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 --  Coyote_Lasem_Tests body.
 --
 --  Project: coyote
@@ -135,7 +134,6 @@ package body Coyote_Lasem_Tests is
               "invalid MathML returns an error");
       Coyote_Lasem.Free_Error (Error);
    end Test_Invalid_MathML_Returns_Error;
-
 
    package Coyote_Lasem_Caller is
      new AUnit.Test_Caller (Coyote_Lasem_Tests.Test);

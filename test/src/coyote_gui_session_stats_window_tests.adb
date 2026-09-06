@@ -1,5 +1,4 @@
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 --  Coyote_GUI_Session_Stats_Window_Tests body.
 --
 --  Project: coyote
@@ -112,7 +111,6 @@ package body Coyote_GUI_Session_Stats_Window_Tests is
               "repeated create must retain the support window");
       Parent.Destroy;
    end Test_Create_Is_Idempotent;
-
 
    package Coyote_GUI_Session_Stats_Window_Caller is
      new AUnit.Test_Caller (Coyote_GUI_Session_Stats_Window_Tests.Test);

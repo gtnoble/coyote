@@ -84,7 +84,7 @@ package Coyote_App.Utils is
 
       procedure Feed
         (S      : in out Instance;
-         Data   : in     String;
+         Data   :      String;
          Output :    out Ada.Strings.Unbounded.Unbounded_String);
       --  Emit complete UTF-8 sequences from Data, retaining an incomplete
       --  suffix for the next call.
@@ -236,7 +236,7 @@ package Coyote_App.Utils is
 
       procedure Feed
         (T      : in out Instance;
-         Delt   : in     String;
+         Delt   :      String;
          Output :    out Ada.Strings.Unbounded.Unbounded_String);
       --  Feed a delta.  Output contains text ready to display.
       --  May be empty if all input was held for cross-delta resolution.

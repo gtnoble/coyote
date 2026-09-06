@@ -284,13 +284,13 @@ package body Coyote_SQC.UI.Detail_Panel is
    --  in the session replay opens a Tool_Detail_Window.
 
    procedure On_Session_Tool_Click
-     (Tool_Name    : in String;
-      Arguments    : in String;
-      Result_Text  : in String;
-      Is_Image     : in Boolean;
+     (Tool_Name    :  String;
+      Arguments    :  String;
+      Result_Text  :  String;
+      Is_Image     :  Boolean;
       Status  : Coyote_Renderer.Session_View.Tool_End_Status;
-      Turn_Index   : in Positive;
-      Call_In_Turn : in Positive;
+      Turn_Index   :  Positive;
+      Call_In_Turn :  Positive;
       Session : Coyote_SQC.Data_Model.Session_Record)
    is
    begin

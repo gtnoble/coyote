@@ -1,5 +1,4 @@
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 --  Coyote_App_Frontend_GUI_Tests body.
 --
 --  Project: coyote
@@ -282,7 +281,6 @@ package body Coyote_App_Frontend_GUI_Tests is
       Dialog.Destroy;
       Main_Window (Frontend).Destroy;
    end Test_Product_Information_Icon;
-
 
    package Coyote_App_Frontend_GUI_Caller is
      new AUnit.Test_Caller (Coyote_App_Frontend_GUI_Tests.Test);

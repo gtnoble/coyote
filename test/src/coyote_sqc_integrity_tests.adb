@@ -1,5 +1,4 @@
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 --  Coyote_SQC_Integrity_Tests body.
 --
 --  Project: coyote
@@ -189,7 +188,6 @@ package body Coyote_SQC_Integrity_Tests is
       Assert (W.Setup_Session_Ids.Contains (To_Unbounded_String ("bbb")),
               "Remove_Missing none: ""bbb"" must still be present");
    end Test_Remove_Missing_None;
-
 
    package SQC_Integrity_Caller is
      new AUnit.Test_Caller (Coyote_SQC_Integrity_Tests.Test);

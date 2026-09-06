@@ -2,7 +2,6 @@ with AUnit.Assertions;
 with Ada.Real_Time;
 with Ada.Strings.Fixed;
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with LLM.Tools;
 with LLM.Tools.Temp_File;
@@ -251,7 +250,6 @@ package body LLM_Tools_Tests is
       Assert (not Flag.Is_Armed, "Release must also clear Is_Armed");
    end Test_Pause_Flag_Release_Clears_Armed;
 
-
    --  Validate_Arguments unit tests
 
    --  The Validate_Arguments tests exercise Shell.Execute's built-in
@@ -320,7 +318,6 @@ package body LLM_Tools_Tests is
       Assert (Is_Error,
               "Empty string arguments should produce an error");
    end Test_Validate_Arguments_Empty_String;
-
 
    --  ── Shell media_type tests ────────────────────────────────────────────
 
@@ -499,7 +496,6 @@ package body LLM_Tools_Tests is
          "Base64 output must not contain '[' (truncation marker)");
    end Test_Execute_Image_Not_Truncated;
 
-
    --  ── Shell timeout tests ───────────────────────────────────────────────
 
    procedure Test_Shell_Timeout_Under (T : in out Test) is
@@ -630,7 +626,6 @@ package body LLM_Tools_Tests is
          "elapsed time should be well within the 5 s timeout, got: "
          & Duration'Image (To_Duration (Elapsed)));
    end Test_Shell_Timeout_Under_Elapsed;
-
 
    procedure Test_Shell_Timeout_Triggers_Elapsed (T : in out Test) is
       pragma Unreferenced (T);
@@ -846,7 +841,6 @@ package body LLM_Tools_Tests is
          Coyote_Process_Control.Set_Grace_Seconds (Saved_Grace);
          raise;
    end Test_Shell_Timeout_Escalates_After_Grace;
-
 
    package LLM_Tools_Caller is
      new AUnit.Test_Caller (LLM_Tools_Tests.Test);

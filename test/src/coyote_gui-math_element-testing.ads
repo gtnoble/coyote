@@ -2,7 +2,6 @@
 --
 --  Project: coyote
 
-with Coyote_GUI.Math_Element;
 
 package Coyote_GUI.Math_Element.Testing is
 

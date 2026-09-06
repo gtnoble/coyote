@@ -508,8 +508,10 @@ equals the raw `usage.input` for Anthropic turns and
 
 ## 6. Data Model
 
-All types below are declared in `Coyote_SQC.Data_Model`. Ada 2022 style; two-space
-indentation; `Unbounded_String` for variable-length stored strings.
+All types below are declared in `Coyote_SQC.Data_Model`. Ada 2022 style;
+three-space indentation as enforced by the Alire-generated GNAT development
+profile; standalone `in` parameter modes are omitted as required by `-gnatyI`;
+`Unbounded_String` for variable-length stored strings.
 
 ### 6.1 Tool_Call_Record
 

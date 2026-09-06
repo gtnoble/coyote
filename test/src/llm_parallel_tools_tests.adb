@@ -5,7 +5,6 @@ with Ada.Directories;
 with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
 with AUnit.Test_Caller;
-with AUnit.Test_Suites;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with GNATCOLL.JSON;
@@ -20,21 +19,6 @@ package body LLM_Parallel_Tools_Tests is
    use AUnit.Assertions;
    use type Ada.Containers.Count_Type;
    use type LLM.Types.Role;
-
-   function Current_Unix_S return Long_Long_Integer is
-      use Ada.Calendar;
-
-      Epoch : constant Time :=
-        Time_Of (Year => 1970, Month => 1, Day => 1, Seconds => 0.0);
-   begin
-      return Long_Long_Integer (Clock - Epoch);
-   end Current_Unix_S;
-
-   function Long_Long_Image (Value : Long_Long_Integer) return String is
-      Image : constant String := Long_Long_Integer'Image (Value);
-   begin
-      return Image (Image'First + 1 .. Image'Last);
-   end Long_Long_Image;
 
    function Natural_Image (Value : Natural) return String is
       Image : constant String := Natural'Image (Value);
@@ -283,7 +267,6 @@ package body LLM_Parallel_Tools_Tests is
         & "data: " & Write (Completed) & ASCII.LF & ASCII.LF;
    end Text_SSE_Payload;
 
-
    --  Append a Content-Type: text/event-stream header to a response.
    procedure Add_SSE_Header (Res : in out Test_HTTP_Server.Response) is
    begin
@@ -355,7 +338,6 @@ package body LLM_Parallel_Tools_Tests is
         "event: response.completed" & ASCII.LF
         & "data: " & Write (Completed) & ASCII.LF & ASCII.LF;
    end Tool_Call_SSE_Payload;
-
 
    procedure Test_Parallel_Tools_Run_Concurrently (T : in out Test) is
       pragma Unreferenced (T);
@@ -1054,7 +1036,6 @@ package body LLM_Parallel_Tools_Tests is
          Cleanup_Test_Home (Home);
          raise;
    end Test_Tools_Run_In_Group_Order;
-
 
    package LLM_Parallel_Caller is
      new AUnit.Test_Caller (LLM_Parallel_Tools_Tests.Test);

@@ -67,7 +67,6 @@ package LLM_Tools_Tests is
    --  Release also clears Armed (e.g. when Stop is clicked while armed).
    procedure Test_Pause_Flag_Release_Clears_Armed   (T : in out Test);
 
-
    --  ── Shell media_type tests ────────────────────────────────────────────
 
    --  When media_type is set, stdout is base64-encoded and Media_Type is

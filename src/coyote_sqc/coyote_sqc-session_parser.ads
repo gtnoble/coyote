@@ -26,7 +26,7 @@ package Coyote_SQC.Session_Parser is
       Model_Filter       : Coyote_SQC.Data_Model.String_Vectors.Vector;
       Sessions                   : in out Coyote_SQC.Data_Model.Session_Vectors.Vector;
       Analyze_All_Directories    : Boolean := False;
-      Previous_Sessions          : in Coyote_SQC.Data_Model.Session_Vectors.Vector :=
+      Previous_Sessions          :  Coyote_SQC.Data_Model.Session_Vectors.Vector :=
         Coyote_SQC.Data_Model.Session_Vectors.Empty_Vector);
 
    --  Parse a single .jsonl session file.

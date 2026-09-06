@@ -11,7 +11,6 @@ with Coyote_Cmark_Tests;
 with Sandbox_Tests;
 with Coyote_Help_Tests;
 with Coyote_Lasem_Tests;
-with AUnit.Test_Suites;
 
 package body Test_Core_Suite is
 
