@@ -889,6 +889,7 @@ package body Coyote_GUI.Sandbox_Profile_Window is
       Target_Agent_Id : String := "")
    is
       Outer       : Gtk.Box.Gtk_Box;
+      Content     : Gtk.Box.Gtk_Box;
       Main_Pane   : Gtk.Paned.Gtk_Hpaned;
       Left_Box    : Gtk.Box.Gtk_Box;
       Right_Box   : Gtk.Box.Gtk_Box;
@@ -914,10 +915,12 @@ package body Coyote_GUI.Sandbox_Profile_Window is
       S.Window.Set_Size_Request (620, 420);
       S.Window.On_Delete_Event (On_Window_Delete'Access);
       S.Window.On_Key_Press_Event (On_Key_Press'Access);
-      Gtk.Box.Gtk_New_Vbox (Outer, False, 4);
-      Outer.Set_Border_Width (8);
+      Gtk.Box.Gtk_New_Vbox (Outer, False, 0);
       S.Window.Add (Outer);
       Create_Menus (S.Window, Outer);
+      Gtk.Box.Gtk_New_Vbox (Content, False, 4);
+      Content.Set_Border_Width (8);
+      Outer.Pack_Start (Content, True, True, 0);
       Gtk.Paned.Gtk_New_Hpaned (Main_Pane);
       Gtk.Box.Gtk_New_Vbox (Left_Box, False, 4);
       Gtk.Label.Gtk_New (Label, "Sandbox profiles");
@@ -976,10 +979,10 @@ package body Coyote_GUI.Sandbox_Profile_Window is
       Right_Box.Pack_Start (Actions, False, False, 0);
       Main_Pane.Pack2 (Right_Box, True, False);
       Main_Pane.Set_Position (270);
-      Outer.Pack_Start (Main_Pane, True, True, 0);
+      Content.Pack_Start (Main_Pane, True, True, 0);
       Gtk.Label.Gtk_New (S.Status, "Browse mode");
       S.Status.Set_Halign (Gtk.Widget.Align_Start);
-      Outer.Pack_End (S.Status, False, False, 0);
+      Content.Pack_End (S.Status, False, False, 0);
       S.Created := True;
       Refresh (S);
       Set_Browse (S);
