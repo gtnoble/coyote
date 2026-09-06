@@ -316,11 +316,12 @@ package body LLM.Tools.Shell is
       Is_Error   := True;
    end Set_Error;
 
-   procedure Execute
+   procedure Execute_With_Status
      (Args_Json       :     String;
       Result          : out Ada.Strings.Unbounded.Unbounded_String;
       Media_Type      : out Ada.Strings.Unbounded.Unbounded_String;
       Is_Error        : out Boolean;
+      Status          : out Execution_Status;
       Abort_Flg       : access LLM.Tools.Abort_Flag := null;
       Sandbox_Profile :     String := "")
    is
@@ -330,6 +331,7 @@ package body LLM.Tools.Shell is
       Result     := Null_Unbounded_String;
       Media_Type := Null_Unbounded_String;
       Is_Error   := False;
+      Status     := Failed;
 
       if not Parsed.Success then
          Set_Error
@@ -843,6 +845,7 @@ package body LLM.Tools.Shell is
                --  model sees how much work the command completed before
                --  the timeout expired.
                Is_Error   := True;
+               Status     := Timed_Out;
                Media_Type := Null_Unbounded_String;
                if Length (Output) > 0 then
                   Append (Output, ASCII.LF);
@@ -871,6 +874,7 @@ package body LLM.Tools.Shell is
                --  model sees how much work the command completed before
                --  the abort signal arrived.
                Is_Error   := True;
+               Status     := Aborted;
                Media_Type := Null_Unbounded_String;
                if Length (Output) > 0 then
                   Append (Output, ASCII.LF);
@@ -943,6 +947,7 @@ package body LLM.Tools.Shell is
                Result := Output;
             end if;
 
+            Status := (if Is_Error then Failed else Completed);
             Cleanup;
          exception
             when Ex : others =>
@@ -953,6 +958,26 @@ package body LLM.Tools.Shell is
                   Result, Media_Type, Is_Error);
          end;
       end;
+   end Execute_With_Status;
+
+   procedure Execute
+     (Args_Json       :     String;
+      Result          : out Ada.Strings.Unbounded.Unbounded_String;
+      Media_Type      : out Ada.Strings.Unbounded.Unbounded_String;
+      Is_Error        : out Boolean;
+      Abort_Flg       : access LLM.Tools.Abort_Flag := null;
+      Sandbox_Profile :     String := "")
+   is
+      Ignored_Status : Execution_Status;
+   begin
+      Execute_With_Status
+        (Args_Json       => Args_Json,
+         Result          => Result,
+         Media_Type      => Media_Type,
+         Is_Error        => Is_Error,
+         Status          => Ignored_Status,
+         Abort_Flg       => Abort_Flg,
+         Sandbox_Profile => Sandbox_Profile);
    end Execute;
 
 end LLM.Tools.Shell;

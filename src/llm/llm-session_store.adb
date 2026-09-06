@@ -157,6 +157,36 @@ package body LLM.Session_Store is
       end if;
    end To_Stop_Reason;
 
+   function Tool_Result_Status_Image
+     (Status : LLM.Types.Tool_Result_Status) return String
+   is
+   begin
+      case Status is
+         when LLM.Types.Result_Success   => return "success";
+         when LLM.Types.Result_Error     => return "error";
+         when LLM.Types.Result_Timed_Out => return "timed_out";
+         when LLM.Types.Result_Cancelled => return "cancelled";
+      end case;
+   end Tool_Result_Status_Image;
+
+   function Tool_Result_Status_Value
+     (Text : String;
+      Is_Error : Boolean) return LLM.Types.Tool_Result_Status
+   is
+   begin
+      if Text = "timed_out" then
+         return LLM.Types.Result_Timed_Out;
+      elsif Text = "cancelled" then
+         return LLM.Types.Result_Cancelled;
+      elsif Text = "success" then
+         return LLM.Types.Result_Success;
+      elsif Text = "error" or else Is_Error then
+         return LLM.Types.Result_Error;
+      else
+         return LLM.Types.Result_Success;
+      end if;
+   end Tool_Result_Status_Value;
+
    function Stop_Reason_Image (Reason : LLM.Types.Stop_Reason) return String is
    begin
       case Reason is
@@ -464,6 +494,8 @@ package body LLM.Session_Store is
       Result_Text  : Unbounded_String;
       Media_Type   : Unbounded_String;
       Is_Error     : Boolean := False;
+      Status       : LLM.Types.Tool_Result_Status :=
+        LLM.Types.Result_Success;
    begin
       for Block of Msg.Content loop
          case Block.Kind is
@@ -472,6 +504,7 @@ package body LLM.Session_Store is
                   Tool_Call_Id := Block.Result_Id;
                end if;
                Is_Error := Is_Error or else Block.Is_Error;
+               Status := Block.Status;
                if Length (Block.Media_Type) > 0 then
                   Media_Type := Block.Media_Type;
                end if;
@@ -513,6 +546,7 @@ package body LLM.Session_Store is
          Result.Set_Field ("toolName", To_String (Tool_Name));
          Result.Set_Field ("content", Content);
          Result.Set_Field ("isError", Is_Error);
+         Result.Set_Field ("status", Tool_Result_Status_Image (Status));
          Result.Set_Field ("timestamp", Ms);
       end;
 
@@ -695,6 +729,10 @@ package body LLM.Session_Store is
         Get_Array_Field (Msg, "content");
       Text       : Unbounded_String;
       Media_Type : Unbounded_String;
+      Is_Error   : constant Boolean := Get_Boolean_Field (Msg, "isError");
+      Status     : constant LLM.Types.Tool_Result_Status :=
+        Tool_Result_Status_Value
+          (Get_String_Field (Msg, "status"), Is_Error);
    begin
       for I in 1 .. GNATCOLL.JSON.Length (Blocks) loop
          declare
@@ -722,7 +760,8 @@ package body LLM.Session_Store is
             (Get_String_Field (Msg, "toolCallId")),
           Result_Text => Text,
           Media_Type  => Media_Type,
-          Is_Error    => Get_Boolean_Field (Msg, "isError")));
+          Is_Error    => Is_Error,
+          Status      => Status));
 
       return
         (Role      => LLM.Types.Tool_Result,

@@ -100,6 +100,9 @@ package LLM_Tools_Tests is
    --  Commands that exceed the timeout are killed and return a notice.
    procedure Test_Shell_Timeout_Triggers                (T : in out Test);
 
+   --  The structured executor reports timeout independently of result text.
+   procedure Test_Shell_Timeout_Status                   (T : in out Test);
+
    --  timeout=0 is treated as no time limit.
    procedure Test_Shell_Timeout_Zero                    (T : in out Test);
 

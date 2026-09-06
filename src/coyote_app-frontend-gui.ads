@@ -108,7 +108,14 @@ package Coyote_App.Frontend.GUI is
       Source_Directory :      String := "";
       Session_Start   :      String := "";
       Turn_Index      :      Positive := 1;
-      Call_In_Turn    :      Positive := 1);
+      Call_In_Turn    :      Positive := 1;
+      Initial_Status  :      Coyote_App.Frontend.Tool_Status :=
+        Coyote_App.Frontend.Running);
+   overriding
+   procedure Set_Tool_Status
+     (F       : in out Instance;
+      Tool_Id :      String;
+      Status  :      Coyote_App.Frontend.Tool_Status);
    overriding
    procedure End_Tool
      (F           : in out Instance;

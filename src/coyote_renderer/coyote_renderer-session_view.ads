@@ -15,7 +15,7 @@ package Coyote_Renderer.Session_View is
 
    --  Status of a completed tool call, used in the clickable frame label
    --  and in the detail window status banner.
-   type Tool_End_Status is (Success, Error, Cancelled);
+   type Tool_End_Status is (Success, Error, Timed_Out, Cancelled);
 
    --  Callback invoked when the user clicks a tool call widget in the session
    --  replay.  All parameters are captured in the widget closure at render

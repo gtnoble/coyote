@@ -414,6 +414,61 @@ package body Coyote_GUI_Conversation_Stack_Tests is
               "tool completion updates existing card by ID");
    end Test_Tool_Updates_By_Stable_Id;
 
+   procedure Test_Tool_Status_Transitions (T : in out Test) is
+      Info : Coyote_GUI.Tool_Info;
+      Summary : String (1 .. 1024);
+      Summary_Length : Natural;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Begin_Request (T.Stack, "request", Prompt);
+      Begin_Tool
+        (C             => T.Stack,
+         Name          => "shell",
+         Args          => "{""command"":""sleep 2""}",
+         Session_Id    => "session",
+         Tool_Id       => "tool-status",
+         Initial_Status => Queued);
+      Info := Coyote_GUI.Conversation_Stack.Testing.Tool_Detail
+        (T.Stack, "tool-status");
+      Assert (Info.Result_Status = Queued and then not Info.Completed,
+              "new card retains queued status");
+      Summary_Length := Coyote_GUI.Conversation_Stack.Testing.Tool_Summary
+        (T.Stack, "tool-status")'Length;
+      Summary (1 .. Summary_Length) :=
+        Coyote_GUI.Conversation_Stack.Testing.Tool_Summary
+          (T.Stack, "tool-status");
+      Assert (Index (Summary (1 .. Summary_Length), "Status: Queued") > 0,
+              "queued status is visible in the compact card");
+
+      Set_Tool_Status (T.Stack, "tool-status", Running);
+      Info := Coyote_GUI.Conversation_Stack.Testing.Tool_Detail
+        (T.Stack, "tool-status");
+      Assert (Info.Result_Status = Running and then not Info.Completed,
+              "running transition retains an active card");
+      Assert
+        (Index
+           (Coyote_GUI.Conversation_Stack.Testing.Tool_Summary
+              (T.Stack, "tool-status"), "Status: Running") > 0,
+              "running status is visible in the compact card");
+
+      End_Tool
+        (C          => T.Stack,
+         Tool_Id    => "tool-status",
+         Status     => Timed_Out,
+         Result     => "[command timed out after 2 seconds]");
+      Info := Coyote_GUI.Conversation_Stack.Testing.Tool_Detail
+        (T.Stack, "tool-status");
+      Assert (Info.Result_Status = Timed_Out and then Info.Completed,
+              "timed-out transition closes the card");
+      Assert
+        (Index
+           (Coyote_GUI.Conversation_Stack.Testing.Tool_Summary
+              (T.Stack, "tool-status"), "Status: Timed out") > 0,
+              "timed-out status is visible in the compact card");
+   end Test_Tool_Status_Transitions;
+
    procedure Test_Tool_Cards_Use_Responsive_Flow (T : in out Test) is
       Flow : Gtk.Flow_Box.Gtk_Flow_Box;
       First_Child : Gtk.Flow_Box_Child.Gtk_Flow_Box_Child;
@@ -785,6 +840,10 @@ package body Coyote_GUI_Conversation_Stack_Tests is
         ("Coyote.GUI.Conversation_Stack updates tools by stable ID",
          Coyote_GUI_Conversation_Stack_Tests
            .Test_Tool_Updates_By_Stable_Id'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack tracks tool status transitions",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Tool_Status_Transitions'Access));
       Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
         ("Coyote.GUI.Conversation_Stack uses responsive tool flow",
          Coyote_GUI_Conversation_Stack_Tests

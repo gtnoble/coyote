@@ -215,14 +215,17 @@ package body Coyote_GUI.Tool_Detail_Window is
      (Info : Coyote_GUI.Tool_Info) return String
    is
    begin
-      if not Info.Completed then
-         return "Running";
-      end if;
       case Info.Result_Status is
+         when Coyote_GUI.Queued =>
+            return "Queued";
+         when Coyote_GUI.Running =>
+            return "Running";
          when Coyote_GUI.Success =>
             return UC_CHECK & " success";
          when Coyote_GUI.Error =>
             return UC_CROSS & " error";
+         when Coyote_GUI.Timed_Out =>
+            return "! timed out";
          when Coyote_GUI.Cancelled =>
             return "- cancelled";
       end case;
@@ -230,16 +233,22 @@ package body Coyote_GUI.Tool_Detail_Window is
 
    procedure Apply_Status_Style
      (Label  : not null access Gtk.Label.Gtk_Label_Record'Class;
-      Status : Coyote_GUI.Tool_End_Status)
+      Status : Coyote_GUI.Tool_Status)
    is
       use Gtk.Css_Provider;
       use Gtk.Style_Context;
       use Gtk.Style_Provider;
       CSS : constant String :=
         (case Status is
+            when Coyote_GUI.Queued =>
+               "label { font-weight: bold; padding: 7px 10px; }",
+            when Coyote_GUI.Running =>
+               "label { font-weight: bold; padding: 7px 10px; }",
             when Coyote_GUI.Success =>
                "label { font-weight: bold; padding: 7px 10px; }",
             when Coyote_GUI.Error =>
+               "label { font-weight: bold; padding: 7px 10px; }",
+            when Coyote_GUI.Timed_Out =>
                "label { font-weight: bold; padding: 7px 10px; }",
             when Coyote_GUI.Cancelled =>
                "label { font-weight: bold; padding: 7px 10px; }");

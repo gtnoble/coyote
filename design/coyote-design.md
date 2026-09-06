@@ -619,8 +619,9 @@ to any window or dialog.
 | `Message_Update_Event` / `Text_Delta` | `Append_Text` |
 | `Message_Update_Event` / `Text_End` | `End_Text_Block` |
 | `Message_Update_Event` / `Thinking_Delta` | `Append_Thinking` |
-| `Tool_Execution_Start_Event` | `Begin_Tool`; creates a running card with a captured detail snapshot |
-| `Tool_Execution_End_Event` | `End_Tool`; completes the captured detail payload; on last tool in batch: `Append_Turn_Footer` (step-level display) then `Append_Fork_Action` (step-level) |
+| `Tool_Execution_Start_Event` | `Begin_Tool`; creates a queued card with a captured detail snapshot |
+| `Tool_Execution_Running_Event` | `Set_Tool_Status (Running)` when the worker actually starts; queued cards remain queued until this event |
+| `Tool_Execution_End_Event` | `End_Tool`; completes the captured detail payload with success, error, timeout, or cancellation; on last tool in batch: `Append_Turn_Footer` (step-level display) then `Append_Fork_Action` (step-level) |
 | `Message_End_Event` | record stats in App_State |
 | `Session_Stats_Event` | `Append_Turn_Footer` (full-turn display) then `Append_Fork_Action` (full-turn); GUI: typed `Set_Stats_Summary` snapshot |
 | `Model_Select_Event` | `Append_Notice (Info, ...)` |
@@ -759,10 +760,11 @@ loop:
   append assistant message to History
   if no tool calls in response: exit
   --  Phase 1: emit Tool_Execution_Start_Event for every tool in call order.
-  --  Phase 2: execute tools.  If all tools carry a run_group > 0 then
-  --    group by run_group value, sort groups ascending, execute each group's
-  --    tools concurrently within the group; otherwise execute every tool
-  --    sequentially in call order.
+  --  Phase 2: execute tools.  Before each worker starts, emit
+  --    Tool_Execution_Running_Event for that tool.  If all tools carry a
+  --    run_group > 0 then group by run_group value, sort groups ascending,
+  --    and execute each group's tools concurrently; otherwise execute every
+  --    tool sequentially in call order.  Tools in later groups remain queued.
   --  Phase 3: emit Tool_Execution_End_Event for every tool in call order;
   --    append each tool result to History.
   --  The run_group field is stripped from arguments JSON before the tool
@@ -1234,7 +1236,9 @@ session store, and tools.
 - `Content_Block` — discriminated record covering: `Text` (plain string),
   `Thinking` (reasoning block with signature), `Tool_Call` (id, name, arguments
   JSON string), `Tool_Result` (tool_call_id, content string, is_error flag,
-  media_type), `Image` (base64 data + media_type).
+  terminal status, media_type), `Image` (base64 data + media_type). Terminal
+  status is success, error, timed_out, or cancelled; legacy JSONL records
+  without the status field derive it from `isError`.
 - `Content_Block_Vectors.Vector` — ordered sequence of content blocks in one message.
 - `Message` — record: role, content blocks, optional stop_reason, optional usage
   (input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens).
@@ -1258,8 +1262,9 @@ by provider adapters and consumed by `Dispatch_Event`.
 | `Agent_End_Event` | `Was_Aborted : Boolean` | Agent turn ending |
 | `Message_Update_Event` | `Kind : Update_Kind`; `Text : String`; `Tool_Id : String` | Streaming token or tool delta |
 | `Message_End_Event` | usage fields | Provider message completed |
-| `Tool_Execution_Start_Event` | tool name, call_id, args JSON | Tool call started |
-| `Tool_Execution_End_Event` | call_id, result text, is_error, duration | Tool call completed |
+| `Tool_Execution_Start_Event` | tool name, call_id, args JSON | Tool call enters queued state |
+| `Tool_Execution_Running_Event` | call_id | Worker starts; card enters running state |
+| `Tool_Execution_End_Event` | call_id, result text, is_error, timed-out flag, cancellation flag | Tool call reaches a terminal state |
 | `Session_Stats_Event` | turn count, cost, model info | Post-turn statistics |
 | `Session_Info_Event` | session_id, thinking_level, sandbox_profile | Session identity at startup |
 | `Model_Select_Event` | provider, model_id, context window | Model selected or changed |
@@ -1955,8 +1960,8 @@ enumeration and the `Update` discriminated record.
 
 **`Update_Kind` values:** `Append_Text`, `End_Text_Block`, `Append_Thinking`,
 `Begin_Thinking`, `End_Thinking`, `Begin_Tool`, `End_Tool`, `Append_Notice`,
-`Append_Turn_Footer`, `Set_Mode`, `Set_Stats`, `Clear_Stats`,
-`Clear_Conversation`, `Set_Completion_Notifications`,
+`Append_Turn_Footer`, `Set_Tool_Status`, `Set_Mode`, `Set_Stats`,
+`Clear_Stats`, `Clear_Conversation`, `Set_Completion_Notifications`,
 `Completion_Notification`, `Show_Detail`, and `Shutdown`.
 
 **`Update` record:** Discriminant is `Update_Kind`. Each variant carries the

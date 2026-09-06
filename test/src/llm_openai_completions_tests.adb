@@ -701,7 +701,8 @@ package body LLM_OpenAI_Completions_Tests is
           Result_Id   => To_Unbounded_String ("call_1"),
           Result_Text => To_Unbounded_String ("file contents"),
           Media_Type  => Null_Unbounded_String,
-          Is_Error    => False));
+          Is_Error    => False,
+          Status      => LLM.Types.Result_Success));
       Messages.Append
         ((Role      => LLM.Types.Tool_Result,
           Content   => Tool_Content,
@@ -2016,7 +2017,8 @@ package body LLM_OpenAI_Completions_Tests is
           Result_Id   => To_Unbounded_String ("call_img"),
           Result_Text => To_Unbounded_String ("SGVsbG8="),
           Media_Type  => To_Unbounded_String ("image/png"),
-          Is_Error    => False));
+          Is_Error    => False,
+          Status      => LLM.Types.Result_Success));
       Messages.Append
         ((Role      => LLM.Types.Tool_Result,
           Content   => Result_Content,

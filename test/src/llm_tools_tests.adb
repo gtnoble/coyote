@@ -11,6 +11,7 @@ with Coyote_Process_Control;
 package body LLM_Tools_Tests is
 
    use AUnit.Assertions;
+   use type LLM.Tools.Shell.Execution_Status;
 
    function Contains (Text : String; Pattern : String) return Boolean is
    begin
@@ -546,6 +547,24 @@ package body LLM_Tools_Tests is
          & To_String (Result));
    end Test_Shell_Timeout_Triggers;
 
+   procedure Test_Shell_Timeout_Status (T : in out Test) is
+      pragma Unreferenced (T);
+      Result     : Unbounded_String;
+      Media_Type : Unbounded_String;
+      Is_Error   : Boolean;
+      Status     : LLM.Tools.Shell.Execution_Status;
+   begin
+      LLM.Tools.Shell.Execute_With_Status
+        (Args_Json  => "{""command"":""sleep 10"",""timeout"":1}",
+         Result     => Result,
+         Media_Type => Media_Type,
+         Is_Error   => Is_Error,
+         Status     => Status);
+      Assert (Is_Error, "timed-out command remains an error result");
+      Assert (Status = LLM.Tools.Shell.Timed_Out,
+              "structured shell status identifies a timeout");
+   end Test_Shell_Timeout_Status;
+
    procedure Test_Shell_Timeout_Zero (T : in out Test) is
       pragma Unreferenced (T);
 
@@ -939,6 +958,9 @@ package body LLM_Tools_Tests is
       Result.Add_Test (LLM_Tools_Caller.Create
         ("LLM.Tools.Shell timeout kills an over-running command",
          LLM_Tools_Tests.Test_Shell_Timeout_Triggers'Access));
+      Result.Add_Test (LLM_Tools_Caller.Create
+        ("LLM.Tools.Shell reports structured timeout status",
+         LLM_Tools_Tests.Test_Shell_Timeout_Status'Access));
       Result.Add_Test (LLM_Tools_Caller.Create
         ("LLM.Tools.Shell timeout=0 disables the timer",
          LLM_Tools_Tests.Test_Shell_Timeout_Zero'Access));

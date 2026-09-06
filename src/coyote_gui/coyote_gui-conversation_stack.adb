@@ -447,7 +447,7 @@ package body Coyote_GUI.Conversation_Stack is
    end Show_Contents;
 
    function Tool_Status_Text
-     (Status  : Coyote_GUI.Tool_End_Status;
+     (Status  : Coyote_GUI.Tool_Status;
       Result  : String;
       Running : Boolean) return String
    is
@@ -458,14 +458,24 @@ package body Coyote_GUI.Conversation_Stack is
             else Result));
       Text : Unbounded_String;
    begin
-      if Running then
+      if Running or else Status = Coyote_GUI.Running then
          return "Running";
+      elsif Status = Coyote_GUI.Queued then
+         return "Queued";
       end if;
       case Status is
+         when Coyote_GUI.Queued | Coyote_GUI.Running =>
+            return "Running";
          when Coyote_GUI.Success =>
             return "Completed";
          when Coyote_GUI.Error =>
             Text := To_Unbounded_String ("Error");
+            if Detail'Length > 0 then
+               Append (Text, " - " & Detail);
+            end if;
+            return To_String (Text);
+         when Coyote_GUI.Timed_Out =>
+            Text := To_Unbounded_String ("Timed out");
             if Detail'Length > 0 then
                Append (Text, " - " & Detail);
             end if;
@@ -487,7 +497,7 @@ package body Coyote_GUI.Conversation_Stack is
    function Format_Tool_Summary
      (Name    : String;
       Args    : String;
-      Status  : Coyote_GUI.Tool_End_Status;
+      Status  : Coyote_GUI.Tool_Status;
       Result  : String;
       Running : Boolean) return String
    is
@@ -878,7 +888,8 @@ package body Coyote_GUI.Conversation_Stack is
       Source_Directory : String := "";
       Session_Start   : String := "";
       Turn_Index      : Positive := 1;
-      Call_In_Turn    : Positive := 1)
+      Call_In_Turn    : Positive := 1;
+      Initial_Status  : Coyote_GUI.Tool_Status := Coyote_GUI.Running)
    is
       Frame        : Gtk.Frame.Gtk_Frame;
       Box          : Gtk.Box.Gtk_Box;
@@ -889,7 +900,7 @@ package body Coyote_GUI.Conversation_Stack is
       Info         : Coyote_GUI.Tool_Info;
       Summary_Text : constant String :=
         Format_Tool_Summary
-          (Name, Args, Coyote_GUI.Success, "", Running => True);
+          (Name, Args, Initial_Status, "", Running => False);
    begin
       if not C.Has_Exchange then
          Begin_Request (C, "", Coyote_GUI.Prompt);
@@ -909,7 +920,9 @@ package body Coyote_GUI.Conversation_Stack is
       Info.Session_Start    := To_Unbounded_String (Session_Start);
       Info.Turn_Index       := Turn_Index;
       Info.Call_In_Turn     := Call_In_Turn;
-      Info.Completed        := False;
+      Info.Result_Status    := Initial_Status;
+      Info.Completed        := Initial_Status in
+        Coyote_GUI.Success .. Coyote_GUI.Cancelled;
 
       Gtk.Frame.Gtk_New (Frame, "Tool call");
       Gtk.Box.Gtk_New_Vbox (Box, Homogeneous => False, Spacing => 4);
@@ -990,6 +1003,37 @@ package body Coyote_GUI.Conversation_Stack is
           Details      => Details,
           Info         => Info));
    end Begin_Tool;
+
+   procedure Set_Tool_Status
+     (C       : in out Instance;
+      Tool_Id : String;
+      Status  : Coyote_GUI.Tool_Status)
+   is
+      Tool_Value : Tool_Entry;
+   begin
+      if not C.Tools.Contains (Tool_Id) then
+         return;
+      end if;
+      Tool_Value := C.Tools.Element (Tool_Id);
+      Tool_Value.Info.Result_Status := Status;
+      Tool_Value.Info.Completed := Status in
+        Coyote_GUI.Success .. Coyote_GUI.Cancelled;
+      Tool_Value.Summary_Text :=
+        To_Unbounded_String
+          (Format_Tool_Summary
+             (To_String (Tool_Value.Info.Name),
+              To_String (Tool_Value.Info.Args),
+              Status,
+              To_String (Tool_Value.Info.Result_Text),
+              Running => Status = Coyote_GUI.Running));
+      Tool_Value.Status.Set_Text
+        ("Status: "
+         & Tool_Status_Text
+             (Status,
+              To_String (Tool_Value.Info.Result_Text),
+              Running => Status = Coyote_GUI.Running));
+      C.Tools.Replace (Tool_Id, Tool_Value);
+   end Set_Tool_Status;
 
    procedure End_Tool
      (C          : in out Instance;

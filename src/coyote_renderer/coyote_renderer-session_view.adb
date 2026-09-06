@@ -133,6 +133,7 @@ package body Coyote_Renderer.Session_View is
       Text     : Unbounded_String;
       Is_Err   : Boolean := False;
       Is_Image : Boolean := False;
+      Status   : Tool_End_Status := Success;
    end record;
 
    package TR_Vectors is new Ada.Containers.Vectors
@@ -175,6 +176,13 @@ package body Coyote_Renderer.Session_View is
                      declare
                         TC_Id  : constant String := Get_Str (Msg, "toolCallId");
                         Is_Err : constant Boolean := Get_Bool (Msg, "isError");
+                        Status : constant Tool_End_Status :=
+                          (if Get_Str (Msg, "status") = "timed_out"
+                           then Timed_Out
+                           elsif Get_Str (Msg, "status") = "cancelled"
+                           then Cancelled
+                           elsif Is_Err then Error
+                           else Success);
                         Text   : Unbounded_String;
                         Is_Img : Boolean := False;
                      begin
@@ -219,7 +227,8 @@ package body Coyote_Renderer.Session_View is
                           ((Id       => To_Unbounded_String (TC_Id),
                             Text     => Text,
                             Is_Err   => Is_Err,
-                            Is_Image => Is_Img));
+                            Is_Image => Is_Img,
+                            Status   => Status));
                      end;
                   end if;
                end if;
@@ -252,7 +261,8 @@ package body Coyote_Renderer.Session_View is
       return (Id       => Null_Unbounded_String,
               Text     => Null_Unbounded_String,
               Is_Err   => False,
-              Is_Image => False);
+              Is_Image => False,
+              Status   => Success);
    end Find_Result;
 
    --  ── Tool call button closure map ──────────────────────────────────────
@@ -427,8 +437,7 @@ package body Coyote_Renderer.Session_View is
                           Find_Result (Results, TC_Id);
                         Status  : constant Tool_End_Status :=
                           (if To_String (Res.Id) = "" then Cancelled
-                           elsif Res.Is_Err             then Error
-                           else                              Success);
+                           else Res.Status);
                      begin
                         Call_In_Turn := Call_In_Turn + 1;
 
@@ -448,6 +457,7 @@ package body Coyote_Renderer.Session_View is
                                  (case Status is
                                     when Success   => UC_CHECK,
                                     when Error     => UC_CROSS,
+                                    when Timed_Out => "!",
                                     when Cancelled => "-")
                                  & " " & TC_Name);
                               View.Add_Child_At_Anchor (Btn, Anchor);
@@ -477,6 +487,7 @@ package body Coyote_Renderer.Session_View is
                               (case Status is
                                  when Success   => UC_CHECK,
                                  when Error     => UC_CROSS,
+                                 when Timed_Out => "!",
                                  when Cancelled => "-")
                               & " " & TC_Name & ASCII.LF
                               & (if TC_Args'Length > 0
@@ -484,7 +495,12 @@ package body Coyote_Renderer.Session_View is
                                  else ""),
                               Tags.Tool);
                            if To_String (Res.Id) /= "" then
-                              if Res.Is_Err then
+                              if Res.Status = Timed_Out then
+                                 Append_Tagged
+                                   (Buffer,
+                                    "! " & To_String (Res.Text) & ASCII.LF,
+                                    Tags.Error);
+                              elsif Res.Is_Err then
                                  Append_Tagged
                                    (Buffer,
                                     UC_CROSS & " "

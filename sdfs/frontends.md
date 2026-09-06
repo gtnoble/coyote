@@ -1047,3 +1047,14 @@ creation, manager reuse, and title/lifecycle behavior. The focused Sandbox
 Profiles test, existing GUI layout/shutdown test, standalone manager lifecycle
 test, and `Set_Sandbox` RPC codec test pass. Use Profile routes through the
 selected agent's local typed queue or versioned RPC control channel.
+
+## 2026-09-06 — Detailed tool-call statuses (PCR-096)
+
+Native tool cards now render `Queued`, `Running`, `Completed`, `Error`,
+`Timed out`, and `Cancelled`. Cards update by stable tool ID; detail windows
+and RPC/replay presentations carry the same terminal vocabulary. The card is
+created queued and transitions to running only when its worker starts, so
+later run groups no longer appear active prematurely.
+
+The native conversation lifecycle regression covers queued → running → timed
+out transitions and passes 1/1 focused, 22/22 in the conversation-stack group.

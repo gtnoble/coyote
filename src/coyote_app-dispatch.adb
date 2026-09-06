@@ -302,8 +302,20 @@ package body Coyote_App.Dispatch is
                Source_Directory => State.Source_Directory,
                Session_Start    => State.Session_Start,
                Turn_Index       => State.Turn_Count + 1,
-               Call_In_Turn     => State.Current_Tool_Call);
+               Call_In_Turn     => State.Current_Tool_Call,
+               Initial_Status  => Coyote_App.Frontend.Queued);
             Section := Tool_Section;
+         end;
+
+      --  ── tool_execution_running ────────────────────────────────────────
+      elsif Event in LLM.Events.Tool_Execution_Running_Event then
+         declare
+            Ev : constant LLM.Events.Tool_Execution_Running_Event :=
+              LLM.Events.Tool_Execution_Running_Event (Event);
+         begin
+            Frontend.Set_Tool_Status
+              (Tool_Id => To_String (Ev.Tool_Call_Id),
+               Status  => Coyote_App.Frontend.Running);
          end;
 
       --  ── tool_execution_end ────────────────────────────────────────────

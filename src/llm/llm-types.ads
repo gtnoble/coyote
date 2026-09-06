@@ -14,6 +14,11 @@ package LLM.Types is
    --  Conversation role for one message in the transcript.
    type Role is (User, Assistant, Tool_Result, Compaction_Summary);
 
+   --  Terminal status retained for a tool result.  Older session files omit
+   --  this value and are reconstructed from Is_Error by the store.
+   type Tool_Result_Status is (Result_Success, Result_Error,
+                               Result_Timed_Out, Result_Cancelled);
+
    --  Variant kind for one content block inside a message.
    type Content_Block_Kind is
      (Text_Block,
@@ -43,6 +48,7 @@ package LLM.Types is
             Result_Text : Ada.Strings.Unbounded.Unbounded_String;
             Media_Type  : Ada.Strings.Unbounded.Unbounded_String;
             Is_Error    : Boolean := False;
+            Status      : Tool_Result_Status := Result_Success;
       end case;
    end record;
 

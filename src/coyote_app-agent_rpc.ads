@@ -25,6 +25,7 @@ package Coyote_App.Agent_RPC is
       Text_Delta,
       Text_End,
       Tool_Start,
+      Tool_Status,
       Tool_End,
       Notice,
       Status,
