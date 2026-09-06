@@ -33,6 +33,30 @@ components.
 
 ## Design Rationale
 
+### Accepted incremental-markup decisions (2026-09-06)
+
+`COYOTE_INCREMENTAL_MARKUP=1` is the opt-in flag for incremental markup.
+When the flag is unset or set to `0`, the existing Markdown behavior is
+preserved. `coyote`, not the model, owns format selection and the associated
+metadata. When enabled, provider deltas are processed and rendered
+immediately; this mode does not use timer batching.
+
+The first implementation slice adds the synchronous restricted CSM parser and
+wires it into `Coyote_GUI.Conversation_Stack` when
+`COYOTE_INCREMENTAL_MARKUP=1`. Each provider delta is parsed and applied to the
+active GTK text component immediately; partial tags remain parser state and
+malformed fragments remain visible source. Markdown remains the default path.
+Focused parser, persistence, type, and environment-flag tests pass. Native
+table/math semantic event realization remains planned.
+
+### PCR-097 focused incremental-markup implementation verification (2026-09-06)
+
+The first PCR-097 implementation slice is covered by focused parser,
+message-format, persistence, legacy-fallback, and environment-flag tests. The
+complete development suite passes 842/842 with zero failed assertions and zero
+unexpected errors. Display-backed GUI qualification for live CSM output and
+native table/math semantic events remains pending.
+
 ### AUnit GUI fixture hierarchy and shutdown verification (2026-09-05)
 
 GUI fixture packages now expose leaf AUnit `Suite` functions and are composed

@@ -97,6 +97,12 @@ This model has two key properties:
 - **The frontend is a pure sink.** No LLM-specific logic appears in any
   frontend implementation. `LLM.Agent` emits typed events; `Dispatch_Event`
   translates them to frontend primitives; each frontend renders them.
+- **Incremental markup is opt-in.** When `COYOTE_INCREMENTAL_MARKUP=1`,
+  coyote selects the implemented restricted Coyote Stream Markup (CSM) path
+  for live GUI assistant responses. The application owns the selected format
+  and records it; the model does not author authoritative message metadata.
+  When the variable is absent or `0`, the existing Markdown path remains
+  active. Richer native table/math semantic events remain future work.
 
 ### 3.2 Error and Exception Handling
 
@@ -164,11 +170,23 @@ windows, `Coyote_App.Frontend.GUI.Create` registers the executable-relative
 tracked `coyote` SVG available to both the main window and in-process dialogs
 without requiring an externally configured `XDG_DATA_DIRS`.
 
-**Markdown rendering:** The GUI frontend renders completed assistant text blocks
-using libcmark-gfm (via the `Coyote_Cmark` Ada binding and the `coyote_cmark_c.c`
-C shim). Enum constants are resolved once at package elaboration time via the
-C shim's getter functions. Raw streamed tokens are inserted as plain text and
-replaced with Pango markup when the block completes (`End_Text_Block`).
+**Markdown rendering:** The default GUI path renders completed assistant text
+blocks using libcmark-gfm (via the `Coyote_Cmark` Ada binding and the
+`coyote_cmark_c.c` C shim). Enum constants are resolved once at package
+elaboration time via the C shim's getter functions. Raw streamed tokens are
+inserted as plain text and replaced with Pango markup when the block completes
+(`End_Text_Block`).
+
+**Incremental markup rendering:** When `COYOTE_INCREMENTAL_MARKUP=1`, the
+application selects the restricted Coyote Stream Markup (CSM) parser before
+the first assistant text delta. The implemented parser emits synchronous
+semantic events for text, paragraph boundaries, and line breaks directly to
+the active GUI text component. Each provider delta is processed and rendered
+immediately, with no intentional timer batching or coalescing. Partial tags
+remain parser state across deltas; unknown or incomplete tags remain visible
+source. Markdown remains the default path and the model does not set format
+metadata. Native table/math semantic events remain planned and continue to
+use the existing completion-boundary components when implemented.
 
 ### 3.5 Output Media and Formats
 
@@ -293,6 +311,7 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `Coyote_Lasem` | Ada/C binding to Lasem Presentation MathML rendering | `src/coyote_lasem.ads/.adb`, `src/coyote_lasem_c.c` |
 | `Coyote_Renderer` | Shared GTK text/replay rendering root | `src/coyote_renderer/coyote_renderer.ads` |
 | `Coyote_Renderer.Markup` | GFM Markdown to Pango markup converter | `src/coyote_renderer/coyote_renderer-markup.ads/.adb` |
+| `Coyote_Renderer.Incremental` | Restricted synchronous CSM parser and semantic-event boundary | `src/coyote_renderer/coyote_renderer-incremental.ads/.adb` |
 | `Coyote_Renderer.MathML` | Markdown-aware display-math extraction with code-block protection | `src/coyote_renderer/coyote_renderer-mathml.ads/.adb` |
 | `Coyote_Renderer.Tables` | GTK-independent GFM table extraction and metadata model | `src/coyote_renderer/coyote_renderer-tables.ads/.adb` |
 | `Coyote_Renderer.Session_View` | Read-only session replay renderer | `src/coyote_renderer/coyote_renderer-session_view.ads/.adb` |
@@ -549,7 +568,7 @@ physical windows before frontend and session initialization.
 variables `$DISPLAY`, `$WAYLAND_DISPLAY`, `COYOTE_FRONTEND`,
 `COYOTE_NO_SESSION`, `COYOTE_SESSION_ID`, `COYOTE_PARENT_SESSION`,
 `COYOTE_OPENROUTER_SESSION_ID`, `COYOTE_THINKING_LEVEL`,
-`COYOTE_RECURSION_DEPTH`.
+`COYOTE_RECURSION_DEPTH`, `COYOTE_INCREMENTAL_MARKUP`.
 
 **Outputs:** `Coyote_App.Options` record passed to `Coyote_App.Plain.Run` or
 `Coyote_App.Run_GUI`. Ordinary explicitly separate GUI windows may propagate

@@ -130,6 +130,17 @@ would exceed
 .B maxRecursionDepth
 in the settings file.
 .TP
+.B COYOTE_INCREMENTAL_MARKUP
+When set to
+.BR 1 ,
+enables the accepted incremental-markup path for live GUI assistant
+rendering. When unset or set to
+.BR 0 ,
+the existing Markdown path remains active. Plain output and Markdown session
+replay are unchanged. The implemented first slice processes each provider
+delta immediately and retains partial CSM tags across deltas. Richer native
+table/math semantic events remain future work.
+.TP
 .B DISPLAY
 When non-empty, selects the GUI frontend unless an explicit frontend or
 one-shot Plain selection applies.

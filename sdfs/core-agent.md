@@ -16,6 +16,29 @@
 
 ## Design Rationale
 
+## 2026-09-06 — Accepted incremental-markup design
+
+`COYOTE_INCREMENTAL_MARKUP=1` is the opt-in flag. If the flag is unset or set
+to `0`, Markdown behavior is preserved. `coyote`, not the model, owns format
+selection and metadata. In enabled mode, provider deltas are processed and
+rendered immediately; timer batching is not used.
+
+The first implementation slice now includes application-owned
+`Message_Format` metadata, JSONL persistence with Markdown fallback for legacy
+records, the `COYOTE_INCREMENTAL_MARKUP=1` selection helper, and the
+restricted synchronous CSM parser. Focused parser, type, persistence, and flag
+tests pass. Richer semantic events and native table/math event realization
+remain planned.
+
+## 2026-09-06 — PCR-097 implementation verification
+
+The first implementation slice persists application-owned response formats,
+selects `Format_Coyote_Stream` for opted-in GUI sessions, and routes each GUI
+provider delta through the synchronous restricted CSM parser. Focused PCR-097
+tests and the complete development suite pass 842/842 with zero failed
+assertions and zero unexpected errors. Richer native table/math semantic event
+support remains pending.
+
 ## 2026-09-05 — AUnit hierarchy and runtime baseline
 
 The test runner now uses AUnit's built-in global and per-case timing after

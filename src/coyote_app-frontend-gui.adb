@@ -4121,6 +4121,8 @@ package body Coyote_App.Frontend.GUI is
       end;
       Coyote_GUI.Conversation_Stack.Create
         (F.Stack, F.Win.all'Access);
+      Coyote_GUI.Conversation_Stack.Set_Incremental_Markup
+        (F.Stack, Coyote_App.Utils.Incremental_Markup_Enabled);
       Coyote_GUI.Conversation_Stack.Set_Fork_Handler
         (F.Stack, On_Native_Fork'Access);
 

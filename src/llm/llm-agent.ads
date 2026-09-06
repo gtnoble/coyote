@@ -33,13 +33,17 @@ package LLM.Agent is
    --  Session_Id resumes an existing session when non-empty.
    --  No_Tools disables the built-in tool set when True.
    --  Subagent selects the dedicated default model when Model_Spec is empty.
+   --  Response_Format is selected by coyote before streaming; providers and
+   --  model-authored content do not override it.
    procedure Create
      (S             :    out Session;
       Model_Spec    :        String  := "";
       Agent         :        String  := "";
       No_Tools      :        Boolean := False;
-      Session_Id    :        String  := "";
-      Subagent      :        Boolean := False);
+      Session_Id     :        String  := "";
+      Subagent       :        Boolean := False;
+      Response_Format :        LLM.Types.Message_Format :=
+        LLM.Types.Format_Markdown);
 
    --  Send Prompt as a new user turn and run the full agentic loop until
    --  the agent completes, is aborted, or raises an error.
@@ -178,8 +182,10 @@ private
         Ada.Strings.Unbounded.Null_Unbounded_String;
       History       : LLM.Types.Message_Vectors.Vector;
       Subagent_Mode : Boolean := False;
-      No_Tools      : Boolean := False;
-      Thinking        : LLM.Providers.Thinking_Level := LLM.Providers.Off;
+      No_Tools       : Boolean := False;
+      Response_Format : LLM.Types.Message_Format :=
+        LLM.Types.Format_Markdown;
+      Thinking       : LLM.Providers.Thinking_Level := LLM.Providers.Off;
       Sandbox_Profile : aliased Ada.Strings.Unbounded.Unbounded_String;
       Abort_State   : aliased LLM.Tools.Abort_Flag;
       Pause_State   : aliased LLM.Tools.Pause_Flag;

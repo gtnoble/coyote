@@ -8,6 +8,7 @@ with Coyote_Utils_Tests;
 with Collapse_Utils_Tests;
 with Model_Row_Match_Tests;
 with Coyote_Cmark_Tests;
+with Coyote_Incremental_Tests;
 with Sandbox_Tests;
 with Coyote_Help_Tests;
 with Coyote_Lasem_Tests;
@@ -28,6 +29,7 @@ package body Test_Core_Suite is
       Result.Add_Test (Collapse_Utils_Tests.Suite);
       Result.Add_Test (Model_Row_Match_Tests.Suite);
       Result.Add_Test (Coyote_Cmark_Tests.Suite);
+      Result.Add_Test (Coyote_Incremental_Tests.Suite);
       Result.Add_Test (Sandbox_Tests.Suite);
       Result.Add_Test (Coyote_Help_Tests.Suite);
       Result.Add_Test (Coyote_Lasem_Tests.Suite);

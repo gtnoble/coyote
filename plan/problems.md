@@ -3,6 +3,32 @@
 Maintained continuously. Every detected problem in a project-level or
 client-controlled work product gets an entry here.
 
+## PCR-097 — Opt-in incremental markup design and documentation (2026-09-06)
+
+- **Date reported:** 2026-09-06
+- **Category:** Requirements, Design, Test, Plans, Manuals
+- **Priority:** 3-Moderate
+- **Description:** The accepted incremental-rendering design requires an
+  opt-in environment-variable flag while preserving the existing Markdown
+  path by default. Provider APIs and coyote's current message type do not give
+  the model an authoritative provider-independent message metadata channel.
+- **Affected work products:** REQ-CORE-047–049 and REQ-CORE-111, SDD-CORE,
+  STP qualification planning, `sdfs/frontends.md`, `sdfs/core-agent.md`, and
+  the future Coyote Stream Markup parser/semantic-event renderer.
+- **Actions taken:** Documented `COYOTE_INCREMENTAL_MARKUP=1` as the opt-in
+  flag; absence or `0` preserves Markdown behavior. Coyote owns format
+  selection and persistence metadata. Enabled mode is specified to process and
+  render each provider delta immediately without intentional timer batching;
+  tables and display math may remain provisional until complete. Added planned
+  chunk-boundary, fallback, replay, and default-off qualification coverage.
+- **Verification:** `alr build` and `cd test && alr build` succeed. Focused
+  parser, message-format, persistence, legacy-fallback, and environment-flag
+  tests pass. Full-suite execution remains to be run after this implementation
+  slice.
+- **Status:** First implementation slice complete; richer CSM elements and
+  full native table/math semantic events remain pending
+
+
 ## PCR-096 — Multi-profile sandbox manager drafts and Save-All (2026-09-06)
 
 - **Date reported:** 2026-09-06

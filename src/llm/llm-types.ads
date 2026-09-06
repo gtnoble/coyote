@@ -85,11 +85,20 @@ package LLM.Types is
       Cache_Write : Long_Float := 0.0;
    end record;
 
+   --  Application-selected source format for message content.  Unspecified
+   --  is retained for callers that do not choose a format; session loading
+   --  maps missing or unknown persisted values to Markdown.
+   type Message_Format is
+     (Format_Unspecified,
+      Format_Markdown,
+      Format_Coyote_Stream);
+
    --  One complete conversation message.
    --  Timestamp stores the raw ISO-8601 string used by session files and
    --  provider APIs.
    type Message is record
       Role      : LLM.Types.Role := User;
+      Format    : Message_Format := Format_Unspecified;
       Content   : Content_Block_Vectors.Vector;
       Tok_Usage : Usage := (others => 0);
       Stop      : Stop_Reason := Unknown_Stop;

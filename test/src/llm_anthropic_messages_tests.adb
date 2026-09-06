@@ -481,6 +481,7 @@ package body LLM_Anthropic_Messages_Tests is
            Text => To_Unbounded_String ("Explain hello")));
       Messages.Append
          ((Role      => LLM.Types.User,
+         Format    => LLM.Types.Format_Unspecified,
            Content   => Content,
            Tok_Usage => (others => 0),
            Stop      => LLM.Types.Unknown_Stop,
@@ -499,6 +500,7 @@ package body LLM_Anthropic_Messages_Tests is
            Text => To_Unbounded_String ("Checkpoint summary text")));
       Messages.Append
          ((Role      => LLM.Types.Compaction_Summary,
+         Format    => LLM.Types.Format_Unspecified,
            Content   => Content,
            Tok_Usage => (others => 0),
            Stop      => LLM.Types.Unknown_Stop,
@@ -1396,6 +1398,7 @@ package body LLM_Anthropic_Messages_Tests is
               Text => To_Unbounded_String ("What is 2+2?")));
          Messages.Append
             ((Role      => LLM.Types.User,
+         Format    => LLM.Types.Format_Unspecified,
               Content   => User_Content,
               Tok_Usage => (others => 0),
               Stop      => LLM.Types.Unknown_Stop,
@@ -1412,6 +1415,7 @@ package body LLM_Anthropic_Messages_Tests is
               Text => To_Unbounded_String ("The answer is 4.")));
          Messages.Append
             ((Role      => LLM.Types.Assistant,
+         Format    => LLM.Types.Format_Unspecified,
               Content   => Asst_Content,
               Tok_Usage => (others => 0),
               Stop      => LLM.Types.Stop,
@@ -1549,6 +1553,7 @@ package body LLM_Anthropic_Messages_Tests is
               Text => To_Unbounded_String ("Run the tool")));
          Messages.Append
             ((Role      => LLM.Types.User,
+         Format    => LLM.Types.Format_Unspecified,
               Content   => User_Content,
               Tok_Usage => (others => 0),
               Stop      => LLM.Types.Unknown_Stop,
@@ -1563,6 +1568,7 @@ package body LLM_Anthropic_Messages_Tests is
                  ("{""command"":""bad_cmd""}")));
          Messages.Append
             ((Role      => LLM.Types.Assistant,
+         Format    => LLM.Types.Format_Unspecified,
               Content   => Asst_Content,
               Tok_Usage => (others => 0),
               Stop      => LLM.Types.Tool_Use,
@@ -1579,6 +1585,7 @@ package body LLM_Anthropic_Messages_Tests is
               Status      => LLM.Types.Result_Error));
          Messages.Append
             ((Role      => LLM.Types.Tool_Result,
+         Format    => LLM.Types.Format_Unspecified,
               Content   => Result_Content,
               Tok_Usage => (others => 0),
               Stop      => LLM.Types.Unknown_Stop,
@@ -1882,6 +1889,7 @@ package body LLM_Anthropic_Messages_Tests is
              Text => To_Unbounded_String ("First message")));
          Messages.Append
            ((Role      => LLM.Types.User,
+         Format    => LLM.Types.Format_Unspecified,
              Content   => Content_1,
              Tok_Usage => (others => 0),
              Stop      => LLM.Types.Unknown_Stop,
@@ -1892,6 +1900,7 @@ package body LLM_Anthropic_Messages_Tests is
              Text => To_Unbounded_String ("Second message")));
          Messages.Append
            ((Role      => LLM.Types.User,
+         Format    => LLM.Types.Format_Unspecified,
              Content   => Content_2,
              Tok_Usage => (others => 0),
              Stop      => LLM.Types.Unknown_Stop,
@@ -2004,6 +2013,7 @@ package body LLM_Anthropic_Messages_Tests is
              Text => To_Unbounded_String ("Take a screenshot")));
          Messages.Append
            ((Role      => LLM.Types.User,
+         Format    => LLM.Types.Format_Unspecified,
              Content   => User_Content,
              Tok_Usage => (others => 0),
              Stop      => LLM.Types.Unknown_Stop,
@@ -2017,6 +2027,7 @@ package body LLM_Anthropic_Messages_Tests is
                ("{""command"":""screenshot"",""media_type"":""image/png""}")));
          Messages.Append
            ((Role      => LLM.Types.Assistant,
+         Format    => LLM.Types.Format_Unspecified,
              Content   => Asst_Content,
              Tok_Usage => (others => 0),
              Stop      => LLM.Types.Tool_Use,
@@ -2031,6 +2042,7 @@ package body LLM_Anthropic_Messages_Tests is
              Status      => LLM.Types.Result_Success));
          Messages.Append
            ((Role      => LLM.Types.Tool_Result,
+         Format    => LLM.Types.Format_Unspecified,
              Content   => Result_Content,
              Tok_Usage => (others => 0),
              Stop      => LLM.Types.Unknown_Stop,

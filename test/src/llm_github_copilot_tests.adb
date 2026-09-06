@@ -253,6 +253,7 @@ package body LLM_GitHub_Copilot_Tests is
            Text => To_Unbounded_String ("Say hello")));
       Messages.Append
          ((Role      => LLM.Types.User,
+         Format    => LLM.Types.Format_Unspecified,
            Content   => Content,
            Tok_Usage => (others => 0),
            Stop      => LLM.Types.Unknown_Stop,
@@ -269,6 +270,7 @@ package body LLM_GitHub_Copilot_Tests is
            Text => To_Unbounded_String ("Prior answer")));
       Messages.Append
          ((Role      => LLM.Types.Assistant,
+         Format    => LLM.Types.Format_Unspecified,
            Content   => Content,
            Tok_Usage => (others => 0),
            Stop      => LLM.Types.Stop,

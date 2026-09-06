@@ -17,6 +17,7 @@ package Coyote_App_Tests is
    procedure Test_Nth_Field_Basic     (T : in out Test);
    procedure Test_Nth_Field_Tabs      (T : in out Test);
    procedure Test_Nth_Field_Edges     (T : in out Test);
+   procedure Test_Incremental_Markup_Flag (T : in out Test);
 
    --  Format_Turn_Footer with step-level separator.
    procedure Test_Format_Turn_Footer_Display_Step  (T : in out Test);

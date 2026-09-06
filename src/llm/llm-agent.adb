@@ -207,6 +207,8 @@ package body LLM.Agent is
       Origin_Provider : Unbounded_String;
       Origin_Model    : Unbounded_String;
       Stop            : LLM.Types.Stop_Reason := LLM.Types.Unknown_Stop;
+      Response_Format : LLM.Types.Message_Format :=
+        LLM.Types.Format_Markdown;
       Tok_Usage       : LLM.Types.Usage := (others => 0);
       Error_Text      : Unbounded_String;
       Saw_Content     : Boolean := False;
@@ -555,6 +557,7 @@ package body LLM.Agent is
 
       return
         (Role      => LLM.Types.Assistant,
+         Format    => Builder.Response_Format,
          Content   => Builder.Content,
          Tok_Usage => Builder.Tok_Usage,
          Stop      => Builder.Stop,
@@ -570,6 +573,7 @@ package body LLM.Agent is
 
       return
         (Role      => LLM.Types.User,
+         Format    => LLM.Types.Format_Unspecified,
          Content   => Content,
          Tok_Usage => (others => 0),
          Stop      => LLM.Types.Unknown_Stop,
@@ -596,6 +600,7 @@ package body LLM.Agent is
 
       return
         (Role      => LLM.Types.Tool_Result,
+         Format    => LLM.Types.Format_Unspecified,
          Content   => Content,
          Tok_Usage => (others => 0),
          Stop      => LLM.Types.Unknown_Stop,
@@ -626,6 +631,7 @@ package body LLM.Agent is
 
       return
         (Role      => LLM.Types.Compaction_Summary,
+         Format    => LLM.Types.Format_Unspecified,
          Content   => Content,
          Tok_Usage => (others => 0),
          Stop      => LLM.Types.Unknown_Stop,
@@ -1025,6 +1031,7 @@ package body LLM.Agent is
                if not Compatible_Content.Is_Empty then
                   Result.Append
                     ((Role      => Msg.Role,
+         Format    => LLM.Types.Format_Unspecified,
                       Content   => Compatible_Content,
                       Tok_Usage => Msg.Tok_Usage,
                       Stop      => Msg.Stop,
@@ -1067,6 +1074,7 @@ package body LLM.Agent is
             Origin_Provider => S.Model_Info.Provider,
             Origin_Model    => S.Model_Info.Model_Id,
             Stop            => LLM.Types.Unknown_Stop,
+            Response_Format => S.Response_Format,
             Tok_Usage       => (others => 0),
             Error_Text      => Null_Unbounded_String,
             Saw_Content     => False,
@@ -1302,9 +1310,11 @@ package body LLM.Agent is
      (S             :    out Session;
       Model_Spec    :        String  := "";
       Agent         :        String  := "";
-      No_Tools      :        Boolean := False;
-      Session_Id    :        String  := "";
-      Subagent      :        Boolean := False)
+      No_Tools       :        Boolean := False;
+      Session_Id     :        String  := "";
+      Subagent       :        Boolean := False;
+      Response_Format :        LLM.Types.Message_Format :=
+        LLM.Types.Format_Markdown)
    is
       Effective_Spec : constant String :=
         Effective_Model_Spec (Model_Spec, Subagent);
@@ -1353,6 +1363,7 @@ package body LLM.Agent is
       S.History.Clear;
       S.Subagent_Mode := Subagent;
       S.No_Tools := No_Tools;
+      S.Response_Format := Response_Format;
       S.Thinking := Thinking_From_String
         (To_String (Settings_Value.Default_Thinking));
       S.Sandbox_Profile :=
@@ -1811,6 +1822,7 @@ package body LLM.Agent is
                Origin_Provider => S.Model_Info.Provider,
                Origin_Model    => S.Model_Info.Model_Id,
                Stop            => LLM.Types.Unknown_Stop,
+               Response_Format => S.Response_Format,
                Tok_Usage       => (others => 0),
                Error_Text      => Null_Unbounded_String,
                Saw_Content     => False,
@@ -1945,6 +1957,7 @@ package body LLM.Agent is
                        Assistant_Message (Builder);
                      Reply : constant LLM.Types.Message :=
                        (Role      => Raw.Role,
+                        Format    => Raw.Format,
                         Content   => Raw.Content,
                         Tok_Usage => Raw.Tok_Usage,
                         Stop      => LLM.Types.Aborted,

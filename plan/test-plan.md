@@ -179,6 +179,7 @@ SRS-CORE requirement groups.
 | `coyote_gui_mode_tests.adb` | REQ-CORE-113 Agent-menu availability by run mode | 1 |
 | `coyote_gui_session_stats_window_tests.adb` | REQ-CORE-113d; typed snapshot retention, reset, and idempotent support-window creation | 3 |
 | `coyote_gui_conversation_stack_tests.adb` | REQ-CORE-111, 133..139; native stack host, visible per-step frames, responsive per-step tool-card flow, incremental text, native GFM Markdown replacement, Markdown toggle, stable tool IDs, native status-row footers, functional fork buttons, explicit completion lifecycle, and reset | 13 |
+| Incremental-markup qualification | REQ-CORE-047..049; default-off compatibility, enabled-mode format selection, chunk-boundary invariance, immediate per-delta rendering without timer batching, malformed-input fallback, Markdown replay compatibility, and table/display-math completion boundaries | First slice implemented and focused coverage passing; native table/math semantic events remain pending |
 
 | `coyote_gui_prompt_queue_tests.adb` | REQ-CORE-116..119, 128; typed preference payload transport | 1 |
 | `coyote_help_tests.adb` | REQ-CORE-113a, REQ-CORE-504a; Yelp URI construction, area mapping, executable detection, Help data path, and Product Information text | 5 |
@@ -212,6 +213,9 @@ behaviour. Results are recorded in a Test Report.
 | DEM-048 | REQ-CORE-124 | In the display-backed GTK GUI, exercise valid and invalid standalone Presentation MathML blocks. Verify native realization, readable source/fallback on parse failure, local selection, and zoom. Automated native realization, fallback, code-protection, zoom, visual, and local-selection acceptance is complete. |
 | DEM-049 | REQ-CORE-110, 113b | In a display-backed GUI, verify that the conversation work area, prompt controls, and status area are separated by visible horizontal rules; verify the prompt and status areas have consistent breathing room and that the conversation remains the sole expanding region. The structural portion is covered by `Coyote.GUI separates conversation, prompt, and status`; visual contrast remains a manual check under the active theme. |
 | DEM-006 | REQ-CORE-040â044 | Start a GUI session; send a prompt; verify streaming text, thinking, tool events, and stats appear |
+| DEM-055 | REQ-CORE-047 | Run the GUI with `COYOTE_INCREMENTAL_MARKUP` unset and with `0`; verify the existing Markdown live-rendering and replay behavior remain unchanged. Set it to `1`; verify the incremental-markup path is selected only for live GUI assistant rendering and Plain output remains unchanged. |
+| DEM-056 | REQ-CORE-048 | In enabled mode, inspect the request/message lifecycle and session record; verify coyote selects and records the format before the first text delta, does not trust model-authored metadata, and treats missing legacy format metadata as Markdown. |
+| DEM-057 | REQ-CORE-049 | In enabled mode, feed equivalent CSM responses split at different provider-delta boundaries; verify each delta is processed immediately, no timer batching is used, stable components are updated, malformed markup is visibly escaped, and tables/display math commit only at complete boundaries. |
 | DEM-007 | REQ-CORE-055 | Start a long tool execution; press Stop; verify tool is cancelled and agent exits cleanly |
 | DEM-008 | REQ-CORE-060 | Configure a small context window; send prompts until threshold reached; verify auto-compaction notice appears |
 | DEM-009 | REQ-CORE-061 | Trigger manual compact in the GUI (`:compact` command or menu); verify the compaction summary appears |
@@ -303,6 +307,7 @@ and preferences demonstrations listed above.
 | REQ-CORE-030â032 | T/I | `coyote_app_tests.adb`, code inspection |
 | REQ-CORE-219 | T/I | `llm_agent_tests.adb`, code inspection |
 | REQ-CORE-040â046 | T/D | `llm_agent_tests.adb`, DEM-006 |
+| REQ-CORE-047..049 | D/T/I | `coyote_incremental_tests.adb`, `llm_types_tests.adb`, `llm_session_store_tests.adb`, `coyote_app_tests.adb`; DEM-055..057 for GUI/default-off qualification; native table/math semantic tests pending |
 | REQ-CORE-050â053 | T | `llm_tools_tests.adb` |
 | REQ-CORE-054 | D | DEM (--no-tools with tool model) |
 | REQ-CORE-055 | D | DEM-007 |

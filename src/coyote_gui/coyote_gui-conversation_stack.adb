@@ -10,6 +10,7 @@ with Coyote_GUI;
 with Coyote_GUI.Tool_Detail_Window;
 with Coyote_GUI.Math_Element;
 with Coyote_GUI.Navigation;
+with Coyote_Renderer.Incremental;
 with Coyote_Renderer.MathML;
 with Coyote_Renderer.Markup;
 with Coyote_Renderer.Tables;
@@ -51,6 +52,11 @@ package body Coyote_GUI.Conversation_Stack is
    use type Gtk.Window.Gtk_Window;
 
    type Instance_Access is access all Instance;
+
+   Active_Incremental_Stack : Instance_Access := null;
+
+   procedure Handle_Incremental_Event
+     (Value : Coyote_Renderer.Incremental.Event);
 
    Response_Box_Spacing   : constant Gint  := 2;
    Response_Block_Padding : constant Guint := 4;
@@ -131,6 +137,48 @@ package body Coyote_GUI.Conversation_Stack is
       Buffer.Get_End_Iter (Iter);
       Buffer.Insert (Iter, Text);
    end Append_Buffer;
+
+   procedure Apply_Incremental_Event
+     (C     : in out Instance;
+      Value : Coyote_Renderer.Incremental.Event)
+   is
+      Text : constant String := To_String (Value.Text);
+   begin
+      if C.Active_Text = null then
+         return;
+      end if;
+      case Value.Kind is
+         when Coyote_Renderer.Incremental.Text_Event |
+              Coyote_Renderer.Incremental.Invalid_Event =>
+            Append_Buffer (C.Active_Text, Text);
+         when Coyote_Renderer.Incremental.Paragraph_Begin_Event =>
+            null;
+         when Coyote_Renderer.Incremental.Paragraph_End_Event |
+              Coyote_Renderer.Incremental.Line_Break_Event =>
+            Append_Buffer (C.Active_Text, "" & ASCII.LF);
+      end case;
+   end Apply_Incremental_Event;
+
+   procedure Handle_Incremental_Event
+     (Value : Coyote_Renderer.Incremental.Event) is
+   begin
+      if Active_Incremental_Stack /= null then
+         Apply_Incremental_Event (Active_Incremental_Stack.all, Value);
+      end if;
+   end Handle_Incremental_Event;
+
+   procedure Consume_Incremental
+     (C    : in out Instance;
+      Text : String)
+   is
+   begin
+      Active_Incremental_Stack := C'Unchecked_Access;
+      Coyote_Renderer.Incremental.Feed
+        (Parser  => C.Incremental_Parser,
+         Data    => Text,
+         Handler => Handle_Incremental_Event'Access);
+      Active_Incremental_Stack := null;
+   end Consume_Incremental;
 
    procedure Add_Text_Element
      (C              : in out Instance;
@@ -701,6 +749,7 @@ package body Coyote_GUI.Conversation_Stack is
       C.Math_Scale    := 1.0;
       C.Stream_Mark  := null;
       C.Stream_Buf   := Null_Unbounded_String;
+      Coyote_Renderer.Incremental.Reset (C.Incremental_Parser);
       C.Thinking       := null;
       C.Thinking_View  := null;
       C.Has_Exchange   := False;
@@ -757,6 +806,7 @@ package body Coyote_GUI.Conversation_Stack is
            (C, C.Step_Box, "Response", "", C.Active_Text, C.Active_View);
          C.Text_Open := True;
          C.Stream_Buf := Null_Unbounded_String;
+         Coyote_Renderer.Incremental.Reset (C.Incremental_Parser);
          declare
             Iter : Gtk.Text_Iter.Gtk_Text_Iter;
          begin
@@ -766,7 +816,11 @@ package body Coyote_GUI.Conversation_Stack is
          end;
       end if;
       Append (C.Stream_Buf, Text);
-      Append_Buffer (C.Active_Text, Text);
+      if C.Incremental_Markup then
+         Consume_Incremental (C, Text);
+      else
+         Append_Buffer (C.Active_Text, Text);
+      end if;
    end Append_Text;
 
    procedure End_Text_Block (C : in out Instance) is
@@ -776,7 +830,14 @@ package body Coyote_GUI.Conversation_Stack is
       Has_Native_Blocks : Boolean := False;
    begin
       if C.Text_Open then
-         if C.Render_Markdown then
+         if C.Incremental_Markup then
+            Active_Incremental_Stack := C'Unchecked_Access;
+            Coyote_Renderer.Incremental.Flush
+              (Parser  => C.Incremental_Parser,
+               Handler => Handle_Incremental_Event'Access);
+            Active_Incremental_Stack := null;
+         end if;
+         if C.Render_Markdown and then not C.Incremental_Markup then
             Replace_Streamed_Text (C, Full_Text, Has_Display_Math);
             Has_Native_Blocks := Has_Display_Math
               or else not Coyote_Renderer.Tables.Extract_Tables
@@ -1348,6 +1409,20 @@ package body Coyote_GUI.Conversation_Stack is
    begin
       return C.Render_Markdown;
    end Get_Render_Markdown;
+
+   procedure Set_Incremental_Markup
+     (C       : in out Instance;
+      Enabled : Boolean)
+   is
+   begin
+      C.Incremental_Markup := Enabled;
+      Coyote_Renderer.Incremental.Reset (C.Incremental_Parser);
+   end Set_Incremental_Markup;
+
+   function Get_Incremental_Markup (C : Instance) return Boolean is
+   begin
+      return C.Incremental_Markup;
+   end Get_Incremental_Markup;
 
    procedure Set_Font
      (C          : in out Instance;

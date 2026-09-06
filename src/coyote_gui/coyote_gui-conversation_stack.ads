@@ -12,6 +12,7 @@ with Ada.Strings.Unbounded;
 with Coyote_GUI;
 with Coyote_GUI.Math_Element;
 with Coyote_GUI.Navigation;
+with Coyote_Renderer.Incremental;
 with Gtk.Box;
 with Gtk.Frame;
 with Gtk.Flow_Box;
@@ -143,6 +144,11 @@ package Coyote_GUI.Conversation_Stack is
    procedure Set_Render_Markdown (C : in out Instance; Enabled : Boolean);
    function Get_Render_Markdown (C : Instance) return Boolean;
 
+   --  Select the live CSM semantic-event path.  Markdown remains the
+   --  completion-rendered default when this is False.
+   procedure Set_Incremental_Markup (C : in out Instance; Enabled : Boolean);
+   function Get_Incremental_Markup (C : Instance) return Boolean;
+
    procedure Set_Font
      (C          : in out Instance;
       Desc       : Pango.Font.Pango_Font_Description;
@@ -204,6 +210,8 @@ private
       Response_Box      : Gtk.Box.Gtk_Box;
       Stream_Mark       : Gtk.Text_Mark.Gtk_Text_Mark;
       Stream_Buf        : Ada.Strings.Unbounded.Unbounded_String;
+      Incremental_Parser : Coyote_Renderer.Incremental.Instance;
+      Incremental_Markup : Boolean := False;
       Text_Views        : Text_View_Vectors.Vector;
       Math_Elements     : Math_Element_Vectors.Vector;
       Table_Grids       : Table_Grid_Vectors.Vector;

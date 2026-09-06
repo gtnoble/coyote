@@ -87,6 +87,7 @@ package body LLM_Types_Tests is
 
       Msg :=
         (Role      => Compaction_Summary,
+         Format    => LLM.Types.Format_Unspecified,
          Content   => Content,
          Tok_Usage => (others => 0),
          Stop      => Unknown_Stop,
@@ -135,6 +136,7 @@ package body LLM_Types_Tests is
 
       First :=
         (Role      => User,
+         Format    => LLM.Types.Format_Unspecified,
          Content   => User_Content,
          Tok_Usage => (Input => 1, Output => 0, Cache_Read => 0,
                        Cache_Write => 0, Thinking => 0),
@@ -142,6 +144,7 @@ package body LLM_Types_Tests is
          Timestamp => To_Unbounded_String ("2026-05-02T12:00:00Z"));
       Second :=
         (Role      => Assistant,
+         Format    => LLM.Types.Format_Unspecified,
          Content   => Assistant_Content,
          Tok_Usage => (Input => 4, Output => 7, Cache_Read => 0,
                        Cache_Write => 0, Thinking => 0),
@@ -167,6 +170,20 @@ package body LLM_Types_Tests is
         (Messages.Element (1).Stop = Length,
          "Second message stop reason should round-trip");
    end Test_Message_Vectors;
+
+   procedure Test_Message_Format_Values (T : in out Test) is
+      pragma Unreferenced (T);
+      Value : LLM.Types.Message;
+   begin
+      Assert (Value.Format = Format_Unspecified,
+              "new message defaults to unspecified format");
+      Value.Format := Format_Markdown;
+      Assert (Value.Format = Format_Markdown,
+              "message format accepts Markdown");
+      Value.Format := Format_Coyote_Stream;
+      Assert (Value.Format = Format_Coyote_Stream,
+              "message format accepts Coyote Stream");
+   end Test_Message_Format_Values;
 
    procedure Test_Tool_Result_Block_Media_Type (T : in out Test) is
       pragma Unreferenced (T);
@@ -224,6 +241,9 @@ package body LLM_Types_Tests is
       Result.Add_Test (LLM_Types_Caller.Create
         ("LLM.Types message vectors append and preserve values",
          LLM_Types_Tests.Test_Message_Vectors'Access));
+      Result.Add_Test (LLM_Types_Caller.Create
+        ("LLM.Types message format values are distinct",
+         LLM_Types_Tests.Test_Message_Format_Values'Access));
 
       return Result;
    end Suite;

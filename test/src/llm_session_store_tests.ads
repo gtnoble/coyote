@@ -21,6 +21,8 @@ package LLM_Session_Store_Tests is
    procedure Test_Load_Skips_Malformed_Lines      (T : in out Test);
    procedure Test_Assistant_Usage_And_Stop_Reason_Persist
      (T : in out Test);
+   procedure Test_Assistant_Format_Round_Trip       (T : in out Test);
+   procedure Test_Legacy_Assistant_Format_Defaults  (T : in out Test);
    procedure Test_Append_Compaction_Writes_Entry  (T : in out Test);
    procedure Test_Compaction_Summary_Not_Persisted
      (T : in out Test);
