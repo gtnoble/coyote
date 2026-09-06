@@ -6,7 +6,7 @@
   </info>
   <title>Conversation Area</title>
   <p>The native GTK conversation area displays the conversation of the selected agent, including assistant responses, reasoning, notices, tool activity, and turn summaries in selectable components and visible step frames.</p>
-  <p>The agents panel treats each agent as a virtual window. Selecting a live row changes the conversation shown and puts that agent in the driver's seat for prompts and applicable controls. Selecting a completed row shows its retained conversation for review.</p>
+  <p>The <gui>Agents Window</gui> support window treats each agent as a virtual window. Selecting a live row changes the conversation shown in the main window and puts that agent in the driver's seat for prompts and applicable controls. Selecting a completed row shows its retained conversation for review. Hiding the support window does not stop agents or discard the tree.</p>
   <p>Select text to publish it through the desktop PRIMARY selection. Copy, Select All, and Deselect All operate on the focused conversation component, or on a retained conversation selection when no conversation text view has focus. Prompt focus keeps these commands on the prompt. Completed tool cards and fork controls can be activated with the mouse or keyboard.</p>
   <p>When a conversation text view has focus, use <key>j</key>/<key>k</key> for line movement, <key>g</key> for the top, <key>G</key> or Shift+<key>g</key> for the bottom, and Ctrl+<key>D</key>/Ctrl+<key>U</key> for page movement. Prompt, agent-tree, and list controls retain their native keyboard behavior.</p>
   <p>See <link xref="keyboard-shortcuts">Keys &amp; Shortcuts</link> for navigation and selection commands.</p>

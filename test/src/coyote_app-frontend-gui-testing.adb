@@ -56,13 +56,13 @@ package body Coyote_App.Frontend.GUI.Testing is
       return F.Prompt_Status_Sep;
    end Prompt_Status_Separator;
 
-   function Agent_Pane
+   function Agents_Window
      (F : Coyote_App.Frontend.GUI.Instance)
-      return Gtk.Paned.Gtk_Paned
+      return Gtk.Window.Gtk_Window
    is
    begin
-      return F.Agent_Pane;
-   end Agent_Pane;
+      return F.Agents_Window;
+   end Agents_Window;
 
    function Agents_View
      (F : Coyote_App.Frontend.GUI.Instance)

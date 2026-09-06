@@ -97,13 +97,15 @@ The GTK frontend provides File, Edit, View, Agent, Options, and Help menus.
 The Agent menu supports sending, stopping, pausing, resuming, compacting,
 clearing, changing models, changing thinking level, and switching sessions.
 The conversation `Fork` control opens a new physical GUI window containing the
-new branch. The agents panel presents the main agent as the root of a tree and
-coordinator-launched short-lived subagents as child virtual windows.
-Selecting a live node routes prompts and applicable controls to that agent;
-completed nodes remain available for review but do not accept new prompts.
-Completed tool cards open structured detail windows. This virtual-window
-organization is implemented in the development build; display-backed and
-real-provider end-to-end qualification remain open.
+new branch. `View → Agents Window` opens the modeless `coyote : Agents` support
+window, which presents the main agent as the root of a tree and coordinator-
+launched short-lived subagents as child virtual windows. Closing the support
+window hides it without stopping coyote; selecting a live node still routes
+prompts and applicable controls to that agent, while completed nodes remain
+available for review but do not accept new prompts. Completed tool cards open
+structured detail windows. This virtual-window organization is implemented in
+the development build; display-backed and real-provider end-to-end
+qualification remain open.
 
 The Help menu opens the installed Mallard documentation through Yelp. F1 opens
 the overview and Shift+F1 enables contextual help.

@@ -5,7 +5,6 @@
 with Gtk.Box;
 with Gtk.Dialog;
 with Gtk.Image;
-with Gtk.Paned;
 with Gtk.Separator;
 with Gtk.Tree_View;
 with Gtk.Window;
@@ -36,9 +35,9 @@ package Coyote_App.Frontend.GUI.Testing is
      (F : Coyote_App.Frontend.GUI.Instance)
       return Gtk.Separator.Gtk_Separator;
 
-   function Agent_Pane
+   function Agents_Window
      (F : Coyote_App.Frontend.GUI.Instance)
-      return Gtk.Paned.Gtk_Paned;
+      return Gtk.Window.Gtk_Window;
 
    function Agents_View
      (F : Coyote_App.Frontend.GUI.Instance)

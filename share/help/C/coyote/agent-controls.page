@@ -5,7 +5,7 @@
     <desc>Control an active coyote turn and its runtime settings.</desc>
   </info>
   <title>Agent Controls</title>
-  <p>The <gui>Agent</gui> menu controls the selected agent's active turn and session-level behavior. Selecting a row in the agents panel puts that agent in the driver's seat.</p>
+  <p>The <gui>Agent</gui> menu controls the selected agent's active turn and session-level behavior. Select a row in the <gui>Agents Window</gui> support window to put that agent in the driver's seat.</p>
   <terms>
     <item><title><gui>Send</gui></title><p>Send the prompt to the selected live agent. <key>Ctrl</key>+<key>Return</key> is the accelerator.</p></item>
     <item><title><gui>Clear Conversation</gui></title><p>Clear the displayed conversation. <key>Ctrl</key>+<key>L</key> is the accelerator.</p></item>

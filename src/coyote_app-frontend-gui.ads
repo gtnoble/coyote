@@ -33,7 +33,6 @@ with Coyote_App.Agent_Registry;
 with Coyote_App.Agent_RPC.Service;
 with Gtk.Accel_Group;
 with Gtk.Box;
-with Gtk.Paned;
 with Gtk.Tree_Model;
 with Gtk.Tree_Store;
 with Gtk.Tree_View;
@@ -258,9 +257,9 @@ private
       Replaying : Boolean := False;
       --  GTK widgets.
       Win       : Gtk.Window.Gtk_Window;
-      Agent_Pane  : Gtk.Paned.Gtk_Paned;
-      Agents_Store : Gtk.Tree_Store.Gtk_Tree_Store;
-      Agents_View  : Gtk.Tree_View.Gtk_Tree_View;
+      Agents_Window : Gtk.Window.Gtk_Window;
+      Agents_Store  : Gtk.Tree_Store.Gtk_Tree_Store;
+      Agents_View   : Gtk.Tree_View.Gtk_Tree_View;
       Agent_Root_Iter : Gtk.Tree_Model.Gtk_Tree_Iter :=
         Gtk.Tree_Model.Null_Iter;
       Render_Markdown_Item  : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
@@ -300,6 +299,7 @@ private
       --  via View → Auto-scroll check menu item.  Enabled by default.
       Auto_Scroll         : Boolean := True;
       Auto_Scroll_Item    : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
+      Agents_Window_Item  : Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
       Zoom_Level          : Integer := 0;
       Smooth_Zoom_Accumulator : Gdouble := 0.0;
       --  True after Shift+F1 until the next click selects a help target.

@@ -765,17 +765,20 @@ focusable controls. Plain wheel scrolling shall retain native behavior.
 **REQ-CORE-115** (D/T/I)
 The GUI frontend shall retain the application identity `coyote` for desktop
 launchers and shall provide an agents panel implemented as a tree view. The
-main agent shall be the top-level tree element and each subagent shall appear
-as a child of the agent that launched it. Each tree element shall identify the
-agent label and lifecycle state in text as well as any status indicator.
-Selecting an agent shall make its virtual window active: the shared
-conversation view shall display that agent's conversation state, typed prompts
-shall be sent to that live agent, and Stop, Pause, and Resume shall target that
-live agent. Selection shall not create or map a top-level desktop window.
-Completed, aborted, failed, or disconnected agents shall remain selectable for
-review, but controls that require a live process shall be disabled. Ordinary
-`File → New Window` behavior, when requested explicitly, remains a separate
-physical-window operation.
+panel shall be presented as a modeless `coyote : Agents` support window owned
+by the coordinator's main window. It shall be visible by default, hideable and
+reopenable through `View → Agents Window`, and closable without stopping the
+coordinator. The main agent shall be the top-level tree element and each
+subagent shall appear as a child of the agent that launched it. Each tree
+element shall identify the agent label and lifecycle state in text as well as
+any status indicator. Selecting an agent shall make its virtual window active:
+the shared conversation view shall display that agent's conversation state,
+typed prompts shall be sent to that live agent, and Stop, Pause, and Resume
+shall target that live agent. Selection shall not create or map a top-level
+desktop window for that agent. Completed, aborted, failed, or disconnected
+agents shall remain selectable for review, but controls that require a live
+process shall be disabled. Ordinary `File → New Window` behavior, when
+requested explicitly, remains a separate physical-window operation.
 
 **REQ-CORE-115a** (D/T/I)
 When a coordinator launches a `--subagent`, the child shall use a headless

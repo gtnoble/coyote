@@ -104,13 +104,16 @@ recursion-limit, authentication, and SQC session/workspace tests.
 
 ### Accepted virtual-agent-window amendment (2026-08-31)
 
-The planned GUI frontend will replace the current one-top-level-window-per-
-headful-subagent presentation with an agents panel on the left side of the
-coordinator window. The main agent is the tree root and recursively launched
-subagents are child virtual windows. Selecting a live node replaces the
-conversation shown in the shared conversation view and routes prompts and
-applicable controls to that agent, reproducing the current multi-window
-"driver's seat" behavior without desktop pollution.
+The GUI coordinator presents short-lived subagents through a virtual-agent
+tree rather than one top-level window per headful subagent. The tree is
+implemented as a modeless `coyote : Agents` support window owned by the
+coordinator window and is visible by default. `View → Agents Window` toggles
+its visibility; closing it hides only the support window. The main agent is the
+tree root and recursively launched subagents are child virtual windows.
+Selecting a live node replaces the conversation shown in the shared
+conversation view and routes prompts and applicable controls to that agent,
+reproducing the current multi-window "driver's seat" behavior without desktop
+pollution.
 
 The amendment is organizational only. Coordinator-launched subagents remain
 short-lived `--subagent` processes: they process the initial prompt, accept

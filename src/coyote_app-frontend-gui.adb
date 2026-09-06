@@ -20,7 +20,6 @@ with Gtk.Adjustment;
 with Glib.Properties;            use Glib.Properties;
 with Gtk.Accel_Group;
 with Gtk.Box;
-with Gtk.Paned;
 with Gtk.Button;
 with Gtk.Check_Button;
 with Gtk.Clipboard;
@@ -98,6 +97,9 @@ package body Coyote_App.Frontend.GUI is
    use type Coyote_App.Agent_Registry.Lifecycle_Status;
    use type Coyote_App.Agent_Registry.Endpoint_Kind;
    use type Coyote_App.Agent_RPC.Command_Kind;
+   use type Gdk.Types.Gdk_Key_Type;
+   use type Gtk.Check_Menu_Item.Gtk_Check_Menu_Item;
+   use type Gtk.Window.Gtk_Window;
    --  ── Package-body state ────────────────────────────────────────────────
 
    --  Global access for signal callbacks (single window per process).
@@ -750,6 +752,17 @@ package body Coyote_App.Frontend.GUI is
      (Self  : access Gtk.Widget.Gtk_Widget_Record'Class;
       Event : Gdk.Event.Gdk_Event_Key) return Boolean;
 
+   function On_Agents_Window_Delete
+     (Self  : access Gtk.Widget.Gtk_Widget_Record'Class;
+      Event : Gdk.Event.Gdk_Event) return Boolean;
+
+   procedure On_Agents_Window_Toggled
+     (Self : access Gtk.Check_Menu_Item.Gtk_Check_Menu_Item_Record'Class);
+
+   function On_Agents_Window_Key_Press
+     (Self  : access Gtk.Widget.Gtk_Widget_Record'Class;
+      Event : Gdk.Event.Gdk_Event_Key) return Boolean;
+
    procedure On_Edit_Menu_Show
      (Self : access Gtk.Widget.Gtk_Widget_Record'Class);
 
@@ -1050,6 +1063,56 @@ package body Coyote_App.Frontend.GUI is
       end if;
       return False;
    end On_Support_Window_Key_Press;
+
+   function On_Agents_Window_Delete
+     (Self  : access Gtk.Widget.Gtk_Widget_Record'Class;
+      Event : Gdk.Event.Gdk_Event) return Boolean
+   is
+      pragma Unreferenced (Event);
+   begin
+      Self.Hide;
+      if Current_Frontend /= null
+        and then Current_Frontend.Agents_Window_Item /= null
+      then
+         Current_Frontend.Agents_Window_Item.Set_Active (False);
+      end if;
+      return True;
+   end On_Agents_Window_Delete;
+
+   procedure On_Agents_Window_Toggled
+     (Self : access Gtk.Check_Menu_Item.Gtk_Check_Menu_Item_Record'Class)
+   is
+   begin
+      if Current_Frontend = null
+        or else Current_Frontend.Agents_Window = null
+      then
+         return;
+      end if;
+      if Self.Get_Active then
+         Current_Frontend.Agents_Window.Show_All;
+      else
+         Current_Frontend.Agents_Window.Hide;
+      end if;
+   end On_Agents_Window_Toggled;
+
+   function On_Agents_Window_Key_Press
+     (Self  : access Gtk.Widget.Gtk_Widget_Record'Class;
+      Event : Gdk.Event.Gdk_Event_Key) return Boolean
+   is
+   begin
+      if Event.Keyval = Gdk.Types.Keysyms.GDK_LC_w
+        and then (Event.State and Gdk.Types.Control_Mask) /= 0
+      then
+         Self.Hide;
+         if Current_Frontend /= null
+           and then Current_Frontend.Agents_Window_Item /= null
+         then
+            Current_Frontend.Agents_Window_Item.Set_Active (False);
+         end if;
+         return True;
+      end if;
+      return False;
+   end On_Agents_Window_Key_Press;
 
    procedure Apply_Agent_Menu_Sensitivity (F : in out Instance) is
       Mode         : constant Coyote_GUI.Run_Mode :=
@@ -3512,10 +3575,17 @@ package body Coyote_App.Frontend.GUI is
            Coyote_App.Agent_Registry.Create_Agent_Id (""),
          Endpoint           => Coyote_App.Agent_Registry.Local_Endpoint,
          Label              => "main");
-      Gtk.Paned.Gtk_New_Hpaned (F.Agent_Pane);
-      F.Agent_Pane.Pack1 (Scroll, Resize => False, Shrink => False);
-      F.Agent_Pane.Set_Position (190);
-      F.Agent_Pane.Set_Name ("coyote-agents-pane");
+      Gtk.Window.Gtk_New (F.Agents_Window, Gtk.Enums.Window_Toplevel);
+      F.Agents_Window.Set_Title ("coyote : Agents");
+      F.Agents_Window.Set_Role ("coyote-agents");
+      F.Agents_Window.Set_Transient_For (F.Win);
+      F.Agents_Window.Set_Default_Size (360, 600);
+      F.Agents_Window.Set_Size_Request (280, 320);
+      F.Agents_Window.Set_Focus_On_Map (False);
+      F.Agents_Window.On_Delete_Event (On_Agents_Window_Delete'Access);
+      F.Agents_Window.On_Key_Press_Event
+        (On_Agents_Window_Key_Press'Access);
+      F.Agents_Window.Add (Scroll);
       Selection := View.Get_Selection;
       Selection.On_Changed (On_Agent_Selection_Changed'Access);
       View.On_Row_Activated (On_Agent_Row_Activated'Access);
@@ -3886,6 +3956,14 @@ package body Coyote_App.Frontend.GUI is
          Gtk.Menu_Shell.Append
            (Gtk.Menu_Shell.Gtk_Menu_Shell (View_Menu),
             F.Auto_Scroll_Item);
+         Gtk.Check_Menu_Item.Gtk_New_With_Mnemonic
+           (F.Agents_Window_Item, "A_gents Window");
+         F.Agents_Window_Item.Set_Active (True);
+         F.Agents_Window_Item.On_Toggled
+           (On_Agents_Window_Toggled'Access);
+         Gtk.Menu_Shell.Append
+           (Gtk.Menu_Shell.Gtk_Menu_Shell (View_Menu),
+            F.Agents_Window_Item);
          Add_Sep (View_Menu);
          Item := Make_Item ("Zoom _In",    View_Menu);
          Item.On_Activate (On_Zoom_In_Activate'Access);
@@ -4007,10 +4085,8 @@ package body Coyote_App.Frontend.GUI is
       end;
 
       F.Stack.Widget.On_Scroll_Event (On_Stack_Scroll'Access);
-      F.Agent_Pane.Pack2
-        (F.Stack.Widget, Resize => True, Shrink => False);
       F.Outer_Box.Pack_Start
-        (F.Agent_Pane, Expand => True, Fill => True, Padding => 0);
+        (F.Stack.Widget, Expand => True, Fill => True, Padding => 0);
 
       --  ── Conversation / prompt boundary ───────────────────────────────
 
@@ -4119,6 +4195,7 @@ package body Coyote_App.Frontend.GUI is
 
       F.Win.Set_Focus_On_Map (not Pop_Under);
       F.Win.Show_All;
+      F.Agents_Window.Show_All;
       if not Pop_Under then
          F.Prompt_View.Grab_Focus;
       end if;

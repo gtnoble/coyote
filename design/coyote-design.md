@@ -1693,15 +1693,17 @@ startup and is the sole GTK conversation presentation (see §5.15).
   adding nested scrolling regions or changing the conversation's expansion
   policy. The arrangement follows the IRIX guidance for a work area above a
   control area and a status area along the bottom.
-- The agents panel is a narrow, resizable left-side tree view within the main
-  window. Its root row is the main agent; recursively launched
-  subagents appear beneath the agent that launched them. Each row identifies
-  the agent label and lifecycle state. Selecting a row switches the shared
-  conversation view to that agent's retained conversation state and makes the
-  selected live agent the target of typed prompts and applicable agent
-  controls. Completed, aborted, failed, and disconnected rows remain
-  selectable for review, but cannot receive new prompts after their process
-  has ended.
+- The agents panel is a modeless `coyote : Agents` support window owned by the
+  main coyote window. It contains a narrow, resizable tree view whose root row
+  is the main agent; recursively launched subagents appear beneath the agent
+  that launched them. Each row identifies the agent label and lifecycle state.
+  The window is visible by default and can be hidden or reopened through
+  `View → Agents Window`; closing it hides only the support window. Selecting a
+  row switches the shared conversation view to that agent's retained
+  conversation state and makes the selected live agent the target of typed
+  prompts and applicable agent controls. Completed, aborted, failed, and
+  disconnected rows remain selectable for review, but cannot receive new
+  prompts after their process has ended.
 - The agents panel is a virtual window manager for organization only. It does
   not merge agent conversations, make subagents persistent, or map a separate
   desktop window for each coordinator-launched subagent. The child process
@@ -1732,12 +1734,14 @@ startup and is the sole GTK conversation presentation (see §5.15).
   GUI through `Coyote_GUI.Updates`.
 - **Menu and window conventions:** The main menu is ordered `File`, `Edit`,
   `View`, `Agent`, `Options`, `Help`, with Help rightmost. The Edit menu
-  provides Cut, Copy, Paste, Select All, and Deselect All. Agent Stop, Pause,
-  and Resume are disabled when they cannot apply. Support windows close on
-  Ctrl+W. The main title identifies
-  coyote and an optional instance label without lifecycle status. Dialogs and
-  support windows use application-prefixed titles and are transient for the
-  main window; the status area carries lifecycle state.
+  provides Cut, Copy, Paste, Select All, and Deselect All. The View menu
+  includes the check item `Agents Window`, which shows or hides the modeless
+  `coyote : Agents` support window. Agent Stop, Pause, and Resume are disabled
+  when they cannot apply. Support windows close or hide on Ctrl+W without
+  shutting down the main application. The main title identifies coyote and an
+  optional instance label without lifecycle status. Dialogs and support
+  windows use application-prefixed titles and are transient for the main
+  window; the status area carries lifecycle state.
 - **Help menu:** Click for Help, Overview, task topics, Index, and Keys &
   Shortcuts launch the corresponding Mallard topic in Yelp. Product
   Information is an in-process dialog built from
@@ -1803,8 +1807,9 @@ startup and is the sole GTK conversation presentation (see §5.15).
   other controls retain their native key behavior. Focusable tool and fork
   controls remain reachable through GTK traversal and activate with Enter,
   keypad Enter, or Space. Escape cancels armed contextual Help; otherwise the
-  main-window Escape accelerator performs Stop. Support windows close or hide
-  on Escape, and Deselect All is available from Edit and Ctrl+Shift+D.
+  main-window Escape accelerator performs Stop. Dialog support windows may
+  close or hide on Escape; the Agents Window uses Ctrl+W for hide, and
+  Deselect All is available from Edit and Ctrl+Shift+D.
 - **Accessibility:** Send and Stop use text labels as well as icons. Native
   GTK conversation components expose their labels, selectable text, and
   focusable actions through GTK accessibility. Native text components provide
