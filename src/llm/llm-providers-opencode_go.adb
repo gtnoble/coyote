@@ -114,6 +114,8 @@ package body LLM.Providers.OpenCode_Go is
                 (Base_Url => V1_Base,
                  Api_Key  => Api_Key);
          begin
+            LLM.Providers.OpenAI_Completions.Set_Inline_Cache_Hints
+              (Delegate, False);
             LLM.Providers.OpenAI_Completions.Send_Request
               (P             => Delegate,
                Model_Id      => Model_Id,

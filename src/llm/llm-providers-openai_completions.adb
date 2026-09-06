@@ -41,8 +41,9 @@ package body LLM.Providers.OpenAI_Completions is
       Tok_Usage         : LLM.Types.Usage := (others => 0);
       Tool_Calls        : Tool_Call_State_Vectors.Vector;
       Done              : Boolean := False;
-      Saw_Stream_Event  : Boolean := False;
-      Raw_Response_Body : Unbounded_String;
+      Saw_Stream_Event      : Boolean := False;
+      SSE_Response_Started  : Boolean := False;
+      Raw_Response_Body     : Unbounded_String;
       Error_Message     : Unbounded_String;
    end record;
 
@@ -82,6 +83,14 @@ package body LLM.Providers.OpenAI_Completions is
    begin
       return To_String (P.Api_Key);
    end Get_Api_Key;
+
+   procedure Set_Inline_Cache_Hints
+      (P       : in out Provider;
+       Enabled :        Boolean)
+   is
+   begin
+      P.Inline_Cache_Hints := Enabled;
+   end Set_Inline_Cache_Hints;
 
    procedure Add_Header
       (P     : in out Provider;
@@ -389,8 +398,9 @@ package body LLM.Providers.OpenAI_Completions is
    end Message_Text;
 
    procedure Append_System_Message
-      (Messages      : in out GNATCOLL.JSON.JSON_Array;
-       System_Prompt :        String)
+      (Messages           : in out GNATCOLL.JSON.JSON_Array;
+       System_Prompt      :        String;
+       Inline_Cache_Hints :        Boolean)
    is
       --  Emit the system prompt as a single system message with a
       --  cache_control breakpoint so OpenAI's automatic prompt
@@ -404,10 +414,12 @@ package body LLM.Providers.OpenAI_Completions is
          return;
       end if;
 
-      Cache_Marker.Set_Field ("type", "ephemeral");
       Message.Set_Field ("role", "system");
       Message.Set_Field ("content", System_Prompt);
-      Message.Set_Field ("cache_control", Cache_Marker);
+      if Inline_Cache_Hints then
+         Cache_Marker.Set_Field ("type", "ephemeral");
+         Message.Set_Field ("cache_control", Cache_Marker);
+      end if;
       GNATCOLL.JSON.Append (Messages, Message);
    end Append_System_Message;
 
@@ -560,7 +572,8 @@ package body LLM.Providers.OpenAI_Completions is
 
       Request.Set_Field ("max_completion_tokens", Integer (Max_Tokens));
 
-      Append_System_Message (Msgs, System_Prompt);
+      Append_System_Message
+        (Msgs, System_Prompt, P.Inline_Cache_Hints);
 
       for Msg of Messages loop
          case Msg.Role is
@@ -573,32 +586,29 @@ package body LLM.Providers.OpenAI_Completions is
          end case;
       end loop;
 
-      --  Add a cache_control breakpoint on the last user-role
-      --  or tool-role message so the conversation prefix is
-      --  cached across turns.  This matches the Anthropic
-      --  provider's strategy and yields significant cost savings
-      --  for providers that honor the cache_control field
-      --  (OpenRouter, Copilot, Anthropic-compatible backends).
-      --  Providers that lack cache_control silently ignore it.
-      declare
-         Cache_Marker : constant GNATCOLL.JSON.JSON_Value :=
-           GNATCOLL.JSON.Create_Object;
-      begin
-         Cache_Marker.Set_Field ("type", "ephemeral");
-         for J in reverse 1 .. GNATCOLL.JSON.Length (Msgs) loop
-            declare
-               Msg : constant GNATCOLL.JSON.JSON_Value :=
-                 GNATCOLL.JSON.Get (Msgs, J);
-            begin
-               if Get_String_Field (Msg, "role") = "user"
-                 or else Get_String_Field (Msg, "role") = "tool"
-               then
-                  Msg.Set_Field ("cache_control", Cache_Marker);
-                  exit;
-               end if;
-            end;
-         end loop;
-      end;
+      if P.Inline_Cache_Hints then
+         --  Add a cache_control breakpoint on the last user-role or
+         --  tool-role message for providers that support the extension.
+         declare
+            Cache_Marker : constant GNATCOLL.JSON.JSON_Value :=
+              GNATCOLL.JSON.Create_Object;
+         begin
+            Cache_Marker.Set_Field ("type", "ephemeral");
+            for J in reverse 1 .. GNATCOLL.JSON.Length (Msgs) loop
+               declare
+                  Msg : constant GNATCOLL.JSON.JSON_Value :=
+                    GNATCOLL.JSON.Get (Msgs, J);
+               begin
+                  if Get_String_Field (Msg, "role") = "user"
+                    or else Get_String_Field (Msg, "role") = "tool"
+                  then
+                     Msg.Set_Field ("cache_control", Cache_Marker);
+                     exit;
+                  end if;
+               end;
+            end loop;
+         end;
+      end if;
       Request.Set_Field ("messages", Msgs);
 
       if Tools_Json'Length > 0 then
@@ -615,16 +625,10 @@ package body LLM.Providers.OpenAI_Completions is
                   Tools_Read.Value.Get;
             begin
                if GNATCOLL.JSON.Length (Raw_Tools) > 0 then
-                  --  Add a cache_control breakpoint on the last tool
-                  --  definition so the tool schema is cached across
-                  --  turns with OpenAI-compatible providers.
                   declare
                      Cached_Tools : GNATCOLL.JSON.JSON_Array :=
                        GNATCOLL.JSON.Empty_Array;
-                     Cache_Marker : constant GNATCOLL.JSON.JSON_Value :=
-                       GNATCOLL.JSON.Create_Object;
                   begin
-                     Cache_Marker.Set_Field ("type", "ephemeral");
                      for I in
                        1 .. GNATCOLL.JSON.Length (Raw_Tools)
                      loop
@@ -634,14 +638,15 @@ package body LLM.Providers.OpenAI_Completions is
                         begin
                            if I =
                              GNATCOLL.JSON.Length (Raw_Tools)
+                             and then P.Inline_Cache_Hints
                            then
-                              --  Set_Field mutates the underlying JSON
-                              --  object through the reference-counted
-                              --  handle even on a constant view.
                               declare
+                                 Cache_Marker : constant GNATCOLL.JSON.JSON_Value :=
+                                   GNATCOLL.JSON.Create_Object;
                                  Item_Copy : constant GNATCOLL.JSON.JSON_Value :=
                                    GNATCOLL.JSON.Get (Raw_Tools, I);
                               begin
+                                 Cache_Marker.Set_Field ("type", "ephemeral");
                                  Item_Copy.Set_Field
                                    ("cache_control", Cache_Marker);
                                  GNATCOLL.JSON.Append
@@ -989,11 +994,28 @@ package body LLM.Providers.OpenAI_Completions is
          Max_Tokens    => Max_Tokens);
 
       procedure On_Chunk (Data : String) is
+         Response_Text : Unbounded_String;
+         Was_Started : constant Boolean := State.SSE_Response_Started;
       begin
          Append (State.Raw_Response_Body, Data);
 
-         if P.Use_Streaming then
-            Process_Stream_Data (Data, State, Handler);
+         if P.Use_Streaming and then not State.SSE_Response_Started then
+            Response_Text := State.Raw_Response_Body;
+            if Length (Response_Text) >= 5
+              and then To_String (Response_Text) (1 .. 5) = "data:"
+            then
+               State.SSE_Response_Started := True;
+            end if;
+         end if;
+
+         if P.Use_Streaming and then State.SSE_Response_Started then
+            if Was_Started then
+               Process_Stream_Data (Data, State, Handler);
+            else
+               LLM.SSE.Reset (State.Parser);
+               Process_Stream_Data
+                 (To_String (State.Raw_Response_Body), State, Handler);
+            end if;
          end if;
       end On_Chunk;
    begin
@@ -1033,9 +1055,7 @@ package body LLM.Providers.OpenAI_Completions is
                Stop      => LLM.Types.Error_Stop,
                Tok_Usage => State.Tok_Usage,
                Err_Msg   => Error_Text);
-            raise Constraint_Error with
-              "OpenAI chat completion failed with HTTP"
-              & Natural'Image (Status);
+            raise Constraint_Error with Error_Text;
          end;
       end if;
 

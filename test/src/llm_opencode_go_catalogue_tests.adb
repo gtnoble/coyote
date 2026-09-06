@@ -1,5 +1,11 @@
 with AUnit.Assertions;
+with Ada.Environment_Variables;
+with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
+with GNATCOLL.JSON;
+with LLM.Providers.OpenCode_Go;
 with LLM.Providers.OpenCode_Go.Catalogue;
+with LLM.Types;
+with Test_HTTP_Server;
 with AUnit.Test_Caller;
 use type LLM.Providers.OpenCode_Go.Catalogue.Wire_Kind;
 
@@ -58,6 +64,134 @@ package body LLM_OpenCode_Go_Catalogue_Tests is
            = LLM.Providers.OpenCode_Go.Catalogue.OpenAI_Completions_Wire,
          "Unknown models should default to OpenAI completions wire format");
    end Test_Wire_Format_Unknown_Defaults_OpenAI;
+
+   procedure Test_OpenAI_Request_Omits_Cache_Hints (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Port          : constant Positive := 18_810;
+      Base_Url      : constant String :=
+        "http://127.0.0.1:18810";
+      Old_Base      : constant String :=
+        Ada.Environment_Variables.Value
+          ("COYOTE_OPENCODE_GO_BASE_URL", "");
+      Base_Was_Set  : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_OPENCODE_GO_BASE_URL");
+      Old_Key       : constant String :=
+        Ada.Environment_Variables.Value ("OPENCODE_API_KEY", "");
+      Key_Was_Set   : constant Boolean :=
+        Ada.Environment_Variables.Exists ("OPENCODE_API_KEY");
+      Provider      : LLM.Providers.OpenCode_Go.Provider :=
+        LLM.Providers.OpenCode_Go.Create;
+      Messages      : LLM.Types.Message_Vectors.Vector;
+      Content       : LLM.Types.Content_Block_Vectors.Vector;
+      Captured      : GNATCOLL.JSON.JSON_Value :=
+        GNATCOLL.JSON.JSON_Null;
+      Server_Stopped : Boolean := False;
+
+      procedure Restore_Environment is
+      begin
+         if Base_Was_Set then
+            Ada.Environment_Variables.Set
+              ("COYOTE_OPENCODE_GO_BASE_URL", Old_Base);
+         else
+            Ada.Environment_Variables.Clear
+              ("COYOTE_OPENCODE_GO_BASE_URL");
+         end if;
+
+         if Key_Was_Set then
+            Ada.Environment_Variables.Set ("OPENCODE_API_KEY", Old_Key);
+         else
+            Ada.Environment_Variables.Clear ("OPENCODE_API_KEY");
+         end if;
+      end Restore_Environment;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         Parsed : constant GNATCOLL.JSON.Read_Result :=
+           GNATCOLL.JSON.Read (To_String (Req.Body_Data));
+      begin
+         Assert
+           (To_String (Req.Path) = "/v1/chat/completions",
+            "OpenCode Go should use /v1/chat/completions");
+         Assert
+           (Test_HTTP_Server.Get_Header
+              (Req.Headers, "Authorization") = "Bearer fixture-key",
+            "OpenCode Go should use bearer authentication");
+         Assert (Parsed.Success, "OpenCode Go request body should be JSON");
+         Captured := Parsed.Value;
+         Res.Status := 200;
+         Append
+           (Res.Body_Data,
+            "data: {""choices"": [{""delta"": {""content"": ""OK"","
+            & """role"": ""assistant""},"
+            & """finish_reason"": ""stop""}]}"
+            & ASCII.LF & ASCII.LF
+            & "data: [DONE]" & ASCII.LF & ASCII.LF);
+      end Handle_Request;
+
+      Server : Test_HTTP_Server.Server
+        (Handler => Handle_Request'Unrestricted_Access);
+   begin
+      Ada.Environment_Variables.Set
+        ("COYOTE_OPENCODE_GO_BASE_URL", Base_Url);
+      Ada.Environment_Variables.Set ("OPENCODE_API_KEY", "fixture-key");
+
+      Content.Append
+        ((Kind => LLM.Types.Text_Block,
+          Text => To_Unbounded_String ("Say OK")));
+      Messages.Append
+        ((Role      => LLM.Types.User,
+          Content   => Content,
+          Tok_Usage => (others => 0),
+          Stop      => LLM.Types.Unknown_Stop,
+          Timestamp => Null_Unbounded_String));
+
+      Server.Bind (Port);
+      Provider.Send
+        (Model_Id      => "deepseek-v4-pro",
+         System_Prompt => "Reply with exactly OK.",
+         Messages      => Messages,
+         Tools_Json    =>
+           "[{""type"":""function"",""function"":{"
+           & """name"":""shell"",""description"":""Run shell"","
+           & """parameters"":{""type"":""object""}}}]",
+         Thinking      => LLM.Providers.Off,
+         Max_Tokens    => 16,
+         Handler       => null);
+
+      Server.Stop;
+      Server_Stopped := True;
+      Restore_Environment;
+
+      declare
+         Messages_Json : constant GNATCOLL.JSON.JSON_Array :=
+           Captured.Get ("messages").Get;
+         Tools_Json : constant GNATCOLL.JSON.JSON_Array :=
+           Captured.Get ("tools").Get;
+      begin
+         Assert
+           (not GNATCOLL.JSON.Get (Messages_Json, 1).Has_Field
+              ("cache_control"),
+            "OpenCode Go system message must not contain cache_control");
+         Assert
+           (not GNATCOLL.JSON.Get (Messages_Json, 2).Has_Field
+              ("cache_control"),
+            "OpenCode Go user message must not contain cache_control");
+         Assert
+           (not GNATCOLL.JSON.Get (Tools_Json, 1).Has_Field
+              ("cache_control"),
+            "OpenCode Go tool definition must not contain cache_control");
+      end;
+   exception
+      when others =>
+         if not Server_Stopped then
+            Server.Stop;
+         end if;
+         Restore_Environment;
+         raise;
+   end Test_OpenAI_Request_Omits_Cache_Hints;
 
    procedure Test_Static_Metadata_Known_Model (T : in out Test) is
       pragma Unreferenced (T);
@@ -126,6 +260,10 @@ package body LLM_OpenCode_Go_Catalogue_Tests is
         ("LLM.OpenCode_Go.Catalogue unknown models default to OpenAI wire",
          LLM_OpenCode_Go_Catalogue_Tests
            .Test_Wire_Format_Unknown_Defaults_OpenAI'Access));
+      Result.Add_Test (LLM_OpenCode_Go_Catalogue_Caller.Create
+        ("LLM.OpenCode_Go OpenAI requests omit cache hints",
+         LLM_OpenCode_Go_Catalogue_Tests
+           .Test_OpenAI_Request_Omits_Cache_Hints'Access));
 
       return Result;
    end Suite;

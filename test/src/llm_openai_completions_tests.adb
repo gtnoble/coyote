@@ -1462,6 +1462,11 @@ package body LLM_OpenAI_Completions_Tests is
         (Ada.Strings.Fixed.Index (To_String (Error_Message), "HTTP 500") > 0,
          "OpenAI HTTP errors should include the status code");
       Assert
+        (Ada.Strings.Fixed.Index
+           (To_String (Error_Message),
+            "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz") > 0,
+         "OpenAI HTTP exceptions should include the upstream response body");
+      Assert
         (Current_Collector.Last_Stop = LLM.Types.Error_Stop,
          "HTTP errors should emit Error_Stop");
       Assert

@@ -41,6 +41,12 @@ package LLM.Providers.OpenAI_Completions is
    --  Return the configured bearer token.
    function Get_Api_Key (P : Provider) return String;
 
+   --  Enable or disable inline cache_control request fields.  Enabled by
+   --  default for providers that support the extension.
+   procedure Set_Inline_Cache_Hints
+      (P       : in out Provider;
+       Enabled :        Boolean);
+
    --  Add one extra HTTP request header.
    --
    --  This is used for provider-specific extensions such as Copilot's
@@ -101,8 +107,9 @@ private
    type Provider is new LLM.Providers.Provider with record
       Base_Url      : Ada.Strings.Unbounded.Unbounded_String;
       Api_Key       : Ada.Strings.Unbounded.Unbounded_String;
-      Extra_Headers : Header_Entry_Vectors.Vector;
-      Use_Streaming : Boolean := True;
+      Extra_Headers      : Header_Entry_Vectors.Vector;
+      Use_Streaming      : Boolean := True;
+      Inline_Cache_Hints : Boolean := True;
    end record;
 
 end LLM.Providers.OpenAI_Completions;
