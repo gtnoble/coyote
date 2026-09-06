@@ -83,21 +83,6 @@ package body Coyote_GUI.Sandbox_Profile_Window is
    procedure On_Close_Manager
      (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
 
-   procedure On_New_Button
-     (Button : access Gtk.Button.Gtk_Button_Record'Class);
-
-   procedure On_Duplicate_Button
-     (Button : access Gtk.Button.Gtk_Button_Record'Class);
-
-   procedure On_Use_Button
-     (Button : access Gtk.Button.Gtk_Button_Record'Class);
-
-   procedure On_Save_Button
-     (Button : access Gtk.Button.Gtk_Button_Record'Class);
-
-   procedure On_Cancel_Button
-     (Button : access Gtk.Button.Gtk_Button_Record'Class);
-
    procedure On_New
      (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
 
@@ -374,12 +359,6 @@ package body Coyote_GUI.Sandbox_Profile_Window is
          Can_Use := not S.Drafts.Element (S.Selected_Draft).Is_New;
       end if;
       Get_Selected_Path (S, Category, Path, Model, Has_Path);
-      if S.Save_Button /= null then
-         S.Save_Button.Set_Sensitive (Any_Dirty (S));
-      end if;
-      if S.Cancel_Button /= null then
-         S.Cancel_Button.Set_Sensitive (Any_Dirty (S));
-      end if;
       if S.Edit_Path_Button /= null then
          S.Edit_Path_Button.Set_Sensitive
            (Has_Path /= Gtk.Tree_Model.Null_Iter);
@@ -1199,9 +1178,6 @@ package body Coyote_GUI.Sandbox_Profile_Window is
       Scroll      : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
       Label       : Gtk.Label.Gtk_Label;
       Actions     : Gtk.Box.Gtk_Box;
-      New_B       : Gtk.Button.Gtk_Button;
-      Duplicate_B : Gtk.Button.Gtk_Button;
-      Use_B       : Gtk.Button.Gtk_Button;
    begin
       if S.Created then
          return;
@@ -1261,26 +1237,7 @@ package body Coyote_GUI.Sandbox_Profile_Window is
       Actions.Pack_Start (S.Edit_Path_Button, False, False, 0);
       Actions.Pack_Start (S.Remove_Path_Button, False, False, 0);
       S.Editor.Pack_Start (Actions, False, False, 0);
-      Gtk.Box.Gtk_New_Hbox (Actions, False, 4);
-      Gtk.Button.Gtk_New_With_Mnemonic (S.Save_Button, "_Save");
-      Gtk.Button.Gtk_New_With_Mnemonic (S.Cancel_Button, "_Cancel");
-      S.Save_Button.On_Clicked (On_Save_Button'Access);
-      S.Cancel_Button.On_Clicked (On_Cancel_Button'Access);
-      Actions.Pack_Start (S.Save_Button, False, False, 0);
-      Actions.Pack_Start (S.Cancel_Button, False, False, 0);
-      S.Editor.Pack_Start (Actions, False, False, 0);
       Right_Box.Pack_Start (S.Editor, True, True, 0);
-      Gtk.Box.Gtk_New_Hbox (Actions, False, 4);
-      Gtk.Button.Gtk_New_With_Mnemonic (New_B, "_New");
-      Gtk.Button.Gtk_New_With_Mnemonic (Duplicate_B, "_Duplicate Profile");
-      Gtk.Button.Gtk_New_With_Mnemonic (Use_B, "_Use Profile");
-      New_B.On_Clicked (On_New_Button'Access);
-      Duplicate_B.On_Clicked (On_Duplicate_Button'Access);
-      Use_B.On_Clicked (On_Use_Button'Access);
-      Actions.Pack_Start (New_B, False, False, 0);
-      Actions.Pack_Start (Duplicate_B, False, False, 0);
-      Actions.Pack_Start (Use_B, False, False, 0);
-      Right_Box.Pack_Start (Actions, False, False, 0);
       Main_Pane.Pack2 (Right_Box, True, False);
       Main_Pane.Set_Position (270);
       Content.Pack_Start (Main_Pane, True, True, 0);
@@ -1339,46 +1296,6 @@ package body Coyote_GUI.Sandbox_Profile_Window is
       Refresh_Persisted_Drafts (S);
       Rebuild_Profile_List (S);
    end Refresh;
-
-   procedure On_New_Button
-     (Button : access Gtk.Button.Gtk_Button_Record'Class)
-   is
-      pragma Unreferenced (Button);
-   begin
-      On_New (null);
-   end On_New_Button;
-
-   procedure On_Duplicate_Button
-     (Button : access Gtk.Button.Gtk_Button_Record'Class)
-   is
-      pragma Unreferenced (Button);
-   begin
-      On_Duplicate (null);
-   end On_Duplicate_Button;
-
-   procedure On_Use_Button
-     (Button : access Gtk.Button.Gtk_Button_Record'Class)
-   is
-      pragma Unreferenced (Button);
-   begin
-      On_Use (null);
-   end On_Use_Button;
-
-   procedure On_Save_Button
-     (Button : access Gtk.Button.Gtk_Button_Record'Class)
-   is
-      pragma Unreferenced (Button);
-   begin
-      On_Save (null);
-   end On_Save_Button;
-
-   procedure On_Cancel_Button
-     (Button : access Gtk.Button.Gtk_Button_Record'Class)
-   is
-      pragma Unreferenced (Button);
-   begin
-      On_Cancel (null);
-   end On_Cancel_Button;
 
    procedure On_Close_Manager
      (Item : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)

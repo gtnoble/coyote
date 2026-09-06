@@ -83,8 +83,6 @@ private
       Remove_Path_Button : Gtk.Button.Gtk_Button := null;
       Status             : Gtk.Label.Gtk_Label := null;
       Editor             : Gtk.Box.Gtk_Box := null;
-      Save_Button        : Gtk.Button.Gtk_Button := null;
-      Cancel_Button      : Gtk.Button.Gtk_Button := null;
       Refreshing         : Boolean := False;
       Updating_Editor    : Boolean := False;
       Created            : Boolean := False;
