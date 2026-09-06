@@ -146,9 +146,11 @@ Shell used for prompt-filter commands. Defaults to
 .I ~/.coyote/settings.json
 Default provider, model, thinking level, compaction settings, prompt filter,
 sandbox profile, skill paths, and maximum subagent recursion depth. In the GTK
-frontend, `Options → Sandbox Profiles...` manages reusable profiles; the
-existing Agent → Sandbox Profile... action and Ctrl+Shift+S remain the quick
-active-session chooser.
+frontend, `Options → Sandbox Profiles...` manages multiple in-memory profile
+drafts with one editable form; Save persists all dirty drafts and Cancel
+reloads persisted profiles. Rename and Delete are not provided by the manager.
+The existing Agent → Sandbox Profile... action and Ctrl+Shift+S remain the
+quick active-session chooser.
 .TP
 .I ~/.coyote/sandbox/<profile>.json
 Named sandbox profile definitions. Each JSON object may contain the optional

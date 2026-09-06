@@ -1,8 +1,8 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.22
-**Date:** 2026-08-31
+**Version:** 1.23
+**Date:** 2026-09-06
 **Status:** Draft
 **Project Plan:** `plan/project-plan.md`
 
@@ -735,13 +735,18 @@ shall remain the quick chooser for changing the active session's profile; they
 shall not be replaced by the manager.
 
 **REQ-CORE-113g** (D/T/I)
-The Sandbox Profiles manager shall provide New, Edit, Duplicate Profile,
-Rename Profile, Save, Cancel, Refresh, and Use Profile operations and shall
-not provide Delete. It shall present a single-selection profile list on the
-left and read-only details on the right. Editing shall be explicit and shall
-expose four editable path-rule lists: allow write, deny write, deny read, and
-allow read. Save and Cancel shall leave browse mode only through their explicit
-operations.
+The Sandbox Profiles manager shall provide New, Duplicate Profile, Save,
+Cancel, Refresh, and Use Profile operations and shall not provide Rename or
+Delete. It shall present a single-selection profile list on the left and one
+always-visible editable profile form on the right. The form shall expose the
+profile name and four editable path-rule lists: allow write, deny write, deny
+read, and allow read. The manager shall retain multiple in-memory profile
+drafts, visibly identify dirty drafts, and allow switching among drafts
+without losing unsaved changes. New and Duplicate Profile shall create drafts
+without writing profile files. Save shall validate and process all dirty
+drafts; Cancel shall discard all drafts and reload persisted profiles. A
+failed Save shall retain unsaved drafts and identify profiles that were not
+saved.
 
 **REQ-CORE-113h** (D/T/I)
 Sandbox profile path rules shall preserve user-entered `~`, `.`, `./`, absolute,
@@ -750,8 +755,8 @@ not exist shall be skipped rather than rejected by profile editing or runtime
 argument construction.
 
 **REQ-CORE-113i** (T/I)
-Sandbox profile CRUD shall use synchronous local profile-file access. Use
-Profile shall remain a runtime operation: it shall route the typed
+Sandbox profile draft persistence shall use synchronous local profile-file
+access. Use Profile shall remain a runtime operation: it shall route the typed
 `Set_Sandbox` operation to the selected live agent through the local prompt
 queue for an in-process agent or the versioned RPC control channel for a
 coordinator-launched child, rather than changing the active session directly

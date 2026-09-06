@@ -7,7 +7,12 @@ with AUnit.Assertions;
 with AUnit.Test_Caller;
 with Coyote_GUI.Prompt_Queue;
 with Coyote_GUI.Sandbox_Profile_Window;
+with Coyote_GUI.Sandbox_Profile_Window.Testing;
+with Gtk.Button;
+with Glib;
 with Gtk.Enums;
+with Gtk.Tree_Model;
+with Gtk.Tree_View;
 with Gtk.Main;
 with Gtk.Window;
 with LLM.Tools.Sandbox;
@@ -15,6 +20,9 @@ with LLM.Tools.Sandbox;
 package body Coyote_GUI_Sandbox_Profile_Window_Tests is
 
    use AUnit.Assertions;
+   use type Glib.Gint;
+   use type Gtk.Tree_Model.Gtk_Tree_Model;
+   use type Gtk.Tree_View.Gtk_Tree_View;
    use type Gtk.Window.Gtk_Window;
 
    function Display_Detected return Boolean is
@@ -84,6 +92,68 @@ package body Coyote_GUI_Sandbox_Profile_Window_Tests is
       Parent.Destroy;
    end Test_Create_Is_Idempotent;
 
+   procedure Test_Path_Editors_Use_Tree_Views (T : in out Test) is
+      Parent : Gtk.Window.Gtk_Window;
+      Queue  : aliased Coyote_GUI.Prompt_Queue.Queue;
+      Window : aliased Coyote_GUI.Sandbox_Profile_Window.Instance;
+
+      procedure Assert_Path_View
+        (View : Gtk.Tree_View.Gtk_Tree_View; Label : String)
+      is
+         Model : constant Gtk.Tree_Model.Gtk_Tree_Model := View.Get_Model;
+      begin
+         Assert (View /= null, Label & " view must exist");
+         Assert (Model /= Gtk.Tree_Model.Null_Gtk_Tree_Model,
+                Label & " view must have a model");
+         Assert
+           (Gtk.Tree_Model.Get_N_Columns (Model) = 1,
+            Label & " view must expose one path column");
+      end Assert_Path_View;
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Gtk.Window.Gtk_New (Parent, Gtk.Enums.Window_Toplevel);
+      Coyote_GUI.Sandbox_Profile_Window.Create
+        (S               => Window,
+         Main_Window     => Parent.all'Access,
+         Prompt_Queue    => Queue'Access,
+         Target_Agent_Id => "test-agent");
+      Assert_Path_View
+        (Coyote_GUI.Sandbox_Profile_Window.Testing.Allow_Write_View (Window),
+         "Allow write");
+      Assert_Path_View
+        (Coyote_GUI.Sandbox_Profile_Window.Testing.Deny_Write_View (Window),
+         "Deny write");
+      Assert_Path_View
+        (Coyote_GUI.Sandbox_Profile_Window.Testing.Deny_Read_View (Window),
+         "Deny read");
+      Assert_Path_View
+        (Coyote_GUI.Sandbox_Profile_Window.Testing.Allow_Read_View (Window),
+         "Allow read");
+      Assert
+        (Coyote_GUI.Sandbox_Profile_Window.Testing.Add_Path_Button
+           (Window).Get_Label = "_Add Path",
+         "shared add button must be present");
+      Assert
+        (Coyote_GUI.Sandbox_Profile_Window.Testing.Edit_Path_Button
+           (Window).Get_Label = "_Edit Selected",
+         "shared edit button must be present");
+      Assert
+        (Coyote_GUI.Sandbox_Profile_Window.Testing.Remove_Path_Button
+           (Window).Get_Label = "_Remove Selected",
+         "shared remove button must be present");
+      Assert
+        (not Coyote_GUI.Sandbox_Profile_Window.Testing.Edit_Path_Button
+           (Window).Get_Sensitive,
+         "edit must start disabled without a selected path");
+      Assert
+        (not Coyote_GUI.Sandbox_Profile_Window.Testing.Remove_Path_Button
+           (Window).Get_Sensitive,
+         "remove must start disabled without a selected path");
+      Parent.Destroy;
+   end Test_Path_Editors_Use_Tree_Views;
+
    package Sandbox_Profile_Window_Caller is
      new AUnit.Test_Caller (Coyote_GUI_Sandbox_Profile_Window_Tests.Test);
 
@@ -99,6 +169,10 @@ package body Coyote_GUI_Sandbox_Profile_Window_Tests is
         ("sandbox profile names are validated",
          Coyote_GUI_Sandbox_Profile_Window_Tests
            .Test_Profile_Name_Validation'Access));
+      Result.Add_Test (Sandbox_Profile_Window_Caller.Create
+        ("sandbox profile path editors use tree views",
+         Coyote_GUI_Sandbox_Profile_Window_Tests
+           .Test_Path_Editors_Use_Tree_Views'Access));
       return Result;
    end Suite;
 

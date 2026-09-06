@@ -180,14 +180,18 @@ Use a disposable profile directory and test paths; do not use a profile that
 can modify important user data. In a display-backed GUI, open `Options →
 Sandbox Profiles...` and verify the reusable modeless `coyote : Sandbox
 Profiles` window. Verify the left list permits one selection and the right pane
-is read-only in browse mode. Exercise New, Edit, Duplicate Profile, Rename
-Profile, Save, Cancel, Refresh, and Use Profile; verify Delete is absent and
-that the four rule lists preserve `~`, `.`, `./`, absolute, and missing path
-spellings. Verify CRUD completes through synchronous local profile-file access,
-while Use Profile queues the active-session `Set_Sandbox` command. Verify a
-compatibility rename retains the old definition for historical session headers
-and updates `defaultSandboxProfile` when it names the old profile without
-rewriting those headers. The full display-backed lifecycle is pending.
+is always editable. Edit profile A, switch to profile B, edit it, and verify
+both drafts remain present and visibly dirty. Exercise New and Duplicate
+Profile without writing files, then Save once and verify every dirty draft is
+persisted. Verify invalid names, duplicate names, and empty path entries block
+all writes before Save. Verify Cancel discards edits to multiple profiles and
+removes unsaved New/Duplicate drafts. Verify Refresh preserves dirty drafts and
+loads clean external changes. Verify Rename and Delete are absent from the
+manager; compatibility rename remains covered separately by backend tests.
+Verify the four rule lists preserve `~`, `.`, `./`, absolute, and missing path
+spellings. Verify Use Profile queues the active-session `Set_Sandbox` command
+and rejects an unsaved new profile. Full interaction remains display-backed
+qualification.
 
 ## Non-Goals
 

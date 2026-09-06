@@ -1,8 +1,8 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.25
-**Date:** 2026-08-31
+**Version:** 1.26
+**Date:** 2026-09-06
 
 **Status:** Reviewed — project control (M3 complete 2026-06-02)
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
@@ -257,7 +257,7 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `Coyote_GUI.Footer_Element` | Deferred; typed footer realization is owned by `Conversation_Stack` in this build | Not separate in qualification build |
 | `Coyote_GUI.Tool_Detail_Window` | Structured GTK tool-call detail window | `src/coyote_gui/coyote_gui-tool_detail_window.ads/.adb` |
 | `Coyote_GUI.Session_Stats_Window` | Reusable live session-statistics support window | `src/coyote_gui/coyote_gui-session_stats_window.ads/.adb` |
-| `Coyote_GUI.Sandbox_Profile_Window` | Reusable modeless GTK sandbox profile manager with browse/edit views and profile CRUD controls | `src/coyote_gui/coyote_gui-sandbox_profile_window.ads/.adb` |
+| `Coyote_GUI.Sandbox_Profile_Window` | Reusable modeless GTK sandbox profile manager with multi-profile drafts, Save-All/Cancel-All, and profile-rule editing | `src/coyote_gui/coyote_gui-sandbox_profile_window.ads/.adb` |
 | `Coyote_GUI.Zoom` | Zoom-level ↔ font-size arithmetic (pure logic) | `src/coyote_gui/coyote_gui-zoom.ads/.adb` |
 | `Coyote_GUI.Navigation` | Clamped keyboard viewport navigation policy | `src/coyote_gui/coyote_gui-navigation.ads/.adb` |
 | `Coyote_Utils` | CLI arg resolution, file reading, session prefix stripping, active executable resolution, and POSIX shell quoting | `src/coyote_utils.ads/.adb` |
@@ -1757,14 +1757,21 @@ startup and is the sole GTK conversation presentation (see §5.15).
 - **Sandbox Profiles manager:** `Options → Sandbox Profiles...` opens one
   reusable, modeless co-primary titled `coyote : Sandbox Profiles`. It is
   constructed on the GTK main task, remains transient for the main window, and
-  owns no agent task. A left single-selection profile list is paired with a
-  right read-only details view. Explicit edit mode exposes New, Edit,
-  Duplicate Profile, Rename Profile, Save, Cancel, Refresh, and Use Profile;
-  Delete is intentionally absent. The four editable rule lists preserve path
-  spelling (`~`, `.`, `./`, absolute, and missing paths). CRUD is synchronous
-  local backend access; Use Profile instead enqueues typed `Set_Sandbox` for
-  the selected agent. The existing Agent → Sandbox Profile... and
-  Ctrl+Shift+S quick chooser remains distinct.
+  owns no agent task. A left single-selection profile list is paired with one
+  always-visible editable profile form. The manager keeps multiple typed
+  in-memory drafts, marks dirty drafts in the list, stages New and Duplicate
+  without writing files, validates and saves all dirty drafts with Save, and
+  reloads persisted state with Cancel. Rename and Delete are intentionally
+  absent from this UI. The four editable rule collections are one-column
+  `GtkTreeView` controls backed by `GtkListStore` models. A shared bottom
+  action row provides Add Path, Edit Selected, and Remove Selected; the
+  active collection follows selection, pointer, and keyboard focus. Edit Path
+  uses an arbitrary-text prompt so path spelling and missing paths remain
+  representable. Profile persistence is
+  synchronous local backend access; a failed Save retains unsaved drafts and
+  reports failed profiles. Use Profile enqueues typed `Set_Sandbox` for the
+  selected agent. The existing Agent → Sandbox Profile... and Ctrl+Shift+S
+  quick chooser remains distinct.
 - **Desktop identity and session roles:** The GUI sets the themed `coyote`
   icon name and a stable main-window role. After session creation, resume, or
   switch, the agent queues the session identifier through `Coyote_GUI.Updates`;

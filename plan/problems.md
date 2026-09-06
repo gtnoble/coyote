@@ -3,6 +3,32 @@
 Maintained continuously. Every detected problem in a project-level or
 client-controlled work product gets an entry here.
 
+## PCR-096 — Multi-profile sandbox manager drafts and Save-All (2026-09-06)
+
+- **Date reported:** 2026-09-06
+- **Category:** Requirements, Design, Code, Test, Plans, Manuals
+- **Priority:** 2-Serious
+- **Description:** The Sandbox Profiles manager exposed a read-only browse
+  view and a separate single-profile editor. The accepted product direction is
+  an always-visible editor that allows several profile drafts to be changed in
+  one session and committed with one Save operation; manager Rename is removed
+  from scope.
+- **Affected work products:** `Coyote_GUI.Sandbox_Profile_Window`,
+  REQ-CORE-113g–i, SDD-CORE manager design, DEM-054, Test Plan, frontend SDF,
+  Mallard Help, and the man page. The backend compatibility rename operation
+  remains required for historical session support but is not exposed by this
+  manager.
+- **Actions taken:** Replaced browse/edit state with typed in-memory drafts;
+  added always-visible editor population, dirty list markers, staged New and
+  Duplicate, Save-All validation and per-file atomic persistence, Cancel-All,
+  draft-preserving Refresh, close/Escape discard handling, and removed manager
+  Rename controls. Preserved Use Profile queue/RPC routing and the separate
+  quick chooser.
+- **Verification:** Production and test development builds succeed. The full
+  development suite passes 827/827 with zero failed assertions. Display-backed
+  editor interaction remains pending under DEM-054.
+- **Status:** Implemented; display-backed qualification pending
+
 ## PCR-094 — GTK application icon is not discoverable from the GUI
 
 - **Date reported:** 2026-09-01

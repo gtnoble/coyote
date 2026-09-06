@@ -42,22 +42,33 @@ product-information fixture explicitly requests frontend shutdown before
 fixture scope. The complete 822-test development suite passes in 34.3 seconds;
 display-backed GUI tests remain subject to the available display environment.
 
-### Sandbox Profiles manager (2026-09-05)
-The GTK frontend now opens one reusable modeless co-primary window titled
-`coyote : Sandbox Profiles` from `Options → Sandbox Profiles...`. The manager
-keeps the existing `Agent → Sandbox Profile...` action and Ctrl+Shift+S as the
-quick active-session chooser. Its left single-selection profile list and right
-read-only details view switch to explicit edit mode for New, Edit, Duplicate
-Profile, Rename Profile, Save, Cancel, Refresh, and Use Profile; Delete is not
-provided. Edit mode exposes four path-rule lists and preserves `~`, `.`, `./`,
-absolute, and missing path spellings. CRUD is synchronous local file access. Use Profile routes typed `Set_Sandbox`
-through the selected agent's local prompt queue or versioned RPC control
-channel.
+### Sandbox Profiles manager (2026-09-05, superseded)
+The initial manager opened one reusable modeless co-primary window titled
+`coyote : Sandbox Profiles` and established the separate quick chooser. Its
+browse/edit interaction was superseded by the multi-profile draft editor
+recorded below; backend path preservation and Use Profile routing remain
+unchanged.
 
 `Coyote_GUI.Sandbox_Profile_Window` is constructed on the GTK main task,
 transient for the main window, and reused rather than recreated. The manager
 lifecycle/name-validation tests pass; display-backed qualification of the full
 manager interaction remains pending under DEM-054.
+
+### Sandbox Profiles manager drafts (2026-09-06)
+The manager now uses one always-visible editable form with a single-selection
+profile list and multiple typed in-memory drafts. New and Duplicate Profile
+stage changes without writing files; dirty drafts are marked in the list; Save
+validates and processes all dirty drafts; Cancel reloads persisted profiles and
+discards all drafts; Refresh preserves dirty drafts. Rename and Delete are not
+provided by the manager. The four path-rule collections are one-column
+`GtkTreeView` widgets backed by `GtkListStore` models. Add Path, Edit Selected,
+and Remove Selected are consolidated into one bottom action row; its target is
+the collection most recently selected, clicked, or focused. Edit Path accepts
+arbitrary text, preserving `~`, `.`, `./`, absolute, and missing paths. Backend
+compatibility rename remains available for historical session support. Use
+Profile continues to route through the selected agent's local queue or RPC
+channel. The focused path-editor regression passes; full interaction remains
+display-gated under DEM-054.
 
 ### Native GTK Markdown tables (2026-09-03)
 
@@ -1021,11 +1032,13 @@ passes 806/806 with zero failed assertions and zero unexpected errors.
 
 ### Sandbox Profiles menu integration (2026-09-06)
 
-The GTK frontend now registers the documented `Options → Sandbox Profiles...`
-item and opens the existing reusable modeless manager lazily. Repeated opens
-reuse the `coyote : Sandbox Profiles` window; the manager target is refreshed
-when the selected Agents entry changes and immediately before presentation.
-The existing `Agent → Sandbox Profile...` quick chooser remains unchanged.
+The GTK frontend registers the documented `Options → Sandbox Profiles...`
+item and opens the reusable modeless manager lazily. Repeated opens reuse the
+same window and refresh the selected-agent target immediately before
+presentation. The manager now presents the always-visible multi-profile draft
+editor; the existing `Agent → Sandbox Profile...` quick chooser remains
+unchanged.
+
 
 Added a display-backed GUI regression for menu-item registration, lazy manager
 creation, manager reuse, and title/lifecycle behavior. The focused Sandbox

@@ -30,7 +30,7 @@
       <item><title><key>Ctrl</key>+<key>R</key></title><p>Resume the session.</p></item>
       <item><title><key>Ctrl</key>+<key>M</key></title><p>Change the model.</p></item>
       <item><title><key>Ctrl</key>+<key>1</key> … <key>Ctrl</key>+<key>6</key></title><p>Set thinking level Off through X-High.</p></item>
-      <item><title><key>Ctrl</key>+<key>Shift</key>+<key>S</key></title><p>Choose a sandbox profile for the active session using the quick chooser. Use Options → Sandbox Profiles... for profile CRUD and rule editing.</p></item>
+      <item><title><key>Ctrl</key>+<key>Shift</key>+<key>S</key></title><p>Choose a sandbox profile for the active session using the quick chooser. Use Options → Sandbox Profiles... to edit multiple profile drafts and save or cancel them together; Rename and Delete are not provided there.</p></item>
       <item><title><key>Ctrl</key>+<key>Shift</key>+<key>C</key></title><p>Compact context.</p></item>
       <item><title><key>Ctrl</key>+<key>Shift</key>+<key>I</key></title><p>Show session stats.</p></item>
       <item><title><key>Ctrl</key>+<key>Shift</key>+<key>D</key></title><p>Deselect all in the focused prompt or conversation component.</p></item>

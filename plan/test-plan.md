@@ -1,7 +1,7 @@
 # Test Plan â coyote (STP)
 
-**Version:** 1.26
-**Date:** 2026-08-31
+**Version:** 1.27
+**Date:** 2026-09-06
 
 **Status:** Reviewed and acknowledged â M4 complete (2026-06-03)
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
@@ -920,10 +920,10 @@ wall time after the test executable is built. AUnit global and per-case timing
 are enabled. The recursion-depth subprocess test is opt-in with
 `COYOTE_TEST_SUBAGENT=1`; live-provider tests remain separately guarded.
 
-**Baseline after sandbox profile manager implementation (2026-09-05):** Added
-typed sandbox CRUD, safe-name, optional-array, copy/rename compatibility,
-default-rename, and fail-closed runtime tests, plus display-gated manager
-name-validation and reusable-lifecycle coverage. The focused backend/settings
-and manager tests pass in the development test build; full display-backed
-manager interaction remains pending under DEM-054. Historical session headers
-remain unchanged by compatibility rename.
+**Baseline after sandbox profile draft-manager implementation (2026-09-06):**
+Implemented the always-visible multi-profile draft editor, dirty indicators,
+Save-All validation/persistence, Cancel-All reload, non-destructive Refresh,
+and manager-level removal of Rename/Delete. Backend compatibility rename and
+historical-session behavior remain unchanged. Production and test development
+builds succeed; the complete suite passes 827/827 with zero failed assertions.
+Full display-backed interaction qualification remains pending under DEM-054.

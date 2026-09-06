@@ -17,6 +17,7 @@ package Coyote_GUI_Sandbox_Profile_Window_Tests is
    overriding procedure Set_Up (T : in out Test);
 
    procedure Test_Create_Is_Idempotent (T : in out Test);
+   procedure Test_Path_Editors_Use_Tree_Views (T : in out Test);
    procedure Test_Profile_Name_Validation (T : in out Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite;
