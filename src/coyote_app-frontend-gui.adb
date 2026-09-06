@@ -78,6 +78,7 @@ with LLM.Providers;
 with Coyote_App.Utils;
 with Coyote_Help;
 with Coyote_GUI.Session_Stats_Window;
+with Coyote_GUI.Mnemonics;
 with Coyote_GUI.Navigation;
 with Coyote_GUI.Sandbox_Profile_Window;
 with Coyote_GUI.Zoom;
@@ -2932,7 +2933,8 @@ package body Coyote_App.Frontend.GUI is
       Skill_Paths_Scroll   : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
       Resp                 : Gtk.Dialog.Gtk_Response_Type;
       Btn                 : Gtk.Widget.Gtk_Widget;
-      Thinking_Index      : Glib.Gint := 0;
+      Mnemonic_Context     : Coyote_GUI.Mnemonics.Registry;
+      Thinking_Index       : Glib.Gint := 0;
       Sandbox_Index       : Glib.Gint := 0;
       Subagent_Model_Index : Glib.Gint := 0;
       Target_Model        : constant String :=
@@ -2968,6 +2970,38 @@ package body Coyote_App.Frontend.GUI is
       if Current_Frontend = null then
          return;
       end if;
+      Coyote_GUI.Mnemonics.Reserve
+        (Mnemonic_Context, "_Save", "Preferences");
+      Coyote_GUI.Mnemonics.Reserve
+        (Mnemonic_Context, "_Cancel", "Preferences");
+      Coyote_GUI.Mnemonics.Reserve
+        (Mnemonic_Context, "_Default model:", "Preferences");
+      Coyote_GUI.Mnemonics.Reserve
+        (Mnemonic_Context, "Default subagent _model:", "Preferences");
+      Coyote_GUI.Mnemonics.Reserve
+        (Mnemonic_Context, "_Thinking level:", "Preferences");
+      Coyote_GUI.Mnemonics.Reserve
+        (Mnemonic_Context, "Default sandbo_x:", "Preferences");
+      Coyote_GUI.Mnemonics.Reserve
+        (Mnemonic_Context, "_Price display:", "Preferences");
+      Coyote_GUI.Mnemonics.Reserve
+        (Mnemonic_Context,
+         "Maximum subagent _recursion depth:", "Preferences");
+      Coyote_GUI.Mnemonics.Reserve
+        (Mnemonic_Context, "Shutdown _grace period (seconds):", "Preferences");
+      Coyote_GUI.Mnemonics.Reserve
+        (Mnemonic_Context, "Additional ski_ll directories:", "Preferences");
+      Coyote_GUI.Mnemonics.Reserve
+        (Mnemonic_Context, "_Add Directory...", "Preferences");
+      Coyote_GUI.Mnemonics.Reserve
+        (Mnemonic_Context, "Remo_ve Selected", "Preferences");
+      Coyote_GUI.Mnemonics.Reserve
+        (Mnemonic_Context, "Move _Up", "Preferences");
+      Coyote_GUI.Mnemonics.Reserve
+        (Mnemonic_Context, "Move dow_n", "Preferences");
+      Coyote_GUI.Mnemonics.Reserve
+        (Mnemonic_Context,
+         "Desktop noti_fications when agent completes", "Preferences");
       Gtk.Dialog.Gtk_New (Dialog);
       Dialog.Set_Title ("coyote : Preferences");
       Dialog.Set_Default_Size (620, 500);
@@ -3006,7 +3040,7 @@ package body Coyote_App.Frontend.GUI is
       begin
          Gtk.Box.Gtk_New_Hbox (Row, Homogeneous => False, Spacing => 8);
          Gtk.Label.Gtk_New_With_Mnemonic
-           (Label, "_Default subagent model:");
+           (Label, "Default subagent _model:");
          Row.Pack_Start (Label, False, False, 0);
          Gtk.Combo_Box_Text.Gtk_New (Subagent_Model_C);
          Label.Set_Mnemonic_Widget (Subagent_Model_C);
@@ -3055,7 +3089,7 @@ package body Coyote_App.Frontend.GUI is
          Label : Gtk.Label.Gtk_Label;
       begin
          Gtk.Box.Gtk_New_Hbox (Row, Homogeneous => False, Spacing => 8);
-         Gtk.Label.Gtk_New_With_Mnemonic (Label, "Default _sandbox:");
+         Gtk.Label.Gtk_New_With_Mnemonic (Label, "Default sandbo_x:");
          Row.Pack_Start (Label, False, False, 0);
          Gtk.Combo_Box_Text.Gtk_New (Sandbox_C);
          Label.Set_Mnemonic_Widget (Sandbox_C);
@@ -3119,7 +3153,7 @@ package body Coyote_App.Frontend.GUI is
       begin
          Gtk.Box.Gtk_New_Hbox (Row, Homogeneous => False, Spacing => 8);
          Gtk.Label.Gtk_New_With_Mnemonic
-           (Label, "_Shutdown grace period (seconds):");
+           (Label, "Shutdown _grace period (seconds):");
          Row.Pack_Start (Label, False, False, 0);
          Gtk.Spin_Button.Gtk_New
            (Grace_C,
@@ -3140,7 +3174,7 @@ package body Coyote_App.Frontend.GUI is
          Add_B, Remove_B, Up_B, Down_B : Gtk.Button.Gtk_Button;
       begin
          Gtk.Label.Gtk_New_With_Mnemonic
-           (Label, "Additional skill _directories:");
+           (Label, "Additional ski_ll directories:");
          Label.Set_Halign (Gtk.Widget.Align_Start);
          Form.Pack_Start (Label, False, False, 0);
 
@@ -3162,9 +3196,9 @@ package body Coyote_App.Frontend.GUI is
 
          Gtk.Box.Gtk_New_Hbox (Actions, Homogeneous => False, Spacing => 4);
          Gtk.Button.Gtk_New_With_Mnemonic (Add_B, "_Add Directory...");
-         Gtk.Button.Gtk_New_With_Mnemonic (Remove_B, "_Remove Selected");
+         Gtk.Button.Gtk_New_With_Mnemonic (Remove_B, "Remo_ve Selected");
          Gtk.Button.Gtk_New_With_Mnemonic (Up_B, "Move _Up");
-         Gtk.Button.Gtk_New_With_Mnemonic (Down_B, "Move _Down");
+         Gtk.Button.Gtk_New_With_Mnemonic (Down_B, "Move dow_n");
          Add_B.On_Clicked (On_Add_Skill_Path_Clicked'Access);
          Remove_B.On_Clicked (On_Remove_Skill_Path_Clicked'Access);
          Up_B.On_Clicked (On_Move_Skill_Path_Up_Clicked'Access);
@@ -3186,7 +3220,7 @@ package body Coyote_App.Frontend.GUI is
          Gtk.Box.Gtk_New_Hbox (Row, Homogeneous => False, Spacing => 8);
          Gtk.Check_Button.Gtk_New_With_Mnemonic
            (Notification_C,
-            "Desktop _notifications when agent completes");
+            "Desktop noti_fications when agent completes");
          Notification_C.Set_Active
            (Settings_Value.Completion_Notifications);
          Row.Pack_Start (Notification_C, True, True, 0);
@@ -3527,12 +3561,14 @@ package body Coyote_App.Frontend.GUI is
    --  ── Menu construction helper ──────────────────────────────────────────
 
    function Make_Item
-     (Label : String;
-      Menu  : Gtk.Menu.Gtk_Menu)
+     (Label   : String;
+      Menu    : Gtk.Menu.Gtk_Menu;
+      Context : in out Coyote_GUI.Mnemonics.Registry)
       return Gtk.Menu_Item.Gtk_Menu_Item
    is
       Item : Gtk.Menu_Item.Gtk_Menu_Item;
    begin
+      Coyote_GUI.Mnemonics.Reserve (Context, Label, "main menu");
       Gtk.Menu_Item.Gtk_New_With_Mnemonic (Item, Label);
       Item.Set_Name ("coyote-help-menu");
       Item.On_Button_Press_Event (On_Help_Event'Access);
@@ -3665,6 +3701,7 @@ package body Coyote_App.Frontend.GUI is
       --  File menu
       File_Menu : Gtk_Menu;
       File_Item : Gtk_Menu_Item;
+      File_Mnemonics : Coyote_GUI.Mnemonics.Registry;
       New_Win_Item    : Gtk_Menu_Item;
       New_Sess_Item   : Gtk_Menu_Item;
       Open_Sess_Item  : Gtk_Menu_Item;
@@ -3675,9 +3712,11 @@ package body Coyote_App.Frontend.GUI is
       --  Edit menu
       Edit_Menu : Gtk_Menu;
       Edit_Item : Gtk_Menu_Item;
+      Edit_Mnemonics : Coyote_GUI.Mnemonics.Registry;
 
       --  Agent menu
       Agent_Menu : Gtk_Menu;
+      Agent_Mnemonics : Coyote_GUI.Mnemonics.Registry;
       Change_Model_Item : Gtk_Menu_Item;
       Compact_Item     : Gtk_Menu_Item;
       Agent_Item       : Gtk_Menu_Item;
@@ -3685,11 +3724,13 @@ package body Coyote_App.Frontend.GUI is
       --  Options menu
       Options_Menu      : Gtk_Menu;
       Options_Item      : Gtk_Menu_Item;
+      Options_Mnemonics : Coyote_GUI.Mnemonics.Registry;
       Preferences_Item  : Gtk_Menu_Item;
 
       --  Help menu
       Help_Menu         : Gtk_Menu;
       Help_Item         : Gtk_Menu_Item;
+      Help_Mnemonics    : Coyote_GUI.Mnemonics.Registry;
 
    begin
       Register_Icon_Search_Path;
@@ -3737,14 +3778,16 @@ package body Coyote_App.Frontend.GUI is
       Gtk.Menu_Shell.Append
         (Gtk.Menu_Shell.Gtk_Menu_Shell (F.Menu_Bar), File_Item);
 
-      New_Win_Item := Make_Item ("_New Window", File_Menu);
+      New_Win_Item :=
+        Make_Item ("_New Window", File_Menu, File_Mnemonics);
       New_Win_Item.On_Activate (On_New_Activate'Access);
       New_Win_Item.Add_Accelerator
         ("activate", F.Accel_Group,
          Gdk.Types.Keysyms.GDK_LC_n,
          Gdk.Types.Control_Mask,
          Gtk.Accel_Group.Accel_Visible);
-      New_Sess_Item := Make_Item ("New _Session", File_Menu);
+      New_Sess_Item :=
+        Make_Item ("New _Session", File_Menu, File_Mnemonics);
       New_Sess_Item.On_Activate (On_New_Session_Activate'Access);
       New_Sess_Item.Add_Accelerator
         ("activate", F.Accel_Group,
@@ -3752,7 +3795,8 @@ package body Coyote_App.Frontend.GUI is
          Gdk.Types.Control_Mask
          or Gdk.Types.Shift_Mask,
          Gtk.Accel_Group.Accel_Visible);
-      Open_Sess_Item := Make_Item ("_Open Session...", File_Menu);
+      Open_Sess_Item :=
+        Make_Item ("_Open Session...", File_Menu, File_Mnemonics);
       Open_Sess_Item.On_Activate (On_Open_Session_Activate'Access);
       Open_Sess_Item.Add_Accelerator
         ("activate", F.Accel_Group,
@@ -3760,7 +3804,7 @@ package body Coyote_App.Frontend.GUI is
          Gdk.Types.Control_Mask,
          Gtk.Accel_Group.Accel_Visible);
       Add_Sep (File_Menu);
-      Quit_Item := Make_Item ("E_xit", File_Menu);
+      Quit_Item := Make_Item ("E_xit", File_Menu, File_Mnemonics);
       Quit_Item.On_Activate (On_Quit_Activate'Access);
       Quit_Item.Add_Accelerator
         ("activate", F.Accel_Group,
@@ -3777,21 +3821,21 @@ package body Coyote_App.Frontend.GUI is
       Gtk.Menu_Shell.Append
         (Gtk.Menu_Shell.Gtk_Menu_Shell (F.Menu_Bar), Edit_Item);
       Edit_Menu.On_Show (On_Edit_Menu_Show'Access);
-      F.Cut_Item := Make_Item ("Cu_t", Edit_Menu);
+      F.Cut_Item := Make_Item ("Cu_t", Edit_Menu, Edit_Mnemonics);
       F.Cut_Item.On_Activate (On_Cut_Activate'Access);
       F.Cut_Item.Add_Accelerator
         ("activate", F.Accel_Group,
          Gdk.Types.Keysyms.GDK_LC_x,
          Gdk.Types.Control_Mask,
          Gtk.Accel_Group.Accel_Visible);
-      F.Copy_Item := Make_Item ("_Copy", Edit_Menu);
+      F.Copy_Item := Make_Item ("_Copy", Edit_Menu, Edit_Mnemonics);
       F.Copy_Item.On_Activate (On_Copy_Activate'Access);
       F.Copy_Item.Add_Accelerator
         ("activate", F.Accel_Group,
          Gdk.Types.Keysyms.GDK_LC_c,
          Gdk.Types.Control_Mask,
          Gtk.Accel_Group.Accel_Visible);
-      F.Paste_Item := Make_Item ("_Paste", Edit_Menu);
+      F.Paste_Item := Make_Item ("_Paste", Edit_Menu, Edit_Mnemonics);
       F.Paste_Item.On_Activate (On_Paste_Activate'Access);
       F.Paste_Item.Add_Accelerator
         ("activate", F.Accel_Group,
@@ -3799,14 +3843,14 @@ package body Coyote_App.Frontend.GUI is
          Gdk.Types.Control_Mask,
          Gtk.Accel_Group.Accel_Visible);
       Add_Sep (Edit_Menu);
-      F.Select_All_Item := Make_Item ("Select _All", Edit_Menu);
+      F.Select_All_Item := Make_Item ("Select _All", Edit_Menu, Edit_Mnemonics);
       F.Select_All_Item.On_Activate (On_Select_All_Activate'Access);
       F.Select_All_Item.Add_Accelerator
         ("activate", F.Accel_Group,
          Gdk.Types.Keysyms.GDK_LC_a,
          Gdk.Types.Control_Mask,
          Gtk.Accel_Group.Accel_Visible);
-      F.Deselect_Item := Make_Item ("D_eselect All", Edit_Menu);
+      F.Deselect_Item := Make_Item ("D_eselect All", Edit_Menu, Edit_Mnemonics);
       F.Deselect_Item.On_Activate (On_Deselect_Activate'Access);
       F.Deselect_Item.Add_Accelerator
         ("activate", F.Accel_Group,
@@ -3820,7 +3864,8 @@ package body Coyote_App.Frontend.GUI is
       Options_Item.Set_Name ("coyote-help-menu");
       Options_Item.On_Button_Press_Event (On_Help_Event'Access);
       Options_Item.Set_Submenu (Options_Menu);
-      Preferences_Item := Make_Item ("_Preferences...", Options_Menu);
+      Preferences_Item :=
+        Make_Item ("_Preferences...", Options_Menu, Options_Mnemonics);
       Preferences_Item.On_Activate
         (On_Preferences_Activate'Access);
       Preferences_Item.Add_Accelerator
@@ -3829,7 +3874,7 @@ package body Coyote_App.Frontend.GUI is
          Gdk.Types.Control_Mask,
          Gtk.Accel_Group.Accel_Visible);
       F.Sandbox_Profiles_Item :=
-        Make_Item ("_Sandbox Profiles...", Options_Menu);
+        Make_Item ("_Sandbox Profiles...", Options_Menu, Options_Mnemonics);
       F.Sandbox_Profiles_Item.On_Activate
         (On_Sandbox_Profiles_Activate'Access);
 
@@ -3839,35 +3884,36 @@ package body Coyote_App.Frontend.GUI is
       Agent_Item.Set_Name ("coyote-help-menu");
       Agent_Item.On_Button_Press_Event (On_Help_Event'Access);
       Agent_Item.Set_Submenu (Agent_Menu);
-      Send_Item := Make_Item ("_Send", Agent_Menu);
+      Send_Item := Make_Item ("_Send", Agent_Menu, Agent_Mnemonics);
       Send_Item.On_Activate (On_Send_Menu_Activate'Access);
       Send_Item.Add_Accelerator
         ("activate", F.Accel_Group,
          Gdk.Types.Keysyms.GDK_Return,
          Gdk.Types.Control_Mask,
          Gtk.Accel_Group.Accel_Visible);
-      F.Clear_Item := Make_Item ("C_lear Conversation", Agent_Menu);
+      F.Clear_Item :=
+        Make_Item ("C_lear Conversation", Agent_Menu, Agent_Mnemonics);
       F.Clear_Item.On_Activate (On_Clear_Activate'Access);
       F.Clear_Item.Add_Accelerator
         ("activate", F.Accel_Group,
          Gdk.Types.Keysyms.GDK_LC_l,
          Gdk.Types.Control_Mask,
          Gtk.Accel_Group.Accel_Visible);
-      F.Stop_Item := Make_Item ("St_op", Agent_Menu);
+      F.Stop_Item := Make_Item ("St_op", Agent_Menu, Agent_Mnemonics);
       F.Stop_Item.On_Activate (On_Stop_Activate'Access);
       F.Stop_Item.Add_Accelerator
         ("activate", F.Accel_Group,
          Gdk.Types.Keysyms.GDK_Escape,
          0,
          Gtk.Accel_Group.Accel_Visible);
-      F.Pause_Item := Make_Item ("_Pause", Agent_Menu);
+      F.Pause_Item := Make_Item ("_Pause", Agent_Menu, Agent_Mnemonics);
       F.Pause_Item.On_Activate (On_Pause_Activate'Access);
       F.Pause_Item.Add_Accelerator
         ("activate", F.Accel_Group,
          Gdk.Types.Keysyms.GDK_LC_p,
          Gdk.Types.Control_Mask or Gdk.Types.Shift_Mask,
          Gtk.Accel_Group.Accel_Visible);
-      F.Resume_Item := Make_Item ("_Resume", Agent_Menu);
+      F.Resume_Item := Make_Item ("_Resume", Agent_Menu, Agent_Mnemonics);
       F.Resume_Item.On_Activate (On_Resume_Activate'Access);
       F.Resume_Item.Add_Accelerator
         ("activate", F.Accel_Group,
@@ -3875,7 +3921,8 @@ package body Coyote_App.Frontend.GUI is
          Gdk.Types.Control_Mask,
          Gtk.Accel_Group.Accel_Visible);
       Add_Sep (Agent_Menu);
-      Change_Model_Item := Make_Item ("_Models...", Agent_Menu);
+      Change_Model_Item :=
+        Make_Item ("_Models...", Agent_Menu, Agent_Mnemonics);
       Change_Model_Item.On_Activate (On_Change_Model_Activate'Access);
       Change_Model_Item.Add_Accelerator
         ("activate", F.Accel_Group,
@@ -3885,49 +3932,52 @@ package body Coyote_App.Frontend.GUI is
       declare
          Thinking_Menu : Gtk.Menu.Gtk_Menu;
          Thinking_Head : Gtk.Menu_Item.Gtk_Menu_Item;
+         Thinking_Mnemonics : Coyote_GUI.Mnemonics.Registry;
       begin
          Gtk.Menu.Gtk_New (Thinking_Menu);
+         Coyote_GUI.Mnemonics.Reserve
+           (Agent_Mnemonics, "_Thinking Level", "Agent menu");
          Gtk.Menu_Item.Gtk_New_With_Mnemonic
            (Thinking_Head, "_Thinking Level");
          Thinking_Head.Set_Submenu (Thinking_Menu);
          Gtk.Menu_Shell.Append
            (Gtk.Menu_Shell.Gtk_Menu_Shell (Agent_Menu), Thinking_Head);
-         Item := Make_Item ("_Off",     Thinking_Menu);
+         Item := Make_Item ("_Off", Thinking_Menu, Thinking_Mnemonics);
          Item.On_Activate (On_Thinking_Off_Activate'Access);
          Item.Add_Accelerator
            ("activate", F.Accel_Group,
             Gdk.Types.Keysyms.GDK_1,
             Gdk.Types.Control_Mask,
             Gtk.Accel_Group.Accel_Visible);
-         Item := Make_Item ("_Minimal", Thinking_Menu);
+         Item := Make_Item ("_Minimal", Thinking_Menu, Thinking_Mnemonics);
          Item.On_Activate (On_Thinking_Minimal_Activate'Access);
          Item.Add_Accelerator
            ("activate", F.Accel_Group,
             Gdk.Types.Keysyms.GDK_2,
             Gdk.Types.Control_Mask,
             Gtk.Accel_Group.Accel_Visible);
-         Item := Make_Item ("_Low",     Thinking_Menu);
+         Item := Make_Item ("_Low",     Thinking_Menu, Thinking_Mnemonics);
          Item.On_Activate (On_Thinking_Low_Activate'Access);
          Item.Add_Accelerator
            ("activate", F.Accel_Group,
             Gdk.Types.Keysyms.GDK_3,
             Gdk.Types.Control_Mask,
             Gtk.Accel_Group.Accel_Visible);
-         Item := Make_Item ("Medi_um",  Thinking_Menu);
+         Item := Make_Item ("Medi_um",  Thinking_Menu, Thinking_Mnemonics);
          Item.On_Activate (On_Thinking_Medium_Activate'Access);
          Item.Add_Accelerator
            ("activate", F.Accel_Group,
             Gdk.Types.Keysyms.GDK_4,
             Gdk.Types.Control_Mask,
             Gtk.Accel_Group.Accel_Visible);
-         Item := Make_Item ("_High",    Thinking_Menu);
+         Item := Make_Item ("_High",    Thinking_Menu, Thinking_Mnemonics);
          Item.On_Activate (On_Thinking_High_Activate'Access);
          Item.Add_Accelerator
            ("activate", F.Accel_Group,
             Gdk.Types.Keysyms.GDK_5,
             Gdk.Types.Control_Mask,
             Gtk.Accel_Group.Accel_Visible);
-         Item := Make_Item ("_X-High",  Thinking_Menu);
+         Item := Make_Item ("_X-High",  Thinking_Menu, Thinking_Mnemonics);
          Item.On_Activate (On_Thinking_X_High_Activate'Access);
          Item.Add_Accelerator
            ("activate", F.Accel_Group,
@@ -3935,7 +3985,7 @@ package body Coyote_App.Frontend.GUI is
             Gdk.Types.Control_Mask,
             Gtk.Accel_Group.Accel_Visible);
       end;
-      Item := Make_Item ("Sand_box Profile...", Agent_Menu);
+      Item := Make_Item ("Sand_box Profile...", Agent_Menu, Agent_Mnemonics);
       Item.On_Activate (On_Sandbox_Profile_Activate'Access);
       Item.Add_Accelerator
         ("activate", F.Accel_Group,
@@ -3943,7 +3993,8 @@ package body Coyote_App.Frontend.GUI is
          Gdk.Types.Control_Mask or Gdk.Types.Shift_Mask,
          Gtk.Accel_Group.Accel_Visible);
       Add_Sep (Agent_Menu);
-      Compact_Item := Make_Item ("_Compact Context", Agent_Menu);
+      Compact_Item :=
+        Make_Item ("_Compact Context", Agent_Menu, Agent_Mnemonics);
       Compact_Item.On_Activate (On_Compact_Activate'Access);
       declare
          use type Gdk.Types.Gdk_Modifier_Type;
@@ -3957,7 +4008,7 @@ package body Coyote_App.Frontend.GUI is
             Gtk.Accel_Group.Accel_Visible);
       end;
       Add_Sep (Agent_Menu);
-      Item := Make_Item ("Session Sta_ts", Agent_Menu);
+      Item := Make_Item ("Sess_ion Stats", Agent_Menu, Agent_Mnemonics);
       Item.On_Activate (On_Stats_Activate'Access);
       Item.Add_Accelerator
         ("activate", F.Accel_Group,
@@ -3969,8 +4020,15 @@ package body Coyote_App.Frontend.GUI is
       declare
          View_Menu : Gtk.Menu.Gtk_Menu;
          View_Item : Gtk.Menu_Item.Gtk_Menu_Item;
+         View_Mnemonics : Coyote_GUI.Mnemonics.Registry;
       begin
          Gtk.Menu.Gtk_New (View_Menu);
+         Coyote_GUI.Mnemonics.Reserve
+           (View_Mnemonics, "_Render Markdown", "View menu");
+         Coyote_GUI.Mnemonics.Reserve
+           (View_Mnemonics, "_Auto-scroll", "View menu");
+         Coyote_GUI.Mnemonics.Reserve
+           (View_Mnemonics, "A_gents Window", "View menu");
          Gtk.Menu_Item.Gtk_New_With_Mnemonic (View_Item, "_View");
          View_Item.Set_Name ("coyote-help-menu");
          View_Item.On_Button_Press_Event (On_Help_Event'Access);
@@ -4012,21 +4070,21 @@ package body Coyote_App.Frontend.GUI is
            (Gtk.Menu_Shell.Gtk_Menu_Shell (View_Menu),
             F.Agents_Window_Item);
          Add_Sep (View_Menu);
-         Item := Make_Item ("Zoom _In",    View_Menu);
+         Item := Make_Item ("Zoom _In",    View_Menu, View_Mnemonics);
          Item.On_Activate (On_Zoom_In_Activate'Access);
          Item.Add_Accelerator
            ("activate", F.Accel_Group,
             Gdk.Types.Keysyms.GDK_plus,
             Gdk.Types.Control_Mask,
             Gtk.Accel_Group.Accel_Visible);
-         Item := Make_Item ("Zoom _Out",   View_Menu);
+         Item := Make_Item ("Zoom _Out",   View_Menu, View_Mnemonics);
          Item.On_Activate (On_Zoom_Out_Activate'Access);
          Item.Add_Accelerator
            ("activate", F.Accel_Group,
             Gdk.Types.Keysyms.GDK_minus,
             Gdk.Types.Control_Mask,
             Gtk.Accel_Group.Accel_Visible);
-         Item := Make_Item ("Reset _Zoom", View_Menu);
+         Item := Make_Item ("Reset _Zoom", View_Menu, View_Mnemonics);
          Item.On_Activate (On_Zoom_Reset_Activate'Access);
          Item.Add_Accelerator
            ("activate", F.Accel_Group,
@@ -4043,6 +4101,12 @@ package body Coyote_App.Frontend.GUI is
         (Gtk.Menu_Shell.Gtk_Menu_Shell (F.Menu_Bar), Options_Item);
 
       Gtk.Menu.Gtk_New (Help_Menu);
+      Coyote_GUI.Mnemonics.Reserve
+        (Help_Mnemonics, "_Send a Prompt", "Help menu");
+      Coyote_GUI.Mnemonics.Reserve
+        (Help_Mnemonics, "_Manage Sessions", "Help menu");
+      Coyote_GUI.Mnemonics.Reserve
+        (Help_Mnemonics, "_Agent Controls", "Help menu");
       Gtk.Menu_Item.Gtk_New_With_Mnemonic (Help_Item, "_Help");
       Help_Item.Set_Name ("coyote-help-menu");
       Help_Item.On_Button_Press_Event (On_Help_Event'Access);
@@ -4050,14 +4114,14 @@ package body Coyote_App.Frontend.GUI is
       Gtk.Menu_Shell.Append
         (Gtk.Menu_Shell.Gtk_Menu_Shell (F.Menu_Bar), Help_Item);
 
-      Item := Make_Item ("_Click for Help", Help_Menu);
+      Item := Make_Item ("_Click for Help", Help_Menu, Help_Mnemonics);
       Item.On_Activate (On_Click_For_Help_Activate'Access);
       Item.Add_Accelerator
         ("activate", F.Accel_Group,
          Gdk.Types.Keysyms.GDK_F1,
          Gdk.Types.Shift_Mask,
          Gtk.Accel_Group.Accel_Visible);
-      Item := Make_Item ("_Overview", Help_Menu);
+      Item := Make_Item ("_Overview", Help_Menu, Help_Mnemonics);
       Item.On_Activate (On_Overview_Activate'Access);
       Item.Add_Accelerator
         ("activate", F.Accel_Group,
@@ -4082,11 +4146,11 @@ package body Coyote_App.Frontend.GUI is
       Gtk.Menu_Shell.Append
         (Gtk.Menu_Shell.Gtk_Menu_Shell (Help_Menu), Item);
       Item.On_Activate (On_Controls_Help_Activate'Access);
-      Item := Make_Item ("_Index", Help_Menu);
+      Item := Make_Item ("_Index", Help_Menu, Help_Mnemonics);
       Item.On_Activate (On_Index_Activate'Access);
-      Item := Make_Item ("_Keys & Shortcuts", Help_Menu);
+      Item := Make_Item ("_Keys & Shortcuts", Help_Menu, Help_Mnemonics);
       Item.On_Activate (On_Keys_Activate'Access);
-      Item := Make_Item ("_Product Information", Help_Menu);
+      Item := Make_Item ("_Product Information", Help_Menu, Help_Mnemonics);
       Item.On_Activate (On_Product_Information_Activate'Access);
 
       --  ── Conversation view ─────────────────────────────────────────────

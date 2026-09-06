@@ -10,6 +10,7 @@ with Ada.Exceptions;
 with Ada.Strings;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
+with Coyote_GUI.Mnemonics;
 with Coyote_GUI.Prompt_Queue;
 with Gdk.Event;
 with Gdk.Types;
@@ -1084,13 +1085,15 @@ package body Coyote_GUI.Sandbox_Profile_Window is
    end On_Key_Press;
 
    function Make_Menu_Item
-     (Menu  : not null access Gtk.Menu.Gtk_Menu_Record'Class;
-      Label : String;
-      Call  : Gtk.Menu_Item.Cb_Gtk_Menu_Item_Void)
+     (Menu    : not null access Gtk.Menu.Gtk_Menu_Record'Class;
+      Label   : String;
+      Context : in out Coyote_GUI.Mnemonics.Registry;
+      Call    : Gtk.Menu_Item.Cb_Gtk_Menu_Item_Void)
       return Gtk.Menu_Item.Gtk_Menu_Item
    is
       Item : Gtk.Menu_Item.Gtk_Menu_Item;
    begin
+      Coyote_GUI.Mnemonics.Reserve (Context, Label, "Sandbox Profiles menu");
       Gtk.Menu_Item.Gtk_New_With_Mnemonic (Item, Label);
       Item.On_Activate (Call);
       Gtk.Menu_Shell.Append
@@ -1108,6 +1111,8 @@ package body Coyote_GUI.Sandbox_Profile_Window is
         Gtk.Menu.Gtk_Menu;
       File_Item, Selected_Item, View_Item, Help_Item :
         Gtk.Menu_Item.Gtk_Menu_Item;
+      File_Mnemonics, Selected_Mnemonics, View_Mnemonics,
+        Help_Mnemonics : Coyote_GUI.Mnemonics.Registry;
       Item : Gtk.Menu_Item.Gtk_Menu_Item;
    begin
       Gtk.Menu_Bar.Gtk_New (Bar);
@@ -1116,11 +1121,14 @@ package body Coyote_GUI.Sandbox_Profile_Window is
       File_Item.Set_Submenu (File_Menu);
       Gtk.Menu_Shell.Append
         (Gtk.Menu_Shell.Gtk_Menu_Shell (Bar), File_Item);
-      Item := Make_Menu_Item (File_Menu, "_New", On_New'Access);
-      Item := Make_Menu_Item (File_Menu, "_Save", On_Save'Access);
-      Item := Make_Menu_Item (File_Menu, "_Cancel", On_Cancel'Access);
       Item := Make_Menu_Item
-        (File_Menu, "_Close", On_Close_Manager'Access);
+        (File_Menu, "_New", File_Mnemonics, On_New'Access);
+      Item := Make_Menu_Item
+        (File_Menu, "_Save", File_Mnemonics, On_Save'Access);
+      Item := Make_Menu_Item
+        (File_Menu, "Cance_l", File_Mnemonics, On_Cancel'Access);
+      Item := Make_Menu_Item
+        (File_Menu, "_Close", File_Mnemonics, On_Close_Manager'Access);
 
       Gtk.Menu.Gtk_New (Selected_Menu);
       Gtk.Menu_Item.Gtk_New_With_Mnemonic (Selected_Item, "_Selected");
@@ -1128,15 +1136,15 @@ package body Coyote_GUI.Sandbox_Profile_Window is
       Gtk.Menu_Shell.Append
         (Gtk.Menu_Shell.Gtk_Menu_Shell (Bar), Selected_Item);
       Item := Make_Menu_Item (Selected_Menu, "_Duplicate Profile",
-                              On_Duplicate'Access);
-      Item := Make_Menu_Item (Selected_Menu, "_Use Profile", On_Use'Access);
+                              Selected_Mnemonics, On_Duplicate'Access);
+      Item := Make_Menu_Item (Selected_Menu, "_Use Profile", Selected_Mnemonics, On_Use'Access);
 
       Gtk.Menu.Gtk_New (View_Menu);
       Gtk.Menu_Item.Gtk_New_With_Mnemonic (View_Item, "_View");
       View_Item.Set_Submenu (View_Menu);
       Gtk.Menu_Shell.Append
         (Gtk.Menu_Shell.Gtk_Menu_Shell (Bar), View_Item);
-      Item := Make_Menu_Item (View_Menu, "_Refresh", On_Refresh'Access);
+      Item := Make_Menu_Item (View_Menu, "_Refresh", View_Mnemonics, On_Refresh'Access);
 
       Gtk.Menu.Gtk_New (Help_Menu);
       Gtk.Menu_Item.Gtk_New_With_Mnemonic (Help_Item, "_Help");
@@ -1144,7 +1152,7 @@ package body Coyote_GUI.Sandbox_Profile_Window is
       Gtk.Menu_Shell.Append
         (Gtk.Menu_Shell.Gtk_Menu_Shell (Bar), Help_Item);
       Item := Make_Menu_Item
-        (Help_Menu, "About Sandbox Profiles", On_Help'Access);
+        (Help_Menu, "About Sandbox Profiles", Help_Mnemonics, On_Help'Access);
       Outer.Pack_Start (Bar, False, False, 0);
    end Create_Menus;
 

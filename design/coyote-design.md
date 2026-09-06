@@ -260,6 +260,7 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `Coyote_GUI.Sandbox_Profile_Window` | Reusable modeless GTK sandbox profile manager with multi-profile drafts, Save-All/Cancel-All, and profile-rule editing | `src/coyote_gui/coyote_gui-sandbox_profile_window.ads/.adb` |
 | `Coyote_GUI.Zoom` | Zoom-level ↔ font-size arithmetic (pure logic) | `src/coyote_gui/coyote_gui-zoom.ads/.adb` |
 | `Coyote_GUI.Navigation` | Clamped keyboard viewport navigation policy | `src/coyote_gui/coyote_gui-navigation.ads/.adb` |
+| `Coyote_GUI.Mnemonics` | Context-local GTK mnemonic extraction and duplicate-key validation | `src/coyote_gui/coyote_gui-mnemonics.ads/.adb` |
 | `Coyote_Utils` | CLI arg resolution, file reading, session prefix stripping, active executable resolution, and POSIX shell quoting | `src/coyote_utils.ads/.adb` |
 | `LLM` | Root package | `src/llm/llm.ads` |
 | `LLM.Types` | Message, content block, usage types | `src/llm/llm-types.ads/.adb` |

@@ -537,6 +537,19 @@ require a custom canvas or coordinate-based hit testing.
 **Conversation view margins** increased from 8/6 px to 16/12 px
 (left/right 8→16, top/bottom 6→12) in `Coyote_App.Frontend.GUI.Create`.
 
+### Context-local GTK mnemonic validation (2026-09-06)
+
+`Coyote_GUI.Mnemonics` extracts GTK underscore mnemonics, normalizes keys
+case-insensitively, and rejects duplicate keys within a menu or dialog
+registry. The main File, Edit, Options, Agent, Thinking Level, View, and Help
+menus and the Sandbox Profiles menus reserve their labels while constructing
+GTK items. The Preferences dialog reserves all labels and action buttons in
+one dialog-local registry. Existing collisions were corrected: Agent Session
+Stats uses `I`, Sandbox File Cancel uses `L`, and Preferences labels/actions
+use distinct keys. Repeated dynamic tool-card controls remain unmarked.
+The unit tests cover extraction, escaped underscores, duplicate rejection, and
+separate-context reuse.
+
 ### Menu keyboard accelerators (2026-09-05, REQ-CORE-132)
 
 The main GTK window attaches visible primary accelerators through one
