@@ -29,6 +29,9 @@ begin
      ("COYOTE_TEST_NO_CATALOGUE_REFRESH",
       Ada.Environment_Variables.Value
         ("COYOTE_TEST_NO_CATALOGUE_REFRESH", "1"));
+   --  Temporary test homes do not contain the caller's sandbox profiles.
+   --  Sandbox-specific tests set this variable explicitly when needed.
+   Ada.Environment_Variables.Clear ("COYOTE_SANDBOX_PROFILE");
 
    if Ada.Command_Line.Argument_Count > 1 then
       Ada.Text_IO.Put_Line
