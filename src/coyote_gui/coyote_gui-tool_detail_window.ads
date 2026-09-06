@@ -1,7 +1,8 @@
 --  Coyote_GUI.Tool_Detail_Window — structured GTK tool-call details.
 --
---  Opens an independent, transient window for one completed tool call.
---  The caller supplies all data captured by the conversation renderer.
+--  Opens an independent, transient window for one tool call.  The caller
+--  supplies all data captured by the conversation renderer; active calls are
+--  shown as snapshots with an explicit running status.
 --
 --  Project: coyote
 

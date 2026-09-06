@@ -212,10 +212,13 @@ package body Coyote_GUI.Tool_Detail_Window is
    end Add_Text_View;
 
    function Status_Text
-     (Status : Coyote_GUI.Tool_End_Status) return String
+     (Info : Coyote_GUI.Tool_Info) return String
    is
    begin
-      case Status is
+      if not Info.Completed then
+         return "Running";
+      end if;
+      case Info.Result_Status is
          when Coyote_GUI.Success =>
             return UC_CHECK & " success";
          when Coyote_GUI.Error =>
@@ -543,7 +546,7 @@ package body Coyote_GUI.Tool_Detail_Window is
       Header.Set_Column_Spacing (16);
       Header.Set_Row_Spacing (6);
       Add_Header_Row (Header, 0, "Tool", Name);
-      Add_Header_Row (Header, 1, "Status", Status_Text (Info.Result_Status));
+      Add_Header_Row (Header, 1, "Status", Status_Text (Info));
       Add_Header_Row (Header, 2, "Datetime", Session_Start);
       Add_Header_Row (Header, 3, "Model", Model);
       Add_Header_Row (Header, 4, "Directory", Directory);
@@ -560,11 +563,19 @@ package body Coyote_GUI.Tool_Detail_Window is
       Gtk.Frame.Gtk_New (Result_Frame, "Result");
       Gtk_New_Vbox (Result_Box, Homogeneous => False, Spacing => 6);
       Result_Box.Set_Border_Width (8);
-      Gtk.Label.Gtk_New (Banner, Status_Text (Info.Result_Status));
+      Gtk.Label.Gtk_New (Banner, Status_Text (Info));
       Banner.Set_Xalign (0.0);
-      Apply_Status_Style (Banner, Info.Result_Status);
+      if Info.Completed then
+         Apply_Status_Style (Banner, Info.Result_Status);
+      end if;
       Result_Box.Pack_Start (Banner, False, False, 0);
-      if Length (Info.Media_Type) > 0 then
+      if not Info.Completed then
+         Add_Text_View
+           (Result_Box,
+            "No result is available while the tool is running.",
+            170,
+            True);
+      elsif Length (Info.Media_Type) > 0 then
          Add_Image_Result (Result_Box, Result);
       else
          Add_Text_View (Result_Box, Result, 170, True);

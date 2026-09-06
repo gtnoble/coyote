@@ -16,11 +16,15 @@ package Coyote_GUI is
 
    --  Tool metadata retained for native detail windows and tool cards.
    type Tool_Info is record
+      --  Identity remains with the captured payload when it leaves the map.
+      Tool_Id          : Ada.Strings.Unbounded.Unbounded_String;
+      Session_Id       : Ada.Strings.Unbounded.Unbounded_String;
       Name             : Ada.Strings.Unbounded.Unbounded_String;
       Args             : Ada.Strings.Unbounded.Unbounded_String;
       Result_Text      : Ada.Strings.Unbounded.Unbounded_String;
       Media_Type       : Ada.Strings.Unbounded.Unbounded_String;
       Result_Status    : Tool_End_Status := Success;
+      Completed        : Boolean := False;
       Model            : Ada.Strings.Unbounded.Unbounded_String;
       Source_Directory : Ada.Strings.Unbounded.Unbounded_String;
       Session_Start    : Ada.Strings.Unbounded.Unbounded_String;

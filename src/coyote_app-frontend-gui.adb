@@ -717,6 +717,7 @@ package body Coyote_App.Frontend.GUI is
    use type Gtk.Button.Gtk_Button;
    use type Gtk.Dialog.Gtk_Response_Type;
    use type LLM.Settings.Price_Display_Mode;
+   use type Coyote_GUI.Run_Mode;
 
    procedure On_Change_Model_Activate
      (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
@@ -1058,6 +1059,7 @@ package body Coyote_App.Frontend.GUI is
       Stop_Enabled : Boolean := False;
       Pause_Enabled : Boolean := False;
       Resume_Enabled : Boolean := False;
+      Clear_Enabled : Boolean := True;
    begin
       if not Is_Local_Agent
         (F, To_String (F.Selected_Agent_Id))
@@ -1078,11 +1080,16 @@ package body Coyote_App.Frontend.GUI is
               (F.Agent_Registry, Agent_Id);
             Pause_Enabled := Status = Coyote_App.Agent_Registry.Running;
             Resume_Enabled := Status = Coyote_App.Agent_Registry.Paused;
+            Clear_Enabled :=
+              Status = Coyote_App.Agent_Registry.Starting
+              or else Status = Coyote_App.Agent_Registry.Running
+              or else Status = Coyote_App.Agent_Registry.Paused;
          end;
       else
          Stop_Enabled := Coyote_GUI.Stop_Available (Mode);
          Pause_Enabled := Coyote_GUI.Pause_Available (Mode);
          Resume_Enabled := Coyote_GUI.Resume_Available (Mode);
+         Clear_Enabled := Mode = Coyote_GUI.Idle;
       end if;
       if F.Stop_Btn /= null then
          F.Stop_Btn.Set_Sensitive (Stop_Enabled);
@@ -1095,6 +1102,9 @@ package body Coyote_App.Frontend.GUI is
       end if;
       if F.Resume_Item /= null then
          F.Resume_Item.Set_Sensitive (Resume_Enabled);
+      end if;
+      if F.Clear_Item /= null then
+         F.Clear_Item.Set_Sensitive (Clear_Enabled);
       end if;
    end Apply_Agent_Menu_Sensitivity;
 
@@ -3549,7 +3559,6 @@ package body Coyote_App.Frontend.GUI is
       Quit_Item      : Gtk_Menu_Item;
       Item           : Gtk_Menu_Item;
       Send_Item       : Gtk_Menu_Item;
-      Clear_Item      : Gtk_Menu_Item;
 
       --  Edit menu
       Edit_Menu : Gtk_Menu;
@@ -3721,9 +3730,9 @@ package body Coyote_App.Frontend.GUI is
          Gdk.Types.Keysyms.GDK_Return,
          Gdk.Types.Control_Mask,
          Gtk.Accel_Group.Accel_Visible);
-      Clear_Item := Make_Item ("C_lear Conversation", Agent_Menu);
-      Clear_Item.On_Activate (On_Clear_Activate'Access);
-      Clear_Item.Add_Accelerator
+      F.Clear_Item := Make_Item ("C_lear Conversation", Agent_Menu);
+      F.Clear_Item.On_Activate (On_Clear_Activate'Access);
+      F.Clear_Item.Add_Accelerator
         ("activate", F.Accel_Group,
          Gdk.Types.Keysyms.GDK_LC_l,
          Gdk.Types.Control_Mask,

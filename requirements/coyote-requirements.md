@@ -642,8 +642,11 @@ or runtime renderer-selection flag is provided.
 **REQ-CORE-112** (D)
 Tool calls shall be rendered in the conversation view as graphical cards
 using the GTK renderer, showing the tool name, argument summary, running
-state, and success, error, or cancelled status indicator.  Completed cards
-shall be clickable to open the full tool-call detail window.
+state, and success, error, or cancelled status indicator.  Every card shall
+be clickable to open a captured tool-call detail snapshot.  While execution
+is active, the snapshot shall show the invocation metadata and arguments,
+`Running` status, and an explicit message that no result is available yet.
+Completed snapshots shall additionally show the captured full result.
 
 **REQ-CORE-113** (D)
 The GUI frontend shall provide the following native menu actions: Send, Stop,
@@ -707,19 +710,22 @@ statistics shall refresh an open window, and starting or switching sessions
 shall clear the previous session's statistics.
 
 **REQ-CORE-113e** (D/T/I)
-Each completed GUI tool card shall provide a `View Details` action that opens an
+Each GUI tool card shall provide a `View Details` action that opens an
 independent, non-modal transient support window titled `coyote : Tool Call
 Details`. The conversation card shall display only the compact tool summary
 and status; it shall not display raw arguments, full results, or image result
-content. The `View Details` action shall open a window that displays the tool name,
-status, session timestamp, model, source directory, turn number, and call
-position in a selectable header; renders arguments as labelled read-only
-monospace views; renders the full result in a read-only selectable view or
-decodes an image result into a GTK image; and provides outer vertical
-scrolling, a visible Close action, Help action, and Ctrl+W closure. The view
-shall capture all detail data at render time and shall not re-read the session
-file when opened. Missing result records shall be shown as cancelled. Status
-shall remain understandable without color.
+content. For an active call, the snapshot shall display the tool name, `Running`
+status, session timestamp, model, source directory, turn number, call position,
+and the captured arguments, followed by an explicit no-result-yet message. For
+a completed call, the window shall additionally display the full result in a
+read-only selectable view, or decode an image result into a GTK image. The
+window shall provide outer vertical scrolling, a visible Close action, Help
+action, and
+Ctrl+W closure. The view shall capture all detail data at render time and
+shall not re-read the session file when opened. Missing result records shall
+be shown as cancelled. Status shall remain understandable without color. The
+active snapshot is not live-updating; users may reopen the card after
+completion to inspect the terminal result.
 
 **REQ-CORE-113f** (D/T/I)
 The interactive GTK frontend shall provide `Options → Sandbox Profiles...` as
@@ -915,8 +921,10 @@ or final footer and fork action; distinct assistant/tool steps shall use
 distinct frames. A native tool card shall display only the same compact
 tool-name, top-level argument-field, and status summary information as the
 established custom Pango renderer; it shall not display raw argument JSON,
-full tool results, or image result content. Each completed card shall provide
-a focusable `View Details` action that opens the existing tool-call detail window.
+full tool results, or image result content. Each card shall provide a focusable
+`View Details` action that opens the existing tool-call detail snapshot. Active
+snapshots show invocation metadata, arguments, and `Running`; completed
+snapshots additionally show the captured result.
 Text-bearing elements shall use native selectable GTK text widgets where
 selection is applicable; tool calls, the `View Details` action, and fork actions
 shall use native focusable controls.

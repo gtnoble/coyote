@@ -900,6 +900,8 @@ package body Coyote_GUI.Conversation_Stack is
          return;
       end if;
 
+      Info.Tool_Id          := To_Unbounded_String (Tool_Id);
+      Info.Session_Id       := To_Unbounded_String (Session_Id);
       Info.Name             := To_Unbounded_String (Name);
       Info.Args             := To_Unbounded_String (Args);
       Info.Model            := To_Unbounded_String (Model);
@@ -907,6 +909,7 @@ package body Coyote_GUI.Conversation_Stack is
       Info.Session_Start    := To_Unbounded_String (Session_Start);
       Info.Turn_Index       := Turn_Index;
       Info.Call_In_Turn     := Call_In_Turn;
+      Info.Completed        := False;
 
       Gtk.Frame.Gtk_New (Frame, "Tool call");
       Gtk.Box.Gtk_New_Vbox (Box, Homogeneous => False, Spacing => 4);
@@ -968,8 +971,9 @@ package body Coyote_GUI.Conversation_Stack is
 
       Gtk.Button.Gtk_New (Details, "View Details");
       Details.Set_Can_Focus (True);
-      Details.Set_Sensitive (False);
-      Details.Set_Tooltip_Text ("View complete tool call details");
+      Details.Set_Sensitive (True);
+      Details.Set_Tooltip_Text
+        ("View captured tool call details and current status");
       Detail_Callback.Connect
         (Details,
          Gtk.Button.Signal_Clicked,
@@ -984,8 +988,7 @@ package body Coyote_GUI.Conversation_Stack is
          (Summary_Text => To_Unbounded_String (Summary_Text),
           Status       => Status,
           Details      => Details,
-          Info         => Info,
-          Completed    => False));
+          Info         => Info));
    end Begin_Tool;
 
    procedure End_Tool
@@ -1006,6 +1009,7 @@ package body Coyote_GUI.Conversation_Stack is
       Tool_Value.Info.Result_Status :=
         Coyote_GUI.Tool_End_Status'Val
           (Coyote_GUI.Tool_End_Status'Pos (Status));
+      Tool_Value.Info.Completed := True;
       Tool_Value.Summary_Text :=
         To_Unbounded_String
           (Format_Tool_Summary
@@ -1018,7 +1022,6 @@ package body Coyote_GUI.Conversation_Stack is
         ("Status: "
          & Tool_Status_Text (Status, Result, Running => False));
       Tool_Value.Details.Set_Sensitive (True);
-      Tool_Value.Completed := True;
       C.Tools.Replace (Tool_Id, Tool_Value);
    end End_Tool;
 

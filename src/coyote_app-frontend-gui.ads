@@ -267,6 +267,7 @@ private
       Stop_Item             : Gtk.Menu_Item.Gtk_Menu_Item;
       Pause_Item            : Gtk.Menu_Item.Gtk_Menu_Item;
       Resume_Item           : Gtk.Menu_Item.Gtk_Menu_Item;
+      Clear_Item            : Gtk.Menu_Item.Gtk_Menu_Item;
       Cut_Item              : Gtk.Menu_Item.Gtk_Menu_Item;
       Copy_Item             : Gtk.Menu_Item.Gtk_Menu_Item;
       Paste_Item            : Gtk.Menu_Item.Gtk_Menu_Item;

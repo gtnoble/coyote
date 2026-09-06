@@ -921,7 +921,9 @@ package body Coyote_App is
                         end if;
 
                      when Coyote_GUI.Prompt_Queue.Clear =>
-                        My_Frontend.Clear_Conversation;
+                        if not State.Is_Streaming then
+                           My_Frontend.Clear_Conversation;
+                        end if;
 
                      when Coyote_GUI.Prompt_Queue.New_Window =>
                         declare
@@ -1071,6 +1073,9 @@ package body Coyote_App is
 
                      when Coyote_GUI.Prompt_Queue.Switch_Session =>
                         begin
+                           if State.Is_Streaming then
+                              LLM.Agent.Request_Abort (Agent_Session);
+                           end if;
                            LLM.Agent.Switch_Session
                              (S    => Agent_Session,
                               UUID => Ada.Strings.Unbounded.To_String

@@ -619,8 +619,8 @@ to any window or dialog.
 | `Message_Update_Event` / `Text_Delta` | `Append_Text` |
 | `Message_Update_Event` / `Text_End` | `End_Text_Block` |
 | `Message_Update_Event` / `Thinking_Delta` | `Append_Thinking` |
-| `Tool_Execution_Start_Event` | `Begin_Tool` |
-| `Tool_Execution_End_Event` | `End_Tool`; on last tool in batch: `Append_Turn_Footer` (step-level display) then `Append_Fork_Action` (step-level) |
+| `Tool_Execution_Start_Event` | `Begin_Tool`; creates a running card with a captured detail snapshot |
+| `Tool_Execution_End_Event` | `End_Tool`; completes the captured detail payload; on last tool in batch: `Append_Turn_Footer` (step-level display) then `Append_Fork_Action` (step-level) |
 | `Message_End_Event` | record stats in App_State |
 | `Session_Stats_Event` | `Append_Turn_Footer` (full-turn display) then `Append_Fork_Action` (full-turn); GUI: typed `Set_Stats_Summary` snapshot |
 | `Model_Select_Event` | `Append_Notice (Info, ...)` |
