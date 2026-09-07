@@ -320,7 +320,9 @@ provisional until their complete boundary is received and shall then be
 realized as native or selectable components. Self-closing horizontal rules
 shall emit and realize as native separators immediately. Complete `<h1>` through
 `<h6>` blocks shall become selectable native heading labels at their closing
-boundaries. Invalid markup shall fall back to visible escaped or plain source.
+boundaries. Complete `<blockquote>...</blockquote>` blocks shall become framed,
+selectable native text components at their closing boundaries. Invalid markup
+shall fall back to visible escaped or plain source.
 
 ---
 

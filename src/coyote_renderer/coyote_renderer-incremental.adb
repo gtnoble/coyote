@@ -49,6 +49,8 @@ package body Coyote_Renderer.Incremental is
          when Heading_Block =>
             return "</h" & Ada.Strings.Fixed.Trim
               (Natural'Image (Level), Ada.Strings.Left) & ">";
+         when Blockquote_Block =>
+            return "</blockquote>";
          when No_Block =>
             return "";
       end case;
@@ -67,6 +69,8 @@ package body Coyote_Renderer.Incremental is
             return Code_Event;
          when Heading_Block =>
             return Heading_Event;
+         when Blockquote_Block =>
+            return Blockquote_Event;
          when No_Block =>
             return Invalid_Event;
       end case;
@@ -98,7 +102,8 @@ package body Coyote_Renderer.Incremental is
 
       declare
          Raw : constant String := To_String (Source);
-         End_Tag : constant String := Closing_Tag (Parser.Block);
+         End_Tag : constant String :=
+           Closing_Tag (Parser.Block, Parser.Level);
          Open_End : constant Natural :=
            Ada.Strings.Fixed.Index (Raw, ">", Raw'First);
          Block_Last : constant Natural := Close + End_Tag'Length - 1;
@@ -171,6 +176,14 @@ package body Coyote_Renderer.Incremental is
                     (Source, "<code>", Open) = Open
             then
                Parser.Block := Code_Block;
+               Parser.Buffer := To_Unbounded_String
+                 (Source (Open .. Source'Last));
+               Feed_Block (Parser, "", Handler);
+               exit;
+            elsif Ada.Strings.Fixed.Index
+                    (Source, "<blockquote>", Open) = Open
+            then
+               Parser.Block := Blockquote_Block;
                Parser.Buffer := To_Unbounded_String
                  (Source (Open .. Source'Last));
                Feed_Block (Parser, "", Handler);

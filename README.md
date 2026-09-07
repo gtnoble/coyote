@@ -17,9 +17,9 @@ shared between coyote and pi.
   immediately; text streams live, while complete table, display-math, and
   literal code blocks become native or selectable GTK components; self-closing
   horizontal rules become native separators immediately, and complete h1–h6
-  blocks become selectable native heading labels at their closing boundaries.
-  Markdown
-  remains the default and Plain output is unchanged.
+  blocks become selectable native heading labels at their closing boundaries;
+  complete blockquotes become framed, selectable native text at their closing
+  boundaries. Markdown remains the default and Plain output is unchanged.
 - **Plain frontend** — line-oriented output for pipes, scripts, and one-shot
   execution; one-shot mode emits exactly one JSON result on standard output
 - **Built-in tools** — `bash`, `read`, `write`, `edit`, `find`, `glob`, and
@@ -189,7 +189,7 @@ cd test && alr build
 /usr/bin/time -f 'wall=%e exit=%x' ./bin/coyote_test
 ```
 
-The current hierarchy contains 858 registered tests and passes 858/858 in
+The current hierarchy contains 860 registered tests and passes 860/860 in
 approximately 36 seconds on the development host. AUnit reports cumulative
 and per-test timing. Live provider tests remain opt-in; subagent subprocess
 tests are guarded by `COYOTE_TEST_SUBAGENT=1`.

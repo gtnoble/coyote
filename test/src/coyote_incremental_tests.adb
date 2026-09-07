@@ -258,6 +258,40 @@ package body Coyote_Incremental_Tests is
               "mismatched heading source remains visible");
    end Test_Heading_Events;
 
+   procedure Test_Blockquote_Events (T : in out Test) is
+      pragma Unreferenced (T);
+      Parser : Instance;
+   begin
+      Reset_Log;
+      Feed (Parser, "before<block", Collect'Access);
+      Feed (Parser, "quote>quoted <&</blockquote>after", Collect'Access);
+      Assert (Test_Log.Count = 3,
+              "split blockquote emits prefix, quote, and suffix events");
+      Assert (Test_Log.Invalid_Count = 0,
+              "recognized blockquote is valid");
+      Assert (To_String (Test_Log.Text) =
+                "before|<blockquote>quoted <&</blockquote>|after",
+              "blockquote preserves complete source order");
+      Reset_Log;
+      Feed (Parser, "<blockquote></blockquote>", Collect'Access);
+      Assert (Test_Log.Count = 1,
+              "empty blockquote emits one event");
+      Assert (Test_Log.Invalid_Count = 0,
+              "empty blockquote is valid");
+      Reset_Log;
+      Feed (Parser, "bad<blockquote>incomplete", Collect'Access);
+      Flush (Parser, Collect'Access);
+      Assert (Test_Log.Invalid_Count = 1,
+              "incomplete blockquote remains visible on flush");
+      Assert (To_String (Test_Log.Text) =
+                "bad|<blockquote>incomplete",
+              "incomplete blockquote preserves source");
+      Reset_Log;
+      Feed (Parser, "bad<blockquote >tail", Collect'Access);
+      Assert (Test_Log.Invalid_Count = 1,
+              "non-exact blockquote opening remains visible");
+   end Test_Blockquote_Events;
+
    package Caller is new AUnit.Test_Caller (Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
@@ -306,6 +340,9 @@ package body Coyote_Incremental_Tests is
       Result.Add_Test (Caller.Create
         ("Incremental headings preserve levels and order",
          Test_Heading_Events'Access));
+      Result.Add_Test (Caller.Create
+        ("Incremental blockquotes preserve boundaries and order",
+         Test_Blockquote_Events'Access));
       return Result;
    end Suite;
 

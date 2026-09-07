@@ -167,6 +167,14 @@ package body Coyote_GUI.Conversation_Stack is
       Source : String;
       Level  : Natural);
 
+   procedure Add_Response_Blockquote
+     (C      : in out Instance;
+      Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
+      Source : String);
+
+   procedure Configure_Text_View
+     (View : not null access Gtk.Text_View.Gtk_Text_View_Record'Class);
+
    procedure Pack_Incremental_Response
      (Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
       Child  : not null access Gtk.Widget.Gtk_Widget_Record'Class);
@@ -251,6 +259,9 @@ package body Coyote_GUI.Conversation_Stack is
       elsif Value.Kind = Coyote_Renderer.Incremental.Heading_Event then
          Add_Response_Heading
            (C.Step_Box, To_String (Value.Text), Value.Level);
+      elsif Value.Kind = Coyote_Renderer.Incremental.Blockquote_Event then
+         Add_Response_Blockquote
+           (C, C.Step_Box, To_String (Value.Text));
       else
          declare
             Source : constant String := To_String (Value.Text);
@@ -303,7 +314,8 @@ package body Coyote_GUI.Conversation_Stack is
           Coyote_Renderer.Incremental.Math_Event |
           Coyote_Renderer.Incremental.Code_Event |
           Coyote_Renderer.Incremental.Horizontal_Rule_Event |
-          Coyote_Renderer.Incremental.Heading_Event
+          Coyote_Renderer.Incremental.Heading_Event |
+          Coyote_Renderer.Incremental.Blockquote_Event
       then
          Replace_Incremental_Component (C, Value);
          return;
@@ -324,7 +336,8 @@ package body Coyote_GUI.Conversation_Stack is
               Coyote_Renderer.Incremental.Math_Event |
               Coyote_Renderer.Incremental.Code_Event |
               Coyote_Renderer.Incremental.Horizontal_Rule_Event |
-              Coyote_Renderer.Incremental.Heading_Event =>
+              Coyote_Renderer.Incremental.Heading_Event |
+              Coyote_Renderer.Incremental.Blockquote_Event =>
             Replace_Incremental_Component (C, Value);
       end case;
    end Apply_Incremental_Event;
@@ -396,6 +409,35 @@ package body Coyote_GUI.Conversation_Stack is
       Label.Set_Selectable (True);
       Pack_Incremental_Response (Parent, Label);
    end Add_Response_Heading;
+
+   procedure Add_Response_Blockquote
+     (C      : in out Instance;
+      Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
+      Source : String)
+   is
+      Frame  : Gtk.Frame.Gtk_Frame;
+      Box    : Gtk.Box.Gtk_Box;
+      Buffer : Gtk.Text_Buffer.Gtk_Text_Buffer;
+      View   : Gtk.Text_View.Gtk_Text_View;
+      Quote  : constant String :=
+        (if Source'Length > 25
+         then Source (Source'First + 12 .. Source'Last - 13)
+         else "");
+   begin
+      Gtk.Frame.Gtk_New (Frame);
+      Frame.Set_Shadow_Type (Gtk.Enums.Shadow_In);
+      Gtk.Box.Gtk_New_Vbox (Box, Homogeneous => False, Spacing => 0);
+      Box.Set_Border_Width (4);
+      Gtk.Text_Buffer.Gtk_New (Buffer);
+      Gtk.Text_View.Gtk_New (View, Buffer);
+      Configure_Text_View (View);
+      Buffer.Set_Text (Quote);
+      Apply_Response_Style (View);
+      Box.Pack_Start (View, Expand => False, Fill => True, Padding => 0);
+      Frame.Add (Box);
+      Pack_Incremental_Response (Parent, Frame);
+      C.Text_Views.Append (View);
+   end Add_Response_Blockquote;
 
    procedure Add_Response_Code
      (C      : in out Instance;

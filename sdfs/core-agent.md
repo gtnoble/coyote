@@ -64,6 +64,16 @@ errors; the focused parser suite passes 15/15 and the display-backed
 conversation-stack suite passes 28/28. Existing Markdown/default-off behavior is
 unchanged.
 
+## 2026-09-07 — PCR-097 blockquote extension verification
+
+The additive CSM blockquote slice adds split-boundary, empty-block, incomplete
+flush, and non-exact-opening parser coverage plus display-backed framed,
+selectable native text and text-blockquote-text ordering coverage. The complete
+development suite passes 860/860 with zero failed assertions and zero unexpected
+errors; the focused parser suite passes 16/16 and the display-backed
+conversation-stack suite passes 29/29. Existing Markdown/default-off behavior is
+unchanged.
+
 ## 2026-09-05 — AUnit hierarchy and runtime baseline
 
 The test runner now uses AUnit's built-in global and per-case timing after

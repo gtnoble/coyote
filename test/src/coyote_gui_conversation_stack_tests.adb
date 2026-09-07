@@ -852,6 +852,33 @@ package body Coyote_GUI_Conversation_Stack_Tests is
               "heading response preserves suffix text");
    end Test_Incremental_Heading;
 
+   procedure Test_Incremental_Blockquote (T : in out Test) is
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Set_Incremental_Markup (T.Stack, True);
+      Begin_Request (T.Stack, "request", Prompt);
+      Append_Text (T.Stack, "prefix ");
+      Append_Text (T.Stack, "<block");
+      Append_Text (T.Stack, "quote>quoted <&</blockquote>");
+      Append_Text (T.Stack, " suffix");
+      Assert (Active_Step_Child_Count (T.Stack) = 3,
+              "incremental blockquote preserves three ordered siblings");
+      Assert (Active_Step_Child_Name (T.Stack, 1) = "GtkVBox"
+              and then Active_Step_Child_Name (T.Stack, 2) = "GtkFrame"
+              and then Active_Step_Child_Name (T.Stack, 3) = "GtkVBox",
+              "incremental blockquote preserves text-quote-text order");
+      Assert (Text_View_Count (T.Stack) = 3,
+              "incremental blockquote retains all text views");
+      Assert (Index (Text_View_Text (T.Stack, 1), "prefix") > 0,
+              "blockquote response preserves prefix text");
+      Assert (Index (Text_View_Text (T.Stack, 2), "quoted <&") > 0,
+              "blockquote response preserves literal quote text");
+      Assert (Index (Text_View_Text (T.Stack, 3), "suffix") > 0,
+              "blockquote response preserves suffix text");
+   end Test_Incremental_Blockquote;
+
    procedure Test_Incremental_Mixed_Order (T : in out Test) is
    begin
       if not T.Display_Available then
@@ -1014,6 +1041,10 @@ package body Coyote_GUI_Conversation_Stack_Tests is
         ("Coyote.GUI.Conversation_Stack incremental heading",
          Coyote_GUI_Conversation_Stack_Tests
            .Test_Incremental_Heading'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack incremental blockquote",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Incremental_Blockquote'Access));
       Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
         ("Coyote.GUI.Conversation_Stack incremental mixed order",
          Coyote_GUI_Conversation_Stack_Tests
