@@ -23,6 +23,10 @@ package LLM_Agent_Tests is
      (T : in out Test);
    procedure Test_Create_Without_Model_Spec_Uses_Settings_Default
      (T : in out Test);
+   --  The ephemeral COYOTE_SUBAGENT_MODEL override outranks the
+   --  persistent subagent default but not an explicit model; non-
+   --  subagent sessions ignore it entirely.
+   procedure Test_Subagent_Model_Env_Override (T : in out Test);
    procedure Test_Memory_Enabled_By_Env_Var (T : in out Test);
    procedure Test_Memory_Disabled_By_Default (T : in out Test);
    procedure Test_Multi_Turn_Same_Session_Carries_History

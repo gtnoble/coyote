@@ -14,6 +14,7 @@
     <item><title><gui>Resume</gui></title><p>Continue a paused session. <key>Ctrl</key>+<key>R</key> is the accelerator.</p></item>
     <item><title><gui>Compact Context</gui></title><p>Summarize older conversation content to make room in the model context. <key>Ctrl</key>+<key>Shift</key>+<key>C</key> is the accelerator.</p></item>
     <item><title><gui>Models</gui></title><p>Select the active provider and model. <key>Ctrl</key>+<key>M</key> is the accelerator.</p></item>
+    <item><title><gui>Subagent Model</gui></title><p>Set an ephemeral model override used by subsequently launched subagents of this coordinator. The override is runtime-only: it is never written to <file>~/.coyote/settings.json</file>, it survives a new session, and it disappears when coyote exits. Choose <gui>Use default model</gui> in the picker to clear the override and return to the persistent Preferences default. While an override is active, the status bar shows <code>▶sub provider/model-id</code>, and an explicit <cmd>--model</cmd> passed by an individual subagent invocation still wins.</p></item>
     <item><title><gui>Thinking Level</gui></title><p>Choose the reasoning level with <key>Ctrl</key>+<key>1</key> through <key>Ctrl</key>+<key>6</key>.</p></item>
     <item><title><gui>Sandbox Profile</gui></title><p>Choose a sandbox profile with <key>Ctrl</key>+<key>Shift</key>+<key>S</key>.</p></item>
     <item><title><gui>Session Stats</gui></title><p>Open the reusable session statistics window with <key>Ctrl</key>+<key>Shift</key>+<key>I</key>.</p></item>

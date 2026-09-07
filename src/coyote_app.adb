@@ -36,6 +36,26 @@ package body Coyote_App is
    use type LLM.Events.Message_Update_Kind;
 
 
+   --  ── Subagent_Model_Override ───────────────────────────────────────────
+   --
+   --  Runtime-only ephemeral subagent model override.  The agent task
+   --  sets or clears it and publishes COYOTE_SUBAGENT_MODEL for
+   --  subsequently launched child processes; the GTK task reads it to
+   --  initialise the picker.  Empty means "use the persistent
+   --  Preferences default".  Not persisted to settings.json.
+
+   protected body Subagent_Model_Override is
+
+      function Current return String is
+        (To_String (P_Spec));
+
+      procedure Set (Spec : String) is
+      begin
+         P_Spec := To_Unbounded_String (Spec);
+      end Set;
+
+   end Subagent_Model_Override;
+
    --  ── App_State body ────────────────────────────────────────────────────
 
    protected body App_State is
@@ -127,6 +147,7 @@ package body Coyote_App is
       begin
          P_Model := To_Unbounded_String (Model);
       end Set_Model;
+
 
       procedure Set_Thinking (Level : String) is
       begin
@@ -1026,6 +1047,23 @@ package body Coyote_App is
                               Append_Task_Warning
                                 ("model change failed: "
                                  & Ada.Exceptions.Exception_Message (Ex));
+                        end;
+
+                     when Coyote_GUI.Prompt_Queue.Set_Subagent_Model =>
+                        declare
+                           Spec : constant String :=
+                             Ada.Strings.Unbounded.To_String (It.Override_Spec);
+                        begin
+                           Subagent_Model_Override_State.Set (Spec);
+                           Ada.Environment_Variables.Set
+                             ("COYOTE_SUBAGENT_MODEL", Spec);
+                           My_Frontend.Append_Notice
+                             (Coyote_App.Frontend.Info,
+                              (if Spec'Length > 0
+                               then "Subagent model override set to "
+                                    & Spec
+                               else "Subagent model override cleared; using"
+                                    & " Preferences default"));
                         end;
 
                      when Coyote_GUI.Prompt_Queue.Set_Thinking =>

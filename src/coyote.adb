@@ -329,6 +329,10 @@ begin
       Ada.Environment_Variables.Clear ("COYOTE_OPENROUTER_SESSION_ID");
       Ada.Environment_Variables.Clear ("COYOTE_NO_SESSION");
       Ada.Environment_Variables.Clear ("COYOTE_RECURSION_DEPTH");
+      --  Physical windows are independent coordinator roots; clear the
+      --  ephemeral subagent-model override so they fall back to the
+      --  persistent Preferences default for their own subagents.
+      Ada.Environment_Variables.Clear ("COYOTE_SUBAGENT_MODEL");
    end if;
 
    --  Establish the inherited process depth before any frontend, session,

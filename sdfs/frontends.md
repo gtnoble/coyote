@@ -1111,3 +1111,24 @@ underlying OAuth flow is covered by 15 headless AUnit cases in
 `LLM.Auth.Codex` / `LLM.Providers.Codex`.  A display-backed
 menu-registration and lifecycle test is the natural follow-up, mirroring
 the Sandbox Profiles regression.
+## 2026-09-07 — Ephemeral subagent model override (REQ-CORE-143)
+
+The GTK `Agent` menu gains `Subagent Mo_del...` next to `Models...`. The item
+opens the shared model picker with `Allow_Default => True`, preselecting the
+current override, or `Use default model` when unset. Selecting a model
+enqueues a typed `Set_Subagent_Model` item targeting the root agent;
+selecting `Use default model` enqueues the same item with an empty spec. The
+agent task stores the spec in the package-level
+`Coyote_App.Subagent_Model_Override_State` protected object, publishes
+`COYOTE_SUBAGENT_MODEL` for subsequently launched subagent processes
+(descendants inherit it), and confirms with an informational notice. The
+override is runtime-only: it never touches `settings.json`, survives
+`File → New Session`, and disappears at process exit. The status bar gains a
+persistent `▶sub provider/model-id` segment (via `Format_Status`) while the
+override is active, and physical windows clear the variable so independent
+GUI sessions do not inherit coordinator-only subagent policy.
+
+**Verification:** Production and test development builds succeed; the full
+AUnit suite passes 849/849, including the new `Set_Subagent_Model` queue
+round-trip test and GUI lifecycle tests (mnemonic conflict with `Ctrl+M`
+fixed by moving the mnemonic to `Subagent Mo_del...`).

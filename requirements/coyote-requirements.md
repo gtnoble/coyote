@@ -1000,6 +1000,24 @@ an explicit exchange-completion state for normal completion, abort, and
 error termination. The Plain frontend shall retain its
 current output semantics.
 
+**REQ-CORE-143** (D/T/I)
+The GTK frontend shall provide an `Agent → Subagent Model...` action that
+sets an ephemeral, runtime-only model override used by subsequently launched
+subagents of the running coordinator instance. The override shall be
+process-scoped: it shall survive `File → New Session`, shall not be written
+to `~/.coyote/settings.json`, and shall disappear when the coordinator
+exits. The shared model picker shall be reused with a `Use default model`
+row that clears the override and restores the persistent
+`defaultSubagentProvider`/`defaultSubagentModel` behavior. The coordinator
+shall publish the override to child processes as `COYOTE_SUBAGENT_MODEL`,
+which descendants inherit; an explicit `--model` on a subagent invocation
+shall outrank it, and non-subagent sessions shall ignore it. The picker
+shall open with the current override selected, or the `Use default model`
+row when unset. While an override is active the status bar shall display a
+persistent `sub provider/model-id` segment, and a change shall be confirmed
+with an informational notice. Physical windows shall clear the variable so
+they do not inherit coordinator-only subagent policy.
+
 ---
 
 #### 3.1.12 Plain Frontend
@@ -1621,6 +1639,7 @@ matrix and retains historical `TC-*` identifiers; current mappings are in
 | REQ-CORE-012 | Warning on missing CWD | D | TC-012 |
 | REQ-CORE-013 | --model overrides default | T | TC-013 |
 | REQ-CORE-070a | Subagent default model and fallback precedence | T | TC-070a |
+| REQ-CORE-143 | Ephemeral GUI subagent model override, COYOTE_SUBAGENT_MODEL propagation, status indicator | D/T/I | Prompt-queue and agent-precedence tests; DEM-033 |
 | REQ-CORE-014 | --agent TEXT appended to prompt | T | TC-014 |
 | REQ-CORE-015 | --no-tools disables tools | T | TC-015 |
 | REQ-CORE-016 | --no-session suppresses file creation | T | TC-016 |

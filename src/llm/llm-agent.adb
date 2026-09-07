@@ -412,6 +412,17 @@ package body LLM.Agent is
          return Requested;
       end if;
 
+      --  Ephemeral coordinator override.  The GUI publishes
+      --  COYOTE_SUBAGENT_MODEL for subsequently launched subagents; it
+      --  outranks the persistent subagent default but never an explicit
+      --  child --model argument.
+      if Subagent
+        and then Ada.Environment_Variables.Value
+                   ("COYOTE_SUBAGENT_MODEL", "")'Length > 0
+      then
+         return Ada.Environment_Variables.Value ("COYOTE_SUBAGENT_MODEL");
+      end if;
+
       if Subagent
         and then Length (Settings_Value.Default_Subagent_Provider) > 0
         and then Length (Settings_Value.Default_Subagent_Model) > 0

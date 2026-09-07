@@ -130,6 +130,15 @@ would exceed
 .B maxRecursionDepth
 in the settings file.
 .TP
+.B COYOTE_SUBAGENT_MODEL
+Ephemeral subagent model override published by the GTK coordinator when the
+user selects
+.I Agent \(-> Subagent Model...
+A child subagent uses it only when its own
+.B --model
+is absent; an empty value restores the persistent subagent default. Physical
+windows clear the variable.
+.TP
 .B DISPLAY
 When non-empty, selects the GUI frontend unless an explicit frontend or
 one-shot Plain selection applies.
@@ -145,7 +154,11 @@ Shell used for prompt-filter commands. Defaults to
 .TP
 .I ~/.coyote/settings.json
 Default provider, model, thinking level, compaction settings, prompt filter,
-sandbox profile, skill paths, and maximum subagent recursion depth. In the GTK
+sandbox profile, optional subagent provider/model, skill paths, and maximum
+subagent recursion depth. The GTK
+.I Agent \(-> Subagent Model...
+action applies an ephemeral child-launch override (`COYOTE_SUBAGENT_MODEL`)
+that is never persisted to this file. In the GTK
 frontend, `Options → Sandbox Profiles...` manages multiple in-memory profile
 drafts with one editable form; Save persists all dirty drafts and Cancel
 reloads persisted profiles. Rename and Delete are not provided by the manager.

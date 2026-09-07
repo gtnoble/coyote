@@ -766,3 +766,20 @@ full AUnit suite passes 861/861 including 15 new `LLM.Codex` cases
 covering headers, endpoint path, body shape (omitted
 `max_output_tokens`, `prompt_cache_key`, `store` never true), encrypted
 reasoning replay, credential guards, and registry visibility.
+## 2026-09-07 — Ephemeral COYOTE_SUBAGENT_MODEL precedence (REQ-CORE-143)
+
+`LLM.Agent.Effective_Model_Spec` now consults a non-empty
+`COYOTE_SUBAGENT_MODEL` environment value for subagent-mode sessions after an
+explicit `Model_Spec` and before the persistent
+`defaultSubagentProvider`/`defaultSubagentModel` settings. Empty values fall
+through to the persistent default; ordinary (non-subagent) sessions ignore
+the variable entirely. `Coyote_App` gains a package-level
+`Subagent_Model_Override_State` protected object holding the process-scoped
+override; the agent task sets or clears both the object and the environment
+variable when it consumes the typed `Set_Subagent_Model` queue item. The
+`--physical-window` startup path clears the variable along with the other
+coordinator inheritance values.
+
+**Verification:** New agent-precedence test covers override-beats-persistent,
+explicit-beats-override, empty-clears, and ordinary-session-ignores cases;
+full suite passes 849/849.

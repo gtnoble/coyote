@@ -8,6 +8,8 @@ package Coyote_App_Tests is
 
    --  App_State protected type
    procedure Test_State_Model         (T : in out Test);
+   --  Process-scoped ephemeral subagent model override object.
+   procedure Test_Subagent_Model_Override (T : in out Test);
    procedure Test_State_Streaming     (T : in out Test);
    procedure Test_State_Tokens        (T : in out Test);
    procedure Test_State_Shutdown      (T : in out Test);

@@ -33,6 +33,10 @@ package LLM.Agent is
    --  Session_Id resumes an existing session when non-empty.
    --  No_Tools disables the built-in tool set when True.
    --  Subagent selects the dedicated default model when Model_Spec is empty.
+   --  When Subagent is True and Model_Spec is empty, a non-empty
+   --  COYOTE_SUBAGENT_MODEL environment value (the GUI's ephemeral
+   --  coordinator override) is selected before the persistent subagent
+   --  default from ~/.coyote/settings.json.
    procedure Create
      (S             :    out Session;
       Model_Spec    :        String  := "";

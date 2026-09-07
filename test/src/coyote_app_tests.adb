@@ -31,6 +31,28 @@ package body Coyote_App_Tests is
               "Model should be overwritten");
    end Test_State_Model;
 
+   --  ── Subagent model override ────────────────────────────────────────
+
+   --  The package-level override starts unset, accepts a spec, and is
+   --  cleared by the empty string.  Each App_State instance is
+   --  independent, so this exercises the process-scoped object directly.
+   procedure Test_Subagent_Model_Override (T : in out Test) is
+      pragma Unreferenced (T);
+   begin
+      Coyote_App.Subagent_Model_Override_State.Set ("");
+      Assert (Coyote_App.Subagent_Model_Override_State.Current = "",
+              "override should start unset");
+      Coyote_App.Subagent_Model_Override_State.Set
+        ("openrouter/anthropic/claude-haiku");
+      Assert
+        (Coyote_App.Subagent_Model_Override_State.Current
+           = "openrouter/anthropic/claude-haiku",
+         "override should retain the selected spec");
+      Coyote_App.Subagent_Model_Override_State.Set ("");
+      Assert (Coyote_App.Subagent_Model_Override_State.Current = "",
+              "empty spec should clear the override");
+   end Test_Subagent_Model_Override;
+
    --  ── Streaming flag ───────────────────────────────────────────────────
 
    procedure Test_State_Streaming (T : in out Test) is
@@ -1687,6 +1709,9 @@ package body Coyote_App_Tests is
       Result.Add_Test (App_State_Caller.Create
         ("Format_Cost: sub-dollar values zero-pad fractional digits",
          Coyote_App_Tests.Test_Format_Cost_Fractional'Access));
+      Result.Add_Test (App_State_Caller.Create
+        ("App_State subagent model override set and clear",
+         Coyote_App_Tests.Test_Subagent_Model_Override'Access));
       Result.Add_Test (App_State_Caller.Create
         ("Format_Cost: values >= 10000 dmil have non-zero dollar part",
          Coyote_App_Tests.Test_Format_Cost_Dollars'Access));
