@@ -41,21 +41,23 @@ preserved. `coyote`, not the model, owns format selection and the associated
 metadata. When enabled, provider deltas are processed and rendered
 immediately; this mode does not use timer batching.
 
-The first implementation slice adds the synchronous restricted CSM parser and
-wires it into `Coyote_GUI.Conversation_Stack` when
-`COYOTE_INCREMENTAL_MARKUP=1`. Each provider delta is parsed and applied to the
-active GTK text component immediately; partial tags remain parser state and
-malformed fragments remain visible source. Markdown remains the default path.
-Focused parser, persistence, type, and environment-flag tests pass. Native
-table/math semantic event realization remains planned.
+The PCR-097 implementation wires the synchronous restricted CSM parser into
+`Coyote_GUI.Conversation_Stack` when `COYOTE_INCREMENTAL_MARKUP=1`. Each
+provider delta is parsed immediately; text, paragraph, and line events update
+selectable GTK text components, while complete `<table>` and `<math>` blocks
+are realized as native grid and Lasem-backed MathML components at their closing
+boundaries. Partial or malformed fragments remain visible source. Markdown
+remains the default path. Parser and display-backed GUI component tests pass.
+Broader CSM grammar and manual visual review remain future work.
 
 ### PCR-097 focused incremental-markup implementation verification (2026-09-06)
 
 The first PCR-097 implementation slice is covered by focused parser,
-message-format, persistence, legacy-fallback, and environment-flag tests. The
-complete development suite passes 842/842 with zero failed assertions and zero
-unexpected errors. Display-backed GUI qualification for live CSM output and
-native table/math semantic events remains pending.
+message-format, persistence, legacy-fallback, environment-flag, and
+incremental native-component tests. The complete development suite passes
+848/848 with zero failed assertions and zero unexpected errors. Display-backed
+incremental table and MathML component tests pass; broader visual review and
+CSM grammar expansion remain pending.
 
 ### AUnit GUI fixture hierarchy and shutdown verification (2026-09-05)
 

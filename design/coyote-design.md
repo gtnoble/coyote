@@ -102,7 +102,9 @@ This model has two key properties:
   for live GUI assistant responses. The application owns the selected format
   and records it; the model does not author authoritative message metadata.
   When the variable is absent or `0`, the existing Markdown path remains
-  active. Richer native table/math semantic events remain future work.
+  active. CSM table blocks contain GFM table source inside `<table>` and CSM
+  math blocks contain one complete `<math>` document; both are buffered only
+  until their closing boundary, then realized as native components.
 
 ### 3.2 Error and Exception Handling
 
@@ -184,9 +186,11 @@ semantic events for text, paragraph boundaries, and line breaks directly to
 the active GUI text component. Each provider delta is processed and rendered
 immediately, with no intentional timer batching or coalescing. Partial tags
 remain parser state across deltas; unknown or incomplete tags remain visible
-source. Markdown remains the default path and the model does not set format
-metadata. Native table/math semantic events remain planned and continue to
-use the existing completion-boundary components when implemented.
+source. CSM table blocks contain GFM table source inside `<table>` and CSM math
+blocks contain one complete `<math>` document. These blocks remain buffered
+only until closing boundaries, then reuse the existing native GTK grid and
+Lasem-backed MathML components. Markdown remains the default path and the
+model does not set format metadata.
 
 ### 3.5 Output Media and Formats
 

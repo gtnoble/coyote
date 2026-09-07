@@ -137,9 +137,10 @@ enables the accepted incremental-markup path for live GUI assistant
 rendering. When unset or set to
 .BR 0 ,
 the existing Markdown path remains active. Plain output and Markdown session
-replay are unchanged. The implemented first slice processes each provider
-delta immediately and retains partial CSM tags across deltas. Richer native
-table/math semantic events remain future work.
+replay are unchanged. The implemented path processes each provider delta
+immediately, retains partial CSM tags across deltas, and realizes complete CSM
+table and math blocks as native components at closing boundaries. Broader
+CSM grammar expansion remains future work.
 .TP
 .B DISPLAY
 When non-empty, selects the GUI frontend unless an explicit frontend or

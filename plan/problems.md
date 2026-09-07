@@ -14,7 +14,7 @@ client-controlled work product gets an entry here.
   the model an authoritative provider-independent message metadata channel.
 - **Affected work products:** REQ-CORE-047–049 and REQ-CORE-111, SDD-CORE,
   STP qualification planning, `sdfs/frontends.md`, `sdfs/core-agent.md`, and
-  the future Coyote Stream Markup parser/semantic-event renderer.
+  the Coyote Stream Markup parser, semantic-event renderer, and native completion-boundary components.
 - **Actions taken:** Documented `COYOTE_INCREMENTAL_MARKUP=1` as the opt-in
   flag; absence or `0` preserves Markdown behavior. Coyote owns format
   selection and persistence metadata. Enabled mode is specified to process and
@@ -22,11 +22,13 @@ client-controlled work product gets an entry here.
   tables and display math may remain provisional until complete. Added planned
   chunk-boundary, fallback, replay, and default-off qualification coverage.
 - **Verification:** `alr build` and `cd test && alr build` succeed. Focused
-  parser, message-format, persistence, legacy-fallback, and environment-flag
-  tests pass. Full-suite execution remains to be run after this implementation
-  slice.
-- **Status:** First implementation slice complete; richer CSM elements and
-  full native table/math semantic events remain pending
+  parser, message-format, persistence, legacy-fallback, environment-flag,
+  incremental native table, and incremental native MathML tests pass. The
+  complete development suite passes 848/848 with zero failed assertions and
+  zero unexpected errors.
+- **Status:** Implemented for the restricted CSM text/table/math slice;
+  display-backed visual review and broader CSM element expansion remain future
+  qualification/work items.
 
 
 ## PCR-096 — Multi-profile sandbox manager drafts and Save-All (2026-09-06)

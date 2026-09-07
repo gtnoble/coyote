@@ -23,21 +23,21 @@ to `0`, Markdown behavior is preserved. `coyote`, not the model, owns format
 selection and metadata. In enabled mode, provider deltas are processed and
 rendered immediately; timer batching is not used.
 
-The first implementation slice now includes application-owned
-`Message_Format` metadata, JSONL persistence with Markdown fallback for legacy
-records, the `COYOTE_INCREMENTAL_MARKUP=1` selection helper, and the
-restricted synchronous CSM parser. Focused parser, type, persistence, and flag
-tests pass. Richer semantic events and native table/math event realization
-remain planned.
+The PCR-097 implementation now includes application-owned `Message_Format`
+metadata, JSONL persistence with Markdown fallback for legacy records, the
+`COYOTE_INCREMENTAL_MARKUP=1` selection helper, and synchronous CSM events for
+text, paragraphs, line breaks, complete `<table>` blocks, and complete
+`<math>` documents. Native table and MathML components are realized at closing
+boundaries without delta batching. Parser, type, persistence, flag, and GUI
+component tests pass. Broader CSM grammar expansion remains future work.
 
 ## 2026-09-06 — PCR-097 implementation verification
 
 The first implementation slice persists application-owned response formats,
 selects `Format_Coyote_Stream` for opted-in GUI sessions, and routes each GUI
-provider delta through the synchronous restricted CSM parser. Focused PCR-097
-tests and the complete development suite pass 842/842 with zero failed
-assertions and zero unexpected errors. Richer native table/math semantic event
-support remains pending.
+provider delta through the synchronous restricted CSM parser. Focused PCR-097 tests and the complete development suite pass 848/848 with
+zero failed assertions and zero unexpected errors. Broader CSM grammar and
+manual visual review remain future qualification/work items.
 
 ## 2026-09-05 — AUnit hierarchy and runtime baseline
 

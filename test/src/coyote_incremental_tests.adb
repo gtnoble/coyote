@@ -2,6 +2,7 @@
 --
 --  Project: coyote
 
+with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
 with AUnit.Assertions;
 with AUnit.Test_Caller;
@@ -88,6 +89,62 @@ package body Coyote_Incremental_Tests is
       Assert (To_String (Test_Log.Text) = "tail|<", "flush should preserve source");
    end Test_Flush_Emits_Incomplete_Tag;
 
+   procedure Test_Table_Event_Survives_Split (T : in out Test) is
+      pragma Unreferenced (T);
+      Parser : Instance;
+   begin
+      Reset_Log;
+      Feed (Parser, "before<table>| H |" & ASCII.LF, Collect'Access);
+      Feed (Parser, "| --- |" & ASCII.LF
+            & "| cell |</table>after", Collect'Access);
+      Assert (Test_Log.Count = 3, "table emits text, table, and trailing text");
+      Assert (Test_Log.Invalid_Count = 0, "complete table is valid");
+      Assert (To_String (Test_Log.Text) =
+                "before|<table>| H |" & ASCII.LF
+                & "| --- |" & ASCII.LF & "| cell |</table>|after",
+              "table event preserves complete source and trailing text: "
+              & To_String (Test_Log.Text));
+   end Test_Table_Event_Survives_Split;
+
+   procedure Test_Math_Event_Survives_Split (T : in out Test) is
+      pragma Unreferenced (T);
+      Parser : Instance;
+   begin
+      Reset_Log;
+      Feed (Parser, "<math xmlns=""urn:test"">", Collect'Access);
+      Assert (Test_Log.Count = 0, "incomplete math emits no event");
+      Feed (Parser, "<mi>x</mi></math>", Collect'Access);
+      Assert (Test_Log.Count = 1, "complete math emits one event");
+      Assert (Test_Log.Invalid_Count = 0, "complete math is valid");
+      Assert (To_String (Test_Log.Text) =
+                "<math xmlns=""urn:test""><mi>x</mi></math>",
+              "math event preserves complete source");
+   end Test_Math_Event_Survives_Split;
+
+   procedure Test_Block_Trailing_Text_Emits (T : in out Test) is
+      pragma Unreferenced (T);
+      Parser : Instance;
+   begin
+      Reset_Log;
+      Feed (Parser, "<table>x</table>tail", Collect'Access);
+      Assert (Ada.Strings.Fixed.Index
+                (To_String (Test_Log.Text), "tail") > 0,
+              "text after native block emits in the same delta");
+   end Test_Block_Trailing_Text_Emits;
+
+   procedure Test_Adjacent_Blocks_Preserve_Order (T : in out Test) is
+      pragma Unreferenced (T);
+      Parser : Instance;
+   begin
+      Reset_Log;
+      Feed (Parser, "<table>a</table><math>x</math>", Collect'Access);
+      Assert (Test_Log.Count = 2,
+              "adjacent native blocks emit two events");
+      Assert (To_String (Test_Log.Text) =
+                "<table>a</table>|<math>x</math>",
+              "adjacent native blocks preserve source order");
+   end Test_Adjacent_Blocks_Preserve_Order;
+
    package Caller is new AUnit.Test_Caller (Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
@@ -106,6 +163,18 @@ package body Coyote_Incremental_Tests is
       Result.Add_Test (Caller.Create
         ("Incremental flush exposes incomplete tags",
          Test_Flush_Emits_Incomplete_Tag'Access));
+      Result.Add_Test (Caller.Create
+        ("Incremental table event survives delta boundaries",
+         Test_Table_Event_Survives_Split'Access));
+      Result.Add_Test (Caller.Create
+        ("Incremental math event survives delta boundaries",
+         Test_Math_Event_Survives_Split'Access));
+      Result.Add_Test (Caller.Create
+        ("Incremental block trailing text emits immediately",
+         Test_Block_Trailing_Text_Emits'Access));
+      Result.Add_Test (Caller.Create
+        ("Incremental adjacent blocks preserve order",
+         Test_Adjacent_Blocks_Preserve_Order'Access));
       return Result;
    end Suite;
 

@@ -2,6 +2,7 @@
 --
 --  Project: coyote
 
+with Ada.Containers;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded;  use Ada.Strings.Unbounded;
 with Ada.Text_IO;
@@ -50,6 +51,8 @@ package body Coyote_GUI.Conversation_Stack is
    use type Gtk.Widget.Gtk_Widget;
    use type Coyote_GUI.Math_Element.Instance_Access;
    use type Gtk.Window.Gtk_Window;
+   use type Ada.Containers.Count_Type;
+   use type Coyote_Renderer.Incremental.Event_Kind;
 
    type Instance_Access is access all Instance;
 
@@ -138,12 +141,114 @@ package body Coyote_GUI.Conversation_Stack is
       Buffer.Insert (Iter, Text);
    end Append_Buffer;
 
+   procedure Add_Text_Element
+     (C              : in out Instance;
+      Parent         : not null access Gtk.Box.Gtk_Box_Record'Class;
+      Caption        : String;
+      Text           : String;
+      Buffer         : out Gtk.Text_Buffer.Gtk_Text_Buffer;
+      View           : out Gtk.Text_View.Gtk_Text_View;
+      Response_Block : Boolean := False);
+
+   procedure Add_Response_Text
+     (C      : in out Instance;
+      Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
+      Text   : String);
+
+   procedure Add_Response_Table
+     (C      : in out Instance;
+      Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
+      Table  : Coyote_Renderer.Tables.Table_Block);
+
+   procedure Replace_Incremental_Component
+     (C     : in out Instance;
+      Value : Coyote_Renderer.Incremental.Event)
+   is
+      Start_Iter : Gtk.Text_Iter.Gtk_Text_Iter;
+      End_Iter   : Gtk.Text_Iter.Gtk_Text_Iter;
+      Raw_View   : constant Gtk.Text_View.Gtk_Text_View := C.Active_View;
+   begin
+      if C.Response_Section = null then
+         return;
+      end if;
+      if C.Active_Text /= null and then Raw_View /= null then
+         C.Active_Text.Get_Iter_At_Mark (Start_Iter, C.Stream_Mark);
+         C.Active_Text.Get_End_Iter (End_Iter);
+         C.Active_Text.Delete (Start_Iter, End_Iter);
+         C.Response_Section.Remove (Raw_View);
+      end if;
+      C.Active_Text := null;
+      C.Active_View := null;
+      C.Stream_Mark := null;
+
+      if Value.Kind = Coyote_Renderer.Incremental.Table_Event then
+         declare
+            Source : constant String := To_String (Value.Text);
+            Table_Source : constant String :=
+              (if Source'Length > 15
+               then Source (Source'First + 7 .. Source'Last - 8)
+               else "");
+            Extraction : constant Coyote_Renderer.Tables.Extraction_Result :=
+              Coyote_Renderer.Tables.Extract_Tables (Table_Source);
+         begin
+            if Extraction.Blocks.Length = 1 then
+               Add_Response_Table
+                 (C, C.Response_Section,
+                  Extraction.Blocks (Extraction.Blocks.First_Index));
+            else
+               Add_Response_Text (C, C.Response_Section, To_String (Value.Text));
+            end if;
+         end;
+      else
+         declare
+            Source : constant String := To_String (Value.Text);
+            MathML : constant String := Source;
+            Element : constant Coyote_GUI.Math_Element.Instance_Access :=
+              Coyote_GUI.Math_Element.New_Element (MathML, Source, C.Math_Scale);
+         begin
+            if Element = null then
+               Add_Response_Text (C, C.Response_Section, Source);
+            else
+               Pack_Response_Block
+                 (C.Response_Section,
+                  Coyote_GUI.Math_Element.Widget (Element.all));
+               C.Math_Elements.Append (Element);
+            end if;
+         end;
+      end if;
+   end Replace_Incremental_Component;
+
    procedure Apply_Incremental_Event
      (C     : in out Instance;
       Value : Coyote_Renderer.Incremental.Event)
    is
       Text : constant String := To_String (Value.Text);
    begin
+      if C.Active_Text = null
+        and then Value.Kind in
+          Coyote_Renderer.Incremental.Text_Event |
+          Coyote_Renderer.Incremental.Invalid_Event
+      then
+         Add_Text_Element
+           (C, C.Response_Section, "Response", "",
+            C.Active_Text, C.Active_View);
+         C.Stream_Mark := null;
+         declare
+            Iter : Gtk.Text_Iter.Gtk_Text_Iter;
+         begin
+            C.Active_Text.Get_End_Iter (Iter);
+            C.Stream_Mark := C.Active_Text.Create_Mark
+              ("", Iter, Left_Gravity => True);
+         end;
+      end if;
+      if C.Active_Text = null
+        and then Value.Kind in
+          Coyote_Renderer.Incremental.Table_Event |
+          Coyote_Renderer.Incremental.Math_Event
+      then
+         Replace_Incremental_Component (C, Value);
+         return;
+      end if;
       if C.Active_Text = null then
          return;
       end if;
@@ -156,6 +261,9 @@ package body Coyote_GUI.Conversation_Stack is
          when Coyote_Renderer.Incremental.Paragraph_End_Event |
               Coyote_Renderer.Incremental.Line_Break_Event =>
             Append_Buffer (C.Active_Text, "" & ASCII.LF);
+         when Coyote_Renderer.Incremental.Table_Event |
+              Coyote_Renderer.Incremental.Math_Event =>
+            Replace_Incremental_Component (C, Value);
       end case;
    end Apply_Incremental_Event;
 
@@ -179,20 +287,6 @@ package body Coyote_GUI.Conversation_Stack is
          Handler => Handle_Incremental_Event'Access);
       Active_Incremental_Stack := null;
    end Consume_Incremental;
-
-   procedure Add_Text_Element
-     (C              : in out Instance;
-      Parent         : not null access Gtk.Box.Gtk_Box_Record'Class;
-      Caption        : String;
-      Text           : String;
-      Buffer         : out Gtk.Text_Buffer.Gtk_Text_Buffer;
-      View           : out Gtk.Text_View.Gtk_Text_View;
-      Response_Block : Boolean := False);
-
-   procedure Add_Response_Table
-     (C      : in out Instance;
-      Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
-      Table  : Coyote_Renderer.Tables.Table_Block);
 
    procedure Apply_Response_Style
      (Widget : not null access Gtk.Widget.Gtk_Widget_Record'Class)
@@ -843,9 +937,11 @@ package body Coyote_GUI.Conversation_Stack is
               or else not Coyote_Renderer.Tables.Extract_Tables
                 (Full_Text).Blocks.Is_Empty;
          end if;
-         Append_Buffer (C.Active_Text, ASCII.LF & ASCII.LF);
-         if C.Stream_Mark /= null then
-            C.Active_Text.Delete_Mark (C.Stream_Mark);
+         if C.Active_Text /= null then
+            Append_Buffer (C.Active_Text, ASCII.LF & ASCII.LF);
+            if C.Stream_Mark /= null then
+               C.Active_Text.Delete_Mark (C.Stream_Mark);
+            end if;
          end if;
          C.Stream_Mark := null;
          C.Stream_Buf  := Null_Unbounded_String;

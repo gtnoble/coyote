@@ -85,6 +85,7 @@ package body Coyote_GUI_Conversation_Stack_Tests is
             Clear (T.Stack);
          end if;
          Set_Render_Markdown (T.Stack, True);
+         Set_Incremental_Markup (T.Stack, False);
       end if;
    end Set_Up;
 
@@ -739,6 +740,46 @@ package body Coyote_GUI_Conversation_Stack_Tests is
               "fenced code retains dollar delimiters");
    end Test_Native_Display_Math_Protects_Code;
 
+   procedure Test_Incremental_Native_Table (T : in out Test) is
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Set_Incremental_Markup (T.Stack, True);
+      Begin_Request (T.Stack, "request", Prompt);
+      Append_Text (T.Stack, "<table>" & ASCII.LF & "| Name | Value |");
+      Append_Text (T.Stack, ASCII.LF & "| --- | --- |" & ASCII.LF);
+      Append_Text (T.Stack, "| alpha | 42 |</table>");
+      Assert (Table_Count (T.Stack) = 1,
+              "incremental complete table creates one native grid");
+      Assert (Table_Cell (T.Stack, 1, 2, 2).Get_Text = "42",
+              "incremental table preserves cell text");
+      Assert (not Response_Stream_Present (T.Stack),
+              "incremental table removes raw stream view");
+
+   end Test_Incremental_Native_Table;
+
+   procedure Test_Incremental_Native_Math (T : in out Test) is
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Set_Incremental_Markup (T.Stack, True);
+      Begin_Request (T.Stack, "request", Prompt);
+      Append_Text
+        (T.Stack, "<math xmlns=""http://www.w3.org/1998/Math/MathML"">");
+      Append_Text
+        (T.Stack, "<mi>x</mi></math>");
+      Assert (Math_Element_Count (T.Stack) = 1,
+              "incremental complete math creates one native element");
+      Assert (Math_Is_Valid (T.Stack, 1),
+              "incremental MathML remains valid");
+      Assert (Index (Math_Source (T.Stack, 1), "<math") > 0,
+              "incremental math retains complete source");
+      Assert (not Response_Stream_Present (T.Stack),
+              "incremental math removes raw stream view");
+   end Test_Incremental_Native_Math;
+
    procedure Test_Native_Display_Math_Zooms (T : in out Test) is
       Source : constant String :=
         "$$" & ASCII.LF
@@ -824,6 +865,14 @@ package body Coyote_GUI_Conversation_Stack_Tests is
         ("Coyote.GUI.Conversation_Stack zooms display MathML",
          Coyote_GUI_Conversation_Stack_Tests
            .Test_Native_Display_Math_Zooms'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack incremental native tables",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Incremental_Native_Table'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack incremental native MathML",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Incremental_Native_Math'Access));
       Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
         ("Coyote.GUI.Conversation_Stack uses visible step frames",
          Coyote_GUI_Conversation_Stack_Tests
