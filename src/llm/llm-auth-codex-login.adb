@@ -276,7 +276,7 @@ package body LLM.Auth.Codex.Login is
       Authorize :=
         To_Unbounded_String
           (LLM.Auth.Codex.Build_Authorize_Url
-             (To_String (Verifier), State));
+             (To_String (Challenge), State));
 
       Report (Listening, "local callback port "
         & Positive'Image (LLM.Auth.Codex.Redirect_Port));
