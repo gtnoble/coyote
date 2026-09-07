@@ -202,7 +202,10 @@ package body LLM.Auth is
            To_Unbounded_String (Get_String_Field (Provider_Val, "refresh")),
          Access_Token    =>
            To_Unbounded_String (Get_String_Field (Provider_Val, "access")),
-         Expires_Ms      => Get_Long_Long_Field (Provider_Val, "expires"));
+         Expires_Ms      => Get_Long_Long_Field (Provider_Val, "expires"),
+         Account_Id      =>
+           To_Unbounded_String
+             (Get_String_Field (Provider_Val, "accountId")));
    end Load_Credentials;
 
    procedure Save_Credentials
@@ -224,6 +227,10 @@ package body LLM.Auth is
       Provider_Obj.Set_Field ("access", To_String (Creds.Access_Token));
       Provider_Obj.Set_Field
         ("expires", Long_Integer (Creds.Expires_Ms));
+      if Length (Creds.Account_Id) > 0 then
+         Provider_Obj.Set_Field
+           ("accountId", To_String (Creds.Account_Id));
+      end if;
 
       Root.Set_Field (Provider, Provider_Obj);
       Write_Atomically (Path, GNATCOLL.JSON.Write (Root));

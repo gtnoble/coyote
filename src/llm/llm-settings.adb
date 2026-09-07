@@ -221,6 +221,8 @@ package body LLM.Settings is
          return "OPENCODE_API_KEY";
       elsif Lower = "ollama" then
          return "OLLAMA_API_KEY";
+      elsif Lower = "codex" then
+         return "CODEX_API_KEY";
       elsif Lower = "kimi-coding" then
          return "KIMI_API_KEY";
       else

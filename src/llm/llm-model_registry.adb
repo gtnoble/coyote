@@ -54,6 +54,14 @@ package body LLM.Model_Registry is
       return LLM.Settings.Resolve_Api_Key ("openai")'Length > 0;
    end Has_OpenAI_Key;
 
+   function Has_Codex_Credentials return Boolean is
+      Creds : constant LLM.Auth.Provider_Credentials :=
+        LLM.Auth.Load_Credentials ("codex");
+   begin
+      return Length (Creds.Refresh_Token) > 0
+        or else Length (Creds.Access_Token) > 0;
+   end Has_Codex_Credentials;
+
    function Is_Ollama_Configured_Internal return Boolean is
       Root : constant GNATCOLL.JSON.JSON_Value :=
         LLM.Settings.Load_Json_File (LLM.Settings.Models_Path);
@@ -253,6 +261,23 @@ package body LLM.Model_Registry is
          Cost                => (others => 0.0));
    end Default_OpenAI_Model;
 
+   function Default_Codex_Model (Model_Id : String) return Model_Info is
+   begin
+      return
+        (Model_Id            => To_Unbounded_String (Model_Id),
+         Name                => To_Unbounded_String (Model_Id),
+         Provider            => To_Unbounded_String ("codex"),
+         Context_Window      => 272_000,
+         Max_Tokens          => 128_000,
+         Reasoning           => True,
+         Supports_Tools      => True,
+         Supports_Images     => True,
+         Max_Thinking_Budget => 0,
+         Min_Thinking_Budget => 0,
+         Wire_Format         => To_Unbounded_String ("openai-responses"),
+         Cost                => (others => 0.0));
+   end Default_Codex_Model;
+
    function Default_OpenRouter_Model (Model_Id : String) return Model_Info is
    begin
       return
@@ -302,6 +327,24 @@ package body LLM.Model_Registry is
          Registry.Append (Default_OpenAI_Model ("o4-mini"));
       end if;
    end Refresh_OpenAI;
+
+   procedure Refresh_Codex is
+   begin
+      Remove_Provider_Entries ("codex");
+
+      if not Has_Codex_Credentials then
+         return;
+      end if;
+
+      Registry.Append (Default_Codex_Model ("gpt-5.5"));
+      Registry.Append (Default_Codex_Model ("gpt-5.4"));
+      Registry.Append (Default_Codex_Model ("gpt-5.4-mini"));
+      Registry.Append (Default_Codex_Model ("gpt-5.3-codex-spark"));
+      Registry.Append (Default_Codex_Model ("gpt-5.6-luna"));
+      Registry.Append (Default_Codex_Model ("gpt-5.6-sol"));
+      Registry.Append (Default_Codex_Model ("gpt-5.6-terra"));
+      Registry.Append (Default_Codex_Model ("gpt-6-astra"));
+   end Refresh_Codex;
 
    procedure Refresh_Ollama is
       Models : LLM.Providers.Ollama.Catalogue.Catalogue_Vectors.Vector;
@@ -500,6 +543,8 @@ package body LLM.Model_Registry is
          return Default_Ollama_Model (Model_Id);
       elsif Want_Provider = "openai" then
          return Default_OpenAI_Model (Model_Id);
+      elsif Want_Provider = "codex" then
+         return Default_Codex_Model (Model_Id);
       else
          raise Not_Found with "Unknown provider: " & Provider;
       end if;
@@ -535,6 +580,7 @@ package body LLM.Model_Registry is
       Include_OpenCode : constant Boolean := Has_OpenCode_Go_Key;
       Include_Ollama   : constant Boolean := Is_Ollama_Configured;
       Include_OpenAI   : constant Boolean := Has_OpenAI_Key;
+      Include_Codex    : constant Boolean := Has_Codex_Credentials;
    begin
       for Item of Registry loop
          declare
@@ -551,6 +597,8 @@ package body LLM.Model_Registry is
               (Provider_Name = "ollama" and then Include_Ollama)
               or else
               (Provider_Name = "openai" and then Include_OpenAI)
+              or else
+              (Provider_Name = "codex" and then Include_Codex)
             then
                Result.Append (Item);
             end if;

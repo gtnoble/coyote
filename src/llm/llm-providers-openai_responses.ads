@@ -42,6 +42,19 @@ package LLM.Providers.OpenAI_Responses is
       (P       : in out Provider;
      Enabled :        Boolean);
 
+   --  When Omit_Max_Tokens is True the request body leaves out
+   --  max_output_tokens.  The Codex backend rejects or ignores that
+   --  field; reference clients never send it.
+   procedure Set_Omit_Max_Tokens
+      (P       : in out Provider;
+     Enabled :        Boolean);
+
+   --  When Prompt_Cache_Key is non-empty the request body carries it as
+   --  the prompt_cache_key field for backend cache affinity.
+   procedure Set_Prompt_Cache_Key
+      (P   : in out Provider;
+     Key :        String);
+
    --  Return the configured bearer token.
    function Get_Api_Key (P : Provider) return String;
 
@@ -109,6 +122,8 @@ private
       Extra_Headers      : Header_Entry_Vectors.Vector;
       Use_Streaming      : Boolean := True;
       Inline_Cache_Hints : Boolean := True;
+      Omit_Max_Tokens    : Boolean := False;
+      Prompt_Cache_Key   : Ada.Strings.Unbounded.Unbounded_String;
    end record;
 
 end LLM.Providers.OpenAI_Responses;

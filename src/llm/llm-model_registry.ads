@@ -80,6 +80,14 @@ package LLM.Model_Registry is
    procedure Refresh_OpenAI;
    procedure Refresh_Ollama;
 
+  --  Populate the registry with the curated OpenAI Codex subscription
+  --  catalogue.
+  --
+  --  Codex models are included when ~/.coyote/auth.json contains a
+  --  "codex" OAuth credential entry. All existing "codex" entries are
+  --  cleared before the refreshed catalogue data is appended.
+   procedure Refresh_Codex;
+
   --  Look up one model by provider and model identifier.
   --
   --  For "openrouter", an unknown Model_Id returns a default record with
@@ -96,6 +104,9 @@ package LLM.Model_Registry is
   --  For "openai", a missing Model_Id returns a default record with
   --  the Responses wire format and conservative limits.
   --
+  --  For "codex", a missing Model_Id returns a default record with
+  --  the Responses wire format and conservative limits.
+  --
   --  Unknown providers also raise Not_Found.
    function Lookup
      (Provider : String;
@@ -108,7 +119,8 @@ package LLM.Model_Registry is
   --  github-copilot credential entry. OpenRouter and Anthropic models are
   --  included when an API key resolves from the environment or models.json.
   --  OpenCode Go models are included when an OPENCODE_API_KEY is available
-  --  or providers.opencode-go.apiKey is configured.
+  --  or providers.opencode-go.apiKey is configured. Codex models are
+  --  included when auth.json contains a codex OAuth credential entry.
    function Available_Models return Model_Info_Vectors.Vector;
 
 end LLM.Model_Registry;

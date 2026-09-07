@@ -339,7 +339,8 @@ package body LLM_Auth_Tests is
          Refresh_Token   => To_Unbounded_String ("saved-refresh"),
          Access_Token    => To_Unbounded_String
            ("tid=saved;proxy-ep=proxy.saved.example;exp=42"),
-         Expires_Ms      => 1_748_123_456_789);
+         Expires_Ms      => 1_748_123_456_789,
+         Account_Id      => Null_Unbounded_String);
       Loaded       : LLM.Auth.Provider_Credentials;
       Raw_Auth     : Unbounded_String;
    begin
@@ -441,7 +442,8 @@ package body LLM_Auth_Tests is
         (Credential_Type => To_Unbounded_String ("oauth"),
          Refresh_Token   => To_Unbounded_String ("refresh-token"),
          Access_Token    => To_Unbounded_String ("expired-token"),
-         Expires_Ms      => 0);
+         Expires_Ms      => 0,
+         Account_Id      => Null_Unbounded_String);
       Saved        : LLM.Auth.Provider_Credentials;
 
       procedure Refresh_Handler
