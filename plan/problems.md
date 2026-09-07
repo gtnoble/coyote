@@ -3236,3 +3236,29 @@ zero failed assertions and zero unexpected errors. The post-cutover suite has
   test-source correction. Display-backed picker and Preferences interaction
   remains under DEM-033.
 - **Status:** Implemented; display-backed qualification remains pending.
+
+
+## PCR-099 — OpenCode Go requests missing x-opencode-session
+
+- **Date reported:** 2026-09-07
+- **Category:** Code, Test
+- **Priority:** 2-Serious
+- **Description:** OpenCode Go requests failed with HTTP 400
+  `MissingSessionID` ("Request is missing x-opencode-session and cannot be
+  routed efficiently"). The `LLM.Providers.OpenCode_Go` adapter delegated to
+  the Anthropic-messages, OpenAI-responses, and OpenAI-completions wire
+  providers without a session identifier, and none of the three delegate
+  paths sent the `x-opencode-session` header that the OpenCode Go gateway
+  requires for routing and prompt-cache optimization.
+- **Affected work products:** `LLM.Providers.OpenCode_Go` spec/body,
+  `LLM.Agent` provider dispatch (main send and compaction summarization),
+  core-agent SDF, and this change log.
+- **Corrective action:** `OpenCode_Go.Create` accepts a `Session_Id` stored
+  in the provider record; `Send` adds `x-opencode-session` to whichever
+  delegate provider is constructed for the model's wire format. Both agent
+  call sites pass the stable `Session.Session_UUID` so each conversation
+  sends a consistent identifier, matching the existing OpenRouter
+  session-plumbing pattern.
+- **Verification:** Production and test development builds succeed; the full
+  AUnit suite passes 846/846.
+- **Status:** Implemented.

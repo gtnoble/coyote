@@ -7,15 +7,22 @@
 --  Project: coyote
 --  For revision history, see the project version-control log.
 
+with Ada.Strings.Unbounded;
 with LLM.Providers;
 with LLM.Types;
 
 package LLM.Providers.OpenCode_Go is
 
-   type Provider is new LLM.Providers.Provider with null record;
+   type Provider is new LLM.Providers.Provider with record
+      Session_Id : Ada.Strings.Unbounded.Unbounded_String;
+   end record;
 
    --  Construct an OpenCode Go provider.
-   function Create return Provider;
+   --
+   --  Session_Id is the stable conversation identifier sent as the
+   --  x-opencode-session HTTP header on every request.  OpenCode Go
+   --  rejects requests without it (HTTP 400 MissingSessionID).
+   function Create (Session_Id : String := "") return Provider;
 
    overriding
    procedure Send

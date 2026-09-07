@@ -1482,14 +1482,22 @@ separate from `COYOTE_SESSION_ID` and `COYOTE_PARENT_SESSION`.
 **Purpose:** Routing provider for OpenCode Go. Selects wire format based on
 model ID, in the same pattern as GitHub Copilot.
 
-**`Send` procedure:**
-1. Inspect model ID: Claude patterns → `Anthropic_Messages.Provider`; all
-   others → `OpenAI_Completions.Provider`.
-2. Construct the delegate with OpenCode Go's base URL (read from settings or
-   default `http://localhost:2710`).
-3. Forward the call.
+**`Create` function:** Accepts a `Session_Id` (default empty) stored in the
+provider record. `LLM.Agent` passes the stable `Session.Session_UUID`.
 
-**No authentication:** OpenCode Go is a local proxy; no token header is set.
+**`Send` procedure:**
+1. Inspect model ID via `Catalogue.Wire_Format_For`: Anthropic-messages
+   models → `Anthropic_Messages.Provider`; Responses-wire models →
+   `OpenAI_Responses.Provider`; all others → `OpenAI_Completions.Provider`.
+2. Construct the delegate with OpenCode Go's base URL (read from settings or
+   default `https://opencode.ai/zen/go`, appending `/v1` for the
+   OpenAI-compatible endpoints).
+3. Add the `x-opencode-session` header required by the OpenCode Go gateway
+   (PCR-099) to the delegate when a session ID is set.
+4. Forward the call.
+
+**Authentication:** Bearer token resolved from `OPENCODE_API_KEY` or the
+`providers.opencode-go.apiKey` setting.
 
 **Catalogue package `OpenCode_Go.Catalogue`:**
 1. Fetches the model-ID list from `https://opencode.ai/zen/go/v1/models`,

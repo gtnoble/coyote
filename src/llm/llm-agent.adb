@@ -1626,7 +1626,8 @@ package body LLM.Agent is
       elsif Lowercase (To_String (S.Model_Info.Provider)) = "opencode-go" then
          declare
             Provider : LLM.Providers.OpenCode_Go.Provider :=
-              LLM.Providers.OpenCode_Go.Create;
+              LLM.Providers.OpenCode_Go.Create
+                (Session_Id => To_String (S.Session_UUID));
          begin
             Provider.Send
               (Model_Id      => To_String (S.Model_Info.Model_Id),
@@ -1876,7 +1877,8 @@ package body LLM.Agent is
             then
                declare
                   Provider : LLM.Providers.OpenCode_Go.Provider :=
-                    LLM.Providers.OpenCode_Go.Create;
+                    LLM.Providers.OpenCode_Go.Create
+                      (Session_Id => To_String (S.Session_UUID));
                begin
                   Send_With_Retry
                     (S             => S,

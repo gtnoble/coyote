@@ -47,10 +47,11 @@ package body LLM.Providers.OpenCode_Go is
       return LLM.Settings.Resolve_Api_Key ("opencode-go");
    end Resolve_Api_Key;
 
-   function Create return Provider is
+   function Create (Session_Id : String := "") return Provider is
    begin
       return Result : Provider do
-         null;
+         Result.Session_Id :=
+           Ada.Strings.Unbounded.To_Unbounded_String (Session_Id);
       end return;
    end Create;
 
@@ -66,9 +67,8 @@ package body LLM.Providers.OpenCode_Go is
       Handler       :        LLM.Providers.Event_Handler;
       Abort_Check   :        LLM.Providers.Abort_Callback := null)
    is
-      pragma Unreferenced (P);
-
-      Api_Key  : constant String := Resolve_Api_Key;
+      Session_Id : constant String := To_String (P.Session_Id);
+      Api_Key    : constant String := Resolve_Api_Key;
       Base_Url : constant String := Default_Base_Url;
       Wire     : constant LLM.Providers.OpenCode_Go.Catalogue.Wire_Kind :=
         LLM.Providers.OpenCode_Go.Catalogue.Wire_Format_For (Model_Id);
@@ -90,6 +90,12 @@ package body LLM.Providers.OpenCode_Go is
          begin
             --  The Anthropic_Messages provider uses Bearer auth for
             --  non-anthropic.com base URLs, which is correct for OpenCode Go.
+            if Session_Id'Length > 0 then
+               LLM.Providers.Anthropic_Messages.Add_Header
+                 (P     => Delegate,
+                  Name  => "x-opencode-session",
+                  Value => Session_Id);
+            end if;
             Delegate.Send
               (Model_Id      => Model_Id,
                System_Prompt => System_Prompt,
@@ -113,6 +119,12 @@ package body LLM.Providers.OpenCode_Go is
                 (Base_Url => V1_Base,
                  Api_Key  => Api_Key);
          begin
+            if Session_Id'Length > 0 then
+               LLM.Providers.OpenAI_Responses.Add_Header
+                 (P     => Delegate,
+                  Name  => "x-opencode-session",
+                  Value => Session_Id);
+            end if;
             LLM.Providers.OpenAI_Responses.Set_Inline_Cache_Hints
               (Delegate, False);
             LLM.Providers.OpenAI_Responses.Send_Request
@@ -141,6 +153,12 @@ package body LLM.Providers.OpenCode_Go is
                 (Base_Url => V1_Base,
                  Api_Key  => Api_Key);
          begin
+            if Session_Id'Length > 0 then
+               LLM.Providers.OpenAI_Completions.Add_Header
+                 (P     => Delegate,
+                  Name  => "x-opencode-session",
+                  Value => Session_Id);
+            end if;
             LLM.Providers.OpenAI_Completions.Set_Inline_Cache_Hints
               (Delegate, False);
             LLM.Providers.OpenAI_Completions.Send_Request

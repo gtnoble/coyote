@@ -724,3 +724,20 @@ status mapping. Tool-result JSONL records now include a backward-compatible
 
 **Verification:** Shell timeout coverage passes 22/22; agent lifecycle coverage
 passes 42/42; session-store coverage passes 24/24; type coverage passes 8/8.
+
+
+## 2026-09-07 — OpenCode Go session header (PCR-099)
+
+**Requirement:** OpenCode Go requests shall carry the `x-opencode-session`
+header required by the gateway for routing and prompt-cache optimization.
+
+**Implementation:** `LLM.Providers.OpenCode_Go.Create` now accepts a
+`Session_Id` stored in the provider record. `Send` adds the
+`x-opencode-session` header to the constructed delegate provider on all
+three wire paths (Anthropic messages, OpenAI responses, OpenAI completions).
+Both `LLM.Agent` dispatch sites (main send and compaction summarization)
+pass the stable `Session.Session_UUID`, mirroring the OpenRouter session
+plumbing.
+
+**Verification:** Production and test development builds succeed; the full
+AUnit suite passes 846/846.
