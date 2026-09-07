@@ -23,6 +23,7 @@ package Coyote_Incremental_Tests is
    procedure Test_Incomplete_Code_Flushes (T : in out Test);
    procedure Test_Empty_Blocks_Are_Valid (T : in out Test);
    procedure Test_Horizontal_Rule_Events (T : in out Test);
+   procedure Test_Heading_Events (T : in out Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite;
 

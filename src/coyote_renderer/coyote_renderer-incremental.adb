@@ -14,12 +14,14 @@ package body Coyote_Renderer.Incremental is
    procedure Emit
      (Handler : Event_Handler;
       Kind    : Event_Kind;
-      Text    : String := "")
+      Text    : String := "";
+      Level   : Natural := 0)
    is
    begin
       Handler.all
-        ((Kind => Kind,
-          Text => To_Unbounded_String (Text)));
+        ((Kind  => Kind,
+          Text  => To_Unbounded_String (Text),
+          Level => Level));
    end Emit;
 
    procedure Emit_Text
@@ -33,7 +35,8 @@ package body Coyote_Renderer.Incremental is
    end Emit_Text;
 
    function Closing_Tag
-     (Block : Block_Kind) return String
+     (Block : Block_Kind;
+      Level : Natural := 0) return String
    is
    begin
       case Block is
@@ -43,6 +46,9 @@ package body Coyote_Renderer.Incremental is
             return "</math>";
          when Code_Block =>
             return "</code>";
+         when Heading_Block =>
+            return "</h" & Ada.Strings.Fixed.Trim
+              (Natural'Image (Level), Ada.Strings.Left) & ">";
          when No_Block =>
             return "";
       end case;
@@ -59,6 +65,8 @@ package body Coyote_Renderer.Incremental is
             return Math_Event;
          when Code_Block =>
             return Code_Event;
+         when Heading_Block =>
+            return Heading_Event;
          when No_Block =>
             return Invalid_Event;
       end case;
@@ -68,6 +76,7 @@ package body Coyote_Renderer.Incremental is
    begin
       Parser.Pending := Null_Unbounded_String;
       Parser.Block := No_Block;
+      Parser.Level := 0;
       Parser.Buffer := Null_Unbounded_String;
    end Reset;
 
@@ -81,7 +90,7 @@ package body Coyote_Renderer.Incremental is
    begin
       Append (Source, Data);
       Close := Ada.Strings.Fixed.Index
-        (To_String (Source), Closing_Tag (Parser.Block));
+        (To_String (Source), Closing_Tag (Parser.Block, Parser.Level));
       if Close = 0 then
          Parser.Buffer := Source;
          return;
@@ -98,7 +107,8 @@ package body Coyote_Renderer.Incremental is
          if Open_End = 0 or else Close < Open_End + 1 then
             Emit (Handler, Invalid_Event, Block_Source);
          else
-            Emit (Handler, Event_For (Parser.Block), Block_Source);
+            Emit (Handler, Event_For (Parser.Block), Block_Source,
+                 Parser.Level);
          end if;
          Parser.Block := No_Block;
          Parser.Buffer := Null_Unbounded_String;
@@ -161,6 +171,18 @@ package body Coyote_Renderer.Incremental is
                     (Source, "<code>", Open) = Open
             then
                Parser.Block := Code_Block;
+               Parser.Buffer := To_Unbounded_String
+                 (Source (Open .. Source'Last));
+               Feed_Block (Parser, "", Handler);
+               exit;
+            elsif Open + 3 <= Source'Last
+              and then Source (Open .. Open + 3) in
+                    "<h1>" | "<h2>" | "<h3>" |
+                    "<h4>" | "<h5>" | "<h6>"
+            then
+               Parser.Block := Heading_Block;
+               Parser.Level := Natural (Character'Pos (Source (Open + 2))
+                                        - Character'Pos ('0'));
                Parser.Buffer := To_Unbounded_String
                  (Source (Open .. Source'Last));
                Feed_Block (Parser, "", Handler);

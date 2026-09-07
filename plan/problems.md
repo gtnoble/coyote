@@ -19,20 +19,22 @@ client-controlled work product gets an entry here.
   flag; absence or `0` preserves Markdown behavior. Coyote owns format
   selection and persistence metadata. Enabled mode is specified to process and
   render each provider delta immediately without intentional timer batching;
-  tables, display math, and literal code may remain provisional until complete.
-  Added planned chunk-boundary, fallback, replay, default-off, and code-block
-  qualification coverage.
+  tables, display math, and literal code may remain provisional until complete;
+  self-closing horizontal rules emit immediately, and complete h1-h6 blocks
+  become native heading labels at closing boundaries. Added planned
+  chunk-boundary, fallback, replay, default-off, code-block, horizontal-rule,
+  and heading qualification coverage.
 - **Verification:** `alr build` and `cd test && alr build` succeed. Focused
   parser, message-format, persistence, legacy-fallback, environment-flag,
   incremental native table, incremental native MathML, incremental native code,
   mixed-order lifecycle, empty provisional-view, malformed MathML-opening, and
-  empty complete-block boundary and horizontal-rule coverage are complete. The
-  complete development suite passes 856/856 with zero failed assertions and
-  zero unexpected errors; the focused parser suite passes 14/14 and the
-  display-backed conversation-stack suite passes 27/27.
+  empty complete-block, horizontal-rule, and heading coverage are complete. The
+  complete development suite passes 858/858 with zero failed assertions and
+  zero unexpected errors; the focused parser suite passes 15/15 and the
+  display-backed conversation-stack suite passes 28/28.
 - **Status:** Implemented and display-qualified for the restricted CSM
-  text/table/math/code/rule slice; malformed prefixed tags are safely visible
-  and broader CSM grammar expansion remains future work.
+  text/table/math/code/rule/heading slice; malformed prefixed tags are safely
+  visible and broader CSM grammar expansion remains future work.
 
 
 ## PCR-096 — Multi-profile sandbox manager drafts and Save-All (2026-09-06)

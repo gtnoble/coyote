@@ -318,8 +318,9 @@ stable active components rather than create a widget per token. Structures that
 require completion, including tables, display math, and literal code blocks, may remain
 provisional until their complete boundary is received and shall then be
 realized as native or selectable components. Self-closing horizontal rules
-shall emit and realize as native separators immediately. Invalid markup shall
-fall back to visible escaped or plain source.
+shall emit and realize as native separators immediately. Complete `<h1>` through
+`<h6>` blocks shall become selectable native heading labels at their closing
+boundaries. Invalid markup shall fall back to visible escaped or plain source.
 
 ---
 

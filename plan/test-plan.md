@@ -179,7 +179,7 @@ SRS-CORE requirement groups.
 | `coyote_gui_mode_tests.adb` | REQ-CORE-113 Agent-menu availability by run mode | 1 |
 | `coyote_gui_session_stats_window_tests.adb` | REQ-CORE-113d; typed snapshot retention, reset, and idempotent support-window creation | 3 |
 | `coyote_gui_conversation_stack_tests.adb` | REQ-CORE-111, 133..139; native stack host, visible per-step frames, responsive per-step tool-card flow, incremental text, native GFM Markdown replacement, Markdown toggle, stable tool IDs, native status-row footers, functional fork buttons, explicit completion lifecycle, and reset | 13 |
-| Incremental-markup qualification | REQ-CORE-047..049; default-off compatibility, enabled-mode format selection, chunk-boundary invariance, immediate per-delta rendering without timer batching, malformed-input fallback, Markdown replay compatibility, table/display-math/code completion boundaries, immediate horizontal-rule events, mixed native ordering, repeated native blocks, empty provisional-view cleanup, malformed MathML-opening and horizontal-rule fallback, and literal code preservation | Restricted text/table/math/code/rule slice implemented; focused, display-backed, and full-suite coverage passing |
+| Incremental-markup qualification | REQ-CORE-047..049; default-off compatibility, enabled-mode format selection, chunk-boundary invariance, immediate per-delta rendering without timer batching, malformed-input fallback, Markdown replay compatibility, table/display-math/code/heading completion boundaries, immediate horizontal-rule events, mixed native ordering, repeated native blocks, empty provisional-view cleanup, malformed MathML-opening and horizontal-rule fallback, mismatched-heading fallback, and literal code preservation | Restricted text/table/math/code/rule/heading slice implemented; focused, display-backed, and full-suite coverage passing |
 
 | `coyote_gui_prompt_queue_tests.adb` | REQ-CORE-116..119, 128; typed preference payload transport | 1 |
 | `coyote_help_tests.adb` | REQ-CORE-113a, REQ-CORE-504a; Yelp URI construction, area mapping, executable detection, Help data path, and Product Information text | 5 |
@@ -215,7 +215,7 @@ behaviour. Results are recorded in a Test Report.
 | DEM-006 | REQ-CORE-040â044 | Start a GUI session; send a prompt; verify streaming text, thinking, tool events, and stats appear |
 | DEM-055 | REQ-CORE-047 | Run the GUI with `COYOTE_INCREMENTAL_MARKUP` unset and with `0`; verify the existing Markdown live-rendering and replay behavior remain unchanged. Set it to `1`; verify the incremental-markup path is selected only for live GUI assistant rendering and Plain output remains unchanged. |
 | DEM-056 | REQ-CORE-048 | In enabled mode, inspect the request/message lifecycle and session record; verify coyote selects and records the format before the first text delta, does not trust model-authored metadata, and treats missing legacy format metadata as Markdown. |
-| DEM-057 | REQ-CORE-049 | In enabled mode, feed equivalent CSM responses split at different provider-delta boundaries; verify each delta is processed immediately, no timer batching is used, stable components are updated, malformed markup is visibly escaped, and CSM tables/MathML commit as native components only at complete boundaries. Covered by parser boundary tests and display-backed incremental table/MathML stack tests, including prefix/native/suffix order, repeated native blocks, and empty provisional-view cleanup. |
+| DEM-057 | REQ-CORE-049 | In enabled mode, feed equivalent CSM responses split at different provider-delta boundaries; verify each delta is processed immediately, no timer batching is used, stable components are updated, malformed markup is visibly escaped, and CSM tables, MathML, literal code, and h1-h6 blocks commit as native or selectable components only at complete boundaries; self-closing horizontal rules emit immediately as native separators. Covered by parser boundary tests and display-backed incremental table/MathML/code/rule/heading stack tests, including literal-character preservation, malformed-rule and mismatched-heading fallback, prefix/native/suffix order, repeated native blocks, and empty provisional-view cleanup.
 | DEM-007 | REQ-CORE-055 | Start a long tool execution; press Stop; verify tool is cancelled and agent exits cleanly |
 | DEM-008 | REQ-CORE-060 | Configure a small context window; send prompts until threshold reached; verify auto-compaction notice appears |
 | DEM-009 | REQ-CORE-061 | Trigger manual compact in the GUI (`:compact` command or menu); verify the compaction summary appears |
@@ -441,7 +441,7 @@ natural-height display math.  Display-backed execution requires a GTK
 display.
 
 **Verification as of 2026-08-15 (Ctrl+mouse-wheel zoom, REQ-CORE-125):**
-856 registered tests, 0 failures, 0 unexpected errors (full suite completed).
+858 registered tests, 0 failures, 0 unexpected errors (full suite completed).
 Adds the pure-logic `Coyote_GUI.Zoom` package (12 new tests covering
 effective-size clamping, step semantics, plateau walk-back, and baseline
 clamping) and wires Ctrl+wheel zoom into the GUI frontend's conversation

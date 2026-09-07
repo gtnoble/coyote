@@ -18,11 +18,13 @@ package Coyote_Renderer.Incremental is
       Math_Event,
       Code_Event,
       Horizontal_Rule_Event,
+      Heading_Event,
       Invalid_Event);
 
    type Event is record
-      Kind : Event_Kind := Text_Event;
-      Text : Ada.Strings.Unbounded.Unbounded_String;
+      Kind  : Event_Kind := Text_Event;
+      Text  : Ada.Strings.Unbounded.Unbounded_String;
+      Level : Natural := 0;
    end record;
 
    type Event_Handler is not null access procedure (Value : Event);
@@ -33,10 +35,11 @@ package Coyote_Renderer.Incremental is
 
    --  Consume Data and emit semantic events synchronously.  Recognised CSM
    --  elements are <text>, <p>, </p>, <br/>, <table>...</table>,
-   --  <math>...</math> or <math ...>...</math>, <code>...</code>, and
-   --  <hr/> or <hr />. Table blocks contain GFM table source; math blocks
-   --  contain one complete MathML document; code blocks contain literal source
-   --  text; horizontal rules are native separators.
+   --  <math>...</math> or <math ...>...</math>, <code>...</code>,
+   --  <hr/> or <hr />, and <h1>...</h1> through <h6>...</h6>. Table
+   --  blocks contain GFM table source; math blocks contain one complete
+   --  MathML document; code blocks contain literal source text; horizontal
+   --  rules and headings are native components.
    --  Unknown or incomplete elements are emitted as visible source so
    --  malformed model output remains safe.
    procedure Feed
@@ -51,11 +54,13 @@ package Coyote_Renderer.Incremental is
 
 private
 
-   type Block_Kind is (No_Block, Table_Block, Math_Block, Code_Block);
+   type Block_Kind is
+     (No_Block, Table_Block, Math_Block, Code_Block, Heading_Block);
 
    type Instance is tagged limited record
       Pending : Ada.Strings.Unbounded.Unbounded_String;
       Block   : Block_Kind := No_Block;
+      Level   : Natural := 0;
       Buffer  : Ada.Strings.Unbounded.Unbounded_String;
    end record;
 

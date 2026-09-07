@@ -49,10 +49,20 @@ text/table/math/code scope.
 
 The additive CSM rule slice adds split-boundary and malformed-tag parser coverage
 plus display-backed native separator and text-rule-text-rule-text ordering
-coverage. The complete development suite passes 856/856 with zero failed
-assertions and zero unexpected errors; the focused parser suite passes 14/14
-and the display-backed conversation-stack suite passes 27/27. Existing
-Markdown/default-off behavior is unchanged.
+coverage. The complete development suite had passed 856/856 with zero failed
+assertions and zero unexpected errors; the focused parser suite had passed
+14/14 and the display-backed conversation-stack suite had passed 27/27 before
+the heading slice. Existing Markdown/default-off behavior remains unchanged.
+
+## 2026-09-07 — PCR-097 heading extension verification
+
+The additive CSM heading slice adds split-boundary, h1/h6-level, empty-heading,
+and mismatched-closing-tag parser coverage plus display-backed native heading
+label and text-heading-text-heading-text ordering coverage. The complete
+development suite passes 858/858 with zero failed assertions and zero unexpected
+errors; the focused parser suite passes 15/15 and the display-backed
+conversation-stack suite passes 28/28. Existing Markdown/default-off behavior is
+unchanged.
 
 ## 2026-09-05 — AUnit hierarchy and runtime baseline
 

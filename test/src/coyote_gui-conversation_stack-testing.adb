@@ -154,6 +154,33 @@ package body Coyote_GUI.Conversation_Stack.Testing is
       return "";
    end Active_Step_Child_Name;
 
+   function Active_Step_Child_Text
+     (C     : Coyote_GUI.Conversation_Stack.Instance;
+      Index : Positive) return String
+   is
+      Children : Gtk.Widget.Widget_List.Glist;
+      Child    : Gtk.Widget.Gtk_Widget;
+   begin
+      if C.Step_Box = null then
+         return "";
+      end if;
+      Children := Gtk.Widget.Widget_List.First
+        (Gtk.Container.Get_Children
+           (Gtk.Container.Gtk_Container (C.Step_Box)));
+      for Position in 1 .. Index loop
+         exit when Children = Gtk.Widget.Widget_List.Null_List;
+         Child := Gtk.Widget.Widget_List.Get_Data (Children);
+         if Position = Index and then Child /= null then
+            if Child.Get_Name = "GtkLabel" then
+               return Gtk.Label.Gtk_Label (Child).Get_Text;
+            end if;
+            return "";
+         end if;
+         Children := Gtk.Widget.Widget_List.Next (Children);
+      end loop;
+      return "";
+   end Active_Step_Child_Text;
+
    function Text_View_Count
      (C : Coyote_GUI.Conversation_Stack.Instance) return Natural
    is

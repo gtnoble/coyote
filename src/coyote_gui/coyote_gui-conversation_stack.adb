@@ -162,6 +162,11 @@ package body Coyote_GUI.Conversation_Stack is
       Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
       Source : String);
 
+   procedure Add_Response_Heading
+     (Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
+      Source : String;
+      Level  : Natural);
+
    procedure Pack_Incremental_Response
      (Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
       Child  : not null access Gtk.Widget.Gtk_Widget_Record'Class);
@@ -243,6 +248,9 @@ package body Coyote_GUI.Conversation_Stack is
          Add_Response_Code (C, C.Step_Box, To_String (Value.Text));
       elsif Value.Kind = Coyote_Renderer.Incremental.Horizontal_Rule_Event then
          Add_Response_Rule (C.Step_Box);
+      elsif Value.Kind = Coyote_Renderer.Incremental.Heading_Event then
+         Add_Response_Heading
+           (C.Step_Box, To_String (Value.Text), Value.Level);
       else
          declare
             Source : constant String := To_String (Value.Text);
@@ -294,7 +302,8 @@ package body Coyote_GUI.Conversation_Stack is
           Coyote_Renderer.Incremental.Table_Event |
           Coyote_Renderer.Incremental.Math_Event |
           Coyote_Renderer.Incremental.Code_Event |
-          Coyote_Renderer.Incremental.Horizontal_Rule_Event
+          Coyote_Renderer.Incremental.Horizontal_Rule_Event |
+          Coyote_Renderer.Incremental.Heading_Event
       then
          Replace_Incremental_Component (C, Value);
          return;
@@ -314,7 +323,8 @@ package body Coyote_GUI.Conversation_Stack is
          when Coyote_Renderer.Incremental.Table_Event |
               Coyote_Renderer.Incremental.Math_Event |
               Coyote_Renderer.Incremental.Code_Event |
-              Coyote_Renderer.Incremental.Horizontal_Rule_Event =>
+              Coyote_Renderer.Incremental.Horizontal_Rule_Event |
+              Coyote_Renderer.Incremental.Heading_Event =>
             Replace_Incremental_Component (C, Value);
       end case;
    end Apply_Incremental_Event;
@@ -361,6 +371,31 @@ package body Coyote_GUI.Conversation_Stack is
         (Implements_Gtk_Style_Provider.To_Interface (Provider),
          Guint (Priority_Application));
    end Apply_Response_Style;
+
+   procedure Add_Response_Heading
+     (Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
+      Source : String;
+      Level  : Natural)
+   is
+      Label : Gtk.Label.Gtk_Label;
+      Raw   : constant String :=
+        (if Source'Length > 9
+         then Source (Source'First + 4 .. Source'Last - 5)
+         else "");
+      Size  : constant String :=
+        (if Level <= 2 then "larger"
+         elsif Level <= 4 then "medium"
+         else "normal");
+   begin
+      Gtk.Label.Gtk_New (Label);
+      Label.Set_Markup
+        ("<span weight=""bold"" size=""" & Size & """>"
+         & Coyote_Renderer.Markup.Xml_Escape (Raw)
+         & "</span>");
+      Label.Set_Xalign (0.0);
+      Label.Set_Selectable (True);
+      Pack_Incremental_Response (Parent, Label);
+   end Add_Response_Heading;
 
    procedure Add_Response_Code
      (C      : in out Instance;

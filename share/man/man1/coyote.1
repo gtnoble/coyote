@@ -141,9 +141,10 @@ replay are unchanged. The implemented path processes each provider delta
 immediately, retains partial CSM tags across deltas, and realizes complete CSM
 table, math, and literal code blocks at closing boundaries as native grids,
 Lasem-backed MathML, or selectable monospace text components. Self-closing CSM
-horizontal rules are realized as native separators immediately. The restricted
-CSM grammar currently covers text, paragraphs, line breaks, tables, MathML,
-literal code blocks, and horizontal rules.
+horizontal rules are realized as native separators immediately, and complete
+CSM h1-h6 blocks are realized as selectable native heading labels at closing
+boundaries. The restricted CSM grammar currently covers text, paragraphs, line
+breaks, tables, MathML, literal code blocks, horizontal rules, and headings.
 .TP
 .B DISPLAY
 When non-empty, selects the GUI frontend unless an explicit frontend or

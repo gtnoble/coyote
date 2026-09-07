@@ -821,6 +821,37 @@ package body Coyote_GUI_Conversation_Stack_Tests is
               "incremental rules preserve suffix text");
    end Test_Incremental_Horizontal_Rule;
 
+   procedure Test_Incremental_Heading (T : in out Test) is
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Set_Incremental_Markup (T.Stack, True);
+      Begin_Request (T.Stack, "request", Prompt);
+      Append_Text (T.Stack, "prefix ");
+      Append_Text (T.Stack, "<h1>Title <&</h1>");
+      Append_Text (T.Stack, " middle <h4>Deep</h4> suffix");
+      Assert (Active_Step_Child_Count (T.Stack) = 5,
+              "incremental headings preserve five ordered siblings");
+      Assert (Active_Step_Child_Name (T.Stack, 1) = "GtkVBox"
+              and then Active_Step_Child_Name (T.Stack, 2) = "GtkLabel"
+              and then Active_Step_Child_Name (T.Stack, 3) = "GtkVBox"
+              and then Active_Step_Child_Name (T.Stack, 4) = "GtkLabel"
+              and then Active_Step_Child_Name (T.Stack, 5) = "GtkVBox",
+              "incremental headings preserve text-heading-text-heading-"
+              & "text order");
+      Assert (Active_Step_Child_Text (T.Stack, 2) = "Title <&",
+              "h1 label preserves literal heading text");
+      Assert (Active_Step_Child_Text (T.Stack, 4) = "Deep",
+              "h4 label preserves heading text");
+      Assert (Index (Text_View_Text (T.Stack, 1), "prefix") > 0,
+              "heading response preserves prefix text");
+      Assert (Index (Text_View_Text (T.Stack, 2), "middle") > 0,
+              "heading response preserves middle text");
+      Assert (Index (Text_View_Text (T.Stack, 3), "suffix") > 0,
+              "heading response preserves suffix text");
+   end Test_Incremental_Heading;
+
    procedure Test_Incremental_Mixed_Order (T : in out Test) is
    begin
       if not T.Display_Available then
@@ -979,6 +1010,10 @@ package body Coyote_GUI_Conversation_Stack_Tests is
         ("Coyote.GUI.Conversation_Stack incremental horizontal rule",
          Coyote_GUI_Conversation_Stack_Tests
            .Test_Incremental_Horizontal_Rule'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack incremental heading",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Incremental_Heading'Access));
       Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
         ("Coyote.GUI.Conversation_Stack incremental mixed order",
          Coyote_GUI_Conversation_Stack_Tests

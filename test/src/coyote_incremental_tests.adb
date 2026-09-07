@@ -195,13 +195,15 @@ package body Coyote_Incremental_Tests is
    begin
       Reset_Log;
       Feed
-        (Parser, "<table></table><math></math><code></code>", Collect'Access);
-      Assert (Test_Log.Count = 3,
-              "empty table, math, and code blocks emit separate events");
+        (Parser,
+         "<table></table><math></math><code></code><h3></h3>",
+         Collect'Access);
+      Assert (Test_Log.Count = 4,
+              "empty table, math, code, and heading blocks emit events");
       Assert (Test_Log.Invalid_Count = 0,
               "empty complete blocks are valid events");
       Assert (To_String (Test_Log.Text) =
-                "<table></table>|<math></math>|<code></code>",
+                "<table></table>|<math></math>|<code></code>|<h3></h3>",
               "empty complete blocks preserve source order");
    end Test_Empty_Blocks_Are_Valid;
 
@@ -226,6 +228,35 @@ package body Coyote_Incremental_Tests is
       Assert (To_String (Test_Log.Text) = "bad|<hr>|tail",
               "malformed horizontal rule remains visible source");
    end Test_Horizontal_Rule_Events;
+
+   procedure Test_Heading_Events (T : in out Test) is
+      pragma Unreferenced (T);
+      Parser : Instance;
+   begin
+      Reset_Log;
+      Feed (Parser, "before<h", Collect'Access);
+      Feed (Parser, "2>Title <&</h2>after", Collect'Access);
+      Assert (Test_Log.Count = 3,
+              "split heading emits prefix, heading, and suffix events");
+      Assert (Test_Log.Invalid_Count = 0,
+              "recognized heading is valid");
+      Assert (To_String (Test_Log.Text) =
+                "before|<h2>Title <&</h2>|after",
+              "heading preserves complete source order");
+      Reset_Log;
+      Feed (Parser, "<h1>one</h1><h6>six</h6>", Collect'Access);
+      Assert (Test_Log.Count = 2,
+              "multiple heading levels emit separate events");
+      Assert (Test_Log.Invalid_Count = 0,
+              "multiple heading levels are valid");
+      Reset_Log;
+      Feed (Parser, "<h2>bad</h3>", Collect'Access);
+      Flush (Parser, Collect'Access);
+      Assert (Test_Log.Invalid_Count = 1,
+              "mismatched heading closing tag remains visible");
+      Assert (To_String (Test_Log.Text) = "<h2>bad</h3>",
+              "mismatched heading source remains visible");
+   end Test_Heading_Events;
 
    package Caller is new AUnit.Test_Caller (Test);
 
@@ -272,6 +303,9 @@ package body Coyote_Incremental_Tests is
       Result.Add_Test (Caller.Create
         ("Incremental horizontal rules preserve order",
          Test_Horizontal_Rule_Events'Access));
+      Result.Add_Test (Caller.Create
+        ("Incremental headings preserve levels and order",
+         Test_Heading_Events'Access));
       return Result;
    end Suite;
 

@@ -47,10 +47,11 @@ provider delta is parsed immediately; text, paragraph, and line events update
 selectable GTK text components, while complete `<table>`, `<math>`, and
 `<code>` blocks are realized at their closing boundaries as native grid,
 Lasem-backed MathML, and selectable monospace components; self-closing `<hr/>`
-and `<hr />` elements become native horizontal separators immediately. Partial
-or malformed fragments remain visible source. Markdown remains the default path.
-Parser and display-backed GUI component tests pass; the CSM grammar remains
-intentionally restricted.
+and `<hr />` elements become native horizontal separators immediately; complete
+h1-h6 blocks become selectable native heading labels at their closing
+boundaries. Partial or malformed fragments remain visible source. Markdown
+remains the default path. Parser and display-backed GUI component tests pass;
+the CSM grammar remains intentionally restricted.
 
 ### PCR-097 focused incremental-markup implementation verification (2026-09-06)
 
@@ -67,10 +68,20 @@ README documents the opt-in flag and restricted CSM scope.
 
 The display-backed suite now verifies split-boundary `<hr/>` and `<hr />`
 recognition, native `GtkHSeparator` realization, and ordered
-text-rule-text-rule-text components. The complete development suite passes
+text-rule-text-rule-text components. The complete development suite had passed
 856/856 with zero failed assertions and zero unexpected errors; the focused
-parser suite passes 14/14 and the display-backed conversation-stack suite
-passes 27/27. Existing Markdown/default-off behavior is unchanged.
+parser suite had passed 14/14 and the display-backed conversation-stack suite
+had passed 27/27 before the heading slice. Existing Markdown/default-off
+behavior remains unchanged.
+
+### PCR-097 heading extension verification (2026-09-07)
+
+The display-backed suite verifies split h1/h4 headings, native selectable
+heading labels, literal heading text, and text-heading-text-heading-text order.
+The complete development suite passes 858/858 with zero failed assertions and
+zero unexpected errors; the focused parser suite passes 15/15 and the
+display-backed conversation-stack suite passes 28/28. Existing Markdown and
+COYOTE_INCREMENTAL_MARKUP default-off behavior are unchanged.
 
 ### AUnit GUI fixture hierarchy and shutdown verification (2026-09-05)
 

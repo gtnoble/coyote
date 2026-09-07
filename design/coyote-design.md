@@ -104,9 +104,11 @@ This model has two key properties:
   When the variable is absent or `0`, the existing Markdown path remains
   active. CSM table blocks contain GFM table source inside `<table>`, CSM math
   blocks contain one complete `<math>` document, and CSM code blocks contain
-  literal source inside `<code>`. These blocks are buffered only until their
-  closing boundary, then realized as native grid, Lasem-backed MathML, or
-  selectable monospace components.
+  literal source inside `<code>`. Complete `<h1>` through `<h6>` blocks are
+  buffered until their closing boundary and realized as selectable native
+  heading labels. The other blocks are buffered only until their closing
+  boundary, then realized as native grid, Lasem-backed MathML, or selectable
+  monospace components.
 
 ### 3.2 Error and Exception Handling
 
@@ -318,7 +320,7 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `Coyote_Lasem` | Ada/C binding to Lasem Presentation MathML rendering | `src/coyote_lasem.ads/.adb`, `src/coyote_lasem_c.c` |
 | `Coyote_Renderer` | Shared GTK text/replay rendering root | `src/coyote_renderer/coyote_renderer.ads` |
 | `Coyote_Renderer.Markup` | GFM Markdown to Pango markup converter | `src/coyote_renderer/coyote_renderer-markup.ads/.adb` |
-| `Coyote_Renderer.Incremental` | Restricted synchronous CSM parser and semantic-event boundary for text, tables, MathML, literal code blocks, and horizontal rules | `src/coyote_renderer/coyote_renderer-incremental.ads/.adb` |
+| `Coyote_Renderer.Incremental` | Restricted synchronous CSM parser and semantic-event boundary for text, tables, MathML, literal code blocks, horizontal rules, and headings | `src/coyote_renderer/coyote_renderer-incremental.ads/.adb` |
 | `Coyote_Renderer.MathML` | Markdown-aware display-math extraction with code-block protection | `src/coyote_renderer/coyote_renderer-mathml.ads/.adb` |
 | `Coyote_Renderer.Tables` | GTK-independent GFM table extraction and metadata model | `src/coyote_renderer/coyote_renderer-tables.ads/.adb` |
 | `Coyote_Renderer.Session_View` | Read-only session replay renderer | `src/coyote_renderer/coyote_renderer-session_view.ads/.adb` |
