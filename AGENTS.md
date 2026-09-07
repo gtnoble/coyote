@@ -12,7 +12,7 @@ Coyote is a native Ada 2022 LLM coding-agent harness with two frontends:
 The former Acme frontend, Nine_P 9P stack, plumber integration, and
 `coyote_open` utility were removed from the current product baseline on
 2026-08-30. Do not add Acme, 9P, `$winid`, `PLAN9`, or plumber assumptions to
-current code or documentation. The current registered test baseline is 864.
+current code or documentation. The current registered test baseline is 870.
 
 Executables:
 
@@ -127,8 +127,8 @@ grace period before escalation.
 
 ## Testing
 
-The complete development suite currently contains 864 registered tests and
-passes 864/864 in approximately 37 seconds on the development host. The
+The complete development suite currently contains 870 registered tests and
+passes 870/870 in approximately 37 seconds on the development host. The
 suite is organized as a root AUnit suite with Core, LLM, SQC, GUI,
 Integration, and final Process-Control domain suites. Live provider tests
 remain opt-in, and real subagent subprocess tests require

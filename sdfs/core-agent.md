@@ -873,3 +873,32 @@ coordinator inheritance values.
 **Verification:** New agent-precedence test covers override-beats-persistent,
 explicit-beats-override, empty-clears, and ordinary-session-ignores cases;
 full suite passes 849/849.
+
+## 2026-09-07 — Retryable curl transport errors (REQ-CORE-145)
+
+`LLM.Agent.Is_Retryable_Error` now classifies transient libcurl
+transport-level failures as retryable alongside HTTP 429/5xx statuses,
+matching the `curl_easy_strerror` fragments for CURLE_HTTP2_STREAM (92,
+"Stream error in the HTTP/2 framing layer"), CURLE_HTTP2 (16),
+CURLE_RECV_ERROR (56), CURLE_SEND_ERROR (55), CURLE_GOT_NOTHING (52),
+and CURLE_PARTIAL_FILE (18).  These failures occur sporadically
+mid-stream on healthy endpoints (observed against chatgpt.com,
+ollama.com, and opencode.ai) and previously aborted the turn as
+non-retryable.  The new `Is_Transport_Error_Message` helper performs the
+substring matching; CURLE_WRITE_ERROR (23) remains non-retryable because
+coyote raises it deliberately through the write callback when the user
+aborts.
+
+**Requirement:** Transient transport-level curl failures shall be
+retried by `Send_With_Retry` with the standard backoff rather than
+failing the turn.
+
+**Implementation:** `LLM.Agent.Is_Retryable_Error` (agent loop retry
+classification) consults the new body-private
+`Is_Transport_Error_Message` predicate in addition to the existing HTTP
+status-code parsing.  No changes to `LLM.HTTP` or provider code.
+
+**Verification:** New `LLM.Agent` test drops the connection without a
+response on the first request (CURLE_RECV_ERROR path) and asserts the
+Auto_Retry_Start event fires and the second attempt streams normally;
+full suite passes 870/870.

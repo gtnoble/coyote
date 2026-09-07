@@ -3407,6 +3407,128 @@ package body LLM_Agent_Tests is
          raise;
    end Test_Auto_Retry_On_HTTP_500_Then_Success;
 
+   procedure Test_Auto_Retry_On_Transport_Error_Then_Success
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+
+      Home            : constant String :=
+        "/tmp/coyote_llm_agent_test_transport_retry";
+      Port            : constant Positive := 18_801;
+      Agent_Session   : LLM.Agent.Session;
+      Saw_Retry       : Boolean := False;
+      Saw_Text_Delta  : Boolean := False;
+      End_Was_Aborted : Boolean := True;
+      Text_Result     : Unbounded_String := Null_Unbounded_String;
+      Server_Stopped  : Boolean := False;
+      Request_Count   : Natural := 0;
+      Home_Was_Set    : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home        : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Key_Was_Set     : constant Boolean :=
+        Ada.Environment_Variables.Exists ("OPENROUTER_API_KEY");
+      Old_Key         : constant String :=
+        Ada.Environment_Variables.Value ("OPENROUTER_API_KEY", "");
+      Url_Was_Set     : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_OPENROUTER_BASE_URL");
+      Old_Url         : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_OPENROUTER_BASE_URL", "");
+
+      procedure On_Event (E : LLM.Events.Agent_Event'Class) is
+      begin
+         if E in LLM.Events.Auto_Retry_Start_Event then
+            Saw_Retry := True;
+         elsif E in LLM.Events.Message_Update_Event then
+            declare
+               Event : constant LLM.Events.Message_Update_Event :=
+                 LLM.Events.Message_Update_Event (E);
+            begin
+               if Event.Kind = LLM.Events.Text_Delta then
+                  Saw_Text_Delta := True;
+                  Append (Text_Result, To_String (Event.Delta_Text));
+               end if;
+            end;
+         elsif E in LLM.Events.Agent_End_Event then
+            End_Was_Aborted := LLM.Events.Agent_End_Event (E).Was_Aborted;
+         end if;
+      end On_Event;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         pragma Unreferenced (Req);
+      begin
+         Request_Count := Request_Count + 1;
+         if Request_Count = 1 then
+            --  Close the connection without a response so libcurl sees a
+            --  transport-level receive failure (CURLE_RECV_ERROR) rather
+            --  than an HTTP status code.
+            raise Constraint_Error with "drop connection";
+         end if;
+         Res.Status := 200;
+         Add_SSE_Header (Res);
+         Append (Res.Body_Data,
+                 Text_SSE_Payload ("transport retried", 8, 3));
+      end Handle_Request;
+
+      Srv : Test_HTTP_Server.Server (Handle_Request'Unrestricted_Access);
+   begin
+      Prepare_Test_Home (Home);
+      Write_OpenRouter_Cache (Home);
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Set ("OPENROUTER_API_KEY", "test-key");
+      Ada.Environment_Variables.Set
+        ("COYOTE_OPENROUTER_BASE_URL",
+         "http://127.0.0.1:" & Natural_Image (Port) & "/api/v1");
+
+      LLM.Agent.Create
+        (S          => Agent_Session,
+         Model_Spec => "openrouter/openai/gpt-4o-mini",
+         No_Tools   => True);
+
+      Srv.Bind (Port);
+
+      --  The current implementation uses a fixed two-second first retry.
+      LLM.Agent.Run_Prompt
+        (S        => Agent_Session,
+         Prompt   => "Retry this transport failure",
+         On_Event => On_Event'Access);
+
+      Srv.Stop;
+      Server_Stopped := True;
+
+      Assert (Saw_Retry,
+              "transport error should trigger Auto_Retry_Start_Event");
+      Assert
+        (not End_Was_Aborted,
+         "Successful transport retry should end the turn normally");
+      Assert
+        (Saw_Text_Delta
+           and then To_String (Text_Result) = "transport retried",
+         "Transport retry success should stream the final text");
+
+      Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
+      Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         if not Server_Stopped then
+            begin
+               Srv.Stop;
+            exception
+               when Tasking_Error => null;
+            end;
+         end if;
+         Restore_Env ("COYOTE_OPENROUTER_BASE_URL", Url_Was_Set, Old_Url);
+         Restore_Env ("OPENROUTER_API_KEY", Key_Was_Set, Old_Key);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Auto_Retry_On_Transport_Error_Then_Success;
+
    procedure Test_Compatible_History_Filters_Foreign_Thinking
      (T : in out Test)
    is
@@ -6501,6 +6623,10 @@ package body LLM_Agent_Tests is
         ("LLM.Agent retries HTTP 500 errors and succeeds on retry",
          LLM_Agent_Tests
            .Test_Auto_Retry_On_HTTP_500_Then_Success'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent retries curl transport errors and succeeds on retry",
+         LLM_Agent_Tests
+           .Test_Auto_Retry_On_Transport_Error_Then_Success'Access));
       Result.Add_Test (LLM_Agent_Caller.Create
         ("LLM.Agent filters encrypted thinking across model switches",
          LLM_Agent_Tests

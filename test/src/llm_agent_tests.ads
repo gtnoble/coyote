@@ -37,6 +37,8 @@ package LLM_Agent_Tests is
      (T : in out Test);
    procedure Test_Auto_Retry_On_HTTP_500_Then_Success
      (T : in out Test);
+   procedure Test_Auto_Retry_On_Transport_Error_Then_Success
+     (T : in out Test);
    procedure Test_Compatible_History_Filters_Foreign_Thinking
      (T : in out Test);
    procedure Test_Non_Retryable_Error_Rolls_Back_Prompt

@@ -753,16 +753,45 @@ package body LLM.Agent is
       end if;
    end Retryable_Status_Code;
 
+   --  curl_easy_strerror message fragments for transient transport-level
+   --  curl codes: CURLE_HTTP2_STREAM (92), CURLE_HTTP2 (16),
+   --  CURLE_RECV_ERROR (56), CURLE_SEND_ERROR (55), CURLE_GOT_NOTHING
+   --  (52), and CURLE_PARTIAL_FILE (18).  These can occur sporadically
+   --  mid-stream on otherwise healthy endpoints, so the agent retries
+   --  them with the normal backoff instead of failing the turn.
+   --  CURLE_WRITE_ERROR (23) is deliberately excluded: coyote raises it
+   --  through the write callback when the user aborts, so retrying it
+   --  would resurrect cancelled turns.
+   function Is_Transport_Error_Message
+     (Message : String) return Boolean
+   is
+   begin
+      return
+        Ada.Strings.Fixed.Index
+          (Message, "Stream error in the HTTP/2 framing layer") > 0
+        or else Ada.Strings.Fixed.Index
+          (Message, "Error in the HTTP2 framing layer") > 0
+        or else Ada.Strings.Fixed.Index
+          (Message, "Failure when receiving data from the peer") > 0
+        or else Ada.Strings.Fixed.Index
+          (Message, "Failed sending data to the peer") > 0
+        or else Ada.Strings.Fixed.Index
+          (Message, "Server returned nothing") > 0
+        or else Ada.Strings.Fixed.Index
+          (Message, "Transferred a partial file") > 0;
+   end Is_Transport_Error_Message;
+
    function Is_Retryable_Error
      (Occurrence : Ada.Exceptions.Exception_Occurrence) return Boolean
    is
-      Status : constant Natural :=
-        Retryable_Status_Code
-          (Ada.Exceptions.Exception_Message (Occurrence));
+      Message : constant String :=
+        Ada.Exceptions.Exception_Message (Occurrence);
+      Status  : constant Natural := Retryable_Status_Code (Message);
    begin
       return Status = 429
         or else Status = 529
-        or else (Status >= 500 and then Status <= 599);
+        or else (Status >= 500 and then Status <= 599)
+        or else Is_Transport_Error_Message (Message);
    end Is_Retryable_Error;
 
    procedure Remove_Trailing_Error_Message
