@@ -756,8 +756,45 @@ package body Coyote_GUI_Conversation_Stack_Tests is
               "incremental table preserves cell text");
       Assert (not Response_Stream_Present (T.Stack),
               "incremental table removes raw stream view");
-
+      Assert (Text_View_Count (T.Stack) = 0,
+              "table-only stream removes provisional text view tracking");
    end Test_Incremental_Native_Table;
+
+   procedure Test_Incremental_Mixed_Order (T : in out Test) is
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Set_Incremental_Markup (T.Stack, True);
+      Begin_Request (T.Stack, "request", Prompt);
+      Append_Text (T.Stack, "prefix ");
+      Append_Text (T.Stack, "<table>| H |" & ASCII.LF
+                   & "| --- |" & ASCII.LF & "| cell |</table>");
+      Append_Text (T.Stack, " suffix");
+      Append_Text (T.Stack, "<table>| H2 |" & ASCII.LF
+                   & "| --- |" & ASCII.LF & "| cell2 |</table>");
+      Assert (Table_Count (T.Stack) = 2,
+              "repeated incremental native blocks remain realizable");
+      Assert (Table_Count (T.Stack) = 2,
+              "mixed incremental response realizes both tables");
+      Assert (Text_View_Count (T.Stack) = 2,
+              "mixed incremental response retains prefix and suffix views");
+      Assert (Index (Text_View_Text (T.Stack, 1), "prefix") > 0,
+              "prefix text remains visible after native replacement");
+      Assert (Index (Text_View_Text (T.Stack, 2), "suffix") > 0,
+              "suffix text remains visible after native replacement");
+      Assert (Active_Step_Child_Count (T.Stack) = 4,
+              "mixed response preserves four source-order siblings");
+      Assert (Active_Step_Child_Name (T.Stack, 1) = "GtkVBox"
+              and then Active_Step_Child_Name (T.Stack, 2) = "GtkGrid"
+              and then Active_Step_Child_Name (T.Stack, 3) =
+                "GtkVBox"
+              and then Active_Step_Child_Name (T.Stack, 4) = "GtkGrid",
+              "mixed response preserves source component order: "
+              & Active_Step_Child_Name (T.Stack, 1) & "|"
+              & Active_Step_Child_Name (T.Stack, 2) & "|"
+              & Active_Step_Child_Name (T.Stack, 3));
+   end Test_Incremental_Mixed_Order;
 
    procedure Test_Incremental_Native_Math (T : in out Test) is
    begin
@@ -874,6 +911,10 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          Coyote_GUI_Conversation_Stack_Tests
            .Test_Incremental_Native_Math'Access));
       Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack incremental mixed order",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Incremental_Mixed_Order'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
         ("Coyote.GUI.Conversation_Stack uses visible step frames",
          Coyote_GUI_Conversation_Stack_Tests
            .Test_Assistant_Content_Uses_Visible_Step_Frame'Access));
@@ -898,7 +939,7 @@ package body Coyote_GUI_Conversation_Stack_Tests is
          Coyote_GUI_Conversation_Stack_Tests
            .Test_Tool_Cards_Use_Responsive_Flow'Access));
       Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
-        ("Coyote.GUI.Conversation_Stack uses native labels and View Details action",
+        ("Coyote.GUI.Conversation_Stack uses native labels and details action",
          Coyote_GUI_Conversation_Stack_Tests
            .Test_Tool_Card_Uses_Native_Labels'Access));
       Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create

@@ -148,34 +148,53 @@ package body Coyote_GUI.Conversation_Stack is
       Text           : String;
       Buffer         : out Gtk.Text_Buffer.Gtk_Text_Buffer;
       View           : out Gtk.Text_View.Gtk_Text_View;
-      Response_Block : Boolean := False);
+      Response_Block : Boolean := False;
+      Incremental_Order : Boolean := False);
 
    procedure Add_Response_Text
      (C      : in out Instance;
       Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
-      Text   : String);
+      Text   : String;
+      Incremental_Order : Boolean := False);
+
+   procedure Pack_Incremental_Response
+     (Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
+      Child  : not null access Gtk.Widget.Gtk_Widget_Record'Class)
+   is
+   begin
+      Parent.Pack_Start
+        (Child, Expand => False, Fill => True,
+         Padding => Response_Block_Padding);
+      Parent.Reorder_Child (Child, -1);
+   end Pack_Incremental_Response;
 
    procedure Add_Response_Table
      (C      : in out Instance;
       Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
-      Table  : Coyote_Renderer.Tables.Table_Block);
+      Table  : Coyote_Renderer.Tables.Table_Block;
+      Incremental_Order : Boolean := False);
 
    procedure Replace_Incremental_Component
      (C     : in out Instance;
       Value : Coyote_Renderer.Incremental.Event)
    is
-      Start_Iter : Gtk.Text_Iter.Gtk_Text_Iter;
-      End_Iter   : Gtk.Text_Iter.Gtk_Text_Iter;
       Raw_View   : constant Gtk.Text_View.Gtk_Text_View := C.Active_View;
    begin
       if C.Response_Section = null then
          return;
       end if;
       if C.Active_Text /= null and then Raw_View /= null then
-         C.Active_Text.Get_Iter_At_Mark (Start_Iter, C.Stream_Mark);
-         C.Active_Text.Get_End_Iter (End_Iter);
-         C.Active_Text.Delete (Start_Iter, End_Iter);
-         C.Response_Section.Remove (Raw_View);
+         if C.Active_Text.Get_Char_Count = 0 then
+            C.Response_Section.Remove (Raw_View);
+            declare
+               Old_Index : constant Text_View_Vectors.Extended_Index :=
+                 C.Text_Views.Find_Index (Raw_View);
+            begin
+               if Old_Index /= Text_View_Vectors.No_Index then
+                  C.Text_Views.Delete (Old_Index);
+               end if;
+            end;
+         end if;
       end if;
       C.Active_Text := null;
       C.Active_View := null;
@@ -193,10 +212,13 @@ package body Coyote_GUI.Conversation_Stack is
          begin
             if Extraction.Blocks.Length = 1 then
                Add_Response_Table
-                 (C, C.Response_Section,
-                  Extraction.Blocks (Extraction.Blocks.First_Index));
+                 (C, C.Step_Box,
+                  Extraction.Blocks (Extraction.Blocks.First_Index),
+                  Incremental_Order => True);
             else
-               Add_Response_Text (C, C.Response_Section, To_String (Value.Text));
+               Add_Response_Text
+                 (C, C.Step_Box, To_String (Value.Text),
+                  Incremental_Order => True);
             end if;
          end;
       else
@@ -207,10 +229,12 @@ package body Coyote_GUI.Conversation_Stack is
               Coyote_GUI.Math_Element.New_Element (MathML, Source, C.Math_Scale);
          begin
             if Element = null then
-               Add_Response_Text (C, C.Response_Section, Source);
+               Add_Response_Text
+                 (C, C.Step_Box, Source,
+                  Incremental_Order => True);
             else
-               Pack_Response_Block
-                 (C.Response_Section,
+               Pack_Incremental_Response
+                 (C.Step_Box,
                   Coyote_GUI.Math_Element.Widget (Element.all));
                C.Math_Elements.Append (Element);
             end if;
@@ -230,8 +254,10 @@ package body Coyote_GUI.Conversation_Stack is
           Coyote_Renderer.Incremental.Invalid_Event
       then
          Add_Text_Element
-           (C, C.Response_Section, "Response", "",
-            C.Active_Text, C.Active_View);
+           (C, C.Step_Box, "Response", "",
+            C.Active_Text, C.Active_View,
+            Incremental_Order => True);
+         C.Text_Views.Append (C.Active_View);
          C.Stream_Mark := null;
          declare
             Iter : Gtk.Text_Iter.Gtk_Text_Iter;
@@ -313,7 +339,8 @@ package body Coyote_GUI.Conversation_Stack is
    procedure Add_Response_Text
      (C      : in out Instance;
       Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
-      Text   : String)
+      Text   : String;
+      Incremental_Order : Boolean := False)
    is
       Buffer : Gtk.Text_Buffer.Gtk_Text_Buffer;
       View   : Gtk.Text_View.Gtk_Text_View;
@@ -325,7 +352,9 @@ package body Coyote_GUI.Conversation_Stack is
          return;
       end if;
       Add_Text_Element
-        (C, Parent, "", Text, Buffer, View, Response_Block => True);
+        (C, Parent, "", Text, Buffer, View,
+         Response_Block => True,
+         Incremental_Order => Incremental_Order);
       Apply_Response_Style (View);
       if C.Render_Markdown then
          Buffer.Set_Text ("");
@@ -340,7 +369,8 @@ package body Coyote_GUI.Conversation_Stack is
    procedure Add_Response_Table
      (C      : in out Instance;
       Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
-      Table  : Coyote_Renderer.Tables.Table_Block)
+      Table  : Coyote_Renderer.Tables.Table_Block;
+      Incremental_Order : Boolean := False)
    is
       Grid : Gtk.Grid.Gtk_Grid;
    begin
@@ -404,7 +434,11 @@ package body Coyote_GUI.Conversation_Stack is
             end;
          end loop;
       end if;
-      Pack_Response_Block (Parent, Grid);
+      if Incremental_Order then
+         Pack_Incremental_Response (Parent, Grid);
+      else
+         Pack_Response_Block (Parent, Grid);
+      end if;
       C.Table_Grids.Append (Grid);
    end Add_Response_Table;
 
@@ -720,7 +754,8 @@ package body Coyote_GUI.Conversation_Stack is
       Text           : String;
       Buffer         : out Gtk.Text_Buffer.Gtk_Text_Buffer;
       View           : out Gtk.Text_View.Gtk_Text_View;
-      Response_Block : Boolean := False)
+      Response_Block : Boolean := False;
+      Incremental_Order : Boolean := False)
    is
       Section : Gtk.Box.Gtk_Box;
       Label   : Gtk.Label.Gtk_Label;
@@ -740,7 +775,9 @@ package body Coyote_GUI.Conversation_Stack is
          Buffer.Set_Text (Text);
       end if;
       Section.Pack_Start (View, Expand => False, Fill => True, Padding => 2);
-      if Response_Block then
+      if Incremental_Order then
+         Pack_Incremental_Response (Parent, Section);
+      elsif Response_Block then
          Pack_Response_Block (Parent, Section);
       else
          Parent.Pack_Start
@@ -897,7 +934,11 @@ package body Coyote_GUI.Conversation_Stack is
       Ensure_Active_Step (C);
       if not C.Text_Open then
          Add_Text_Element
-           (C, C.Step_Box, "Response", "", C.Active_Text, C.Active_View);
+           (C, C.Step_Box, "Response", "", C.Active_Text, C.Active_View,
+            Incremental_Order => C.Incremental_Markup);
+         if C.Incremental_Markup then
+            C.Text_Views.Append (C.Active_View);
+         end if;
          C.Text_Open := True;
          C.Stream_Buf := Null_Unbounded_String;
          Coyote_Renderer.Incremental.Reset (C.Incremental_Parser);

@@ -117,6 +117,73 @@ package body Coyote_GUI.Conversation_Stack.Testing is
           (C.Active_View).Has_Class ("coyote-response-content");
    end Response_Text_Has_Style;
 
+   function Active_Step_Child_Count
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Natural
+   is
+   begin
+      if C.Step_Box = null then
+         return 0;
+      end if;
+      return Natural
+        (Gtk.Widget.Widget_List.Length
+           (Gtk.Container.Get_Children
+              (Gtk.Container.Gtk_Container (C.Step_Box))));
+   end Active_Step_Child_Count;
+
+   function Active_Step_Child_Name
+     (C     : Coyote_GUI.Conversation_Stack.Instance;
+      Index : Positive) return String
+   is
+      Children : Gtk.Widget.Widget_List.Glist;
+      Child    : Gtk.Widget.Gtk_Widget;
+   begin
+      if C.Step_Box = null then
+         return "";
+      end if;
+      Children := Gtk.Container.Get_Children
+        (Gtk.Container.Gtk_Container (C.Step_Box));
+      Children := Gtk.Widget.Widget_List.First (Children);
+      for Position in 1 .. Index loop
+         exit when Children = Gtk.Widget.Widget_List.Null_List;
+         Child := Gtk.Widget.Widget_List.Get_Data (Children);
+         if Position = Index and then Child /= null then
+            return Child.Get_Name;
+         end if;
+         Children := Gtk.Widget.Widget_List.Next (Children);
+      end loop;
+      return "";
+   end Active_Step_Child_Name;
+
+   function Text_View_Count
+     (C : Coyote_GUI.Conversation_Stack.Instance) return Natural
+   is
+   begin
+      return Natural (C.Text_Views.Length);
+   end Text_View_Count;
+
+   function Text_View_Text
+     (C     : Coyote_GUI.Conversation_Stack.Instance;
+      Index : Positive) return String
+   is
+      Start_Iter : Gtk.Text_Iter.Gtk_Text_Iter;
+      End_Iter   : Gtk.Text_Iter.Gtk_Text_Iter;
+   begin
+      if Index > Natural (C.Text_Views.Length) then
+         return "";
+      end if;
+      declare
+         Buffer : constant Gtk.Text_Buffer.Gtk_Text_Buffer :=
+           C.Text_Views (Index).Get_Buffer;
+      begin
+         if Buffer = null then
+            return "";
+         end if;
+         Buffer.Get_Start_Iter (Start_Iter);
+         Buffer.Get_End_Iter (End_Iter);
+         return Buffer.Get_Text (Start_Iter, End_Iter);
+      end;
+   end Text_View_Text;
+
    function Table_Count
      (C : Coyote_GUI.Conversation_Stack.Instance) return Natural
    is

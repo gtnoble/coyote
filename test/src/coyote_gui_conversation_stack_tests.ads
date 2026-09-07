@@ -40,6 +40,7 @@ package Coyote_GUI_Conversation_Stack_Tests is
    procedure Test_Native_Display_Math_Zooms (T : in out Test);
    procedure Test_Incremental_Native_Table (T : in out Test);
    procedure Test_Incremental_Native_Math  (T : in out Test);
+   procedure Test_Incremental_Mixed_Order  (T : in out Test);
    procedure Test_Assistant_Content_Uses_Visible_Step_Frame
      (T : in out Test);
    procedure Test_Footer_Closes_Step_Before_Next_Step

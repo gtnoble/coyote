@@ -54,10 +54,11 @@ Broader CSM grammar and manual visual review remain future work.
 
 The first PCR-097 implementation slice is covered by focused parser,
 message-format, persistence, legacy-fallback, environment-flag, and
-incremental native-component tests. The complete development suite passes
-848/848 with zero failed assertions and zero unexpected errors. Display-backed
-incremental table and MathML component tests pass; broader visual review and
-CSM grammar expansion remain pending.
+incremental native-component and mixed-order lifecycle tests. The complete
+development suite passes 849/849 with zero failed assertions and zero
+unexpected errors. The display-backed conversation-stack suite passes 25/25,
+including prefix/native/suffix ordering, repeated native blocks, and cleanup
+of empty provisional views. Broader CSM grammar expansion remains future work.
 
 ### AUnit GUI fixture hierarchy and shutdown verification (2026-09-05)
 
