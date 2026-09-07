@@ -25,7 +25,7 @@ package LLM.Auth.Codex is
    --  Local callback listener port for the browser flow.  The redirect
    --  URI stays http://localhost:1455/auth/callback as registered with
    --  the OpenAI OAuth client.
-   Redirect_Port    : constant Positive := 14_555;
+   Redirect_Port    : constant Positive := 1455;
    Redirect_Host    : constant String := "127.0.0.1";
    Redirect_Path    : constant String := "/auth/callback";
    Redirect_Uri     : constant String :=
