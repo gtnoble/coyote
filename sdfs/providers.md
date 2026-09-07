@@ -485,3 +485,22 @@ sourced from the pi (`packages/ai` OpenAI Codex) and opencode
 
 **Result:** 3,507 insertions across 30 files.  861/861 tests pass
 (baseline 822 + 39 new/extended).  Build clean, no warnings in new code.
+
+### Exception message length cap and full-body diagnostics (2026-09-07)
+
+The GNAT runtime truncates exception messages at
+`System.Parameters.Default_Exception_Msg_Max_Length` (200 characters).
+Auth providers must not rely on response bodies surviving inside
+`Exception_Message`: the established convention (see
+`LLM.Events.Agent_End_Event.Error_Msg`, "kept outside Ada
+exception-message storage") is to move complete diagnostics into
+regular storage.
+
+For token-endpoint failures the convention is now: log the complete
+response body to stderr with the `[!]` prefix at the failure site, and
+raise `Auth_Error` with a short message plus a pointer to the stderr
+log. Applied to `LLM.Auth.Codex.Exchange_Code`,
+`LLM.Auth.Codex.Refresh_Token`, and
+`LLM.Auth.GitHub_Copilot.Ensure_Valid_Token` (which previously had the
+same latent truncation). New code adding response bodies to exception
+messages should follow this pattern instead.
