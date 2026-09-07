@@ -41,6 +41,8 @@ package body Coyote_Renderer.Incremental is
             return "</table>";
          when Math_Block =>
             return "</math>";
+         when Code_Block =>
+            return "</code>";
          when No_Block =>
             return "";
       end case;
@@ -55,6 +57,8 @@ package body Coyote_Renderer.Incremental is
             return Table_Event;
          when Math_Block =>
             return Math_Event;
+         when Code_Block =>
+            return Code_Event;
          when No_Block =>
             return Invalid_Event;
       end case;
@@ -148,6 +152,14 @@ package body Coyote_Renderer.Incremental is
                  (Source, "<table>", Open) = Open
             then
                Parser.Block := Table_Block;
+               Parser.Buffer := To_Unbounded_String
+                 (Source (Open .. Source'Last));
+               Feed_Block (Parser, "", Handler);
+               exit;
+            elsif Ada.Strings.Fixed.Index
+                    (Source, "<code>", Open) = Open
+            then
+               Parser.Block := Code_Block;
                Parser.Buffer := To_Unbounded_String
                  (Source (Open .. Source'Last));
                Feed_Block (Parser, "", Handler);

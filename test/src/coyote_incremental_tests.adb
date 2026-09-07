@@ -158,6 +158,37 @@ package body Coyote_Incremental_Tests is
               "malformed math-prefixed source remains visible");
    end Test_Malformed_Math_Opening_Is_Visible;
 
+   procedure Test_Code_Event_Survives_Split (T : in out Test) is
+      pragma Unreferenced (T);
+      Parser : Instance;
+   begin
+      Reset_Log;
+      Feed (Parser, "before<code>a<>&", Collect'Access);
+      Assert (Test_Log.Count = 1,
+              "code opening and prefix text remain provisional");
+      Feed (Parser, "b</code>after", Collect'Access);
+      Assert (Test_Log.Count = 3,
+              "split code emits text, code, and trailing text");
+      Assert (Test_Log.Invalid_Count = 0,
+              "complete split code is valid");
+      Assert (To_String (Test_Log.Text) =
+                "before|<code>a<>&b</code>|after",
+              "code event preserves literal source and order");
+   end Test_Code_Event_Survives_Split;
+
+   procedure Test_Incomplete_Code_Flushes (T : in out Test) is
+      pragma Unreferenced (T);
+      Parser : Instance;
+   begin
+      Reset_Log;
+      Feed (Parser, "head<code>literal", Collect'Access);
+      Flush (Parser, Collect'Access);
+      Assert (Test_Log.Invalid_Count = 1,
+              "flush exposes incomplete code source");
+      Assert (To_String (Test_Log.Text) = "head|<code>literal",
+              "incomplete code remains visible source");
+   end Test_Incomplete_Code_Flushes;
+
    package Caller is new AUnit.Test_Caller (Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
@@ -191,6 +222,12 @@ package body Coyote_Incremental_Tests is
       Result.Add_Test (Caller.Create
         ("Incremental malformed math opening remains visible",
          Test_Malformed_Math_Opening_Is_Visible'Access));
+      Result.Add_Test (Caller.Create
+        ("Incremental code event survives delta boundaries",
+         Test_Code_Event_Survives_Split'Access));
+      Result.Add_Test (Caller.Create
+        ("Incremental incomplete code flushes visibly",
+         Test_Incomplete_Code_Flushes'Access));
       return Result;
    end Suite;
 

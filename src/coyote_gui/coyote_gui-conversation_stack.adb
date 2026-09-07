@@ -157,6 +157,11 @@ package body Coyote_GUI.Conversation_Stack is
       Text   : String;
       Incremental_Order : Boolean := False);
 
+   procedure Add_Response_Code
+     (C      : in out Instance;
+      Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
+      Source : String);
+
    procedure Pack_Incremental_Response
      (Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
       Child  : not null access Gtk.Widget.Gtk_Widget_Record'Class)
@@ -221,6 +226,8 @@ package body Coyote_GUI.Conversation_Stack is
                   Incremental_Order => True);
             end if;
          end;
+      elsif Value.Kind = Coyote_Renderer.Incremental.Code_Event then
+         Add_Response_Code (C, C.Step_Box, To_String (Value.Text));
       else
          declare
             Source : constant String := To_String (Value.Text);
@@ -270,7 +277,8 @@ package body Coyote_GUI.Conversation_Stack is
       if C.Active_Text = null
         and then Value.Kind in
           Coyote_Renderer.Incremental.Table_Event |
-          Coyote_Renderer.Incremental.Math_Event
+          Coyote_Renderer.Incremental.Math_Event |
+          Coyote_Renderer.Incremental.Code_Event
       then
          Replace_Incremental_Component (C, Value);
          return;
@@ -288,7 +296,8 @@ package body Coyote_GUI.Conversation_Stack is
               Coyote_Renderer.Incremental.Line_Break_Event =>
             Append_Buffer (C.Active_Text, "" & ASCII.LF);
          when Coyote_Renderer.Incremental.Table_Event |
-              Coyote_Renderer.Incremental.Math_Event =>
+              Coyote_Renderer.Incremental.Math_Event |
+              Coyote_Renderer.Incremental.Code_Event =>
             Replace_Incremental_Component (C, Value);
       end case;
    end Apply_Incremental_Event;
@@ -335,6 +344,32 @@ package body Coyote_GUI.Conversation_Stack is
         (Implements_Gtk_Style_Provider.To_Interface (Provider),
          Guint (Priority_Application));
    end Apply_Response_Style;
+
+   procedure Add_Response_Code
+     (C      : in out Instance;
+      Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
+      Source : String)
+   is
+      Buffer : Gtk.Text_Buffer.Gtk_Text_Buffer;
+      View   : Gtk.Text_View.Gtk_Text_View;
+      Code   : constant String :=
+        (if Source'Length > 13
+         then Source (Source'First + 6 .. Source'Last - 7)
+         else "");
+      Font_Description : Pango.Font.Pango_Font_Description :=
+        Pango.Font.From_String ("Monospace");
+   begin
+      Add_Text_Element
+        (C, Parent, "", Code, Buffer, View,
+         Response_Block => True,
+         Incremental_Order => True);
+      View.Modify_Font (Font_Description);
+      Pango.Font.Free (Font_Description);
+      View.Set_Wrap_Mode (Gtk.Enums.Wrap_None);
+      View.Set_Accepts_Tab (True);
+      Apply_Response_Style (View);
+      C.Text_Views.Append (View);
+   end Add_Response_Code;
 
    procedure Add_Response_Text
      (C      : in out Instance;

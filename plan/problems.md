@@ -19,18 +19,19 @@ client-controlled work product gets an entry here.
   flag; absence or `0` preserves Markdown behavior. Coyote owns format
   selection and persistence metadata. Enabled mode is specified to process and
   render each provider delta immediately without intentional timer batching;
-  tables and display math may remain provisional until complete. Added planned
-  chunk-boundary, fallback, replay, and default-off qualification coverage.
+  tables, display math, and literal code may remain provisional until complete.
+  Added planned chunk-boundary, fallback, replay, default-off, and code-block
+  qualification coverage.
 - **Verification:** `alr build` and `cd test && alr build` succeed. Focused
   parser, message-format, persistence, legacy-fallback, environment-flag,
-  incremental native table, incremental native MathML, mixed-order lifecycle,
-  empty provisional-view, malformed MathML-opening, and README documentation
-  updates are complete. The complete development suite passes 850/850 with
-  zero failed assertions and zero unexpected errors; the display-backed
-  conversation-stack suite passes 25/25.
+  incremental native table, incremental native MathML, incremental native code,
+  mixed-order lifecycle, empty provisional-view, malformed MathML-opening, and
+  README documentation updates are complete. The complete development suite
+  passes 853/853 with zero failed assertions and zero unexpected errors; the
+  display-backed conversation-stack suite passes 26/26.
 - **Status:** Implemented and display-qualified for the restricted CSM
-  text/table/math slice; malformed prefixed tags are safely visible and broader
-  CSM element expansion remains future work.
+  text/table/math/code slice; malformed prefixed tags are safely visible and
+  broader CSM grammar expansion remains future work.
 
 
 ## PCR-096 — Multi-profile sandbox manager drafts and Save-All (2026-09-06)

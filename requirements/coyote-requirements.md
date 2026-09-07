@@ -315,9 +315,10 @@ In incremental-markup mode, each provider text delta shall be consumed by the
 incremental parser and applied to the active GUI component immediately, without
 intentional timer-based batching or coalescing. The implementation shall update
 stable active components rather than create a widget per token. Structures that
-require completion, including tables and display math, may remain provisional
-until their complete boundary is received and shall then be realized as native
-components. Invalid markup shall fall back to visible escaped or plain source.
+require completion, including tables, display math, and literal code blocks, may remain
+provisional until their complete boundary is received and shall then be
+realized as native or selectable components. Invalid markup shall fall back to
+visible escaped or plain source.
 
 ---
 

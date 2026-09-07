@@ -760,6 +760,34 @@ package body Coyote_GUI_Conversation_Stack_Tests is
               "table-only stream removes provisional text view tracking");
    end Test_Incremental_Native_Table;
 
+   procedure Test_Incremental_Native_Code (T : in out Test) is
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Set_Incremental_Markup (T.Stack, True);
+      Begin_Request (T.Stack, "request", Prompt);
+      Append_Text (T.Stack, "prefix ");
+      Append_Text (T.Stack, "<code>a<>&" & ASCII.LF);
+      Append_Text (T.Stack, "b</code> suffix");
+      Assert (Text_View_Count (T.Stack) = 3,
+              "incremental code keeps prefix, code, and suffix views");
+      Assert (Index (Text_View_Text (T.Stack, 1), "prefix") > 0,
+              "code response preserves prefix text");
+      Assert (Index (Text_View_Text (T.Stack, 2), "a<>&") > 0,
+              "code response preserves literal characters");
+      Assert (Index (Text_View_Text (T.Stack, 2), "<code>") = 0,
+              "code response removes CSM delimiters");
+      Assert (Index (Text_View_Text (T.Stack, 3), "suffix") > 0,
+              "code response preserves suffix text");
+      Assert (Active_Step_Child_Count (T.Stack) = 3,
+              "code response preserves prefix, code, and suffix order");
+      Assert (Active_Step_Child_Name (T.Stack, 1) = "GtkVBox"
+              and then Active_Step_Child_Name (T.Stack, 2) = "GtkVBox"
+              and then Active_Step_Child_Name (T.Stack, 3) = "GtkVBox",
+              "code response uses ordered text-view siblings");
+   end Test_Incremental_Native_Code;
+
    procedure Test_Incremental_Mixed_Order (T : in out Test) is
    begin
       if not T.Display_Available then
@@ -910,6 +938,10 @@ package body Coyote_GUI_Conversation_Stack_Tests is
         ("Coyote.GUI.Conversation_Stack incremental native MathML",
          Coyote_GUI_Conversation_Stack_Tests
            .Test_Incremental_Native_Math'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack incremental native code",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Incremental_Native_Code'Access));
       Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
         ("Coyote.GUI.Conversation_Stack incremental mixed order",
          Coyote_GUI_Conversation_Stack_Tests

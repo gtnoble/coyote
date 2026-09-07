@@ -16,6 +16,7 @@ package Coyote_Renderer.Incremental is
       Line_Break_Event,
       Table_Event,
       Math_Event,
+      Code_Event,
       Invalid_Event);
 
    type Event is record
@@ -30,9 +31,10 @@ package Coyote_Renderer.Incremental is
    procedure Reset (Parser : in out Instance);
 
    --  Consume Data and emit semantic events synchronously.  Recognised CSM
-   --  elements are <text>, <p>, </p>, <br/>, <table>...</table>, and
-   --  <math>...</math> or <math ...>...</math>.  Table blocks contain GFM
-   --  table source; math blocks contain one complete MathML document.
+   --  elements are <text>, <p>, </p>, <br/>, <table>...</table>,
+   --  <math>...</math> or <math ...>...</math>, and <code>...</code>.
+   --  Table blocks contain GFM table source; math blocks contain one complete
+   --  MathML document; code blocks contain literal source text.
    --  Unknown or incomplete elements are emitted as visible source so
    --  malformed model output remains safe.
    procedure Feed
@@ -47,7 +49,7 @@ package Coyote_Renderer.Incremental is
 
 private
 
-   type Block_Kind is (No_Block, Table_Block, Math_Block);
+   type Block_Kind is (No_Block, Table_Block, Math_Block, Code_Block);
 
    type Instance is tagged limited record
       Pending : Ada.Strings.Unbounded.Unbounded_String;

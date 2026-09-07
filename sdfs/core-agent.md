@@ -26,21 +26,21 @@ rendered immediately; timer batching is not used.
 The PCR-097 implementation now includes application-owned `Message_Format`
 metadata, JSONL persistence with Markdown fallback for legacy records, the
 `COYOTE_INCREMENTAL_MARKUP=1` selection helper, and synchronous CSM events for
-text, paragraphs, line breaks, complete `<table>` blocks, and complete
-`<math>` documents. Native table and MathML components are realized at closing
-boundaries without delta batching. Parser, type, persistence, flag, and GUI
-component tests pass. Broader CSM grammar expansion remains future work.
+text, paragraphs, line breaks, complete `<table>` blocks, complete `<math>`
+documents, and complete `<code>` blocks. Native table and MathML components
+and selectable monospace code components are realized at closing boundaries
+without delta batching. Parser, type, persistence, flag, and GUI component
+tests pass. The CSM grammar remains intentionally restricted.
 
-## 2026-09-06 — PCR-097 implementation verification
+## 2026-09-07 — PCR-097 code-block extension verification
 
-The first implementation slice persists application-owned response formats,
-selects `Format_Coyote_Stream` for opted-in GUI sessions, and routes each GUI
-provider delta through the synchronous restricted CSM parser. Focused PCR-097 tests and the complete development suite pass 850/850 with
-zero failed assertions and zero unexpected errors. The display-backed suite
-also verifies prefix/native/suffix ordering, repeated native blocks, empty
-provisional-view cleanup, and malformed MathML-prefixed tags remaining visible.
-README documents the opt-in flag and restricted scope. Broader CSM grammar
-remains future work.
+The additive CSM code-block slice adds split-boundary and incomplete-flush parser
+coverage plus display-backed literal-character, delimiter-removal, and
+prefix/code/suffix ordering coverage. The complete development suite passes
+853/853 with zero failed assertions and zero unexpected errors; the focused
+incremental parser suite passes 12/12 and the display-backed conversation-stack
+suite passes 26/26. README, requirements, design, test plan, frontend SDF, and
+manual records document the restricted text/table/math/code scope.
 
 ## 2026-09-05 — AUnit hierarchy and runtime baseline
 

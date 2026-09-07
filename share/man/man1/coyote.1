@@ -139,8 +139,10 @@ rendering. When unset or set to
 the existing Markdown path remains active. Plain output and Markdown session
 replay are unchanged. The implemented path processes each provider delta
 immediately, retains partial CSM tags across deltas, and realizes complete CSM
-table and math blocks as native components at closing boundaries. Broader
-CSM grammar expansion remains future work.
+table, math, and literal code blocks at closing boundaries as native grids,
+Lasem-backed MathML, or selectable monospace text components. The restricted
+CSM grammar currently covers text, paragraphs, line breaks, tables, MathML,
+and literal code blocks.
 .TP
 .B DISPLAY
 When non-empty, selects the GUI frontend unless an explicit frontend or

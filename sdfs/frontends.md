@@ -44,23 +44,22 @@ immediately; this mode does not use timer batching.
 The PCR-097 implementation wires the synchronous restricted CSM parser into
 `Coyote_GUI.Conversation_Stack` when `COYOTE_INCREMENTAL_MARKUP=1`. Each
 provider delta is parsed immediately; text, paragraph, and line events update
-selectable GTK text components, while complete `<table>` and `<math>` blocks
-are realized as native grid and Lasem-backed MathML components at their closing
-boundaries. Partial or malformed fragments remain visible source. Markdown
-remains the default path. Parser and display-backed GUI component tests pass.
-Broader CSM grammar and manual visual review remain future work.
+selectable GTK text components, while complete `<table>`, `<math>`, and
+`<code>` blocks are realized at their closing boundaries as native grid,
+Lasem-backed MathML, and selectable monospace components. Partial or malformed
+fragments remain visible source. Markdown remains the default path. Parser and
+display-backed GUI component tests pass; the CSM grammar remains intentionally
+restricted.
 
 ### PCR-097 focused incremental-markup implementation verification (2026-09-06)
 
-The first PCR-097 implementation slice is covered by focused parser,
-message-format, persistence, legacy-fallback, environment-flag, and
-incremental native-component and mixed-order lifecycle tests. The complete
-development suite passes 850/850 with zero failed assertions and zero
-unexpected errors. The display-backed conversation-stack suite passes 25/25,
-including prefix/native/suffix ordering, repeated native blocks, cleanup of
-empty provisional views, and malformed MathML-prefixed source fallback. README
-now documents the opt-in flag and restricted CSM scope. Broader CSM grammar
-expansion remains future work.
+The PCR-097 implementation is covered by focused parser, message-format,
+persistence, legacy-fallback, environment-flag, and incremental
+native-component lifecycle tests. The code-block test verifies literal
+characters, delimiter removal, and prefix/code/suffix order. The complete
+development suite passes 853/853 with zero failed assertions and zero
+unexpected errors; the display-backed conversation-stack suite passes 26/26.
+README documents the opt-in flag and restricted CSM scope.
 
 ### AUnit GUI fixture hierarchy and shutdown verification (2026-09-05)
 
