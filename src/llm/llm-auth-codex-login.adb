@@ -124,10 +124,19 @@ package body LLM.Auth.Codex.Login is
                Character'Val (Natural (Buffer (I))));
          end loop;
 
-         --  The request head ends with a blank line.
-         exit when Ada.Strings.Fixed.Index
-           (To_String (Data),
-            "" & ASCII.LF & ASCII.LF) > 0;
+         --  The request head ends with a blank line.  HTTP uses CRLF
+         --  line endings, so the terminator is CRLF CRLF; accept a bare
+         --  LF LF as well for lenient clients.
+         declare
+            Head : constant String := To_String (Data);
+         begin
+            exit when
+              Ada.Strings.Fixed.Index
+                (Head,
+                 "" & ASCII.CR & ASCII.LF & ASCII.CR & ASCII.LF) > 0
+              or else Ada.Strings.Fixed.Index
+                (Head, "" & ASCII.LF & ASCII.LF) > 0;
+         end;
       end loop;
 
       Text := Data;
