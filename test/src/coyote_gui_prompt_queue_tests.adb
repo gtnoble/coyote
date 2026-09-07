@@ -178,6 +178,40 @@ package body Coyote_GUI_Prompt_Queue_Tests is
       Assert (not Accepted, "full queue should reject an item");
    end Test_Enqueue_Rejects_Overflow;
 
+   --  The Set_Subagent_Model command must carry its override spec
+   --  through the protected queue intact, and an empty spec must
+   --  represent the explicit clear of the ephemeral override.
+   procedure Test_Set_Subagent_Model_Round_Trips (T : in out Test) is
+      pragma Unreferenced (T);
+      Queue : Coyote_GUI.Prompt_Queue.Queue;
+      Got   : Coyote_GUI.Prompt_Queue.Item;
+   begin
+      Queue.Enqueue
+        ((Kind => Set_Subagent_Model,
+          Target_Agent_Id => To_Unbounded_String ("root"),
+          Override_Spec => To_Unbounded_String
+            ("openrouter/anthropic/claude-haiku")));
+      Queue.Dequeue (Got);
+      Assert (Got.Kind = Set_Subagent_Model,
+              "override item kind should survive queue transport");
+      Assert (To_String (Got.Target_Agent_Id) = "root",
+              "override target should survive queue transport");
+      Assert
+        (To_String (Got.Override_Spec)
+           = "openrouter/anthropic/claude-haiku",
+         "override spec should survive queue transport");
+
+      Queue.Enqueue
+        ((Kind => Set_Subagent_Model,
+          Target_Agent_Id => Null_Unbounded_String,
+          Override_Spec => Null_Unbounded_String));
+      Queue.Dequeue (Got);
+      Assert (Got.Kind = Set_Subagent_Model,
+              "clear item kind should survive queue transport");
+      Assert (Length (Got.Override_Spec) = 0,
+              "empty override spec should represent an explicit clear");
+   end Test_Set_Subagent_Model_Round_Trips;
+
    package Coyote_GUI_Prompt_Queue_Caller is
      new AUnit.Test_Caller (Coyote_GUI_Prompt_Queue_Tests.Test);
 
@@ -197,6 +231,9 @@ package body Coyote_GUI_Prompt_Queue_Tests is
       Result.Add_Test (Coyote_GUI_Prompt_Queue_Caller.Create
         ("Coyote.GUI.Prompt_Queue rejects overflow",
          Coyote_GUI_Prompt_Queue_Tests.Test_Enqueue_Rejects_Overflow'Access));
+      Result.Add_Test (Coyote_GUI_Prompt_Queue_Caller.Create
+        ("Coyote.GUI.Prompt_Queue Set_Subagent_Model round trips",
+         Coyote_GUI_Prompt_Queue_Tests.Test_Set_Subagent_Model_Round_Trips'Access));
 
       return Result;
    end Suite;

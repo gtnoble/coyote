@@ -2199,6 +2199,44 @@ package body Coyote_App.Frontend.GUI is
       end if;
    end On_Change_Model_Activate;
 
+   procedure On_Change_Subagent_Model_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
+   is
+      pragma Unreferenced (Self);
+      Models : constant LLM.Model_Registry.Model_Info_Vectors.Vector :=
+        LLM.Model_Registry.Available_Models;
+      Settings_Value : constant LLM.Settings.Settings :=
+        LLM.Settings.Load_Settings;
+      Result         : Coyote_GUI.Model_Picker.Selection_Result;
+   begin
+      if Current_Frontend = null then
+         return;
+      end if;
+      --  Coordinator-wide policy: always targets the root agent, not
+      --  the selected virtual child.
+      Result := Coyote_GUI.Model_Picker.Choose
+        (Parent        => Current_Frontend.Win,
+         Models        => Models,
+         Price_Display => Settings_Value.Price_Display,
+         Initial_Spec  => Coyote_App.Subagent_Model_Override_State.Current,
+         Allow_Default => True);
+      case Result.Status is
+         when Coyote_GUI.Model_Picker.Selected =>
+            Current_Frontend.PQ.Enqueue
+              ((Set_Subagent_Model,
+                Target_Agent_Id => Current_Frontend.Root_Agent_Id,
+                Override_Spec   => Result.Model_Spec));
+         when Coyote_GUI.Model_Picker.Use_Default =>
+            Current_Frontend.PQ.Enqueue
+              ((Set_Subagent_Model,
+                Target_Agent_Id => Current_Frontend.Root_Agent_Id,
+                Override_Spec   => Ada.Strings.Unbounded
+                  .Null_Unbounded_String));
+         when Coyote_GUI.Model_Picker.Cancelled =>
+            null;
+      end case;
+   end On_Change_Subagent_Model_Activate;
+
    --  ── Thinking level handlers ───────────────────────────────────────────
 
    procedure On_Thinking_Off_Activate
@@ -3480,7 +3518,8 @@ package body Coyote_App.Frontend.GUI is
       --  Agent menu
       Agent_Menu : Gtk_Menu;
       Agent_Mnemonics : Coyote_GUI.Mnemonics.Registry;
-      Change_Model_Item : Gtk_Menu_Item;
+      Change_Model_Item     : Gtk_Menu_Item;
+      Subagent_Model_Item : Gtk_Menu_Item;
       Compact_Item     : Gtk_Menu_Item;
       Agent_Item       : Gtk_Menu_Item;
 
@@ -3687,6 +3726,12 @@ package body Coyote_App.Frontend.GUI is
       Change_Model_Item :=
         Make_Item ("_Models...", Agent_Menu, Agent_Mnemonics);
       Change_Model_Item.On_Activate (On_Change_Model_Activate'Access);
+
+      --  Runtime-only override for subsequently launched subagents.
+      Subagent_Model_Item :=
+        Make_Item ("Subagent Mo_del...", Agent_Menu, Agent_Mnemonics);
+      Subagent_Model_Item.On_Activate
+        (On_Change_Subagent_Model_Activate'Access);
       Change_Model_Item.Add_Accelerator
         ("activate", F.Accel_Group,
          Gdk.Types.Keysyms.GDK_LC_m,

@@ -41,6 +41,7 @@ package Coyote_GUI.Prompt_Queue is
       New_Window,        --  spawn a fresh coyote GUI window
       New_Session,       --  replace session with a fresh one
       Set_Model,         --  change the active model
+      Set_Subagent_Model, --  runtime-only override for future subagents
       Set_Thinking,      --  change the reasoning level
       Set_Sandbox,       --  change the sandbox profile
       Switch_Session,    --  load a different session by UUID
@@ -61,6 +62,9 @@ package Coyote_GUI.Prompt_Queue is
             Text         : Ada.Strings.Unbounded.Unbounded_String;
          when Set_Model =>
             Model_Spec   : Ada.Strings.Unbounded.Unbounded_String;
+         when Set_Subagent_Model =>
+            --  Empty clears the override; otherwise "provider/model-id".
+            Override_Spec : Ada.Strings.Unbounded.Unbounded_String;
          when Set_Thinking =>
             Level        : LLM.Providers.Thinking_Level;
          when Set_Sandbox =>

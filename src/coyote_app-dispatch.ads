@@ -12,7 +12,10 @@ with LLM.Events;
 
 package Coyote_App.Dispatch is
 
-   --  Build the status string for the current application state.
+   --  Build the status string for the current application state.  The
+   --  ephemeral subagent model override (Coyote_App
+   --  .Subagent_Model_Override_State) is read from this package's parent
+   --  unit and appended when non-empty.
    function Format_Status
      (State : App_State;
       Extra : String := "ready") return String;

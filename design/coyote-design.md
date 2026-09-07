@@ -1341,9 +1341,12 @@ nonnegative integer, with zero disabling subagent spawning. Write failures are
 reported to the caller so the active session can continue.
 
 **Default precedence:** For a newly created session, an explicit model
-argument overrides all persistent defaults. For `--subagent`, the configured
-subagent model is selected before the ordinary default model; ordinary
-sessions ignore the subagent-only preference. An absent or incomplete
+argument overrides all persistent defaults. For `--subagent`, an explicit
+model argument still wins; next the ephemeral coordinator override
+(`COYOTE_SUBAGENT_MODEL`, set by `Agent → Subagent Model...`, process-scoped
+and never persisted), then the configured subagent model, then the ordinary
+default model; ordinary sessions ignore the subagent-only preference and the
+override. An absent or incomplete
 subagent preference falls back to the ordinary default-model rules. An
 inherited runtime sandbox profile
 (`COYOTE_SANDBOX_PROFILE`) overrides `defaultSandboxProfile`. When resuming or
@@ -1815,7 +1818,13 @@ startup and is the sole GTK conversation presentation (see §5.15).
   `Model_Row_Matches` on provider, display name, and hidden `provider/id`.
   The picker returns a typed selection and never changes agent state or saves
   settings. Its optional `Use default model` row is used by the subagent
-  preference. The caller separately enqueues `Set_Model` or `Set_Preferences`.
+  preference and by `Agent → Subagent Model...`. The caller separately
+  enqueues `Set_Model`, `Set_Subagent_Model` (runtime-only ephemeral override
+  for subsequently launched subagents; the agent task stores it in the
+  package-level `Subagent_Model_Override_State` protected object, publishes
+  `COYOTE_SUBAGENT_MODEL`, confirms with a notice, and the status bar gains a
+  persistent `sub provider/model-id` segment while active), or
+  `Set_Preferences`.
   Typeahead is disabled; a count label shows `N models` or `N matches`; Escape
   clears a non-empty query, then cancels the dialog.
 - **Completion notifications:** `Run_GUI` disables the feature for subagents and
@@ -2036,6 +2045,7 @@ turns), and `Shutdown` (unblocks any waiting `Dequeue`).
 | `New_Window` | — | Spawn a fresh coyote GUI window |
 | `New_Session` | — | Replace the in-window session with a fresh one |
 | `Set_Model` | `Model_Spec` | Change the active model |
+| `Set_Subagent_Model` | `Override_Spec` | Set or clear (empty) the runtime-only ephemeral subagent-model override used by subsequently launched subagents; publishes `COYOTE_SUBAGENT_MODEL` |
 | `Set_Thinking` | `Level` | Change the reasoning level |
 | `Set_Sandbox` | `Profile_Name` | Change the sandbox profile |
 | `Switch_Session` | `Session_UUID` | Load a different session by UUID |

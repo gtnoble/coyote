@@ -13,6 +13,9 @@ package Coyote_GUI_Prompt_Queue_Tests is
    procedure Test_Set_Preferences_Round_Trips (T : in out Test);
    procedure Test_Enqueue_Reports_Acceptance (T : in out Test);
    procedure Test_Target_Agent_Id_Round_Trips (T : in out Test);
+   --  The runtime-only subagent model override command survives typed
+   --  queue transport, including the explicit empty-clear form.
+   procedure Test_Set_Subagent_Model_Round_Trips (T : in out Test);
    procedure Test_Enqueue_Rejects_Overflow (T : in out Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite;

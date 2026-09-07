@@ -2694,6 +2694,101 @@ package body LLM_Agent_Tests is
          raise;
    end Test_Create_Without_Model_Spec_Uses_Settings_Default;
 
+   --  Effective model precedence for subagents when the GUI's ephemeral
+   --  COYOTE_SUBAGENT_MODEL override is set: an explicit model still
+   --  wins, the override outranks the persistent subagent default, an
+   --  empty override value falls back to the persistent default, and
+   --  non-subagent sessions ignore the variable entirely.
+   procedure Test_Subagent_Model_Env_Override (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Home         : constant String := "/tmp/coyote_llm_agent_test_10c";
+      Sub_Session  : LLM.Agent.Session;
+      Sub_Clear    : LLM.Agent.Session;
+      Sub_Explicit : LLM.Agent.Session;
+      Ord_Session  : LLM.Agent.Session;
+      Home_Was_Set   : constant Boolean :=
+        Ada.Environment_Variables.Exists ("HOME");
+      Old_Home       : constant String :=
+        Ada.Environment_Variables.Value ("HOME", "");
+      Ovr_Was_Set    : constant Boolean :=
+        Ada.Environment_Variables.Exists ("COYOTE_SUBAGENT_MODEL");
+      Old_Ovr        : constant String :=
+        Ada.Environment_Variables.Value ("COYOTE_SUBAGENT_MODEL", "");
+   begin
+      Prepare_Test_Home (Home);
+      Write_Settings_File
+        (Home              => Home,
+         Default_Provider  => "openrouter",
+         Default_Model     => "test/default-model",
+         Subagent_Provider => "openrouter",
+         Subagent_Model    => "test/subagent-model");
+      Write_OpenRouter_Models_File (Home, "settings-key");
+      Write_Minimal_OpenRouter_Cache
+        (Home     => Home,
+         Model_Id => "test/default-model");
+
+      Ada.Environment_Variables.Set ("HOME", Home);
+      Ada.Environment_Variables.Set
+        ("COYOTE_SUBAGENT_MODEL", "openrouter/test/ephemeral-model");
+
+      --  Override outranks the persistent subagent default.
+      LLM.Agent.Create
+        (S          => Sub_Session,
+         Model_Spec => "",
+         No_Tools   => True,
+         Subagent   => True);
+      Assert
+        (LLM.Agent.Current_Model_Spec (Sub_Session)
+           = "openrouter/test/ephemeral-model",
+         "ephemeral override should outrank the persistent subagent default");
+
+      --  An explicit model still outranks the override.
+      LLM.Agent.Create
+        (S          => Sub_Explicit,
+         Model_Spec => "openrouter/test/default-model",
+         No_Tools   => True,
+         Subagent   => True);
+      Assert
+        (LLM.Agent.Current_Model_Spec (Sub_Explicit)
+           = "openrouter/test/default-model",
+         "explicit model should outrank the ephemeral override");
+
+      --  An empty override value means no override.
+      Ada.Environment_Variables.Set ("COYOTE_SUBAGENT_MODEL", "");
+      LLM.Agent.Create
+        (S          => Sub_Clear,
+         Model_Spec => "",
+         No_Tools   => True,
+         Subagent   => True);
+      Assert
+        (LLM.Agent.Current_Model_Spec (Sub_Clear)
+           = "openrouter/test/subagent-model",
+         "empty override should fall back to the persistent default");
+
+      --  Ordinary (non-subagent) sessions ignore the override.
+      Ada.Environment_Variables.Set
+        ("COYOTE_SUBAGENT_MODEL", "openrouter/test/ephemeral-model");
+      LLM.Agent.Create
+        (S          => Ord_Session,
+         Model_Spec => "",
+         No_Tools   => True);
+      Assert
+        (LLM.Agent.Current_Model_Spec (Ord_Session)
+           = "openrouter/test/default-model",
+         "ordinary sessions should ignore the ephemeral override");
+
+      Restore_Env ("COYOTE_SUBAGENT_MODEL", Ovr_Was_Set, Old_Ovr);
+      Restore_Env ("HOME", Home_Was_Set, Old_Home);
+      Cleanup_Test_Home (Home);
+   exception
+      when others =>
+         Restore_Env ("COYOTE_SUBAGENT_MODEL", Ovr_Was_Set, Old_Ovr);
+         Restore_Env ("HOME", Home_Was_Set, Old_Home);
+         Cleanup_Test_Home (Home);
+         raise;
+   end Test_Subagent_Model_Env_Override;
+
    procedure Test_Memory_Enabled_By_Env_Var (T : in out Test) is
       pragma Unreferenced (T);
 
@@ -6380,6 +6475,10 @@ package body LLM_Agent_Tests is
         ("LLM.Agent uses settings defaults when Model_Spec is empty",
          LLM_Agent_Tests
            .Test_Create_Without_Model_Spec_Uses_Settings_Default'Access));
+      Result.Add_Test (LLM_Agent_Caller.Create
+        ("LLM.Agent ephemeral COYOTE_SUBAGENT_MODEL override precedence",
+         LLM_Agent_Tests
+           .Test_Subagent_Model_Env_Override'Access));
       Result.Add_Test (LLM_Agent_Caller.Create
         ("LLM.Agent memory enabled by COYOTE_ENABLE_MEMORY=1",
          LLM_Agent_Tests.Test_Memory_Enabled_By_Env_Var'Access));

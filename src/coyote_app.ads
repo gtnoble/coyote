@@ -222,6 +222,31 @@ package Coyote_App is
 
    type Frontend_Kind is (GUI_Frontend, Plain_Frontend, RPC_Frontend);
 
+   --  ── Subagent_Model_Override ──────────────────────────────────────────
+   --
+   --  Runtime-only ephemeral subagent model override used by
+   --  subsequently launched subagents of this GUI coordinator instance.
+   --  Empty means no override: children fall back to the persistent
+   --  subagent default and then the ordinary default-model rules.  The
+   --  object is process-scoped: it survives File → New Session and is
+   --  never written to ~/.coyote/settings.json.
+
+   protected type Subagent_Model_Override is
+
+      --  Return the current override ("" when unset).
+      function Current return String;
+
+      --  Set the override; an empty string clears it.
+      procedure Set (Spec : String);
+
+   private
+      P_Spec : Ada.Strings.Unbounded.Unbounded_String :=
+        Ada.Strings.Unbounded.Null_Unbounded_String;
+   end Subagent_Model_Override;
+
+   --  Package-wide coordinator subagent-model override.
+   Subagent_Model_Override_State : Subagent_Model_Override;
+
    type Options is record
       Session_Id     : Ada.Strings.Unbounded.Unbounded_String;
       Model          : Ada.Strings.Unbounded.Unbounded_String;

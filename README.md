@@ -130,6 +130,18 @@ Resume a session explicitly with:
 coyote --session UUID
 ```
 
+### Ephemeral subagent model override
+
+In the GTK frontend, `Agent -> Subagent Model...` sets a runtime-only model
+override used by subsequently launched subagents of the running coordinator.
+The override is not written to `settings.json`, survives `New Session`, and
+clears when coyote exits; `Use default model` in the picker restores the
+persistent `defaultSubagent*` behavior. Precedence for a subagent is: an
+explicit `--model` on the invocation, then this override (published to child
+processes as `COYOTE_SUBAGENT_MODEL`), then the persistent
+`defaultSubagentProvider`/`defaultSubagentModel`, then the ordinary default.
+While active, the status bar shows a `sub provider/model-id` segment.
+
 ## Configuration
 
 Configuration files live under `~/.coyote/`. The main settings file is
