@@ -253,7 +253,10 @@ package body Coyote_GUI.Model_Picker is
       Model      : Gtk_Tree_Model;
       Iter       : Gtk_Tree_Iter;
       Value      : Glib.Values.GValue;
-      Initial    : String := Initial_Spec;
+      --  Unconstrained holder: a constrained String initialized from an
+      --  empty Initial_Spec has null bounds (1..0) and cannot later hold
+      --  Default_Spec, which raised Constraint_Error on the length check.
+      Initial    : Unbounded_String := To_Unbounded_String (Initial_Spec);
    begin
       Gtk.List_Store.Gtk_New
         (Store,
@@ -353,6 +356,7 @@ package body Coyote_GUI.Model_Picker is
       Dialog.Set_Transient_For (Parent);
       declare
          Button : Gtk.Widget.Gtk_Widget;
+         pragma Warnings (Off, Button);
       begin
          Button := Dialog.Add_Button ("_Select", Gtk_Response_OK);
          Button := Dialog.Add_Button ("_Cancel", Gtk_Response_Cancel);
@@ -374,13 +378,13 @@ package body Coyote_GUI.Model_Picker is
       State.View := View;
       State.Dialog := Dialog;
       State.Query := Null_Unbounded_String;
-      if Allow_Default and then Initial'Length = 0 then
-         Initial := Default_Spec;
+      if Allow_Default and then Length (Initial) = 0 then
+         Initial := To_Unbounded_String (Default_Spec);
       end if;
       Update_Count;
-      if Initial'Length > 0 then
+      if Length (Initial) > 0 then
          Selection := View.Get_Selection;
-         Iter := Initial_Iter (+State.Sort, Initial);
+         Iter := Initial_Iter (+State.Sort, To_String (Initial));
          if Iter /= Null_Iter then
             Selection.Select_Iter (Iter);
          else

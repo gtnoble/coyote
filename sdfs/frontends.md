@@ -1141,3 +1141,18 @@ GUI sessions do not inherit coordinator-only subagent policy.
 AUnit suite passes 849/849, including the new `Set_Subagent_Model` queue
 round-trip test and GUI lifecycle tests (mnemonic conflict with `Ctrl+M`
 fixed by moving the mnemonic to `Subagent Mo_del...`).
+
+## 2026-09-07 — Fix picker crash on empty initial spec
+
+`Coyote_GUI.Model_Picker.Choose` held its pre-selection in a String
+constrained by the initial value's bounds; with `Allow_Default => True` and
+an empty `Initial_Spec` the object had null bounds (1..0), so assigning
+`Default_Spec` raised `Constraint_Error: length check failed` when the new
+`Agent → Subagent Model...` dialog opened without an active override. The
+holder is now an `Unbounded_String`, which also fixes the latent same crash
+in the Preferences subagent-model button when `defaultSubagentModel` is
+unset. An unrelated unused-`Button` warning in the same procedure was
+silenced with a pragma.
+
+**Verification:** Production and test development builds succeed; the full
+AUnit suite passes 864/864 including all GUI domain tests.
