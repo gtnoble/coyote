@@ -3,6 +3,25 @@
 Maintained continuously. Every detected problem in a project-level or
 client-controlled work product gets an entry here.
 
+## PCR-097 — Agents companion window floated by tiling window managers (2026-09-06)
+
+- **Date reported:** 2026-09-06
+- **Category:** Requirements, Design, Code, Test, Manuals
+- **Priority:** 3-Moderate
+- **Description:** The modeless `coyote : Agents` window was implemented as a
+  transient child of the main window. Tiling window managers commonly float
+  transient clients, preventing the Agents surface from participating in the
+  normal tiling layout.
+- **Corrective action:** Removed the Agents window's `Set_Transient_For` call.
+  The window remains a separate modeless top-level companion associated with
+  coyote by title, role, and application state, while other dialogs and support
+  windows retain transient parenting. Updated requirements, design, README,
+  frontend SDF, and DEM-038 wording. Added a GUI regression asserting that
+  `Get_Transient_For` returns null for the Agents window.
+- **Verification:** Focused GUI test and development builds are required;
+  display-backed tiling-WM qualification remains environment-dependent.
+- **Status:** Implemented; display-backed tiling-WM qualification pending
+
 ## PCR-096 — Multi-profile sandbox manager drafts and Save-All (2026-09-06)
 
 - **Date reported:** 2026-09-06
@@ -3192,3 +3211,28 @@ zero failed assertions and zero unexpected errors. The post-cutover suite has
 - **Corrective action:** Added typed `Queued`, `Running`, `Success`, `Error`, `Timed_Out`, and `Cancelled` lifecycle states. Tool cards are created queued, receive a running event at worker launch, and receive per-tool terminal causes. Shell timeout/abort causes are structured; session results persist a backward-compatible `status` field; core and SQC replay render timed-out results distinctly.
 - **Verification:** Development production build succeeds. Shell timeout tests pass 22/22, native conversation tests pass 22/22, session-store tests pass 24/24, type tests pass 8/8, and agent tests pass 42/42.
 - **Status:** Implemented; full-suite qualification remains subject to the established test-plan run.
+
+
+## PCR-098 — Reuse GTK model picker in Preferences
+
+- **Date reported:** 2026-09-06
+- **Category:** Design, Code, Test, Plans
+- **Priority:** 3-Moderate
+- **Description:** Preferences used independent text combo boxes for primary
+  and subagent default models while `Models...` provided the richer searchable
+  and sortable model picker. This duplicated model-selection presentation and
+  made large model catalogues difficult to browse from Preferences.
+- **Affected work products:** `Coyote_GUI.Model_Picker`,
+  `Coyote_App.Frontend.GUI`, GUI model-picker tests, SDD-CORE, frontend SDF,
+  and Test Plan.
+- **Corrective action:** Extracted the searchable/sortable picker into a
+  reusable modal package returning a typed result. `Models...` now enqueues
+  `Set_Model` from that result. Preferences uses the same picker from draft
+  buttons for both defaults, retains the explicit `Use default model`
+  fallback, and enqueues `Set_Preferences` only on Save.
+- **Verification:** Production and test development builds succeed. The
+  three typed-result picker tests pass. A pre-existing malformed string literal
+  in `test/src/llm_model_registry_tests.adb:832-833` was repaired as an isolated
+  test-source correction. Display-backed picker and Preferences interaction
+  remains under DEM-033.
+- **Status:** Implemented; display-backed qualification remains pending.

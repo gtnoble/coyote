@@ -829,8 +829,8 @@ package body LLM_Model_Registry_Tests is
             LLM_Model_Registry_Tests
               .Test_OpenCode_Go_Wire_Format_OpenAI'Access));
       Result.Add_Test (LLM_Model_Registry_Caller.Create
-           ("LLM.Model_Registry Responses OpenCode Go models use
-            Responses wire",
+           ("LLM.Model_Registry Responses OpenCode Go models use "
+            & "Responses wire",
             LLM_Model_Registry_Tests
               .Test_OpenCode_Go_Wire_Format_Responses'Access));
       Result.Add_Test (LLM_Model_Registry_Caller.Create

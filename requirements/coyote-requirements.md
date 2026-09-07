@@ -680,11 +680,14 @@ conversation area shall open the corresponding contextual topic in Yelp
 without activating the clicked control.
 
 **REQ-CORE-113b** (D)
-GUI dialogs and support windows shall use application-identifying titles,
-shall be transient for the main window, shall close on Ctrl+W, and shall
-place the affirmative specific action before Cancel where both actions are
-present. Escape shall cancel armed contextual Help; otherwise it shall retain
-native widget behavior or invoke the applicable Stop action. Transient support
+GUI dialogs and support windows other than the Agents window specified by
+REQ-CORE-115 shall use application-identifying titles, shall be transient for
+the main window, shall close on Ctrl+W, and shall place the affirmative
+specific action before Cancel where both actions are present. The Agents
+window is a modeless, independent top-level companion and shall not be
+transient for the main window, so tiling window managers may tile it normally.
+Escape shall cancel armed contextual Help; otherwise it shall retain native
+widget behavior or invoke the applicable Stop action. Transient support
 windows shall also close or hide on Escape. The Change Model search field
 shall clear a non-empty query on Escape and cancel the dialog when the query is
 empty. List dialogs shall select an initial row when available, and Enter,
@@ -782,8 +785,9 @@ focusable controls. Plain wheel scrolling shall retain native behavior.
 **REQ-CORE-115** (D/T/I)
 The GUI frontend shall retain the application identity `coyote` for desktop
 launchers and shall provide an agents panel implemented as a tree view. The
-panel shall be presented as a modeless `coyote : Agents` support window owned
-by the coordinator's main window. It shall be visible by default, hideable and
+panel shall be presented as a modeless `coyote : Agents` independent
+top-level companion window associated with the coordinator's main window but
+not transient for it. It shall be visible by default, hideable and
 reopenable through `View → Agents Window`, and closable without stopping the
 coordinator. The main agent shall be the top-level tree element and each
 subagent shall appear as a child of the agent that launched it. Each tree

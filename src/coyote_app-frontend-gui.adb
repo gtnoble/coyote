@@ -60,10 +60,7 @@ with Gtk.List_Box_Row;
 with Gtk.File_Chooser;
 with Gtk.File_Chooser_Dialog;
 with LLM.Settings;
-with Gtk.Search_Entry;
 with Gtk.Tree_Model;
-with Gtk.Tree_Model_Filter;
-with Gtk.Tree_Model_Sort;
 with Gtk.Tree_Selection;
 with Gtk.Tree_View;
 with Gtk.Tree_View_Column;
@@ -79,6 +76,7 @@ with Coyote_App.Utils;
 with Coyote_Help;
 with Coyote_GUI.Session_Stats_Window;
 with Coyote_GUI.Mnemonics;
+with Coyote_GUI.Model_Picker;
 with Coyote_GUI.Navigation;
 with Coyote_GUI.Sandbox_Profile_Window;
 with Coyote_GUI.Zoom;
@@ -711,7 +709,6 @@ package body Coyote_App.Frontend.GUI is
    use type Gtk.Text_Buffer.Gtk_Text_Buffer;
    use type Gtk.Menu_Item.Gtk_Menu_Item;
    use type Gtk.Text_View.Gtk_Text_View;
-   use type Gtk.Tree_Model_Filter.Gtk_Tree_Model_Filter;
    use type Gtk.Tree_Store.Gtk_Tree_Store;
    use type Gtk.Tree_Model.Gtk_Tree_Iter;
    use type Gtk.Tree_View.Gtk_Tree_View;
@@ -719,6 +716,7 @@ package body Coyote_App.Frontend.GUI is
    use type Gtk.List_Box_Row.Gtk_List_Box_Row;
    use type Gtk.Button.Gtk_Button;
    use type Gtk.Dialog.Gtk_Response_Type;
+   use type Coyote_GUI.Model_Picker.Selection_Status;
    use type LLM.Settings.Price_Display_Mode;
    use type Coyote_GUI.Run_Mode;
 
@@ -779,20 +777,6 @@ package body Coyote_App.Frontend.GUI is
    procedure On_Deselect_Activate
      (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class);
 
-   --  Transient widgets for the modal Change Model dialog.  Dialog.Run
-   --  is modal, so at most one picker is live at a time.
-   type Model_Picker_State is record
-      Store  : Gtk.List_Store.Gtk_List_Store := null;
-      Filter : Gtk.Tree_Model_Filter.Gtk_Tree_Model_Filter := null;
-      Sort   : Gtk.Tree_Model_Sort.Gtk_Tree_Model_Sort := null;
-      View   : Gtk.Tree_View.Gtk_Tree_View := null;
-      Search : Gtk.Search_Entry.Gtk_Search_Entry := null;
-      Count  : Gtk.Label.Gtk_Label := null;
-      Dialog : Gtk.Dialog.Gtk_Dialog := null;
-      Query  : Unbounded_String := Null_Unbounded_String;
-   end record;
-
-   Picker : Model_Picker_State;
    Active_List_Dialog : Gtk.Dialog.Gtk_Dialog := null;
 
    procedure On_List_Row_Activated
@@ -830,100 +814,6 @@ package body Coyote_App.Frontend.GUI is
          Current_Frontend.Prompt_View.Grab_Focus;
       end if;
    end On_Agent_Row_Activated;
-
-   procedure Clear_Model_Picker is
-   begin
-      Picker := (others => <>);
-   end Clear_Model_Picker;
-
-   function Model_Picker_Row_Visible
-     (Model : Gtk.Tree_Model.Gtk_Tree_Model;
-      Iter  : Gtk.Tree_Model.Gtk_Tree_Iter) return Boolean
-   is
-      use Gtk.Tree_Model;
-   begin
-      if Iter = Null_Iter then
-         return False;
-      end if;
-      return Model_Row_Matches
-        (Provider => Get_String (Model, Iter, 0),
-         Name     => Get_String (Model, Iter, 1),
-         Spec     => Get_String (Model, Iter, 7),
-         Query    => To_String (Picker.Query));
-   end Model_Picker_Row_Visible;
-
-   procedure Update_Model_Picker_Count is
-      use Gtk.Tree_Model;
-      use Gtk.Tree_Model_Filter;
-      Needle  : constant String :=
-        Ada.Strings.Fixed.Trim
-          (To_String (Picker.Query), Ada.Strings.Both);
-      Visible : Natural := 0;
-   begin
-      if Picker.Filter = null or else Picker.Count = null then
-         return;
-      end if;
-      Visible := Natural (N_Children (+Picker.Filter));
-      Picker.Count.Set_Text
-        (Format_Model_Picker_Count
-           (Visible  => Visible,
-            Filtered => Needle'Length > 0));
-   end Update_Model_Picker_Count;
-
-   procedure Ensure_Model_Picker_Selection is
-      use Gtk.Tree_Model;
-      use Gtk.Tree_Model_Sort;
-      Sel    : Gtk.Tree_Selection.Gtk_Tree_Selection;
-      Model  : Gtk_Tree_Model;
-      Iter   : Gtk_Tree_Iter;
-      Path : Gtk_Tree_Path;
-   begin
-      if Picker.View = null then
-         return;
-      end if;
-      Sel := Picker.View.Get_Selection;
-      Sel.Get_Selected (Model, Iter);
-      if Iter /= Null_Iter then
-         return;
-      end if;
-      Iter := Get_Iter_First (+Picker.Sort);
-      if Iter = Null_Iter then
-         return;
-      end if;
-      Sel.Select_Iter (Iter);
-      Path := Get_Path (+Picker.Sort, Iter);
-      Picker.View.Scroll_To_Cell (Path, null, False, 0.0, 0.0);
-      Path_Free (Path);
-   end Ensure_Model_Picker_Selection;
-
-   procedure Apply_Model_Picker_Filter is
-   begin
-      if Picker.Filter = null then
-         return;
-      end if;
-      Picker.Filter.Refilter;
-      Update_Model_Picker_Count;
-      Ensure_Model_Picker_Selection;
-   end Apply_Model_Picker_Filter;
-
-   procedure On_Model_Search_Changed
-     (Self : access Gtk.Search_Entry.Gtk_Search_Entry_Record'Class) is
-   begin
-      Picker.Query := To_Unbounded_String (Self.Get_Text);
-      Apply_Model_Picker_Filter;
-   end On_Model_Search_Changed;
-
-   procedure On_Model_Search_Stop
-     (Self : access Gtk.Search_Entry.Gtk_Search_Entry_Record'Class) is
-   begin
-      if Self.Get_Text_Length > 0 then
-         Self.Set_Text ("");
-         Picker.Query := Null_Unbounded_String;
-         Apply_Model_Picker_Filter;
-      elsif Picker.Dialog /= null then
-         Picker.Dialog.Response (Gtk.Dialog.Gtk_Response_Cancel);
-      end if;
-   end On_Model_Search_Stop;
 
    --  Prefix character used by menu-item handlers to pass commands through
 
@@ -2281,251 +2171,32 @@ package body Coyote_App.Frontend.GUI is
 
 
 
-   --  ── Change Model dialog ───────────────────────────────────────────────
+   --  ── Change Model dialog ──────────────────────────────────────────────
 
    procedure On_Change_Model_Activate
      (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class)
    is
       pragma Unreferenced (Self);
-      use Gtk.Dialog;
-      use Gtk.List_Store;
-      use Gtk.Tree_Model;
-      use Gtk.Tree_Model_Filter;
-      use Gtk.Tree_Model_Sort;
-      use Gtk.Tree_View;
-
-      Models  : constant LLM.Model_Registry.Model_Info_Vectors.Vector :=
-                  LLM.Model_Registry.Available_Models;
+      Models : constant LLM.Model_Registry.Model_Info_Vectors.Vector :=
+        LLM.Model_Registry.Available_Models;
       Settings_Value : constant LLM.Settings.Settings :=
         LLM.Settings.Load_Settings;
-      Store      : Gtk_List_Store;
-      View       : Gtk_Tree_View;
-      Scroll     : Gtk.Scrolled_Window.Gtk_Scrolled_Window;
-      Search_Row : Gtk.Box.Gtk_Box;
-      Content    : Gtk.Box.Gtk_Box;
-      Dialog     : Gtk_Dialog;
-      Resp    : Gtk_Response_Type;
-      Sel     : Gtk.Tree_Selection.Gtk_Tree_Selection;
-      Tmodel  : Gtk_Tree_Model;
-      Iter    : Gtk_Tree_Iter;
-      Val     : Glib.Values.GValue;
-      Dummy   : Glib.Gint;
-      pragma Unreferenced (Dummy);
-      Btn     : Gtk.Widget.Gtk_Widget;
-      pragma Unreferenced (Btn);
-
-      --  Append one text column to View backed by Col_Num of Store.
-      --  If Sort_Col >= 0 the column header becomes clickable for sorting.
-      procedure Add_Text_Column
-        (Title    : String;
-         Col_Num  : Glib.Gint;
-         Sort_Col : Glib.Gint := -1)
-      is
-         Col      : Gtk.Tree_View_Column.Gtk_Tree_View_Column;
-         Renderer : Gtk.Cell_Renderer_Text.Gtk_Cell_Renderer_Text;
-      begin
-         Gtk.Cell_Renderer_Text.Gtk_New (Renderer);
-         Gtk.Tree_View_Column.Gtk_New (Col);
-         Col.Set_Title (Title);
-         Col.Pack_Start (Renderer, Expand => True);
-         Col.Add_Attribute (Renderer, "text", Col_Num);
-         Col.Set_Resizable (True);
-         if Sort_Col >= 0 then
-            Col.Set_Sort_Column_Id (Sort_Col);
-         end if;
-         Dummy := View.Append_Column (Col);
-      end Add_Text_Column;
-
-      --  Convert a price (dollars per MTok) to a Gint sort key
-      --  (micro-dollars per MTok).  Clamped to avoid Gint overflow.
-      function Price_Sort (P : Long_Float) return Glib.Gint is
-         Scale : constant Long_Float := 1.0e6;
-         Max   : constant Long_Float := Long_Float (Glib.Gint'Last);
-      begin
-         if P <= 0.0 then
-            return 0;
-         elsif P * Scale >= Max then
-            return Glib.Gint'Last;
-         else
-            return Glib.Gint (P * Scale);
-         end if;
-      end Price_Sort;
-
-      function Price_Text (P : Long_Float) return String is
-      begin
-         if P = 0.0 then
-            return "free";
-         elsif P < 0.0 then
-            return "";
-         elsif Settings_Value.Price_Display = LLM.Settings.Decibels then
-            return Coyote_App.Utils.Format_DB_Price (P);
-         else
-            return Coyote_App.Utils.Format_SI_Price (P);
-         end if;
-      end Price_Text;
-
+      Result : Coyote_GUI.Model_Picker.Selection_Result;
    begin
       if Current_Frontend = null then
          return;
       end if;
-
-      --  Store columns: 0=Provider 1=Name 2=Context 3=In 4=Out 5=CR 6=CW
-      --  (displayed strings); 7=Spec (hidden string);
-      --  8=Ctx 9=In 10=Out 11=CR 12=CW (hidden Gint sort keys).
-      Gtk.List_Store.Gtk_New
-        (Store,
-         (0  => Glib.GType_String,
-          1  => Glib.GType_String,
-          2  => Glib.GType_String,
-          3  => Glib.GType_String,
-          4  => Glib.GType_String,
-          5  => Glib.GType_String,
-          6  => Glib.GType_String,
-          7  => Glib.GType_String,
-          8  => Glib.GType_Int,
-          9  => Glib.GType_Int,
-          10 => Glib.GType_Int,
-          11 => Glib.GType_Int,
-          12 => Glib.GType_Int));
-
-      for M of Models loop
-         declare
-            use Ada.Strings.Unbounded;
-            Provider : constant String := To_String (M.Provider);
-            Name     : constant String :=
-              (if Length (M.Name) > 0
-               then To_String (M.Name)
-               else To_String (M.Model_Id));
-            Ctx      : constant String :=
-              Coyote_App.Utils.Format_SI_Count (M.Context_Window) & " ctx";
-            In_P     : constant String := Price_Text (M.Cost.Input);
-            Out_P    : constant String := Price_Text (M.Cost.Output);
-            CR_P     : constant String := Price_Text (M.Cost.Cache_Read);
-            CW_P     : constant String := Price_Text (M.Cost.Cache_Write);
-            Spec     : constant String :=
-              Provider & "/" & To_String (M.Model_Id);
-            Row      : Gtk_Tree_Iter;
-         begin
-            Store.Append (Row);
-            Store.Set (Row, 0,  Provider);
-            Store.Set (Row, 1,  Name);
-            Store.Set (Row, 2,  Ctx);
-            Store.Set (Row, 3,  In_P);
-            Store.Set (Row, 4,  Out_P);
-            Store.Set (Row, 5,  CR_P);
-            Store.Set (Row, 6,  CW_P);
-            Store.Set (Row, 7,  Spec);
-            Store.Set (Row, 8,  Glib.Gint (M.Context_Window));
-            Store.Set (Row, 9,  Price_Sort (M.Cost.Input));
-            Store.Set (Row, 10, Price_Sort (M.Cost.Output));
-            Store.Set (Row, 11, Price_Sort (M.Cost.Cache_Read));
-            Store.Set (Row, 12, Price_Sort (M.Cost.Cache_Write));
-         end;
-      end loop;
-
-      Clear_Model_Picker;
-
-      Gtk.Tree_Model_Filter.Gtk_New (Picker.Filter, +Store);
-      Picker.Filter.Set_Visible_Func (Model_Picker_Row_Visible'Access);
-      Gtk.Tree_Model_Sort.Gtk_New_With_Model
-        (Picker.Sort, +Picker.Filter);
-
-      --  View the sortable filter; typeahead is replaced by the
-      --  search-entry filter above the list.
-      Gtk.Tree_View.Gtk_New (View, +Picker.Sort);
-      View.On_Row_Activated (On_List_Row_Activated'Access);
-      View.Set_Enable_Search (False);
-      Add_Text_Column ("Provider",   0, Sort_Col => 0);
-      Add_Text_Column ("Name",       1, Sort_Col => 1);
-      Add_Text_Column ("Context",    2, Sort_Col => 8);
-      Add_Text_Column
-        ((if Settings_Value.Price_Display = LLM.Settings.Decibels
-          then "In dB ($/tok)" else "In $/MTok"),
-         3, Sort_Col => 9);
-      Add_Text_Column
-        ((if Settings_Value.Price_Display = LLM.Settings.Decibels
-          then "Out dB ($/tok)" else "Out $/MTok"),
-         4, Sort_Col => 10);
-      Add_Text_Column
-        ((if Settings_Value.Price_Display = LLM.Settings.Decibels
-          then "CR dB ($/tok)" else "CR $/MTok"),
-         5, Sort_Col => 11);
-      Add_Text_Column
-        ((if Settings_Value.Price_Display = LLM.Settings.Decibels
-          then "CW dB ($/tok)" else "CW $/MTok"),
-         6, Sort_Col => 12);
-
-      Gtk.Scrolled_Window.Gtk_New (Scroll);
-      Scroll.Set_Policy (Gtk.Enums.Policy_Automatic,
-                         Gtk.Enums.Policy_Automatic);
-      Scroll.Add (View);
-
-      Gtk.Dialog.Gtk_New (Dialog);
-      Dialog.Set_Title ("coyote : Select Model");
-      Dialog.Set_Default_Size (1000, 520);
-      Dialog.Set_Transient_For (Current_Frontend.Win);
-      Btn := Dialog.Add_Button ("_Select", Gtk_Response_OK);
-      Btn := Dialog.Add_Button ("_Cancel", Gtk_Response_Cancel);
-      Dialog.Set_Default_Response (Gtk_Response_OK);
-
-      Gtk.Search_Entry.Gtk_New (Picker.Search);
-      Picker.Search.Set_Placeholder_Text ("Filter models");
-      Picker.Search.On_Search_Changed
-        (On_Model_Search_Changed'Access);
-      Picker.Search.On_Stop_Search
-        (On_Model_Search_Stop'Access);
-
-      Gtk.Label.Gtk_New (Picker.Count, "");
-      Picker.Count.Set_Xalign (1.0);
-      Picker.Count.Set_Width_Chars (12);
-
-      Gtk.Box.Gtk_New_Hbox
-        (Search_Row, Homogeneous => False, Spacing => 8);
-      Search_Row.Set_Border_Width (4);
-      Search_Row.Pack_Start
-        (Picker.Search, Expand => True, Fill => True, Padding => 0);
-      Search_Row.Pack_Start
-        (Picker.Count, Expand => False, Fill => False, Padding => 0);
-
-      Picker.Store  := Store;
-      Picker.View   := View;
-      Picker.Dialog := Dialog;
-      Picker.Query  := Null_Unbounded_String;
-      Update_Model_Picker_Count;
-      Ensure_Model_Picker_Selection;
-      Active_List_Dialog := Dialog;
-
-      Content := Dialog.Get_Content_Area;
-      Content.Pack_Start
-        (Search_Row, Expand => False, Fill => True, Padding => 0);
-      Content.Pack_Start
-        (Scroll, Expand => True, Fill => True, Padding => 4);
-      Dialog.Show_All;
-      Picker.Search.Grab_Focus;
-
-      Resp := Dialog.Run;
-      if Resp = Gtk_Response_OK then
-         Sel := View.Get_Selection;
-         Sel.Get_Selected (Tmodel, Iter);
-         if Iter /= Null_Iter then
-            Gtk.Tree_Model.Get_Value (Tmodel, Iter, 7, Val);
-            declare
-               use Ada.Strings.Unbounded;
-               Spec : constant String := Glib.Values.Get_String (Val);
-            begin
-               Glib.Values.Unset (Val);
-               if Spec'Length > 0 then
-                  Current_Frontend.PQ.Enqueue
-                    ((Set_Model,
-                      Target_Agent_Id => Current_Frontend.Root_Agent_Id,
-                      Model_Spec => To_Unbounded_String (Spec)));
-               end if;
-            end;
-         end if;
+      Result := Coyote_GUI.Model_Picker.Choose
+        (Parent        => Current_Frontend.Win,
+         Models        => Models,
+         Price_Display => Settings_Value.Price_Display,
+         Initial_Spec  => "");
+      if Result.Status = Coyote_GUI.Model_Picker.Selected then
+         Current_Frontend.PQ.Enqueue
+           ((Set_Model,
+             Target_Agent_Id => Current_Frontend.Root_Agent_Id,
+             Model_Spec      => Result.Model_Spec));
       end if;
-      Active_List_Dialog := null;
-      Dialog.Destroy;
-      Clear_Model_Picker;
    end On_Change_Model_Activate;
 
    --  ── Thinking level handlers ───────────────────────────────────────────
@@ -2709,6 +2380,108 @@ package body Coyote_App.Frontend.GUI is
       Active_List_Dialog := null;
       Dialog.Destroy;
    end On_Sandbox_Profile_Activate;
+
+   --  ── Preferences model picker callbacks ──────────────────────────────
+
+   type Preferences_Model_State is record
+      Dialog        : Gtk.Dialog.Gtk_Dialog := null;
+      Models        : LLM.Model_Registry.Model_Info_Vectors.Vector;
+      Price_Display_Combo : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text := null;
+      Primary_Spec        : Unbounded_String;
+      Subagent_Spec       : Unbounded_String;
+      Primary_Button  : Gtk.Button.Gtk_Button := null;
+      Subagent_Button : Gtk.Button.Gtk_Button := null;
+   end record;
+
+   Preferences_Models : aliased Preferences_Model_State;
+
+   function Model_Spec
+     (Model : LLM.Model_Registry.Model_Info) return String
+   is
+   begin
+      return To_String (Model.Provider) & "/" & To_String (Model.Model_Id);
+   end Model_Spec;
+
+   function Has_Model
+     (Models : LLM.Model_Registry.Model_Info_Vectors.Vector;
+      Spec   : String) return Boolean
+   is
+   begin
+      for Model of Models loop
+         if Model_Spec (Model) = Spec then
+            return True;
+         end if;
+      end loop;
+      return False;
+   end Has_Model;
+
+   function First_Model_Spec
+     (Models : LLM.Model_Registry.Model_Info_Vectors.Vector)
+      return Unbounded_String
+   is
+   begin
+      if Models.Is_Empty then
+         return Null_Unbounded_String;
+      end if;
+      return To_Unbounded_String (Model_Spec (Models.First_Element));
+   end First_Model_Spec;
+
+   function Model_Button_Text (Spec : Unbounded_String) return String is
+   begin
+      if Length (Spec) = 0 then
+         return "(no model available)";
+      end if;
+      return To_String (Spec);
+   end Model_Button_Text;
+
+   procedure On_Default_Model_Clicked
+     (Button : access Gtk.Button.Gtk_Button_Record'Class)
+   is
+      Result : Coyote_GUI.Model_Picker.Selection_Result;
+   begin
+      if Preferences_Models.Dialog = null then
+         return;
+      end if;
+      Result := Coyote_GUI.Model_Picker.Choose
+        (Parent        => Preferences_Models.Dialog,
+         Models        => Preferences_Models.Models,
+         Price_Display => LLM.Settings.Price_Display_Mode'Val
+           (Preferences_Models.Price_Display_Combo.Get_Active),
+         Initial_Spec  => To_String (Preferences_Models.Primary_Spec));
+      if Result.Status = Coyote_GUI.Model_Picker.Selected then
+         Preferences_Models.Primary_Spec := Result.Model_Spec;
+         Button.Set_Label
+           (Model_Button_Text (Preferences_Models.Primary_Spec));
+      end if;
+   end On_Default_Model_Clicked;
+
+   procedure On_Default_Subagent_Model_Clicked
+     (Button : access Gtk.Button.Gtk_Button_Record'Class)
+   is
+      Result : Coyote_GUI.Model_Picker.Selection_Result;
+   begin
+      if Preferences_Models.Dialog = null then
+         return;
+      end if;
+      Result := Coyote_GUI.Model_Picker.Choose
+        (Parent        => Preferences_Models.Dialog,
+         Models        => Preferences_Models.Models,
+         Price_Display => LLM.Settings.Price_Display_Mode'Val
+           (Preferences_Models.Price_Display_Combo.Get_Active),
+         Initial_Spec  => To_String (Preferences_Models.Subagent_Spec),
+         Allow_Default => True);
+      case Result.Status is
+         when Coyote_GUI.Model_Picker.Selected =>
+            Preferences_Models.Subagent_Spec := Result.Model_Spec;
+            Button.Set_Label
+              (Model_Button_Text (Preferences_Models.Subagent_Spec));
+         when Coyote_GUI.Model_Picker.Use_Default =>
+            Preferences_Models.Subagent_Spec := Null_Unbounded_String;
+            Button.Set_Label ("Use default model");
+         when Coyote_GUI.Model_Picker.Cancelled =>
+            null;
+      end case;
+   end On_Default_Subagent_Model_Clicked;
 
    --  ── Persistent GUI preferences ───────────────────────────────────────
 
@@ -2922,8 +2695,6 @@ package body Coyote_App.Frontend.GUI is
       Dialog         : Gtk.Dialog.Gtk_Dialog;
       Content        : Gtk.Box.Gtk_Box;
       Form           : Gtk.Box.Gtk_Box;
-      Model_C             : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
-      Subagent_Model_C    : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
       Thinking_C          : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
       Sandbox_C            : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
       Price_Display_C      : Gtk.Combo_Box_Text.Gtk_Combo_Box_Text;
@@ -2936,7 +2707,6 @@ package body Coyote_App.Frontend.GUI is
       Mnemonic_Context     : Coyote_GUI.Mnemonics.Registry;
       Thinking_Index       : Glib.Gint := 0;
       Sandbox_Index       : Glib.Gint := 0;
-      Subagent_Model_Index : Glib.Gint := 0;
       Target_Model        : constant String :=
         To_String (Settings_Value.Default_Provider) & "/"
         & To_String (Settings_Value.Default_Model);
@@ -2948,24 +2718,6 @@ package body Coyote_App.Frontend.GUI is
          else "");
       use type Gtk.Dialog.Gtk_Response_Type;
 
-      function Model_Text
-        (M : LLM.Model_Registry.Model_Info) return String
-      is
-      begin
-         return To_String (M.Provider) & "/" & To_String (M.Model_Id);
-      end Model_Text;
-
-      function Model_Index_Of (Spec : String) return Glib.Gint is
-         Index : Glib.Gint := 0;
-      begin
-         for M of Models loop
-            if Model_Text (M) = Spec then
-               return Index;
-            end if;
-            Index := Index + 1;
-         end loop;
-         return -1;
-      end Model_Index_Of;
    begin
       if Current_Frontend = null then
          return;
@@ -3013,6 +2765,17 @@ package body Coyote_App.Frontend.GUI is
       Gtk.Box.Gtk_New_Vbox (Form, Homogeneous => False, Spacing => 6);
       Form.Set_Border_Width (10);
 
+      Preferences_Models.Dialog := Dialog;
+      Preferences_Models.Models := Models;
+      Preferences_Models.Primary_Spec :=
+        (if Has_Model (Models, Target_Model)
+         then To_Unbounded_String (Target_Model)
+         else First_Model_Spec (Models));
+      Preferences_Models.Subagent_Spec :=
+        (if Has_Model (Models, Target_Subagent_Model)
+         then To_Unbounded_String (Target_Subagent_Model)
+         else Null_Unbounded_String);
+
       declare
          Row : Gtk.Box.Gtk_Box;
          Label : Gtk.Label.Gtk_Label;
@@ -3020,17 +2783,14 @@ package body Coyote_App.Frontend.GUI is
          Gtk.Box.Gtk_New_Hbox (Row, Homogeneous => False, Spacing => 8);
          Gtk.Label.Gtk_New_With_Mnemonic (Label, "_Default model:");
          Row.Pack_Start (Label, False, False, 0);
-         Gtk.Combo_Box_Text.Gtk_New (Model_C);
-         Label.Set_Mnemonic_Widget (Model_C);
-         for M of Models loop
-            Model_C.Append_Text (Model_Text (M));
-         end loop;
-         if Model_Index_Of (Target_Model) >= 0 then
-            Model_C.Set_Active (Model_Index_Of (Target_Model));
-         elsif not Models.Is_Empty then
-            Model_C.Set_Active (0);
-         end if;
-         Row.Pack_Start (Model_C, True, True, 0);
+         Gtk.Button.Gtk_New
+           (Preferences_Models.Primary_Button,
+            Model_Button_Text (Preferences_Models.Primary_Spec));
+         Preferences_Models.Primary_Button.On_Clicked
+           (On_Default_Model_Clicked'Access);
+         Label.Set_Mnemonic_Widget (Preferences_Models.Primary_Button);
+         Row.Pack_Start
+           (Preferences_Models.Primary_Button, True, True, 0);
          Form.Pack_Start (Row, False, False, 0);
       end;
 
@@ -3042,20 +2802,17 @@ package body Coyote_App.Frontend.GUI is
          Gtk.Label.Gtk_New_With_Mnemonic
            (Label, "Default subagent _model:");
          Row.Pack_Start (Label, False, False, 0);
-         Gtk.Combo_Box_Text.Gtk_New (Subagent_Model_C);
-         Label.Set_Mnemonic_Widget (Subagent_Model_C);
-         Subagent_Model_C.Append_Text ("Use default model");
-         for M of Models loop
-            Subagent_Model_C.Append_Text (Model_Text (M));
-         end loop;
-         if Target_Subagent_Model'Length > 0
-           and then Model_Index_Of (Target_Subagent_Model) >= 0
-         then
-            Subagent_Model_Index :=
-              Model_Index_Of (Target_Subagent_Model) + 1;
-         end if;
-         Subagent_Model_C.Set_Active (Subagent_Model_Index);
-         Row.Pack_Start (Subagent_Model_C, True, True, 0);
+         Gtk.Button.Gtk_New
+           (Preferences_Models.Subagent_Button,
+            (if Length (Preferences_Models.Subagent_Spec) = 0
+             then "Use default model"
+             else Model_Button_Text (Preferences_Models.Subagent_Spec)));
+         Preferences_Models.Subagent_Button.On_Clicked
+           (On_Default_Subagent_Model_Clicked'Access);
+         Label.Set_Mnemonic_Widget
+           (Preferences_Models.Subagent_Button);
+         Row.Pack_Start
+           (Preferences_Models.Subagent_Button, True, True, 0);
          Form.Pack_Start (Row, False, False, 0);
       end;
 
@@ -3119,6 +2876,7 @@ package body Coyote_App.Frontend.GUI is
          Gtk.Label.Gtk_New_With_Mnemonic (Label, "_Price display:");
          Row.Pack_Start (Label, False, False, 0);
          Gtk.Combo_Box_Text.Gtk_New (Price_Display_C);
+         Preferences_Models.Price_Display_Combo := Price_Display_C;
          Label.Set_Mnemonic_Widget (Price_Display_C);
          Price_Display_C.Append_Text ("SI prefixes ($/tok)");
          Price_Display_C.Append_Text ("dB ($/tok)");
@@ -3229,13 +2987,14 @@ package body Coyote_App.Frontend.GUI is
 
       Content.Pack_Start (Form, True, True, 4);
       Dialog.Show_All;
-      Model_C.Grab_Focus;
+      Preferences_Models.Primary_Button.Grab_Focus;
       Resp := Dialog.Run;
       if Resp = Gtk.Dialog.Gtk_Response_OK then
          declare
-            Model          : constant String := Model_C.Get_Active_Text;
+            Model          : constant String :=
+              To_String (Preferences_Models.Primary_Spec);
             Subagent_Model : constant String :=
-              Subagent_Model_C.Get_Active_Text;
+              To_String (Preferences_Models.Subagent_Spec);
             Sand           : constant String := Sandbox_C.Get_Active_Text;
             Slash          : constant Natural := Ada.Strings.Fixed.Index
               (Model, "/");
@@ -3283,8 +3042,13 @@ package body Coyote_App.Frontend.GUI is
          end;
       end if;
       Dialog.Destroy;
+      Preferences_Models := (others => <>);
    exception
       when others =>
+         if Dialog /= null then
+            Dialog.Destroy;
+         end if;
+         Preferences_Models := (others => <>);
          null;
    end On_Preferences_Activate;
 
@@ -3657,7 +3421,6 @@ package body Coyote_App.Frontend.GUI is
       Gtk.Window.Gtk_New (F.Agents_Window, Gtk.Enums.Window_Toplevel);
       F.Agents_Window.Set_Title ("coyote : Agents");
       F.Agents_Window.Set_Role ("coyote-agents");
-      F.Agents_Window.Set_Transient_For (F.Win);
       F.Agents_Window.Set_Default_Size (360, 600);
       F.Agents_Window.Set_Size_Request (280, 320);
       F.Agents_Window.Set_Focus_On_Map (False);

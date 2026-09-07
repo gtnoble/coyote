@@ -120,8 +120,10 @@ recursion-limit, authentication, and SQC session/workspace tests.
 
 The GUI coordinator presents short-lived subagents through a virtual-agent
 tree rather than one top-level window per headful subagent. The tree is
-implemented as a modeless `coyote : Agents` support window owned by the
-coordinator window and is visible by default. `View → Agents Window` toggles
+implemented as a modeless `coyote : Agents` independent top-level companion
+window associated with the coordinator window but not transient for it. This
+allows tiling window managers to tile the Agents window normally. It is
+visible by default. `View → Agents Window` toggles
 its visibility; closing it hides only the support window. The main agent is the
 tree root and recursively launched subagents are child virtual windows.
 Selecting a live node replaces the conversation shown in the shared
@@ -239,6 +241,13 @@ case-insensitive substring of provider, display name, and hidden
 The count label shows `N models` when unfiltered and `N matches` when a
 query is active. Escape clears a non-empty query, then cancels the dialog.
 Typeahead search is disabled so it does not fight the filter.
+
+The picker is implemented by `Coyote_GUI.Model_Picker` and returns a typed
+selection without changing agent state or persisting settings. `Models...`
+enqueues `Set_Model`; Preferences invokes the same picker from its primary and
+subagent model buttons, retaining draft selections until Save. The subagent
+picker adds an explicit `Use default model` row that clears both persisted
+subagent fields.
 
 ### Dedicated subagent model in GTK Preferences (2026-08-08)
 

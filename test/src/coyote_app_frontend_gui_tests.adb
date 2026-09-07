@@ -106,6 +106,9 @@ package body Coyote_App_Frontend_GUI_Tests is
         (Agents_Window_Widget.Get_Title = "coyote : Agents",
          "agents support window uses the IRIX function title");
       Assert
+        (Agents_Window_Widget.Get_Transient_For = null,
+         "agents window remains an independent top-level client");
+      Assert
         (Gtk.Widget.Get_Visible
            (Gtk.Widget.Gtk_Widget (Agents_Window_Widget)),
          "agents support window is visible by default");

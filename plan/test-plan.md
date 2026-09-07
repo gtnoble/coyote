@@ -179,6 +179,7 @@ SRS-CORE requirement groups.
 | `coyote_gui_mode_tests.adb` | REQ-CORE-113 Agent-menu availability by run mode | 1 |
 | `coyote_gui_session_stats_window_tests.adb` | REQ-CORE-113d; typed snapshot retention, reset, and idempotent support-window creation | 3 |
 | `coyote_gui_conversation_stack_tests.adb` | REQ-CORE-111, 133..139; native stack host, visible per-step frames, responsive per-step tool-card flow, incremental text, native GFM Markdown replacement, Markdown toggle, stable tool IDs, native status-row footers, functional fork buttons, explicit completion lifecycle, and reset | 13 |
+| `coyote_gui_model_picker_tests.adb` | Shared GTK model-picker typed selection results; modal interaction remains DEM-033 display-backed qualification | 3 |
 
 | `coyote_gui_prompt_queue_tests.adb` | REQ-CORE-116..119, 128; typed preference payload transport | 1 |
 | `coyote_help_tests.adb` | REQ-CORE-113a, REQ-CORE-504a; Yelp URI construction, area mapping, executable detection, Help data path, and Product Information text | 5 |
@@ -222,7 +223,7 @@ behaviour. Results are recorded in a Test Report.
 | DEM-035 | REQ-CORE-126..128 | Toggle desktop completion notifications in GUI Preferences; verify an unfocused ordinary GUI turn notifies, a focused turn does not, the setting persists, and subagent/one-shot runs remain silent |
 | DEM-036 | REQ-CORE-113a..113c | Exercise the GUI menu bar and support windows: verify top-level order `File`, `Edit`, `View`, `Agent`, `Options`, `Help`; activate Overview, Keys & Shortcuts, and Product Information; verify application-prefixed titles for in-process support windows, the prominent coyote application icon above the Product Information name/version/license text, Yelp ownership for Overview/Keys topics, an in-process Product Information dialog, dialog button order, and lifecycle status in the status area rather than the title |
 | DEM-037 | REQ-CORE-113a..113b | In a display-backed GUI, press F1 and verify Overview opens; press Shift+F1 and verify the pointer becomes a question mark; click the conversation canvas and verify contextual help opens without activating the clicked control; select and extend conversation text, verify PRIMARY changes independently of CLIPBOARD; middle-click in the prompt and verify PRIMARY text is inserted at the pointer without selecting the result |
-| DEM-038 | REQ-CORE-113a, 113b, 115 | In a display-backed GUI, use Help → Click for Help and click one widget in each main area (menu item, prompt, Send/Stop, status, conversation). Verify a contextual Help window opens, the selected action is not activated, Escape cancels the armed mode, the window role changes to `coyote-session-<UUID>` after session bootstrap/switch, and the launcher/icon identity is `coyote`. |
+| DEM-038 | REQ-CORE-113a, 113b, 115 | In a display-backed GUI, use Help → Click for Help and click one widget in each main area (menu item, prompt, Send/Stop, status, conversation). Verify a contextual Help window opens, the selected action is not activated, Escape cancels the armed mode, the window role changes to `coyote-session-<UUID>` after session bootstrap/switch, and the launcher/icon identity is `coyote`. Verify the `coyote : Agents` window has no transient parent so a tiling window manager may tile it normally. |
 | DEM-039 | REQ-CORE-113a, REQ-CORE-504a | In a display-backed GUI, activate Overview, task entries, Index, and Keys & Shortcuts and verify Yelp opens the corresponding `help:coyote` or `help:coyote/<topic>` document. Verify Product Information opens an in-process dialog that remains available when Yelp is missing. Verify Mallard navigation, Index links, task links, contextual area topics, and the visible error notice when Yelp is unavailable. |
 | DEM-040 | REQ-CORE-113d | In a display-backed GUI, open Session Stats repeatedly and verify only one modeless transient `coyote : Session Stats` support window exists. Verify grouped selectable values, system-font sizing, scrollable report area, visible Close, Ctrl+W, live refresh after a completed turn, and clearing after New Session and session switch. |
 | DEM-041 | REQ-CORE-113e | In a display-backed GUI, click active and completed tool cards and verify each opens an independent `coyote : Tool Call Details` transient support window. For active cards, verify captured metadata and arguments, explicit `Running` status, and the no-result-yet message. For completed cards, verify selectable header metadata, labelled monospace argument views, full selectable results, outer vertical scrolling, visible Close and Help actions, deterministic focus, Ctrl+W, non-color status meaning, image display/fallback, light/dark theme behavior, replay parity, and correct multi-window independence. |
@@ -337,6 +338,7 @@ and preferences demonstrations listed above.
 | REQ-CORE-117 | D/T | `llm_settings_tests.adb`, `coyote_gui_prompt_queue_tests.adb`, DEM-033 |
 | REQ-CORE-118 | T | `llm_settings_tests.adb`, `coyote_gui_prompt_queue_tests.adb` |
 | REQ-CORE-129 | T | `coyote_app_tests.adb`, DEM-033 |
+| Shared model-picker result contract | T | `coyote_gui_model_picker_tests.adb`; DEM-033 |
 | REQ-CORE-230 | T | `llm_settings_tests.adb` |
 | REQ-CORE-119 | D | DEM-033 |
 | REQ-CORE-120â121 | D | DEM-001 (plain output) |
@@ -927,3 +929,12 @@ and manager-level removal of Rename/Delete. Backend compatibility rename and
 historical-session behavior remain unchanged. Production and test development
 builds succeed; the complete suite passes 827/827 with zero failed assertions.
 Full display-backed interaction qualification remains pending under DEM-054.
+
+**Implementation note (shared GTK model picker):** The inline Change Model
+picker was extracted to `Coyote_GUI.Model_Picker`. Preferences now uses the same
+searchable/sortable picker for primary and subagent defaults; selections remain
+draft-only until Save, and `Use default model` explicitly clears subagent
+default fields. Production and test development builds succeed; the three typed-result
+picker tests pass. An isolated pre-existing malformed string literal in
+`test/src/llm_model_registry_tests.adb:832-833` was repaired. Display-backed
+interaction remains under DEM-033.

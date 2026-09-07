@@ -258,6 +258,7 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `Coyote_GUI.Tool_Detail_Window` | Structured GTK tool-call detail window | `src/coyote_gui/coyote_gui-tool_detail_window.ads/.adb` |
 | `Coyote_GUI.Session_Stats_Window` | Reusable live session-statistics support window | `src/coyote_gui/coyote_gui-session_stats_window.ads/.adb` |
 | `Coyote_GUI.Sandbox_Profile_Window` | Reusable modeless GTK sandbox profile manager with multi-profile drafts, Save-All/Cancel-All, and profile-rule editing | `src/coyote_gui/coyote_gui-sandbox_profile_window.ads/.adb` |
+| `Coyote_GUI.Model_Picker` | Reusable modal searchable and sortable model selector returning a typed selection | `src/coyote_gui/coyote_gui-model_picker.ads/.adb` |
 | `Coyote_GUI.Zoom` | Zoom-level ↔ font-size arithmetic (pure logic) | `src/coyote_gui/coyote_gui-zoom.ads/.adb` |
 | `Coyote_GUI.Navigation` | Clamped keyboard viewport navigation policy | `src/coyote_gui/coyote_gui-navigation.ads/.adb` |
 | `Coyote_GUI.Mnemonics` | Context-local GTK mnemonic extraction and duplicate-key validation | `src/coyote_gui/coyote_gui-mnemonics.ads/.adb` |
@@ -1704,8 +1705,9 @@ startup and is the sole GTK conversation presentation (see §5.15).
   adding nested scrolling regions or changing the conversation's expansion
   policy. The arrangement follows the IRIX guidance for a work area above a
   control area and a status area along the bottom.
-- The agents panel is a modeless `coyote : Agents` support window owned by the
-  main coyote window. It contains a narrow, resizable tree view whose root row
+- The agents panel is a modeless `coyote : Agents` independent top-level
+  companion window associated with the main coyote window, but not transient
+  for it. It contains a narrow, resizable tree view whose root row
   is the main agent; recursively launched subagents appear beneath the agent
   that launched them. Each row identifies the agent label and lifecycle state.
   The window is visible by default and can be hidden or reopened through
@@ -1751,8 +1753,10 @@ startup and is the sole GTK conversation presentation (see §5.15).
   when they cannot apply. Support windows close or hide on Ctrl+W without
   shutting down the main application. The main title identifies coyote and an
   optional instance label without lifecycle status. Dialogs and support
-  windows use application-prefixed titles and are transient for the main
-  window; the status area carries lifecycle state.
+  windows other than the Agents Window use application-prefixed titles and are
+  transient for the main window; the Agents Window is an independent
+  top-level companion so a tiling window manager may tile it. The status area
+  carries lifecycle state.
 - **Help menu:** Click for Help, Overview, task topics, Index, and Keys &
   Shortcuts launch the corresponding Mallard topic in Yelp. Product
   Information is an in-process dialog built from
@@ -1796,13 +1800,16 @@ startup and is the sole GTK conversation presentation (see §5.15).
   selection and Ctrl+A publish PRIMARY without changing CLIPBOARD. A middle
   click in the prompt converts the pointer to a buffer iterator and pastes
   PRIMARY asynchronously at that position without selecting the inserted text.
-- **Change Model dialog:** `Agent → Change Model…` (`Ctrl+M`) lists the live
-  registry in a sortable `GtkTreeView`. A `GtkSearchEntry` filters rows through
-  `GtkTreeModelFilter` + `GtkTreeModelSort` using `Model_Row_Matches` on
-  provider, display name, and hidden `provider/id`. Typeahead is disabled.
-  A count label shows `N models` or `N matches`. Escape clears a non-empty
-  query, then cancels the dialog. Library-level callbacks plus package-level
-  picker state avoid `Unrestricted_Access`.
+- **Model picker:** `Coyote_GUI.Model_Picker` owns the shared modal
+  searchable and sortable `GtkTreeView` used by both `Agent → Models...`
+  (`Ctrl+M`) and the two model controls in Preferences. A `GtkSearchEntry`
+  filters rows through `GtkTreeModelFilter` + `GtkTreeModelSort` using
+  `Model_Row_Matches` on provider, display name, and hidden `provider/id`.
+  The picker returns a typed selection and never changes agent state or saves
+  settings. Its optional `Use default model` row is used by the subagent
+  preference. The caller separately enqueues `Set_Model` or `Set_Preferences`.
+  Typeahead is disabled; a count label shows `N models` or `N matches`; Escape
+  clears a non-empty query, then cancels the dialog.
 - **Completion notifications:** `Run_GUI` disables the feature for subagents and
   one-shot executions. For eligible runs, the agent task queues a completion
   update after `Session_Stats_Event`; the GTK idle callback checks
