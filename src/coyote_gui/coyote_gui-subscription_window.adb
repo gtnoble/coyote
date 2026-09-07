@@ -6,6 +6,8 @@
 with Ada.Exceptions;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Text_IO;
+with Coyote_GUI.Mnemonics;
+with Coyote_Spawn;
 with Gdk.Event;
 with Gdk.Types;
 with Gdk.Types.Keysyms;
@@ -13,7 +15,6 @@ with Glib;
 with Glib.Main;
 with Gtk.Box;
 with Gtk.Cell_Renderer_Text;
-with Coyote_GUI.Mnemonics;
 with Gtk.Enums;
 with Gtk.Frame;
 with Gtk.Scrolled_Window;
@@ -21,6 +22,7 @@ with Gtk.Tree_Model;
 with Gtk.Tree_Selection;
 with Gtk.Tree_View_Column;
 with Gtk.Widget;
+with GNATCOLL.OS.Process;
 with LLM.Auth;
 with LLM.Auth.Codex;
 with LLM.Auth.Codex.Login;
@@ -105,6 +107,7 @@ package body Coyote_GUI.Subscription_Window is
    --  ── Login outcome exchange between the login task and GTK idle ───────
 
    protected type Login_Outcome is
+      procedure Clear;
       procedure Record_Success;
       procedure Record_Failure (Message : String);
       function Finished return Boolean;
@@ -117,6 +120,13 @@ package body Coyote_GUI.Subscription_Window is
    end Login_Outcome;
 
    protected body Login_Outcome is
+      procedure Clear is
+      begin
+         Done := False;
+         OK := False;
+         Err_Msg := Null_Unbounded_String;
+      end Clear;
+
       procedure Record_Success is
       begin
          Done := True;
@@ -155,11 +165,28 @@ package body Coyote_GUI.Subscription_Window is
    --  Retained so the task object outlives the click handler; the task
    --  terminates when the browser flow completes and records the outcome.
 
+   procedure Open_In_Browser (Url : String);
+   --  Launch the desktop browser for the authorize URL from the login task.
+
+   procedure Open_In_Browser (Url : String) is
+      use GNATCOLL.OS.Process;
+      Args : Argument_List;
+   begin
+      Args.Append ("xdg-open");
+      Args.Append (Url);
+      if not Coyote_Spawn.Spawn_Detached (Args) then
+         Ada.Text_IO.Put_Line
+           (Ada.Text_IO.Standard_Error,
+            "[!] Failed to launch browser; open this URL manually:"
+            & " " & Url);
+      end if;
+   end Open_In_Browser;
+
    task body Login_Task_Type is
       Creds : LLM.Auth.Provider_Credentials;
    begin
       LLM.Auth.Codex.Login.Browser_Login
-        (Open_Authorize_Url => null,
+        (Open_Authorize_Url => Open_In_Browser'Access,
          On_Progress        => null,
          Creds              => Creds);
       Outcome.Record_Success;
@@ -353,9 +380,7 @@ package body Coyote_GUI.Subscription_Window is
          return;
       end if;
 
-      Outcome.Record_Failure ("");
-      --  Reset the outcome record through its own operations; the
-      --  protected type is limited so assignment is not available.
+      Outcome.Clear;
       Current_Instance.Login_Active := True;
       Current_Instance.Status.Set_Text
         ("Waiting for browser authorization...");
