@@ -12,6 +12,11 @@ shared between coyote and pi.
 
 - **GTK frontend** — graphical conversation view with Markdown, tool cards,
   session management, status, preferences, keyboard navigation, and Help
+- **Incremental GUI markup (opt-in)** — set
+  `COYOTE_INCREMENTAL_MARKUP=1` to process Coyote Stream Markup deltas
+  immediately; text streams live, while complete table and display-math blocks
+  become native GTK components. Markdown remains the default and Plain output
+  is unchanged.
 - **Plain frontend** — line-oriented output for pipes, scripts, and one-shot
   execution; one-shot mode emits exactly one JSON result on standard output
 - **Built-in tools** — `bash`, `read`, `write`, `edit`, `find`, `glob`, and
@@ -148,6 +153,13 @@ Configuration files live under `~/.coyote/`. The main settings file is
 }
 ```
 
+`COYOTE_INCREMENTAL_MARKUP=1` opts live GUI assistant responses into the
+restricted Coyote Stream Markup path. The parser processes each provider delta
+immediately and realizes complete CSM table and display-math blocks as native
+components. Unset or `0` preserves Markdown behavior; Plain output and
+Markdown session replay are unchanged. Broader CSM grammar remains limited to
+text, paragraphs, line breaks, tables, and MathML.
+
 ## Architecture
 
 Coyote has two supported execution paths:
@@ -171,8 +183,8 @@ cd test && alr build
 /usr/bin/time -f 'wall=%e exit=%x' ./bin/coyote_test
 ```
 
-The current hierarchy contains 822 registered tests and passes 822/822 in
-approximately 34 seconds on the development host. AUnit reports cumulative
+The current hierarchy contains 850 registered tests and passes 850/850 in
+approximately 37 seconds on the development host. AUnit reports cumulative
 and per-test timing. Live provider tests remain opt-in; subagent subprocess
 tests are guarded by `COYOTE_TEST_SUBAGENT=1`.
 

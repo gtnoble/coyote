@@ -18,6 +18,7 @@ package Coyote_Incremental_Tests is
    procedure Test_Math_Event_Survives_Split     (T : in out Test);
    procedure Test_Block_Trailing_Text_Emits     (T : in out Test);
    procedure Test_Adjacent_Blocks_Preserve_Order (T : in out Test);
+   procedure Test_Malformed_Math_Opening_Is_Visible (T : in out Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite;
 

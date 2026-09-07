@@ -154,6 +154,11 @@ package body Coyote_Renderer.Incremental is
                exit;
             elsif Ada.Strings.Fixed.Index
                     (Source, "<math", Open) = Open
+                 and then
+                   (Ada.Strings.Fixed.Index
+                      (Source, ">", Open) > Open
+                  and then
+                   Source (Open + 5) in ' ' | ASCII.HT | '>')
             then
                declare
                   Open_End : constant Natural :=

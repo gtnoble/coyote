@@ -30,8 +30,8 @@ package Coyote_Renderer.Incremental is
    procedure Reset (Parser : in out Instance);
 
    --  Consume Data and emit semantic events synchronously.  Recognised CSM
-   --  elements are <text>, <p>, </p>, <br/>, <table>...</table>,
-   --  <math>...</math>, <br/>, and <br />.  Table blocks contain GFM
+   --  elements are <text>, <p>, </p>, <br/>, <table>...</table>, and
+   --  <math>...</math> or <math ...>...</math>.  Table blocks contain GFM
    --  table source; math blocks contain one complete MathML document.
    --  Unknown or incomplete elements are emitted as visible source so
    --  malformed model output remains safe.

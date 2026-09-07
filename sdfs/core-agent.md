@@ -35,10 +35,12 @@ component tests pass. Broader CSM grammar expansion remains future work.
 
 The first implementation slice persists application-owned response formats,
 selects `Format_Coyote_Stream` for opted-in GUI sessions, and routes each GUI
-provider delta through the synchronous restricted CSM parser. Focused PCR-097 tests and the complete development suite pass 849/849 with
+provider delta through the synchronous restricted CSM parser. Focused PCR-097 tests and the complete development suite pass 850/850 with
 zero failed assertions and zero unexpected errors. The display-backed suite
-also verifies prefix/native/suffix ordering, repeated native blocks, and empty
-provisional-view cleanup. Broader CSM grammar remains future work.
+also verifies prefix/native/suffix ordering, repeated native blocks, empty
+provisional-view cleanup, and malformed MathML-prefixed tags remaining visible.
+README documents the opt-in flag and restricted scope. Broader CSM grammar
+remains future work.
 
 ## 2026-09-05 — AUnit hierarchy and runtime baseline
 

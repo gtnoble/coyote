@@ -24,11 +24,13 @@ client-controlled work product gets an entry here.
 - **Verification:** `alr build` and `cd test && alr build` succeed. Focused
   parser, message-format, persistence, legacy-fallback, environment-flag,
   incremental native table, incremental native MathML, mixed-order lifecycle,
-  and empty provisional-view tests pass. The complete development suite passes
-  849/849 with zero failed assertions and zero unexpected errors; the
-  display-backed conversation-stack suite passes 25/25.
+  empty provisional-view, malformed MathML-opening, and README documentation
+  updates are complete. The complete development suite passes 850/850 with
+  zero failed assertions and zero unexpected errors; the display-backed
+  conversation-stack suite passes 25/25.
 - **Status:** Implemented and display-qualified for the restricted CSM
-  text/table/math slice; broader CSM element expansion remains future work.
+  text/table/math slice; malformed prefixed tags are safely visible and broader
+  CSM element expansion remains future work.
 
 
 ## PCR-096 — Multi-profile sandbox manager drafts and Save-All (2026-09-06)

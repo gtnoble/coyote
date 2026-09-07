@@ -145,6 +145,19 @@ package body Coyote_Incremental_Tests is
               "adjacent native blocks preserve source order");
    end Test_Adjacent_Blocks_Preserve_Order;
 
+   procedure Test_Malformed_Math_Opening_Is_Visible (T : in out Test) is
+      pragma Unreferenced (T);
+      Parser : Instance;
+   begin
+      Reset_Log;
+      Feed (Parser, "before<mathx>body</mathx>after", Collect'Access);
+      Assert (Test_Log.Invalid_Count = 2,
+              "malformed math-prefixed tags remain invalid source");
+      Assert (To_String (Test_Log.Text) =
+                "before|<mathx>|body|</mathx>|after",
+              "malformed math-prefixed source remains visible");
+   end Test_Malformed_Math_Opening_Is_Visible;
+
    package Caller is new AUnit.Test_Caller (Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
@@ -175,6 +188,9 @@ package body Coyote_Incremental_Tests is
       Result.Add_Test (Caller.Create
         ("Incremental adjacent blocks preserve order",
          Test_Adjacent_Blocks_Preserve_Order'Access));
+      Result.Add_Test (Caller.Create
+        ("Incremental malformed math opening remains visible",
+         Test_Malformed_Math_Opening_Is_Visible'Access));
       return Result;
    end Suite;
 
