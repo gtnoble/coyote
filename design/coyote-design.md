@@ -284,6 +284,7 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `LLM.Providers.GitHub_Copilot` | Copilot routing provider | `src/llm/llm-providers-github_copilot.ads/.adb` |
 | `LLM.Providers.OpenCode_Go` | OpenCode Go routing provider | `src/llm/llm-providers-opencode_go.ads/.adb` |
 | `LLM.Providers.Codex` | OpenAI Codex subscription provider (ChatGPT backend) | `src/llm/llm-providers-codex.ads/.adb` |
+| `LLM.Providers.Codex.Catalogue` | Live Codex model catalogue with 24-hour disk cache | `src/llm/llm-providers-codex-catalogue.ads/.adb` |
 | `LLM.Tools` | Abort_Flag, Pause_Flag, Tool_Descriptor | `src/llm/llm-tools.ads/.adb` |
 | `LLM.Tools.Shell` | Built-in shell tool and tracked process-group execution | `src/llm/llm-tools-shell.ads/.adb` |
 | `LLM.Tools.Sandbox` | Sandbox profile discovery and bwrap arg construction | `src/llm/llm-tools-sandbox.ads/.adb` |
@@ -1500,13 +1501,20 @@ IDs containing `"claude"` → `"anthropic-messages"`, all others →
 Copilot model IDs, so the agent can start and operate even when the Copilot
 catalogue has not been loaded.
 
-**`Refresh_Codex`:** Populates the registry with the curated OpenAI Codex
-subscription catalogue (gpt-5.5 default, gpt-5.4, gpt-5.4-mini,
-gpt-5.3-codex-spark, gpt-5.6-luna/sol/terra, gpt-6-astra) when
-`~/.coyote/auth.json` contains a `"codex"` credential entry.  Entries carry
-context window 272,000, max tokens 128,000, the `"openai-responses"` wire
-format, and zero cost (subscription billing).  Without credentials the
-Codex portion of the registry stays empty.
+**`Refresh_Codex`:** Populates the registry from the live Codex
+subscription catalogue served by `LLM.Providers.Codex.Catalogue` (GET
+`https://chatgpt.com/backend-api/codex/models?client_version=99.0.0`)
+when `~/.coyote/auth.json` contains a `"codex"` credential entry.  Hidden
+entries (`visibility` other than `"list"`) and entries without a `slug`
+are excluded.  Entries carry the backend `context_window`, max tokens
+128,000, the `"openai-responses"` wire format, and zero cost
+(subscription billing).  The catalogue is cached for 24 hours in
+`~/.coyote/codex_models_cache.json`; a stale cache is used when the live
+fetch fails, and an empty registry results when no cache exists.  Token
+refresh is deliberately not performed during the refresh: only a cached,
+non-expired access token is used, keeping the startup refresh synchronous
+and side-effect free.  Without credentials the Codex portion of the
+registry stays empty.
 
 **`Lookup` for `"codex"`:** Unknown Codex model IDs return a
 `Default_Codex_Model` with the Responses wire format and conservative

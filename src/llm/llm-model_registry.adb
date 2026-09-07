@@ -8,6 +8,7 @@ with LLM.Auth.GitHub_Copilot;
 with LLM.Providers.GitHub_Copilot.Catalogue;
 with LLM.Providers.OpenCode_Go.Catalogue;
 use type LLM.Providers.OpenCode_Go.Catalogue.Wire_Kind;
+with LLM.Providers.Codex.Catalogue;
 with LLM.Providers.OpenRouter.Catalogue;
 with LLM.Providers.Ollama.Catalogue;
 with LLM.Settings;
@@ -329,6 +330,7 @@ package body LLM.Model_Registry is
    end Refresh_OpenAI;
 
    procedure Refresh_Codex is
+      Models : LLM.Providers.Codex.Catalogue.Catalogue_Vectors.Vector;
    begin
       Remove_Provider_Entries ("codex");
 
@@ -336,14 +338,31 @@ package body LLM.Model_Registry is
          return;
       end if;
 
-      Registry.Append (Default_Codex_Model ("gpt-5.5"));
-      Registry.Append (Default_Codex_Model ("gpt-5.4"));
-      Registry.Append (Default_Codex_Model ("gpt-5.4-mini"));
-      Registry.Append (Default_Codex_Model ("gpt-5.3-codex-spark"));
-      Registry.Append (Default_Codex_Model ("gpt-5.6-luna"));
-      Registry.Append (Default_Codex_Model ("gpt-5.6-sol"));
-      Registry.Append (Default_Codex_Model ("gpt-5.6-terra"));
-      Registry.Append (Default_Codex_Model ("gpt-6-astra"));
+      --  Load the live Codex catalogue and populate the registry.  Any
+      --  failure (network error, expired subscription, etc.) is swallowed
+      --  so the agent can start with an empty codex registry.
+      begin
+         LLM.Providers.Codex.Catalogue.Load_Catalogue (Models);
+      exception
+         when others =>
+            Models.Clear;
+      end;
+
+      for Item of Models loop
+         Registry.Append
+           ((Model_Id            => Item.Model_Id,
+             Name                => Item.Name,
+             Provider            => To_Unbounded_String ("codex"),
+             Context_Window      => Item.Context_Window,
+             Max_Tokens          => 128_000,
+             Reasoning           => Item.Reasoning,
+             Supports_Tools      => True,
+             Supports_Images     => True,
+             Max_Thinking_Budget => 0,
+             Min_Thinking_Budget => 0,
+             Wire_Format         => To_Unbounded_String ("openai-responses"),
+             Cost                => (others => 0.0)));
+      end loop;
    end Refresh_Codex;
 
    procedure Refresh_Ollama is

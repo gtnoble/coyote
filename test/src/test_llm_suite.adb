@@ -16,6 +16,7 @@ with LLM_OpenRouter_Tests;
 with LLM_OpenRouter_Catalogue_Tests;
 with LLM_Anthropic_Messages_Tests;
 with LLM_GitHub_Copilot_Tests;
+with LLM_Codex_Catalogue_Tests;
 with LLM_Codex_Tests;
 with LLM_Model_Registry_Tests;
 with LLM_OpenCode_Go_Catalogue_Tests;
@@ -46,6 +47,7 @@ package body Test_LLM_Suite is
       Result.Add_Test (LLM_OpenRouter_Catalogue_Tests.Suite);
       Result.Add_Test (LLM_Anthropic_Messages_Tests.Suite);
       Result.Add_Test (LLM_GitHub_Copilot_Tests.Suite);
+      Result.Add_Test (LLM_Codex_Catalogue_Tests.Suite);
       Result.Add_Test (LLM_Codex_Tests.Suite);
       Result.Add_Test (LLM_Model_Registry_Tests.Suite);
       Result.Add_Test (LLM_OpenCode_Go_Catalogue_Tests.Suite);

@@ -757,6 +757,39 @@ plumbing.
 **Verification:** Production and test development builds succeed; the full
 AUnit suite passes 846/846.
 
+## 2026-09-07 — Live Codex model catalogue (REQ: no hardcoded codex models)
+
+**Requirement:** The Codex registry refresh shall discover models from the
+backend instead of a hardcoded list, so newly released Codex models appear
+without a client update.
+
+**Implementation:** New unit `LLM.Providers.Codex.Catalogue`
+(`src/llm/llm-providers-codex-catalogue.ads/.adb`) loads GET
+`{base}/codex/models?client_version=99.0.0` with the cached non-expired
+Codex OAuth credential (no live token refresh — that stays in
+`LLM.Auth.Codex.Ensure_Valid`, keeping the startup refresh synchronous).
+The response `models` array is filtered to entries with `visibility` =
+`"list"` and a non-empty `slug`; `slug`, `display_name`, `description`,
+and `context_window` are kept.  Results are cached for 24 hours in
+`~/.coyote/codex_models_cache.json` with the same stale-fallback and
+empty-on-failure semantics as the OpenRouter catalogue.  `COYOTE_CODEX_BASE_URL`
+overrides the backend base for tests.  `LLM.Model_Registry.Refresh_Codex`
+now maps catalogue entries into registry records instead of appending the
+curated list; `Default_Codex_Model` remains as the `Lookup` fallback for
+unknown IDs.  Verified live: the backend returns slugs in dotted form
+(`gpt-5.5`, `gpt-5.6-sol`, `gpt-5.4-mini`, `gpt-6-astra`, ...) that are
+accepted by `/codex/responses`; the previous registry slugs `gpt-5.4`,
+`gpt-5.3-codex-spark`, and the ChatGPT-app slug forms (`gpt-5-5`) are
+rejected with 400.  Four new `LLM.Codex.Catalogue` AUnit cases cover
+fresh-cache parsing, live fetch against a mock server (endpoint path,
+client_version query, bearer header, hidden-model exclusion), empty
+result on fetch failure without cache, and empty result without
+credentials.  Registry test expectations were relaxed to be
+network-independent.
+
+**Verification:** Production and test development builds succeed; the full
+AUnit suite passes 869/869.
+
 ## 2026-09-07 — Codex provider dispatch and catalogue refresh
 
 **Requirement:** The `codex` provider (OpenAI Codex subscription, ChatGPT
