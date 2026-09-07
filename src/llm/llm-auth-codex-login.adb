@@ -63,6 +63,50 @@ package body LLM.Auth.Codex.Login is
       Shared_State.Set_Cancelled;
    end Cancel;
 
+   --  Decode %XX escapes and "+" (query-string spaces) in a raw query
+   --  parameter value.  Browser callbacks percent-encode code, state,
+   --  and scope values; pi and opencode both consume decoded values
+   --  (URLSearchParams.get) before the token exchange, and the token
+   --  endpoint re-encodes the form, so sending the raw value would
+   --  double-encode any escape present in the code.
+   function Percent_Decode (Value : String) return String is
+      function Hex (C : Character) return Natural is
+      begin
+         if C in '0' .. '9' then
+            return Character'Pos (C) - Character'Pos ('0');
+         elsif C in 'a' .. 'f' then
+            return Character'Pos (C) - Character'Pos ('a') + 10;
+         elsif C in 'A' .. 'F' then
+            return Character'Pos (C) - Character'Pos ('A') + 10;
+         else
+            return 0;
+         end if;
+      end Hex;
+
+      Result : Unbounded_String;
+      I      : Positive := Value'First;
+      Code   : Natural;
+   begin
+      while I <= Value'Last loop
+         if Value (I) = '%'
+           and then I + 2 <= Value'Last
+           and then Value (I + 1) in '0' .. '9' | 'a' .. 'f' | 'A' .. 'F'
+           and then Value (I + 2) in '0' .. '9' | 'a' .. 'f' | 'A' .. 'F'
+         then
+            Code := Hex (Value (I + 1)) * 16 + Hex (Value (I + 2));
+            Append (Result, Character'Val (Code));
+            I := I + 3;
+         elsif Value (I) = '+' then
+            Append (Result, ' ');
+            I := I + 1;
+         else
+            Append (Result, Value (I));
+            I := I + 1;
+         end if;
+      end loop;
+      return To_String (Result);
+   end Percent_Decode;
+
    function Extract_Query_Param
      (Request : String;
       Param   : String) return String
@@ -97,7 +141,7 @@ package body LLM.Auth.Codex.Login is
          return "";
       end if;
 
-      return Request (Marker_Pos .. Value_Last);
+      return Percent_Decode (Request (Marker_Pos .. Value_Last));
    end Extract_Query_Param;
 
    --  Read the client's HTTP request head from the accepted socket.
