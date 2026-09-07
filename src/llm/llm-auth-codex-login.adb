@@ -245,6 +245,12 @@ package body LLM.Auth.Codex.Login is
              (LLM.Auth.Codex.Redirect_Host),
            Port   =>
              GNAT.Sockets.Port_Type (LLM.Auth.Codex.Redirect_Port));
+      --  SO_REUSEADDR lets an immediately-retried login rebind the
+      --  callback port when the previous listener ended in TIME_WAIT.
+      Set_Socket_Option
+        (Server,
+         Socket_Level,
+         (Reuse_Address, True));
       Bind_Socket (Server, Address);
       Listen_Socket (Server, 1);
       Create_Selector (Selector);
@@ -352,6 +358,19 @@ package body LLM.Auth.Codex.Login is
       Report (Done);
    exception
       when E : others =>
+         --  Do not leak the listener on an error path: a leaked bound
+         --  socket keeps the callback port unavailable for the rest of
+         --  the process lifetime (Socket_Type is not controlled), so
+         --  every later login would fail with Address already in use.
+         begin
+            if Server /= No_Socket then
+               Close_Socket (Server);
+            end if;
+            Close_Selector (Selector);
+         exception
+            when others =>
+               null;
+         end;
          Ada.Text_IO.Put_Line
            (Ada.Text_IO.Standard_Error,
             "[!] OpenAI Codex login failed: "
