@@ -238,6 +238,7 @@ package body LLM.Auth.Codex.Login is
              GNAT.Sockets.Port_Type (LLM.Auth.Codex.Redirect_Port));
       Bind_Socket (Server, Address);
       Listen_Socket (Server, 1);
+      Create_Selector (Selector);
 
       if Open_Authorize_Url /= null then
          Open_Authorize_Url.all (To_String (Authorize));
@@ -311,6 +312,7 @@ package body LLM.Auth.Codex.Login is
       end loop Wait_Loop;
 
       Close_Socket (Server);
+      Close_Selector (Selector);
 
       if Shared_State.Was_Cancelled and then not Got_Code then
          raise Login_Error with "Login cancelled";
