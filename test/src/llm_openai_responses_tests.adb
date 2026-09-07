@@ -1231,6 +1231,63 @@ package body LLM_OpenAI_Responses_Tests is
          raise;
    end Test_Omits_Store_And_Previous_Response;
 
+   procedure Test_Store_Disabled_Sends_False (T : in out Test) is
+      pragma Unreferenced (T);
+
+      Port     : constant Positive := 19_111;
+      Provider : LLM.Providers.OpenAI_Responses.Provider :=
+        LLM.Providers.OpenAI_Responses.Create
+          (Base_Url => "http://127.0.0.1:19111",
+           Api_Key  => "test-key");
+      Messages : constant LLM.Types.Message_Vectors.Vector := User_Hello;
+      Clean    : Boolean := False;
+
+      procedure Handle_Request
+        (Req :     Test_HTTP_Server.Request;
+         Res : out Test_HTTP_Server.Response)
+      is
+         Parsed : constant GNATCOLL.JSON.Read_Result :=
+           GNATCOLL.JSON.Read (To_String (Req.Body_Data));
+      begin
+         Assert (Parsed.Success, "parse");
+         Assert
+           (Parsed.Value.Has_Field ("store"),
+            "store must be sent when Store_Enabled is False");
+         Assert
+           (Parsed.Value.Has_Field ("store")
+            and then not Boolean'(Parsed.Value.Get ("store").Get),
+            "store must be false when Store_Enabled is False");
+         Clean := True;
+         Res.Status := 200;
+         Ada.Strings.Unbounded.Append (Res.Body_Data, Build_Text_SSE ("ok", 1, 1));
+      end Handle_Request;
+
+      Server_Stopped : Boolean := False;
+      Srv            : Test_HTTP_Server.Server
+        (Handler => Handle_Request'Unrestricted_Access);
+   begin
+      Reset_Collector;
+      LLM.Providers.OpenAI_Responses.Set_Store_Enabled (Provider, False);
+      Srv.Bind (Port);
+      Send_With_Retry
+        (P             => Provider,
+         Model_Id      => "test-model",
+         System_Prompt => "",
+         Messages      => Messages,
+         Tools_Json    => "[]",
+         Max_Tokens    => 16,
+         Handler       => On_Event'Access);
+      Srv.Stop;
+      Server_Stopped := True;
+      Assert (Clean, "store-false assertions should have run");
+   exception
+      when others =>
+         if not Server_Stopped then
+            Srv.Stop;
+         end if;
+         raise;
+   end Test_Store_Disabled_Sends_False;
+
    package LLM_OpenAI_Responses_Caller is
      new AUnit.Test_Caller (LLM_OpenAI_Responses_Tests.Test);
 
@@ -1270,6 +1327,10 @@ package body LLM_OpenAI_Responses_Tests is
         ("LLM.OpenAI_Responses omits store and previous_response_id",
          LLM_OpenAI_Responses_Tests
            .Test_Omits_Store_And_Previous_Response'Access));
+      Result.Add_Test (LLM_OpenAI_Responses_Caller.Create
+        ("LLM.OpenAI_Responses sends store false when disabled",
+         LLM_OpenAI_Responses_Tests
+           .Test_Store_Disabled_Sends_False'Access));
 
       return Result;
    end Suite;

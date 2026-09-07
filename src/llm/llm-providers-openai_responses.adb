@@ -107,6 +107,14 @@ package body LLM.Providers.OpenAI_Responses is
       P.Omit_Max_Tokens := Enabled;
    end Set_Omit_Max_Tokens;
 
+   procedure Set_Store_Enabled
+      (P       : in out Provider;
+     Enabled :        Boolean)
+   is
+   begin
+      P.Store_Enabled := Enabled;
+   end Set_Store_Enabled;
+
    procedure Set_Prompt_Cache_Key
       (P       : in out Provider;
      Key :        String)
@@ -650,6 +658,9 @@ package body LLM.Providers.OpenAI_Responses is
    begin
       Request.Set_Field ("model", Model_Id);
       Request.Set_Field ("stream", P.Use_Streaming);
+      if not P.Store_Enabled then
+         Request.Set_Field ("store", False);
+      end if;
       if not P.Omit_Max_Tokens then
          Request.Set_Field ("max_output_tokens", Integer (Max_Tokens));
       end if;

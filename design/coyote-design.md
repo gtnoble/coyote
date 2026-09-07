@@ -1643,7 +1643,11 @@ provider record.  `LLM.Agent` passes the stable `Session.Session_UUID`.
 **Body shape differences from the native OpenAI Responses endpoint:**
 `max_output_tokens` is omitted (`Set_Omit_Max_Tokens`); the system prompt
 rides in `instructions`; `include: ["reasoning.encrypted_content"]`
-enables stateless reasoning replay; `store` is never true.
+enables stateless reasoning replay; `store: false` is sent explicitly
+(`Set_Store_Enabled (Delegate, False)`) because the Codex backend rejects
+requests that omit the field (HTTP 400 "Store must be set to false").
+The shared Responses provider still omits `store` by default so the
+native OpenAI wire format is unchanged.
 
 ---
 ### 5.28 `LLM.Tools`

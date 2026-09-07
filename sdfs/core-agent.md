@@ -14,6 +14,21 @@
 
 ---
 
+## 2026-09-07 — Codex backend requires explicit store:false
+
+`LLM.Providers.OpenAI_Responses` gains a `Store_Enabled` flag
+(`Set_Store_Enabled`, default True meaning the request body omits the
+`store` field, preserving the existing wire format for native OpenAI and
+OpenRouter). When the flag is False the body carries `"store": false`.
+`LLM.Providers.Codex` sets the flag False on its delegate because the
+ChatGPT Codex backend rejects `store: true` and also rejects requests
+that omit the field ("Store must be set to false", HTTP 400); reference
+clients (pi) always send `store: false` there.
+
+**Verification:** Full AUnit suite passes 865/865 including the new
+`LLM.OpenAI_Responses sends store false when disabled` case and the
+existing `LLM.Providers.Codex` body-shape tests.
+
 ## Design Rationale
 
 ## 2026-09-05 — AUnit hierarchy and runtime baseline

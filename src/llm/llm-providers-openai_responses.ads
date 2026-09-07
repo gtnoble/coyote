@@ -49,6 +49,16 @@ package LLM.Providers.OpenAI_Responses is
       (P       : in out Provider;
      Enabled :        Boolean);
 
+   --  When Store_Enabled is False the request body carries
+   --  "store": false.  When True (the default) the store field is
+   --  omitted entirely and the server default applies.  The Codex
+   --  backend requires store to be false and rejects requests that
+   --  omit it (HTTP 400 "Store must be set to false"); reference
+   --  clients always send store: false there.
+   procedure Set_Store_Enabled
+      (P       : in out Provider;
+     Enabled :        Boolean);
+
    --  When Prompt_Cache_Key is non-empty the request body carries it as
    --  the prompt_cache_key field for backend cache affinity.
    procedure Set_Prompt_Cache_Key
@@ -123,6 +133,7 @@ private
       Use_Streaming      : Boolean := True;
       Inline_Cache_Hints : Boolean := True;
       Omit_Max_Tokens    : Boolean := False;
+      Store_Enabled      : Boolean := True;
       Prompt_Cache_Key   : Ada.Strings.Unbounded.Unbounded_String;
    end record;
 

@@ -106,6 +106,10 @@ package body LLM.Providers.Codex is
            (Delegate, False);
          LLM.Providers.OpenAI_Responses.Set_Omit_Max_Tokens
            (Delegate, True);
+         --  The Codex backend requires store to be false and rejects
+         --  requests that omit the field.
+         LLM.Providers.OpenAI_Responses.Set_Store_Enabled
+           (Delegate, False);
          if Session_Id'Length > 0 then
             LLM.Providers.OpenAI_Responses.Set_Prompt_Cache_Key
               (Delegate, Clamped_Session_Key (Session_Id));
