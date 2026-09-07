@@ -1111,6 +1111,15 @@ underlying OAuth flow is covered by 15 headless AUnit cases in
 `LLM.Auth.Codex` / `LLM.Providers.Codex`.  A display-backed
 menu-registration and lifecycle test is the natural follow-up, mirroring
 the Sandbox Profiles regression.
+
+Post-merge the browser login path was exercised end-to-end and works:
+xdg-open launches the authorize URL, the callback lands on the local
+listener, and credentials persist to ~/.coyote/auth.json. Fixes made
+during bring-up (callback port 1455, CRLF CRLF head terminator,
+SO_REUSEADDR + error-path listener cleanup, percent-decoded query
+values, and sending the S256 challenge rather than the verifier in the
+authorize URL) are recorded in the providers SDF.
+
 ## 2026-09-07 — Ephemeral subagent model override (REQ-CORE-143)
 
 The GTK `Agent` menu gains `Subagent Mo_del...` next to `Models...`. The item

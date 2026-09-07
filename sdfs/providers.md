@@ -486,6 +486,35 @@ sourced from the pi (`packages/ai` OpenAI Codex) and opencode
 **Result:** 3,507 insertions across 30 files.  861/861 tests pass
 (baseline 822 + 39 new/extended).  Build clean, no warnings in new code.
 
+### Login bring-up fixes (2026-09-07, post-merge verification)
+
+First live login surfaced a chain of defects fixed in eight commits
+now merged to master (02eeb57..6ef9cca):
+
+- **Callback port** was 14_555 while the registered redirect URI points
+  at localhost:1455 — the browser redirected to nothing. Fixed to 1455.
+- **Request-head terminator** searched for LF LF; browsers send CRLF
+  CRLF, which contains no 0A 0A, so Read_Request blocked forever in a
+  second Receive_Socket and the browser hung on "Waiting for
+  localhost...". Now accepts CRLF CRLF (and bare LF LF).
+- **Leaked listener**: Socket_Type is not controlled, so error paths
+  that skipped Close_Socket kept the bound port for the process
+  lifetime; every retry failed with errno 98. Error paths now close
+  the socket and selector; SO_REUSEADDR set before Bind_Socket so
+  TIME_WAIT residue does not block an immediate retry.
+- **Spurious instant failure**: the click handler reset the limited
+  Login_Outcome with Record_Failure(""), so the first 250 ms poll
+  reported "Login failed:" with an empty message. Login_Outcome gained
+  a Clear entry.
+- **Wrong PKCE parameter**: the authorize URL was built with the
+  verifier as code_challenge; the server compares S256(verifier) and
+  failed every exchange with 400 token_exchange_user_error. The
+  challenge is now passed.
+- Also: browser launch (xdg-open via Coyote_Spawn) wired into the GUI
+  login task, query values percent-decoded before the exchange, and
+  selector created before Check_Selector ("closed selector" Program_
+  Error).
+
 ### Exception message length cap and full-body diagnostics (2026-09-07)
 
 The GNAT runtime truncates exception messages at
