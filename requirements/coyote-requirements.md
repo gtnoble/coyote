@@ -414,7 +414,8 @@ select the first available model from the live model registry.
 
 **REQ-CORE-072** (D)
 The agent shall support the following LLM providers: OpenAI (Responses API),
-Anthropic Messages, GitHub Copilot, OpenRouter, OpenCode Go, and Ollama Cloud.
+Anthropic Messages, GitHub Copilot, OpenRouter, OpenCode Go, Ollama Cloud,
+and OpenAI Codex (ChatGPT subscription backend).
 
 **REQ-CORE-073** (D)
 API keys for each provider shall be resolved in the following order: (1) a
@@ -1663,7 +1664,7 @@ matrix and retains historical `TC-*` identifiers; current mappings are in
 | REQ-CORE-068 | Compaction analysis-block drafting | I | TC-068 |
 | REQ-CORE-070 | Default model from settings.json | D | TC-070 |
 | REQ-CORE-071 | Fallback to first registry model | D | TC-071 |
-| REQ-CORE-072 | All six providers supported | D | TC-072 |
+| REQ-CORE-072 | All seven providers supported | D | TC-072 |
 | REQ-CORE-073 | API key resolution order | T | TC-073 |
 | REQ-CORE-074 | Copilot token auto-refresh | D | TC-074 |
 | REQ-CORE-075 | Retired Acme/plumber model switch (historical) | D | TC-075 |

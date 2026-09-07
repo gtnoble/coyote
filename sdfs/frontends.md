@@ -1080,3 +1080,34 @@ later run groups no longer appear active prematurely.
 
 The native conversation lifecycle regression covers queued → running → timed
 out transitions and passes 1/1 focused, 22/22 in the conversation-stack group.
+
+## 2026-09-07 — Options → Subscriptions… manager (Codex provider GUI)
+
+The GTK frontend registers `Options → Subscriptions...` (mnemonic
+`b`, no accelerator — account management is not a high-frequency
+action) after the Sandbox Profiles item and opens one reusable, modeless
+support window titled `coyote : Subscriptions`, transient for the main
+window and lazily created on the GTK main task, following the Sandbox
+Profiles manager pattern.
+
+The window lists managed provider subscriptions in a single-selection
+`GtkTreeView` (Provider / State columns): OpenAI Codex (ChatGPT Plus/Pro)
+and GitHub Copilot, with state read live from `~/.coyote/auth.json`.
+A detail frame shows the selected provider's login status and — for
+Codex — the ChatGPT account id extracted from the access-token JWT.
+Buttons enable per selection state: Codex offers Login (browser OAuth
+via `LLM.Auth.Codex.Login` running in a background task polled by a
+250 ms GLib timeout, so all widget access stays on the main loop),
+Refresh (forced token refresh via `Ensure_Valid`), and Logout (clears
+the `codex` credential entry).  Copilot rows report state only; CLI
+credential management remains authoritative there.  The IRIX guideline
+"disable, do not remove" governs all button states, including while a
+login is active (all three disabled).  Login progress surfaces in the
+bottom status area; Ctrl+W and the close button hide the window without
+destroying the instance, matching the Sandbox Profiles manager.
+
+No display-backed GUI regression was added for this window yet; the
+underlying OAuth flow is covered by 15 headless AUnit cases in
+`LLM.Auth.Codex` / `LLM.Providers.Codex`.  A display-backed
+menu-registration and lifecycle test is the natural follow-up, mirroring
+the Sandbox Profiles regression.

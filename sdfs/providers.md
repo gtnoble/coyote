@@ -1,7 +1,8 @@
 # Component Development Log — Providers and HTTP
 
 **Components:** `LLM.Providers.*`, `LLM.HTTP`, `LLM.HTTP.Curl_Binding`,
-`LLM.SSE`, `LLM.Auth`, `LLM.Auth.GitHub_Copilot`, `LLM.Model_Registry`,
+`LLM.SSE`, `LLM.Auth`, `LLM.Auth.GitHub_Copilot`, `LLM.Auth.Codex`,
+`LLM.Auth.Codex.Login`, `LLM.Model_Registry`,
 `LLM.Settings`, `LLM.Tools`, `LLM.Tools.Shell`, `LLM.Tools.Temp_File`
 
 **Source files:** `src/llm/llm-providers-*.ads/.adb`, `src/llm/llm-http*.ads/.adb`,
@@ -391,3 +392,96 @@ recursive subagent creation; missing inheritance falls back to the new
 subagent's own UUID. Both normal and compaction OpenRouter requests use the
 stable identity. The application republishes it after startup, session
 switches, and GUI new-session creation without altering `COYOTE_SESSION_ID`.
+
+## 2026-09-07: OpenAI Codex Subscription Provider
+
+Adds the `codex` provider for ChatGPT Plus/Pro subscription accounts,
+sourced from the pi (`packages/ai` OpenAI Codex) and opencode
+(`plugin/openai/codex`) reference implementations.
+
+### Design decisions
+
+- **Provider id `codex`**, originator header `coyote`, User-Agent
+  `coyote/0.1.0-dev` (no platform components per decision D3).
+- **SSE only** (decision D10): both references treat the WebSocket
+  transport as an optimisation with SSE fallback; coyote's `LLM.HTTP` +
+  `LLM.SSE` plumbing covers the SSE path end-to-end.
+- **Static curated catalogue** (decision D15) rather than a live fetch:
+  the Codex model list changes rarely and pi hand-maintains it.  Eight
+  models, zero cost (subscription billing), 272k/128k limits.
+- **Strict JWT account extraction** (decision D7, pi's rule): the
+  `chatgpt_account_id` must appear in the `https://api.openai.com/auth`
+  claim; login and dispatch hard-fail otherwise.  opencode's fallback
+  chain (`organizations[0].id`) was rejected as speculative.
+- **Browser login only for v1** (decision D8): the GUI runs on a desktop
+  with a browser available; pi arms the manual-code path unconditionally,
+  which covers remote-browser cases without the device flow.  The device
+  flow is deferred.
+- **No retry-logic changes** (decision D17): authentication failures are
+  converted to `Constraint_Error` so `Send_With_Retry` does not retry
+  them; other errors flow through the existing policy untouched.  404
+  retries (opencode quirk) omitted per D18.
+
+### Key implementation notes
+
+- The access token is a JWT; `Account_Id_From_Jwt` decodes the unpadded
+  base64url payload with `Interfaces.Unsigned_32` arithmetic (Natural
+  overflows on real tokens) and `Interfaces.Shift_Right` for the byte
+  extraction.  `use type Interfaces.Unsigned_32` is required for modular
+  operators.
+- `Ensure_Valid` follows the Copilot pattern: protected mutex,
+  re-read `auth.json` under the lock, refresh only when the latest stored
+  credential is still expired (pi's 5-minute window).
+- `Refresh_Token` persists immediately after success; the refresh
+  endpoint may omit `refresh_token` (rotation optional) — keep the
+  previous token in that case.  The account id is re-extracted from the
+  new access token and may rotate.
+- `Exchange_Code` does NOT persist; the login flow owns persistence so
+  failed exchanges never clobber a working credential.
+- The shared `OpenAI_Responses` provider gained `Set_Omit_Max_Tokens`
+  (Codex rejects/ignores `max_output_tokens`; both reference clients
+  never send it) and `Set_Prompt_Cache_Key` (backend cache affinity;
+  session id clamped to 64 characters).  Defaults preserve the existing
+  native-OpenAI and OpenRouter wire behaviour.
+- The base URL passed to the delegate is `{base}/codex` so requests land
+  on `/codex/responses`; `Endpoint_Url` appends `/responses` per the
+  shared provider.
+- Login callback listener uses `GNAT.Sockets` with `Check_Selector` in a
+  1-second poll loop; the shared 300 s deadline bounds the whole flow.
+  Manual code, cancel, and timeout all race the browser redirect.
+- GUI window: background login task + 250 ms `Glib.Main.Timeout_Add`
+  poll on the GTK main loop (poll touches widgets only when the outcome
+  is final).  `Sock_Addr_Type` aggregate needs an explicit
+  `Family => Family_Inet` discriminant.  `Append_Column` returns
+  `Glib.Gint` and must be called as a function.
+
+### Files changed
+
+- `src/llm/llm-auth-codex.ads/.adb` — new: OAuth credential machinery
+- `src/llm/llm-auth-codex-login.ads/.adb` — new: browser login flow
+- `src/llm/llm-providers-codex.ads/.adb` — new: provider adapter
+- `src/llm/llm-auth.ads/.adb` — `Account_Id` field in
+  `Provider_Credentials`, persisted as `accountId` (only when non-empty)
+- `src/llm/llm-providers-openai_responses.ads/.adb` —
+  `Set_Omit_Max_Tokens` / `Set_Prompt_Cache_Key` hooks
+- `src/llm/llm-model_registry.ads/.adb` — `Refresh_Codex`,
+  `Has_Codex_Credentials`, `Default_Codex_Model`, codex in `Lookup` and
+  `Available_Models`
+- `src/llm/llm-settings.adb` — `codex → CODEX_API_KEY` env mapping
+- `src/llm/llm-agent.adb` — `Refresh_Codex` at session start; `"codex"`
+  branches in both provider dispatch chains
+- `src/coyote_gui/coyote_gui-subscription_window.ads/.adb` — new:
+  Options → Subscriptions support window
+- `src/coyote_app-frontend-gui.ads/.adb` — Instance fields,
+  `Show_Subscriptions`, menu item + handler
+- `alire.toml` — `sha2 = "^2.0.0"` dependency
+- `test/src/llm_codex_tests.ads/.adb` — 15 AUnit cases (PKCE, state,
+  authorize URL, JWT extraction, expiry, refresh success/failure,
+  headers/endpoint, credential guards, body shape, thinking replay,
+  registry visibility)
+- `test/src/test_llm_suite.adb` — suite registration
+- `test/src/llm_auth_tests.adb` — aggregate literals updated for the
+  new `Account_Id` component
+
+**Result:** 3,507 insertions across 30 files.  861/861 tests pass
+(baseline 822 + 39 new/extended).  Build clean, no warnings in new code.
