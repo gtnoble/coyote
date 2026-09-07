@@ -336,10 +336,14 @@ package body LLM.Model_Registry is
            ((Model_Id            => Item.Model_Id,
              Name                => Item.Name,
              Provider            => To_Unbounded_String ("codex"),
+             --  Report the backend's max_context_window, consistent with
+             --  how other providers advertise the model's ceiling;
+             --  compaction still keys off the served window via
+             --  LLM.Compaction, so this is a display/lookup value.
              Context_Window      =>
-               (if Item.Context_Window > 0
-                then Item.Context_Window
-                else Item.Max_Context_Window),
+               (if Item.Max_Context_Window > 0
+                then Item.Max_Context_Window
+                else Item.Context_Window),
              Max_Tokens          => 0,
              Reasoning           => Item.Reasoning,
              Supports_Tools      => Item.Supports_Tools,

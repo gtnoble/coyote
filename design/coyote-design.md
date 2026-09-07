@@ -1507,8 +1507,10 @@ subscription catalogue served by `LLM.Providers.Codex.Catalogue` (GET
 when `~/.coyote/auth.json` contains a `"codex"` credential entry.  Hidden
 entries (`visibility` other than `"list"`) and entries without a `slug`
 are excluded.  All model attributes are fetched: `context_window` and
-`max_context_window` from the backend, reasoning capability from a
-non-empty `supported_reasoning_levels`, tool support from
+`max_context_window` from the backend (the registry reports
+`max_context_window` as `Context_Window` when present, matching how
+other providers advertise the model's ceiling), reasoning capability from
+a non-empty `supported_reasoning_levels`, tool support from
 `supports_parallel_tool_calls`, and image support from `image` in
 `input_modalities`.  `Max_Tokens` is 0 — the Codex backend rejects
 `max_output_tokens` and the provider already omits that field — and cost

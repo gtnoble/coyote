@@ -233,6 +233,9 @@ package body LLM_Codex_Catalogue_Tests is
          (Models.Element (Astra).Context_Window = 272_000,
        "context_window should be parsed from the fixture");
       Assert
+         (Models.Element (Astra).Max_Context_Window = 872_000,
+       "max_context_window should be parsed from the fixture");
+      Assert
          (To_String (Models.Element (Astra).Name) /= "",
        "display_name should become the model name");
 

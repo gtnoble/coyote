@@ -757,6 +757,25 @@ plumbing.
 **Verification:** Production and test development builds succeed; the full
 AUnit suite passes 846/846.
 
+## 2026-09-07 — Codex picker reports max_context_window
+
+**Requirement:** The model picker should show the Codex model's ceiling
+(`max_context_window`, e.g. 872k for gpt-5.6-*) rather than the
+subscription's default served window (272k), keeping the display
+consistent with other providers (OpenRouter advertises API ceilings).
+
+**Implementation:** `Refresh_Codex` now prefers
+`Item.Max_Context_Window` when populating `Context_Window`, falling back
+to the served `context_window` when the backend reports no ceiling.
+Runtime behavior is unchanged: the backend currently serves past 272k up
+to roughly its ceiling (verified live: accepted 910k, rejected 925k with
+`context_length_exceeded`), so the larger display value does not cause
+over-window rejections, and compaction thresholds follow the same
+registry value as before.
+
+**Verification:** Production and test development builds succeed; the
+full AUnit suite passes 869/869.
+
 ## 2026-09-07 — Exclusive fetched Codex model info
 
 **Requirement:** Remove the remaining hardcoded Codex model attributes so
