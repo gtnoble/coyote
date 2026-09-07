@@ -189,6 +189,22 @@ package body Coyote_Incremental_Tests is
               "incomplete code remains visible source");
    end Test_Incomplete_Code_Flushes;
 
+   procedure Test_Empty_Blocks_Are_Valid (T : in out Test) is
+      pragma Unreferenced (T);
+      Parser : Instance;
+   begin
+      Reset_Log;
+      Feed
+        (Parser, "<table></table><math></math><code></code>", Collect'Access);
+      Assert (Test_Log.Count = 3,
+              "empty table, math, and code blocks emit separate events");
+      Assert (Test_Log.Invalid_Count = 0,
+              "empty complete blocks are valid events");
+      Assert (To_String (Test_Log.Text) =
+                "<table></table>|<math></math>|<code></code>",
+              "empty complete blocks preserve source order");
+   end Test_Empty_Blocks_Are_Valid;
+
    package Caller is new AUnit.Test_Caller (Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
@@ -228,6 +244,9 @@ package body Coyote_Incremental_Tests is
       Result.Add_Test (Caller.Create
         ("Incremental incomplete code flushes visibly",
          Test_Incomplete_Code_Flushes'Access));
+      Result.Add_Test (Caller.Create
+        ("Incremental empty blocks are valid",
+         Test_Empty_Blocks_Are_Valid'Access));
       return Result;
    end Suite;
 

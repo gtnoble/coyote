@@ -1,8 +1,8 @@
 --  Coyote_Renderer.Incremental body.
 --
 --  CSM deliberately has a small grammar in this implementation. Text outside
---  recognised tags is emitted immediately. Intrinsically incomplete table and
---  math blocks remain buffered until their closing element arrives.
+--  recognised tags is emitted immediately. Intrinsically incomplete table,
+--  math, and code blocks remain buffered until their closing element arrives.
 --
 --  Project: coyote
 
@@ -90,11 +90,12 @@ package body Coyote_Renderer.Incremental is
       declare
          Raw : constant String := To_String (Source);
          End_Tag : constant String := Closing_Tag (Parser.Block);
-         Body_Last : constant Natural := Close - 1;
+         Open_End : constant Natural :=
+           Ada.Strings.Fixed.Index (Raw, ">", Raw'First);
          Block_Last : constant Natural := Close + End_Tag'Length - 1;
          Block_Source : constant String := Raw (Raw'First .. Block_Last);
       begin
-         if Body_Last < End_Tag'Length then
+         if Close < Open_End + 1 then
             Emit (Handler, Invalid_Event, Block_Source);
          else
             Emit (Handler, Event_For (Parser.Block), Block_Source);

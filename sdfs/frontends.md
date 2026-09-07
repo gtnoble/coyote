@@ -56,8 +56,9 @@ restricted.
 The PCR-097 implementation is covered by focused parser, message-format,
 persistence, legacy-fallback, environment-flag, and incremental
 native-component lifecycle tests. The code-block test verifies literal
-characters, delimiter removal, and prefix/code/suffix order. The complete
-development suite passes 853/853 with zero failed assertions and zero
+characters, delimiter removal, and prefix/code/suffix order; parser coverage
+also verifies empty complete table, MathML, and code blocks. The complete
+development suite passes 854/854 with zero failed assertions and zero
 unexpected errors; the display-backed conversation-stack suite passes 26/26.
 README documents the opt-in flag and restricted CSM scope.
 

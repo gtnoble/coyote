@@ -36,11 +36,13 @@ tests pass. The CSM grammar remains intentionally restricted.
 
 The additive CSM code-block slice adds split-boundary and incomplete-flush parser
 coverage plus display-backed literal-character, delimiter-removal, and
-prefix/code/suffix ordering coverage. The complete development suite passes
-853/853 with zero failed assertions and zero unexpected errors; the focused
-incremental parser suite passes 12/12 and the display-backed conversation-stack
-suite passes 26/26. README, requirements, design, test plan, frontend SDF, and
-manual records document the restricted text/table/math/code scope.
+prefix/code/suffix ordering coverage. The parser now also classifies empty
+complete table, MathML, and code blocks as valid completion events. The complete
+development suite passes 854/854 with zero failed assertions and zero unexpected
+errors; the focused incremental parser suite passes 13/13 and the
+display-backed conversation-stack suite passes 26/26. README, requirements,
+design, test plan, frontend SDF, and manual records document the restricted
+text/table/math/code scope.
 
 ## 2026-09-05 — AUnit hierarchy and runtime baseline
 
