@@ -211,7 +211,7 @@ package body Coyote_GUI.Subscription_Window is
 
    procedure Update_Detail_Fields is
       State : constant Provider_State :=
-        Provider_State'Val (Selected_Row - 1);
+        Provider_State'Val (Selected_Row);
       Info  : constant Credential_Info := Info_For (State);
    begin
       if Current_Instance = null then
@@ -235,9 +235,7 @@ package body Coyote_GUI.Subscription_Window is
    end Update_Detail_Fields;
 
    procedure Rebuild_Provider_List is
-      use Gtk.List_Store;
       Iter : Gtk_Tree_Iter;
-      Row  : Provider_Index := Provider_Index'First;
    begin
       if Current_Instance = null
         or else Current_Instance.Provider_Store = null
@@ -255,21 +253,27 @@ package body Coyote_GUI.Subscription_Window is
             Current_Instance.Provider_Store.Append (Iter);
             Current_Instance.Provider_Store.Set
               (Iter, 0, Provider_Name (P));
-            Current_Instance.Provider_Store.Set (Iter, 1, State_Text);
+            Current_Instance.Provider_Store.Set
+              (Iter, 1, State_Text);
          end;
-         Row := Provider_Index'Succ (Row);
       end loop;
 
-      --  Keep the previous selection visible after refresh.
+      --  Keep the previous selection visible after refresh.  Clamp the
+      --  walk target so a stale Selected_Row cannot run the iterator past
+      --  the end of the (rebuilt) model.
       declare
          Selection : constant Gtk.Tree_Selection.Gtk_Tree_Selection :=
            Current_Instance.Provider_View.Get_Selection;
          Target    : Gtk.Tree_Model.Gtk_Tree_Iter;
+         Walk_To   : constant Provider_Index :=
+           (if Selected_Row > Provider_Index'Last
+              then Provider_Index'Last
+              else Selected_Row);
          Position  : Provider_Index := Provider_Index'First;
       begin
          Selection.Unselect_All;
          Target := Current_Instance.Provider_Store.Get_Iter_First;
-         while Position < Selected_Row loop
+         while Position < Walk_To loop
             Current_Instance.Provider_Store.Next (Target);
             Position := Provider_Index'Succ (Position);
          end loop;
