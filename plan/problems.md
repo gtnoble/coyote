@@ -26,13 +26,13 @@ client-controlled work product gets an entry here.
   parser, message-format, persistence, legacy-fallback, environment-flag,
   incremental native table, incremental native MathML, incremental native code,
   mixed-order lifecycle, empty provisional-view, malformed MathML-opening, and
-  empty complete-block boundary coverage are complete. The complete development
-  suite passes 854/854 with zero failed assertions and zero unexpected errors;
-  the focused parser suite passes 13/13 and the display-backed conversation-
-  stack suite passes 26/26.
+  empty complete-block boundary and horizontal-rule coverage are complete. The
+  complete development suite passes 856/856 with zero failed assertions and
+  zero unexpected errors; the focused parser suite passes 14/14 and the
+  display-backed conversation-stack suite passes 27/27.
 - **Status:** Implemented and display-qualified for the restricted CSM
-  text/table/math/code slice; malformed prefixed tags are safely visible and
-  broader CSM grammar expansion remains future work.
+  text/table/math/code/rule slice; malformed prefixed tags are safely visible
+  and broader CSM grammar expansion remains future work.
 
 
 ## PCR-096 — Multi-profile sandbox manager drafts and Save-All (2026-09-06)

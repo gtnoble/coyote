@@ -164,6 +164,19 @@ package body Coyote_GUI.Conversation_Stack is
 
    procedure Pack_Incremental_Response
      (Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
+      Child  : not null access Gtk.Widget.Gtk_Widget_Record'Class);
+
+   procedure Add_Response_Rule
+     (Parent : not null access Gtk.Box.Gtk_Box_Record'Class)
+   is
+      Rule : Gtk.Separator.Gtk_Separator;
+   begin
+      Gtk.Separator.Gtk_New_Hseparator (Rule);
+      Pack_Incremental_Response (Parent, Rule);
+   end Add_Response_Rule;
+
+   procedure Pack_Incremental_Response
+     (Parent : not null access Gtk.Box.Gtk_Box_Record'Class;
       Child  : not null access Gtk.Widget.Gtk_Widget_Record'Class)
    is
    begin
@@ -228,6 +241,8 @@ package body Coyote_GUI.Conversation_Stack is
          end;
       elsif Value.Kind = Coyote_Renderer.Incremental.Code_Event then
          Add_Response_Code (C, C.Step_Box, To_String (Value.Text));
+      elsif Value.Kind = Coyote_Renderer.Incremental.Horizontal_Rule_Event then
+         Add_Response_Rule (C.Step_Box);
       else
          declare
             Source : constant String := To_String (Value.Text);
@@ -278,7 +293,8 @@ package body Coyote_GUI.Conversation_Stack is
         and then Value.Kind in
           Coyote_Renderer.Incremental.Table_Event |
           Coyote_Renderer.Incremental.Math_Event |
-          Coyote_Renderer.Incremental.Code_Event
+          Coyote_Renderer.Incremental.Code_Event |
+          Coyote_Renderer.Incremental.Horizontal_Rule_Event
       then
          Replace_Incremental_Component (C, Value);
          return;
@@ -297,7 +313,8 @@ package body Coyote_GUI.Conversation_Stack is
             Append_Buffer (C.Active_Text, "" & ASCII.LF);
          when Coyote_Renderer.Incremental.Table_Event |
               Coyote_Renderer.Incremental.Math_Event |
-              Coyote_Renderer.Incremental.Code_Event =>
+              Coyote_Renderer.Incremental.Code_Event |
+              Coyote_Renderer.Incremental.Horizontal_Rule_Event =>
             Replace_Incremental_Component (C, Value);
       end case;
    end Apply_Incremental_Event;

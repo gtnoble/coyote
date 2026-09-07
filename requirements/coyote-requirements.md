@@ -317,8 +317,9 @@ intentional timer-based batching or coalescing. The implementation shall update
 stable active components rather than create a widget per token. Structures that
 require completion, including tables, display math, and literal code blocks, may remain
 provisional until their complete boundary is received and shall then be
-realized as native or selectable components. Invalid markup shall fall back to
-visible escaped or plain source.
+realized as native or selectable components. Self-closing horizontal rules
+shall emit and realize as native separators immediately. Invalid markup shall
+fall back to visible escaped or plain source.
 
 ---
 

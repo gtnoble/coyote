@@ -95,7 +95,7 @@ package body Coyote_Renderer.Incremental is
          Block_Last : constant Natural := Close + End_Tag'Length - 1;
          Block_Source : constant String := Raw (Raw'First .. Block_Last);
       begin
-         if Close < Open_End + 1 then
+         if Open_End = 0 or else Close < Open_End + 1 then
             Emit (Handler, Invalid_Event, Block_Source);
          else
             Emit (Handler, Event_For (Parser.Block), Block_Source);
@@ -211,6 +211,8 @@ package body Coyote_Renderer.Incremental is
                      Emit (Handler, Line_Break_Event);
                   elsif Tag = "<text>" or else Tag = "</text>" then
                      null;
+                  elsif Tag = "<hr/>" or else Tag = "<hr />" then
+                     Emit (Handler, Horizontal_Rule_Event);
                   else
                      Emit (Handler, Invalid_Event, Tag);
                   end if;

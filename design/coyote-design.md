@@ -318,7 +318,7 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `Coyote_Lasem` | Ada/C binding to Lasem Presentation MathML rendering | `src/coyote_lasem.ads/.adb`, `src/coyote_lasem_c.c` |
 | `Coyote_Renderer` | Shared GTK text/replay rendering root | `src/coyote_renderer/coyote_renderer.ads` |
 | `Coyote_Renderer.Markup` | GFM Markdown to Pango markup converter | `src/coyote_renderer/coyote_renderer-markup.ads/.adb` |
-| `Coyote_Renderer.Incremental` | Restricted synchronous CSM parser and semantic-event boundary for text, tables, MathML, and literal code blocks | `src/coyote_renderer/coyote_renderer-incremental.ads/.adb` |
+| `Coyote_Renderer.Incremental` | Restricted synchronous CSM parser and semantic-event boundary for text, tables, MathML, literal code blocks, and horizontal rules | `src/coyote_renderer/coyote_renderer-incremental.ads/.adb` |
 | `Coyote_Renderer.MathML` | Markdown-aware display-math extraction with code-block protection | `src/coyote_renderer/coyote_renderer-mathml.ads/.adb` |
 | `Coyote_Renderer.Tables` | GTK-independent GFM table extraction and metadata model | `src/coyote_renderer/coyote_renderer-tables.ads/.adb` |
 | `Coyote_Renderer.Session_View` | Read-only session replay renderer | `src/coyote_renderer/coyote_renderer-session_view.ads/.adb` |

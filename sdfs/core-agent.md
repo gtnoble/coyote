@@ -27,10 +27,11 @@ The PCR-097 implementation now includes application-owned `Message_Format`
 metadata, JSONL persistence with Markdown fallback for legacy records, the
 `COYOTE_INCREMENTAL_MARKUP=1` selection helper, and synchronous CSM events for
 text, paragraphs, line breaks, complete `<table>` blocks, complete `<math>`
-documents, and complete `<code>` blocks. Native table and MathML components
-and selectable monospace code components are realized at closing boundaries
-without delta batching. Parser, type, persistence, flag, and GUI component
-tests pass. The CSM grammar remains intentionally restricted.
+documents, complete `<code>` blocks, and self-closing `<hr/>`/`<hr />` elements.
+Native table and MathML components, selectable monospace code components, and
+native horizontal separators are realized at their defined boundaries without
+delta batching. Parser, type, persistence, flag, and GUI component tests pass.
+The CSM grammar remains intentionally restricted.
 
 ## 2026-09-07 — PCR-097 code-block extension verification
 
@@ -43,6 +44,15 @@ errors; the focused incremental parser suite passes 13/13 and the
 display-backed conversation-stack suite passes 26/26. README, requirements,
 design, test plan, frontend SDF, and manual records document the restricted
 text/table/math/code scope.
+
+## 2026-09-07 — PCR-097 horizontal-rule extension verification
+
+The additive CSM rule slice adds split-boundary and malformed-tag parser coverage
+plus display-backed native separator and text-rule-text-rule-text ordering
+coverage. The complete development suite passes 856/856 with zero failed
+assertions and zero unexpected errors; the focused parser suite passes 14/14
+and the display-backed conversation-stack suite passes 27/27. Existing
+Markdown/default-off behavior is unchanged.
 
 ## 2026-09-05 — AUnit hierarchy and runtime baseline
 

@@ -205,6 +205,28 @@ package body Coyote_Incremental_Tests is
               "empty complete blocks preserve source order");
    end Test_Empty_Blocks_Are_Valid;
 
+   procedure Test_Horizontal_Rule_Events (T : in out Test) is
+      pragma Unreferenced (T);
+      Parser : Instance;
+   begin
+      Reset_Log;
+      Feed (Parser, "before<hr", Collect'Access);
+      Feed (Parser, "/>after<hr />tail", Collect'Access);
+      Assert (Test_Log.Count = 5,
+              "horizontal rules emit around prefix and suffix text");
+      Assert (Test_Log.Invalid_Count = 0,
+              "recognized horizontal rules are valid events");
+      Assert (To_String (Test_Log.Text) =
+                "before||after||tail",
+              "horizontal rules preserve source event order");
+      Reset_Log;
+      Feed (Parser, "bad<hr>tail", Collect'Access);
+      Assert (Test_Log.Invalid_Count = 1,
+              "non-self-closing horizontal rule remains visible source");
+      Assert (To_String (Test_Log.Text) = "bad|<hr>|tail",
+              "malformed horizontal rule remains visible source");
+   end Test_Horizontal_Rule_Events;
+
    package Caller is new AUnit.Test_Caller (Test);
 
    function Suite return AUnit.Test_Suites.Access_Test_Suite is
@@ -247,6 +269,9 @@ package body Coyote_Incremental_Tests is
       Result.Add_Test (Caller.Create
         ("Incremental empty blocks are valid",
          Test_Empty_Blocks_Are_Valid'Access));
+      Result.Add_Test (Caller.Create
+        ("Incremental horizontal rules preserve order",
+         Test_Horizontal_Rule_Events'Access));
       return Result;
    end Suite;
 

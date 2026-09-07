@@ -17,6 +17,7 @@ package Coyote_Renderer.Incremental is
       Table_Event,
       Math_Event,
       Code_Event,
+      Horizontal_Rule_Event,
       Invalid_Event);
 
    type Event is record
@@ -32,9 +33,10 @@ package Coyote_Renderer.Incremental is
 
    --  Consume Data and emit semantic events synchronously.  Recognised CSM
    --  elements are <text>, <p>, </p>, <br/>, <table>...</table>,
-   --  <math>...</math> or <math ...>...</math>, and <code>...</code>.
-   --  Table blocks contain GFM table source; math blocks contain one complete
-   --  MathML document; code blocks contain literal source text.
+   --  <math>...</math> or <math ...>...</math>, <code>...</code>, and
+   --  <hr/> or <hr />. Table blocks contain GFM table source; math blocks
+   --  contain one complete MathML document; code blocks contain literal source
+   --  text; horizontal rules are native separators.
    --  Unknown or incomplete elements are emitted as visible source so
    --  malformed model output remains safe.
    procedure Feed

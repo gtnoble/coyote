@@ -140,9 +140,10 @@ the existing Markdown path remains active. Plain output and Markdown session
 replay are unchanged. The implemented path processes each provider delta
 immediately, retains partial CSM tags across deltas, and realizes complete CSM
 table, math, and literal code blocks at closing boundaries as native grids,
-Lasem-backed MathML, or selectable monospace text components. The restricted
+Lasem-backed MathML, or selectable monospace text components. Self-closing CSM
+horizontal rules are realized as native separators immediately. The restricted
 CSM grammar currently covers text, paragraphs, line breaks, tables, MathML,
-and literal code blocks.
+literal code blocks, and horizontal rules.
 .TP
 .B DISPLAY
 When non-empty, selects the GUI frontend unless an explicit frontend or

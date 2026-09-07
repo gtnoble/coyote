@@ -788,6 +788,39 @@ package body Coyote_GUI_Conversation_Stack_Tests is
               "code response uses ordered text-view siblings");
    end Test_Incremental_Native_Code;
 
+   procedure Test_Incremental_Horizontal_Rule (T : in out Test) is
+   begin
+      if not T.Display_Available then
+         return;
+      end if;
+      Set_Incremental_Markup (T.Stack, True);
+      Begin_Request (T.Stack, "request", Prompt);
+      Append_Text (T.Stack, "before");
+      Append_Text (T.Stack, "<hr");
+      Append_Text (T.Stack, "/>after<hr />tail");
+      Assert (Active_Step_Child_Count (T.Stack) = 5,
+              "incremental rules preserve five ordered siblings");
+      Assert (Active_Step_Child_Name (T.Stack, 1) = "GtkVBox"
+              and then Active_Step_Child_Name (T.Stack, 2) = "GtkHSeparator"
+              and then Active_Step_Child_Name (T.Stack, 3) = "GtkVBox"
+              and then Active_Step_Child_Name (T.Stack, 4) = "GtkHSeparator"
+              and then Active_Step_Child_Name (T.Stack, 5) = "GtkVBox",
+              "incremental rules preserve text-rule-text-rule-text order: "
+              & Active_Step_Child_Name (T.Stack, 1) & "|"
+              & Active_Step_Child_Name (T.Stack, 2) & "|"
+              & Active_Step_Child_Name (T.Stack, 3) & "|"
+              & Active_Step_Child_Name (T.Stack, 4) & "|"
+              & Active_Step_Child_Name (T.Stack, 5));
+      Assert (Text_View_Count (T.Stack) = 3,
+              "incremental rules retain all three text views");
+      Assert (Index (Text_View_Text (T.Stack, 1), "before") > 0,
+              "incremental rules preserve prefix text");
+      Assert (Index (Text_View_Text (T.Stack, 2), "after") > 0,
+              "incremental rules preserve middle text");
+      Assert (Index (Text_View_Text (T.Stack, 3), "tail") > 0,
+              "incremental rules preserve suffix text");
+   end Test_Incremental_Horizontal_Rule;
+
    procedure Test_Incremental_Mixed_Order (T : in out Test) is
    begin
       if not T.Display_Available then
@@ -942,6 +975,10 @@ package body Coyote_GUI_Conversation_Stack_Tests is
         ("Coyote.GUI.Conversation_Stack incremental native code",
          Coyote_GUI_Conversation_Stack_Tests
            .Test_Incremental_Native_Code'Access));
+      Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
+        ("Coyote.GUI.Conversation_Stack incremental horizontal rule",
+         Coyote_GUI_Conversation_Stack_Tests
+           .Test_Incremental_Horizontal_Rule'Access));
       Result.Add_Test (Coyote_GUI_Conversation_Stack_Caller.Create
         ("Coyote.GUI.Conversation_Stack incremental mixed order",
          Coyote_GUI_Conversation_Stack_Tests

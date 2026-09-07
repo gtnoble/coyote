@@ -46,10 +46,11 @@ The PCR-097 implementation wires the synchronous restricted CSM parser into
 provider delta is parsed immediately; text, paragraph, and line events update
 selectable GTK text components, while complete `<table>`, `<math>`, and
 `<code>` blocks are realized at their closing boundaries as native grid,
-Lasem-backed MathML, and selectable monospace components. Partial or malformed
-fragments remain visible source. Markdown remains the default path. Parser and
-display-backed GUI component tests pass; the CSM grammar remains intentionally
-restricted.
+Lasem-backed MathML, and selectable monospace components; self-closing `<hr/>`
+and `<hr />` elements become native horizontal separators immediately. Partial
+or malformed fragments remain visible source. Markdown remains the default path.
+Parser and display-backed GUI component tests pass; the CSM grammar remains
+intentionally restricted.
 
 ### PCR-097 focused incremental-markup implementation verification (2026-09-06)
 
@@ -61,6 +62,15 @@ also verifies empty complete table, MathML, and code blocks. The complete
 development suite passes 854/854 with zero failed assertions and zero
 unexpected errors; the display-backed conversation-stack suite passes 26/26.
 README documents the opt-in flag and restricted CSM scope.
+
+### PCR-097 horizontal-rule extension verification (2026-09-07)
+
+The display-backed suite now verifies split-boundary `<hr/>` and `<hr />`
+recognition, native `GtkHSeparator` realization, and ordered
+text-rule-text-rule-text components. The complete development suite passes
+856/856 with zero failed assertions and zero unexpected errors; the focused
+parser suite passes 14/14 and the display-backed conversation-stack suite
+passes 27/27. Existing Markdown/default-off behavior is unchanged.
 
 ### AUnit GUI fixture hierarchy and shutdown verification (2026-09-05)
 
