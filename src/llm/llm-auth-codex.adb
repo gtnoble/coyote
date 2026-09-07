@@ -509,11 +509,21 @@ package body LLM.Auth.Codex is
             & " verifier_len" & Natural'Image (Code_Verifier'Length)
             & " redirect=" & Redirect
             & " endpoint=" & Token_Endpoint);
+         --  The exception message is capped at 200 characters by the
+         --  GNAT runtime (System.Parameters.
+         --  Default_Exception_Msg_Max_Length), so the full response body
+         --  would never survive in Exception_Message. Log the complete
+         --  body here and keep the exception message short.
+         Ada.Text_IO.Put_Line
+           (Ada.Text_IO.Standard_Error,
+            "[!] OpenAI Codex token exchange response (HTTP"
+            & Natural'Image (Status)
+            & "): "
+            & To_String (Response_Body));
          raise Auth_Error with
            "OpenAI Codex token exchange failed with HTTP"
            & Natural'Image (Status)
-           & ": "
-           & To_String (Response_Body);
+           & " (full response logged to stderr)";
       end if;
 
       Parse_Token_Response
@@ -559,11 +569,18 @@ package body LLM.Auth.Codex is
          Status   => Status);
 
       if Status /= 200 then
+         --  Log the complete response: the 200-character exception
+         --  message cap would truncate it (see Exchange_Code).
+         Ada.Text_IO.Put_Line
+           (Ada.Text_IO.Standard_Error,
+            "[!] OpenAI Codex token refresh response (HTTP"
+            & Natural'Image (Status)
+            & "): "
+            & To_String (Response_Body));
          raise Auth_Error with
            "OpenAI Codex token refresh failed with HTTP"
            & Natural'Image (Status)
-           & ": "
-           & To_String (Response_Body);
+           & " (full response logged to stderr)";
       end if;
 
       declare
