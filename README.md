@@ -185,7 +185,7 @@ cd test && alr build
 /usr/bin/time -f 'wall=%e exit=%x' ./bin/coyote_test
 ```
 
-The current hierarchy contains 861 registered tests and passes 861/861 in
+The current hierarchy contains 864 registered tests and passes 864/864 in
 approximately 34 seconds on the development host. AUnit reports cumulative
 and per-test timing. Live provider tests remain opt-in; subagent subprocess
 tests are guarded by `COYOTE_TEST_SUBAGENT=1`.
