@@ -499,6 +499,16 @@ package body LLM.Auth.Codex is
          Status   => Status);
 
       if Status /= 200 then
+         --  Diagnostics: log the failing request geometry (never token
+         --  secrets) so exchange failures are actionable.
+         Ada.Text_IO.Put_Line
+           (Ada.Text_IO.Standard_Error,
+            "[!] OpenAI Codex token exchange request:"
+            & " grant_type=authorization_code"
+            & " code_len" & Natural'Image (Code'Length)
+            & " verifier_len" & Natural'Image (Code_Verifier'Length)
+            & " redirect=" & Redirect
+            & " endpoint=" & Token_Endpoint);
          raise Auth_Error with
            "OpenAI Codex token exchange failed with HTTP"
            & Natural'Image (Status)
