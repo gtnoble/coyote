@@ -757,6 +757,29 @@ plumbing.
 **Verification:** Production and test development builds succeed; the full
 AUnit suite passes 846/846.
 
+## 2026-09-07 — Exclusive fetched Codex model info
+
+**Requirement:** Remove the remaining hardcoded Codex model attributes so
+the live catalogue is the single source of model information.
+
+**Implementation:** `LLM.Providers.Codex.Catalogue.Model_Info` now derives
+reasoning capability from a non-empty `supported_reasoning_levels`, tool
+support from `supports_parallel_tool_calls`, and image support from
+`image` in `input_modalities`; it also parses `max_context_window`.
+`Refresh_Codex` maps all of these into registry records instead of
+assuming `Supports_Tools => True` and `Supports_Images => True`.
+`Max_Tokens` is 0 — the backend rejects `max_output_tokens` and the
+provider already omits that field, so `Max_Tokens_For` returns the
+compaction-safe placeholder of 1 while the request body never carries the
+field.  `Default_Codex_Model` was deleted and `Lookup` for unlisted codex
+IDs now raises `Not_Found`; the previous default (272k context, tools,
+images, reasoning forced on) was the last hardcoded model data.  Test
+expectations updated accordingly; the fixture gained the capability
+fields fetched live.
+
+**Verification:** Production and test development builds succeed; the
+full AUnit suite passes 869/869.
+
 ## 2026-09-07 — Live Codex model catalogue (REQ: no hardcoded codex models)
 
 **Requirement:** The Codex registry refresh shall discover models from the

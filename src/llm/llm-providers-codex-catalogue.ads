@@ -7,6 +7,12 @@
 --  access token is expired, the catalogue falls back to stale cache data
 --  instead of contacting the backend.
 --
+--  Every Model_Info field is derived from the backend response; this
+--  package carries no model-specific knowledge.  Reasoning capability
+--  requires a non-empty supported_reasoning_levels list; tool support
+--  mirrors supports_parallel_tool_calls; image support requires "image"
+--  in input_modalities.
+--
 --  Project: coyote
 --  For revision history, see the project version-control log.
 
@@ -19,8 +25,13 @@ package LLM.Providers.Codex.Catalogue is
       Model_Id       : Ada.Strings.Unbounded.Unbounded_String;
       Name           : Ada.Strings.Unbounded.Unbounded_String;
       Description    : Ada.Strings.Unbounded.Unbounded_String;
-      Context_Window : Natural := 272_000;
-      Reasoning      : Boolean := True;
+      --  Context_Window is the served context; Max_Context_Window is the
+      --  largest the subscription tier can negotiate.
+      Context_Window : Natural := 0;
+      Max_Context_Window : Natural := 0;
+      Reasoning      : Boolean := False;
+      Supports_Tools : Boolean := False;
+      Supports_Images : Boolean := False;
    end record;
 
    package Catalogue_Vectors is new Ada.Containers.Vectors

@@ -1506,9 +1506,13 @@ subscription catalogue served by `LLM.Providers.Codex.Catalogue` (GET
 `https://chatgpt.com/backend-api/codex/models?client_version=99.0.0`)
 when `~/.coyote/auth.json` contains a `"codex"` credential entry.  Hidden
 entries (`visibility` other than `"list"`) and entries without a `slug`
-are excluded.  Entries carry the backend `context_window`, max tokens
-128,000, the `"openai-responses"` wire format, and zero cost
-(subscription billing).  The catalogue is cached for 24 hours in
+are excluded.  All model attributes are fetched: `context_window` and
+`max_context_window` from the backend, reasoning capability from a
+non-empty `supported_reasoning_levels`, tool support from
+`supports_parallel_tool_calls`, and image support from `image` in
+`input_modalities`.  `Max_Tokens` is 0 — the Codex backend rejects
+`max_output_tokens` and the provider already omits that field — and cost
+is zero (subscription billing).  The catalogue is cached for 24 hours in
 `~/.coyote/codex_models_cache.json`; a stale cache is used when the live
 fetch fails, and an empty registry results when no cache exists.  Token
 refresh is deliberately not performed during the refresh: only a cached,
@@ -1516,10 +1520,10 @@ non-expired access token is used, keeping the startup refresh synchronous
 and side-effect free.  Without credentials the Codex portion of the
 registry stays empty.
 
-**`Lookup` for `"codex"`:** Unknown Codex model IDs return a
-`Default_Codex_Model` with the Responses wire format and conservative
-limits rather than raising `Not_Found`, so the agent can start even when
-new model IDs appear before the catalogue is updated.
+**`Lookup` for `"codex"`:** Unknown Codex model IDs raise `Not_Found`
+rather than returning a fabricated default.  The live catalogue is the
+single source of Codex model information; listing a model that the
+subscription cannot use is an error instead of a silent fallback.
 
 ---
 
@@ -1656,6 +1660,36 @@ enables stateless reasoning replay; `store: false` is sent explicitly
 requests that omit the field (HTTP 400 "Store must be set to false").
 The shared Responses provider still omits `store` by default so the
 native OpenAI wire format is unchanged.
+
+---
+### 5.27b `LLM.Providers.Codex.Catalogue`
+
+**Purpose:** Loads the live Codex subscription model catalogue and caches
+it on disk, mirroring the OpenRouter and Ollama catalogue units.
+
+**Load flow:**
+1. Require a codex credential in `~/.coyote/auth.json`; return an empty
+   catalogue without a network request when absent or when the cached
+   access token is expired (no token refresh — that stays in
+   `LLM.Auth.Codex.Ensure_Valid` so startup refresh stays synchronous).
+2. Serve from `~/.coyote/codex_models_cache.json` when the cache is
+   younger than 24 hours.
+3. Otherwise GET `{base}/codex/models?client_version=99.0.0` with the
+   bearer token, `chatgpt-account-id`, and coyote originator headers.
+   The future `client_version` selects the fullest version-gated
+   listing.  `COYOTE_CODEX_BASE_URL` overrides the base for tests.
+4. Filter to entries with `visibility` = `"list"` and a non-empty
+   `slug`; parse `display_name`, `description`, `context_window`,
+   `max_context_window`, reasoning capability
+   (`supported_reasoning_levels` non-empty), tool support
+   (`supports_parallel_tool_calls`), and image support
+   (`image` in `input_modalities`).
+5. Cache the raw `models` array with a `fetched_at` timestamp; on fetch
+   failure fall back to stale cache, or an empty catalogue when no cache
+   exists.
+
+**No hardcoded model data:** the package carries no model-specific
+knowledge; every attribute comes from the backend response.
 
 ---
 ### 5.28 `LLM.Tools`

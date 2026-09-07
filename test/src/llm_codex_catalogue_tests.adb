@@ -17,10 +17,6 @@ package body LLM_Codex_Catalogue_Tests is
    use type Ada.Containers.Count_Type;
    use type GNATCOLL.JSON.JSON_Value_Type;
 
-   --  A non-expiring fake JWT; the catalogue never decodes it, the
-   --  expiry timestamp in the credential record is what matters.
-   Sample_Access_Token : constant String := "codex-access-token";
-
    function Current_Unix_S return Long_Long_Integer is
       use Ada.Calendar;
 

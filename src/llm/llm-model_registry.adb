@@ -262,23 +262,6 @@ package body LLM.Model_Registry is
          Cost                => (others => 0.0));
    end Default_OpenAI_Model;
 
-   function Default_Codex_Model (Model_Id : String) return Model_Info is
-   begin
-      return
-        (Model_Id            => To_Unbounded_String (Model_Id),
-         Name                => To_Unbounded_String (Model_Id),
-         Provider            => To_Unbounded_String ("codex"),
-         Context_Window      => 272_000,
-         Max_Tokens          => 128_000,
-         Reasoning           => True,
-         Supports_Tools      => True,
-         Supports_Images     => True,
-         Max_Thinking_Budget => 0,
-         Min_Thinking_Budget => 0,
-         Wire_Format         => To_Unbounded_String ("openai-responses"),
-         Cost                => (others => 0.0));
-   end Default_Codex_Model;
-
    function Default_OpenRouter_Model (Model_Id : String) return Model_Info is
    begin
       return
@@ -353,11 +336,14 @@ package body LLM.Model_Registry is
            ((Model_Id            => Item.Model_Id,
              Name                => Item.Name,
              Provider            => To_Unbounded_String ("codex"),
-             Context_Window      => Item.Context_Window,
-             Max_Tokens          => 128_000,
+             Context_Window      =>
+               (if Item.Context_Window > 0
+                then Item.Context_Window
+                else Item.Max_Context_Window),
+             Max_Tokens          => 0,
              Reasoning           => Item.Reasoning,
-             Supports_Tools      => True,
-             Supports_Images     => True,
+             Supports_Tools      => Item.Supports_Tools,
+             Supports_Images     => Item.Supports_Images,
              Max_Thinking_Budget => 0,
              Min_Thinking_Budget => 0,
              Wire_Format         => To_Unbounded_String ("openai-responses"),
@@ -562,10 +548,11 @@ package body LLM.Model_Registry is
          return Default_Ollama_Model (Model_Id);
       elsif Want_Provider = "openai" then
          return Default_OpenAI_Model (Model_Id);
-      elsif Want_Provider = "codex" then
-         return Default_Codex_Model (Model_Id);
       else
-         raise Not_Found with "Unknown provider: " & Provider;
+         --  "codex" reaches this branch for unlisted model IDs; the
+         --  live catalogue is the only source of codex model info.
+         raise Not_Found with "Unknown provider/model: " & Provider
+           & "/" & Model_Id;
       end if;
    end Lookup;
 

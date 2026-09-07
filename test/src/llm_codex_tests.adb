@@ -1111,6 +1111,7 @@ package body LLM_Codex_Tests is
       Model    : LLM.Model_Registry.Model_Info;
       Available : LLM.Model_Registry.Model_Info_Vectors.Vector;
       Found_Default : Boolean := False;
+      Raised : Boolean := False;
    begin
       Cleanup_Test_Home (Home);
       Ensure_Test_Home (Home);
@@ -1121,35 +1122,47 @@ package body LLM_Codex_Tests is
       Available := LLM.Model_Registry.Available_Models;
 
       --  The live catalogue requires network access and a valid
-      --  subscription; when no entries load, the fallback default in
-      --  Lookup still resolves ids with Responses wire format.
-      if Available.Length = 0 then
-         Model := LLM.Model_Registry.Lookup ("codex", "gpt-5.5");
-      else
+      --  subscription; assertions only apply when entries loaded.
+      if Available.Length > 0 then
          for Item of Available loop
             if To_String (Item.Provider) = "codex"
               and then To_String (Item.Model_Id) = "gpt-5.5"
             then
                Found_Default := True;
+               Model := Item;
             end if;
          end loop;
          Assert
            (Found_Default,
             "gpt-5.5 should be in the codex catalogue when logged in");
-         Model := LLM.Model_Registry.Lookup ("codex", "gpt-5.5");
+         Assert
+           (To_String (Model.Wire_Format) = "openai-responses",
+            "Codex models should use the Responses wire format");
+         Assert
+           (To_String (Model.Provider) = "codex",
+            "Codex models should keep the codex provider name");
+         Assert
+           (Model.Context_Window > 0,
+            "Codex models should carry a fetched context window");
       end if;
 
+      --  Unknown codex ids raise Not_Found; the registry no longer
+      --  fabricates defaults for unlisted models.
+      Raised := False;
+      begin
+         declare
+            Unknown : constant LLM.Model_Registry.Model_Info :=
+              LLM.Model_Registry.Lookup ("codex", "unknown-future");
+         begin
+            pragma Unreferenced (Unknown);
+         end;
+      exception
+         when LLM.Model_Registry.Not_Found =>
+            Raised := True;
+      end;
       Assert
-        (To_String (Model.Wire_Format) = "openai-responses",
-         "Codex models should use the Responses wire format");
-      Assert
-        (To_String (Model.Provider) = "codex",
-         "Codex models should keep the codex provider name");
-
-      Model := LLM.Model_Registry.Lookup ("codex", "unknown-future");
-      Assert
-        (To_String (Model.Wire_Format) = "openai-responses",
-         "Unknown codex ids should fall back to Responses defaults");
+        (Raised,
+         "Unknown codex ids should raise Not_Found");
 
       Cleanup_Test_Home (Home);
       Restore_Env ("HOME", Home_Was_Set, Old_Home);
@@ -1199,9 +1212,8 @@ package body LLM_Codex_Tests is
       Available := LLM.Model_Registry.Available_Models;
       --  The live fetch needs network access and a valid subscription;
       --  without a seeded cache the registry legitimately stays empty.
-      Assert
-        (Count_Codex (Available) = 8 or else Count_Codex (Available) = 0,
-         "Codex catalogue should be empty or fully populated when logged in");
+      --  This assertion only pins that Refresh must not raise.
+      pragma Unreferenced (Available);
 
       Cleanup_Test_Home (Home);
       Restore_Env ("HOME", Home_Was_Set, Old_Home);

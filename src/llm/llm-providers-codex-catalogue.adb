@@ -223,6 +223,58 @@ package body LLM.Providers.Codex.Catalogue is
       return Get_String_Field (Value, "visibility", "list") = "list";
    end Is_Listed;
 
+   --  Length of a JSON array field; 0 when the field is missing or is
+   --  not an array.
+   function Array_Field_Length
+      (Value  : GNATCOLL.JSON.JSON_Value;
+      Field  : String) return Natural
+   is
+   begin
+      if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
+         and then Value.Has_Field (Field)
+         and then Value.Get (Field).Kind = GNATCOLL.JSON.JSON_Array_Type
+      then
+         return GNATCOLL.JSON.Length (Value.Get (Field).Get);
+      end if;
+
+      return 0;
+   end Array_Field_Length;
+
+   --  True when the string array named Field contains the value Want.
+   function Array_Field_Contains
+      (Value : GNATCOLL.JSON.JSON_Value;
+      Field : String;
+      Want  : String) return Boolean
+   is
+   begin
+      if Value.Kind /= GNATCOLL.JSON.JSON_Object_Type
+         or else not Value.Has_Field (Field)
+         or else Value.Get (Field).Kind /= GNATCOLL.JSON.JSON_Array_Type
+      then
+         return False;
+      end if;
+
+      declare
+         Items : constant GNATCOLL.JSON.JSON_Array :=
+            Value.Get (Field).Get;
+      begin
+         for I in 1 .. GNATCOLL.JSON.Length (Items) loop
+            declare
+               Item : constant GNATCOLL.JSON.JSON_Value :=
+                  GNATCOLL.JSON.Get (Items, I);
+            begin
+               if Item.Kind = GNATCOLL.JSON.JSON_String_Type
+                 and then To_String (Item.Get) = Want
+               then
+                  return True;
+               end if;
+            end;
+         end loop;
+      end;
+
+      return False;
+   end Array_Field_Contains;
+
    function Parse_Model (Value : GNATCOLL.JSON.JSON_Value) return Model_Info is
       Result : Model_Info;
    begin
@@ -233,12 +285,16 @@ package body LLM.Providers.Codex.Catalogue is
       Result.Description :=
          To_Unbounded_String (Get_String_Field (Value, "description"));
       Result.Context_Window :=
-         Get_Natural_Field (Value, "context_window", Result.Context_Window);
-
-      if Result.Context_Window = 0 then
-         Result.Context_Window := 272_000;
-      end if;
-
+         Get_Natural_Field (Value, "context_window", 0);
+      Result.Max_Context_Window :=
+         Get_Natural_Field (Value, "max_context_window", 0);
+      Result.Reasoning :=
+         Array_Field_Length (Value, "supported_reasoning_levels") > 0;
+      Result.Supports_Tools :=
+         Get_Natural_Field
+            (Value, "supports_parallel_tool_calls", 0) > 0;
+      Result.Supports_Images :=
+         Array_Field_Contains (Value, "input_modalities", "image");
       return Result;
    end Parse_Model;
 
