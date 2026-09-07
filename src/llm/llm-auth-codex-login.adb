@@ -8,6 +8,7 @@ with Ada.Exceptions;
 with Ada.Streams;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
+with Ada.Text_IO;
 with GNAT.Sockets;
 with LLM.Auth.Codex;
 
@@ -339,10 +340,12 @@ package body LLM.Auth.Codex.Login is
       LLM.Auth.Save_Credentials ("codex", Creds);
       Report (Done);
    exception
-      when Login_Error =>
-         raise;
       when E : others =>
-         raise Login_Error with Ada.Exceptions.Exception_Message (E);
+         Ada.Text_IO.Put_Line
+           (Ada.Text_IO.Standard_Error,
+            "[!] OpenAI Codex login failed: "
+            & Ada.Exceptions.Exception_Message (E));
+         raise;
    end Browser_Login;
 
 end LLM.Auth.Codex.Login;

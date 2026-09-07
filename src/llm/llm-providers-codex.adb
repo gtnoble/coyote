@@ -6,6 +6,7 @@
 with Ada.Environment_Variables;
 with Ada.Exceptions;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
+with Ada.Text_IO;
 with LLM.Auth;
 with LLM.Auth.Codex;
 with LLM.Providers.OpenAI_Responses;
@@ -144,6 +145,10 @@ package body LLM.Providers.Codex is
       when E : LLM.Auth.Codex.Auth_Error =>
          --  Surface authentication failures as provider errors instead of
          --  transport exceptions so retry policy does not retry them.
+         Ada.Text_IO.Put_Line
+           (Ada.Text_IO.Standard_Error,
+            "[!] OpenAI Codex authentication failed: "
+            & Ada.Exceptions.Exception_Message (E));
          raise Constraint_Error with
            "OpenAI Codex authentication failed: "
            & Ada.Exceptions.Exception_Message (E);

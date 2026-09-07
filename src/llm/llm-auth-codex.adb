@@ -10,6 +10,7 @@ with Ada.Exceptions;
 with Ada.Numerics.Discrete_Random;
 with Ada.Streams;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
+with Ada.Text_IO;
 with GNATCOLL.JSON;
 with Interfaces;
 use type Interfaces.Unsigned_32;
@@ -576,10 +577,12 @@ package body LLM.Auth.Codex is
 
       LLM.Auth.Save_Credentials ("codex", Creds);
    exception
-      when Auth_Error =>
-         raise;
       when E : others =>
-         raise Auth_Error with Ada.Exceptions.Exception_Message (E);
+         Ada.Text_IO.Put_Line
+           (Ada.Text_IO.Standard_Error,
+            "[!] OpenAI Codex token refresh failed: "
+            & Ada.Exceptions.Exception_Message (E));
+         raise;
    end Refresh_Token;
 
    function Token_Expired (Creds : LLM.Auth.Provider_Credentials)

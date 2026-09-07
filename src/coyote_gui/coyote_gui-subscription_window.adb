@@ -5,6 +5,7 @@
 
 with Ada.Exceptions;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
+with Ada.Text_IO;
 with Gdk.Event;
 with Gdk.Types;
 with Gdk.Types.Keysyms;
@@ -329,6 +330,9 @@ package body Coyote_GUI.Subscription_Window is
       else
          Current_Instance.Status.Set_Text
            ("Login failed: " & Outcome.Error_Text);
+         Ada.Text_IO.Put_Line
+           (Ada.Text_IO.Standard_Error,
+            "[!] OpenAI Codex login failed: " & Outcome.Error_Text);
       end if;
 
       Rebuild_Provider_List;
@@ -390,6 +394,10 @@ package body Coyote_GUI.Subscription_Window is
                   end;
                exception
                   when E : LLM.Auth.Codex.Auth_Error =>
+                     Ada.Text_IO.Put_Line
+                       (Ada.Text_IO.Standard_Error,
+                        "[!] OpenAI Codex token refresh failed: "
+                        & Ada.Exceptions.Exception_Message (E));
                      Current_Instance.Status.Set_Text
                        ("Refresh failed: "
                         & Ada.Exceptions.Exception_Message (E));
