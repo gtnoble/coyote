@@ -18,6 +18,11 @@ package LLM.Auth is
       Access_Token    : Ada.Strings.Unbounded.Unbounded_String :=
         Ada.Strings.Unbounded.Null_Unbounded_String;
       Expires_Ms      : Long_Long_Integer := 0;
+      --  ChatGPT account identifier carried by OAuth subscription
+      --  providers such as OpenAI Codex.  Empty for providers that do
+      --  not use one.
+      Account_Id      : Ada.Strings.Unbounded.Unbounded_String :=
+        Ada.Strings.Unbounded.Null_Unbounded_String;
    end record;
 
    --  Read credentials for Provider from ~/.coyote/auth.json.

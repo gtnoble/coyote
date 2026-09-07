@@ -8,6 +8,7 @@ with Ada.Environment_Variables;
 with Ada.Exceptions;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
+with Ada.Text_IO;
 with GNATCOLL.JSON;
 with LLM.HTTP;
 
@@ -186,11 +187,20 @@ package body LLM.Auth.GitHub_Copilot is
          Status   => Status);
 
       if Status /= 200 then
+         --  The GNAT runtime caps exception messages at 200 characters
+         --  (System.Parameters.Default_Exception_Msg_Max_Length), so the
+         --  response body cannot ride in Exception_Message.  Log the
+         --  complete body to stderr and keep the message short.
+         Ada.Text_IO.Put_Line
+           (Ada.Text_IO.Standard_Error,
+            "[!] GitHub Copilot token refresh response (HTTP"
+            & Natural'Image (Status)
+            & "): "
+            & To_String (Response_Body));
          raise Auth_Error with
            "GitHub Copilot token refresh failed with HTTP"
            & Natural'Image (Status)
-           & ": "
-           & To_String (Response_Body);
+           & " (full response logged to stderr)";
       end if;
 
       Parsed := GNATCOLL.JSON.Read (To_String (Response_Body));

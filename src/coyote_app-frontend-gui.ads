@@ -28,6 +28,7 @@ with Coyote_GUI.Conversation_Stack;
 with Coyote_GUI.Prompt_Queue;
 with Coyote_GUI.Session_Stats_Window;
 with Coyote_GUI.Sandbox_Profile_Window;
+with Coyote_GUI.Subscription_Window;
 with Coyote_GUI.Updates;
 with Coyote_App.Agent_Registry;
 with Coyote_App.Agent_RPC.Service;
@@ -181,6 +182,10 @@ package Coyote_App.Frontend.GUI is
    --  Must be called from the GTK main loop thread.
    procedure Show_Sandbox_Profiles (F : in out Instance);
 
+   --  Open (lazily create) the Subscriptions support window.  Must be
+   --  called from the GTK main loop thread.
+   procedure Show_Subscriptions (F : in out Instance);
+
    --  Register the agent session so that Stop and application shutdown can
    --  call Request_Abort directly from the GTK callback thread, bypassing
    --  the prompt queue.  Must be called from Agent_Task after
@@ -303,6 +308,8 @@ private
       Stats_Window           : Coyote_GUI.Session_Stats_Window.Instance;
       Sandbox_Profile_Window : aliased Coyote_GUI.Sandbox_Profile_Window.Instance;
       Sandbox_Profiles_Item  : Gtk.Menu_Item.Gtk_Menu_Item;
+      Subscription_Window    : aliased Coyote_GUI.Subscription_Window.Instance;
+      Subscriptions_Item     : Gtk.Menu_Item.Gtk_Menu_Item;
       Current_Mode           : Coyote_App.Frontend.Run_Mode :=
         Coyote_App.Frontend.Idle;
       Agent_Sess             : Session_Reference;

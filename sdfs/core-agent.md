@@ -742,6 +742,30 @@ plumbing.
 **Verification:** Production and test development builds succeed; the full
 AUnit suite passes 846/846.
 
+## 2026-09-07 — Codex provider dispatch and catalogue refresh
+
+**Requirement:** The `codex` provider (OpenAI Codex subscription, ChatGPT
+backend) shall participate in the standard agent dispatch, compaction
+summarization, and startup catalogue refresh like every other provider.
+
+**Implementation:** `LLM.Agent.Create` calls
+`LLM.Model_Registry.Refresh_Codex` alongside the other provider refreshes
+(guarded by `COYOTE_TEST_NO_CATALOGUE_REFRESH`).  Both provider dispatch
+chains — the compaction summarization path and the main agentic loop —
+gain an `elsif ... = "codex"` branch that constructs
+`LLM.Providers.Codex.Create (Session_Id => S.Session_UUID)` and forwards
+through `Send_With_Retry` (compaction path) or the standard send (agent
+loop), mirroring the OpenCode Go plumbing.  `LLM.Auth.Provider_Credentials`
+gains an `Account_Id` component persisted as the `accountId` field of the
+`auth.json` entry (written only when non-empty, so existing files are
+unaffected), used by the Codex provider for the mandatory
+`chatgpt-account-id` header.
+
+**Verification:** Production and test development builds succeed; the
+full AUnit suite passes 861/861 including 15 new `LLM.Codex` cases
+covering headers, endpoint path, body shape (omitted
+`max_output_tokens`, `prompt_cache_key`, `store` never true), encrypted
+reasoning replay, credential guards, and registry visibility.
 ## 2026-09-07 — Ephemeral COYOTE_SUBAGENT_MODEL precedence (REQ-CORE-143)
 
 `LLM.Agent.Effective_Model_Spec` now consults a non-empty

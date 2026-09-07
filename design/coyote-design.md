@@ -259,6 +259,7 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `Coyote_GUI.Session_Stats_Window` | Reusable live session-statistics support window | `src/coyote_gui/coyote_gui-session_stats_window.ads/.adb` |
 | `Coyote_GUI.Sandbox_Profile_Window` | Reusable modeless GTK sandbox profile manager with multi-profile drafts, Save-All/Cancel-All, and profile-rule editing | `src/coyote_gui/coyote_gui-sandbox_profile_window.ads/.adb` |
 | `Coyote_GUI.Model_Picker` | Reusable modal searchable and sortable model selector returning a typed selection | `src/coyote_gui/coyote_gui-model_picker.ads/.adb` |
+| `Coyote_GUI.Subscription_Window` | Reusable modeless provider subscription manager with Login/Refresh/Logout actions | `src/coyote_gui/coyote_gui-subscription_window.ads/.adb` |
 | `Coyote_GUI.Zoom` | Zoom-level ↔ font-size arithmetic (pure logic) | `src/coyote_gui/coyote_gui-zoom.ads/.adb` |
 | `Coyote_GUI.Navigation` | Clamped keyboard viewport navigation policy | `src/coyote_gui/coyote_gui-navigation.ads/.adb` |
 | `Coyote_GUI.Mnemonics` | Context-local GTK mnemonic extraction and duplicate-key validation | `src/coyote_gui/coyote_gui-mnemonics.ads/.adb` |
@@ -270,6 +271,8 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `LLM.Settings` | Configuration file loading | `src/llm/llm-settings.ads/.adb` |
 | `LLM.Auth` | Auth token loading and saving | `src/llm/llm-auth.ads/.adb` |
 | `LLM.Auth.GitHub_Copilot` | Copilot token refresh | `src/llm/llm-auth-github_copilot.ads/.adb` |
+| `LLM.Auth.Codex` | OpenAI Codex OAuth credentials, PKCE, JWT account extraction | `src/llm/llm-auth-codex.ads/.adb` |
+| `LLM.Auth.Codex.Login` | Browser OAuth login flow with local callback listener | `src/llm/llm-auth-codex-login.ads/.adb` |
 | `LLM.Model_Registry` | In-memory model catalogue | `src/llm/llm-model_registry.ads/.adb` |
 | `LLM.Providers` | Abstract provider interface | `src/llm/llm-providers.ads` |
 | `LLM.HTTP` | libcurl-backed streaming HTTP client | `src/llm/llm-http.ads/.adb` |
@@ -280,6 +283,7 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `LLM.Providers.OpenRouter` | OpenRouter adapter | `src/llm/llm-providers-openrouter.ads/.adb` |
 | `LLM.Providers.GitHub_Copilot` | Copilot routing provider | `src/llm/llm-providers-github_copilot.ads/.adb` |
 | `LLM.Providers.OpenCode_Go` | OpenCode Go routing provider | `src/llm/llm-providers-opencode_go.ads/.adb` |
+| `LLM.Providers.Codex` | OpenAI Codex subscription provider (ChatGPT backend) | `src/llm/llm-providers-codex.ads/.adb` |
 | `LLM.Tools` | Abort_Flag, Pause_Flag, Tool_Descriptor | `src/llm/llm-tools.ads/.adb` |
 | `LLM.Tools.Shell` | Built-in shell tool and tracked process-group execution | `src/llm/llm-tools-shell.ads/.adb` |
 | `LLM.Tools.Sandbox` | Sandbox profile discovery and bwrap arg construction | `src/llm/llm-tools-sandbox.ads/.adb` |
@@ -356,6 +360,8 @@ three layers:
                                         LLM.Auth.GitHub_Copilot
   LLM.Providers.OpenCode_Go        ──► LLM.Providers.OpenAI_Completions,
                                         LLM.Providers.Anthropic_Messages
+  LLM.Providers.Codex              ──► LLM.Providers.OpenAI_Responses,
+                                        LLM.Auth.Codex
         │
         ▼
 [Infrastructure layer]
@@ -728,7 +734,8 @@ agentic loop for one prompt.
 **`Create` procedure:**
 1. Load settings from `~/.coyote/settings.json` and `~/.coyote/models.json`.
 2. Refresh each configured provider's model catalogue or curated defaults
-   (Copilot, OpenRouter, Anthropic, OpenCode Go, native OpenAI, Ollama).
+   (Copilot, OpenRouter, Anthropic, OpenCode Go, native OpenAI, Ollama,
+   Codex).
 3. Select the model: `--model` arg → settings → first registry entry.
 4. Create or resume session via `LLM.Session_Store`.
 5. Load conversation history if resuming.
@@ -1398,6 +1405,74 @@ a non-recoverable turn error.
 
 ---
 
+### 5.22a `LLM.Auth.Codex`
+
+**Purpose:** Manages OpenAI Codex subscription OAuth credentials (ChatGPT
+Plus/Pro).  Complements `LLM.Auth.GitHub_Copilot`; shares the same
+`Provider_Credentials` record with the `Account_Id` field populated.
+
+**OAuth constants:** client_id `app_EMoamEEZ73f0CkXaXp7hrann`, issuer
+`https://auth.openai.com`, scope `openid profile email offline_access`,
+JWT claim path `https://api.openai.com/auth`, callback redirect
+`http://localhost:1455/auth/callback` (port 1455, bind host
+`127.0.0.1`).  The token endpoint honours `COYOTE_CODEX_TOKEN_URL` for
+tests.  The OAuth User-Agent is `coyote/0.1.0-dev`.
+
+**`Make_Pkce`:** Generates a 43-character verifier from the unreserved
+charset and its S256 challenge (base64url SHA-256, no padding) using the
+`sha2` Alire crate.
+
+**`Build_Authorize_Url`:** Constructs the authorize URL with
+`response_type=code`, the client id, encoded redirect URI and scope, the
+S256 challenge, a caller-supplied state, `id_token_add_organizations=true`,
+`codex_cli_simplified_flow=true`, and `originator=coyote`.
+
+**`Account_Id_From_Jwt`:** Decodes the unpadded base64url JWT payload and
+returns the `chatgpt_account_id` string from the namespaced
+`https://api.openai.com/auth` claim.  Returns "" for malformed tokens or
+absent claims — callers hard-fail login and dispatch when the account id
+cannot be extracted.
+
+**`Exchange_Code`:** POSTs `grant_type=authorization_code` with code,
+redirect URI, client id, and verifier to the token endpoint.  Requires
+`access_token`, `refresh_token`, and a positive `expires_in`; raises
+`Auth_Error` otherwise.  The account id is extracted from the new access
+token.  The caller owns persistence.
+
+**`Refresh_Token`:** POSTs `grant_type=refresh_token` with the stored
+refresh token and client id.  On success, updates access token, expiry,
+and (when rotated) the refresh token; re-extracts the account id from the
+new access token, retaining the previous value when the fresh token omits
+the claim.  Persists the result under the `"codex"` key of
+`~/.coyote/auth.json`.
+
+**`Token_Expired` / `Ensure_Valid`:** The token is expired when
+`Expires_Ms` is within five minutes of the current epoch-millisecond
+time.  `Ensure_Valid` serialises refresh across tasks with a protected
+mutex, re-reads `auth.json` under the lock (double-checked locking), and
+refreshes only when the latest stored credential is still expired.
+
+---
+
+### 5.22b `LLM.Auth.Codex.Login`
+
+**Purpose:** Browser OAuth login flow for the OpenAI Codex subscription.
+
+**`Browser_Login`:** Generates PKCE material and a random 16-byte hex
+state, opens an INET listener on `127.0.0.1:1455`, invokes the caller's
+`Open_Authorize_Url` callback with the authorize URL, then polls with a
+selector in a 1-second loop until one of: the browser redirect delivers
+`code` and matching `state`; the caller supplies a code through
+`Provide_Manual_Code`; `Cancel` is called; or the 300-second deadline
+passes.  The callback response is a minimal HTML "login complete" page.
+On success the code is exchanged via `LLM.Auth.Codex.Exchange_Code`, the
+account-id claim is validated, and the credential is persisted under the
+`"codex"` key.  Progress phases (Listening, Waiting_For_Browser,
+Callback_Received, Exchanging_Token, Done) are reported through the
+optional `On_Progress` callback.  Errors raise `Login_Error`.
+
+---
+
 ### 5.23 `LLM.Model_Registry`
 
 **Purpose:** In-memory catalogue of known models, built at session start.
@@ -1424,6 +1499,19 @@ IDs containing `"claude"` → `"anthropic-messages"`, all others →
 `"openai-completions"`.  `Not_Found` is no longer raised for unknown
 Copilot model IDs, so the agent can start and operate even when the Copilot
 catalogue has not been loaded.
+
+**`Refresh_Codex`:** Populates the registry with the curated OpenAI Codex
+subscription catalogue (gpt-5.5 default, gpt-5.4, gpt-5.4-mini,
+gpt-5.3-codex-spark, gpt-5.6-luna/sol/terra, gpt-6-astra) when
+`~/.coyote/auth.json` contains a `"codex"` credential entry.  Entries carry
+context window 272,000, max tokens 128,000, the `"openai-responses"` wire
+format, and zero cost (subscription billing).  Without credentials the
+Codex portion of the registry stays empty.
+
+**`Lookup` for `"codex"`:** Unknown Codex model IDs return a
+`Default_Codex_Model` with the Responses wire format and conservative
+limits rather than raising `Not_Found`, so the agent can start even when
+new model IDs appear before the catalogue is updated.
 
 ---
 
@@ -1520,7 +1608,45 @@ provider record. `LLM.Agent` passes the stable `Session.Session_UUID`.
    (hardcoded per the Go docs endpoint table).
 
 ---
-### 5.27 `LLM.Tools`
+### 5.27 `LLM.Providers.Codex`
+
+**Purpose:** OpenAI Codex subscription provider (ChatGPT Plus/Pro plan).
+Routes requests to the ChatGPT backend Codex Responses endpoint using
+OAuth subscription credentials; not an API-key provider.
+
+**`Create` function:** Accepts a `Session_Id` (default empty) stored in the
+provider record.  `LLM.Agent` passes the stable `Session.Session_UUID`.
+
+**`Send` procedure:**
+1. Load Codex credentials from `~/.coyote/auth.json` (key `"codex"`) and
+   call `LLM.Auth.Codex.Ensure_Valid` to refresh an expired access token
+   (5-minute expiry window) before dispatch; no refresh happens at
+   startup.
+2. Reject the request when no credential exists ("log in via
+   Options > Subscriptions") or when the access token does not carry the
+   `chatgpt_account_id` claim.
+3. Delegate to `LLM.Providers.OpenAI_Responses.Send_Request` with base
+   URL `https://chatgpt.com/backend-api/codex` (overridable via
+   `COYOTE_CODEX_BASE_URL`) so requests land on `/codex/responses`.
+4. Add subscription-specific headers on the delegate:
+   `chatgpt-account-id` (from the JWT), `originator: coyote`,
+   `User-Agent: coyote/0.1.0-dev`, `OpenAI-Beta: responses=experimental`,
+   `accept: text/event-stream`, and — when a session ID is set —
+   `session-id` and `x-client-request-id`.
+5. Disable the shared Responses provider's inline cache-breakpoint hints
+   (the Codex backend owns cache affinity through `prompt_cache_key`) and
+   set `prompt_cache_key` to the session ID clamped to 64 characters.
+6. Authentication failures (`LLM.Auth.Codex.Auth_Error`) are converted to
+   `Constraint_Error` so retry policy does not retry authentication
+   failures.
+
+**Body shape differences from the native OpenAI Responses endpoint:**
+`max_output_tokens` is omitted (`Set_Omit_Max_Tokens`); the system prompt
+rides in `instructions`; `include: ["reasoning.encrypted_content"]`
+enables stateless reasoning replay; `store` is never true.
+
+---
+### 5.28 `LLM.Tools`
 
 **Purpose:** Defines tool-control flags and the tool descriptor type.
 
@@ -1544,7 +1670,7 @@ unless `No_Tools` is true.
 
 ---
 
-### 5.28 `LLM.Tools.Temp_File`
+### 5.29 `LLM.Tools.Temp_File`
 
 **Purpose:** Manages tool-result size capping and spill to temporary files.
 
@@ -1561,7 +1687,7 @@ at session end.
 
 ---
 
-### 5.29 `LLM.System_Prompt`
+### 5.30 `LLM.System_Prompt`
 
 **Purpose:** Constructs the complete system prompt string from its parts.
 Static prose is loaded as one contiguous Markdown resource from
@@ -1621,7 +1747,7 @@ preamble (REQ-CORE-172).
 
 ---
 
-### 5.30 `Coyote_App.History`
+### 5.31 `Coyote_App.History`
 
 **Purpose:** Replays a saved session into the frontend for display.
 
@@ -1637,7 +1763,7 @@ conversation rendered before the first new prompt.
 
 ---
 
-### 5.31 `Coyote_App.Utils`
+### 5.32 `Coyote_App.Utils`
 
 **Purpose:** Formatting helpers and Unicode glyph constants for all frontends.
 
@@ -1673,7 +1799,7 @@ points > 255 cannot appear as character literals.
 
 ---
 
-### 5.32 Retired `Coyote_App.Frontend.Acme_Win` (historical)
+### 5.33 Retired `Coyote_App.Frontend.Acme_Win` (historical)
 
 **Purpose:** Acme frontend implementation. Renders agent events as structured
 Unicode-glyph-prefixed text in the acme window body.
@@ -1697,7 +1823,7 @@ Tracks `Current_Tool_Name` for the `End_Tool` label.
 
 ---
 
-### 5.33 `Coyote_App.Frontend.GUI`
+### 5.34 `Coyote_App.Frontend.GUI`
 
 **Purpose:** GTK3 frontend implementation. Drives the conversation view via
 the `Coyote_GUI.Updates` queue.
@@ -1799,6 +1925,20 @@ startup and is the sole GTK conversation presentation (see §5.15).
   reports failed profiles. Use Profile enqueues typed `Set_Sandbox` for the
   selected agent. The existing Agent → Sandbox Profile... and Ctrl+Shift+S
   quick chooser remains distinct.
+- **Subscriptions manager:** `Options → Subscriptions...` opens one reusable,
+  modeless support window titled `coyote : Subscriptions`, transient for the
+  main window and constructed on the GTK main task.  A single-selection
+  `GtkTreeView` (Provider and State columns) lists managed provider
+  subscriptions — OpenAI Codex (ChatGPT Plus/Pro) and GitHub Copilot — with
+  credential state read live from `~/.coyote/auth.json`.  A detail frame
+  shows the selected provider's login status and ChatGPT account id.
+  Buttons enable per state: Codex offers Login (browser OAuth via
+  `LLM.Auth.Codex.Login`, run in a background task polled by a 250 ms
+  GLib timeout so widgets stay on the main loop), Refresh (force token
+  refresh via `Ensure_Valid`), and Logout (clears the credential entry).
+  Copilot rows report state but keep credential management in the CLI.
+  Ctrl+W and the window close button hide the window without destroying
+  the instance, matching the Sandbox Profiles manager.
 - **Desktop identity and session roles:** The GUI sets the themed `coyote`
   icon name and a stable main-window role. After session creation, resume, or
   switch, the agent queues the session identifier through `Coyote_GUI.Updates`;
@@ -1904,7 +2044,7 @@ startup and is the sole GTK conversation presentation (see §5.15).
   scroll-to-bottom button.
 ---
 
-### 5.34 `Coyote_GUI.Session_Stats_Window`
+### 5.35 `Coyote_GUI.Session_Stats_Window`
 
 **Purpose:** Reusable live GTK support window for cumulative and last-turn
 session statistics.
@@ -1927,7 +2067,7 @@ the agent-to-GTK update queue. The record is retained even if the support
 window has not yet been shown. `Clear_Stats` is queued after New Session and
 Switch Session; ordinary Clear Conversation does not change statistics.
 
-### 5.35 `Coyote_Help`
+### 5.36 `Coyote_Help`
 
 **Purpose:** Opens the installed Mallard application documentation in Yelp.
 
@@ -1963,7 +2103,7 @@ transient child of the coyote main window.
 
 ---
 
-### 5.35 `Coyote_App.Frontend.Plain`
+### 5.37 `Coyote_App.Frontend.Plain`
 
 **Purpose:** Plain-text frontend for `--one-shot` mode and non-TTY output.
 
@@ -1978,7 +2118,7 @@ and returns `""` (signalling shutdown) on all subsequent calls.
 
 ---
 
-### 5.35 `Coyote_GUI`
+### 5.38 `Coyote_GUI`
 
 **Purpose:** Root package for the GUI subsystem. Defines the `Update_Kind`
 enumeration and the `Update` discriminated record.
@@ -1996,7 +2136,7 @@ and cumulative token/cost totals; `Clear_Stats` carries no payload.
 
 ---
 
-### 5.36 `Coyote_GUI.Updates`
+### 5.39 `Coyote_GUI.Updates`
 
 **Purpose:** Thread-safe bounded queue from `Agent_Task` to the GTK main loop.
 
@@ -2022,7 +2162,7 @@ a callback is completing.
 
 ---
 
-### 5.37 `Coyote_GUI.Prompt_Queue`
+### 5.40 `Coyote_GUI.Prompt_Queue`
 
 **Purpose:** Thread-safe bounded queue from the GTK main loop to `Agent_Task`,
 carrying typed command payloads via a discriminated `Item` type.
@@ -2062,7 +2202,7 @@ directly; persistence remains owned by the agent task.
 
 ---
 
-### 5.37a `Coyote_GUI.Zoom`
+### 5.40a `Coyote_GUI.Zoom`
 
 **Purpose:** Pure-logic zoom arithmetic shared by the GUI frontend's zoom
 entry points (View-menu accelerators and Ctrl+mouse-wheel).  Factored into
@@ -2087,7 +2227,7 @@ a display-independent package so the policy is unit-testable without GTK.
 when a touchpad emits a large accumulated smooth-scroll delta, and lets
 zoom-out be immediately responsive after zooming into the clamp.
 
-### 5.38 `Coyote_Utils`
+### 5.41 `Coyote_Utils`
 
 **Purpose:** CLI argument resolution, session prefix stripping, active
 executable resolution, and POSIX shell quoting utilities shared by the
@@ -2125,7 +2265,7 @@ malformed; caught in `coyote.adb` and printed to stderr.
 
 ---
 
-### 5.39 Retired `Acme` subsystem (historical)
+### 5.42 Retired `Acme` subsystem (historical)
 
 **Purpose:** Root package for the acme subsystem. Defines the
 `Win_File_Path` helper.
@@ -2136,7 +2276,7 @@ malformed; caught in `coyote.adb` and printed to stderr.
 
 ---
 
-### 5.40 Retired `Acme.Window` (historical)
+### 5.43 Retired `Acme.Window` (historical)
 
 **Purpose:** High-level acme window operations over 9P.
 
@@ -2155,7 +2295,7 @@ the caller's task-local connection is used; never shares an `Fs` across tasks.
 
 ---
 
-### 5.41 Retired `Acme.Event_Parser` (historical)
+### 5.44 Retired `Acme.Event_Parser` (historical)
 
 **Purpose:** Parses acme event-file records into structured `Event` values.
 
@@ -2170,7 +2310,7 @@ and `C2 = 'x'` (button-2 execute in body).
 
 ---
 
-### 5.42 Retired `Acme.Raw_Events` (historical)
+### 5.45 Retired `Acme.Raw_Events` (historical)
 
 **Purpose:** Low-level byte accumulator for the acme event file.
 
@@ -2181,7 +2321,7 @@ calls.
 
 ---
 
-### 5.43 Retired `Nine_P` subsystem (historical)
+### 5.46 Retired `Nine_P` subsystem (historical)
 
 **Purpose:** Root package for the 9P2000 protocol implementation. Defines
 `Qid`, `Byte_Array`, and protocol constants (`NOTAG`, `NOFID`, version
@@ -2191,7 +2331,7 @@ string `"9P2000"`).
 
 ---
 
-### 5.44 Retired `Nine_P.Proto` (historical)
+### 5.47 Retired `Nine_P.Proto` (historical)
 
 **Purpose:** Encodes and decodes 9P2000 T-messages and R-messages.
 
@@ -2210,7 +2350,7 @@ R-message bytes.
 
 ---
 
-### 5.45 Retired `Nine_P.Client` (historical)
+### 5.48 Retired `Nine_P.Client` (historical)
 
 **Purpose:** 9P2000 client; provides mount, open, read, write, and clunk
 over a UNIX socket.
@@ -2233,7 +2373,7 @@ Each task creates its own `Fs` via `Ns_Mount`.
 
 ---
 
-### 5.46 `Session_Lister`
+### 5.49 `Session_Lister`
 
 **Purpose:** Enumerates saved sessions for the current directory and formats
 them for display.
@@ -2259,7 +2399,7 @@ menu.
 
 ---
 
-### 5.47 `LLM.Agent` — `Request_Abort`, `Request_Pause`, and `Resume`
+### 5.50 `LLM.Agent` — `Request_Abort`, `Request_Pause`, and `Resume`
 
 *(Supplement to §5.5, which covers `Create` and `Run_Prompt`.)*
 

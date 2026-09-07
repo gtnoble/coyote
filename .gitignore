@@ -10,3 +10,7 @@ b~*.adb
 b~*.ads
 b~*.ali
 b~*.o
+
+# AUnit/GNAT test-run artifacts
+test/GNAT-TEMP-*.TMP
+test/sandbox_test_home/

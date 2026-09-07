@@ -99,6 +99,22 @@ package body LLM.Providers.OpenAI_Responses is
       P.Inline_Cache_Hints := Enabled;
    end Set_Inline_Cache_Hints;
 
+   procedure Set_Omit_Max_Tokens
+      (P       : in out Provider;
+     Enabled :        Boolean)
+   is
+   begin
+      P.Omit_Max_Tokens := Enabled;
+   end Set_Omit_Max_Tokens;
+
+   procedure Set_Prompt_Cache_Key
+      (P       : in out Provider;
+     Key :        String)
+   is
+   begin
+      P.Prompt_Cache_Key := To_Unbounded_String (Key);
+   end Set_Prompt_Cache_Key;
+
    function Get_Api_Key (P : Provider) return String is
    begin
       return To_String (P.Api_Key);
@@ -634,7 +650,14 @@ package body LLM.Providers.OpenAI_Responses is
    begin
       Request.Set_Field ("model", Model_Id);
       Request.Set_Field ("stream", P.Use_Streaming);
-      Request.Set_Field ("max_output_tokens", Integer (Max_Tokens));
+      if not P.Omit_Max_Tokens then
+         Request.Set_Field ("max_output_tokens", Integer (Max_Tokens));
+      end if;
+
+      if Length (P.Prompt_Cache_Key) > 0 then
+         Request.Set_Field
+           ("prompt_cache_key", To_String (P.Prompt_Cache_Key));
+      end if;
 
       if System_Prompt'Length > 0 then
          Request.Set_Field ("instructions", System_Prompt);

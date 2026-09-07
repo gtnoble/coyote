@@ -1864,6 +1864,15 @@ package body Coyote_App.Frontend.GUI is
       end if;
    end On_Sandbox_Profiles_Activate;
 
+   procedure On_Subscriptions_Activate
+     (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class) is
+      pragma Unreferenced (Self);
+   begin
+      if Current_Frontend /= null then
+         Show_Subscriptions (Current_Frontend.all);
+      end if;
+   end On_Subscriptions_Activate;
+
    procedure On_Click_For_Help_Activate
      (Self : access Gtk.Menu_Item.Gtk_Menu_Item_Record'Class) is
       pragma Unreferenced (Self);
@@ -3679,6 +3688,10 @@ package body Coyote_App.Frontend.GUI is
         Make_Item ("_Sandbox Profiles...", Options_Menu, Options_Mnemonics);
       F.Sandbox_Profiles_Item.On_Activate
         (On_Sandbox_Profiles_Activate'Access);
+      F.Subscriptions_Item :=
+        Make_Item ("S_ubscriptions...", Options_Menu, Options_Mnemonics);
+      F.Subscriptions_Item.On_Activate
+        (On_Subscriptions_Activate'Access);
 
       --  Agent menu
       Gtk.Menu.Gtk_New (Agent_Menu);
@@ -4439,6 +4452,20 @@ package body Coyote_App.Frontend.GUI is
       Coyote_GUI.Sandbox_Profile_Window.Show
         (F.Sandbox_Profile_Window);
    end Show_Sandbox_Profiles;
+
+   procedure Show_Subscriptions (F : in out Instance) is
+   begin
+      if not Coyote_GUI.Subscription_Window.Is_Created
+        (F.Subscription_Window)
+      then
+         Coyote_GUI.Subscription_Window.Create
+           (S            => F.Subscription_Window,
+            Main_Window  => F.Win.all'Access,
+            Prompt_Queue => F.PQ'Access);
+      end if;
+      Coyote_GUI.Subscription_Window.Refresh (F.Subscription_Window);
+      Coyote_GUI.Subscription_Window.Show (F.Subscription_Window);
+   end Show_Subscriptions;
 
    procedure Clear_Conversation (F : in out Instance) is
       U : Coyote_GUI.Update;
