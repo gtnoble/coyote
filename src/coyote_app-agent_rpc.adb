@@ -108,6 +108,7 @@ package body Coyote_App.Agent_RPC is
          when Thinking_End   => return "thinkingEnd";
          when Text_Delta     => return "textDelta";
          when Text_End       => return "textEnd";
+         when Response_Format => return "responseFormat";
          when Tool_Start     => return "toolStart";
          when Tool_Status    => return "toolStatus";
          when Tool_End       => return "toolEnd";
@@ -154,6 +155,7 @@ package body Coyote_App.Agent_RPC is
       elsif Value = "thinkingEnd" then return Thinking_End;
       elsif Value = "textDelta" then return Text_Delta;
       elsif Value = "textEnd" then return Text_End;
+      elsif Value = "responseFormat" then return Response_Format;
       elsif Value = "toolStart" then return Tool_Start;
       elsif Value = "toolStatus" then return Tool_Status;
       elsif Value = "toolEnd" then return Tool_End;
@@ -298,6 +300,13 @@ package body Coyote_App.Agent_RPC is
                then
                   raise RPC_Error with
                     "text RPC event payload requires string field: text";
+               elsif Value.Event_Name = Response_Format
+                 and then (not Payload.Has_Field ("format")
+                           or else Payload.Get ("format").Kind /=
+                             JSON_String_Type)
+               then
+                  raise RPC_Error with
+                    "response-format RPC event payload requires string field: format";
                end if;
             end;
          when Command =>

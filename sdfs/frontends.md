@@ -51,8 +51,11 @@ and `<hr />` elements become native horizontal separators immediately; complete
 h1-h6 blocks become selectable native heading labels at their closing
 boundaries; complete blockquotes become framed, selectable native text at their
 closing boundaries. Partial or malformed fragments remain visible source.
-Markdown remains the default path. Parser and display-backed GUI component tests
-pass; the CSM grammar remains intentionally restricted.
+Markdown remains the default path. The selected response format also controls
+model-facing prompt guidance: CSM mode receives restricted CSM syntax
+instructions, while Markdown and Plain mode retain the existing prompt.
+Parser and display-backed GUI component tests pass; the CSM grammar remains
+intentionally restricted.
 
 ### PCR-097 focused incremental-markup implementation verification (2026-09-06)
 
@@ -88,11 +91,21 @@ COYOTE_INCREMENTAL_MARKUP default-off behavior are unchanged.
 
 The display-backed suite verifies split-boundary blockquote recognition, framed
 selectable native text, literal-character preservation, and ordered
-text-blockquote-text components. The complete development suite passes 860/860
+text-blockquote-text components. The complete development suite passes 862/862
 with zero failed assertions and zero unexpected errors; the focused parser suite
 passes 16/16 and the display-backed conversation-stack suite passes 29/29.
 Existing Markdown and COYOTE_INCREMENTAL_MARKUP default-off behavior are
 unchanged.
+
+### PCR-097 replay-format compatibility verification (2026-09-07)
+
+The GUI frontend now receives a per-assistant replay-format update through the
+protected update queue. Persisted Coyote Stream messages use the incremental
+stack, while legacy or missing-format messages use Markdown; the configured
+live mode is restored after replay. The coordinator RPC frontend emits a
+versioned `responseFormat` event so selected child-agent history retains the
+same semantics. Focused replay and RPC codec tests pass; display-backed GUI
+qualification remains subject to the available display.
 
 ### AUnit GUI fixture hierarchy and shutdown verification (2026-09-05)
 

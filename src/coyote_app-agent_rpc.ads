@@ -24,6 +24,7 @@ package Coyote_App.Agent_RPC is
       Thinking_End,
       Text_Delta,
       Text_End,
+      Response_Format,
       Tool_Start,
       Tool_Status,
       Tool_End,

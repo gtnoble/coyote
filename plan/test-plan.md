@@ -1,7 +1,7 @@
 # Test Plan â coyote (STP)
 
-**Version:** 1.27
-**Date:** 2026-09-06
+**Version:** 1.28
+**Date:** 2026-09-07
 
 **Status:** Reviewed and acknowledged â M4 complete (2026-06-03)
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
@@ -162,6 +162,8 @@ SRS-CORE requirement groups.
 | `sandbox_tests.adb` | Sandbox profile subsystem, including timeout and abort process-group termination | 24 |
 | `llm_context_tests.adb` | REQ-CORE-060 (compaction threshold) | ~15 |
 | `coyote_app_tests.adb` | REQ-CORE-010â023 (CLI parsing) | ~30 |
+| `coyote_app_history_tests.adb` | REQ-CORE-047â049; persisted assistant-format replay and legacy Markdown fallback | 1 |
+| `coyote_app_agent_rpc_tests.adb` | REQ-CORE-047â049; response-format event codec | 1 |
 | `coyote_utils_tests.adb` | REQ-CORE-023 | ~10 |
 | `collapse_utils_tests.adb` | REQ-CORE-023 (thinking collapse) | 5 |
 | `llm_model_registry_tests.adb` | REQ-CORE-070â071 | ~15 |
@@ -193,7 +195,7 @@ SRS-CORE requirement groups.
 | `coyote_sqc_histogram_tests.adb` | SRS-SQC histogram | ~10 |
 | `coyote_sqc_bootstrap_tests.adb` | SRS-SQC Â§5.17 bootstrap CI, Â§10.3 two-set histogram bins | ~7 |
 
-**Total automated tests (current):** **810**
+**Total automated tests (current):** **862**
 
 ### 4.3 Planned Tests â Demonstration
 
@@ -214,6 +216,7 @@ behaviour. Results are recorded in a Test Report.
 | DEM-049 | REQ-CORE-110, 113b | In a display-backed GUI, verify that the conversation work area, prompt controls, and status area are separated by visible horizontal rules; verify the prompt and status areas have consistent breathing room and that the conversation remains the sole expanding region. The structural portion is covered by `Coyote.GUI separates conversation, prompt, and status`; visual contrast remains a manual check under the active theme. |
 | DEM-006 | REQ-CORE-040â044 | Start a GUI session; send a prompt; verify streaming text, thinking, tool events, and stats appear |
 | DEM-055 | REQ-CORE-047 | Run the GUI with `COYOTE_INCREMENTAL_MARKUP` unset and with `0`; verify the existing Markdown live-rendering and replay behavior remain unchanged. Set it to `1`; verify the incremental-markup path is selected only for live GUI assistant rendering and Plain output remains unchanged. |
+| DEM-058 | REQ-CORE-048 | Build prompts for Markdown and `Format_Coyote_Stream`; verify only CSM mode contains restricted CSM generation guidance, CSM mode omits Markdown `$$` display-math instructions, no template markers remain, and Plain/default callers retain Markdown guidance. |
 | DEM-056 | REQ-CORE-048 | In enabled mode, inspect the request/message lifecycle and session record; verify coyote selects and records the format before the first text delta, does not trust model-authored metadata, and treats missing legacy format metadata as Markdown. |
 | DEM-057 | REQ-CORE-049 | In enabled mode, feed equivalent CSM responses split at different provider-delta boundaries; verify each delta is processed immediately, no timer batching is used, stable components are updated, malformed markup is visibly escaped, and CSM tables, MathML, literal code, h1-h6, and blockquote blocks commit as native or selectable components only at complete boundaries; self-closing horizontal rules emit immediately as native separators. Covered by parser boundary tests and display-backed incremental table/MathML/code/rule/heading/blockquote stack tests, including literal-character preservation, malformed-rule, mismatched-heading, non-exact-opening, and incomplete-blockquote fallback, prefix/native/suffix order, repeated native blocks, empty blockquotes, and empty provisional-view cleanup.
 | DEM-007 | REQ-CORE-055 | Start a long tool execution; press Stop; verify tool is cancelled and agent exits cleanly |
@@ -924,6 +927,13 @@ assertions and zero unexpected errors. Measured execution time is 34.3 seconds
 wall time after the test executable is built. AUnit global and per-case timing
 are enabled. The recursion-depth subprocess test is opt-in with
 `COYOTE_TEST_SUBAGENT=1`; live-provider tests remain separately guarded.
+
+**Baseline after PCR-097 replay-format qualification (2026-09-07):**
+The replay path now selects each persisted assistant message format before
+rendering its text and restores the configured live GUI mode afterward. Missing
+or unknown format metadata remains Markdown. The production and test
+development builds succeed; the focused replay regression passes with zero
+failed assertions. The registered development baseline is now 862 tests.
 
 **Baseline after sandbox profile draft-manager implementation (2026-09-06):**
 Implemented the always-visible multi-profile draft editor, dirty indicators,

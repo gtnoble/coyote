@@ -29,10 +29,11 @@ client-controlled work product gets an entry here.
   parser, message-format, persistence, legacy-fallback, environment-flag,
   incremental native table, incremental native MathML, incremental native code,
   mixed-order lifecycle, empty provisional-view, malformed MathML-opening, and
-  empty complete-block, horizontal-rule, heading, and blockquote coverage are
-  complete. The complete development suite passes 860/860 with zero failed
-  assertions and zero unexpected errors; the focused parser suite passes 16/16
-  and the display-backed conversation-stack suite passes 29/29.
+  empty complete-block, horizontal-rule, heading, blockquote, replay-format,
+  and response-format RPC coverage are complete. The complete development
+  suite passes 862/862 with zero failed assertions and zero unexpected errors;
+  the focused parser suite passes 16/16 and the display-backed
+  conversation-stack suite passes 29/29.
 - **Status:** Implemented and display-qualified for the restricted CSM
   text/table/math/code/rule/heading/blockquote slice; malformed prefixed tags
   are safely visible and broader CSM grammar expansion remains future work.

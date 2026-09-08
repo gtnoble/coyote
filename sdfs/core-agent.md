@@ -31,7 +31,10 @@ documents, complete `<code>` blocks, and self-closing `<hr/>`/`<hr />` elements.
 Native table and MathML components, selectable monospace code components, and
 native horizontal separators are realized at their defined boundaries without
 delta batching. Parser, type, persistence, flag, and GUI component tests pass.
-The CSM grammar remains intentionally restricted.
+The CSM grammar remains intentionally restricted.  The selected response
+format is now also passed into `LLM.System_Prompt.Build_System_Prompt`, which
+adds CSM-only generation guidance and suppresses the Markdown `$$` display-math
+wrapper. Markdown and Plain sessions retain their existing prompt behavior.
 
 ## 2026-09-07 — PCR-097 code-block extension verification
 
@@ -64,12 +67,21 @@ errors; the focused parser suite passes 15/15 and the display-backed
 conversation-stack suite passes 28/28. Existing Markdown/default-off behavior is
 unchanged.
 
+## 2026-09-07 — PCR-097 replay-format compatibility verification
+
+Session replay now selects each persisted assistant message format before its
+text is emitted, treats missing or unknown metadata as Markdown, restores the
+configured live GUI mode after replay, and carries the selection through the
+versioned coordinator RPC event path. The focused history replay and RPC codec
+regressions pass with zero failed assertions; production and test development
+builds succeed.
+
 ## 2026-09-07 — PCR-097 blockquote extension verification
 
 The additive CSM blockquote slice adds split-boundary, empty-block, incomplete
 flush, and non-exact-opening parser coverage plus display-backed framed,
 selectable native text and text-blockquote-text ordering coverage. The complete
-development suite passes 860/860 with zero failed assertions and zero unexpected
+development suite passes 862/862 with zero failed assertions and zero unexpected
 errors; the focused parser suite passes 16/16 and the display-backed
 conversation-stack suite passes 29/29. Existing Markdown/default-off behavior is
 unchanged.

@@ -4,6 +4,7 @@ with Coyote_App_Agent_RPC_Service_Tests;
 with Coyote_App_Agent_RPC_Tests;
 with Coyote_App_Agent_RPC_Transport_Tests;
 with Coyote_App_Tests;
+with Coyote_App_History_Tests;
 with Coyote_Utils_Tests;
 with Collapse_Utils_Tests;
 with Model_Row_Match_Tests;
@@ -25,6 +26,7 @@ package body Test_Core_Suite is
       Result.Add_Test (Coyote_App_Agent_RPC_Tests.Suite);
       Result.Add_Test (Coyote_App_Agent_RPC_Transport_Tests.Suite);
       Result.Add_Test (Coyote_App_Tests.Suite);
+      Result.Add_Test (Coyote_App_History_Tests.Suite);
       Result.Add_Test (Coyote_Utils_Tests.Suite);
       Result.Add_Test (Collapse_Utils_Tests.Suite);
       Result.Add_Test (Model_Row_Match_Tests.Suite);

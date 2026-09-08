@@ -1,8 +1,8 @@
 # coyote Requirements Specification (SRS-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.23
-**Date:** 2026-09-06
+**Version:** 1.24
+**Date:** 2026-09-07
 **Status:** Draft
 **Project Plan:** `plan/project-plan.md`
 
@@ -301,14 +301,19 @@ GUI frontend shall opt into the accepted incremental-markup presentation path.
 When the variable is absent or set to `0`, the existing Markdown presentation
 path shall remain the default. The variable shall affect live GUI assistant
 rendering only; Plain output and existing Markdown history replay shall retain
-their current semantics.
+their current semantics. Session replay shall use the persisted format of each
+assistant message; missing or unknown format metadata shall mean Markdown.
 
 **REQ-CORE-048** (D/T/I)
 In incremental-markup mode, coyote shall select and record the response format
 application-side before the first assistant text delta. The model shall not be
 relied upon to author authoritative message metadata. Missing format metadata
 in older session records shall mean Markdown. Markdown shall remain a supported
-input and persistence format.
+input and persistence format. When `Format_Coyote_Stream` is selected, the
+system prompt shall instruct the model to use only coyote's restricted CSM
+syntax and shall prohibit arbitrary HTML/XML and Markdown `$$` display-math
+delimiters. Markdown and Plain mode shall retain the existing Markdown prompt
+guidance.
 
 **REQ-CORE-049** (D/T/I)
 In incremental-markup mode, each provider text delta shall be consumed by the
@@ -1633,7 +1638,7 @@ qualification requirements are identified.
 
 Traceability from requirements to test cases. Current test procedures and
 status are maintained in `plan/test-plan.md`; the current automated baseline
-is 762 registered tests. Native GUI qualification is complete for the
+is 862 registered tests. Native GUI qualification is complete for the
 Conversation_Stack presentation. The table below is the original qualification
 matrix and retains historical `TC-*` identifiers; current mappings are in
 `plan/test-plan.md` §6.
@@ -1671,7 +1676,7 @@ matrix and retains historical `TC-*` identifiers; current mappings are in
 | REQ-CORE-040 | Streaming assistant text | D | TC-040 |
 | REQ-CORE-041 | Streaming thinking blocks | D | TC-041 |
 | REQ-CORE-042 | Tool call events displayed | D | TC-042 |
-| REQ-CORE-047..049 | Opt-in incremental markup, application-owned format selection, immediate per-delta rendering, and completion-boundary fallback | D/T/I | DEM-055..057; source inspection |
+| REQ-CORE-047..049 | Opt-in incremental markup, application-owned format selection, immediate per-delta rendering, completion-boundary fallback, and format-specific system-prompt guidance | D/T/I | DEM-055..057; focused system-prompt tests; source inspection |
 | REQ-CORE-043 | Model-select event displayed | D | TC-043 |
 | REQ-CORE-044 | Session stats displayed | D | TC-044 |
 | REQ-CORE-045 | Auto-retry events displayed | D | TC-045 |

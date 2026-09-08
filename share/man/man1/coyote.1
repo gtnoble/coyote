@@ -137,7 +137,9 @@ enables the accepted incremental-markup path for live GUI assistant
 rendering. When unset or set to
 .BR 0 ,
 the existing Markdown path remains active. Plain output and Markdown session
-replay are unchanged. The implemented path processes each provider delta
+replay are unchanged. In enabled GUI mode, the selected CSM format also adds
+restricted CSM generation guidance to the system prompt; Plain mode retains
+Markdown guidance. The implemented path processes each provider delta
 immediately, retains partial CSM tags across deltas, and realizes complete CSM
 table, math, and literal code blocks at closing boundaries as native grids,
 Lasem-backed MathML, or selectable monospace text components. Self-closing CSM

@@ -455,6 +455,13 @@ package body Coyote_App.History is
                            Turn_Stop :=
                              To_Unbounded_String
                                (Get_String (Msg, "stopReason"));
+                           --  Replay each assistant block using its persisted
+                           --  source format. Missing or unknown metadata is
+                           --  treated as Markdown by the session contract.
+                           Frontend.Set_Response_Format
+                             (if Get_String (Msg, "format") = "coyote-stream"
+                              then LLM.Types.Format_Coyote_Stream
+                              else LLM.Types.Format_Markdown);
                            --  Render content blocks.
                            if Msg.Has_Field ("content")
                              and then
@@ -609,6 +616,14 @@ package body Coyote_App.History is
                & Ada.Exceptions.Exception_Message (Ex));
             return;
       end;
+
+      --  Restore the live GUI selection after replay.  Replay format is a
+      --  property of each persisted assistant message, not a process-wide
+      --  change to the next provider response.
+      Frontend.Set_Response_Format
+        (if Incremental_Markup_Enabled
+         then LLM.Types.Format_Coyote_Stream
+         else LLM.Types.Format_Markdown);
 
       --  Emit footer for the final rendered turn (if any).
       if In_Turn and then Saw_Asst_Text

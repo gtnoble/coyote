@@ -163,8 +163,11 @@ blocks as native or selectable components; self-closing horizontal rules are
 realized as native separators immediately, and complete h1–h6 blocks become
 selectable native heading labels at their closing boundaries. Unset or `0`
 preserves Markdown behavior; Plain output and Markdown session replay are
-unchanged. The restricted CSM grammar currently covers text, paragraphs, line
-breaks, tables, MathML, literal code blocks, horizontal rules, and headings.
+unchanged. In enabled GUI mode, the same application-selected format also adds
+restricted CSM generation guidance to the system prompt; the model does not
+set authoritative format metadata. The restricted CSM grammar currently covers
+text, paragraphs, line breaks, tables, MathML, literal code blocks, horizontal
+rules, headings, and blockquotes.
 
 ## Architecture
 
@@ -189,7 +192,7 @@ cd test && alr build
 /usr/bin/time -f 'wall=%e exit=%x' ./bin/coyote_test
 ```
 
-The current hierarchy contains 860 registered tests and passes 860/860 in
+The current hierarchy contains 862 registered tests and passes 862/862 in
 approximately 36 seconds on the development host. AUnit reports cumulative
 and per-test timing. Live provider tests remain opt-in; subagent subprocess
 tests are guarded by `COYOTE_TEST_SUBAGENT=1`.

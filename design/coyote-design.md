@@ -1,8 +1,8 @@
 # coyote Design Description (SDD-CORE)
 
 **Component:** coyote (core agent executable and shared libraries)
-**Version:** 1.26
-**Date:** 2026-09-06
+**Version:** 1.27
+**Date:** 2026-09-07
 
 **Status:** Reviewed — project control (M3 complete 2026-06-02)
 **Requirements:** `requirements/coyote-requirements.md` (SRS-CORE)
@@ -318,6 +318,8 @@ window minus the `Reserve_Tokens` margin (default 16 384).
 | `LLM.Memory` | Memory taxonomy and MEMORY.md discovery | `src/llm/llm-memory.ads/.adb` |
 | `LLM.Session_Store` | JSONL session persistence | `src/llm/llm-session_store.ads/.adb` |
 | `LLM.Agent` | Native agentic loop | `src/llm/llm-agent.ads/.adb` |
+| `Coyote_App.Frontend` | Abstract frontend streaming contract | `src/coyote_app-frontend.ads` |
+| `Coyote_App.History` | Persisted session replay and format selection | `src/coyote_app-history.ads/.adb` |
 | `Coyote_Cmark` | Ada binding to libcmark-gfm | `src/coyote_cmark.ads/.adb` |
 | `Coyote_Lasem` | Ada/C binding to Lasem Presentation MathML rendering | `src/coyote_lasem.ads/.adb`, `src/coyote_lasem_c.c` |
 | `Coyote_Renderer` | Shared GTK text/replay rendering root | `src/coyote_renderer/coyote_renderer.ads` |
@@ -1593,12 +1595,14 @@ coordinator guidance, and subagent delegation (REQ-CORE-170..174,
 REQ-CORE-180..183, REQ-CORE-190..192).
 
 **`Build (Cwd, No_Tools, Has_Editing_Tools, Agent, Context_Sections,
-Skills_Section, Memory_Block, Executable_Path, Coordinator_Mode) → String`:**
+Skills_Section, Memory_Block, Executable_Path, Coordinator_Mode,
+Response_Format) → String`:**
 Concatenates:
 
 1. **Static resource** — role description, communication style, math guidance,
-   tool guidance, delegation, coordinator, and editing-discipline prose loaded
-   from `share/coyote/system-prompt.md`.
+   tool guidance, delegation, coordinator, editing-discipline, and
+   format-specific CSM/Markdown response guidance loaded from
+   `share/coyote/system-prompt.md`.
 2. **Capability rendering** — tool descriptor, tool policy variant, coordinator
    variant, and shell-quoted subagent command are rendered into the resource.
 3. **Dynamic session sections** — agent text, settings, memory, project
@@ -2295,6 +2299,7 @@ blocking; `Agent_Resumed_Event` is emitted after unblocking.
 | REQ-CORE-030–032 | `Coyote` (entry point), `LLM.Session_Store` |
 | REQ-CORE-219 | `Coyote_App`, `LLM.Agent`, OpenRouter provider |
 | REQ-CORE-040–046 | `LLM.Agent`, `Coyote_App.Dispatch`, all frontends |
+| REQ-CORE-047–049 | `Coyote_App.History`, `Coyote_App.Frontend`, `Coyote_App.Frontend.GUI`, `Coyote_GUI.Conversation_Stack`, `LLM.Session_Store` |
 | REQ-CORE-050–055 | `LLM.Tools.Shell`, `LLM.Tools.Temp_File`, `LLM.Agent` |
 | REQ-CORE-060–064 | `LLM.Agent`, `LLM.Compaction`, `LLM.Session_Store` |
 | REQ-CORE-065–068 | `LLM.Agent`, `LLM.Compaction` |
