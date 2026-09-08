@@ -14,11 +14,12 @@ with LLM.Settings;
 with LLM.Skills;
 with LLM.Tools;
 with LLM.Tools.Shell;
+with LLM.Types;
 with Coyote_Utils;
-
 package body LLM.System_Prompt is
 
    use type Ada.Directories.File_Kind;
+   use type LLM.Types.Message_Format;
 
    package Path_Vectors is new Ada.Containers.Indefinite_Vectors
      (Index_Type   => Positive,
@@ -364,6 +365,7 @@ package body LLM.System_Prompt is
      (No_Tools          : Boolean;
       Has_Editing_Tools : Boolean;
       Coordinator_Mode  : Boolean;
+      Response_Format   : LLM.Types.Message_Format;
       Tools_Text        : String;
       Subagent_Command  : String) return String
    is
@@ -393,6 +395,18 @@ package body LLM.System_Prompt is
    begin
       Replace ("{{SHELL_TOOL}}", Tools_Text);
       Replace ("{{SUBAGENT_COMMAND}}", Subagent_Command);
+
+      if Response_Format = LLM.Types.Format_Coyote_Stream then
+         Unwrap ("{{CSM_BEGIN}}", "{{CSM_END}}");
+         Remove
+           ("{{MARKDOWN_DISPLAY_MATH_BEGIN}}",
+            "{{MARKDOWN_DISPLAY_MATH_END}}");
+      else
+         Remove ("{{CSM_BEGIN}}", "{{CSM_END}}");
+         Unwrap
+           ("{{MARKDOWN_DISPLAY_MATH_BEGIN}}",
+            "{{MARKDOWN_DISPLAY_MATH_END}}");
+      end if;
 
       if No_Tools then
          Remove ("{{TOOLS_BEGIN}}", "{{TOOLS_END}}");
@@ -432,7 +446,9 @@ package body LLM.System_Prompt is
       Skills_Section     : String  := "";
       Memory_Block       : String  := "";
       Executable_Path    : String  := "";
-      Coordinator_Mode   : Boolean := False) return String
+      Coordinator_Mode   : Boolean := False;
+      Response_Format    : LLM.Types.Message_Format :=
+        LLM.Types.Format_Markdown) return String
    is
       Result : Unbounded_String;
       Descriptor : constant LLM.Tools.Tool_Descriptor :=
@@ -450,6 +466,7 @@ package body LLM.System_Prompt is
              (No_Tools          => No_Tools,
               Has_Editing_Tools => Has_Editing_Tools,
               Coordinator_Mode  => Coordinator_Mode,
+              Response_Format   => Response_Format,
               Tools_Text        => To_String (Descriptor.Name)
                 & ": " & To_String (Descriptor.Description),
               Subagent_Command  => Subagent_Command));

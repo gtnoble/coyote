@@ -4,6 +4,7 @@ with Ada.Calendar.Formatting;
 with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
 with LLM.System_Prompt;
+with LLM.Types;
 with AUnit.Test_Caller;
 
 package body LLM_System_Prompt_Tests is
@@ -149,6 +150,50 @@ package body LLM_System_Prompt_Tests is
         (Ada.Strings.Fixed.Index (P, "Unicode math symbols directly") > 0,
          "inline-math guidance should require Unicode math symbols");
    end Test_Default_Prompt_Contains_Display_Math_Guidance;
+
+   procedure Test_Default_Prompt_Excludes_CSM_Guidance
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+
+      P : constant String :=
+        LLM.System_Prompt.Build_System_Prompt (Cwd => Test_Cwd);
+   begin
+      Assert
+        (Ada.Strings.Fixed.Index (P, "Coyote Stream Markup") = 0,
+         "Markdown prompt should exclude CSM guidance");
+      Assert
+        (Ada.Strings.Fixed.Index (P, "$$") > 0,
+         "Markdown prompt should retain display-math delimiters");
+   end Test_Default_Prompt_Excludes_CSM_Guidance;
+
+   procedure Test_Coyote_Stream_Prompt_Contains_CSM_Guidance
+     (T : in out Test)
+   is
+      pragma Unreferenced (T);
+
+      P : constant String :=
+        LLM.System_Prompt.Build_System_Prompt
+          (Cwd            => Test_Cwd,
+           Response_Format => LLM.Types.Format_Coyote_Stream);
+   begin
+      Assert
+        (Ada.Strings.Fixed.Index (P, "Coyote Stream Markup") > 0,
+         "CSM prompt should contain CSM guidance");
+      Assert
+        (Ada.Strings.Fixed.Index (P, "<table>...</table>") > 0,
+         "CSM prompt should describe table blocks");
+      Assert
+        (Ada.Strings.Fixed.Index (P, "<blockquote>...</blockquote>") > 0,
+         "CSM prompt should describe blockquotes");
+      Assert
+        (Ada.Strings.Fixed.Index (P, "Do not surround it with `$$`") > 0,
+         "CSM prompt should remove Markdown math delimiters");
+      Assert
+        (Ada.Strings.Fixed.Index (P, "{{") = 0,
+         "CSM prompt should not contain template markers");
+   end Test_Coyote_Stream_Prompt_Contains_CSM_Guidance;
+
    procedure Test_Default_Prompt_Contains_Cwd (T : in out Test) is
       pragma Unreferenced (T);
 
@@ -432,6 +477,14 @@ package body LLM_System_Prompt_Tests is
         ("LLM.System_Prompt default prompt contains math-formatting guidance",
          LLM_System_Prompt_Tests
            .Test_Default_Prompt_Contains_Display_Math_Guidance'Access));
+      Result.Add_Test (LLM_Sys_Prompt_Caller.Create
+        ("LLM.System_Prompt default prompt excludes CSM guidance",
+         LLM_System_Prompt_Tests
+           .Test_Default_Prompt_Excludes_CSM_Guidance'Access));
+      Result.Add_Test (LLM_Sys_Prompt_Caller.Create
+        ("LLM.System_Prompt CSM prompt contains CSM guidance",
+         LLM_System_Prompt_Tests
+           .Test_Coyote_Stream_Prompt_Contains_CSM_Guidance'Access));
       Result.Add_Test (LLM_Sys_Prompt_Caller.Create
         ("LLM.System_Prompt default prompt contains cwd",
          LLM_System_Prompt_Tests

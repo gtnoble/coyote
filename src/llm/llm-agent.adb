@@ -1350,6 +1350,7 @@ package body LLM.Agent is
             No_Tools          => No_Tools,
             Has_Editing_Tools => not No_Tools,
             Agent             => Agent,
+            Response_Format   => Response_Format,
             Memory_Block      =>
               (if Ada.Environment_Variables.Value
                     ("COYOTE_ENABLE_MEMORY", "0") = "1"
