@@ -1,8 +1,10 @@
 with GNATCOLL.JSON;
 use type GNATCOLL.JSON.JSON_Value_Type;
 with Ada.Characters.Handling;
+with Ada.Exceptions;
 with Ada.Strings.Fixed;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
+with Ada.Text_IO;
 with LLM.Auth;
 with LLM.Auth.GitHub_Copilot;
 with LLM.Providers.GitHub_Copilot.Catalogue;
@@ -322,13 +324,18 @@ package body LLM.Model_Registry is
       end if;
 
       --  Load the live Codex catalogue and populate the registry.  Any
-      --  failure (network error, expired subscription, etc.) is swallowed
-      --  so the agent can start with an empty codex registry.
+      --  failure (network error, expired subscription, etc.) is reported
+      --  on standard error so a degraded or empty codex registry is
+      --  never silent; the agent can still start without codex models.
       begin
          LLM.Providers.Codex.Catalogue.Load_Catalogue (Models);
       exception
-         when others =>
+         when Ex : others =>
             Models.Clear;
+            Ada.Text_IO.Put_Line
+               (Ada.Text_IO.Standard_Error,
+            "[!] Codex model registry refresh failed: "
+            & Ada.Exceptions.Exception_Message (Ex));
       end;
 
       for Item of Models loop

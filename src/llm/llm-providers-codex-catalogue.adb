@@ -218,6 +218,26 @@ package body LLM.Providers.Codex.Catalogue is
       return Default;
    end Get_Natural_Field;
 
+   --  True when the object carries a JSON boolean field with the value
+   --  True.  The live catalogue encodes capability flags such as
+   --  supports_parallel_tool_calls as booleans, not integers, so they
+   --  must not be read through the integer helper.
+   function Get_Boolean_Field
+      (Value   : GNATCOLL.JSON.JSON_Value;
+      Field   : String;
+      Default : Boolean) return Boolean
+   is
+   begin
+      if Value.Kind = GNATCOLL.JSON.JSON_Object_Type
+         and then Value.Has_Field (Field)
+         and then Value.Get (Field).Kind = GNATCOLL.JSON.JSON_Boolean_Type
+      then
+         return Value.Get (Field).Get;
+      end if;
+
+      return Default;
+   end Get_Boolean_Field;
+
    function Is_Listed (Value : GNATCOLL.JSON.JSON_Value) return Boolean is
    begin
       return Get_String_Field (Value, "visibility", "list") = "list";
@@ -291,8 +311,8 @@ package body LLM.Providers.Codex.Catalogue is
       Result.Reasoning :=
          Array_Field_Length (Value, "supported_reasoning_levels") > 0;
       Result.Supports_Tools :=
-         Get_Natural_Field
-            (Value, "supports_parallel_tool_calls", 0) > 0;
+         Get_Boolean_Field
+            (Value, "supports_parallel_tool_calls", False);
       Result.Supports_Images :=
          Array_Field_Contains (Value, "input_modalities", "image");
       return Result;
@@ -473,12 +493,19 @@ package body LLM.Providers.Codex.Catalogue is
          return;
       end if;
 
+      --  A live-fetch failure is never silent: it degrades the codex
+      --  registry (possibly to an empty model list), so it must leave a
+      --  diagnostic on standard error.
       if Cache_Result.Found then
          Ada.Text_IO.Put_Line
             (Ada.Text_IO.Standard_Error,
          "[!] Codex model catalogue fetch failed; using stale cache");
          Models := Cache_Result.Models;
       else
+         Ada.Text_IO.Put_Line
+            (Ada.Text_IO.Standard_Error,
+         "[!] Codex model catalogue fetch failed and no cache is "
+         & "available; codex models will be unavailable this run");
          Models.Clear;
       end if;
    end Load_Catalogue;

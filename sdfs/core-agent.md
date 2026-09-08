@@ -902,3 +902,26 @@ status-code parsing.  No changes to `LLM.HTTP` or provider code.
 response on the first request (CURLE_RECV_ERROR path) and asserts the
 Auto_Retry_Start event fires and the second attempt streams normally;
 full suite passes 870/870.
+
+## 2026-09-07 — Codex catalogue tool-support parsing fix (PCR-100)
+
+**Requirement:** Codex models discovered by the live catalogue shall
+retain tool capability parsed from `supports_parallel_tool_calls`, and
+catalogue refresh degradation shall never be silent.
+
+**Implementation:** The live catalogue encodes
+`supports_parallel_tool_calls` as a JSON boolean, but `Parse_Model` read
+it through `Get_Natural_Field`, whose `JSON_Int_Type` kind guard silently
+returned the default 0 — leaving `Supports_Tools = False` for every codex
+model, so `Build_Tools_Json` emitted `"[]"` and codex requests carried no
+`tools` field. The catalogue body gains `Get_Boolean_Field` (accepts only
+`JSON_Boolean_Type`, returns the caller default otherwise) and
+`Supports_Tools` now parses through it. Refresh failures are logged:
+`Load_Catalogue` reports the fetch-failure-without-cache degradation on
+standard error, and `Model_Registry.Refresh_Codex` logs unexpected
+catalogue exceptions instead of swallowing them.
+
+**Verification:** The fresh-cache catalogue test asserts
+`Supports_Tools = True` for the fixture record carrying
+`supports_parallel_tool_calls: true`, and the live-fetch test asserts the
+default stays False when the field is absent; full suite passes 870/870.

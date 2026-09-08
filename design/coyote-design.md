@@ -1688,7 +1688,16 @@ it on disk, mirroring the OpenRouter and Ollama catalogue units.
    (`image` in `input_modalities`).
 5. Cache the raw `models` array with a `fetched_at` timestamp; on fetch
    failure fall back to stale cache, or an empty catalogue when no cache
-   exists.
+   exists.  Both degradation paths are reported on standard error
+   (PCR-100): a failed fetch with cache logs the stale fallback, a failed
+   fetch without cache logs that codex models will be unavailable, and
+   `Refresh_Codex` logs unexpected catalogue exceptions instead of
+   swallowing them.
+
+   Boolean catalogue fields (for example `supports_parallel_tool_calls`)
+   are parsed through a dedicated boolean helper that accepts only
+   `JSON_Boolean_Type` values; integer fields must not be reinterpreted
+   as booleans (PCR-100).
 
 **No hardcoded model data:** the package carries no model-specific
 knowledge; every attribute comes from the backend response.

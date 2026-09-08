@@ -236,6 +236,9 @@ package body LLM_Codex_Catalogue_Tests is
          (Models.Element (Astra).Max_Context_Window = 872_000,
        "max_context_window should be parsed from the fixture");
       Assert
+         (Models.Element (Astra).Supports_Tools,
+       "supports_parallel_tool_calls (JSON boolean) should enable tools");
+      Assert
          (To_String (Models.Element (Astra).Name) /= "",
        "display_name should become the model name");
 
@@ -313,6 +316,14 @@ package body LLM_Codex_Catalogue_Tests is
       Assert
         (Find_Model (Models, "codex-auto-review") = 0,
          "Live fetch should exclude hidden models");
+      declare
+         Mini : constant Natural := Find_Model (Models, "gpt-5.4-mini");
+      begin
+         Assert
+           (Mini > 0 and then not Models.Element (Mini).Supports_Tools,
+            "Payload without supports_parallel_tool_calls should leave "
+            & "tool support disabled");
+      end;
 
       Restore_Env ("COYOTE_CODEX_BASE_URL", Base_Was_Set, Old_Base);
       Restore_Env ("HOME", Home_Was_Set, Old_Home);

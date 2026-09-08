@@ -3262,3 +3262,37 @@ zero failed assertions and zero unexpected errors. The post-cutover suite has
 - **Verification:** Production and test development builds succeed; the full
   AUnit suite passes 846/846.
 - **Status:** Implemented.
+
+
+## PCR-100 — Codex tool support dropped by catalogue boolean parsing
+
+- **Date reported:** 2026-09-07
+- **Category:** Code, Test
+- **Priority:** 1-Critical
+- **Description:** After the Codex model registry switched from hardcoded
+  parameters to the live backend catalogue (PCR-097 follow-up commits
+  67ca2c0, 5eebd59), every codex model silently lost tool support. The live
+  catalogue encodes `supports_parallel_tool_calls` as a JSON boolean, but
+  `Parse_Model` read it through `Get_Natural_Field`, which only accepts
+  `JSON_Int_Type` values and silently returned the default 0. With
+  `Supports_Tools = False`, `Build_Tools_Json` returned `"[]"`, so codex
+  requests carried no `tools` field. The model could not emit any
+  `function_call`, produced repeated narration-only assistant turns with
+  zero tool calls, and turns ended only through user aborts. Existing tests
+  asserted no `Supports_Tools` value, so the full suite passed while every
+  codex model was degraded.
+- **Affected work products:** `LLM.Providers.Codex.Catalogue` body,
+  `LLM.Model_Registry.Refresh_Codex`, codex catalogue tests, and this
+  change log.
+- **Corrective action:** Added `Get_Boolean_Field` to the catalogue body
+  (accepts only `JSON_Boolean_Type` values, returns a caller default
+  otherwise) and parsed `Supports_Tools` through it. Refresh failures are
+  no longer silent: `Load_Catalogue` logs the fetch-failure-without-cache
+  degradation path on standard error, and `Refresh_Codex` logs unexpected
+  exceptions from the catalogue load instead of swallowing them.
+- **Verification:** The fresh-cache catalogue test now asserts
+  `Supports_Tools` is parsed True for the fixture's
+  `supports_parallel_tool_calls: true` record and that a payload without
+  the field leaves tool support disabled. Production and test development
+  builds succeed; the full AUnit suite passes 870/870.
+- **Status:** Implemented.
