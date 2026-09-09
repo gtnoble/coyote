@@ -173,13 +173,23 @@ package body Coyote_SQC.UI.Toolbar is
       Toolbar.Pack_Start (Sep, False, False, 4);
 
       --  Show All button.
-      Gtk.Button.Gtk_New_With_Mnemonic (Show_All, "_Show All");
+      Gtk.Button.Gtk_New_From_Icon_Name
+        (Show_All, "zoom-fit-best", Gtk.Enums.Icon_Size_Button);
+      Show_All.Set_Label ("_Show All");
+      Show_All.Set_Use_Underline (True);
+      Show_All.Set_Always_Show_Image (True);
       Show_All.On_Clicked (On_Show_All_Clicked'Access);
+      Show_All.Set_Tooltip_Text ("Show the complete chart range");
       Toolbar.Pack_Start (Show_All, False, False, 0);
 
       --  Y-Fit button.
-      Gtk.Button.Gtk_New_With_Mnemonic (Y_Fit, "_Y-Fit");
+      Gtk.Button.Gtk_New_From_Icon_Name
+        (Y_Fit, "zoom-fit-best", Gtk.Enums.Icon_Size_Button);
+      Y_Fit.Set_Label ("_Y-Fit");
+      Y_Fit.Set_Use_Underline (True);
+      Y_Fit.Set_Always_Show_Image (True);
       Y_Fit.On_Clicked (On_Y_Fit_Clicked'Access);
+      Y_Fit.Set_Tooltip_Text ("Fit the chart Y axis to visible data");
       Toolbar.Pack_Start (Y_Fit, False, False, 0);
 
       --  Run Sequence checkbox.

@@ -1081,6 +1081,23 @@ later run groups no longer appear active prematurely.
 The native conversation lifecycle regression covers queued → running → timed
 out transitions and passes 1/1 focused, 22/22 in the conversation-stack group.
 
+## 2026-09-09 — Icon-assisted action controls and session relations
+
+Native tool-card `View Details`, `Abort`, and `Abort With Message...` buttons
+now use semantic GTK theme icons (`document-properties`, `process-stop`, and
+`mail-message-new`) while retaining their text labels, focus behavior,
+sensitivity, and tooltips. The SQC `Show All` and `Y-Fit` toolbar actions use
+`zoom-fit-best` beside their mnemonic labels and expose action-specific
+tooltips. The Open Session tree now labels its relation column and renders
+`Root`, `Subagent`, or `Fork` text alongside the existing relation glyphs,
+so session lineage remains understandable without relying on a glyph alone.
+
+No emoji were added: menus, statistical content, chart markers, and user
+content remain text- or data-led in accordance with the IRIX interaction and
+accessibility guidance. Production and test development builds succeed; the
+focused conversation GUI group passes 24/24 and the complete AUnit suite
+passes 874/874.
+
 ## 2026-09-09 — Horizontal tool-card action row
 
 Tool-card `View Details`, `Abort`, and `Abort With Message...` controls now share

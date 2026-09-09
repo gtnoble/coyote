@@ -1028,7 +1028,10 @@ package body Coyote_GUI.Conversation_Stack is
          end if;
       end;
 
-      Gtk.Button.Gtk_New (Details, "View Details");
+      Gtk.Button.Gtk_New_From_Icon_Name
+        (Details, "document-properties", Gtk.Enums.Icon_Size_Button);
+      Details.Set_Label ("View Details");
+      Details.Set_Always_Show_Image (True);
       Details.Set_Can_Focus (True);
       Details.Set_Sensitive (True);
       Details.Set_Tooltip_Text
@@ -1045,7 +1048,10 @@ package body Coyote_GUI.Conversation_Stack is
       Action_Box.Pack_Start
         (Details, Expand => False, Fill => False, Padding => 0);
 
-      Gtk.Button.Gtk_New (Abort_Button, "Abort");
+      Gtk.Button.Gtk_New_From_Icon_Name
+        (Abort_Button, "process-stop", Gtk.Enums.Icon_Size_Button);
+      Abort_Button.Set_Label ("Abort");
+      Abort_Button.Set_Always_Show_Image (True);
       Abort_Button.Set_Can_Focus (True);
       Abort_Button.Set_Sensitive
         (Initial_Status in Coyote_GUI.Queued .. Coyote_GUI.Running);
@@ -1058,7 +1064,12 @@ package body Coyote_GUI.Conversation_Stack is
          Tool_Id => To_Unbounded_String (Tool_Id)));
       Action_Box.Pack_Start
         (Abort_Button, Expand => False, Fill => False, Padding => 0);
-      Gtk.Button.Gtk_New (Abort_Message_Button, "Abort With Message...");
+      Gtk.Button.Gtk_New_From_Icon_Name
+        (Abort_Message_Button,
+         "mail-message-new",
+         Gtk.Enums.Icon_Size_Button);
+      Abort_Message_Button.Set_Label ("Abort With Message...");
+      Abort_Message_Button.Set_Always_Show_Image (True);
       Abort_Message_Button.Set_Can_Focus (True);
       Abort_Message_Button.Set_Sensitive
         (Initial_Status in Coyote_GUI.Queued .. Coyote_GUI.Running);

@@ -2258,7 +2258,7 @@ package body Coyote_App.Frontend.GUI is
 
       --  Column indices (Guint for GType_Array / Set_Tooltip_Column;
       --  cast to Gint at Store.Set / Add_Text_Column / Get_Value call sites).
-      Col_Kind    : constant Glib.Guint := 0;
+      Col_Relation : constant Glib.Guint := 0;
       Col_Name    : constant Glib.Guint := 1;
       Col_Date    : constant Glib.Guint := 2;
       Col_Snippet : constant Glib.Guint := 3;
@@ -2321,13 +2321,13 @@ package body Coyote_App.Frontend.GUI is
       is
          use Ada.Strings.Unbounded;
          Row        : Gtk_Tree_Iter;
-         Kind_Glyph : constant String :=
-           (if Ada.Strings.Unbounded.Length (Info.Parent_Id) = 0 then ""
-            elsif Info.Is_Fork then UC_Fork_R
-            else UC_Hook_R);
+         Relation_Text : constant String :=
+           (if Ada.Strings.Unbounded.Length (Info.Parent_Id) = 0 then "Root"
+            elsif Info.Is_Fork then UC_Fork_R & " Fork"
+            else UC_Hook_R & " Subagent");
       begin
          Store.Append (Row, Parent);
-         Store.Set (Row, Glib.Gint (Col_Kind), Kind_Glyph);
+         Store.Set (Row, Glib.Gint (Col_Relation), Relation_Text);
          Store.Set (Row, Glib.Gint (Col_Name), To_String (Info.Name));
          Store.Set (Row, Glib.Gint (Col_Date), To_String (Info.Date));
          Store.Set
@@ -2371,14 +2371,14 @@ package body Coyote_App.Frontend.GUI is
       Sessions :=
         Session_Lister.List_Sessions (Ada.Directories.Current_Directory);
 
-      --  Build the tree store (Kind, Name, Date, Snippet, UUID).
+      --  Build the tree store (Relation, Name, Date, Snippet, UUID).
       Gtk.Tree_Store.Gtk_New
         (Store,
-         (Col_Kind    => Glib.GType_String,
-          Col_Name    => Glib.GType_String,
-          Col_Date    => Glib.GType_String,
-          Col_Snippet => Glib.GType_String,
-          Col_UUID    => Glib.GType_String));
+         (Col_Relation => Glib.GType_String,
+          Col_Name     => Glib.GType_String,
+          Col_Date     => Glib.GType_String,
+          Col_Snippet  => Glib.GType_String,
+          Col_UUID     => Glib.GType_String));
 
       --  Populate: render roots; children are added recursively.
       for S of Sessions loop
@@ -2390,7 +2390,7 @@ package body Coyote_App.Frontend.GUI is
       Gtk.Tree_View.Gtk_New (View, +Store);
       View.On_Row_Activated (On_List_Row_Activated'Access);
       View.Set_Tooltip_Column (Glib.Gint (Col_Snippet));
-      Add_Text_Column ("", Col_Kind);
+      Add_Text_Column ("Relation", Col_Relation);
       Add_Text_Column ("Name", Col_Name);
       Add_Text_Column ("Date", Col_Date);
       Add_Text_Column ("Snippet", Col_Snippet);
